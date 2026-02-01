@@ -1,0 +1,3 @@
+[submodule "external/elk"]
+	path = external/elk
+	url = https://github.com/eclipse-elk/elk

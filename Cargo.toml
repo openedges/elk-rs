@@ -1,0 +1,6 @@
+[workspace]
+members = [
+  "plugins/org.eclipse.elk.graph",
+  "plugins/org.eclipse.elk.core",
+]
+resolver = "2"

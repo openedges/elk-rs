@@ -1,0 +1,7 @@
+[package]
+name = "org-eclipse-elk-graph"
+version = "0.1.0"
+edition = "2021"
+license = "EPL-2.0"
+
+[dependencies]
