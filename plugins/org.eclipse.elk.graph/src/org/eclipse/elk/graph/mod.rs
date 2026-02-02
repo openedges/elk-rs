@@ -83,11 +83,18 @@ impl ElkConnectableShapeWeak {
 }
 
 impl ElkConnectableShapeRef {
-    fn ptr_eq(&self, other: &ElkConnectableShapeRef) -> bool {
+    pub fn ptr_eq(&self, other: &ElkConnectableShapeRef) -> bool {
         match (self, other) {
             (ElkConnectableShapeRef::Node(a), ElkConnectableShapeRef::Node(b)) => Rc::ptr_eq(a, b),
             (ElkConnectableShapeRef::Port(a), ElkConnectableShapeRef::Port(b)) => Rc::ptr_eq(a, b),
             _ => false,
+        }
+    }
+
+    pub fn downgrade(&self) -> ElkConnectableShapeWeak {
+        match self {
+            ElkConnectableShapeRef::Node(node) => ElkConnectableShapeWeak::Node(Rc::downgrade(node)),
+            ElkConnectableShapeRef::Port(port) => ElkConnectableShapeWeak::Port(Rc::downgrade(port)),
         }
     }
 }
@@ -320,6 +327,13 @@ impl NodePortList {
 
     pub fn iter(&self) -> impl Iterator<Item = &ElkPortRef> {
         self.items.iter()
+    }
+
+    pub fn sort_by<F>(&mut self, mut comparator: F)
+    where
+        F: FnMut(&ElkPortRef, &ElkPortRef) -> std::cmp::Ordering,
+    {
+        self.items.sort_by(|a, b| comparator(a, b));
     }
 }
 
@@ -626,6 +640,27 @@ impl EdgeSectionList {
 
     pub fn get(&self, index: usize) -> Option<ElkEdgeSectionRef> {
         self.items.get(index).cloned()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &ElkEdgeSectionRef> {
+        self.items.iter()
+    }
+
+    pub fn clear(&mut self) {
+        for section in self.items.drain(..) {
+            section.borrow_mut().parent = None;
+        }
+    }
+
+    pub fn retain_last(&mut self) {
+        if self.items.len() <= 1 {
+            return;
+        }
+        let last = self.items.pop().expect("list not empty");
+        for section in self.items.drain(..) {
+            section.borrow_mut().parent = None;
+        }
+        self.items.push(last);
     }
 }
 
@@ -1139,6 +1174,10 @@ pub struct ElkEdgeSection {
     end_y: f64,
     bend_points: Vec<ElkBendPointRef>,
     parent: Option<ElkEdgeWeak>,
+    outgoing_shape: Option<ElkConnectableShapeWeak>,
+    incoming_shape: Option<ElkConnectableShapeWeak>,
+    outgoing_sections: Vec<ElkEdgeSectionWeak>,
+    incoming_sections: Vec<ElkEdgeSectionWeak>,
     identifier: Option<String>,
 }
 
@@ -1152,6 +1191,10 @@ impl ElkEdgeSection {
             end_y: 0.0,
             bend_points: Vec::new(),
             parent: None,
+            outgoing_shape: None,
+            incoming_shape: None,
+            outgoing_sections: Vec::new(),
+            incoming_sections: Vec::new(),
             identifier: None,
         }))
     }
@@ -1183,6 +1226,54 @@ impl ElkEdgeSection {
 
     pub fn parent(&self) -> Option<ElkEdgeRef> {
         self.parent.as_ref().and_then(|parent| parent.upgrade())
+    }
+
+    pub fn outgoing_shape(&self) -> Option<ElkConnectableShapeRef> {
+        self.outgoing_shape
+            .as_ref()
+            .and_then(|shape| shape.upgrade())
+    }
+
+    pub fn set_outgoing_shape(&mut self, shape: Option<ElkConnectableShapeRef>) {
+        self.outgoing_shape = shape.as_ref().map(|value| value.downgrade());
+    }
+
+    pub fn incoming_shape(&self) -> Option<ElkConnectableShapeRef> {
+        self.incoming_shape
+            .as_ref()
+            .and_then(|shape| shape.upgrade())
+    }
+
+    pub fn set_incoming_shape(&mut self, shape: Option<ElkConnectableShapeRef>) {
+        self.incoming_shape = shape.as_ref().map(|value| value.downgrade());
+    }
+
+    pub fn outgoing_sections(&self) -> Vec<ElkEdgeSectionRef> {
+        self.outgoing_sections
+            .iter()
+            .filter_map(|section| section.upgrade())
+            .collect()
+    }
+
+    pub fn set_outgoing_sections(&mut self, sections: Vec<ElkEdgeSectionRef>) {
+        self.outgoing_sections = sections
+            .into_iter()
+            .map(|section| Rc::downgrade(&section))
+            .collect();
+    }
+
+    pub fn incoming_sections(&self) -> Vec<ElkEdgeSectionRef> {
+        self.incoming_sections
+            .iter()
+            .filter_map(|section| section.upgrade())
+            .collect()
+    }
+
+    pub fn set_incoming_sections(&mut self, sections: Vec<ElkEdgeSectionRef>) {
+        self.incoming_sections = sections
+            .into_iter()
+            .map(|section| Rc::downgrade(&section))
+            .collect();
     }
 
     pub fn start_x(&self) -> f64 {

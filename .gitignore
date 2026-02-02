@@ -6,3 +6,7 @@
 .DS_Store
 .idea/
 .vscode/
+
+# Perf artifacts
+/perf/*.csv
+/perf/summary.md

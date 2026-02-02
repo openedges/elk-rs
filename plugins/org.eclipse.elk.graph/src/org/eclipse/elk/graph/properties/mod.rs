@@ -205,6 +205,23 @@ impl MapPropertyHolder {
         self
     }
 
+    pub fn set_property_any(
+        &mut self,
+        property_id: impl Into<String>,
+        value: Option<Arc<dyn Any + Send + Sync>>,
+    ) -> &mut Self {
+        match value {
+            Some(value) => {
+                self.property_map
+                    .insert(property_id.into(), PropertyValue::Resolved(value));
+            }
+            None => {
+                self.property_map.remove(&property_id.into());
+            }
+        }
+        self
+    }
+
     pub fn get_property<T: Clone + Send + Sync + 'static>(
         &mut self,
         property: &Property<T>,
@@ -253,6 +270,14 @@ impl MapPropertyHolder {
     pub fn get_all_properties(&self) -> &HashMap<String, PropertyValue> {
         &self.property_map
     }
+
+    pub fn has_property_id(&self, property_id: &str) -> bool {
+        self.property_map.contains_key(property_id)
+    }
+
+    pub fn clear(&mut self) {
+        self.property_map.clear();
+    }
 }
 
 impl Default for MapPropertyHolder {
@@ -261,7 +286,7 @@ impl Default for MapPropertyHolder {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub enum GraphFeature {
     SelfLoops,
     InsideSelfLoops,

@@ -644,8 +644,8 @@ impl ElkMath {
         }
 
         for row in 0..DEGREE {
-            for column in 0..=DEGREE {
-                cd_table[row][column] = d[row].x * c[column].x + d[row].y * c[column].y;
+            for (column, c_column) in c.iter().enumerate() {
+                cd_table[row][column] = d[row].x * c_column.x + d[row].y * c_column.y;
             }
         }
 

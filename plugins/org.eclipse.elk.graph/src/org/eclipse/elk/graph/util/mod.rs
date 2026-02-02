@@ -73,6 +73,15 @@ impl ElkReflect {
             .map(|boxed| *boxed)
     }
 
+    pub fn clone_any(value: &dyn Any) -> Option<Box<dyn Any + Send + Sync>> {
+        let registry = CLONE_REGISTRY.get_or_init(|| Mutex::new(HashMap::new()));
+        registry
+            .lock()
+            .unwrap()
+            .get(&value.type_id())
+            .and_then(|clone_fn| clone_fn(value))
+    }
+
     pub fn has_clone<T: Send + Sync + 'static>() -> bool {
         let registry = CLONE_REGISTRY.get_or_init(|| Mutex::new(HashMap::new()));
         registry.lock().unwrap().contains_key(&TypeId::of::<T>())

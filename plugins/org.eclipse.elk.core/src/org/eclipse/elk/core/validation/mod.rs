@@ -2,6 +2,18 @@ use std::fmt;
 
 use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkGraphElementRef;
 
+use crate::org::eclipse::elk::core::util::IGraphElementVisitor;
+
+pub mod graph_validator;
+pub mod layout_option_validator;
+
+pub use graph_validator::GraphValidator;
+pub use layout_option_validator::LayoutOptionValidator;
+
+pub trait IValidatingGraphElementVisitor: IGraphElementVisitor {}
+
+impl<T: IGraphElementVisitor> IValidatingGraphElementVisitor for T {}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Severity {
     Error,
