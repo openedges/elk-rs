@@ -11,3 +11,7 @@ Scripts overview:
 - `run_perf_and_check.sh [threshold] [window]` (perf + compare + summary + regression gate)
 - `run_all_checks.sh [threshold] [window]` (cargo test, clippy, perf gate)
 - `run_fast_checks.sh` (cargo test, clippy only)
+
+CI workflows (GitHub Actions):
+- `.github/workflows/ci.yml` runs `run_fast_checks.sh` on push/PR.
+- `.github/workflows/perf.yml` runs perf scripts on manual dispatch and uploads CSV/summary artifacts.

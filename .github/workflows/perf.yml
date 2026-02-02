@@ -1,0 +1,22 @@
+name: Perf
+
+on:
+  workflow_dispatch:
+
+jobs:
+  perf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run perf scripts
+        run: sh scripts/run_perf_all.sh
+      - name: Summarize perf results
+        run: sh scripts/summarize_perf_results.sh
+      - name: Upload perf artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-results
+          path: |
+            perf/*.csv
+            perf/summary.md
