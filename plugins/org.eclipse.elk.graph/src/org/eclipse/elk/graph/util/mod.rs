@@ -7,6 +7,10 @@ use crate::org::eclipse::elk::graph::{
     ElkPortRef,
 };
 
+mod graph_identifier_generator;
+
+pub use graph_identifier_generator::GraphIdentifierGenerator;
+
 pub struct ElkReflect;
 
 type NewInstanceFn = Box<dyn Fn() -> Box<dyn Any + Send + Sync> + Send + Sync>;
