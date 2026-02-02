@@ -12,6 +12,8 @@ pub use elk_graph_adapters::{
     ElkPortAdapter, PortComparator, DEFAULT_PORTLIST_SORTER,
 };
 
+pub struct GraphAdapters;
+
 pub trait GraphElementAdapter<T> {
     fn get_size(&self) -> KVector;
     fn set_size(&self, size: KVector);
