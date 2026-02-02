@@ -2,6 +2,79 @@ name: Perf
 
 on:
   workflow_dispatch:
+    inputs:
+      comment_count:
+        description: "Comment attachment count"
+        required: false
+        default: "2000"
+      comment_iterations:
+        description: "Comment attachment iterations"
+        required: false
+        default: "5"
+      comment_warmup:
+        description: "Comment attachment warmup iterations"
+        required: false
+        default: "1"
+      comment_output:
+        description: "Comment attachment output CSV path"
+        required: false
+        default: "perf/results_comment_attachment.csv"
+      graph_nodes:
+        description: "Graph validation node count"
+        required: false
+        default: "1000"
+      graph_edges:
+        description: "Graph validation edge count"
+        required: false
+        default: "2000"
+      graph_iterations:
+        description: "Graph validation iterations"
+        required: false
+        default: "5"
+      graph_warmup:
+        description: "Graph validation warmup iterations"
+        required: false
+        default: "1"
+      graph_mode:
+        description: "Graph validation mode (nodes|edges|both)"
+        required: false
+        default: "both"
+      graph_output:
+        description: "Graph validation output CSV path"
+        required: false
+        default: "perf/results_graph_validation.csv"
+      layout_nodes:
+        description: "Recursive layout node count"
+        required: false
+        default: "500"
+      layout_edges:
+        description: "Recursive layout edge count"
+        required: false
+        default: "1000"
+      layout_iterations:
+        description: "Recursive layout iterations"
+        required: false
+        default: "5"
+      layout_warmup:
+        description: "Recursive layout warmup iterations"
+        required: false
+        default: "1"
+      layout_algorithm:
+        description: "Recursive layout algorithm"
+        required: false
+        default: "fixed"
+      layout_validate_graph:
+        description: "Validate graph before layout (true|false)"
+        required: false
+        default: "false"
+      layout_validate_options:
+        description: "Validate options before layout (true|false)"
+        required: false
+        default: "false"
+      layout_output:
+        description: "Recursive layout output CSV path"
+        required: false
+        default: "perf/results_recursive_layout.csv"
 
 jobs:
   perf:
@@ -11,6 +84,25 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Run perf scripts
         run: sh scripts/run_perf_all.sh
+        env:
+          COMMENT_COUNT: ${{ inputs.comment_count }}
+          COMMENT_ITERATIONS: ${{ inputs.comment_iterations }}
+          COMMENT_WARMUP: ${{ inputs.comment_warmup }}
+          COMMENT_OUTPUT: ${{ inputs.comment_output }}
+          GRAPH_NODES: ${{ inputs.graph_nodes }}
+          GRAPH_EDGES: ${{ inputs.graph_edges }}
+          GRAPH_ITERATIONS: ${{ inputs.graph_iterations }}
+          GRAPH_WARMUP: ${{ inputs.graph_warmup }}
+          GRAPH_MODE: ${{ inputs.graph_mode }}
+          GRAPH_OUTPUT: ${{ inputs.graph_output }}
+          LAYOUT_NODES: ${{ inputs.layout_nodes }}
+          LAYOUT_EDGES: ${{ inputs.layout_edges }}
+          LAYOUT_ITERATIONS: ${{ inputs.layout_iterations }}
+          LAYOUT_WARMUP: ${{ inputs.layout_warmup }}
+          LAYOUT_ALGORITHM: ${{ inputs.layout_algorithm }}
+          LAYOUT_VALIDATE_GRAPH: ${{ inputs.layout_validate_graph }}
+          LAYOUT_VALIDATE_OPTIONS: ${{ inputs.layout_validate_options }}
+          LAYOUT_OUTPUT: ${{ inputs.layout_output }}
       - name: Summarize perf results
         run: sh scripts/summarize_perf_results.sh
       - name: Upload perf artifacts
