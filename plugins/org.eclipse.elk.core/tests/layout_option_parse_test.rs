@@ -1,7 +1,7 @@
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::{ElkMargin, ElkPadding, KVector, KVectorChain};
-use org_eclipse_elk_core::org::eclipse::elk::core::options::CoreOptions;
-use org_eclipse_elk_core::org::eclipse::elk::core::util::IndividualSpacings;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::{CoreOptions, Direction, NodeLabelPlacement};
+use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, IndividualSpacings};
 
 #[test]
 fn parse_object_options_kvector_and_chain() {
@@ -91,4 +91,41 @@ fn parse_object_option_individual_spacings() {
         .get_property(CoreOptions::NODE_LABELS_PADDING)
         .expect("nodeLabels.padding");
     assert_eq!(padding, ElkPadding::with_values(1.0, 4.0, 3.0, 2.0));
+}
+
+#[test]
+fn parse_enum_and_enumset_options() {
+    let service = LayoutMetaDataService::get_instance();
+
+    let direction_option = service
+        .get_option_data_by_suffix("direction")
+        .expect("direction option");
+    let parsed = direction_option
+        .parse_value("DOWN")
+        .expect("direction parsed");
+    let direction = parsed
+        .downcast_ref::<Direction>()
+        .expect("Direction");
+    assert_eq!(*direction, Direction::Down);
+
+    let parsed = direction_option
+        .parse_value("3")
+        .expect("direction ordinal parsed");
+    let direction = parsed
+        .downcast_ref::<Direction>()
+        .expect("Direction");
+    assert_eq!(*direction, Direction::Down);
+
+    let placement_option = service
+        .get_option_data_by_suffix("nodeLabels.placement")
+        .expect("nodeLabels.placement option");
+    let parsed = placement_option
+        .parse_value("[H_CENTER, V_TOP, INSIDE]")
+        .expect("nodeLabels.placement parsed");
+    let placement = parsed
+        .downcast_ref::<EnumSet<NodeLabelPlacement>>()
+        .expect("EnumSet<NodeLabelPlacement>");
+    assert!(placement.contains(&NodeLabelPlacement::HCenter));
+    assert!(placement.contains(&NodeLabelPlacement::VTop));
+    assert!(placement.contains(&NodeLabelPlacement::Inside));
 }
