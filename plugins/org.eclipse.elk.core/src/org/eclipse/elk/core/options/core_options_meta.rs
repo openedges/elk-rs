@@ -8,13 +8,16 @@ use crate::org::eclipse::elk::core::data::{
     ILayoutMetaDataProvider, LayoutCategoryData, LayoutMetaDataRegistry, LayoutOptionData,
     LayoutOptionTarget, LayoutOptionType, LayoutOptionVisibility,
 };
+use crate::org::eclipse::elk::core::math::{ElkMargin, ElkPadding, KVector, KVectorChain};
 use crate::org::eclipse::elk::core::options::{
     Alignment, ContentAlignment, CoreOptions, Direction, EdgeCoords, EdgeLabelPlacement, EdgeRouting,
     EdgeType, HierarchyHandling, NodeLabelPlacement, PortAlignment, PortConstraints,
     PortLabelPlacement, PortSide, ShapeCoords, SizeConstraint, SizeOptions, TopdownNodeTypes,
     TopdownSizeApproximator,
 };
-use crate::org::eclipse::elk::core::util::{EnumSet, EnumSetType, ExclusiveBounds};
+use crate::org::eclipse::elk::core::util::{
+    EnumSet, EnumSetType, ExclusiveBounds, IndividualSpacings,
+};
 
 type ParserFn = Arc<dyn Fn(&str) -> Option<Arc<dyn Any + Send + Sync>> + Send + Sync>;
 
@@ -1468,6 +1471,11 @@ fn register_option<T: Clone + Send + Sync + 'static>(
         .option_type(option_type)
         .default_value(default_value)
         .value_type_id(TypeId::of::<T>());
+    if option_type == LayoutOptionType::Object {
+        if let Some(parser) = object_parser::<T>() {
+            builder = builder.parser(parser);
+        }
+    }
     builder = apply_meta!(builder, meta);
     registry.register_option(builder.create());
 }
@@ -1535,6 +1543,140 @@ fn enumset_parser<T: EnumSetType + Copy + Send + Sync + fmt::Debug + 'static>(
         parse_enumset_value(value, variants)
             .map(|parsed| Arc::new(parsed) as Arc<dyn Any + Send + Sync>)
     })
+}
+
+fn object_parser<T: 'static>() -> Option<ParserFn> {
+    let type_id = TypeId::of::<T>();
+    if type_id == TypeId::of::<KVector>() {
+        return Some(Arc::new(|value| {
+            parse_kvector_value(value)
+                .map(|parsed| Arc::new(parsed) as Arc<dyn Any + Send + Sync>)
+        }));
+    }
+    if type_id == TypeId::of::<KVectorChain>() {
+        return Some(Arc::new(|value| {
+            parse_kvector_chain_value(value)
+                .map(|parsed| Arc::new(parsed) as Arc<dyn Any + Send + Sync>)
+        }));
+    }
+    if type_id == TypeId::of::<ElkPadding>() {
+        return Some(Arc::new(|value| {
+            parse_spacing_value(value).map(|(top, right, bottom, left)| {
+                Arc::new(ElkPadding::with_values(top, right, bottom, left))
+                    as Arc<dyn Any + Send + Sync>
+            })
+        }));
+    }
+    if type_id == TypeId::of::<ElkMargin>() {
+        return Some(Arc::new(|value| {
+            parse_spacing_value(value).map(|(top, right, bottom, left)| {
+                Arc::new(ElkMargin::with_values(top, right, bottom, left))
+                    as Arc<dyn Any + Send + Sync>
+            })
+        }));
+    }
+    if type_id == TypeId::of::<IndividualSpacings>() {
+        return Some(Arc::new(|value| {
+            parse_individual_spacings_value(value)
+                .map(|parsed| Arc::new(parsed) as Arc<dyn Any + Send + Sync>)
+        }));
+    }
+    None
+}
+
+fn parse_kvector_value(value: &str) -> Option<KVector> {
+    let chars: Vec<char> = value.chars().collect();
+    let mut start = 0usize;
+    while start < chars.len() && is_delim(chars[start], "([{\"' \t\r\n") {
+        start += 1;
+    }
+    let mut end = chars.len();
+    while end > 0 && is_delim(chars[end - 1], ")]}\"' \t\r\n") {
+        end -= 1;
+    }
+    if start >= end {
+        return None;
+    }
+    let slice: String = chars[start..end].iter().collect();
+    let tokens: Vec<&str> = slice.split(&[',', ';', '\r', '\n'][..]).collect();
+    if tokens.len() != 2 {
+        return None;
+    }
+    let x = tokens[0].trim().parse::<f64>().ok()?;
+    let y = tokens[1].trim().parse::<f64>().ok()?;
+    Some(KVector::with_values(x, y))
+}
+
+fn parse_kvector_chain_value(value: &str) -> Option<KVectorChain> {
+    let tokens: Vec<&str> = value
+        .split(&[',', ';', '(', ')', '[', ']', '{', '}', ' ', '\t', '\n'][..])
+        .collect();
+    let mut chain = KVectorChain::new();
+    let mut xy = 0usize;
+    let mut x = 0.0;
+    for token in tokens {
+        let token = token.trim();
+        if token.is_empty() {
+            continue;
+        }
+        let parsed = token.parse::<f64>().ok()?;
+        if xy % 2 == 0 {
+            x = parsed;
+        } else {
+            chain.add_values(x, parsed);
+        }
+        xy += 1;
+    }
+    Some(chain)
+}
+
+fn parse_spacing_value(value: &str) -> Option<(f64, f64, f64, f64)> {
+    let chars: Vec<char> = value.chars().collect();
+    let mut start = 0usize;
+    while start < chars.len() && is_delim(chars[start], "([{\"' \t\r\n") {
+        start += 1;
+    }
+    let mut end = chars.len();
+    while end > 0 && is_delim(chars[end - 1], ")]}\"' \t\r\n") {
+        end -= 1;
+    }
+    if start >= end {
+        return None;
+    }
+    let slice: String = chars[start..end].iter().collect();
+    let tokens: Vec<&str> = slice.split(&[',', ';'][..]).collect();
+    let mut top = 0.0;
+    let mut left = 0.0;
+    let mut bottom = 0.0;
+    let mut right = 0.0;
+    for token in tokens {
+        let token = token.trim();
+        if token.is_empty() {
+            continue;
+        }
+        let mut parts = token.splitn(2, '=');
+        let key = parts.next().unwrap_or("").trim();
+        let value = parts.next()?.trim();
+        let parsed = value.parse::<f64>().ok()?;
+        match key {
+            "top" => top = parsed,
+            "left" => left = parsed,
+            "bottom" => bottom = parsed,
+            "right" => right = parsed,
+            _ => {}
+        }
+    }
+    Some((top, right, bottom, left))
+}
+
+fn parse_individual_spacings_value(value: &str) -> Option<IndividualSpacings> {
+    let mut spacings = IndividualSpacings::new();
+    spacings.parse(value).ok()?;
+    Some(spacings)
+}
+
+fn is_delim(ch: char, delims: &str) -> bool {
+    delims.chars().any(|value| value == ch)
 }
 
 fn parse_enumset_value<T: EnumSetType + Copy + fmt::Debug>(
