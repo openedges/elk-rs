@@ -3,7 +3,7 @@ use std::sync::Arc;
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::ElkPadding;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::{
-    CoreOptions, EdgeRouting, TopdownNodeTypes,
+    CoreOptions, EdgeRouting, PortAlignment, TopdownNodeTypes,
 };
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::GraphFeature;
 
@@ -48,6 +48,15 @@ fn layered_metadata_defaults_match_core() {
 
     let priority = expect_value::<i32>(algo.default_value_any(CoreOptions::PRIORITY.id()));
     assert_eq!(*priority, 0);
+
+    let separate =
+        expect_value::<bool>(algo.default_value_any(CoreOptions::SEPARATE_CONNECTED_COMPONENTS.id()));
+    assert_eq!(*separate, true);
+
+    let port_alignment = expect_value::<PortAlignment>(
+        algo.default_value_any(CoreOptions::PORT_ALIGNMENT_DEFAULT.id()),
+    );
+    assert_eq!(*port_alignment, PortAlignment::Justified);
 
     let node_type =
         expect_value::<TopdownNodeTypes>(algo.default_value_any(CoreOptions::TOPDOWN_NODE_TYPE.id()));

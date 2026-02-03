@@ -456,6 +456,14 @@ impl LayoutMetaDataService {
         layered_data.add_known_option_default(CoreOptions::SPACING_PORT_PORT.id(), None);
         layered_data.add_known_option_default(CoreOptions::SPACING_INDIVIDUAL.id(), None);
         layered_data.add_known_option_default(CoreOptions::PRIORITY.id(), arc_any(0_i32));
+        layered_data.add_known_option_default(
+            CoreOptions::SEPARATE_CONNECTED_COMPONENTS.id(),
+            arc_any(true),
+        );
+        layered_data.add_known_option_default(
+            CoreOptions::PORT_ALIGNMENT_DEFAULT.id(),
+            arc_any(PortAlignment::Justified),
+        );
         layered_data.add_known_option_default(CoreOptions::TOPDOWN_LAYOUT.id(), None);
         layered_data.add_known_option_default(CoreOptions::TOPDOWN_SCALE_FACTOR.id(), None);
         layered_data.add_known_option_default(CoreOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH.id(), None);
