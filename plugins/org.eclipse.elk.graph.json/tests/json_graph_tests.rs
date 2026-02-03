@@ -950,6 +950,58 @@ fn transfer_layout_edge_sections_exist() {
     }
 }
 
+#[test]
+fn transfer_layout_writes_junction_points() {
+    let graph = r#"
+    {
+      "id": "root",
+      "properties": {
+        "algorithm": "random",
+        "direction": "DOWN"
+      },
+      "children": [{"id": "n1", "width": 40, "height": 40},
+                  {"id": "n2", "width": 40, "height": 40}],
+      "edges": [{"id": "e1", "source": "n1", "target": "n2"}]
+    }
+    "#;
+
+    let shared = Rc::new(RefCell::new(parse_lenient_json(graph)));
+    let mut importer = Maybe::default();
+    let root = ElkGraphJson::for_graph_shared(shared.clone())
+        .remember_importer(&mut importer)
+        .to_elk()
+        .unwrap();
+
+    let edge = node_edges(&root).remove(0);
+    let junctions = KVectorChain::from_vectors(&[
+        KVector::with_values(1.0, 2.0),
+        KVector::with_values(3.0, 4.0),
+    ]);
+    set_edge_property(&edge, CoreOptions::JUNCTION_POINTS, junctions);
+
+    importer
+        .get_mut()
+        .expect("importer")
+        .transfer_layout(&root)
+        .unwrap();
+
+    let root_value = shared.borrow();
+    let edges = root_value
+        .get("edges")
+        .and_then(|value| value.as_array())
+        .expect("edges");
+    let obj = edges[0].as_object().expect("edge object");
+    let points = obj
+        .get("junctionPoints")
+        .and_then(|value| value.as_array())
+        .expect("junctionPoints");
+    assert_eq!(points.len(), 2);
+    assert_eq!(points[0]["x"].as_f64().unwrap(), 1.0);
+    assert_eq!(points[0]["y"].as_f64().unwrap(), 2.0);
+    assert_eq!(points[1]["x"].as_f64().unwrap(), 3.0);
+    assert_eq!(points[1]["y"].as_f64().unwrap(), 4.0);
+}
+
 fn assert_import_error(input: &str) {
     assert!(matches!(
         ElkGraphJson::for_graph(input).to_elk(),
