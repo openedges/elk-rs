@@ -6,6 +6,7 @@
 .DS_Store
 .idea/
 .vscode/
+.omc/
 
 # Perf artifacts
 /perf/*.csv
