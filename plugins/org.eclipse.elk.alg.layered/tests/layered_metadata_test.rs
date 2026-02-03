@@ -1,6 +1,8 @@
+use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::components::ComponentOrderingStrategy;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::{
-    CenterEdgeLabelPlacementStrategy, EdgeLabelSideSelection, LayeredMetaDataProvider,
-    LayeredOptions, LayerUnzippingStrategy, WrappingStrategy,
+    CenterEdgeLabelPlacementStrategy, EdgeLabelSideSelection, GroupOrderStrategy,
+    LayeredMetaDataProvider, LayeredOptions, LayerUnzippingStrategy, LongEdgeOrderingStrategy,
+    OrderingStrategy, WrappingStrategy,
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::data::{
     LayoutMetaDataService, LayoutOptionTarget, LayoutOptionVisibility,
@@ -114,4 +116,79 @@ fn edge_label_defaults() {
         .and_then(|value| value.downcast::<CenterEdgeLabelPlacementStrategy>().ok())
         .expect("default value");
     assert_eq!(*default, CenterEdgeLabelPlacementStrategy::MedianLayer);
+}
+
+#[test]
+fn consider_model_order_defaults() {
+    init_layered_options();
+
+    let strategy = LayoutMetaDataService::get_instance()
+        .get_option_data(LayeredOptions::CONSIDER_MODEL_ORDER_STRATEGY.id())
+        .expect("consider model order strategy");
+    assert_eq!(strategy.group(), "considerModelOrder");
+    assert!(strategy.targets().contains(&LayoutOptionTarget::Parents));
+    let default = strategy
+        .default_value()
+        .and_then(|value| value.downcast::<OrderingStrategy>().ok())
+        .expect("default value");
+    assert_eq!(*default, OrderingStrategy::None);
+
+    let components = LayoutMetaDataService::get_instance()
+        .get_option_data(LayeredOptions::CONSIDER_MODEL_ORDER_COMPONENTS.id())
+        .expect("consider model order components");
+    let default = components
+        .default_value()
+        .and_then(|value| value.downcast::<ComponentOrderingStrategy>().ok())
+        .expect("default value");
+    assert_eq!(*default, ComponentOrderingStrategy::None);
+
+    let long_edge = LayoutMetaDataService::get_instance()
+        .get_option_data(LayeredOptions::CONSIDER_MODEL_ORDER_LONG_EDGE_STRATEGY.id())
+        .expect("consider model order long edge strategy");
+    let default = long_edge
+        .default_value()
+        .and_then(|value| value.downcast::<LongEdgeOrderingStrategy>().ok())
+        .expect("default value");
+    assert_eq!(*default, LongEdgeOrderingStrategy::DummyNodeOver);
+}
+
+#[test]
+fn group_model_order_defaults() {
+    init_layered_options();
+
+    let cycle = LayoutMetaDataService::get_instance()
+        .get_option_data(LayeredOptions::GROUP_MODEL_ORDER_CYCLE_BREAKING_ID.id())
+        .expect("group model order cycle breaking id");
+    assert_eq!(cycle.group(), "considerModelOrder.groupModelOrder");
+    assert!(cycle.targets().contains(&LayoutOptionTarget::Nodes));
+    let default = cycle
+        .default_value()
+        .and_then(|value| value.downcast::<i32>().ok())
+        .expect("default value");
+    assert_eq!(*default, 0);
+
+    let crossing = LayoutMetaDataService::get_instance()
+        .get_option_data(LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID.id())
+        .expect("group model order crossing minimization id");
+    assert!(crossing.targets().contains(&LayoutOptionTarget::Nodes));
+    assert!(crossing.targets().contains(&LayoutOptionTarget::Edges));
+    assert!(crossing.targets().contains(&LayoutOptionTarget::Ports));
+
+    let strategy = LayoutMetaDataService::get_instance()
+        .get_option_data(LayeredOptions::GROUP_MODEL_ORDER_CB_GROUP_ORDER_STRATEGY.id())
+        .expect("group model order cb group order strategy");
+    let default = strategy
+        .default_value()
+        .and_then(|value| value.downcast::<GroupOrderStrategy>().ok())
+        .expect("default value");
+    assert_eq!(*default, GroupOrderStrategy::OnlyWithinGroup);
+
+    let enforced = LayoutMetaDataService::get_instance()
+        .get_option_data(LayeredOptions::GROUP_MODEL_ORDER_CM_ENFORCED_GROUP_ORDERS.id())
+        .expect("group model order enforced groups");
+    let default = enforced
+        .default_value()
+        .and_then(|value| value.downcast::<Vec<i32>>().ok())
+        .expect("default value");
+    assert_eq!(&*default, &[1, 2, 6, 7, 10, 11]);
 }

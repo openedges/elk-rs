@@ -11,9 +11,11 @@ use org_eclipse_elk_core::org::eclipse::elk::core::data::{
 };
 
 use super::{
-    CenterEdgeLabelPlacementStrategy, CuttingStrategy, EdgeLabelSideSelection,
-    LayerUnzippingStrategy, LayeredOptions, ValidifyStrategy, WrappingStrategy,
+    CenterEdgeLabelPlacementStrategy, CuttingStrategy, EdgeLabelSideSelection, GroupOrderStrategy,
+    LayerUnzippingStrategy, LayeredOptions, LongEdgeOrderingStrategy, OrderingStrategy,
+    ValidifyStrategy, WrappingStrategy,
 };
+use crate::org::eclipse::elk::alg::layered::components::ComponentOrderingStrategy;
 
 pub struct LayeredMetaDataProvider;
 
@@ -25,6 +27,7 @@ impl ILayoutMetaDataProvider for LayeredMetaDataProvider {
         register_wrapping_options(registry);
         register_layer_unzipping_options(registry);
         register_edge_label_options(registry);
+        register_consider_model_order_options(registry);
     }
 }
 
@@ -33,6 +36,11 @@ const TARGET_EDGES: [LayoutOptionTarget; 1] = [LayoutOptionTarget::Edges];
 const TARGET_NODES: [LayoutOptionTarget; 1] = [LayoutOptionTarget::Nodes];
 const TARGET_PARENTS_LABELS: [LayoutOptionTarget; 2] =
     [LayoutOptionTarget::Parents, LayoutOptionTarget::Labels];
+const TARGET_NODES_EDGES_PORTS: [LayoutOptionTarget; 3] = [
+    LayoutOptionTarget::Nodes,
+    LayoutOptionTarget::Edges,
+    LayoutOptionTarget::Ports,
+];
 
 fn register_spacing_options(registry: &mut dyn LayoutMetaDataRegistry) {
     register_option(
@@ -403,6 +411,238 @@ fn register_edge_label_options(registry: &mut dyn LayoutMetaDataRegistry) {
     );
 }
 
+fn register_consider_model_order_options(registry: &mut dyn LayoutMetaDataRegistry) {
+    register_option(
+        registry,
+        LayeredOptions::CONSIDER_MODEL_ORDER_STRATEGY,
+        LayoutOptionType::Enum,
+        "Consider Model Order",
+        concat!(
+            "Preserves the order of nodes and edges in the model file if this does not lead to additional edge ",
+            "crossings. Depending on the strategy this is not always possible since the node and edge order might be ",
+            "conflicting."
+        ),
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Visible,
+        Some("considerModelOrder"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::CONSIDER_MODEL_ORDER_PORT_MODEL_ORDER,
+        LayoutOptionType::Boolean,
+        "Consider Port Order",
+        concat!(
+            "If disabled the port order of output ports is derived from the edge order and input ports are ordered by ",
+            "their incoming connections. If enabled all ports are ordered by the port model order."
+        ),
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Visible,
+        Some("considerModelOrder"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::CONSIDER_MODEL_ORDER_NO_MODEL_ORDER,
+        LayoutOptionType::Boolean,
+        "No Model Order",
+        "Set on a node to not set a model order for this node even though it is a real node.",
+        &TARGET_NODES,
+        LayoutOptionVisibility::Visible,
+        Some("considerModelOrder"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::CONSIDER_MODEL_ORDER_COMPONENTS,
+        LayoutOptionType::Enum,
+        "Consider Model Order for Components",
+        concat!(
+            "If set to NONE the usual ordering strategy (by cumulative node priority and size of nodes) is used. ",
+            "INSIDE_PORT_SIDES orders the components with external ports only inside the groups with the same port side. ",
+            "FORCE_MODEL_ORDER enforces the mode order on components. This option might produce bad alignments and sub ",
+            "optimal drawings in terms of used area since the ordering should be respected."
+        ),
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Visible,
+        Some("considerModelOrder"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::CONSIDER_MODEL_ORDER_LONG_EDGE_STRATEGY,
+        LayoutOptionType::Enum,
+        "Long Edge Ordering Strategy",
+        concat!(
+            "Indicates whether long edges are sorted under, over, or equal to nodes that have no connection to a ",
+            "previous layer in a left-to-right or right-to-left layout. Under and over changes to right and left in a ",
+            "vertical layout."
+        ),
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Visible,
+        Some("considerModelOrder"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::CONSIDER_MODEL_ORDER_CROSSING_COUNTER_NODE_INFLUENCE,
+        LayoutOptionType::Double,
+        "Crossing Counter Node Order Influence",
+        concat!(
+            "Indicates with what percentage (1 for 100%) violations of the node model order are weighted against the ",
+            "crossings e.g. a value of 0.5 means two model order violations are as important as on edge crossing. ",
+            "This allows some edge crossings in favor of preserving the model order. It is advised to set this value to ",
+            "a very small positive value (e.g. 0.001) to have minimal crossing and a optimal node order. Defaults to no ",
+            "influence (0)."
+        ),
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Visible,
+        Some("considerModelOrder"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::CONSIDER_MODEL_ORDER_CROSSING_COUNTER_PORT_INFLUENCE,
+        LayoutOptionType::Double,
+        "Crossing Counter Port Order Influence",
+        concat!(
+            "Indicates with what percentage (1 for 100%) violations of the port model order are weighted against the ",
+            "crossings e.g. a value of 0.5 means two model order violations are as important as on edge crossing. ",
+            "This allows some edge crossings in favor of preserving the model order. It is advised to set this value to ",
+            "a very small positive value (e.g. 0.001) to have minimal crossing and a optimal port order. Defaults to no ",
+            "influence (0)."
+        ),
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Visible,
+        Some("considerModelOrder"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::GROUP_MODEL_ORDER_CYCLE_BREAKING_ID,
+        LayoutOptionType::Int,
+        "Group ID of the Node Type",
+        concat!(
+            "Used to define partial ordering groups during cycle breaking. A lower group id means that the group is ",
+            "sorted before other groups. A group model order of 0 is the default group."
+        ),
+        &TARGET_NODES,
+        LayoutOptionVisibility::Visible,
+        Some("considerModelOrder.groupModelOrder"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID,
+        LayoutOptionType::Int,
+        "Group ID of the Node Type",
+        concat!(
+            "Used to define partial ordering groups during crossing minimization. A lower group id means that the group is ",
+            "sorted before other groups. A group model order of 0 is the default group."
+        ),
+        &TARGET_NODES_EDGES_PORTS,
+        LayoutOptionVisibility::Visible,
+        Some("considerModelOrder.groupModelOrder"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::GROUP_MODEL_ORDER_COMPONENT_GROUP_ID,
+        LayoutOptionType::Int,
+        "Group ID of the Node Type",
+        concat!(
+            "Used to define partial ordering groups during component packing. A lower group id means that the group is ",
+            "sorted before other groups. A group model order of 0 is the default group."
+        ),
+        &TARGET_NODES_EDGES_PORTS,
+        LayoutOptionVisibility::Visible,
+        Some("considerModelOrder.groupModelOrder"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::GROUP_MODEL_ORDER_CB_GROUP_ORDER_STRATEGY,
+        LayoutOptionType::Enum,
+        "Cycle Breaking Group Ordering Strategy",
+        concat!(
+            "Determines how to count ordering violations during cycle breaking. NONE: They do not count. ENFORCED: ",
+            "A group with a higher model order is before a node with a smaller. MODEL_ORDER: The model order counts ",
+            "instead of the model order group id ordering."
+        ),
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Visible,
+        Some("considerModelOrder.groupModelOrder"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::GROUP_MODEL_ORDER_CB_PREFERRED_SOURCE_ID,
+        LayoutOptionType::Int,
+        "Cycle Breaking Preferred Source Id",
+        "The model order group id for which should be preferred as a source if possible.",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Visible,
+        Some("considerModelOrder.groupModelOrder"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::GROUP_MODEL_ORDER_CB_PREFERRED_TARGET_ID,
+        LayoutOptionType::Int,
+        "Cycle Breaking Preferred Target Id",
+        "The model order group id for which should be preferred as a target if possible.",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Visible,
+        Some("considerModelOrder.groupModelOrder"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY,
+        LayoutOptionType::Enum,
+        "Crossing Minimization Group Ordering Strategy",
+        concat!(
+            "Determines how to count ordering violations during crossing minimization. NONE: They do not count. ",
+            "ENFORCED: A group with a lower id is before a group with a higher id. MODEL_ORDER: The model order counts ",
+            "instead of the model order group id ordering."
+        ),
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Visible,
+        Some("considerModelOrder.groupModelOrder"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::GROUP_MODEL_ORDER_CM_ENFORCED_GROUP_ORDERS,
+        LayoutOptionType::Object,
+        "Crossing Minimization Enforced Group Orders",
+        concat!(
+            "Holds all group ids which are enforcing their order during crossing minimization strategies. ",
+            "E.g. if only groups 2 and -1 (default) enforce their ordering. Other groups e.g. the group of ",
+            "timer nodes can be ordered arbitrarily if it helps and the mentioned groups may not change ",
+            "their order."
+        ),
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Visible,
+        Some("considerModelOrder.groupModelOrder"),
+        None,
+    );
+}
+
 fn register_option<T: Clone + Send + Sync + 'static>(
     registry: &mut dyn LayoutMetaDataRegistry,
     property: &'static LazyLock<Property<T>>,
@@ -455,9 +695,23 @@ fn bound_i32(value: i32) -> Arc<dyn Any + Send + Sync> {
 fn init_reflect() {
     static INIT: OnceLock<()> = OnceLock::new();
     INIT.get_or_init(|| {
+        ElkReflect::register(Some(Vec::<i32>::new), Some(|v: &Vec<i32>| v.clone()));
         ElkReflect::register(Some(|| WrappingStrategy::Off), Some(|v: &WrappingStrategy| *v));
         ElkReflect::register(Some(|| CuttingStrategy::Msd), Some(|v: &CuttingStrategy| *v));
         ElkReflect::register(Some(|| ValidifyStrategy::Greedy), Some(|v: &ValidifyStrategy| *v));
+        ElkReflect::register(Some(|| OrderingStrategy::None), Some(|v: &OrderingStrategy| *v));
+        ElkReflect::register(
+            Some(|| ComponentOrderingStrategy::None),
+            Some(|v: &ComponentOrderingStrategy| *v),
+        );
+        ElkReflect::register(
+            Some(|| LongEdgeOrderingStrategy::DummyNodeOver),
+            Some(|v: &LongEdgeOrderingStrategy| *v),
+        );
+        ElkReflect::register(
+            Some(|| GroupOrderStrategy::OnlyWithinGroup),
+            Some(|v: &GroupOrderStrategy| *v),
+        );
         ElkReflect::register(
             Some(|| LayerUnzippingStrategy::None),
             Some(|v: &LayerUnzippingStrategy| *v),

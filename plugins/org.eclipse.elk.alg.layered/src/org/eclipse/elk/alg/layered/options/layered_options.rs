@@ -3,9 +3,11 @@ use std::sync::LazyLock;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 
 use super::{
-    CenterEdgeLabelPlacementStrategy, CuttingStrategy, EdgeLabelSideSelection,
-    LayerUnzippingStrategy, ValidifyStrategy, WrappingStrategy,
+    CenterEdgeLabelPlacementStrategy, CuttingStrategy, EdgeLabelSideSelection, GroupOrderStrategy,
+    LayerUnzippingStrategy, LongEdgeOrderingStrategy, OrderingStrategy, ValidifyStrategy,
+    WrappingStrategy,
 };
+use crate::org::eclipse::elk::alg::layered::components::ComponentOrderingStrategy;
 
 pub struct LayeredOptions;
 
@@ -144,6 +146,124 @@ pub static EDGE_LABELS_CENTER_LABEL_PLACEMENT_STRATEGY_PROPERTY: LazyLock<
     )
 });
 
+pub static CONSIDER_MODEL_ORDER_STRATEGY_PROPERTY: LazyLock<Property<OrderingStrategy>> =
+    LazyLock::new(|| {
+        Property::with_default(
+            "org.eclipse.elk.alg.layered.considerModelOrder.strategy",
+            OrderingStrategy::None,
+        )
+    });
+
+pub static CONSIDER_MODEL_ORDER_PORT_MODEL_ORDER_PROPERTY: LazyLock<Property<bool>> =
+    LazyLock::new(|| {
+        Property::with_default(
+            "org.eclipse.elk.alg.layered.considerModelOrder.portModelOrder",
+            false,
+        )
+    });
+
+pub static CONSIDER_MODEL_ORDER_NO_MODEL_ORDER_PROPERTY: LazyLock<Property<bool>> =
+    LazyLock::new(|| {
+        Property::with_default(
+            "org.eclipse.elk.alg.layered.considerModelOrder.noModelOrder",
+            false,
+        )
+    });
+
+pub static CONSIDER_MODEL_ORDER_COMPONENTS_PROPERTY: LazyLock<Property<ComponentOrderingStrategy>> =
+    LazyLock::new(|| {
+        Property::with_default(
+            "org.eclipse.elk.alg.layered.considerModelOrder.components",
+            ComponentOrderingStrategy::None,
+        )
+    });
+
+pub static CONSIDER_MODEL_ORDER_LONG_EDGE_STRATEGY_PROPERTY: LazyLock<Property<LongEdgeOrderingStrategy>> =
+    LazyLock::new(|| {
+        Property::with_default(
+            "org.eclipse.elk.alg.layered.considerModelOrder.longEdgeStrategy",
+            LongEdgeOrderingStrategy::DummyNodeOver,
+        )
+    });
+
+pub static CONSIDER_MODEL_ORDER_CROSSING_COUNTER_NODE_INFLUENCE_PROPERTY: LazyLock<Property<f64>> =
+    LazyLock::new(|| {
+        Property::with_default(
+            "org.eclipse.elk.alg.layered.considerModelOrder.crossingCounterNodeInfluence",
+            0.0,
+        )
+    });
+
+pub static CONSIDER_MODEL_ORDER_CROSSING_COUNTER_PORT_INFLUENCE_PROPERTY: LazyLock<Property<f64>> =
+    LazyLock::new(|| {
+        Property::with_default(
+            "org.eclipse.elk.alg.layered.considerModelOrder.crossingCounterPortInfluence",
+            0.0,
+        )
+    });
+
+pub static GROUP_MODEL_ORDER_CYCLE_BREAKING_ID_PROPERTY: LazyLock<Property<i32>> =
+    LazyLock::new(|| {
+        Property::with_default(
+            "org.eclipse.elk.alg.layered.considerModelOrder.groupModelOrder.cycleBreakingId",
+            0,
+        )
+    });
+
+pub static GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID_PROPERTY: LazyLock<Property<i32>> =
+    LazyLock::new(|| {
+        Property::with_default(
+            "org.eclipse.elk.alg.layered.considerModelOrder.groupModelOrder.crossingMinimizationId",
+            0,
+        )
+    });
+
+pub static GROUP_MODEL_ORDER_COMPONENT_GROUP_ID_PROPERTY: LazyLock<Property<i32>> =
+    LazyLock::new(|| {
+        Property::with_default(
+            "org.eclipse.elk.alg.layered.considerModelOrder.groupModelOrder.componentGroupId",
+            0,
+        )
+    });
+
+pub static GROUP_MODEL_ORDER_CB_GROUP_ORDER_STRATEGY_PROPERTY: LazyLock<Property<GroupOrderStrategy>> =
+    LazyLock::new(|| {
+        Property::with_default(
+            "org.eclipse.elk.alg.layered.considerModelOrder.groupModelOrder.cbGroupOrderStrategy",
+            GroupOrderStrategy::OnlyWithinGroup,
+        )
+    });
+
+pub static GROUP_MODEL_ORDER_CB_PREFERRED_SOURCE_ID_PROPERTY: LazyLock<Property<i32>> =
+    LazyLock::new(|| {
+        Property::new(
+            "org.eclipse.elk.alg.layered.considerModelOrder.groupModelOrder.cbPreferredSourceId",
+        )
+    });
+
+pub static GROUP_MODEL_ORDER_CB_PREFERRED_TARGET_ID_PROPERTY: LazyLock<Property<i32>> =
+    LazyLock::new(|| {
+        Property::new(
+            "org.eclipse.elk.alg.layered.considerModelOrder.groupModelOrder.cbPreferredTargetId",
+        )
+    });
+
+pub static GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY_PROPERTY: LazyLock<Property<GroupOrderStrategy>> =
+    LazyLock::new(|| {
+        Property::with_default(
+            "org.eclipse.elk.alg.layered.considerModelOrder.groupModelOrder.cmGroupOrderStrategy",
+            GroupOrderStrategy::OnlyWithinGroup,
+        )
+    });
+
+pub static GROUP_MODEL_ORDER_CM_ENFORCED_GROUP_ORDERS_PROPERTY: LazyLock<Property<Vec<i32>>> =
+    LazyLock::new(|| {
+        Property::with_default(
+            "org.eclipse.elk.alg.layered.considerModelOrder.groupModelOrder.cmEnforcedGroupOrders",
+            vec![1, 2, 6, 7, 10, 11],
+        )
+    });
+
 impl LayeredOptions {
     pub const ALGORITHM_ID: &'static str = "org.eclipse.elk.layered";
 
@@ -196,4 +316,38 @@ impl LayeredOptions {
     pub const EDGE_LABELS_CENTER_LABEL_PLACEMENT_STRATEGY: &'static LazyLock<
         Property<CenterEdgeLabelPlacementStrategy>,
     > = &EDGE_LABELS_CENTER_LABEL_PLACEMENT_STRATEGY_PROPERTY;
+
+    pub const CONSIDER_MODEL_ORDER_STRATEGY: &'static LazyLock<Property<OrderingStrategy>> =
+        &CONSIDER_MODEL_ORDER_STRATEGY_PROPERTY;
+    pub const CONSIDER_MODEL_ORDER_PORT_MODEL_ORDER: &'static LazyLock<Property<bool>> =
+        &CONSIDER_MODEL_ORDER_PORT_MODEL_ORDER_PROPERTY;
+    pub const CONSIDER_MODEL_ORDER_NO_MODEL_ORDER: &'static LazyLock<Property<bool>> =
+        &CONSIDER_MODEL_ORDER_NO_MODEL_ORDER_PROPERTY;
+    pub const CONSIDER_MODEL_ORDER_COMPONENTS: &'static LazyLock<
+        Property<ComponentOrderingStrategy>,
+    > = &CONSIDER_MODEL_ORDER_COMPONENTS_PROPERTY;
+    pub const CONSIDER_MODEL_ORDER_LONG_EDGE_STRATEGY: &'static LazyLock<
+        Property<LongEdgeOrderingStrategy>,
+    > = &CONSIDER_MODEL_ORDER_LONG_EDGE_STRATEGY_PROPERTY;
+    pub const CONSIDER_MODEL_ORDER_CROSSING_COUNTER_NODE_INFLUENCE: &'static LazyLock<Property<f64>> =
+        &CONSIDER_MODEL_ORDER_CROSSING_COUNTER_NODE_INFLUENCE_PROPERTY;
+    pub const CONSIDER_MODEL_ORDER_CROSSING_COUNTER_PORT_INFLUENCE: &'static LazyLock<Property<f64>> =
+        &CONSIDER_MODEL_ORDER_CROSSING_COUNTER_PORT_INFLUENCE_PROPERTY;
+
+    pub const GROUP_MODEL_ORDER_CYCLE_BREAKING_ID: &'static LazyLock<Property<i32>> =
+        &GROUP_MODEL_ORDER_CYCLE_BREAKING_ID_PROPERTY;
+    pub const GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID: &'static LazyLock<Property<i32>> =
+        &GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID_PROPERTY;
+    pub const GROUP_MODEL_ORDER_COMPONENT_GROUP_ID: &'static LazyLock<Property<i32>> =
+        &GROUP_MODEL_ORDER_COMPONENT_GROUP_ID_PROPERTY;
+    pub const GROUP_MODEL_ORDER_CB_GROUP_ORDER_STRATEGY: &'static LazyLock<Property<GroupOrderStrategy>> =
+        &GROUP_MODEL_ORDER_CB_GROUP_ORDER_STRATEGY_PROPERTY;
+    pub const GROUP_MODEL_ORDER_CB_PREFERRED_SOURCE_ID: &'static LazyLock<Property<i32>> =
+        &GROUP_MODEL_ORDER_CB_PREFERRED_SOURCE_ID_PROPERTY;
+    pub const GROUP_MODEL_ORDER_CB_PREFERRED_TARGET_ID: &'static LazyLock<Property<i32>> =
+        &GROUP_MODEL_ORDER_CB_PREFERRED_TARGET_ID_PROPERTY;
+    pub const GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY: &'static LazyLock<Property<GroupOrderStrategy>> =
+        &GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY_PROPERTY;
+    pub const GROUP_MODEL_ORDER_CM_ENFORCED_GROUP_ORDERS: &'static LazyLock<Property<Vec<i32>>> =
+        &GROUP_MODEL_ORDER_CM_ENFORCED_GROUP_ORDERS_PROPERTY;
 }
