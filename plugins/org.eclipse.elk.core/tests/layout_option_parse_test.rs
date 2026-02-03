@@ -1,7 +1,8 @@
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::{ElkMargin, ElkPadding, KVector, KVectorChain};
 use org_eclipse_elk_core::org::eclipse::elk::core::options::{
-    CoreOptions, Direction, EdgeRouting, NodeLabelPlacement, PortLabelPlacement,
+    ContentAlignment, CoreOptions, Direction, EdgeCoords, EdgeRouting, HierarchyHandling,
+    NodeLabelPlacement, PortLabelPlacement, ShapeCoords,
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, IndividualSpacings};
 
@@ -153,4 +154,49 @@ fn parse_enum_and_enumset_options() {
         .downcast_ref::<EdgeRouting>()
         .expect("EdgeRouting");
     assert_eq!(*edge_routing, EdgeRouting::Orthogonal);
+
+    let shape_coords_option = service
+        .get_option_data_by_suffix("json.shapeCoords")
+        .expect("shapeCoords option");
+    let parsed = shape_coords_option
+        .parse_value("ROOT")
+        .expect("shapeCoords parsed");
+    let shape_coords = parsed
+        .downcast_ref::<ShapeCoords>()
+        .expect("ShapeCoords");
+    assert_eq!(*shape_coords, ShapeCoords::Root);
+
+    let edge_coords_option = service
+        .get_option_data_by_suffix("json.edgeCoords")
+        .expect("edgeCoords option");
+    let parsed = edge_coords_option
+        .parse_value("PARENT")
+        .expect("edgeCoords parsed");
+    let edge_coords = parsed
+        .downcast_ref::<EdgeCoords>()
+        .expect("EdgeCoords");
+    assert_eq!(*edge_coords, EdgeCoords::Parent);
+
+    let hierarchy_option = service
+        .get_option_data_by_suffix("hierarchyHandling")
+        .expect("hierarchyHandling option");
+    let parsed = hierarchy_option
+        .parse_value("INCLUDE_CHILDREN")
+        .expect("hierarchyHandling parsed");
+    let handling = parsed
+        .downcast_ref::<HierarchyHandling>()
+        .expect("HierarchyHandling");
+    assert_eq!(*handling, HierarchyHandling::IncludeChildren);
+
+    let content_alignment_option = service
+        .get_option_data_by_suffix("contentAlignment")
+        .expect("contentAlignment option");
+    let parsed = content_alignment_option
+        .parse_value("[V_BOTTOM, H_RIGHT]")
+        .expect("contentAlignment parsed");
+    let alignment = parsed
+        .downcast_ref::<EnumSet<ContentAlignment>>()
+        .expect("EnumSet<ContentAlignment>");
+    assert!(alignment.contains(&ContentAlignment::VBottom));
+    assert!(alignment.contains(&ContentAlignment::HRight));
 }
