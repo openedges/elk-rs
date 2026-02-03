@@ -2,6 +2,7 @@ use std::any::Any;
 use std::collections::{BTreeSet, HashMap, HashSet, LinkedList};
 use std::sync::{Arc, Mutex, OnceLock};
 
+use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::GraphFeature;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkReflect;
 
 mod i_layout_meta_data;
@@ -427,6 +428,14 @@ impl LayoutMetaDataService {
         layered_data
             .set_name("ELK Layered")
             .set_description("Placeholder layered layout provider.");
+        layered_data
+            .add_supported_feature(GraphFeature::SelfLoops)
+            .add_supported_feature(GraphFeature::InsideSelfLoops)
+            .add_supported_feature(GraphFeature::MultiEdges)
+            .add_supported_feature(GraphFeature::EdgeLabels)
+            .add_supported_feature(GraphFeature::Ports)
+            .add_supported_feature(GraphFeature::Compound)
+            .add_supported_feature(GraphFeature::Clusters);
         self.register_layout_algorithm(layered_data);
     }
 }

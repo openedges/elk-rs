@@ -157,3 +157,32 @@ fn layout_configuration_manager_root_returns_top_parent() {
     let root = manager.get_root(&child_store);
     assert_eq!(root.get_option_value("id"), Some("root".to_string()));
 }
+
+#[test]
+fn layout_configuration_manager_responsible_parent_prefers_full_hierarchy_root() {
+    org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService::get_instance();
+    let root_store = TestStore {
+        values: HashMap::from([(
+            CoreOptions::HIERARCHY_HANDLING.id().to_string(),
+            "IncludeChildren".to_string(),
+        )]),
+        ..Default::default()
+    };
+    let parent_store = TestStore {
+        parent: Some(Box::new(root_store)),
+        ..Default::default()
+    };
+    let child_store = TestStore {
+        parent: Some(Box::new(parent_store)),
+        ..Default::default()
+    };
+
+    let manager = LayoutConfigurationManager::new();
+    let responsible = manager
+        .get_responsible_parent(&child_store)
+        .expect("responsible parent");
+    assert_eq!(
+        responsible.get_option_value(CoreOptions::HIERARCHY_HANDLING.id()),
+        Some("IncludeChildren".to_string())
+    );
+}
