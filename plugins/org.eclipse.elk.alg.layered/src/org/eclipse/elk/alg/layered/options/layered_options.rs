@@ -5,12 +5,18 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkReflect;
 
 use super::{
     CenterEdgeLabelPlacementStrategy, CuttingStrategy, EdgeLabelSideSelection, GroupOrderStrategy,
-    InteractiveReferencePoint, LayerUnzippingStrategy, LongEdgeOrderingStrategy, OrderingStrategy,
-    ValidifyStrategy, WrappingStrategy,
+    InteractiveReferencePoint, LayerConstraint, LayerUnzippingStrategy, LongEdgeOrderingStrategy,
+    OrderingStrategy, ValidifyStrategy, WrappingStrategy,
 };
 use crate::org::eclipse::elk::alg::layered::components::ComponentOrderingStrategy;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::alignment::Alignment;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::direction::Direction;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_label_placement::EdgeLabelPlacement;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::size_constraint::SizeConstraint;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::EnumSet;
+use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector_chain::KVectorChain;
 
 pub struct LayeredOptions;
 
@@ -132,6 +138,14 @@ pub static LAYER_UNZIPPING_RESET_ON_LONG_EDGES_PROPERTY: LazyLock<Property<bool>
         )
     });
 
+pub static LAYERING_LAYER_CONSTRAINT_PROPERTY: LazyLock<Property<LayerConstraint>> =
+    LazyLock::new(|| {
+        Property::with_default(
+            "org.eclipse.elk.alg.layered.layering.layerConstraint",
+            LayerConstraint::None,
+        )
+    });
+
 pub static EDGE_LABELS_SIDE_SELECTION_PROPERTY: LazyLock<Property<EdgeLabelSideSelection>> =
     LazyLock::new(|| {
         Property::with_default(
@@ -148,6 +162,9 @@ pub static EDGE_LABELS_CENTER_LABEL_PLACEMENT_STRATEGY_PROPERTY: LazyLock<
         CenterEdgeLabelPlacementStrategy::MedianLayer,
     )
 });
+
+pub static MERGE_EDGES_PROPERTY: LazyLock<Property<bool>> =
+    LazyLock::new(|| Property::with_default("org.eclipse.elk.alg.layered.mergeEdges", false));
 
 pub static INTERACTIVE_REFERENCE_POINT_PROPERTY: LazyLock<Property<InteractiveReferencePoint>> =
     LazyLock::new(|| {
@@ -336,6 +353,28 @@ impl LayeredOptions {
     pub const EDGE_LABELS_INLINE: &'static LazyLock<Property<bool>> = CoreOptions::EDGE_LABELS_INLINE;
     pub const INTERACTIVE_REFERENCE_POINT: &'static LazyLock<Property<InteractiveReferencePoint>> =
         &INTERACTIVE_REFERENCE_POINT_PROPERTY;
+    pub const LAYERING_LAYER_CONSTRAINT: &'static LazyLock<Property<LayerConstraint>> =
+        &LAYERING_LAYER_CONSTRAINT_PROPERTY;
+    pub const ALIGNMENT: &'static LazyLock<Property<Alignment>> = CoreOptions::ALIGNMENT;
+    pub const ASPECT_RATIO: &'static LazyLock<Property<f64>> = CoreOptions::ASPECT_RATIO;
+    pub const COMMENT_BOX: &'static LazyLock<Property<bool>> = CoreOptions::COMMENT_BOX;
+    pub const DIRECTION: &'static LazyLock<Property<Direction>> = CoreOptions::DIRECTION;
+    pub const HYPERNODE: &'static LazyLock<Property<bool>> = CoreOptions::HYPERNODE;
+    pub const JUNCTION_POINTS: &'static LazyLock<Property<KVectorChain>> =
+        CoreOptions::JUNCTION_POINTS;
+    pub const NODE_SIZE_CONSTRAINTS: &'static LazyLock<Property<EnumSet<SizeConstraint>>> =
+        CoreOptions::NODE_SIZE_CONSTRAINTS;
+    pub const PORT_ANCHOR: &'static LazyLock<
+        Property<org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector>,
+    > = CoreOptions::PORT_ANCHOR;
+    pub const PORT_BORDER_OFFSET: &'static LazyLock<Property<f64>> = CoreOptions::PORT_BORDER_OFFSET;
+    pub const PORT_CONSTRAINTS: &'static LazyLock<Property<PortConstraints>> =
+        CoreOptions::PORT_CONSTRAINTS;
+    pub const PORT_INDEX: &'static LazyLock<Property<i32>> = CoreOptions::PORT_INDEX;
+    pub const PORT_SIDE: &'static LazyLock<
+        Property<org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide>,
+    > = CoreOptions::PORT_SIDE;
+    pub const MERGE_EDGES: &'static LazyLock<Property<bool>> = &MERGE_EDGES_PROPERTY;
 
     pub const CONSIDER_MODEL_ORDER_STRATEGY: &'static LazyLock<Property<OrderingStrategy>> =
         &CONSIDER_MODEL_ORDER_STRATEGY_PROPERTY;

@@ -21,6 +21,10 @@
 - layered considerModelOrder/groupModelOrder 옵션/메타데이터, ordering 전략 enum, 컴포넌트 ordering 전략, 테스트 추가
 - layered LGraph 모델(LGraph/Layer/LNode/LPort/LEdge/LLabel/LMargin/LPadding) 및 최소 LGraphUtil/옵션(PortType, InteractiveReferencePoint, InternalProperties) 포팅
 - layered Tarjan SCC 유틸 포팅(InternalProperties 확장 포함)
+- layered LGraphUtil 주요 기능 포팅(노드 리사이즈/오프셋/레이어 배치/그래프 속성 계산/포트 생성·초기화/외부 포트 더미/좌표계 변환)
+- layered InternalProperties 확장(EDGE/IN_LAYER 제약, EXT_PORT_SIDE/EXT_PORT_SIZE, PORT_RATIO_OR_POSITION, MODEL_ORDER)
+- layered LayeredOptions 확장(layerConstraint, PORT_ANCHOR/PORT_INDEX/PORT_SIDE alias)
+- core PortSide 유틸 확장(opposed/adjacent/방향 매핑/수평·수직)
 - label manager 옵션 분리(Core vs Labels) 및 메타데이터/테스트 추가
 - `PropertyConstantsDelegator` 옵션 타입 확장(label manager, topdown size approximator, layout algorithm data)
 - 테스트 추가/확장 (`layout_algorithm_metadata`, `label_management_options`, `deprecated_layout_option_replacer`, `elk_graph_adapters` 등), `cargo clippy --workspace --all-targets` 통과

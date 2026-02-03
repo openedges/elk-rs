@@ -1,5 +1,6 @@
 use std::sync::LazyLock;
 
+use crate::org::eclipse::elk::core::options::direction::Direction;
 use crate::org::eclipse::elk::core::util::{EnumSet, EnumSetType};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
@@ -30,6 +31,41 @@ impl PortSide {
             PortSide::East => PortSide::North,
             PortSide::Undefined => PortSide::Undefined,
         }
+    }
+
+    pub fn opposed(self) -> PortSide {
+        match self {
+            PortSide::North => PortSide::South,
+            PortSide::East => PortSide::West,
+            PortSide::South => PortSide::North,
+            PortSide::West => PortSide::East,
+            PortSide::Undefined => PortSide::Undefined,
+        }
+    }
+
+    pub fn are_adjacent(self, other: PortSide) -> bool {
+        if self == PortSide::Undefined {
+            return false;
+        }
+        self.left() == other || self.right() == other
+    }
+
+    pub fn from_direction(direction: Direction) -> PortSide {
+        match direction {
+            Direction::Up => PortSide::North,
+            Direction::Right => PortSide::East,
+            Direction::Down => PortSide::South,
+            Direction::Left => PortSide::West,
+            _ => PortSide::Undefined,
+        }
+    }
+
+    pub fn is_vertical(side: PortSide) -> bool {
+        matches!(side, PortSide::North | PortSide::South)
+    }
+
+    pub fn is_horizontal(side: PortSide) -> bool {
+        matches!(side, PortSide::West | PortSide::East)
     }
 }
 
@@ -82,4 +118,3 @@ pub static SIDES_NORTH_EAST_SOUTH_WEST: LazyLock<EnumSet<PortSide>> =
         PortSide::South,
         PortSide::West,
     ]));
-
