@@ -46,14 +46,15 @@ impl GraphIdentifierGenerator {
     }
 
     pub fn execute(&mut self) {
+        let graph = self.graph.clone();
         if self.validate {
-            self.validate_identifiers(&self.graph);
+            self.validate_identifiers(&graph);
         }
         if self.generate {
-            self.generate_identifiers(&self.graph);
+            self.generate_identifiers(&graph);
         }
         if self.unique {
-            self.assert_all_ids_unique(&self.graph);
+            self.assert_all_ids_unique(&graph);
         }
     }
 
