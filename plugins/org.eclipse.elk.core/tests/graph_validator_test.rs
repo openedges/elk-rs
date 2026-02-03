@@ -10,7 +10,10 @@ use org_eclipse_elk_core::org::eclipse::elk::core::validation::{
     GraphIssue, GraphValidator, IValidatingGraphElementVisitor, Severity,
 };
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
-use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkGraphElementRef;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::{
+    ElkConnectableShapeRef, ElkEdge, ElkEdgeRef, ElkEdgeSection, ElkEdgeSectionRef,
+    ElkGraphElementRef,
+};
 
 #[test]
 fn graph_validator_unconnected_edge() {
@@ -63,6 +66,111 @@ fn graph_validator_custom_validation() {
     assert_eq!(issues[0].message(), "FOO!");
 }
 
+#[test]
+fn graph_validator_edge_containment_warning() {
+    LayoutMetaDataService::get_instance();
+    let graph = ElkGraphUtil::create_graph();
+    let n1 = ElkGraphUtil::create_node(Some(graph.clone()));
+    let n2 = ElkGraphUtil::create_node(Some(graph.clone()));
+    let edge = ElkGraphUtil::create_simple_edge(
+        ElkConnectableShapeRef::Node(n1.clone()),
+        ElkConnectableShapeRef::Node(n2.clone()),
+    );
+
+    ElkEdge::set_containing_node(&edge, Some(n1.clone()));
+
+    let mut validator = GraphValidator::new();
+    ElkUtil::apply_visitors(&graph, &mut [&mut validator]);
+
+    let issues = validator.issues().expect("issues");
+    assert_eq!(issues.len(), 1);
+    assert_eq!(issues[0].severity(), Severity::Warning);
+    assert!(issues[0].message().contains("Edge should be contained in"));
+}
+
+#[test]
+fn graph_validator_section_incoming_shape_not_source() {
+    LayoutMetaDataService::get_instance();
+    let graph = ElkGraphUtil::create_graph();
+    let n1 = ElkGraphUtil::create_node(Some(graph.clone()));
+    let n2 = ElkGraphUtil::create_node(Some(graph.clone()));
+    let edge = ElkGraphUtil::create_simple_edge(
+        ElkConnectableShapeRef::Node(n1.clone()),
+        ElkConnectableShapeRef::Node(n2.clone()),
+    );
+
+    let section = create_section(&edge);
+    section
+        .borrow_mut()
+        .set_incoming_shape(Some(ElkConnectableShapeRef::Node(n2.clone())));
+
+    let mut validator = GraphValidator::new();
+    ElkUtil::apply_visitors(&graph, &mut [&mut validator]);
+
+    let issues = validator.issues().expect("issues");
+    assert_eq!(issues.len(), 1);
+    assert_eq!(issues[0].severity(), Severity::Error);
+    assert!(issues[0]
+        .message()
+        .contains("incoming shape is not a source"));
+}
+
+#[test]
+fn graph_validator_section_outgoing_shape_not_target() {
+    LayoutMetaDataService::get_instance();
+    let graph = ElkGraphUtil::create_graph();
+    let n1 = ElkGraphUtil::create_node(Some(graph.clone()));
+    let n2 = ElkGraphUtil::create_node(Some(graph.clone()));
+    let edge = ElkGraphUtil::create_simple_edge(
+        ElkConnectableShapeRef::Node(n1.clone()),
+        ElkConnectableShapeRef::Node(n2.clone()),
+    );
+
+    let section = create_section(&edge);
+    section
+        .borrow_mut()
+        .set_outgoing_shape(Some(ElkConnectableShapeRef::Node(n1.clone())));
+
+    let mut validator = GraphValidator::new();
+    ElkUtil::apply_visitors(&graph, &mut [&mut validator]);
+
+    let issues = validator.issues().expect("issues");
+    assert_eq!(issues.len(), 1);
+    assert_eq!(issues[0].severity(), Severity::Error);
+    assert!(issues[0]
+        .message()
+        .contains("outgoing shape is not a target"));
+}
+
+#[test]
+fn graph_validator_section_incoming_conflict() {
+    LayoutMetaDataService::get_instance();
+    let graph = ElkGraphUtil::create_graph();
+    let n1 = ElkGraphUtil::create_node(Some(graph.clone()));
+    let n2 = ElkGraphUtil::create_node(Some(graph.clone()));
+    let edge = ElkGraphUtil::create_simple_edge(
+        ElkConnectableShapeRef::Node(n1.clone()),
+        ElkConnectableShapeRef::Node(n2.clone()),
+    );
+
+    let section = create_section(&edge);
+    let other = create_section(&edge);
+    section
+        .borrow_mut()
+        .set_incoming_shape(Some(ElkConnectableShapeRef::Node(n1.clone())));
+    section.borrow_mut().set_incoming_sections(vec![other]);
+
+    let mut validator = GraphValidator::new();
+    ElkUtil::apply_visitors(&graph, &mut [&mut validator]);
+
+    let issues = validator.issues().expect("issues");
+    assert_eq!(issues.len(), 1);
+    assert_eq!(issues[0].severity(), Severity::Error);
+    assert!(issues[0]
+        .message()
+        .contains("cannot be connected to an ElkNode"));
+}
+
 struct FooProvider;
 
 impl ILayoutMetaDataProvider for FooProvider {
@@ -113,4 +221,10 @@ impl IGraphElementVisitor for FooValidator {
     fn issues(&self) -> Option<&[GraphIssue]> {
         Some(&self.issues)
     }
+}
+
+fn create_section(edge: &ElkEdgeRef) -> ElkEdgeSectionRef {
+    let section = ElkEdgeSection::new();
+    edge.borrow_mut().sections().add(section.clone());
+    section
 }
