@@ -11,6 +11,7 @@ pub mod l_padding;
 pub mod l_port;
 pub mod l_shape;
 pub mod layer;
+pub mod tarjan;
 
 pub use l_edge::LEdge;
 pub use l_graph::LGraph;
@@ -23,6 +24,7 @@ pub use l_padding::LPadding;
 pub use l_port::LPort;
 pub use l_shape::LShape;
 pub use layer::Layer;
+pub use tarjan::{NodeRefKey, Tarjan};
 
 pub type LGraphRef = Arc<Mutex<LGraph>>;
 pub type LGraphWeak = Weak<Mutex<LGraph>>;
