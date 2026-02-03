@@ -1002,6 +1002,205 @@ fn transfer_layout_writes_junction_points() {
     assert_eq!(points[1]["y"].as_f64().unwrap(), 4.0);
 }
 
+#[test]
+fn transfer_layout_shape_coords_root() {
+    let graph = r#"
+    {
+      "id": "root",
+      "children": [
+        {
+          "id": "parent",
+          "layoutOptions": { "shapeCoords": "ROOT" },
+          "children": [
+            { "id": "child" }
+          ]
+        }
+      ]
+    }
+    "#;
+
+    let shared = Rc::new(RefCell::new(parse_lenient_json(graph)));
+    let mut importer = Maybe::default();
+    let root = ElkGraphJson::for_graph_shared(shared.clone())
+        .remember_importer(&mut importer)
+        .to_elk()
+        .unwrap();
+
+    let parent = find_node(&node_children(&root), "parent");
+    let child = find_node(&node_children(&parent), "child");
+
+    set_node_location(&root, 0.0, 0.0);
+    set_node_location(&parent, 10.0, 20.0);
+    set_node_location(&child, 5.0, 6.0);
+
+    importer
+        .get_mut()
+        .expect("importer")
+        .transfer_layout(&root)
+        .unwrap();
+
+    let root_value = shared.borrow();
+    let parent_obj = root_value["children"]
+        .as_array()
+        .and_then(|children| {
+            children.iter().find(|child| child.get("id").and_then(|id| id.as_str()) == Some("parent"))
+        })
+        .and_then(|child| child.as_object())
+        .expect("parent");
+    let child_obj = parent_obj["children"]
+        .as_array()
+        .and_then(|children| {
+            children.iter().find(|child| child.get("id").and_then(|id| id.as_str()) == Some("child"))
+        })
+        .and_then(|child| child.as_object())
+        .expect("child");
+
+    assert_eq!(child_obj.get("x").and_then(|v| v.as_f64()), Some(15.0));
+    assert_eq!(child_obj.get("y").and_then(|v| v.as_f64()), Some(26.0));
+}
+
+#[test]
+fn transfer_layout_edge_coords_root() {
+    let graph = r#"
+    {
+      "id": "root",
+      "layoutOptions": { "edgeCoords": "ROOT" },
+      "children": [
+        {
+          "id": "parent",
+          "children": [
+            { "id": "n1" },
+            { "id": "n2" }
+          ]
+        }
+      ],
+      "edges": [
+        { "id": "e1", "source": "n1", "target": "n2" }
+      ]
+    }
+    "#;
+
+    let shared = Rc::new(RefCell::new(parse_lenient_json(graph)));
+    let mut importer = Maybe::default();
+    let root = ElkGraphJson::for_graph_shared(shared.clone())
+        .remember_importer(&mut importer)
+        .to_elk()
+        .unwrap();
+
+    let parent = find_node(&node_children(&root), "parent");
+    let mut edges = node_edges(&parent);
+    assert_eq!(edges.len(), 1);
+    let edge = edges.remove(0);
+
+    set_node_location(&root, 0.0, 0.0);
+    set_node_location(&parent, 100.0, 50.0);
+
+    let junctions = KVectorChain::from_vectors(&[
+        KVector::with_values(10.0, 20.0),
+        KVector::with_values(30.0, 40.0),
+    ]);
+    set_edge_property(&edge, CoreOptions::JUNCTION_POINTS, junctions);
+
+    importer
+        .get_mut()
+        .expect("importer")
+        .transfer_layout(&root)
+        .unwrap();
+
+    let root_value = shared.borrow();
+    let edge_obj = root_value["edges"]
+        .as_array()
+        .and_then(|edges| {
+            edges.iter().find(|edge| edge.get("id").and_then(|id| id.as_str()) == Some("e1"))
+        })
+        .and_then(|edge| edge.as_object())
+        .expect("edge");
+    let points = edge_obj["junctionPoints"]
+        .as_array()
+        .expect("junctionPoints");
+    assert_eq!(points[0]["x"].as_f64().unwrap(), 110.0);
+    assert_eq!(points[0]["y"].as_f64().unwrap(), 70.0);
+    assert_eq!(points[1]["x"].as_f64().unwrap(), 130.0);
+    assert_eq!(points[1]["y"].as_f64().unwrap(), 90.0);
+}
+
+#[test]
+fn transfer_layout_edge_coords_parent() {
+    let graph = r#"
+    {
+      "id": "root",
+      "children": [
+        {
+          "id": "a",
+          "layoutOptions": { "edgeCoords": "PARENT" },
+          "children": [
+            { "id": "n1" }
+          ],
+          "edges": [
+            { "id": "e1", "source": "n1", "target": "n2" }
+          ]
+        },
+        {
+          "id": "b",
+          "children": [
+            { "id": "n2" }
+          ]
+        }
+      ]
+    }
+    "#;
+
+    let shared = Rc::new(RefCell::new(parse_lenient_json(graph)));
+    let mut importer = Maybe::default();
+    let root = ElkGraphJson::for_graph_shared(shared.clone())
+        .remember_importer(&mut importer)
+        .to_elk()
+        .unwrap();
+
+    let a = find_node(&node_children(&root), "a");
+    let mut edges = node_edges(&root);
+    assert_eq!(edges.len(), 1);
+    let edge = edges.remove(0);
+
+    set_node_location(&root, 0.0, 0.0);
+    set_node_location(&a, 100.0, 50.0);
+
+    let junctions = KVectorChain::from_vectors(&[
+        KVector::with_values(120.0, 70.0),
+        KVector::with_values(150.0, 80.0),
+    ]);
+    set_edge_property(&edge, CoreOptions::JUNCTION_POINTS, junctions);
+
+    importer
+        .get_mut()
+        .expect("importer")
+        .transfer_layout(&root)
+        .unwrap();
+
+    let root_value = shared.borrow();
+    let a_obj = root_value["children"]
+        .as_array()
+        .and_then(|children| {
+            children.iter().find(|child| child.get("id").and_then(|id| id.as_str()) == Some("a"))
+        })
+        .and_then(|child| child.as_object())
+        .expect("a");
+    let edge_obj = a_obj["edges"]
+        .as_array()
+        .and_then(|edges| {
+            edges.iter().find(|edge| edge.get("id").and_then(|id| id.as_str()) == Some("e1"))
+        })
+        .and_then(|edge| edge.as_object())
+        .expect("edge");
+    let points = edge_obj["junctionPoints"]
+        .as_array()
+        .expect("junctionPoints");
+    assert_eq!(points[0]["x"].as_f64().unwrap(), 20.0);
+    assert_eq!(points[0]["y"].as_f64().unwrap(), 20.0);
+    assert_eq!(points[1]["x"].as_f64().unwrap(), 50.0);
+    assert_eq!(points[1]["y"].as_f64().unwrap(), 30.0);
+}
+
 fn assert_import_error(input: &str) {
     assert!(matches!(
         ElkGraphJson::for_graph(input).to_elk(),
@@ -1208,4 +1407,9 @@ fn set_node_identifier(node: &ElkNodeRef, value: &str) {
         .shape()
         .graph_element()
         .set_identifier(Some(value.to_string()));
+}
+
+fn set_node_location(node: &ElkNodeRef, x: f64, y: f64) {
+    let mut node_ref = node.borrow_mut();
+    node_ref.connectable().shape().set_location(x, y);
 }
