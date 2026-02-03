@@ -719,24 +719,33 @@ impl RecursiveGraphLayoutEngine {
         });
 
         let mut resolver = LayoutAlgorithmResolver::new();
-        let mut option_validator = LayoutOptionValidator::new();
-        let mut graph_validator = GraphValidator::new();
-        let mut visitors: Vec<&mut dyn crate::org::eclipse::elk::core::util::IGraphElementVisitor> =
-            Vec::new();
-        visitors.push(&mut resolver);
-        if validate_options {
-            visitors.push(&mut option_validator);
-        }
-        if validate_graph {
-            visitors.push(&mut graph_validator);
+        {
+            let mut option_validator = LayoutOptionValidator::new();
+            let mut graph_validator = GraphValidator::new();
+            let mut visitors: Vec<
+                &mut dyn crate::org::eclipse::elk::core::util::IGraphElementVisitor,
+            > = Vec::new();
+            visitors.push(&mut resolver);
+            if validate_options {
+                visitors.push(&mut option_validator);
+            }
+            if validate_graph {
+                visitors.push(&mut graph_validator);
+            }
+
+            if validate_graph || validate_options {
+                if let Err(error) =
+                    ElkUtil::apply_visitors_with_validation(layout_graph, &mut visitors)
+                {
+                    panic!("{}", error);
+                }
+            } else {
+                ElkUtil::apply_visitors(layout_graph, &mut visitors);
+            }
         }
 
-        if validate_graph || validate_options {
-            if let Err(error) = ElkUtil::apply_visitors_with_validation(layout_graph, &mut visitors) {
-                panic!("{}", error);
-            }
-        } else {
-            ElkUtil::apply_visitors(layout_graph, &mut visitors);
+        if let Some(error) = resolver.errors().first() {
+            panic!("{}", error);
         }
 
         self.layout_recursively(layout_graph, test_controller, progress_monitor);
