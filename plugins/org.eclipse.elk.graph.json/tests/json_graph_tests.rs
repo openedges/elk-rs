@@ -14,7 +14,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::{
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{
-    ElkConnectableShapeRef, ElkEdgeRef, ElkEdgeSectionRef, ElkNodeRef,
+    ElkConnectableShapeRef, ElkEdgeRef, ElkEdgeSectionRef, ElkGraphElementRef, ElkNodeRef,
 };
 use org_eclipse_elk_graph_json::org::eclipse::elk::graph::json::{ElkGraphJson, JsonImportError};
 
@@ -360,6 +360,70 @@ fn export_layout_options_kvector_and_chain() {
     assert_eq!(parsed_bends.len(), 2);
     assert_eq!(parsed_bends.get(0), KVector::with_values(0.0, 0.0));
     assert_eq!(parsed_bends.get(1), KVector::with_values(10.0, 10.0));
+}
+
+#[test]
+fn import_layout_options_port_and_label_position() {
+    let graph = r#"
+    {
+      "id": "root",
+      "children": [
+        {
+          "id": "n1",
+          "ports": [
+            { "id": "p1", "layoutOptions": { "position": "(7,8)" } }
+          ],
+          "labels": [
+            { "text": "L1", "layoutOptions": { "position": "(9,10)" } }
+          ]
+        }
+      ]
+    }
+    "#;
+
+    let root = ElkGraphJson::for_graph(graph).to_elk().unwrap();
+    let node = find_node(&node_children(&root), "n1");
+
+    let port = node_ports(&node).remove(0);
+    let label = node_labels(&node).remove(0);
+
+    let port_pos = port_property(&port, CoreOptions::POSITION).expect("port position");
+    assert_eq!(port_pos, KVector::with_values(7.0, 8.0));
+
+    let label_pos = label_property(&label, CoreOptions::POSITION).expect("label position");
+    assert_eq!(label_pos, KVector::with_values(9.0, 10.0));
+}
+
+#[test]
+fn export_layout_options_port_and_label_position() {
+    let graph = ElkGraphUtil::create_graph();
+    let node = ElkGraphUtil::create_node(Some(graph.clone()));
+    let port = ElkGraphUtil::create_port(Some(node.clone()));
+    let label = ElkGraphUtil::create_label_with_text("L1", Some(ElkGraphElementRef::Node(node.clone())));
+
+    set_port_property(&port, CoreOptions::POSITION, KVector::with_values(7.0, 8.0));
+    set_label_property(&label, CoreOptions::POSITION, KVector::with_values(9.0, 10.0));
+
+    let json = ElkGraphJson::for_elk(graph).to_json();
+    let value: Value = serde_json::from_str(&json).unwrap();
+
+    let child = value["children"]
+        .as_array()
+        .and_then(|children| children.first())
+        .expect("node child");
+    let port_pos_str = child["ports"][0]["layoutOptions"]["elk.position"]
+        .as_str()
+        .expect("port position");
+    let mut parsed_port = KVector::new();
+    parsed_port.parse(port_pos_str);
+    assert_eq!(parsed_port, KVector::with_values(7.0, 8.0));
+
+    let label_pos_str = child["labels"][0]["layoutOptions"]["elk.position"]
+        .as_str()
+        .expect("label position");
+    let mut parsed_label = KVector::new();
+    parsed_label.parse(label_pos_str);
+    assert_eq!(parsed_label, KVector::with_values(9.0, 10.0));
 }
 
 #[test]
@@ -893,6 +957,23 @@ fn node_edges(node: &ElkNodeRef) -> Vec<ElkEdgeRef> {
     node_mut.contained_edges().iter().cloned().collect()
 }
 
+fn node_ports(node: &ElkNodeRef) -> Vec<org_eclipse_elk_graph::org::eclipse::elk::graph::ElkPortRef> {
+    let mut node_mut = node.borrow_mut();
+    node_mut.ports().iter().cloned().collect()
+}
+
+fn node_labels(node: &ElkNodeRef) -> Vec<org_eclipse_elk_graph::org::eclipse::elk::graph::ElkLabelRef> {
+    let mut node_mut = node.borrow_mut();
+    node_mut
+        .connectable()
+        .shape()
+        .graph_element()
+        .labels()
+        .iter()
+        .cloned()
+        .collect()
+}
+
 fn node_identifier(node: &ElkNodeRef) -> Option<String> {
     let mut node_mut = node.borrow_mut();
     node_mut
@@ -961,6 +1042,31 @@ fn edge_property<T: Clone + Send + Sync + 'static>(
         .get_property(property)
 }
 
+fn port_property<T: Clone + Send + Sync + 'static>(
+    port: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkPortRef,
+    property: &Property<T>,
+) -> Option<T> {
+    let mut port_ref = port.borrow_mut();
+    port_ref
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .get_property(property)
+}
+
+fn label_property<T: Clone + Send + Sync + 'static>(
+    label: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkLabelRef,
+    property: &Property<T>,
+) -> Option<T> {
+    let mut label_ref = label.borrow_mut();
+    label_ref
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .get_property(property)
+}
+
 fn set_node_property<T: Clone + Send + Sync + 'static>(
     node: &ElkNodeRef,
     property: &Property<T>,
@@ -983,6 +1089,33 @@ fn set_edge_property<T: Clone + Send + Sync + 'static>(
     let mut edge_ref = edge.borrow_mut();
     edge_ref
         .element()
+        .properties_mut()
+        .set_property(property, Some(value));
+}
+
+fn set_port_property<T: Clone + Send + Sync + 'static>(
+    port: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkPortRef,
+    property: &Property<T>,
+    value: T,
+) {
+    let mut port_ref = port.borrow_mut();
+    port_ref
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(property, Some(value));
+}
+
+fn set_label_property<T: Clone + Send + Sync + 'static>(
+    label: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkLabelRef,
+    property: &Property<T>,
+    value: T,
+) {
+    let mut label_ref = label.borrow_mut();
+    label_ref
+        .shape()
+        .graph_element()
         .properties_mut()
         .set_property(property, Some(value));
 }
