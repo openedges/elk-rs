@@ -1,13 +1,19 @@
 use std::rc::Rc;
 
+use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
+use org_eclipse_elk_core::org::eclipse::elk::core::math::{ElkMargin, ElkPadding};
 use org_eclipse_elk_core::org::eclipse::elk::core::options::{CoreOptions, PortConstraints, PortSide};
 use org_eclipse_elk_core::org::eclipse::elk::core::util::adapters::{
-    ElkGraphAdapters, GraphAdapter, NodeAdapter,
+    ElkGraphAdapters, GraphAdapter, GraphElementAdapter, NodeAdapter, PortAdapter,
 };
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::{
+    ElkConnectableShapeRef, ElkGraphElementRef,
+};
 
 #[test]
 fn elk_graph_adapter_lists_child_nodes() {
+    LayoutMetaDataService::get_instance();
     let graph = ElkGraphUtil::create_graph();
     ElkGraphUtil::create_node(Some(graph.clone()));
     ElkGraphUtil::create_node(Some(graph.clone()));
@@ -19,6 +25,7 @@ fn elk_graph_adapter_lists_child_nodes() {
 
 #[test]
 fn node_adapter_sorts_ports_when_fixed_order() {
+    LayoutMetaDataService::get_instance();
     let graph = ElkGraphUtil::create_graph();
     let node = ElkGraphUtil::create_node(Some(graph));
 
@@ -51,6 +58,73 @@ fn node_adapter_sorts_ports_when_fixed_order() {
     assert!(Rc::ptr_eq(&ports[0], &p2));
     assert!(Rc::ptr_eq(&ports[1], &p3));
     assert!(Rc::ptr_eq(&ports[2], &p1));
+}
+
+#[test]
+fn node_adapter_lists_ports_and_labels() {
+    LayoutMetaDataService::get_instance();
+    let graph = ElkGraphUtil::create_graph();
+    let node = ElkGraphUtil::create_node(Some(graph));
+    ElkGraphUtil::create_port(Some(node.clone()));
+    ElkGraphUtil::create_label_with_text(
+        "L1",
+        Some(ElkGraphElementRef::Node(node.clone())),
+    );
+
+    let adapter = ElkGraphAdapters::adapt_single_node(node);
+    assert_eq!(adapter.get_ports().len(), 1);
+    assert_eq!(adapter.get_labels().len(), 1);
+}
+
+#[test]
+fn node_adapter_padding_and_margin_roundtrip() {
+    LayoutMetaDataService::get_instance();
+    let graph = ElkGraphUtil::create_graph();
+    let node = ElkGraphUtil::create_node(Some(graph));
+    let adapter = ElkGraphAdapters::adapt_single_node(node);
+
+    let padding = ElkPadding::with_values(1.0, 2.0, 3.0, 4.0);
+    adapter.set_padding(padding.clone());
+    assert_eq!(adapter.get_padding(), padding);
+
+    let margin = ElkMargin::with_values(5.0, 6.0, 7.0, 8.0);
+    adapter.set_margin(margin.clone());
+    assert_eq!(adapter.get_margin(), margin);
+}
+
+#[test]
+fn port_adapter_margin_and_border_offset() {
+    LayoutMetaDataService::get_instance();
+    let graph = ElkGraphUtil::create_graph();
+    let node = ElkGraphUtil::create_node(Some(graph));
+    let port = ElkGraphUtil::create_port(Some(node));
+
+    let adapter = ElkGraphAdapters::adapt_single_port(port);
+    let margin = ElkMargin::with_values(1.0, 2.0, 3.0, 4.0);
+    adapter.set_margin(margin.clone());
+    assert_eq!(adapter.get_margin(), margin);
+
+    let offset = adapter
+        .get_property(CoreOptions::PORT_BORDER_OFFSET)
+        .expect("port border offset");
+    assert_eq!(offset, 0.0);
+}
+
+#[test]
+fn port_adapter_detects_compound_connections() {
+    LayoutMetaDataService::get_instance();
+    let graph = ElkGraphUtil::create_graph();
+    let parent = ElkGraphUtil::create_node(Some(graph.clone()));
+    let child = ElkGraphUtil::create_node(Some(parent.clone()));
+    let port = ElkGraphUtil::create_port(Some(parent));
+
+    ElkGraphUtil::create_simple_edge(
+        ElkConnectableShapeRef::Port(port.clone()),
+        ElkConnectableShapeRef::Node(child),
+    );
+
+    let adapter = ElkGraphAdapters::adapt_single_port(port);
+    assert!(adapter.has_compound_connections());
 }
 
 fn set_port_attrs(port: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkPortRef, side: PortSide, index: i32) {
