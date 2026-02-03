@@ -1620,7 +1620,7 @@ fn parse_kvector_chain_value(value: &str) -> Option<KVectorChain> {
             continue;
         }
         let parsed = token.parse::<f64>().ok()?;
-        if xy % 2 == 0 {
+        if xy.is_multiple_of(2) {
             x = parsed;
         } else {
             chain.add_values(x, parsed);
