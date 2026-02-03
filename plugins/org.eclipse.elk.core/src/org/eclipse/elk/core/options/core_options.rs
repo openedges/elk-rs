@@ -208,7 +208,7 @@ pub static HYPERNODE_PROPERTY: LazyLock<Property<bool>> =
     LazyLock::new(|| Property::with_default("org.eclipse.elk.hypernode", false));
 
 pub static LABEL_MANAGER_PROPERTY: LazyLock<Property<Arc<dyn ILabelManager>>> =
-    LazyLock::new(|| Property::new("org.eclipse.elk.labelManager"));
+    LazyLock::new(|| Property::new("org.eclipse.elk.labels.labelManager"));
 
 pub static SOFTWRAPPING_FUZZINESS_PROPERTY: LazyLock<Property<f64>> =
     LazyLock::new(|| Property::with_default("org.eclipse.elk.softwrappingFuzziness", 0.0));
