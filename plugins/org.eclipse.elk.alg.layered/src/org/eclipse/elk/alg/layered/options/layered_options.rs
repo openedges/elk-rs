@@ -2,7 +2,10 @@ use std::sync::LazyLock;
 
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 
-use super::{CuttingStrategy, LayerUnzippingStrategy, ValidifyStrategy, WrappingStrategy};
+use super::{
+    CenterEdgeLabelPlacementStrategy, CuttingStrategy, EdgeLabelSideSelection,
+    LayerUnzippingStrategy, ValidifyStrategy, WrappingStrategy,
+};
 
 pub struct LayeredOptions;
 
@@ -124,6 +127,23 @@ pub static LAYER_UNZIPPING_RESET_ON_LONG_EDGES_PROPERTY: LazyLock<Property<bool>
         )
     });
 
+pub static EDGE_LABELS_SIDE_SELECTION_PROPERTY: LazyLock<Property<EdgeLabelSideSelection>> =
+    LazyLock::new(|| {
+        Property::with_default(
+            "org.eclipse.elk.alg.layered.edgeLabels.sideSelection",
+            EdgeLabelSideSelection::SmartDown,
+        )
+    });
+
+pub static EDGE_LABELS_CENTER_LABEL_PLACEMENT_STRATEGY_PROPERTY: LazyLock<
+    Property<CenterEdgeLabelPlacementStrategy>,
+> = LazyLock::new(|| {
+    Property::with_default(
+        "org.eclipse.elk.alg.layered.edgeLabels.centerLabelPlacementStrategy",
+        CenterEdgeLabelPlacementStrategy::MedianLayer,
+    )
+});
+
 impl LayeredOptions {
     pub const ALGORITHM_ID: &'static str = "org.eclipse.elk.layered";
 
@@ -170,4 +190,10 @@ impl LayeredOptions {
         &LAYER_UNZIPPING_LAYER_SPLIT_PROPERTY;
     pub const LAYER_UNZIPPING_RESET_ON_LONG_EDGES: &'static LazyLock<Property<bool>> =
         &LAYER_UNZIPPING_RESET_ON_LONG_EDGES_PROPERTY;
+
+    pub const EDGE_LABELS_SIDE_SELECTION: &'static LazyLock<Property<EdgeLabelSideSelection>> =
+        &EDGE_LABELS_SIDE_SELECTION_PROPERTY;
+    pub const EDGE_LABELS_CENTER_LABEL_PLACEMENT_STRATEGY: &'static LazyLock<
+        Property<CenterEdgeLabelPlacementStrategy>,
+    > = &EDGE_LABELS_CENTER_LABEL_PLACEMENT_STRATEGY_PROPERTY;
 }

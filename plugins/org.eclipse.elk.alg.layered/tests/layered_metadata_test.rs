@@ -1,5 +1,6 @@
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::{
-    LayeredMetaDataProvider, LayeredOptions, LayerUnzippingStrategy, WrappingStrategy,
+    CenterEdgeLabelPlacementStrategy, EdgeLabelSideSelection, LayeredMetaDataProvider,
+    LayeredOptions, LayerUnzippingStrategy, WrappingStrategy,
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::data::{
     LayoutMetaDataService, LayoutOptionTarget, LayoutOptionVisibility,
@@ -90,4 +91,27 @@ fn layer_unzipping_defaults() {
         .and_then(|value| value.downcast::<i32>().ok())
         .expect("lower bound");
     assert_eq!(*lower, 1);
+}
+
+#[test]
+fn edge_label_defaults() {
+    init_layered_options();
+
+    let side = LayoutMetaDataService::get_instance()
+        .get_option_data(LayeredOptions::EDGE_LABELS_SIDE_SELECTION.id())
+        .expect("edge label side selection");
+    let default = side
+        .default_value()
+        .and_then(|value| value.downcast::<EdgeLabelSideSelection>().ok())
+        .expect("default value");
+    assert_eq!(*default, EdgeLabelSideSelection::SmartDown);
+
+    let center = LayoutMetaDataService::get_instance()
+        .get_option_data(LayeredOptions::EDGE_LABELS_CENTER_LABEL_PLACEMENT_STRATEGY.id())
+        .expect("edge label center placement");
+    let default = center
+        .default_value()
+        .and_then(|value| value.downcast::<CenterEdgeLabelPlacementStrategy>().ok())
+        .expect("default value");
+    assert_eq!(*default, CenterEdgeLabelPlacementStrategy::MedianLayer);
 }

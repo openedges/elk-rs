@@ -11,7 +11,8 @@ use org_eclipse_elk_core::org::eclipse::elk::core::data::{
 };
 
 use super::{
-    CuttingStrategy, LayerUnzippingStrategy, LayeredOptions, ValidifyStrategy, WrappingStrategy,
+    CenterEdgeLabelPlacementStrategy, CuttingStrategy, EdgeLabelSideSelection,
+    LayerUnzippingStrategy, LayeredOptions, ValidifyStrategy, WrappingStrategy,
 };
 
 pub struct LayeredMetaDataProvider;
@@ -23,12 +24,15 @@ impl ILayoutMetaDataProvider for LayeredMetaDataProvider {
         register_priority_options(registry);
         register_wrapping_options(registry);
         register_layer_unzipping_options(registry);
+        register_edge_label_options(registry);
     }
 }
 
 const TARGET_PARENTS: [LayoutOptionTarget; 1] = [LayoutOptionTarget::Parents];
 const TARGET_EDGES: [LayoutOptionTarget; 1] = [LayoutOptionTarget::Edges];
 const TARGET_NODES: [LayoutOptionTarget; 1] = [LayoutOptionTarget::Nodes];
+const TARGET_PARENTS_LABELS: [LayoutOptionTarget; 2] =
+    [LayoutOptionTarget::Parents, LayoutOptionTarget::Labels];
 
 fn register_spacing_options(registry: &mut dyn LayoutMetaDataRegistry) {
     register_option(
@@ -373,6 +377,32 @@ fn register_layer_unzipping_options(registry: &mut dyn LayoutMetaDataRegistry) {
     );
 }
 
+fn register_edge_label_options(registry: &mut dyn LayoutMetaDataRegistry) {
+    register_option(
+        registry,
+        LayeredOptions::EDGE_LABELS_SIDE_SELECTION,
+        LayoutOptionType::Enum,
+        "Edge Label Side Selection",
+        "Method to decide on edge label sides.",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Visible,
+        Some("edgeLabels"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::EDGE_LABELS_CENTER_LABEL_PLACEMENT_STRATEGY,
+        LayoutOptionType::Enum,
+        "Edge Center Label Placement Strategy",
+        "Determines in which layer center labels of long edges should be placed.",
+        &TARGET_PARENTS_LABELS,
+        LayoutOptionVisibility::Advanced,
+        Some("edgeLabels"),
+        None,
+    );
+}
+
 fn register_option<T: Clone + Send + Sync + 'static>(
     registry: &mut dyn LayoutMetaDataRegistry,
     property: &'static LazyLock<Property<T>>,
@@ -431,6 +461,14 @@ fn init_reflect() {
         ElkReflect::register(
             Some(|| LayerUnzippingStrategy::None),
             Some(|v: &LayerUnzippingStrategy| *v),
+        );
+        ElkReflect::register(
+            Some(|| EdgeLabelSideSelection::SmartDown),
+            Some(|v: &EdgeLabelSideSelection| *v),
+        );
+        ElkReflect::register(
+            Some(|| CenterEdgeLabelPlacementStrategy::MedianLayer),
+            Some(|v: &CenterEdgeLabelPlacementStrategy| *v),
         );
     });
 }
