@@ -1,0 +1,94 @@
+use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
+use org_eclipse_elk_core::org::eclipse::elk::core::math::{ElkMargin, ElkPadding, KVector, KVectorChain};
+use org_eclipse_elk_core::org::eclipse::elk::core::options::CoreOptions;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::IndividualSpacings;
+
+#[test]
+fn parse_object_options_kvector_and_chain() {
+    let service = LayoutMetaDataService::get_instance();
+
+    let position = service
+        .get_option_data_by_suffix("position")
+        .expect("position option");
+    let parsed = position
+        .parse_value("(1.5, 2.5)")
+        .expect("position parsed");
+    let vector = parsed.downcast_ref::<KVector>().expect("KVector");
+    assert_eq!(vector.x, 1.5);
+    assert_eq!(vector.y, 2.5);
+
+    let bend_points = service
+        .get_option_data_by_suffix("bendPoints")
+        .expect("bendPoints option");
+    let parsed = bend_points
+        .parse_value("(1,2; 3,4)")
+        .expect("bend points parsed");
+    let chain = parsed
+        .downcast_ref::<KVectorChain>()
+        .expect("KVectorChain");
+    assert_eq!(chain.len(), 2);
+    assert_eq!(chain.get(0).x, 1.0);
+    assert_eq!(chain.get(0).y, 2.0);
+    assert_eq!(chain.get(1).x, 3.0);
+    assert_eq!(chain.get(1).y, 4.0);
+}
+
+#[test]
+fn parse_object_options_padding_and_margin() {
+    let service = LayoutMetaDataService::get_instance();
+
+    let padding_option = service
+        .get_option_data_by_suffix("nodeLabels.padding")
+        .expect("nodeLabels.padding option");
+    let parsed = padding_option
+        .parse_value("[top=1,left=2,bottom=3,right=4]")
+        .expect("padding parsed");
+    let padding = parsed
+        .downcast_ref::<ElkPadding>()
+        .expect("ElkPadding");
+    assert_eq!(padding.top, 1.0);
+    assert_eq!(padding.right, 4.0);
+    assert_eq!(padding.bottom, 3.0);
+    assert_eq!(padding.left, 2.0);
+
+    let margin_option = service
+        .get_option_data_by_suffix("spacing.portsSurrounding")
+        .expect("portsSurrounding option");
+    let parsed = margin_option
+        .parse_value("[top=5,left=6,bottom=7,right=8]")
+        .expect("margin parsed");
+    let margin = parsed.downcast_ref::<ElkMargin>().expect("ElkMargin");
+    assert_eq!(margin.top, 5.0);
+    assert_eq!(margin.right, 8.0);
+    assert_eq!(margin.bottom, 7.0);
+    assert_eq!(margin.left, 6.0);
+}
+
+#[test]
+fn parse_object_option_individual_spacings() {
+    let service = LayoutMetaDataService::get_instance();
+    let option = service
+        .get_option_data_by_suffix("spacing.individual")
+        .expect("individual spacings option");
+
+    let serialized = "nodeNode:10;,;nodeLabels.padding:[top=1,left=2,bottom=3,right=4]";
+    let parsed = option
+        .parse_value(serialized)
+        .expect("individual spacings parsed");
+    let spacings = parsed
+        .downcast_ref::<IndividualSpacings>()
+        .expect("IndividualSpacings");
+
+    let mut spacings = spacings.clone();
+    let node_node = spacings
+        .properties_mut()
+        .get_property(CoreOptions::SPACING_NODE_NODE)
+        .expect("nodeNode spacing");
+    assert_eq!(node_node, 10.0);
+
+    let padding = spacings
+        .properties_mut()
+        .get_property(CoreOptions::NODE_LABELS_PADDING)
+        .expect("nodeLabels.padding");
+    assert_eq!(padding, ElkPadding::with_values(1.0, 4.0, 3.0, 2.0));
+}
