@@ -309,6 +309,9 @@ fn layout_next_level_size(original_graph: &ElkNodeRef) -> KVector {
     });
     let mut resolver = LayoutAlgorithmResolver::new();
     resolver.visit(&ElkGraphElementRef::Node(original_graph.clone()));
+    if let Some(error) = resolver.errors().first() {
+        panic!("{}", error);
+    }
 
     ElkUtil::compute_child_area_dimensions(original_graph);
     let child_area_width = with_node_properties_mut(original_graph, |props| {
