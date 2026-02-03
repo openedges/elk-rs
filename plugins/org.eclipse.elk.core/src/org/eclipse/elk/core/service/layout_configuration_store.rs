@@ -8,6 +8,7 @@ pub trait ILayoutConfigurationStore {
     fn affected_options(&self) -> Vec<String>;
     fn option_targets(&self) -> Vec<LayoutOptionTarget>;
     fn parent(&self) -> Option<Box<dyn ILayoutConfigurationStore>>;
+    fn clone_box(&self) -> Box<dyn ILayoutConfigurationStore>;
 }
 
 pub trait ILayoutConfigurationStoreProvider {

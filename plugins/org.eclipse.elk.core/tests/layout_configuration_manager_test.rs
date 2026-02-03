@@ -41,6 +41,10 @@ impl ILayoutConfigurationStore for TestStore {
             .as_ref()
             .map(|parent| Box::new((**parent).clone()) as Box<dyn ILayoutConfigurationStore>)
     }
+
+    fn clone_box(&self) -> Box<dyn ILayoutConfigurationStore> {
+        Box::new(self.clone())
+    }
 }
 
 struct TestProvider {
@@ -118,4 +122,38 @@ fn layout_configuration_manager_applies_configurator() {
         .get_property(CoreOptions::SPACING_NODE_NODE)
         .expect("spacing");
     assert!((value - 25.0).abs() < f64::EPSILON);
+}
+
+#[test]
+fn layout_configuration_manager_root_returns_self() {
+    let store = TestStore {
+        values: HashMap::from([("id".to_string(), "self".to_string())]),
+        ..Default::default()
+    };
+
+    let manager = LayoutConfigurationManager::new();
+    let root = manager.get_root(&store);
+    assert_eq!(root.get_option_value("id"), Some("self".to_string()));
+}
+
+#[test]
+fn layout_configuration_manager_root_returns_top_parent() {
+    let root_store = TestStore {
+        values: HashMap::from([("id".to_string(), "root".to_string())]),
+        ..Default::default()
+    };
+    let parent_store = TestStore {
+        values: HashMap::from([("id".to_string(), "parent".to_string())]),
+        parent: Some(Box::new(root_store)),
+        ..Default::default()
+    };
+    let child_store = TestStore {
+        values: HashMap::from([("id".to_string(), "child".to_string())]),
+        parent: Some(Box::new(parent_store)),
+        ..Default::default()
+    };
+
+    let manager = LayoutConfigurationManager::new();
+    let root = manager.get_root(&child_store);
+    assert_eq!(root.get_option_value("id"), Some("root".to_string()));
 }

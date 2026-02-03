@@ -188,14 +188,16 @@ impl LayoutConfigurationManager {
     pub fn get_root(
         &self,
         config: &dyn ILayoutConfigurationStore,
-    ) -> Option<Box<dyn ILayoutConfigurationStore>> {
-        let mut current = config.parent();
-        let mut last = None;
-        while let Some(store) = current {
-            current = store.parent();
-            last = Some(store);
+    ) -> Box<dyn ILayoutConfigurationStore> {
+        let mut current = config.clone_box();
+        loop {
+            match current.parent() {
+                Some(parent) => {
+                    current = parent;
+                }
+                None => return current,
+            }
         }
-        last
     }
 
     fn is_full_hierarchy_layout(&self, config: &dyn ILayoutConfigurationStore) -> bool {

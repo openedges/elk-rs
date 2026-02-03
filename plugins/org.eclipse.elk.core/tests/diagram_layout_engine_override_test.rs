@@ -35,6 +35,10 @@ impl ILayoutConfigurationStore for SimpleStore {
     fn parent(&self) -> Option<Box<dyn ILayoutConfigurationStore>> {
         None
     }
+
+    fn clone_box(&self) -> Box<dyn ILayoutConfigurationStore> {
+        Box::new(self.clone())
+    }
 }
 
 struct SimpleProvider {
