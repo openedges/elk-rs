@@ -427,7 +427,9 @@ impl LayoutMetaDataService {
             .with_provider_pool(Arc::new(layered_pool));
         layered_data
             .set_name("ELK Layered")
-            .set_description("Placeholder layered layout provider.");
+            .set_description("Placeholder layered layout provider.")
+            .set_category_id(Some("layered"))
+            .set_preview_image_path(Some("images/layered_layout.png"));
         layered_data
             .add_supported_feature(GraphFeature::SelfLoops)
             .add_supported_feature(GraphFeature::InsideSelfLoops)
@@ -436,6 +438,44 @@ impl LayoutMetaDataService {
             .add_supported_feature(GraphFeature::Ports)
             .add_supported_feature(GraphFeature::Compound)
             .add_supported_feature(GraphFeature::Clusters);
+        layered_data.add_known_option_default(CoreOptions::SPACING_COMMENT_COMMENT.id(), None);
+        layered_data.add_known_option_default(CoreOptions::SPACING_COMMENT_NODE.id(), None);
+        layered_data.add_known_option_default(CoreOptions::SPACING_COMPONENT_COMPONENT.id(), None);
+        layered_data.add_known_option_default(CoreOptions::SPACING_EDGE_EDGE.id(), None);
+        layered_data.add_known_option_default(CoreOptions::SPACING_EDGE_LABEL.id(), None);
+        layered_data.add_known_option_default(CoreOptions::SPACING_EDGE_NODE.id(), None);
+        layered_data.add_known_option_default(CoreOptions::SPACING_LABEL_LABEL.id(), None);
+        layered_data.add_known_option_default(CoreOptions::SPACING_LABEL_PORT_HORIZONTAL.id(), None);
+        layered_data.add_known_option_default(CoreOptions::SPACING_LABEL_PORT_VERTICAL.id(), None);
+        layered_data.add_known_option_default(CoreOptions::SPACING_LABEL_NODE.id(), None);
+        layered_data.add_known_option_default(CoreOptions::SPACING_NODE_NODE.id(), None);
+        layered_data.add_known_option_default(CoreOptions::SPACING_NODE_SELF_LOOP.id(), None);
+        layered_data.add_known_option_default(CoreOptions::SPACING_PORT_PORT.id(), None);
+        layered_data.add_known_option_default(CoreOptions::SPACING_INDIVIDUAL.id(), None);
+        layered_data.add_known_option_default(CoreOptions::PRIORITY.id(), arc_any(0_i32));
+        layered_data.add_known_option_default(CoreOptions::TOPDOWN_LAYOUT.id(), None);
+        layered_data.add_known_option_default(CoreOptions::TOPDOWN_SCALE_FACTOR.id(), None);
+        layered_data.add_known_option_default(CoreOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH.id(), None);
+        layered_data.add_known_option_default(
+            CoreOptions::TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO.id(),
+            None,
+        );
+        layered_data.add_known_option_default(
+            CoreOptions::TOPDOWN_NODE_TYPE.id(),
+            arc_any(TopdownNodeTypes::HierarchicalNode),
+        );
+        layered_data.add_known_option_default(
+            CoreOptions::PADDING.id(),
+            arc_any(ElkPadding::with_any(12.0)),
+        );
+        layered_data.add_known_option_default(
+            CoreOptions::EDGE_ROUTING.id(),
+            arc_any(EdgeRouting::Orthogonal),
+        );
+        layered_data.add_known_option_default(CoreOptions::PORT_BORDER_OFFSET.id(), arc_any(0.0_f64));
+        layered_data.add_known_option_default(CoreOptions::RANDOM_SEED.id(), arc_any(1_i32));
+        layered_data.add_known_option_default(CoreOptions::ASPECT_RATIO.id(), arc_any(1.6_f64));
+        layered_data.add_known_option_default(CoreOptions::NO_LAYOUT.id(), None);
         self.register_layout_algorithm(layered_data);
     }
 }
