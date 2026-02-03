@@ -12,8 +12,9 @@ use crate::org::eclipse::elk::core::labels::ILabelManager;
 use crate::org::eclipse::elk::core::math::{ElkMargin, ElkPadding, KVector, KVectorChain};
 use crate::org::eclipse::elk::core::options::{
     Alignment, ContentAlignment, Direction, EdgeCoords, EdgeLabelPlacement, EdgeRouting, EdgeType,
-    HierarchyHandling, LabelSide, NodeLabelPlacement, PackingMode, PortAlignment, PortConstraints,
-    PortLabelPlacement, PortSide, ShapeCoords, SizeConstraint, SizeOptions, TopdownNodeTypes,
+    HierarchyHandling, ITopdownSizeApproximator, LabelSide, NodeLabelPlacement, PackingMode,
+    PortAlignment, PortConstraints, PortLabelPlacement, PortSide, ShapeCoords, SizeConstraint,
+    SizeOptions, TopdownNodeTypes,
 };
 use crate::org::eclipse::elk::core::util::adapters::{GraphElementAdapter, NodeAdapter};
 use crate::org::eclipse::elk::core::util::{EnumSet, IndividualSpacings};
@@ -149,11 +150,22 @@ fn match_type_id(
     if type_id == TypeId::of::<Direction>() {
         return Some(Box::new(property_with_default::<Direction>(id, default_value)));
     }
+    if type_id == TypeId::of::<LayoutAlgorithmData>() {
+        return Some(Box::new(property_with_default::<LayoutAlgorithmData>(
+            id,
+            default_value,
+        )));
+    }
     if type_id == TypeId::of::<Arc<dyn ILabelManager>>() {
         return Some(Box::new(property_with_default::<Arc<dyn ILabelManager>>(
             id,
             default_value,
         )));
+    }
+    if type_id == TypeId::of::<Arc<dyn ITopdownSizeApproximator>>() {
+        return Some(Box::new(
+            property_with_default::<Arc<dyn ITopdownSizeApproximator>>(id, default_value),
+        ));
     }
     if type_id == TypeId::of::<EdgeCoords>() {
         return Some(Box::new(property_with_default::<EdgeCoords>(id, default_value)));
