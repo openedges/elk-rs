@@ -784,39 +784,8 @@ fn is_known_option(id: &str) -> bool {
 }
 
 fn short_option_key(full_id: &str) -> String {
-    let option = LayoutMetaDataService::get_instance().get_option_data_by_suffix(full_id);
-    let Some(option) = option else {
-        return full_id.to_string();
-    };
-
-    let id_split: Vec<&str> = option.id().split('.').collect();
-    if id_split.is_empty() {
-        return option.id().to_string();
-    }
-
-    let mut i: isize = id_split.len() as isize - 1;
-    let group = option.group();
-    if !group.is_empty() && i >= 1 && id_split[(i - 1) as usize] == group {
-        i -= 1;
-    }
-
-    let mut found = false;
-    let mut index = i;
-    while index >= 0 && !found {
-        let suffix = id_split[index as usize..].join(".");
-        if LayoutMetaDataService::get_instance()
-            .get_option_data_by_suffix(&suffix)
-            .is_some()
-        {
-            found = true;
-        } else {
-            index -= 1;
-        }
-    }
-
-    if found {
-        id_split[index as usize..].join(".")
-    } else {
-        option.id().to_string()
-    }
+    full_id
+        .strip_prefix("org.eclipse.")
+        .unwrap_or(full_id)
+        .to_string()
 }
