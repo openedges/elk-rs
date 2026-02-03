@@ -414,6 +414,35 @@ fn import_individual_spacings() {
 }
 
 #[test]
+fn import_individual_spacings_with_ports_surrounding() {
+    let graph = r#"
+    {
+      "id": "n0",
+      "children": [
+        {
+          "id": "n1",
+          "individualSpacings": {
+            "spacing.portsSurrounding": "[top=2.0,left=8.0,bottom=6.0,right=4.0]"
+          }
+        }
+      ]
+    }
+    "#;
+
+    let root = ElkGraphJson::for_graph(graph).to_elk().unwrap();
+    let child = find_node(&node_children(&root), "n1");
+
+    let mut individual = node_property(&child, CoreOptions::SPACING_INDIVIDUAL)
+        .expect("individual spacings");
+    let margin = individual
+        .properties_mut()
+        .get_property(CoreOptions::SPACING_PORTS_SURROUNDING)
+        .expect("portsSurrounding");
+
+    assert_eq!(margin, ElkMargin::with_values(2.0, 4.0, 6.0, 8.0));
+}
+
+#[test]
 fn export_individual_spacings() {
     let graph = ElkGraphUtil::create_graph();
     set_node_property(&graph, CoreOptions::SPACING_NODE_NODE, 10.0);
