@@ -2,6 +2,7 @@
 members = [
   "plugins/org.eclipse.elk.graph",
   "plugins/org.eclipse.elk.core",
+  "plugins/org.eclipse.elk.alg.layered",
   "plugins/org.eclipse.elk.graph.json",
 ]
 resolver = "2"
