@@ -402,10 +402,23 @@ fn any_value_to_string(value: &std::sync::Arc<dyn std::any::Any + Send + Sync>) 
     if let Some(value) = value.downcast_ref::<String>() {
         return Some(value.clone());
     }
+    if let Some(value) = value.downcast_ref::<crate::org::eclipse::elk::core::math::KVector>() {
+        return Some(format!("({},{})", value.x, value.y));
+    }
     if let Some(value) = value.downcast_ref::<crate::org::eclipse::elk::core::math::KVectorChain>() {
         return Some(value.to_string());
     }
+    if let Some(value) = value.downcast_ref::<crate::org::eclipse::elk::core::math::ElkPadding>() {
+        return Some(spacing_to_string(value.top, value.left, value.bottom, value.right));
+    }
+    if let Some(value) = value.downcast_ref::<crate::org::eclipse::elk::core::math::ElkMargin>() {
+        return Some(spacing_to_string(value.top, value.left, value.bottom, value.right));
+    }
     None
+}
+
+fn spacing_to_string(top: f64, left: f64, bottom: f64, right: f64) -> String {
+    format!("[top={top},left={left},bottom={bottom},right={right}]")
 }
 
 fn with_node_properties_mut<R>(node: &ElkNodeRef, f: impl FnOnce(&mut MapPropertyHolder) -> R) -> R {
