@@ -2,9 +2,11 @@ use std::rc::Rc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::{ElkMargin, ElkPadding};
-use org_eclipse_elk_core::org::eclipse::elk::core::options::{CoreOptions, PortConstraints, PortSide};
+use org_eclipse_elk_core::org::eclipse::elk::core::options::{
+    CoreOptions, LabelSide, PortConstraints, PortSide,
+};
 use org_eclipse_elk_core::org::eclipse::elk::core::util::adapters::{
-    ElkGraphAdapters, GraphAdapter, GraphElementAdapter, NodeAdapter, PortAdapter,
+    ElkGraphAdapters, GraphAdapter, GraphElementAdapter, LabelAdapter, NodeAdapter, PortAdapter,
 };
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{
@@ -125,6 +127,44 @@ fn port_adapter_detects_compound_connections() {
 
     let adapter = ElkGraphAdapters::adapt_single_port(port);
     assert!(adapter.has_compound_connections());
+}
+
+#[test]
+fn port_adapter_reports_side() {
+    LayoutMetaDataService::get_instance();
+    let graph = ElkGraphUtil::create_graph();
+    let node = ElkGraphUtil::create_node(Some(graph));
+    let port = ElkGraphUtil::create_port(Some(node));
+
+    {
+        let mut port_mut = port.borrow_mut();
+        port_mut
+            .connectable()
+            .shape()
+            .graph_element()
+            .properties_mut()
+            .set_property(CoreOptions::PORT_SIDE, Some(PortSide::East));
+    }
+
+    let adapter = ElkGraphAdapters::adapt_single_port(port);
+    assert_eq!(adapter.get_side(), PortSide::East);
+}
+
+#[test]
+fn label_adapter_reads_text_and_side() {
+    LayoutMetaDataService::get_instance();
+    let graph = ElkGraphUtil::create_graph();
+    let node = ElkGraphUtil::create_node(Some(graph));
+    ElkGraphUtil::create_label_with_text(
+        "Hello",
+        Some(ElkGraphElementRef::Node(node.clone())),
+    );
+
+    let adapter = ElkGraphAdapters::adapt_single_node(node);
+    let labels = adapter.get_labels();
+    assert_eq!(labels.len(), 1);
+    assert_eq!(labels[0].get_text(), "Hello");
+    assert_eq!(labels[0].get_side(), LabelSide::Unknown);
 }
 
 fn set_port_attrs(port: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkPortRef, side: PortSide, index: i32) {
