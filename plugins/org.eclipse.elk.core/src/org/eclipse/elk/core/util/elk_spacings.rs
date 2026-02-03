@@ -43,7 +43,12 @@ impl SpacingConfigurator {
     }
 
     pub fn apply(&self, element: &ElkGraphElementRef) {
-        with_properties_mut(element, |props| self.apply_to_properties(props));
+        if self.no_op {
+            return;
+        }
+        with_properties_mut(element, |props| {
+            self.apply_to_properties(props);
+        });
     }
 
     pub fn to_visitor(&self) -> Box<dyn IGraphElementVisitor> {
