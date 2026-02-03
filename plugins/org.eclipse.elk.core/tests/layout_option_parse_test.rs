@@ -1,6 +1,8 @@
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::{ElkMargin, ElkPadding, KVector, KVectorChain};
-use org_eclipse_elk_core::org::eclipse::elk::core::options::{CoreOptions, Direction, NodeLabelPlacement};
+use org_eclipse_elk_core::org::eclipse::elk::core::options::{
+    CoreOptions, Direction, EdgeRouting, NodeLabelPlacement, PortLabelPlacement,
+};
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, IndividualSpacings};
 
 #[test]
@@ -128,4 +130,27 @@ fn parse_enum_and_enumset_options() {
     assert!(placement.contains(&NodeLabelPlacement::HCenter));
     assert!(placement.contains(&NodeLabelPlacement::VTop));
     assert!(placement.contains(&NodeLabelPlacement::Inside));
+
+    let port_labels_option = service
+        .get_option_data_by_suffix("portLabels.placement")
+        .expect("portLabels.placement option");
+    let parsed = port_labels_option
+        .parse_value("[OUTSIDE, NEXT_TO_PORT_IF_POSSIBLE]")
+        .expect("portLabels.placement parsed");
+    let placement = parsed
+        .downcast_ref::<EnumSet<PortLabelPlacement>>()
+        .expect("EnumSet<PortLabelPlacement>");
+    assert!(placement.contains(&PortLabelPlacement::Outside));
+    assert!(placement.contains(&PortLabelPlacement::NextToPortIfPossible));
+
+    let edge_routing_option = service
+        .get_option_data_by_suffix("edgeRouting")
+        .expect("edgeRouting option");
+    let parsed = edge_routing_option
+        .parse_value("ORTHOGONAL")
+        .expect("edgeRouting parsed");
+    let edge_routing = parsed
+        .downcast_ref::<EdgeRouting>()
+        .expect("EdgeRouting");
+    assert_eq!(*edge_routing, EdgeRouting::Orthogonal);
 }
