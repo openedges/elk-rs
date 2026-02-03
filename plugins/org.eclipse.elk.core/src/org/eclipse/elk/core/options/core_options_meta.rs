@@ -26,6 +26,8 @@ const TARGET_NODES: [LayoutOptionTarget; 1] = [LayoutOptionTarget::Nodes];
 const TARGET_EDGES: [LayoutOptionTarget; 1] = [LayoutOptionTarget::Edges];
 const TARGET_PORTS: [LayoutOptionTarget; 1] = [LayoutOptionTarget::Ports];
 const TARGET_LABELS: [LayoutOptionTarget; 1] = [LayoutOptionTarget::Labels];
+const TARGET_PARENTS_LABELS: [LayoutOptionTarget; 2] =
+    [LayoutOptionTarget::Parents, LayoutOptionTarget::Labels];
 const TARGET_PARENTS_NODES: [LayoutOptionTarget; 2] =
     [LayoutOptionTarget::Parents, LayoutOptionTarget::Nodes];
 const TARGET_NODES_EDGES: [LayoutOptionTarget; 2] =
@@ -831,6 +833,16 @@ fn register_programmatic_options(registry: &mut dyn LayoutMetaDataRegistry) {
             "Hypernode",
             "Whether the node should be handled as a hypernode.",
             &TARGET_NODES,
+        ),
+    );
+    register_option(
+        registry,
+        CoreOptions::LABEL_MANAGER,
+        LayoutOptionType::Object,
+        OptionMeta::hidden(
+            "Label Manager",
+            "Label managers can shorten labels upon a layout algorithm's request.",
+            &TARGET_PARENTS_LABELS,
         ),
     );
     register_option(
