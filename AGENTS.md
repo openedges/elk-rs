@@ -14,12 +14,16 @@
 - `CoreOptions` 확장: algorithm/resolved, alignment/aspect ratio, bend points, position, priority, random seed, separate components, padding, label 배치 옵션
 - graph util 확장: all_incoming/outgoing/incidents (node/shape)
 - validation 모듈 추가 (`GraphIssue`, `GraphValidationException`)
-- 테스트 추가 (`kvector`, `kvector_chain`, `elk_util` 등), `cargo clippy --workspace --all-targets` 통과
+- `LayoutAlgorithmResolver`, `GraphValidator`, `DeprecatedLayoutOptionReplacer`, `ElkGraphAdapters` 포팅 및 테스트 추가
+- `ElkSpacings`, `IndividualSpacings`, `FixedLayoutProvider`, `RecursiveGraphLayoutEngine` 포팅 및 테스트 추가
+- 레이아웃 구성 저장소/매니저 root 처리 보강 및 테스트 추가
+- layered 메타데이터 보강(지원 기능/기본값) 및 테스트 추가
+- label manager 옵션 분리(Core vs Labels) 및 메타데이터/테스트 추가
+- `PropertyConstantsDelegator` 옵션 타입 확장(label manager, topdown size approximator, layout algorithm data)
+- 테스트 추가/확장 (`layout_algorithm_metadata`, `label_management_options`, `deprecated_layout_option_replacer`, `elk_graph_adapters` 등), `cargo clippy --workspace --all-targets` 통과
 
 ## 다음 작업
-- Java CoreOptions 나머지 옵션/enum/metadata 포팅 (HierarchyHandling, Topdown*, EdgeCoords/ShapeCoords 등)
-- `LayoutAlgorithmResolver`, `GraphValidator`, `DeprecatedLayoutOptionReplacer` 등 데이터/검증 로직 포팅 및 연결
-- `ElkGraphAdapters`/`GraphAdapters` 포팅
-- `ElkSpacings`, `IndividualSpacings`, `FixedLayoutProvider` 등 유틸 포팅
-- `RecursiveGraphLayoutEngine` 등 방문자/검증 사용처 포팅
-- 테스트 확장 및 성능 측정 자동화
+- layered 알고리즘 본체 포팅(옵션/메타데이터, LGraph 모델, 변환기/프로세서)
+- 다른 알고리즘 모듈 포팅 및 연동(alg.*)
+- 알고리즘 테스트 이식 확대(특히 layered 테스트군)
+- 성능 측정 자동화(벤치/프로파일링 스크립트)
