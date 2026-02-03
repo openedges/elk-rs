@@ -76,6 +76,9 @@ impl LayoutMetaDataService {
             service.register_core_algorithms();
             service.register_layout_meta_data_provider(&crate::org::eclipse::elk::core::options::CoreOptions);
             service.register_layout_meta_data_provider(&crate::org::eclipse::elk::core::options::BoxLayouterOptions);
+            service.register_layout_meta_data_provider(
+                &crate::org::eclipse::elk::core::labels::LabelManagementOptions,
+            );
             service
         })
     }
