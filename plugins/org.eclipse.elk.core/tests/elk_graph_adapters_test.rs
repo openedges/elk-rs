@@ -130,6 +130,29 @@ fn port_adapter_detects_compound_connections() {
 }
 
 #[test]
+fn port_adapter_detects_inside_self_loop_connections() {
+    LayoutMetaDataService::get_instance();
+    let graph = ElkGraphUtil::create_graph();
+    let node = ElkGraphUtil::create_node(Some(graph));
+    let port = ElkGraphUtil::create_port(Some(node.clone()));
+
+    let edge = ElkGraphUtil::create_simple_edge(
+        ElkConnectableShapeRef::Port(port.clone()),
+        ElkConnectableShapeRef::Node(node),
+    );
+    {
+        let mut edge_mut = edge.borrow_mut();
+        edge_mut
+            .element()
+            .properties_mut()
+            .set_property(CoreOptions::INSIDE_SELF_LOOPS_YO, Some(true));
+    }
+
+    let adapter = ElkGraphAdapters::adapt_single_port(port);
+    assert!(adapter.has_compound_connections());
+}
+
+#[test]
 fn port_adapter_reports_side() {
     LayoutMetaDataService::get_instance();
     let graph = ElkGraphUtil::create_graph();
