@@ -12,8 +12,8 @@ use org_eclipse_elk_core::org::eclipse::elk::core::data::{
 
 use super::{
     CenterEdgeLabelPlacementStrategy, CuttingStrategy, EdgeLabelSideSelection, GroupOrderStrategy,
-    LayerUnzippingStrategy, LayeredOptions, LongEdgeOrderingStrategy, OrderingStrategy,
-    ValidifyStrategy, WrappingStrategy,
+    InteractiveReferencePoint, LayerUnzippingStrategy, LayeredOptions, LongEdgeOrderingStrategy,
+    OrderingStrategy, ValidifyStrategy, WrappingStrategy,
 };
 use crate::org::eclipse::elk::alg::layered::components::ComponentOrderingStrategy;
 
@@ -711,6 +711,10 @@ fn init_reflect() {
         ElkReflect::register(
             Some(|| GroupOrderStrategy::OnlyWithinGroup),
             Some(|v: &GroupOrderStrategy| *v),
+        );
+        ElkReflect::register(
+            Some(|| InteractiveReferencePoint::Center),
+            Some(|v: &InteractiveReferencePoint| *v),
         );
         ElkReflect::register(
             Some(|| LayerUnzippingStrategy::None),

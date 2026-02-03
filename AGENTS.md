@@ -19,6 +19,7 @@
 - 레이아웃 구성 저장소/매니저 root 처리 보강 및 테스트 추가
 - layered 메타데이터 보강(지원 기능/기본값) 및 테스트 추가
 - layered considerModelOrder/groupModelOrder 옵션/메타데이터, ordering 전략 enum, 컴포넌트 ordering 전략, 테스트 추가
+- layered LGraph 모델(LGraph/Layer/LNode/LPort/LEdge/LLabel/LMargin/LPadding) 및 최소 LGraphUtil/옵션(PortType, InteractiveReferencePoint, InternalProperties) 포팅
 - label manager 옵션 분리(Core vs Labels) 및 메타데이터/테스트 추가
 - `PropertyConstantsDelegator` 옵션 타입 확장(label manager, topdown size approximator, layout algorithm data)
 - 테스트 추가/확장 (`layout_algorithm_metadata`, `label_management_options`, `deprecated_layout_option_replacer`, `elk_graph_adapters` 등), `cargo clippy --workspace --all-targets` 통과

@@ -1,13 +1,16 @@
 use std::sync::LazyLock;
 
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkReflect;
 
 use super::{
     CenterEdgeLabelPlacementStrategy, CuttingStrategy, EdgeLabelSideSelection, GroupOrderStrategy,
-    LayerUnzippingStrategy, LongEdgeOrderingStrategy, OrderingStrategy, ValidifyStrategy,
-    WrappingStrategy,
+    InteractiveReferencePoint, LayerUnzippingStrategy, LongEdgeOrderingStrategy, OrderingStrategy,
+    ValidifyStrategy, WrappingStrategy,
 };
 use crate::org::eclipse::elk::alg::layered::components::ComponentOrderingStrategy;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_label_placement::EdgeLabelPlacement;
 
 pub struct LayeredOptions;
 
@@ -145,6 +148,18 @@ pub static EDGE_LABELS_CENTER_LABEL_PLACEMENT_STRATEGY_PROPERTY: LazyLock<
         CenterEdgeLabelPlacementStrategy::MedianLayer,
     )
 });
+
+pub static INTERACTIVE_REFERENCE_POINT_PROPERTY: LazyLock<Property<InteractiveReferencePoint>> =
+    LazyLock::new(|| {
+        ElkReflect::register(
+            Some(|| InteractiveReferencePoint::Center),
+            Some(|v: &InteractiveReferencePoint| *v),
+        );
+        Property::with_default(
+            "org.eclipse.elk.alg.layered.interactiveReferencePoint",
+            InteractiveReferencePoint::Center,
+        )
+    });
 
 pub static CONSIDER_MODEL_ORDER_STRATEGY_PROPERTY: LazyLock<Property<OrderingStrategy>> =
     LazyLock::new(|| {
@@ -316,6 +331,11 @@ impl LayeredOptions {
     pub const EDGE_LABELS_CENTER_LABEL_PLACEMENT_STRATEGY: &'static LazyLock<
         Property<CenterEdgeLabelPlacementStrategy>,
     > = &EDGE_LABELS_CENTER_LABEL_PLACEMENT_STRATEGY_PROPERTY;
+    pub const EDGE_LABELS_PLACEMENT: &'static LazyLock<Property<EdgeLabelPlacement>> =
+        CoreOptions::EDGE_LABELS_PLACEMENT;
+    pub const EDGE_LABELS_INLINE: &'static LazyLock<Property<bool>> = CoreOptions::EDGE_LABELS_INLINE;
+    pub const INTERACTIVE_REFERENCE_POINT: &'static LazyLock<Property<InteractiveReferencePoint>> =
+        &INTERACTIVE_REFERENCE_POINT_PROPERTY;
 
     pub const CONSIDER_MODEL_ORDER_STRATEGY: &'static LazyLock<Property<OrderingStrategy>> =
         &CONSIDER_MODEL_ORDER_STRATEGY_PROPERTY;
