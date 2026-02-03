@@ -167,6 +167,25 @@ fn label_adapter_reads_text_and_side() {
     assert_eq!(labels[0].get_side(), LabelSide::Unknown);
 }
 
+#[test]
+fn node_adapter_compound_detection_respects_inside_self_loops() {
+    LayoutMetaDataService::get_instance();
+    let graph = ElkGraphUtil::create_graph();
+    let node = ElkGraphUtil::create_node(Some(graph));
+    {
+        let mut node_mut = node.borrow_mut();
+        node_mut
+            .connectable()
+            .shape()
+            .graph_element()
+            .properties_mut()
+            .set_property(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE, Some(true));
+    }
+
+    let adapter = ElkGraphAdapters::adapt_single_node(node);
+    assert!(adapter.is_compound_node());
+}
+
 fn set_port_attrs(port: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkPortRef, side: PortSide, index: i32) {
     let mut port_mut = port.borrow_mut();
     let props = port_mut
