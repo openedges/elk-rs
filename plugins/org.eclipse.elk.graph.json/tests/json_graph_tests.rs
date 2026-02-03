@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use serde_json::Value;
 
-use org_eclipse_elk_core::org::eclipse::elk::core::math::{ElkMargin, ElkPadding};
+use org_eclipse_elk_core::org::eclipse::elk::core::math::{ElkMargin, ElkPadding, KVector, KVectorChain};
 use org_eclipse_elk_core::org::eclipse::elk::core::options::{CoreOptions, Direction};
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{
     BasicProgressMonitor, IndividualSpacings, Maybe,
@@ -273,6 +273,93 @@ fn export_layout_options() {
     .unwrap();
 
     assert_eq!(expected, actual);
+}
+
+#[test]
+fn import_layout_options_kvector_and_chain() {
+    let graph = r#"
+    {
+      "id": "root",
+      "children": [
+        {
+          "id": "n1",
+          "layoutOptions": { "position": "(1,2)" }
+        }
+      ],
+      "edges": [
+        {
+          "id": "e1",
+          "sources": [ "n1" ],
+          "targets": [ "n1" ],
+          "layoutOptions": { "bendPoints": "(0,0; 10,10)" }
+        }
+      ]
+    }
+    "#;
+
+    let root = ElkGraphJson::for_graph(graph).to_elk().unwrap();
+    let node = find_node(&node_children(&root), "n1");
+    let edge = node_edges(&root).remove(0);
+
+    let pos = node_property(&node, CoreOptions::POSITION).expect("position option");
+    assert_eq!(pos, KVector::with_values(1.0, 2.0));
+
+    let bends = edge_property(&edge, CoreOptions::BEND_POINTS).expect("bendPoints option");
+    assert_eq!(bends.len(), 2);
+    assert_eq!(bends.get(0), KVector::with_values(0.0, 0.0));
+    assert_eq!(bends.get(1), KVector::with_values(10.0, 10.0));
+}
+
+#[test]
+fn export_layout_options_kvector_and_chain() {
+    let graph = ElkGraphUtil::create_graph();
+    let node1 = ElkGraphUtil::create_node(Some(graph.clone()));
+    let node2 = ElkGraphUtil::create_node(Some(graph.clone()));
+    set_node_identifier(&node1, "n1");
+    set_node_identifier(&node2, "n2");
+
+    set_node_property(&node1, CoreOptions::POSITION, KVector::with_values(3.0, 4.0));
+
+    let edge = ElkGraphUtil::create_simple_edge(
+        ElkConnectableShapeRef::Node(node1),
+        ElkConnectableShapeRef::Node(node2),
+    );
+    let bend_points = KVectorChain::from_vectors(&[
+        KVector::with_values(0.0, 0.0),
+        KVector::with_values(10.0, 10.0),
+    ]);
+    set_edge_property(&edge, CoreOptions::BEND_POINTS, bend_points);
+
+    let json = ElkGraphJson::for_elk(graph).to_json();
+    let value: Value = serde_json::from_str(&json).unwrap();
+
+    let child = value["children"]
+        .as_array()
+        .and_then(|children| {
+            children
+                .iter()
+                .find(|child| child.get("id").and_then(|id| id.as_str()) == Some("n1"))
+        })
+        .expect("n1 child");
+    let pos_str = child["layoutOptions"]["elk.position"]
+        .as_str()
+        .expect("elk.position string");
+    let mut parsed_pos = KVector::new();
+    parsed_pos.parse(pos_str);
+    assert_eq!(parsed_pos, KVector::with_values(3.0, 4.0));
+
+    let edge_obj = value["edges"]
+        .as_array()
+        .and_then(|edges| edges.first())
+        .expect("edge");
+    let bends_str = edge_obj["layoutOptions"]["elk.bendPoints"]
+        .as_str()
+        .expect("elk.bendPoints string");
+    let mut parsed_bends = KVectorChain::new();
+    parsed_bends.parse(bends_str);
+    assert_eq!(parsed_bends.len(), 2);
+    assert_eq!(parsed_bends.get(0), KVector::with_values(0.0, 0.0));
+    assert_eq!(parsed_bends.get(1), KVector::with_values(10.0, 10.0));
 }
 
 #[test]
@@ -863,6 +950,17 @@ fn node_property<T: Clone + Send + Sync + 'static>(
         .get_property(property)
 }
 
+fn edge_property<T: Clone + Send + Sync + 'static>(
+    edge: &ElkEdgeRef,
+    property: &Property<T>,
+) -> Option<T> {
+    let mut edge_ref = edge.borrow_mut();
+    edge_ref
+        .element()
+        .properties_mut()
+        .get_property(property)
+}
+
 fn set_node_property<T: Clone + Send + Sync + 'static>(
     node: &ElkNodeRef,
     property: &Property<T>,
@@ -873,6 +971,18 @@ fn set_node_property<T: Clone + Send + Sync + 'static>(
         .connectable()
         .shape()
         .graph_element()
+        .properties_mut()
+        .set_property(property, Some(value));
+}
+
+fn set_edge_property<T: Clone + Send + Sync + 'static>(
+    edge: &ElkEdgeRef,
+    property: &Property<T>,
+    value: T,
+) {
+    let mut edge_ref = edge.borrow_mut();
+    edge_ref
+        .element()
         .properties_mut()
         .set_property(property, Some(value));
 }
