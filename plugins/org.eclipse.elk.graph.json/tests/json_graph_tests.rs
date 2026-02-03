@@ -511,6 +511,35 @@ fn export_dont_write_empty_junction_points() {
 }
 
 #[test]
+fn export_junction_points() {
+    let graph = ElkGraphUtil::create_graph();
+    let n1 = ElkGraphUtil::create_node(Some(graph.clone()));
+    let n2 = ElkGraphUtil::create_node(Some(graph.clone()));
+    let edge = ElkGraphUtil::create_simple_edge(
+        ElkConnectableShapeRef::Node(n1),
+        ElkConnectableShapeRef::Node(n2),
+    );
+
+    let junctions = KVectorChain::from_vectors(&[
+        KVector::with_values(1.0, 2.0),
+        KVector::with_values(3.0, 4.0),
+    ]);
+    set_edge_property(&edge, CoreOptions::JUNCTION_POINTS, junctions);
+
+    let json = ElkGraphJson::for_elk(graph).omit_layout(false).to_json();
+    let value: Value = serde_json::from_str(&json).unwrap();
+    let edge_obj = value["edges"].as_array().and_then(|edges| edges.first()).expect("edge");
+    let points = edge_obj["junctionPoints"]
+        .as_array()
+        .expect("junctionPoints");
+    assert_eq!(points.len(), 2);
+    assert_eq!(points[0]["x"].as_f64().unwrap(), 1.0);
+    assert_eq!(points[0]["y"].as_f64().unwrap(), 2.0);
+    assert_eq!(points[1]["x"].as_f64().unwrap(), 3.0);
+    assert_eq!(points[1]["y"].as_f64().unwrap(), 4.0);
+}
+
+#[test]
 fn import_individual_spacings() {
     let graph = r#"
     {
