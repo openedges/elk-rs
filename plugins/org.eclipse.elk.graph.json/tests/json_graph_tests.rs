@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use serde_json::Value;
 
-use org_eclipse_elk_core::org::eclipse::elk::core::math::ElkPadding;
+use org_eclipse_elk_core::org::eclipse::elk::core::math::{ElkMargin, ElkPadding};
 use org_eclipse_elk_core::org::eclipse::elk::core::options::{CoreOptions, Direction};
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{
     BasicProgressMonitor, IndividualSpacings, Maybe,
@@ -451,6 +451,25 @@ fn export_individual_spacings_with_padding() {
     assert!(json.contains("individualSpacings"));
     assert!(json.contains("elk.nodeLabels.padding"));
     assert!(json.contains("[top=1,left=4,bottom=3,right=2]"));
+}
+
+#[test]
+fn export_individual_spacings_with_ports_surrounding() {
+    let graph = ElkGraphUtil::create_graph();
+
+    let mut individual = IndividualSpacings::new();
+    individual
+        .properties_mut()
+        .set_property(CoreOptions::SPACING_PORTS_SURROUNDING, Some(ElkMargin::with_values(2.0, 4.0, 6.0, 8.0)));
+    set_node_property(&graph, CoreOptions::SPACING_INDIVIDUAL, individual);
+
+    let json = ElkGraphJson::for_elk(graph)
+        .omit_unknown_layout_options(true)
+        .to_json();
+
+    assert!(json.contains("individualSpacings"));
+    assert!(json.contains("elk.spacing.portsSurrounding"));
+    assert!(json.contains("[top=2,left=8,bottom=6,right=4]"));
 }
 
 #[test]
