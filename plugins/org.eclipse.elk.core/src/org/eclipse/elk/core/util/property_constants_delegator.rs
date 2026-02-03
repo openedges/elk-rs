@@ -1,5 +1,6 @@
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::{MapPropertyHolder, Property};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
@@ -7,6 +8,7 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 use crate::org::eclipse::elk::core::data::{
     LayoutAlgorithmData, LayoutMetaDataService, LayoutOptionData, LayoutOptionType,
 };
+use crate::org::eclipse::elk::core::labels::ILabelManager;
 use crate::org::eclipse::elk::core::math::{ElkMargin, ElkPadding, KVector, KVectorChain};
 use crate::org::eclipse::elk::core::options::{
     Alignment, ContentAlignment, Direction, EdgeCoords, EdgeLabelPlacement, EdgeRouting, EdgeType,
@@ -146,6 +148,12 @@ fn match_type_id(
     }
     if type_id == TypeId::of::<Direction>() {
         return Some(Box::new(property_with_default::<Direction>(id, default_value)));
+    }
+    if type_id == TypeId::of::<Arc<dyn ILabelManager>>() {
+        return Some(Box::new(property_with_default::<Arc<dyn ILabelManager>>(
+            id,
+            default_value,
+        )));
     }
     if type_id == TypeId::of::<EdgeCoords>() {
         return Some(Box::new(property_with_default::<EdgeCoords>(id, default_value)));
