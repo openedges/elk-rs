@@ -1,0 +1,328 @@
+use std::collections::VecDeque;
+use std::sync::Arc;
+use std::sync::LazyLock;
+
+use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutPhase;
+use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::{IElkProgressMonitor, Random};
+
+use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LGraphUtil, LNodeRef};
+use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorStrategy;
+use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions};
+use crate::org::eclipse::elk::alg::layered::LayeredPhases;
+
+static INTERMEDIATE_PROCESSING_CONFIGURATION: LazyLock<
+    LayoutProcessorConfiguration<LayeredPhases, LGraph>,
+> = LazyLock::new(|| {
+    let mut config = LayoutProcessorConfiguration::create();
+    config.add_after(
+        LayeredPhases::P5EdgeRouting,
+        Arc::new(IntermediateProcessorStrategy::ReversedEdgeRestorer),
+    );
+    config
+});
+
+pub struct GreedyCycleBreaker {
+    indeg: Vec<i32>,
+    outdeg: Vec<i32>,
+    mark: Vec<i32>,
+    sources: VecDeque<LNodeRef>,
+    sinks: VecDeque<LNodeRef>,
+    random: Random,
+}
+
+impl GreedyCycleBreaker {
+    pub fn new() -> Self {
+        GreedyCycleBreaker {
+            indeg: Vec::new(),
+            outdeg: Vec::new(),
+            mark: Vec::new(),
+            sources: VecDeque::new(),
+            sinks: VecDeque::new(),
+            random: Random::new(0),
+        }
+    }
+
+    fn choose_node_with_max_outflow(&mut self, nodes: &[LNodeRef]) -> Option<LNodeRef> {
+        if nodes.is_empty() {
+            return None;
+        }
+        let index = self.random.next_int(nodes.len() as i32) as usize;
+        nodes.get(index).cloned()
+    }
+
+    fn update_neighbors(&mut self, node: &LNodeRef) {
+        let ports = match node.lock() {
+            Ok(node_guard) => node_guard.ports().clone(),
+            Err(_) => return,
+        };
+
+        for port in ports {
+            let edges = match port.lock() {
+                Ok(port_guard) => port_guard.connected_edges(),
+                Err(_) => Vec::new(),
+            };
+
+            for edge in edges {
+                let (connected_port, is_target, priority) = match edge.lock() {
+                    Ok(mut edge_guard) => {
+                        let source = edge_guard.source();
+                        let target = edge_guard.target();
+                        let Some(source_port) = source else {
+                            continue;
+                        };
+                        let Some(target_port) = target else {
+                            continue;
+                        };
+                        let connected_port = if Arc::ptr_eq(&source_port, &port) {
+                            target_port.clone()
+                        } else {
+                            source_port
+                        };
+                        let is_target = Arc::ptr_eq(&target_port, &connected_port);
+                        let priority = edge_guard
+                            .get_property(LayeredOptions::PRIORITY_DIRECTION)
+                            .unwrap_or(0);
+                        (connected_port, is_target, priority)
+                    }
+                    Err(_) => continue,
+                };
+
+                let endpoint = connected_port
+                    .lock()
+                    .ok()
+                    .and_then(|port_guard| port_guard.node());
+                let Some(endpoint) = endpoint else {
+                    continue;
+                };
+
+                if Arc::ptr_eq(node, &endpoint) {
+                    continue;
+                }
+
+                let index = node_index(&endpoint);
+                if index >= self.mark.len() {
+                    continue;
+                }
+
+                if self.mark[index] != 0 {
+                    continue;
+                }
+
+                let priority = if priority < 0 { 0 } else { priority };
+                if is_target {
+                    self.indeg[index] -= priority + 1;
+                    if self.indeg[index] <= 0 && self.outdeg[index] > 0 {
+                        self.sources.push_back(endpoint);
+                    }
+                } else {
+                    self.outdeg[index] -= priority + 1;
+                    if self.outdeg[index] <= 0 && self.indeg[index] > 0 {
+                        self.sinks.push_back(endpoint);
+                    }
+                }
+            }
+        }
+    }
+
+    fn reverse_edges(&mut self, graph: &mut LGraph, nodes: &[LNodeRef]) {
+        let dummy_graph = crate::org::eclipse::elk::alg::layered::graph::LGraph::new();
+        for node in nodes {
+            let (ports, node_idx) = match node.lock() {
+                Ok(mut node_guard) => {
+                    let node_idx = node_guard.shape().graph_element().id as usize;
+                    (node_guard.ports().clone(), node_idx)
+                }
+                Err(_) => continue,
+            };
+
+            for port in LGraphUtil::to_port_array(&ports) {
+                let edges = match port.lock() {
+                    Ok(port_guard) => port_guard.outgoing_edges().clone(),
+                    Err(_) => Vec::new(),
+                };
+
+                for edge in LGraphUtil::to_edge_array(&edges) {
+                    let target_node = edge
+                        .lock()
+                        .ok()
+                        .and_then(|edge_guard| edge_guard.target())
+                        .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                    let Some(target_node) = target_node else {
+                        continue;
+                    };
+                    let target_index = node_index(&target_node);
+                    if node_idx < self.mark.len()
+                        && target_index < self.mark.len()
+                        && self.mark[node_idx] > self.mark[target_index]
+                    {
+                        crate::org::eclipse::elk::alg::layered::graph::LEdge::reverse(&edge, &dummy_graph, true);
+                        graph.set_property(InternalProperties::CYCLIC, Some(true));
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl Default for GreedyCycleBreaker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ILayoutPhase<LayeredPhases, LGraph> for GreedyCycleBreaker {
+    fn process(&mut self, layered_graph: &mut LGraph, monitor: &mut dyn IElkProgressMonitor) {
+        monitor.begin("Greedy cycle removal", 1.0);
+
+        let nodes = layered_graph.layerless_nodes().clone();
+        let unprocessed_total = nodes.len();
+        self.indeg = vec![0; unprocessed_total];
+        self.outdeg = vec![0; unprocessed_total];
+        self.mark = vec![0; unprocessed_total];
+        self.sources.clear();
+        self.sinks.clear();
+        self.random = layered_graph
+            .get_property(InternalProperties::RANDOM)
+            .unwrap_or_else(|| Random::new(0));
+
+        for (index, node) in nodes.iter().enumerate() {
+            if let Ok(mut node_guard) = node.lock() {
+                node_guard.shape().graph_element().id = index as i32;
+            }
+
+            let ports = match node.lock() {
+                Ok(node_guard) => node_guard.ports().clone(),
+                Err(_) => continue,
+            };
+
+            for port in ports {
+                let (incoming, outgoing) = match port.lock() {
+                    Ok(port_guard) => (port_guard.incoming_edges().clone(), port_guard.outgoing_edges().clone()),
+                    Err(_) => (Vec::new(), Vec::new()),
+                };
+
+                for edge in incoming {
+                    let source_node = edge
+                        .lock()
+                        .ok()
+                        .and_then(|edge_guard| edge_guard.source())
+                        .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                    if source_node.as_ref().map_or(false, |source| Arc::ptr_eq(source, node)) {
+                        continue;
+                    }
+                    let priority = edge
+                        .lock()
+                        .ok()
+                        .and_then(|mut edge_guard| edge_guard.get_property(LayeredOptions::PRIORITY_DIRECTION))
+                        .unwrap_or(0);
+                    self.indeg[index] += if priority > 0 { priority + 1 } else { 1 };
+                }
+
+                for edge in outgoing {
+                    let target_node = edge
+                        .lock()
+                        .ok()
+                        .and_then(|edge_guard| edge_guard.target())
+                        .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                    if target_node.as_ref().map_or(false, |target| Arc::ptr_eq(target, node)) {
+                        continue;
+                    }
+                    let priority = edge
+                        .lock()
+                        .ok()
+                        .and_then(|mut edge_guard| edge_guard.get_property(LayeredOptions::PRIORITY_DIRECTION))
+                        .unwrap_or(0);
+                    self.outdeg[index] += if priority > 0 { priority + 1 } else { 1 };
+                }
+            }
+
+            if self.outdeg[index] == 0 {
+                self.sinks.push_back(node.clone());
+            } else if self.indeg[index] == 0 {
+                self.sources.push_back(node.clone());
+            }
+        }
+
+        let mut unprocessed = unprocessed_total;
+        let mut next_right: i32 = -1;
+        let mut next_left: i32 = 1;
+        let mut max_nodes: Vec<LNodeRef> = Vec::new();
+
+        while unprocessed > 0 {
+            while let Some(sink) = self.sinks.pop_front() {
+                let index = node_index(&sink);
+                if index < self.mark.len() && self.mark[index] == 0 {
+                    self.mark[index] = next_right;
+                    next_right -= 1;
+                    self.update_neighbors(&sink);
+                    unprocessed -= 1;
+                }
+            }
+
+            while let Some(source) = self.sources.pop_front() {
+                let index = node_index(&source);
+                if index < self.mark.len() && self.mark[index] == 0 {
+                    self.mark[index] = next_left;
+                    next_left += 1;
+                    self.update_neighbors(&source);
+                    unprocessed -= 1;
+                }
+            }
+
+            if unprocessed > 0 {
+                let mut max_outflow = i32::MIN;
+                max_nodes.clear();
+                for node in &nodes {
+                    let index = node_index(node);
+                    if index < self.mark.len() && self.mark[index] == 0 {
+                        let outflow = self.outdeg[index] - self.indeg[index];
+                        if outflow >= max_outflow {
+                            if outflow > max_outflow {
+                                max_nodes.clear();
+                                max_outflow = outflow;
+                            }
+                            max_nodes.push(node.clone());
+                        }
+                    }
+                }
+
+                if let Some(max_node) = self.choose_node_with_max_outflow(&max_nodes) {
+                    let index = node_index(&max_node);
+                    if index < self.mark.len() {
+                        self.mark[index] = next_left;
+                        next_left += 1;
+                        self.update_neighbors(&max_node);
+                        unprocessed -= 1;
+                    }
+                }
+            }
+        }
+
+        let shift_base = nodes.len() as i32 + 1;
+        for value in &mut self.mark {
+            if *value < 0 {
+                *value += shift_base;
+            }
+        }
+
+        self.reverse_edges(layered_graph, &nodes);
+        monitor.done();
+    }
+
+    fn get_layout_processor_configuration(
+        &self,
+        _graph: &LGraph,
+    ) -> Option<LayoutProcessorConfiguration<LayeredPhases, LGraph>> {
+        Some(LayoutProcessorConfiguration::create_from(
+            &INTERMEDIATE_PROCESSING_CONFIGURATION,
+        ))
+    }
+}
+
+fn node_index(node: &LNodeRef) -> usize {
+    node.lock()
+        .ok()
+        .map(|mut node_guard| node_guard.shape().graph_element().id as usize)
+        .unwrap_or(0)
+}

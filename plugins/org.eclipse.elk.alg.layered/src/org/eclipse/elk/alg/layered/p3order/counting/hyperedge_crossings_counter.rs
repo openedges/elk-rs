@@ -1,0 +1,461 @@
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
+
+use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
+
+use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LNodeRef, LPortRef, LayerRef};
+
+pub struct HyperedgeCrossingsCounter {
+    port_positions: Vec<i32>,
+}
+
+impl HyperedgeCrossingsCounter {
+    pub fn new(_in_layer_edge_count: &[i32], _has_north_south_ports: &[bool], port_positions: Vec<i32>) -> Self {
+        HyperedgeCrossingsCounter { port_positions }
+    }
+
+    pub fn count_crossings(&mut self, left_layer: &[LNodeRef], right_layer: &[LNodeRef]) -> i32 {
+        if left_layer.is_empty() || right_layer.is_empty() {
+            return 0;
+        }
+
+        let mut source_count = 0i32;
+        for node in left_layer {
+            let ports = node
+                .lock()
+                .ok()
+                .map(|node_guard| node_guard.ports().clone())
+                .unwrap_or_default();
+            for port in ports {
+                let mut port_edges = 0;
+                let outgoing = port
+                    .lock()
+                    .ok()
+                    .map(|port_guard| port_guard.outgoing_edges().clone())
+                    .unwrap_or_default();
+                for edge in outgoing {
+                    if !edge_is_in_layer(&edge) {
+                        port_edges += 1;
+                    }
+                }
+                if port_edges > 0 {
+                    set_port_position(&mut self.port_positions, &port, source_count);
+                    source_count += 1;
+                }
+            }
+        }
+
+        let mut target_count = 0i32;
+        for node in right_layer {
+            let ports = node
+                .lock()
+                .ok()
+                .map(|node_guard| node_guard.ports().clone())
+                .unwrap_or_default();
+
+            let mut north_input_ports = 0i32;
+            for port in &ports {
+                let side = port
+                    .lock()
+                    .ok()
+                    .map(|port_guard| port_guard.side())
+                    .unwrap_or(PortSide::Undefined);
+                if side == PortSide::North {
+                    let incoming = port
+                        .lock()
+                        .ok()
+                        .map(|port_guard| port_guard.incoming_edges().clone())
+                        .unwrap_or_default();
+                    for edge in incoming {
+                        if !edge_is_in_layer(&edge) {
+                            north_input_ports += 1;
+                            break;
+                        }
+                    }
+                } else {
+                    break;
+                }
+            }
+
+            let mut other_input_ports = 0i32;
+            for port in ports.iter().rev() {
+                let mut port_edges = 0;
+                let incoming = port
+                    .lock()
+                    .ok()
+                    .map(|port_guard| port_guard.incoming_edges().clone())
+                    .unwrap_or_default();
+                for edge in incoming {
+                    if !edge_is_in_layer(&edge) {
+                        port_edges += 1;
+                    }
+                }
+                if port_edges > 0 {
+                    let side = port
+                        .lock()
+                        .ok()
+                        .map(|port_guard| port_guard.side())
+                        .unwrap_or(PortSide::Undefined);
+                    if side == PortSide::North {
+                        set_port_position(&mut self.port_positions, port, target_count);
+                        target_count += 1;
+                    } else {
+                        set_port_position(
+                            &mut self.port_positions,
+                            port,
+                            target_count + north_input_ports + other_input_ports,
+                        );
+                        other_input_ports += 1;
+                    }
+                }
+            }
+            target_count += other_input_ports;
+        }
+
+        let mut port_to_hyperedge: HashMap<usize, usize> = HashMap::new();
+        let mut hyperedges: Vec<Hyperedge> = Vec::new();
+        let mut active: HashSet<usize> = HashSet::new();
+
+        for node in left_layer {
+            let ports = node
+                .lock()
+                .ok()
+                .map(|node_guard| node_guard.ports().clone())
+                .unwrap_or_default();
+            for source_port in ports {
+                let outgoing = source_port
+                    .lock()
+                    .ok()
+                    .map(|port_guard| port_guard.outgoing_edges().clone())
+                    .unwrap_or_default();
+                for edge in outgoing {
+                    let target_port = edge
+                        .lock()
+                        .ok()
+                        .and_then(|edge_guard| edge_guard.target());
+                    let Some(target_port) = target_port else { continue };
+                    if edge_is_in_layer(&edge) {
+                        continue;
+                    }
+                    let source_key = port_ptr_id(&source_port);
+                    let target_key = port_ptr_id(&target_port);
+                    let source_he = port_to_hyperedge.get(&source_key).copied();
+                    let target_he = port_to_hyperedge.get(&target_key).copied();
+                    match (source_he, target_he) {
+                        (None, None) => {
+                            let id = hyperedges.len();
+                            let mut hyperedge = Hyperedge::new(id);
+                            hyperedge.edges.push(edge.clone());
+                            hyperedge.ports.push(source_port.clone());
+                            hyperedge.ports.push(target_port.clone());
+                            hyperedges.push(hyperedge);
+                            active.insert(id);
+                            port_to_hyperedge.insert(source_key, id);
+                            port_to_hyperedge.insert(target_key, id);
+                        }
+                        (None, Some(target_id)) => {
+                            if let Some(hyperedge) = hyperedges.get_mut(target_id) {
+                                hyperedge.edges.push(edge.clone());
+                                hyperedge.ports.push(source_port.clone());
+                                port_to_hyperedge.insert(source_key, target_id);
+                            }
+                        }
+                        (Some(source_id), None) => {
+                            if let Some(hyperedge) = hyperedges.get_mut(source_id) {
+                                hyperedge.edges.push(edge.clone());
+                                hyperedge.ports.push(target_port.clone());
+                                port_to_hyperedge.insert(target_key, source_id);
+                            }
+                        }
+                        (Some(source_id), Some(target_id)) => {
+                            if source_id == target_id {
+                                if let Some(hyperedge) = hyperedges.get_mut(source_id) {
+                                    hyperedge.edges.push(edge.clone());
+                                }
+                            } else {
+                                if source_id < hyperedges.len() && target_id < hyperedges.len() {
+                                    if source_id == target_id {
+                                        if let Some(source_he) = hyperedges.get_mut(source_id) {
+                                            source_he.edges.push(edge.clone());
+                                        }
+                                    } else {
+                                        let (source_he, target_he) = if source_id < target_id {
+                                            let (left, right) = hyperedges.split_at_mut(target_id);
+                                            (&mut left[source_id], &mut right[0])
+                                        } else {
+                                            let (left, right) = hyperedges.split_at_mut(source_id);
+                                            (&mut right[0], &mut left[target_id])
+                                        };
+                                        source_he.edges.push(edge.clone());
+                                        for port in &target_he.ports {
+                                            port_to_hyperedge.insert(port_ptr_id(port), source_id);
+                                        }
+                                        source_he.edges.extend(target_he.edges.drain(..));
+                                        source_he.ports.extend(target_he.ports.drain(..));
+                                        active.remove(&target_id);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut hyperedge_list: Vec<Hyperedge> = active
+            .into_iter()
+            .filter_map(|id| hyperedges.get(id).cloned())
+            .collect();
+
+        let left_layer_ref = left_layer
+            .first()
+            .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.layer()));
+        let right_layer_ref = right_layer
+            .first()
+            .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.layer()));
+
+        for hyperedge in &mut hyperedge_list {
+            hyperedge.upper_left = source_count;
+            hyperedge.upper_right = target_count;
+            for port in &hyperedge.ports {
+                let pos = port_position(&self.port_positions, port);
+                if port_layer(port).as_ref().zip(left_layer_ref.as_ref()).map_or(false, |(a, b)| Arc::ptr_eq(a, b)) {
+                    hyperedge.upper_left = hyperedge.upper_left.min(pos);
+                    hyperedge.lower_left = hyperedge.lower_left.max(pos);
+                } else if port_layer(port)
+                    .as_ref()
+                    .zip(right_layer_ref.as_ref())
+                    .map_or(false, |(a, b)| Arc::ptr_eq(a, b))
+                {
+                    hyperedge.upper_right = hyperedge.upper_right.min(pos);
+                    hyperedge.lower_right = hyperedge.lower_right.max(pos);
+                }
+            }
+        }
+
+        hyperedge_list.sort_by(|a, b| a.compare(b));
+
+        let mut south_sequence: Vec<i32> = Vec::with_capacity(hyperedge_list.len());
+        let mut compress_deltas = vec![0i32; (target_count + 1) as usize];
+        for hyperedge in &hyperedge_list {
+            south_sequence.push(hyperedge.upper_right);
+            compress_deltas[hyperedge.upper_right as usize] = 1;
+        }
+        let mut delta = 0;
+        for entry in compress_deltas.iter_mut() {
+            if *entry == 1 {
+                *entry = delta;
+            } else {
+                delta -= 1;
+            }
+        }
+        let mut q = 0;
+        for value in south_sequence.iter_mut() {
+            let idx = *value as usize;
+            *value += compress_deltas[idx];
+            q = q.max(*value + 1);
+        }
+
+        let mut first_index = 1;
+        while first_index < q {
+            first_index *= 2;
+        }
+        let tree_size = 2 * first_index - 1;
+        first_index -= 1;
+        let mut tree = vec![0i32; tree_size as usize];
+
+        let mut crossings = 0;
+        for value in &south_sequence {
+            let mut index = *value + first_index;
+            tree[index as usize] += 1;
+            while index > 0 {
+                if index % 2 > 0 {
+                    crossings += tree[(index + 1) as usize];
+                }
+                index = (index - 1) / 2;
+                tree[index as usize] += 1;
+            }
+        }
+
+        let mut left_corners: Vec<HyperedgeCorner> = Vec::with_capacity(hyperedge_list.len() * 2);
+        for hyperedge in &hyperedge_list {
+            left_corners.push(HyperedgeCorner::new(
+                hyperedge.clone(),
+                hyperedge.upper_left,
+                hyperedge.lower_left,
+                CornerType::Upper,
+            ));
+            left_corners.push(HyperedgeCorner::new(
+                hyperedge.clone(),
+                hyperedge.lower_left,
+                hyperedge.upper_left,
+                CornerType::Lower,
+            ));
+        }
+        left_corners.sort_by(|a, b| a.compare(b));
+
+        let mut open_hyperedges = 0;
+        for corner in &left_corners {
+            match corner.corner_type {
+                CornerType::Upper => open_hyperedges += 1,
+                CornerType::Lower => {
+                    open_hyperedges -= 1;
+                    crossings += open_hyperedges;
+                }
+            }
+        }
+
+        let mut right_corners: Vec<HyperedgeCorner> = Vec::with_capacity(hyperedge_list.len() * 2);
+        for hyperedge in &hyperedge_list {
+            right_corners.push(HyperedgeCorner::new(
+                hyperedge.clone(),
+                hyperedge.upper_right,
+                hyperedge.lower_right,
+                CornerType::Upper,
+            ));
+            right_corners.push(HyperedgeCorner::new(
+                hyperedge.clone(),
+                hyperedge.lower_right,
+                hyperedge.upper_right,
+                CornerType::Lower,
+            ));
+        }
+        right_corners.sort_by(|a, b| a.compare(b));
+
+        open_hyperedges = 0;
+        for corner in &right_corners {
+            match corner.corner_type {
+                CornerType::Upper => open_hyperedges += 1,
+                CornerType::Lower => {
+                    open_hyperedges -= 1;
+                    crossings += open_hyperedges;
+                }
+            }
+        }
+
+        crossings
+    }
+}
+
+#[derive(Clone)]
+struct Hyperedge {
+    id: usize,
+    edges: Vec<LEdgeRef>,
+    ports: Vec<LPortRef>,
+    upper_left: i32,
+    lower_left: i32,
+    upper_right: i32,
+    lower_right: i32,
+}
+
+impl Hyperedge {
+    fn new(id: usize) -> Self {
+        Hyperedge {
+            id,
+            edges: Vec::new(),
+            ports: Vec::new(),
+            upper_left: 0,
+            lower_left: 0,
+            upper_right: 0,
+            lower_right: 0,
+        }
+    }
+
+    fn compare(&self, other: &Self) -> std::cmp::Ordering {
+        self.upper_left
+            .cmp(&other.upper_left)
+            .then_with(|| self.upper_right.cmp(&other.upper_right))
+            .then_with(|| self.id.cmp(&other.id))
+    }
+}
+
+#[derive(Clone, Copy)]
+enum CornerType {
+    Upper,
+    Lower,
+}
+
+#[derive(Clone)]
+struct HyperedgeCorner {
+    hyperedge: Hyperedge,
+    position: i32,
+    opposite_position: i32,
+    corner_type: CornerType,
+}
+
+impl HyperedgeCorner {
+    fn new(hyperedge: Hyperedge, position: i32, opposite_position: i32, corner_type: CornerType) -> Self {
+        HyperedgeCorner {
+            hyperedge,
+            position,
+            opposite_position,
+            corner_type,
+        }
+    }
+
+    fn compare(&self, other: &Self) -> std::cmp::Ordering {
+        self.position
+            .cmp(&other.position)
+            .then_with(|| self.opposite_position.cmp(&other.opposite_position))
+            .then_with(|| self.hyperedge.id.cmp(&other.hyperedge.id))
+            .then_with(|| match (self.corner_type, other.corner_type) {
+                (CornerType::Upper, CornerType::Lower) => std::cmp::Ordering::Less,
+                (CornerType::Lower, CornerType::Upper) => std::cmp::Ordering::Greater,
+                _ => std::cmp::Ordering::Equal,
+            })
+    }
+}
+
+fn edge_is_in_layer(edge: &LEdgeRef) -> bool {
+    let (source_layer, target_layer) = edge
+        .lock()
+        .ok()
+        .map(|edge_guard| {
+            let source_layer = edge_guard
+                .source()
+                .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
+                .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.layer()));
+            let target_layer = edge_guard
+                .target()
+                .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
+                .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.layer()));
+            (source_layer, target_layer)
+        })
+        .unwrap_or((None, None));
+    if let (Some(source_layer), Some(target_layer)) = (source_layer, target_layer) {
+        Arc::ptr_eq(&source_layer, &target_layer)
+    } else {
+        false
+    }
+}
+
+fn port_ptr_id(port: &LPortRef) -> usize {
+    Arc::as_ptr(port) as usize
+}
+
+fn port_id(port: &LPortRef) -> usize {
+    port.lock()
+        .ok()
+        .map(|mut port_guard| port_guard.shape().graph_element().id as usize)
+        .unwrap_or(0)
+}
+
+fn set_port_position(port_positions: &mut Vec<i32>, port: &LPortRef, position: i32) {
+    let pid = port_id(port);
+    if pid >= port_positions.len() {
+        port_positions.resize(pid + 1, 0);
+    }
+    port_positions[pid] = position;
+}
+
+fn port_position(port_positions: &[i32], port: &LPortRef) -> i32 {
+    let pid = port_id(port);
+    *port_positions.get(pid).unwrap_or(&0)
+}
+
+fn port_layer(port: &LPortRef) -> Option<LayerRef> {
+    port.lock()
+        .ok()
+        .and_then(|port_guard| port_guard.node())
+        .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.layer()))
+}

@@ -1,0 +1,6 @@
+[package]
+name = "org-eclipse-elk-alg-graphviz-dot"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]

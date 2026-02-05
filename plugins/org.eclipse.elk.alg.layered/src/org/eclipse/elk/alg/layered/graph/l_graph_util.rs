@@ -183,7 +183,21 @@ impl LGraphUtil {
     }
 
     pub fn place_nodes_horizontally(layer: &LayerRef, xoffset: f64) {
-        let (nodes, layer_size) = if let Ok(layer_guard) = layer.lock() {
+        let (nodes, layer_size) = if let Ok(mut layer_guard) = layer.lock() {
+            if layer_guard.size_ref().x <= 0.0 {
+                let mut max_width = 0.0;
+                for node in layer_guard.nodes() {
+                    if let Ok(mut node_guard) = node.lock() {
+                        let size_x = node_guard.shape().size_ref().x;
+                        let margin = node_guard.margin();
+                        let width = size_x + margin.left + margin.right;
+                        if width > max_width {
+                            max_width = width;
+                        }
+                    }
+                }
+                layer_guard.size().x = max_width;
+            }
             (layer_guard.nodes().clone(), *layer_guard.size_ref())
         } else {
             return;

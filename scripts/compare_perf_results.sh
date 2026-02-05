@@ -48,3 +48,4 @@ compare_two_lines() {
 compare_two_lines "comment_attachment" "perf/results_comment_attachment.csv" 6 7
 compare_two_lines "graph_validation" "perf/results_graph_validation.csv" 8 9
 compare_two_lines "recursive_layout" "perf/results_recursive_layout.csv" 8 9
+compare_two_lines "recursive_layout_layered" "perf/results_recursive_layout_layered.csv" 8 9

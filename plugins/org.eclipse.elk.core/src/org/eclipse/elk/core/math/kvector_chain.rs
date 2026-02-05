@@ -53,6 +53,24 @@ impl KVectorChain {
         self.vectors.extend_from_slice(vectors);
     }
 
+    pub fn insert(&mut self, index: usize, vector: KVector) {
+        if index > self.vectors.len() {
+            panic!("Index out of bounds");
+        }
+        self.vectors.insert(index, vector);
+    }
+
+    pub fn set(&mut self, index: usize, vector: KVector) {
+        if index >= self.vectors.len() {
+            panic!("Index out of bounds");
+        }
+        self.vectors[index] = vector;
+    }
+
+    pub fn clear(&mut self) {
+        self.vectors.clear();
+    }
+
     pub fn len(&self) -> usize {
         self.vectors.len()
     }
@@ -69,8 +87,26 @@ impl KVectorChain {
         self.vectors[index]
     }
 
+    pub fn get_first(&self) -> KVector {
+        if self.vectors.is_empty() {
+            panic!("Cannot get first element of empty vector chain.");
+        }
+        self.vectors[0]
+    }
+
+    pub fn get_last(&self) -> KVector {
+        if self.vectors.is_empty() {
+            panic!("Cannot get last element of empty vector chain.");
+        }
+        self.vectors[self.vectors.len() - 1]
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = &KVector> {
         self.vectors.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut KVector> {
+        self.vectors.iter_mut()
     }
 
     pub fn to_array(&self) -> Vec<KVector> {
@@ -121,6 +157,10 @@ impl KVectorChain {
             vector.add_values(dx, dy);
         }
         self
+    }
+
+    pub fn remove_last(&mut self) -> Option<KVector> {
+        self.vectors.pop()
     }
 
     pub fn total_length(&self) -> f64 {

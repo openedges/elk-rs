@@ -86,9 +86,112 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f52b00d39961fc5b2736ea853c9cc86238e165017a493d1d5c8eac6bdc4cc273"
 
 [[package]]
+name = "org-eclipse-elk-alg-common"
+version = "0.1.0"
+dependencies = [
+ "org-eclipse-elk-core",
+ "org-eclipse-elk-graph",
+]
+
+[[package]]
+name = "org-eclipse-elk-alg-disco"
+version = "0.1.0"
+dependencies = [
+ "org-eclipse-elk-alg-common",
+ "org-eclipse-elk-core",
+ "org-eclipse-elk-graph",
+]
+
+[[package]]
+name = "org-eclipse-elk-alg-force"
+version = "0.1.0"
+dependencies = [
+ "org-eclipse-elk-alg-common",
+ "org-eclipse-elk-core",
+ "org-eclipse-elk-graph",
+]
+
+[[package]]
+name = "org-eclipse-elk-alg-graphviz-dot"
+version = "0.1.0"
+
+[[package]]
+name = "org-eclipse-elk-alg-graphviz-layouter"
+version = "0.1.0"
+dependencies = [
+ "org-eclipse-elk-alg-common",
+ "org-eclipse-elk-alg-graphviz-dot",
+ "org-eclipse-elk-core",
+ "org-eclipse-elk-graph",
+]
+
+[[package]]
 name = "org-eclipse-elk-alg-layered"
 version = "0.1.0"
 dependencies = [
+ "org-eclipse-elk-alg-common",
+ "org-eclipse-elk-core",
+ "org-eclipse-elk-graph",
+]
+
+[[package]]
+name = "org-eclipse-elk-alg-libavoid"
+version = "0.1.0"
+dependencies = [
+ "org-eclipse-elk-alg-common",
+ "org-eclipse-elk-core",
+ "org-eclipse-elk-graph",
+]
+
+[[package]]
+name = "org-eclipse-elk-alg-mrtree"
+version = "0.1.0"
+dependencies = [
+ "org-eclipse-elk-alg-common",
+ "org-eclipse-elk-core",
+ "org-eclipse-elk-graph",
+]
+
+[[package]]
+name = "org-eclipse-elk-alg-radial"
+version = "0.1.0"
+dependencies = [
+ "org-eclipse-elk-alg-common",
+ "org-eclipse-elk-core",
+ "org-eclipse-elk-graph",
+]
+
+[[package]]
+name = "org-eclipse-elk-alg-rectpacking"
+version = "0.1.0"
+dependencies = [
+ "org-eclipse-elk-alg-common",
+ "org-eclipse-elk-core",
+ "org-eclipse-elk-graph",
+]
+
+[[package]]
+name = "org-eclipse-elk-alg-spore"
+version = "0.1.0"
+dependencies = [
+ "org-eclipse-elk-alg-common",
+ "org-eclipse-elk-core",
+ "org-eclipse-elk-graph",
+]
+
+[[package]]
+name = "org-eclipse-elk-alg-topdownpacking"
+version = "0.1.0"
+dependencies = [
+ "org-eclipse-elk-core",
+ "org-eclipse-elk-graph",
+]
+
+[[package]]
+name = "org-eclipse-elk-alg-vertiflex"
+version = "0.1.0"
+dependencies = [
+ "org-eclipse-elk-alg-common",
  "org-eclipse-elk-core",
  "org-eclipse-elk-graph",
 ]

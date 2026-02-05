@@ -1,6 +1,21 @@
 pub mod components;
+pub mod compound;
+pub mod elk_layered;
 pub mod graph;
+pub mod graph_configurator;
+pub mod intermediate;
+pub mod layered_layout_provider;
 pub mod layered_phases;
+pub mod no_op_phase;
 pub mod options;
+pub mod p1cycles;
+pub mod p2layers;
+pub mod p3order;
+pub mod p4nodes;
+pub mod p5edges;
 
+pub use graph_configurator::GraphConfigurator;
 pub use layered_phases::LayeredPhases;
+pub use intermediate::IntermediateProcessorStrategy;
+pub use elk_layered::ElkLayered;
+pub use layered_layout_provider::LayeredLayoutProvider;

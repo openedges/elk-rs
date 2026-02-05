@@ -1,8 +1,20 @@
 [workspace]
 members = [
+  "plugins/org.eclipse.elk.alg.common",
+  "plugins/org.eclipse.elk.alg.mrtree",
+  "plugins/org.eclipse.elk.alg.force",
+  "plugins/org.eclipse.elk.alg.rectpacking",
+  "plugins/org.eclipse.elk.alg.topdownpacking",
+  "plugins/org.eclipse.elk.alg.vertiflex",
   "plugins/org.eclipse.elk.graph",
   "plugins/org.eclipse.elk.core",
   "plugins/org.eclipse.elk.alg.layered",
+  "plugins/org.eclipse.elk.alg.spore",
+  "plugins/org.eclipse.elk.alg.disco",
+  "plugins/org.eclipse.elk.alg.radial",
+  "plugins/org.eclipse.elk.alg.libavoid",
+  "plugins/org.eclipse.elk.alg.graphviz.dot",
+  "plugins/org.eclipse.elk.alg.graphviz.layouter",
   "plugins/org.eclipse.elk.graph.json",
 ]
 resolver = "2"

@@ -157,10 +157,13 @@ fn test_add_processor_configuration() {
         "PHASE_2",
     ];
 
-    for (processor, expected) in algorithm.iter_mut().zip(expected.iter()) {
+    for (processor, expected) in algorithm.iter().zip(expected.iter()) {
         let mut buffer = String::new();
         let mut monitor = NullElkProgressMonitor;
-        processor.process(&mut buffer, &mut monitor);
+        processor
+            .lock()
+            .expect("processor lock")
+            .process(&mut buffer, &mut monitor);
         assert_eq!(*expected, buffer);
     }
 }

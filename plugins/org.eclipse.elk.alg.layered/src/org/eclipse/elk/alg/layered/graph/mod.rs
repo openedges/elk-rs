@@ -12,6 +12,7 @@ pub mod l_port;
 pub mod l_shape;
 pub mod layer;
 pub mod tarjan;
+pub mod transform;
 
 pub use l_edge::LEdge;
 pub use l_graph::LGraph;
@@ -19,7 +20,7 @@ pub use l_graph_element::LGraphElement;
 pub use l_graph_util::LGraphUtil;
 pub use l_label::LLabel;
 pub use l_margin::LMargin;
-pub use l_node::LNode;
+pub use l_node::{LNode, NodeType};
 pub use l_padding::LPadding;
 pub use l_port::LPort;
 pub use l_shape::LShape;

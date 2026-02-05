@@ -1,0 +1,9 @@
+[package]
+name = "org-eclipse-elk-alg-vertiflex"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+org-eclipse-elk-core = { path = "../org.eclipse.elk.core" }
+org-eclipse-elk-graph = { path = "../org.eclipse.elk.graph" }
+org-eclipse-elk-alg-common = { path = "../org.eclipse.elk.alg.common" }

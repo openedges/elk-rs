@@ -1,8 +1,10 @@
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::components::ComponentOrderingStrategy;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::{
-    CenterEdgeLabelPlacementStrategy, EdgeLabelSideSelection, GroupOrderStrategy,
-    LayeredMetaDataProvider, LayeredOptions, LayerUnzippingStrategy, LongEdgeOrderingStrategy,
-    OrderingStrategy, WrappingStrategy,
+    CenterEdgeLabelPlacementStrategy, ConstraintCalculationStrategy, CrossingMinimizationStrategy,
+    CycleBreakingStrategy, EdgeLabelSideSelection, EdgeStraighteningStrategy,
+    GraphCompactionStrategy, GreedySwitchType, GroupOrderStrategy, LayeredMetaDataProvider,
+    LayeredOptions, LayerUnzippingStrategy, LayeringStrategy, LongEdgeOrderingStrategy,
+    NodeFlexibility, NodePlacementStrategy, OrderingStrategy, WrappingStrategy,
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::data::{
     LayoutMetaDataService, LayoutOptionTarget, LayoutOptionVisibility,
@@ -93,6 +95,118 @@ fn layer_unzipping_defaults() {
         .and_then(|value| value.downcast::<i32>().ok())
         .expect("lower bound");
     assert_eq!(*lower, 1);
+}
+
+#[test]
+fn cycle_breaking_and_layering_defaults() {
+    init_layered_options();
+
+    let cycle = LayoutMetaDataService::get_instance()
+        .get_option_data(LayeredOptions::CYCLE_BREAKING_STRATEGY.id())
+        .expect("cycle breaking strategy option");
+    let default = cycle
+        .default_value()
+        .and_then(|value| value.downcast::<CycleBreakingStrategy>().ok())
+        .expect("default value");
+    assert_eq!(*default, CycleBreakingStrategy::Greedy);
+
+    let layering = LayoutMetaDataService::get_instance()
+        .get_option_data(LayeredOptions::LAYERING_STRATEGY.id())
+        .expect("layering strategy option");
+    let default = layering
+        .default_value()
+        .and_then(|value| value.downcast::<LayeringStrategy>().ok())
+        .expect("default value");
+    assert_eq!(*default, LayeringStrategy::NetworkSimplex);
+}
+
+#[test]
+fn crossing_minimization_defaults() {
+    init_layered_options();
+
+    let strategy = LayoutMetaDataService::get_instance()
+        .get_option_data(LayeredOptions::CROSSING_MINIMIZATION_STRATEGY.id())
+        .expect("crossing minimization strategy option");
+    let default = strategy
+        .default_value()
+        .and_then(|value| value.downcast::<CrossingMinimizationStrategy>().ok())
+        .expect("default value");
+    assert_eq!(*default, CrossingMinimizationStrategy::LayerSweep);
+
+    let threshold = LayoutMetaDataService::get_instance()
+        .get_option_data(
+            LayeredOptions::CROSSING_MINIMIZATION_GREEDY_SWITCH_ACTIVATION_THRESHOLD.id(),
+        )
+        .expect("greedy switch activation threshold option");
+    let default = threshold
+        .default_value()
+        .and_then(|value| value.downcast::<i32>().ok())
+        .expect("default value");
+    assert_eq!(*default, 40);
+
+    let greedy_type = LayoutMetaDataService::get_instance()
+        .get_option_data(LayeredOptions::CROSSING_MINIMIZATION_GREEDY_SWITCH_TYPE.id())
+        .expect("greedy switch type option");
+    let default = greedy_type
+        .default_value()
+        .and_then(|value| value.downcast::<GreedySwitchType>().ok())
+        .expect("default value");
+    assert_eq!(*default, GreedySwitchType::TwoSided);
+}
+
+#[test]
+fn node_placement_defaults() {
+    init_layered_options();
+
+    let strategy = LayoutMetaDataService::get_instance()
+        .get_option_data(LayeredOptions::NODE_PLACEMENT_STRATEGY.id())
+        .expect("node placement strategy option");
+    let default = strategy
+        .default_value()
+        .and_then(|value| value.downcast::<NodePlacementStrategy>().ok())
+        .expect("default value");
+    assert_eq!(*default, NodePlacementStrategy::BrandesKoepf);
+
+    let straightening = LayoutMetaDataService::get_instance()
+        .get_option_data(LayeredOptions::NODE_PLACEMENT_BK_EDGE_STRAIGHTENING.id())
+        .expect("node placement edge straightening option");
+    let default = straightening
+        .default_value()
+        .and_then(|value| value.downcast::<EdgeStraighteningStrategy>().ok())
+        .expect("default value");
+    assert_eq!(*default, EdgeStraighteningStrategy::ImproveStraightness);
+
+    let flexibility = LayoutMetaDataService::get_instance()
+        .get_option_data(LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_DEFAULT.id())
+        .expect("node flexibility default option");
+    let default = flexibility
+        .default_value()
+        .and_then(|value| value.downcast::<NodeFlexibility>().ok())
+        .expect("default value");
+    assert_eq!(*default, NodeFlexibility::None);
+}
+
+#[test]
+fn compaction_defaults() {
+    init_layered_options();
+
+    let strategy = LayoutMetaDataService::get_instance()
+        .get_option_data(LayeredOptions::COMPACTION_POST_COMPACTION_STRATEGY.id())
+        .expect("compaction strategy option");
+    let default = strategy
+        .default_value()
+        .and_then(|value| value.downcast::<GraphCompactionStrategy>().ok())
+        .expect("default value");
+    assert_eq!(*default, GraphCompactionStrategy::None);
+
+    let constraints = LayoutMetaDataService::get_instance()
+        .get_option_data(LayeredOptions::COMPACTION_POST_COMPACTION_CONSTRAINTS.id())
+        .expect("compaction constraints option");
+    let default = constraints
+        .default_value()
+        .and_then(|value| value.downcast::<ConstraintCalculationStrategy>().ok())
+        .expect("default value");
+    assert_eq!(*default, ConstraintCalculationStrategy::Scanline);
 }
 
 #[test]

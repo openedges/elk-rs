@@ -28,6 +28,31 @@ pub enum NodeType {
 }
 
 impl NodeType {
+    pub const COUNT: usize = 8;
+    pub const VALUES: [NodeType; Self::COUNT] = [
+        NodeType::Normal,
+        NodeType::LongEdge,
+        NodeType::ExternalPort,
+        NodeType::NorthSouthPort,
+        NodeType::Label,
+        NodeType::BreakingPoint,
+        NodeType::Placeholder,
+        NodeType::NonshiftingPlaceholder,
+    ];
+
+    pub fn ordinal(&self) -> usize {
+        match self {
+            NodeType::Normal => 0,
+            NodeType::LongEdge => 1,
+            NodeType::ExternalPort => 2,
+            NodeType::NorthSouthPort => 3,
+            NodeType::Label => 4,
+            NodeType::BreakingPoint => 5,
+            NodeType::Placeholder => 6,
+            NodeType::NonshiftingPlaceholder => 7,
+        }
+    }
+
     pub fn color(&self) -> &'static str {
         match self {
             NodeType::ExternalPort => "#cc99cc",

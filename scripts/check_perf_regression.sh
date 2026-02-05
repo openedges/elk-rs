@@ -63,6 +63,7 @@ check_file() {
 check_file "comment_attachment" "perf/results_comment_attachment.csv" 6 7
 check_file "graph_validation" "perf/results_graph_validation.csv" 8 9
 check_file "recursive_layout" "perf/results_recursive_layout.csv" 8 9
+check_file "recursive_layout_layered" "perf/results_recursive_layout_layered.csv" 8 9
 
 if [ "$fail" -ne 0 ]; then
   exit 1

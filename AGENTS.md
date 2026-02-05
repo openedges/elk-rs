@@ -7,6 +7,17 @@
 - 구현하면서 성능 측정하고 Java Version보다 항상 빠르게 동작하도록 유지
 - 라이센스는 Java Version과 동일하게 유지
 
+## 자동 진행 규칙
+- 사용자가 "계속 진행" 또는 "끝까지 진행" 요청 시, 다음 작업 목록을 순서대로 처리한다.
+- 막힘/불확실성만 짧게 질문하고, 그 외에는 추가 질문 없이 진행한다.
+- 사용자가 "끝까지" 요청하면 중간 확인 없이 완료까지 진행하고, 중간 결과는 간단 요약만 남긴다.
+- 승인/권한이 필요한 작업은 즉시 승인 요청 후, 승인되면 바로 이어서 진행한다.
+- 남은 작업은 "다음 작업" 항목을 위에서부터 완료할 때까지 반복 처리한다.
+- 완전 구현 불가 항목은 최소 동작+TODO(파일/테스트/명령 포함)를 남기고 다음 항목으로 이동한다.
+- 외부 의존성/환경 문제로 완전 구현이 불가한 경우, 합리적 가정과 최소 동작(에러 메시지/기본값/비활성화)을 넣어 빌드·테스트를 유지하고 TODO를 남긴 뒤 다음 항목으로 진행한다.
+- 테스트/빌드 실패 시, 우선 수정하고 재시도한 후 계속 진행한다.
+- 새 단계 완료 시 AGENTS.md 진행 기록을 즉시 갱신한다.
+
 ## 진행된 작업
 - `.gitignore` 추가, `external/elk` 서브모듈 추가
 - core/math, graph, util, options, data 기본 구조 및 일부 기능 포팅
@@ -25,13 +36,97 @@
 - layered InternalProperties 확장(EDGE/IN_LAYER 제약, EXT_PORT_SIDE/EXT_PORT_SIZE, PORT_RATIO_OR_POSITION, MODEL_ORDER)
 - layered LayeredOptions 확장(layerConstraint, PORT_ANCHOR/PORT_INDEX/PORT_SIDE alias)
 - layered LayeredPhases 단계 enum 추가
+- layered Spacings/LayeredSpacings 유틸 포팅, LayeredOptions spacing(CoreOptions) alias 추가, NodeType ordinal/values 추가
+- layered IntermediateProcessorStrategy enum(노옵) 및 InternalProperties(PROCESSORS/RANDOM/SPACINGS/ORIGINAL_PORT_CONSTRAINTS) 추가, GraphConfigurator 스켈레톤 구성
+- layered 옵션 확장(cycle/layering/crossing/nodePlacement/edgeRouting/compaction/highDegree/기타) 및 신규 옵션 enum 추가, 메타데이터/테스트 보강
+- layered GraphConfigurator 구성 보강(phase/processor 구성, greedy switch/compaction/방향/라벨/래핑/파티션 처리) 및 core AlgorithmAssembler processor 파이프라인 공유 구조(Arc<Mutex>) 정리
+- layered `ElkLayered`/`LayeredLayoutProvider` 기본 골격 포팅, 테스트 컨트롤러 훅 연결
+- layered graph transform(`IGraphTransformer`, `ElkGraphTransformer`, `ElkGraphImporter`, `ElkGraphLayoutTransferrer`) 최소 구현 및 ORIGIN 매핑 도입
+- layered ComponentsProcessor/CompoundGraph 전·후처리 스텁 추가
+- core `ILayoutProcessor`에 `Any` 바운드 추가 및 AlgorithmAssembler 어댑터 보완
+- layered layout transferrer에서 노드/포트/라벨/엣지 섹션 및 벤드포인트 적용 최소 구현
 - core PortSide 유틸 확장(opposed/adjacent/방향 매핑/수평·수직)
+- layered GraphTransformer(방향 변환/미러/전치/회전) 포팅 및 Direction pre/postprocessor 연결
+- LayeredOptions CoreOptions alias 보강(node labels placement/padding, position, node size minimum), KVectorChain iter_mut 추가
+- layered GreedyCycleBreaker(p1cycles) 포팅 및 CYCLIC 내부 프로퍼티 추가
+- layered DepthFirstCycleBreaker(p1cycles) 포팅 및 전략 연결
+- layered LongestPathLayerer(p2layers) 포팅 및 NetworkSimplex/LongestPath 전략 연결
+- layered LongestPathSourceLayerer(p2layers) 포팅 및 전략 연결
+- layered Breadth/DepthFirst ModelOrder layerer(p2layers) 포팅 및 전략 연결
+- layered CoffmanGraham/Interactive/StretchWidth/MinWidth layerer(p2layers) 포팅 및 전략 연결
+- layered p3order NoCrossingMinimizer 포팅 및 CrossingMinimizationStrategy(None) 연결
+- layered p3order counting 유틸(BinaryIndexedTree/CrossMinUtil/IInitializable) 포팅
+- layered p3order CrossingsCounter/HyperedgeCrossingsCounter/AllCrossingsCounter 포팅
+- layered p3order LayerSweepCrossingMinimizer 스켈레톤 및 CrossMinType enum 추가, 전략 연결(LayerSweep/Median)
+- layered p3order 포트 분배기(AbstractBarycenter 기반 NodeRelative/LayerTotal, GreedyPortDistributor) 및 greedyswitch BetweenLayerEdgeTwoNodeCrossingsCounter 포팅
+- layered p3order BarycenterHeuristic/ModelOrderBarycenterHeuristic, ForsterConstraintResolver, ICrossingMinimizationHeuristic 포팅 및 preserveorder CMGroupModelOrderCalculator 추가
+- layered InternalProperties 확장(in-layer successor constraints, barycenter associates, max model order nodes)
+- layered p3order LayerSweepCrossingMinimizer 전체 로직 포팅, GraphInfoHolder/LayerSweepTypeDecider/MedianHeuristic/SweepCopy 보강
+- layered greedyswitch 세부(스위치 결정/휴리스틱/매트릭스/NS 교차 카운터) 및 preserveorder comparator, SortByInputModelProcessor 추가
+- layered InternalProperties 확장(inside connections, long-edge target, model order/weight, initial order flags 등) 및 초기화/랜덤 리셋 로직 보강
+- layered p4nodes Simple/Interactive/LinearSegments node placer 포팅, NodePlacementStrategy 일부 연결, ORIGINAL_DUMMY_NODE_POSITION 내부 프로퍼티 추가
+- layered p4nodes Brandes-Koepf(BK) node placer/aligner/compactor/threshold strategies 포팅 및 NeighborhoodInformation 연동, NodePlacementStrategy(BK) 연결
+- layered p4nodes NetworkSimplex node placer 포팅 및 NodePlacementStrategy(NetworkSimplex) 연결
+- alg.common NetworkSimplex(NGraph/NNode/NEdge) 포팅 및 layered NetworkSimplexLayerer 연결
+- layered p5 edge routing 기본 포팅(EdgeRouterFactory, Polyline/Orthogonal router, orthogonal hyperedge routing generator/segment/dependency/cycle splitter) 및 GraphConfigurator 연동
+- layered p5 splines 정식 포팅(SplineEdgeRouter/SplineSegment/SplinesMath/Rectangle/NubSpline/NubsSelfLoop/FinalSplineBendpointsCalculator) 및 wiring
+- layered InternalProperties spline 관련 키 추가(SPLINE_*), IntermediateProcessorStrategy에 FinalSplineBendpointsCalculator 연결
+- core KVectorChain API 보강(insert/clear/get_first/get_last/remove_last)
+- layered spline 라우팅/네트워크 심플렉스 관련 최소 회귀 테스트 추가(스플라인 라우팅, 노드 배치/레이어링 전략)
+- alg.mrtree 초기 골격 포팅(크레이트 추가, 기본 그래프 모델/옵션 enum/InternalProperties 스켈레톤)
+- alg.mrtree 본체 포팅(옵션/메타, TreeUtil/Importer/LayoutTransferrer, 프로세서 파이프라인, p4 edge routing 스텁) 및 `cargo check -p org-eclipse-elk-alg-mrtree` 통과
+- alg.mrtree p5 edge routing 포팅(EdgeRouter/MultiLevelEdgeNodeNodeGap)
+- layered NetworkSimplex/BK 주변 테스트 추가
+- layered BinaryIndexedTree 테스트 추가
+- BK/NetworkSimplex 레이아웃 hang 해결(Spacings graph lock 데드락, NetworkSimplexPlacer apply_positions 노드 재락 문제, ElkLayered clear_layers 제거) 및 테스트 ignore 해제/통과
+- layered 노드 배치 스모크 테스트(Simple/LinearSegments) 추가, network_simplex_bk_test 5개 통과
+- layered layout transferrer 보강(레이어 노드 수집, 그래프 크기 적용, 엣지 섹션 설정 중 재대여 방지)
+- layered LGraphUtil place_nodes_horizontally 레이어 폭 계산 보강
+- layered LayeredSpacingTest/OverallLayoutTest 포팅 및 통과
+- layered CrossMinUtil 포트 순서(in_north_south_east_west_order) 테스트 추가
+- BK aligner/aligned layout align 체인 루프 가드 추가(비정상 align 사이클 방지)
+- BK compactor place_block 루프 가드 추가(align 체인 비정상 순환 대비)
+- layered CrossingsCounter 간단 교차 그래프 테스트 추가 및 통과
+- layered CrossingsCounter in-layer 교차 테스트 추가 및 통과
+- layered CrossingsCounter 병렬 엣지 교차 테스트 추가 및 통과
+- layered CrossingsCounter 교차+중간 엣지 테스트 추가 및 통과
+- layered CrossingsCounter self-loop 무시 테스트 추가 및 통과
+- layered AllCrossingsCounter 교차 그래프 테스트 추가 및 통과
+- 성능 측정: layered 레이아웃 전용 perf 스크립트 추가 및 README 갱신
+- 성능 측정: perf run/compare/summary/regression 스크립트에 layered 결과 파일 포함
+- 성능 측정: scripts/README.md에 layered perf 스크립트/환경변수 추가
+- alg.common NetworkSimplex 테스트 추가
+- alg.topdownpacking 포팅(옵션/메타/레이아웃 프로바이더/배치/화이트스페이스 제거)
+- alg.rectpacking 포팅(옵션/메타/유틸/폭 근사·패킹·화이트스페이스 제거/레이아웃 프로바이더/인터랙티브 방문자, rows thread-local 저장), `cargo check -p org-eclipse-elk-alg-rectpacking` 통과
+- alg.vertiflex 포팅(옵션/메타/내부 프로퍼티/레이아웃 프로바이더, p1~p4 배치·라우팅), `cargo check -p org-eclipse-elk-alg-vertiflex` 통과
+- alg.force 포팅(Force/Stress 옵션·메타·그래프 모델·모델/메이저라이제이션·레이아웃 프로바이더) 및 ForceImportTest 이식, `cargo check -p org-eclipse-elk-alg-force`/`cargo test -p org-eclipse-elk-alg-force` 통과
+- alg.common polyomino/compaction 옵션·구조·Successor·PolyominoCompactor 포팅 및 정리, `cargo check -p org-eclipse-elk-alg-common` 통과
+- alg.disco 포팅(옵션/메타/레이아웃 프로바이더, DCGraph/컴포넌트 분리/GraphTransformer, DCPolyomino/Polyomino compaction) 및 `cargo check -p org-eclipse-elk-alg-disco` 통과
+- alg.disco/topdownpacking/rectpacking/vertiflex 메타데이터 테스트 추가 및 `cargo test -p org-eclipse-elk-alg-{disco,topdownpacking,rectpacking,vertiflex}` 통과
+- alg.spore 포팅(옵션/메타/그래프/임포터/스팬닝 트리/겹침 제거·ShrinkTree 단계/레이아웃 프로바이더), 트리-정점 동기화 추가
+- alg.spore 테스트 추가(스캔라인 겹침 감지, overlap/underlap/distance) 및 `cargo test -p org-eclipse-elk-alg-spore` 통과
+- alg.radial 포팅(옵션/메타/레이아웃 프로바이더/p1~p2/중간 처리) 및 테스트 추가(center on root, metadata), `cargo test -p org-eclipse-elk-alg-radial` 통과
+- alg.libavoid 포팅(옵션/메타/레이아웃 프로바이더 스텁/서버 스텁) 및 메타데이터 테스트 추가, `cargo test -p org-eclipse-elk-alg-libavoid` 통과
+- alg.graphviz 포팅(dot/layouter 크레이트, 옵션/메타/레이아웃 프로바이더 스텁, dot transform enums) 및 메타데이터 테스트 추가, `cargo test -p org-eclipse-elk-alg-graphviz-layouter` 통과
 - label manager 옵션 분리(Core vs Labels) 및 메타데이터/테스트 추가
 - `PropertyConstantsDelegator` 옵션 타입 확장(label manager, topdown size approximator, layout algorithm data)
 - 테스트 추가/확장 (`layout_algorithm_metadata`, `label_management_options`, `deprecated_layout_option_replacer`, `elk_graph_adapters` 등), `cargo clippy --workspace --all-targets` 통과
+- layered BasicEdgeRouter/BasicLayerAssignment/BasicNodePlacement/BasicModelOrder/BasicCycleBreaker 테스트 포팅 및 통과
+- layered BasicConsiderModelOrder 테스트 포팅 및 considerModelOrder 가중치 조합 hang 해결(재귀 가드/try_lock fallback)
+- layered Issue562 테스트 포팅 및 통과
+- layered NorthSouthPortPreprocessor/Postprocessor 포팅 및 LabelAndNodeSizeProcessor 최소 포트 배치 보강(남/서쪽 역순 배치)
+- layered AllowNonFlowPortsToSwitchSides 테스트 포팅 및 통과(allowNonFlowPortsToSwitchSides 지원)
+- layered LabelAndNodeSizeProcessorOffset 테스트 포팅 및 FixedPos/FixedRatio 포트 직교 좌표 보정 보강
+- layered GreedyPortDistributor 테스트 일부 포팅(단순 6 케이스) 및 통과
+- layered GreedyPortDistributor 계층/compound 케이스 테스트 포팅(더미 외부 포트/중첩 그래프 헬퍼 포함) 및 통과
+- layered LayerSweepTypeDecider 테스트 포팅 및 통과
+- layered AbstractBarycenterPortDistributor 테스트 포팅 및 통과
+- layered AbstractBarycenterPortDistributor 포트 분배 로직 보강(고정 순서 제외 시 정렬 수행)
+- layered NorthSouthEdgeAllCrossingsCounter 테스트 포팅 및 통과
+- layered NorthSouthEdgeNeighbouringNodeCrossingsCounter 테스트 포팅 및 통과
+- layered BetweenLayerEdgeTwoNodeCrossingsCounter 테스트 포팅 및 통과
+- layered InLayerEdgeTwoNodeCrossingCounter 테스트 포팅 및 통과
+- layered GreedySwitchProcessor 테스트 포팅 및 self-loop/in-layer 포트 분배 데드락 해결, greedy_switch_processor_test 통과
 
 ## 다음 작업
-- layered 알고리즘 본체 포팅(옵션/메타데이터, LGraph 모델, 변환기/프로세서)
-- 다른 알고리즘 모듈 포팅 및 연동(alg.*)
 - 알고리즘 테스트 이식 확대(특히 layered 테스트군)
-- 성능 측정 자동화(벤치/프로파일링 스크립트)

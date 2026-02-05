@@ -3,6 +3,7 @@ Scripts overview:
 - `run_perf_comment_attachment.sh [count] [iterations] [warmup] [output]`
 - `run_perf_graph_validation.sh [nodes] [edges] [iterations] [warmup] [mode] [output]`
 - `run_perf_recursive_layout.sh [nodes] [edges] [iterations] [warmup] [algorithm] [validate_graph] [validate_options] [output]`
+- `run_perf_layered_layout.sh [nodes] [edges] [iterations] [warmup] [validate_graph] [validate_options] [output]`
 - `run_perf_all.sh` (runs all perf scripts with defaults; supports env overrides)
 - `compare_perf_results.sh [window]` (windowed compare of last two windows)
 - `summarize_perf_results.sh [output]` (writes `perf/summary.md` by default)
@@ -33,6 +34,7 @@ LAYOUT_ALGORITHM=fixed
 LAYOUT_VALIDATE_GRAPH=false
 LAYOUT_VALIDATE_OPTIONS=false
 LAYOUT_OUTPUT=perf/results_recursive_layout.csv
+LAYOUT_LAYERED_OUTPUT=perf/results_recursive_layout_layered.csv
 ```
 
 CI workflows (GitHub Actions):

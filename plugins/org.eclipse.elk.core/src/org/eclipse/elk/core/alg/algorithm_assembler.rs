@@ -1,9 +1,7 @@
-use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap};
 use std::marker::PhantomData;
-use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use crate::org::eclipse::elk::core::util::{EnumSetType, IElkProgressMonitor};
 
@@ -14,8 +12,9 @@ use super::i_layout_processor::ILayoutProcessor;
 use super::layout_processor_configuration::{LayoutProcessorConfiguration, ProcessorFactory};
 
 type PhaseFactory<P, G> = Arc<dyn ILayoutPhaseFactory<P, G>>;
-type PhaseHandle<P, G> = Rc<RefCell<Box<dyn ILayoutPhase<P, G>>>>;
-type ProcessorHandle<G> = Rc<RefCell<Box<dyn ILayoutProcessor<G>>>>;
+type PhaseHandle<P, G> = Arc<Mutex<Box<dyn ILayoutPhase<P, G>>>>;
+pub type SharedProcessor<G> = Arc<Mutex<Box<dyn ILayoutProcessor<G>>>>;
+type ProcessorHandle<G> = SharedProcessor<G>;
 
 type ProcessorComparator<G> =
     Arc<dyn Fn(&ProcessorFactory<G>, &ProcessorFactory<G>) -> Ordering + Send + Sync>;
@@ -112,7 +111,7 @@ where
         self
     }
 
-    pub fn build(&mut self, graph: &G) -> Vec<Box<dyn ILayoutProcessor<G>>> {
+    pub fn build(&mut self, graph: &G) -> Vec<SharedProcessor<G>> {
         if self.fail_on_missing_phase && self.configured_phases.len() < self.phase_variants.len()
         {
             panic!(
@@ -137,13 +136,14 @@ where
 
         let mut processor_configuration = LayoutProcessorConfiguration::create();
         for phase in phases.iter().flatten() {
-            if let Some(config) = phase.borrow().get_layout_processor_configuration(graph) {
+            let phase_guard = phase.lock().expect("phase lock");
+            if let Some(config) = phase_guard.get_layout_processor_configuration(graph) {
                 processor_configuration.add_all(&config);
             }
         }
         processor_configuration.add_all(&self.additional_processors);
 
-        let mut algorithm: Vec<Box<dyn ILayoutProcessor<G>>> = Vec::new();
+        let mut algorithm: Vec<SharedProcessor<G>> = Vec::new();
 
         let variants = self.phase_variants.clone();
         for phase in &variants {
@@ -152,9 +152,9 @@ where
 
             let phase_index = self.phase_index(*phase);
             if let Some(phase) = &phases[phase_index] {
-                algorithm.push(Box::new(PhaseProcessorAdapter {
+                algorithm.push(Arc::new(Mutex::new(Box::new(PhaseProcessorAdapter {
                     phase: phase.clone(),
-                }));
+                }))));
             }
         }
 
@@ -169,15 +169,17 @@ where
     fn retrieve_processors(
         &mut self,
         factories: Vec<ProcessorFactory<G>>,
-    ) -> Vec<Box<dyn ILayoutProcessor<G>>> {
+    ) -> Vec<SharedProcessor<G>> {
         let mut sorted = factories;
         let comparator = self.processor_comparator.clone();
         sorted.sort_by(|a, b| (comparator)(a, b));
 
-        let mut processors: Vec<Box<dyn ILayoutProcessor<G>>> = Vec::with_capacity(sorted.len());
+        let mut processors: Vec<SharedProcessor<G>> = Vec::with_capacity(sorted.len());
         for factory in sorted {
             let processor = self.retrieve_processor(&factory);
-            processors.push(Box::new(SharedProcessorAdapter { processor }));
+            processors.push(Arc::new(Mutex::new(Box::new(SharedProcessorAdapter {
+                processor,
+            }))));
         }
         processors
     }
@@ -187,7 +189,7 @@ where
         factory: &PhaseFactory<P, G>,
     ) -> PhaseHandle<P, G> {
         if !self.enable_caching {
-            return Rc::new(RefCell::new(factory.create_phase()));
+            return Arc::new(Mutex::new(factory.create_phase()));
         }
 
         let key = phase_factory_key(factory);
@@ -195,7 +197,7 @@ where
             return existing.clone();
         }
 
-        let phase = Rc::new(RefCell::new(factory.create_phase()));
+        let phase = Arc::new(Mutex::new(factory.create_phase()));
         self.phase_cache.insert(key, phase.clone());
         phase
     }
@@ -205,7 +207,7 @@ where
         factory: &ProcessorFactory<G>,
     ) -> ProcessorHandle<G> {
         if !self.enable_caching {
-            return Rc::new(RefCell::new(factory.create()));
+            return Arc::new(Mutex::new(factory.create()));
         }
 
         let key = processor_factory_key(factory);
@@ -213,7 +215,7 @@ where
             return existing.clone();
         }
 
-        let processor = Rc::new(RefCell::new(factory.create()));
+        let processor = Arc::new(Mutex::new(factory.create()));
         self.processor_cache.insert(key, processor.clone());
         processor
     }
@@ -230,9 +232,13 @@ struct SharedProcessorAdapter<G> {
     processor: ProcessorHandle<G>,
 }
 
-impl<G> ILayoutProcessor<G> for SharedProcessorAdapter<G> {
+impl<G: 'static> ILayoutProcessor<G> for SharedProcessorAdapter<G> {
     fn process(&mut self, graph: &mut G, progress_monitor: &mut dyn IElkProgressMonitor) {
-        self.processor.borrow_mut().process(graph, progress_monitor);
+        let mut processor = self.processor.lock().expect("processor lock");
+        if std::env::var_os("ELK_TRACE_PROCESSORS").is_some() {
+            eprintln!("processor: {}", processor.type_name());
+        }
+        processor.process(graph, progress_monitor);
     }
 }
 
@@ -240,12 +246,16 @@ struct PhaseProcessorAdapter<P, G> {
     phase: PhaseHandle<P, G>,
 }
 
-impl<P, G> ILayoutProcessor<G> for PhaseProcessorAdapter<P, G>
+impl<P, G: 'static> ILayoutProcessor<G> for PhaseProcessorAdapter<P, G>
 where
     P: EnumSetType,
 {
     fn process(&mut self, graph: &mut G, progress_monitor: &mut dyn IElkProgressMonitor) {
-        self.phase.borrow_mut().process(graph, progress_monitor);
+        let mut phase = self.phase.lock().expect("phase lock");
+        if std::env::var_os("ELK_TRACE_PHASES").is_some() {
+            eprintln!("phase: {}", phase.type_name());
+        }
+        phase.process(graph, progress_monitor);
     }
 }
 

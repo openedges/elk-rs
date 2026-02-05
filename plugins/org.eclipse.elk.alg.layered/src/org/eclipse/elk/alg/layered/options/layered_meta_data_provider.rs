@@ -11,9 +11,13 @@ use org_eclipse_elk_core::org::eclipse::elk::core::data::{
 };
 
 use super::{
-    CenterEdgeLabelPlacementStrategy, CuttingStrategy, EdgeLabelSideSelection, GroupOrderStrategy,
-    InteractiveReferencePoint, LayerUnzippingStrategy, LayeredOptions, LongEdgeOrderingStrategy,
-    OrderingStrategy, ValidifyStrategy, WrappingStrategy,
+    CenterEdgeLabelPlacementStrategy, ConstraintCalculationStrategy, CrossingMinimizationStrategy,
+    CuttingStrategy, CycleBreakingStrategy, DirectionCongruency, EdgeLabelSideSelection,
+    EdgeStraighteningStrategy, FixedAlignment, GraphCompactionStrategy, GreedySwitchType,
+    GroupOrderStrategy, InteractiveReferencePoint, LayerUnzippingStrategy, LayeredOptions,
+    LayeringStrategy, LongEdgeOrderingStrategy, NodeFlexibility, NodePlacementStrategy,
+    NodePromotionStrategy, OrderingStrategy, PortSortingStrategy, SelfLoopDistributionStrategy,
+    SelfLoopOrderingStrategy, SplineRoutingMode, ValidifyStrategy, WrappingStrategy,
 };
 use crate::org::eclipse::elk::alg::layered::components::ComponentOrderingStrategy;
 
@@ -26,6 +30,14 @@ impl ILayoutMetaDataProvider for LayeredMetaDataProvider {
         register_priority_options(registry);
         register_wrapping_options(registry);
         register_layer_unzipping_options(registry);
+        register_cycle_breaking_options(registry);
+        register_layering_options(registry);
+        register_crossing_minimization_options(registry);
+        register_node_placement_options(registry);
+        register_edge_routing_options(registry);
+        register_compaction_options(registry);
+        register_high_degree_options(registry);
+        register_misc_options(registry);
         register_edge_label_options(registry);
         register_consider_model_order_options(registry);
     }
@@ -34,6 +46,7 @@ impl ILayoutMetaDataProvider for LayeredMetaDataProvider {
 const TARGET_PARENTS: [LayoutOptionTarget; 1] = [LayoutOptionTarget::Parents];
 const TARGET_EDGES: [LayoutOptionTarget; 1] = [LayoutOptionTarget::Edges];
 const TARGET_NODES: [LayoutOptionTarget; 1] = [LayoutOptionTarget::Nodes];
+const TARGET_PORTS: [LayoutOptionTarget; 1] = [LayoutOptionTarget::Ports];
 const TARGET_PARENTS_LABELS: [LayoutOptionTarget; 2] =
     [LayoutOptionTarget::Parents, LayoutOptionTarget::Labels];
 const TARGET_NODES_EDGES_PORTS: [LayoutOptionTarget; 3] = [
@@ -385,6 +398,643 @@ fn register_layer_unzipping_options(registry: &mut dyn LayoutMetaDataRegistry) {
     );
 }
 
+fn register_cycle_breaking_options(registry: &mut dyn LayoutMetaDataRegistry) {
+    register_option(
+        registry,
+        LayeredOptions::CYCLE_BREAKING_STRATEGY,
+        LayoutOptionType::Enum,
+        "Cycle Breaking Strategy",
+        concat!(
+            "Strategy for cycle breaking. Cycle breaking looks for cycles in the graph and determines ",
+            "which edges to reverse to break the cycles."
+        ),
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Visible,
+        Some("cycleBreaking"),
+        None,
+    );
+}
+
+fn register_layering_options(registry: &mut dyn LayoutMetaDataRegistry) {
+    register_option(
+        registry,
+        LayeredOptions::LAYERING_STRATEGY,
+        LayoutOptionType::Enum,
+        "Node Layering Strategy",
+        "Strategy for node layering.",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Visible,
+        Some("layering"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::LAYERING_LAYER_CONSTRAINT,
+        LayoutOptionType::Enum,
+        "Layer Constraint",
+        "Determines a constraint on the placement of the node regarding the layering.",
+        &TARGET_NODES,
+        LayoutOptionVisibility::Advanced,
+        Some("layering"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::LAYERING_LAYER_CHOICE_CONSTRAINT,
+        LayoutOptionType::Int,
+        "Layer Choice Constraint",
+        "Allows to set a constraint regarding the layer placement of a node.",
+        &TARGET_NODES,
+        LayoutOptionVisibility::Advanced,
+        Some("layering"),
+        Some(bound_i32(-1)),
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::LAYERING_LAYER_ID,
+        LayoutOptionType::Int,
+        "Layer ID",
+        "Layer identifier that was calculated by ELK Layered for a node.",
+        &TARGET_NODES,
+        LayoutOptionVisibility::Advanced,
+        Some("layering"),
+        Some(bound_i32(-1)),
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::LAYERING_MIN_WIDTH_UPPER_BOUND_ON_WIDTH,
+        LayoutOptionType::Int,
+        "Upper Bound On Width [MinWidth Layerer]",
+        concat!(
+            "Defines a loose upper bound on the width of the MinWidth layerer. ",
+            "If set to -1 multiple values are tested and the best result is selected."
+        ),
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        Some("layering.minWidth"),
+        Some(bound_i32(-1)),
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::LAYERING_MIN_WIDTH_UPPER_LAYER_ESTIMATION_SCALING_FACTOR,
+        LayoutOptionType::Int,
+        "Upper Layer Estimation Scaling Factor [MinWidth Layerer]",
+        concat!(
+            "Multiplied with Upper Bound On Width for defining an upper bound on the width of layers which ",
+            "haven't been determined yet."
+        ),
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        Some("layering.minWidth"),
+        Some(bound_i32(-1)),
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::LAYERING_NODE_PROMOTION_STRATEGY,
+        LayoutOptionType::Enum,
+        "Node Promotion Strategy",
+        "Reduces number of dummy nodes after layering phase (if possible).",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        Some("layering.nodePromotion"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::LAYERING_NODE_PROMOTION_MAX_ITERATIONS,
+        LayoutOptionType::Int,
+        "Max Node Promotion Iterations",
+        "Limits the number of iterations for node promotion.",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        Some("layering.nodePromotion"),
+        Some(bound_i32(0)),
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::LAYERING_COFFMAN_GRAHAM_LAYER_BOUND,
+        LayoutOptionType::Int,
+        "Layer Bound",
+        "The maximum number of nodes allowed per layer.",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        Some("layering.coffmanGraham"),
+        None,
+    );
+}
+
+fn register_crossing_minimization_options(registry: &mut dyn LayoutMetaDataRegistry) {
+    register_option(
+        registry,
+        LayeredOptions::CROSSING_MINIMIZATION_STRATEGY,
+        LayoutOptionType::Enum,
+        "Crossing Minimization Strategy",
+        "Strategy for crossing minimization.",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Visible,
+        Some("crossingMinimization"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::CROSSING_MINIMIZATION_FORCE_NODE_MODEL_ORDER,
+        LayoutOptionType::Boolean,
+        "Force Node Model Order",
+        concat!(
+            "The node order given by the model does not change to produce a better layout. ",
+            "This assumes that the node model order is already respected before crossing minimization."
+        ),
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Visible,
+        Some("crossingMinimization"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::CROSSING_MINIMIZATION_HIERARCHICAL_SWEEPINESS,
+        LayoutOptionType::Double,
+        "Hierarchical Sweepiness",
+        "How likely it is to use cross-hierarchy (1) vs bottom-up (-1).",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        Some("crossingMinimization"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::CROSSING_MINIMIZATION_GREEDY_SWITCH_ACTIVATION_THRESHOLD,
+        LayoutOptionType::Int,
+        "Greedy Switch Activation Threshold",
+        concat!(
+            "By default it is decided automatically if the greedy switch is activated or not. ",
+            "A value of 0 enforces the activation."
+        ),
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        Some("crossingMinimization.greedySwitch"),
+        Some(bound_i32(0)),
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::CROSSING_MINIMIZATION_GREEDY_SWITCH_TYPE,
+        LayoutOptionType::Enum,
+        "Greedy Switch Crossing Minimization",
+        "Greedy switch strategy executed after regular crossing minimization.",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        Some("crossingMinimization.greedySwitch"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::CROSSING_MINIMIZATION_GREEDY_SWITCH_HIERARCHICAL_TYPE,
+        LayoutOptionType::Enum,
+        "Greedy Switch Crossing Minimization (Hierarchical)",
+        "Greedy switch strategy in case hierarchical layout is used.",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        Some("crossingMinimization.greedySwitchHierarchical"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::CROSSING_MINIMIZATION_SEMI_INTERACTIVE,
+        LayoutOptionType::Boolean,
+        "Semi-Interactive Crossing Minimization",
+        concat!(
+            "Preserves the order of nodes within a layer but still minimizes crossings between edges connecting ",
+            "long edge dummies."
+        ),
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        Some("crossingMinimization"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::CROSSING_MINIMIZATION_IN_LAYER_PRED_OF,
+        LayoutOptionType::String,
+        "In Layer Predecessor Of",
+        "Specifies of which node the current node is the predecessor in the same layer.",
+        &TARGET_NODES,
+        LayoutOptionVisibility::Visible,
+        Some("crossingMinimization"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::CROSSING_MINIMIZATION_IN_LAYER_SUCC_OF,
+        LayoutOptionType::String,
+        "In Layer Successor Of",
+        "Specifies of which node the current node is the successor in the same layer.",
+        &TARGET_NODES,
+        LayoutOptionVisibility::Advanced,
+        Some("crossingMinimization"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::CROSSING_MINIMIZATION_POSITION_CHOICE_CONSTRAINT,
+        LayoutOptionType::Int,
+        "Position Choice Constraint",
+        "Allows to set a constraint regarding the position placement of a node in a layer.",
+        &TARGET_NODES,
+        LayoutOptionVisibility::Advanced,
+        Some("crossingMinimization"),
+        Some(bound_i32(-1)),
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::CROSSING_MINIMIZATION_POSITION_ID,
+        LayoutOptionType::Int,
+        "Position ID",
+        "Position within a layer that was determined by ELK Layered for a node.",
+        &TARGET_NODES,
+        LayoutOptionVisibility::Advanced,
+        Some("crossingMinimization"),
+        Some(bound_i32(-1)),
+    );
+}
+
+fn register_node_placement_options(registry: &mut dyn LayoutMetaDataRegistry) {
+    register_option(
+        registry,
+        LayeredOptions::NODE_PLACEMENT_STRATEGY,
+        LayoutOptionType::Enum,
+        "Node Placement Strategy",
+        "Strategy for node placement.",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Visible,
+        Some("nodePlacement"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::NODE_PLACEMENT_FAVOR_STRAIGHT_EDGES,
+        LayoutOptionType::Boolean,
+        "Favor Straight Edges Over Balancing",
+        concat!(
+            "Favor straight edges over a balanced node placement. The default behavior is determined ",
+            "automatically based on the used edge routing."
+        ),
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Visible,
+        Some("nodePlacement"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::NODE_PLACEMENT_BK_EDGE_STRAIGHTENING,
+        LayoutOptionType::Enum,
+        "BK Edge Straightening",
+        "Specifies whether the Brandes-Koepf node placer tries to increase the number of straight edges.",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        Some("nodePlacement.bk"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::NODE_PLACEMENT_BK_FIXED_ALIGNMENT,
+        LayoutOptionType::Enum,
+        "BK Fixed Alignment",
+        "Tells the BK node placer to use a certain alignment.",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        Some("nodePlacement.bk"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::NODE_PLACEMENT_LINEAR_SEGMENTS_DEFLECTION_DAMPENING,
+        LayoutOptionType::Double,
+        "Linear Segments Deflection Dampening",
+        "Dampens the movement of nodes to keep the diagram from getting too large.",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        Some("nodePlacement.linearSegments"),
+        Some(bound_f64(0.0)),
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY,
+        LayoutOptionType::Enum,
+        "Node Flexibility",
+        concat!(
+            "Aims at shorter and straighter edges by allowing ports or node sizes to change ",
+            "during network simplex node placement."
+        ),
+        &TARGET_NODES,
+        LayoutOptionVisibility::Advanced,
+        Some("nodePlacement.networkSimplex"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_DEFAULT,
+        LayoutOptionType::Enum,
+        "Node Flexibility Default",
+        "Default value of the node flexibility option for the children of a hierarchical node.",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        Some("nodePlacement.networkSimplex.nodeFlexibility"),
+        None,
+    );
+}
+
+fn register_edge_routing_options(registry: &mut dyn LayoutMetaDataRegistry) {
+    register_option(
+        registry,
+        LayeredOptions::EDGE_ROUTING_SPLINES_MODE,
+        LayoutOptionType::Enum,
+        "Spline Routing Mode",
+        "Specifies the way control points are assembled for each individual edge.",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Visible,
+        Some("edgeRouting.splines"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::EDGE_ROUTING_SPLINES_SLOPPY_LAYER_SPACING_FACTOR,
+        LayoutOptionType::Double,
+        "Sloppy Spline Layer Spacing Factor",
+        "Spacing factor for routing area between layers when using sloppy spline routing.",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Visible,
+        Some("edgeRouting.splines.sloppy"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::EDGE_ROUTING_POLYLINE_SLOPED_EDGE_ZONE_WIDTH,
+        LayoutOptionType::Double,
+        "Sloped Edge Zone Width",
+        concat!(
+            "Width of the strip to the left and to the right of each layer where the polyline edge router ",
+            "is allowed to refrain from ensuring that edges are routed horizontally."
+        ),
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        Some("edgeRouting.polyline"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::EDGE_ROUTING_SELF_LOOP_DISTRIBUTION,
+        LayoutOptionType::Enum,
+        "Self-Loop Distribution",
+        "Alter the distribution of the loops around the node.",
+        &TARGET_NODES,
+        LayoutOptionVisibility::Visible,
+        Some("edgeRouting"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::EDGE_ROUTING_SELF_LOOP_ORDERING,
+        LayoutOptionType::Enum,
+        "Self-Loop Ordering",
+        "Alter the ordering of the loops.",
+        &TARGET_NODES,
+        LayoutOptionVisibility::Visible,
+        Some("edgeRouting"),
+        None,
+    );
+}
+
+fn register_compaction_options(registry: &mut dyn LayoutMetaDataRegistry) {
+    register_option(
+        registry,
+        LayeredOptions::COMPACTION_POST_COMPACTION_STRATEGY,
+        LayoutOptionType::Enum,
+        "Post Compaction Strategy",
+        "Specifies whether and how post-process compaction is applied.",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        Some("compaction.postCompaction"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::COMPACTION_POST_COMPACTION_CONSTRAINTS,
+        LayoutOptionType::Enum,
+        "Post Compaction Constraint Calculation",
+        "Specifies how post-process compaction constraints are calculated.",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        Some("compaction.postCompaction"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::COMPACTION_CONNECTED_COMPONENTS,
+        LayoutOptionType::Boolean,
+        "Connected Components Compaction",
+        "Tries to further compact components (disconnected sub-graphs).",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        Some("compaction"),
+        None,
+    );
+}
+
+fn register_high_degree_options(registry: &mut dyn LayoutMetaDataRegistry) {
+    register_option(
+        registry,
+        LayeredOptions::HIGH_DEGREE_NODES_TREATMENT,
+        LayoutOptionType::Boolean,
+        "High Degree Node Treatment",
+        "Makes room around high degree nodes to place leafs and trees.",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        Some("highDegreeNodes"),
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::HIGH_DEGREE_NODES_THRESHOLD,
+        LayoutOptionType::Int,
+        "High Degree Node Threshold",
+        "Whether a node is considered to have a high degree.",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        Some("highDegreeNodes"),
+        Some(bound_i32(0)),
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::HIGH_DEGREE_NODES_TREE_HEIGHT,
+        LayoutOptionType::Int,
+        "High Degree Node Maximum Tree Height",
+        "Maximum height of a subtree connected to a high degree node to be moved to separate layers.",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        Some("highDegreeNodes"),
+        Some(bound_i32(0)),
+    );
+}
+
+fn register_misc_options(registry: &mut dyn LayoutMetaDataRegistry) {
+    register_option(
+        registry,
+        LayeredOptions::DIRECTION_CONGRUENCY,
+        LayoutOptionType::Enum,
+        "Direction Congruency",
+        concat!(
+            "Specifies how drawings of the same graph with different layout directions compare to each other: ",
+            "either a natural reading direction is preserved or the drawings are rotated versions of each other."
+        ),
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        None,
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::FEEDBACK_EDGES,
+        LayoutOptionType::Boolean,
+        "Feedback Edges",
+        "Whether feedback edges should be highlighted by routing around the nodes.",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        None,
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::INTERACTIVE_REFERENCE_POINT,
+        LayoutOptionType::Enum,
+        "Interactive Reference Point",
+        "Determines which point of a node is considered by interactive layout phases.",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        None,
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::MERGE_EDGES,
+        LayoutOptionType::Boolean,
+        "Merge Edges",
+        "Edges that have no ports are merged so they touch the connected nodes at the same points.",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        None,
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::MERGE_HIERARCHY_EDGES,
+        LayoutOptionType::Boolean,
+        "Merge Hierarchy-Crossing Edges",
+        "If hierarchical layout is active, hierarchy-crossing edges use as few hierarchical ports as possible.",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        None,
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::ALLOW_NON_FLOW_PORTS_TO_SWITCH_SIDES,
+        LayoutOptionType::Boolean,
+        "Allow Non-Flow Ports To Switch Sides",
+        "Specifies whether non-flow ports may switch sides for FIXED_SIDE or FIXED_ORDER constraints.",
+        &TARGET_PORTS,
+        LayoutOptionVisibility::Advanced,
+        None,
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::PORT_SORTING_STRATEGY,
+        LayoutOptionType::Enum,
+        "Port Sorting Strategy",
+        "Determines the way a node's ports are distributed on the sides of a node if their order is not prescribed.",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        None,
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::THOROUGHNESS,
+        LayoutOptionType::Int,
+        "Thoroughness",
+        "How much effort should be spent to produce a nice layout.",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        None,
+        Some(bound_i32(1)),
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::UNNECESSARY_BENDPOINTS,
+        LayoutOptionType::Boolean,
+        "Add Unnecessary Bendpoints",
+        "Adds bend points even if an edge does not change direction.",
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        None,
+        None,
+    );
+
+    register_option(
+        registry,
+        LayeredOptions::GENERATE_POSITION_AND_LAYER_IDS,
+        LayoutOptionType::Boolean,
+        "Generate Position and Layer IDs",
+        concat!(
+            "If enabled position id and layer id are generated, which are usually only used internally ",
+            "when setting the interactive layout option."
+        ),
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        None,
+        None,
+    );
+}
+
 fn register_edge_label_options(registry: &mut dyn LayoutMetaDataRegistry) {
     register_option(
         registry,
@@ -727,6 +1377,70 @@ fn init_reflect() {
         ElkReflect::register(
             Some(|| CenterEdgeLabelPlacementStrategy::MedianLayer),
             Some(|v: &CenterEdgeLabelPlacementStrategy| *v),
+        );
+        ElkReflect::register(
+            Some(|| CycleBreakingStrategy::Greedy),
+            Some(|v: &CycleBreakingStrategy| *v),
+        );
+        ElkReflect::register(
+            Some(|| LayeringStrategy::NetworkSimplex),
+            Some(|v: &LayeringStrategy| *v),
+        );
+        ElkReflect::register(
+            Some(|| NodePromotionStrategy::None),
+            Some(|v: &NodePromotionStrategy| *v),
+        );
+        ElkReflect::register(
+            Some(|| CrossingMinimizationStrategy::LayerSweep),
+            Some(|v: &CrossingMinimizationStrategy| *v),
+        );
+        ElkReflect::register(
+            Some(|| GreedySwitchType::Off),
+            Some(|v: &GreedySwitchType| *v),
+        );
+        ElkReflect::register(
+            Some(|| NodePlacementStrategy::BrandesKoepf),
+            Some(|v: &NodePlacementStrategy| *v),
+        );
+        ElkReflect::register(
+            Some(|| EdgeStraighteningStrategy::ImproveStraightness),
+            Some(|v: &EdgeStraighteningStrategy| *v),
+        );
+        ElkReflect::register(
+            Some(|| FixedAlignment::None),
+            Some(|v: &FixedAlignment| *v),
+        );
+        ElkReflect::register(
+            Some(|| NodeFlexibility::None),
+            Some(|v: &NodeFlexibility| *v),
+        );
+        ElkReflect::register(
+            Some(|| SplineRoutingMode::Sloppy),
+            Some(|v: &SplineRoutingMode| *v),
+        );
+        ElkReflect::register(
+            Some(|| SelfLoopDistributionStrategy::North),
+            Some(|v: &SelfLoopDistributionStrategy| *v),
+        );
+        ElkReflect::register(
+            Some(|| SelfLoopOrderingStrategy::Stacked),
+            Some(|v: &SelfLoopOrderingStrategy| *v),
+        );
+        ElkReflect::register(
+            Some(|| GraphCompactionStrategy::None),
+            Some(|v: &GraphCompactionStrategy| *v),
+        );
+        ElkReflect::register(
+            Some(|| ConstraintCalculationStrategy::Scanline),
+            Some(|v: &ConstraintCalculationStrategy| *v),
+        );
+        ElkReflect::register(
+            Some(|| DirectionCongruency::ReadingDirection),
+            Some(|v: &DirectionCongruency| *v),
+        );
+        ElkReflect::register(
+            Some(|| PortSortingStrategy::InputOrder),
+            Some(|v: &PortSortingStrategy| *v),
         );
     });
 }

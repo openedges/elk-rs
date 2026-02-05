@@ -125,4 +125,35 @@ write_section \
   echo "|$ts|$algo|$nodes|$edges|$iters|$warmup|$avg|$ops|$vgraph|$vopts|"' \
   5
 
+write_section \
+  "Recursive Layout (Layered)" \
+  "perf/results_recursive_layout_layered.csv" \
+  "|timestamp|algorithm|nodes|edges|iterations|warmup|avg_ms|elems_per_sec|validate_graph|validate_options|\n|---|---|---|---|---|---|---|---|---|---|" \
+  'line=$1
+  ts=$(echo "$line" | awk -F"," "{print \$1}")
+  algo=$(echo "$line" | awk -F"," "{print \$2}")
+  nodes=$(echo "$line" | awk -F"," "{print \$3}")
+  edges=$(echo "$line" | awk -F"," "{print \$4}")
+  iters=$(echo "$line" | awk -F"," "{print \$5}")
+  warmup=$(echo "$line" | awk -F"," "{print \$6}")
+  avg=$(echo "$line" | awk -F"," "{print \$8}")
+  ops=$(echo "$line" | awk -F"," "{print \$9}")
+  vgraph=$(echo "$line" | awk -F"," "{print \$10}")
+  vopts=$(echo "$line" | awk -F"," "{print \$11}")
+  echo "|$ts|$algo|$nodes|$edges|$iters|$warmup|$avg|$ops|$vgraph|$vopts|"' \
+  "|timestamp|algorithm|nodes|edges|iterations|warmup|avg_ms|elems_per_sec|validate_graph|validate_options|\n|---|---|---|---|---|---|---|---|---|---|" \
+  'line=$1
+  ts=$(echo "$line" | awk -F"," "{print \$1}")
+  algo=$(echo "$line" | awk -F"," "{print \$2}")
+  nodes=$(echo "$line" | awk -F"," "{print \$3}")
+  edges=$(echo "$line" | awk -F"," "{print \$4}")
+  iters=$(echo "$line" | awk -F"," "{print \$5}")
+  warmup=$(echo "$line" | awk -F"," "{print \$6}")
+  avg=$(echo "$line" | awk -F"," "{print \$8}")
+  ops=$(echo "$line" | awk -F"," "{print \$9}")
+  vgraph=$(echo "$line" | awk -F"," "{print \$10}")
+  vopts=$(echo "$line" | awk -F"," "{print \$11}")
+  echo "|$ts|$algo|$nodes|$edges|$iters|$warmup|$avg|$ops|$vgraph|$vopts|"' \
+  5
+
 echo "Wrote $OUT"
