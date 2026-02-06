@@ -1,5 +1,11 @@
 Performance results are appended by scripts in `scripts/`.
 
+Release quick guide:
+- Run the pre-release checklist in `RELEASE_CHECKLIST.md`.
+- A failure in `PERF_COMPARE_MODE=baseline sh scripts/check_perf_regression.sh 5 3` means a "Rust current vs Rust baseline" regression.
+- That failure does not directly mean Rust is slower than Java. Java comparison is evaluated separately via `check_java_perf_parity*.sh`.
+- Release decisions should consider code quality (`cargo test/clippy/build`), parity reports (`status: ok`), and performance gates together.
+
 `results_comment_attachment.csv` columns:
 - unix_timestamp_seconds
 - count
@@ -61,7 +67,7 @@ Performance results are appended by scripts in `scripts/`.
 - validate_options
 
 Compare helper:
-- `scripts/run_perf_recursive_layout_scenarios.sh` appends non-layered recursive layout scenario runs to `perf/results_recursive_layout_scenarios.csv` (`PERF_RECURSIVE_SCENARIO_PROFILE=default`이면 `fixed_dense,fixed_sparse,random_dense,random_sparse,box_sparse,fixed_validated,random_validated,box_validated`, `quick`는 축약 세트, `full`은 `box_large` 포함; 시나리오 인자를 명시하면 profile보다 우선).
+- `scripts/run_perf_recursive_layout_scenarios.sh` appends non-layered recursive layout scenario runs to `perf/results_recursive_layout_scenarios.csv` (`PERF_RECURSIVE_SCENARIO_PROFILE=default` uses `fixed_dense,fixed_sparse,random_dense,random_sparse,box_sparse,fixed_validated,random_validated,box_validated`; `quick` uses a reduced set; `full` includes `box_large`; explicit scenario arguments take precedence over profile defaults).
 - `scripts/compare_perf_results.sh [window]` prints a quick diff between the last two windows (default window 1).
 - `scripts/check_recursive_perf_runtime_budget.sh [results_file] [profile] [report]` checks latest recursive scenario `avg_iteration_ms` values against profile budgets (`quick|default|full`; defaults `40/60/120ms`) and writes `perf/recursive_runtime_budget.md`.
 - `PERF_COMPARE_MODE=baseline` (or `both`) enables scenario-level comparison against `PERF_BASELINE_LAYERED_FILE` (default `perf/baselines/layered_issue_scenarios.csv`) and `PERF_BASELINE_RECURSIVE_SCENARIOS_FILE` (default `perf/baselines/recursive_layout_scenarios.csv`).
@@ -94,7 +100,7 @@ Compare helper:
 - `scripts/check_algorithm_feature_parity.sh` compares Java/Rust algorithm supported-feature pairs (`supportedFeatures` vs `add_supported_feature`) and writes `perf/algorithm_feature_parity.md` (set `ALGORITHM_FEATURE_PARITY_STRICT=true` to fail on drift).
 - `scripts/check_algorithm_metadata_parity.sh` compares Java/Rust algorithm metadata fields (`category`, `melkBundleName`/`bundle_name`, `definingBundleId`, `imagePath`) and writes `perf/algorithm_metadata_parity.md` (set `ALGORITHM_METADATA_PARITY_STRICT=true` to fail on drift).
 - `scripts/run_java_perf_layered_issue_scenarios.sh` generates the Java layered issue CSV via external ELK Tycho test (`LayeredIssuePerfBenchTest`); by default it runs in an isolated copy of `external/elk` (git worktree when available, copy fallback otherwise) and cleans up after completion so the original `external/elk` tree remains unchanged.
-- Perf workflow Java 운영 기본값/실패 대응 절차는 `perf/JAVA_PERF_TRIAGE.md`를 기준으로 관리한다.
+- Use `perf/JAVA_PERF_TRIAGE.md` as the source of truth for Java perf workflow default settings and failure triage procedures.
 - `scripts/run_perf_and_compare_java.sh` can generate Java CSV before compare/check when `JAVA_PERF_GENERATE=true` (use `JAVA_PERF_DRY_RUN=true` to print the Maven command only) and supports `JAVA_PERF_COMPARE_MODE=results|baseline|both`.
 - When `JAVA_PERF_GENERATE=true` and `JAVA_PERF_DRY_RUN=true`, `run_perf_and_compare_java.sh` writes a dry-run summary report and skips compare/parity if no Java CSV exists.
 - `JAVA_PERF_ALLOW_GENERATE_FAILURE=true` lets the wrapper continue after generation failure (results compare becomes a skip report; baseline compare can still run in `both` mode).

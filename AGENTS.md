@@ -17,6 +17,7 @@
 - 외부 의존성/환경 문제로 완전 구현이 불가한 경우, 합리적 가정과 최소 동작(에러 메시지/기본값/비활성화)을 넣어 빌드·테스트를 유지하고 TODO를 남긴 뒤 다음 항목으로 진행한다.
 - 테스트/빌드 실패 시, 우선 수정하고 재시도한 후 계속 진행한다.
 - 새 단계 완료 시 AGENTS.md 진행 기록을 즉시 갱신한다.
+- AGENTS.md 본문 설명은 한글로 작성한다(코드/명령어/식별자/경로는 원문 영문 유지).
 
 ## 진행된 작업
 - `.gitignore` 추가, `external/elk` 서브모듈 추가
@@ -369,6 +370,7 @@
 - 최종 품질 게이트 재검증(최신): `cargo test --workspace`, `cargo clippy --workspace --all-targets` 전체 통과
 - perf 파이프라인 최종 스모크(최신): 축소 파라미터로 `run_perf_all.sh` 재실행 후 `PERF_COMPARE_MODE=both sh scripts/compare_perf_results.sh 1` 결과 확인, `PERF_COMPARE_MODE=baseline sh scripts/check_perf_regression.sh 100 1` 통과, `check_recursive_perf_runtime_budget.sh` default strict 통과(`perf/recursive_runtime_budget.md`)
 - Java baseline compare 최종 스모크(최신): `JAVA_PERF_COMPARE_MODE=baseline` + `LAYERED_ISSUE_SKIP_RUST_RUN=true`로 `run_perf_and_compare_java.sh` 실행해 `perf/java_vs_rust_baseline.md` 생성 및 `check_java_perf_artifacts.sh` 검증 통과, `summarize_java_perf_status.sh`에서 `candidate equals baseline: yes` 확인
+- 배포 문서 보강(최신): `RELEASE_CHECKLIST.md` 신규 추가(품질/parity/성능 게이트와 Go/No-Go 규칙), `perf/README.md`와 `scripts/README.md`에 baseline 회귀 의미(기준선 대비, Java 대비와 분리) 및 배포 전 빠른 실행 절차를 명시
 
 ## 진행률(최신)
 - 전체 목표 대비 추정 진행률: 약 100% (기준: Java 기능/API/테스트 parity, 빌드/클리피, 성능 자동화)

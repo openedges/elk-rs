@@ -19,7 +19,7 @@ This document defines how baseline CSVs and Java parity thresholds are produced 
 3. Execute at least 3 repeated runs and inspect variance before accepting a new baseline.
 4. Update baseline only after intentional performance work or infrastructure changes that materially shift timing.
 5. Keep layered scenario coverage aligned with `LAYERED_ISSUE_SCENARIOS` defaults unless explicitly changed.
-6. Keep recursive scenario coverage aligned with `PERF_RECURSIVE_SCENARIO_PROFILE=default` for baseline gates; use `full` (`box_large` 포함) for periodic deep refresh.
+6. Keep recursive scenario coverage aligned with `PERF_RECURSIVE_SCENARIO_PROFILE=default` for baseline gates; use `full` (including `box_large`) for periodic deep refresh.
 
 ## Recursive Scenario Profiles
 
@@ -63,7 +63,7 @@ This document defines how baseline CSVs and Java parity thresholds are produced 
   - `regression_gate=true`
   - `regression_threshold=5`
   - `regression_window=3`
-  - `recursive_scenario_profile=default` (주기적 deep run에서는 `full`)
+  - `recursive_scenario_profile=default` (use `full` for periodic deep runs)
 - Java parity:
   - `java_compare_enabled=true` when Java CSV exists or `java_generate_enabled=true`.
   - Keep `java_parity_gate=false` until CI stability is confirmed; then enable with a team-agreed threshold policy.
