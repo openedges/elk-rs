@@ -371,11 +371,19 @@
 - perf 파이프라인 최종 스모크(최신): 축소 파라미터로 `run_perf_all.sh` 재실행 후 `PERF_COMPARE_MODE=both sh scripts/compare_perf_results.sh 1` 결과 확인, `PERF_COMPARE_MODE=baseline sh scripts/check_perf_regression.sh 100 1` 통과, `check_recursive_perf_runtime_budget.sh` default strict 통과(`perf/recursive_runtime_budget.md`)
 - Java baseline compare 최종 스모크(최신): `JAVA_PERF_COMPARE_MODE=baseline` + `LAYERED_ISSUE_SKIP_RUST_RUN=true`로 `run_perf_and_compare_java.sh` 실행해 `perf/java_vs_rust_baseline.md` 생성 및 `check_java_perf_artifacts.sh` 검증 통과, `summarize_java_perf_status.sh`에서 `candidate equals baseline: yes` 확인
 - 배포 문서 보강(최신): `RELEASE_CHECKLIST.md` 신규 추가(품질/parity/성능 게이트와 Go/No-Go 규칙), `perf/README.md`와 `scripts/README.md`에 baseline 회귀 의미(기준선 대비, Java 대비와 분리) 및 배포 전 빠른 실행 절차를 명시
+- 시나리오 성능 비교/회귀 로직 정합성 보강(최신): `scripts/compare_perf_results.sh`, `scripts/check_perf_regression.sh`에 scenario별 latest run config tuple(`iterations`,`warmup`) 필터를 추가해 mixed-window 오탐을 제거
+- 성능 회귀 원인 분석 문서화(최신): `perf/layered_issue_regression_analysis.md` 추가, mixed-config contamination 원인과 baseline 품질 이슈/재측정 결과 및 `issue_871` 옵션 경로 A/B(ablation) 결과를 기록
+- layered baseline 품질 개선(최신): `perf/baselines/layered_issue_scenarios.csv`를 정책 기준으로 재생성(`20/3`, 12회 반복 샘플, 시나리오 5종)하고 baseline gate 재검증에서 `issue_405/603/680/871/905` 모두 `ok` 확인
+- 배포 게이트 재검증(최신): `cargo test --workspace`, `cargo clippy --workspace --all-targets`, `cargo build --workspace --release`, `PERF_COMPARE_MODE=baseline sh scripts/check_perf_regression.sh 5 3`, `check_recursive_perf_runtime_budget.sh`, `check_java_perf_parity*.sh` 모두 통과
+- Java layered issue 테스트 parity 100% 달성(최신): `issue_316_test.rs`를 Java와 동일한 2개 테스트로 분리하고(`issue_316_ports_labels_2.elkt` 추가), `issue_701_test.rs`를 Java 메서드 단위 6개 테스트(`inside/outside/mix/fixed inside/fixed outside/fixed mix`)로 확장해 총 41개 메서드 수를 Java와 동기화
+- layered issue 테스트 parity 자동화 추가(최신): `scripts/check_layered_issue_test_parity.sh` 도입(Java `@Test/@TestAfterProcessor` vs Rust `#[test]` 수량 비교), `perf/layered_issue_test_parity.md` 리포트 생성에서 `status=ok`, `java=41`, `rust=41`, drift/missing/extra 0 확인
+- parity/품질 재검증(최신): `cargo test -p org-eclipse-elk-alg-layered`, `cargo clippy -p org-eclipse-elk-alg-layered --tests`, `LAYERED_ISSUE_TEST_PARITY_STRICT=true sh scripts/check_layered_issue_test_parity.sh` 통과
 
 ## 진행률(최신)
 - 전체 목표 대비 추정 진행률: 약 100% (기준: Java 기능/API/테스트 parity, 빌드/클리피, 성능 자동화)
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata 정량 diff 스크립트 + 리포트 반영)
 - layered 테스트/ELKT/회귀 포팅: 약 93%
+- layered Java issue 테스트 parity: 100% (33 files, 41 methods)
 - Java-Rust 성능 비교 파이프라인: 약 100% (strict gate, candidate/baseline, triage, external isolate, scenario threshold gate + threshold suggestion/apply + workflow DNS/preflight 입력 제어 포함)
 - recursive/non-layered 성능 시나리오 자동화: 약 100% (기본 8시나리오 + quick/default/full profile + baseline compare/regression + runtime budget gate + 정책 문서화 완료)
 - external/elk 무수정 운영 체계: 100% (격리 실행 + 자동 정리)
@@ -396,3 +404,8 @@
 - [x] layered 이외 알고리즘의 성능/회귀 자동화 확대(기본 recursive 시나리오 8종 + `quick|default|full` 프로파일/CI 입력 연동 + baseline 정책(월간 default/분기 full) 문서화 + runtime budget gate(`recursive_runtime_budget_gate`) 반영 완료)
 - [x] Java 성능 비교 CI 안정화 마무리(retry/preflight/cache/fail-skip 정책 고정 + 단일 wrapper 파이프라인 통합 + candidate/check/status gate + DNS preflight 입력(`java_skip_dns_check`/`java_required_hosts`)까지 workflow에서 제어 가능하도록 정리)
 - [x] Java 시나리오별 threshold 값을 실측 분포 기반으로 보정(`perf/java_parity_thresholds.suggested.csv`를 근거로 `perf/java_parity_thresholds.csv` 확정)
+- [x] 시나리오 회귀 gate의 mixed-config 오탐 제거(`compare/check_perf_results.sh` latest config tuple 필터)
+- [x] layered baseline을 정책 품질로 재생성(`20/3`, 12회 반복 샘플)하고 baseline gate 재통과 확인
+- [x] 성능 회귀 원인 분석/결과 문서화(`perf/layered_issue_regression_analysis.md`, `issue_871_plain` A/B 포함)
+- [x] Java layered issue 테스트 parity 100% 달성(`Issue316` 2건, `Issue701` 6건으로 Java/Rust 총 41건 정량 일치)
+- [x] layered issue 테스트 parity 정량 체크 자동화(`check_layered_issue_test_parity.sh`, `perf/layered_issue_test_parity.md`)

@@ -40,6 +40,28 @@ avg_column_all() {
   awk -F',' -v c="$col" '{sum+=$c; n+=1} END{ if(n==0){print 0}else{printf "%.6f", sum/n}}' "$file"
 }
 
+latest_config_key_for_scenario() {
+  file=$1
+  scenario_col=$2
+  scenario=$3
+  config_col_a=$4
+  config_col_b=$5
+
+  if [ "$config_col_a" -le 0 ] || [ "$config_col_b" -le 0 ]; then
+    echo ""
+    return 0
+  fi
+
+  awk -F',' -v sc="$scenario_col" -v s="$scenario" -v ca="$config_col_a" -v cb="$config_col_b" '
+    $sc == s { key = $ca "\t" $cb }
+    END {
+      if (key != "") {
+        print key
+      }
+    }
+  ' "$file"
+}
+
 check_file() {
   name=$1
   file=$2
@@ -88,6 +110,8 @@ check_file_per_scenario() {
   avg_col=$3
   ops_col=$4
   scenario_col=$5
+  config_col_a=${6:-0}
+  config_col_b=${7:-0}
 
   if [ ! -f "$file" ]; then
     echo "$name: missing $file"
@@ -102,7 +126,16 @@ check_file_per_scenario() {
 
   for scenario in $scenarios; do
     tmp_file=$(mktemp)
-    awk -F',' -v c="$scenario_col" -v s="$scenario" '$c == s {print}' "$file" > "$tmp_file"
+    latest_config_key=$(latest_config_key_for_scenario "$file" "$scenario_col" "$scenario" "$config_col_a" "$config_col_b")
+    if [ -n "$latest_config_key" ]; then
+      config_a=$(printf '%s' "$latest_config_key" | awk -F '\t' '{print $1}')
+      config_b=$(printf '%s' "$latest_config_key" | awk -F '\t' '{print $2}')
+      awk -F',' -v c="$scenario_col" -v s="$scenario" -v ca="$config_col_a" -v cb="$config_col_b" -v a="$config_a" -v b="$config_b" '
+        $c == s && $ca == a && $cb == b { print }
+      ' "$file" > "$tmp_file"
+    else
+      awk -F',' -v c="$scenario_col" -v s="$scenario" '$c == s {print}' "$file" > "$tmp_file"
+    fi
 
     line_count=$(wc -l < "$tmp_file" | tr -d ' ')
     need=$((WINDOW * 2))
@@ -146,6 +179,8 @@ check_file_per_scenario_against_baseline() {
   avg_col=$4
   ops_col=$5
   scenario_col=$6
+  config_col_a=${7:-0}
+  config_col_b=${8:-0}
 
   if [ ! -f "$current_file" ]; then
     echo "$name: missing $current_file"
@@ -165,7 +200,16 @@ check_file_per_scenario_against_baseline() {
   for scenario in $scenarios; do
     current_tmp=$(mktemp)
     baseline_tmp=$(mktemp)
-    awk -F',' -v c="$scenario_col" -v s="$scenario" '$c == s {print}' "$current_file" > "$current_tmp"
+    latest_config_key=$(latest_config_key_for_scenario "$current_file" "$scenario_col" "$scenario" "$config_col_a" "$config_col_b")
+    if [ -n "$latest_config_key" ]; then
+      config_a=$(printf '%s' "$latest_config_key" | awk -F '\t' '{print $1}')
+      config_b=$(printf '%s' "$latest_config_key" | awk -F '\t' '{print $2}')
+      awk -F',' -v c="$scenario_col" -v s="$scenario" -v ca="$config_col_a" -v cb="$config_col_b" -v a="$config_a" -v b="$config_b" '
+        $c == s && $ca == a && $cb == b { print }
+      ' "$current_file" > "$current_tmp"
+    else
+      awk -F',' -v c="$scenario_col" -v s="$scenario" '$c == s {print}' "$current_file" > "$current_tmp"
+    fi
     awk -F',' -v c="$scenario_col" -v s="$scenario" '$c == s {print}' "$baseline_file" > "$baseline_tmp"
 
     current_count=$(wc -l < "$current_tmp" | tr -d ' ')
@@ -213,8 +257,8 @@ if mode_enabled window; then
   check_file "graph_validation" "perf/results_graph_validation.csv" 8 9
   check_file "recursive_layout" "perf/results_recursive_layout.csv" 8 9
   check_file "recursive_layout_layered" "perf/results_recursive_layout_layered.csv" 8 9
-  check_file_per_scenario "recursive_layout_scenarios" "perf/results_recursive_layout_scenarios.csv" 9 10 2
-  check_file_per_scenario "layered_issue_scenarios" "perf/results_layered_issue_scenarios.csv" 6 7 2
+  check_file_per_scenario "recursive_layout_scenarios" "perf/results_recursive_layout_scenarios.csv" 9 10 2 6 7
+  check_file_per_scenario "layered_issue_scenarios" "perf/results_layered_issue_scenarios.csv" 6 7 2 3 4
 fi
 
 if mode_enabled baseline; then
@@ -224,14 +268,18 @@ if mode_enabled baseline; then
     "$BASELINE_RECURSIVE_SCENARIOS_FILE" \
     9 \
     10 \
-    2
+    2 \
+    6 \
+    7
   check_file_per_scenario_against_baseline \
     "layered_issue_scenarios" \
     "perf/results_layered_issue_scenarios.csv" \
     "$BASELINE_LAYERED_FILE" \
     6 \
     7 \
-    2
+    2 \
+    3 \
+    4
 fi
 
 if [ "$fail" -ne 0 ]; then

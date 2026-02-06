@@ -6,49 +6,60 @@ use issue_support::{init_layered_options, run_recursive_layout};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkNodeRef, ElkPortRef};
 
 #[test]
-fn issue_316_ports_do_not_overlap_and_hierarchical_labels_fit() {
+fn issue_316_ensure_ports_dont_overlap() {
     init_layered_options();
 
-    let path = format!(
-        "{}/tests/resources/issues/issue_316_ports_labels.elkt",
-        env!("CARGO_MANIFEST_DIR")
-    );
-    let graph = load_layered_graph_from_elkt(&path).expect("issue_316 resource should load");
+    for graph in load_issue_316_graphs() {
+        for node in collect_nodes(&graph) {
+            assert_no_port_overlaps(&node);
+        }
+    }
+}
 
-    set_port_location(
-        &find_port_by_identifier(&graph, "parent_p1").expect("parent_p1 should exist"),
-        0.0,
-        10.0,
-    );
-    set_port_location(
-        &find_port_by_identifier(&graph, "parent_p2").expect("parent_p2 should exist"),
-        52.0,
-        24.0,
-    );
-    set_port_location(
-        &find_port_by_identifier(&graph, "child_a_p").expect("child_a_p should exist"),
-        32.0,
-        6.0,
-    );
-    set_port_location(
-        &find_port_by_identifier(&graph, "child_b_p").expect("child_b_p should exist"),
-        0.0,
-        18.0,
-    );
+#[test]
+fn issue_316_ensure_nodes_big_enough_for_labels() {
+    init_layered_options();
 
-    run_recursive_layout(&graph);
+    for graph in load_issue_316_graphs() {
+        for node in collect_nodes(&graph) {
+            assert_hierarchical_labels_inside_node(&node);
+        }
+        let parent = find_node_by_identifier(&graph, "parent").expect("parent node should exist");
+        assert_hierarchical_labels_inside_node(&parent);
+    }
+}
 
-    let all_nodes = collect_nodes(&graph);
-    for node in &all_nodes {
-        assert_no_port_overlaps(node);
+fn load_issue_316_graphs() -> Vec<ElkNodeRef> {
+    const RESOURCES: [&str; 2] = [
+        "issue_316_ports_labels.elkt",
+        "issue_316_ports_labels_2.elkt",
+    ];
+    let mut graphs = Vec::with_capacity(RESOURCES.len());
+
+    for resource in RESOURCES {
+        let path = format!(
+            "{}/tests/resources/issues/{resource}",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        let graph = load_layered_graph_from_elkt(&path)
+            .unwrap_or_else(|_| panic!("issue_316 resource {resource} should load"));
+
+        set_port_location_if_present(&graph, "parent_p1", 0.0, 10.0);
+        set_port_location_if_present(&graph, "parent_p2", 52.0, 24.0);
+        set_port_location_if_present(&graph, "child_a_p", 32.0, 6.0);
+        set_port_location_if_present(&graph, "child_b_p", 0.0, 18.0);
+
+        run_recursive_layout(&graph);
+        graphs.push(graph);
     }
 
-    for node in all_nodes {
-        assert_hierarchical_labels_inside_node(&node);
-    }
+    graphs
+}
 
-    let parent = find_node_by_identifier(&graph, "parent").expect("parent node should exist");
-    assert_hierarchical_labels_inside_node(&parent);
+fn set_port_location_if_present(graph: &ElkNodeRef, port_id: &str, x: f64, y: f64) {
+    if let Some(port) = find_port_by_identifier(graph, port_id) {
+        set_port_location(&port, x, y);
+    }
 }
 
 fn collect_nodes(root: &ElkNodeRef) -> Vec<ElkNodeRef> {

@@ -18,10 +18,10 @@ Release readiness quick run:
 - `run_perf_layered_issue_scenarios.sh [scenarios] [iterations] [warmup] [output]`
 - `run_java_perf_layered_issue_scenarios.sh [scenarios] [iterations] [warmup] [output]` (runs the external ELK Java layered benchmark test; benchmark test source is temporarily injected from a repository template and cleaned up automatically)
 - `run_perf_all.sh` (runs all perf scripts with defaults; supports env overrides)
-- `compare_perf_results.sh [window]` (`PERF_COMPARE_MODE=window|baseline|both`, default window; baseline mode compares against `PERF_BASELINE_LAYERED_FILE` + `PERF_BASELINE_RECURSIVE_SCENARIOS_FILE`)
+- `compare_perf_results.sh [window]` (`PERF_COMPARE_MODE=window|baseline|both`, default window; baseline mode compares against `PERF_BASELINE_LAYERED_FILE` + `PERF_BASELINE_RECURSIVE_SCENARIOS_FILE`; scenario files auto-filter current-side rows to each scenario's latest run config tuple to avoid mixed-window contamination)
 - `check_recursive_perf_runtime_budget.sh [results_file] [profile] [report]` (checks whether latest per-scenario `avg_iteration_ms` in recursive scenario CSV exceeds profile budgets (`quick|default|full`); default budgets are `RECURSIVE_BUDGET_MS_QUICK=40`, `RECURSIVE_BUDGET_MS_DEFAULT=60`, `RECURSIVE_BUDGET_MS_FULL=120`; with `RECURSIVE_RUNTIME_BUDGET_STRICT=true`, budget violations fail the run)
 - `summarize_perf_results.sh [output]` (writes `perf/summary.md` by default)
-- `check_perf_regression.sh [threshold] [window]` (`PERF_COMPARE_MODE=window|baseline|both`; baseline mode evaluates regressions against `PERF_BASELINE_LAYERED_FILE` + `PERF_BASELINE_RECURSIVE_SCENARIOS_FILE`)
+- `check_perf_regression.sh [threshold] [window]` (`PERF_COMPARE_MODE=window|baseline|both`; baseline mode evaluates regressions against `PERF_BASELINE_LAYERED_FILE` + `PERF_BASELINE_RECURSIVE_SCENARIOS_FILE`; scenario files auto-filter current-side rows to each scenario's latest run config tuple to avoid mixed-window contamination)
 - `update_perf_baseline.sh [source] [target]` (default `perf/results_layered_issue_scenarios.csv` -> `perf/baselines/layered_issue_scenarios.csv`)
 - `update_perf_recursive_scenarios_baseline.sh [source] [target]` (default `perf/results_recursive_layout_scenarios.csv` -> `perf/baselines/recursive_layout_scenarios.csv`)
 - Baseline lifecycle rules are documented in `perf/baselines/POLICY.md`.
@@ -49,6 +49,7 @@ Release readiness quick run:
 - `check_algorithm_option_default_value_parity.sh [report]` (compares Java/Rust option-definition defaults at normalized type/constant level (`null`/`bool`/`number`/`string`/`enum`) for option IDs used by Java `addOptionSupport`; only comparable mismatches drive drift, uncomparable forms are informational; default `perf/algorithm_option_default_value_parity.md`; strict mode via `ALGORITHM_OPTION_DEFAULT_VALUE_PARITY_STRICT=true`; keep intermediate TSVs with `ALGORITHM_OPTION_DEFAULT_VALUE_PARITY_KEEP_TMP=true`)
 - `check_algorithm_feature_parity.sh [report]` (compares Java `supportedFeatures` and Rust `add_supported_feature` by algorithm-feature pairs; default `perf/algorithm_feature_parity.md`; strict mode via `ALGORITHM_FEATURE_PARITY_STRICT=true`)
 - `check_algorithm_metadata_parity.sh [report]` (compares Java metadata fields in `*.Options.java` (`category`, `melkBundleName`, `definingBundleId`, `imagePath`) against Rust `LayoutAlgorithmData`; default `perf/algorithm_metadata_parity.md`; strict mode via `ALGORITHM_METADATA_PARITY_STRICT=true`)
+- `check_layered_issue_test_parity.sh [report]` (compares Java layered issue test methods (`@Test`/`@TestAfterProcessor`) and Rust `#[test]` counts by issue file; default `perf/layered_issue_test_parity.md`; strict mode via `LAYERED_ISSUE_TEST_PARITY_STRICT=true`)
 - `run_all_checks.sh [threshold] [window]` (cargo test, clippy, perf gate)
 - `run_fast_checks.sh` (cargo test, clippy only)
 
@@ -93,6 +94,7 @@ CI workflows (GitHub Actions):
 - `.github/workflows/perf.yml` runs Java steps with `JAVA_PERF_EXTERNAL_ISOLATE=true` to isolate execution from the original `external/elk` tree.
 - `.github/workflows/perf.yml` validates Java compare artifacts with `check_java_perf_artifacts.sh` when Java compare is enabled.
 - `.github/workflows/perf.yml` generates parity reports `perf/core_options_parity.md`, `perf/core_option_dependency_parity.md`, `perf/algorithm_id_parity.md`, `perf/algorithm_category_parity.md`, `perf/algorithm_name_parity.md`, `perf/algorithm_description_parity.md`, `perf/algorithm_option_support_parity.md`, `perf/algorithm_option_default_parity.md`, `perf/algorithm_feature_parity.md`, `perf/algorithm_metadata_parity.md` as artifacts.
+- `.github/workflows/perf.yml` can include `perf/layered_issue_test_parity.md` when `check_layered_issue_test_parity.sh` is wired as a parity step.
 - In `.github/workflows/perf.yml`, `java_generate_dry_run=true` skips Java compare/parity and only emits a dry-run summary report (`perf/java_vs_rust.md`).
 - In `.github/workflows/perf.yml`, `java_compare_mode=baseline|both` adds baseline report generation (`perf/java_vs_rust_baseline.md`) and baseline parity gates.
 - `.github/workflows/perf.yml` collects non-layered recursive scenario perf via the `recursive_scenarios` input (`perf/results_recursive_layout_scenarios.csv`).

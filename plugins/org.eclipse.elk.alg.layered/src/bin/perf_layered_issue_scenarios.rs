@@ -250,31 +250,33 @@ fn build_issue_680_scenario() -> ElkNodeRef {
     graph
 }
 
-fn build_issue_871_scenario() -> ElkNodeRef {
+fn build_issue_871_base_scenario(model_order_feedback_mode: bool) -> ElkNodeRef {
     let graph = ElkGraphUtil::create_graph();
     set_node_property(&graph, CoreOptions::ALGORITHM, LayeredOptions::ALGORITHM_ID.to_string());
     set_node_property(&graph, CoreOptions::DIRECTION, Direction::Right);
-    set_node_property(
-        &graph,
-        LayeredOptions::CYCLE_BREAKING_STRATEGY,
-        CycleBreakingStrategy::ModelOrder,
-    );
-    set_node_property(
-        &graph,
-        LayeredOptions::CONSIDER_MODEL_ORDER_STRATEGY,
-        OrderingStrategy::PreferEdges,
-    );
-    set_node_property(
-        &graph,
-        LayeredOptions::CROSSING_MINIMIZATION_STRATEGY,
-        CrossingMinimizationStrategy::None,
-    );
-    set_node_property(
-        &graph,
-        LayeredOptions::CROSSING_MINIMIZATION_GREEDY_SWITCH_TYPE,
-        GreedySwitchType::Off,
-    );
-    set_node_property(&graph, LayeredOptions::FEEDBACK_EDGES, true);
+    if model_order_feedback_mode {
+        set_node_property(
+            &graph,
+            LayeredOptions::CYCLE_BREAKING_STRATEGY,
+            CycleBreakingStrategy::ModelOrder,
+        );
+        set_node_property(
+            &graph,
+            LayeredOptions::CONSIDER_MODEL_ORDER_STRATEGY,
+            OrderingStrategy::PreferEdges,
+        );
+        set_node_property(
+            &graph,
+            LayeredOptions::CROSSING_MINIMIZATION_STRATEGY,
+            CrossingMinimizationStrategy::None,
+        );
+        set_node_property(
+            &graph,
+            LayeredOptions::CROSSING_MINIMIZATION_GREEDY_SWITCH_TYPE,
+            GreedySwitchType::Off,
+        );
+        set_node_property(&graph, LayeredOptions::FEEDBACK_EDGES, true);
+    }
 
     let n1 = ElkGraphUtil::create_node(Some(graph.clone()));
     let n2 = ElkGraphUtil::create_node(Some(graph.clone()));
@@ -303,6 +305,14 @@ fn build_issue_871_scenario() -> ElkNodeRef {
     );
 
     graph
+}
+
+fn build_issue_871_scenario() -> ElkNodeRef {
+    build_issue_871_base_scenario(true)
+}
+
+fn build_issue_871_plain_scenario() -> ElkNodeRef {
+    build_issue_871_base_scenario(false)
 }
 
 fn build_issue_905_scenario() -> ElkNodeRef {
@@ -357,6 +367,7 @@ fn build_issue_scenario(name: &str) -> Option<ElkNodeRef> {
         "issue_603" => Some(build_issue_603_scenario()),
         "issue_680" => Some(build_issue_680_scenario()),
         "issue_871" => Some(build_issue_871_scenario()),
+        "issue_871_plain" => Some(build_issue_871_plain_scenario()),
         "issue_905" => Some(build_issue_905_scenario()),
         _ => None,
     }
