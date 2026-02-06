@@ -1,0 +1,6 @@
+graph {
+  node root {
+    label l_dup: "parent"
+    label l_dup: "child"
+  }
+}

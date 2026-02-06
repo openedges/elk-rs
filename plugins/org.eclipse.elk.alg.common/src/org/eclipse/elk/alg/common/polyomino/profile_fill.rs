@@ -12,36 +12,36 @@ impl ProfileFill {
         let mut east_profile = vec![0_i32; height];
         let mut west_profile = vec![0_i32; height];
 
-        for xi in 0..width {
+        for (xi, value) in north_profile.iter_mut().enumerate().take(width) {
             let mut y = 0;
             while y < height && !poly.is_blocked(xi, y) {
                 y += 1;
             }
-            north_profile[xi] = y as i32;
+            *value = y as i32;
         }
 
-        for xi in 0..width {
+        for (xi, value) in south_profile.iter_mut().enumerate().take(width) {
             let mut y = height as i32 - 1;
             while y >= 0 && !poly.is_blocked(xi, y as usize) {
                 y -= 1;
             }
-            south_profile[xi] = y;
+            *value = y;
         }
 
-        for yi in 0..height {
+        for (yi, value) in east_profile.iter_mut().enumerate().take(height) {
             let mut x = 0;
             while x < width && !poly.is_blocked(x, yi) {
                 x += 1;
             }
-            east_profile[yi] = x as i32;
+            *value = x as i32;
         }
 
-        for yi in 0..height {
+        for (yi, value) in west_profile.iter_mut().enumerate().take(height) {
             let mut x = width as i32 - 1;
             while x >= 0 && !poly.is_blocked(x as usize, yi) {
                 x -= 1;
             }
-            west_profile[yi] = x;
+            *value = x;
         }
 
         for xi in 0..width {

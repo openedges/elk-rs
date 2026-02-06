@@ -274,9 +274,9 @@ impl ILayoutPhase<LayeredPhases, LGraph> for DepthFirstModelOrderLayerer {
         }
 
         let graph_ref = nodes
-            .get(0)
+            .first()
             .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.graph()))
-            .unwrap_or_else(LGraph::new);
+            .unwrap_or_default();
 
         let mut real_nodes: Vec<(i32, LNodeRef)> = Vec::new();
         for node in &nodes {
@@ -388,7 +388,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for DepthFirstModelOrderLayerer {
                     self.nodes_to_place.push(node.clone());
                     set_node_id(&node, 0);
                     self.max_to_place = self.max_to_place.max(0);
-                    self.current_layer = graph.layers().get(0).cloned();
+                    self.current_layer = graph.layers().first().cloned();
                     self.current_layer_id = 0;
                 } else {
                     let mut max_layer = 0;

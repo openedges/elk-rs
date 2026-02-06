@@ -17,7 +17,7 @@ pub struct TwoBitGrid {
 
 impl TwoBitGrid {
     pub fn new(width: usize, height: usize) -> Self {
-        let words = if width == 0 { 0 } else { (width + 31) / 32 };
+        let words = width.div_ceil(32);
         TwoBitGrid {
             grid: vec![vec![0_u64; words]; height],
             x_size: width,
@@ -96,7 +96,7 @@ impl IThreeValueGrid for TwoBitGrid {
     }
 
     fn reinitialize(&mut self, width: usize, height: usize) {
-        let words = if width == 0 { 0 } else { (width + 31) / 32 };
+        let words = width.div_ceil(32);
         self.grid = vec![vec![0_u64; words]; height];
         self.x_size = width;
         self.y_size = height;

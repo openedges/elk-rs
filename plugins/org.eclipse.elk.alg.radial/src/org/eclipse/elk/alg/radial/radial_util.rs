@@ -138,7 +138,7 @@ impl RadialUtil {
         } else {
             successors
                 .iter()
-                .map(|child| Self::get_number_of_leaves(child))
+                .map(Self::get_number_of_leaves)
                 .sum()
         }
     }

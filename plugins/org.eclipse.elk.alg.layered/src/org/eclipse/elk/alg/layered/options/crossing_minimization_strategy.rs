@@ -10,8 +10,9 @@ use crate::org::eclipse::elk::alg::layered::p3order::{
 };
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum CrossingMinimizationStrategy {
+    #[default]
     LayerSweep,
     MedianLayerSweep,
     Interactive,
@@ -26,12 +27,6 @@ impl CrossingMinimizationStrategy {
             CrossingMinimizationStrategy::Interactive => 2,
             CrossingMinimizationStrategy::None => 3,
         }
-    }
-}
-
-impl Default for CrossingMinimizationStrategy {
-    fn default() -> Self {
-        CrossingMinimizationStrategy::LayerSweep
     }
 }
 

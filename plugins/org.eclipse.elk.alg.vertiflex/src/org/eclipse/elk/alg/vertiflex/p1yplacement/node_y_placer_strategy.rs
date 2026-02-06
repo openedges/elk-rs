@@ -7,8 +7,9 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 use crate::org::eclipse::elk::alg::vertiflex::p1yplacement::NodeYPlacer;
 use crate::org::eclipse::elk::alg::vertiflex::vertiflex_layout_phases::VertiFlexLayoutPhases;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]
 pub enum NodeYPlacerStrategy {
+    #[default]
     SimpleYPlacing,
 }
 
@@ -17,12 +18,6 @@ impl NodeYPlacerStrategy {
         match self {
             NodeYPlacerStrategy::SimpleYPlacing => 0,
         }
-    }
-}
-
-impl Default for NodeYPlacerStrategy {
-    fn default() -> Self {
-        NodeYPlacerStrategy::SimpleYPlacing
     }
 }
 

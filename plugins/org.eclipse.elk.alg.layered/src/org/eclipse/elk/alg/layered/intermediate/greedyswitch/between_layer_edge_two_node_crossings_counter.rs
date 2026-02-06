@@ -84,7 +84,7 @@ impl BetweenLayerEdgeTwoNodeCrossingsCounter {
         let (upper_adjacencies, lower_adjacencies) = get_two_mut(adjacencies, upper_index, lower_index);
         upper_adjacencies.reset();
         lower_adjacencies.reset();
-        if upper_adjacencies.size() == 0 || lower_adjacencies.size() == 0 {
+        if upper_adjacencies.current_size() == 0 || lower_adjacencies.current_size() == 0 {
             return;
         }
 
@@ -171,10 +171,10 @@ fn count_crossings_by_merging_adjacency_lists(
         let upper_first = upper_adjacencies.first();
         let lower_first = lower_adjacencies.first();
         if upper_first > lower_first {
-            upper_lower_crossings += upper_adjacencies.size() as i32;
+            upper_lower_crossings += upper_adjacencies.current_size() as i32;
             lower_adjacencies.remove_first();
         } else if lower_first > upper_first {
-            lower_upper_crossings += lower_adjacencies.size() as i32;
+            lower_upper_crossings += lower_adjacencies.current_size() as i32;
             upper_adjacencies.remove_first();
         } else {
             upper_lower_crossings +=
@@ -302,7 +302,7 @@ impl AdjacencyList {
             .unwrap_or(0)
     }
 
-    fn size(&self) -> usize {
+    fn current_size(&self) -> usize {
         self.current_size
     }
 }

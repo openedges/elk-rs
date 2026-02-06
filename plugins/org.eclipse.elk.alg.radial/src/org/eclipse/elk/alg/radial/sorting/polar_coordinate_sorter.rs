@@ -19,7 +19,7 @@ pub struct PolarCoordinateSorter {
 }
 
 impl PolarCoordinateSorter {
-    fn sort_with_offset(nodes: &mut Vec<ElkNodeRef>, offset: f64) {
+    fn sort_with_offset(nodes: &mut [ElkNodeRef], offset: f64) {
         nodes.sort_by(|a, b| RadialUtil::compare_polar(a, b, offset, 0.0));
     }
 
@@ -34,7 +34,7 @@ impl PolarCoordinateSorter {
         arc
     }
 
-    fn set_id_for_nodes(&mut self, nodes: &mut Vec<ElkNodeRef>, id_offset: i32) -> i32 {
+    fn set_id_for_nodes(nodes: &mut [ElkNodeRef], id_offset: i32) -> i32 {
         let mut id = id_offset;
         let mut next_layer_id = 0;
         for node in nodes.iter() {
@@ -51,7 +51,7 @@ impl PolarCoordinateSorter {
             let mut node_successors = RadialUtil::get_successors(node);
             let arc = Self::node_arc(node);
 
-            if arc < DEGREE_45 || arc > DEGREE_315 {
+            if !(DEGREE_45..=DEGREE_315).contains(&arc) {
                 Self::sort_with_offset(&mut node_successors, PI);
             } else if arc <= DEGREE_315 && arc > DEGREE_225 {
                 Self::sort_with_offset(&mut node_successors, DEGREE_270);
@@ -61,7 +61,7 @@ impl PolarCoordinateSorter {
                 Self::sort_with_offset(&mut node_successors, DEGREE_90);
             }
 
-            next_layer_id = self.set_id_for_nodes(&mut node_successors, next_layer_id);
+            next_layer_id = Self::set_id_for_nodes(&mut node_successors, next_layer_id);
         }
         id
     }
@@ -82,9 +82,9 @@ impl IRadialSorter for PolarCoordinateSorter {
     }
 
     fn initialize(&mut self, root: &ElkNodeRef) {
-        self.id_sorter = Some(IDSorter::default());
+        self.id_sorter = Some(IDSorter);
         let mut successors = RadialUtil::get_successors(root);
         Self::sort_with_offset(&mut successors, 0.0);
-        self.set_id_for_nodes(&mut successors, 0);
+        Self::set_id_for_nodes(&mut successors, 0);
     }
 }

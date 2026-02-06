@@ -49,9 +49,7 @@ impl AreaApproximation {
             DrawingDataDescriptor::WholeDrawing,
         );
 
-        for rectangle_idx in 1..rectangles.len() {
-            let to_place = rectangles[rectangle_idx].clone();
-
+        for to_place in rectangles.iter().skip(1).cloned() {
             let opt1 = self.calc_values_for_opt(
                 DrawingDataDescriptor::CandidatePositionLastPlacedRight,
                 &to_place,
@@ -103,6 +101,7 @@ impl AreaApproximation {
         current_values
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn find_best_candidate(
         &self,
         opt1: DrawingData,

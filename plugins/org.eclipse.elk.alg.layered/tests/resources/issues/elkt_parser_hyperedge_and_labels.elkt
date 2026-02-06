@@ -1,0 +1,23 @@
+algorithm: layered
+direction: right
+
+node root {
+  node a { layout [ size: 30, 20 ] }
+  node b { layout [ size: 30, 20 ] }
+  node c { layout [ size: 30, 20 ] }
+  node d { layout [ size: 30, 20 ] }
+
+  node owner {
+    port p_out {
+      layout [ position: 40, 12 size: 8, 8 ]
+      side: east
+      label "out" {
+        layout [ size: 12, 6 ]
+      }
+    }
+  }
+
+  edge e_multi: a,b -> c,d
+}
+
+edgePoint e_multi source:10,10 target:120,20 bend:50,10|80,20

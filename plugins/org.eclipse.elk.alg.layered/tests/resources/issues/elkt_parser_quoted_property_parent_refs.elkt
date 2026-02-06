@@ -1,0 +1,24 @@
+algorithm: layered
+direction: right
+
+node "root parent" {
+  layout [size:160,120]
+}
+
+node "child node" parent="root parent" {
+  layout [position:10,20 size:60,40]
+}
+
+node "target node" in:"root parent" {
+  layout [position:100,20 size:40,40]
+}
+
+port "port out" of="child node" side:east
+port "port in" of:"target node" side=west
+
+edge "edge quoted": "port out" -> "port in"
+
+nodeProperty "child node" spacing.nodeNode = 42
+portProperty "port out" portAnchor = 1.5,2.5
+portProperty "port out" side = east
+edgeProperty "edge quoted" edgeLabelsPlacement = head

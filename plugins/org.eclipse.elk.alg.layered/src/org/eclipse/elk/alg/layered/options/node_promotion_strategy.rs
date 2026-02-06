@@ -1,5 +1,6 @@
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum NodePromotionStrategy {
+    #[default]
     None,
     Nikolov,
     NikolovPixel,
@@ -10,10 +11,4 @@ pub enum NodePromotionStrategy {
     NoBoundary,
     ModelOrderLeftToRight,
     ModelOrderRightToLeft,
-}
-
-impl Default for NodePromotionStrategy {
-    fn default() -> Self {
-        NodePromotionStrategy::None
-    }
 }

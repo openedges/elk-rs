@@ -208,7 +208,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for GreedyCycleBreaker {
                         .ok()
                         .and_then(|edge_guard| edge_guard.source())
                         .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
-                    if source_node.as_ref().map_or(false, |source| Arc::ptr_eq(source, node)) {
+                    if source_node.as_ref().is_some_and(|source| Arc::ptr_eq(source, node)) {
                         continue;
                     }
                     let priority = edge
@@ -225,7 +225,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for GreedyCycleBreaker {
                         .ok()
                         .and_then(|edge_guard| edge_guard.target())
                         .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
-                    if target_node.as_ref().map_or(false, |target| Arc::ptr_eq(target, node)) {
+                    if target_node.as_ref().is_some_and(|target| Arc::ptr_eq(target, node)) {
                         continue;
                     }
                     let priority = edge

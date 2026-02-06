@@ -131,7 +131,7 @@ impl SweepCopy {
 }
 
 fn deep_copy(node_order: &[Vec<LNodeRef>]) -> Vec<Vec<LNodeRef>> {
-    node_order.iter().map(|layer| layer.clone()).collect()
+    node_order.to_vec()
 }
 
 fn assert_correct_port_sides(dummy: &LNodeRef) -> Option<LNodeRef> {
@@ -145,7 +145,7 @@ fn assert_correct_port_sides(dummy: &LNodeRef) -> Option<LNodeRef> {
         .ok()
         .map(|node_guard| node_guard.ports().clone())
         .unwrap_or_default();
-    let dummy_port = dummy_ports.get(0)?.clone();
+    let dummy_port = dummy_ports.first()?.clone();
     let dummy_origin_port = dummy_port
         .lock()
         .ok()
@@ -204,7 +204,7 @@ fn push_unique(list: &mut Vec<LNodeRef>, node: &LNodeRef) {
     list.push(node.clone());
 }
 
-fn sort_ports_combined(ports: &mut Vec<LPortRef>, constraints: PortConstraints) {
+fn sort_ports_combined(ports: &mut [LPortRef], constraints: PortConstraints) {
     ports.sort_by(|p1, p2| compare_ports(p1, p2, constraints));
 }
 
@@ -243,12 +243,12 @@ fn compare_ports(
     let pos1 = p1
         .lock()
         .ok()
-        .map(|mut port_guard| port_guard.shape().position_ref().clone())
+        .map(|mut port_guard| *port_guard.shape().position_ref())
         .unwrap_or_default();
     let pos2 = p2
         .lock()
         .ok()
-        .map(|mut port_guard| port_guard.shape().position_ref().clone())
+        .map(|mut port_guard| *port_guard.shape().position_ref())
         .unwrap_or_default();
     match side1 {
         PortSide::North => pos1.x.partial_cmp(&pos2.x).unwrap_or(std::cmp::Ordering::Equal),

@@ -9,7 +9,7 @@ pub enum Cleanup {
     Stop,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct LibavoidServer {
     process_timeout: i32,
 }
@@ -33,6 +33,12 @@ impl LibavoidServer {
 
     pub fn process_timeout(&self) -> i32 {
         self.process_timeout
+    }
+}
+
+impl Default for LibavoidServer {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -68,7 +74,7 @@ impl LibavoidServerPool {
 
     pub fn fetch(&self) -> LibavoidServer {
         let mut servers = self.servers.lock().expect("libavoid server pool");
-        servers.pop().unwrap_or_else(LibavoidServer::new)
+        servers.pop().unwrap_or_default()
     }
 
     pub fn release(&self, server: LibavoidServer) {

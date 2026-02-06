@@ -53,6 +53,7 @@ impl LLabel {
         self.shape.graph_element().get_designation()
     }
 
+    #[allow(clippy::inherent_to_string)]
     pub fn to_string(&mut self) -> String {
         if let Some(designation) = self.get_designation() {
             format!("l_{designation}")

@@ -61,17 +61,9 @@ impl AbstractRadiusExtensionCompaction {
     pub fn overlap(&self, node1: &ElkNodeRef, node2: &ElkNodeRef) -> bool {
         let (x1, y1, width1, height1) = node_bounds(node1, self.spacing);
         let (x2, y2, width2, height2) = node_bounds(node2, self.spacing);
-
-        if (x1 < x2 + width2 && x2 < x1) && (y1 < y2 + height2 && y2 < y1) {
-            return true;
-        } else if (x2 < x1 + width1 && x1 < x2) && (y2 < y1 + height1 && y1 < y2) {
-            return true;
-        } else if (x1 < x2 + width2 && x2 < x1) && (y1 < y2 && y2 < y1 + height1) {
-            return true;
-        } else if (x2 < x1 + width1 && x1 < x2) && (y1 < y2 + height2 && y2 < y1) {
-            return true;
-        }
-        false
+        let x_overlap = x1 < x2 + width2 && x2 < x1 + width1;
+        let y_overlap = y1 < y2 + height2 && y2 < y1 + height1;
+        x_overlap && y_overlap
     }
 
     pub fn overlap_layer(&self, nodes: &[ElkNodeRef]) -> bool {

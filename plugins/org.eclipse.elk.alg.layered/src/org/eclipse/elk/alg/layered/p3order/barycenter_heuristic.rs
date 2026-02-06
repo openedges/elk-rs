@@ -60,8 +60,7 @@ impl BarycenterHeuristic {
 
                 if value.is_none() {
                     let mut next_value = last_value + 1.0;
-                    for next_index in index + 1..nodes.len() {
-                        let next_node = &nodes[next_index];
+                    for next_node in nodes.iter().skip(index + 1) {
                         if let Some(next_bary) = self
                             .state_of(next_node)
                             .and_then(|state| state.lock().ok().and_then(|state_guard| state_guard.barycenter))

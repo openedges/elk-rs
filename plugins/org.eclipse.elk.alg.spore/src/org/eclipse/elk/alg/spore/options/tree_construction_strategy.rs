@@ -7,8 +7,9 @@ use crate::org::eclipse::elk::alg::spore::graph::Graph;
 use crate::org::eclipse::elk::alg::spore::p2processingorder::{MaxSTPhase, MinSTPhase};
 use crate::org::eclipse::elk::alg::spore::spore_phases::SPOrEPhases;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum TreeConstructionStrategy {
+    #[default]
     MinimumSpanningTree,
     MaximumSpanningTree,
 }
@@ -19,12 +20,6 @@ impl TreeConstructionStrategy {
             TreeConstructionStrategy::MinimumSpanningTree => 0,
             TreeConstructionStrategy::MaximumSpanningTree => 1,
         }
-    }
-}
-
-impl Default for TreeConstructionStrategy {
-    fn default() -> Self {
-        TreeConstructionStrategy::MinimumSpanningTree
     }
 }
 

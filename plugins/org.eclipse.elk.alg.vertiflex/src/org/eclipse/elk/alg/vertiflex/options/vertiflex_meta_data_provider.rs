@@ -36,7 +36,7 @@ fn register_algorithm(registry: &mut dyn LayoutMetaDataRegistry) {
             "Tree layout algorithm that allows defining set vertical positions for nodes ",
             "rather than automatically placing nodes on levels according to their topology."
         ))
-        .set_category_id(Some("tree"));
+        .set_category_id(Some("org.eclipse.elk.tree"));
     data.add_supported_feature(GraphFeature::MultiEdges);
     data.add_supported_feature(GraphFeature::EdgeLabels);
     registry.register_algorithm(data);
@@ -118,6 +118,7 @@ fn register_supports(registry: &mut dyn LayoutMetaDataRegistry) {
     registry.add_option_support(algo, VertiFlexOptions::CONSIDER_NODE_MODEL_ORDER.id(), None);
 }
 
+#[allow(clippy::too_many_arguments)]
 fn register_option<T: Clone + Send + Sync + 'static>(
     registry: &mut dyn LayoutMetaDataRegistry,
     property: &'static LazyLock<Property<T>>,

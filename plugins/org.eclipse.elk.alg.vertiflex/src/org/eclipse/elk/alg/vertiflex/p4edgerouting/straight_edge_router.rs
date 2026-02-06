@@ -17,7 +17,7 @@ impl StraightEdgeRouter {
         StraightEdgeRouter
     }
 
-    fn route_edges(&self, node: &ElkNodeRef) {
+    fn route_edges(node: &ElkNodeRef) {
         for edge in ElkGraphUtil::all_outgoing_edges(node) {
             let Some(target) = edge_target_node(&edge) else { continue; };
             let Some(section) = ensure_single_section(&edge) else { continue; };
@@ -36,7 +36,7 @@ impl StraightEdgeRouter {
                 section_mut.bend_points().clear();
             }
 
-            self.route_edges(&target);
+            Self::route_edges(&target);
         }
     }
 }
@@ -57,7 +57,7 @@ impl ILayoutPhase<VertiFlexLayoutPhases, ElkNodeRef> for StraightEdgeRouter {
         };
         if has_children {
             if let Some(parent) = VertiFlexUtil::find_root(graph) {
-                self.route_edges(&parent);
+                Self::route_edges(&parent);
             }
         }
 

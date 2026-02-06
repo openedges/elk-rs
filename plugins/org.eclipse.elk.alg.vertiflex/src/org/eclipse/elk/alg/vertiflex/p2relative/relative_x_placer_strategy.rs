@@ -7,8 +7,9 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 use crate::org::eclipse::elk::alg::vertiflex::p2relative::RelativeXPlacer;
 use crate::org::eclipse::elk::alg::vertiflex::vertiflex_layout_phases::VertiFlexLayoutPhases;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]
 pub enum RelativeXPlacerStrategy {
+    #[default]
     SimpleXPlacing,
 }
 
@@ -17,12 +18,6 @@ impl RelativeXPlacerStrategy {
         match self {
             RelativeXPlacerStrategy::SimpleXPlacing => 0,
         }
-    }
-}
-
-impl Default for RelativeXPlacerStrategy {
-    fn default() -> Self {
-        RelativeXPlacerStrategy::SimpleXPlacing
     }
 }
 

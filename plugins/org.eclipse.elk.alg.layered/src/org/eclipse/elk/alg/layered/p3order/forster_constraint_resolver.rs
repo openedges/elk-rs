@@ -171,16 +171,9 @@ impl ForsterConstraintResolver {
         groups: &[ConstraintGroupRef],
     ) -> Option<(ConstraintGroupRef, ConstraintGroupRef)> {
         let mut active_groups: VecDeque<ConstraintGroupRef> = VecDeque::new();
-        let mut last_value = f64::MIN;
         let mut index_map: HashMap<usize, usize> = HashMap::new();
         for (index, group) in groups.iter().enumerate() {
             index_map.insert(group_ptr_id(group), index);
-            let barycenter = self.group_barycenter(group).unwrap_or(0.0);
-            if barycenter < last_value {
-                last_value = barycenter;
-            } else {
-                last_value = barycenter;
-            }
             if let Ok(mut group_guard) = group.lock() {
                 group_guard.reset_incoming_constraints();
                 if group_guard.has_outgoing_constraints() && group_guard.incoming_constraints_count == 0 {
@@ -505,13 +498,6 @@ impl ConstraintGroup {
 
     fn has_outgoing_constraints(&self) -> bool {
         self.outgoing_constraints.as_ref().map(|list| !list.is_empty()).unwrap_or(false)
-    }
-
-    fn incoming_constraints_mut(&mut self) -> &mut Vec<ConstraintGroupRef> {
-        if self.incoming_constraints.is_none() {
-            self.incoming_constraints = Some(Vec::new());
-        }
-        self.incoming_constraints.as_mut().expect("incoming constraints")
     }
 
     fn reset_incoming_constraints(&mut self) {

@@ -1,0 +1,9 @@
+algorithm: layered
+
+node left [size: 40, 30]
+node right [size: 40, 30]
+
+edge main: left -> right
+edge self: right -> right
+edgeLabel main text:start size:20,10
+edgeLabel main text:end size:20,10

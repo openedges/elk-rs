@@ -1,0 +1,9 @@
+algorithm: layered
+edgeRouting: splines
+
+node a [size: 40, 30]
+node b [size: 40, 30]
+node c [size: 40, 30]
+
+edge e1: a -> b
+edge e2: b -> c

@@ -1,12 +1,7 @@
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum GreedySwitchType {
     OneSided,
     TwoSided,
+    #[default]
     Off,
-}
-
-impl Default for GreedySwitchType {
-    fn default() -> Self {
-        GreedySwitchType::Off
-    }
 }

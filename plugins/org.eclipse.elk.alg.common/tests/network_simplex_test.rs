@@ -5,48 +5,52 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::{BasicProgressMonitor, 
 
 #[test]
 fn network_simplex_deltas() {
-    let mut random = Random::new(1);
+    let handle = std::thread::Builder::new()
+        .name("network_simplex_deltas".to_string())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(|| {
+            let mut random = Random::new(1);
 
-    for _ in 0..5 {
-        for _ in 0..5 {
-            let mut graph = generate_random_graph(&mut random);
-            assert!(graph.is_acyclic());
+            for _ in 0..5 {
+                for _ in 0..5 {
+                    let mut graph = generate_random_graph(&mut random);
+                    assert!(graph.is_acyclic());
 
-            let mut simplex = NetworkSimplex::for_graph(&mut graph);
-            let mut monitor = BasicProgressMonitor::new();
-            simplex.execute_with_monitor(&mut monitor);
+                    let mut simplex = NetworkSimplex::for_graph(&mut graph);
+                    let mut monitor = BasicProgressMonitor::new();
+                    simplex.execute_with_monitor(&mut monitor);
 
-            for node in &graph.nodes {
-                let outgoing = node
-                    .lock()
-                    .ok()
-                    .map(|guard| guard.outgoing_edges().clone())
-                    .unwrap_or_default();
-                for edge in outgoing {
-                    let (source_layer, target_layer, delta) = {
-                        let edge_guard = edge.lock().expect("edge lock");
-                        let source_layer = edge_guard
-                            .source
+                    for node in &graph.nodes {
+                        let outgoing = node
                             .lock()
                             .ok()
-                            .map(|node_guard| node_guard.layer)
-                            .unwrap_or(0);
-                        let target_layer = edge_guard
-                            .target
-                            .lock()
-                            .ok()
-                            .map(|node_guard| node_guard.layer)
-                            .unwrap_or(0);
-                        (source_layer, target_layer, edge_guard.delta)
-                    };
-                    assert!(
-                        target_layer - source_layer >= delta,
-                        "Valid delta"
-                    );
+                            .map(|guard| guard.outgoing_edges().clone())
+                            .unwrap_or_default();
+                        for edge in outgoing {
+                            let (source_layer, target_layer, delta) = {
+                                let edge_guard = edge.lock().expect("edge lock");
+                                let source_layer = edge_guard
+                                    .source
+                                    .lock()
+                                    .ok()
+                                    .map(|node_guard| node_guard.layer)
+                                    .unwrap_or(0);
+                                let target_layer = edge_guard
+                                    .target
+                                    .lock()
+                                    .ok()
+                                    .map(|node_guard| node_guard.layer)
+                                    .unwrap_or(0);
+                                (source_layer, target_layer, edge_guard.delta)
+                            };
+                            assert!(target_layer - source_layer >= delta, "Valid delta");
+                        }
+                    }
                 }
             }
-        }
-    }
+        })
+        .expect("spawn network_simplex_deltas");
+    handle.join().expect("network_simplex_deltas join");
 }
 
 fn generate_random_graph(random: &mut Random) -> NGraph {

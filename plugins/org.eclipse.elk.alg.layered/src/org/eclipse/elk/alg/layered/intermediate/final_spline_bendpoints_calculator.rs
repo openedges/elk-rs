@@ -214,15 +214,15 @@ impl FinalSplineBendpointsCalculator {
             .source_port
             .as_ref()
             .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.absolute_anchor()))
-            .unwrap_or_else(KVector::new);
+            .unwrap_or_default();
         let v2 = KVector::with_values(center_x_pos, center_y_pos);
         let v3 = segment
             .target_port
             .as_ref()
             .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.absolute_anchor()))
-            .unwrap_or_else(KVector::new);
+            .unwrap_or_default();
         let approx = ElkMath::approximate_bezier_segment(2, &[v1, v2, v3]);
-        let approx_center = approx.get(0).copied().unwrap_or(v2);
+        let approx_center = approx.first().copied().unwrap_or(v2);
 
         let mut short_cut_source = false;
         if let Some(source_port) = segment.source_port.as_ref() {

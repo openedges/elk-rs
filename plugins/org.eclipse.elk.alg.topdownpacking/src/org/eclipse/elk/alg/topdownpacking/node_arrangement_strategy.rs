@@ -8,8 +8,9 @@ use super::i_node_arranger::INodeArranger;
 use super::left_right_top_down_node_placer::LeftRightTopDownNodePlacer;
 use super::topdown_packing_phases::TopdownPackingPhases;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum NodeArrangementStrategy {
+    #[default]
     LeftRightTopDownNodePlacer,
 }
 
@@ -26,12 +27,6 @@ impl NodeArrangementStrategy {
                 Box::new(LeftRightTopDownNodePlacer::new())
             }
         }
-    }
-}
-
-impl Default for NodeArrangementStrategy {
-    fn default() -> Self {
-        NodeArrangementStrategy::LeftRightTopDownNodePlacer
     }
 }
 

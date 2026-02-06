@@ -1,0 +1,10 @@
+algorithm: layered
+edgeRouting: orthogonal
+nodeLabelsPadding: 21,32,43,54
+
+node parent [size:30,30]
+nodeProperty parent nodeLabelsPlacement:insideTopCenter
+nodeLabel parent text:foobar size:23,22
+
+node sink [size:30,30]
+edge e1: parent -> sink

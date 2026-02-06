@@ -1,0 +1,20 @@
+algorithm: layered
+
+node compound {
+  layout [ size: 120, 80 ]
+  direction: right
+  edgeRouting: orthogonal
+  nodeLabelsPlacement: outsideTopCenter
+  nodeLabelsPadding: 4,3,2,1
+  nodePlacementStrategy: networkSimplex
+  portLabelsPlacement: outside,nextToPortIfPossible
+}
+
+node child parent compound [size: 60, 30]
+nodeLabel compound text:compound size:40,12
+
+edge e1: compound -> child
+edgeSection e1 sourcePoint:10,20 targetPoint:80,20 bendPoints:30,25;50,25
+edgeProperty e1 junctionPoints:30,25;50,25
+edgeLabel e1 text:head size:20,10 placement:head
+edgePoint e1 bend:65,25

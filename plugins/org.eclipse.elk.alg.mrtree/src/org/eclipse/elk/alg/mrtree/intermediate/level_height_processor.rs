@@ -52,7 +52,7 @@ impl ILayoutProcessor<TGraphRef> for LevelHeightProcessor {
 impl LevelHeightProcessor {
     fn set_level_height(
         &self,
-        current_level: &mut Vec<TNodeRef>,
+        current_level: &mut [TNodeRef],
         progress_monitor: &mut dyn IElkProgressMonitor,
         direction: Direction,
     ) {

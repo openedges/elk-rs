@@ -3,7 +3,7 @@ use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::polyomino::Polyo
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::polyomino::structures::{
     PolyominoLike, Polyominoes,
 };
-use org_eclipse_elk_core::org::eclipse::elk::core::math::{elk_padding::ElkPadding, kvector::KVector};
+use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 
 use crate::org::eclipse::elk::alg::disco::graph::DCGraph;
@@ -87,7 +87,7 @@ impl DisCoPolyominoCompactor {
         let padding = graph
             .properties_mut()
             .get_property(DisCoOptions::PADDING)
-            .unwrap_or_else(ElkPadding::new);
+            .unwrap_or_default();
         let padding_hori = padding.left + padding.right;
         let padding_vert = padding.top + padding.bottom;
         let parent_width = (*grid_crop.third() as f64) * grid_cell_size_x + padding_hori;

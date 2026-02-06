@@ -10,11 +10,12 @@ use crate::org::eclipse::elk::alg::layered::p4nodes::{
 };
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum NodePlacementStrategy {
     Simple,
     Interactive,
     LinearSegments,
+    #[default]
     BrandesKoepf,
     NetworkSimplex,
 }
@@ -28,12 +29,6 @@ impl NodePlacementStrategy {
             NodePlacementStrategy::BrandesKoepf => 3,
             NodePlacementStrategy::NetworkSimplex => 4,
         }
-    }
-}
-
-impl Default for NodePlacementStrategy {
-    fn default() -> Self {
-        NodePlacementStrategy::BrandesKoepf
     }
 }
 

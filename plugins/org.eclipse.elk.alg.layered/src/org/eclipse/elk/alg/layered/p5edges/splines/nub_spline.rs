@@ -282,7 +282,7 @@ impl NubSpline {
     }
 
     fn calculate_outer_box(&mut self) {
-        self.outer_box = Some(Rectangle::from_iter(self.get_control_points().iter()));
+        self.outer_box = Some(Rectangle::from_vectors_iter(self.get_control_points().iter()));
     }
 
     fn get_t_from_polar(polar: &[f64]) -> f64 {
@@ -305,9 +305,7 @@ impl NubSpline {
             cp_index += 1;
             current_knot = self.knot_vector[knot_index];
         }
-        if knot_index > 0 {
-            knot_index -= 1;
-        }
+        knot_index = knot_index.saturating_sub(1);
 
         self.insert_knot_at_current_position(insertions, knot_to_insert, cp_index, knot_index);
     }
@@ -460,7 +458,7 @@ impl NubSpline {
         let mut second_is_positive = second_y > Self::EPSILON;
         let mut second_is_negative = second_y < -Self::EPSILON;
 
-        while let Some(next_cp) = iter.next() {
+        for next_cp in iter {
             let first_cp = second_cp;
             let first_y = second_y;
             let first_is_positive = second_is_positive;
@@ -492,7 +490,7 @@ impl NubSpline {
         let mut second_is_positive = second_x > Self::EPSILON;
         let mut second_is_negative = second_x < -Self::EPSILON;
 
-        while let Some(next_cp) = iter.next() {
+        for next_cp in iter {
             let first_cp = second_cp;
             let first_x = second_x;
             let first_is_positive = second_is_positive;
@@ -542,9 +540,7 @@ impl NubSpline {
             }
 
             if occurrence < self.dim_nubs {
-                if knot_index > 0 {
-                    knot_index -= 1;
-                }
+                knot_index = knot_index.saturating_sub(1);
                 self.insert_knot_at_current_position(
                     self.dim_nubs - occurrence,
                     knot_to_count,
@@ -554,9 +550,7 @@ impl NubSpline {
                 knot_index += 1;
             }
 
-            if cp_index > 0 {
-                cp_index -= 1;
-            }
+            cp_index = cp_index.saturating_sub(1);
         }
 
         if !self.is_clamped {

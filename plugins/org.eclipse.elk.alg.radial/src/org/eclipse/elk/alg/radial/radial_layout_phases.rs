@@ -27,8 +27,8 @@ impl EnumSetType for RadialLayoutPhases {
 impl ILayoutPhaseFactory<RadialLayoutPhases, ElkNodeRef> for RadialLayoutPhases {
     fn create_phase(&self) -> Box<dyn ILayoutPhase<RadialLayoutPhases, ElkNodeRef>> {
         match self {
-            RadialLayoutPhases::P1NodePlacement => Box::new(EadesRadial::default()),
-            RadialLayoutPhases::P2EdgeRouting => Box::new(StraightLineEdgeRouter::default()),
+            RadialLayoutPhases::P1NodePlacement => Box::new(EadesRadial::new()),
+            RadialLayoutPhases::P2EdgeRouting => Box::new(StraightLineEdgeRouter::new()),
         }
     }
 

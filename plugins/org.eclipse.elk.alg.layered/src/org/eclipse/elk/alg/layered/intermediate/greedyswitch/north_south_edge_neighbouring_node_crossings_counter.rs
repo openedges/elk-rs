@@ -53,10 +53,8 @@ impl NorthSouthEdgeNeighbouringNodeCrossingsCounter {
 
     fn set_port_ids_on(&mut self, node: &LNodeRef, side: PortSide) {
         let ports = in_north_south_east_west_order(node, side);
-        let mut port_id = 0;
-        for port in ports {
-            self.port_positions.insert(port_ptr_id(&port), port_id);
-            port_id += 1;
+        for (port_id, port) in ports.into_iter().enumerate() {
+            self.port_positions.insert(port_ptr_id(&port), port_id as i32);
         }
     }
 
@@ -83,23 +81,23 @@ impl NorthSouthEdgeNeighbouringNodeCrossingsCounter {
         {
             let closer_east_ports = ports_on_side(closer_to_normal, PortSide::East);
             self.upper_lower_crossings = closer_east_ports
-                .get(0)
+                .first()
                 .and_then(|port| port.lock().ok().map(|port_guard| port_guard.degree() as i32))
                 .unwrap_or(0);
             let further_west_ports = ports_on_side(further_from_normal, PortSide::West);
             self.lower_upper_crossings = further_west_ports
-                .get(0)
+                .first()
                 .and_then(|port| port.lock().ok().map(|port_guard| port_guard.degree() as i32))
                 .unwrap_or(0);
         } else {
             let closer_west_ports = ports_on_side(closer_to_normal, PortSide::West);
             self.upper_lower_crossings = closer_west_ports
-                .get(0)
+                .first()
                 .and_then(|port| port.lock().ok().map(|port_guard| port_guard.degree() as i32))
                 .unwrap_or(0);
             let further_east_ports = ports_on_side(further_from_normal, PortSide::East);
             self.lower_upper_crossings = further_east_ports
-                .get(0)
+                .first()
                 .and_then(|port| port.lock().ok().map(|port_guard| port_guard.degree() as i32))
                 .unwrap_or(0);
         }
@@ -158,7 +156,7 @@ impl NorthSouthEdgeNeighbouringNodeCrossingsCounter {
     }
 
     fn have_different_origins(&self, upper_node: &LNodeRef, lower_node: &LNodeRef) -> bool {
-        !self.origin_of(upper_node).map_or(false, |origin| {
+        !self.origin_of(upper_node).is_some_and(|origin| {
             self.origin_of(lower_node)
                 .map(|other| Arc::ptr_eq(&origin, &other))
                 .unwrap_or(false)
@@ -175,8 +173,8 @@ impl NorthSouthEdgeNeighbouringNodeCrossingsCounter {
         let port = node
             .lock()
             .ok()
-            .and_then(|node_guard| node_guard.ports().get(0).cloned());
-        let Some(port) = port else { return None; };
+            .and_then(|node_guard| node_guard.ports().first().cloned());
+        let port = port?;
         let origin = port
             .lock()
             .ok()

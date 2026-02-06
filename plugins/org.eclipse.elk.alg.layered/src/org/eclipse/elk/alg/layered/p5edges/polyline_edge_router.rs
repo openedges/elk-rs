@@ -441,7 +441,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for PolylineEdgeRouter {
                 .unwrap_or_default();
             let external_layer = nodes
                 .iter()
-                .all(|node| PolylineEdgeRouter::is_external_west_or_east_port(node));
+                .all(PolylineEdgeRouter::is_external_west_or_east_port);
 
             if external_layer && xpos > 0.0 {
                 xpos -= node_spacing;

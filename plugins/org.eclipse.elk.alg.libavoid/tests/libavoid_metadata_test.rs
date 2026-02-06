@@ -18,7 +18,7 @@ fn libavoid_algorithm_registered() {
         .get_algorithm_data(LibavoidOptions::ALGORITHM_ID)
         .expect("libavoid algorithm");
     assert_eq!(algo.name(), "Libavoid");
-    assert_eq!(algo.category_id(), Some("edge"));
+    assert_eq!(algo.category_id(), Some("org.eclipse.elk.alg.libavoid.edge"));
 }
 
 #[test]

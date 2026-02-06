@@ -109,9 +109,7 @@ impl CrossingsCounter {
         if top_index >= self.port_positions.len() || bottom_index >= self.port_positions.len() {
             return;
         }
-        let top_pos = self.port_positions[top_index];
-        self.port_positions[top_index] = self.port_positions[bottom_index];
-        self.port_positions[bottom_index] = top_pos;
+        self.port_positions.swap(top_index, bottom_index);
     }
 
     pub fn switch_nodes(&mut self, was_upper: &LNodeRef, was_lower: &LNodeRef, side: PortSide) {

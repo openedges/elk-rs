@@ -7,8 +7,9 @@ use crate::org::eclipse::elk::alg::spore::graph::Graph;
 use crate::org::eclipse::elk::alg::spore::p3execution::GrowTreePhase;
 use crate::org::eclipse::elk::alg::spore::spore_phases::SPOrEPhases;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum OverlapRemovalStrategy {
+    #[default]
     GrowTree,
 }
 
@@ -17,12 +18,6 @@ impl OverlapRemovalStrategy {
         match self {
             OverlapRemovalStrategy::GrowTree => 0,
         }
-    }
-}
-
-impl Default for OverlapRemovalStrategy {
-    fn default() -> Self {
-        OverlapRemovalStrategy::GrowTree
     }
 }
 

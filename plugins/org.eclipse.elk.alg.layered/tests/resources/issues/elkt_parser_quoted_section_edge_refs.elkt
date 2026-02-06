@@ -1,0 +1,22 @@
+algorithm: layered
+direction: right
+
+node "node a" {
+  port "p out" side:east
+  port "p out 2" side:east
+}
+
+node "node b" {
+  port "p in" side:west
+  port "p in 2" side:west
+}
+
+edge "edge section quoted": "p out" -> "p in" {
+  section "sec a" -> "sec b" ( outgoingShape="p out" incomingShape="p in" source=10,10 target=50,10 bends=30,14 )
+  section "sec b" ( outgoing="p out" incoming="p in" sourcePoint=50,10 targetPoint=90,10 bendPoints=70,14 )
+}
+
+edge "edge point quoted": "p out 2" -> "p in 2"
+
+edgeSection "edge point quoted" sourcePoint=12,11 targetPoint=88,11 bendPoints=40,16;60,16
+edgePoint "edge point quoted" source:14,12 target:86,12 bend:50,18

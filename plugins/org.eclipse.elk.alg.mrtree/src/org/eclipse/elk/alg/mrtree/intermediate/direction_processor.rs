@@ -46,14 +46,11 @@ impl ILayoutProcessor<TGraphRef> for DirectionProcessor {
                             y *= -1;
                         }
                         Direction::Right => {
-                            let tmp = x;
-                            x = y;
-                            y = tmp;
+                            std::mem::swap(&mut x, &mut y);
                         }
                         Direction::Left => {
-                            let tmp = x;
-                            x = -y;
-                            y = tmp;
+                            std::mem::swap(&mut x, &mut y);
+                            x *= -1;
                         }
                         _ => {}
                     }

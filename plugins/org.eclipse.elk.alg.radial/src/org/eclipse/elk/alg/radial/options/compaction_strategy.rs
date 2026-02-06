@@ -2,8 +2,9 @@ use crate::org::eclipse::elk::alg::radial::intermediate::compaction::{
     AnnulusWedgeCompaction, IRadialCompactor, RadialCompaction,
 };
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]
 pub enum CompactionStrategy {
+    #[default]
     None,
     RadialCompaction,
     WedgeCompaction,
@@ -18,11 +19,5 @@ impl CompactionStrategy {
                 panic!("No implementation is available for the layout option {:?}", self)
             }
         }
-    }
-}
-
-impl Default for CompactionStrategy {
-    fn default() -> Self {
-        CompactionStrategy::None
     }
 }

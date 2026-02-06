@@ -119,6 +119,7 @@ impl LGraph {
         result
     }
 
+    #[allow(clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
         let layerless = self
             .layerless_nodes

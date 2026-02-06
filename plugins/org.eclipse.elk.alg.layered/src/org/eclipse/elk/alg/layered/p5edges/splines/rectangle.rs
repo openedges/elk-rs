@@ -73,7 +73,7 @@ impl Rectangle {
         rect
     }
 
-    pub fn from_iter<'a, I>(vectors: I) -> Self
+    pub fn from_vectors_iter<'a, I>(vectors: I) -> Self
     where
         I: IntoIterator<Item = &'a KVector>,
     {

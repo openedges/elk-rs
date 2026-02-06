@@ -73,8 +73,7 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
         let mut elem_map: HashMap<OriginId, crate::org::eclipse::elk::alg::mrtree::graph::TNodeRef> =
             HashMap::new();
 
-        let mut index = 0;
-        for elknode in &children {
+        for (index, elknode) in children.iter().enumerate() {
             let label = {
                 let mut node_mut = elknode.borrow_mut();
                 let labels: Vec<_> = node_mut
@@ -88,11 +87,10 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
                 labels
                     .first()
                     .map(|label| label.borrow().text().to_string())
-                    .unwrap_or_else(String::new)
+                    .unwrap_or_default()
             };
 
-            let t_node = TNode::new_with_label(index, Some(t_graph.clone()), label);
-            index += 1;
+            let t_node = TNode::new_with_label(index as i32, Some(t_graph.clone()), label);
 
             let node_props = {
                 let mut node_mut = elknode.borrow_mut();

@@ -20,7 +20,7 @@ impl BendEdgeRouter {
         BendEdgeRouter
     }
 
-    fn route_edges(&self, node: &ElkNodeRef) {
+    fn route_edges(node: &ElkNodeRef) {
         for edge in ElkGraphUtil::all_outgoing_edges(node) {
             let Some(target) = edge_target_node(&edge) else { continue; };
             let Some(section) = ensure_single_section(&edge) else { continue; };
@@ -51,7 +51,7 @@ impl BendEdgeRouter {
                 create_bend_point(&section, end_x, bend_height);
             }
 
-            self.route_edges(&target);
+            Self::route_edges(&target);
         }
     }
 }
@@ -72,7 +72,7 @@ impl ILayoutPhase<VertiFlexLayoutPhases, ElkNodeRef> for BendEdgeRouter {
         };
         if has_children {
             if let Some(parent) = VertiFlexUtil::find_root(graph) {
-                self.route_edges(&parent);
+                Self::route_edges(&parent);
             }
         }
 

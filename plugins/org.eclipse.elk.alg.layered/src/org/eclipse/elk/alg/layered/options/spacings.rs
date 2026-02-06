@@ -252,17 +252,13 @@ impl Spacings {
         };
 
         for row in &self.node_type_spacing_options_vertical {
-            for property in row {
-                if let Some(property) = property {
-                    cache(property);
-                }
+            for property in row.iter().flatten() {
+                cache(property);
             }
         }
         for row in &self.node_type_spacing_options_horizontal {
-            for property in row {
-                if let Some(property) = property {
-                    cache(property);
-                }
+            for property in row.iter().flatten() {
+                cache(property);
             }
         }
 

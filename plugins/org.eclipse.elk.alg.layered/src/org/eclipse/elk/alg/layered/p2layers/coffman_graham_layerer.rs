@@ -195,9 +195,9 @@ impl ILayoutPhase<LayeredPhases, LGraph> for CoffmanGrahamLayerer {
         }
 
         let graph_ref = nodes
-            .get(0)
+            .first()
             .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.graph()))
-            .unwrap_or_else(LGraph::new);
+            .unwrap_or_default();
 
         let bound = graph
             .get_property(LayeredOptions::LAYERING_COFFMAN_GRAHAM_LAYER_BOUND)

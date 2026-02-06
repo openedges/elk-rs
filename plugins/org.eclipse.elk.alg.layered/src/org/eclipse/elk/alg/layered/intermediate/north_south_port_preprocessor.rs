@@ -276,7 +276,7 @@ fn origin_port_allows_switch(dummy: &LNodeRef) -> bool {
     let origin_port = dummy
         .lock()
         .ok()
-        .and_then(|dummy_guard| dummy_guard.ports().get(0).cloned())
+        .and_then(|dummy_guard| dummy_guard.ports().first().cloned())
         .and_then(|port| {
             port.lock()
                 .ok()

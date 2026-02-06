@@ -7,8 +7,9 @@ use crate::org::eclipse::elk::core::labels::ILabelManager;
 use crate::org::eclipse::elk::core::math::{ElkMargin, ElkPadding, KVector, KVectorChain};
 use crate::org::eclipse::elk::core::options::{
     Alignment, ContentAlignment, Direction, EdgeCoords, EdgeLabelPlacement, EdgeRouting, EdgeType,
-    HierarchyHandling, ITopdownSizeApproximator, NodeLabelPlacement, PortAlignment, PortConstraints,
-    PortLabelPlacement, PortSide, ShapeCoords, SizeConstraint, SizeOptions, TopdownNodeTypes,
+    HierarchyHandling, ITopdownSizeApproximator, NodeLabelPlacement, PackingMode, PortAlignment,
+    PortConstraints, PortLabelPlacement, PortSide, ShapeCoords, SizeConstraint, SizeOptions,
+    TopdownNodeTypes,
 };
 use crate::org::eclipse::elk::core::util::{EnumSet, IndividualSpacings};
 
@@ -63,6 +64,9 @@ pub static INTERACTIVE_LAYOUT_PROPERTY: LazyLock<Property<bool>> =
 
 pub static OMIT_NODE_MICRO_LAYOUT_PROPERTY: LazyLock<Property<bool>> =
     LazyLock::new(|| Property::with_default("org.eclipse.elk.omitNodeMicroLayout", false));
+
+pub static BOX_PACKING_MODE_PROPERTY: LazyLock<Property<PackingMode>> =
+    LazyLock::new(|| Property::with_default("org.eclipse.elk.box.packingMode", PackingMode::Simple));
 
 pub static JSON_SHAPE_COORDS_PROPERTY: LazyLock<Property<ShapeCoords>> =
     LazyLock::new(|| Property::with_default("org.eclipse.elk.json.shapeCoords", ShapeCoords::Inherit));
@@ -357,6 +361,8 @@ impl CoreOptions {
     pub const INTERACTIVE_LAYOUT: &'static LazyLock<Property<bool>> = &INTERACTIVE_LAYOUT_PROPERTY;
     pub const OMIT_NODE_MICRO_LAYOUT: &'static LazyLock<Property<bool>> =
         &OMIT_NODE_MICRO_LAYOUT_PROPERTY;
+    pub const BOX_PACKING_MODE: &'static LazyLock<Property<PackingMode>> =
+        &BOX_PACKING_MODE_PROPERTY;
     pub const JSON_SHAPE_COORDS: &'static LazyLock<Property<ShapeCoords>> =
         &JSON_SHAPE_COORDS_PROPERTY;
     pub const JSON_EDGE_COORDS: &'static LazyLock<Property<EdgeCoords>> =

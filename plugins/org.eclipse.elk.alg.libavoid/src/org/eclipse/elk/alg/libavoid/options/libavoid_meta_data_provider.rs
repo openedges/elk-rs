@@ -32,7 +32,7 @@ const TARGET_NODES: [LayoutOptionTarget; 1] = [LayoutOptionTarget::Nodes];
 fn register_category(registry: &mut dyn LayoutMetaDataRegistry) {
     registry.register_category(
         LayoutCategoryData::builder()
-            .id("edge")
+            .id("org.eclipse.elk.alg.libavoid.edge")
             .name("Edge Routing")
             .description("Only route the edges without touching the node's positions.")
             .create(),
@@ -45,7 +45,7 @@ fn register_algorithm(registry: &mut dyn LayoutMetaDataRegistry) {
         .set_description(
             "libavoid is a cross-platform C++ library providing fast, object-avoiding orthogonal and polyline connector routing for use in interactive diagram editors.",
         )
-        .set_category_id(Some("edge"));
+        .set_category_id(Some("org.eclipse.elk.alg.libavoid.edge"));
     registry.register_algorithm(data);
 }
 
@@ -477,6 +477,7 @@ fn register_supports(registry: &mut dyn LayoutMetaDataRegistry) {
     );
 }
 
+#[allow(clippy::too_many_arguments)]
 fn register_option<T: Clone + Send + Sync + 'static>(
     registry: &mut dyn LayoutMetaDataRegistry,
     property: &'static LazyLock<Property<T>>,

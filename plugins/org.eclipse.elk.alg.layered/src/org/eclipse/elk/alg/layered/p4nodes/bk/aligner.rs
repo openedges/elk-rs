@@ -78,9 +78,8 @@ impl BKAligner {
                 let high = d / 2;
 
                 if vdir == VDirection::Up {
-                    for m in (low..=high).rev() {
+                    for neighbor_pair in neighbors.iter().take(high + 1).skip(low).rev() {
                         if bal.align[node_id_val] == node_id_val {
-                            let neighbor_pair = &neighbors[m];
                             let neighbor = &neighbor_pair.first;
                             let edge = &neighbor_pair.second;
                             let neighbor_id = node_id(neighbor);
@@ -98,9 +97,8 @@ impl BKAligner {
                         }
                     }
                 } else {
-                    for m in low..=high {
+                    for neighbor_pair in neighbors.iter().take(high + 1).skip(low) {
                         if bal.align[node_id_val] == node_id_val {
-                            let neighbor_pair = &neighbors[m];
                             let neighbor = &neighbor_pair.first;
                             let edge = &neighbor_pair.second;
                             let neighbor_id = node_id(neighbor);
@@ -182,5 +180,11 @@ impl BKAligner {
 
             bal.block_size[root_id] = space_above + space_below;
         }
+    }
+}
+
+impl Default for BKAligner {
+    fn default() -> Self {
+        Self::new()
     }
 }

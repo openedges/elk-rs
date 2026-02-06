@@ -70,9 +70,10 @@ impl NeighborsProcessor {
                             InternalProperties::LEFTNEIGHBOR,
                             Some(Some(left_node.clone())),
                         );
-                        let same_parent = left_guard.parent().zip(node_guard.parent()).map_or(false, |(a, b)| {
-                            std::sync::Arc::ptr_eq(&a, &b)
-                        });
+                        let same_parent = left_guard
+                            .parent()
+                            .zip(node_guard.parent())
+                            .is_some_and(|(a, b)| std::sync::Arc::ptr_eq(&a, &b));
                         if same_parent {
                             left_guard.set_property(
                                 InternalProperties::RIGHTSIBLING,

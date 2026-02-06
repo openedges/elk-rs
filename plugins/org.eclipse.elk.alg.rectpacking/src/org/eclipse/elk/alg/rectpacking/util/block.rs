@@ -134,7 +134,11 @@ impl Block {
         self.smallest_rect_height = self.smallest_rect_height.min(rect_height);
         self.max_height += rect_height + if self.children.len() == 1 { 0.0 } else { self.node_node_spacing };
         self.min_height = self.min_height.max(rect_height);
-        let mut total_height = if self.rows.len() > 0 { (self.rows.len() - 1) as f64 * self.node_node_spacing } else { 0.0 };
+        let mut total_height = if !self.rows.is_empty() {
+            (self.rows.len() - 1) as f64 * self.node_node_spacing
+        } else {
+            0.0
+        };
         for row in &self.rows {
             total_height += row.height();
         }

@@ -40,7 +40,7 @@ fn register_algorithm(registry: &mut dyn LayoutMetaDataRegistry) {
             "the shortest path between the two nodes. ",
             "The method allows to specify individual edge lengths."
         ))
-        .set_category_id(Some("force"))
+        .set_category_id(Some("org.eclipse.elk.force"))
         .set_preview_image_path(Some("images/stress_layout.png"));
     registry.register_algorithm(data);
 }
@@ -124,6 +124,7 @@ fn register_supports(registry: &mut dyn LayoutMetaDataRegistry) {
     registry.add_option_support(algo, StressOptions::DESIRED_EDGE_LENGTH.id(), None);
 }
 
+#[allow(clippy::too_many_arguments)]
 fn register_option<T: Clone + Send + Sync + 'static>(
     registry: &mut dyn LayoutMetaDataRegistry,
     property: &'static LazyLock<Property<T>>,

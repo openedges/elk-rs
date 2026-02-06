@@ -20,12 +20,10 @@ impl DrawingUtil {
     pub fn calculate_dimensions(rows: &[RectRowRef], node_node_spacing: f64) -> KVector {
         let mut max_width: f64 = 0.0;
         let mut new_height: f64 = 0.0;
-        let mut index = 0usize;
-        for row in rows {
+        for (index, row) in rows.iter().enumerate() {
             let row_guard = row.borrow();
             max_width = max_width.max(row_guard.width());
             new_height += row_guard.height() + if index > 0 { node_node_spacing } else { 0.0 };
-            index += 1;
         }
         KVector::with_values(max_width, new_height)
     }

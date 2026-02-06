@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
+use org_eclipse_elk_core::org::eclipse::elk::core::data::{LayoutMetaDataService, LayoutOptionType};
 use org_eclipse_elk_core::org::eclipse::elk::core::math::ElkPadding;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::{
-    CoreOptions, EdgeRouting, PortAlignment, TopdownNodeTypes,
+    CoreOptions, EdgeRouting, PackingMode, PortAlignment, TopdownNodeTypes,
 };
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::GraphFeature;
 
@@ -51,7 +51,7 @@ fn layered_metadata_defaults_match_core() {
 
     let separate =
         expect_value::<bool>(algo.default_value_any(CoreOptions::SEPARATE_CONNECTED_COMPONENTS.id()));
-    assert_eq!(*separate, true);
+    assert!(*separate);
 
     let port_alignment = expect_value::<PortAlignment>(
         algo.default_value_any(CoreOptions::PORT_ALIGNMENT_DEFAULT.id()),
@@ -65,4 +65,39 @@ fn layered_metadata_defaults_match_core() {
     assert!(algo.knows_option(CoreOptions::SPACING_NODE_NODE.id()));
     assert!(algo.knows_option(CoreOptions::SPACING_COMMENT_COMMENT.id()));
     assert!(algo.knows_option(CoreOptions::SPACING_COMMENT_NODE.id()));
+}
+
+#[test]
+fn layered_category_id_is_fully_qualified() {
+    let service = LayoutMetaDataService::get_instance();
+    let layered = service
+        .get_algorithm_data("org.eclipse.elk.layered")
+        .expect("layered algorithm");
+    assert_eq!(layered.category_id(), Some("org.eclipse.elk.layered"));
+
+    let category = service
+        .get_category_data("org.eclipse.elk.layered")
+        .expect("layered category");
+    assert!(category
+        .layouters()
+        .iter()
+        .any(|algorithm| algorithm.id() == "org.eclipse.elk.layered"));
+}
+
+#[test]
+fn box_packing_mode_option_is_registered_through_core_options() {
+    let service = LayoutMetaDataService::get_instance();
+    let option = service
+        .get_option_data(CoreOptions::BOX_PACKING_MODE.id())
+        .expect("box packing mode option");
+    assert_eq!(option.option_type(), LayoutOptionType::Enum);
+
+    let default = expect_value::<PackingMode>(option.default_value());
+    assert_eq!(*default, PackingMode::Simple);
+    assert!(option.choices().iter().any(|choice| choice == "GROUP_DEC"));
+
+    let box_algorithm = service
+        .get_algorithm_data("org.eclipse.elk.box")
+        .expect("box algorithm");
+    assert!(box_algorithm.knows_option(CoreOptions::BOX_PACKING_MODE.id()));
 }

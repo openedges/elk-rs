@@ -1,0 +1,16 @@
+algorithm: layered
+direction: right
+edgeRouting: orthogonal
+spacing.edgeEdge: 8
+spacing.nodeNode: 30
+
+node s1 [size: 30, 20]
+node s2 [size: 30, 20]
+node s3 [size: 30, 20]
+node t1 [size: 30, 20]
+node t2 [size: 30, 20]
+node t3 [size: 30, 20]
+
+edge e1: s1 -> t3
+edge e2: s2 -> t2
+edge e3: s3 -> t1

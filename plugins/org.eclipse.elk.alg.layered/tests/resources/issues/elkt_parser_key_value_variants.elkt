@@ -1,0 +1,26 @@
+algorithm = layered
+direction = down
+spacing.nodeNode = 11
+spacingEdgeEdge = 4
+
+node n_eq {
+  portConstraints = fixedSide
+  layout [ size = 30,20 ]
+  port p_eq side=east {
+    position = 30,10
+    size = 8,8
+    portBorderOffset = 1.5
+    portAnchor = 2,3
+  }
+}
+
+node n_tgt {
+  port p_tgt side=west
+}
+
+edge e_eq: p_eq -> p_tgt {
+  layout [ source = 33,14 target = 60,14 bendPoints = 40,14|50,14 ]
+}
+
+edgeProperty e_eq edgeLabelsPlacement = tail
+edgeLabel e_eq "eq" placement=head

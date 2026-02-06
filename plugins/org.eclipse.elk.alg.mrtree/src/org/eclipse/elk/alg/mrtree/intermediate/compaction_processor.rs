@@ -61,13 +61,13 @@ impl ILayoutProcessor<TGraphRef> for CompactionProcessor {
             let a_pos = a
                 .lock()
                 .ok()
-                .map(|node| node.position_ref().clone())
-                .unwrap_or_else(KVector::new);
+                .map(|node| *node.position_ref())
+                .unwrap_or_default();
             let b_pos = b
                 .lock()
                 .ok()
-                .map(|node| node.position_ref().clone())
-                .unwrap_or_else(KVector::new);
+                .map(|node| *node.position_ref())
+                .unwrap_or_default();
             dir_vec
                 .dot_product(&a_pos)
                 .partial_cmp(&dir_vec.dot_product(&b_pos))
@@ -94,31 +94,31 @@ impl ILayoutProcessor<TGraphRef> for CompactionProcessor {
             let size = node
                 .lock()
                 .ok()
-                .map(|n| n.size_ref().clone())
-                .unwrap_or_else(KVector::new);
+                .map(|n| *n.size_ref())
+                .unwrap_or_default();
 
             if let Some(dep) = dependent.clone() {
                 let dep_pos = dep
                     .lock()
                     .ok()
-                    .map(|n| n.position_ref().clone())
-                    .unwrap_or_else(KVector::new);
+                    .map(|n| *n.position_ref())
+                    .unwrap_or_default();
                 let dep_size = dep
                     .lock()
                     .ok()
-                    .map(|n| n.size_ref().clone())
-                    .unwrap_or_else(KVector::new);
+                    .map(|n| *n.size_ref())
+                    .unwrap_or_default();
                 if let Some(parent) = parent.clone() {
                     let parent_pos = parent
                         .lock()
                         .ok()
-                        .map(|n| n.position_ref().clone())
-                        .unwrap_or_else(KVector::new);
+                        .map(|n| *n.position_ref())
+                        .unwrap_or_default();
                     let parent_size = parent
                         .lock()
                         .ok()
-                        .map(|n| n.size_ref().clone())
-                        .unwrap_or_else(KVector::new);
+                        .map(|n| *n.size_ref())
+                        .unwrap_or_default();
                     match direction {
                         Direction::Left => {
                             new_pos = dep_pos.x - node_node_spacing - size.x;
@@ -158,13 +158,13 @@ impl ILayoutProcessor<TGraphRef> for CompactionProcessor {
                 let parent_pos = parent
                     .lock()
                     .ok()
-                    .map(|n| n.position_ref().clone())
-                    .unwrap_or_else(KVector::new);
+                    .map(|n| *n.position_ref())
+                    .unwrap_or_default();
                 let parent_size = parent
                     .lock()
                     .ok()
-                    .map(|n| n.size_ref().clone())
-                    .unwrap_or_else(KVector::new);
+                    .map(|n| *n.size_ref())
+                    .unwrap_or_default();
                 match direction {
                     Direction::Left => {
                         new_pos = parent_pos.x - node_node_spacing - size.x;
@@ -199,22 +199,20 @@ impl ILayoutProcessor<TGraphRef> for CompactionProcessor {
 
                 let chosen_level = if let Some(index) = level {
                     Some((index, self.levels[index].clone()))
+                } else if direction == Direction::Left || direction == Direction::Up {
+                    self.levels
+                        .iter()
+                        .enumerate()
+                        .skip(1)
+                        .find(|(_, pair)| pair.first() <= &new_pos)
+                        .map(|(idx, pair)| (idx, pair.clone()))
                 } else {
-                    if direction == Direction::Left || direction == Direction::Up {
-                        self.levels
-                            .iter()
-                            .enumerate()
-                            .skip(1)
-                            .find(|(_, pair)| pair.first() <= &new_pos)
-                            .map(|(idx, pair)| (idx, pair.clone()))
-                    } else {
-                        self.levels
-                            .iter()
-                            .enumerate()
-                            .skip(1)
-                            .find(|(_, pair)| pair.first() >= &new_pos)
-                            .map(|(idx, pair)| (idx, pair.clone()))
-                    }
+                    self.levels
+                        .iter()
+                        .enumerate()
+                        .skip(1)
+                        .find(|(_, pair)| pair.first() >= &new_pos)
+                        .map(|(idx, pair)| (idx, pair.clone()))
                 };
 
                 if let Some((index, level_pair)) = chosen_level {
@@ -320,7 +318,7 @@ impl CompactionProcessor {
             .iter()
             .filter_map(|node| {
                 node.lock().ok().map(|node_guard| {
-                    let mut pos = node_guard.position_ref().clone();
+                    let mut pos = *node_guard.position_ref();
                     pos.sub_values(node_node_spacing, node_node_spacing);
                     Triple::new(node.clone(), pos, true)
                 })
@@ -329,7 +327,7 @@ impl CompactionProcessor {
 
         points.extend(actual_nodes.iter().filter_map(|node| {
             node.lock().ok().map(|node_guard| {
-                let mut pos = node_guard.position_ref().clone();
+                let mut pos = *node_guard.position_ref();
                 pos.add_values(
                     node_guard.size_ref().x + node_node_spacing,
                     node_guard.size_ref().y + node_node_spacing,
@@ -401,13 +399,13 @@ impl CompactionProcessor {
             let candidate_pos = candidate
                 .lock()
                 .ok()
-                .map(|n| n.position_ref().clone())
-                .unwrap_or_else(KVector::new);
+                .map(|n| *n.position_ref())
+                .unwrap_or_default();
             let candidate_size = candidate
                 .lock()
                 .ok()
-                .map(|n| n.size_ref().clone())
-                .unwrap_or_else(KVector::new);
+                .map(|n| *n.size_ref())
+                .unwrap_or_default();
             let value = match direction {
                 Direction::Left => candidate_pos.x,
                 Direction::Right => candidate_pos.x + candidate_size.x,
@@ -420,13 +418,13 @@ impl CompactionProcessor {
                     let current_pos = current_best
                         .lock()
                         .ok()
-                        .map(|n| n.position_ref().clone())
-                        .unwrap_or_else(KVector::new);
+                        .map(|n| *n.position_ref())
+                        .unwrap_or_default();
                     let current_size = current_best
                         .lock()
                         .ok()
-                        .map(|n| n.size_ref().clone())
-                        .unwrap_or_else(KVector::new);
+                        .map(|n| *n.size_ref())
+                        .unwrap_or_default();
                     let current_value = match direction {
                         Direction::Left => current_pos.x,
                         Direction::Right => current_pos.x + current_size.x,
@@ -458,8 +456,8 @@ fn insert_sorted(active: &mut Vec<TNodeRef>, node: &TNodeRef, direction: Directi
     let node_pos = node
         .lock()
         .ok()
-        .map(|n| n.position_ref().clone())
-        .unwrap_or_else(KVector::new);
+        .map(|n| *n.position_ref())
+        .unwrap_or_default();
     let node_proj = dir_vec.dot_product(&node_pos);
     let index = active
         .iter()
@@ -467,8 +465,8 @@ fn insert_sorted(active: &mut Vec<TNodeRef>, node: &TNodeRef, direction: Directi
             let other_pos = other
                 .lock()
                 .ok()
-                .map(|n| n.position_ref().clone())
-                .unwrap_or_else(KVector::new);
+                .map(|n| *n.position_ref())
+                .unwrap_or_default();
             node_proj < dir_vec.dot_product(&other_pos)
         })
         .unwrap_or(active.len());

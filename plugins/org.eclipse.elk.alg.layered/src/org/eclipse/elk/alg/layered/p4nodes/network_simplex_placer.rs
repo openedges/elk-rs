@@ -563,7 +563,6 @@ impl NetworkSimplexPlacer {
         let edge_id = edge_id(edge);
         if edge_id < self.edge_reps.len() {
             self.edge_reps[edge_id] = Some(EdgeRep {
-                origin: edge.clone(),
                 left,
                 right,
             });
@@ -1279,7 +1278,6 @@ struct NodeRep {
 
 #[derive(Clone)]
 struct EdgeRep {
-    origin: LEdgeRef,
     left: NEdgeRef,
     right: NEdgeRef,
 }

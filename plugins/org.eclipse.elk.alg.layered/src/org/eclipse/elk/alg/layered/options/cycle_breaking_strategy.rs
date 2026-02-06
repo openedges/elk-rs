@@ -8,8 +8,9 @@ use crate::org::eclipse::elk::alg::layered::no_op_phase::NoOpPhase;
 use crate::org::eclipse::elk::alg::layered::p1cycles::{DepthFirstCycleBreaker, GreedyCycleBreaker};
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum CycleBreakingStrategy {
+    #[default]
     Greedy,
     DepthFirst,
     Interactive,
@@ -34,12 +35,6 @@ impl CycleBreakingStrategy {
             CycleBreakingStrategy::DfsNodeOrder => 7,
             CycleBreakingStrategy::BfsNodeOrder => 8,
         }
-    }
-}
-
-impl Default for CycleBreakingStrategy {
-    fn default() -> Self {
-        CycleBreakingStrategy::Greedy
     }
 }
 

@@ -40,16 +40,16 @@ impl ModelOrderBarycenterHeuristic {
         let id1 = node_ptr_id(n1);
         let id2 = node_ptr_id(n2);
 
-        if self.bigger_than.get(&id1).map_or(false, |set| set.contains(&id2)) {
+        if self.bigger_than.get(&id1).is_some_and(|set| set.contains(&id2)) {
             return 1;
         }
-        if self.bigger_than.get(&id2).map_or(false, |set| set.contains(&id1)) {
+        if self.bigger_than.get(&id2).is_some_and(|set| set.contains(&id1)) {
             return -1;
         }
-        if self.smaller_than.get(&id1).map_or(false, |set| set.contains(&id2)) {
+        if self.smaller_than.get(&id1).is_some_and(|set| set.contains(&id2)) {
             return -1;
         }
-        if self.smaller_than.get(&id2).map_or(false, |set| set.contains(&id1)) {
+        if self.smaller_than.get(&id2).is_some_and(|set| set.contains(&id1)) {
             return 1;
         }
         0
@@ -220,7 +220,7 @@ impl ModelOrderBarycenterHeuristic {
         self.compare_based_on_barycenter(n1, n2)
     }
 
-    fn insertion_sort(&mut self, layer: &mut Vec<LNodeRef>) {
+    fn insertion_sort(&mut self, layer: &mut [LNodeRef]) {
         for i in 1..layer.len() {
             let temp = layer[i].clone();
             let mut j = i;
@@ -278,13 +278,8 @@ impl ICrossingMinimizationHeuristic for ModelOrderBarycenterHeuristic {
                 .unwrap_or(false);
 
         let mut nodes = order[free_layer_index].clone();
-        if pre_ordered {
-            self.base.calculate_barycenters(&nodes, forward_sweep);
-            self.base.fill_in_unknown_barycenters(&nodes, pre_ordered);
-        } else {
-            self.base.calculate_barycenters(&nodes, forward_sweep);
-            self.base.fill_in_unknown_barycenters(&nodes, pre_ordered);
-        }
+        self.base.calculate_barycenters(&nodes, forward_sweep);
+        self.base.fill_in_unknown_barycenters(&nodes, pre_ordered);
 
         if nodes.len() > 1 {
             let force_model_order = nodes

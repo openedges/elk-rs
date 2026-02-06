@@ -1,11 +1,6 @@
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum LowLevelSortingCriterion {
     BySize,
+    #[default]
     BySizeAndShape,
-}
-
-impl Default for LowLevelSortingCriterion {
-    fn default() -> Self {
-        LowLevelSortingCriterion::BySizeAndShape
-    }
 }

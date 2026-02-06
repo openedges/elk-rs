@@ -1,0 +1,5 @@
+algorithm: layered
+
+node n1 [size: 50, 30]
+edge loop: n1 -> n1
+edgeLabel loop text:loop size:24,12

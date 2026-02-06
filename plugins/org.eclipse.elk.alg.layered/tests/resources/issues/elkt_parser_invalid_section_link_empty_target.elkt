@@ -1,0 +1,6 @@
+algorithm: layered
+node n0
+node n1
+edge e0: n0 -> n1 {
+  section s0 -> [ outgoing:n0 incoming:n1 start:0,0 end:10,0 ]
+}

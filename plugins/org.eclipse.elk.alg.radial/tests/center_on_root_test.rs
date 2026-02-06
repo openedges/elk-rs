@@ -3,7 +3,6 @@ use org_eclipse_elk_alg_radial::org::eclipse::elk::alg::radial::options::{
     RadialMetaDataProvider, RadialOptions,
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
-use org_eclipse_elk_core::org::eclipse::elk::core::math::ElkMargin;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::IGraphLayoutEngine;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::BasicProgressMonitor;
@@ -48,7 +47,7 @@ fn test_simple_centering() {
     let mut layout_provider = RadialLayoutProvider::new();
     layout_provider.layout(&parent, &mut BasicProgressMonitor::new());
 
-    let margins = node_property(&root, CoreOptions::MARGINS).unwrap_or_else(ElkMargin::new);
+    let margins = node_property(&root, CoreOptions::MARGINS).unwrap_or_default();
     let (parent_w, parent_h) = node_size(&parent);
     let (root_x, root_y, root_w, root_h) = node_bounds(&root);
 
@@ -104,7 +103,7 @@ fn test_larger_graph_centering() {
     let mut layout_provider = RadialLayoutProvider::new();
     layout_provider.layout(&parent, &mut BasicProgressMonitor::new());
 
-    let margins = node_property(&root, CoreOptions::MARGINS).unwrap_or_else(ElkMargin::new);
+    let margins = node_property(&root, CoreOptions::MARGINS).unwrap_or_default();
     let (parent_w, parent_h) = node_size(&parent);
     let (root_x, root_y, root_w, root_h) = node_bounds(&root);
 

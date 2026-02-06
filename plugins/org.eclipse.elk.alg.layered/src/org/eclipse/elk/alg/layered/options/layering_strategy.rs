@@ -11,8 +11,9 @@ use crate::org::eclipse::elk::alg::layered::p2layers::{
 };
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum LayeringStrategy {
+    #[default]
     NetworkSimplex,
     LongestPath,
     LongestPathSource,
@@ -37,12 +38,6 @@ impl LayeringStrategy {
             LayeringStrategy::BfModelOrder => 7,
             LayeringStrategy::DfModelOrder => 8,
         }
-    }
-}
-
-impl Default for LayeringStrategy {
-    fn default() -> Self {
-        LayeringStrategy::NetworkSimplex
     }
 }
 

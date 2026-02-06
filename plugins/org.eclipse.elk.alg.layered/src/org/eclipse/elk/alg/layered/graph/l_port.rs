@@ -56,10 +56,9 @@ impl LPort {
         }
 
         if let Some(current_owner) = current_owner {
-            current_owner
-                .lock()
-                .ok()
-                .map(|mut owner| remove_arc(owner.ports_mut(), port));
+            if let Ok(mut owner) = current_owner.lock() {
+                remove_arc(owner.ports_mut(), port);
+            }
         }
 
         {
@@ -69,10 +68,9 @@ impl LPort {
         }
 
         if let Some(new_owner) = node {
-            new_owner
-                .lock()
-                .ok()
-                .map(|mut owner| owner.ports_mut().push(port.clone()));
+            if let Ok(mut owner) = new_owner.lock() {
+                owner.ports_mut().push(port.clone());
+            }
         }
     }
 
@@ -147,7 +145,7 @@ impl LPort {
 
     pub fn name(&self) -> Option<String> {
         self.labels
-            .get(0)
+            .first()
             .and_then(|label| label.lock().ok().map(|label| label.text().to_owned()))
     }
 
@@ -233,7 +231,7 @@ impl LPort {
     }
 
     pub fn designation(&mut self) -> String {
-        if let Some(label) = self.labels.get(0) {
+        if let Some(label) = self.labels.first() {
             if let Ok(label_guard) = label.lock() {
                 if !label_guard.text().is_empty() {
                     return label_guard.text().to_owned();
@@ -246,6 +244,7 @@ impl LPort {
         self.index().map(|idx| idx.to_string()).unwrap_or_else(|| "-1".to_owned())
     }
 
+    #[allow(clippy::inherent_to_string)]
     pub fn to_string(&mut self) -> String {
         let mut result = String::new();
         result.push_str("p_");

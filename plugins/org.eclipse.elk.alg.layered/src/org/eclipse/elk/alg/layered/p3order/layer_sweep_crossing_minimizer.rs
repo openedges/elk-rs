@@ -1,3 +1,5 @@
+#![allow(clippy::mutable_key_type)]
+
 use std::collections::{HashSet, VecDeque};
 use std::sync::{Arc, LazyLock};
 
@@ -354,9 +356,8 @@ impl LayerSweepCrossingMinimizer {
         let mut wrong_model_order = 0;
         for layer in layers {
             let prev_layer = previous_layer
-                .as_ref()
-                .map(|layer| layer.clone())
-                .unwrap_or_else(|| layers.get(0).cloned().unwrap_or_default());
+                .clone()
+                .unwrap_or_else(|| layers.first().cloned().unwrap_or_default());
             let mut comp = ModelOrderNodeComparator::new(
                 graph.clone(),
                 prev_layer,
@@ -399,9 +400,8 @@ impl LayerSweepCrossingMinimizer {
         let mut wrong_model_order = 0;
         for layer in layers {
             let prev_layer = previous_layer
-                .as_ref()
-                .map(|layer| layer.clone())
-                .unwrap_or_else(|| layers.get(0).cloned().unwrap_or_default());
+                .clone()
+                .unwrap_or_else(|| layers.first().cloned().unwrap_or_default());
             for node in layer {
                 let ports = node
                     .lock()
@@ -612,7 +612,7 @@ impl LayerSweepCrossingMinimizer {
         };
         let first_node = self.graph_info_holders[nested_index]
             .current_node_order()[start_index]
-            .get(0)
+            .first()
             .cloned();
 
         if let Some(first_node) = first_node {
@@ -704,7 +704,7 @@ impl LayerSweepCrossingMinimizer {
         graph_data
             .child_graphs()
             .iter()
-            .filter_map(|graph| graph_id(graph))
+            .filter_map(graph_id)
             .collect()
     }
 
@@ -742,7 +742,7 @@ impl LayerSweepCrossingMinimizer {
 
         self.random = root_graph_guard
             .get_property(InternalProperties::RANDOM)
-            .unwrap_or_else(Random::default);
+            .unwrap_or_default();
         self.random_seed = self.random.clone();
 
         let mut graphs_to_sweep_on: Vec<usize> = Vec::new();
@@ -858,7 +858,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for LayerSweepCrossingMinimizer {
         let single_node = graph.layers().len() == 1
             && graph
                 .layers()
-                .get(0)
+                .first()
                 .and_then(|layer| layer.lock().ok())
                 .map(|layer_guard| layer_guard.nodes().len())
                 .unwrap_or(0)
@@ -1070,12 +1070,12 @@ fn graph_id(graph: &LGraphRef) -> Option<usize> {
 }
 
 fn root_graph_ref(graph: &mut LGraph) -> Option<LGraphRef> {
-    if let Some(layer) = graph.layers().get(0) {
+    if let Some(layer) = graph.layers().first() {
         if let Ok(layer_guard) = layer.lock() {
             return layer_guard.graph();
         }
     }
-    if let Some(node) = graph.layerless_nodes().get(0) {
+    if let Some(node) = graph.layerless_nodes().first() {
         if let Ok(node_guard) = node.lock() {
             return node_guard.graph();
         }

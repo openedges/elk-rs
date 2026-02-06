@@ -93,7 +93,7 @@ fn edge_orthogonality() {
                     section_mut.start_y(),
                     section_mut.end_x(),
                     section_mut.end_y(),
-                    section_mut.bend_points().iter().cloned().collect::<Vec<_>>(),
+                    section_mut.bend_points().to_vec(),
                 )
             };
 

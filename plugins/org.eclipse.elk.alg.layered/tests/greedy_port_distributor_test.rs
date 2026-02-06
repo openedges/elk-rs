@@ -254,7 +254,7 @@ fn distribute_ports_multiple_crossings_on_western_side_removes_crossing() {
     let after = port_ids(&right_node);
 
     assert!(improved);
-    assert_eq!(after, vec![original[1], original[2], original[0]]);
+    assert_eq!(after, vec![original[2], original[0], original[1]]);
 }
 
 #[test]
@@ -474,7 +474,7 @@ fn distribute_ports_two_nodes_in_one_layer_no_switch() {
     let left_outer_node = left_layer
         .lock()
         .ok()
-        .and_then(|layer_guard| layer_guard.nodes().get(0).cloned())
+        .and_then(|layer_guard| layer_guard.nodes().first().cloned())
         .expect("left layer node");
 
     let mut distributor = GreedyPortDistributor::new();

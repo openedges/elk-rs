@@ -1,0 +1,20 @@
+algorithm: layered
+nodeLabelsPadding: 24,0,0,0
+
+node compound
+nodeProperty compound algorithm:layered
+nodeProperty compound nodeLabelsPlacement:insideTopCenter
+nodeProperty compound nodeLabelsPadding:24,0,0,0
+nodeLabel compound text:compound size:40,16
+
+node child_a parent compound [size: 36, 24]
+node child_b parent compound [size: 36, 24]
+edge e1: child_a -> child_b
+
+node nested_compound parent compound
+nodeProperty nested_compound algorithm:layered
+nodeProperty nested_compound nodeLabelsPlacement:insideTopCenter
+nodeProperty nested_compound nodeLabelsPadding:24,0,0,0
+nodeLabel nested_compound text:nested size:30,14
+
+node nested_child parent nested_compound [size: 28, 22]

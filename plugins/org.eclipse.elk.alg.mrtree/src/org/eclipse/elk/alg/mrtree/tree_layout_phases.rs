@@ -36,7 +36,7 @@ impl ILayoutPhaseFactory<TreeLayoutPhases, TGraphRef> for TreeLayoutPhases {
             TreeLayoutPhases::P1Treeification => Box::new(DFSTreeifyer::default()),
             TreeLayoutPhases::P2NodeOrdering => Box::new(NodeOrderer::default()),
             TreeLayoutPhases::P3NodePlacement => Box::new(NodePlacer::default()),
-            TreeLayoutPhases::P4EdgeRouting => Box::new(EdgeRouter::default()),
+            TreeLayoutPhases::P4EdgeRouting => Box::new(EdgeRouter),
         }
     }
 

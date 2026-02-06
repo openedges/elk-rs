@@ -1293,6 +1293,7 @@ fn register_consider_model_order_options(registry: &mut dyn LayoutMetaDataRegist
     );
 }
 
+#[allow(clippy::too_many_arguments)]
 fn register_option<T: Clone + Send + Sync + 'static>(
     registry: &mut dyn LayoutMetaDataRegistry,
     property: &'static LazyLock<Property<T>>,

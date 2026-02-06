@@ -7,8 +7,9 @@ use crate::org::eclipse::elk::alg::spore::graph::Graph;
 use crate::org::eclipse::elk::alg::spore::p1structure::DelaunayTriangulationPhase;
 use crate::org::eclipse::elk::alg::spore::spore_phases::SPOrEPhases;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum StructureExtractionStrategy {
+    #[default]
     DelaunayTriangulation,
 }
 
@@ -17,12 +18,6 @@ impl StructureExtractionStrategy {
         match self {
             StructureExtractionStrategy::DelaunayTriangulation => 0,
         }
-    }
-}
-
-impl Default for StructureExtractionStrategy {
-    fn default() -> Self {
-        StructureExtractionStrategy::DelaunayTriangulation
     }
 }
 

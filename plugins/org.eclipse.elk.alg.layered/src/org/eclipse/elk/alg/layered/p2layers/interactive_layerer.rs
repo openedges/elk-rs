@@ -41,9 +41,9 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveLayerer {
         }
 
         let graph_ref = nodes
-            .get(0)
+            .first()
             .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.graph()))
-            .unwrap_or_else(LGraph::new);
+            .unwrap_or_default();
 
         let mut current_spans: Vec<LayerSpan> = Vec::new();
         for node in &nodes {
@@ -93,13 +93,11 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveLayerer {
             }
         }
 
-        let mut next_index = 0;
-        for span in current_spans {
+        for (next_index, span) in current_spans.into_iter().enumerate() {
             let layer = Layer::new(&graph_ref);
             if let Ok(mut layer_guard) = layer.lock() {
-                layer_guard.graph_element().id = next_index;
+                layer_guard.graph_element().id = next_index as i32;
             }
-            next_index += 1;
             graph.layers_mut().push(layer.clone());
             for node in span.nodes {
                 LNode::set_layer(&node, Some(layer.clone()));

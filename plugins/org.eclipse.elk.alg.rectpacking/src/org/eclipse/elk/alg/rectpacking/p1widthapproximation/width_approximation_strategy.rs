@@ -8,16 +8,11 @@ use crate::org::eclipse::elk::alg::rectpacking::rect_packing_layout_phases::Rect
 
 use super::{GreedyWidthApproximator, TargetWidthWidthApproximator};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]
 pub enum WidthApproximationStrategy {
+    #[default]
     Greedy,
     TargetWidth,
-}
-
-impl Default for WidthApproximationStrategy {
-    fn default() -> Self {
-        WidthApproximationStrategy::Greedy
-    }
 }
 
 impl WidthApproximationStrategy {

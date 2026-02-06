@@ -1,0 +1,6 @@
+algorithm: layered
+
+node outer [size: 40, 40]
+nodeProperty outer algorithm:layered
+
+node inner parent outer [size: 40, 20]

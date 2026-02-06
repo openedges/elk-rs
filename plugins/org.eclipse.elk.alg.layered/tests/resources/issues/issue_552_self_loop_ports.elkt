@@ -1,0 +1,6 @@
+algorithm: layered
+
+node n1 portConstraints:fixedSide [size: 80, 60]
+port p_west of n1 side:west size:10,10
+port p_east of n1 side:east size:10,10
+edge self_loop: p_west -> p_east

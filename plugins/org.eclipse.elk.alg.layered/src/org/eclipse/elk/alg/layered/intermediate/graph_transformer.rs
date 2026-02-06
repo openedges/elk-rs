@@ -655,7 +655,7 @@ impl GraphTransformer {
     fn transpose_properties(&self, node: &mut crate::org::eclipse::elk::alg::layered::graph::LNode) {
         let min_size = node
             .get_property(LayeredOptions::NODE_SIZE_MINIMUM)
-            .unwrap_or_else(KVector::new);
+            .unwrap_or_default();
         node.set_property(
             LayeredOptions::NODE_SIZE_MINIMUM,
             Some(KVector::with_values(min_size.y, min_size.x)),

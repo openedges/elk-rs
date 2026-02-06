@@ -1,0 +1,17 @@
+algorithm: layered
+direction: right
+
+node n_source {
+  port p_source side:east size:8,8
+}
+
+node n_target {
+  port p_target side:west size:8,8
+}
+
+edge e_chain: p_source -> p_target {
+  section s0 -> s1,s2 -> s3 [ outgoingShape:p_source incomingShape:p_target source:10,10 target:40,20 bend:20,12|30,16 ]
+  section s1 [ sourcePoint:40,20 targetPoint:60,20 ]
+  section s2 [ start:40,24 end:60,24 ]
+  section s3 -> s0 [ outgoing:p_source incoming:p_target start:70,22 end:85,22 ]
+}

@@ -10,6 +10,7 @@ use super::{FEdgeRef, FParticle};
 
 pub type FLabelRef = Arc<Mutex<FLabel>>;
 
+#[derive(Default)]
 pub struct FLabel {
     particle: FParticle,
     edge: Option<Weak<Mutex<super::FEdge>>>,
@@ -147,19 +148,9 @@ impl fmt::Display for FLabel {
         if let Some(edge) = edge {
             let edge_guard = edge.lock().ok();
             if let Some(edge_guard) = edge_guard {
-                return write!(f, "l[{}]", edge_guard.to_string());
+                return write!(f, "l[{}]", edge_guard);
             }
         }
         write!(f, "l_{:p}", self)
-    }
-}
-
-impl Default for FLabel {
-    fn default() -> Self {
-        FLabel {
-            particle: FParticle::new(),
-            edge: None,
-            text: None,
-        }
     }
 }

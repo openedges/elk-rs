@@ -130,10 +130,9 @@ impl LNode {
         }
 
         if let Some(current_layer) = current_layer {
-            current_layer
-                .lock()
-                .ok()
-                .map(|mut layer| remove_arc(layer.nodes_mut(), node));
+            if let Ok(mut layer) = current_layer.lock() {
+                remove_arc(layer.nodes_mut(), node);
+            }
         }
 
         {
@@ -143,10 +142,9 @@ impl LNode {
         }
 
         if let Some(layer) = layer {
-            layer
-                .lock()
-                .ok()
-                .map(|mut layer| layer.nodes_mut().push(node.clone()));
+            if let Ok(mut layer_guard) = layer.lock() {
+                layer_guard.nodes_mut().push(node.clone());
+            }
         }
     }
 
@@ -160,10 +158,9 @@ impl LNode {
 
         let current_layer = node.lock().ok().and_then(|node| node.layer());
         if let Some(current_layer) = current_layer {
-            current_layer
-                .lock()
-                .ok()
-                .map(|mut layer| remove_arc(layer.nodes_mut(), node));
+            if let Ok(mut layer) = current_layer.lock() {
+                remove_arc(layer.nodes_mut(), node);
+            }
         }
 
         {
@@ -173,12 +170,12 @@ impl LNode {
         }
 
         if let Some(layer) = layer {
-            layer.lock().ok().map(|mut layer| {
-                if index > layer.nodes().len() {
+            if let Ok(mut layer_guard) = layer.lock() {
+                if index > layer_guard.nodes().len() {
                     panic!("index must be >= 0 and <= layer node count");
                 }
-                layer.nodes_mut().insert(index, node.clone());
-            });
+                layer_guard.nodes_mut().insert(index, node.clone());
+            }
         }
     }
 
@@ -409,7 +406,7 @@ impl LNode {
     }
 
     pub fn designation(&mut self) -> String {
-        if let Some(label) = self.labels.get(0) {
+        if let Some(label) = self.labels.first() {
             if let Ok(label_guard) = label.lock() {
                 if !label_guard.text().is_empty() {
                     return label_guard.text().to_owned();
@@ -443,6 +440,7 @@ impl LNode {
         })
     }
 
+    #[allow(clippy::inherent_to_string)]
     pub fn to_string(&mut self) -> String {
         let mut result = String::new();
         result.push('n');

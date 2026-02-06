@@ -8,6 +8,7 @@ use super::{FEdgeRef, FParticle};
 
 pub type FBendpointRef = Arc<Mutex<FBendpoint>>;
 
+#[derive(Default)]
 pub struct FBendpoint {
     particle: FParticle,
     edge: Option<Weak<Mutex<super::FEdge>>>,
@@ -81,18 +82,9 @@ impl fmt::Display for FBendpoint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(edge) = self.edge() {
             if let Ok(edge_guard) = edge.lock() {
-                return write!(f, "b[{}]", edge_guard.to_string());
+                return write!(f, "b[{}]", edge_guard);
             }
         }
         write!(f, "b_{:p}", self)
-    }
-}
-
-impl Default for FBendpoint {
-    fn default() -> Self {
-        FBendpoint {
-            particle: FParticle::new(),
-            edge: None,
-        }
     }
 }

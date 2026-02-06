@@ -1,0 +1,13 @@
+algorithm: layered
+direction: right
+nodePlacementStrategy: networkSimplex
+
+node n1 [size: 30, 20]
+node n2 [size: 30, 20]
+node n3 [size: 30, 20]
+node n4 [size: 30, 20]
+
+edge e1: n1 -> n3
+edge e2: n1 -> n4
+edge e3: n2 -> n3
+edge e4: n2 -> n4

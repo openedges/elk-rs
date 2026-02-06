@@ -27,16 +27,13 @@ impl Calculations {
                 let mut rect_mut = placed_rect.borrow_mut();
                 rect_mut.connectable().shape().y() + rect_mut.connectable().shape().height()
             };
-            if Self::vertical_order_constraint(placed_rect, x, node_node_spacing) {
-                if closest_upper_neighbor.is_none() {
-                    closest_upper_neighbor = Some(placed_rect.clone());
-                    closest_neighbor_bottom_border = placed_rect_bottom_border;
-                } else if last_placed_y - placed_rect_bottom_border
-                    < last_placed_y - closest_neighbor_bottom_border
-                {
-                    closest_upper_neighbor = Some(placed_rect.clone());
-                    closest_neighbor_bottom_border = placed_rect_bottom_border;
-                }
+            if Self::vertical_order_constraint(placed_rect, x, node_node_spacing)
+                && (closest_upper_neighbor.is_none()
+                    || last_placed_y - placed_rect_bottom_border
+                        < last_placed_y - closest_neighbor_bottom_border)
+            {
+                closest_upper_neighbor = Some(placed_rect.clone());
+                closest_neighbor_bottom_border = placed_rect_bottom_border;
             }
         }
 
@@ -61,16 +58,13 @@ impl Calculations {
                 let mut rect_mut = placed_rect.borrow_mut();
                 rect_mut.connectable().shape().x() + rect_mut.connectable().shape().width()
             };
-            if Self::horizontal_order_constraint(placed_rect, y, node_node_spacing) {
-                if closest_left_neighbor.is_none() {
-                    closest_left_neighbor = Some(placed_rect.clone());
-                    closest_neighbor_right_border = placed_rect_right_border;
-                } else if last_placed_x - placed_rect_right_border
-                    < last_placed_x - closest_neighbor_right_border
-                {
-                    closest_left_neighbor = Some(placed_rect.clone());
-                    closest_neighbor_right_border = placed_rect_right_border;
-                }
+            if Self::horizontal_order_constraint(placed_rect, y, node_node_spacing)
+                && (closest_left_neighbor.is_none()
+                    || last_placed_x - placed_rect_right_border
+                        < last_placed_x - closest_neighbor_right_border)
+            {
+                closest_left_neighbor = Some(placed_rect.clone());
+                closest_neighbor_right_border = placed_rect_right_border;
             }
         }
 

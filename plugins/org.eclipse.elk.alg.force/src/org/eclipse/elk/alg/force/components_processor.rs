@@ -35,7 +35,7 @@ impl ComponentsProcessor {
 
             let mut component = FGraph::new();
             component.copy_properties(graph.properties());
-            self.dfs(node, None, &mut component, &mut visited, &incidence);
+            Self::dfs(node, None, &mut component, &mut visited, &incidence);
             components.push(component);
         }
 
@@ -114,10 +114,10 @@ impl ComponentsProcessor {
                 let mut props = graph1.properties().clone();
                 let up = props
                     .get_property(InternalProperties::BB_UPLEFT)
-                    .unwrap_or(KVector::new());
+                    .unwrap_or_default();
                 let low = props
                     .get_property(InternalProperties::BB_LOWRIGHT)
-                    .unwrap_or(KVector::new());
+                    .unwrap_or_default();
                 let mut size = KVector::from_vector(&low);
                 size.sub(&up);
                 size
@@ -126,10 +126,10 @@ impl ComponentsProcessor {
                 let mut props = graph2.properties().clone();
                 let up = props
                     .get_property(InternalProperties::BB_UPLEFT)
-                    .unwrap_or(KVector::new());
+                    .unwrap_or_default();
                 let low = props
                     .get_property(InternalProperties::BB_LOWRIGHT)
-                    .unwrap_or(KVector::new());
+                    .unwrap_or_default();
                 let mut size = KVector::from_vector(&low);
                 size.sub(&up);
                 size
@@ -215,7 +215,6 @@ impl ComponentsProcessor {
     }
 
     fn dfs(
-        &self,
         node: &FNodeRef,
         last: Option<&FNodeRef>,
         component: &mut FGraph,
@@ -236,7 +235,7 @@ impl ComponentsProcessor {
                 let Some(edge_guard) = edge_guard else { continue };
                 let source = edge_guard.source();
                 let target = edge_guard.target();
-                let labels: Vec<FLabelRef> = edge_guard.labels().iter().cloned().collect();
+                let labels: Vec<FLabelRef> = edge_guard.labels().to_vec();
                 (source, target, labels)
             };
 
@@ -250,12 +249,12 @@ impl ComponentsProcessor {
 
             if let Some(source) = source.as_ref() {
                 if !Arc::ptr_eq(source, node) {
-                    self.dfs(source, Some(node), component, visited, incidence);
+                    Self::dfs(source, Some(node), component, visited, incidence);
                 }
             }
             if let Some(target) = target.as_ref() {
                 if !Arc::ptr_eq(target, node) {
-                    self.dfs(target, Some(node), component, visited, incidence);
+                    Self::dfs(target, Some(node), component, visited, incidence);
                 }
             }
             component.edges_mut().push(edge.clone());
@@ -267,10 +266,10 @@ impl ComponentsProcessor {
         let mut props = graph.properties().clone();
         let up = props
             .get_property(InternalProperties::BB_UPLEFT)
-            .unwrap_or(KVector::new());
+            .unwrap_or_default();
         let low = props
             .get_property(InternalProperties::BB_LOWRIGHT)
-            .unwrap_or(KVector::new());
+            .unwrap_or_default();
         let mut size = KVector::from_vector(&low);
         size.sub(&up);
         size
@@ -281,7 +280,7 @@ impl ComponentsProcessor {
             let mut props = source.properties().clone();
             let up = props
                 .get_property(InternalProperties::BB_UPLEFT)
-                .unwrap_or(KVector::new());
+                .unwrap_or_default();
             let mut vec = KVector::with_values(offset_x, offset_y);
             vec.sub(&up);
             vec

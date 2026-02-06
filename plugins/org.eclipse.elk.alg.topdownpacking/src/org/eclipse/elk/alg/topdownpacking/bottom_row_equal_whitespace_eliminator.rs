@@ -62,8 +62,8 @@ impl ILayoutPhase<TopdownPackingPhases, GridElkNode> for BottomRowEqualWhitespac
                 let extra_space = layout_graph.width() - (right_border + padding.right);
                 let extra_space_per_node = extra_space / (last_index as f64 + 1.0);
                 let mut accumulated_shift = 0.0;
-                for col_index in 0..=last_index {
-                    if let Some(node) = row[col_index].clone() {
+                for item in row.iter().take(last_index + 1) {
+                    if let Some(node) = item.clone() {
                         set_node_x(&node, node_x(&node) + accumulated_shift);
                         set_node_width(&node, node_width(&node) + extra_space_per_node);
                     }
@@ -73,13 +73,7 @@ impl ILayoutPhase<TopdownPackingPhases, GridElkNode> for BottomRowEqualWhitespac
         }
 
         let col = layout_graph.get_column(0);
-        let mut last: Option<ElkNodeRef> = None;
-        for item in col.iter().rev() {
-            if let Some(node) = item {
-                last = Some(node.clone());
-                break;
-            }
-        }
+        let last: Option<ElkNodeRef> = col.iter().rev().flatten().next().cloned();
         let Some(last_node) = last else {
             progress_monitor.log_graph(layout_graph.node(), "Graph after whitespace elimination");
             progress_monitor.done();

@@ -1,0 +1,9 @@
+algorithm: layered
+edgeRouting: orthogonal
+
+node source [size: 30, 30]
+node target_a [size: 30, 30]
+node target_b [size: 30, 30]
+
+edge e1: source -> target_a
+edge e2: source -> target_b

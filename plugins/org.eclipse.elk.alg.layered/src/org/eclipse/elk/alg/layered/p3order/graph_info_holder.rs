@@ -68,7 +68,7 @@ impl GraphInfoHolder {
             .lock()
             .ok()
             .and_then(|mut graph_guard| graph_guard.get_property(InternalProperties::RANDOM))
-            .unwrap_or_else(Random::default);
+            .unwrap_or_default();
         let force_model_order = graph
             .lock()
             .ok()
@@ -174,7 +174,7 @@ impl GraphInfoHolder {
         }
         let random = graph
             .get_property(InternalProperties::RANDOM)
-            .unwrap_or_else(Random::default);
+            .unwrap_or_default();
         let force_model_order = graph
             .get_property(LayeredOptions::CROSSING_MINIMIZATION_FORCE_NODE_MODEL_ORDER)
             .unwrap_or(false);
@@ -222,6 +222,7 @@ impl GraphInfoHolder {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn build(
         graph: LGraphRef,
         cross_min_type: CrossMinType,
@@ -327,11 +328,12 @@ impl GraphInfoHolder {
             eprintln!("crossmin: graph_info_holder init holder done");
         }
 
-        let mut initializables: Vec<&mut dyn IInitializable> = Vec::new();
-        initializables.push(&mut holder.crossings_counter);
-        initializables.push(&mut layer_sweep_type_decider);
-        initializables.push(&mut *holder.port_distributor);
-        initializables.push(&mut *holder.cross_minimizer);
+        let mut initializables: Vec<&mut dyn IInitializable> = vec![
+            &mut holder.crossings_counter,
+            &mut layer_sweep_type_decider,
+            &mut *holder.port_distributor,
+            &mut *holder.cross_minimizer,
+        ];
 
         init_initializables(&mut initializables, &order);
         if trace {

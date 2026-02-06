@@ -159,7 +159,7 @@ impl LinearSegmentsNodePlacer {
                 if node_id(&node) < 0 {
                     let mut segment = LinearSegment::new(next_id);
                     next_id += 1;
-                    self.fill_segment(&node, &mut segment);
+                    Self::fill_segment(&node, &mut segment);
                     segment_list.push(segment);
                 }
             }
@@ -315,7 +315,7 @@ impl LinearSegmentsNodePlacer {
         let _ = monitor;
     }
 
-    fn fill_segment(&self, node: &LNodeRef, segment: &mut LinearSegment) -> bool {
+    fn fill_segment(node: &LNodeRef, segment: &mut LinearSegment) -> bool {
         if node_id(node) >= 0 {
             return false;
         }
@@ -355,10 +355,9 @@ impl LinearSegmentsNodePlacer {
                         .unwrap_or(NodeType::Normal);
                     if layer_index(node) != layer_index(&target_node)
                         && matches!(target_type, NodeType::LongEdge | NodeType::NorthSouthPort)
+                        && Self::fill_segment(&target_node, segment)
                     {
-                        if self.fill_segment(&target_node, segment) {
-                            return true;
-                        }
+                        return true;
                     }
                 }
             }

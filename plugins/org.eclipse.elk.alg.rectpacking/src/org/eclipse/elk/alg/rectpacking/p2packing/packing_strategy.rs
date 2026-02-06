@@ -8,17 +8,12 @@ use crate::org::eclipse::elk::alg::rectpacking::rect_packing_layout_phases::Rect
 
 use super::{Compactor, NoPlacement, SimplePlacement};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]
 pub enum PackingStrategy {
+    #[default]
     Compaction,
     Simple,
     None,
-}
-
-impl Default for PackingStrategy {
-    fn default() -> Self {
-        PackingStrategy::Compaction
-    }
 }
 
 impl PackingStrategy {

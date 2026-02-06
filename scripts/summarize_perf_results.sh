@@ -156,4 +156,29 @@ write_section \
   echo "|$ts|$algo|$nodes|$edges|$iters|$warmup|$avg|$ops|$vgraph|$vopts|"' \
   5
 
+write_section \
+  "Layered Issue Scenarios" \
+  "perf/results_layered_issue_scenarios.csv" \
+  "|timestamp|scenario|iterations|warmup|elapsed_nanos|avg_ms|scenarios_per_sec|\n|---|---|---|---|---|---|---|" \
+  'line=$1
+  ts=$(echo "$line" | awk -F"," "{print \$1}")
+  scenario=$(echo "$line" | awk -F"," "{print \$2}")
+  iters=$(echo "$line" | awk -F"," "{print \$3}")
+  warmup=$(echo "$line" | awk -F"," "{print \$4}")
+  nanos=$(echo "$line" | awk -F"," "{print \$5}")
+  avg=$(echo "$line" | awk -F"," "{print \$6}")
+  throughput=$(echo "$line" | awk -F"," "{print \$7}")
+  echo "|$ts|$scenario|$iters|$warmup|$nanos|$avg|$throughput|"' \
+  "|timestamp|scenario|iterations|warmup|elapsed_nanos|avg_ms|scenarios_per_sec|\n|---|---|---|---|---|---|---|" \
+  'line=$1
+  ts=$(echo "$line" | awk -F"," "{print \$1}")
+  scenario=$(echo "$line" | awk -F"," "{print \$2}")
+  iters=$(echo "$line" | awk -F"," "{print \$3}")
+  warmup=$(echo "$line" | awk -F"," "{print \$4}")
+  nanos=$(echo "$line" | awk -F"," "{print \$5}")
+  avg=$(echo "$line" | awk -F"," "{print \$6}")
+  throughput=$(echo "$line" | awk -F"," "{print \$7}")
+  echo "|$ts|$scenario|$iters|$warmup|$nanos|$avg|$throughput|"' \
+  10
+
 echo "Wrote $OUT"

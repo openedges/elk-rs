@@ -93,6 +93,12 @@ impl PolyominoCompactor {
     }
 }
 
+impl Default for PolyominoCompactor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 fn min_perimeter_cmp<P: PolyominoLike>(a: &P, b: &P) -> Ordering {
     let half_peri_a = a.get_width() + a.get_height();
     let half_peri_b = b.get_width() + b.get_height();

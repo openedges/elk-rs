@@ -59,7 +59,7 @@ impl StretchWidthLayerer {
             set_node_id(node, rank);
         }
         self.sorted_layerless_nodes
-            .sort_by(|a, b| node_id(b).cmp(&node_id(a)));
+            .sort_by_key(|node| std::cmp::Reverse(node_id(node)));
     }
 
     fn get_rank(&self, node: &LNodeRef) -> i32 {
@@ -278,9 +278,9 @@ impl ILayoutPhase<LayeredPhases, LGraph> for StretchWidthLayerer {
 
         let graph_ref = self
             .sorted_layerless_nodes
-            .get(0)
+            .first()
             .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.graph()))
-            .unwrap_or_else(LGraph::new);
+            .unwrap_or_default();
 
         let mut current_layer = Layer::new(&graph_ref);
         graph.layers_mut().push(current_layer.clone());

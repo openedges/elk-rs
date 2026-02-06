@@ -180,14 +180,12 @@ impl BKCompactor {
     }
 
     fn add_class_edge(&mut self, source_id: usize, target_id: usize, separation: f64) {
-        if !self.sink_nodes.contains_key(&source_id) {
-            self.sink_nodes
-                .insert(source_id, ClassNode::new(source_id));
-        }
-        if !self.sink_nodes.contains_key(&target_id) {
-            self.sink_nodes
-                .insert(target_id, ClassNode::new(target_id));
-        }
+        self.sink_nodes
+            .entry(source_id)
+            .or_insert_with(|| ClassNode::new(source_id));
+        self.sink_nodes
+            .entry(target_id)
+            .or_insert_with(|| ClassNode::new(target_id));
 
         if let Some(target) = self.sink_nodes.get_mut(&target_id) {
             target.indegree += 1;

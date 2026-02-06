@@ -19,7 +19,7 @@ impl StraightLineEdgeRouter {
         StraightLineEdgeRouter
     }
 
-    fn route_edges_internal(&mut self, node: &ElkNodeRef) {
+    fn route_edges_internal(node: &ElkNodeRef) {
         for edge in ElkGraphUtil::all_outgoing_edges(node) {
             let (source_shape, target_shape) = {
                 let edge_borrow = edge.borrow();
@@ -77,7 +77,7 @@ impl StraightLineEdgeRouter {
                 section_mut.set_end_y(target_y);
             }
 
-            self.route_edges_internal(&target);
+            Self::route_edges_internal(&target);
         }
     }
 }
@@ -90,7 +90,7 @@ impl Default for StraightLineEdgeRouter {
 
 impl IRadialEdgeRouter for StraightLineEdgeRouter {
     fn route_edges(&mut self, node: &ElkNodeRef) {
-        self.route_edges_internal(node);
+        Self::route_edges_internal(node);
     }
 }
 
@@ -101,7 +101,7 @@ impl ILayoutPhase<RadialLayoutPhases, ElkNodeRef> for StraightLineEdgeRouter {
             progress_monitor.log_graph(graph, "Before");
         }
         if let Some(root) = RadialUtil::root_from_graph(graph) {
-            self.route_edges_internal(&root);
+            Self::route_edges_internal(&root);
         }
         if progress_monitor.is_logging_enabled() {
             progress_monitor.log_graph(graph, "After");

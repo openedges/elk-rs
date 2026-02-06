@@ -1,0 +1,18 @@
+algorithm: layered
+direction: right
+
+node n0 {
+  port p0 side:east
+  label "l parent": text = "parent label" size = 14,6 {
+    label "l child": text = "child \"quoted\" text" size = 24,6
+  }
+}
+
+node n1 {
+  port p1 side:west
+}
+
+edge e0: p0 -> p1 {
+  section "s 0" -> "s 1" [ outgoing:"p0" incoming:"p1" start:10,10 end:40,10 ]
+  section "s 1" [ outgoing:"p0" incoming:"p1" start:40,10 end:80,10 ]
+}

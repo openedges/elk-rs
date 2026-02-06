@@ -1,0 +1,8 @@
+algorithm: layered
+
+node a [size: 30, 20]
+node b [size: 30, 20]
+node c [size: 30, 20]
+
+edge e1: a -> b
+edge e2: b -> c

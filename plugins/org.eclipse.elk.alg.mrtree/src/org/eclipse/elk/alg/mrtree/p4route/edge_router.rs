@@ -187,7 +187,7 @@ impl EdgeRouter {
         let nodes = graph.lock().ok().map(|g| g.nodes().clone()).unwrap_or_default();
         let max_level = nodes
             .iter()
-            .map(|node| node_level(node))
+            .map(node_level)
             .max()
             .unwrap_or(0)
             + 1;
@@ -408,6 +408,7 @@ impl EdgeRouter {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn avoid_overlap_handle_cycle_inducing_edges(
         &self,
         edge: &TEdgeRef,
@@ -503,7 +504,7 @@ impl EdgeRouter {
                     target_pos.y + target_size.y + node_bendpoint_padding,
                 );
             } else {
-                if bends.len() > 0 {
+                if !bends.is_empty() {
                     let mut last = bends.get_last();
                     last.y = node_level_max(&source)
                         + node_bendpoint_padding * *in_outs.second() as f64;
@@ -656,7 +657,7 @@ impl EdgeRouter {
                                 level_max + node_bendpoint_padding,
                                 pos.y + size.y * interpolation,
                             );
-                        } else if bends.len() > 0 {
+                        } else if !bends.is_empty() {
                             let last = bends.get_last();
                             let next_x = pos.x + size.x / 2.0;
                             let next_y = pos.y + size.y / 2.0;
@@ -687,7 +688,7 @@ impl EdgeRouter {
                                 level_min - node_bendpoint_padding,
                                 pos.y + size.y * interpolation,
                             );
-                        } else if bends.len() > 0 {
+                        } else if !bends.is_empty() {
                             let last = bends.get_last();
                             let next_x = pos.x + size.x / 2.0;
                             let next_y = pos.y + size.y / 2.0;
@@ -718,7 +719,7 @@ impl EdgeRouter {
                                 pos.x + size.x * interpolation,
                                 level_max + node_bendpoint_padding,
                             );
-                        } else if bends.len() > 0 {
+                        } else if !bends.is_empty() {
                             let last = bends.get_last();
                             let next_x = pos.x + size.x / 2.0;
                             let next_y = pos.y + size.y / 2.0;
@@ -743,7 +744,7 @@ impl EdgeRouter {
                         bends.add_values(pos.x + size.x * interpolation, pos.y + size.y);
                     } else {
                         if TreeUtil::is_cycle_inducing(edge, graph) {
-                            if bends.len() > 0 {
+                            if !bends.is_empty() {
                                 bends.add_values(pos.x + size.x * interpolation, bends.get_last().y);
                             }
                         } else if pos.y - edge_end_texture_padding > level_min {
@@ -751,7 +752,7 @@ impl EdgeRouter {
                                 pos.x + size.x * interpolation,
                                 level_min - node_bendpoint_padding,
                             );
-                        } else if bends.len() > 0 {
+                        } else if !bends.is_empty() {
                             let last = bends.get_last();
                             let next_x = pos.x + size.x / 2.0;
                             let next_y = pos.y + size.y / 2.0;
@@ -806,14 +807,14 @@ fn node_pos(node: &TNodeRef) -> KVector {
     node.lock()
         .ok()
         .map(|guard| *guard.position_ref())
-        .unwrap_or_else(KVector::new)
+        .unwrap_or_default()
 }
 
 fn node_size(node: &TNodeRef) -> KVector {
     node.lock()
         .ok()
         .map(|guard| *guard.size_ref())
-        .unwrap_or_else(KVector::new)
+        .unwrap_or_default()
 }
 
 fn is_super_root(node: &TNodeRef) -> bool {
@@ -852,8 +853,8 @@ fn average_center(graph: &TGraphRef, horizontal: bool) -> f64 {
     }
     let mut sum = 0.0;
     for node in &nodes {
-        let pos = node_pos(&node);
-        let size = node_size(&node);
+        let pos = node_pos(node);
+        let size = node_size(node);
         sum += if horizontal {
             pos.y + size.y / 2.0
         } else {

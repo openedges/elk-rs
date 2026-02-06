@@ -1,3 +1,5 @@
+#![allow(clippy::mutable_key_type)]
+
 use std::collections::{HashMap, HashSet};
 
 use crate::org::eclipse::elk::alg::layered::graph::{LGraphRef, LNodeRef, LPortRef, NodeRefKey, NodeType};
@@ -11,7 +13,7 @@ pub struct ModelOrderNodeComparator {
     previous_layer: Vec<LNodeRef>,
     graph: LGraphRef,
     ordering_strategy: OrderingStrategy,
-    group_order_strategy: GroupOrderStrategy,
+    _group_order_strategy: GroupOrderStrategy,
     bigger_than: HashMap<NodeRefKey, HashSet<NodeRefKey>>,
     smaller_than: HashMap<NodeRefKey, HashSet<NodeRefKey>>,
     long_edge_node_order: LongEdgeOrderingStrategy,
@@ -35,7 +37,7 @@ impl ModelOrderNodeComparator {
             previous_layer,
             graph,
             ordering_strategy,
-            group_order_strategy,
+            _group_order_strategy: group_order_strategy,
             bigger_than: HashMap::new(),
             smaller_than: HashMap::new(),
             long_edge_node_order,
@@ -54,16 +56,16 @@ impl ModelOrderNodeComparator {
         self.visiting.insert(pair_key.clone());
         self.ensure_sets(&n1_key);
         self.ensure_sets(&n2_key);
-        if self.bigger_than.get(&n1_key).map_or(false, |set| set.contains(&n2_key)) {
+        if self.bigger_than.get(&n1_key).is_some_and(|set| set.contains(&n2_key)) {
             return self.finish_compare(&pair_key, 1);
         }
-        if self.bigger_than.get(&n2_key).map_or(false, |set| set.contains(&n1_key)) {
+        if self.bigger_than.get(&n2_key).is_some_and(|set| set.contains(&n1_key)) {
             return self.finish_compare(&pair_key, -1);
         }
-        if self.smaller_than.get(&n1_key).map_or(false, |set| set.contains(&n2_key)) {
+        if self.smaller_than.get(&n1_key).is_some_and(|set| set.contains(&n2_key)) {
             return self.finish_compare(&pair_key, -1);
         }
-        if self.smaller_than.get(&n2_key).map_or(false, |set| set.contains(&n1_key)) {
+        if self.smaller_than.get(&n2_key).is_some_and(|set| set.contains(&n1_key)) {
             return self.finish_compare(&pair_key, 1);
         }
 
@@ -194,8 +196,8 @@ impl ModelOrderNodeComparator {
     }
 
     fn ensure_sets(&mut self, key: &NodeRefKey) {
-        self.bigger_than.entry(key.clone()).or_insert_with(HashSet::new);
-        self.smaller_than.entry(key.clone()).or_insert_with(HashSet::new);
+        self.bigger_than.entry(key.clone()).or_default();
+        self.smaller_than.entry(key.clone()).or_default();
     }
 
     fn finish_compare(&mut self, key: &NodePairKey, value: i32) -> i32 {
@@ -258,7 +260,7 @@ impl ModelOrderNodeComparator {
             let edge = port
                 .lock()
                 .ok()
-                .and_then(|port_guard| port_guard.incoming_edges().get(0).cloned());
+                .and_then(|port_guard| port_guard.incoming_edges().first().cloned());
             if let Some(edge) = edge {
                 let order = edge
                     .lock()
@@ -418,7 +420,7 @@ fn first_incoming_source_port(node: &LNodeRef) -> Option<LPortRef> {
     let port = first_incoming_port(node)?;
     port.lock()
         .ok()
-        .and_then(|port_guard| port_guard.incoming_edges().get(0).cloned())
+        .and_then(|port_guard| port_guard.incoming_edges().first().cloned())
         .and_then(|edge| edge.lock().ok().and_then(|edge_guard| edge_guard.source()))
 }
 
@@ -437,7 +439,7 @@ fn first_outgoing_target_port(node: &LNodeRef) -> Option<LPortRef> {
     let port = first_outgoing_port(node)?;
     port.lock()
         .ok()
-        .and_then(|port_guard| port_guard.outgoing_edges().get(0).cloned())
+        .and_then(|port_guard| port_guard.outgoing_edges().first().cloned())
         .and_then(|edge| edge.lock().ok().and_then(|edge_guard| edge_guard.target()))
 }
 
@@ -455,7 +457,7 @@ fn first_source_port_to_previous_layer(node: &LNodeRef) -> Option<LPortRef> {
             .ok()
             .map(|port_guard| port_guard.incoming_edges().clone())
             .unwrap_or_default();
-        if let Some(edge) = incoming.get(0) {
+        if let Some(edge) = incoming.first() {
             let source_port = edge.lock().ok().and_then(|edge_guard| edge_guard.source());
             if let Some(source_port) = source_port {
                 let source_node = source_port.lock().ok().and_then(|port_guard| port_guard.node());

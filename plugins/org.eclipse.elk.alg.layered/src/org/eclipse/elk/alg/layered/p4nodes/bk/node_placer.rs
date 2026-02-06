@@ -182,13 +182,12 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
 
         if chosen_layout.is_none() {
             for bal in layouts.iter() {
-                if check_order_constraint(bal, &layers, monitor) {
-                    if chosen_layout
+                if check_order_constraint(bal, &layers, monitor)
+                    && chosen_layout
                         .map(|chosen| chosen.layout_size() > bal.layout_size())
                         .unwrap_or(true)
-                    {
-                        chosen_layout = Some(bal);
-                    }
+                {
+                    chosen_layout = Some(bal);
                 }
             }
         }
@@ -198,7 +197,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
 
         let chosen_layout = chosen_layout.unwrap_or_else(|| {
             layouts
-                .get(0)
+                .first()
                 .expect("At least one BK layout must exist")
         });
 
@@ -399,7 +398,7 @@ fn create_balanced_layout(
     nodes_by_id: &[LNodeRef],
 ) -> BKAlignedLayout {
     let spacings = layouts
-        .get(0)
+        .first()
         .map(|layout| layout.spacings.clone())
         .expect("At least one BK layout required for balanced layout");
     let mut balanced = BKAlignedLayout::new(layers.to_vec(), nodes_by_id.to_vec(), spacings, None, None);

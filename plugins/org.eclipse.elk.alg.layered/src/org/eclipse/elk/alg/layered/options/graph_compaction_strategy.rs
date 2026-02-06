@@ -1,15 +1,10 @@
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum GraphCompactionStrategy {
+    #[default]
     None,
     Left,
     Right,
     LeftRightConstraintLocking,
     LeftRightConnectionLocking,
     EdgeLength,
-}
-
-impl Default for GraphCompactionStrategy {
-    fn default() -> Self {
-        GraphCompactionStrategy::None
-    }
 }

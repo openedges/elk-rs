@@ -431,7 +431,7 @@ impl LayoutMetaDataService {
         layered_data
             .set_name("ELK Layered")
             .set_description("Placeholder layered layout provider.")
-            .set_category_id(Some("layered"))
+            .set_category_id(Some("org.eclipse.elk.layered"))
             .set_preview_image_path(Some("images/layered_layout.png"));
         layered_data
             .add_supported_feature(GraphFeature::SelfLoops)

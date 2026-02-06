@@ -1,0 +1,14 @@
+algorithm: layered
+direction: right
+
+node "node a" {
+  port "port, out" side:east
+}
+
+node "node b" {
+  port "port in" side:west
+}
+
+edge "edge e": "port, out" -> "port in" {
+  layout [ source:10,10 target:70,12 bend:40,11 ]
+}

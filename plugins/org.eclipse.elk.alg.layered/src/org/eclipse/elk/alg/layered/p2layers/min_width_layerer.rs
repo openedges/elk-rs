@@ -106,16 +106,17 @@ impl MinWidthLayerer {
                 real_width += self.norm_size[node_index];
             }
 
-            let should_go_up = if selected_node.is_none() {
-                true
-            } else if unplaced_nodes.is_empty() {
-                true
+            let should_go_up = if let Some(current_node) = selected_node.as_ref() {
+                if unplaced_nodes.is_empty() {
+                    true
+                } else {
+                    let node_index = node_id_usize(current_node);
+                    (width_current >= ubw_consider_size
+                        && self.norm_size[node_index] > (out_deg as f64) * self.dummy_size)
+                        || width_up >= (compensator as f64) * ubw_consider_size
+                }
             } else {
-                let current_node = selected_node.as_ref().unwrap();
-                let node_index = node_id_usize(current_node);
-                (width_current >= ubw_consider_size
-                    && self.norm_size[node_index] > (out_deg as f64) * self.dummy_size)
-                    || width_up >= (compensator as f64) * ubw_consider_size
+                true
             };
 
             if should_go_up {
@@ -249,9 +250,9 @@ impl ILayoutPhase<LayeredPhases, LGraph> for MinWidthLayerer {
         }
 
         let graph_ref = not_inserted
-            .get(0)
+            .first()
             .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.graph()))
-            .unwrap_or_else(LGraph::new);
+            .unwrap_or_default();
 
         if let Some(candidate_layering) = candidate_layering {
             for layer_list in candidate_layering {

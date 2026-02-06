@@ -39,7 +39,7 @@ fn register_algorithm(registry: &mut dyn LayoutMetaDataRegistry) {
             "distribution. Currently the original Eades model and the Fruchterman - Reingold model are ",
             "supported."
         ))
-        .set_category_id(Some("force"))
+        .set_category_id(Some("org.eclipse.elk.force"))
         .set_preview_image_path(Some("images/force_layout.png"));
     data.add_supported_feature(GraphFeature::MultiEdges);
     data.add_supported_feature(GraphFeature::EdgeLabels);
@@ -145,6 +145,7 @@ fn register_supports(registry: &mut dyn LayoutMetaDataRegistry) {
     );
 }
 
+#[allow(clippy::too_many_arguments)]
 fn register_option<T: Clone + Send + Sync + 'static>(
     registry: &mut dyn LayoutMetaDataRegistry,
     property: &'static LazyLock<Property<T>>,

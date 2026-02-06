@@ -7,17 +7,12 @@ use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 use crate::org::eclipse::elk::alg::force::graph::{FEdgeRef, FGraph, FNodeRef};
 use crate::org::eclipse::elk::alg::force::options::StressOptions;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]
 pub enum Dimension {
+    #[default]
     XY,
     X,
     Y,
-}
-
-impl Default for Dimension {
-    fn default() -> Self {
-        Dimension::XY
-    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -178,9 +173,12 @@ impl StressMajorization {
         let mut heap = BinaryHeap::new();
         let mut visited = vec![false; n];
 
-        for i in 0..n {
-            dist[i] = if i == source_id { 0.0 } else { f64::INFINITY };
-            heap.push(State { cost: dist[i], position: i });
+        for (i, d) in dist.iter_mut().enumerate().take(n) {
+            *d = if i == source_id { 0.0 } else { f64::INFINITY };
+            heap.push(State {
+                cost: *d,
+                position: i,
+            });
         }
 
         while let Some(State { cost, position }) = heap.pop() {

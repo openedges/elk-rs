@@ -88,7 +88,7 @@ impl ILayoutPhase<TreeLayoutPhases, TGraphRef> for NodeOrderer {
 impl NodeOrderer {
     fn order_level_fan_descendants(
         &self,
-        current_level: &mut Vec<TNodeRef>,
+        current_level: &mut [TNodeRef],
         mut progress_monitor: Box<dyn IElkProgressMonitor>,
     ) {
         progress_monitor.begin("Processor arrange level", 1.0);
@@ -205,7 +205,7 @@ impl NodeOrderer {
 
     fn order_level_constraint(
         &self,
-        current_level: &mut Vec<TNodeRef>,
+        current_level: &mut [TNodeRef],
         mut progress_monitor: Box<dyn IElkProgressMonitor>,
     ) {
         progress_monitor.begin("Processor arrange level", 1.0);

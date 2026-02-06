@@ -1,10 +1,5 @@
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum CompactionStrategy {
+    #[default]
     Polyomino,
-}
-
-impl Default for CompactionStrategy {
-    fn default() -> Self {
-        CompactionStrategy::Polyomino
-    }
 }

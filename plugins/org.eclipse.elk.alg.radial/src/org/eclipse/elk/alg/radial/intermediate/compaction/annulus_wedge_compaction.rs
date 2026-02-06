@@ -32,7 +32,6 @@ impl AnnulusWedgeCompaction {
     fn contract_wedge(
         &mut self,
         root: &ElkNodeRef,
-        wedge_parent: &ElkNodeRef,
         predecessors: &[ElkNodeRef],
         radial_predecessor: &ElkNodeRef,
         radial_successor: &ElkNodeRef,
@@ -67,7 +66,6 @@ impl AnnulusWedgeCompaction {
             }
             self.contract_wedge(
                 root,
-                wedge_parent,
                 &current_radius_nodes,
                 radial_predecessor,
                 radial_successor,
@@ -230,7 +228,6 @@ impl IRadialCompactor for AnnulusWedgeCompaction {
                 let current_radius_nodes = vec![wedge_parent.clone()];
                 self.contract_wedge(
                     &root,
-                    &wedge_parent,
                     &root_list,
                     &left_parent,
                     &right_parent,

@@ -838,7 +838,7 @@ fn given_polyline_routing_when_more_than_one_edge_into_ns_node_counts_these_too(
     let middle_node_port = middle_nodes[1]
         .lock()
         .ok()
-        .and_then(|node_guard| node_guard.ports().get(0).cloned())
+        .and_then(|node_guard| node_guard.ports().first().cloned())
         .expect("north/south dummy port");
     east_west_edge_from_port(&middle_node_port, &right_nodes[1]);
 
@@ -873,7 +873,7 @@ fn given_multiple_edges_in_one_ns_node_counts_crossings() {
     let origin_port = middle_nodes[2]
         .lock()
         .ok()
-        .and_then(|node_guard| node_guard.ports().get(0).cloned())
+        .and_then(|node_guard| node_guard.ports().first().cloned())
         .expect("origin port");
     if let Ok(mut dummy_port_guard) = dummy_node_port.lock() {
         dummy_port_guard.set_property(InternalProperties::ORIGIN, Some(Origin::LPort(origin_port)));
@@ -908,7 +908,7 @@ fn edges_in_both_directions() {
     let origin_port = middle_nodes[2]
         .lock()
         .ok()
-        .and_then(|node_guard| node_guard.ports().get(0).cloned())
+        .and_then(|node_guard| node_guard.ports().first().cloned())
         .expect("origin port");
     if let Ok(mut dummy_port_guard) = dummy_node_port.lock() {
         dummy_port_guard.set_property(InternalProperties::ORIGIN, Some(Origin::LPort(origin_port)));
@@ -956,7 +956,7 @@ fn multiple_edges_in_both_directions_ns_node() {
     let origin_port = middle_nodes[2]
         .lock()
         .ok()
-        .and_then(|node_guard| node_guard.ports().get(0).cloned())
+        .and_then(|node_guard| node_guard.ports().first().cloned())
         .expect("origin port");
     if let Ok(mut dummy_port_guard) = dummy_node_port.lock() {
         dummy_port_guard.set_property(InternalProperties::ORIGIN, Some(Origin::LPort(origin_port)));

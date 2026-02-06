@@ -83,7 +83,7 @@ impl OrthogonalRoutingGenerator {
         let _ = &self.debug_prefix;
         let random = layered_graph
             .get_property(InternalProperties::RANDOM)
-            .unwrap_or_else(Random::default);
+            .unwrap_or_default();
         let mut random = random;
         if critical_dependency_count >= 2 {
             self.break_critical_cycles(&mut edge_segments, &mut random);

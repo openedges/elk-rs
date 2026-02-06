@@ -1,0 +1,14 @@
+algorithm: layered
+
+node parent [size: 100, 80]
+nodeProperty parent algorithm:layered
+node child_inside parent parent [size: 40, 30]
+node sibling_outside [size: 40, 30]
+
+port p_parent of parent
+port p_child of child_inside
+port p_sibling of sibling_outside
+
+edge inside: p_child -> p_parent
+edge cross: p_parent -> p_sibling
+edge node_level: parent -> sibling_outside

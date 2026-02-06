@@ -64,7 +64,6 @@ impl VertiFlexLayoutProvider {
     }
 
     fn check_vertical_constraint_validity(
-        &self,
         root: &ElkNodeRef,
         current_min_constraint: f64,
         node_node_spacing: f64,
@@ -76,8 +75,7 @@ impl VertiFlexLayoutProvider {
             }
         }
 
-        let margins = node_get_property(root, CoreOptions::MARGINS)
-            .unwrap_or_else(org_eclipse_elk_core::org::eclipse::elk::core::math::ElkMargin::new);
+        let margins = node_get_property(root, CoreOptions::MARGINS).unwrap_or_default();
         let new_min_constraint =
             root_height + node_height(root) + margins.bottom.max(node_node_spacing);
 
@@ -87,7 +85,7 @@ impl VertiFlexLayoutProvider {
                 let child_constraint =
                     node_get_property(&child, VertiFlexOptions::VERTICAL_CONSTRAINT).unwrap_or(0.0);
                 let child_margin = node_get_property(&child, CoreOptions::MARGINS)
-                    .unwrap_or_else(org_eclipse_elk_core::org::eclipse::elk::core::math::ElkMargin::new);
+                    .unwrap_or_default();
                 if new_min_constraint > child_constraint + child_margin.top {
                     let identifier = node_identifier(&child);
                     let message = format!(
@@ -101,13 +99,13 @@ impl VertiFlexLayoutProvider {
 
         for edge in ElkGraphUtil::all_outgoing_edges(root) {
             let Some(child) = edge_target_node(&edge) else { continue; };
-            self.check_vertical_constraint_validity(&child, new_min_constraint, node_node_spacing);
+            Self::check_vertical_constraint_validity(&child, new_min_constraint, node_node_spacing);
         }
     }
 
     fn set_graph_size(&self, graph: &ElkNodeRef) {
         let padding = node_get_property(graph, CoreOptions::PADDING)
-            .unwrap_or_else(org_eclipse_elk_core::org::eclipse::elk::core::math::ElkPadding::new);
+            .unwrap_or_default();
 
         let children: Vec<ElkNodeRef> = {
             let mut graph_mut = graph.borrow_mut();
@@ -117,7 +115,7 @@ impl VertiFlexLayoutProvider {
         let mut max_y: f64 = 0.0;
         for node in children {
             let margins = node_get_property(&node, CoreOptions::MARGINS)
-                .unwrap_or_else(org_eclipse_elk_core::org::eclipse::elk::core::math::ElkMargin::new);
+                .unwrap_or_default();
             let x = node_x(&node);
             let y = node_y(&node);
             let width = node_width(&node);
@@ -179,7 +177,7 @@ impl IGraphLayoutEngine for VertiFlexLayoutProvider {
             shape.set_y(0.0);
         }
 
-        self.check_vertical_constraint_validity(&root, 0.0, node_node_spacing);
+        Self::check_vertical_constraint_validity(&root, 0.0, node_node_spacing);
 
         for (index, node) in children.iter().enumerate() {
             node_set_property(

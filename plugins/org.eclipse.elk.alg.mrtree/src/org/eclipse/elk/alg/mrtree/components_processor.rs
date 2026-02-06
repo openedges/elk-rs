@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
-use org_eclipse_elk_core::org::eclipse::elk::core::math::{ElkPadding, KVector};
+use org_eclipse_elk_core::org::eclipse::elk::core::math::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::NullElkProgressMonitor;
 
 use crate::org::eclipse::elk::alg::mrtree::graph::{TEdgeRef, TGraph, TGraphRef};
@@ -210,10 +210,10 @@ impl ComponentsProcessor {
                 if let Ok(mut graph_guard) = graph.lock() {
                     let size = graph_guard
                         .get_property(InternalProperties::BB_LOWRIGHT)
-                        .unwrap_or_else(KVector::new);
+                        .unwrap_or_default();
                     let min = graph_guard
                         .get_property(InternalProperties::BB_UPLEFT)
-                        .unwrap_or_else(KVector::new);
+                        .unwrap_or_default();
                     let mut diff = size;
                     diff.sub(&min);
                     max_row_width = max_row_width.max(diff.x);
@@ -241,14 +241,14 @@ impl ComponentsProcessor {
             let (size, min) = if let Ok(mut graph_guard) = graph.lock() {
                 let mut size = graph_guard
                     .get_property(InternalProperties::BB_LOWRIGHT)
-                    .unwrap_or_else(KVector::new);
+                    .unwrap_or_default();
                 let min = graph_guard
                     .get_property(InternalProperties::BB_UPLEFT)
-                    .unwrap_or_else(KVector::new);
+                    .unwrap_or_default();
                 size.sub(&min);
                 (size, min)
             } else {
-                (KVector::new(), KVector::new())
+                (KVector::default(), KVector::default())
             };
             if xpos + size.x > max_row_width {
                 xpos = 0.0;
@@ -260,8 +260,8 @@ impl ComponentsProcessor {
             xpos += size.x + spacing;
         }
 
-        let mut bounds_processor = GraphBoundsProcessor::default();
-        let mut monitor = NullElkProgressMonitor::default();
+        let mut bounds_processor = GraphBoundsProcessor;
+        let mut monitor = NullElkProgressMonitor;
         let mut result_ref = result.clone();
         bounds_processor.process(&mut result_ref, &mut monitor);
         self.apply_padding_and_normalize_positions(&result);
@@ -274,7 +274,7 @@ impl ComponentsProcessor {
             .lock()
             .ok()
             .and_then(|mut g| g.get_property(MrTreeOptions::PADDING))
-            .unwrap_or_else(ElkPadding::new);
+            .unwrap_or_default();
 
         if let Ok(mut graph_guard) = graph.lock() {
             graph_guard.set_property(
@@ -309,7 +309,7 @@ impl ComponentsProcessor {
             let edges = source_guard.edges().clone();
             let source_min = source_guard
                 .get_property(InternalProperties::BB_UPLEFT)
-                .unwrap_or_else(KVector::new);
+                .unwrap_or_default();
             (nodes, edges, source_min)
         };
 
@@ -338,6 +338,12 @@ impl ComponentsProcessor {
                 dest_guard.edges_mut().push(edge);
             }
         }
+    }
+}
+
+impl Default for ComponentsProcessor {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

@@ -10,11 +10,8 @@ impl VertiFlexUtil {
             graph_mut.children().iter().cloned().collect()
         };
 
-        for child in children {
-            if ElkGraphUtil::all_incoming_edges(&child).is_empty() {
-                return Some(child);
-            }
-        }
-        None
+        children
+            .into_iter()
+            .find(|child| ElkGraphUtil::all_incoming_edges(child).is_empty())
     }
 }

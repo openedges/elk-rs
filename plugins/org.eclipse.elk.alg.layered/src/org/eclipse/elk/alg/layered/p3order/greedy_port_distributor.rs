@@ -211,8 +211,8 @@ impl GreedyPortDistributor {
     fn switch_ports(
         &mut self,
         node: &LNodeRef,
-        ports: &mut Vec<LPortRef>,
-        indices: &mut Vec<usize>,
+        ports: &mut [LPortRef],
+        indices: &mut [usize],
         top_index: usize,
         bottom_index: usize,
     ) {
@@ -236,6 +236,12 @@ impl GreedyPortDistributor {
                 }
             }
         }
+    }
+}
+
+impl Default for GreedyPortDistributor {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

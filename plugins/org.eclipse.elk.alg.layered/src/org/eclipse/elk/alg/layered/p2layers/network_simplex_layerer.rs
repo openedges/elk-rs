@@ -220,7 +220,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for NetworkSimplexLayerer {
                         .lock()
                         .ok()
                         .and_then(|node_guard| node_guard.graph())
-                        .unwrap_or_else(|| crate::org::eclipse::elk::alg::layered::graph::LGraph::new());
+                        .unwrap_or_default();
                     layered_graph.layers_mut().push(Layer::new(&graph_ref));
                 }
 

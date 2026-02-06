@@ -1,0 +1,9 @@
+algorithm: layered
+
+node n1 [size: 80, 40]
+node n2 [size: 120, 50]
+
+nodeLabel n1 text:A size:20,10
+nodeLabel n1 text:B size:30,10
+nodeLabel n2 text:C size:24,10
+nodeLabel n2 text:D size:34,10

@@ -1,0 +1,10 @@
+algorithm: layered
+direction: right
+
+node source [size:30,30]
+node target [size:30,30]
+
+edge main: source -> target
+edgeLabel main text:tail size:16,10
+edgeLabel main text:center size:20,10
+edgeLabel main text:head size:16,10

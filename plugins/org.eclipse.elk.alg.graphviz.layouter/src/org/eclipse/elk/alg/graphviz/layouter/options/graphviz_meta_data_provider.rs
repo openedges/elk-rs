@@ -335,6 +335,7 @@ fn register_supports(registry: &mut dyn LayoutMetaDataRegistry) {
     registry.add_option_support(circo, GraphvizOptions::ADAPT_PORT_POSITIONS.id(), property_default_any(GraphvizOptions::ADAPT_PORT_POSITIONS));
 }
 
+#[allow(clippy::too_many_arguments)]
 fn register_option<T: Clone + Send + Sync + 'static>(
     registry: &mut dyn LayoutMetaDataRegistry,
     property: &'static LazyLock<Property<T>>,

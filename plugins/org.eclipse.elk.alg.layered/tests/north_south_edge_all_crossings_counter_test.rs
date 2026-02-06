@@ -667,7 +667,7 @@ fn more_than_one_edge_into_ns_node_counts_these_too() {
     let middle_node_port = middle_nodes[1]
         .lock()
         .ok()
-        .and_then(|node_guard| node_guard.ports().get(0).cloned())
+        .and_then(|node_guard| node_guard.ports().first().cloned())
         .expect("north/south dummy port");
     let right_node_port = add_port_on_side(&right_nodes[1], PortSide::West);
     add_edge_between_ports(&middle_node_port, &right_node_port);

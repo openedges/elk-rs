@@ -1,0 +1,9 @@
+algorithm: layered
+
+node left portConstraints:fixedSide [size: 80, 60]
+node right portConstraints:fixedSide [size: 80, 60]
+
+port p_left of left side:east size:10,10
+port p_right of right side:west size:10,10
+
+edge e1: p_left -> p_right

@@ -8,17 +8,12 @@ use crate::org::eclipse::elk::alg::rectpacking::rect_packing_layout_phases::Rect
 
 use super::{EqualWhitespaceEliminator, ToAspectratioNodeExpander};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]
 pub enum WhiteSpaceEliminationStrategy {
     EqualBetweenStructures,
     ToAspectRatio,
+    #[default]
     None,
-}
-
-impl Default for WhiteSpaceEliminationStrategy {
-    fn default() -> Self {
-        WhiteSpaceEliminationStrategy::None
-    }
 }
 
 impl WhiteSpaceEliminationStrategy {

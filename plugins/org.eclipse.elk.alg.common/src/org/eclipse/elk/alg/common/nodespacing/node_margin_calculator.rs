@@ -168,6 +168,7 @@ where
         node.set_margin(margin);
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn process_edge_head_tail_labels<E, ET>(
         &self,
         bounding_box: &mut ElkRectangle,
@@ -223,6 +224,7 @@ where
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn compute_label_box<L, LT>(
         &self,
         label_box: &mut ElkRectangle,

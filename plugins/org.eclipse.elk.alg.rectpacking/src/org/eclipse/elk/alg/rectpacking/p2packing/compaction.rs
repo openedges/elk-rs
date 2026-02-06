@@ -30,9 +30,7 @@ impl Compaction {
             if block.borrow().children().is_empty() {
                 eprintln!("There should not be an empty block. Empty blocks are directly removed.");
                 row.borrow_mut().remove_block(&block);
-                if block_id > 0 {
-                    block_id -= 1;
-                }
+                block_id = block_id.saturating_sub(1);
                 something_was_changed = true;
                 continue;
             }
@@ -61,7 +59,10 @@ impl Compaction {
             }
 
             let mut next_block = Self::get_next_block(rows, &row, block_id, next_row_index);
-            let was_from_next_row = next_block.as_ref().and_then(|next| next.borrow().parent_row()).map_or(false, |parent| !Rc::ptr_eq(&parent, &row));
+            let was_from_next_row = next_block
+                .as_ref()
+                .and_then(|next| next.borrow().parent_row())
+                .is_some_and(|parent| !Rc::ptr_eq(&parent, &row));
 
             if let Some(next_block_ref) = next_block.clone() {
                 if !next_block_ref.borrow().children().is_empty()
@@ -94,9 +95,7 @@ impl Compaction {
                     }
                 }
                 if next_block.is_none() {
-                    if block_id > 0 {
-                        block_id -= 1;
-                    }
+                    block_id = block_id.saturating_sub(1);
                     continue;
                 }
 
@@ -253,6 +252,7 @@ impl Compaction {
         something_was_changed
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn place_below(
         rows: &mut Vec<RectRowRef>,
         row: &RectRowRef,
@@ -302,6 +302,7 @@ impl Compaction {
         false
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn place_beside(
         rows: &mut Vec<RectRowRef>,
         row: &RectRowRef,

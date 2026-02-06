@@ -1,0 +1,27 @@
+org.eclipse.elk.direction: down
+org.eclipse.elk.spacing.nodeNode: 13
+org.eclipse.elk.spacingEdgeEdge: 7
+org.eclipse.elk.portLabelsPlacement: outside,nextToPortIfPossible
+
+node n_q1 {
+  org.eclipse.elk.layered.portConstraints: fixedSide
+  port p_q1 {
+    org.eclipse.elk.layered.portSide: east
+    org.eclipse.elk.layered.portBorderOffset: 2
+    org.eclipse.elk.layered.portAnchor: 1,2
+  }
+}
+
+node n_q2 {
+  port p_q2
+}
+
+edge e_q: p_q1 -> p_q2 {
+  org.eclipse.elk.layered.edgeLabels.placement: head
+  org.eclipse.elk.layered.junctionPoints: 10,11|12,13
+  org.eclipse.elk.layered.sourcePoint: 3,4
+  org.eclipse.elk.layered.targetPoint: 30,40
+  org.eclipse.elk.layered.bendPoints: 15,16|25,26
+}
+
+edgeLabel e_q "qualified" org.eclipse.elk.layered.edgeLabels.placement:tail

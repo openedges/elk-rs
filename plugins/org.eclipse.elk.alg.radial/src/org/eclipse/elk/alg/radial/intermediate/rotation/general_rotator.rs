@@ -13,7 +13,7 @@ impl ILayoutProcessor<ElkNodeRef> for GeneralRotator {
         if progress_monitor.is_logging_enabled() {
             progress_monitor.log_graph(graph, "Before");
         }
-        let mut rotator = AngleRotation::default();
+        let mut rotator = AngleRotation;
         rotator.rotate(graph);
         if progress_monitor.is_logging_enabled() {
             progress_monitor.log_graph(graph, "After");

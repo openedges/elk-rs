@@ -1,3 +1,5 @@
+#![allow(clippy::module_inception)]
+
 pub mod components_processor;
 pub mod elk_graph_importer;
 pub mod graph;

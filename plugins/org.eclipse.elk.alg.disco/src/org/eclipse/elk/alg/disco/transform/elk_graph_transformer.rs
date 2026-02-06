@@ -192,15 +192,13 @@ impl ElkGraphTransformer {
         };
         let dir = nearest_side(&outer_point, &ext_parent);
         let mut extension_width = thickness + self.component_spacing;
-        let middle_pos: KVector;
-
-        if dir.is_horizontal() {
+        let middle_pos: KVector = if dir.is_horizontal() {
             extension_width += (outer_point.y - inner_point.y).abs();
-            middle_pos = KVector::with_values(inner_point.x, (inner_point.y + outer_point.y) / 2.0);
+            KVector::with_values(inner_point.x, (inner_point.y + outer_point.y) / 2.0)
         } else {
             extension_width += (outer_point.x - inner_point.x).abs();
-            middle_pos = KVector::with_values((inner_point.x + outer_point.x) / 2.0, inner_point.y);
-        }
+            KVector::with_values((inner_point.x + outer_point.x) / 2.0, inner_point.y)
+        };
 
         let bounds = { shape.lock().expect("dc element lock").get_bounds() };
         let extension = DCExtension::new(&bounds, dir, &middle_pos, extension_width);
@@ -589,10 +587,10 @@ fn get_contour(edge_points: &[KVector], thickness: f64) -> KVectorChain {
     ccw_points.push(orth_points[0]);
     cw_points.push(orth_points[1]);
 
-    for i in 2..edge_points.len() {
+    for next_point in edge_points.iter().skip(2) {
         let predecessor = current;
         current = successor;
-        successor = edge_points[i];
+        successor = *next_point;
 
         let orth_points = get_orthogonal_points(current.x, current.y, predecessor.x, predecessor.y, radius);
         ccw_points.push(orth_points[1]);

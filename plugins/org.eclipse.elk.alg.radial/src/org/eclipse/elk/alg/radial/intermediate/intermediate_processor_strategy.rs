@@ -39,10 +39,10 @@ impl ILayoutProcessorFactory<ElkNodeRef> for IntermediateProcessorStrategy {
             IntermediateProcessorStrategy::OverlapRemoval => {
                 Box::new(RadiusExtensionOverlapRemoval::default())
             }
-            IntermediateProcessorStrategy::Compaction => Box::new(GeneralCompactor::default()),
-            IntermediateProcessorStrategy::Rotation => Box::new(GeneralRotator::default()),
-            IntermediateProcessorStrategy::GraphSizeCalculation => Box::new(CalculateGraphSize::default()),
-            IntermediateProcessorStrategy::OutgoingEdgeAngles => Box::new(EdgeAngleCalculator::default()),
+            IntermediateProcessorStrategy::Compaction => Box::new(GeneralCompactor),
+            IntermediateProcessorStrategy::Rotation => Box::new(GeneralRotator),
+            IntermediateProcessorStrategy::GraphSizeCalculation => Box::new(CalculateGraphSize),
+            IntermediateProcessorStrategy::OutgoingEdgeAngles => Box::new(EdgeAngleCalculator),
         }
     }
 

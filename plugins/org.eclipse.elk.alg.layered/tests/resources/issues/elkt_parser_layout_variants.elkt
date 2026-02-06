@@ -1,0 +1,29 @@
+algorithm: layered
+direction: right
+
+node n0 {
+  layout ( position: 5, 6 size: 30, 20 )
+  port p0 side:east layout ( position: 30, 10 size: 8, 8 )
+}
+
+node n1 {
+  layout ( position: 80, 6 size: 30, 20 )
+  port p1 side:west layout ( position: 0, 10 size: 8, 8 )
+}
+
+edge e_paren: p0 -> p1 {
+  layout ( source:35,16 target:80,16 bendPoints:50,12;65,12 )
+}
+
+node n2 {
+  port p2 side:east
+}
+
+node n3 {
+  port p3 side:west
+}
+
+edge e_trailing: p2 -> p3 {
+  section s0 [ outgoing:p2 incoming:p3 start:10,40 end:40,40 ]
+  section s1 ( outgoing:p2 incoming:p3 start:40,40 end:70,40 ) -> s0
+}

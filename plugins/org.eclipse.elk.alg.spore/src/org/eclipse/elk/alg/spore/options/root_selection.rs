@@ -1,11 +1,6 @@
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum RootSelection {
     Fixed,
+    #[default]
     CenterNode,
-}
-
-impl Default for RootSelection {
-    fn default() -> Self {
-        RootSelection::CenterNode
-    }
 }

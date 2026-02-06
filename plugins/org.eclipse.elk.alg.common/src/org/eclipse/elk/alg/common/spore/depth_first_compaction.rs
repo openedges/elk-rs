@@ -155,7 +155,7 @@ fn draw_tree(tree: &Tree<Node>, svg: &mut SVGImage, mark: Option<&Tree<Node>>) {
     svg.g("centers")
         .add_circle_with_attrs(tree.node.vertex.x, tree.node.vertex.y, 6.0, "fill=\"black\"");
     for child in &tree.children {
-        if mark.map_or(false, |m| std::ptr::eq(m, child)) {
+        if mark.is_some_and(|m| std::ptr::eq(m, child)) {
             svg.g("edges").add_line_with_attrs(
                 tree.node.vertex.x,
                 tree.node.vertex.y,

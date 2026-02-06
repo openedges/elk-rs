@@ -49,13 +49,13 @@ impl NGraph {
             let idx = node_index(node);
             if idx < mark.len() && !mark[idx] {
                 reps.push(node.clone());
-                self.dfs(node, &mut mark);
+                Self::dfs(node, &mut mark);
             }
         }
         reps
     }
 
-    fn dfs(&self, node: &NNodeRef, mark: &mut [bool]) {
+    fn dfs(node: &NNodeRef, mark: &mut [bool]) {
         let idx = node_index(node);
         if idx >= mark.len() || mark[idx] {
             return;
@@ -69,7 +69,7 @@ impl NGraph {
         for edge in edges {
             let other = edge.lock().ok().map(|edge_guard| edge_guard.other(node));
             if let Some(other) = other {
-                self.dfs(&other, mark);
+                Self::dfs(&other, mark);
             }
         }
     }

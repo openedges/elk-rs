@@ -53,12 +53,10 @@ impl DFSTreeifyer {
         self.eliminated = Vec::new();
         self.visited = vec![0; nodes.len()];
 
-        let mut id = 0;
-        for node in nodes {
+        for (id, node) in nodes.into_iter().enumerate() {
             if let Ok(mut node_guard) = node.lock() {
-                node_guard.set_id(id);
+                node_guard.set_id(id as i32);
             }
-            id += 1;
         }
     }
 

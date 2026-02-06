@@ -11,7 +11,7 @@ use crate::org::eclipse::elk::core::data::{
 use crate::org::eclipse::elk::core::math::{ElkMargin, ElkPadding, KVector, KVectorChain};
 use crate::org::eclipse::elk::core::options::{
     Alignment, ContentAlignment, CoreOptions, Direction, EdgeCoords, EdgeLabelPlacement, EdgeRouting,
-    EdgeType, HierarchyHandling, NodeLabelPlacement, PortAlignment, PortConstraints,
+    EdgeType, HierarchyHandling, NodeLabelPlacement, PackingMode, PortAlignment, PortConstraints,
     PortLabelPlacement, PortSide, ShapeCoords, SizeConstraint, SizeOptions, TopdownNodeTypes,
     TopdownSizeApproximator,
 };
@@ -339,6 +339,22 @@ fn register_ui_options(registry: &mut dyn LayoutMetaDataRegistry) {
             ),
             &TARGET_PARENTS,
         ),
+    );
+    register_enum_option(
+        registry,
+        CoreOptions::BOX_PACKING_MODE,
+        packing_mode_variants(),
+        OptionMeta::visible(
+            "Box Layout Mode",
+            concat!(
+                "Configures the packing mode used by the BoxLayoutProvider. If SIMPLE is not required ",
+                "(neither priorities are used nor the interactive mode), GROUP_DEC can improve the ",
+                "packing and decrease the area. GROUP_MIXED and GROUP_INC may, in very specific ",
+                "scenarios, work better."
+            ),
+            &TARGET_PARENTS,
+        )
+        .group("box"),
     );
 }
 
@@ -1861,10 +1877,20 @@ fn topdown_node_variants() -> &'static [TopdownNodeTypes] {
     &VARIANTS
 }
 
+fn packing_mode_variants() -> &'static [PackingMode] {
+    static VARIANTS: [PackingMode; 4] = [
+        PackingMode::Simple,
+        PackingMode::GroupDec,
+        PackingMode::GroupMixed,
+        PackingMode::GroupInc,
+    ];
+    &VARIANTS
+}
+
 fn register_categories(registry: &mut dyn LayoutMetaDataRegistry) {
     registry.register_category(
         LayoutCategoryData::builder()
-            .id("layered")
+            .id("org.eclipse.elk.layered")
             .name("Layered")
             .description(concat!(
                 "The layer-based method was introduced by Sugiyama, Tagawa and Toda in 1981. ",
@@ -1877,7 +1903,7 @@ fn register_categories(registry: &mut dyn LayoutMetaDataRegistry) {
     );
     registry.register_category(
         LayoutCategoryData::builder()
-            .id("orthogonal")
+            .id("org.eclipse.elk.orthogonal")
             .name("Orthogonal")
             .description(concat!(
                 "Orthogonal methods that follow the \"topology-shape-metrics\" approach by Batini, Nardelli and ",
@@ -1891,7 +1917,7 @@ fn register_categories(registry: &mut dyn LayoutMetaDataRegistry) {
     );
     registry.register_category(
         LayoutCategoryData::builder()
-            .id("force")
+            .id("org.eclipse.elk.force")
             .name("Force")
             .description(concat!(
                 "Layout algorithms that follow physical analogies by simulating a system of attractive and ",
@@ -1901,7 +1927,7 @@ fn register_categories(registry: &mut dyn LayoutMetaDataRegistry) {
     );
     registry.register_category(
         LayoutCategoryData::builder()
-            .id("circle")
+            .id("org.eclipse.elk.circle")
             .name("Circle")
             .description(concat!(
                 "Circular layout algorithms emphasize cycles or biconnected components of a graph by arranging ",
@@ -1912,7 +1938,7 @@ fn register_categories(registry: &mut dyn LayoutMetaDataRegistry) {
     );
     registry.register_category(
         LayoutCategoryData::builder()
-            .id("tree")
+            .id("org.eclipse.elk.tree")
             .name("Tree")
             .description(concat!(
                 "Specialized layout methods for trees, i.e. acyclic graphs. The regular structure of graphs that ",
@@ -1922,7 +1948,7 @@ fn register_categories(registry: &mut dyn LayoutMetaDataRegistry) {
     );
     registry.register_category(
         LayoutCategoryData::builder()
-            .id("planar")
+            .id("org.eclipse.elk.planar")
             .name("Planar")
             .description(concat!(
                 "Algorithms that require a planar or upward planar graph. Most of these algorithms are ",
@@ -1932,7 +1958,7 @@ fn register_categories(registry: &mut dyn LayoutMetaDataRegistry) {
     );
     registry.register_category(
         LayoutCategoryData::builder()
-            .id("radial")
+            .id("org.eclipse.elk.radial")
             .name("Radial")
             .description(
                 "Radial layout algorithms usually position the nodes of the graph on concentric circles.",

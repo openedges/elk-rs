@@ -1,3 +1,5 @@
+#![allow(clippy::mutable_key_type)]
+
 use std::collections::{HashMap, HashSet};
 
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
@@ -62,16 +64,16 @@ impl ModelOrderPortComparator {
         let p2_key = PortRefKey(p2.clone());
         self.ensure_sets(&p1_key);
         self.ensure_sets(&p2_key);
-        if self.bigger_than.get(&p1_key).map_or(false, |set| set.contains(&p2_key)) {
+        if self.bigger_than.get(&p1_key).is_some_and(|set| set.contains(&p2_key)) {
             return 1;
         }
-        if self.bigger_than.get(&p2_key).map_or(false, |set| set.contains(&p1_key)) {
+        if self.bigger_than.get(&p2_key).is_some_and(|set| set.contains(&p1_key)) {
             return -1;
         }
-        if self.smaller_than.get(&p1_key).map_or(false, |set| set.contains(&p2_key)) {
+        if self.smaller_than.get(&p1_key).is_some_and(|set| set.contains(&p2_key)) {
             return -1;
         }
-        if self.smaller_than.get(&p2_key).map_or(false, |set| set.contains(&p1_key)) {
+        if self.smaller_than.get(&p2_key).is_some_and(|set| set.contains(&p1_key)) {
             return 1;
         }
 
@@ -107,21 +109,21 @@ impl ModelOrderPortComparator {
                 .lock()
                 .ok()
                 .and_then(|edge_guard| edge_guard.source());
-            if let (Some(p1_source_port), Some(p2_source_port)) = (&p1_source_port, &p2_source_port) {
+            if let (Some(p1_source_port), Some(p2_source_port)) = (p1_source_port, p2_source_port) {
                 let p1_node = p1_source_port.lock().ok().and_then(|port_guard| port_guard.node());
                 let p2_node = p2_source_port.lock().ok().and_then(|port_guard| port_guard.node());
-                if let (Some(p1_node), Some(p2_node)) = (&p1_node, &p2_node) {
-                    if std::sync::Arc::ptr_eq(p1_node, p2_node) {
+                if let (Some(p1_node), Some(p2_node)) = (p1_node, p2_node) {
+                    if std::sync::Arc::ptr_eq(&p1_node, &p2_node) {
                         let ports = p1_node
                             .lock()
                             .ok()
                             .map(|node_guard| node_guard.ports().clone())
                             .unwrap_or_default();
                         for port in ports {
-                            if std::sync::Arc::ptr_eq(&port, p1_source_port) {
+                            if std::sync::Arc::ptr_eq(&port, &p1_source_port) {
                                 self.update_bigger_and_smaller(p2, p1, reverse_order);
                                 return -reverse_order;
-                            } else if std::sync::Arc::ptr_eq(&port, p2_source_port) {
+                            } else if std::sync::Arc::ptr_eq(&port, &p2_source_port) {
                                 self.update_bigger_and_smaller(p1, p2, reverse_order);
                                 return reverse_order;
                             }
@@ -141,7 +143,8 @@ impl ModelOrderPortComparator {
                             .and_then(|node_guard| node_guard.layer())
                             .and_then(|layer| layer.lock().ok().map(|layer_guard| layer_guard.nodes().clone()))
                             .unwrap_or_else(|| self.previous_layer.clone());
-                        let in_previous = self.check_reference_layer(&reference_layer, &p1_node, &p2_node);
+                        let in_previous =
+                            self.check_reference_layer(&reference_layer, &p1_node, &p2_node);
                         if in_previous != 0 {
                             if side1 == PortSide::East {
                                 reverse_order = -reverse_order;
@@ -156,7 +159,8 @@ impl ModelOrderPortComparator {
                         }
                     }
 
-                    let in_previous = self.check_reference_layer(&self.previous_layer, &p1_node, &p2_node);
+                    let in_previous =
+                        self.check_reference_layer(&self.previous_layer, &p1_node, &p2_node);
                     if in_previous != 0 {
                         if in_previous > 0 {
                             self.update_bigger_and_smaller(p1, p2, reverse_order);
@@ -384,8 +388,8 @@ impl ModelOrderPortComparator {
     }
 
     fn ensure_sets(&mut self, key: &PortRefKey) {
-        self.bigger_than.entry(key.clone()).or_insert_with(HashSet::new);
-        self.smaller_than.entry(key.clone()).or_insert_with(HashSet::new);
+        self.bigger_than.entry(key.clone()).or_default();
+        self.smaller_than.entry(key.clone()).or_default();
     }
 
     fn check_reference_layer(&self, layer: &[LNodeRef], p1_node: &LNodeRef, p2_node: &LNodeRef) -> i32 {

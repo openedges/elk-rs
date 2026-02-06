@@ -25,7 +25,7 @@ impl<P: PolyominoLike> Polyominoes<P> {
             poly_vec.push(poly);
         }
 
-        if let Some(poly) = poly_vec.get(0) {
+        if let Some(poly) = poly_vec.first() {
             grid_width += poly.get_width();
             grid_height += poly.get_height();
         }

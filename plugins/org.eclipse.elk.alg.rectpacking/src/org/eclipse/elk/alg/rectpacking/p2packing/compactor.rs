@@ -55,7 +55,7 @@ impl ILayoutPhase<RectPackingLayoutPhases, ElkNodeRef> for Compactor {
             }
 
             let new_sm = new_drawing.scale_measure();
-            if new_sm >= old_sm && new_sm == new_sm {
+            if new_sm >= old_sm && !new_sm.is_nan() {
                 let clone_children = {
                     let mut clone_mut = clone.borrow_mut();
                     clone_mut.children().iter().cloned().collect::<Vec<_>>()

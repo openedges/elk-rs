@@ -1,0 +1,10 @@
+algorithm: layered
+direction: down
+edgeRouting: orthogonal
+
+node top_left [size: 30, 30]
+node top_right [size: 30, 30]
+node bottom [size: 30, 30]
+
+edge e1: top_left -> bottom
+edge e2: top_right -> bottom

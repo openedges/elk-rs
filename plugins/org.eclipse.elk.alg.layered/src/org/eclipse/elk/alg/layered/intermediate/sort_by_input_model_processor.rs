@@ -1,3 +1,5 @@
+#![allow(clippy::mutable_key_type)]
+
 use std::collections::HashMap;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LNodeRef, LPortRef, NodeRefKey, NodeType};
@@ -42,7 +44,7 @@ impl SortByInputModelProcessor {
                     .get(&NodeRefKey(target_node.clone()))
                     .copied()
                     .unwrap_or(i32::MAX);
-                let edge = outgoing.get(0).cloned();
+                let edge = outgoing.first().cloned();
                 if let Some(edge) = edge {
                     let reversed = edge
                         .lock()
@@ -80,14 +82,14 @@ pub fn get_target_node(port: &LPortRef) -> Option<LNodeRef> {
     let mut edge = port
         .lock()
         .ok()
-        .and_then(|port_guard| port_guard.outgoing_edges().get(0).cloned());
+        .and_then(|port_guard| port_guard.outgoing_edges().first().cloned());
     while let Some(edge_ref) = edge.clone() {
         let target_node = edge_ref
             .lock()
             .ok()
             .and_then(|edge_guard| edge_guard.target())
             .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
-        let Some(target_node) = target_node else { return None; };
+        let target_node = target_node?;
         if let Ok(mut node_guard) = target_node.lock() {
             if let Some(long_edge_target) =
                 node_guard.get_property(InternalProperties::LONG_EDGE_TARGET)
@@ -102,7 +104,7 @@ pub fn get_target_node(port: &LPortRef) -> Option<LNodeRef> {
             }
             if node_guard.node_type() != NodeType::Normal {
                 let outgoing = node_guard.outgoing_edges();
-                if let Some(next_edge) = outgoing.get(0) {
+                if let Some(next_edge) = outgoing.first() {
                     edge = Some(next_edge.clone());
                     continue;
                 }

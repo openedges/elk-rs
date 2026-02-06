@@ -1,0 +1,12 @@
+algorithm: layered
+
+node compound [size: 160, 120]
+nodeProperty compound algorithm:layered
+
+node left parent compound [size: 30, 30]
+node right parent compound [size: 30, 30]
+
+port p_left of left size:8,8
+port p_right of right size:8,8
+
+edge e1: p_left -> p_right

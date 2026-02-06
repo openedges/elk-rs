@@ -55,9 +55,9 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BreadthFirstModelOrderLayerer {
         }
 
         let graph_ref = nodes
-            .get(0)
+            .first()
             .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.graph()))
-            .unwrap_or_else(LGraph::new);
+            .unwrap_or_default();
 
         let mut real_nodes: Vec<(i32, LNodeRef)> = Vec::new();
         for node in &nodes {

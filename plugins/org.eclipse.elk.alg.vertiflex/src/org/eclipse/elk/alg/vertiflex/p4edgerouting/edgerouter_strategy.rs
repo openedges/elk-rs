@@ -7,8 +7,9 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 use crate::org::eclipse::elk::alg::vertiflex::p4edgerouting::{BendEdgeRouter, StraightEdgeRouter};
 use crate::org::eclipse::elk::alg::vertiflex::vertiflex_layout_phases::VertiFlexLayoutPhases;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]
 pub enum EdgerouterStrategy {
+    #[default]
     DirectRouting,
     BendRouting,
 }
@@ -19,12 +20,6 @@ impl EdgerouterStrategy {
             EdgerouterStrategy::DirectRouting => 0,
             EdgerouterStrategy::BendRouting => 1,
         }
-    }
-}
-
-impl Default for EdgerouterStrategy {
-    fn default() -> Self {
-        EdgerouterStrategy::DirectRouting
     }
 }
 

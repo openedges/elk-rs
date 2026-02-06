@@ -2,8 +2,9 @@ use crate::org::eclipse::elk::alg::radial::intermediate::overlaps::{
     IOverlapRemoval, RadiusExtensionOverlapRemoval,
 };
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]
 pub enum OverlapRemovalStrategy {
+    #[default]
     ExtentRadii,
 }
 
@@ -12,11 +13,5 @@ impl OverlapRemovalStrategy {
         match self {
             OverlapRemovalStrategy::ExtentRadii => Box::new(RadiusExtensionOverlapRemoval::default()),
         }
-    }
-}
-
-impl Default for OverlapRemovalStrategy {
-    fn default() -> Self {
-        OverlapRemovalStrategy::ExtentRadii
     }
 }

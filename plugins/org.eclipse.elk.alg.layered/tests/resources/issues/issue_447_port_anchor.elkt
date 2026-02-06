@@ -1,0 +1,17 @@
+algorithm: layered
+edgeRouting: orthogonal
+
+node left [size: 60, 40]
+node right [size: 60, 40]
+
+port left_out of left size:10,10
+portProperty left_out portAnchor:5,5
+port right_in of right size:10,10
+portProperty right_in portAnchor:5,5
+port right_out of right size:10,10
+portProperty right_out portAnchor:5,5
+port left_in of left size:10,10
+portProperty left_in portAnchor:5,5
+
+edge e1: left_out -> right_in
+edge e2: right_out -> left_in

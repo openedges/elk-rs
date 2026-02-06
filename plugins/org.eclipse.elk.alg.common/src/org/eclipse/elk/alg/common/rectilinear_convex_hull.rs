@@ -33,19 +33,19 @@ impl RectilinearConvexHull {
         };
 
         for p in &points {
-            if hull.x_max1.map_or(true, |v| p.x >= v.x) {
+            if hull.x_max1.is_none_or(|v| p.x >= v.x) {
                 hull.x_max2 = hull.x_max1;
                 hull.x_max1 = Some(*p);
             }
-            if hull.x_min1.map_or(true, |v| p.x <= v.x) {
+            if hull.x_min1.is_none_or(|v| p.x <= v.x) {
                 hull.x_min2 = hull.x_min1;
                 hull.x_min1 = Some(*p);
             }
-            if hull.y_max1.map_or(true, |v| p.y >= v.y) {
+            if hull.y_max1.is_none_or(|v| p.y >= v.y) {
                 hull.y_max2 = hull.y_max1;
                 hull.y_max1 = Some(*p);
             }
-            if hull.y_min1.map_or(true, |v| p.y <= v.y) {
+            if hull.y_min1.is_none_or(|v| p.y <= v.y) {
                 hull.y_min2 = hull.y_min1;
                 hull.y_min1 = Some(*p);
             }
@@ -248,10 +248,11 @@ impl ScanlineEventHandler<Point> for RectangleEventHandler {
             self.max_y = Some(*point);
         }
 
-        let queue_rect = (point.quadrant == Quadrant::Q1 && !point.convex)
-            || (point.quadrant == Quadrant::Q2 && point.convex)
-            || (point.quadrant == Quadrant::Q3 && point.convex)
-            || (point.quadrant == Quadrant::Q4 && !point.convex);
+        let queue_rect = if point.convex {
+            matches!(point.quadrant, Quadrant::Q2 | Quadrant::Q3)
+        } else {
+            matches!(point.quadrant, Quadrant::Q1 | Quadrant::Q4)
+        };
 
         if queue_rect {
             if let (Some(min_y), Some(max_y)) = (self.min_y, self.max_y) {

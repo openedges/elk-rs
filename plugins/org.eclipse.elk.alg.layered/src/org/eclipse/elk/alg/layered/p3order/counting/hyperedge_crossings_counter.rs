@@ -172,29 +172,21 @@ impl HyperedgeCrossingsCounter {
                                 if let Some(hyperedge) = hyperedges.get_mut(source_id) {
                                     hyperedge.edges.push(edge.clone());
                                 }
-                            } else {
-                                if source_id < hyperedges.len() && target_id < hyperedges.len() {
-                                    if source_id == target_id {
-                                        if let Some(source_he) = hyperedges.get_mut(source_id) {
-                                            source_he.edges.push(edge.clone());
-                                        }
-                                    } else {
-                                        let (source_he, target_he) = if source_id < target_id {
-                                            let (left, right) = hyperedges.split_at_mut(target_id);
-                                            (&mut left[source_id], &mut right[0])
-                                        } else {
-                                            let (left, right) = hyperedges.split_at_mut(source_id);
-                                            (&mut right[0], &mut left[target_id])
-                                        };
-                                        source_he.edges.push(edge.clone());
-                                        for port in &target_he.ports {
-                                            port_to_hyperedge.insert(port_ptr_id(port), source_id);
-                                        }
-                                        source_he.edges.extend(target_he.edges.drain(..));
-                                        source_he.ports.extend(target_he.ports.drain(..));
-                                        active.remove(&target_id);
-                                    }
+                            } else if source_id < hyperedges.len() && target_id < hyperedges.len() {
+                                let (source_he, target_he) = if source_id < target_id {
+                                    let (left, right) = hyperedges.split_at_mut(target_id);
+                                    (&mut left[source_id], &mut right[0])
+                                } else {
+                                    let (left, right) = hyperedges.split_at_mut(source_id);
+                                    (&mut right[0], &mut left[target_id])
+                                };
+                                source_he.edges.push(edge.clone());
+                                for port in &target_he.ports {
+                                    port_to_hyperedge.insert(port_ptr_id(port), source_id);
                                 }
+                                source_he.edges.append(&mut target_he.edges);
+                                source_he.ports.append(&mut target_he.ports);
+                                active.remove(&target_id);
                             }
                         }
                     }
@@ -219,13 +211,17 @@ impl HyperedgeCrossingsCounter {
             hyperedge.upper_right = target_count;
             for port in &hyperedge.ports {
                 let pos = port_position(&self.port_positions, port);
-                if port_layer(port).as_ref().zip(left_layer_ref.as_ref()).map_or(false, |(a, b)| Arc::ptr_eq(a, b)) {
+                if port_layer(port)
+                    .as_ref()
+                    .zip(left_layer_ref.as_ref())
+                    .is_some_and(|(a, b)| Arc::ptr_eq(a, b))
+                {
                     hyperedge.upper_left = hyperedge.upper_left.min(pos);
                     hyperedge.lower_left = hyperedge.lower_left.max(pos);
                 } else if port_layer(port)
                     .as_ref()
                     .zip(right_layer_ref.as_ref())
-                    .map_or(false, |(a, b)| Arc::ptr_eq(a, b))
+                    .is_some_and(|(a, b)| Arc::ptr_eq(a, b))
                 {
                     hyperedge.upper_right = hyperedge.upper_right.min(pos);
                     hyperedge.lower_right = hyperedge.lower_right.max(pos);

@@ -1,0 +1,6 @@
+algorithm: layered
+
+node n1
+
+edge n1 -> n1
+edge n1 -> n1

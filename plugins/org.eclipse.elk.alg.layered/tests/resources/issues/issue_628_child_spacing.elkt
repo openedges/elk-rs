@@ -1,0 +1,13 @@
+algorithm: layered
+
+node l1 [size: 200, 120]
+nodeProperty l1 algorithm:layered
+nodeProperty l1 direction:down
+nodeProperty l1 spacing.nodeNode:10
+
+node source parent l1 [size: 30, 30]
+node n1 parent l1 [size: 30, 30]
+node n2 parent l1 [size: 30, 30]
+
+edge e1: source -> n1
+edge e2: source -> n2

@@ -8,6 +8,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 
 pub type FNodeRef = Arc<Mutex<FNode>>;
 
+#[derive(Default)]
 pub struct FNode {
     particle: FParticle,
     id: usize,
@@ -138,17 +139,5 @@ impl fmt::Display for FNode {
             }
         }
         write!(f, "n_{}", self.id)
-    }
-}
-
-impl Default for FNode {
-    fn default() -> Self {
-        FNode {
-            particle: FParticle::new(),
-            id: 0,
-            label: None,
-            parent: None,
-            children: Vec::new(),
-        }
     }
 }

@@ -310,7 +310,7 @@ impl RelativeXPlacer {
             && node_x(&children[i])
                 + node_width(&children[i])
                 + node_get_property(&children[i], CoreOptions::MARGINS)
-                    .unwrap_or_else(org_eclipse_elk_core::org::eclipse::elk::core::math::ElkMargin::new)
+                    .unwrap_or_default()
                     .right
                 - node_width(graph) / 2.0
                 <= 0.0
@@ -334,7 +334,7 @@ impl RelativeXPlacer {
         while i > 0
             && node_x(&children[i])
                 - node_get_property(&children[i], CoreOptions::MARGINS)
-                    .unwrap_or_else(org_eclipse_elk_core::org::eclipse::elk::core::math::ElkMargin::new)
+                    .unwrap_or_default()
                     .left
                 - node_width(graph) / 2.0
                 >= 0.0
@@ -533,7 +533,7 @@ impl RelativeXPlacer {
 
     fn make_simple_outlines(&self, graph: &ElkNodeRef) {
         let margins = node_get_property(graph, CoreOptions::MARGINS)
-            .unwrap_or_else(org_eclipse_elk_core::org::eclipse::elk::core::math::ElkMargin::new);
+            .unwrap_or_default();
 
         let end_part = OutlineNode::new(
             0.0,

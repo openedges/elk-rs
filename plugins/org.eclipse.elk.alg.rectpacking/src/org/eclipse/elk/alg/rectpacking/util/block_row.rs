@@ -73,10 +73,9 @@ impl BlockRow {
         } else {
             (width_for_row - self.width) / self.rects.len() as f64
         };
-        let mut i = 0usize;
         self.height += additional_height_for_row;
         self.width = width_for_row;
-        for rect in &self.rects {
+        for (i, rect) in self.rects.iter().enumerate() {
             let (old_width, old_height) = {
                 let mut rect_mut = rect.borrow_mut();
                 let shape = rect_mut.connectable().shape();
@@ -103,7 +102,6 @@ impl BlockRow {
                 &KVector::with_values(new_width, new_height),
                 &KVector::with_values(old_width, old_height),
             ));
-            i += 1;
         }
     }
 

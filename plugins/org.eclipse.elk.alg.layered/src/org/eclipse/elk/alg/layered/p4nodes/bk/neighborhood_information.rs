@@ -36,8 +36,7 @@ impl NeighborhoodInformation {
                 ni.layer_index[layer_id] = layer_idx;
                 layer_id += 1;
                 let nodes = layer_guard.nodes().clone();
-                let mut local_index = 0usize;
-                for node in nodes {
+                for (local_index, node) in nodes.into_iter().enumerate() {
                     if let Ok(mut node_guard) = node.lock() {
                         node_guard.shape().graph_element().id = node_counter as i32;
                     }
@@ -46,7 +45,6 @@ impl NeighborhoodInformation {
                     }
                     ni.node_index[node_counter] = local_index;
                     node_counter += 1;
-                    local_index += 1;
                 }
             }
         }

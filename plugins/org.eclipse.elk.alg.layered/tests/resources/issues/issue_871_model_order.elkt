@@ -1,0 +1,20 @@
+algorithm: layered
+
+node n1 [size:30,30]
+node n2 [size:30,30]
+node n3 [size:30,30]
+node n4 [size:30,30]
+
+edge e1: n1 -> n2
+edge e2: n1 -> n4
+edge e3: n2 -> n4
+edge e4: n3 -> n2
+edge e5: n3 -> n4
+
+edgeLabel e1 text:1
+edgeLabel e2 text:2
+
+nodeLabel n1 text:n1
+nodeLabel n2 text:n2
+nodeLabel n3 text:n3
+nodeLabel n4 text:n4

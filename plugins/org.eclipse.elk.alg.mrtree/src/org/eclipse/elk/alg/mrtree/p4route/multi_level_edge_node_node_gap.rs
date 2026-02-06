@@ -237,7 +237,7 @@ fn edge_target_pos(edge: &TEdgeRef) -> KVector {
         .ok()
         .and_then(|guard| guard.target())
         .and_then(|node| node.lock().ok().map(|node_guard| *node_guard.position_ref()))
-        .unwrap_or_else(KVector::new)
+        .unwrap_or_default()
 }
 
 fn node_data(node: &TNodeRef) -> Option<(KVector, KVector, f64, f64)> {

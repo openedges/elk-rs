@@ -1,0 +1,28 @@
+algorithm: layered
+spacingNodeNode: 17
+spacingEdgeEdge: 9
+
+node n_layout_source {
+  port p_layout_source side:east
+}
+
+node n_layout_target {
+  port p_layout_target side:west
+}
+
+node n_section_source {
+  port p_section_source side:east
+}
+
+node n_section_target {
+  port p_section_target side:west
+}
+
+edge e_layout: p_layout_source -> p_layout_target {
+  layout source:5,6 target:35,16 bend:15,8|25,12
+}
+
+nodeProperty n_layout_source spacingNodeNode: 21
+
+edge e_section: p_section_source -> p_section_target
+edgeSection e_section start:40,30 end:90,35 bends:60,31|75,33

@@ -1,0 +1,22 @@
+algorithm: layered
+edgeRouting: orthogonal
+direction: down
+
+node parent
+nodeProperty parent algorithm:layered
+nodeProperty parent edgeRouting:orthogonal
+nodeProperty parent direction:down
+
+port p1 of parent size:15,165
+portProperty p1 portBorderOffset:-20
+port p2 of parent size:15,166
+portProperty p2 portBorderOffset:-22
+
+node child parent parent [size: 40.265625, 75.5]
+port c1 of child size:15,33
+portProperty c1 portBorderOffset:-8
+port c2 of child size:15,34
+portProperty c2 portBorderOffset:-8
+
+edge e1: p1 -> c1
+edge e2: c2 -> p2

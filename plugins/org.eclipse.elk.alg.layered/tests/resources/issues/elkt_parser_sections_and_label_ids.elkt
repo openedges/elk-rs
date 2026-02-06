@@ -1,0 +1,23 @@
+algorithm: layered
+direction: right
+
+node source {
+  layout [ size: 40, 26 ]
+  port p_source side:east size:8,8
+  label l_parent: "parent" {
+    layout [ size: 12, 6 ]
+    label l_child: "child" {
+      layout [ size: 7, 3 ]
+    }
+  }
+}
+
+node target {
+  layout [ size: 40, 26 ]
+  port p_target side:west size:8,8
+}
+
+edge e_sections: p_source -> p_target {
+  section s0 -> s1 [ outgoing:p_source start:10,10 end:40,10 ]
+  section s1 [ incoming:p_target start:40,10 end:80,20 bends:60,12|70,18 ]
+}

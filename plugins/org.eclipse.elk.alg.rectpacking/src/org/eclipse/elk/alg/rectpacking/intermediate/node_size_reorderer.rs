@@ -9,7 +9,7 @@ pub struct NodeSizeReorderer;
 impl ILayoutProcessor<ElkNodeRef> for NodeSizeReorderer {
     fn process(&mut self, graph: &mut ElkNodeRef, _progress_monitor: &mut dyn IElkProgressMonitor) {
         let mut children = collect_children(graph);
-        children.sort_by(|a, b| NodeSizeComparator::compare(a, b));
+        children.sort_by(NodeSizeComparator::compare);
         reorder_children(graph, children);
     }
 }
@@ -22,7 +22,7 @@ fn collect_children(graph: &ElkNodeRef) -> Vec<ElkNodeRef> {
 fn reorder_children(graph: &ElkNodeRef, new_order: Vec<ElkNodeRef>) {
     let mut graph_mut = graph.borrow_mut();
     let children = graph_mut.children();
-    while children.len() > 0 {
+    while !children.is_empty() {
         children.remove_at(0);
     }
     for child in new_order {

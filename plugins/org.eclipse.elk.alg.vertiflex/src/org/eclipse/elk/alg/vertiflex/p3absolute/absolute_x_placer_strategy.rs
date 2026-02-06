@@ -7,8 +7,9 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 use crate::org::eclipse::elk::alg::vertiflex::p3absolute::AbsoluteXPlacer;
 use crate::org::eclipse::elk::alg::vertiflex::vertiflex_layout_phases::VertiFlexLayoutPhases;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]
 pub enum AbsoluteXPlacerStrategy {
+    #[default]
     AbsoluteXPlacing,
 }
 
@@ -17,12 +18,6 @@ impl AbsoluteXPlacerStrategy {
         match self {
             AbsoluteXPlacerStrategy::AbsoluteXPlacing => 0,
         }
-    }
-}
-
-impl Default for AbsoluteXPlacerStrategy {
-    fn default() -> Self {
-        AbsoluteXPlacerStrategy::AbsoluteXPlacing
     }
 }
 

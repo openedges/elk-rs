@@ -1,0 +1,17 @@
+algorithm: layered
+
+node parent [size: 160, 120]
+nodeProperty parent algorithm:layered
+nodeProperty parent portConstraints:fixedSide
+nodeLabel parent text:compound size:60,18
+
+node child_a parent parent [size: 40, 30]
+node child_b parent parent [size: 40, 30]
+
+port parent_p1 of parent side:west size:8,8
+port parent_p2 of parent side:east size:8,8
+port child_a_p of child_a side:east size:8,8
+port child_b_p of child_b side:west size:8,8
+
+edge e1: parent_p1 -> child_a_p
+edge e2: child_b_p -> parent_p2

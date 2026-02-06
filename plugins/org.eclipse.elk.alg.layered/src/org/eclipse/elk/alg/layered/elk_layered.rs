@@ -300,7 +300,7 @@ impl ElkLayered {
     }
 
     fn processors_for_state(&self, state: &TestExecutionState) -> Option<Vec<SharedProcessor<LGraph>>> {
-        let graph = state.graphs.get(0)?.clone();
+        let graph = state.graphs.first()?.clone();
         let mut graph_guard = graph.lock().ok()?;
         Some(graph_guard.get_property(InternalProperties::PROCESSORS).unwrap_or_default())
     }

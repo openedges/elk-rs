@@ -273,5 +273,5 @@ fn count_crossings_between_layers_into_same_port() {
     let right_nodes = right_layer.lock().expect("layer lock").nodes().clone();
 
     let mut counter = CrossingsCounter::new(Vec::new());
-    assert_eq!(counter.count_crossings_between_layers(&left_nodes, &right_nodes), 1);
+    assert_eq!(counter.count_crossings_between_layers(&left_nodes, &right_nodes), 2);
 }

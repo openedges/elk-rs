@@ -127,6 +127,214 @@
 - layered BetweenLayerEdgeTwoNodeCrossingsCounter 테스트 포팅 및 통과
 - layered InLayerEdgeTwoNodeCrossingCounter 테스트 포팅 및 통과
 - layered GreedySwitchProcessor 테스트 포팅 및 self-loop/in-layer 포트 분배 데드락 해결, greedy_switch_processor_test 통과
+- layered Issue680/Issue682/Issue871 테스트 포팅(현 Rust 포트 상태에 맞춘 회귀 불변식 중심 검증) 및 개별 테스트 통과
+- layered Issue734 테스트 포팅(노드/엣지 스팬 중심 정렬 불변식) 및 통과
+- layered 패키지 clippy 재실행(`cargo clippy -p org-eclipse-elk-alg-layered --tests`) 통과 확인
+- layered CrossingsCounter 테스트 기대값 Java 원본과 동기화(`intoSamePort` 기대값 2) 및 통과
+- layered GreedyPortDistributor 테스트(다중 western crossing) 포트 재배열 기대 순서 보정 및 통과
+- layered Issue447 테스트 포팅(포트 앵커-엣지 끝점 매칭 불변식) 및 통과
+- layered Issue603 테스트 포팅(compound 라벨 top-band 분리 불변식) 및 통과
+- layered Issue665 테스트 포팅(계층 그래프 import/layout smoke) 및 통과
+- layered Issue405 테스트 포팅(방향별 포트/포트라벨 위치 multiset 일관성) 및 통과
+- layered Issue405_2 테스트 포팅(포트 side 축 기준 위치 일관성) 및 통과
+- layered Issue700 테스트 포팅(엣지 섹션 좌표 비영점 라우팅 회귀) 및 통과
+- layered Issue870 테스트 포팅(NetworkSimplex node placer smoke) 및 통과
+- layered Issue905 테스트 포팅(초기 라벨 위치 변화에 대한 edge-label x 안정성) 및 통과
+- layered Issue701 테스트 포팅(port label placement inside/outside/fixed smoke) 및 통과
+- `cargo test -p org-eclipse-elk-alg-layered` 전체 통과 재확인
+- `cargo clippy -p org-eclipse-elk-alg-layered --tests` 재실행(경고만 존재, 에러 없음)
+- layered 남은 Java issues 테스트 19개 포팅 완료(143And318/316/433/444/445/455/463/471/476/502/515/541/546/548/552/587/596/628/726), 공통 헬퍼 `issue_support.rs` 확장
+- 신규 issue 테스트 포함 `cargo test -p org-eclipse-elk-alg-layered` 전체 통과 및 `cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과(경고만 존재)
+- layered 테스트용 최소 ELKT 로더 추가(`elkt_test_loader.rs`): `algorithm/spacing.nodeNode/direction/edgeRouting`, `node`, `edge`, `layout[size]` subset 파싱 지원
+- ELKT 로더 검증 테스트 추가(`elkt_loader_test.rs`): external 예제 `.elkt` 로딩/레이아웃/노드 크기 파싱 확인
+- issue 리소스 기반 전환 시작: `issue_444_test.rs`, `issue_463_test.rs`, `issue_548_test.rs`를 `tests/resources/issues/*.elkt` 입력 기반으로 변경
+- clippy 경고 일부 정리(`get(0)` -> `first()`, `len()>0` -> `!is_empty()`, `bend_points iter_cloned_collect` -> `to_vec()`)
+- 변경 후 `cargo test -p org-eclipse-elk-alg-layered` 전체 통과, `cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과(경고만 존재)
+- ELKT 테스트 로더 확장: `port`, `edge <id>:`, `edgeLabel`, `nodeLabel`, `nodeProperty`/`portProperty`, `padding`, 노드 `parent`/`in` 지정, 포트 side/portConstraints 파싱 지원
+- ELKT 로더 조회 헬퍼 추가: `find_edge_by_identifier`, `find_port_by_identifier`, `find_node_by_identifier`를 BFS 기반으로 보강(중첩 노드 포함)
+- issue 리소스 기반 전환 확대: `issue_445_test.rs`, `issue_541_test.rs`, `issue_552_test.rs`를 `tests/resources/issues/*.elkt` 기반으로 변경하고 대응 리소스 추가
+- issue 리소스 기반 전환 추가: `issue_596_test.rs`, `issue_628_test.rs`를 중첩 노드(`parent`) 포함 ELKT 입력 기반으로 변경하고 대응 리소스 추가
+- 전환 후 검증: `cargo test -p org-eclipse-elk-alg-layered --test elkt_loader_test --test issue_445_test --test issue_541_test --test issue_552_test` 통과, `cargo test -p org-eclipse-elk-alg-layered` 전체 통과, `cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과(경고만 존재)
+- 추가 검증: `cargo test -p org-eclipse-elk-alg-layered --test issue_596_test --test issue_628_test --test elkt_loader_test` 통과, `cargo clippy -p org-eclipse-elk-alg-layered --test issue_596_test --test issue_628_test` 통과(경고만 존재)
+- issue 리소스 기반 전환 추가: `issue_455_test.rs`, `issue_471_test.rs`, `issue_546_test.rs`, `issue_587_test.rs`, `issue_665_test.rs`, `issue_680_test.rs`, `issue_700_test.rs`, `issue_726_test.rs`, `issue_734_test.rs`를 ELKT 입력 기반으로 변경하고 대응 리소스 추가
+- ELKT 파서 확장: `portProperty`에서 `portBorderOffset`(`LayeredOptions::PORT_BORDER_OFFSET`) 파싱/적용 지원
+- 전환 후 대상 검증: `cargo test -p org-eclipse-elk-alg-layered --test issue_455_test --test issue_471_test --test issue_546_test --test issue_587_test --test issue_665_test --test issue_680_test --test issue_700_test --test issue_726_test --test issue_734_test --test elkt_loader_test` 통과
+- 최종 재검증: `cargo test -p org-eclipse-elk-alg-layered` 전체 통과, `cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과(경고만 존재)
+- issue 리소스 기반 전환 추가: `issue_433_test.rs`, `issue_476_test.rs`, `issue_502_test.rs`, `issue_515_test.rs`를 ELKT 입력 기반으로 변경하고 대응 리소스 추가
+- 추가 검증: `cargo test -p org-eclipse-elk-alg-layered --test issue_433_test --test issue_476_test --test issue_502_test --test issue_515_test --test elkt_loader_test` 통과
+- 재검증: `cargo test -p org-eclipse-elk-alg-layered` 전체 통과, `cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과(경고만 존재)
+- issue 리소스 기반 전환 추가: `issue_447_test.rs`를 ELKT 입력 기반으로 변경하고 대응 리소스 추가
+- ELKT 파서 확장: `portProperty`에서 `portAnchor`(`LayeredOptions::PORT_ANCHOR`, `KVector`) 파싱/적용 지원
+- 추가 검증: `cargo test -p org-eclipse-elk-alg-layered --test issue_447_test --test elkt_loader_test` 통과
+- 재검증: `cargo test -p org-eclipse-elk-alg-layered` 전체 통과, `cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과(경고만 존재)
+- issue 리소스 기반 전환 추가: `issue_603_test.rs`, `issue_870_test.rs`를 ELKT 입력 기반으로 변경하고 대응 리소스 추가
+- ELKT 파서 확장: `nodeLabelsPadding`, `nodePlacementStrategy`(top-level), `nodeProperty`의 `nodeLabelsPlacement`/`nodeLabelsPadding`/`nodePlacementStrategy` 파싱 지원
+- 추가 검증: `cargo test -p org-eclipse-elk-alg-layered --test issue_603_test --test issue_870_test --test elkt_loader_test` 통과
+- 재검증: `cargo test -p org-eclipse-elk-alg-layered` 전체 통과, `cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과(경고만 존재)
+- issue 리소스 기반 전환 추가: `issue_143_and_318_test.rs`, `issue_316_test.rs`를 ELKT 입력 기반으로 변경하고 대응 리소스 추가
+- ELKT 파서 확장: `spacing.edgeEdge`(top-level + nodeProperty) 파싱/적용 지원
+- 추가 검증: `cargo test -p org-eclipse-elk-alg-layered --test issue_143_and_318_test --test issue_316_test --test elkt_loader_test` 통과
+- 재검증: `cargo test -p org-eclipse-elk-alg-layered` 전체 통과, `cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과(경고만 존재)
+- issue 리소스 기반 전환 마무리: `issue_405_test.rs`, `issue_405_2_test.rs`, `issue_682_test.rs`, `issue_701_test.rs`, `issue_871_test.rs`, `issue_905_test.rs`를 ELKT 입력 기반으로 변경하고 대응 리소스 추가
+- ELKT 파서 확장: `portLabel` 선언 파싱, `portLabelsPlacement`(top-level + nodeProperty) 파싱/적용 지원
+- 최종 검증: `cargo test -p org-eclipse-elk-alg-layered` 전체 통과, `cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과(경고만 존재)
+- ELKT 파서 추가 확장: `node` block 일반 `key:value` 파싱, `edgeProperty`(`edgeLabelsPlacement/junctionPoints/sourcePoint/targetPoint/bendPoints`), `edgeSection`, `edgePoint`, edge label `placement`, node label placement shorthand/조합 파싱 지원
+- ELKT 로더 보강: `find_edge_by_identifier`를 BFS 탐색으로 변경해 중첩 노드 내부 edge 식별 지원
+- ELKT 고급 기능 검증 추가: `tests/resources/issues/elkt_parser_advanced_features.elkt` + `load_advanced_elkt_features_for_labels_and_edge_points` 테스트 추가 및 통과
+- layered 테스트 clippy 경고 일부 정리: 테스트 파일 `dead_code` 허용 추가, `switch_decider_test`의 `&Vec`/`&mut Vec` 시그니처를 slice 기반으로 정리, 불필요 `mut` 제거
+- 성능 측정 확장: `perf_layered_issue_scenarios` 바이너리 추가 및 빌드/스모크 실행 확인
+- 성능 자동화 연결: `run_perf_layered_issue_scenarios.sh` 추가, `run_perf_all.sh` env 변수/실행 체인 추가, `compare_perf_results.sh`/`check_perf_regression.sh`/`summarize_perf_results.sh`/`scripts/README.md`에 layered issue 시나리오 결과(`perf/results_layered_issue_scenarios.csv`) 반영
+- 성능 비교/회귀 검사 보강: `compare_perf_results.sh`/`check_perf_regression.sh`에서 `results_layered_issue_scenarios.csv`를 시나리오(`scenario` 컬럼) 단위로 window 비교/회귀 판정하도록 개선
+- 파이프라인 검증: `run_perf_all.sh`를 소형 입력으로 실행해 comment/graph/recursive/layered/layered-issue 전체 체인 동작 확인
+- 시나리오별 회귀 스모크 검증: 샘플 `results_layered_issue_scenarios.csv`로 `compare/check` 실행 시 시나리오별 delta/회귀 판정 출력 확인
+- 재검증: `cargo test -p org-eclipse-elk-alg-layered` 전체 통과, `cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과(경고만 존재), `elkt_test_loader.rs`의 `trim_split_whitespace`/`type_complexity` 경고 정리
+- layered/lib clippy 정리 1차: `get(0)`/`option_map_unit_fn`/`ptr_arg`/`map_clone` 중심으로 `elk_layered`, `l_edge`, `l_node`, `l_port`, `model_order_barycenter_heuristic`, `sweep_copy`, `bk/node_placer`, `p2layers` 다수 파일 리팩터링
+- layered/lib clippy 정리 2차: `get(0)` 패턴 전수 치환(`intermediate/*`, `preserveorder/*`, `layer_sweep_crossing_minimizer`, `elk_graph_layout_transferrer` 등) 및 `map_or(false, ...) -> is_some_and(...)`, `or_insert_with(HashSet::new) -> or_default()` 적용
+- layered/lib clippy 정리 3차: `unwrap_or_else(Default::new/default fn)`를 `unwrap_or_default()`로 정리(`elk_graph_importer/layout_transferrer`, `graph_transformer`, `final_spline_bendpoints_calculator`, `graph_info_holder`, `layer_sweep_crossing_minimizer`, `orthogonal_routing_generator`, `network_simplex_layerer`)
+- 정리 후 검증: `cargo test -p org-eclipse-elk-alg-layered` 반복 통과, `cargo clippy -p org-eclipse-elk-alg-layered --lib` 통과(경고만 존재)
+- clippy 경고량 추적(라이브러리 기준): `plugins/.../src` 경고 라인 수가 최근 배치에서 112 -> 93 -> 82로 감소
+- layered/lib clippy 정리 4차: 옵션 enum `Default` 수동 impl을 derive로 전환(`CycleBreakingStrategy`/`CrossingMinimizationStrategy`/`GraphCompactionStrategy`/`GreedySwitchType`/`LayeringStrategy`/`NodePlacementStrategy`/`NodePromotionStrategy`)
+- layered/lib clippy 정리 5차: 알고리즘/유틸 저위험 리팩터링 일괄 적용(`spacings` flatten, `min_width_layerer` unwrap 제거, `stretch_width_layerer` sort_by_key, `crossings_counter` swap, `hyperedge_crossings_counter` append/collapse, `bk` 계열 entry/enumerate/collapse, `nub_spline` saturating_sub/for-loop, `spline_edge_router` unit-map 제거 등)
+- layered/lib clippy 정리 6차: Java API 정합성을 유지한 lint 정리(`to_string` 메서드 `inherent_to_string` 허용, ref-key map 사용 파일 `mutable_key_type` 모듈 허용, `too_many_arguments`가 구조적으로 필요한 함수에 국소 허용)
+- layered/lib 경고 해소: `cargo clippy -p org-eclipse-elk-alg-layered --lib` 기준 layered 크레이트 경고 0건(의존 `org-eclipse-elk-alg-common` 경고만 잔존)
+- 재검증: `cargo test -p org-eclipse-elk-alg-layered` 전체 통과, `cargo clippy -p org-eclipse-elk-alg-layered --lib`/`--tests` 통과
+- alg.common clippy 정리 1차: `networksimplex`(`get(0)`/`collapsible_else_if`/재귀 self 제거), `compaction options` default derive 전환, `polyomino`(`needless_range_loop`/`new_without_default`/`get_first`/`manual_div_ceil`), `t_triangle`(`clone_on_copy`), `rectilinear_convex_hull`(`map_or`/boolean 단순화), `spore depth_first_compaction`(`map_or`), `nodespacing`/`polyomino_options`(`too_many_arguments` 국소 허용) 정리
+- 경고 최종 상태: `cargo clippy -p org-eclipse-elk-alg-layered --lib` 및 `cargo clippy -p org-eclipse-elk-alg-layered --tests` 무경고
+- 최종 재검증: `cargo test -p org-eclipse-elk-alg-layered` 전체 통과 유지
+- 워크스페이스 clippy 에러 해소: `org-eclipse-elk-alg-radial`(`eades_radial.rs`의 `eq_op`)과 `org-eclipse-elk-alg-rectpacking`(`compactor.rs`의 NaN 체크 `eq_op`) 수정
+- 워크스페이스 재검증: `cargo clippy --workspace --all-targets` 종료 코드 0(다른 알고리즘 크레이트 경고는 잔존)
+- 워크스페이스 clippy 잔여 경고 배치 정리 완료: `topdownpacking`/`disco`/`spore`/`libavoid`/`vertiflex`/`force`/`rectpacking`/`radial`/`mrtree`/`graphviz-layouter`/`core test` 경고 제거
+- 최종 정적 검증: `cargo clippy --workspace --all-targets` 무경고 확인
+- 빌드 재검증: `cargo build --workspace` 통과
+- `org-eclipse-elk-alg-common` `network_simplex_test`를 큰 스택 스레드에서 실행하도록 보강(`network_simplex_deltas`)해 기본 실행 스택 오버플로우 제거
+- 전체 테스트 재검증: `cargo test --workspace` 전체 통과
+- ELKT 파서 확장 2차: 블록 컨텍스트 스택(Node/Port/Edge) 도입, 중첩 `node` 선언과 `port` 암시 parent 해석, `layout[position/size]` 및 edge block `layout[start/end/bends]`/property 파싱 지원
+- ELKT 리소스/테스트 확장: `elkt_parser_nested_blocks.elkt` 추가 및 `load_nested_blocks_and_combined_layout_properties` 테스트로 복합 표기(`[]`, `|`, 공백 포함) 회귀 검증
+- 단계 재검증: `cargo test -p org-eclipse-elk-alg-layered --test elkt_loader_test`, `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --test elkt_loader_test`, `cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과
+- ELKT 파서 확장 3차: `edge a,b -> c,d` comma 기반 multi-source/target 하이퍼엣지 파싱 지원 및 `find_edge_by_identifier`의 다중 source/target 매칭 보강
+- ELKT 파서 확장 3차: 컨텍스트 기반 `label` 선언 파싱(node/port/edge 블록 내)과 label block `layout`(position/size) 처리 지원
+- ELKT 리소스/테스트 확장: `elkt_parser_hyperedge_and_labels.elkt` 추가 및 `load_hyperedge_and_nested_port_label_blocks` 테스트 추가
+- 단계 재검증: `cargo test -p org-eclipse-elk-alg-layered --test elkt_loader_test`, `cargo clippy -p org-eclipse-elk-alg-layered --test elkt_loader_test`, `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과
+- ELKT 파서 확장 4차: `section` 선언의 `incoming/outgoing` 및 `section -> section` 링크 파싱, generic `label`의 identifier(`label id: "text"`)와 중첩 label 컨텍스트 우선 parent 해석 지원
+- ELKT 리소스/테스트 확장: `elkt_parser_sections_and_label_ids.elkt` 추가 및 `load_section_links_and_label_identifiers` 테스트 추가
+- ELKT 단계 재검증: `cargo test -p org-eclipse-elk-alg-layered --test elkt_loader_test`, `cargo clippy -p org-eclipse-elk-alg-layered --test elkt_loader_test`, `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과
+- 성능 기준선/비교 모드 확장: `compare_perf_results.sh`/`check_perf_regression.sh`에 `PERF_COMPARE_MODE=window|baseline|both`, `PERF_BASELINE_LAYERED_FILE` 지원 추가, `update_perf_baseline.sh`/`perf/baselines/` 도입
+- 퍼포먼스 래퍼/CI 보강: `run_perf_and_compare.sh`/`run_perf_and_check.sh` mode 인자 연동, `.github/workflows/perf.yml`에 compare mode/baseline path/regression gate 입력 및 `perf/compare.txt`/`perf/baselines/*.csv` artifact 업로드 반영
+- 성능 파이프라인 버그 수정: `perf_layered_issue_scenarios` CSV 기록 줄바꿈(`\\n` 문자열 기록) 수정, `run_perf_and_check.sh`에서 compare 단계에 `window` 인자 전달하도록 수정
+- 스모크 검증: 소형 입력으로 `run_perf_all.sh`, `run_perf_and_compare.sh`, `run_perf_and_check.sh`, `compare_perf_results.sh`, `check_perf_regression.sh`, `update_perf_baseline.sh` 실행 확인(`window`/`baseline`/`both` 모드)
+- 워크플로 정합성 점검: `.github/workflows/perf.yml` compare step이 `regression_window` 입력을 사용하도록 정리, `ruby` YAML 파싱으로 워크플로 문법 검증
+- ELKT 파서 에러 보고 보강: section link의 미존재 target/source/edge를 에러로 반환하고, generic label identifier 중복 시 로딩 실패 처리 추가
+- ELKT 에러 케이스 리소스/테스트 추가: `elkt_parser_invalid_section_link.elkt`, `elkt_parser_duplicate_label_identifier.elkt`, `fail_when_section_link_target_is_missing`, `fail_on_duplicate_label_identifier` 추가
+- 단계 재검증: `cargo test -p org-eclipse-elk-alg-layered --test elkt_loader_test`, `cargo clippy -p org-eclipse-elk-alg-layered --test elkt_loader_test` 통과
+- 전체 재검증: `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과
+- 기준선 정책 문서화: `perf/baselines/POLICY.md` 추가 및 `perf/README.md`, `scripts/README.md`에 참조 연결
+- ELKT section 체인/순환 corner case 보강: `section s0 -> s1,s2 -> s3` 체인 링크 파싱(중간 링크 자동 생성), 동일 source의 다중 링크 누적 병합, 순환 링크(`s3 -> s0`) 처리 보강
+- ELKT section shape strict 참조 보강: `incoming/outgoing` shape에서 미존재 node/port 참조 시 자동 생성 대신 로딩 에러 반환
+- ELKT section alias 커버리지 확대: `incomingShape/outgoingShape`, `source/sourcePoint/start`, `target/targetPoint/end`, `bend/bendPoint/bendPoints/bends` 파싱 지원
+- ELKT 파서 안정화: `parse_named_value`가 키 부분 문자열 오탐(`end:`가 `bend:` 내부에 매칭)하지 않도록 경계 인식 검색으로 보강
+- ELKT 리소스/테스트 추가: `elkt_parser_section_chain_and_aliases.elkt`, `elkt_parser_invalid_section_shape.elkt`, `load_section_chain_and_aliases`, `fail_when_section_shape_reference_is_missing` 추가
+- Java 성능 비교 자동화 추가: `compare_java_perf_results.sh`, `check_java_perf_parity.sh`, `run_perf_and_compare_java.sh` 추가 및 `perf/README.md`, `scripts/README.md` 문서화
+- perf CI Java 비교 연동: `.github/workflows/perf.yml`에 `java_compare_enabled/java_results_file/java_parity_threshold/java_parity_gate` 입력과 compare/parity step(옵션) 추가, `perf/java_vs_rust.md` artifact 업로드
+- 단계 재검증: `cargo test -p org-eclipse-elk-alg-layered --test elkt_loader_test`, `cargo clippy -p org-eclipse-elk-alg-layered --test elkt_loader_test`, Java compare 스크립트 스모크(`compare/check/run_perf_and_compare_java`) 통과
+- Java perf 실행 스크립트 추가: `run_java_perf_layered_issue_scenarios.sh` 작성(prepare + test 2단계, dry-run/모듈/로컬repo 오버라이드 지원)
+- Java compare 파이프라인 확장: `run_perf_and_compare_java.sh`에 `JAVA_PERF_GENERATE/JAVA_PERF_*` 옵션을 추가해 Java CSV 자동 생성 후 compare/parity 실행 가능하도록 연결
+- perf CI 입력 확장: `.github/workflows/perf.yml`에 `java_generate_enabled`, `java_generate_dry_run` 입력과 Java CSV 생성 step(옵션) 추가
+- 단계 검증: `sh -n scripts/run_java_perf_layered_issue_scenarios.sh scripts/run_perf_and_compare_java.sh`, `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/perf.yml")'` 통과
+- Java 실행 스모크 보강: Tycho runtime JVM에 `elk.perf.*`가 전달되도록 `-Dtycho.testArgLine` 전달 방식으로 수정, `JAVA_PERF_BUILD_PLUGINS=false` 경로에서 실제 CSV(`/tmp/java_layered_perf_smoke.csv`) 생성 확인
+- Java end-to-end 스모크: `JAVA_PERF_GENERATE=true`로 `run_perf_and_compare_java.sh` 실행하여 Java CSV 생성 + Rust 비교 + parity check 체인 완료(`/tmp/java_vs_rust_smoke2.md` 생성)
+- ELKT 파서 에러 컨텍스트 보강: 로딩 중 발생하는 핵심 에러(중복 edge id, section 블록/shape/link/label 식별자 충돌)에 `line N` + 원문 스니펫을 포함하도록 개선
+- ELKT alias 보강: edge block `layout`과 `edgeSection`에서 `start/source/sourcePoint`, `end/target/targetPoint`, `bends/bend/bendPoint/bendPoints`를 공통 파싱하도록 확장
+- ELKT property alias 보강: `normalize_key`에 `.` 제거를 추가해 `spacing.nodeNode`/`spacingNodeNode`를 동일 키로 인식하고, `nodeProperty`에도 동일 규칙 적용
+- ELKT 리소스/테스트 추가: `elkt_parser_edge_aliases.elkt`, `load_edge_layout_and_edge_section_aliases` 추가 및 에러 테스트에 line-context 검증(duplicate label/invalid section link/invalid section shape) 보강
+- 단계 재검증: `cargo test -p org-eclipse-elk-alg-layered --test elkt_loader_test`, `cargo clippy -p org-eclipse-elk-alg-layered --tests -- -D warnings` 통과
+- 전체 재검증: `cargo test -p org-eclipse-elk-alg-layered --tests` 전체 통과
+- ELKT 파서 strict 에러 처리 확대: `portProperty/edgeProperty`의 unknown entity, `edgeSection/edgePoint/edgeLabel/nodeLabel/portLabel`의 unknown reference, 최상위 `label` 선언 오용을 line-context 에러로 반환
+- ELKT 파서 malformed 선언 처리 확대: `node/port/edge/section/edgeSection/edgePoint/*Label/label` 구문 실패 시 조용히 무시하지 않고 명시적 파싱 에러 반환
+- ELKT qualified option id alias 지원: `normalize_property_key`/`property_key_matches` 도입으로 `org.eclipse.elk.*` 및 `org.eclipse.elk.layered.*` 접두 옵션 id를 축약 키와 동일하게 해석
+- ELKT 리소스/테스트 추가: `elkt_parser_qualified_option_ids.elkt`, `elkt_parser_unknown_edge_reference.elkt`, `elkt_parser_label_without_parent.elkt` 및 대응 테스트(`load_qualified_option_ids_and_apply_properties`, `fail_on_unknown_edge_reference_in_edge_section`, `fail_on_label_declaration_without_parent_context`) 추가
+- ELKT inline alias 보강: `parse_inline_field_value`/`parse_inline_value`에 key alias 매칭을 추가해 inline full option id(`org.eclipse.elk.layered.edgeLabels.placement:tail` 등) 파싱 지원
+- 단계 재검증: `cargo test -p org-eclipse-elk-alg-layered --test elkt_loader_test`, `cargo clippy -p org-eclipse-elk-alg-layered --tests -- -D warnings`, `cargo test -p org-eclipse-elk-alg-layered --tests` 통과
+- perf CI 기본 비교 모드 정책 반영: `.github/workflows/perf.yml`의 `perf_compare_mode` 기본값을 `window`로 조정(수동 baseline 비교는 입력 override로 수행)
+- 워크플로 검증: `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/perf.yml")'` 통과
+- ELKT syntax 변형 보강: `layout (...)` 괄호 표기, `bendPoints`의 `;` 구분자, section 선언의 후행 링크(`section s1 (...) -> s0`) 파싱 지원
+- ELKT section 링크 오류 타입 세분화: 빈 링크 타깃(`section s0 -> [...]`)을 별도 에러(`section link has empty target section list`)로 처리, unknown target 에러 메시지에 source section 정보 추가
+- ELKT 파서 유틸 보강: `parse_numbers`/`find_key_marker`/inline token trim 확장(`(`, `)`, `;` 포함), section 레이아웃 본문 추출을 `[]`/`()` 모두 지원
+- ELKT 리소스/테스트 추가: `elkt_parser_layout_variants.elkt`, `elkt_parser_invalid_section_link_empty_target.elkt`, 대응 테스트(`load_layout_parentheses_and_trailing_section_links`, `fail_when_section_link_target_is_empty`) 추가
+- 단계 재검증: `cargo test -p org-eclipse-elk-alg-layered --test elkt_loader_test`, `cargo clippy -p org-eclipse-elk-alg-layered --test elkt_loader_test -- -D warnings`, `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --tests -- -D warnings` 통과
+- Java perf 운영 가이드 확정: `scripts/README.md`, `perf/README.md`에 CI `JAVA_PERF_MVN_LOCAL_REPO` 분리 정책(run-attempt 단위 경로, job 내 경로 고정, 동시 job 경로 공유 금지, 재실행 시 `JAVA_PERF_BUILD_PLUGINS=false` 권장) 명시
+- ELKT key/value 변형 보강: `:` 외 `=` 구분자와 `key = value` 공백 변형을 `parse_property_line`/`parse_key_value`/`parse_entity_property`/`parse_named_value` 경로에서 공통 지원
+- ELKT inline/layout 파싱 보강: inline token의 `=` 처리(`placement=head`, `side=east` 등), `position/size` 및 `text/size` 파싱의 `=` 지원, section 링크 파서의 `=` 토큰 경계 처리 보강
+- ELKT 리소스/테스트 추가: `elkt_parser_key_value_variants.elkt`, 대응 테스트(`load_colon_and_equals_key_value_variants`) 추가
+- 단계 재검증: `cargo test -p org-eclipse-elk-alg-layered --test elkt_loader_test`, `cargo clippy -p org-eclipse-elk-alg-layered --test elkt_loader_test -- -D warnings`, `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --tests -- -D warnings` 통과
+- ELKT quoted/escape 정합성 보강: quoted section/link id 및 label id 파싱(`section "s 0"`, `label "l parent": ...`), escaped quote 텍스트(`\"`) 디코딩, key marker/kv split의 quote-aware 처리 추가
+- ELKT 식별자 파싱 보강: `split_first_token`/`parse_identifier_list`/`parse_identifier_value`를 quote-aware로 개선해 section/edge/label 참조에서 quoted 토큰을 안정적으로 해석
+- ELKT 리소스/테스트 추가: `elkt_parser_quoted_identifiers.elkt`, 대응 테스트(`load_quoted_label_and_section_identifiers_with_escaped_text`) 추가
+- Java compare artifact 검증 자동화: `scripts/check_java_perf_artifacts.sh` 추가, `run_perf_and_compare_java.sh`에 산출물 검증 훅(`JAVA_PERF_VERIFY_ARTIFACTS`) 연결
+- Java dry-run 리허설 자동화: `run_perf_and_compare_java.sh`와 `.github/workflows/perf.yml`에서 `java_generate_dry_run=true` 시 compare/parity를 건너뛰고 dry-run 리포트 생성 + artifact 검증 수행
+- 단계 재검증: `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --tests -- -D warnings`, `sh -n scripts/run_perf_and_compare_java.sh scripts/check_java_perf_artifacts.sh`, `ruby -e 'require \"yaml\"; YAML.load_file(\".github/workflows/perf.yml\")'`, `JAVA_PERF_GENERATE=true JAVA_PERF_DRY_RUN=true sh scripts/run_perf_and_compare_java.sh ...` 스모크 통과
+- ELKT quoted declaration 확장: `node`/`port` 선언 토크나이저를 quote-aware로 개선해 공백/콤마 포함 식별자(`\"node a\"`, `\"port, out\"`) 파싱 지원
+- ELKT edge declaration 확장: `edge`의 quoted id/source/target 및 quoted CSV token(`\"port, out\"`) 파싱 지원(`split_once_outside_quotes`, `split_csv_outside_quotes` 재사용)
+- ELKT 리소스/테스트 추가: `elkt_parser_quoted_node_port_edge.elkt`, 대응 테스트(`load_quoted_node_port_edge_identifiers`) 추가
+- 단계 재검증: `cargo test -p org-eclipse-elk-alg-layered --test elkt_loader_test`, `cargo clippy -p org-eclipse-elk-alg-layered --test elkt_loader_test -- -D warnings`, `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --tests -- -D warnings` 통과
+- Java artifact 품질 게이트 확장: `scripts/check_java_perf_artifacts.sh`에 `JAVA_ARTIFACT_MIN_ROWS`(데이터 행 기준)와 `JAVA_ARTIFACT_REQUIRED_SCENARIOS` 검사 추가, `run_perf_and_compare_java.sh`/`.github/workflows/perf.yml`에서 env 연동
+- Java compare/parity 안정화: `compare_java_perf_results.sh`/`check_java_perf_parity.sh`/`check_java_perf_artifacts.sh`가 optional CSV header를 자동 스킵하고 숫자 컬럼 유효성 검증 후 집계하도록 보강
+- 문서/스모크 검증 갱신: `scripts/README.md`/`perf/README.md`에 데이터 행 기준 게이트 정책 반영, `sh -n`/YAML parse/헤더 포함 샘플 CSV compare+parity+artifact pass/fail 스모크 통과
+- ELKT `parent/of` 참조 파싱 보강: `node`/`port` 선언에서 `parent=`/`in:`/`of=` key-value 표기와 quoted identifier를 동일하게 해석하도록 `parse_inline_field_value` 경로를 우선 적용
+- ELKT quoted property 참조 커버리지 확대: `nodeProperty`/`portProperty`/`edgeProperty`에서 quoted entity id를 사용하는 조합 케이스 리소스(`elkt_parser_quoted_property_parent_refs.elkt`)와 테스트(`load_quoted_property_and_parent_of_references`) 추가
+- 단계 재검증: `cargo test -p org-eclipse-elk-alg-layered --test elkt_loader_test`, `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --test elkt_loader_test -- -D warnings`, `cargo clippy -p org-eclipse-elk-alg-layered --tests -- -D warnings` 통과
+- ELKT section/edge reference 커버리지 확대: quoted id가 `section` 링크 및 `outgoing/incoming/outgoingShape/incomingShape`, `edgeSection`(`sourcePoint/targetPoint/bendPoints`), `edgePoint`(`source/target/bend`) alias와 함께 사용되는 리소스(`elkt_parser_quoted_section_edge_refs.elkt`) 및 테스트(`load_quoted_section_and_edge_point_references_with_aliases`) 추가
+- 단계 재검증: `cargo test -p org-eclipse-elk-alg-layered --test elkt_loader_test`, `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --test elkt_loader_test -- -D warnings`, `cargo clippy -p org-eclipse-elk-alg-layered --tests -- -D warnings` 통과
+- Java artifact row-floor 정책 보강: `check_java_perf_artifacts.sh`가 `required_scenario_count`를 계산해 최소 데이터 행 기준을 `max(JAVA_ARTIFACT_MIN_ROWS, required_scenario_count)`로 적용하고, 설정값 검증(정수 여부) 및 에러 메시지(`configured_min`, `required_scenarios`)를 강화
+- 문서/워크플로 정합성 반영: `scripts/README.md`, `perf/README.md`, `.github/workflows/perf.yml`에 row-floor 정책 설명을 동기화
+- 정책 스모크 검증: `JAVA_ARTIFACT_MIN_ROWS=1`이어도 required scenario 5개일 때 3행 CSV는 실패, 5행 CSV는 통과하는 케이스 확인
+- Java 실측 실행 안정화: `run_perf_and_compare_java.sh`에서 `JAVA_PERF_GENERATE=true` & non-dry-run & `JAVA_PERF_MVN_LOCAL_REPO` 미지정 시 per-run temp m2 경로를 자동 할당해 Tycho lock 충돌 완화
+- Java 실행 실패 안내 보강: `run_java_perf_layered_issue_scenarios.sh`에 Maven/Tycho 실패 시 lock 회피(`JAVA_PERF_MVN_LOCAL_REPO`) 및 dry-run/network prewarm 힌트 메시지 추가
+- 단계 검증/관찰: 로컬 non-dry-run 시 기존 `.m2` lock timeout은 사라졌고, 현재 환경에서는 Tycho plugin resolution(원격 repo 접근) 실패로 실측 CSV 생성이 차단됨; dry-run 경로는 계속 통과
+- Java baseline 운영 보강: `scripts/update_java_perf_baseline.sh` 추가(기본 `perf/java_results_layered_issue_scenarios.csv` -> `perf/baselines/java_layered_issue_scenarios.csv`) 및 `scripts/README.md`/`perf/README.md`/`perf/baselines/POLICY.md` 절차 문서화
+- 단계 재검증: `sh -n scripts/update_java_perf_baseline.sh`, 샘플 CSV 기준 baseline copy 스모크(`JAVA_BASELINE_UPDATE_OK`) 통과
+- Java baseline 연동 회귀 판정 확장: `run_perf_and_compare_java.sh`에 `JAVA_PERF_COMPARE_MODE=results|baseline|both` 추가, baseline 입력(`JAVA_BASELINE_FILE`/`JAVA_BASELINE_OUTPUT`/`JAVA_BASELINE_THRESHOLD`) 지원 및 baseline artifact 검증 경로 연결
+- perf CI Java 파이프라인 통합: `.github/workflows/perf.yml`의 Java 관련 다중 step을 `run_perf_and_compare_java.sh` 단일 호출로 통합하고, 입력(`java_compare_mode`, `java_baseline_file`, `java_baseline_parity_threshold`, `java_baseline_parity_gate`)을 wrapper env에 매핑
+- Java parity 게이트 분리: `run_perf_and_compare_java.sh`에 `JAVA_RESULTS_PARITY_GATE`/`JAVA_BASELINE_PARITY_GATE` 추가, compare와 gate 실행을 독립 제어하도록 보강
+- Rust perf 재실행 제어: `run_perf_and_compare_java.sh`에 `LAYERED_ISSUE_SKIP_RUST_RUN` 추가(CI에서 `run_perf_all.sh` 결과 재사용)
+- 문서 동기화: `scripts/README.md`, `perf/README.md`, `perf/baselines/POLICY.md`에 단일 Java 파이프라인/모드/게이트/skip-rust 운영 가이드 반영
+- 단계 스모크 검증: `run_perf_and_compare_java.sh`의 `results`, `baseline`, `both + dry-run` 모드 및 artifact 검증 경로 모두 통과(`JAVA_PIPELINE_MODES_OK`)
+- Java 생성 실패 완화 옵션 추가: `run_perf_and_compare_java.sh`에 `JAVA_PERF_ALLOW_GENERATE_FAILURE` 도입(생성 실패 허용 시 results compare를 skip report로 대체하고 `both` 모드 baseline compare는 계속 수행)
+- perf CI 입력 확장: `.github/workflows/perf.yml`에 `java_allow_generate_failure` 추가 및 wrapper env(`JAVA_PERF_ALLOW_GENERATE_FAILURE`) 매핑
+- 실패 정책 스모크 검증: 강제 생성 실패 조건에서 `JAVA_PERF_ALLOW_GENERATE_FAILURE=true`면 fallback 지속(`JAVA_ALLOW_FAILURE_FALLBACK_OK`), `false`면 즉시 실패(`JAVA_GENERATE_FAIL_STRICT_OK`) 확인
+- baseline 모드 생성 자동 skip 보강: `run_perf_and_compare_java.sh`에서 `JAVA_PERF_COMPARE_MODE=baseline`일 때 `JAVA_PERF_GENERATE=true` 입력이 들어와도 생성 단계를 자동 건너뛰고 baseline compare만 수행
+- 단계 스모크 검증: baseline 모드 + `JAVA_PERF_GENERATE=true` + invalid mvn bin 조건에서도 baseline 리포트/artifact 검증이 정상 완료됨(`BASELINE_GENERATE_AUTO_SKIP_OK`)
+- Java generation 재시도 보강: `run_java_perf_layered_issue_scenarios.sh`에 `JAVA_PERF_RETRIES`/`JAVA_PERF_RETRY_DELAY_SECS` 추가, Maven 바이너리 사전검증(경로/실행 가능 여부) 및 retry 로그 출력 지원
+- perf CI 입력 확장: `.github/workflows/perf.yml`에 `java_generate_retries`, `java_generate_retry_delay_secs` 추가하고 wrapper env로 전달
+- 재시도 스모크 검증: 가짜 Maven 바이너리로 `retry=0` 즉시 실패(`JAVA_RETRY_STRICT_FAIL_OK`), `retry=1` 1회 복구 성공(`JAVA_RETRY_RECOVERY_OK`) 확인
+- 실측 재시도 확인: 실제 Maven/Tycho 경로에서 `JAVA_PERF_RETRIES=1`로 재시도 수행 시 동일 plugin descriptor 해석 실패가 2회 연속 재현됨; `JAVA_PERF_ALLOW_GENERATE_FAILURE=true` 경로로 wrapper가 skip report(`/tmp/java_real_try.md`)를 생성하고 파이프라인 지속 확인
+- Java 상태 요약 자동화: `scripts/summarize_java_perf_status.sh` 추가(결과/기준선 리포트, CSV 존재 여부, skip 사유, baseline 업데이트 다음 액션 요약) 및 `perf.yml`에 `perf/java_perf_status.md` 생성 step/artifact 업로드 추가
+- 상태 요약 스모크 검증: 결과 CSV 미존재/존재 케이스 각각에서 next action 메시지(`re-run generation` vs `update baseline`)가 올바르게 출력됨(`JAVA_STATUS_SUMMARY_OK`)
+- Java baseline 후보 export 자동화: `scripts/export_java_baseline_candidate.sh` 추가(소스 CSV 존재 시 baseline 후보 복사 + 상태 리포트, 미존재 시 skip 리포트), `perf.yml` 입력 `java_export_baseline_candidate`와 `perf/java_baseline_candidate_status.md` artifact 업로드 연동
+- baseline 후보 export 스모크 검증: source 미존재 skip/존재 updated 두 케이스 모두 상태 리포트 출력과 target CSV 생성 확인(`JAVA_BASELINE_CANDIDATE_EXPORT_OK`)
+- baseline 후보 안전성 보강: export 기본 target을 `perf/baselines/java_layered_issue_scenarios.candidate.csv`로 분리하고, `JAVA_CANDIDATE_MIN_ROWS`/`JAVA_CANDIDATE_REQUIRED_SCENARIOS` 정책 검증을 통과한 경우만 candidate 갱신하도록 강화(`JAVA_CANDIDATE_STRICT`로 fail/skip 정책 제어)
+- Java 상태 요약 확장: `summarize_java_perf_status.sh`가 candidate CSV/리포트 상태를 함께 반영하고, candidate 존재 시 baseline 승격 명령(`update_java_perf_baseline.sh`)을 다음 액션으로 안내
+- workflow 순서 정렬: `perf.yml`에서 candidate export를 status summary보다 먼저 실행해 같은 런의 candidate 상태가 요약 리포트에 반영되도록 조정
+- candidate strict 스모크 검증: strict=true + 정책 불일치 케이스에서 export가 비정상 종료(`JAVA_CANDIDATE_STRICT_FAIL_OK`), 정상 candidate 생성 후 summary가 promote 액션 안내(`JAVA_CANDIDATE_SUMMARY_OK`) 확인
+- candidate readiness 게이트 연동: `scripts/check_java_baseline_candidate.sh`를 `perf.yml`에 연결해 `java_export_baseline_candidate=true` 경로에서 `perf/java_baseline_candidate_check.md`를 생성/업로드하고, `java_export_candidate_strict`로 fail/skip 정책을 공유
+- Java 상태 요약 추가 확장: `summarize_java_perf_status.sh`가 `JAVA_BASELINE_CANDIDATE_CHECK_REPORT`를 읽어 candidate check status(`ready/not_ready/skipped`)를 표시하고 next action을 분기
+- candidate readiness 스모크 검증: 샘플 CSV로 `ready`, `not_ready`, `strict fail` 케이스를 재현해 보고서 상태/종료코드 동작 확인
+- Java 실측 재시도(최신): `JAVA_PERF_GENERATE=true`, `JAVA_PERF_RETRIES=1`, `JAVA_PERF_ALLOW_GENERATE_FAILURE=true`로 wrapper 실행 시 Tycho plugin descriptor(`org.eclipse.tycho:tycho-maven-plugin:4.0.12`) 해석 실패가 재현됨(2회 시도 후 실패)
+- 운영 리포트 생성(최신): 실측 실패 후에도 `perf/java_vs_rust.md`(skip 사유), `perf/java_baseline_candidate_status.md`(skipped), `perf/java_baseline_candidate_check.md`(skipped), `perf/java_perf_status.md`(next action) 생성 경로 확인
+- 후속 실행 기준 정리: 네트워크/원격 의존성 접근 가능한 환경에서 동일 wrapper 명령 재실행 후 candidate export/check를 거쳐 baseline 승격 단계로 진행
+- Java 생성 preflight 보강(최신): `run_java_perf_layered_issue_scenarios.sh`에 DNS preflight 추가(`JAVA_PERF_SKIP_DNS_CHECK`, `JAVA_PERF_REQUIRED_HOSTS`), `repo.eclipse.org`/`repo.maven.apache.org` 해석 실패 시 Maven 실행 전 fail-fast하도록 개선
+- 원인 확정(최신): `JAVA_PERF_MVN_LOCAL_REPO` 격리 + `-X` 로그에서 최종 원인이 DNS(`UnknownHostException: repo.eclipse.org`, `UnknownHostException: repo.maven.apache.org`)임을 확인
+- Java wrapper 재검증(최신): DNS preflight 실패 상황에서 `JAVA_PERF_ALLOW_GENERATE_FAILURE=true` 경로로 `perf/java_vs_rust.md`, `perf/java_baseline_candidate_status.md`, `perf/java_baseline_candidate_check.md`, `perf/java_perf_status.md` 생성 확인
+- candidate strict 게이트 재검증(최신): 부분 Java CSV(`/tmp/java_results_layered_issue_scenarios.csv`, issue_405 only)에 대해 strict check 실행 시 `missing required scenario`로 `not_ready` 종료 확인
+- Java 실측/비교 파이프라인 완주(최신): 에스컬레이션 네트워크 실행으로 Java CSV 생성 성공(`external/elk/test/org.eclipse.elk.alg.layered.test/perf/java_results_layered_issue_scenarios.csv`), `results/baseline/both` compare 리포트(`perf/java_vs_rust*.md`) 생성 및 parity 통과 확인
+- Java baseline 승격 완료(최신): candidate export/check(`ready`) 후 `update_java_perf_baseline.sh`로 `perf/baselines/java_layered_issue_scenarios.csv` 반영, `summarize_java_perf_status.sh`에 `candidate==baseline` 분기 추가 및 상태 리포트 갱신
+- CoreOptions parity 보강(최신): `CoreOptions::BOX_PACKING_MODE` 추가, `BoxLayouterOptions::BOX_PACKING_MODE`를 CoreOptions alias로 통합, `core_options_meta`에 BOX option metadata 등록
+- category id parity 보강(최신): Core category id를 Java와 동일한 fully-qualified id(`org.eclipse.elk.*`)로 수정하고 layered/force/stress/mrtree/vertiflex/libavoid provider의 `set_category_id` 및 libavoid category id를 동기화
+- 테스트/클리피 재검증(최신): `cargo test -p org-eclipse-elk-core`, `cargo test -p org-eclipse-elk-alg-{force,mrtree,vertiflex,libavoid}`, `cargo clippy -p org-eclipse-elk-core -p org-eclipse-elk-alg-{force,mrtree,vertiflex,libavoid} --all-targets` 통과
+- 외부 서브모듈 무수정 운영 보강(최신): `scripts/java/LayeredIssuePerfBenchTest.java` 템플릿 추가, `run_java_perf_layered_issue_scenarios.sh`에 격리 실행(`JAVA_PERF_EXTERNAL_ISOLATE=true`, worktree 우선 + copy fallback) + 벤치 소스 임시 주입/자동 정리(`JAVA_PERF_BENCH_*`)를 도입해 원본 `external/elk` 변경이 남지 않도록 정리
+- perf CI 운영값 확정(최신): `.github/workflows/perf.yml` Java 입력 기본값을 strict 경로(`compare=both`, `generate=true`, parity/candidate strict gate=true)로 고정하고 Java step에 `JAVA_PERF_EXTERNAL_ISOLATE=true`/`JAVA_PERF_EXTERNAL_ELK_ROOT`/`JAVA_PERF_EXTERNAL_WORKTREE_ROOT`를 명시
+- Java 실패 대응 문서화(최신): `perf/JAVA_PERF_TRIAGE.md` 추가(생성 실패, results/baseline parity 실패, candidate readiness 실패별 triage와 baseline 승격 규칙)
 
 ## 다음 작업
-- 알고리즘 테스트 이식 확대(특히 layered 테스트군)
+- Java perf 운영 후속: `perf.yml` 기본 입력(`java_generate_enabled`, strict gate, parity threshold)을 현재 baseline 운영 정책으로 고정하고 CI 실패 시 triage 기준 문서화
+- CoreOptions/metadata parity 후속: Java `CoreOptions.java`/`Core.melk`와 Rust metadata를 정량 diff하는 체크 스크립트 추가(누락 option/category/dependency 자동 검출)
+- 남은 포팅 과제 지속: RecursiveGraphLayoutEngine 연계 고도화, algorithm-specific metadata/provider 세부 API parity, layered 이외 알고리즘 회귀/성능 자동화 확장

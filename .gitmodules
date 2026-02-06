@@ -1,3 +1,9 @@
 [submodule "external/elk"]
 	path = external/elk
 	url = https://github.com/eclipse-elk/elk
+[submodule "external/elk-models"]
+	path = external/elk-models
+	url = https://github.com/eclipse-elk/elk-models
+[submodule "external/elkjs"]
+	path = external/elkjs
+	url = https://github.com/kieler/elkjs

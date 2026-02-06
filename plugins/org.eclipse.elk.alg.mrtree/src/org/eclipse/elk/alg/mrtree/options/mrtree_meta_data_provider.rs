@@ -39,7 +39,7 @@ fn register_algorithm(registry: &mut dyn LayoutMetaDataRegistry) {
             "the input graph and arranges all nodes according to the resulting parent-children hierarchy. ",
             "I pity the fool who doesn't use Mr. Tree Layout."
         ))
-        .set_category_id(Some("tree"))
+        .set_category_id(Some("org.eclipse.elk.tree"))
         .set_preview_image_path(Some("images/mrtree_layout.png"));
     data.add_supported_feature(GraphFeature::Disconnected);
     registry.register_algorithm(data);
@@ -193,6 +193,7 @@ fn register_supports(registry: &mut dyn LayoutMetaDataRegistry) {
     registry.add_option_support(algo, MrTreeOptions::EDGE_END_TEXTURE_LENGTH.id(), None);
 }
 
+#[allow(clippy::too_many_arguments)]
 fn register_option<T: Clone + Send + Sync + 'static>(
     registry: &mut dyn LayoutMetaDataRegistry,
     property: &'static LazyLock<Property<T>>,

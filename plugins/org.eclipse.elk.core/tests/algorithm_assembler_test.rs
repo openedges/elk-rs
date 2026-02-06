@@ -147,7 +147,7 @@ fn test_add_processor_configuration() {
     assembler.set_phase(TestPhases::Phase2, phase_factory(TestPhases::Phase2));
 
     let graph = String::new();
-    let mut algorithm = assembler.build(&graph);
+    let algorithm = assembler.build(&graph);
 
     let expected = [
         "PROCESSOR_1",

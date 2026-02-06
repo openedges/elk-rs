@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use org_eclipse_elk_core::org::eclipse::elk::core::math::elk_padding::ElkPadding;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::direction::Direction;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::hierarchy_handling::HierarchyHandling;
@@ -121,7 +120,7 @@ impl<'a> ElkGraphImporter<'a> {
             let mut props = shape.graph_element().properties().clone();
             let padding = props
                 .get_property(CoreOptions::PADDING)
-                .unwrap_or_else(ElkPadding::new);
+                .unwrap_or_default();
             (props, width, height, padding)
         };
 

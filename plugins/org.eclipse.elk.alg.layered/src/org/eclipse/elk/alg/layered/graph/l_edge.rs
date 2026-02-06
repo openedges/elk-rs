@@ -60,17 +60,15 @@ impl LEdge {
     pub fn set_source(edge: &LEdgeRef, source: Option<LPortRef>) {
         let current_source = edge.lock().ok().and_then(|edge| edge.source());
         if let Some(current_source) = current_source {
-            current_source
-                .lock()
-                .ok()
-                .map(|mut port| remove_arc(port.outgoing_edges_mut(), edge));
+            if let Ok(mut port) = current_source.lock() {
+                remove_arc(port.outgoing_edges_mut(), edge);
+            }
         }
 
         if let Some(source_ref) = &source {
-            source_ref
-                .lock()
-                .ok()
-                .map(|mut port| port.outgoing_edges_mut().push(edge.clone()));
+            if let Ok(mut port) = source_ref.lock() {
+                port.outgoing_edges_mut().push(edge.clone());
+            }
         }
 
         if let Ok(mut edge_guard) = edge.lock() {
@@ -81,17 +79,15 @@ impl LEdge {
     pub fn set_target(edge: &LEdgeRef, target: Option<LPortRef>) {
         let current_target = edge.lock().ok().and_then(|edge| edge.target());
         if let Some(current_target) = current_target {
-            current_target
-                .lock()
-                .ok()
-                .map(|mut port| remove_arc(port.incoming_edges_mut(), edge));
+            if let Ok(mut port) = current_target.lock() {
+                remove_arc(port.incoming_edges_mut(), edge);
+            }
         }
 
         if let Some(target_ref) = &target {
-            target_ref
-                .lock()
-                .ok()
-                .map(|mut port| port.incoming_edges_mut().push(edge.clone()));
+            if let Ok(mut port) = target_ref.lock() {
+                port.incoming_edges_mut().push(edge.clone());
+            }
         }
 
         if let Ok(mut edge_guard) = edge.lock() {
@@ -287,7 +283,7 @@ impl LEdge {
     }
 
     pub fn designation(&mut self) -> Option<String> {
-        if let Some(label) = self.labels.get(0) {
+        if let Some(label) = self.labels.first() {
             if let Ok(label_guard) = label.lock() {
                 if !label_guard.text().is_empty() {
                     return Some(label_guard.text().to_owned());
@@ -297,6 +293,7 @@ impl LEdge {
         self.element.get_designation()
     }
 
+    #[allow(clippy::inherent_to_string)]
     pub fn to_string(&mut self) -> String {
         let mut result = String::new();
         result.push_str("e_");

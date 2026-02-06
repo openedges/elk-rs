@@ -142,6 +142,7 @@ fn register_supports(registry: &mut dyn LayoutMetaDataRegistry) {
     registry.add_option_support(algo, DisCoOptions::DEBUG_DISCO_POLYS.id(), None);
 }
 
+#[allow(clippy::too_many_arguments)]
 fn register_option<T: Clone + Send + Sync + 'static>(
     registry: &mut dyn LayoutMetaDataRegistry,
     property: &'static LazyLock<Property<T>>,

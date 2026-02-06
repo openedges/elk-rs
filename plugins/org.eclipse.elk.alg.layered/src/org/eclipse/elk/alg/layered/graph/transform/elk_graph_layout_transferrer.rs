@@ -68,7 +68,7 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
             .lock()
             .ok()
             .map(|graph_guard| graph_guard.actual_size())
-            .unwrap_or_else(KVector::new);
+            .unwrap_or_default();
 
         let mut elk_node_mut = elk_node.borrow_mut();
         let shape = elk_node_mut.connectable().shape();
@@ -302,5 +302,5 @@ fn collect_nodes_from_graph(graph: &crate::org::eclipse::elk::alg::layered::grap
 }
 
 fn first_shape(list: &org_eclipse_elk_graph::org::eclipse::elk::graph::EdgeEndpointList) -> Option<ElkConnectableShapeRef> {
-    list.get(0)
+    list.iter().next().cloned()
 }

@@ -41,7 +41,7 @@ impl NodeYPlacer {
             node_mut.connectable().shape().height()
         };
         let margins_bottom = node_get_property(node, CoreOptions::MARGINS)
-            .unwrap_or_else(org_eclipse_elk_core::org::eclipse::elk::core::math::ElkMargin::new)
+            .unwrap_or_default()
             .bottom;
 
         let new_min_height = min_height + self.layer_distance + height + margins_bottom.max(self.node_node_spacing);

@@ -44,7 +44,7 @@ impl ForceLayoutProvider {
     fn set_options(&mut self, graph: &mut FGraph) {
         let random_seed = graph.get_property(ForceOptions::RANDOM_SEED);
         let random = match random_seed {
-            Some(seed) if seed == 0 => {
+            Some(0) => {
                 let now = SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .unwrap_or_default()

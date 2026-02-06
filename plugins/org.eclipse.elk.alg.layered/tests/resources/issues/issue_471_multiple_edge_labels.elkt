@@ -1,0 +1,9 @@
+algorithm: layered
+
+node source [size: 40, 30]
+node target [size: 40, 30]
+
+edge main: source -> target
+edgeLabel main text:short size:20,10
+edgeLabel main text:medium size:30,10
+edgeLabel main text:long size:40,10

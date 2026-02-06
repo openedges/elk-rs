@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::sync::OnceLock;
 
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::{
@@ -421,17 +423,17 @@ fn get_decider_with_parent(
     (decider, node_order)
 }
 
-fn switch_nodes(node_order: &mut Vec<Vec<LNodeRef>>, free_layer_index: usize, upper: usize, lower: usize) {
+fn switch_nodes(node_order: &mut [Vec<LNodeRef>], free_layer_index: usize, upper: usize, lower: usize) {
     if let Some(layer) = node_order.get_mut(free_layer_index) {
         layer.swap(upper, lower);
     }
 }
 
-fn node_at<'a>(
-    node_order: &'a Vec<Vec<LNodeRef>>,
+fn node_at(
+    node_order: &[Vec<LNodeRef>],
     layer_index: usize,
     node_index: usize,
-) -> &'a LNodeRef {
+) -> &LNodeRef {
     &node_order[layer_index][node_index]
 }
 
@@ -901,7 +903,7 @@ fn in_layer_unit_constraints_prevent_switch() {
 fn switch_and_recount() {
     for_each_greedy_type(|greedy_type| {
         let graph = graph_cross_formed();
-        let (mut decider, mut node_order) = get_decider(&graph, greedy_type, 1, CrossingCountSide::West);
+        let (mut decider, node_order) = get_decider(&graph, greedy_type, 1, CrossingCountSide::West);
         assert!(decider.does_switch_reduce_crossings(
             node_at(&node_order, 1, 0),
             node_at(&node_order, 1, 1)

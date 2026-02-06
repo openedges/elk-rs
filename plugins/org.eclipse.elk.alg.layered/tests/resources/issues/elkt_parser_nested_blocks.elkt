@@ -1,0 +1,26 @@
+algorithm: layered
+direction: down
+portLabelsPlacement: [outside, nextToPortIfPossible]
+
+node root {
+  layout [ position: 10, 20 size: 220, 140 ]
+  nodeLabelsPlacement: [outside, vTop, hCenter]
+  nodeLabelsPadding: [3, 4, 5, 6]
+
+  node child_a {
+    layout [ position: 30, 40 size: 50, 30 ]
+    port p_out side:east layout [ position: 50, 12 size: 8, 8 ]
+  }
+
+  node child_b {
+    layout [ position: 140, 40 size: 55, 30 ]
+    port p_in of child_b side:west layout [ position: 0, 12 size: 8, 8 ]
+  }
+
+  edge e_nested: p_out -> p_in {
+    layout [ start: 80, 55 end: 140, 55 bends: 100,55 | 120,60 ]
+    edgeLabelsPlacement: center
+  }
+}
+
+edgePoint e_nested bend:130,58

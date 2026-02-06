@@ -7,8 +7,9 @@ use super::bottom_row_equal_whitespace_eliminator::BottomRowEqualWhitespaceElimi
 use super::grid_elk_node::GridElkNode;
 use super::topdown_packing_phases::TopdownPackingPhases;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum WhitespaceEliminationStrategy {
+    #[default]
     BottomRowEqualWhitespaceEliminator,
 }
 
@@ -17,12 +18,6 @@ impl WhitespaceEliminationStrategy {
         match self {
             WhitespaceEliminationStrategy::BottomRowEqualWhitespaceEliminator => 0,
         }
-    }
-}
-
-impl Default for WhitespaceEliminationStrategy {
-    fn default() -> Self {
-        WhitespaceEliminationStrategy::BottomRowEqualWhitespaceEliminator
     }
 }
 

@@ -151,16 +151,16 @@ impl ILayoutProcessorFactory<LGraph> for IntermediateProcessorStrategy {
                 GraphTransformerMode::ToInputDirection,
             )),
             IntermediateProcessorStrategy::NorthSouthPortPreprocessor => {
-                Box::new(NorthSouthPortPreprocessor::default())
+                Box::new(NorthSouthPortPreprocessor)
             }
             IntermediateProcessorStrategy::NorthSouthPortPostprocessor => {
-                Box::new(NorthSouthPortPostprocessor::default())
+                Box::new(NorthSouthPortPostprocessor)
             }
             IntermediateProcessorStrategy::FinalSplineBendpointsCalculator => {
                 Box::new(FinalSplineBendpointsCalculator::default())
             }
             IntermediateProcessorStrategy::LabelAndNodeSizeProcessor => {
-                Box::new(LabelAndNodeSizeProcessor::default())
+                Box::new(LabelAndNodeSizeProcessor)
             }
             _ => Box::new(NoOpLayoutProcessor),
         }

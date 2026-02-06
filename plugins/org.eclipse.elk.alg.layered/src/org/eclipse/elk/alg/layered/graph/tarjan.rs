@@ -1,3 +1,5 @@
+#![allow(clippy::mutable_key_type)]
+
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
@@ -178,16 +180,12 @@ impl<'a> Tarjan<'a> {
 
         if v_lowlink == v_id {
             let mut scc = Vec::new();
-            loop {
-                if let Some(n) = self.stack.pop() {
-                    if let Ok(mut guard) = n.lock() {
-                        guard.set_property(InternalProperties::TARJAN_ON_STACK, Some(false));
-                    }
-                    scc.push(n.clone());
-                    if std::sync::Arc::ptr_eq(&n, v) {
-                        break;
-                    }
-                } else {
+            while let Some(n) = self.stack.pop() {
+                if let Ok(mut guard) = n.lock() {
+                    guard.set_property(InternalProperties::TARJAN_ON_STACK, Some(false));
+                }
+                scc.push(n.clone());
+                if std::sync::Arc::ptr_eq(&n, v) {
                     break;
                 }
             }

@@ -179,7 +179,7 @@ impl<'a> NetworkSimplex<'a> {
         }
 
         self.edge_visited.fill(false);
-        while let Some(root) = self.graph.nodes.get(0).cloned() {
+        while let Some(root) = self.graph.nodes.first().cloned() {
             let count = self.tight_tree_dfs(&root);
             if count >= self.graph.nodes.len() {
                 break;
@@ -200,7 +200,7 @@ impl<'a> NetworkSimplex<'a> {
         }
 
         self.edge_visited.fill(false);
-        if let Some(root) = self.graph.nodes.get(0).cloned() {
+        if let Some(root) = self.graph.nodes.first().cloned() {
             self.postorder_traversal(&root);
             self.cutvalues();
         }
@@ -432,20 +432,16 @@ impl<'a> NetworkSimplex<'a> {
                             self.cutvalue[edge_id] += self.cutvalue[edge_internal_id(&edge)]
                                 - edge_weight(&edge);
                         }
-                    } else {
-                        if Arc::ptr_eq(&node, &source) {
-                            if edge_source_is(&edge, &node) {
-                                self.cutvalue[edge_id] += edge_weight(&edge);
-                            } else {
-                                self.cutvalue[edge_id] -= edge_weight(&edge);
-                            }
+                    } else if Arc::ptr_eq(&node, &source) {
+                        if edge_source_is(&edge, &node) {
+                            self.cutvalue[edge_id] += edge_weight(&edge);
                         } else {
-                            if edge_source_is(&edge, &node) {
-                                self.cutvalue[edge_id] -= edge_weight(&edge);
-                            } else {
-                                self.cutvalue[edge_id] += edge_weight(&edge);
-                            }
+                            self.cutvalue[edge_id] -= edge_weight(&edge);
                         }
+                    } else if edge_source_is(&edge, &node) {
+                        self.cutvalue[edge_id] -= edge_weight(&edge);
+                    } else {
+                        self.cutvalue[edge_id] += edge_weight(&edge);
                     }
                 }
 
@@ -529,7 +525,7 @@ impl<'a> NetworkSimplex<'a> {
 
         self.post_order = 1;
         self.edge_visited.fill(false);
-        if let Some(root) = self.graph.nodes.get(0).cloned() {
+        if let Some(root) = self.graph.nodes.first().cloned() {
             self.postorder_traversal(&root);
         }
         self.cutvalues();

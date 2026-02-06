@@ -70,11 +70,11 @@ impl Hash for TTriangle {
 }
 
 fn calculate_circumcenter(a: &KVector, b: &KVector, c: &KVector) -> KVector {
-    let mut ab = b.clone();
+    let mut ab = *b;
     ab.sub(a);
-    let mut ac = c.clone();
+    let mut ac = *c;
     ac.sub(a);
-    let mut bc = c.clone();
+    let mut bc = *c;
     bc.sub(b);
     let e = ab.x * (a.x + b.x) + ab.y * (a.y + b.y);
     let f = ac.x * (a.x + c.x) + ac.y * (a.y + c.y);

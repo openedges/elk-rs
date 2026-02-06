@@ -1,0 +1,11 @@
+algorithm: layered
+
+node compound [size: 180, 120]
+nodeProperty compound algorithm:layered
+
+node c1 parent compound [size: 30, 30]
+node c2 parent compound [size: 30, 30]
+node target parent compound [size: 30, 30]
+
+edge e1: c1 -> target
+edge e2: c2 -> target

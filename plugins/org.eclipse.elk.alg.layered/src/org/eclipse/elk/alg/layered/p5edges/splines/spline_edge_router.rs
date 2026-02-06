@@ -727,20 +727,24 @@ impl SplineEdgeRouter {
                 let source_mark = dep_source.lock().ok().map(|seg| seg.mark).unwrap_or(0);
                 let target_mark = dep_target.lock().ok().map(|seg| seg.mark).unwrap_or(0);
                 if source_mark > target_mark {
-                    dep_source.lock().ok().map(|mut seg| {
+                    if let Ok(mut seg) = dep_source.lock() {
                         seg.outgoing.retain(|dep| !Arc::ptr_eq(dep, &dependency));
-                    });
-                    dep_target.lock().ok().map(|mut seg| {
+                    }
+                    if let Ok(mut seg) = dep_target.lock() {
                         seg.incoming.retain(|dep| !Arc::ptr_eq(dep, &dependency));
-                    });
+                    }
 
                     if weight > 0 {
                         if let Ok(mut dep_guard) = dependency.lock() {
                             dep_guard.source = dep_target.clone();
                             dep_guard.target = dep_source.clone();
                         }
-                        dep_target.lock().ok().map(|mut seg| seg.outgoing.push(dependency.clone()));
-                        dep_source.lock().ok().map(|mut seg| seg.incoming.push(dependency.clone()));
+                        if let Ok(mut seg) = dep_target.lock() {
+                            seg.outgoing.push(dependency.clone());
+                        }
+                        if let Ok(mut seg) = dep_source.lock() {
+                            seg.incoming.push(dependency.clone());
+                        }
                     }
                 }
             }
@@ -993,7 +997,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for SplineEdgeRouter {
                     layer_guard
                         .nodes()
                         .iter()
-                        .all(|node| PolylineEdgeRouter::is_external_west_or_east_port(node))
+                        .all(PolylineEdgeRouter::is_external_west_or_east_port)
                 })
                 .unwrap_or(false)
         }).unwrap_or(false);
@@ -1005,7 +1009,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for SplineEdgeRouter {
                     layer_guard
                         .nodes()
                         .iter()
-                        .all(|node| PolylineEdgeRouter::is_external_west_or_east_port(node))
+                        .all(PolylineEdgeRouter::is_external_west_or_east_port)
                 })
                 .unwrap_or(false)
         }).unwrap_or(false);

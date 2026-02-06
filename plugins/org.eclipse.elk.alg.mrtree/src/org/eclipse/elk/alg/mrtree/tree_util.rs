@@ -27,7 +27,7 @@ impl TreeUtil {
         } else {
             children
                 .iter()
-                .map(|child| Self::depth(child))
+                .map(Self::depth)
                 .max()
                 .unwrap_or(0)
                 + 1
@@ -106,14 +106,14 @@ impl TreeUtil {
                 .lock()
                 .ok()
                 .and_then(|guard| guard.source())
-                .and_then(|node| node.lock().ok().map(|g| g.position_ref().clone()))
-                .unwrap_or_else(KVector::new);
+                .and_then(|node| node.lock().ok().map(|g| *g.position_ref()))
+                .unwrap_or_default();
             let b_pos = b
                 .lock()
                 .ok()
                 .and_then(|guard| guard.source())
-                .and_then(|node| node.lock().ok().map(|g| g.position_ref().clone()))
-                .unwrap_or_else(KVector::new);
+                .and_then(|node| node.lock().ok().map(|g| *g.position_ref()))
+                .unwrap_or_default();
             a_pos
                 .x
                 .partial_cmp(&b_pos.x)
@@ -183,14 +183,14 @@ impl TreeUtil {
                 .lock()
                 .ok()
                 .and_then(|guard| guard.target())
-                .and_then(|node| node.lock().ok().map(|g| g.position_ref().clone()))
-                .unwrap_or_else(KVector::new);
+                .and_then(|node| node.lock().ok().map(|g| *g.position_ref()))
+                .unwrap_or_default();
             let b_pos = b
                 .lock()
                 .ok()
                 .and_then(|guard| guard.target())
-                .and_then(|node| node.lock().ok().map(|g| g.position_ref().clone()))
-                .unwrap_or_else(KVector::new);
+                .and_then(|node| node.lock().ok().map(|g| *g.position_ref()))
+                .unwrap_or_default();
             a_pos
                 .x
                 .partial_cmp(&b_pos.x)
@@ -209,8 +209,8 @@ impl TreeUtil {
                 return target
                     .lock()
                     .ok()
-                    .map(|node| node.position_ref().clone())
-                    .unwrap_or_else(KVector::new);
+                    .map(|node| *node.position_ref())
+                    .unwrap_or_default();
             }
             KVector::new()
         } else {
@@ -228,8 +228,8 @@ impl TreeUtil {
                 return source
                     .lock()
                     .ok()
-                    .map(|node| node.position_ref().clone())
-                    .unwrap_or_else(KVector::new);
+                    .map(|node| *node.position_ref())
+                    .unwrap_or_default();
             }
             KVector::new()
         } else {
@@ -258,8 +258,8 @@ impl TreeUtil {
         let size = node
             .lock()
             .ok()
-            .map(|guard| guard.size_ref().clone())
-            .unwrap_or_else(KVector::new);
+            .map(|guard| *guard.size_ref())
+            .unwrap_or_default();
         match direction {
             Direction::Left => -size.x / 2.0,
             Direction::Up => -size.y / 2.0,
@@ -272,8 +272,8 @@ impl TreeUtil {
         let size = node
             .lock()
             .ok()
-            .map(|guard| guard.size_ref().clone())
-            .unwrap_or_else(KVector::new);
+            .map(|guard| *guard.size_ref())
+            .unwrap_or_default();
         match direction {
             Direction::Left => KVector::with_values(-size.x / 2.0, 0.0),
             Direction::Up => KVector::with_values(0.0, -size.y / 2.0),
@@ -327,12 +327,12 @@ impl TreeUtil {
             };
             let source_pos = edge_guard
                 .source()
-                .and_then(|node| node.lock().ok().map(|guard| guard.position_ref().clone()))
-                .unwrap_or_else(KVector::new);
+                .and_then(|node| node.lock().ok().map(|guard| *guard.position_ref()))
+                .unwrap_or_default();
             let target_pos = edge_guard
                 .target()
-                .and_then(|node| node.lock().ok().map(|guard| guard.position_ref().clone()))
-                .unwrap_or_else(KVector::new);
+                .and_then(|node| node.lock().ok().map(|guard| *guard.position_ref()))
+                .unwrap_or_default();
             (source_pos, target_pos)
         };
         let edge_vec = KVector::with_values(target_pos.x - source_pos.x, target_pos.y - source_pos.y);
@@ -370,7 +370,7 @@ impl TreeUtil {
                     let size = guard.size_ref();
                     KVector::with_values(pos.x + size.x / 2.0, pos.y + size.y / 2.0)
                 })
-                .unwrap_or_else(KVector::new);
+                .unwrap_or_default();
             let score = center.dot_product(&dir_vec);
             let replace = match &best {
                 Some((best_score, _)) => score > *best_score,

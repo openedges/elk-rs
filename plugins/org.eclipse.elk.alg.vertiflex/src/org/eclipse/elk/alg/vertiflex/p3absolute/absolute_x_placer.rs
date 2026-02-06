@@ -14,14 +14,14 @@ impl AbsoluteXPlacer {
         AbsoluteXPlacer
     }
 
-    fn find_minimal_x(&self, tree: &ElkNodeRef) -> f64 {
+    fn find_minimal_x(tree: &ElkNodeRef) -> f64 {
         let children = outgoing_children(tree);
         if children.is_empty() {
             node_x(tree)
         } else {
             let mut min_subtree_x = 0.0;
             for child in children {
-                let test_x = self.find_minimal_x(&child);
+                let test_x = Self::find_minimal_x(&child);
                 if test_x < min_subtree_x {
                     min_subtree_x = test_x;
                 }
@@ -30,13 +30,13 @@ impl AbsoluteXPlacer {
         }
     }
 
-    fn absolute_tree_coords(&self, tree: &ElkNodeRef) {
+    fn absolute_tree_coords(tree: &ElkNodeRef) {
         let children = outgoing_children(tree);
         if !children.is_empty() {
             let base_x = node_x(tree);
             for child in children {
                 node_set_x(&child, node_x(&child) + base_x);
-                self.absolute_tree_coords(&child);
+                Self::absolute_tree_coords(&child);
             }
         }
     }
@@ -58,9 +58,9 @@ impl ILayoutPhase<VertiFlexLayoutPhases, ElkNodeRef> for AbsoluteXPlacer {
         };
         if has_children {
             if let Some(parent) = VertiFlexUtil::find_root(graph) {
-                let new_x = node_x(&parent) - self.find_minimal_x(&parent);
+                let new_x = node_x(&parent) - Self::find_minimal_x(&parent);
                 node_set_x(&parent, new_x);
-                self.absolute_tree_coords(&parent);
+                Self::absolute_tree_coords(&parent);
             }
         }
 

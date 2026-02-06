@@ -1,5 +1,6 @@
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]
 pub enum EdgeRoutingStrategy {
+    #[default]
     Straight,
     Bend,
 }
@@ -10,11 +11,5 @@ impl EdgeRoutingStrategy {
             EdgeRoutingStrategy::Straight => 0,
             EdgeRoutingStrategy::Bend => 1,
         }
-    }
-}
-
-impl Default for EdgeRoutingStrategy {
-    fn default() -> Self {
-        EdgeRoutingStrategy::Straight
     }
 }

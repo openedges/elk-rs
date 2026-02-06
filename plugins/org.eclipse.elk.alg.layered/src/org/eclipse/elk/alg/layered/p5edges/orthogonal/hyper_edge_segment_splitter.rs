@@ -183,8 +183,12 @@ impl HyperEdgeSegmentSplitter {
             let mut best_area = &free_areas[best_area_index];
             let mut best_rating = Self::rate_area(segment, &split_segment, &split_partner, best_area);
 
-            for i in (from_index + 1)..=to_index {
-                let curr_area = &free_areas[i];
+            for (i, curr_area) in free_areas
+                .iter()
+                .enumerate()
+                .take(to_index + 1)
+                .skip(from_index + 1)
+            {
                 let curr_rating = Self::rate_area(segment, &split_segment, &split_partner, curr_area);
                 if is_better(curr_area, &curr_rating, best_area, &best_rating) {
                     best_area = curr_area;
@@ -346,15 +350,12 @@ fn is_better(curr_area: &FreeArea, curr_rating: &AreaRating, best_area: &FreeAre
     if curr_rating.crossings < best_rating.crossings {
         return true;
     }
-    if curr_rating.crossings == best_rating.crossings {
-        if curr_rating.dependencies < best_rating.dependencies {
-            return true;
-        }
-        if curr_rating.dependencies == best_rating.dependencies {
-            if curr_area.size > best_area.size {
-                return true;
-            }
-        }
+    if curr_rating.crossings == best_rating.crossings
+        && (curr_rating.dependencies < best_rating.dependencies
+            || (curr_rating.dependencies == best_rating.dependencies
+                && curr_area.size > best_area.size))
+    {
+        return true;
     }
     false
 }

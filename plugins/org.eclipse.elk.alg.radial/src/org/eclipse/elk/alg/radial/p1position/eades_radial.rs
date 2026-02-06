@@ -66,7 +66,12 @@ impl EadesRadial {
         RadialUtil::center_nodes_on_radi(node, x_pos, y_pos);
 
         let number_of_leafs = annulus.calculate_wedge_space(node);
-        let tau = 2.0 * (current_radius / current_radius + radius).acos();
+        let ratio = if (current_radius + radius).abs() < f64::EPSILON {
+            1.0
+        } else {
+            (current_radius / (current_radius + radius)).clamp(-1.0, 1.0)
+        };
+        let tau = 2.0 * ratio.acos();
         let (s, mut alpha) = if tau < max_alpha - min_alpha {
             (tau / number_of_leafs, (min_alpha + max_alpha - tau) / 2.0)
         } else {

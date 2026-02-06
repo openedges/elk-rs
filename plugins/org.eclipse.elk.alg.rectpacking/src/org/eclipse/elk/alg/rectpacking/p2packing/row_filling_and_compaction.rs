@@ -82,7 +82,7 @@ impl RowFillingAndCompaction {
                 current_row.borrow_mut().reset_stacks();
                 current_row.borrow_mut().set_width(target_width);
                 if row_idx > 0 {
-                    row_idx -= 1;
+                    row_idx = row_idx.saturating_sub(1);
                 }
             } else {
                 self.adjust_width_and_height(&current_row);
