@@ -1,14 +1,16 @@
-# Layered Issue Baseline Policy
+# Performance Baseline Policy
 
-This document defines how `perf/baselines/layered_issue_scenarios.csv` is produced and maintained.
+This document defines how baseline CSVs and Java parity thresholds are produced and maintained.
 
 ## Scope
 
-- Baseline target: `perf/results_layered_issue_scenarios.csv` schema.
+- Baseline targets:
+  - `perf/results_layered_issue_scenarios.csv` -> `perf/baselines/layered_issue_scenarios.csv`
+  - `perf/results_recursive_layout_scenarios.csv` -> `perf/baselines/recursive_layout_scenarios.csv`
 - Scenario key: `scenario` column (second column).
 - Metrics used by compare/check scripts:
-  - `avg_ms` (column 6)
-  - `scenarios_per_sec` (column 7)
+  - `avg_ms` (`layered_issue`: column 6, `recursive_scenarios`: column 9)
+  - `scenarios_per_sec`/`elems_per_sec` (`layered_issue`: column 7, `recursive_scenarios`: column 10)
 
 ## Update Rules
 
@@ -16,23 +18,36 @@ This document defines how `perf/baselines/layered_issue_scenarios.csv` is produc
 2. Run at least 5 iterations with warmup (recommended: `--iterations 20 --warmup 3`).
 3. Execute at least 3 repeated runs and inspect variance before accepting a new baseline.
 4. Update baseline only after intentional performance work or infrastructure changes that materially shift timing.
-5. Keep scenario coverage aligned with `LAYERED_ISSUE_SCENARIOS` defaults unless explicitly changed.
+5. Keep layered scenario coverage aligned with `LAYERED_ISSUE_SCENARIOS` defaults unless explicitly changed.
+6. Keep recursive scenario coverage aligned with `PERF_RECURSIVE_SCENARIO_PROFILE=default` for baseline gates; use `full` (`box_large` 포함) for periodic deep refresh.
+
+## Recursive Scenario Profiles
+
+- `quick`: fast CI smoke set (`fixed_dense,random_sparse,box_validated`).
+- `default`: baseline gate set (`fixed_dense,fixed_sparse,random_dense,random_sparse,box_sparse,fixed_validated,random_validated,box_validated`).
+- `full`: `default` + `box_large` (maintainer-triggered deep run).
+- Baseline recommendation:
+  - `default` baseline: update after perf-affecting changes and at least monthly.
+  - `full` validation run: at least quarterly or before major release branches.
 
 ## Update Procedure
 
 1. Generate fresh results:
    - `sh scripts/run_perf_layered_issue_scenarios.sh "issue_405,issue_603,issue_680,issue_871,issue_905" 20 3 perf/results_layered_issue_scenarios.csv`
-2. Copy to baseline:
+   - `PERF_RECURSIVE_SCENARIO_PROFILE=default sh scripts/run_perf_recursive_layout_scenarios.sh "" 5 1 perf/results_recursive_layout_scenarios.csv`
+   - (optional deep refresh) `PERF_RECURSIVE_SCENARIO_PROFILE=full sh scripts/run_perf_recursive_layout_scenarios.sh "" 5 1 perf/results_recursive_layout_scenarios.csv`
+2. Copy to baselines:
    - `sh scripts/update_perf_baseline.sh`
+   - `sh scripts/update_perf_recursive_scenarios_baseline.sh`
 3. Verify:
    - `PERF_COMPARE_MODE=baseline sh scripts/compare_perf_results.sh 3`
    - `PERF_COMPARE_MODE=baseline sh scripts/check_perf_regression.sh 5 3`
-4. Commit `perf/baselines/layered_issue_scenarios.csv` with a short note describing why the baseline changed.
+4. Commit updated baseline CSVs with a short note describing why the baseline changed.
 
 ## CI Usage
 
 - Use `perf_compare_mode=window` when baseline is intentionally not provided.
-- Use `perf_compare_mode=baseline` or `both` only when `baseline_layered_file` points to a valid CSV.
+- Use `perf_compare_mode=baseline` or `both` only when both `baseline_layered_file` and `baseline_recursive_scenarios_file` point to valid CSVs (or intentional fallback behavior is acceptable).
 - Enable `regression_gate=true` only after baseline quality is confirmed.
 
 ## Branch / Gate Defaults
@@ -42,14 +57,17 @@ This document defines how `perf/baselines/layered_issue_scenarios.csv` is produc
   - `regression_gate=false`
   - `regression_threshold=5`
   - `regression_window=3`
+  - `recursive_scenario_profile=quick`
 - Baseline validation runs (maintainer-triggered, typically on `main`):
   - `perf_compare_mode=both`
   - `regression_gate=true`
   - `regression_threshold=5`
   - `regression_window=3`
+  - `recursive_scenario_profile=default` (주기적 deep run에서는 `full`)
 - Java parity:
   - `java_compare_enabled=true` when Java CSV exists or `java_generate_enabled=true`.
-  - Keep `java_parity_gate=false` until CI stability is confirmed; then enable with a team-agreed threshold.
+  - Keep `java_parity_gate=false` until CI stability is confirmed; then enable with a team-agreed threshold policy.
+  - Prefer scenario thresholds in `perf/java_parity_thresholds.csv` (`scenario,max_avg_ms_regression_pct,max_scenarios_per_sec_regression_pct`) over a single global threshold.
 
 ## Java CI Lock Avoidance
 

@@ -113,7 +113,7 @@ pub static PROCESS_TIMEOUT_PROPERTY: LazyLock<Property<i32>> = LazyLock::new(|| 
 });
 
 impl LibavoidOptions {
-    pub const ALGORITHM_ID: &'static str = "org.eclipse.elk.libavoid";
+    pub const ALGORITHM_ID: &'static str = "org.eclipse.elk.alg.libavoid";
 
     pub const SEGMENT_PENALTY: &'static LazyLock<Property<f64>> = &SEGMENT_PENALTY_PROPERTY;
     pub const ANGLE_PENALTY: &'static LazyLock<Property<f64>> = &ANGLE_PENALTY_PROPERTY;

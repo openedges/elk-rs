@@ -33,9 +33,13 @@ fn register_algorithm(registry: &mut dyn LayoutMetaDataRegistry) {
     let mut data = LayoutAlgorithmData::new(TopdownpackingOptions::ALGORITHM_ID);
     data.set_name("ELK Top-down Packing")
         .set_description(concat!(
-            "Places fixed-size boxes in a grid and expands them horizontally to fill whitespace. ",
-            "Use as a standalone algorithm or as the layout for parallel top-down nodes.",
-        ));
+            "An algorithm for placing boxes of fixed sizes. Expands boxes horizontally to fill empty whitespace. ",
+            "This algorithm can be used standalone or specifically for {@link CoreOptions.TOPDOWN_LAYOUT}. ",
+            "In this use case it should be set for nodes whose {@link CoreOptions.TOPDOWN_NODE_TYPE} is set to ",
+            "{@link TopdownNodeTypes.PARALLEL_NODE}. This allows topdown layout to give children larger sizes ",
+            "based on their number of children.",
+        ))
+        .set_defining_bundle_id(Some("org.eclipse.elk.alg.topdownpacking"));
     registry.register_algorithm(data);
 }
 

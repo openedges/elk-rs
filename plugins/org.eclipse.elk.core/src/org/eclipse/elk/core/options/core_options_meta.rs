@@ -1450,7 +1450,7 @@ fn register_dependencies(registry: &mut dyn LayoutMetaDataRegistry) {
     registry.add_dependency(
         CoreOptions::TOPDOWN_NODE_TYPE.id(),
         CoreOptions::NODE_SIZE_FIXED_GRAPH_SIZE.id(),
-        Some(arc_any(true)),
+        None,
     );
     registry.add_dependency(
         CoreOptions::TOPDOWN_SCALE_CAP.id(),

@@ -39,6 +39,7 @@ fn register_algorithms(registry: &mut dyn LayoutMetaDataRegistry) {
             "A node overlap removal algorithm proposed by Nachmanson et al. in \"Node overlap removal ",
             "by growing a tree\"."
         ))
+        .set_defining_bundle_id(Some("org.eclipse.elk.alg.spore"))
         .set_preview_image_path(Some("images/overlap-removal.png"));
     registry.register_algorithm(overlap);
 
@@ -49,6 +50,7 @@ fn register_algorithms(registry: &mut dyn LayoutMetaDataRegistry) {
             "ShrinkTree is a compaction algorithm that maintains the topology of a layout. ",
             "The relocation of diagram elements is based on contracting a spanning tree."
         ))
+        .set_defining_bundle_id(Some("org.eclipse.elk.alg.spore"))
         .set_preview_image_path(Some("images/compaction-example.png"));
     registry.register_algorithm(compaction);
 }

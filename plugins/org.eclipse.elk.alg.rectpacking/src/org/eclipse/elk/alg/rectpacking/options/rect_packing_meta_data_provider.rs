@@ -43,10 +43,14 @@ fn register_algorithm(registry: &mut dyn LayoutMetaDataRegistry) {
     let mut data = LayoutAlgorithmData::new(RectPackingOptions::ALGORITHM_ID);
     data.set_name("ELK Rectangle Packing")
         .set_description(concat!(
-            "Algorithm for packing of unconnected boxes. Approximates a target width, ",
-            "places rectangles into rows with compaction, then expands to reduce whitespace.",
+            "Algorithm for packing of unconnected boxes, i.e. graphs without edges. The given order of the boxes is ",
+            "always preserved and the main reading direction of the boxes is left to right. The algorithm is divided ",
+            "into two phases. One phase approximates the width in which the rectangles can be placed. The next phase ",
+            "places the rectangles in rows using the previously calculated width as bounding width and bundles ",
+            "rectangles with a similar height in blocks. A compaction step reduces the size of the drawing. Finally, ",
+            "the rectangles are expanded to fill their bounding box and eliminate empty unused spaces.",
         ))
-        .set_preview_image_path(Some("images/box_layout.png"));
+        .set_defining_bundle_id(Some("org.eclipse.elk.alg.rectpacking"));
     registry.register_algorithm(data);
 }
 

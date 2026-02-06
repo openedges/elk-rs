@@ -45,7 +45,9 @@ fn register_algorithm(registry: &mut dyn LayoutMetaDataRegistry) {
         .set_description(
             "libavoid is a cross-platform C++ library providing fast, object-avoiding orthogonal and polyline connector routing for use in interactive diagram editors.",
         )
-        .set_category_id(Some("org.eclipse.elk.alg.libavoid.edge"));
+        .set_category_id(Some("org.eclipse.elk.alg.libavoid.edge"))
+        .set_bundle_name(Some("Libavoid Connector Routing"))
+        .set_defining_bundle_id(Some("org.eclipse.elk.alg.libavoid"));
     registry.register_algorithm(data);
 }
 

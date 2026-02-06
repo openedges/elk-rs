@@ -37,6 +37,7 @@ fn register_algorithm(registry: &mut dyn LayoutMetaDataRegistry) {
         .set_description(
             "Layouter for arranging unconnected subgraphs. The subgraphs themselves are, by default, not laid out.",
         )
+        .set_defining_bundle_id(Some("org.eclipse.elk.alg.disco"))
         .set_preview_image_path(Some("images/disco_layout.png"));
     registry.register_algorithm(data);
 }

@@ -363,7 +363,9 @@ impl LayoutMetaDataService {
         data.set_name("ELK Fixed")
             .set_description(
                 "Keeps the current layout as it is, without any automatic modification. Optional coordinates can be given for nodes and edge bend points.",
-            );
+            )
+            .set_bundle_name(Some("ELK"))
+            .set_defining_bundle_id(Some("org.eclipse.elk.core"));
         data.add_known_option_default(
             CoreOptions::PADDING.id(),
             arc_any(ElkPadding::with_any(15.0)),
@@ -384,6 +386,8 @@ impl LayoutMetaDataService {
             .set_description(
                 "Distributes the nodes randomly on the plane, leading to very obfuscating layouts. Can be useful to demonstrate the power of \"real\" layout algorithms.",
             )
+            .set_bundle_name(Some("ELK"))
+            .set_defining_bundle_id(Some("org.eclipse.elk.core"))
             .set_preview_image_path(Some("images/random_layout.png"));
         random_data.add_known_option_default(
             CoreOptions::PADDING.id(),
@@ -404,6 +408,8 @@ impl LayoutMetaDataService {
         box_data
             .set_name("ELK Box")
             .set_description("Algorithm for packing of unconnected boxes, i.e. graphs without edges.")
+            .set_bundle_name(Some("ELK"))
+            .set_defining_bundle_id(Some("org.eclipse.elk.core"))
             .set_preview_image_path(Some("images/box_layout.png"));
         box_data.add_known_option_default(
             CoreOptions::PADDING.id(),
@@ -430,8 +436,11 @@ impl LayoutMetaDataService {
             .with_provider_pool(Arc::new(layered_pool));
         layered_data
             .set_name("ELK Layered")
-            .set_description("Placeholder layered layout provider.")
+            .set_description(
+                "Layer-based algorithm provided by the Eclipse Layout Kernel. Arranges as many edges as possible into one direction by placing nodes into subsequent layers. This implementation supports different routing styles (straight, orthogonal, splines); if orthogonal routing is selected, arbitrary port constraints are respected, thus enabling the layout of block diagrams such as actor-oriented models or circuit schematics. Furthermore, full layout of compound graphs with cross-hierarchy edges is supported when the respective option is activated on the top level.",
+            )
             .set_category_id(Some("org.eclipse.elk.layered"))
+            .set_defining_bundle_id(Some("org.eclipse.elk.alg.layered"))
             .set_preview_image_path(Some("images/layered_layout.png"));
         layered_data
             .add_supported_feature(GraphFeature::SelfLoops)

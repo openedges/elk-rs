@@ -36,7 +36,8 @@ fn register_algorithm(registry: &mut dyn LayoutMetaDataRegistry) {
             "Tree layout algorithm that allows defining set vertical positions for nodes ",
             "rather than automatically placing nodes on levels according to their topology."
         ))
-        .set_category_id(Some("org.eclipse.elk.tree"));
+        .set_category_id(Some("org.eclipse.elk.tree"))
+        .set_defining_bundle_id(Some("org.eclipse.elk.alg.vertiflex"));
     data.add_supported_feature(GraphFeature::MultiEdges);
     data.add_supported_feature(GraphFeature::EdgeLabels);
     registry.register_algorithm(data);

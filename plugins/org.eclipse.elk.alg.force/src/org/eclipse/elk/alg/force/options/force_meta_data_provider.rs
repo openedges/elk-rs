@@ -40,6 +40,7 @@ fn register_algorithm(registry: &mut dyn LayoutMetaDataRegistry) {
             "supported."
         ))
         .set_category_id(Some("org.eclipse.elk.force"))
+        .set_defining_bundle_id(Some("org.eclipse.elk.alg.force"))
         .set_preview_image_path(Some("images/force_layout.png"));
     data.add_supported_feature(GraphFeature::MultiEdges);
     data.add_supported_feature(GraphFeature::EdgeLabels);

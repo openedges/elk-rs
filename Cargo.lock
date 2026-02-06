@@ -197,6 +197,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "org-eclipse-elk-conn-gmf"
+version = "0.1.0"
+dependencies = [
+ "org-eclipse-elk-core",
+ "org-eclipse-elk-graph",
+]
+
+[[package]]
 name = "org-eclipse-elk-core"
 version = "0.1.0"
 dependencies = [

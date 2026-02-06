@@ -11,6 +11,7 @@ JAVA_CANDIDATE_MIN_ROWS=${JAVA_CANDIDATE_MIN_ROWS:-1}
 JAVA_CANDIDATE_REQUIRED_SCENARIOS=${JAVA_CANDIDATE_REQUIRED_SCENARIOS:-issue_405,issue_603,issue_680,issue_871,issue_905}
 JAVA_CANDIDATE_REQUIRE_PARITY=${JAVA_CANDIDATE_REQUIRE_PARITY:-true}
 JAVA_CANDIDATE_STRICT=${JAVA_CANDIDATE_STRICT:-false}
+JAVA_CANDIDATE_PARITY_THRESHOLDS_FILE=${JAVA_CANDIDATE_PARITY_THRESHOLDS_FILE:-perf/java_parity_thresholds.csv}
 TARGET_BASELINE=${TARGET_BASELINE:-perf/baselines/java_layered_issue_scenarios.csv}
 
 mkdir -p "$(dirname "$REPORT")"
@@ -48,9 +49,16 @@ else
   fi
 
   if [ "$status" = "ready" ] && [ "$JAVA_CANDIDATE_REQUIRE_PARITY" = "true" ]; then
-    if ! sh scripts/check_java_perf_parity.sh "$RUST_FILE" "$CANDIDATE_FILE" "$WINDOW" "$THRESHOLD" >"$tmp_parity_log" 2>&1; then
-      status="not_ready"
-      reason="parity check failed"
+    if [ -n "$JAVA_CANDIDATE_PARITY_THRESHOLDS_FILE" ] && [ -f "$JAVA_CANDIDATE_PARITY_THRESHOLDS_FILE" ]; then
+      if ! sh scripts/check_java_perf_parity_scenarios.sh "$RUST_FILE" "$CANDIDATE_FILE" "$WINDOW" "$JAVA_CANDIDATE_PARITY_THRESHOLDS_FILE" >"$tmp_parity_log" 2>&1; then
+        status="not_ready"
+        reason="parity check failed"
+      fi
+    else
+      if ! sh scripts/check_java_perf_parity.sh "$RUST_FILE" "$CANDIDATE_FILE" "$WINDOW" "$THRESHOLD" >"$tmp_parity_log" 2>&1; then
+        status="not_ready"
+        reason="parity check failed"
+      fi
     fi
   fi
 fi
@@ -65,6 +73,7 @@ fi
   echo "- target baseline: \`$TARGET_BASELINE\`"
   echo "- require parity: \`$JAVA_CANDIDATE_REQUIRE_PARITY\`"
   echo "- threshold: \`$THRESHOLD\`"
+  echo "- scenario thresholds file: \`$JAVA_CANDIDATE_PARITY_THRESHOLDS_FILE\`"
   echo
   if [ "$status" = "ready" ]; then
     echo "## Next Action"

@@ -5,6 +5,7 @@ THRESHOLD=${1:-5}
 WINDOW=${2:-3}
 MODE=${PERF_COMPARE_MODE:-window}
 BASELINE_LAYERED_FILE=${PERF_BASELINE_LAYERED_FILE:-perf/baselines/layered_issue_scenarios.csv}
+BASELINE_RECURSIVE_SCENARIOS_FILE=${PERF_BASELINE_RECURSIVE_SCENARIOS_FILE:-perf/baselines/recursive_layout_scenarios.csv}
 fail=0
 
 case "$MODE" in
@@ -212,10 +213,18 @@ if mode_enabled window; then
   check_file "graph_validation" "perf/results_graph_validation.csv" 8 9
   check_file "recursive_layout" "perf/results_recursive_layout.csv" 8 9
   check_file "recursive_layout_layered" "perf/results_recursive_layout_layered.csv" 8 9
+  check_file_per_scenario "recursive_layout_scenarios" "perf/results_recursive_layout_scenarios.csv" 9 10 2
   check_file_per_scenario "layered_issue_scenarios" "perf/results_layered_issue_scenarios.csv" 6 7 2
 fi
 
 if mode_enabled baseline; then
+  check_file_per_scenario_against_baseline \
+    "recursive_layout_scenarios" \
+    "perf/results_recursive_layout_scenarios.csv" \
+    "$BASELINE_RECURSIVE_SCENARIOS_FILE" \
+    9 \
+    10 \
+    2
   check_file_per_scenario_against_baseline \
     "layered_issue_scenarios" \
     "perf/results_layered_issue_scenarios.csv" \

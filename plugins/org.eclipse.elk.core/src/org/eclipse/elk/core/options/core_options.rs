@@ -168,10 +168,10 @@ pub static PRIORITY_PROPERTY: LazyLock<Property<i32>> =
     LazyLock::new(|| Property::new("org.eclipse.elk.priority"));
 
 pub static RANDOM_SEED_PROPERTY: LazyLock<Property<i32>> =
-    LazyLock::new(|| Property::with_default("org.eclipse.elk.randomSeed", 0));
+    LazyLock::new(|| Property::new("org.eclipse.elk.randomSeed"));
 
 pub static SEPARATE_CONNECTED_COMPONENTS_PROPERTY: LazyLock<Property<bool>> =
-    LazyLock::new(|| Property::with_default("org.eclipse.elk.separateConnectedComponents", false));
+    LazyLock::new(|| Property::new("org.eclipse.elk.separateConnectedComponents"));
 
 pub static NODE_SIZE_CONSTRAINTS_PROPERTY: LazyLock<Property<EnumSet<SizeConstraint>>> =
     LazyLock::new(|| Property::with_default("org.eclipse.elk.nodeSize.constraints", EnumSet::none_of()));

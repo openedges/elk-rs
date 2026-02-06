@@ -157,6 +157,39 @@ write_section \
   5
 
 write_section \
+  "Recursive Layout Scenarios" \
+  "perf/results_recursive_layout_scenarios.csv" \
+  "|timestamp|scenario|algorithm|nodes|edges|iterations|warmup|avg_ms|elems_per_sec|validate_graph|validate_options|\n|---|---|---|---|---|---|---|---|---|---|---|" \
+  'line=$1
+  ts=$(echo "$line" | awk -F"," "{print \$1}")
+  scenario=$(echo "$line" | awk -F"," "{print \$2}")
+  algo=$(echo "$line" | awk -F"," "{print \$3}")
+  nodes=$(echo "$line" | awk -F"," "{print \$4}")
+  edges=$(echo "$line" | awk -F"," "{print \$5}")
+  iters=$(echo "$line" | awk -F"," "{print \$6}")
+  warmup=$(echo "$line" | awk -F"," "{print \$7}")
+  avg=$(echo "$line" | awk -F"," "{print \$9}")
+  ops=$(echo "$line" | awk -F"," "{print \$10}")
+  vgraph=$(echo "$line" | awk -F"," "{print \$11}")
+  vopts=$(echo "$line" | awk -F"," "{print \$12}")
+  echo "|$ts|$scenario|$algo|$nodes|$edges|$iters|$warmup|$avg|$ops|$vgraph|$vopts|"' \
+  "|timestamp|scenario|algorithm|nodes|edges|iterations|warmup|avg_ms|elems_per_sec|validate_graph|validate_options|\n|---|---|---|---|---|---|---|---|---|---|---|" \
+  'line=$1
+  ts=$(echo "$line" | awk -F"," "{print \$1}")
+  scenario=$(echo "$line" | awk -F"," "{print \$2}")
+  algo=$(echo "$line" | awk -F"," "{print \$3}")
+  nodes=$(echo "$line" | awk -F"," "{print \$4}")
+  edges=$(echo "$line" | awk -F"," "{print \$5}")
+  iters=$(echo "$line" | awk -F"," "{print \$6}")
+  warmup=$(echo "$line" | awk -F"," "{print \$7}")
+  avg=$(echo "$line" | awk -F"," "{print \$9}")
+  ops=$(echo "$line" | awk -F"," "{print \$10}")
+  vgraph=$(echo "$line" | awk -F"," "{print \$11}")
+  vopts=$(echo "$line" | awk -F"," "{print \$12}")
+  echo "|$ts|$scenario|$algo|$nodes|$edges|$iters|$warmup|$avg|$ops|$vgraph|$vopts|"' \
+  10
+
+write_section \
   "Layered Issue Scenarios" \
   "perf/results_layered_issue_scenarios.csv" \
   "|timestamp|scenario|iterations|warmup|elapsed_nanos|avg_ms|scenarios_per_sec|\n|---|---|---|---|---|---|---|" \

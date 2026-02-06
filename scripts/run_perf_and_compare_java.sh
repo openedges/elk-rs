@@ -24,6 +24,7 @@ JAVA_ARTIFACT_MIN_ROWS=${JAVA_ARTIFACT_MIN_ROWS:-1}
 JAVA_ARTIFACT_REQUIRED_SCENARIOS=${JAVA_ARTIFACT_REQUIRED_SCENARIOS:-$LAYERED_ISSUE_SCENARIOS}
 JAVA_PERF_MVN_LOCAL_REPO=${JAVA_PERF_MVN_LOCAL_REPO:-}
 JAVA_PERF_COMPARE_MODE=${JAVA_PERF_COMPARE_MODE:-results}
+JAVA_PARITY_SCENARIO_THRESHOLDS_FILE=${JAVA_PARITY_SCENARIO_THRESHOLDS_FILE:-perf/java_parity_thresholds.csv}
 JAVA_BASELINE_FILE=${JAVA_BASELINE_FILE:-perf/baselines/java_layered_issue_scenarios.csv}
 JAVA_BASELINE_OUTPUT=${JAVA_BASELINE_OUTPUT:-perf/java_vs_rust_baseline.md}
 JAVA_BASELINE_THRESHOLD=${JAVA_BASELINE_THRESHOLD:-$THRESHOLD}
@@ -48,6 +49,29 @@ case "$JAVA_PERF_COMPARE_MODE" in
     exit 1
     ;;
 esac
+
+run_java_parity_gate() {
+  rust_file=$1
+  java_file=$2
+  threshold=$3
+
+  if [ -n "$JAVA_PARITY_SCENARIO_THRESHOLDS_FILE" ] && [ -f "$JAVA_PARITY_SCENARIO_THRESHOLDS_FILE" ]; then
+    sh scripts/check_java_perf_parity_scenarios.sh \
+      "$rust_file" \
+      "$java_file" \
+      "$WINDOW" \
+      "$JAVA_PARITY_SCENARIO_THRESHOLDS_FILE"
+  else
+    if [ -n "$JAVA_PARITY_SCENARIO_THRESHOLDS_FILE" ]; then
+      echo "warning: missing scenario thresholds file ($JAVA_PARITY_SCENARIO_THRESHOLDS_FILE), fallback to global threshold gate" >&2
+    fi
+    sh scripts/check_java_perf_parity.sh \
+      "$rust_file" \
+      "$java_file" \
+      "$WINDOW" \
+      "$threshold"
+  fi
+}
 
 if [ "$JAVA_PERF_GENERATE" = "true" ] && [ "$run_results_compare" != "true" ]; then
   echo "skip java generation because JAVA_PERF_COMPARE_MODE=$JAVA_PERF_COMPARE_MODE does not use results compare" >&2
@@ -123,12 +147,8 @@ if [ "$run_results_compare" = "true" ]; then
       "$OUTPUT"
 
     if [ "$JAVA_RESULTS_PARITY_GATE" = "true" ]; then
-      sh scripts/check_java_perf_parity.sh \
-        "$LAYERED_ISSUE_OUTPUT" \
-        "$JAVA_FILE" \
-        "$WINDOW" \
-        "$THRESHOLD"
-      fi
+      run_java_parity_gate "$LAYERED_ISSUE_OUTPUT" "$JAVA_FILE" "$THRESHOLD"
+    fi
   fi
 else
   results_artifact_check_required=false
@@ -142,11 +162,7 @@ if [ "$run_baseline_compare" = "true" ]; then
     "$JAVA_BASELINE_OUTPUT"
 
   if [ "$JAVA_BASELINE_PARITY_GATE" = "true" ]; then
-    sh scripts/check_java_perf_parity.sh \
-      "$LAYERED_ISSUE_OUTPUT" \
-      "$JAVA_BASELINE_FILE" \
-      "$WINDOW" \
-      "$JAVA_BASELINE_THRESHOLD"
+    run_java_parity_gate "$LAYERED_ISSUE_OUTPUT" "$JAVA_BASELINE_FILE" "$JAVA_BASELINE_THRESHOLD"
   fi
 fi
 

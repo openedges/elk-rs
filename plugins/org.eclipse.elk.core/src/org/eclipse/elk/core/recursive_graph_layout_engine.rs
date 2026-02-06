@@ -210,15 +210,20 @@ impl RecursiveGraphLayoutEngine {
 
         let mut provider = pool.fetch();
         let guard = if let Some(controller) = test_controller {
-            let install_result = unsafe { (&mut *controller).install(provider.as_mut()) };
-            if let Err(message) = install_result {
-                panic!("{message}");
+            let should_install = unsafe { (&*controller).targets(algorithm_data) };
+            if should_install {
+                let install_result = unsafe { (&mut *controller).install(provider.as_mut()) };
+                if let Err(message) = install_result {
+                    panic!("{message}");
+                }
+                Some(TestControllerGuard {
+                    controller,
+                    provider: provider.as_mut()
+                        as *mut dyn crate::org::eclipse::elk::core::abstract_layout_provider::AbstractLayoutProvider,
+                })
+            } else {
+                None
             }
-            Some(TestControllerGuard {
-                controller,
-                provider: provider.as_mut()
-                    as *mut dyn crate::org::eclipse::elk::core::abstract_layout_provider::AbstractLayoutProvider,
-            })
         } else {
             None
         };

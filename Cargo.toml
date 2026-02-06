@@ -16,5 +16,6 @@ members = [
   "plugins/org.eclipse.elk.alg.graphviz.dot",
   "plugins/org.eclipse.elk.alg.graphviz.layouter",
   "plugins/org.eclipse.elk.graph.json",
+  "plugins/org.eclipse.elk.conn.gmf",
 ]
 resolver = "2"

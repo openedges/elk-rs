@@ -41,6 +41,7 @@ fn register_algorithm(registry: &mut dyn LayoutMetaDataRegistry) {
             "The method allows to specify individual edge lengths."
         ))
         .set_category_id(Some("org.eclipse.elk.force"))
+        .set_defining_bundle_id(Some("org.eclipse.elk.alg.force"))
         .set_preview_image_path(Some("images/stress_layout.png"));
     registry.register_algorithm(data);
 }

@@ -2,7 +2,7 @@ use std::any::{Any, TypeId};
 use std::collections::HashSet;
 use std::sync::{Arc, LazyLock, OnceLock};
 
-use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::{GraphFeature, Property};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkReflect;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::data::{
@@ -47,7 +47,14 @@ fn register_algorithms(registry: &mut dyn LayoutMetaDataRegistry) {
             "an important role."
         ))
         .set_preview_image_path(Some("images/dot_layout.png"))
-        .set_category_id(Some("org.eclipse.elk.layered"));
+        .set_category_id(Some("org.eclipse.elk.layered"))
+        .set_bundle_name(Some("Graphviz"))
+        .set_defining_bundle_id(Some("org.eclipse.elk.alg.graphviz.layouter"))
+        .add_supported_feature(GraphFeature::SelfLoops)
+        .add_supported_feature(GraphFeature::MultiEdges)
+        .add_supported_feature(GraphFeature::EdgeLabels)
+        .add_supported_feature(GraphFeature::Compound)
+        .add_supported_feature(GraphFeature::Clusters);
     registry.register_algorithm(dot);
 
     let mut neato = LayoutAlgorithmData::new(NeatoOptions::ALGORITHM_ID);
@@ -60,7 +67,12 @@ fn register_algorithms(registry: &mut dyn LayoutMetaDataRegistry) {
             "also available."
         ))
         .set_preview_image_path(Some("images/neato_layout.png"))
-        .set_category_id(Some("org.eclipse.elk.force"));
+        .set_category_id(Some("org.eclipse.elk.force"))
+        .set_bundle_name(Some("Graphviz"))
+        .set_defining_bundle_id(Some("org.eclipse.elk.alg.graphviz.layouter"))
+        .add_supported_feature(GraphFeature::SelfLoops)
+        .add_supported_feature(GraphFeature::MultiEdges)
+        .add_supported_feature(GraphFeature::EdgeLabels);
     registry.register_algorithm(neato);
 
     let mut fdp = LayoutAlgorithmData::new(FdpOptions::ALGORITHM_ID);
@@ -71,7 +83,13 @@ fn register_algorithms(registry: &mut dyn LayoutMetaDataRegistry) {
             "multigrid solver that handles larger graphs and clustered undirected graphs."
         ))
         .set_preview_image_path(Some("images/fdp_layout.png"))
-        .set_category_id(Some("org.eclipse.elk.force"));
+        .set_category_id(Some("org.eclipse.elk.force"))
+        .set_bundle_name(Some("Graphviz"))
+        .set_defining_bundle_id(Some("org.eclipse.elk.alg.graphviz.layouter"))
+        .add_supported_feature(GraphFeature::SelfLoops)
+        .add_supported_feature(GraphFeature::MultiEdges)
+        .add_supported_feature(GraphFeature::EdgeLabels)
+        .add_supported_feature(GraphFeature::Clusters);
     registry.register_algorithm(fdp);
 
     let mut twopi = LayoutAlgorithmData::new(TwopiOptions::ALGORITHM_ID);
@@ -83,7 +101,12 @@ fn register_algorithms(registry: &mut dyn LayoutMetaDataRegistry) {
             "graphs, but also very large ones."
         ))
         .set_preview_image_path(Some("images/twopi_layout.png"))
-        .set_category_id(Some("org.eclipse.elk.radial"));
+        .set_category_id(Some("org.eclipse.elk.radial"))
+        .set_bundle_name(Some("Graphviz"))
+        .set_defining_bundle_id(Some("org.eclipse.elk.alg.graphviz.layouter"))
+        .add_supported_feature(GraphFeature::SelfLoops)
+        .add_supported_feature(GraphFeature::MultiEdges)
+        .add_supported_feature(GraphFeature::EdgeLabels);
     registry.register_algorithm(twopi);
 
     let mut circo = LayoutAlgorithmData::new(CircoOptions::ALGORITHM_ID);
@@ -96,7 +119,12 @@ fn register_algorithms(registry: &mut dyn LayoutMetaDataRegistry) {
             "cyclic structures such as certain telecommunications networks."
         ))
         .set_preview_image_path(Some("images/circo_layout.png"))
-        .set_category_id(Some("org.eclipse.elk.circle"));
+        .set_category_id(Some("org.eclipse.elk.circle"))
+        .set_bundle_name(Some("Graphviz"))
+        .set_defining_bundle_id(Some("org.eclipse.elk.alg.graphviz.layouter"))
+        .add_supported_feature(GraphFeature::SelfLoops)
+        .add_supported_feature(GraphFeature::MultiEdges)
+        .add_supported_feature(GraphFeature::EdgeLabels);
     registry.register_algorithm(circo);
 }
 

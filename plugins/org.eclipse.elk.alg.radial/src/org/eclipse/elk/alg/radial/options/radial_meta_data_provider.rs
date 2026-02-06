@@ -40,7 +40,8 @@ fn register_algorithm(registry: &mut dyn LayoutMetaDataRegistry) {
             "on the same radius."
         ))
         .set_preview_image_path(Some("images/radial_layout.png"))
-        .set_category_id(Some("org.eclipse.elk.radial"));
+        .set_category_id(Some("org.eclipse.elk.radial"))
+        .set_defining_bundle_id(Some("org.eclipse.elk.alg.radial"));
     registry.register_algorithm(data);
 }
 
@@ -213,9 +214,6 @@ fn register_supports(registry: &mut dyn LayoutMetaDataRegistry) {
     registry.add_option_support(algo, RadialOptions::SORTER.id(), None);
     registry.add_option_support(algo, RadialOptions::WEDGE_CRITERIA.id(), None);
     registry.add_option_support(algo, RadialOptions::CENTER_ON_ROOT.id(), None);
-
-    registry.add_option_support(algo, CoreOptions::PADDING.id(), None);
-    registry.add_option_support(algo, CoreOptions::MARGINS.id(), None);
 }
 
 #[allow(clippy::too_many_arguments)]

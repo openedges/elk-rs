@@ -40,6 +40,7 @@ fn register_algorithm(registry: &mut dyn LayoutMetaDataRegistry) {
             "I pity the fool who doesn't use Mr. Tree Layout."
         ))
         .set_category_id(Some("org.eclipse.elk.tree"))
+        .set_defining_bundle_id(Some("org.eclipse.elk.alg.mrtree"))
         .set_preview_image_path(Some("images/mrtree_layout.png"));
     data.add_supported_feature(GraphFeature::Disconnected);
     registry.register_algorithm(data);
