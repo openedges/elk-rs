@@ -1,0 +1,29 @@
+algorithm: layered
+direction: right
+
+node n0 {
+  layout [ size: 140, 90 ]
+  portConstraints: fixedPos
+  portLabelsPlacement: [inside]
+  nodeLabelsPlacement: [inside, vTop, hCenter]
+
+  label title: "Title" {
+    layout [ size: 30, 10 ]
+  }
+
+  port p0 side:east layout [ position: 130, 10 size: 10, 10 ]
+  port p1 side:east layout [ position: 130, 55 size: 10, 10 ]
+}
+
+portLabel p0 text:p0 size:24,10
+portLabel p1 text:p1 size:24,10
+
+node n1 {
+  layout [ size: 120, 70 ]
+  portConstraints: fixedPos
+  portLabelsPlacement: [inside]
+
+  port p2 side:west layout [ position: 0, 20 size: 10, 10 ]
+}
+
+portLabel p2 text:p2 size:20,10

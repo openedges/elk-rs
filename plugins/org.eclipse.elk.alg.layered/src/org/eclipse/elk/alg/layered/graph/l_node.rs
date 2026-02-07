@@ -240,10 +240,15 @@ impl LNode {
             self.find_port_indices();
         }
         if let Some(indices) = self.port_side_indices.as_ref().and_then(|map| map.get(&side)) {
-            self.ports[indices.first..indices.second].to_vec()
-        } else {
-            Vec::new()
+            return self.ports[indices.first..indices.second].to_vec();
         }
+
+        // Cache can be stale if port sides changed after caching.
+        self.ports
+            .iter()
+            .filter(|port| port.lock().map(|port| port.side() == side).unwrap_or(false))
+            .cloned()
+            .collect()
     }
 
     pub fn ports_by_type_and_side(&self, port_type: PortType, side: PortSide) -> Vec<LPortRef> {

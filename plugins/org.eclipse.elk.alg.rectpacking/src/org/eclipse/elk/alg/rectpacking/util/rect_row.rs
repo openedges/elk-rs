@@ -27,13 +27,21 @@ impl RectRow {
         }
     }
 
-    pub fn notify_about_node_change(&mut self) {
+    pub fn notify_about_node_change(&mut self, locked_child_fallback: Option<(f64, f64)>) {
         let mut total_stack_width = 0.0;
         let mut new_max_height = f64::NEG_INFINITY;
+        let mut fallback = locked_child_fallback;
         for (index, child) in self.children.iter().enumerate() {
-            let child_guard = child.borrow();
-            total_stack_width += child_guard.width() + if index > 0 { self.node_node_spacing } else { 0.0 };
-            new_max_height = new_max_height.max(child_guard.height());
+            let (child_width, child_height) = if let Ok(child_guard) = child.try_borrow() {
+                (child_guard.width(), child_guard.height())
+            } else if let Some(values) = fallback.take() {
+                values
+            } else {
+                // Defer update if an unrelated mutable borrow is active.
+                return;
+            };
+            total_stack_width += child_width + if index > 0 { self.node_node_spacing } else { 0.0 };
+            new_max_height = new_max_height.max(child_height);
         }
         if new_max_height == f64::NEG_INFINITY {
             new_max_height = 0.0;

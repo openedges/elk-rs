@@ -11,32 +11,93 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkConnectableShapeRef, ElkNodeRef};
 
 #[test]
-fn layering_strategies_assign_layers() {
-    init_layered_options();
+fn coffman_graham_no_layerless_nodes() {
+    assert_no_layerless_nodes(LayeringStrategy::CoffmanGraham);
+}
 
-    for strategy in [
-        LayeringStrategy::CoffmanGraham,
-        LayeringStrategy::LongestPath,
-        LayeringStrategy::LongestPathSource,
-        LayeringStrategy::MinWidth,
-        LayeringStrategy::NetworkSimplex,
-        LayeringStrategy::StretchWidth,
-        LayeringStrategy::Interactive,
-    ] {
-        let (root, nodes) = build_test_graph();
-        set_node_property(&root, CoreOptions::ALGORITHM, "org.eclipse.elk.layered".to_string());
-        set_node_property(&root, LayeredOptions::LAYERING_STRATEGY, strategy);
+#[test]
+fn coffman_graham_no_empty_layers() {
+    assert_no_empty_layers(LayeringStrategy::CoffmanGraham);
+}
 
-        if strategy == LayeringStrategy::Interactive {
-            apply_interactive_positions(&nodes);
-        }
+#[test]
+fn coffman_graham_edges_point_towards_next_layers() {
+    assert_edges_point_towards_next_layers(LayeringStrategy::CoffmanGraham);
+}
 
-        let lgraph = import_lgraph(&root);
-        let mut layered = ElkLayered::new();
-        layered.do_layout(&lgraph, None);
+#[test]
+fn interactive_no_layerless_nodes() {
+    assert_no_layerless_nodes(LayeringStrategy::Interactive);
+}
 
-        assert_layering_invariants(&lgraph);
-    }
+#[test]
+fn interactive_no_empty_layers() {
+    assert_no_empty_layers(LayeringStrategy::Interactive);
+}
+
+#[test]
+fn interactive_edges_point_towards_next_layers() {
+    assert_edges_point_towards_next_layers(LayeringStrategy::Interactive);
+}
+
+#[test]
+fn longest_path_no_layerless_nodes() {
+    assert_no_layerless_nodes(LayeringStrategy::LongestPath);
+}
+
+#[test]
+fn longest_path_no_empty_layers() {
+    assert_no_empty_layers(LayeringStrategy::LongestPath);
+}
+
+#[test]
+fn longest_path_edges_point_towards_next_layers() {
+    assert_edges_point_towards_next_layers(LayeringStrategy::LongestPath);
+}
+
+#[test]
+fn min_width_no_layerless_nodes() {
+    assert_no_layerless_nodes(LayeringStrategy::MinWidth);
+}
+
+#[test]
+fn min_width_no_empty_layers() {
+    assert_no_empty_layers(LayeringStrategy::MinWidth);
+}
+
+#[test]
+fn min_width_edges_point_towards_next_layers() {
+    assert_edges_point_towards_next_layers(LayeringStrategy::MinWidth);
+}
+
+#[test]
+fn network_simplex_no_layerless_nodes() {
+    assert_no_layerless_nodes(LayeringStrategy::NetworkSimplex);
+}
+
+#[test]
+fn network_simplex_no_empty_layers() {
+    assert_no_empty_layers(LayeringStrategy::NetworkSimplex);
+}
+
+#[test]
+fn network_simplex_edges_point_towards_next_layers() {
+    assert_edges_point_towards_next_layers(LayeringStrategy::NetworkSimplex);
+}
+
+#[test]
+fn stretch_width_no_layerless_nodes() {
+    assert_no_layerless_nodes(LayeringStrategy::StretchWidth);
+}
+
+#[test]
+fn stretch_width_no_empty_layers() {
+    assert_no_empty_layers(LayeringStrategy::StretchWidth);
+}
+
+#[test]
+fn stretch_width_edges_point_towards_next_layers() {
+    assert_edges_point_towards_next_layers(LayeringStrategy::StretchWidth);
 }
 
 fn init_layered_options() {
@@ -93,12 +154,33 @@ fn import_lgraph(
     importer.import_graph(root)
 }
 
-fn assert_layering_invariants(
-    lgraph: &org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LGraphRef,
-) {
+fn run_layout_for_strategy(
+    strategy: LayeringStrategy,
+) -> org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LGraphRef {
+    init_layered_options();
+    let (root, nodes) = build_test_graph();
+    set_node_property(&root, CoreOptions::ALGORITHM, "org.eclipse.elk.layered".to_string());
+    set_node_property(&root, LayeredOptions::LAYERING_STRATEGY, strategy);
+
+    if strategy == LayeringStrategy::Interactive {
+        apply_interactive_positions(&nodes);
+    }
+
+    let lgraph = import_lgraph(&root);
+    let mut layered = ElkLayered::new();
+    layered.do_layout(&lgraph, None);
+    lgraph
+}
+
+fn assert_no_layerless_nodes(strategy: LayeringStrategy) {
+    let lgraph = run_layout_for_strategy(strategy);
     let graph_guard = lgraph.lock().expect("lgraph lock");
     assert!(graph_guard.layerless_nodes().is_empty());
+}
 
+fn assert_no_empty_layers(strategy: LayeringStrategy) {
+    let lgraph = run_layout_for_strategy(strategy);
+    let graph_guard = lgraph.lock().expect("lgraph lock");
     let layers = graph_guard.layers().clone();
     drop(graph_guard);
 
@@ -106,6 +188,15 @@ fn assert_layering_invariants(
         let layer_guard = layer.lock().expect("layer lock");
         assert!(!layer_guard.nodes().is_empty());
     }
+}
+
+fn assert_edges_point_towards_next_layers(
+    strategy: LayeringStrategy,
+) {
+    let lgraph = run_layout_for_strategy(strategy);
+    let graph_guard = lgraph.lock().expect("lgraph lock");
+    let layers = graph_guard.layers().clone();
+    drop(graph_guard);
 
     for layer in &layers {
         let layer_idx = layer_index(layer);

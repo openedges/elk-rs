@@ -1,38 +1,148 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::elk_layered::ElkLayered;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::transform::elk_graph_importer::ElkGraphImporter;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::transform::elk_graph_transformer::OriginStore;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::{
     CycleBreakingStrategy, LayeredMetaDataProvider, LayeredOptions, LayeringStrategy,
 };
+use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::p1cycles::{
+    BfsNodeOrderCycleBreaker, DepthFirstCycleBreaker, DfsNodeOrderCycleBreaker, GreedyCycleBreaker,
+    ModelOrderCycleBreaker, ScConnectivityCycleBreaker, SccNodeTypeCycleBreaker,
+};
+use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutPhase;
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
-use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::NullElkProgressMonitor;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkConnectableShapeRef, ElkNodeRef};
 
 #[test]
-fn cycle_breakers_produce_acyclic_graphs() {
+fn greedy_cycle_breaker_produces_acyclic_graph() {
+    run_cycle_breaker_test(CycleBreakingStrategy::Greedy, build_cyclic_graph());
+}
+
+#[test]
+fn depth_first_cycle_breaker_produces_acyclic_graph() {
+    run_cycle_breaker_test(CycleBreakingStrategy::DepthFirst, build_cyclic_graph());
+}
+
+#[test]
+fn greedy_cycle_breaker_handles_dense_cycle_graph() {
+    run_cycle_breaker_test(CycleBreakingStrategy::Greedy, build_dense_cyclic_graph());
+}
+
+#[test]
+fn depth_first_cycle_breaker_handles_dense_cycle_graph() {
+    run_cycle_breaker_test(CycleBreakingStrategy::DepthFirst, build_dense_cyclic_graph());
+}
+
+#[test]
+fn greedy_model_order_cycle_breaker_produces_acyclic_graph() {
+    run_cycle_breaker_test(CycleBreakingStrategy::GreedyModelOrder, build_cyclic_graph());
+}
+
+#[test]
+fn model_order_cycle_breaker_produces_acyclic_graph() {
+    run_cycle_breaker_test(CycleBreakingStrategy::ModelOrder, build_cyclic_graph());
+}
+
+#[test]
+fn bfs_node_order_cycle_breaker_produces_acyclic_graph() {
+    run_cycle_breaker_test(CycleBreakingStrategy::BfsNodeOrder, build_cyclic_graph());
+}
+
+#[test]
+fn dfs_node_order_cycle_breaker_produces_acyclic_graph() {
+    run_cycle_breaker_test(CycleBreakingStrategy::DfsNodeOrder, build_cyclic_graph());
+}
+
+#[test]
+fn scc_connectivity_cycle_breaker_produces_acyclic_graph() {
+    run_cycle_breaker_test(CycleBreakingStrategy::SccConnectivity, build_cyclic_graph());
+}
+
+#[test]
+fn scc_node_type_cycle_breaker_produces_acyclic_graph() {
+    run_cycle_breaker_test(CycleBreakingStrategy::SccNodeType, build_cyclic_graph());
+}
+
+#[test]
+fn model_order_cycle_breaker_handles_dense_cycle_graph() {
+    run_cycle_breaker_test(CycleBreakingStrategy::ModelOrder, build_dense_cyclic_graph());
+}
+
+#[test]
+fn bfs_node_order_cycle_breaker_handles_dense_cycle_graph() {
+    run_cycle_breaker_test(CycleBreakingStrategy::BfsNodeOrder, build_dense_cyclic_graph());
+}
+
+#[test]
+fn dfs_node_order_cycle_breaker_handles_dense_cycle_graph() {
+    run_cycle_breaker_test(CycleBreakingStrategy::DfsNodeOrder, build_dense_cyclic_graph());
+}
+
+#[test]
+fn scc_connectivity_cycle_breaker_handles_dense_cycle_graph() {
+    run_cycle_breaker_test(CycleBreakingStrategy::SccConnectivity, build_dense_cyclic_graph());
+}
+
+#[test]
+fn scc_node_type_cycle_breaker_handles_dense_cycle_graph() {
+    run_cycle_breaker_test(CycleBreakingStrategy::SccNodeType, build_dense_cyclic_graph());
+}
+
+fn run_cycle_breaker_test(strategy: CycleBreakingStrategy, root: ElkNodeRef) {
     init_layered_options();
 
-    for strategy in [CycleBreakingStrategy::Greedy, CycleBreakingStrategy::DepthFirst] {
-        let root = build_cyclic_graph();
-        set_node_property(&root, CoreOptions::ALGORITHM, "org.eclipse.elk.layered".to_string());
-        set_node_property(&root, LayeredOptions::CYCLE_BREAKING_STRATEGY, strategy);
-        set_node_property(
-            &root,
-            LayeredOptions::LAYERING_STRATEGY,
-            LayeringStrategy::NetworkSimplex,
-        );
+    set_node_property(&root, LayeredOptions::CYCLE_BREAKING_STRATEGY, strategy);
+    set_node_property(
+        &root,
+        LayeredOptions::LAYERING_STRATEGY,
+        LayeringStrategy::NetworkSimplex,
+    );
 
-        let lgraph = import_lgraph(&root);
-        let mut layered = ElkLayered::new();
-        layered.do_layout(&lgraph, None);
-
-        assert_acyclic(&lgraph);
+    let lgraph = import_lgraph(&root);
+    let mut monitor = NullElkProgressMonitor;
+    let mut graph_guard = lgraph.lock().expect("graph lock");
+    match strategy {
+        CycleBreakingStrategy::Greedy => {
+            let mut breaker = GreedyCycleBreaker::new();
+            breaker.process(&mut graph_guard, &mut monitor);
+        }
+        CycleBreakingStrategy::DepthFirst => {
+            let mut breaker = DepthFirstCycleBreaker::new();
+            breaker.process(&mut graph_guard, &mut monitor);
+        }
+        CycleBreakingStrategy::GreedyModelOrder => {
+            let mut breaker = GreedyCycleBreaker::new_with_model_order(true);
+            breaker.process(&mut graph_guard, &mut monitor);
+        }
+        CycleBreakingStrategy::ModelOrder => {
+            let mut breaker = ModelOrderCycleBreaker::new();
+            breaker.process(&mut graph_guard, &mut monitor);
+        }
+        CycleBreakingStrategy::BfsNodeOrder => {
+            let mut breaker = BfsNodeOrderCycleBreaker::new();
+            breaker.process(&mut graph_guard, &mut monitor);
+        }
+        CycleBreakingStrategy::DfsNodeOrder => {
+            let mut breaker = DfsNodeOrderCycleBreaker::new();
+            breaker.process(&mut graph_guard, &mut monitor);
+        }
+        CycleBreakingStrategy::SccConnectivity => {
+            let mut breaker = ScConnectivityCycleBreaker::new();
+            breaker.process(&mut graph_guard, &mut monitor);
+        }
+        CycleBreakingStrategy::SccNodeType => {
+            let mut breaker = SccNodeTypeCycleBreaker::new();
+            breaker.process(&mut graph_guard, &mut monitor);
+        }
+        _ => panic!("unsupported cycle breaking strategy in this test"),
     }
+    drop(graph_guard);
+
+    assert_acyclic(&lgraph);
 }
 
 fn init_layered_options() {
@@ -61,6 +171,54 @@ fn build_cyclic_graph() -> ElkNodeRef {
     let _e3 = ElkGraphUtil::create_simple_edge(
         ElkConnectableShapeRef::Node(node_c.clone()),
         ElkConnectableShapeRef::Node(node_a.clone()),
+    );
+
+    root
+}
+
+fn build_dense_cyclic_graph() -> ElkNodeRef {
+    let root = ElkGraphUtil::create_graph();
+    let node_a = ElkGraphUtil::create_node(Some(root.clone()));
+    let node_b = ElkGraphUtil::create_node(Some(root.clone()));
+    let node_c = ElkGraphUtil::create_node(Some(root.clone()));
+    let node_d = ElkGraphUtil::create_node(Some(root.clone()));
+    let node_e = ElkGraphUtil::create_node(Some(root.clone()));
+
+    for node in [&node_a, &node_b, &node_c, &node_d, &node_e] {
+        set_dimensions(node, 30.0, 30.0);
+    }
+
+    let _ = ElkGraphUtil::create_simple_edge(
+        ElkConnectableShapeRef::Node(node_a.clone()),
+        ElkConnectableShapeRef::Node(node_b.clone()),
+    );
+    let _ = ElkGraphUtil::create_simple_edge(
+        ElkConnectableShapeRef::Node(node_b.clone()),
+        ElkConnectableShapeRef::Node(node_c.clone()),
+    );
+    let _ = ElkGraphUtil::create_simple_edge(
+        ElkConnectableShapeRef::Node(node_c.clone()),
+        ElkConnectableShapeRef::Node(node_d.clone()),
+    );
+    let _ = ElkGraphUtil::create_simple_edge(
+        ElkConnectableShapeRef::Node(node_d.clone()),
+        ElkConnectableShapeRef::Node(node_e.clone()),
+    );
+    let _ = ElkGraphUtil::create_simple_edge(
+        ElkConnectableShapeRef::Node(node_e.clone()),
+        ElkConnectableShapeRef::Node(node_a.clone()),
+    );
+    let _ = ElkGraphUtil::create_simple_edge(
+        ElkConnectableShapeRef::Node(node_a.clone()),
+        ElkConnectableShapeRef::Node(node_c.clone()),
+    );
+    let _ = ElkGraphUtil::create_simple_edge(
+        ElkConnectableShapeRef::Node(node_b.clone()),
+        ElkConnectableShapeRef::Node(node_d.clone()),
+    );
+    let _ = ElkGraphUtil::create_simple_edge(
+        ElkConnectableShapeRef::Node(node_c.clone()),
+        ElkConnectableShapeRef::Node(node_e.clone()),
     );
 
     root

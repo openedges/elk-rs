@@ -345,6 +345,13 @@ impl RecursiveGraphLayoutEngine {
             );
         });
 
+        let fixed_graph_size = with_node_properties_mut(layout_node, |props| {
+            props
+                .get_property(CoreOptions::NODE_SIZE_FIXED_GRAPH_SIZE)
+                .unwrap_or(false)
+        });
+        let original_node_size = node_dimensions(layout_node);
+
         let mut sub_monitor = progress_monitor.sub_task(node_count as f32);
         self.execute_algorithm(
             layout_node,
@@ -352,6 +359,14 @@ impl RecursiveGraphLayoutEngine {
             test_controller,
             sub_monitor.as_mut(),
         );
+
+        if fixed_graph_size {
+            let mut node_mut = layout_node.borrow_mut();
+            node_mut
+                .connectable()
+                .shape()
+                .set_dimensions(original_node_size.0, original_node_size.1);
+        }
 
         if node_type == TopdownNodeTypes::RootNode {
             ElkUtil::compute_child_area_dimensions(layout_node);

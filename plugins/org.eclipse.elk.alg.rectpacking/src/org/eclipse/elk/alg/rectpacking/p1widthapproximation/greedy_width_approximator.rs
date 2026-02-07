@@ -1,5 +1,6 @@
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutPhase;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
+use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 
@@ -34,7 +35,16 @@ impl ILayoutPhase<RectPackingLayoutPhases, ElkNodeRef> for GreedyWidthApproximat
                 .properties_mut()
                 .get_property(RectPackingOptions::ASPECT_RATIO)
         }
-        .unwrap_or(1.0);
+        .or_else(|| {
+            LayoutMetaDataService::get_instance()
+                .get_algorithm_data(RectPackingOptions::ALGORITHM_ID)
+                .and_then(|algorithm| {
+                    algorithm
+                        .default_value_any(RectPackingOptions::ASPECT_RATIO.id())
+                        .and_then(|value| value.downcast::<f64>().ok().map(|value| *value))
+                })
+        })
+        .unwrap_or(1.3);
         let padding = {
             let mut graph_mut = graph.borrow_mut();
             graph_mut

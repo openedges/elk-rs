@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use org_eclipse_elk_core::org::eclipse::elk::core::math::ElkPadding;
+use org_eclipse_elk_core::org::eclipse::elk::core::math::{ElkPadding, KVector, KVectorChain};
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::ElkUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{
@@ -254,11 +254,33 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
                 .and_then(|mut guard| guard.get_property(InternalProperties::ORIGIN));
             let Some(Origin::ElkEdge(edge_id)) = origin else { continue };
             let Some(elk_edge) = self.edge_map.get(&edge_id) else { continue };
-            let bend_points = edge
+            let mut bend_points = edge
                 .lock()
                 .ok()
                 .map(|guard| guard.bend_points_ref().clone());
-            let Some(bend_points) = bend_points else { continue };
+            let Some(mut bend_points_value) = bend_points.take() else { continue };
+
+            if bend_points_value.size() < 2 {
+                let endpoints = edge.lock().ok().and_then(|guard| {
+                    let source = guard.source()?;
+                    let target = guard.target()?;
+                    let source_center = source.lock().ok().map(|source_guard| {
+                        let pos = source_guard.position_ref();
+                        let size = source_guard.size_ref();
+                        KVector::with_values(pos.x + size.x / 2.0, pos.y + size.y / 2.0)
+                    })?;
+                    let target_center = target.lock().ok().map(|target_guard| {
+                        let pos = target_guard.position_ref();
+                        let size = target_guard.size_ref();
+                        KVector::with_values(pos.x + size.x / 2.0, pos.y + size.y / 2.0)
+                    })?;
+                    Some((source_center, target_center))
+                });
+                let Some((source_center, target_center)) = endpoints else { continue };
+                bend_points_value = KVectorChain::new();
+                bend_points_value.add_vector(source_center);
+                bend_points_value.add_vector(target_center);
+            }
 
             let section = {
                 let mut edge_mut = elk_edge.borrow_mut();
@@ -270,7 +292,7 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
                     section
                 }
             };
-            ElkUtil::apply_vector_chain(&bend_points, &section);
+            ElkUtil::apply_vector_chain(&bend_points_value, &section);
         }
 
         let padding_horizontal = padding.left + padding.right;

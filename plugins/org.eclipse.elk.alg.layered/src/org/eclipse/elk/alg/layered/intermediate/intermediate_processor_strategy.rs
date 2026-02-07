@@ -10,7 +10,14 @@ use crate::org::eclipse::elk::alg::layered::intermediate::graph_transformer::{
     GraphTransformer, Mode as GraphTransformerMode,
 };
 use crate::org::eclipse::elk::alg::layered::intermediate::{
-    LabelAndNodeSizeProcessor, NorthSouthPortPostprocessor, NorthSouthPortPreprocessor,
+    CommentNodeMarginCalculator, CommentPostprocessor, CommentPreprocessor,
+    EdgeAndLayerConstraintEdgeReverser, InLayerConstraintProcessor, InvertedPortProcessor,
+    EndLabelSorter, LabelAndNodeSizeProcessor, LabelDummyRemover, LabelSideSelector, LayerConstraintPostprocessor,
+    LayerConstraintPreprocessor,
+    LayerSizeAndGraphHeightCalculator, LongEdgeJoiner, LongEdgeSplitter, NorthSouthPortPostprocessor,
+    NorthSouthPortPreprocessor, NodePromotion, PartitionMidprocessor, PartitionPostprocessor, PartitionPreprocessor,
+    PortListSorter, PortSideProcessor, ReversedEdgeRestorer, SelfLoopPortRestorer,
+    SelfLoopPostProcessor, SelfLoopPreProcessor, SelfLoopRouter, SortByInputModelProcessor,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
@@ -162,6 +169,60 @@ impl ILayoutProcessorFactory<LGraph> for IntermediateProcessorStrategy {
             IntermediateProcessorStrategy::LabelAndNodeSizeProcessor => {
                 Box::new(LabelAndNodeSizeProcessor)
             }
+            IntermediateProcessorStrategy::PortListSorter => Box::new(PortListSorter),
+            IntermediateProcessorStrategy::SortByInputOrderOfModel => {
+                Box::new(SortByInputModelProcessor)
+            }
+            IntermediateProcessorStrategy::EdgeAndLayerConstraintEdgeReverser => {
+                Box::new(EdgeAndLayerConstraintEdgeReverser)
+            }
+            IntermediateProcessorStrategy::LayerConstraintPreprocessor => {
+                Box::new(LayerConstraintPreprocessor)
+            }
+            IntermediateProcessorStrategy::LayerConstraintPostprocessor => {
+                Box::new(LayerConstraintPostprocessor)
+            }
+            IntermediateProcessorStrategy::PartitionPreprocessor => {
+                Box::new(PartitionPreprocessor)
+            }
+            IntermediateProcessorStrategy::PartitionMidprocessor => {
+                Box::new(PartitionMidprocessor)
+            }
+            IntermediateProcessorStrategy::PartitionPostprocessor => {
+                Box::new(PartitionPostprocessor)
+            }
+            IntermediateProcessorStrategy::SelfLoopPreprocessor => {
+                Box::new(SelfLoopPreProcessor)
+            }
+            IntermediateProcessorStrategy::SelfLoopPortRestorer => {
+                Box::new(SelfLoopPortRestorer)
+            }
+            IntermediateProcessorStrategy::InLayerConstraintProcessor => {
+                Box::new(InLayerConstraintProcessor)
+            }
+            IntermediateProcessorStrategy::InvertedPortProcessor => {
+                Box::new(InvertedPortProcessor)
+            }
+            IntermediateProcessorStrategy::PortSideProcessor => Box::new(PortSideProcessor),
+            IntermediateProcessorStrategy::NodePromotion => Box::new(NodePromotion),
+            IntermediateProcessorStrategy::LongEdgeSplitter => Box::new(LongEdgeSplitter),
+            IntermediateProcessorStrategy::LongEdgeJoiner => Box::new(LongEdgeJoiner),
+            IntermediateProcessorStrategy::ReversedEdgeRestorer => Box::new(ReversedEdgeRestorer),
+            IntermediateProcessorStrategy::LayerSizeAndGraphHeightCalculator => {
+                Box::new(LayerSizeAndGraphHeightCalculator)
+            }
+            IntermediateProcessorStrategy::CommentNodeMarginCalculator => {
+                Box::new(CommentNodeMarginCalculator)
+            }
+            IntermediateProcessorStrategy::LabelSideSelector => Box::new(LabelSideSelector),
+            IntermediateProcessorStrategy::LabelDummyRemover => Box::new(LabelDummyRemover),
+            IntermediateProcessorStrategy::EndLabelSorter => Box::new(EndLabelSorter),
+            IntermediateProcessorStrategy::CommentPostprocessor => Box::new(CommentPostprocessor),
+            IntermediateProcessorStrategy::CommentPreprocessor => Box::new(CommentPreprocessor),
+            IntermediateProcessorStrategy::SelfLoopPostprocessor => {
+                Box::new(SelfLoopPostProcessor)
+            }
+            IntermediateProcessorStrategy::SelfLoopRouter => Box::new(SelfLoopRouter),
             _ => Box::new(NoOpLayoutProcessor),
         }
     }

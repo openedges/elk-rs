@@ -13,8 +13,9 @@ use org_eclipse_elk_core::org::eclipse::elk::core::math::ElkPadding;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::direction::Direction;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::topdown_node_types::TopdownNodeTypes;
-use org_eclipse_elk_core::org::eclipse::elk::core::util::EnumSet;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::{AlgorithmFactory, EnumSet, InstancePool};
 
+use crate::org::eclipse::elk::alg::mrtree::tree_layout_provider::TreeLayoutProvider;
 use super::{EdgeRoutingMode, GraphProperties, MrTreeOptions, OrderWeighting, TreeifyingOrder};
 
 pub struct MrTreeMetaDataProvider;
@@ -32,7 +33,11 @@ const TARGET_PARENTS: [LayoutOptionTarget; 1] = [LayoutOptionTarget::Parents];
 const TARGET_NODES: [LayoutOptionTarget; 1] = [LayoutOptionTarget::Nodes];
 
 fn register_algorithm(registry: &mut dyn LayoutMetaDataRegistry) {
-    let mut data = LayoutAlgorithmData::new(MrTreeOptions::ALGORITHM_ID);
+    let factory = AlgorithmFactory::new(|| Box::new(TreeLayoutProvider::new()));
+    let pool = InstancePool::new(Box::new(factory));
+
+    let mut data = LayoutAlgorithmData::new(MrTreeOptions::ALGORITHM_ID)
+        .with_provider_pool(Arc::new(pool));
     data.set_name("ELK Mr. Tree")
         .set_description(concat!(
             "Tree-based algorithm provided by the Eclipse Layout Kernel. Computes a spanning tree of ",

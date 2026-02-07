@@ -8,6 +8,7 @@ pub mod layered_layout_provider;
 pub mod layered_phases;
 pub mod no_op_phase;
 pub mod options;
+pub mod plain_java_initialization;
 pub mod p1cycles;
 pub mod p2layers;
 pub mod p3order;

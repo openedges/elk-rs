@@ -30,7 +30,6 @@ impl Compaction {
             if block.borrow().children().is_empty() {
                 eprintln!("There should not be an empty block. Empty blocks are directly removed.");
                 row.borrow_mut().remove_block(&block);
-                block_id = block_id.saturating_sub(1);
                 something_was_changed = true;
                 continue;
             }
@@ -95,7 +94,6 @@ impl Compaction {
                     }
                 }
                 if next_block.is_none() {
-                    block_id = block_id.saturating_sub(1);
                     continue;
                 }
 
@@ -113,6 +111,7 @@ impl Compaction {
                         )
                     {
                         something_was_changed = true;
+                        block_id += 1;
                         continue;
                     }
 
@@ -138,19 +137,23 @@ impl Compaction {
                                 next_block_ref.borrow_mut().set_parent_row(row.clone());
                                 break;
                             }
+                            block_id += 1;
                             continue;
                         } else if Self::use_row_height(&row, &block) {
                             block.borrow_mut().set_fixed(true);
                             something_was_changed = true;
+                            block_id += 1;
                             continue;
                         }
                     } else if Self::use_row_height(&row, &block) {
                         block.borrow_mut().set_fixed(true);
                         something_was_changed = true;
+                        block_id += 1;
                         continue;
                     }
 
                     if something_was_changed {
+                        block_id += 1;
                         continue;
                     }
                 }
@@ -162,6 +165,7 @@ impl Compaction {
                 if let Some(next_block_ref) = next_block {
                     next_block_ref.borrow_mut().set_position_fixed(false);
                 }
+                block_id += 1;
                 continue;
             } else if let Some(stack) = block.borrow().stack() {
                 stack.borrow_mut().update_dimension();
@@ -271,13 +275,14 @@ impl Compaction {
             block.borrow().y() - row.borrow().y() + block.borrow().height_for_target_width(remaining_width);
         let next_block_min_height = next_block.borrow().height_for_target_width(remaining_width);
         if current_block_min_height + node_node_spacing + next_block_min_height <= row.borrow().height() {
-            block.borrow_mut().place_rects_in(bounding_width - block.borrow().x());
+            let block_x = block.borrow().x();
+            block.borrow_mut().place_rects_in(bounding_width - block_x);
             block.borrow_mut().set_fixed(true);
             next_block
                 .borrow_mut()
-                .place_rects_in(bounding_width - block.borrow().x());
+                .place_rects_in(bounding_width - block_x);
             next_block.borrow_mut().set_location(
-                block.borrow().x(),
+                block_x,
                 block.borrow().y() + block.borrow().height() + node_node_spacing,
             );
             next_block.borrow_mut().set_position_fixed(true);

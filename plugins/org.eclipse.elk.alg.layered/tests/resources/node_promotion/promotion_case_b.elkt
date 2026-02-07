@@ -1,0 +1,20 @@
+algorithm: layered
+direction: right
+
+node a [size:30,30]
+node b [size:30,30]
+node c [size:30,30]
+node d [size:30,30]
+node e [size:30,30]
+node f [size:30,30]
+node g [size:30,30]
+node h [size:30,30]
+
+edge e1: a -> c
+edge e2: b -> c
+edge e3: c -> d
+edge e4: c -> e
+edge e5: d -> f
+edge e6: e -> g
+edge e7: f -> h
+edge e8: g -> h

@@ -2,6 +2,7 @@ use std::sync::LazyLock;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::SharedProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::label_side::LabelSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, Random};
@@ -11,6 +12,7 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkReflect;
 use crate::org::eclipse::elk::alg::layered::graph::{
     LGraph, LEdgeRef, LGraphRef, LLabelRef, LNodeRef, LPortRef, NodeRefKey,
 };
+use crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfLoopHolderRef;
 use crate::org::eclipse::elk::alg::layered::p5edges::splines::SplineSegmentRef;
 use crate::org::eclipse::elk::alg::layered::options::{
     EdgeConstraint, GraphProperties, InLayerConstraint, Spacings,
@@ -38,6 +40,9 @@ pub static ORIGIN_PROPERTY: LazyLock<Property<Origin>> =
 
 pub static REPRESENTED_LABELS_PROPERTY: LazyLock<Property<Vec<LLabelRef>>> =
     LazyLock::new(|| Property::new("representedLabels"));
+
+pub static END_LABEL_EDGE_PROPERTY: LazyLock<Property<LEdgeRef>> =
+    LazyLock::new(|| Property::new("endLabel.origin"));
 
 pub static REVERSED_PROPERTY: LazyLock<Property<bool>> =
     LazyLock::new(|| Property::with_default("reversed", false));
@@ -102,6 +107,11 @@ pub static EXT_PORT_SIDE_PROPERTY: LazyLock<Property<PortSide>> =
 pub static EXT_PORT_SIZE_PROPERTY: LazyLock<Property<KVector>> =
     LazyLock::new(|| Property::with_default("externalPortSize", KVector::new()));
 
+pub static EXT_PORT_CONNECTIONS_PROPERTY: LazyLock<Property<EnumSet<PortSide>>> =
+    LazyLock::new(|| {
+        Property::with_default("externalPortConnections", EnumSet::none_of())
+    });
+
 pub static PORT_RATIO_OR_POSITION_PROPERTY: LazyLock<Property<f64>> =
     LazyLock::new(|| Property::with_default("portRatioOrPosition", 0.0));
 
@@ -132,11 +142,20 @@ pub static BARYCENTER_ASSOCIATES_PROPERTY: LazyLock<Property<Vec<LNodeRef>>> =
 pub static MAX_MODEL_ORDER_NODES_PROPERTY: LazyLock<Property<i32>> =
     LazyLock::new(|| Property::with_default("modelOrder.maximum", 0));
 
+pub static CB_NUM_MODEL_ORDER_GROUPS_PROPERTY: LazyLock<Property<i32>> =
+    LazyLock::new(|| Property::with_default("modelOrderGroups.cb.number", 0));
+
 pub static WEIGHT_PROPERTY: LazyLock<Property<f64>> =
     LazyLock::new(|| Property::new("medianHeuristic.weight"));
 
+pub static LONG_EDGE_SOURCE_PROPERTY: LazyLock<Property<LPortRef>> =
+    LazyLock::new(|| Property::new("longEdgeSource"));
+
 pub static LONG_EDGE_TARGET_PROPERTY: LazyLock<Property<LPortRef>> =
     LazyLock::new(|| Property::new("longEdgeTarget"));
+
+pub static LONG_EDGE_HAS_LABEL_DUMMIES_PROPERTY: LazyLock<Property<bool>> =
+    LazyLock::new(|| Property::with_default("longEdgeHasLabelDummies", false));
 
 pub static LONG_EDGE_TARGET_NODE_PROPERTY: LazyLock<Property<LNodeRef>> =
     LazyLock::new(|| Property::new("longEdgeTargetNode"));
@@ -164,10 +183,39 @@ pub static IS_PART_OF_CYCLE_PROPERTY: LazyLock<Property<bool>> =
 pub static CYCLIC_PROPERTY: LazyLock<Property<bool>> =
     LazyLock::new(|| Property::with_default("cyclic", false));
 
+pub static TOP_COMMENTS_PROPERTY: LazyLock<Property<Vec<LNodeRef>>> =
+    LazyLock::new(|| Property::new("TopSideComments"));
+
+pub static BOTTOM_COMMENTS_PROPERTY: LazyLock<Property<Vec<LNodeRef>>> =
+    LazyLock::new(|| Property::new("BottomSideComments"));
+
+pub static COMMENT_CONN_PORT_PROPERTY: LazyLock<Property<LPortRef>> =
+    LazyLock::new(|| Property::new("CommentConnectionPort"));
+
+pub static HIDDEN_NODES_PROPERTY: LazyLock<Property<Vec<LNodeRef>>> =
+    LazyLock::new(|| {
+        ElkReflect::register_default_clone::<Vec<LNodeRef>>();
+        Property::new("layerConstraints.hiddenNodes")
+    });
+
+pub static ORIGINAL_OPPOSITE_PORT_PROPERTY: LazyLock<Property<LPortRef>> =
+    LazyLock::new(|| Property::new("layerConstraints.opposidePort"));
+
+pub static PARTITION_DUMMY_PROPERTY: LazyLock<Property<bool>> =
+    LazyLock::new(|| Property::with_default("partitionDummy", false));
+
+pub static LABEL_SIDE_PROPERTY: LazyLock<Property<LabelSide>> =
+    LazyLock::new(|| Property::with_default("labelSide", LabelSide::Unknown));
+
+pub static SELF_LOOP_HOLDER_PROPERTY: LazyLock<Property<SelfLoopHolderRef>> =
+    LazyLock::new(|| Property::new("selfLoopHolder"));
+
 impl InternalProperties {
     pub const ORIGIN: &'static LazyLock<Property<Origin>> = &ORIGIN_PROPERTY;
     pub const REPRESENTED_LABELS: &'static LazyLock<Property<Vec<LLabelRef>>> =
         &REPRESENTED_LABELS_PROPERTY;
+    pub const END_LABEL_EDGE: &'static LazyLock<Property<LEdgeRef>> =
+        &END_LABEL_EDGE_PROPERTY;
     pub const REVERSED: &'static LazyLock<Property<bool>> = &REVERSED_PROPERTY;
     pub const INPUT_COLLECT: &'static LazyLock<Property<bool>> = &INPUT_COLLECT_PROPERTY;
     pub const OUTPUT_COLLECT: &'static LazyLock<Property<bool>> = &OUTPUT_COLLECT_PROPERTY;
@@ -195,6 +243,8 @@ impl InternalProperties {
         &SPLINE_NS_PORT_Y_COORD_PROPERTY;
     pub const EXT_PORT_SIDE: &'static LazyLock<Property<PortSide>> = &EXT_PORT_SIDE_PROPERTY;
     pub const EXT_PORT_SIZE: &'static LazyLock<Property<KVector>> = &EXT_PORT_SIZE_PROPERTY;
+    pub const EXT_PORT_CONNECTIONS: &'static LazyLock<Property<EnumSet<PortSide>>> =
+        &EXT_PORT_CONNECTIONS_PROPERTY;
     pub const PORT_RATIO_OR_POSITION: &'static LazyLock<Property<f64>> =
         &PORT_RATIO_OR_POSITION_PROPERTY;
     pub const MODEL_ORDER: &'static LazyLock<Property<i32>> = &MODEL_ORDER_PROPERTY;
@@ -211,8 +261,13 @@ impl InternalProperties {
         &BARYCENTER_ASSOCIATES_PROPERTY;
     pub const MAX_MODEL_ORDER_NODES: &'static LazyLock<Property<i32>> =
         &MAX_MODEL_ORDER_NODES_PROPERTY;
+    pub const CB_NUM_MODEL_ORDER_GROUPS: &'static LazyLock<Property<i32>> =
+        &CB_NUM_MODEL_ORDER_GROUPS_PROPERTY;
     pub const WEIGHT: &'static LazyLock<Property<f64>> = &WEIGHT_PROPERTY;
+    pub const LONG_EDGE_SOURCE: &'static LazyLock<Property<LPortRef>> = &LONG_EDGE_SOURCE_PROPERTY;
     pub const LONG_EDGE_TARGET: &'static LazyLock<Property<LPortRef>> = &LONG_EDGE_TARGET_PROPERTY;
+    pub const LONG_EDGE_HAS_LABEL_DUMMIES: &'static LazyLock<Property<bool>> =
+        &LONG_EDGE_HAS_LABEL_DUMMIES_PROPERTY;
     pub const LONG_EDGE_TARGET_NODE: &'static LazyLock<Property<LNodeRef>> =
         &LONG_EDGE_TARGET_NODE_PROPERTY;
     pub const TARGET_NODE_MODEL_ORDER: &'static LazyLock<Property<std::collections::HashMap<NodeRefKey, i32>>> =
@@ -226,4 +281,15 @@ impl InternalProperties {
     pub const TARJAN_ON_STACK: &'static LazyLock<Property<bool>> = &TARJAN_ON_STACK_PROPERTY;
     pub const IS_PART_OF_CYCLE: &'static LazyLock<Property<bool>> = &IS_PART_OF_CYCLE_PROPERTY;
     pub const CYCLIC: &'static LazyLock<Property<bool>> = &CYCLIC_PROPERTY;
+    pub const TOP_COMMENTS: &'static LazyLock<Property<Vec<LNodeRef>>> = &TOP_COMMENTS_PROPERTY;
+    pub const BOTTOM_COMMENTS: &'static LazyLock<Property<Vec<LNodeRef>>> =
+        &BOTTOM_COMMENTS_PROPERTY;
+    pub const COMMENT_CONN_PORT: &'static LazyLock<Property<LPortRef>> = &COMMENT_CONN_PORT_PROPERTY;
+    pub const HIDDEN_NODES: &'static LazyLock<Property<Vec<LNodeRef>>> = &HIDDEN_NODES_PROPERTY;
+    pub const ORIGINAL_OPPOSITE_PORT: &'static LazyLock<Property<LPortRef>> =
+        &ORIGINAL_OPPOSITE_PORT_PROPERTY;
+    pub const PARTITION_DUMMY: &'static LazyLock<Property<bool>> = &PARTITION_DUMMY_PROPERTY;
+    pub const LABEL_SIDE: &'static LazyLock<Property<LabelSide>> = &LABEL_SIDE_PROPERTY;
+    pub const SELF_LOOP_HOLDER: &'static LazyLock<Property<SelfLoopHolderRef>> =
+        &SELF_LOOP_HOLDER_PROPERTY;
 }

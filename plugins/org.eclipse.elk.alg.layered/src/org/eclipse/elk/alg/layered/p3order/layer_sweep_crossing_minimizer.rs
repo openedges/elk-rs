@@ -100,15 +100,23 @@ impl LayerSweepCrossingMinimizer {
 
     fn minimize_crossings_no_counter(&mut self, index: usize) {
         let mut is_forward_sweep = self.random.next_int(2) == 0;
-        let mut improved = true;
-        while improved {
+        let mut previous_crossings = self.count_current_number_of_crossings(index);
+        loop {
             self.prepare_cross_minimizer(index);
             let first_improved = {
                 let graph_data = &mut self.graph_info_holders[index];
                 graph_data.set_first_layer_order(is_forward_sweep)
             };
             let sweep_improved = self.sweep_reducing_crossings(index, is_forward_sweep, false);
-            improved = first_improved || sweep_improved;
+            let improved = first_improved || sweep_improved;
+            if !improved {
+                break;
+            }
+            let current_crossings = self.count_current_number_of_crossings(index);
+            if current_crossings >= previous_crossings {
+                break;
+            }
+            previous_crossings = current_crossings;
             is_forward_sweep = !is_forward_sweep;
         }
         self.set_currently_best_node_orders();
@@ -762,11 +770,19 @@ impl LayerSweepCrossingMinimizer {
             } else if let Ok(mut graph_guard) = graph.lock() {
                 graph_guard.graph_element().id = index as i32;
             }
-            let g_data = if Arc::ptr_eq(&graph, root_graph) {
+            let mut g_data = if Arc::ptr_eq(&graph, root_graph) {
                 GraphInfoHolder::new_with_graph(graph.clone(), root_graph_guard, self.cross_min_type)
             } else {
                 GraphInfoHolder::new(graph.clone(), self.cross_min_type)
             };
+            let parent_index = g_data
+                .parent_graph_ref()
+                .and_then(|parent_graph| {
+                    self.graph_info_holders
+                        .iter()
+                        .position(|holder| Arc::ptr_eq(holder.l_graph(), parent_graph))
+                });
+            g_data.set_parent_graph_index(parent_index);
             if trace {
                 eprintln!(
                     "crossmin:init graph {} child_graphs={}",

@@ -1,0 +1,17 @@
+algorithm: layered
+direction: right
+
+node n1 [size:30,30]
+node n2 [size:30,30]
+node n3 [size:30,30]
+node n4 [size:30,30]
+node n5 [size:30,30]
+node n6 [size:30,30]
+
+edge e1: n1 -> n2
+edge e2: n1 -> n3
+edge e3: n2 -> n4
+edge e4: n3 -> n4
+edge e5: n2 -> n5
+edge e6: n4 -> n6
+edge e7: n5 -> n6

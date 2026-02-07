@@ -39,3 +39,13 @@ fn remove_all() {
     assert_eq!(ft.size(), 2);
     assert_eq!(ft.rank(2), 1);
 }
+
+#[test]
+fn rank_with_out_of_bounds_index_returns_prefix_sum_up_to_max() {
+    let mut ft = BinaryIndexedTree::new(2);
+    ft.add(0);
+    ft.add(1);
+    ft.add(1);
+
+    assert_eq!(ft.rank(usize::MAX), 3);
+}

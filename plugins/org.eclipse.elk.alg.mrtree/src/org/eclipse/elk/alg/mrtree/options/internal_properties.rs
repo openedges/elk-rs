@@ -40,7 +40,7 @@ pub static DUMMY_PROPERTY: LazyLock<Property<bool>> =
 pub static LEVEL_PROPERTY: LazyLock<Property<i32>> =
     LazyLock::new(|| Property::with_default("LEVEL", 0));
 pub static REMOVABLE_EDGES_PROPERTY: LazyLock<Property<Vec<TEdgeRef>>> =
-    LazyLock::new(|| Property::with_default("REMOVABLE_EDGES", Vec::new()));
+    LazyLock::new(|| Property::new("REMOVABLE_EDGES"));
 pub static XCOOR_PROPERTY: LazyLock<Property<i32>> =
     LazyLock::new(|| Property::with_default("XCOOR", 0));
 pub static YCOOR_PROPERTY: LazyLock<Property<i32>> =
@@ -62,7 +62,7 @@ pub static GRAPH_YMAX_PROPERTY: LazyLock<Property<f64>> =
 pub static COMPACT_LEVEL_ASCENSION_PROPERTY: LazyLock<Property<bool>> =
     LazyLock::new(|| Property::with_default("COMPACT_LEVEL_ASCENSION", false));
 pub static COMPACT_CONSTRAINTS_PROPERTY: LazyLock<Property<Vec<TNodeRef>>> =
-    LazyLock::new(|| Property::with_default("COMPACT_CONSTRAINTS", Vec::new()));
+    LazyLock::new(|| Property::new("COMPACT_CONSTRAINTS"));
 pub static ID_PROPERTY: LazyLock<Property<String>> =
     LazyLock::new(|| Property::with_default("ID", String::new()));
 pub static POSITION_PROPERTY: LazyLock<Property<i32>> =

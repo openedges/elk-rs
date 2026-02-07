@@ -19,7 +19,9 @@ fn issue_552_self_loop_ports_are_placed_away_from_zero_y() {
     for identifier in ["p_west", "p_east"] {
         let port =
             find_port_by_identifier(&graph, identifier).expect("expected self-loop port to exist");
-        let y = port.borrow_mut().connectable().shape().y();
+        let mut port_mut = port.borrow_mut();
+        let shape = port_mut.connectable().shape();
+        let y = shape.y();
         assert!(y > 0.0, "port y should be > 0.0, got {y}");
     }
 }

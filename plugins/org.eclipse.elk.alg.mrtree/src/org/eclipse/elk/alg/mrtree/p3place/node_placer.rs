@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutPhase;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::direction::Direction;
@@ -67,17 +69,20 @@ impl ILayoutPhase<TreeLayoutPhases, TGraphRef> for NodePlacer {
         self.direction = direction;
 
         if let Some(root) = root {
-            self.first_walk(&root, 0);
+            let mut first_walk_seen: HashSet<usize> = HashSet::new();
+            self.first_walk(&root, 0, &mut first_walk_seen);
             progress_monitor.worked(1.0);
             let level_height = root
                 .lock()
                 .ok()
                 .and_then(|mut node_guard| node_guard.get_property(InternalProperties::LEVELHEIGHT))
                 .unwrap_or(0.0);
+            let mut second_walk_seen: HashSet<usize> = HashSet::new();
             self.second_walk(
                 &root,
                 self.y_top_adjustment - (level_height / 2.0),
                 self.x_top_adjustment,
+                &mut second_walk_seen,
             );
             progress_monitor.worked(1.0);
         }
@@ -104,72 +109,84 @@ impl ILayoutPhase<TreeLayoutPhases, TGraphRef> for NodePlacer {
 }
 
 impl NodePlacer {
-    fn first_walk(&self, node: &TNodeRef, level: i32) {
-        if let Ok(mut node_guard) = node.lock() {
-            node_guard.set_property(InternalProperties::MODIFIER, Some(0.0));
-            let left_sibling = node_guard
-                .get_property(InternalProperties::LEFTSIBLING)
-                .flatten();
+    fn first_walk(&self, node: &TNodeRef, level: i32, seen: &mut HashSet<usize>) {
+        let node_key = std::sync::Arc::as_ptr(node) as usize;
+        if !seen.insert(node_key) {
+            return;
+        }
 
-            if node_guard.is_leaf() {
-                if let Some(left_sibling) = left_sibling {
-                    let left_prelim = left_sibling
-                        .lock()
-                        .ok()
-                        .and_then(|mut n| n.get_property(InternalProperties::PRELIM))
-                        .unwrap_or(0.0);
-                    let p = left_prelim + self.spacing + self.mean_node_width(&left_sibling, node);
-                    node_guard.set_property(InternalProperties::PRELIM, Some(p));
-                } else {
-                    node_guard.set_property(InternalProperties::PRELIM, Some(0.0));
-                }
-            } else {
-                let children = node_guard.children_copy();
-                drop(node_guard);
-                for child in &children {
-                    self.first_walk(child, level + 1);
-                }
-
-                let leftmost = children.first().cloned();
-                let rightmost = children.last().cloned();
-                let mid_point = match (leftmost.as_ref(), rightmost.as_ref()) {
-                    (Some(left), Some(right)) => {
-                        let left_prelim = left
-                            .lock()
-                            .ok()
-                            .and_then(|mut n| n.get_property(InternalProperties::PRELIM))
-                            .unwrap_or(0.0);
-                        let right_prelim = right
-                            .lock()
-                            .ok()
-                            .and_then(|mut n| n.get_property(InternalProperties::PRELIM))
-                            .unwrap_or(0.0);
-                        (right_prelim + left_prelim) / 2.0
-                    }
-                    _ => 0.0,
-                };
-
-                if let Ok(mut node_guard) = node.lock() {
-                    if let Some(left_sibling) = left_sibling {
-                        let left_prelim = left_sibling
-                            .lock()
-                            .ok()
-                            .and_then(|mut n| n.get_property(InternalProperties::PRELIM))
-                            .unwrap_or(0.0);
-                        let p = left_prelim + self.spacing + self.mean_node_width(&left_sibling, node);
-                        node_guard.set_property(InternalProperties::PRELIM, Some(p));
-                        let modifier = node_guard
-                            .get_property(InternalProperties::PRELIM)
-                            .unwrap_or(0.0)
-                            - mid_point;
-                        node_guard.set_property(InternalProperties::MODIFIER, Some(modifier));
-                        drop(node_guard);
-                        self.apportion(node, level);
-                    } else {
-                        node_guard.set_property(InternalProperties::PRELIM, Some(mid_point));
-                    }
-                }
+        let (is_leaf, left_sibling, children) = match node.lock() {
+            Ok(mut node_guard) => {
+                node_guard.set_property(InternalProperties::MODIFIER, Some(0.0));
+                (
+                    node_guard.is_leaf(),
+                    node_guard
+                        .get_property(InternalProperties::LEFTSIBLING)
+                        .flatten(),
+                    node_guard.children_copy(),
+                )
             }
+            Err(_) => return,
+        };
+
+        if is_leaf {
+            let prelim = if let Some(left_sibling) = left_sibling {
+                let left_prelim = left_sibling
+                    .lock()
+                    .ok()
+                    .and_then(|mut n| n.get_property(InternalProperties::PRELIM))
+                    .unwrap_or(0.0);
+                left_prelim + self.spacing + self.mean_node_width(&left_sibling, node)
+            } else {
+                0.0
+            };
+            if let Ok(mut node_guard) = node.lock() {
+                node_guard.set_property(InternalProperties::PRELIM, Some(prelim));
+            }
+            return;
+        }
+
+        for child in &children {
+            self.first_walk(child, level + 1, seen);
+        }
+
+        let leftmost = children.first().cloned();
+        let rightmost = children.last().cloned();
+        let mid_point = match (leftmost.as_ref(), rightmost.as_ref()) {
+            (Some(left), Some(right)) => {
+                let left_prelim = left
+                    .lock()
+                    .ok()
+                    .and_then(|mut n| n.get_property(InternalProperties::PRELIM))
+                    .unwrap_or(0.0);
+                let right_prelim = right
+                    .lock()
+                    .ok()
+                    .and_then(|mut n| n.get_property(InternalProperties::PRELIM))
+                    .unwrap_or(0.0);
+                (right_prelim + left_prelim) / 2.0
+            }
+            _ => 0.0,
+        };
+
+        if let Some(left_sibling) = left_sibling {
+            let left_prelim = left_sibling
+                .lock()
+                .ok()
+                .and_then(|mut n| n.get_property(InternalProperties::PRELIM))
+                .unwrap_or(0.0);
+            let p = left_prelim + self.spacing + self.mean_node_width(&left_sibling, node);
+            if let Ok(mut node_guard) = node.lock() {
+                node_guard.set_property(InternalProperties::PRELIM, Some(p));
+                let modifier = node_guard
+                    .get_property(InternalProperties::PRELIM)
+                    .unwrap_or(0.0)
+                    - mid_point;
+                node_guard.set_property(InternalProperties::MODIFIER, Some(modifier));
+            }
+            self.apportion(node, level);
+        } else if let Ok(mut node_guard) = node.lock() {
+            node_guard.set_property(InternalProperties::PRELIM, Some(mid_point));
         }
     }
 
@@ -190,24 +207,35 @@ impl NodePlacer {
             });
 
         let mut compare_depth = 1;
+        let mut apportion_iterations = 0usize;
 
         while leftmost.is_some() && neighbor.is_some() {
+            apportion_iterations += 1;
+            if apportion_iterations > 256 {
+                return;
+            }
+
             let mut left_mod_sum = 0.0;
             let mut right_mod_sum = 0.0;
             let mut ancestor_leftmost = leftmost.clone().unwrap();
             let mut ancestor_neighbor = neighbor.clone().unwrap();
 
             for _ in 0..compare_depth {
-                ancestor_leftmost = ancestor_leftmost
+                let next_leftmost_parent = ancestor_leftmost
                     .lock()
                     .ok()
-                    .and_then(|node_guard| node_guard.parent())
-                    .unwrap_or(ancestor_leftmost);
-                ancestor_neighbor = ancestor_neighbor
+                    .and_then(|node_guard| node_guard.parent());
+                let next_neighbor_parent = ancestor_neighbor
                     .lock()
                     .ok()
-                    .and_then(|node_guard| node_guard.parent())
-                    .unwrap_or(ancestor_neighbor);
+                    .and_then(|node_guard| node_guard.parent());
+                let (Some(next_leftmost_parent), Some(next_neighbor_parent)) =
+                    (next_leftmost_parent, next_neighbor_parent)
+                else {
+                    return;
+                };
+                ancestor_leftmost = next_leftmost_parent;
+                ancestor_neighbor = next_neighbor_parent;
 
                 right_mod_sum += ancestor_leftmost
                     .lock()
@@ -237,17 +265,24 @@ impl NodePlacer {
 
             if move_distance > 0.0 {
                 let mut left_sibling = node.clone();
-                let mut left_siblings = 0;
+                let mut left_siblings = 0usize;
+                let mut found_ancestor_neighbor = false;
+                let mut seen_left_sibling: HashSet<usize> = HashSet::new();
                 loop {
+                    let key = std::sync::Arc::as_ptr(&left_sibling) as usize;
+                    if !seen_left_sibling.insert(key) {
+                        return;
+                    }
+                    if std::sync::Arc::ptr_eq(&left_sibling, &ancestor_neighbor) {
+                        found_ancestor_neighbor = true;
+                        break;
+                    }
+                    left_siblings += 1;
                     let next = {
                         let mut current_guard = match left_sibling.lock() {
                             Ok(guard) => guard,
-                            Err(_) => break,
+                            Err(_) => return,
                         };
-                        if std::sync::Arc::ptr_eq(&left_sibling, &ancestor_neighbor) {
-                            break;
-                        }
-                        left_siblings += 1;
                         current_guard
                             .get_property(InternalProperties::LEFTSIBLING)
                             .flatten()
@@ -258,37 +293,42 @@ impl NodePlacer {
                     }
                 }
 
-                if left_siblings > 0 {
-                    let portion = move_distance / left_siblings as f64;
-                    let mut current = node.clone();
-                    while !std::sync::Arc::ptr_eq(&current, &ancestor_neighbor) {
-                        let next = {
-                            let mut current_guard = match current.lock() {
-                                Ok(guard) => guard,
-                                Err(_) => break,
-                            };
-                            let prelim = current_guard
-                                .get_property(InternalProperties::PRELIM)
-                                .unwrap_or(0.0)
-                                + move_distance;
-                            current_guard.set_property(InternalProperties::PRELIM, Some(prelim));
-                            let modifier = current_guard
-                                .get_property(InternalProperties::MODIFIER)
-                                .unwrap_or(0.0)
-                                + move_distance;
-                            current_guard.set_property(InternalProperties::MODIFIER, Some(modifier));
-                            current_guard
-                                .get_property(InternalProperties::LEFTSIBLING)
-                                .flatten()
-                        };
-                        match next {
-                            Some(next) => current = next,
-                            None => break,
-                        }
-                        move_distance -= portion;
-                    }
-                } else {
+                if !found_ancestor_neighbor || left_siblings == 0 {
                     return;
+                }
+
+                let portion = move_distance / left_siblings as f64;
+                let mut current = node.clone();
+                let mut seen_current: HashSet<usize> = HashSet::new();
+                while !std::sync::Arc::ptr_eq(&current, &ancestor_neighbor) {
+                    let key = std::sync::Arc::as_ptr(&current) as usize;
+                    if !seen_current.insert(key) {
+                        return;
+                    }
+                    let next = {
+                        let mut current_guard = match current.lock() {
+                            Ok(guard) => guard,
+                            Err(_) => return,
+                        };
+                        let prelim = current_guard
+                            .get_property(InternalProperties::PRELIM)
+                            .unwrap_or(0.0)
+                            + move_distance;
+                        current_guard.set_property(InternalProperties::PRELIM, Some(prelim));
+                        let modifier = current_guard
+                            .get_property(InternalProperties::MODIFIER)
+                            .unwrap_or(0.0)
+                            + move_distance;
+                        current_guard.set_property(InternalProperties::MODIFIER, Some(modifier));
+                        current_guard
+                            .get_property(InternalProperties::LEFTSIBLING)
+                            .flatten()
+                    };
+                    move_distance -= portion;
+                    match next {
+                        Some(next) => current = next,
+                        None => return,
+                    }
                 }
             }
 
@@ -336,7 +376,18 @@ impl NodePlacer {
         width
     }
 
-    fn second_walk(&self, node: &TNodeRef, y_coor: f64, mod_sum: f64) {
+    fn second_walk(
+        &self,
+        node: &TNodeRef,
+        y_coor: f64,
+        mod_sum: f64,
+        seen: &mut HashSet<usize>,
+    ) {
+        let node_key = std::sync::Arc::as_ptr(node) as usize;
+        if !seen.insert(node_key) {
+            return;
+        }
+
         if let Ok(mut node_guard) = node.lock() {
             let x_temp = node_guard
                 .get_property(InternalProperties::PRELIM)
@@ -357,6 +408,7 @@ impl NodePlacer {
                         y_coor + node_guard.get_property(InternalProperties::LEVELHEIGHT).unwrap_or(0.0)
                             + self.spacing,
                         mod_sum + node_guard.get_property(InternalProperties::MODIFIER).unwrap_or(0.0),
+                        seen,
                     );
                 }
             }
@@ -366,7 +418,7 @@ impl NodePlacer {
                 .flatten()
             {
                 drop(node_guard);
-                self.second_walk(&right_sibling, y_coor, mod_sum);
+                self.second_walk(&right_sibling, y_coor, mod_sum, seen);
             }
         }
     }

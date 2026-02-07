@@ -42,10 +42,15 @@ impl AreaApproximation {
         let mut placed_rects: Vec<ElkNodeRef> = Vec::new();
         placed_rects.push(first_rect.clone());
         let mut last_placed = first_rect.clone();
+        let (initial_width, initial_height) = {
+            let mut last_mut = last_placed.borrow_mut();
+            let shape = last_mut.connectable().shape();
+            (shape.width(), shape.height())
+        };
         let mut current_values = DrawingData::new(
             self.aspect_ratio,
-            last_placed.borrow_mut().connectable().shape().width(),
-            last_placed.borrow_mut().connectable().shape().height(),
+            initial_width,
+            initial_height,
             DrawingDataDescriptor::WholeDrawing,
         );
 

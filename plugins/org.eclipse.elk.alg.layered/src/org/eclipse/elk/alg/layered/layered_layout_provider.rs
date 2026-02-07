@@ -1,5 +1,6 @@
 use org_eclipse_elk_core::org::eclipse::elk::core::abstract_layout_provider::AbstractLayoutProvider;
 use org_eclipse_elk_core::org::eclipse::elk::core::graph_layout_engine::IGraphLayoutEngine;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::testing::IWhiteBoxTestable;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
@@ -9,6 +10,7 @@ use crate::org::eclipse::elk::alg::layered::graph::transform::ElkGraphTransforme
 use crate::org::eclipse::elk::alg::layered::graph::transform::IGraphTransformer;
 use crate::org::eclipse::elk::alg::layered::options::LayeredOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::hierarchy_handling::HierarchyHandling;
+use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::NodeMicroLayout;
 
 pub struct LayeredLayoutProvider {
     elk_layered: ElkLayered,
@@ -40,6 +42,20 @@ impl Default for LayeredLayoutProvider {
 
 impl IGraphLayoutEngine for LayeredLayoutProvider {
     fn layout(&mut self, layout_graph: &ElkNodeRef, progress_monitor: &mut dyn IElkProgressMonitor) {
+        let omit_micro_layout = {
+            let mut graph_mut = layout_graph.borrow_mut();
+            graph_mut
+                .connectable()
+                .shape()
+                .graph_element()
+                .properties_mut()
+                .get_property(CoreOptions::OMIT_NODE_MICRO_LAYOUT)
+                .unwrap_or(false)
+        };
+        if !omit_micro_layout {
+            NodeMicroLayout::for_graph(layout_graph.clone()).execute();
+        }
+
         let mut transformer = ElkGraphTransformer::new();
         let layered_graph = transformer.import_graph(layout_graph);
 

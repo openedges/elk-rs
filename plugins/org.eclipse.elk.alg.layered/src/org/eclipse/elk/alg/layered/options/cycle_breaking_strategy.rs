@@ -5,7 +5,10 @@ use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase_factory::
 
 use crate::org::eclipse::elk::alg::layered::graph::LGraph;
 use crate::org::eclipse::elk::alg::layered::no_op_phase::NoOpPhase;
-use crate::org::eclipse::elk::alg::layered::p1cycles::{DepthFirstCycleBreaker, GreedyCycleBreaker};
+use crate::org::eclipse::elk::alg::layered::p1cycles::{
+    BfsNodeOrderCycleBreaker, DepthFirstCycleBreaker, DfsNodeOrderCycleBreaker, GreedyCycleBreaker,
+    ModelOrderCycleBreaker, ScConnectivityCycleBreaker, SccNodeTypeCycleBreaker,
+};
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Ord, PartialOrd)]
@@ -43,6 +46,14 @@ impl ILayoutPhaseFactory<LayeredPhases, LGraph> for CycleBreakingStrategy {
         match self {
             CycleBreakingStrategy::Greedy => Box::new(GreedyCycleBreaker::new()),
             CycleBreakingStrategy::DepthFirst => Box::new(DepthFirstCycleBreaker::new()),
+            CycleBreakingStrategy::ModelOrder => Box::new(ModelOrderCycleBreaker::new()),
+            CycleBreakingStrategy::GreedyModelOrder => {
+                Box::new(GreedyCycleBreaker::new_with_model_order(true))
+            }
+            CycleBreakingStrategy::SccConnectivity => Box::new(ScConnectivityCycleBreaker::new()),
+            CycleBreakingStrategy::SccNodeType => Box::new(SccNodeTypeCycleBreaker::new()),
+            CycleBreakingStrategy::DfsNodeOrder => Box::new(DfsNodeOrderCycleBreaker::new()),
+            CycleBreakingStrategy::BfsNodeOrder => Box::new(BfsNodeOrderCycleBreaker::new()),
             _ => Box::new(NoOpPhase::new()),
         }
     }

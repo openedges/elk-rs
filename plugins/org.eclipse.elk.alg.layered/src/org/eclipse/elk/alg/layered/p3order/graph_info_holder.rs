@@ -32,6 +32,7 @@ pub struct GraphInfoHolder {
     child_graphs: Vec<LGraphRef>,
     has_external_ports: bool,
     has_parent: bool,
+    parent_graph_ref: Option<LGraphRef>,
     parent_graph_index: Option<usize>,
     parent_node: Option<LNodeRef>,
     cross_minimizer: Box<dyn ICrossingMinimizationHeuristic>,
@@ -246,10 +247,11 @@ impl GraphInfoHolder {
         }
         let mut random = random;
         let has_parent = parent_node.is_some();
-        let parent_graph_index = parent_node
+        let parent_graph_ref = parent_node
             .as_ref()
-            .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.graph()))
-            .and_then(|graph| graph.lock().ok().map(|mut graph_guard| graph_guard.graph_element().id as usize));
+            .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.graph()));
+        // Parent graph indices are resolved by the caller once graph holders are collected.
+        let parent_graph_index = None;
 
         let has_external_ports = graph_properties.contains(&GraphProperties::ExternalPorts);
 
@@ -303,6 +305,7 @@ impl GraphInfoHolder {
             child_graphs: Vec::new(),
             has_external_ports,
             has_parent,
+            parent_graph_ref,
             parent_graph_index,
             parent_node,
             cross_minimizer,
@@ -441,6 +444,10 @@ impl GraphInfoHolder {
         self.parent_graph_index
     }
 
+    pub fn parent_graph_ref(&self) -> Option<&LGraphRef> {
+        self.parent_graph_ref.as_ref()
+    }
+
     pub fn cross_min_deterministic(&self) -> bool {
         self.cross_minimizer.is_deterministic()
     }
@@ -487,6 +494,10 @@ impl GraphInfoHolder {
 
     pub fn set_second_try_with_initial_order(&mut self, value: bool) {
         self.second_try_with_initial_order = value;
+    }
+
+    pub fn set_parent_graph_index(&mut self, value: Option<usize>) {
+        self.parent_graph_index = value;
     }
 
     pub fn port_positions(&self) -> &Vec<i32> {

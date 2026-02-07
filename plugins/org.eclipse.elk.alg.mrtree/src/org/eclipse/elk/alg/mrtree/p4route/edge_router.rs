@@ -638,6 +638,8 @@ impl EdgeRouter {
 
             let num = ins.len();
             for (i, edge) in ins.iter().enumerate() {
+                // Avoid locking the same edge recursively inside the routing branch.
+                let is_cycle_inducing = TreeUtil::is_cycle_inducing(edge, graph);
                 let interpolation = if num == 1 {
                     Self::ONE_HALF
                 } else {
@@ -743,7 +745,7 @@ impl EdgeRouter {
                         }
                         bends.add_values(pos.x + size.x * interpolation, pos.y + size.y);
                     } else {
-                        if TreeUtil::is_cycle_inducing(edge, graph) {
+                        if is_cycle_inducing {
                             if !bends.is_empty() {
                                 bends.add_values(pos.x + size.x * interpolation, bends.get_last().y);
                             }

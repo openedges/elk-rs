@@ -67,23 +67,58 @@ check_file() {
   file=$2
   avg_col=$3
   ops_col=$4
+  config_col_a=${5:-0}
+  config_col_b=${6:-0}
+  config_col_c=${7:-0}
+  data_file=$file
+  tmp_file=""
 
   if [ ! -f "$file" ]; then
     echo "$name: missing $file"
     return 0
   fi
 
-  line_count=$(wc -l < "$file" | tr -d ' ')
+  if [ "$config_col_a" -gt 0 ] || [ "$config_col_b" -gt 0 ] || [ "$config_col_c" -gt 0 ]; then
+    latest_config_key=$(awk -F',' -v ca="$config_col_a" -v cb="$config_col_b" -v cc="$config_col_c" '
+      {
+        key_a = (ca > 0 ? $ca : "");
+        key_b = (cb > 0 ? $cb : "");
+        key_c = (cc > 0 ? $cc : "");
+        key = key_a "\t" key_b "\t" key_c;
+      }
+      END {
+        if (key != "") {
+          print key;
+        }
+      }
+    ' "$file")
+
+    if [ -n "$latest_config_key" ]; then
+      config_a=$(printf '%s' "$latest_config_key" | awk -F '\t' '{print $1}')
+      config_b=$(printf '%s' "$latest_config_key" | awk -F '\t' '{print $2}')
+      config_c=$(printf '%s' "$latest_config_key" | awk -F '\t' '{print $3}')
+      tmp_file=$(mktemp)
+      awk -F',' \
+        -v ca="$config_col_a" -v cb="$config_col_b" -v cc="$config_col_c" \
+        -v a="$config_a" -v b="$config_b" -v c="$config_c" '
+        (ca <= 0 || $ca == a) && (cb <= 0 || $cb == b) && (cc <= 0 || $cc == c) { print }
+      ' "$file" > "$tmp_file"
+      data_file=$tmp_file
+    fi
+  fi
+
+  line_count=$(wc -l < "$data_file" | tr -d ' ')
   need=$((WINDOW * 2))
   if [ "$line_count" -lt "$need" ]; then
     echo "$name: not enough data (need ${need} lines for window ${WINDOW})"
+    [ -n "$tmp_file" ] && rm -f "$tmp_file"
     return 0
   fi
 
-  prev_avg=$(avg_column_window "$file" "$avg_col" "$WINDOW" 1)
-  curr_avg=$(avg_column_window "$file" "$avg_col" "$WINDOW" 0)
-  prev_ops=$(avg_column_window "$file" "$ops_col" "$WINDOW" 1)
-  curr_ops=$(avg_column_window "$file" "$ops_col" "$WINDOW" 0)
+  prev_avg=$(avg_column_window "$data_file" "$avg_col" "$WINDOW" 1)
+  curr_avg=$(avg_column_window "$data_file" "$avg_col" "$WINDOW" 0)
+  prev_ops=$(avg_column_window "$data_file" "$ops_col" "$WINDOW" 1)
+  curr_ops=$(avg_column_window "$data_file" "$ops_col" "$WINDOW" 0)
 
   avg_delta=$(awk -v prev="$prev_avg" -v curr="$curr_avg" 'BEGIN{ if(prev==0){print 0} else printf "%.2f", ((curr-prev)/prev)*100 }')
   ops_delta=$(awk -v prev="$prev_ops" -v curr="$curr_ops" 'BEGIN{ if(prev==0){print 0} else printf "%.2f", ((prev-curr)/prev)*100 }')
@@ -102,6 +137,8 @@ check_file() {
   if [ "$avg_regress" -eq 0 ] && [ "$ops_regress" -eq 0 ]; then
     echo "$name: ok (avg_ms Δ${avg_delta}%, ops_per_sec Δ${ops_delta}%)"
   fi
+
+  [ -n "$tmp_file" ] && rm -f "$tmp_file"
 }
 
 check_file_per_scenario() {
@@ -253,10 +290,10 @@ check_file_per_scenario_against_baseline() {
 }
 
 if mode_enabled window; then
-  check_file "comment_attachment" "perf/results_comment_attachment.csv" 6 7
-  check_file "graph_validation" "perf/results_graph_validation.csv" 8 9
-  check_file "recursive_layout" "perf/results_recursive_layout.csv" 8 9
-  check_file "recursive_layout_layered" "perf/results_recursive_layout_layered.csv" 8 9
+  check_file "comment_attachment" "perf/results_comment_attachment.csv" 6 7 2 3 4
+  check_file "graph_validation" "perf/results_graph_validation.csv" 8 9 2 3 4
+  check_file "recursive_layout" "perf/results_recursive_layout.csv" 8 9 2 3 4
+  check_file "recursive_layout_layered" "perf/results_recursive_layout_layered.csv" 8 9 2 3 4
   check_file_per_scenario "recursive_layout_scenarios" "perf/results_recursive_layout_scenarios.csv" 9 10 2 6 7
   check_file_per_scenario "layered_issue_scenarios" "perf/results_layered_issue_scenarios.csv" 6 7 2 3 4
 fi

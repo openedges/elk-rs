@@ -2,9 +2,9 @@
 
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::layered_layout_provider::LayeredLayoutProvider;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::{
-    LayeredMetaDataProvider, LayeredOptions,
+    LayeredOptions,
 };
-use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
+use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::plain_java_initialization::initialize_plain_java_layout;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::recursive_graph_layout_engine::RecursiveGraphLayoutEngine;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::BasicProgressMonitor;
@@ -17,8 +17,7 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::{
 };
 
 pub fn init_layered_options() {
-    let service = LayoutMetaDataService::get_instance();
-    service.register_layout_meta_data_provider(&LayeredMetaDataProvider);
+    initialize_plain_java_layout();
 }
 
 pub fn create_graph() -> ElkNodeRef {

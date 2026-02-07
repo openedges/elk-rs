@@ -417,7 +417,9 @@ impl Block {
 
     fn notify_parent(&self) {
         if let Some(parent) = self.parent_row.as_ref().and_then(|row| row.upgrade()) {
-            parent.borrow_mut().notify_about_node_change();
+            parent
+                .borrow_mut()
+                .notify_about_node_change(Some((self.width, self.height)));
         }
     }
 }

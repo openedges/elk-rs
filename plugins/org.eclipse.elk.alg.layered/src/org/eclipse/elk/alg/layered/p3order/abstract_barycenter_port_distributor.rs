@@ -377,15 +377,18 @@ impl AbstractBarycenterPortDistributor {
             let mut in_layer_connections = 0.0;
             let connected = connected_ports(port);
             for connected_port in connected {
-                if port_same_layer(&connected_port, node) {
-                    if port_owner_is(&connected_port, node) {
-                        sum += node_index_in_layer;
-                    } else {
-                        sum += self.position_of_node_port_owner(&connected_port) as f64 + 1.0;
+                    if port_same_layer(&connected_port, node) {
+                        if port_owner_is(&connected_port, node) {
+                            sum += node_index_in_layer;
+                        } else {
+                            sum += self
+                                .position_of_node_port_owner_in_layer(&connected_port, layer_index)
+                                as f64
+                                + 1.0;
+                        }
+                        in_layer_connections += 1.0;
                     }
-                    in_layer_connections += 1.0;
                 }
-            }
             if in_layer_connections == 0.0 {
                 continue;
             }
@@ -494,12 +497,19 @@ impl AbstractBarycenterPortDistributor {
             .unwrap_or(node_index)
     }
 
-    fn position_of_node_port_owner(&self, port: &LPortRef) -> usize {
+    fn position_of_node_port_owner_in_layer(&self, port: &LPortRef, layer_index: usize) -> usize {
         port.lock()
             .ok()
             .and_then(|port_guard| port_guard.node())
-            .map(|node| self.position_of(&node))
-            .unwrap_or(0)
+            .map(|node| {
+                let node_index = node_id(&node);
+                self.node_positions
+                    .get(layer_index)
+                    .and_then(|positions| positions.get(node_index))
+                    .copied()
+                    .unwrap_or(node_index)
+            })
+            .unwrap_or_default()
     }
 
     fn update_node_positions(&mut self, node_order: &[Vec<LNodeRef>], current_index: usize) {

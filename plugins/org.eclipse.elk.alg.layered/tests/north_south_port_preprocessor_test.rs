@@ -1,0 +1,96 @@
+use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::{
+    LEdge, LGraph, LGraphRef, LNode, LNodeRef, LPort, LPortRef, Layer,
+};
+use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::intermediate::NorthSouthPortPreprocessor;
+use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::{
+    LayeredMetaDataProvider, LayeredOptions,
+};
+use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
+use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::NullElkProgressMonitor;
+
+fn init_layered_metadata() {
+    LayoutMetaDataService::get_instance().register_layout_meta_data_provider(&LayeredMetaDataProvider);
+}
+
+fn graph_with_single_layer() -> (LGraphRef, std::sync::Arc<std::sync::Mutex<Layer>>) {
+    let graph = LGraph::new();
+    let layer = Layer::new(&graph);
+    graph
+        .lock()
+        .expect("graph lock")
+        .layers_mut()
+        .push(layer.clone());
+    (graph, layer)
+}
+
+fn add_node(graph: &LGraphRef, layer: &std::sync::Arc<std::sync::Mutex<Layer>>) -> LNodeRef {
+    let node = LNode::new(graph);
+    LNode::set_layer(&node, Some(layer.clone()));
+    node
+}
+
+fn add_port(node: &LNodeRef, side: PortSide) -> LPortRef {
+    let port = LPort::new();
+    {
+        let mut port_guard = port.lock().expect("port lock");
+        port_guard.set_side(side);
+    }
+    LPort::set_node(&port, Some(node.clone()));
+    port
+}
+
+fn connect(source: &LPortRef, target: &LPortRef) {
+    let edge = LEdge::new();
+    LEdge::set_source(&edge, Some(source.clone()));
+    LEdge::set_target(&edge, Some(target.clone()));
+}
+
+#[test]
+fn north_south_preprocessor_isolates_north_south_ports() {
+    init_layered_metadata();
+    let (graph, layer) = graph_with_single_layer();
+
+    let owner = add_node(&graph, &layer);
+    owner
+        .lock()
+        .expect("owner lock")
+        .set_property(
+            LayeredOptions::PORT_CONSTRAINTS,
+            Some(PortConstraints::FixedSide),
+        );
+
+    let north = add_port(&owner, PortSide::North);
+    let south = add_port(&owner, PortSide::South);
+
+    let other = add_node(&graph, &layer);
+    let other_east = add_port(&other, PortSide::East);
+    let other_west = add_port(&other, PortSide::West);
+    connect(&other_east, &north);
+    connect(&south, &other_west);
+
+    let mut processor = NorthSouthPortPreprocessor;
+    let mut monitor = NullElkProgressMonitor;
+    processor.process(&mut graph.lock().expect("graph lock"), &mut monitor);
+
+    let owner_ports = owner
+        .lock()
+        .expect("owner lock")
+        .ports()
+        .clone();
+    for port in owner_ports {
+        let (side, connected) = port
+            .lock()
+            .ok()
+            .map(|port_guard| (port_guard.side(), !port_guard.connected_edges().is_empty()))
+            .unwrap_or((PortSide::Undefined, false));
+        if side == PortSide::North || side == PortSide::South {
+            assert!(
+                !connected,
+                "north/south port should be isolated after preprocessing"
+            );
+        }
+    }
+}

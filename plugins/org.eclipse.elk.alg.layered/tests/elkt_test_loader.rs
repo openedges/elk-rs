@@ -13,6 +13,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_label_placement
 use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_routing::EdgeRouting;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::Direction;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::HierarchyHandling;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::NodeLabelPlacement;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::PortLabelPlacement;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::PortSide;
@@ -98,6 +99,10 @@ struct PendingSectionLink {
 }
 
 pub fn load_layered_graph_from_elkt(path: &str) -> Result<ElkNodeRef, String> {
+    load_layered_graph_from_elk_text(path)
+}
+
+pub fn load_layered_graph_from_elk_text(path: &str) -> Result<ElkNodeRef, String> {
     load_graph_from_elkt(path, Some(LayeredOptions::ALGORITHM_ID))
 }
 
@@ -116,6 +121,7 @@ pub fn load_graph_from_elkt(path: &str, default_algorithm: Option<&str>) -> Resu
     let mut edge_sections_by_edge: HashMap<String, HashMap<String, ElkEdgeSectionRef>> = HashMap::new();
     let mut pending_section_links: Vec<PendingSectionLink> = Vec::new();
     let mut label_identifiers: HashSet<String> = HashSet::new();
+    let mut anonymous_edge_counter: usize = 0;
     let mut block_stack: Vec<BlockContext> = Vec::new();
 
     for (line_index, raw_line) in content.lines().enumerate() {
@@ -152,7 +158,10 @@ pub fn load_graph_from_elkt(path: &str, default_algorithm: Option<&str>) -> Resu
                 parse_entity_property(line, "nodeProperty")
             {
                 let parent = current_node_context(&block_stack);
-                let node = get_or_create_node(&graph, &mut nodes, node_id.as_str(), parent);
+                let node = find_node_by_identifier_reference(&nodes, node_id.as_str(), parent)
+                    .unwrap_or_else(|| {
+                        get_or_create_node(&graph, &mut nodes, node_id.as_str(), parent)
+                    });
                 apply_node_property(&node, property_name, property_value);
                 handled = true;
             } else {
@@ -168,14 +177,18 @@ pub fn load_graph_from_elkt(path: &str, default_algorithm: Option<&str>) -> Resu
             if let Some((port_id, property_name, property_value)) =
                 parse_entity_property(line, "portProperty")
             {
-                let Some(port) = ports.get(port_id.as_str()) else {
+                let Some(port) = find_port_by_identifier_reference(
+                    &ports,
+                    port_id.as_str(),
+                    current_node_context(&block_stack),
+                ) else {
                     return Err(line_context_error(
                         line_number,
                         line_text.as_str(),
                         format!("portProperty references unknown port '{port_id}'"),
                     ));
                 };
-                apply_port_property(port, property_name, property_value);
+                apply_port_property(&port, property_name, property_value);
                 handled = true;
             } else {
                 return Err(line_context_error(
@@ -190,14 +203,18 @@ pub fn load_graph_from_elkt(path: &str, default_algorithm: Option<&str>) -> Resu
             if let Some((edge_id, property_name, property_value)) =
                 parse_entity_property(line, "edgeProperty")
             {
-                let Some(edge) = edges.get(edge_id.as_str()) else {
+                let Some(edge) = find_edge_by_identifier_reference(
+                    &edges,
+                    edge_id.as_str(),
+                    current_node_context(&block_stack),
+                ) else {
                     return Err(line_context_error(
                         line_number,
                         line_text.as_str(),
                         format!("edgeProperty references unknown edge '{edge_id}'"),
                     ));
                 };
-                apply_edge_property(edge, property_name, property_value);
+                apply_edge_property(&edge, property_name, property_value);
                 handled = true;
             } else {
                 return Err(line_context_error(
@@ -214,6 +231,7 @@ pub fn load_graph_from_elkt(path: &str, default_algorithm: Option<&str>) -> Resu
                     .node_id
                     .as_deref()
                     .or_else(|| current_node_context(&block_stack));
+                let port_scope_key = port_storage_key(port_decl.id.as_str(), parent_id);
                 let port = get_or_create_port(
                     &graph,
                     &mut nodes,
@@ -224,14 +242,14 @@ pub fn load_graph_from_elkt(path: &str, default_algorithm: Option<&str>) -> Resu
                 let _ = apply_port_block_line(&port, line);
                 if let Some(side_value) = parse_inline_value(line, "side") {
                     if let Some(side) = parse_port_side(side_value.as_str()) {
-                        set_port_property(&port, LayeredOptions::PORT_SIDE, side);
+                        set_port_side_property(&port, side);
                     }
                 }
                 if port_decl.has_block {
                     apply_block_open(
                         &mut block_stack,
                         &mut trailing_closes,
-                        BlockContext::Port(port_decl.id.clone()),
+                        BlockContext::Port(port_scope_key),
                     );
                 }
                 handled = true;
@@ -250,6 +268,7 @@ pub fn load_graph_from_elkt(path: &str, default_algorithm: Option<&str>) -> Resu
                     .parent_id
                     .as_deref()
                     .or_else(|| current_node_context(&block_stack));
+                let node_scope_key = node_storage_key(node_decl.id.as_str(), parent_id);
                 let node = get_or_create_node(&graph, &mut nodes, node_decl.id.as_str(), parent_id);
                 let _ = apply_node_block_line(&node, line);
                 if let Some(value) = parse_inline_value(line, "portConstraints") {
@@ -261,7 +280,7 @@ pub fn load_graph_from_elkt(path: &str, default_algorithm: Option<&str>) -> Resu
                     apply_block_open(
                         &mut block_stack,
                         &mut trailing_closes,
-                        BlockContext::Node(node_decl.id.clone()),
+                        BlockContext::Node(node_scope_key),
                     );
                 }
                 handled = true;
@@ -279,30 +298,57 @@ pub fn load_graph_from_elkt(path: &str, default_algorithm: Option<&str>) -> Resu
                 let sources = edge_decl
                     .source_ids
                     .iter()
-                    .map(|identifier| resolve_connectable(&graph, &mut nodes, &mut ports, identifier))
+                    .map(|identifier| {
+                        resolve_connectable(
+                            &graph,
+                            &mut nodes,
+                            &mut ports,
+                            identifier,
+                            current_node_context(&block_stack),
+                        )
+                    })
                     .collect::<Vec<_>>();
                 let targets = edge_decl
                     .target_ids
                     .iter()
-                    .map(|identifier| resolve_connectable(&graph, &mut nodes, &mut ports, identifier))
+                    .map(|identifier| {
+                        resolve_connectable(
+                            &graph,
+                            &mut nodes,
+                            &mut ports,
+                            identifier,
+                            current_node_context(&block_stack),
+                        )
+                    })
                     .collect::<Vec<_>>();
                 let edge = ElkGraphUtil::create_hyperedge(sources, targets);
-                if let Some(edge_id) = edge_decl.id {
-                    if edges.contains_key(edge_id.as_str()) {
+                let edge_id = if let Some(edge_id) = edge_decl.id {
+                    let scoped_edge_id =
+                        edge_storage_key(edge_id.as_str(), current_node_context(&block_stack));
+                    if edges.contains_key(scoped_edge_id.as_str()) {
                         return Err(line_context_error(
                             line_number,
                             line_text.as_str(),
                             format!("duplicate edge identifier: {edge_id}"),
                         ));
                     }
-                    edges.insert(edge_id.clone(), edge.clone());
-                    if edge_decl.has_block {
-                        apply_block_open(
-                            &mut block_stack,
-                            &mut trailing_closes,
-                            BlockContext::Edge(edge_id),
-                        );
+                    scoped_edge_id
+                } else {
+                    loop {
+                        anonymous_edge_counter += 1;
+                        let candidate = format!("__anonymous_edge_{anonymous_edge_counter}");
+                        if !edges.contains_key(candidate.as_str()) {
+                            break candidate;
+                        }
                     }
+                };
+                edges.insert(edge_id.clone(), edge.clone());
+                if edge_decl.has_block {
+                    apply_block_open(
+                        &mut block_stack,
+                        &mut trailing_closes,
+                        BlockContext::Edge(edge_id),
+                    );
                 }
                 handled = true;
             } else {
@@ -318,14 +364,18 @@ pub fn load_graph_from_elkt(path: &str, default_algorithm: Option<&str>) -> Resu
             if let Some((edge_id, source_point, target_point, bend_points)) =
                 parse_edge_section_declaration(line)
             {
-                let Some(edge) = edges.get(edge_id.as_str()) else {
+                let Some(edge) = find_edge_by_identifier_reference(
+                    &edges,
+                    edge_id.as_str(),
+                    current_node_context(&block_stack),
+                ) else {
                     return Err(line_context_error(
                         line_number,
                         line_text.as_str(),
                         format!("edgeSection references unknown edge '{edge_id}'"),
                     ));
                 };
-                apply_edge_section(edge, source_point, target_point, bend_points, true);
+                apply_edge_section(&edge, source_point, target_point, bend_points, true);
                 handled = true;
             } else {
                 return Err(line_context_error(
@@ -340,14 +390,18 @@ pub fn load_graph_from_elkt(path: &str, default_algorithm: Option<&str>) -> Resu
             if let Some((edge_id, source_point, target_point, bend_points)) =
                 parse_edge_point_declaration(line)
             {
-                let Some(edge) = edges.get(edge_id.as_str()) else {
+                let Some(edge) = find_edge_by_identifier_reference(
+                    &edges,
+                    edge_id.as_str(),
+                    current_node_context(&block_stack),
+                ) else {
                     return Err(line_context_error(
                         line_number,
                         line_text.as_str(),
                         format!("edgePoint references unknown edge '{edge_id}'"),
                     ));
                 };
-                apply_edge_section(edge, source_point, target_point, bend_points, false);
+                apply_edge_section(&edge, source_point, target_point, bend_points, false);
                 handled = true;
             } else {
                 return Err(line_context_error(
@@ -460,7 +514,11 @@ pub fn load_graph_from_elkt(path: &str, default_algorithm: Option<&str>) -> Resu
 
         if !handled && starts_with_statement(line, "edgeLabel") {
             if let Some((edge_id, text, size)) = parse_edge_label_declaration(line) {
-                let Some(edge) = edges.get(edge_id.as_str()) else {
+                let Some(edge) = find_edge_by_identifier_reference(
+                    &edges,
+                    edge_id.as_str(),
+                    current_node_context(&block_stack),
+                ) else {
                     return Err(line_context_error(
                         line_number,
                         line_text.as_str(),
@@ -493,7 +551,8 @@ pub fn load_graph_from_elkt(path: &str, default_algorithm: Option<&str>) -> Resu
 
         if !handled && starts_with_statement(line, "nodeLabel") {
             if let Some((node_id, text, size)) = parse_node_label_declaration(line) {
-                let Some(node) = nodes.get(node_id.as_str()) else {
+                let parent = current_node_context(&block_stack);
+                let Some(node) = find_node_by_identifier_reference(&nodes, node_id.as_str(), parent) else {
                     return Err(line_context_error(
                         line_number,
                         line_text.as_str(),
@@ -519,7 +578,11 @@ pub fn load_graph_from_elkt(path: &str, default_algorithm: Option<&str>) -> Resu
 
         if !handled && starts_with_statement(line, "portLabel") {
             if let Some((port_id, text, size)) = parse_port_label_declaration(line) {
-                let Some(port) = ports.get(port_id.as_str()) else {
+                let Some(port) = find_port_by_identifier_reference(
+                    &ports,
+                    port_id.as_str(),
+                    current_node_context(&block_stack),
+                ) else {
                     return Err(line_context_error(
                         line_number,
                         line_text.as_str(),
@@ -545,22 +608,43 @@ pub fn load_graph_from_elkt(path: &str, default_algorithm: Option<&str>) -> Resu
 
         if !handled && starts_with_statement(line, "label") {
             if let Some(label_decl) = parse_label_declaration(line) {
-                let parent = if let Some(label) = current_label_context(&block_stack) {
-                    Some(ElkGraphElementRef::Label(label))
+                let (parent, parent_scope) = if let Some(label) = current_label_context(&block_stack) {
+                    (
+                        Some(ElkGraphElementRef::Label(label.clone())),
+                        Some(format!("label:{:p}", std::rc::Rc::as_ptr(&label))),
+                    )
                 } else if let Some(port_id) = current_port_context(&block_stack) {
                     ports
                         .get(port_id)
-                        .map(|port| ElkGraphElementRef::Port(port.clone()))
+                        .map(|port| {
+                            (
+                                ElkGraphElementRef::Port(port.clone()),
+                                format!("port:{:p}", std::rc::Rc::as_ptr(port)),
+                            )
+                        })
+                        .map_or((None, None), |(parent, scope)| (Some(parent), Some(scope)))
                 } else if let Some(edge_id) = current_edge_context(&block_stack) {
                     edges
                         .get(edge_id)
-                        .map(|edge| ElkGraphElementRef::Edge(edge.clone()))
+                        .map(|edge| {
+                            (
+                                ElkGraphElementRef::Edge(edge.clone()),
+                                format!("edge:{:p}", std::rc::Rc::as_ptr(edge)),
+                            )
+                        })
+                        .map_or((None, None), |(parent, scope)| (Some(parent), Some(scope)))
                 } else if let Some(node_id) = current_node_context(&block_stack) {
                     nodes
                         .get(node_id)
-                        .map(|node| ElkGraphElementRef::Node(node.clone()))
+                        .map(|node| {
+                            (
+                                ElkGraphElementRef::Node(node.clone()),
+                                format!("node:{:p}", std::rc::Rc::as_ptr(node)),
+                            )
+                        })
+                        .map_or((None, None), |(parent, scope)| (Some(parent), Some(scope)))
                 } else {
-                    None
+                    (None, None)
                 };
 
                 let Some(parent) = parent else {
@@ -573,7 +657,11 @@ pub fn load_graph_from_elkt(path: &str, default_algorithm: Option<&str>) -> Resu
 
                 let label = ElkGraphUtil::create_label_with_text(&label_decl.text, Some(parent));
                 if let Some(identifier) = label_decl.identifier {
-                    register_label_identifier(&mut label_identifiers, identifier.as_str())
+                    register_label_identifier(
+                        &mut label_identifiers,
+                        parent_scope.as_deref().unwrap_or("unknown"),
+                        identifier.as_str(),
+                    )
                         .map_err(|err| {
                             line_context_error(line_number, line_text.as_str(), err)
                         })?;
@@ -643,6 +731,7 @@ pub fn load_graph_from_elkt(path: &str, default_algorithm: Option<&str>) -> Resu
         pop_block_contexts(&mut block_stack, trailing_closes);
     }
 
+    infer_missing_port_sides(&graph);
     resolve_pending_section_links(&edge_sections_by_edge, &pending_section_links)?;
 
     Ok(graph)
@@ -730,6 +819,20 @@ fn apply_graph_property_line(graph: &ElkNodeRef, line: &str) -> bool {
     if let Some(value) = parse_key_value(line, "edgeRouting") {
         if let Some(routing) = parse_edge_routing(value) {
             set_node_property(graph, CoreOptions::EDGE_ROUTING, routing);
+        }
+        return true;
+    }
+
+    if let Some(value) = parse_key_value(line, "hierarchyHandling") {
+        if let Some(handling) = parse_hierarchy_handling(value) {
+            set_node_property(graph, CoreOptions::HIERARCHY_HANDLING, handling);
+        }
+        return true;
+    }
+
+    if let Some(value) = parse_key_value(line, "insideSelfLoops.activate") {
+        if let Some(enabled) = parse_bool(value) {
+            set_node_property(graph, CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE, enabled);
         }
         return true;
     }
@@ -894,17 +997,30 @@ fn resolve_connectable(
     nodes: &mut HashMap<String, ElkNodeRef>,
     ports: &mut HashMap<String, ElkPortRef>,
     identifier: &str,
+    current_node_id: Option<&str>,
 ) -> ElkConnectableShapeRef {
-    if let Some(port) = ports.get(identifier) {
+    if let Some(port) = find_port_by_identifier_reference(ports, identifier, current_node_id) {
         return ElkConnectableShapeRef::Port(port.clone());
     }
 
     if let Some((node_id, port_id)) = identifier.split_once('.') {
-        let port = get_or_create_port(graph, nodes, ports, port_id.trim(), Some(node_id.trim()));
+        let parent_storage_key = find_node_storage_key_reference(nodes, node_id, current_node_id)
+            .unwrap_or_else(|| node_storage_key(node_id, current_node_id));
+        let port = get_or_create_port(
+            graph,
+            nodes,
+            ports,
+            port_id.trim(),
+            Some(parent_storage_key.as_str()),
+        );
         return ElkConnectableShapeRef::Port(port);
     }
 
-    let node = get_or_create_node(graph, nodes, identifier, None);
+    if let Some(node) = find_node_by_identifier_reference(nodes, identifier, current_node_id) {
+        return ElkConnectableShapeRef::Node(node);
+    }
+
+    let node = get_or_create_node(graph, nodes, identifier, current_node_id);
     ElkConnectableShapeRef::Node(node)
 }
 
@@ -913,20 +1029,162 @@ fn resolve_existing_connectable(
     ports: &HashMap<String, ElkPortRef>,
     identifier: &str,
 ) -> Option<ElkConnectableShapeRef> {
-    if let Some(port) = ports.get(identifier) {
+    if let Some(port) = find_port_by_identifier_reference(ports, identifier, None) {
         return Some(ElkConnectableShapeRef::Port(port.clone()));
     }
 
-    if let Some((_, port_id)) = identifier.split_once('.') {
-        if let Some(port) = ports.get(port_id.trim()) {
-            return Some(ElkConnectableShapeRef::Port(port.clone()));
+    find_node_by_identifier_reference(nodes, identifier, None).map(ElkConnectableShapeRef::Node)
+}
+
+fn edge_storage_key(identifier: &str, current_node_id: Option<&str>) -> String {
+    let identifier = identifier.trim();
+    if let Some(current_node_id) = current_node_id {
+        let current_node_id = current_node_id.trim();
+        if !current_node_id.is_empty() {
+            return format!("{current_node_id}.{identifier}");
+        }
+    }
+    identifier.to_string()
+}
+
+fn find_edge_by_identifier_reference(
+    edges: &HashMap<String, ElkEdgeRef>,
+    identifier: &str,
+    current_node_id: Option<&str>,
+) -> Option<ElkEdgeRef> {
+    let identifier = identifier.trim();
+    if identifier.is_empty() {
+        return None;
+    }
+
+    if let Some(current_node_id) = current_node_id {
+        let scoped_key = edge_storage_key(identifier, Some(current_node_id));
+        if let Some(edge) = edges.get(scoped_key.as_str()) {
+            return Some(edge.clone());
         }
     }
 
-    nodes
-        .get(identifier)
-        .cloned()
-        .map(ElkConnectableShapeRef::Node)
+    if let Some(edge) = edges.get(identifier) {
+        return Some(edge.clone());
+    }
+
+    let suffix = format!(".{identifier}");
+    let mut matches = edges
+        .iter()
+        .filter(|(key, _)| key.ends_with(suffix.as_str()))
+        .map(|(_, edge)| edge.clone());
+    let first = matches.next();
+    if first.is_some() && matches.next().is_none() {
+        return first;
+    }
+
+    None
+}
+
+fn node_storage_key(identifier: &str, parent_node_id: Option<&str>) -> String {
+    let identifier = identifier.trim();
+    if let Some(parent_node_id) = parent_node_id {
+        let parent_node_id = parent_node_id.trim();
+        if !parent_node_id.is_empty() {
+            return format!("{parent_node_id}.{identifier}");
+        }
+    }
+    identifier.to_string()
+}
+
+fn find_node_by_identifier_reference(
+    nodes: &HashMap<String, ElkNodeRef>,
+    identifier: &str,
+    parent_node_id: Option<&str>,
+) -> Option<ElkNodeRef> {
+    let storage_key = find_node_storage_key_reference(nodes, identifier, parent_node_id)?;
+    nodes.get(storage_key.as_str()).cloned()
+}
+
+fn find_node_storage_key_reference(
+    nodes: &HashMap<String, ElkNodeRef>,
+    identifier: &str,
+    parent_node_id: Option<&str>,
+) -> Option<String> {
+    let identifier = identifier.trim();
+    if identifier.is_empty() {
+        return None;
+    }
+
+    if let Some(parent_node_id) = parent_node_id {
+        let scoped_key = node_storage_key(identifier, Some(parent_node_id));
+        if nodes.contains_key(scoped_key.as_str()) {
+            return Some(scoped_key);
+        }
+    }
+
+    if nodes.contains_key(identifier) {
+        return Some(identifier.to_string());
+    }
+
+    let suffix = format!(".{identifier}");
+    let mut matches = nodes
+        .iter()
+        .filter(|(key, _)| key.ends_with(suffix.as_str()))
+        .map(|(key, _)| key.to_string());
+    let first = matches.next();
+    if first.is_some() && matches.next().is_none() {
+        return first;
+    }
+
+    None
+}
+
+fn port_storage_key(identifier: &str, parent_node_id: Option<&str>) -> String {
+    let identifier = identifier.trim();
+    if let Some(parent_node_id) = parent_node_id {
+        let parent_node_id = parent_node_id.trim();
+        if !parent_node_id.is_empty() {
+            return format!("{parent_node_id}.{identifier}");
+        }
+    }
+    identifier.to_string()
+}
+
+fn find_port_by_identifier_reference(
+    ports: &HashMap<String, ElkPortRef>,
+    identifier: &str,
+    parent_node_id: Option<&str>,
+) -> Option<ElkPortRef> {
+    let identifier = identifier.trim();
+    if identifier.is_empty() {
+        return None;
+    }
+
+    if let Some(parent_node_id) = parent_node_id {
+        let scoped_key = port_storage_key(identifier, Some(parent_node_id));
+        if let Some(port) = ports.get(scoped_key.as_str()) {
+            return Some(port.clone());
+        }
+    }
+
+    if let Some(port) = ports.get(identifier) {
+        return Some(port.clone());
+    }
+
+    if let Some((node_id, port_id)) = identifier.split_once('.') {
+        let scoped_key = port_storage_key(port_id, Some(node_id));
+        if let Some(port) = ports.get(scoped_key.as_str()) {
+            return Some(port.clone());
+        }
+    }
+
+    let suffix = format!(".{identifier}");
+    let mut matches = ports
+        .iter()
+        .filter(|(key, _)| key.ends_with(suffix.as_str()))
+        .map(|(_, port)| port.clone());
+    let first = matches.next();
+    if first.is_some() && matches.next().is_none() {
+        return first;
+    }
+
+    None
 }
 
 fn apply_node_property(node: &ElkNodeRef, property_name: &str, property_value: &str) {
@@ -934,6 +1192,16 @@ fn apply_node_property(node: &ElkNodeRef, property_name: &str, property_value: &
         "algorithm" => {
             if property_value.eq_ignore_ascii_case("layered") {
                 set_node_property(node, CoreOptions::ALGORITHM, LayeredOptions::ALGORITHM_ID.to_string());
+            }
+        }
+        "hierarchyhandling" => {
+            if let Some(handling) = parse_hierarchy_handling(property_value) {
+                set_node_property(node, CoreOptions::HIERARCHY_HANDLING, handling);
+            }
+        }
+        "insideselfloopsactivate" => {
+            if let Some(enabled) = parse_bool(property_value) {
+                set_node_property(node, CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE, enabled);
             }
         }
         "spacingnodenode" => {
@@ -994,7 +1262,7 @@ fn apply_port_property(port: &ElkPortRef, property_name: &str, property_value: &
     match normalize_property_key(property_name).as_str() {
         "side" | "portside" => {
             if let Some(side) = parse_port_side(property_value) {
-                set_port_property(port, LayeredOptions::PORT_SIDE, side);
+                set_port_side_property(port, side);
             }
         }
         "portborderoffset" => {
@@ -1018,6 +1286,14 @@ fn apply_port_property(port: &ElkPortRef, property_name: &str, property_value: &
 
 fn apply_edge_property(edge: &ElkEdgeRef, property_name: &str, property_value: &str) {
     match normalize_property_key(property_name).as_str() {
+        "yo" | "insideselfloopsyo" => {
+            if let Some(enabled) = parse_bool(property_value) {
+                edge.borrow_mut()
+                    .element()
+                    .properties_mut()
+                    .set_property(CoreOptions::INSIDE_SELF_LOOPS_YO, Some(enabled));
+            }
+        }
         "edgelabelplacement" | "edgelabelsplacement" => {
             if let Some(placement) = parse_edge_label_placement(property_value) {
                 edge.borrow_mut()
@@ -1198,9 +1474,11 @@ fn resolve_pending_section_links(
 
 fn register_label_identifier(
     label_identifiers: &mut HashSet<String>,
+    scope_key: &str,
     identifier: &str,
 ) -> Result<(), String> {
-    if label_identifiers.insert(identifier.to_string()) {
+    let scoped = format!("{scope_key}::{identifier}");
+    if label_identifiers.insert(scoped) {
         Ok(())
     } else {
         Err(format!("duplicate label identifier: {identifier}"))
@@ -1219,7 +1497,7 @@ fn line_context_error<M: AsRef<str>>(line_number: usize, line: &str, message: M)
 fn normalize_key(key: &str) -> String {
     key.trim()
         .to_ascii_lowercase()
-        .replace(['_', '-', ' ', '.'], "")
+        .replace(['_', '-', ' ', '.', '^'], "")
 }
 
 fn normalize_property_key(key: &str) -> String {
@@ -1452,6 +1730,23 @@ fn parse_port_constraints(value: &str) -> Option<PortConstraints> {
         "fixedorder" => Some(PortConstraints::FixedOrder),
         "fixedratio" => Some(PortConstraints::FixedRatio),
         "fixedpos" => Some(PortConstraints::FixedPos),
+        _ => None,
+    }
+}
+
+fn parse_hierarchy_handling(value: &str) -> Option<HierarchyHandling> {
+    match normalize_key(value).as_str() {
+        "inherit" => Some(HierarchyHandling::Inherit),
+        "includechildren" => Some(HierarchyHandling::IncludeChildren),
+        "separatechildren" => Some(HierarchyHandling::SeparateChildren),
+        _ => None,
+    }
+}
+
+fn parse_bool(value: &str) -> Option<bool> {
+    match normalize_key(value).as_str() {
+        "true" | "yes" | "on" | "1" => Some(true),
+        "false" | "no" | "off" | "0" => Some(false),
         _ => None,
     }
 }
@@ -2180,9 +2475,10 @@ fn parse_node_declaration(line: &str) -> Option<NodeDeclaration> {
 
     let parent_id = parse_inline_field_value(declaration, "parent")
         .or_else(|| parse_inline_field_value(declaration, "in"))
+        .or_else(|| parse_inline_field_value(declaration, "of"))
         .map(|value| parse_identifier_token(value.as_str()))
         .filter(|value| !value.is_empty())
-        .or_else(|| find_relation_reference(&tokens, &["parent", "in"]));
+        .or_else(|| find_relation_reference(&tokens, &["parent", "in", "of"]));
 
     Some(NodeDeclaration {
         id: parse_identifier_token(id.as_str()),
@@ -2626,13 +2922,18 @@ fn get_or_create_node(
     identifier: &str,
     parent_identifier: Option<&str>,
 ) -> ElkNodeRef {
-    if let Some(node) = nodes.get(identifier) {
+    let storage_key = node_storage_key(identifier, parent_identifier);
+    if let Some(node) = nodes.get(storage_key.as_str()) {
         return node.clone();
     }
 
     let parent = if let Some(parent_identifier) = parent_identifier {
         if parent_identifier == identifier {
             graph.clone()
+        } else if let Some(existing_parent) =
+            find_node_by_identifier_reference(nodes, parent_identifier, None)
+        {
+            existing_parent
         } else {
             get_or_create_node(graph, nodes, parent_identifier, None)
         }
@@ -2647,7 +2948,7 @@ fn get_or_create_node(
         .shape()
         .graph_element()
         .set_identifier(Some(identifier.to_string()));
-    nodes.insert(identifier.to_string(), node.clone());
+    nodes.insert(storage_key, node.clone());
     node
 }
 
@@ -2658,7 +2959,8 @@ fn get_or_create_port(
     identifier: &str,
     parent_node_id: Option<&str>,
 ) -> ElkPortRef {
-    if let Some(port) = ports.get(identifier) {
+    let storage_key = port_storage_key(identifier, parent_node_id);
+    if let Some(port) = ports.get(storage_key.as_str()) {
         return port.clone();
     }
 
@@ -2674,7 +2976,7 @@ fn get_or_create_port(
         .shape()
         .graph_element()
         .set_identifier(Some(identifier.to_string()));
-    ports.insert(identifier.to_string(), port.clone());
+    ports.insert(storage_key, port.clone());
     port
 }
 
@@ -2718,6 +3020,11 @@ fn set_port_property<T: Clone + Send + Sync + 'static>(
         .set_property(property, Some(value));
 }
 
+fn set_port_side_property(port: &ElkPortRef, side: PortSide) {
+    set_port_property(port, LayeredOptions::PORT_SIDE, side);
+    set_port_property(port, CoreOptions::PORT_SIDE, side);
+}
+
 fn set_label_property<T: Clone + Send + Sync + 'static>(
     label: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkLabelRef,
     property: &Property<T>,
@@ -2729,4 +3036,91 @@ fn set_label_property<T: Clone + Send + Sync + 'static>(
         .graph_element()
         .properties_mut()
         .set_property(property, Some(value));
+}
+
+fn infer_missing_port_sides(graph: &ElkNodeRef) {
+    let mut queue: VecDeque<ElkNodeRef> = VecDeque::new();
+    queue.push_back(graph.clone());
+
+    while let Some(node) = queue.pop_front() {
+        let ports: Vec<_> = node.borrow_mut().ports().iter().cloned().collect();
+        for port in ports {
+            let side = port
+                .borrow_mut()
+                .connectable()
+                .shape()
+                .graph_element()
+                .properties_mut()
+                .get_property(CoreOptions::PORT_SIDE)
+                .or_else(|| {
+                    port.borrow_mut()
+                        .connectable()
+                        .shape()
+                        .graph_element()
+                        .properties_mut()
+                        .get_property(LayeredOptions::PORT_SIDE)
+                });
+
+            if side.is_some_and(|value| value != PortSide::Undefined) {
+                continue;
+            }
+
+            let inferred_side = infer_port_side_from_geometry(&port);
+            set_port_side_property(&port, inferred_side);
+        }
+
+        let children: Vec<_> = node.borrow_mut().children().iter().cloned().collect();
+        queue.extend(children);
+    }
+}
+
+fn infer_port_side_from_geometry(port: &ElkPortRef) -> PortSide {
+    let (port_x, port_y, port_w, port_h, parent) = {
+        let mut port_mut = port.borrow_mut();
+        let shape = port_mut.connectable().shape();
+        (
+            shape.x(),
+            shape.y(),
+            shape.width(),
+            shape.height(),
+            port_mut.parent(),
+        )
+    };
+
+    let Some(parent) = parent else {
+        return PortSide::East;
+    };
+
+    let (node_w, node_h) = {
+        let mut node_mut = parent.borrow_mut();
+        let shape = node_mut.connectable().shape();
+        (shape.width(), shape.height())
+    };
+
+    if !port_x.is_finite()
+        || !port_y.is_finite()
+        || !port_w.is_finite()
+        || !port_h.is_finite()
+        || !node_w.is_finite()
+        || !node_h.is_finite()
+    {
+        return PortSide::East;
+    }
+
+    let west_distance = port_x.abs();
+    let east_distance = (node_w - (port_x + port_w)).abs();
+    let north_distance = port_y.abs();
+    let south_distance = (node_h - (port_y + port_h)).abs();
+
+    let mut best = (east_distance, PortSide::East);
+    if west_distance < best.0 {
+        best = (west_distance, PortSide::West);
+    }
+    if north_distance < best.0 {
+        best = (north_distance, PortSide::North);
+    }
+    if south_distance < best.0 {
+        best = (south_distance, PortSide::South);
+    }
+    best.1
 }

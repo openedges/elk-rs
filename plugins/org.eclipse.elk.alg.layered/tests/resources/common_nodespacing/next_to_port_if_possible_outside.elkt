@@ -1,0 +1,23 @@
+algorithm: layered
+direction: right
+
+node parent {
+  layout [ size: 120, 80 ]
+  portConstraints: fixedPos
+  portLabelsPlacement: [outside, nextToPortIfPossible]
+
+  port p_external side:east layout [ position: 110, 10 size: 10, 10 ]
+  port p_internal side:east layout [ position: 110, 50 size: 10, 10 ]
+
+  node child {
+    layout [ position: 20, 20 size: 30, 20 ]
+  }
+}
+
+portLabel p_external text:external size:24,10
+portLabel p_internal text:internal size:24,10
+
+node outside [ size: 30, 20 ]
+
+edge e_outside: outside -> p_external
+edge e_inside: p_internal -> child

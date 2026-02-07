@@ -70,6 +70,10 @@ impl ElkGraphAdapter {
     fn downgrade(&self) -> Weak<ElkGraphAdapterInner> {
         Rc::downgrade(&self.inner)
     }
+
+    pub fn element(&self) -> ElkNodeRef {
+        self.inner.element.clone()
+    }
 }
 
 #[derive(Clone)]
@@ -143,6 +147,10 @@ impl ElkNodeAdapter {
             }),
         }
     }
+
+    pub fn element(&self) -> ElkNodeRef {
+        self.inner.element.clone()
+    }
 }
 
 #[derive(Clone)]
@@ -191,6 +199,10 @@ impl ElkPortAdapter {
             }),
         }
     }
+
+    pub fn element(&self) -> ElkPortRef {
+        self.inner.element.clone()
+    }
 }
 
 #[derive(Clone)]
@@ -211,6 +223,10 @@ impl ElkEdgeAdapter {
                 label_adapters: RefCell::new(None),
             }),
         }
+    }
+
+    pub fn element(&self) -> ElkEdgeRef {
+        self.inner.element.clone()
     }
 }
 

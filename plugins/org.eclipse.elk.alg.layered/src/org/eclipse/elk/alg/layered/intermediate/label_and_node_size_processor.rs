@@ -1,3 +1,6 @@
+use std::collections::HashSet;
+use std::sync::Arc;
+
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
@@ -18,15 +21,25 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
     fn process(&mut self, graph: &mut LGraph, monitor: &mut dyn IElkProgressMonitor) {
         monitor.begin("Node and Port Label Placement and Node Sizing", 1.0);
 
-        let layers = graph.layers().clone();
-        for layer in layers {
+        let mut seen = HashSet::new();
+        for node in graph.layerless_nodes().clone() {
+            let key = Arc::as_ptr(&node) as usize;
+            if seen.insert(key) {
+                place_ports_on_node(&node);
+            }
+        }
+
+        for layer in graph.layers().clone() {
             let nodes = layer
                 .lock()
                 .ok()
                 .map(|layer_guard| LGraphUtil::to_node_array(layer_guard.nodes()))
                 .unwrap_or_default();
             for node in nodes {
-                place_ports_on_node(&node);
+                let key = Arc::as_ptr(&node) as usize;
+                if seen.insert(key) {
+                    place_ports_on_node(&node);
+                }
             }
         }
 

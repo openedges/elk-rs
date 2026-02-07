@@ -1,0 +1,142 @@
+algorithm: layered
+direction: right
+
+node outside_two_default_west [size:120,80]
+nodeProperty outside_two_default_west portConstraints:fixedPos
+nodeProperty outside_two_default_west portLabelsPlacement:[outside]
+port o2dw_p0 of outside_two_default_west size:10,10 side:west layout [position:0,10]
+port o2dw_p1 of outside_two_default_west size:10,10 side:west layout [position:0,45]
+portLabel o2dw_p0 text:o2dw0 size:24,10
+portLabel o2dw_p1 text:o2dw1 size:24,10
+
+node outside_two_default_north [size:120,80]
+nodeProperty outside_two_default_north portConstraints:fixedPos
+nodeProperty outside_two_default_north portLabelsPlacement:[outside]
+port o2dn_p0 of outside_two_default_north size:10,10 side:north layout [position:10,0]
+port o2dn_p1 of outside_two_default_north size:10,10 side:north layout [position:45,0]
+portLabel o2dn_p0 text:o2dn0 size:24,10
+portLabel o2dn_p1 text:o2dn1 size:24,10
+
+node outside_two_default_south [size:120,80]
+nodeProperty outside_two_default_south portConstraints:fixedPos
+nodeProperty outside_two_default_south portLabelsPlacement:[outside]
+port o2ds_p0 of outside_two_default_south size:10,10 side:south layout [position:10,70]
+port o2ds_p1 of outside_two_default_south size:10,10 side:south layout [position:45,70]
+portLabel o2ds_p0 text:o2ds0 size:24,10
+portLabel o2ds_p1 text:o2ds1 size:24,10
+
+node inside_two_with_one_edge_next_to_port_west [size:120,80]
+nodeProperty inside_two_with_one_edge_next_to_port_west portConstraints:fixedPos
+nodeProperty inside_two_with_one_edge_next_to_port_west portLabelsPlacement:[inside,nextToPortIfPossible]
+port i2enw_p0 of inside_two_with_one_edge_next_to_port_west size:10,10 side:west layout [position:0,10]
+port i2enw_p1 of inside_two_with_one_edge_next_to_port_west size:10,10 side:west layout [position:0,45]
+portLabel i2enw_p0 text:i2enw0 size:24,10
+portLabel i2enw_p1 text:i2enw1 size:24,10
+node i2enw_child of inside_two_with_one_edge_next_to_port_west [size:20,14]
+edge i2enw_e: i2enw_p1 -> i2enw_child
+
+node inside_two_with_one_edge_next_to_port_north [size:120,80]
+nodeProperty inside_two_with_one_edge_next_to_port_north portConstraints:fixedPos
+nodeProperty inside_two_with_one_edge_next_to_port_north portLabelsPlacement:[inside,nextToPortIfPossible]
+port i2enn_p0 of inside_two_with_one_edge_next_to_port_north size:10,10 side:north layout [position:10,0]
+port i2enn_p1 of inside_two_with_one_edge_next_to_port_north size:10,10 side:north layout [position:45,0]
+portLabel i2enn_p0 text:i2enn0 size:24,10
+portLabel i2enn_p1 text:i2enn1 size:24,10
+node i2enn_child of inside_two_with_one_edge_next_to_port_north [size:20,14]
+edge i2enn_e: i2enn_p1 -> i2enn_child
+
+node inside_two_with_one_edge_next_to_port_south [size:120,80]
+nodeProperty inside_two_with_one_edge_next_to_port_south portConstraints:fixedPos
+nodeProperty inside_two_with_one_edge_next_to_port_south portLabelsPlacement:[inside,nextToPortIfPossible]
+port i2ens_p0 of inside_two_with_one_edge_next_to_port_south size:10,10 side:south layout [position:10,70]
+port i2ens_p1 of inside_two_with_one_edge_next_to_port_south size:10,10 side:south layout [position:45,70]
+portLabel i2ens_p0 text:i2ens0 size:24,10
+portLabel i2ens_p1 text:i2ens1 size:24,10
+node i2ens_child of inside_two_with_one_edge_next_to_port_south [size:20,14]
+edge i2ens_e: i2ens_p1 -> i2ens_child
+
+node outside_three_space_efficient_west [size:120,90]
+nodeProperty outside_three_space_efficient_west portConstraints:fixedPos
+nodeProperty outside_three_space_efficient_west portLabelsPlacement:[outside,spaceEfficient]
+port o3sw_p0 of outside_three_space_efficient_west size:10,10 side:west layout [position:0,8]
+port o3sw_p1 of outside_three_space_efficient_west size:10,10 side:west layout [position:0,35]
+port o3sw_p2 of outside_three_space_efficient_west size:10,10 side:west layout [position:0,62]
+portLabel o3sw_p0 text:o3sw0 size:24,10
+portLabel o3sw_p1 text:o3sw1 size:24,10
+portLabel o3sw_p2 text:o3sw2 size:24,10
+
+node outside_three_space_efficient_north [size:120,90]
+nodeProperty outside_three_space_efficient_north portConstraints:fixedPos
+nodeProperty outside_three_space_efficient_north portLabelsPlacement:[outside,spaceEfficient]
+port o3sn_p0 of outside_three_space_efficient_north size:10,10 side:north layout [position:8,0]
+port o3sn_p1 of outside_three_space_efficient_north size:10,10 side:north layout [position:35,0]
+port o3sn_p2 of outside_three_space_efficient_north size:10,10 side:north layout [position:62,0]
+portLabel o3sn_p0 text:o3sn0 size:24,10
+portLabel o3sn_p1 text:o3sn1 size:24,10
+portLabel o3sn_p2 text:o3sn2 size:24,10
+
+node outside_three_space_efficient_south [size:120,90]
+nodeProperty outside_three_space_efficient_south portConstraints:fixedPos
+nodeProperty outside_three_space_efficient_south portLabelsPlacement:[outside,spaceEfficient]
+port o3ss_p0 of outside_three_space_efficient_south size:10,10 side:south layout [position:8,80]
+port o3ss_p1 of outside_three_space_efficient_south size:10,10 side:south layout [position:35,80]
+port o3ss_p2 of outside_three_space_efficient_south size:10,10 side:south layout [position:62,80]
+portLabel o3ss_p0 text:o3ss0 size:24,10
+portLabel o3ss_p1 text:o3ss1 size:24,10
+portLabel o3ss_p2 text:o3ss2 size:24,10
+
+node inside_three_with_one_edge_next_to_port_west [size:120,90]
+nodeProperty inside_three_with_one_edge_next_to_port_west portConstraints:fixedPos
+nodeProperty inside_three_with_one_edge_next_to_port_west portLabelsPlacement:[inside,nextToPortIfPossible]
+port i3enw_p0 of inside_three_with_one_edge_next_to_port_west size:10,10 side:west layout [position:0,8]
+port i3enw_p1 of inside_three_with_one_edge_next_to_port_west size:10,10 side:west layout [position:0,35]
+port i3enw_p2 of inside_three_with_one_edge_next_to_port_west size:10,10 side:west layout [position:0,62]
+portLabel i3enw_p0 text:i3enw0 size:24,10
+portLabel i3enw_p1 text:i3enw1 size:24,10
+portLabel i3enw_p2 text:i3enw2 size:24,10
+node i3enw_child of inside_three_with_one_edge_next_to_port_west [size:20,14]
+edge i3enw_e: i3enw_p1 -> i3enw_child
+
+node inside_three_with_one_edge_next_to_port_north [size:120,90]
+nodeProperty inside_three_with_one_edge_next_to_port_north portConstraints:fixedPos
+nodeProperty inside_three_with_one_edge_next_to_port_north portLabelsPlacement:[inside,nextToPortIfPossible]
+port i3enn_p0 of inside_three_with_one_edge_next_to_port_north size:10,10 side:north layout [position:8,0]
+port i3enn_p1 of inside_three_with_one_edge_next_to_port_north size:10,10 side:north layout [position:35,0]
+port i3enn_p2 of inside_three_with_one_edge_next_to_port_north size:10,10 side:north layout [position:62,0]
+portLabel i3enn_p0 text:i3enn0 size:24,10
+portLabel i3enn_p1 text:i3enn1 size:24,10
+portLabel i3enn_p2 text:i3enn2 size:24,10
+node i3enn_child of inside_three_with_one_edge_next_to_port_north [size:20,14]
+edge i3enn_e: i3enn_p1 -> i3enn_child
+
+node inside_three_with_one_edge_next_to_port_south [size:120,90]
+nodeProperty inside_three_with_one_edge_next_to_port_south portConstraints:fixedPos
+nodeProperty inside_three_with_one_edge_next_to_port_south portLabelsPlacement:[inside,nextToPortIfPossible]
+port i3ens_p0 of inside_three_with_one_edge_next_to_port_south size:10,10 side:south layout [position:8,80]
+port i3ens_p1 of inside_three_with_one_edge_next_to_port_south size:10,10 side:south layout [position:35,80]
+port i3ens_p2 of inside_three_with_one_edge_next_to_port_south size:10,10 side:south layout [position:62,80]
+portLabel i3ens_p0 text:i3ens0 size:24,10
+portLabel i3ens_p1 text:i3ens1 size:24,10
+portLabel i3ens_p2 text:i3ens2 size:24,10
+node i3ens_child of inside_three_with_one_edge_next_to_port_south [size:20,14]
+edge i3ens_e: i3ens_p1 -> i3ens_child
+
+node inside_constrained_north [size:40,40]
+nodeProperty inside_constrained_north portConstraints:fixedPos
+nodeProperty inside_constrained_north portLabelsPlacement:[inside,alwaysSameSide]
+port icn_p0 of inside_constrained_north size:10,10 side:north layout [position:0,0]
+port icn_p1 of inside_constrained_north size:10,10 side:north layout [position:2,0]
+port icn_p2 of inside_constrained_north size:10,10 side:north layout [position:4,0]
+portLabel icn_p0 text:icn0 size:34,6
+portLabel icn_p1 text:icn1 size:34,6
+portLabel icn_p2 text:icn2 size:34,6
+
+node inside_constrained_south [size:40,40]
+nodeProperty inside_constrained_south portConstraints:fixedPos
+nodeProperty inside_constrained_south portLabelsPlacement:[inside,alwaysSameSide]
+port ics_p0 of inside_constrained_south size:10,10 side:south layout [position:0,30]
+port ics_p1 of inside_constrained_south size:10,10 side:south layout [position:2,30]
+port ics_p2 of inside_constrained_south size:10,10 side:south layout [position:4,30]
+portLabel ics_p0 text:ics0 size:34,6
+portLabel ics_p1 text:ics1 size:34,6
+portLabel ics_p2 text:ics2 size:34,6

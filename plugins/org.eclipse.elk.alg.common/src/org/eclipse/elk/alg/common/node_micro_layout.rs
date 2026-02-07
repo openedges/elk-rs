@@ -22,7 +22,7 @@ impl NodeMicroLayout {
 
     pub fn execute(&self) {
         NodeDimensionCalculation::sort_port_lists(&self.adapter);
-        NodeDimensionCalculation::calculate_label_and_node_sizes(&self.adapter);
+        NodeDimensionCalculation::calculate_label_and_node_sizes_for_elk(&self.adapter);
         NodeDimensionCalculation::calculate_node_margins(&self.adapter);
     }
 }

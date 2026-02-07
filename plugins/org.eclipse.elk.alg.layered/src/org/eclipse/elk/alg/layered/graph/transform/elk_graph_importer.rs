@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::direction::Direction;
@@ -11,12 +11,14 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::{
     ElkConnectableShapeRef, ElkEdgeRef, ElkGraphElementRef, ElkLabelRef, ElkNodeRef, ElkPortRef,
 };
 
+use crate::org::eclipse::elk::alg::layered::components::ComponentOrderingStrategy;
 use crate::org::eclipse::elk::alg::layered::graph::{
     LEdge, LGraph, LGraphRef, LGraphUtil, LLabel, LLabelRef, LNode, LNodeRef, LPort, LPortRef,
 };
 use crate::org::eclipse::elk::alg::layered::graph::transform::elk_graph_transformer::OriginStore;
 use crate::org::eclipse::elk::alg::layered::options::{
-    InternalProperties, LayeredOptions, Origin, OriginId, PortType,
+    CycleBreakingStrategy, GraphProperties, InternalProperties, LayeredOptions, LayeringStrategy,
+    NodePromotionStrategy, OrderingStrategy, Origin, OriginId, PortType,
 };
 
 pub struct ElkGraphImporter<'a> {
@@ -38,6 +40,22 @@ impl<'a> ElkGraphImporter<'a> {
 
     pub fn import_graph(&mut self, elkgraph: &ElkNodeRef) -> LGraphRef {
         let lgraph = self.create_lgraph(elkgraph);
+
+        if self
+            .graph_property(elkgraph, CoreOptions::PARTITIONING_ACTIVATE)
+            .unwrap_or(false)
+        {
+            if let Ok(mut graph_guard) = lgraph.lock() {
+                let mut graph_properties = graph_guard
+                    .get_property(InternalProperties::GRAPH_PROPERTIES)
+                    .unwrap_or_else(EnumSet::none_of);
+                graph_properties.insert(GraphProperties::Partitions);
+                graph_guard.set_property(
+                    InternalProperties::GRAPH_PROPERTIES,
+                    Some(graph_properties),
+                );
+            }
+        }
 
         let hierarchy_handling = self
             .graph_property(elkgraph, LayeredOptions::HIERARCHY_HANDLING)
@@ -81,6 +99,10 @@ impl<'a> ElkGraphImporter<'a> {
     }
 
     fn import_flat_graph(&mut self, elkgraph: &ElkNodeRef, lgraph: &LGraphRef) {
+        let needs_model_order = self.needs_model_order_based_on_parent(elkgraph);
+        let mut model_order_index = 0i32;
+        let mut cb_group_model_orders: HashSet<i32> = HashSet::new();
+
         let children: Vec<ElkNodeRef> = {
             let mut graph_mut = elkgraph.borrow_mut();
             graph_mut.children().iter().cloned().collect()
@@ -90,7 +112,28 @@ impl<'a> ElkGraphImporter<'a> {
             if self.should_skip_node(&child) {
                 continue;
             }
+
+            if self.needs_model_order(&child) {
+                self.set_element_model_order_for_node(&child, model_order_index);
+                model_order_index += 1;
+                if self.has_graph_property(&child, LayeredOptions::GROUP_MODEL_ORDER_CYCLE_BREAKING_ID) {
+                    if let Some(group_id) = self
+                        .graph_property(&child, LayeredOptions::GROUP_MODEL_ORDER_CYCLE_BREAKING_ID)
+                    {
+                        cb_group_model_orders.insert(group_id);
+                    }
+                }
+            }
+
             self.transform_node(&child, lgraph);
+        }
+
+        if let Ok(mut graph_guard) = lgraph.lock() {
+            graph_guard.set_property(InternalProperties::MAX_MODEL_ORDER_NODES, Some(model_order_index));
+            graph_guard.set_property(
+                InternalProperties::CB_NUM_MODEL_ORDER_GROUPS,
+                Some(cb_group_model_orders.len() as i32),
+            );
         }
 
         let edges: Vec<ElkEdgeRef> = {
@@ -98,7 +141,12 @@ impl<'a> ElkGraphImporter<'a> {
             graph_mut.contained_edges().iter().cloned().collect()
         };
 
+        let mut edge_model_order_index = 0i32;
         for edge in edges {
+            if needs_model_order {
+                self.set_element_model_order_for_edge(&edge, edge_model_order_index);
+                edge_model_order_index += 1;
+            }
             self.transform_edge(&edge, lgraph);
         }
 
@@ -188,7 +236,11 @@ impl<'a> ElkGraphImporter<'a> {
         }
         self.node_map.insert(origin_id, lnode.clone());
 
-        for port in ports {
+        let assign_port_model_order = self.needs_model_order(elknode);
+        for (port_index, port) in ports.into_iter().enumerate() {
+            if assign_port_model_order {
+                self.set_element_model_order_for_port(&port, port_index as i32);
+            }
             self.transform_port(&port, &lnode, lgraph);
         }
 
@@ -414,6 +466,103 @@ impl<'a> ElkGraphImporter<'a> {
         outgoing - incoming
     }
 
+    fn set_element_model_order_for_node(&self, node: &ElkNodeRef, model_order: i32) {
+        let mut node_mut = node.borrow_mut();
+        node_mut
+            .connectable()
+            .shape()
+            .graph_element()
+            .properties_mut()
+            .set_property(InternalProperties::MODEL_ORDER, Some(model_order));
+    }
+
+    fn set_element_model_order_for_edge(&self, edge: &ElkEdgeRef, model_order: i32) {
+        let mut edge_mut = edge.borrow_mut();
+        edge_mut
+            .element()
+            .properties_mut()
+            .set_property(InternalProperties::MODEL_ORDER, Some(model_order));
+    }
+
+    fn set_element_model_order_for_port(&self, port: &ElkPortRef, model_order: i32) {
+        let mut port_mut = port.borrow_mut();
+        port_mut
+            .connectable()
+            .shape()
+            .graph_element()
+            .properties_mut()
+            .set_property(InternalProperties::MODEL_ORDER, Some(model_order));
+    }
+
+    fn needs_model_order(&self, child: &ElkNodeRef) -> bool {
+        let parent = child.borrow().parent();
+        parent
+            .as_ref()
+            .is_some_and(|graph| self.needs_model_order_based_on_parent(graph))
+            && !self
+                .graph_property(child, LayeredOptions::CONSIDER_MODEL_ORDER_NO_MODEL_ORDER)
+                .unwrap_or(false)
+    }
+
+    fn needs_model_order_based_on_parent(&self, elkgraph: &ElkNodeRef) -> bool {
+        let cycle_breaking = self
+            .graph_property(elkgraph, LayeredOptions::CYCLE_BREAKING_STRATEGY)
+            .unwrap_or_default();
+        let model_order_cycle_breaking = matches!(
+            cycle_breaking,
+            CycleBreakingStrategy::ModelOrder
+                | CycleBreakingStrategy::BfsNodeOrder
+                | CycleBreakingStrategy::DfsNodeOrder
+                | CycleBreakingStrategy::GreedyModelOrder
+                | CycleBreakingStrategy::SccConnectivity
+                | CycleBreakingStrategy::SccNodeType
+        );
+
+        let layering_strategy = self
+            .graph_property(elkgraph, LayeredOptions::LAYERING_STRATEGY)
+            .unwrap_or_default();
+        let node_promotion_strategy = self
+            .graph_property(elkgraph, LayeredOptions::LAYERING_NODE_PROMOTION_STRATEGY)
+            .unwrap_or_default();
+        let model_order_layering = matches!(
+            layering_strategy,
+            LayeringStrategy::BfModelOrder | LayeringStrategy::DfModelOrder
+        ) || matches!(
+            node_promotion_strategy,
+            NodePromotionStrategy::ModelOrderLeftToRight
+                | NodePromotionStrategy::ModelOrderRightToLeft
+        );
+
+        let ordering_strategy = self
+            .graph_property(elkgraph, LayeredOptions::CONSIDER_MODEL_ORDER_STRATEGY)
+            .unwrap_or(OrderingStrategy::None);
+        let force_node_model_order = self
+            .graph_property(elkgraph, LayeredOptions::CROSSING_MINIMIZATION_FORCE_NODE_MODEL_ORDER)
+            .unwrap_or(false);
+        let component_ordering = self
+            .graph_property(elkgraph, LayeredOptions::CONSIDER_MODEL_ORDER_COMPONENTS)
+            .unwrap_or(ComponentOrderingStrategy::None);
+        let node_influence = self
+            .graph_property(
+                elkgraph,
+                LayeredOptions::CONSIDER_MODEL_ORDER_CROSSING_COUNTER_NODE_INFLUENCE,
+            )
+            .unwrap_or(0.0);
+        let port_influence = self
+            .graph_property(
+                elkgraph,
+                LayeredOptions::CONSIDER_MODEL_ORDER_CROSSING_COUNTER_PORT_INFLUENCE,
+            )
+            .unwrap_or(0.0);
+        let model_order_crossing_minimization = ordering_strategy != OrderingStrategy::None
+            || force_node_model_order
+            || component_ordering != ComponentOrderingStrategy::None
+            || node_influence != 0.0
+            || port_influence != 0.0;
+
+        model_order_cycle_breaking || model_order_layering || model_order_crossing_minimization
+    }
+
     fn graph_property<T: Clone + Send + Sync + 'static>(
         &self,
         element: &impl GraphPropertyOwner,
@@ -421,6 +570,15 @@ impl<'a> ElkGraphImporter<'a> {
     ) -> Option<T> {
         let mut props = element.graph_properties();
         props.get_property(property)
+    }
+
+    fn has_graph_property<T: Clone + Send + Sync + 'static>(
+        &self,
+        element: &impl GraphPropertyOwner,
+        property: &org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property<T>,
+    ) -> bool {
+        let props = element.graph_properties();
+        props.has_property(property)
     }
 }
 

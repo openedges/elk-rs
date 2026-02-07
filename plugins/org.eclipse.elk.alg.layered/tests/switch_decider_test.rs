@@ -751,6 +751,25 @@ fn one_node() {
 }
 
 #[test]
+fn in_layer_switchable() {
+    for_each_greedy_type(|greedy_type| {
+        let graph = graph_in_layer_edges();
+
+        let (mut decider, node_order) = get_decider(&graph, greedy_type, 1, CrossingCountSide::West);
+        assert!(decider.does_switch_reduce_crossings(
+            node_at(&node_order, 1, 0),
+            node_at(&node_order, 1, 1)
+        ));
+
+        let (mut decider, node_order) = get_decider(&graph, greedy_type, 1, CrossingCountSide::East);
+        assert!(decider.does_switch_reduce_crossings(
+            node_at(&node_order, 1, 0),
+            node_at(&node_order, 1, 1)
+        ));
+    });
+}
+
+#[test]
 fn multiple_edges_between_same_nodes() {
     for_each_greedy_type(|greedy_type| {
         let graph = graph_multiple_edges_between_same_nodes();

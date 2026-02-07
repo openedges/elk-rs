@@ -15,8 +15,12 @@ pub struct MrTree {
 
 impl MrTree {
     pub fn new() -> Self {
+        let mut assembler = AlgorithmAssembler::create();
+        // MrTree phases/processors keep mutable traversal state; per-layout instances avoid leakage
+        // across connected components and repeated engine invocations.
+        assembler.with_caching(false);
         MrTree {
-            algorithm_assembler: AlgorithmAssembler::create(),
+            algorithm_assembler: assembler,
             algorithm: Vec::new(),
         }
     }

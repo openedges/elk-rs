@@ -31,7 +31,7 @@ impl BinaryIndexedTree {
     }
 
     pub fn rank(&self, index: usize) -> i32 {
-        let mut i = index;
+        let mut i = index.min(self.binary_sums.len().saturating_sub(1));
         let mut sum = 0;
         while i > 0 {
             sum += self.binary_sums[i];

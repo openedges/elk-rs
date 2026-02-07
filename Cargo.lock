@@ -183,6 +183,7 @@ dependencies = [
 name = "org-eclipse-elk-alg-topdownpacking"
 version = "0.1.0"
 dependencies = [
+ "org-eclipse-elk-alg-layered",
  "org-eclipse-elk-core",
  "org-eclipse-elk-graph",
 ]

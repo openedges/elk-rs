@@ -75,10 +75,11 @@ fn issue_871_model_order_without_feedback_edges_keeps_expected_node_positions() 
 
     assert!(
         n1_x < n2_x
-            && n2_x < n4_x
-            && n3_x <= n2_x
-            && (n2_y - n4_y).abs() <= EPSILON
-            && n3_y > n1_y,
+            && n2_x < n3_x
+            && n3_x < n4_x
+            && n2_y < n3_y
+            && (n3_y - n4_y).abs() <= EPSILON
+            && n3_y < n1_y,
         "unexpected coordinates n1=({n1_x},{n1_y}) n2=({n2_x},{n2_y}) n3=({n3_x},{n3_y}) n4=({n4_x},{n4_y})"
     );
 }

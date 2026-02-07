@@ -8,7 +8,10 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::{IElkProgressMonitor, R
 
 use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LGraphUtil, LNodeRef};
 use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorStrategy;
-use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions};
+use crate::org::eclipse::elk::alg::layered::options::{
+    GroupOrderStrategy, InternalProperties, LayeredOptions,
+};
+use crate::org::eclipse::elk::alg::layered::p1cycles::group_model_order_calculator::GroupModelOrderCalculator;
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
 
 static INTERMEDIATE_PROCESSING_CONFIGURATION: LazyLock<
@@ -29,6 +32,7 @@ pub struct GreedyCycleBreaker {
     sources: VecDeque<LNodeRef>,
     sinks: VecDeque<LNodeRef>,
     random: Random,
+    prefer_model_order: bool,
 }
 
 impl GreedyCycleBreaker {
@@ -40,13 +44,81 @@ impl GreedyCycleBreaker {
             sources: VecDeque::new(),
             sinks: VecDeque::new(),
             random: Random::new(0),
+            prefer_model_order: false,
         }
     }
 
-    fn choose_node_with_max_outflow(&mut self, nodes: &[LNodeRef]) -> Option<LNodeRef> {
+    pub fn new_with_model_order(prefer_model_order: bool) -> Self {
+        let mut cycle_breaker = Self::new();
+        cycle_breaker.prefer_model_order = prefer_model_order;
+        cycle_breaker
+    }
+
+    fn choose_node_with_max_outflow(
+        &mut self,
+        layered_graph: &mut LGraph,
+        nodes: &[LNodeRef],
+    ) -> Option<LNodeRef> {
         if nodes.is_empty() {
             return None;
         }
+
+        if self.prefer_model_order {
+            let offset = std::cmp::max(
+                layered_graph.layerless_nodes().len() as i32,
+                layered_graph
+                    .get_property(InternalProperties::MAX_MODEL_ORDER_NODES)
+                    .unwrap_or(0),
+            );
+            let big_offset = offset
+                * layered_graph
+                    .get_property(InternalProperties::CB_NUM_MODEL_ORDER_GROUPS)
+                    .unwrap_or(0)
+                    .max(1);
+            let enforce_group_model_order = layered_graph
+                .get_property(LayeredOptions::GROUP_MODEL_ORDER_CB_GROUP_ORDER_STRATEGY)
+                .unwrap_or(GroupOrderStrategy::OnlyWithinGroup)
+                == GroupOrderStrategy::Enforced;
+
+            let mut minimum_model_order = i32::MAX;
+            let mut return_node: Option<LNodeRef> = None;
+            let mut model_order_calculator = GroupModelOrderCalculator::new();
+
+            for node in nodes {
+                let has_model_order = node
+                    .lock()
+                    .ok()
+                    .is_some_and(|mut node_guard| {
+                        node_guard
+                            .shape()
+                            .graph_element()
+                            .properties()
+                            .has_property(InternalProperties::MODEL_ORDER)
+                    });
+                if !has_model_order {
+                    continue;
+                }
+
+                let model_order = if enforce_group_model_order {
+                    model_order_calculator.compute_constraint_group_model_order(
+                        node,
+                        big_offset,
+                        offset,
+                    )
+                } else {
+                    model_order_calculator.compute_constraint_model_order(node, offset)
+                };
+                if minimum_model_order > model_order {
+                    minimum_model_order = model_order;
+                    return_node = Some(node.clone());
+                }
+            }
+
+            if return_node.is_some() {
+                return return_node;
+            }
+        }
+
         let index = self.random.next_int(nodes.len() as i32) as usize;
         nodes.get(index).cloned()
     }
@@ -287,7 +359,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for GreedyCycleBreaker {
                     }
                 }
 
-                if let Some(max_node) = self.choose_node_with_max_outflow(&max_nodes) {
+                if let Some(max_node) = self.choose_node_with_max_outflow(layered_graph, &max_nodes) {
                     let index = node_index(&max_node);
                     if index < self.mark.len() {
                         self.mark[index] = next_left;
