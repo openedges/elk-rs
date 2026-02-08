@@ -1,11 +1,13 @@
 use std::collections::{HashMap, HashSet};
 
+use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::nodespacing::NodeLabelAndSizeCalculator;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::direction::Direction;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::hierarchy_handling::HierarchyHandling;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{ElkUtil, EnumSet};
+use org_eclipse_elk_core::org::eclipse::elk::core::util::adapters::ElkGraphAdapters;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::MapPropertyHolder;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{
     ElkConnectableShapeRef, ElkEdgeRef, ElkGraphElementRef, ElkLabelRef, ElkNodeRef, ElkPortRef,
@@ -160,6 +162,11 @@ impl<'a> ElkGraphImporter<'a> {
     fn create_lgraph(&mut self, elkgraph: &ElkNodeRef) -> LGraphRef {
         let lgraph = LGraph::new();
 
+        let node_label_padding = NodeLabelAndSizeCalculator::compute_inside_node_label_padding(
+            &ElkGraphAdapters::adapt_single_node(elkgraph.clone()),
+            Direction::Right,
+        );
+
         let (properties, width, height, padding) = {
             let mut graph_mut = elkgraph.borrow_mut();
             let shape = graph_mut.connectable().shape();
@@ -182,10 +189,10 @@ impl<'a> ElkGraphImporter<'a> {
             size.y = height;
 
             let lpadding = graph_guard.padding();
-            lpadding.top = padding.top;
-            lpadding.right = padding.right;
-            lpadding.bottom = padding.bottom;
-            lpadding.left = padding.left;
+            lpadding.top = padding.top + node_label_padding.top;
+            lpadding.right = padding.right + node_label_padding.right;
+            lpadding.bottom = padding.bottom + node_label_padding.bottom;
+            lpadding.left = padding.left + node_label_padding.left;
 
             let origin_id = self.origin_store.store(ElkGraphElementRef::Node(elkgraph.clone()));
             graph_guard.set_property(

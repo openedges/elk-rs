@@ -1,6 +1,7 @@
 mod elkt_test_loader;
 
 use elkt_test_loader::{load_layered_graph_from_elk_text, load_layered_graph_from_elkt};
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::panic::{self, AssertUnwindSafe};
@@ -19,14 +20,17 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkConnectableShapeRef, ElkNodeRef};
 
-const MIN_EXTERNAL_PTOLEMY_CHECKED: usize = 3;
-const MIN_EXTERNAL_MODEL_ORDER_CHECKED: usize = 4;
-const MIN_EXTERNAL_NIKOLOV_FAMILY_CHECKED: usize = 5;
-const MAX_EXTERNAL_PTOLEMY_SCAN: usize = 72;
-const MAX_EXTERNAL_MODEL_ORDER_SCAN: usize = 96;
-const MAX_EXTERNAL_MODEL_ORDER_CHECKED: usize = 14;
-const MAX_EXTERNAL_NIKOLOV_FAMILY_SCAN: usize = 128;
-const MAX_EXTERNAL_NIKOLOV_FAMILY_CHECKED: usize = 14;
+const MIN_EXTERNAL_PTOLEMY_CHECKED: usize = 8;
+const MIN_EXTERNAL_PTOLEMY_MODEL_CHECKED: usize = 10;
+const MIN_EXTERNAL_MODEL_ORDER_CHECKED: usize = 8;
+const MIN_EXTERNAL_NIKOLOV_FAMILY_CHECKED: usize = 8;
+const MAX_EXTERNAL_PTOLEMY_SCAN: usize = 120;
+const MAX_EXTERNAL_PTOLEMY_MODEL_SCAN: usize = 140;
+const MAX_EXTERNAL_MODEL_ORDER_SCAN: usize = 128;
+const MAX_EXTERNAL_MODEL_ORDER_CHECKED: usize = 20;
+const MAX_EXTERNAL_NIKOLOV_FAMILY_SCAN: usize = 160;
+const MAX_EXTERNAL_NIKOLOV_FAMILY_CHECKED: usize = 20;
+const MIN_EXTERNAL_PTOLEMY_PARSE_COVERAGE: f64 = 0.35;
 
 fn set_dimensions(node: &ElkNodeRef, width: f64, height: f64) {
     let mut node_mut = node.borrow_mut();
@@ -251,6 +255,40 @@ fn collect_external_ptolemy_resources() -> (Vec<PathBuf>, usize, usize) {
     elk_text_files.sort();
     elk_text_files.dedup();
     (elk_text_files, elkt_count, elkg_count)
+}
+
+fn ptolemy_model_key(path: &Path) -> String {
+    let parent = path.parent().and_then(|value| value.to_str()).unwrap_or("");
+    let stem = path.file_stem().and_then(|value| value.to_str()).unwrap_or("");
+    format!("{parent}/{stem}")
+}
+
+fn collect_external_ptolemy_model_resources() -> (Vec<PathBuf>, usize, usize) {
+    let (resources, elkt_count, elkg_count) = collect_external_ptolemy_resources();
+    let mut grouped: HashMap<String, (Option<PathBuf>, Option<PathBuf>)> = HashMap::new();
+
+    for resource in resources {
+        let key = ptolemy_model_key(&resource);
+        let entry = grouped.entry(key).or_insert((None, None));
+        match resource.extension().and_then(|ext| ext.to_str()) {
+            Some("elkt") => {
+                entry.0 = Some(resource);
+            }
+            Some("elkg") => {
+                if entry.1.is_none() {
+                    entry.1 = Some(resource);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let mut model_resources = grouped
+        .into_values()
+        .filter_map(|(elkt, elkg)| elkt.or(elkg))
+        .collect::<Vec<_>>();
+    model_resources.sort();
+    (model_resources, elkt_count, elkg_count)
 }
 
 fn collect_files_recursively(
@@ -499,14 +537,51 @@ fn node_promotion_external_ptolemy_resources_if_available() {
 }
 
 #[test]
-fn node_promotion_external_ptolemy_resources_model_order_if_available() {
+fn node_promotion_external_ptolemy_model_parse_coverage_if_available() {
     initialize_plain_java_layout();
-    let (resources, elkt_count, elkg_count) = collect_external_ptolemy_resources();
+    let (resources, elkt_count, elkg_count) = collect_external_ptolemy_model_resources();
 
     if resources.is_empty() {
         eprintln!(
-            "node_promotion(model-order): no external ptolemy .elkt/.elkg resources found (detected elkt={elkt_count}, elkg={elkg_count})"
+            "node_promotion(coverage): no external ptolemy model resources found (detected elkt={elkt_count}, elkg={elkg_count})"
         );
+        eprintln!("METRIC:ptolemy_parse_coverage parsed=0 sampled=0 coverage=0.000");
+        return;
+    }
+
+    let sampled_resources = sample_resources_spread(&resources, MAX_EXTERNAL_PTOLEMY_MODEL_SCAN);
+    let parsed = sampled_resources
+        .iter()
+        .filter(|resource| load_layered_graph_from_elk_text(&resource.to_string_lossy()).is_ok())
+        .count();
+    let parse_coverage = parsed as f64 / sampled_resources.len() as f64;
+    eprintln!(
+        "METRIC:ptolemy_parse_coverage parsed={parsed} sampled={} coverage={parse_coverage:.3}",
+        sampled_resources.len()
+    );
+
+    assert!(
+        parsed >= MIN_EXTERNAL_PTOLEMY_MODEL_CHECKED,
+        "node_promotion(coverage): expected at least {MIN_EXTERNAL_PTOLEMY_MODEL_CHECKED} parsed model resources, got parsed={parsed}, sampled={}, parse_coverage={parse_coverage:.3}",
+        sampled_resources.len()
+    );
+    assert!(
+        parse_coverage >= MIN_EXTERNAL_PTOLEMY_PARSE_COVERAGE,
+        "node_promotion(coverage): expected parse coverage >= {MIN_EXTERNAL_PTOLEMY_PARSE_COVERAGE:.3}, got {parse_coverage:.3} (parsed={parsed}, sampled={})",
+        sampled_resources.len()
+    );
+}
+
+#[test]
+fn node_promotion_external_ptolemy_resources_model_order_if_available() {
+    initialize_plain_java_layout();
+    let (resources, elkt_count, elkg_count) = collect_external_ptolemy_model_resources();
+
+    if resources.is_empty() {
+        eprintln!(
+            "node_promotion(model-order): no external ptolemy model resources found (detected elkt={elkt_count}, elkg={elkg_count})"
+        );
+        eprintln!("METRIC:ptolemy_model_order_validated checked=0 sampled=0");
         return;
     }
 
@@ -564,6 +639,11 @@ fn node_promotion_external_ptolemy_resources_model_order_if_available() {
         }
     }
 
+    eprintln!(
+        "METRIC:ptolemy_model_order_validated checked={checked} sampled={}",
+        sampled_resources.len()
+    );
+
     if checked < MIN_EXTERNAL_MODEL_ORDER_CHECKED {
         let sample = parse_failures
             .iter()
@@ -603,11 +683,11 @@ fn node_promotion_external_ptolemy_resources_model_order_if_available() {
 #[test]
 fn node_promotion_external_ptolemy_resources_nikolov_family_if_available() {
     initialize_plain_java_layout();
-    let (resources, elkt_count, elkg_count) = collect_external_ptolemy_resources();
+    let (resources, elkt_count, elkg_count) = collect_external_ptolemy_model_resources();
 
     if resources.is_empty() {
         eprintln!(
-            "node_promotion(nikolov-family): no external ptolemy .elkt/.elkg resources found (detected elkt={elkt_count}, elkg={elkg_count})"
+            "node_promotion(nikolov-family): no external ptolemy model resources found (detected elkt={elkt_count}, elkg={elkg_count})"
         );
         return;
     }

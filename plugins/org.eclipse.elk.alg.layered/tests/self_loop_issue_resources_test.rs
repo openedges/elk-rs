@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use elkt_test_loader::{load_layered_graph_from_elk_text, load_layered_graph_from_elkt};
-use issue_support::{init_layered_options, run_layout};
+use issue_support::{init_layered_options, run_recursive_layout};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{
     ElkConnectableShapeRef, ElkEdgeRef, ElkNodeRef,
 };
@@ -228,24 +228,8 @@ fn has_self_loop_without_sections(graph: &ElkNodeRef) -> bool {
         .any(|edge| edge.borrow_mut().sections().is_empty())
 }
 
-fn run_layout_with_subgraph_fallback(graph: &ElkNodeRef) {
-    run_layout(graph);
-
-    if !has_self_loop_without_sections(graph) {
-        return;
-    }
-
-    let mut queue = VecDeque::new();
-    {
-        let children: Vec<_> = graph.borrow_mut().children().iter().cloned().collect();
-        queue.extend(children);
-    }
-
-    while let Some(node) = queue.pop_front() {
-        run_layout(&node);
-        let children: Vec<_> = node.borrow_mut().children().iter().cloned().collect();
-        queue.extend(children);
-    }
+fn run_layout_prefer_recursive(graph: &ElkNodeRef) {
+    run_recursive_layout(graph);
 }
 
 #[test]
@@ -256,7 +240,12 @@ fn self_loop_issue_resources_have_sections_and_finite_geometry() {
         let graph = load_layered_graph_from_elkt(&resource)
             .unwrap_or_else(|err| panic!("failed to load self-loop resource {resource}: {err}"));
 
-        run_layout_with_subgraph_fallback(&graph);
+        run_layout_prefer_recursive(&graph);
+
+        assert!(
+            !has_self_loop_without_sections(&graph),
+            "self-loop recursive layout should route sections without subgraph fallback: {resource}"
+        );
 
         let all_edges = collect_all_edges(&graph);
         let self_loop_edges = all_edges
@@ -301,7 +290,13 @@ fn self_loop_external_ticket_resources_if_available_have_finite_geometry() {
         };
 
         let validation_result = panic::catch_unwind(AssertUnwindSafe(|| {
-            run_layout_with_subgraph_fallback(&graph);
+            run_layout_prefer_recursive(&graph);
+
+            if has_self_loop_without_sections(&graph) {
+                panic!(
+                    "self-loop recursive layout produced unrouted sections for external resource {path}"
+                );
+            }
 
             let self_loop_edges = collect_all_edges(&graph)
                 .into_iter()

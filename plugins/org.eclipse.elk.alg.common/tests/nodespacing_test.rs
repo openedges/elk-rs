@@ -2,12 +2,13 @@ use std::rc::Rc;
 
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::{
     NodeMicroLayout,
-    nodespacing::{NodeDimensionCalculation, NodeMarginCalculator},
+    nodespacing::{NodeDimensionCalculation, NodeLabelAndSizeCalculator, NodeMarginCalculator},
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::{ElkMargin, ElkPadding};
 use org_eclipse_elk_core::org::eclipse::elk::core::options::{
-    CoreOptions, EdgeLabelPlacement, PortConstraints, PortLabelPlacement, PortSide,
+    CoreOptions, Direction, EdgeLabelPlacement, NodeLabelPlacement, PortConstraints,
+    PortLabelPlacement, PortSide, SizeConstraint, SizeOptions,
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::util::EnumSet;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::adapters::ElkGraphAdapters;
@@ -845,6 +846,412 @@ fn node_micro_layout_does_not_move_existing_node_label_positions() {
     approx_eq(label_shape.y(), 9.0);
 }
 
+#[test]
+fn node_micro_layout_places_inside_and_outside_node_labels_with_size_constraints() {
+    LayoutMetaDataService::get_instance();
+    let graph = ElkGraphUtil::create_graph();
+    let node = ElkGraphUtil::create_node(Some(graph.clone()));
+    set_node_geometry(&node, 0.0, 0.0, 0.0, 0.0);
+
+    node.borrow_mut()
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(
+            CoreOptions::NODE_SIZE_CONSTRAINTS,
+            Some(EnumSet::of(&[SizeConstraint::NodeLabels])),
+        );
+    graph
+        .borrow_mut()
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(CoreOptions::SPACING_LABEL_LABEL, Some(1.0));
+    graph
+        .borrow_mut()
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(CoreOptions::SPACING_LABEL_NODE, Some(3.0));
+    graph
+        .borrow_mut()
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(CoreOptions::NODE_LABELS_PADDING, Some(ElkPadding::with_any(2.0)));
+
+    let inside_label = ElkGraphUtil::create_label(Some(ElkGraphElementRef::Node(node.clone())));
+    set_label_geometry(&inside_label, 0.0, 0.0, 10.0, 4.0);
+    inside_label
+        .borrow_mut()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(
+            CoreOptions::NODE_LABELS_PLACEMENT,
+            Some(NodeLabelPlacement::inside_top_left()),
+        );
+
+    let outside_label = ElkGraphUtil::create_label(Some(ElkGraphElementRef::Node(node.clone())));
+    set_label_geometry(&outside_label, 0.0, 0.0, 30.0, 5.0);
+    outside_label
+        .borrow_mut()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(
+            CoreOptions::NODE_LABELS_PLACEMENT,
+            Some(NodeLabelPlacement::outside_top_center()),
+        );
+
+    NodeMicroLayout::for_graph(graph).execute();
+
+    {
+        let mut node_mut = node.borrow_mut();
+        let shape = node_mut.connectable().shape();
+        approx_eq(shape.width(), 30.0);
+        approx_eq(shape.height(), 14.0);
+    }
+
+    {
+        let mut inside_mut = inside_label.borrow_mut();
+        let shape = inside_mut.shape();
+        approx_eq(shape.x(), 2.0);
+        approx_eq(shape.y(), 2.0);
+    }
+
+    {
+        let mut outside_mut = outside_label.borrow_mut();
+        let shape = outside_mut.shape();
+        approx_eq(shape.x(), 0.0);
+        approx_eq(shape.y(), -8.0);
+    }
+}
+
+#[test]
+fn node_micro_layout_honors_outside_node_label_overhang() {
+    LayoutMetaDataService::get_instance();
+    let graph = ElkGraphUtil::create_graph();
+    let node = ElkGraphUtil::create_node(Some(graph.clone()));
+    set_node_geometry(&node, 0.0, 0.0, 10.0, 4.0);
+
+    node.borrow_mut()
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(
+            CoreOptions::NODE_SIZE_CONSTRAINTS,
+            Some(EnumSet::of(&[SizeConstraint::NodeLabels])),
+        );
+    node.borrow_mut()
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(
+            CoreOptions::NODE_SIZE_OPTIONS,
+            Some(EnumSet::of(&[
+                SizeOptions::OutsideNodeLabelsOverhang,
+                SizeOptions::Asymmetrical,
+            ])),
+        );
+    graph
+        .borrow_mut()
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(CoreOptions::SPACING_LABEL_LABEL, Some(0.0));
+    graph
+        .borrow_mut()
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(CoreOptions::SPACING_LABEL_NODE, Some(0.0));
+    graph
+        .borrow_mut()
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(CoreOptions::NODE_LABELS_PADDING, Some(ElkPadding::with_any(0.0)));
+
+    let inside_label = ElkGraphUtil::create_label(Some(ElkGraphElementRef::Node(node.clone())));
+    set_label_geometry(&inside_label, 0.0, 0.0, 10.0, 4.0);
+    inside_label
+        .borrow_mut()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(
+            CoreOptions::NODE_LABELS_PLACEMENT,
+            Some(NodeLabelPlacement::inside_center()),
+        );
+
+    let outside_label = ElkGraphUtil::create_label(Some(ElkGraphElementRef::Node(node.clone())));
+    set_label_geometry(&outside_label, 0.0, 0.0, 30.0, 3.0);
+    outside_label
+        .borrow_mut()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(
+            CoreOptions::NODE_LABELS_PLACEMENT,
+            Some(NodeLabelPlacement::outside_top_center()),
+        );
+
+    NodeMicroLayout::for_graph(graph).execute();
+
+    {
+        let mut node_mut = node.borrow_mut();
+        let shape = node_mut.connectable().shape();
+        approx_eq(shape.width(), 10.0);
+        approx_eq(shape.height(), 4.0);
+    }
+
+    {
+        let mut outside_mut = outside_label.borrow_mut();
+        let shape = outside_mut.shape();
+        approx_eq(shape.x(), -10.0);
+        approx_eq(shape.y(), -3.0);
+    }
+}
+
+#[test]
+fn inside_node_label_padding_uses_grid_cell_maxima_and_spacing() {
+    LayoutMetaDataService::get_instance();
+    let graph = ElkGraphUtil::create_graph();
+    let node = ElkGraphUtil::create_node(Some(graph.clone()));
+
+    graph
+        .borrow_mut()
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(
+            CoreOptions::NODE_LABELS_PADDING,
+            Some(ElkPadding::with_values(2.0, 3.0, 4.0, 5.0)),
+        );
+    graph
+        .borrow_mut()
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(CoreOptions::SPACING_LABEL_LABEL, Some(1.0));
+
+    let top_left = ElkGraphUtil::create_label(Some(ElkGraphElementRef::Node(node.clone())));
+    set_label_geometry(&top_left, 0.0, 0.0, 6.0, 5.0);
+    top_left
+        .borrow_mut()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(
+            CoreOptions::NODE_LABELS_PLACEMENT,
+            Some(EnumSet::of(&[
+                NodeLabelPlacement::Inside,
+                NodeLabelPlacement::VTop,
+                NodeLabelPlacement::HLeft,
+            ])),
+        );
+
+    let top_center = ElkGraphUtil::create_label(Some(ElkGraphElementRef::Node(node.clone())));
+    set_label_geometry(&top_center, 0.0, 0.0, 10.0, 4.0);
+    top_center
+        .borrow_mut()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(
+            CoreOptions::NODE_LABELS_PLACEMENT,
+            Some(EnumSet::of(&[
+                NodeLabelPlacement::Inside,
+                NodeLabelPlacement::VTop,
+                NodeLabelPlacement::HCenter,
+            ])),
+        );
+
+    let center_left = ElkGraphUtil::create_label(Some(ElkGraphElementRef::Node(node.clone())));
+    set_label_geometry(&center_left, 0.0, 0.0, 7.0, 8.0);
+    center_left
+        .borrow_mut()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(
+            CoreOptions::NODE_LABELS_PLACEMENT,
+            Some(EnumSet::of(&[
+                NodeLabelPlacement::Inside,
+                NodeLabelPlacement::VCenter,
+                NodeLabelPlacement::HLeft,
+            ])),
+        );
+
+    let bottom_right = ElkGraphUtil::create_label(Some(ElkGraphElementRef::Node(node.clone())));
+    set_label_geometry(&bottom_right, 0.0, 0.0, 11.0, 6.0);
+    bottom_right
+        .borrow_mut()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(
+            CoreOptions::NODE_LABELS_PLACEMENT,
+            Some(EnumSet::of(&[
+                NodeLabelPlacement::Inside,
+                NodeLabelPlacement::VBottom,
+                NodeLabelPlacement::HRight,
+            ])),
+        );
+
+    let node_adapter = ElkGraphAdapters::adapt_single_node(node);
+    let padding = NodeLabelAndSizeCalculator::compute_inside_node_label_padding(
+        &node_adapter,
+        Direction::Right,
+    );
+
+    approx_eq(padding.top, 9.0);
+    approx_eq(padding.bottom, 12.0);
+    approx_eq(padding.left, 14.0);
+    approx_eq(padding.right, 16.0);
+}
+
+#[test]
+fn inside_node_label_container_minimum_size_handles_tabular_and_center_only_modes() {
+    LayoutMetaDataService::get_instance();
+    let graph = ElkGraphUtil::create_graph();
+    let node = ElkGraphUtil::create_node(Some(graph.clone()));
+
+    graph
+        .borrow_mut()
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(CoreOptions::SPACING_LABEL_LABEL, Some(1.0));
+    graph
+        .borrow_mut()
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(
+            CoreOptions::NODE_LABELS_PADDING,
+            Some(ElkPadding::with_values(1.0, 1.0, 1.0, 1.0)),
+        );
+    node.borrow_mut()
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(
+            CoreOptions::NODE_SIZE_OPTIONS,
+            Some(EnumSet::of(&[SizeOptions::ForceTabularNodeLabels])),
+        );
+
+    let top_left = ElkGraphUtil::create_label(Some(ElkGraphElementRef::Node(node.clone())));
+    set_label_geometry(&top_left, 0.0, 0.0, 10.0, 3.0);
+    top_left
+        .borrow_mut()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(
+            CoreOptions::NODE_LABELS_PLACEMENT,
+            Some(EnumSet::of(&[
+                NodeLabelPlacement::Inside,
+                NodeLabelPlacement::VTop,
+                NodeLabelPlacement::HLeft,
+            ])),
+        );
+
+    let bottom_right = ElkGraphUtil::create_label(Some(ElkGraphElementRef::Node(node.clone())));
+    set_label_geometry(&bottom_right, 0.0, 0.0, 4.0, 3.0);
+    bottom_right
+        .borrow_mut()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(
+            CoreOptions::NODE_LABELS_PLACEMENT,
+            Some(EnumSet::of(&[
+                NodeLabelPlacement::Inside,
+                NodeLabelPlacement::VBottom,
+                NodeLabelPlacement::HRight,
+            ])),
+        );
+
+    let node_adapter = ElkGraphAdapters::adapt_single_node(node.clone());
+    let min_size = NodeLabelAndSizeCalculator::compute_inside_node_label_container_minimum_size(
+        &node_adapter,
+        Direction::Right,
+    );
+    approx_eq(min_size.x, 24.0);
+    approx_eq(min_size.y, 10.0);
+
+    node.borrow_mut()
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(
+            CoreOptions::NODE_SIZE_CONSTRAINTS,
+            Some(EnumSet::of(&[SizeConstraint::MinimumSize])),
+        );
+    node.borrow_mut()
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(
+            CoreOptions::NODE_SIZE_OPTIONS,
+            Some(EnumSet::of(&[SizeOptions::MinimumSizeAccountsForPadding])),
+        );
+    node.borrow_mut()
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(
+            CoreOptions::NODE_SIZE_MINIMUM,
+            Some(org_eclipse_elk_core::org::eclipse::elk::core::math::KVector::with_values(
+                40.0, 20.0,
+            )),
+        );
+    graph
+        .borrow_mut()
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(
+            CoreOptions::NODE_LABELS_PADDING,
+            Some(ElkPadding::with_values(0.0, 0.0, 0.0, 0.0)),
+        );
+    node.borrow_mut()
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(CoreOptions::NODE_LABELS_PADDING, None::<ElkPadding>);
+
+    let node_adapter = ElkGraphAdapters::adapt_single_node(node);
+    let center_only_min_size =
+        NodeLabelAndSizeCalculator::compute_inside_node_label_container_minimum_size(
+            &node_adapter,
+            Direction::Right,
+        );
+    approx_eq(center_only_min_size.x, 40.0);
+    approx_eq(center_only_min_size.y, 20.0);
+}
+
 fn should_label_be_placed_next_to_port(
     port: &ElkPortRef,
     parent: &ElkNodeRef,
@@ -1141,7 +1548,7 @@ fn constrained_inside_north_labels_respect_explicit_node_labels_padding_bounds()
     );
     assert_eq!(rects.len(), 2);
 
-    approx_eq(rects[0].0, 8.0);
+    approx_eq(rects[0].0, 10.0);
     approx_eq(rects[1].0, 23.0);
 }
 
@@ -1158,6 +1565,6 @@ fn constrained_inside_south_labels_respect_explicit_node_labels_padding_bounds()
     );
     assert_eq!(rects.len(), 2);
 
-    approx_eq(rects[0].0, 8.0);
+    approx_eq(rects[0].0, 10.0);
     approx_eq(rects[1].0, 23.0);
 }

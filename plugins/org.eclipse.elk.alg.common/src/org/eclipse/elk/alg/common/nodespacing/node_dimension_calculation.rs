@@ -2,7 +2,7 @@ use std::any::Any;
 use std::cmp::Ordering;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::options::{
-    CoreOptions, PortConstraints, PortLabelPlacement, PortSide, SizeConstraint,
+    CoreOptions, Direction, PortConstraints, PortLabelPlacement, PortSide, SizeConstraint,
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::util::adapters::{
     ElkGraphAdapter, ElkLabelAdapter, ElkNodeAdapter, ElkPortAdapter, GraphAdapter,
@@ -12,6 +12,7 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkConnectableShapeRef, El
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use std::rc::Rc;
 
+use super::node_label_and_size_calculator::NodeLabelAndSizeCalculator;
 use super::node_margin_calculator::NodeMarginCalculator;
 
 pub struct NodeDimensionCalculation;
@@ -41,7 +42,12 @@ impl NodeDimensionCalculation {
     }
 
     pub fn calculate_label_and_node_sizes_for_elk(adapter: &ElkGraphAdapter) {
+        let layout_direction = adapter
+            .get_property(CoreOptions::DIRECTION)
+            .unwrap_or(Direction::Undefined);
         for node in adapter.get_nodes() {
+            NodeLabelAndSizeCalculator::process_node(&node, layout_direction);
+
             let placement = node
                 .get_property(CoreOptions::PORT_LABELS_PLACEMENT)
                 .unwrap_or_default();
@@ -86,11 +92,19 @@ impl NodeDimensionCalculation {
                 );
 
                 let port_size = port.get_size();
+                let port_border_offset =
+                    port.get_property(CoreOptions::PORT_BORDER_OFFSET).unwrap_or(0.0);
+                let label_border_offset = Self::port_label_border_offset_for_port_side(
+                    &node,
+                    port.get_side(),
+                    label_gap_horizontal,
+                    label_gap_vertical,
+                );
                 for label in port.get_labels() {
                     let mut label_pos = label.get_position();
                     let label_size = label.get_size();
                     match port.get_side() {
-                        PortSide::North | PortSide::South => {
+                        PortSide::North => {
                             label_pos.x = match relation {
                                 LabelPlacementRelation::Centered => {
                                     (port_size.x - label_size.x) / 2.0
@@ -98,8 +112,54 @@ impl NodeDimensionCalculation {
                                 LabelPlacementRelation::BelowOrRight => port_size.x + 1.0,
                                 LabelPlacementRelation::AboveOrLeft => -label_size.x - 1.0,
                             };
+                            if constrained_placement {
+                                label_pos.y = if inside_label_placement {
+                                    port_size.y + port_border_offset + label_border_offset
+                                } else {
+                                    -label_size.y - label_gap_vertical
+                                };
+                            }
                         }
-                        _ => {
+                        PortSide::South => {
+                            label_pos.x = match relation {
+                                LabelPlacementRelation::Centered => {
+                                    (port_size.x - label_size.x) / 2.0
+                                }
+                                LabelPlacementRelation::BelowOrRight => port_size.x + 1.0,
+                                LabelPlacementRelation::AboveOrLeft => -label_size.x - 1.0,
+                            };
+                            if constrained_placement {
+                                label_pos.y = if inside_label_placement {
+                                    -port_border_offset - label_border_offset - label_size.y
+                                } else {
+                                    port_size.y + label_gap_vertical
+                                };
+                            }
+                        }
+                        PortSide::East => {
+                            if constrained_placement {
+                                label_pos.x = if inside_label_placement {
+                                    -port_border_offset - label_border_offset - label_size.x
+                                } else {
+                                    port_size.x + label_gap_horizontal
+                                };
+                            }
+                            label_pos.y = match relation {
+                                LabelPlacementRelation::Centered => {
+                                    (port_size.y - label_size.y) / 2.0
+                                }
+                                LabelPlacementRelation::BelowOrRight => port_size.y + 1.0,
+                                LabelPlacementRelation::AboveOrLeft => -label_size.y - 1.0,
+                            };
+                        }
+                        PortSide::West | PortSide::Undefined => {
+                            if constrained_placement {
+                                label_pos.x = if inside_label_placement {
+                                    port_size.x + port_border_offset + label_border_offset
+                                } else {
+                                    -label_size.x - label_gap_horizontal
+                                };
+                            }
                             label_pos.y = match relation {
                                 LabelPlacementRelation::Centered => {
                                     (port_size.y - label_size.y) / 2.0
@@ -448,6 +508,21 @@ impl NodeDimensionCalculation {
             || port_constraints == PortConstraints::FixedPos
     }
 
+    fn port_label_border_offset_for_port_side(
+        node: &ElkNodeAdapter,
+        side: PortSide,
+        horizontal_spacing: f64,
+        vertical_spacing: f64,
+    ) -> f64 {
+        let padding = node.get_padding();
+        match side {
+            PortSide::North => padding.top + vertical_spacing,
+            PortSide::East => padding.right + horizontal_spacing,
+            PortSide::South => padding.bottom + vertical_spacing,
+            PortSide::West | PortSide::Undefined => padding.left + horizontal_spacing,
+        }
+    }
+
     fn inside_horizontal_label_clamp_bounds(node: &ElkNodeAdapter, node_width: f64) -> (f64, f64) {
         let width = node_width.max(0.0);
         let mut min_x: f64 = 0.0;
@@ -585,8 +660,10 @@ impl NodeDimensionCalculation {
             Some(baseline - gap_y)
         }
     }
+
 }
 
+#[derive(Clone, Copy)]
 enum LabelPlacementRelation {
     Centered,
     BelowOrRight,

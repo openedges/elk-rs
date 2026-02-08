@@ -740,22 +740,40 @@
 - shared live-examples parity 보강(최신-89): Java `ElkLiveExamplesTest#noException` 대응 스모크로 `plugins/org.eclipse.elk.alg.layered/tests/shared_live_examples_smoke_test.rs`를 추가해 external example ELKT(`layered/core(box)/core(random)`)를 실제 로드 후 recursive layout 경로에서 예외 없이 완료되고 노드 geometry가 유한값으로 유지되는지 검증
 - 최신 품질 재검증(최신-89): `cargo test -p org-eclipse-elk-alg-layered --test shared_live_examples_smoke_test -- --test-threads=1`, `cargo clippy -p org-eclipse-elk-alg-layered --test shared_live_examples_smoke_test -- -D warnings` 통과
 - parity 수치 재동기화(최신-89): `sh scripts/check_java_test_module_parity.sh` 재실행 결과 direct-mapped `867/599`, layered `536/412`, common `51/37`, rust test methods total `878`, java test methods total `611`
+- layered self-loop fallback 의존 축소(최신-90): `self_loop_issue_resources_test.rs`를 `run_layout_with_subgraph_fallback`(하위 노드 BFS 반복)에서 `run_layout_prefer_recursive`(recursive 우선 + 누락 시 루트 1회 direct 보정)로 전환하고, `issue_support.rs`의 `run_recursive_layout`에 계층 전체 기본 알고리즘 보정(`CoreOptions::ALGORITHM=org.eclipse.elk.layered`)을 추가해 core/recursive 경로 우선 검증으로 정리
+- 최신 품질 재검증(최신-90): `cargo test -p org-eclipse-elk-alg-layered --test self_loop_issue_resources_test -- --test-threads=1`, `cargo test -p org-eclipse-elk-alg-layered --test self_loop_router_test -- --test-threads=1` 통과
+- node-promotion ptolemy coverage 확장(최신-91): `node_promotion_test.rs`에 모델 단위 정규화 수집(`collect_external_ptolemy_model_resources`, `.elkt` 우선 `.elkg` fallback)과 parse coverage 테스트(`node_promotion_external_ptolemy_model_parse_coverage_if_available`)를 추가하고, external 스캔/검증 상한·최소 기준을 상향(`120/140/128/160`, 최소 `8/10/8/8`, model/nikolov 최대 `20/20`)
+- 최신 품질 재검증(최신-91): `cargo test -p org-eclipse-elk-alg-layered --test node_promotion_test -- --test-threads=1` 통과
+- common label-placement inside 경로 보강(최신-92): `node_dimension_calculation.rs`에서 constrained inside/outside 케이스에 `PORT_BORDER_OFFSET` + node padding 기반 border offset 계산(`port_label_border_offset_for_port_side`)을 반영해 Java `PortLabelPlacementCalculator`의 inside cell 경계 오프셋 경로를 부분 포팅(비-constrained 기존 동작 유지로 회귀 방지)
+- common 라벨 배치 회귀 테스트 정합화(최신-92): `port_label_placement_variants_test.rs`에 north/south inside 경계 clamp 허용 helper(`assert_centered_or_inside_clamped`)를 도입해 Java식 경계 보정이 적용되는 케이스를 안정적으로 검증
+- 최신 품질 재검증(최신-92): `cargo test -p org-eclipse-elk-alg-layered --test port_label_placement_variants_test --test next_to_port_label_placement_test --test inside_port_label_test --test issue_701_test -- --test-threads=1` 통과
+- common configurator/리소스 스윕 확대(최신-93): `common_port_label_external_sweep_test.rs` 신규 추가로 external core/layered port-label 리소스군(variants/next-to-port/treat-as-group/056/405/596/701)을 sweep 검증하고, `variants.elkt`에 E/W/N/S uniform side override를 적용하는 configurator 스타일 side sweep을 추가
+- 최신 품질 재검증(최신-93): `cargo test -p org-eclipse-elk-alg-layered --test common_port_label_external_sweep_test -- --test-threads=1` 통과
+- 최종 동기화/정적 검증(최신-94): `cargo clippy -p org-eclipse-elk-alg-common --lib -- -D warnings`, `cargo clippy -p org-eclipse-elk-alg-layered --tests -- -D warnings`, `bash scripts/check_java_test_module_parity.sh`, `sh scripts/check_layered_issue_test_parity.sh` 재실행으로 수치/리포트 동기화
+- parity 수치 재동기화(최신-94): `perf/java_test_module_parity.md` 기준 direct-mapped `870/599`, layered `539/412`, common `51/37`, rust test methods total `881`, java test methods total `611`, layered issue parity `41/41 (ok)`
 
+- ptolemy coverage 자동 기록(최신-95): auto script(bash scripts/update_ptolemy_coverage_agents.sh)로 external ptolemy parse coverage(parsed=140/140, coverage=1.000)와 validated model 수(model-order checked=20/128)를 배치별 정량 기록
+- common NodeLabelAndSizeCalculator 경로 보강(최신-96): `node_label_and_size_calculator.rs` 신규 추가로 inside node label grid cell 최소 크기 집계, `compute_inside_node_label_padding`, `compute_inside_node_label_container_minimum_size`를 포팅하고 `nodespacing` 모듈 export 연결
+- layered importer padding 연동 및 회귀 테스트 추가(최신-96): `elk_graph_importer.rs#create_lgraph`에서 common `NodeLabelAndSizeCalculator` 결과를 graph padding에 합산하도록 반영, `nodespacing_test`(2개)와 `elk_graph_importer_padding_test` 신규 테스트로 계산/연동 회귀 검증
+- recursive self-loop direct 보정 제거 시도/현황 기록(최신-97): `self_loop_issue_resources_test`에서 recursive-only(단일/재시도) 경로를 검증한 결과 `079/128/273/288/...` 외부 티켓에서 section 누락이 재현되어 direct fallback 의존이 여전히 필요함을 확인, 테스트 안정성을 위해 recursive 우선 + 누락 시 1회 direct 보정 경로 유지(TODO로 잔여)
+- 최신 품질/동기화 재검증(최신-98): `cargo test -p org-eclipse-elk-alg-common --test nodespacing_test -- --test-threads=1`, `cargo test -p org-eclipse-elk-alg-layered --test {node_promotion_test,self_loop_issue_resources_test,elk_graph_importer_padding_test} -- --test-threads=1`, `cargo clippy -p org-eclipse-elk-alg-common --lib -- -D warnings`, `cargo clippy -p org-eclipse-elk-alg-layered --tests -- -D warnings`, `sh scripts/check_java_test_module_parity.sh`, `sh scripts/check_layered_issue_test_parity.sh` 통과
+- parity 수치 재동기화(최신-98): `perf/java_test_module_parity.md` 기준 direct-mapped `873/599`, layered `540/412`, common `51/37`, rust test methods total `884`, java test methods total `611`, layered issue parity `41/41 (ok)`
+- common NodeLabelAndSizeCalculator process 경로 1:1 포팅 완료(최신-99): `node_label_and_size_calculator.rs`의 `process_node`에 inside/outside node label 배치, container 최소 크기/확장, node width/height 확정, `SizeOptions::ComputePadding` 적용, `configured_minimum_size` 기반 default minimum size 반영을 마무리
+- recursive self-loop 근본 원인 수정 및 fallback 제거(최신-99): `LayoutMetaDataService`에 `override_algorithm_provider_pool`를 추가하고 `initialize_plain_java_layout`에서 `org.eclipse.elk.layered` provider pool을 `LayeredLayoutProvider`로 override하여 recursive 경로가 placeholder(Box) provider를 타지 않도록 수정, `self_loop_issue_resources_test`에서 direct fallback 없이 recursive-only 경로로 고정
+- 최신 품질 재검증(최신-99): `cargo test -p org-eclipse-elk-alg-common --test nodespacing_test -- --test-threads=1`, `cargo test -p org-eclipse-elk-alg-layered --test self_loop_issue_resources_test -- --test-threads=1`, `cargo clippy -p org-eclipse-elk-alg-common --tests -- -D warnings`, `cargo clippy -p org-eclipse-elk-alg-layered --tests -- -D warnings`, `cargo clippy -p org-eclipse-elk-core --lib -- -D warnings`, `cargo test -p org-eclipse-elk-core --tests -- --test-threads=1`, `cargo test -p org-eclipse-elk-alg-layered --tests -- --test-threads=1`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace -- --test-threads=1` 통과
+- parity 수치 재동기화(최신-99): `sh scripts/check_java_test_module_parity.sh`, `sh scripts/check_layered_issue_test_parity.sh` 재실행 결과 direct-mapped `875/599`, layered `540/412`, common `55/37`, `org.eclipse.elk.core` `184/96`, rust test methods total `886`, java test methods total `611`, layered issue parity `41/41 (ok)`
 ## 진행률(최신)
-- 전체 목표 대비 추정 진행률: 약 99.9% (기준: Java 기능/API/테스트 parity, 빌드/클리피, 성능 자동화)
+- 전체 목표 대비 추정 진행률: 약 100.0% (기준: Java 기능/API/테스트 parity, 빌드/클리피, 성능 자동화)
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
-- Java direct-mapped 모듈 테스트 parity: 144.7% (Rust 867 / Java 599, `perf/java_test_module_parity.md`)
-- layered 일반 테스트 수량 parity(모듈 단위): 130.1% (Rust 536 / Java 412, gap `+124`)
-- common 테스트 수량 parity(모듈 단위): 137.8% (Rust 51 / Java 37, gap `+14`)
+- Java direct-mapped 모듈 테스트 parity: 146.1% (Rust 875 / Java 599, `perf/java_test_module_parity.md`)
+- layered 일반 테스트 수량 parity(모듈 단위): 131.1% (Rust 540 / Java 412, gap `+128`)
+- common 테스트 수량 parity(모듈 단위): 148.6% (Rust 55 / Java 37, gap `+18`)
 - topdown 모듈 테스트 parity(수량): 100% (Rust 11 / Java 11)
 - mrtree 모듈 테스트 parity(수량): 100% (Rust 2 / Java 2, 기본 테스트 경로 활성화 완료)
 - Java-Rust 성능 비교 파이프라인/회귀 게이트: 운영 자동화 100% (baseline/results/both + scenario/runtime gate + CI 연동)
 - external/elk 무수정 운영 체계: 100% (격리 실행 + 자동 정리)
 
 ## 다음 작업
-- [ ] layered self-loop 정성 parity 후속: `RoutingDirector` penalty 기반 경로 선택 + `PortRestorer` side sorting/`Equally` corner + north/west/south/east dummy ordering + corner/dummy/label 결합 단위 회귀 + issue ELKT/외부 tickets self-loop 실리소스 스윕(분산 샘플/스캔 60/최소 검증 4), 익명 edge block label parse, 스코프 참조 정합화, 포트 side undefined 보정 및 외부 layout failure `0` 달성은 반영 완료, 다음 배치에서는 fallback 의존 구간을 core/recursive 경로 parity 개선으로 대체
-- [ ] `node_promotion_test.rs` 후속 정밀화: `.elkt/.elkg` 통합 수집/`external/elk-models` 실경로 + model-order(최대 14 샘플) + nikolov-family 외부 전략(5종, 최대 14 샘플)은 반영 완료, Java `realworld/ptolemy` 그래프군의 coverage(샘플 수/파서 지원률)를 단계적으로 확대해 1:1에 근접
-- [ ] common/label-placement 정성 parity 후속: outside 첫 포트 special-case + constrained north/south strip stacking + constrained inside start coordinate/x-clamp(2차)은 반영 완료, Java `NodeLabelAndSizeCalculator`/`PortLabelPlacementCalculator`의 cell-system 기반 inside 계산 경로(컨테이너 패딩/inside label cells 연계)를 순차 포팅
-- [ ] common 모듈 정성 parity 후속: `PortLabelPlacementVariantsTest`의 side 확장(west/north/south), external core+layered 리소스 스윕(분산 샘플/최소 검증 2), 포트 참조 스코프/fallback side 추론은 반영 완료, Java configurator 수준 추가 리소스군/edge 패턴으로 검증 범위 확대
-- [ ] `check_java_test_module_parity.sh`와 AGENTS 수치를 배치 단위(모듈 1개 완료마다)로 재생성/동기화
+- [x] common `NodeLabelAndSizeCalculator#process` 전체 경로(inside/outside node label 배치 + node container width/height 확정 + apply 단계) 1:1 포팅 마무리
+- [x] recursive 경로 self-loop section 누락(`079/128/273/288/...`) 근본 원인 수정으로 direct fallback 제거(완전 recursive 단독 통과)

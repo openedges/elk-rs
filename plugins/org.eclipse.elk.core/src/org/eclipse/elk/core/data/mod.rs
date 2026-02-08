@@ -38,6 +38,9 @@ use crate::org::eclipse::elk::core::util::{
     InstancePool, LinkedHashSet, RandomLayoutProvider,
 };
 
+type LayoutProviderPool =
+    Arc<InstancePool<Box<dyn crate::org::eclipse::elk::core::abstract_layout_provider::AbstractLayoutProvider>>>;
+
 pub struct LayoutMetaDataService {
     storage: Mutex<LayoutMetaDataStorage>,
 }
@@ -99,6 +102,17 @@ impl LayoutMetaDataService {
 
     pub fn register_layout_meta_data_provider(&self, provider: &dyn ILayoutMetaDataProvider) {
         self.register_layout_meta_data_providers(&[provider]);
+    }
+
+    pub fn override_algorithm_provider_pool(
+        &self,
+        algorithm_id: &str,
+        pool: LayoutProviderPool,
+    ) {
+        let mut storage = self.storage.lock().unwrap();
+        if let Some(algorithm_data) = storage.algorithms.get_mut(algorithm_id) {
+            algorithm_data.set_provider_pool(Some(pool));
+        }
     }
 
     fn register_layout_algorithm(&self, algorithm: LayoutAlgorithmData) {

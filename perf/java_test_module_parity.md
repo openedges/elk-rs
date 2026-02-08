@@ -3,11 +3,11 @@
 - java modules scanned: 14
 - java test classes total: 188
 - java test methods total (`@Test` + `@TestAfterProcessor`): 611
-- rust test methods total (`#[test]` in plugins): 878
+- rust test methods total (`#[test]` in plugins): 886
 - direct-mapped java modules: 12
 - direct-mapped java tests: 599
-- direct-mapped rust tests: 867
-- direct-mapped delta (rust - java): 268
+- direct-mapped rust tests: 875
+- direct-mapped delta (rust - java): 276
 - java tests in no-direct modules: 12
 - rust modules with tests: 16
 - rust-only test modules (not in direct map): 4
@@ -15,10 +15,10 @@
 
 | java_module | rust_target | mapping | java_classes | java_tests | rust_test_files | rust_tests | delta_rust_minus_java |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| org.eclipse.elk.alg.common.test | plugins/org.eclipse.elk.alg.common | direct | 8 | 37 | 5 | 51 | 14 |
+| org.eclipse.elk.alg.common.test | plugins/org.eclipse.elk.alg.common | direct | 8 | 37 | 5 | 55 | 18 |
 | org.eclipse.elk.alg.disco.test | plugins/org.eclipse.elk.alg.disco | direct | 1 | 3 | 1 | 3 | 0 |
 | org.eclipse.elk.alg.force.test | plugins/org.eclipse.elk.alg.force | direct | 1 | 3 | 1 | 3 | 0 |
-| org.eclipse.elk.alg.layered.test | plugins/org.eclipse.elk.alg.layered | direct | 96 | 412 | 111 | 536 | 124 |
+| org.eclipse.elk.alg.layered.test | plugins/org.eclipse.elk.alg.layered | direct | 96 | 412 | 113 | 540 | 128 |
 | org.eclipse.elk.alg.mrtree.test | plugins/org.eclipse.elk.alg.mrtree | direct | 1 | 2 | 1 | 2 | 0 |
 | org.eclipse.elk.alg.radial.test | plugins/org.eclipse.elk.alg.radial | direct | 1 | 2 | 2 | 5 | 3 |
 | org.eclipse.elk.alg.rectpacking.test | plugins/org.eclipse.elk.alg.rectpacking | direct | 3 | 15 | 4 | 15 | 0 |

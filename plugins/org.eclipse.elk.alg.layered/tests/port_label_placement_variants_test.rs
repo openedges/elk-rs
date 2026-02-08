@@ -140,10 +140,10 @@ fn test_inside_two_with_one_edge_next_to_port_for_west_north_south() {
         let first_connected = has_incident_edge(&ports[0]);
         if first_connected {
             assert_below_or_right(ports[0].clone());
-            assert_centered(ports[1].clone());
+            assert_centered_or_inside_clamped(ports[1].clone());
         } else {
             assert_below_or_right(ports[1].clone());
-            assert_centered(ports[0].clone());
+            assert_centered_or_inside_clamped(ports[0].clone());
         }
     }
 }
@@ -189,7 +189,7 @@ fn test_inside_three_with_one_edge_next_to_port_for_west_north_south() {
             if has_incident_edge(&port) {
                 assert_below_or_right(port);
             } else {
-                assert_centered(port);
+                assert_centered_or_inside_clamped(port);
             }
         }
     }
@@ -376,6 +376,76 @@ fn assert_centered(port: ElkPortRef) {
             "expected centered label on X axis, got label_center={label_center}, port_center={port_center}"
         );
     }
+}
+
+fn assert_centered_or_inside_clamped(port: ElkPortRef) {
+    let (port_side, port_width, port_height, port_x, label_x, label_y, label_width, label_height, parent_width) = {
+        let mut port_mut = port.borrow_mut();
+        let parent_width_opt = port_mut
+            .parent()
+            .map(|parent| parent.borrow_mut().connectable().shape().width());
+        let (port_side, port_width, port_height, port_x, label_x, label_y, label_width, label_height) = {
+            let shape = port_mut.connectable().shape();
+            let port_width = shape.width();
+            let port_height = shape.height();
+            let graph_element = shape.graph_element();
+            let port_side = graph_element
+                .properties_mut()
+                .get_property(CoreOptions::PORT_SIDE)
+                .expect("port side should be set");
+            let label = graph_element
+                .labels()
+                .get(0)
+                .expect("port should have one label");
+            let mut label_mut = label.borrow_mut();
+            let label_shape = label_mut.shape();
+            (
+                port_side,
+                port_width,
+                port_height,
+                shape.x(),
+                label_shape.x(),
+                label_shape.y(),
+                label_shape.width(),
+                label_shape.height(),
+            )
+        };
+        let parent_width = parent_width_opt.unwrap_or(port_width);
+        (
+            port_side,
+            port_width,
+            port_height,
+            port_x,
+            label_x,
+            label_y,
+            label_width,
+            label_height,
+            parent_width,
+        )
+    };
+
+    if matches!(port_side, PortSide::East | PortSide::West) {
+        let port_center = port_height / 2.0;
+        let label_center = label_y + label_height / 2.0;
+        assert!(
+            (label_center - port_center).abs() <= EPSILON,
+            "expected centered label on Y axis, got label_center={label_center}, port_center={port_center}"
+        );
+        return;
+    }
+
+    let port_center = port_width / 2.0;
+    let label_center = label_x + label_width / 2.0;
+    let centered = (label_center - port_center).abs() <= EPSILON;
+    let absolute_label_x = port_x + label_x;
+    let clamped_inside_bounds =
+        absolute_label_x >= -EPSILON && absolute_label_x + label_width <= parent_width + EPSILON;
+    assert!(
+        centered || clamped_inside_bounds,
+        "expected centered or boundary-clamped inside label on X axis, side={port_side:?}, \
+         centered={centered}, absolute_x={absolute_label_x}, label_w={label_width}, \
+         parent_w={parent_width}, label_center={label_center}, port_center={port_center}"
+    );
 }
 
 fn label_axis_position(port: &ElkPortRef) -> f64 {

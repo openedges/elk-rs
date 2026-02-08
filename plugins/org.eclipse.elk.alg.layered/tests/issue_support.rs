@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use std::collections::VecDeque;
+
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::layered_layout_provider::LayeredLayoutProvider;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::{
     LayeredOptions,
@@ -32,9 +34,32 @@ pub fn run_layout(graph: &ElkNodeRef) {
 }
 
 pub fn run_recursive_layout(graph: &ElkNodeRef) {
+    ensure_layered_algorithm_for_hierarchy(graph);
     let mut engine = RecursiveGraphLayoutEngine::new();
     let mut monitor = NullElkProgressMonitor;
     engine.layout(graph, &mut monitor);
+}
+
+fn ensure_layered_algorithm_for_hierarchy(graph: &ElkNodeRef) {
+    let mut queue = VecDeque::from([graph.clone()]);
+    while let Some(node) = queue.pop_front() {
+        let children: Vec<ElkNodeRef> = {
+            let mut node_mut = node.borrow_mut();
+            let properties = node_mut
+                .connectable()
+                .shape()
+                .graph_element()
+                .properties_mut();
+            if properties.get_property(CoreOptions::ALGORITHM).is_none() {
+                properties.set_property(
+                    CoreOptions::ALGORITHM,
+                    Some(LayeredOptions::ALGORITHM_ID.to_string()),
+                );
+            }
+            node_mut.children().iter().cloned().collect()
+        };
+        queue.extend(children);
+    }
 }
 
 pub fn create_node(parent: &ElkNodeRef, width: f64, height: f64) -> ElkNodeRef {

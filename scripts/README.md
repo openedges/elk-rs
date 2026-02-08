@@ -51,6 +51,7 @@ Release readiness quick run:
 - `check_algorithm_metadata_parity.sh [report]` (compares Java metadata fields in `*.Options.java` (`category`, `melkBundleName`, `definingBundleId`, `imagePath`) against Rust `LayoutAlgorithmData`; default `perf/algorithm_metadata_parity.md`; strict mode via `ALGORITHM_METADATA_PARITY_STRICT=true`)
 - `check_layered_issue_test_parity.sh [report]` (compares Java layered issue test methods (`@Test`/`@TestAfterProcessor`) and Rust `#[test]` counts by issue file; default `perf/layered_issue_test_parity.md`; strict mode via `LAYERED_ISSUE_TEST_PARITY_STRICT=true`)
 - `check_java_test_module_parity.sh [report]` (builds a Java↔Rust module-level test matrix from `external/elk/test` and `plugins/*`, reporting per-module test class/method counts and direct-map deltas; default `perf/java_test_module_parity.md`)
+- `update_ptolemy_coverage_agents.sh` (runs `node_promotion_test`의 external ptolemy parse coverage/model-order validated count를 수집해 `AGENTS.md` 진행 기록에 배치별 정량 항목을 자동 추가)
 - `run_all_checks.sh [threshold] [window]` (cargo test, clippy, perf gate)
 - `run_fast_checks.sh` (cargo test, clippy only)
 
