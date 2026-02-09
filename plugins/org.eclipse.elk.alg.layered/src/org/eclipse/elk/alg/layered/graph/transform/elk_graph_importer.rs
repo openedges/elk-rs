@@ -255,6 +255,11 @@ impl<'a> ElkGraphImporter<'a> {
             size_vec.x = size.0;
             size_vec.y = size.1;
             node_guard.set_property(InternalProperties::ORIGIN, Some(Origin::ElkNode(origin_id)));
+
+            // Explicitly transfer PARTITIONING_PARTITION property with correct type
+            if let Some(partition) = self.graph_property(elknode, CoreOptions::PARTITIONING_PARTITION) {
+                node_guard.set_property(CoreOptions::PARTITIONING_PARTITION, Some(partition));
+            }
         }
 
         if let Ok(mut graph_guard) = lgraph.lock() {

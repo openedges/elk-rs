@@ -95,8 +95,10 @@ impl Random {
     }
 
     pub fn next_float(&mut self) -> f64 {
-        let value = self.next(24) as u64;
-        (value as f64) / ((1u64 << 24) as f64)
+        let value = self.next(24);
+        // Match Java's nextFloat() precision: return 32-bit float converted to f64
+        // Java: return next(24) / ((float)(1 << 24));
+        ((value as f32) / ((1u32 << 24) as f32)) as f64
     }
 
     pub fn next_int(&mut self, bound: i32) -> i32 {

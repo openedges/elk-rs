@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutPhase;
@@ -16,10 +16,10 @@ pub struct StretchWidthLayerer {
     max_width: f64,
     upper_layer_influence: f64,
     sorted_layerless_nodes: Vec<LNodeRef>,
-    already_placed_nodes: HashSet<usize>,
-    already_placed_in_other_layers: HashSet<usize>,
+    already_placed_nodes: BTreeSet<usize>,
+    already_placed_in_other_layers: BTreeSet<usize>,
     temp_layerless_nodes: Vec<LNodeRef>,
-    successors: Vec<HashSet<usize>>,
+    successors: Vec<BTreeSet<usize>>,
     out_degree: Vec<i32>,
     remaining_outgoing: Vec<i32>,
     in_degree: Vec<i32>,
@@ -37,8 +37,8 @@ impl StretchWidthLayerer {
             max_width: 0.0,
             upper_layer_influence: 0.0,
             sorted_layerless_nodes: Vec::new(),
-            already_placed_nodes: HashSet::new(),
-            already_placed_in_other_layers: HashSet::new(),
+            already_placed_nodes: BTreeSet::new(),
+            already_placed_in_other_layers: BTreeSet::new(),
             temp_layerless_nodes: Vec::new(),
             successors: Vec::new(),
             out_degree: Vec::new(),
@@ -93,10 +93,10 @@ impl StretchWidthLayerer {
     }
 
     fn compute_successors(&mut self) {
-        let mut successors: Vec<HashSet<usize>> = Vec::new();
+        let mut successors: Vec<BTreeSet<usize>> = Vec::new();
         for (index, node) in self.sorted_layerless_nodes.iter().enumerate() {
             set_node_id(node, index as i32);
-            let mut out_nodes: HashSet<usize> = HashSet::new();
+            let mut out_nodes: BTreeSet<usize> = BTreeSet::new();
             let outgoing = node
                 .lock()
                 .ok()
@@ -303,7 +303,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for StretchWidthLayerer {
                 current_layer = Layer::new(&graph_ref);
                 graph.layers_mut().push(current_layer.clone());
                 self.already_placed_in_other_layers
-                    .extend(self.already_placed_nodes.drain());
+                    .extend(self.already_placed_nodes.iter().copied());
+                self.already_placed_nodes.clear();
                 self.width_current = self.width_up;
                 self.width_up = 0.0;
             } else if let Some(selected_node) = selected_node {

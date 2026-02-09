@@ -1,6 +1,6 @@
-use std::any::Any;
 use std::cell::Cell;
 use std::cmp::Ordering;
+use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::math::{ElkMargin, ElkPadding, KVector};
 use org_eclipse_elk_core::org::eclipse::elk::core::options::{
@@ -9,7 +9,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::{
 use org_eclipse_elk_core::org::eclipse::elk::core::util::adapters::{
     EdgeAdapter, GraphAdapter, GraphElementAdapter, LabelAdapter, NodeAdapter, PortAdapter,
 };
-use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::{MapPropertyHolder, Property};
 
 use crate::org::eclipse::elk::alg::layered::graph::{
     LEdgeRef, LGraph, LLabelRef, LNodeRef, LPortRef, NodeType,
@@ -21,9 +21,87 @@ pub struct LGraphAdapters;
 
 impl LGraphAdapters {
     /// Adapt an LGraph for use with NodeDimensionCalculation.
-    /// Only Normal nodes are included (matching Java behavior).
-    pub fn adapt(graph: &mut LGraph) -> LGraphAdapter {
-        LGraphAdapter::new(graph)
+    /// Simple 1-param version: no transparent edges, no comment nodes, all nodes visible.
+    pub fn adapt_simple(graph: &mut LGraph) -> LGraphAdapter {
+        Self::adapt(graph, false, false, |_| true)
+    }
+
+    /// Adapt an LGraph with full parameters matching Java's 4-param adapt.
+    pub fn adapt(
+        graph: &mut LGraph,
+        transparent_north_south_edges: bool,
+        transparent_comment_nodes: bool,
+        node_filter: impl Fn(&crate::org::eclipse::elk::alg::layered::graph::LNode) -> bool,
+    ) -> LGraphAdapter {
+        // Clone the graph's property holder so we can delegate get_property calls
+        let properties = graph.graph_element().properties().clone();
+
+        // Collect nodes from layers only (Java: "We completely ignore layerless nodes here")
+        let mut node_adapters: Vec<LNodeAdapter> = Vec::new();
+        for layer in graph.layers().clone() {
+            if let Ok(layer_guard) = layer.lock() {
+                for node in layer_guard.nodes() {
+                    let passes_filter = node
+                        .lock()
+                        .ok()
+                        .map(|node_guard| node_filter(&node_guard))
+                        .unwrap_or(false);
+                    if passes_filter {
+                        node_adapters.push(LNodeAdapter::new(
+                            node.clone(),
+                            transparent_north_south_edges,
+                        ));
+
+                        if transparent_comment_nodes {
+                            // Include TOP_COMMENTS
+                            if let Ok(mut node_guard) = node.lock() {
+                                if node_guard
+                                    .shape()
+                                    .graph_element()
+                                    .properties()
+                                    .has_property(InternalProperties::TOP_COMMENTS)
+                                {
+                                    if let Some(comments) =
+                                        node_guard.get_property(InternalProperties::TOP_COMMENTS)
+                                    {
+                                        for comment in comments {
+                                            // Comment nodes get transparent_north_south_edges=false
+                                            node_adapters
+                                                .push(LNodeAdapter::new(comment.clone(), false));
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Include BOTTOM_COMMENTS
+                            if let Ok(mut node_guard) = node.lock() {
+                                if node_guard
+                                    .shape()
+                                    .graph_element()
+                                    .properties()
+                                    .has_property(InternalProperties::BOTTOM_COMMENTS)
+                                {
+                                    if let Some(comments) =
+                                        node_guard.get_property(InternalProperties::BOTTOM_COMMENTS)
+                                    {
+                                        for comment in comments {
+                                            node_adapters
+                                                .push(LNodeAdapter::new(comment.clone(), false));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        LGraphAdapter {
+            nodes: node_adapters,
+            volatile_id: Cell::new(0),
+            properties,
+        }
     }
 }
 
@@ -31,49 +109,7 @@ impl LGraphAdapters {
 pub struct LGraphAdapter {
     nodes: Vec<LNodeAdapter>,
     volatile_id: Cell<i32>,
-    // Store graph-level properties we need
-    layout_direction: org_eclipse_elk_core::org::eclipse::elk::core::options::Direction,
-}
-
-impl LGraphAdapter {
-    fn new(graph: &mut LGraph) -> Self {
-        let layout_direction = graph
-            .graph_element()
-            .get_property(CoreOptions::DIRECTION)
-            .unwrap_or(org_eclipse_elk_core::org::eclipse::elk::core::options::Direction::Undefined);
-
-        // Collect all Normal nodes from layers (matching Java LGraphAdapters.adapt behavior)
-        let mut node_refs: Vec<LNodeRef> = Vec::new();
-        for layer in graph.layers().clone() {
-            if let Ok(layer_guard) = layer.lock() {
-                for node in layer_guard.nodes() {
-                    if let Ok(node_guard) = node.lock() {
-                        if node_guard.node_type() == NodeType::Normal {
-                            drop(node_guard);
-                            node_refs.push(node.clone());
-                        }
-                    }
-                }
-            }
-        }
-
-        let nodes = node_refs
-            .into_iter()
-            .map(|n| LNodeAdapter::new(n))
-            .collect();
-
-        LGraphAdapter {
-            nodes,
-            volatile_id: Cell::new(0),
-            layout_direction,
-        }
-    }
-
-    pub fn layout_direction(
-        &self,
-    ) -> org_eclipse_elk_core::org::eclipse::elk::core::options::Direction {
-        self.layout_direction
-    }
+    properties: MapPropertyHolder,
 }
 
 impl GraphElementAdapter<LNodeRef> for LGraphAdapter {
@@ -90,18 +126,13 @@ impl GraphElementAdapter<LNodeRef> for LGraphAdapter {
     fn set_position(&self, _pos: KVector) {}
 
     fn get_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> Option<P> {
-        // Direction is the only graph-level property needed by NodeDimensionCalculation
-        if prop.id() == CoreOptions::DIRECTION.id() {
-            let boxed: Box<dyn Any> = Box::new(self.layout_direction);
-            if let Ok(casted) = boxed.downcast::<P>() {
-                return Some(*casted);
-            }
-        }
-        None
+        // Clone properties so we can call get_property (which takes &mut self)
+        let mut props = self.properties.clone();
+        props.get_property(prop)
     }
 
-    fn has_property<P: Clone + Send + Sync + 'static>(&self, _prop: &Property<P>) -> bool {
-        false
+    fn has_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> bool {
+        self.properties.has_property(prop)
     }
 
     fn get_volatile_id(&self) -> i32 {
@@ -127,13 +158,15 @@ impl GraphAdapter<LNodeRef> for LGraphAdapter {
 pub struct LNodeAdapter {
     node: LNodeRef,
     volatile_id: Cell<i32>,
+    transparent_north_south_edges: bool,
 }
 
 impl LNodeAdapter {
-    fn new(node: LNodeRef) -> Self {
+    fn new(node: LNodeRef, transparent_north_south_edges: bool) -> Self {
         LNodeAdapter {
             node,
             volatile_id: Cell::new(0),
+            transparent_north_south_edges,
         }
     }
 }
@@ -224,7 +257,7 @@ impl NodeAdapter<LNodeRef> for LNodeAdapter {
         if let Ok(node) = self.node.lock() {
             node.ports()
                 .iter()
-                .map(|p| LPortAdapter::new(p.clone()))
+                .map(|p| LPortAdapter::new(p.clone(), self.transparent_north_south_edges))
                 .collect()
         } else {
             Vec::new()
@@ -232,37 +265,13 @@ impl NodeAdapter<LNodeRef> for LNodeAdapter {
     }
 
     fn get_incoming_edges(&self) -> Vec<Self::EdgeAdapter> {
-        let ports = if let Ok(node) = self.node.lock() {
-            node.ports().clone()
-        } else {
-            return Vec::new();
-        };
-        let mut edges = Vec::new();
-        for port in ports {
-            if let Ok(port_guard) = port.lock() {
-                for edge in port_guard.incoming_edges() {
-                    edges.push(LEdgeAdapter::new(edge.clone()));
-                }
-            }
-        }
-        edges
+        // Java: Collections.emptyList() - we have no directly connected edges
+        Vec::new()
     }
 
     fn get_outgoing_edges(&self) -> Vec<Self::EdgeAdapter> {
-        let ports = if let Ok(node) = self.node.lock() {
-            node.ports().clone()
-        } else {
-            return Vec::new();
-        };
-        let mut edges = Vec::new();
-        for port in ports {
-            if let Ok(port_guard) = port.lock() {
-                for edge in port_guard.outgoing_edges() {
-                    edges.push(LEdgeAdapter::new(edge.clone()));
-                }
-            }
-        }
-        edges
+        // Java: Collections.emptyList() - we have no directly connected edges
+        Vec::new()
     }
 
     fn sort_port_list(&self) {
@@ -343,14 +352,9 @@ impl NodeAdapter<LNodeRef> for LNodeAdapter {
 
     fn is_compound_node(&self) -> bool {
         if let Ok(mut node) = self.node.lock() {
-            // Check COMPOUND_NODE property (set during import for nodes with nested graphs)
-            let is_compound = node
-                .get_property(InternalProperties::COMPOUND_NODE)
-                .unwrap_or(false);
-            let inside_self_loops = node
-                .get_property(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE)
-                .unwrap_or(false);
-            is_compound || inside_self_loops
+            // Java only checks COMPOUND_NODE property
+            node.get_property(InternalProperties::COMPOUND_NODE)
+                .unwrap_or(false)
         } else {
             false
         }
@@ -400,13 +404,15 @@ impl NodeAdapter<LNodeRef> for LNodeAdapter {
 pub struct LPortAdapter {
     port: LPortRef,
     volatile_id: Cell<i32>,
+    transparent_north_south_edges: bool,
 }
 
 impl LPortAdapter {
-    fn new(port: LPortRef) -> Self {
+    fn new(port: LPortRef, transparent_north_south_edges: bool) -> Self {
         LPortAdapter {
             port,
             volatile_id: Cell::new(0),
+            transparent_north_south_edges,
         }
     }
 }
@@ -514,25 +520,170 @@ impl PortAdapter<LPortRef> for LPortAdapter {
     }
 
     fn get_incoming_edges(&self) -> Vec<Self::EdgeAdapter> {
-        if let Ok(port) = self.port.lock() {
-            port.incoming_edges()
-                .iter()
-                .map(|e| LEdgeAdapter::new(e.clone()))
-                .collect()
-        } else {
-            Vec::new()
+        // If transparent N/S edges AND this port's node is NORTH_SOUTH_PORT type, return empty
+        if self.transparent_north_south_edges {
+            let is_ns_port = self
+                .port
+                .lock()
+                .ok()
+                .and_then(|port| port.node())
+                .and_then(|node| {
+                    node.lock()
+                        .ok()
+                        .map(|n| n.node_type() == NodeType::NorthSouthPort)
+                })
+                .unwrap_or(false);
+            if is_ns_port {
+                return Vec::new();
+            }
         }
+
+        let mut edges = Vec::new();
+
+        // 1. Normal incoming edges
+        if let Ok(port) = self.port.lock() {
+            for e in port.incoming_edges() {
+                edges.push(LEdgeAdapter::new(e.clone()));
+            }
+        }
+
+        // 2. If transparent N/S edges, include edges from PORT_DUMMY
+        if self.transparent_north_south_edges {
+            if let Ok(mut port) = self.port.lock() {
+                if let Some(port_dummy) = port.get_property(InternalProperties::PORT_DUMMY) {
+                    // Get ALL incoming edges of the port dummy NODE (iterate all its ports)
+                    if let Ok(dummy_guard) = port_dummy.lock() {
+                        for dummy_port in dummy_guard.ports() {
+                            if let Ok(dp) = dummy_port.lock() {
+                                for e in dp.incoming_edges() {
+                                    edges.push(LEdgeAdapter::new(e.clone()));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Self-loop holder edges
+        let node = self.port.lock().ok().and_then(|port| port.node());
+        if let Some(node) = node {
+            if let Ok(mut node_guard) = node.lock() {
+                if node_guard
+                    .shape()
+                    .graph_element()
+                    .properties()
+                    .has_property(InternalProperties::SELF_LOOP_HOLDER)
+                {
+                    if let Some(holder) =
+                        node_guard.get_property(InternalProperties::SELF_LOOP_HOLDER)
+                    {
+                        if let Ok(holder_guard) = holder.lock() {
+                            // Find the SelfLoopPort matching this port
+                            for (lport_ref, sl_port_ref) in holder_guard.sl_port_map() {
+                                if Arc::ptr_eq(lport_ref, &self.port) {
+                                    if let Ok(sl_port) = sl_port_ref.lock() {
+                                        for sle in sl_port.incoming_sl_edges() {
+                                            if let Ok(sle_guard) = sle.lock() {
+                                                edges.push(LEdgeAdapter::new(
+                                                    sle_guard.l_edge().clone(),
+                                                ));
+                                            }
+                                        }
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        edges
     }
 
     fn get_outgoing_edges(&self) -> Vec<Self::EdgeAdapter> {
-        if let Ok(port) = self.port.lock() {
-            port.outgoing_edges()
-                .iter()
-                .map(|e| LEdgeAdapter::new(e.clone()))
-                .collect()
-        } else {
-            Vec::new()
+        // If transparent N/S edges AND this port's node is NORTH_SOUTH_PORT type, return empty
+        if self.transparent_north_south_edges {
+            let is_ns_port = self
+                .port
+                .lock()
+                .ok()
+                .and_then(|port| port.node())
+                .and_then(|node| {
+                    node.lock()
+                        .ok()
+                        .map(|n| n.node_type() == NodeType::NorthSouthPort)
+                })
+                .unwrap_or(false);
+            if is_ns_port {
+                return Vec::new();
+            }
         }
+
+        let mut edges = Vec::new();
+
+        // 1. Normal outgoing edges
+        if let Ok(port) = self.port.lock() {
+            for e in port.outgoing_edges() {
+                edges.push(LEdgeAdapter::new(e.clone()));
+            }
+        }
+
+        // 2. If transparent N/S edges, include edges from PORT_DUMMY
+        if self.transparent_north_south_edges {
+            if let Ok(mut port) = self.port.lock() {
+                if let Some(port_dummy) = port.get_property(InternalProperties::PORT_DUMMY) {
+                    // Get ALL outgoing edges of the port dummy NODE (iterate all its ports)
+                    if let Ok(dummy_guard) = port_dummy.lock() {
+                        for dummy_port in dummy_guard.ports() {
+                            if let Ok(dp) = dummy_port.lock() {
+                                for e in dp.outgoing_edges() {
+                                    edges.push(LEdgeAdapter::new(e.clone()));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Self-loop holder edges
+        let node = self.port.lock().ok().and_then(|port| port.node());
+        if let Some(node) = node {
+            if let Ok(mut node_guard) = node.lock() {
+                if node_guard
+                    .shape()
+                    .graph_element()
+                    .properties()
+                    .has_property(InternalProperties::SELF_LOOP_HOLDER)
+                {
+                    if let Some(holder) =
+                        node_guard.get_property(InternalProperties::SELF_LOOP_HOLDER)
+                    {
+                        if let Ok(holder_guard) = holder.lock() {
+                            for (lport_ref, sl_port_ref) in holder_guard.sl_port_map() {
+                                if Arc::ptr_eq(lport_ref, &self.port) {
+                                    if let Ok(sl_port) = sl_port_ref.lock() {
+                                        for sle in sl_port.outgoing_sl_edges() {
+                                            if let Ok(sle_guard) = sle.lock() {
+                                                edges.push(LEdgeAdapter::new(
+                                                    sle_guard.l_edge().clone(),
+                                                ));
+                                            }
+                                        }
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        edges
     }
 
     fn has_compound_connections(&self) -> bool {

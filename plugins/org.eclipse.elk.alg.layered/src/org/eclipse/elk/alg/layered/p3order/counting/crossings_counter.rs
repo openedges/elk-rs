@@ -1,4 +1,4 @@
-use std::collections::{HashSet, VecDeque};
+use std::collections::{BTreeSet, VecDeque};
 use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
@@ -140,7 +140,7 @@ impl CrossingsCounter {
         side: PortSide,
     ) -> Vec<LPortRef> {
         let mut ports: Vec<LPortRef> = Vec::new();
-        let mut seen: HashSet<usize> = HashSet::new();
+        let mut seen: BTreeSet<usize> = BTreeSet::new();
         for node in [upper_node, lower_node] {
             for port in in_north_south_east_west_order(node, side) {
                 for edge in connected_edges(&port) {
@@ -169,7 +169,7 @@ impl CrossingsCounter {
         lower_port: &LPortRef,
     ) -> Vec<LPortRef> {
         let mut ports: Vec<LPortRef> = Vec::new();
-        let mut seen: HashSet<usize> = HashSet::new();
+        let mut seen: BTreeSet<usize> = BTreeSet::new();
         for port in [upper_port, lower_port] {
             if seen.insert(port_ptr_id(port)) {
                 ports.push(port.clone());

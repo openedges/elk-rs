@@ -7,7 +7,6 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LEdge, LEdgeRef, LGraph, LNodeRef};
 use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorStrategy;
-use crate::org::eclipse::elk::alg::layered::options::InternalProperties;
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
 
 static INTERMEDIATE_PROCESSING_CONFIGURATION: LazyLock<
@@ -165,9 +164,32 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveCycleBreaker {
         }
 
         // Phase 2: DFS to catch remaining cycles
-        // NOTE: Phase 2 DFS hangs on _pseudo_positions models due to unknown cause.
-        // Skipped for now - Phase 1 alone handles most interactive layouts correctly.
-        // TODO: investigate why find_cycles hangs on small graphs (5-20 nodes)
+        // (could happen if some nodes have the same horizontal position)
+        rev_edges.clear();
+
+        // Re-initialize all nodes to id = 1 (unvisited) for Phase 2
+        for node in &nodes {
+            if let Ok(mut guard) = node.lock() {
+                guard.shape().graph_element().id = 1;
+            }
+        }
+
+        for node in &nodes {
+            let is_unvisited = node
+                .lock()
+                .ok()
+                .map(|mut g| g.shape().graph_element().id > 0)
+                .unwrap_or(false);
+
+            if is_unvisited {
+                Self::find_cycles(node, &mut rev_edges);
+            }
+        }
+
+        // Reverse the edges marked during Phase 2
+        for edge in rev_edges.drain(..) {
+            LEdge::reverse(&edge, &dummy_graph, true);
+        }
 
         monitor.done();
     }

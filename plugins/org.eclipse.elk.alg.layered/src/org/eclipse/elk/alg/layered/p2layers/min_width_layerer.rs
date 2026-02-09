@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutPhase;
@@ -35,10 +35,10 @@ impl MinWidthLayerer {
         }
     }
 
-    fn precalc_successors(&self, nodes: &[LNodeRef]) -> Vec<HashSet<usize>> {
-        let mut successors: Vec<HashSet<usize>> = Vec::with_capacity(nodes.len());
+    fn precalc_successors(&self, nodes: &[LNodeRef]) -> Vec<BTreeSet<usize>> {
+        let mut successors: Vec<BTreeSet<usize>> = Vec::with_capacity(nodes.len());
         for node in nodes {
-            let mut out_nodes: HashSet<usize> = HashSet::new();
+            let mut out_nodes: BTreeSet<usize> = BTreeSet::new();
             let outgoing = node
                 .lock()
                 .ok()
@@ -67,7 +67,7 @@ impl MinWidthLayerer {
         upper_bound_on_width: i32,
         compensator: i32,
         nodes: &[LNodeRef],
-        node_successors: &[HashSet<usize>],
+        node_successors: &[BTreeSet<usize>],
     ) -> Pair<f64, Vec<Vec<LNodeRef>>> {
         let mut layers: Vec<Vec<LNodeRef>> = Vec::new();
         let mut unplaced_nodes: Vec<LNodeRef> = nodes.to_vec();
@@ -76,8 +76,8 @@ impl MinWidthLayerer {
 
         let mut out_deg = 0;
 
-        let mut already_placed_in_current_layer: HashSet<usize> = HashSet::new();
-        let mut already_placed_in_other_layers: HashSet<usize> = HashSet::new();
+        let mut already_placed_in_current_layer: BTreeSet<usize> = BTreeSet::new();
+        let mut already_placed_in_other_layers: BTreeSet<usize> = BTreeSet::new();
         let mut current_layer: Vec<LNodeRef> = Vec::new();
 
         let mut width_current = 0.0;
@@ -122,7 +122,8 @@ impl MinWidthLayerer {
             if should_go_up {
                 layers.push(current_layer);
                 current_layer = Vec::new();
-                already_placed_in_other_layers.extend(already_placed_in_current_layer.drain());
+                already_placed_in_other_layers.extend(already_placed_in_current_layer.iter().copied());
+                already_placed_in_current_layer.clear();
 
                 current_spanning_edges -= going_out_from_this_layer;
                 max_width = max_width.max(current_spanning_edges * self.dummy_size + real_width);
@@ -294,8 +295,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for MinWidthLayerer {
 
 fn select_node(
     nodes: &[LNodeRef],
-    successors: &[HashSet<usize>],
-    targets: &HashSet<usize>,
+    successors: &[BTreeSet<usize>],
+    targets: &BTreeSet<usize>,
 ) -> Option<usize> {
     for (index, node) in nodes.iter().enumerate() {
         let node_index = node_id_usize(node);

@@ -1,6 +1,6 @@
 #![allow(clippy::mutable_key_type)]
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::hash::{Hash, Hasher};
 
 use crate::org::eclipse::elk::alg::layered::options::InternalProperties;
@@ -18,6 +18,20 @@ impl PartialEq for NodeRefKey {
 
 impl Eq for NodeRefKey {}
 
+impl PartialOrd for NodeRefKey {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for NodeRefKey {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        let self_ptr = std::sync::Arc::as_ptr(&self.0) as usize;
+        let other_ptr = std::sync::Arc::as_ptr(&other.0) as usize;
+        self_ptr.cmp(&other_ptr)
+    }
+}
+
 impl Hash for NodeRefKey {
     fn hash<H: Hasher>(&self, state: &mut H) {
         let ptr = std::sync::Arc::as_ptr(&self.0) as usize;
@@ -28,7 +42,7 @@ impl Hash for NodeRefKey {
 pub struct Tarjan<'a> {
     edges_to_be_reversed: &'a [LEdgeRef],
     pub strongly_connected_components: &'a mut Vec<Vec<LNodeRef>>,
-    pub node_to_scc_id: &'a mut HashMap<NodeRefKey, usize>,
+    pub node_to_scc_id: &'a mut BTreeMap<NodeRefKey, usize>,
     index: i32,
     stack: Vec<LNodeRef>,
 }
@@ -37,7 +51,7 @@ impl<'a> Tarjan<'a> {
     pub fn new(
         edges_to_be_reversed: &'a [LEdgeRef],
         strongly_connected_components: &'a mut Vec<Vec<LNodeRef>>,
-        node_to_scc_id: &'a mut HashMap<NodeRefKey, usize>,
+        node_to_scc_id: &'a mut BTreeMap<NodeRefKey, usize>,
     ) -> Self {
         Tarjan {
             edges_to_be_reversed,

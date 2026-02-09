@@ -1,6 +1,6 @@
 #![allow(clippy::mutable_key_type)]
 
-use std::collections::{HashSet, VecDeque};
+use std::collections::{BTreeSet, VecDeque};
 use std::sync::{Arc, LazyLock};
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutPhase;
@@ -43,7 +43,7 @@ enum MinimizingMethod {
 pub struct LayerSweepCrossingMinimizer {
     cross_min_type: CrossMinType,
     graph_info_holders: Vec<GraphInfoHolder>,
-    graphs_whose_node_order_changed: HashSet<usize>,
+    graphs_whose_node_order_changed: BTreeSet<usize>,
     random: Random,
     random_seed: Random,
 }
@@ -53,7 +53,7 @@ impl LayerSweepCrossingMinimizer {
         LayerSweepCrossingMinimizer {
             cross_min_type,
             graph_info_holders: Vec::new(),
-            graphs_whose_node_order_changed: HashSet::new(),
+            graphs_whose_node_order_changed: BTreeSet::new(),
             random: Random::default(),
             random_seed: Random::default(),
         }
@@ -755,7 +755,7 @@ impl LayerSweepCrossingMinimizer {
 
         let mut graphs_to_sweep_on: Vec<usize> = Vec::new();
         let mut queue: VecDeque<LGraphRef> = VecDeque::new();
-        let mut seen: HashSet<usize> = HashSet::new();
+        let mut seen: BTreeSet<usize> = BTreeSet::new();
 
         queue.push_back(root_graph.clone());
         seen.insert(Arc::as_ptr(root_graph) as usize);

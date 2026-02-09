@@ -802,7 +802,9 @@
     2. **SECONDARY**: `apply_graph_layout`에서 `ElkUtil.resizeNode` 대신 단순 `set_dimensions` 사용 (size constraint 미적용)
     3. **SECONDARY**: `normalize_graph_bounds` 제거 완료
   - 현재 상태: 96/100 ok, 18 match, 78 drift, 1473 diffs, 4 timeout
-  - 남은 작업:
-    - [ ] `LGraphAdapters` 구현 (LNode/LPort/LLabel → NodeAdapter/PortAdapter/LabelAdapter trait) 후 `LabelAndNodeSizeProcessor`가 `NodeDimensionCalculation` 위임하도록 교체
-    - [ ] `apply_graph_layout` → `apply_parent_node_layout` + `ElkUtil.resize_node` 호출로 교체
-    - [ ] 4 timeout 모델 분석 (`allowNonFlowPortsToSwitchSides`, `horizontalOrder`, `modelOrderCrossingMinimization`, `interactiveLayeredLayout_*_pseudo_positions`)
+  - 완료 작업:
+    - [x] `LGraphAdapters` 구현: 4-param `adapt(graph, transparentNorthSouthEdges, transparentCommentNodes, nodeFilter)` 추가, `LNodeAdapter::get_incoming/outgoing_edges()` → empty Vec, `is_compound_node()` → COMPOUND_NODE only, `LPortAdapter` transparent N/S edge + self-loop holder edge 지원, `LGraphAdapter::get_property()` → full property delegation via cloned MapPropertyHolder. `LabelAndNodeSizeProcessor`가 `adapt(graph, true, true, |n| n.node_type() == Normal)` 호출하도록 교체. 결과: parity 변화 없음 (19 match, 69 drift, 1307 diffs) — drift는 earlier processors (p1cycles/p2layers/p3order)가 원인
+    - [x] `apply_graph_layout` 분석: Rust가 이미 `apply_parent_node_layout`에서 `ElkUtil::resize_node_with()` 사용 중 (정확). `apply_node_layout`의 unconditional `set_dimensions`는 LabelAndNodeSizeProcessor가 올바른 크기를 계산하므로 안전. 변경 불필요
+    - [x] 4 timeout 모델 분석: 12 모델(9 pseudo_positions + allowNonFlowPortsToSwitchSides + horizontalOrder + modelOrderCrossingMinimization). 근본 원인: Rust의 INTERACTIVE cycle breaker/layerer 성능 문제 및 model order crossing minimization의 NODES_AND_EDGES 전략 비효율. 구조적 버그가 아닌 알고리즘 최적화 필요
+  - 최종 상태: 88/100 ok, 19 match, 69 drift, 1307 diffs, 12 timeout
+  - 남은 drift 원인: earlier layout processors (p1cycles/p2layers/p3order)의 좌표 차이 (children[*]/y 56.5%, children[*]/x 21.2%)

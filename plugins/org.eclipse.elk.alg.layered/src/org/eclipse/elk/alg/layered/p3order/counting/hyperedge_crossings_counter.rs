@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
@@ -112,9 +112,9 @@ impl HyperedgeCrossingsCounter {
             target_count += other_input_ports;
         }
 
-        let mut port_to_hyperedge: HashMap<usize, usize> = HashMap::new();
+        let mut port_to_hyperedge: BTreeMap<usize, usize> = BTreeMap::new();
         let mut hyperedges: Vec<Hyperedge> = Vec::new();
-        let mut active: HashSet<usize> = HashSet::new();
+        let mut active: BTreeSet<usize> = BTreeSet::new();
 
         for node in left_layer {
             let ports = node

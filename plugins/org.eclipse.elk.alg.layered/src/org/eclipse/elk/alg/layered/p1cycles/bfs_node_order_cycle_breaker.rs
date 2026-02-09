@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::sync::Arc;
 use std::sync::LazyLock;
 
@@ -25,8 +25,8 @@ static INTERMEDIATE_PROCESSING_CONFIGURATION: LazyLock<
 });
 
 pub struct BfsNodeOrderCycleBreaker {
-    sources: HashSet<NodeRefKey>,
-    sinks: HashSet<NodeRefKey>,
+    sources: BTreeSet<NodeRefKey>,
+    sinks: BTreeSet<NodeRefKey>,
     visited: Vec<bool>,
     bfs_queue: VecDeque<LNodeRef>,
     edges_to_be_reversed: Vec<crate::org::eclipse::elk::alg::layered::graph::LEdgeRef>,
@@ -35,8 +35,8 @@ pub struct BfsNodeOrderCycleBreaker {
 impl BfsNodeOrderCycleBreaker {
     pub fn new() -> Self {
         BfsNodeOrderCycleBreaker {
-            sources: HashSet::new(),
-            sinks: HashSet::new(),
+            sources: BTreeSet::new(),
+            sinks: BTreeSet::new(),
             visited: Vec::new(),
             bfs_queue: VecDeque::new(),
             edges_to_be_reversed: Vec::new(),

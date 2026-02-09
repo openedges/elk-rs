@@ -1,5 +1,5 @@
 use std::cmp::max;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::LazyLock;
 
@@ -40,7 +40,7 @@ where
     ),
 {
     let mut strongly_connected_components: Vec<Vec<LNodeRef>> = Vec::new();
-    let mut node_to_scc_id: HashMap<NodeRefKey, usize> = HashMap::new();
+    let mut node_to_scc_id: BTreeMap<NodeRefKey, usize> = BTreeMap::new();
     let mut rev_edges: Vec<crate::org::eclipse::elk::alg::layered::graph::LEdgeRef> = Vec::new();
 
     let offset = max(

@@ -1,6 +1,6 @@
 use std::any::Any;
 use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 
 use org_eclipse_elk_core::org::eclipse::elk::core::util::Random;
 
@@ -15,8 +15,8 @@ use crate::org::eclipse::elk::alg::layered::p3order::i_crossing_minimization_heu
 
 pub struct ModelOrderBarycenterHeuristic {
     base: BarycenterHeuristic,
-    bigger_than: HashMap<usize, HashSet<usize>>,
-    smaller_than: HashMap<usize, HashSet<usize>>,
+    bigger_than: BTreeMap<usize, BTreeSet<usize>>,
+    smaller_than: BTreeMap<usize, BTreeSet<usize>>,
 }
 
 impl ModelOrderBarycenterHeuristic {
@@ -27,8 +27,8 @@ impl ModelOrderBarycenterHeuristic {
     ) -> Self {
         ModelOrderBarycenterHeuristic {
             base: BarycenterHeuristic::new(constraint_resolver, random, port_distributor),
-            bigger_than: HashMap::new(),
-            smaller_than: HashMap::new(),
+            bigger_than: BTreeMap::new(),
+            smaller_than: BTreeMap::new(),
         }
     }
 
@@ -40,16 +40,25 @@ impl ModelOrderBarycenterHeuristic {
         let id1 = node_ptr_id(n1);
         let id2 = node_ptr_id(n2);
 
-        if self.bigger_than.get(&id1).is_some_and(|set| set.contains(&id2)) {
+        // Initialize empty sets if they don't exist (matching Java behavior)
+        if !self.bigger_than.contains_key(&id1) {
+            self.bigger_than.insert(id1, BTreeSet::new());
+        } else if self.bigger_than.get(&id1).unwrap().contains(&id2) {
             return 1;
         }
-        if self.bigger_than.get(&id2).is_some_and(|set| set.contains(&id1)) {
+        if !self.bigger_than.contains_key(&id2) {
+            self.bigger_than.insert(id2, BTreeSet::new());
+        } else if self.bigger_than.get(&id2).unwrap().contains(&id1) {
             return -1;
         }
-        if self.smaller_than.get(&id1).is_some_and(|set| set.contains(&id2)) {
+        if !self.smaller_than.contains_key(&id1) {
+            self.smaller_than.insert(id1, BTreeSet::new());
+        } else if self.smaller_than.get(&id1).unwrap().contains(&id2) {
             return -1;
         }
-        if self.smaller_than.get(&id2).is_some_and(|set| set.contains(&id1)) {
+        if !self.smaller_than.contains_key(&id2) {
+            self.smaller_than.insert(id2, BTreeSet::new());
+        } else if self.smaller_than.get(&id2).unwrap().contains(&id1) {
             return 1;
         }
         0
@@ -95,24 +104,35 @@ impl ModelOrderBarycenterHeuristic {
         let big_id = node_ptr_id(bigger);
         let small_id = node_ptr_id(smaller);
 
+        // Capture the current state of all four sets BEFORE any modifications
+        // In Java these are references, but we clone to avoid borrow checker issues
+        // Java: biggerNodeBiggerThan, smallerNodeBiggerThan, biggerNodeSmallerThan, smallerNodeSmallerThan
+        let smaller_node_bigger_than = self.bigger_than.get(&small_id).cloned().unwrap_or_default();
+        let bigger_node_smaller_than = self.smaller_than.get(&big_id).cloned().unwrap_or_default();
+
+        // biggerNodeBiggerThan.add(smaller)
         self.bigger_than.entry(big_id).or_default().insert(small_id);
+        // smallerNodeSmallerThan.add(bigger)
         self.smaller_than.entry(small_id).or_default().insert(big_id);
 
-        let smaller_bigger = self.bigger_than.get(&small_id).cloned().unwrap_or_default();
-        let bigger_smaller = self.smaller_than.get(&big_id).cloned().unwrap_or_default();
-
-        for very_small in smaller_bigger.iter() {
+        // for (LNode verySmall : smallerNodeBiggerThan)
+        for very_small in smaller_node_bigger_than.iter() {
+            // biggerNodeBiggerThan.add(verySmall)
             self.bigger_than.entry(big_id).or_default().insert(*very_small);
+            // smallerThan.get(verySmall).add(bigger)
             self.smaller_than.entry(*very_small).or_default().insert(big_id);
-            let to_add = bigger_smaller.clone();
-            self.smaller_than.entry(*very_small).or_default().extend(to_add);
+            // smallerThan.get(verySmall).addAll(biggerNodeSmallerThan)
+            self.smaller_than.entry(*very_small).or_default().extend(bigger_node_smaller_than.iter().copied());
         }
 
-        for very_big in bigger_smaller.iter() {
+        // for (LNode veryBig : biggerNodeSmallerThan)
+        for very_big in bigger_node_smaller_than.iter() {
+            // smallerNodeSmallerThan.add(veryBig)
             self.smaller_than.entry(small_id).or_default().insert(*very_big);
+            // biggerThan.get(veryBig).add(smaller)
             self.bigger_than.entry(*very_big).or_default().insert(small_id);
-            let to_add = smaller_bigger.clone();
-            self.bigger_than.entry(*very_big).or_default().extend(to_add);
+            // biggerThan.get(veryBig).addAll(smallerNodeBiggerThan)
+            self.bigger_than.entry(*very_big).or_default().extend(smaller_node_bigger_than.iter().copied());
         }
     }
 

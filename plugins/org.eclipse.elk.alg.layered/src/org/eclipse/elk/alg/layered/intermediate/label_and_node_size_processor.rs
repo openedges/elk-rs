@@ -3,23 +3,22 @@ use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::elk_margin::ElkMargin;
+use org_eclipse_elk_core::org::eclipse::elk::core::math::elk_rectangle::ElkRectangle;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_alignment::PortAlignment;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::port_label_placement::PortLabelPlacement;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::size_constraint::SizeConstraint;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 
-use org_eclipse_elk_core::org::eclipse::elk::core::options::Direction;
-use org_eclipse_elk_core::org::eclipse::elk::core::util::adapters::{GraphAdapter, GraphElementAdapter};
-
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::nodespacing::node_dimension_calculation::NodeDimensionCalculation;
-use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::nodespacing::node_label_and_size_calculator::NodeLabelAndSizeCalculator;
 
 use crate::org::eclipse::elk::alg::layered::graph::transform::LGraphAdapters;
 use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LGraphUtil, LNodeRef, NodeType};
-use crate::org::eclipse::elk::alg::layered::options::LayeredOptions;
+use crate::org::eclipse::elk::alg::layered::options::graph_properties::GraphProperties;
+use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions};
 
 pub struct LabelAndNodeSizeProcessor;
 
@@ -64,12 +63,63 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
         }
 
         // Phase 2: Apply port label placement via NodeDimensionCalculation (generic path)
-        let adapter = LGraphAdapters::adapt(graph);
+        let adapter = LGraphAdapters::adapt(graph, true, true, |node| {
+            node.node_type() == NodeType::Normal
+        });
         NodeDimensionCalculation::calculate_label_and_node_sizes(&adapter);
+
+        // Phase 3: If the graph has external ports, handle labels of external port dummies
+        let has_external_ports = graph
+            .get_property(InternalProperties::GRAPH_PROPERTIES)
+            .map(|props| props.contains(&GraphProperties::ExternalPorts))
+            .unwrap_or(false);
+
+        if has_external_ports {
+            let port_label_placement = graph
+                .get_property(CoreOptions::PORT_LABELS_PLACEMENT)
+                .unwrap_or_default();
+            let place_next_to_port = port_label_placement.contains(&PortLabelPlacement::NextToPortIfPossible);
+            let treat_as_group = graph
+                .get_property(CoreOptions::PORT_LABELS_TREAT_AS_GROUP)
+                .unwrap_or(true);
+
+            for layer in graph.layers().clone() {
+                let nodes: Vec<LNodeRef> = layer
+                    .lock()
+                    .ok()
+                    .map(|layer_guard| {
+                        layer_guard
+                            .nodes()
+                            .iter()
+                            .filter(|node| {
+                                node.lock()
+                                    .ok()
+                                    .map(|g| g.node_type() == NodeType::ExternalPort)
+                                    .unwrap_or(false)
+                            })
+                            .cloned()
+                            .collect()
+                    })
+                    .unwrap_or_default();
+
+                for dummy in nodes {
+                    place_external_port_dummy_labels(
+                        &dummy,
+                        &port_label_placement,
+                        place_next_to_port,
+                        treat_as_group,
+                    );
+                }
+            }
+        }
 
         monitor.done();
     }
 }
+
+// ============================================================
+// Phase 1: Port placement
+// ============================================================
 
 fn place_ports_on_node(node: &LNodeRef, graph_port_spacing: f64, graph_ports_surrounding: &ElkMargin) {
     let (node_type, mut node_size, port_constraints, inside_self_loops_active, size_constraints) =
@@ -658,5 +708,191 @@ fn adjust_ports_on_side(node: &LNodeRef, side: PortSide, width: f64, height: f64
                 _ => {}
             }
         }
+    }
+}
+
+// ============================================================
+// Phase 3: External port dummy label placement
+// ============================================================
+
+/// Places labels of an external port dummy node. Java: placeExternalPortDummyLabels()
+fn place_external_port_dummy_labels(
+    dummy: &LNodeRef,
+    graph_port_label_placement: &org_eclipse_elk_core::org::eclipse::elk::core::util::EnumSet<PortLabelPlacement>,
+    place_next_to_port_if_possible: bool,
+    treat_as_group: bool,
+) {
+    let (label_port_spacing_horizontal, label_port_spacing_vertical, label_label_spacing, dummy_size) =
+        match dummy.lock() {
+            Ok(mut guard) => (
+                guard
+                    .get_property(LayeredOptions::SPACING_LABEL_PORT_HORIZONTAL)
+                    .unwrap_or(0.0),
+                guard
+                    .get_property(LayeredOptions::SPACING_LABEL_PORT_VERTICAL)
+                    .unwrap_or(0.0),
+                guard
+                    .get_property(LayeredOptions::SPACING_LABEL_LABEL)
+                    .unwrap_or(0.0),
+                *guard.shape().size_ref(),
+            ),
+            Err(_) => return,
+        };
+
+    // External port dummies have exactly one port
+    let dummy_port = match dummy.lock() {
+        Ok(guard) => match guard.ports().first() {
+            Some(p) => p.clone(),
+            None => return,
+        },
+        Err(_) => return,
+    };
+
+    let dummy_port_pos = dummy_port
+        .lock()
+        .ok()
+        .map(|mut g| *g.shape().position_ref())
+        .unwrap_or_default();
+
+    // Compute port label box
+    let port_labels: Vec<_> = dummy_port
+        .lock()
+        .ok()
+        .map(|g| g.labels().clone())
+        .unwrap_or_default();
+    if port_labels.is_empty() {
+        return;
+    }
+
+    let mut label_box = ElkRectangle::default();
+    for label in &port_labels {
+        if let Ok(mut g) = label.lock() {
+            let sz = g.shape().size_ref();
+            label_box.width = label_box.width.max(sz.x);
+            label_box.height += sz.y;
+        }
+    }
+    label_box.height += (port_labels.len() as f64 - 1.0) * label_label_spacing;
+
+    let ext_port_side = dummy
+        .lock()
+        .ok()
+        .and_then(|mut g| g.get_property(InternalProperties::EXT_PORT_SIDE))
+        .unwrap_or(PortSide::Undefined);
+
+    // Determine the position of the label box
+    if graph_port_label_placement.contains(&PortLabelPlacement::Inside) {
+        match ext_port_side {
+            PortSide::North => {
+                label_box.x = (dummy_size.x - label_box.width) / 2.0 - dummy_port_pos.x;
+                label_box.y = label_port_spacing_vertical;
+            }
+            PortSide::South => {
+                label_box.x = (dummy_size.x - label_box.width) / 2.0 - dummy_port_pos.x;
+                label_box.y = -label_port_spacing_vertical - label_box.height;
+            }
+            PortSide::East => {
+                if label_next_to_port(&dummy_port, true, place_next_to_port_if_possible) {
+                    let label_height = if treat_as_group {
+                        label_box.height
+                    } else {
+                        port_labels
+                            .first()
+                            .and_then(|l| l.lock().ok().map(|mut g| g.shape().size_ref().y))
+                            .unwrap_or(0.0)
+                    };
+                    label_box.y = (dummy_size.y - label_height) / 2.0 - dummy_port_pos.y;
+                } else {
+                    label_box.y = dummy_size.y + label_port_spacing_vertical - dummy_port_pos.y;
+                }
+                label_box.x = -label_port_spacing_horizontal - label_box.width;
+            }
+            PortSide::West => {
+                if label_next_to_port(&dummy_port, true, place_next_to_port_if_possible) {
+                    let label_height = if treat_as_group {
+                        label_box.height
+                    } else {
+                        port_labels
+                            .first()
+                            .and_then(|l| l.lock().ok().map(|mut g| g.shape().size_ref().y))
+                            .unwrap_or(0.0)
+                    };
+                    label_box.y = (dummy_size.y - label_height) / 2.0 - dummy_port_pos.y;
+                } else {
+                    label_box.y = dummy_size.y + label_port_spacing_vertical - dummy_port_pos.y;
+                }
+                label_box.x = label_port_spacing_horizontal;
+            }
+            _ => {}
+        }
+    } else if graph_port_label_placement.contains(&PortLabelPlacement::Outside) {
+        match ext_port_side {
+            PortSide::North | PortSide::South => {
+                label_box.x = dummy_port_pos.x + label_port_spacing_horizontal;
+            }
+            PortSide::East | PortSide::West => {
+                if label_next_to_port(&dummy_port, false, place_next_to_port_if_possible) {
+                    let label_height = if treat_as_group {
+                        label_box.height
+                    } else {
+                        port_labels
+                            .first()
+                            .and_then(|l| l.lock().ok().map(|mut g| g.shape().size_ref().y))
+                            .unwrap_or(0.0)
+                    };
+                    label_box.y = (dummy_size.y - label_height) / 2.0 - dummy_port_pos.y;
+                } else {
+                    label_box.y = dummy_port_pos.y + label_port_spacing_vertical;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // Place the labels
+    let mut current_y = label_box.y;
+    for label in &port_labels {
+        if let Ok(mut g) = label.lock() {
+            let label_size_y = g.shape().size_ref().y;
+            let pos = g.shape().position();
+            pos.x = label_box.x;
+            pos.y = current_y;
+            current_y += label_size_y + label_label_spacing;
+        }
+    }
+}
+
+/// Checks whether labels of the given port should be placed next to the port or below it.
+fn label_next_to_port(
+    dummy_port: &crate::org::eclipse::elk::alg::layered::graph::LPortRef,
+    inside_labels: bool,
+    place_next_to_port_if_possible: bool,
+) -> bool {
+    if !place_next_to_port_if_possible {
+        return false;
+    }
+
+    if let Ok(port_guard) = dummy_port.lock() {
+        if inside_labels {
+            port_guard.incoming_edges().is_empty() && port_guard.outgoing_edges().is_empty()
+        } else {
+            // Java: !dummyPort.isConnectedToExternalNodes()
+            !is_connected_to_external_nodes(dummy_port)
+        }
+    } else {
+        false
+    }
+}
+
+/// Check if the port is connected to external nodes (nodes outside the dummy's graph).
+fn is_connected_to_external_nodes(
+    port: &crate::org::eclipse::elk::alg::layered::graph::LPortRef,
+) -> bool {
+    if let Ok(port_guard) = port.lock() {
+        let has_incoming = !port_guard.incoming_edges().is_empty();
+        let has_outgoing = !port_guard.outgoing_edges().is_empty();
+        has_incoming || has_outgoing
+    } else {
+        false
     }
 }

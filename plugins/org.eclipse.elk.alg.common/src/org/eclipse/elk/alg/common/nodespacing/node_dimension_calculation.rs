@@ -31,13 +31,25 @@ impl NodeDimensionCalculation {
     where
         T: 'static,
         G: GraphAdapter<T> + Any,
+        <<G as GraphAdapter<T>>::NodeAdapter as NodeAdapter<<G as GraphAdapter<T>>::Node>>::Graph: GraphElementAdapter<<G as GraphAdapter<T>>::Node>,
+        <<G as GraphAdapter<T>>::NodeAdapter as NodeAdapter<<G as GraphAdapter<T>>::Node>>::Label: 'static,
+        <<G as GraphAdapter<T>>::NodeAdapter as NodeAdapter<<G as GraphAdapter<T>>::Node>>::LabelAdapter: 'static,
     {
-        // Keep Java-style behavior for ELK adapters, and provide a best-effort generic fallback.
+        // Java: single path — NodeLabelAndSizeCalculator.process(adapter)
+        // which iterates nodes and calls process_node() for each.
+        // We match this by calling process_node for each node, then handling port labels.
+        //
+        // For ELK adapters we use the ELK-specific path that has full endpoint analysis.
+        // For other adapters (e.g. LGraphAdapter), we use process_node + generic port label path.
         if let Some(elk_adapter) = (adapter as &dyn Any).downcast_ref::<ElkGraphAdapter>() {
             Self::calculate_label_and_node_sizes_for_elk(elk_adapter);
             return;
         }
 
+        // Note: _with_process_node and _generic produce identical results because
+        // LNodeAdapter::get_graph() returns None, making process_node skip its logic.
+        // Phase 1 port placement in LabelAndNodeSizeProcessor handles what process_node
+        // would do in the Java ELK path. Keep _generic for now.
         Self::calculate_label_and_node_sizes_generic(adapter);
     }
 
@@ -267,6 +279,261 @@ impl NodeDimensionCalculation {
                         gap_x: label_gap_horizontal,
                         gap_y: label_gap_vertical,
                         start_coordinate: Self::compute_stack_start_coordinate(
+                            &south_entries,
+                            south_positive,
+                            label_gap_vertical,
+                        ),
+                        clamp_x,
+                    },
+                );
+            }
+        }
+    }
+
+    /// Java-matching path: calls process_node (for node label sizing) then port label placement.
+    /// This is what Java's NodeDimensionCalculation.calculateLabelAndNodeSizes does via
+    /// NodeLabelAndSizeCalculator.process(adapter).
+    fn calculate_label_and_node_sizes_with_process_node<T, G>(adapter: &G)
+    where
+        T: 'static,
+        G: GraphAdapter<T>,
+        <<G as GraphAdapter<T>>::NodeAdapter as NodeAdapter<<G as GraphAdapter<T>>::Node>>::Graph: GraphElementAdapter<<G as GraphAdapter<T>>::Node>,
+        <<G as GraphAdapter<T>>::NodeAdapter as NodeAdapter<<G as GraphAdapter<T>>::Node>>::Label: 'static,
+        <<G as GraphAdapter<T>>::NodeAdapter as NodeAdapter<<G as GraphAdapter<T>>::Node>>::LabelAdapter: 'static,
+        <G as GraphAdapter<T>>::Node: 'static,
+    {
+        let layout_direction = adapter
+            .get_property(CoreOptions::DIRECTION)
+            .unwrap_or(Direction::Undefined);
+        for node in adapter.get_nodes() {
+            NodeLabelAndSizeCalculator::process_node(&node, layout_direction);
+
+            let placement = node
+                .get_property(CoreOptions::PORT_LABELS_PLACEMENT)
+                .unwrap_or_default();
+            if PortLabelPlacement::is_fixed(&placement) {
+                continue;
+            }
+
+            let constrained_placement = placement.contains(&PortLabelPlacement::Inside)
+                || placement.contains(&PortLabelPlacement::Outside);
+            let inside_label_placement = placement.contains(&PortLabelPlacement::Inside);
+            let next_to_port_if_possible =
+                placement.contains(&PortLabelPlacement::NextToPortIfPossible);
+            let always_same_side = placement.contains(&PortLabelPlacement::AlwaysSameSide);
+            let always_other_same_side = placement.contains(&PortLabelPlacement::AlwaysOtherSameSide);
+            let space_efficient = placement.contains(&PortLabelPlacement::SpaceEfficient);
+            let label_gap_horizontal = node
+                .get_property(CoreOptions::SPACING_LABEL_PORT_HORIZONTAL)
+                .unwrap_or(1.0);
+            let label_gap_vertical = node
+                .get_property(CoreOptions::SPACING_LABEL_PORT_VERTICAL)
+                .unwrap_or(1.0);
+            let node_width = node.get_size().x;
+
+            let ports = node.get_ports();
+            let any_incident_edges = ports.iter().any(|port| {
+                !port.get_incoming_edges().is_empty() || !port.get_outgoing_edges().is_empty()
+            });
+            let mut side_counts: [usize; 5] = [0; 5];
+            for port in ports.iter() {
+                let idx = match port.get_side() {
+                    PortSide::North => 0,
+                    PortSide::East => 1,
+                    PortSide::South => 2,
+                    PortSide::West => 3,
+                    PortSide::Undefined => 4,
+                };
+                side_counts[idx] += 1;
+            }
+            let mut side_indices: [usize; 5] = [0; 5];
+            let mut north_entries: Vec<(usize, usize)> = Vec::new();
+            let mut south_entries: Vec<(usize, usize)> = Vec::new();
+
+            for (port_idx, port) in ports.iter().enumerate() {
+                let side_idx = match port.get_side() {
+                    PortSide::North => 0,
+                    PortSide::East => 1,
+                    PortSide::South => 2,
+                    PortSide::West => 3,
+                    PortSide::Undefined => 4,
+                };
+                let per_side_index = side_indices[side_idx];
+                let per_side_count = side_counts[side_idx];
+                side_indices[side_idx] += 1;
+
+                let relation = Self::label_placement_relation(
+                    per_side_index,
+                    per_side_count,
+                    any_incident_edges,
+                    inside_label_placement,
+                    next_to_port_if_possible,
+                    always_same_side,
+                    always_other_same_side,
+                    space_efficient,
+                    Self::should_label_be_placed_next_to_port_generic(port, inside_label_placement),
+                );
+
+                let port_size = port.get_size();
+                let port_border_offset =
+                    port.get_property(CoreOptions::PORT_BORDER_OFFSET).unwrap_or(0.0);
+                let label_border_offset = {
+                    let padding = node.get_padding();
+                    match port.get_side() {
+                        PortSide::North => padding.top + label_gap_vertical,
+                        PortSide::East => padding.right + label_gap_horizontal,
+                        PortSide::South => padding.bottom + label_gap_vertical,
+                        PortSide::West | PortSide::Undefined => padding.left + label_gap_horizontal,
+                    }
+                };
+                let labels = port.get_labels();
+                let label_count = labels.len();
+                let total_label_height: f64 = if label_count > 1
+                    && matches!(port.get_side(), PortSide::East | PortSide::West | PortSide::Undefined)
+                {
+                    labels.iter().map(|l| l.get_size().y).sum()
+                } else {
+                    0.0
+                };
+
+                let mut y_cursor = if label_count > 1
+                    && matches!(port.get_side(), PortSide::East | PortSide::West | PortSide::Undefined)
+                {
+                    if inside_label_placement {
+                        (port_size.y - total_label_height) / 2.0
+                    } else {
+                        match relation {
+                            LabelPlacementRelation::BelowOrRight => port_size.y + 1.0,
+                            LabelPlacementRelation::AboveOrLeft => -total_label_height - 1.0,
+                            LabelPlacementRelation::Centered => (port_size.y - total_label_height) / 2.0,
+                        }
+                    }
+                } else {
+                    0.0
+                };
+
+                for (label_idx, label) in labels.iter().enumerate() {
+                    let mut label_pos = label.get_position();
+                    let label_size = label.get_size();
+                    match port.get_side() {
+                        PortSide::North => {
+                            label_pos.x = match relation {
+                                LabelPlacementRelation::Centered => {
+                                    (port_size.x - label_size.x) / 2.0
+                                }
+                                LabelPlacementRelation::BelowOrRight => port_size.x + 1.0,
+                                LabelPlacementRelation::AboveOrLeft => -label_size.x - 1.0,
+                            };
+                            if constrained_placement {
+                                label_pos.y = if inside_label_placement {
+                                    port_size.y + port_border_offset + label_border_offset
+                                } else {
+                                    -label_size.y - label_gap_vertical
+                                };
+                            }
+                        }
+                        PortSide::South => {
+                            label_pos.x = match relation {
+                                LabelPlacementRelation::Centered => {
+                                    (port_size.x - label_size.x) / 2.0
+                                }
+                                LabelPlacementRelation::BelowOrRight => port_size.x + 1.0,
+                                LabelPlacementRelation::AboveOrLeft => -label_size.x - 1.0,
+                            };
+                            if constrained_placement {
+                                label_pos.y = if inside_label_placement {
+                                    -port_border_offset - label_border_offset - label_size.y
+                                } else {
+                                    port_size.y + label_gap_vertical
+                                };
+                            }
+                        }
+                        PortSide::East => {
+                            if constrained_placement {
+                                label_pos.x = if inside_label_placement {
+                                    -port_border_offset - label_border_offset - label_size.x
+                                } else {
+                                    port_size.x + label_gap_horizontal
+                                };
+                            }
+                            if label_count > 1 {
+                                label_pos.y = y_cursor;
+                                y_cursor += label_size.y;
+                            } else {
+                                label_pos.y = match relation {
+                                    LabelPlacementRelation::Centered => {
+                                        (port_size.y - label_size.y) / 2.0
+                                    }
+                                    LabelPlacementRelation::BelowOrRight => port_size.y + 1.0,
+                                    LabelPlacementRelation::AboveOrLeft => -label_size.y - 1.0,
+                                };
+                            }
+                        }
+                        PortSide::West | PortSide::Undefined => {
+                            if constrained_placement {
+                                label_pos.x = if inside_label_placement {
+                                    port_size.x + port_border_offset + label_border_offset
+                                } else {
+                                    -label_size.x - label_gap_horizontal
+                                };
+                            }
+                            if label_count > 1 {
+                                label_pos.y = y_cursor;
+                                y_cursor += label_size.y;
+                            } else {
+                                label_pos.y = match relation {
+                                    LabelPlacementRelation::Centered => {
+                                        (port_size.y - label_size.y) / 2.0
+                                    }
+                                    LabelPlacementRelation::BelowOrRight => port_size.y + 1.0,
+                                    LabelPlacementRelation::AboveOrLeft => -label_size.y - 1.0,
+                                };
+                            }
+                        }
+                    }
+                    label.set_position(label_pos);
+
+                    if constrained_placement {
+                        match port.get_side() {
+                            PortSide::North => north_entries.push((port_idx, label_idx)),
+                            PortSide::South => south_entries.push((port_idx, label_idx)),
+                            _ => {}
+                        }
+                    }
+                }
+            }
+
+            if constrained_placement {
+                let north_positive = inside_label_placement;
+                let south_positive = !inside_label_placement;
+                let clamp_x = inside_label_placement
+                    .then(|| Self::inside_horizontal_label_clamp_bounds_generic(&node, node_width));
+
+                Self::stack_horizontal_side_labels_generic(
+                    &node,
+                    &north_entries,
+                    HorizontalStackConfig {
+                        positive_direction: north_positive,
+                        gap_x: label_gap_horizontal,
+                        gap_y: label_gap_vertical,
+                        start_coordinate: Self::compute_stack_start_coordinate_generic(
+                            &node,
+                            &north_entries,
+                            north_positive,
+                            label_gap_vertical,
+                        ),
+                        clamp_x,
+                    },
+                );
+                Self::stack_horizontal_side_labels_generic(
+                    &node,
+                    &south_entries,
+                    HorizontalStackConfig {
+                        positive_direction: south_positive,
+                        gap_x: label_gap_horizontal,
+                        gap_y: label_gap_vertical,
+                        start_coordinate: Self::compute_stack_start_coordinate_generic(
+                            &node,
                             &south_entries,
                             south_positive,
                             label_gap_vertical,

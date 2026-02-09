@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{BTreeMap, VecDeque};
 use std::sync::{Arc, Mutex};
 
 use crate::org::eclipse::elk::alg::layered::graph::{LNodeRef, NodeType};
@@ -8,7 +8,7 @@ use crate::org::eclipse::elk::alg::layered::p3order::counting::IInitializable;
 
 pub struct ForsterConstraintResolver {
     constraints_between_non_dummies: bool,
-    layout_units: HashMap<usize, Vec<LNodeRef>>,
+    layout_units: BTreeMap<usize, Vec<LNodeRef>>,
     barycenter_states: Vec<Vec<Option<Arc<Mutex<BarycenterState>>>>>,
     constraint_groups: Vec<Vec<Option<ConstraintGroupRef>>>,
 }
@@ -22,7 +22,7 @@ impl ForsterConstraintResolver {
     ) -> Self {
         ForsterConstraintResolver {
             constraints_between_non_dummies,
-            layout_units: HashMap::new(),
+            layout_units: BTreeMap::new(),
             barycenter_states: Vec::new(),
             constraint_groups: Vec::new(),
         }
@@ -171,7 +171,7 @@ impl ForsterConstraintResolver {
         groups: &[ConstraintGroupRef],
     ) -> Option<(ConstraintGroupRef, ConstraintGroupRef)> {
         let mut active_groups: VecDeque<ConstraintGroupRef> = VecDeque::new();
-        let mut index_map: HashMap<usize, usize> = HashMap::new();
+        let mut index_map: BTreeMap<usize, usize> = BTreeMap::new();
         for (index, group) in groups.iter().enumerate() {
             index_map.insert(group_ptr_id(group), index);
             if let Ok(mut group_guard) = group.lock() {
