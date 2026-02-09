@@ -210,6 +210,9 @@ pub static LABEL_SIDE_PROPERTY: LazyLock<Property<LabelSide>> =
 pub static SELF_LOOP_HOLDER_PROPERTY: LazyLock<Property<SelfLoopHolderRef>> =
     LazyLock::new(|| Property::new("selfLoopHolder"));
 
+pub static COMPOUND_NODE_PROPERTY: LazyLock<Property<bool>> =
+    LazyLock::new(|| Property::with_default("compoundNode", false));
+
 impl InternalProperties {
     pub const ORIGIN: &'static LazyLock<Property<Origin>> = &ORIGIN_PROPERTY;
     pub const REPRESENTED_LABELS: &'static LazyLock<Property<Vec<LLabelRef>>> =
@@ -292,4 +295,5 @@ impl InternalProperties {
     pub const LABEL_SIDE: &'static LazyLock<Property<LabelSide>> = &LABEL_SIDE_PROPERTY;
     pub const SELF_LOOP_HOLDER: &'static LazyLock<Property<SelfLoopHolderRef>> =
         &SELF_LOOP_HOLDER_PROPERTY;
+    pub const COMPOUND_NODE: &'static LazyLock<Property<bool>> = &COMPOUND_NODE_PROPERTY;
 }

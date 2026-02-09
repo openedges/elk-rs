@@ -1,3 +1,6 @@
+use std::collections::HashSet;
+use std::sync::Arc;
+
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::elk_padding::ElkPadding;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
@@ -775,10 +778,22 @@ impl ILayoutProcessor<LGraph> for GraphTransformer {
     fn process(&mut self, layered_graph: &mut LGraph, monitor: &mut dyn IElkProgressMonitor) {
         monitor.begin(&format!("Graph transformation ({:?})", self.mode), 1.0);
 
-        let mut nodes = layered_graph.layerless_nodes().clone();
+        let mut seen: HashSet<usize> = HashSet::new();
+        let mut nodes: Vec<LNodeRef> = Vec::new();
+        for node in layered_graph.layerless_nodes().clone() {
+            let key = Arc::as_ptr(&node) as usize;
+            if seen.insert(key) {
+                nodes.push(node);
+            }
+        }
         for layer in layered_graph.layers() {
             if let Ok(layer_guard) = layer.lock() {
-                nodes.extend(layer_guard.nodes().clone());
+                for node in layer_guard.nodes() {
+                    let key = Arc::as_ptr(node) as usize;
+                    if seen.insert(key) {
+                        nodes.push(node.clone());
+                    }
+                }
             }
         }
 

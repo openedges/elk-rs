@@ -51,8 +51,6 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
         for edge in &edges {
             self.apply_edge_layout(edge, offset);
         }
-        self.normalize_graph_bounds(graph_id, &nodes, &edges);
-
         for node in &nodes {
             let nested_graph = node.lock().ok().and_then(|node_guard| node_guard.nested_graph());
             if let Some(nested_graph) = nested_graph {
@@ -211,7 +209,7 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
             edge_mut.sections().clear();
         }
 
-        let (outgoing_shape, incoming_shape) = {
+        let (incoming_shape, outgoing_shape) = {
             let edge_ref = elk_edge.borrow();
             (
                 first_shape(edge_ref.sources_ro()),
@@ -226,8 +224,8 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
             section_mut.set_start_y(start.y + offset.y);
             section_mut.set_end_x(end.x + offset.x);
             section_mut.set_end_y(end.y + offset.y);
-            section_mut.set_outgoing_shape(outgoing_shape);
             section_mut.set_incoming_shape(incoming_shape);
+            section_mut.set_outgoing_shape(outgoing_shape);
 
             for point in bend_points {
                 let bend = ElkBendPoint::new();

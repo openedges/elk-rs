@@ -17,6 +17,9 @@ Release readiness quick run:
 - `run_perf_recursive_layout_scenarios.sh [scenarios] [iterations] [warmup] [output]` (`fixed_dense`, `fixed_sparse`, `random_dense`, `random_sparse`, `box_sparse`, `box_large`, `fixed_validated`, `random_validated`, `box_validated` preset scenarios; when `scenarios` is empty, the default set is selected by `PERF_RECURSIVE_SCENARIO_PROFILE=quick|default|full`)
 - `run_perf_layered_issue_scenarios.sh [scenarios] [iterations] [warmup] [output]`
 - `run_java_perf_layered_issue_scenarios.sh [scenarios] [iterations] [warmup] [output]` (runs the external ELK Java layered benchmark test; benchmark test source is temporarily injected from a repository template and cleaned up automatically)
+- `run_java_model_parity_export.sh [models_root] [output_dir]` (injects `scripts/java/ElkModelParityExportTest.java` into external ELK tests and exports model-level Java input/layout JSON + manifest for parity comparison)
+- `run_model_parity_elk_vs_rust.sh [models_root] [output_root]` (runs Java export -> Rust layout replay -> JSON diff report pipeline for `external/elk-models`)
+- `compare_model_parity_layouts.py --manifest <rust_manifest.tsv> --report <report.md> --details <details.tsv>` (numeric-tolerant structural comparison of Java vs Rust layout JSON results)
 - `run_perf_all.sh` (runs all perf scripts with defaults; supports env overrides)
 - `compare_perf_results.sh [window]` (`PERF_COMPARE_MODE=window|baseline|both`, default window; baseline mode compares against `PERF_BASELINE_LAYERED_FILE` + `PERF_BASELINE_RECURSIVE_SCENARIOS_FILE`; scenario files auto-filter current-side rows to each scenario's latest run config tuple to avoid mixed-window contamination)
 - `check_recursive_perf_runtime_budget.sh [results_file] [profile] [report]` (checks whether latest per-scenario `avg_iteration_ms` in recursive scenario CSV exceeds profile budgets (`quick|default|full`); default budgets are `RECURSIVE_BUDGET_MS_QUICK=40`, `RECURSIVE_BUDGET_MS_DEFAULT=60`, `RECURSIVE_BUDGET_MS_FULL=120`; with `RECURSIVE_RUNTIME_BUDGET_STRICT=true`, budget violations fail the run)
@@ -155,6 +158,25 @@ JAVA_PERF_SKIP_DNS_CHECK=false
 JAVA_PERF_REQUIRED_HOSTS=repo.eclipse.org,repo.maven.apache.org
 ```
 
+Model parity env overrides:
+
+```
+JAVA_PARITY_DRY_RUN=false
+JAVA_PARITY_EXTERNAL_ISOLATE=true
+JAVA_PARITY_BUILD_PLUGINS=true
+JAVA_PARITY_MVN_LOCAL_REPO=
+JAVA_PARITY_LIMIT=0
+JAVA_PARITY_INCLUDE=
+JAVA_PARITY_FAIL_FAST=false
+JAVA_PARITY_PRETTY_PRINT=false
+JAVA_PARITY_RESET_OUTPUT=true
+MODEL_PARITY_PRETTY_PRINT=false
+MODEL_PARITY_STOP_ON_ERROR=false
+MODEL_PARITY_ABS_TOL=1e-6
+MODEL_PARITY_MAX_DIFFS_PER_MODEL=20
+MODEL_PARITY_STRICT=false
+```
+
 Notes:
 - Even if `JAVA_ARTIFACT_MIN_ROWS` is configured low, the effective minimum does not go below the scenario count in `JAVA_ARTIFACT_REQUIRED_SCENARIOS`.
 - In `run_perf_and_compare_java.sh`, when `JAVA_PERF_GENERATE=true` and `JAVA_PERF_MVN_LOCAL_REPO` is empty, a per-run temporary path (`${TMPDIR:-/tmp}/m2-java-perf-${USER:-user}-$$`) is auto-selected to avoid lock contention.
@@ -166,7 +188,10 @@ Notes:
 - `JAVA_PERF_RETRIES` / `JAVA_PERF_RETRY_DELAY_SECS` tune retry policy for Java Maven commands.
 - `run_java_perf_layered_issue_scenarios.sh` performs DNS preflight by default and fails early when `repo.eclipse.org` or `repo.maven.apache.org` cannot be resolved (`JAVA_PERF_SKIP_DNS_CHECK=true` bypasses this check).
 - `run_java_perf_layered_issue_scenarios.sh` runs in an isolated temporary directory by default (`JAVA_PERF_EXTERNAL_ISOLATE=true`; git worktree first, temporary copy fallback).
+- `run_java_model_parity_export.sh` also defaults to isolated execution (`JAVA_PARITY_EXTERNAL_ISOLATE=true`) and restores/removes the injected Java class automatically.
+- `run_model_parity_elk_vs_rust.sh` reads Java manifest `perf/model_parity/java/java_manifest.tsv`, writes Rust manifest `perf/model_parity/rust_manifest.tsv`, and emits `perf/model_parity/report.md`.
 - Under defaults, the original `external/elk` worktree remains unchanged after runs (set `JAVA_PERF_EXTERNAL_ISOLATE=false` for direct-in-place execution).
+- Model parity strict gate can be enabled with `MODEL_PARITY_STRICT=true` (non-zero exit when drift/errors exist).
 - Baseline candidate export/readiness checks can be tuned with `JAVA_CANDIDATE_MIN_ROWS`, `JAVA_CANDIDATE_REQUIRED_SCENARIOS`, `JAVA_CANDIDATE_REQUIRE_PARITY`, and `JAVA_CANDIDATE_STRICT`.
 
 Repeated-run tips:

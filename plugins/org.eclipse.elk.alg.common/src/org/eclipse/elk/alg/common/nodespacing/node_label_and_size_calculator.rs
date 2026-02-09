@@ -5,8 +5,45 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::{
 use org_eclipse_elk_core::org::eclipse::elk::core::util::ElkUtil;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, IndividualSpacings};
 use org_eclipse_elk_core::org::eclipse::elk::core::util::adapters::{
-    ElkLabelAdapter, ElkNodeAdapter, GraphElementAdapter, NodeAdapter,
+    GraphElementAdapter, NodeAdapter,
 };
+/// Type-erased label wrapper. Stores any label that implements GraphElementAdapter
+/// so that LabelCellLayout can work with both ElkLabelAdapter and LLabelAdapter.
+trait DynLabelOps {
+    fn dyn_get_size(&self) -> KVector;
+    fn dyn_set_position(&self, pos: KVector);
+}
+
+impl<T: 'static, L: GraphElementAdapter<T>> DynLabelOps for DynLabelWrapper<T, L> {
+    fn dyn_get_size(&self) -> KVector {
+        self.0.get_size()
+    }
+    fn dyn_set_position(&self, pos: KVector) {
+        self.0.set_position(pos)
+    }
+}
+
+struct DynLabelWrapper<T, L: GraphElementAdapter<T>>(L, std::marker::PhantomData<T>);
+
+struct DynLabel {
+    inner: Box<dyn DynLabelOps>,
+}
+
+impl DynLabel {
+    fn new<T: 'static, L: GraphElementAdapter<T> + 'static>(label: L) -> Self {
+        DynLabel {
+            inner: Box::new(DynLabelWrapper(label, std::marker::PhantomData)),
+        }
+    }
+
+    fn get_size(&self) -> KVector {
+        self.inner.dyn_get_size()
+    }
+
+    fn set_position(&self, pos: KVector) {
+        self.inner.dyn_set_position(pos)
+    }
+}
 
 pub struct NodeLabelAndSizeCalculator;
 
@@ -70,7 +107,7 @@ struct Rect {
 }
 
 struct LabelCellLayout {
-    labels: Vec<ElkLabelAdapter>,
+    labels: Vec<DynLabel>,
     minimum_content_area_size: CellMinSize,
     horizontal_alignment: HorizontalLabelAlignment,
     vertical_alignment: VerticalLabelAlignment,
@@ -95,7 +132,7 @@ impl LabelCellLayout {
         }
     }
 
-    fn add_label(&mut self, label: ElkLabelAdapter) {
+    fn add_label(&mut self, label: DynLabel) {
         self.minimum_content_area_size
             .add_label(label.get_size(), self.label_gap, self.horizontal_layout_mode);
         self.labels.push(label);
@@ -205,7 +242,13 @@ struct InsideNodeLabelGrid {
 }
 
 impl InsideNodeLabelGrid {
-    fn new(node: &ElkNodeAdapter, layout_direction: Direction) -> Self {
+    fn new<N, T>(node: &N, layout_direction: Direction) -> Self
+    where
+        T: 'static,
+        N: NodeAdapter<T>,
+        N::Graph: GraphElementAdapter<T>,
+        N::LabelAdapter: 'static,
+    {
         let size_options = node
             .get_property(CoreOptions::NODE_SIZE_OPTIONS)
             .unwrap_or_default();
@@ -530,7 +573,7 @@ impl StripContainerLayout {
         }
     }
 
-    fn add_label(&mut self, area_index: usize, label: ElkLabelAdapter) {
+    fn add_label(&mut self, area_index: usize, label: DynLabel) {
         self.cells[area_index].add_label(label);
     }
 
@@ -578,7 +621,7 @@ impl StripContainerLayout {
             sum_with_gaps_with_gap(self.min_cell_widths(), self.gap)
         };
 
-        if width > 0.0 {
+        if self.has_labels() {
             width + self.padding.left + self.padding.right
         } else {
             0.0
@@ -592,7 +635,7 @@ impl StripContainerLayout {
             self.min_cell_heights().into_iter().fold(0.0, f64::max)
         };
 
-        if height > 0.0 {
+        if self.has_labels() {
             height + self.padding.top + self.padding.bottom
         } else {
             0.0
@@ -665,14 +708,19 @@ struct InsideLabelLayoutGrid {
 }
 
 impl InsideLabelLayoutGrid {
-    fn new(
-        node: &ElkNodeAdapter,
+    fn new<N, T>(
+        node: &N,
         horizontal_layout_mode: bool,
         size_constraints: &EnumSet<SizeConstraint>,
         size_options: &EnumSet<SizeOptions>,
         label_gap: f64,
         container_gap: f64,
-    ) -> Self {
+    ) -> Self
+    where
+        T: 'static,
+        N: NodeAdapter<T>,
+        N::Graph: GraphElementAdapter<T>,
+    {
         let padding = IndividualSpacings::get_individual_or_inherited_adapter(
             node,
             CoreOptions::NODE_LABELS_PADDING,
@@ -709,7 +757,7 @@ impl InsideLabelLayoutGrid {
         }
     }
 
-    fn add_label(&mut self, row: ContainerArea, col: ContainerArea, label: ElkLabelAdapter) {
+    fn add_label(&mut self, row: ContainerArea, col: ContainerArea, label: DynLabel) {
         self.cells[row.index()][col.index()].add_label(label);
     }
 
@@ -1060,10 +1108,14 @@ fn has_effectively_fixed_size_constraints(size_constraints: &EnumSet<SizeConstra
         || (size_constraints.len() == 1 && size_constraints.contains(&SizeConstraint::PortLabels))
 }
 
-fn configured_minimum_size(
-    node: &ElkNodeAdapter,
+fn configured_minimum_size<N, T>(
+    node: &N,
     size_options: &EnumSet<SizeOptions>,
-) -> KVector {
+) -> KVector
+where
+    T: 'static,
+    N: GraphElementAdapter<T>,
+{
     let mut minimum_size = node.get_property(CoreOptions::NODE_SIZE_MINIMUM).unwrap_or_default();
     if size_options.contains(&SizeOptions::DefaultMinimumSize) {
         if minimum_size.x <= 0.0 {
@@ -1124,7 +1176,14 @@ fn place_outside_container(
 }
 
 impl NodeLabelAndSizeCalculator {
-    pub fn process_node(node: &ElkNodeAdapter, layout_direction: Direction) {
+    pub fn process_node<N, T>(node: &N, layout_direction: Direction)
+    where
+        T: 'static,
+        N: NodeAdapter<T>,
+        N::Graph: GraphElementAdapter<T>,
+        N::Label: 'static,
+        N::LabelAdapter: 'static,
+    {
         let size_constraints = node
             .get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)
             .unwrap_or_default();
@@ -1200,27 +1259,29 @@ impl NodeLabelAndSizeCalculator {
         );
 
         for label in node.get_labels() {
-            let effective_placement = if label.has_property(CoreOptions::NODE_LABELS_PLACEMENT) {
-                label
-                    .get_property(CoreOptions::NODE_LABELS_PLACEMENT)
-                    .unwrap_or_else(|| default_label_placement.clone())
-            } else {
-                default_label_placement.clone()
-            };
+            let effective_placement =
+                if label.has_property(CoreOptions::NODE_LABELS_PLACEMENT) {
+                    label
+                        .get_property(CoreOptions::NODE_LABELS_PLACEMENT)
+                        .unwrap_or_else(|| default_label_placement.clone())
+                } else {
+                    default_label_placement.clone()
+                };
+            let dyn_label = DynLabel::new::<N::Label, N::LabelAdapter>(label);
 
             if let Some(label_location) = node_label_location_info_for_placement(&effective_placement) {
                 if label_location.inside {
-                    inside_layout.add_label(label_location.row, label_location.col, label);
+                    inside_layout.add_label(label_location.row, label_location.col, dyn_label);
                 } else if let Some(side) = label_location.outside_side {
                     let strip_index = match side {
                         OutsideSide::North | OutsideSide::South => label_location.col.index(),
                         OutsideSide::West | OutsideSide::East => label_location.row.index(),
                     };
                     match side {
-                        OutsideSide::North => north_labels.add_label(strip_index, label),
-                        OutsideSide::South => south_labels.add_label(strip_index, label),
-                        OutsideSide::East => east_labels.add_label(strip_index, label),
-                        OutsideSide::West => west_labels.add_label(strip_index, label),
+                        OutsideSide::North => north_labels.add_label(strip_index, dyn_label),
+                        OutsideSide::South => south_labels.add_label(strip_index, dyn_label),
+                        OutsideSide::East => east_labels.add_label(strip_index, dyn_label),
+                        OutsideSide::West => west_labels.add_label(strip_index, dyn_label),
                     }
                 }
             }
@@ -1337,18 +1398,30 @@ impl NodeLabelAndSizeCalculator {
         }
     }
 
-    pub fn compute_inside_node_label_padding(
-        node: &ElkNodeAdapter,
+    pub fn compute_inside_node_label_padding<N, T>(
+        node: &N,
         layout_direction: Direction,
-    ) -> ElkPadding {
+    ) -> ElkPadding
+    where
+        T: 'static,
+        N: NodeAdapter<T>,
+        N::Graph: GraphElementAdapter<T>,
+        N::LabelAdapter: 'static,
+    {
         let grid = InsideNodeLabelGrid::new(node, layout_direction);
         grid.compute_inside_padding()
     }
 
-    pub fn compute_inside_node_label_container_minimum_size(
-        node: &ElkNodeAdapter,
+    pub fn compute_inside_node_label_container_minimum_size<N, T>(
+        node: &N,
         layout_direction: Direction,
-    ) -> KVector {
+    ) -> KVector
+    where
+        T: 'static,
+        N: NodeAdapter<T>,
+        N::Graph: GraphElementAdapter<T>,
+        N::LabelAdapter: 'static,
+    {
         let grid = InsideNodeLabelGrid::new(node, layout_direction);
         let size_constraints = node
             .get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)

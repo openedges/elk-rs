@@ -12,6 +12,7 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::MapPropertyHold
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{
     ElkConnectableShapeRef, ElkEdgeRef, ElkGraphElementRef, ElkLabelRef, ElkNodeRef, ElkPortRef,
 };
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 
 use crate::org::eclipse::elk::alg::layered::components::ComponentOrderingStrategy;
 use crate::org::eclipse::elk::alg::layered::graph::{
@@ -94,6 +95,7 @@ impl<'a> ElkGraphImporter<'a> {
                 }
                 if let Ok(mut node_guard) = lnode.lock() {
                     node_guard.set_nested_graph(Some(nested_graph.clone()));
+                    node_guard.set_property(InternalProperties::COMPOUND_NODE, Some(true));
                 }
                 self.import_hierarchical_graph(&child, &nested_graph);
             }
@@ -212,7 +214,7 @@ impl<'a> ElkGraphImporter<'a> {
         let lnode = LNode::new(lgraph);
         let origin_id = self.origin_store.store(ElkGraphElementRef::Node(elknode.clone()));
 
-        let (properties, position, size, labels, ports) = {
+        let (mut properties, position, mut size, labels, ports) = {
             let mut node_mut = elknode.borrow_mut();
             let shape = node_mut.connectable().shape();
             let props = shape.graph_element().properties().clone();
@@ -222,6 +224,23 @@ impl<'a> ElkGraphImporter<'a> {
             let ports: Vec<ElkPortRef> = node_mut.ports().iter().cloned().collect();
             (props, position, size, labels, ports)
         };
+
+        let inside_self_loops_active = properties
+            .get_property(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE)
+            .unwrap_or(false);
+        let minimum_size = properties
+            .get_property(CoreOptions::NODE_SIZE_MINIMUM)
+            .unwrap_or_default();
+        if inside_self_loops_active
+            && self.has_inside_self_loop_edge(elknode)
+            && size.0 == 0.0
+            && size.1 == 0.0
+            && minimum_size.x <= 0.0
+            && minimum_size.y <= 0.0
+        {
+            // Java parity: inside-self-loop-only nodes get a small non-zero baseline size.
+            size = (4.0, 24.0);
+        }
 
         if let Ok(mut node_guard) = lnode.lock() {
             node_guard
@@ -568,6 +587,25 @@ impl<'a> ElkGraphImporter<'a> {
             || port_influence != 0.0;
 
         model_order_cycle_breaking || model_order_layering || model_order_crossing_minimization
+    }
+
+    fn has_inside_self_loop_edge(&self, node: &ElkNodeRef) -> bool {
+        for edge in ElkGraphUtil::all_outgoing_edges(node) {
+            let is_self_loop = edge.borrow().is_selfloop();
+            if !is_self_loop {
+                continue;
+            }
+            let inside = edge
+                .borrow_mut()
+                .element()
+                .properties_mut()
+                .get_property(CoreOptions::INSIDE_SELF_LOOPS_YO)
+                .unwrap_or(false);
+            if inside {
+                return true;
+            }
+        }
+        false
     }
 
     fn graph_property<T: Clone + Send + Sync + 'static>(

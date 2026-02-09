@@ -104,15 +104,16 @@ impl PropertyConstantsDelegator {
         IndividualSpacings::get_individual_or_inherited(node, self.get_property_or_delegate(property))
     }
 
-    pub fn get_individual_or_inherited_property_adapter<T, N>(
+    pub fn get_individual_or_inherited_property_adapter<T, N, U>(
         &self,
         node: &N,
         property: &'static Property<T>,
     ) -> Option<T>
     where
         T: Clone + Send + Sync + 'static,
-        N: NodeAdapter<ElkNodeRef>,
-        N::Graph: GraphElementAdapter<ElkNodeRef>,
+        U: 'static,
+        N: NodeAdapter<U>,
+        N::Graph: GraphElementAdapter<U>,
     {
         IndividualSpacings::get_individual_or_inherited_adapter(node, self.get_property_or_delegate(property))
     }

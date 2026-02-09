@@ -5,6 +5,7 @@ use std::rc::Rc;
 use serde_json::{Map, Value};
 
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::direction::Direction;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::{CoreOptions, EdgeCoords, ShapeCoords};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::{
     IPropertyValueProxy, MapPropertyHolder, Property, PropertyValue,
@@ -543,6 +544,13 @@ impl JsonImporter {
     }
 
     fn set_option(&self, properties: &mut MapPropertyHolder, id: &str, value: &str) {
+        if id == CoreOptions::DIRECTION.id() {
+            if let Some(direction) = parse_direction_option(value) {
+                properties.set_property(CoreOptions::DIRECTION, Some(direction));
+                return;
+            }
+        }
+
         let option_data = LayoutMetaDataService::get_instance().get_option_data_by_suffix(id);
         if let Some(option_data) = option_data {
             if let Some(parsed) = option_data.parse_value(value) {
@@ -1231,6 +1239,29 @@ fn pointer_key(parent: &str, key: &str) -> String {
 
 fn pointer_index(parent: String, index: usize) -> String {
     format!("{}/{}", parent, index)
+}
+
+fn parse_direction_option(value: &str) -> Option<Direction> {
+    let trimmed = value.trim();
+    if let Ok(index) = trimmed.parse::<usize>() {
+        return match index {
+            0 => Some(Direction::Undefined),
+            1 => Some(Direction::Right),
+            2 => Some(Direction::Left),
+            3 => Some(Direction::Down),
+            4 => Some(Direction::Up),
+            _ => None,
+        };
+    }
+
+    match trimmed.to_ascii_uppercase().as_str() {
+        "UNDEFINED" => Some(Direction::Undefined),
+        "RIGHT" => Some(Direction::Right),
+        "LEFT" => Some(Direction::Left),
+        "DOWN" => Some(Direction::Down),
+        "UP" => Some(Direction::Up),
+        _ => None,
+    }
 }
 
 fn escape_pointer_segment(value: &str) -> String {

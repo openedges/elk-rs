@@ -1,3 +1,4 @@
+use std::any::TypeId;
 use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap};
 use std::marker::PhantomData;
@@ -29,8 +30,8 @@ where
     phases: Vec<Option<PhaseFactory<P, G>>>,
     configured_phases: BTreeSet<P>,
     additional_processors: LayoutProcessorConfiguration<P, G>,
-    phase_cache: HashMap<usize, PhaseHandle<P, G>>,
-    processor_cache: HashMap<usize, ProcessorHandle<G>>,
+    phase_cache: HashMap<EnumFactoryCacheKey, PhaseHandle<P, G>>,
+    processor_cache: HashMap<EnumFactoryCacheKey, ProcessorHandle<G>>,
     phase_variants: Vec<P>,
     _phantom: PhantomData<G>,
 }
@@ -192,14 +193,17 @@ where
             return Arc::new(Mutex::new(factory.create_phase()));
         }
 
-        let key = phase_factory_key(factory);
-        if let Some(existing) = self.phase_cache.get(&key) {
-            return existing.clone();
+        if let Some(key) = phase_factory_cache_key(factory) {
+            if let Some(existing) = self.phase_cache.get(&key) {
+                return existing.clone();
+            }
+
+            let phase = Arc::new(Mutex::new(factory.create_phase()));
+            self.phase_cache.insert(key, phase.clone());
+            return phase;
         }
 
-        let phase = Arc::new(Mutex::new(factory.create_phase()));
-        self.phase_cache.insert(key, phase.clone());
-        phase
+        Arc::new(Mutex::new(factory.create_phase()))
     }
 
     fn retrieve_processor(
@@ -210,14 +214,17 @@ where
             return Arc::new(Mutex::new(factory.create()));
         }
 
-        let key = processor_factory_key(factory);
-        if let Some(existing) = self.processor_cache.get(&key) {
-            return existing.clone();
+        if let Some(key) = processor_factory_cache_key(factory) {
+            if let Some(existing) = self.processor_cache.get(&key) {
+                return existing.clone();
+            }
+
+            let processor = Arc::new(Mutex::new(factory.create()));
+            self.processor_cache.insert(key, processor.clone());
+            return processor;
         }
 
-        let processor = Arc::new(Mutex::new(factory.create()));
-        self.processor_cache.insert(key, processor.clone());
-        processor
+        Arc::new(Mutex::new(factory.create()))
     }
 
     fn phase_index(&self, phase: P) -> usize {
@@ -259,10 +266,23 @@ where
     }
 }
 
-fn processor_factory_key<G>(factory: &ProcessorFactory<G>) -> usize {
-    Arc::as_ptr(factory) as *const () as usize
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+struct EnumFactoryCacheKey {
+    type_id: TypeId,
+    ordinal: usize,
 }
 
-fn phase_factory_key<P, G>(factory: &PhaseFactory<P, G>) -> usize {
-    Arc::as_ptr(factory) as *const () as usize
+fn processor_factory_cache_key<G>(factory: &ProcessorFactory<G>) -> Option<EnumFactoryCacheKey> {
+    let type_id = factory.enum_type_id()?;
+    let ordinal = factory.enum_ordinal()?;
+    Some(EnumFactoryCacheKey { type_id, ordinal })
+}
+
+fn phase_factory_cache_key<P, G>(factory: &PhaseFactory<P, G>) -> Option<EnumFactoryCacheKey>
+where
+    P: EnumSetType,
+{
+    let type_id = factory.enum_type_id()?;
+    let ordinal = factory.enum_ordinal()?;
+    Some(EnumFactoryCacheKey { type_id, ordinal })
 }

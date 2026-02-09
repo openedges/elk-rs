@@ -13,11 +13,12 @@ use crate::org::eclipse::elk::alg::layered::intermediate::{
     CommentNodeMarginCalculator, CommentPostprocessor, CommentPreprocessor,
     EdgeAndLayerConstraintEdgeReverser, InLayerConstraintProcessor, InvertedPortProcessor,
     EndLabelSorter, LabelAndNodeSizeProcessor, LabelDummyRemover, LabelSideSelector, LayerConstraintPostprocessor,
-    LayerConstraintPreprocessor,
+    LayerConstraintPreprocessor, InteractiveExternalPortPositioner,
     LayerSizeAndGraphHeightCalculator, LongEdgeJoiner, LongEdgeSplitter, NorthSouthPortPostprocessor,
     NorthSouthPortPreprocessor, NodePromotion, PartitionMidprocessor, PartitionPostprocessor, PartitionPreprocessor,
     PortListSorter, PortSideProcessor, ReversedEdgeRestorer, SelfLoopPortRestorer,
-    SelfLoopPostProcessor, SelfLoopPreProcessor, SelfLoopRouter, SortByInputModelProcessor,
+    SelfLoopPostProcessor, SelfLoopPreProcessor, SelfLoopRouter, SemiInteractiveCrossMinProcessor,
+    SortByInputModelProcessor,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
@@ -205,6 +206,9 @@ impl ILayoutProcessorFactory<LGraph> for IntermediateProcessorStrategy {
             }
             IntermediateProcessorStrategy::PortSideProcessor => Box::new(PortSideProcessor),
             IntermediateProcessorStrategy::NodePromotion => Box::new(NodePromotion),
+            IntermediateProcessorStrategy::SemiInteractiveCrossminProcessor => {
+                Box::new(SemiInteractiveCrossMinProcessor)
+            }
             IntermediateProcessorStrategy::LongEdgeSplitter => Box::new(LongEdgeSplitter),
             IntermediateProcessorStrategy::LongEdgeJoiner => Box::new(LongEdgeJoiner),
             IntermediateProcessorStrategy::ReversedEdgeRestorer => Box::new(ReversedEdgeRestorer),
@@ -223,6 +227,9 @@ impl ILayoutProcessorFactory<LGraph> for IntermediateProcessorStrategy {
                 Box::new(SelfLoopPostProcessor)
             }
             IntermediateProcessorStrategy::SelfLoopRouter => Box::new(SelfLoopRouter),
+            IntermediateProcessorStrategy::InteractiveExternalPortPositioner => {
+                Box::new(InteractiveExternalPortPositioner)
+            }
             _ => Box::new(NoOpLayoutProcessor),
         }
     }

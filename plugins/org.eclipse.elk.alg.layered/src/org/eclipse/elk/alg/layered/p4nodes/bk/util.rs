@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LNodeRef, LPortRef, NodeType};
@@ -89,8 +89,8 @@ pub(crate) fn edge_between(source: &LNodeRef, target: &LNodeRef) -> Option<LEdge
     None
 }
 
-pub(crate) fn get_blocks(bal: &BKAlignedLayout) -> HashMap<usize, Vec<LNodeRef>> {
-    let mut blocks: HashMap<usize, Vec<LNodeRef>> = HashMap::new();
+pub(crate) fn get_blocks(bal: &BKAlignedLayout) -> BTreeMap<usize, Vec<LNodeRef>> {
+    let mut blocks: BTreeMap<usize, Vec<LNodeRef>> = BTreeMap::new();
 
     for layer in &bal.layers {
         let nodes = layer

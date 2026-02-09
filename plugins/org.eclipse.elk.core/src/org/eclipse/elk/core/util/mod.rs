@@ -298,14 +298,15 @@ impl IndividualSpacings {
         result
     }
 
-    pub fn get_individual_or_inherited_adapter<T, N>(
+    pub fn get_individual_or_inherited_adapter<T, N, U>(
         node: &N,
         property: &Property<T>,
     ) -> Option<T>
     where
         T: Clone + Send + Sync + 'static,
-        N: NodeAdapter<ElkNodeRef>,
-        N::Graph: GraphElementAdapter<ElkNodeRef>,
+        U: 'static,
+        N: NodeAdapter<U>,
+        N::Graph: GraphElementAdapter<U>,
     {
         let mut result = None;
 

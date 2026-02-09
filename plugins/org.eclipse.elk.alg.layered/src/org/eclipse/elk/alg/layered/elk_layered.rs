@@ -271,7 +271,7 @@ impl ElkLayered {
 
         let monitor_progress = 1.0 / processors.len() as f32;
 
-        for processor in &processors {
+        for processor in processors.iter() {
             if monitor.is_canceled() {
                 return;
             }

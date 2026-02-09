@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 
 use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LNodeRef};
 use crate::org::eclipse::elk::alg::layered::options::{
@@ -15,7 +15,7 @@ pub struct BKCompactor {
     spacings: Spacings,
     spacing_node_node: f64,
     threshold_strategy: Box<dyn ThresholdStrategy>,
-    sink_nodes: HashMap<usize, ClassNode>,
+    sink_nodes: BTreeMap<usize, ClassNode>,
 }
 
 impl BKCompactor {
@@ -41,7 +41,7 @@ impl BKCompactor {
             spacings,
             spacing_node_node,
             threshold_strategy,
-            sink_nodes: HashMap::new(),
+            sink_nodes: BTreeMap::new(),
         }
     }
 

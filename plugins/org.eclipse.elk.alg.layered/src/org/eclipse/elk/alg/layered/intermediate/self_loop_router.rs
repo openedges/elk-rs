@@ -1,6 +1,7 @@
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::labels::LabelManagementOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_routing::EdgeRouting;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
@@ -13,6 +14,7 @@ use crate::org::eclipse::elk::alg::layered::intermediate::loops::routing::{
     LabelPlacer, RoutingDirector, RoutingSlotAssigner,
 };
 use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions};
+use org_eclipse_elk_core::org::eclipse::elk::core::util::Random;
 
 const EPSILON: f64 = 1e-3;
 
@@ -32,6 +34,7 @@ impl ILayoutProcessor<LGraph> for SelfLoopRouter {
             .get_property(LayeredOptions::EDGE_ROUTING)
             .unwrap_or(EdgeRouting::Orthogonal);
         let label_manager = graph.get_property(LabelManagementOptions::LABEL_MANAGER);
+        let mut random = graph.get_property(InternalProperties::RANDOM).unwrap_or_default();
         let spacing_factor = if edge_routing == EdgeRouting::Splines {
             1.5
         } else {
@@ -81,7 +84,7 @@ impl ILayoutProcessor<LGraph> for SelfLoopRouter {
             label_placer.prepare_labels(&holder, label_manager.as_ref());
 
             let routing_slot_assigner = RoutingSlotAssigner;
-            routing_slot_assigner.assign_routing_slots(&holder);
+            routing_slot_assigner.assign_routing_slots(&holder, &mut random);
 
             route_node(
                 &holder,
@@ -161,6 +164,18 @@ fn route_node(
                 .ok()
                 .map(|port_guard| port_guard.l_port().clone())
                 .unwrap_or_else(|| panic!("self loop target lock poisoned"));
+
+            let inside_self_loop = l_edge
+                .lock()
+                .ok()
+                .and_then(|mut edge_guard| edge_guard.get_property(CoreOptions::INSIDE_SELF_LOOPS_YO))
+                .unwrap_or(false);
+            if inside_self_loop {
+                if let Ok(mut edge_guard) = l_edge.lock() {
+                    edge_guard.bend_points().clear();
+                }
+                continue;
+            }
 
             let source_point = route_point_for_port(&source_port, &routing_slot_positions, sl_loop, node_size);
             let target_point = route_point_for_port(&target_port, &routing_slot_positions, sl_loop, node_size);

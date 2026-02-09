@@ -7,9 +7,11 @@ pub mod model_order_cycle_breaker;
 pub mod scc_model_order_cycle_breaker;
 pub mod sc_connectivity_cycle_breaker;
 pub mod scc_node_type_cycle_breaker;
+pub mod interactive_cycle_breaker;
 
 pub use greedy_cycle_breaker::GreedyCycleBreaker;
 pub use depth_first_cycle_breaker::DepthFirstCycleBreaker;
+pub use interactive_cycle_breaker::InteractiveCycleBreaker;
 pub use bfs_node_order_cycle_breaker::BfsNodeOrderCycleBreaker;
 pub use dfs_node_order_cycle_breaker::DfsNodeOrderCycleBreaker;
 pub use model_order_cycle_breaker::ModelOrderCycleBreaker;

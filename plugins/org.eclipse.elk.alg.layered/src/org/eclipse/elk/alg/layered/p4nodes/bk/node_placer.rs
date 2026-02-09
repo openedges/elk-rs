@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::{Arc, LazyLock};
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutPhase;
@@ -109,20 +109,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
                 Some(HDirection::Right),
             )),
             _ => {
-                layouts.push(BKAlignedLayout::new(
-                    layers.clone(),
-                    nodes_by_id.clone(),
-                    spacings.clone(),
-                    Some(VDirection::Down),
-                    Some(HDirection::Left),
-                ));
-                layouts.push(BKAlignedLayout::new(
-                    layers.clone(),
-                    nodes_by_id.clone(),
-                    spacings.clone(),
-                    Some(VDirection::Up),
-                    Some(HDirection::Left),
-                ));
+                // Order must match Java: RightDown, RightUp, LeftDown, LeftUp
                 layouts.push(BKAlignedLayout::new(
                     layers.clone(),
                     nodes_by_id.clone(),
@@ -136,6 +123,20 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
                     spacings.clone(),
                     Some(VDirection::Up),
                     Some(HDirection::Right),
+                ));
+                layouts.push(BKAlignedLayout::new(
+                    layers.clone(),
+                    nodes_by_id.clone(),
+                    spacings.clone(),
+                    Some(VDirection::Down),
+                    Some(HDirection::Left),
+                ));
+                layouts.push(BKAlignedLayout::new(
+                    layers.clone(),
+                    nodes_by_id.clone(),
+                    spacings.clone(),
+                    Some(VDirection::Up),
+                    Some(HDirection::Left),
                 ));
             }
         }
@@ -528,8 +529,8 @@ fn check_order_constraint(
 fn get_classes(
     bal: &BKAlignedLayout,
     monitor: &mut dyn IElkProgressMonitor,
-) -> HashMap<usize, Vec<LNodeRef>> {
-    let mut classes: HashMap<usize, Vec<LNodeRef>> = HashMap::new();
+) -> BTreeMap<usize, Vec<LNodeRef>> {
+    let mut classes: BTreeMap<usize, Vec<LNodeRef>> = BTreeMap::new();
 
     if bal.vdir.is_none() {
         if monitor.is_logging_enabled() {
@@ -550,7 +551,7 @@ fn get_classes(
     classes
 }
 
-fn format_blocks(blocks: &HashMap<usize, Vec<LNodeRef>>) -> String {
+fn format_blocks(blocks: &BTreeMap<usize, Vec<LNodeRef>>) -> String {
     let mut entries = Vec::new();
     for (root, nodes) in blocks {
         let names = nodes.iter().map(node_to_string).collect::<Vec<_>>().join(", ");

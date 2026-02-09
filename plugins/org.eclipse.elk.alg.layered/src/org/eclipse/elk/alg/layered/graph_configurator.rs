@@ -137,7 +137,7 @@ impl GraphConfigurator {
             (
                 graph_guard.get_property(LayeredOptions::SPACING_EDGE_EDGE).unwrap_or(0.0),
                 graph_guard.get_property(LayeredOptions::DIRECTION).unwrap_or(Direction::Undefined),
-                graph_guard.get_property(LayeredOptions::RANDOM_SEED).unwrap_or(0),
+                graph_guard.get_property(LayeredOptions::RANDOM_SEED).unwrap_or(1),
                 graph_guard
                     .get_property(LayeredOptions::EDGE_ROUTING)
                     .unwrap_or(EdgeRouting::Undefined),

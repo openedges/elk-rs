@@ -1,5 +1,6 @@
 use std::any::{Any, TypeId};
 use std::collections::HashSet;
+use std::fmt;
 use std::sync::{Arc, LazyLock, OnceLock};
 
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
@@ -16,11 +17,13 @@ use super::{
     CuttingStrategy, CycleBreakingStrategy, DirectionCongruency, EdgeLabelSideSelection,
     EdgeStraighteningStrategy, FixedAlignment, GraphCompactionStrategy, GreedySwitchType,
     GroupOrderStrategy, InteractiveReferencePoint, LayerUnzippingStrategy, LayeredOptions,
-    LayeringStrategy, LongEdgeOrderingStrategy, NodeFlexibility, NodePlacementStrategy,
+    LayerConstraint, LayeringStrategy, LongEdgeOrderingStrategy, NodeFlexibility, NodePlacementStrategy,
     NodePromotionStrategy, OrderingStrategy, PortSortingStrategy, SelfLoopDistributionStrategy,
     SelfLoopOrderingStrategy, SplineRoutingMode, ValidifyStrategy, WrappingStrategy,
 };
 use crate::org::eclipse::elk::alg::layered::components::ComponentOrderingStrategy;
+
+type ParserFn = Arc<dyn Fn(&str) -> Option<Arc<dyn Any + Send + Sync>> + Send + Sync>;
 
 pub struct LayeredMetaDataProvider;
 
@@ -1466,6 +1469,7 @@ fn register_option<T: Clone + Send + Sync + 'static>(
     lower_bound: Option<Arc<dyn Any + Send + Sync>>,
 ) {
     let default_value = property_default_any(property);
+    let legacy_ids = layered_legacy_ids(property.id());
     let mut builder = LayoutOptionData::builder()
         .id(property.id())
         .option_type(option_type)
@@ -1475,6 +1479,14 @@ fn register_option<T: Clone + Send + Sync + 'static>(
         .targets(targets.iter().copied().collect::<HashSet<_>>())
         .visibility(visibility)
         .value_type_id(TypeId::of::<T>());
+    if option_type == LayoutOptionType::Enum {
+        if let Some((choices, parser)) = layered_enum_support::<T>() {
+            builder = builder.choices(choices).parser(parser);
+        }
+    }
+    if !legacy_ids.is_empty() {
+        builder = builder.legacy_ids(legacy_ids);
+    }
     if let Some(group) = group {
         builder = builder.group(group);
     }
@@ -1482,6 +1494,313 @@ fn register_option<T: Clone + Send + Sync + 'static>(
         builder = builder.lower_bound(lower_bound);
     }
     registry.register_option(builder.create());
+}
+
+fn layered_legacy_ids(id: &str) -> Vec<String> {
+    id.strip_prefix("org.eclipse.elk.alg.layered.")
+        .map(|suffix| format!("org.eclipse.elk.layered.{suffix}"))
+        .into_iter()
+        .collect()
+}
+
+fn layered_enum_support<T: Send + Sync + 'static>() -> Option<(Vec<String>, ParserFn)> {
+    let type_id = TypeId::of::<T>();
+
+    if type_id == TypeId::of::<CenterEdgeLabelPlacementStrategy>() {
+        return Some(enum_support(&[
+            CenterEdgeLabelPlacementStrategy::MedianLayer,
+            CenterEdgeLabelPlacementStrategy::TailLayer,
+            CenterEdgeLabelPlacementStrategy::HeadLayer,
+            CenterEdgeLabelPlacementStrategy::SpaceEfficientLayer,
+            CenterEdgeLabelPlacementStrategy::WidestLayer,
+            CenterEdgeLabelPlacementStrategy::CenterLayer,
+        ]));
+    }
+    if type_id == TypeId::of::<ComponentOrderingStrategy>() {
+        return Some(enum_support(&[
+            ComponentOrderingStrategy::None,
+            ComponentOrderingStrategy::InsidePortSideGroups,
+            ComponentOrderingStrategy::GroupModelOrder,
+            ComponentOrderingStrategy::ModelOrder,
+        ]));
+    }
+    if type_id == TypeId::of::<ConstraintCalculationStrategy>() {
+        return Some(enum_support(&[
+            ConstraintCalculationStrategy::Quadratic,
+            ConstraintCalculationStrategy::Scanline,
+        ]));
+    }
+    if type_id == TypeId::of::<CrossingMinimizationStrategy>() {
+        return Some(enum_support(&[
+            CrossingMinimizationStrategy::LayerSweep,
+            CrossingMinimizationStrategy::MedianLayerSweep,
+            CrossingMinimizationStrategy::Interactive,
+            CrossingMinimizationStrategy::None,
+        ]));
+    }
+    if type_id == TypeId::of::<CuttingStrategy>() {
+        return Some(enum_support(&[
+            CuttingStrategy::Ard,
+            CuttingStrategy::Msd,
+            CuttingStrategy::Manual,
+        ]));
+    }
+    if type_id == TypeId::of::<CycleBreakingStrategy>() {
+        return Some(enum_support(&[
+            CycleBreakingStrategy::Greedy,
+            CycleBreakingStrategy::DepthFirst,
+            CycleBreakingStrategy::Interactive,
+            CycleBreakingStrategy::ModelOrder,
+            CycleBreakingStrategy::GreedyModelOrder,
+            CycleBreakingStrategy::SccConnectivity,
+            CycleBreakingStrategy::SccNodeType,
+            CycleBreakingStrategy::DfsNodeOrder,
+            CycleBreakingStrategy::BfsNodeOrder,
+        ]));
+    }
+    if type_id == TypeId::of::<DirectionCongruency>() {
+        return Some(enum_support(&[
+            DirectionCongruency::ReadingDirection,
+            DirectionCongruency::Rotation,
+        ]));
+    }
+    if type_id == TypeId::of::<EdgeLabelSideSelection>() {
+        return Some(enum_support(&[
+            EdgeLabelSideSelection::AlwaysUp,
+            EdgeLabelSideSelection::AlwaysDown,
+            EdgeLabelSideSelection::DirectionUp,
+            EdgeLabelSideSelection::DirectionDown,
+            EdgeLabelSideSelection::SmartUp,
+            EdgeLabelSideSelection::SmartDown,
+        ]));
+    }
+    if type_id == TypeId::of::<EdgeStraighteningStrategy>() {
+        return Some(enum_support(&[
+            EdgeStraighteningStrategy::None,
+            EdgeStraighteningStrategy::ImproveStraightness,
+        ]));
+    }
+    if type_id == TypeId::of::<FixedAlignment>() {
+        return Some(enum_support(&[
+            FixedAlignment::None,
+            FixedAlignment::LeftUp,
+            FixedAlignment::RightUp,
+            FixedAlignment::LeftDown,
+            FixedAlignment::RightDown,
+            FixedAlignment::Balanced,
+        ]));
+    }
+    if type_id == TypeId::of::<GraphCompactionStrategy>() {
+        return Some(enum_support(&[
+            GraphCompactionStrategy::None,
+            GraphCompactionStrategy::Left,
+            GraphCompactionStrategy::Right,
+            GraphCompactionStrategy::LeftRightConstraintLocking,
+            GraphCompactionStrategy::LeftRightConnectionLocking,
+            GraphCompactionStrategy::EdgeLength,
+        ]));
+    }
+    if type_id == TypeId::of::<GreedySwitchType>() {
+        return Some(enum_support(&[
+            GreedySwitchType::OneSided,
+            GreedySwitchType::TwoSided,
+            GreedySwitchType::Off,
+        ]));
+    }
+    if type_id == TypeId::of::<GroupOrderStrategy>() {
+        return Some(enum_support(&[
+            GroupOrderStrategy::OnlyWithinGroup,
+            GroupOrderStrategy::ModelOrder,
+            GroupOrderStrategy::Enforced,
+        ]));
+    }
+    if type_id == TypeId::of::<InteractiveReferencePoint>() {
+        return Some(enum_support(&[
+            InteractiveReferencePoint::Center,
+            InteractiveReferencePoint::TopLeft,
+        ]));
+    }
+    if type_id == TypeId::of::<LayerConstraint>() {
+        return Some(enum_support(&[
+            LayerConstraint::None,
+            LayerConstraint::First,
+            LayerConstraint::FirstSeparate,
+            LayerConstraint::Last,
+            LayerConstraint::LastSeparate,
+        ]));
+    }
+    if type_id == TypeId::of::<LayeringStrategy>() {
+        return Some(enum_support(&[
+            LayeringStrategy::NetworkSimplex,
+            LayeringStrategy::LongestPath,
+            LayeringStrategy::LongestPathSource,
+            LayeringStrategy::CoffmanGraham,
+            LayeringStrategy::Interactive,
+            LayeringStrategy::StretchWidth,
+            LayeringStrategy::MinWidth,
+            LayeringStrategy::BfModelOrder,
+            LayeringStrategy::DfModelOrder,
+        ]));
+    }
+    if type_id == TypeId::of::<LayerUnzippingStrategy>() {
+        return Some(enum_support(&[
+            LayerUnzippingStrategy::None,
+            LayerUnzippingStrategy::Alternating,
+        ]));
+    }
+    if type_id == TypeId::of::<LongEdgeOrderingStrategy>() {
+        return Some(enum_support(&[
+            LongEdgeOrderingStrategy::DummyNodeOver,
+            LongEdgeOrderingStrategy::DummyNodeUnder,
+            LongEdgeOrderingStrategy::Equal,
+        ]));
+    }
+    if type_id == TypeId::of::<NodeFlexibility>() {
+        return Some(enum_support(&[
+            NodeFlexibility::None,
+            NodeFlexibility::PortPosition,
+            NodeFlexibility::NodeSizeWhereSpacePermits,
+            NodeFlexibility::NodeSize,
+        ]));
+    }
+    if type_id == TypeId::of::<NodePlacementStrategy>() {
+        return Some(enum_support(&[
+            NodePlacementStrategy::Simple,
+            NodePlacementStrategy::Interactive,
+            NodePlacementStrategy::LinearSegments,
+            NodePlacementStrategy::BrandesKoepf,
+            NodePlacementStrategy::NetworkSimplex,
+        ]));
+    }
+    if type_id == TypeId::of::<NodePromotionStrategy>() {
+        return Some(enum_support(&[
+            NodePromotionStrategy::None,
+            NodePromotionStrategy::Nikolov,
+            NodePromotionStrategy::NikolovPixel,
+            NodePromotionStrategy::NikolovImproved,
+            NodePromotionStrategy::NikolovImprovedPixel,
+            NodePromotionStrategy::DummynodePercentage,
+            NodePromotionStrategy::NodecountPercentage,
+            NodePromotionStrategy::NoBoundary,
+            NodePromotionStrategy::ModelOrderLeftToRight,
+            NodePromotionStrategy::ModelOrderRightToLeft,
+        ]));
+    }
+    if type_id == TypeId::of::<OrderingStrategy>() {
+        return Some(enum_support(&[
+            OrderingStrategy::None,
+            OrderingStrategy::NodesAndEdges,
+            OrderingStrategy::PreferEdges,
+            OrderingStrategy::PreferNodes,
+        ]));
+    }
+    if type_id == TypeId::of::<PortSortingStrategy>() {
+        return Some(enum_support(&[
+            PortSortingStrategy::InputOrder,
+            PortSortingStrategy::PortDegree,
+        ]));
+    }
+    if type_id == TypeId::of::<SelfLoopDistributionStrategy>() {
+        return Some(enum_support(&[
+            SelfLoopDistributionStrategy::Equally,
+            SelfLoopDistributionStrategy::North,
+            SelfLoopDistributionStrategy::NorthSouth,
+        ]));
+    }
+    if type_id == TypeId::of::<SelfLoopOrderingStrategy>() {
+        return Some(enum_support(&[
+            SelfLoopOrderingStrategy::Stacked,
+            SelfLoopOrderingStrategy::ReverseStacked,
+            SelfLoopOrderingStrategy::Sequenced,
+        ]));
+    }
+    if type_id == TypeId::of::<SplineRoutingMode>() {
+        return Some(enum_support(&[
+            SplineRoutingMode::Conservative,
+            SplineRoutingMode::ConservativeSoft,
+            SplineRoutingMode::Sloppy,
+        ]));
+    }
+    if type_id == TypeId::of::<ValidifyStrategy>() {
+        return Some(enum_support(&[
+            ValidifyStrategy::No,
+            ValidifyStrategy::Greedy,
+            ValidifyStrategy::LookBack,
+        ]));
+    }
+    if type_id == TypeId::of::<WrappingStrategy>() {
+        return Some(enum_support(&[
+            WrappingStrategy::Off,
+            WrappingStrategy::SingleEdge,
+            WrappingStrategy::MultiEdge,
+        ]));
+    }
+
+    None
+}
+
+fn enum_support<T: Copy + fmt::Debug + Send + Sync + 'static>(
+    variants: &'static [T],
+) -> (Vec<String>, ParserFn) {
+    (
+        enum_choices(variants),
+        Arc::new(move |value| {
+            parse_enum_value(value, variants)
+                .map(|parsed| Arc::new(parsed) as Arc<dyn Any + Send + Sync>)
+        }),
+    )
+}
+
+fn enum_choices<T: fmt::Debug>(variants: &'static [T]) -> Vec<String> {
+    variants
+        .iter()
+        .map(|variant| to_upper_snake(&format!("{:?}", variant)))
+        .collect()
+}
+
+fn parse_enum_value<T: Copy + fmt::Debug>(value: &str, variants: &'static [T]) -> Option<T> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    if let Ok(index) = trimmed.parse::<usize>() {
+        return variants.get(index).copied();
+    }
+    let normalized = normalize_enum_token(trimmed);
+    for &variant in variants {
+        if normalize_enum_token(&format!("{:?}", variant)) == normalized {
+            return Some(variant);
+        }
+    }
+    None
+}
+
+fn normalize_enum_token(value: &str) -> String {
+    value
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .collect::<String>()
+        .to_ascii_uppercase()
+}
+
+fn to_upper_snake(value: &str) -> String {
+    let mut out = String::new();
+    let mut prev: Option<char> = None;
+    let mut chars = value.chars().peekable();
+    while let Some(ch) = chars.next() {
+        let next = chars.peek().copied();
+        if let Some(prev_ch) = prev {
+            if ch.is_uppercase()
+                && (prev_ch.is_lowercase()
+                    || next.map(|n| n.is_lowercase()).unwrap_or(false))
+            {
+                out.push('_');
+            }
+        }
+        out.push(ch.to_ascii_uppercase());
+        prev = Some(ch);
+    }
+    out
 }
 
 fn property_default_any<T: Clone + Send + Sync + 'static>(

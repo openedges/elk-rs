@@ -7,7 +7,7 @@ use crate::org::eclipse::elk::alg::layered::graph::LGraph;
 use crate::org::eclipse::elk::alg::layered::no_op_phase::NoOpPhase;
 use crate::org::eclipse::elk::alg::layered::p1cycles::{
     BfsNodeOrderCycleBreaker, DepthFirstCycleBreaker, DfsNodeOrderCycleBreaker, GreedyCycleBreaker,
-    ModelOrderCycleBreaker, ScConnectivityCycleBreaker, SccNodeTypeCycleBreaker,
+    InteractiveCycleBreaker, ModelOrderCycleBreaker, ScConnectivityCycleBreaker, SccNodeTypeCycleBreaker,
 };
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
 
@@ -54,7 +54,7 @@ impl ILayoutPhaseFactory<LayeredPhases, LGraph> for CycleBreakingStrategy {
             CycleBreakingStrategy::SccNodeType => Box::new(SccNodeTypeCycleBreaker::new()),
             CycleBreakingStrategy::DfsNodeOrder => Box::new(DfsNodeOrderCycleBreaker::new()),
             CycleBreakingStrategy::BfsNodeOrder => Box::new(BfsNodeOrderCycleBreaker::new()),
-            _ => Box::new(NoOpPhase::new()),
+            CycleBreakingStrategy::Interactive => Box::new(InteractiveCycleBreaker::new()),
         }
     }
 

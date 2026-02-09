@@ -7,6 +7,14 @@ license = "EPL-2.0"
 [dependencies]
 org-eclipse-elk-graph = { path = "../org.eclipse.elk.graph" }
 org-eclipse-elk-core = { path = "../org.eclipse.elk.core" }
+org-eclipse-elk-alg-disco = { path = "../org.eclipse.elk.alg.disco" }
+org-eclipse-elk-alg-force = { path = "../org.eclipse.elk.alg.force" }
+org-eclipse-elk-alg-layered = { path = "../org.eclipse.elk.alg.layered" }
+org-eclipse-elk-alg-mrtree = { path = "../org.eclipse.elk.alg.mrtree" }
+org-eclipse-elk-alg-radial = { path = "../org.eclipse.elk.alg.radial" }
+org-eclipse-elk-alg-rectpacking = { path = "../org.eclipse.elk.alg.rectpacking" }
+org-eclipse-elk-alg-spore = { path = "../org.eclipse.elk.alg.spore" }
+org-eclipse-elk-alg-vertiflex = { path = "../org.eclipse.elk.alg.vertiflex" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 json5 = "0.4"
