@@ -870,5 +870,8 @@
 - [x] timeout 36건 재현/프로파일링/성능·루프 수정/회귀 테스트 추가
 - [x] label 관련 timeout 3건(`layerSelection_center_01/02`, `layerSelection_widest`) LabelDummySwitcher 단계 루프/락 원인 분석 및 수정
 - [x] label subset parity(61 모델) 재실행 후 drift/timeout 변화 리포트 갱신
+- [x] LabelDummySwitcher 그래프 락 재진입 데드락 방지: 레이어 스냅샷/간격 캐시 적용, `find_max_non_dummy_node_width`에 `Direction` 전달, `ELK_TRACE_LABEL_DUMMY_SWITCHER` 로그 추가
+- [x] 포트 라벨 Distributed/Justified 간격 보정(`required_axis_length_for_side`), `ELK_TRACE_NODE_SIZE` 로그 추가 및 label subset diffs 614→598 개선 확인
+- [x] `.gitignore`에 `perf/model_parity_full/rust/`, `__pycache__/`, `*.pyc` 출력 제외 규칙 추가
 - [ ] drift 대량 원인(p1cycles/p2layers/p3order 중심) 정합화 및 회귀 테스트 추가
 - [ ] 1,448 모델 전체 parity 100% match 재실행 확인 및 리포트 갱신

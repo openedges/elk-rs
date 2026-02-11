@@ -11,3 +11,10 @@
 # Perf artifacts
 /perf/*.csv
 /perf/summary.md
+
+# Model parity outputs
+/perf/model_parity_full/rust/
+
+# Python cache
+__pycache__/
+*.pyc
