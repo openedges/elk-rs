@@ -8,6 +8,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configu
 use org_eclipse_elk_core::org::eclipse::elk::core::graph_layout_engine::IGraphLayoutEngine;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
+use org_eclipse_elk_core::org::eclipse::elk::core::math::ElkPadding;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{BasicProgressMonitor, BoxLayoutProvider, ElkUtil, IElkProgressMonitor};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 
@@ -93,6 +94,8 @@ impl Default for RectPackingLayoutProvider {
 impl IGraphLayoutEngine for RectPackingLayoutProvider {
     fn layout(&mut self, layout_graph: &ElkNodeRef, progress_monitor: &mut dyn IElkProgressMonitor) {
         progress_monitor.begin("Rectangle Packing", 1.0);
+
+        apply_algorithm_defaults(layout_graph);
 
         let padding = property(layout_graph, RectPackingOptions::PADDING).unwrap_or_default();
         let fixed_graph_size =
@@ -213,6 +216,24 @@ impl IGraphLayoutEngine for RectPackingLayoutProvider {
 }
 
 impl AbstractLayoutProvider for RectPackingLayoutProvider {}
+
+fn apply_algorithm_defaults(graph: &ElkNodeRef) {
+    let mut graph_mut = graph.borrow_mut();
+    let props = graph_mut
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut();
+    if !props.has_property_id(CoreOptions::PADDING.id()) {
+        props.set_property(&*CoreOptions::PADDING, Some(ElkPadding::with_any(15.0)));
+    }
+    if !props.has_property_id(CoreOptions::SPACING_NODE_NODE.id()) {
+        props.set_property(&*CoreOptions::SPACING_NODE_NODE, Some(15.0_f64));
+    }
+    if !props.has_property_id(CoreOptions::ASPECT_RATIO.id()) {
+        props.set_property(&*CoreOptions::ASPECT_RATIO, Some(1.3_f64));
+    }
+}
 
 fn apply_padding(rectangles: &[ElkNodeRef], padding: &org_eclipse_elk_core::org::eclipse::elk::core::math::ElkPadding) {
     for rect in rectangles {

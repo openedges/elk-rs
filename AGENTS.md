@@ -793,18 +793,52 @@
 - [x] drift 상위 원인별 1차 보정(비결정적 필드 정규화 또는 Rust 레이아웃 전/후처리 정합화) 후 `MODEL_PARITY_STRICT=true` 샘플 게이트(`JAVA_PARITY_LIMIT=10`) 통과 목표 → 완료: drift 없음(N/A), 10/10 perfect match
 - [x] parity runner hang 원인 분석(`JAVA_PARITY_LIMIT=100`에서 정체되는 입력 모델 식별 + timeout/heartbeat/중간 manifest flush 추가) 및 대형 샘플 안정 실행 확보 → 완료: Mutex deadlock in `random_from_holder()` 수정(routing_slot_assigner.rs), runner에 timeout/heartbeat/flush 추가
 - [x] `JAVA_PARITY_LIMIT=100` 대형 샘플 parity 검증(deadlock 수정 후 스케일업) → 완료: 95/100 ok(4 timeout, 1 panic), 16 match / 79 drift / 1491 diffs
-- [~] 100-model drift 상위 원인 분석 및 1차 보정 (진행 중):
+- [x] 100-model drift 상위 원인 분석 및 1차 보정 → 완료:
   - [x] `portConstraints.elkt` panic 수정: `PortSide::Undefined` → `Ordering::Equal` (elk_graph_adapters.rs:807)
   - [x] `normalize_graph_bounds` 제거 (elk_graph_layout_transferrer.rs) - Java에 없는 좌표 이동 제거 → 1 모델 추가 match (18/96)
   - [x] BK HashMap→BTreeMap 보정 (compactor.rs/util.rs/node_placer.rs) - 결정적 반복 보장
   - [x] 근본 원인 규명 완료:
-    1. **PRIMARY**: `LabelAndNodeSizeProcessor`가 Java의 `NodeDimensionCalculation.calculateLabelAndNodeSizes(LGraphAdapters.adapt(...))` 대신 커스텀 구현 사용 → 포트 y좌표 차이 → BK alignment 연쇄 drift (coordinate drift 85%, 1252 diffs)
-    2. **SECONDARY**: `apply_graph_layout`에서 `ElkUtil.resizeNode` 대신 단순 `set_dimensions` 사용 (size constraint 미적용)
-    3. **SECONDARY**: `normalize_graph_bounds` 제거 완료
-  - 현재 상태: 96/100 ok, 18 match, 78 drift, 1473 diffs, 4 timeout
-  - 완료 작업:
-    - [x] `LGraphAdapters` 구현: 4-param `adapt(graph, transparentNorthSouthEdges, transparentCommentNodes, nodeFilter)` 추가, `LNodeAdapter::get_incoming/outgoing_edges()` → empty Vec, `is_compound_node()` → COMPOUND_NODE only, `LPortAdapter` transparent N/S edge + self-loop holder edge 지원, `LGraphAdapter::get_property()` → full property delegation via cloned MapPropertyHolder. `LabelAndNodeSizeProcessor`가 `adapt(graph, true, true, |n| n.node_type() == Normal)` 호출하도록 교체. 결과: parity 변화 없음 (19 match, 69 drift, 1307 diffs) — drift는 earlier processors (p1cycles/p2layers/p3order)가 원인
-    - [x] `apply_graph_layout` 분석: Rust가 이미 `apply_parent_node_layout`에서 `ElkUtil::resize_node_with()` 사용 중 (정확). `apply_node_layout`의 unconditional `set_dimensions`는 LabelAndNodeSizeProcessor가 올바른 크기를 계산하므로 안전. 변경 불필요
-    - [x] 4 timeout 모델 분석: 12 모델(9 pseudo_positions + allowNonFlowPortsToSwitchSides + horizontalOrder + modelOrderCrossingMinimization). 근본 원인: Rust의 INTERACTIVE cycle breaker/layerer 성능 문제 및 model order crossing minimization의 NODES_AND_EDGES 전략 비효율. 구조적 버그가 아닌 알고리즘 최적화 필요
-  - 최종 상태: 88/100 ok, 19 match, 69 drift, 1307 diffs, 12 timeout
-  - 남은 drift 원인: earlier layout processors (p1cycles/p2layers/p3order)의 좌표 차이 (children[*]/y 56.5%, children[*]/x 21.2%)
+    1. **PRIMARY**: earlier layout processors (p1cycles/p2layers/p3order)의 미세한 알고리즘 차이로 인한 좌표 drift (coordinate 70.3%, section 18.9%)
+    2. **SECONDARY**: `LabelAndNodeSizeProcessor` NDC 경로에서 WEST/SOUTH 포트 반복 순서 차이 (Java의 volatile ID 기반 역순 vs Rust 입력 순서)
+    3. **FIXED**: RectPacking defaults (PADDING=15.0, SPACING_NODE_NODE=15.0, ASPECT_RATIO=1.3) apply_algorithm_defaults 추가
+  - [x] `LGraphAdapters` 완전 재구현: 4-param adapt(), transparent N/S edges, compound node 판별, property delegation
+  - [x] `HierarchicalNodeResizingProcessor` wiring (mod.rs + IntermediateProcessorStrategy match arm)
+  - [x] `PortComparator` WEST sorting: y2.partial_cmp(&y1) for descending Y (Java parity)
+  - [x] `portLabelsMulti` WEST/SOUTH 포트 label 인덱스 역순 보정 (node_dimension_calculation.rs 3개 call site): Java의 NodeContext.comparePortContexts가 WEST/SOUTH에서 volatile ID 역순으로 TreeMultimap 정렬 → Rust에서 `per_side_count - 1 - per_side_index` 적용
+  - 100-model 최종 상태: 88/100 ok, **23 match** (19→22→23), 65 drift, 1265 diffs, 12 timeout
+  - 남은 drift 원인: p1cycles/p2layers/p3order 알고리즘 미세 차이 (children[*]/y 33.6%, children[*]/x 13.7%)
+- [x] 전체 1,448 모델 parity 테스트 체계 구축 및 실행 → 완료:
+  - `external/elk-models` submodule에 1,448개 모델 포함 (examples 45, tickets 110, tests 193, realworld 1,100)
+  - `scripts/run_model_parity_elk_vs_rust.sh` 개선: `--release` 빌드 기본값, submodule 자동 초기화, report 요약 출력
+  - `scripts/run_model_parity_by_category.sh` 신규: 카테고리별 독립 실행 (examples/tickets/tests/realworld/all)
+  - 실행 명령어:
+    - 전체: `sh scripts/run_model_parity_by_category.sh all`
+    - 카테고리별: `sh scripts/run_model_parity_by_category.sh examples`
+    - 직접 실행: `cargo run --release -p org-eclipse-elk-graph-json --bin model_parity_layout_runner -- --input-manifest <manifest> --output-manifest <out> --rust-layout-dir <dir> --pretty-print false --stop-on-error false`
+  - 결과 디렉토리: `perf/model_parity_full/` (report.md, diff_details.tsv, rust_manifest.tsv)
+  - **1,448 모델 baseline 결과** (2026-02-10):
+    - total=1,448, compared=1,401, **matched=79** (5.6%), drift=1,322, skipped=47 (9 java_non_ok + 38 rust errors)
+    - rust errors: 30 timeouts (120s), 8 panics (orthogonal_routing_generator unwrap + BK aligner missing edge)
+    - total diffs=25,401 (coordinate 70.3%, section 18.9%, structure 8.3%, label 1.5%, ordering 0.6%)
+    - top diff paths: children[*]/y (33.6%), children[*]/x (13.7%), children[*]/edges[*]/sections (7.7%)
+  - 이전 대비 개선: 77→79 matches (+2, portLabelsMulti + multilabels), 25,409→25,401 diffs (-8), 0 regressions
+  - 다음 개선 방향: p1cycles/p2layers/p3order drift 해결, 30 timeout 성능 최적화, 8 panic 수정
+- [x] Layered 알고리즘 기본값 보정으로 대규모 parity 향상 → 완료:
+  - **근본 원인**: Java `Layered.melk`의 알고리즘별 기본값을 Rust가 누락 — CoreOptions 기본값만 사용
+  - 핵심 불일치 2종 수정:
+    1. `EDGE_ROUTING`: Java=Orthogonal, Rust=Undefined → **수정**: Orthogonal 기본값 적용
+    2. `SEPARATE_CONNECTED_COMPONENTS`: Java=true, Rust=기본값 없음 → **수정**: true 기본값 적용
+    - `PORT_ALIGNMENT_DEFAULT=Justified` → **삭제**: Java .melk `supports`는 메타데이터 전용, 런타임 미적용
+  - **구현**: `apply_layered_algorithm_defaults()` in `layered_layout_provider.rs` (RectPacking 패턴)
+  - [x] Step 1: `apply_layered_algorithm_defaults()` 구현
+  - [x] Step 2: 전체 1,448 모델 재실행 및 비교
+  - [x] Step 3: Regression 수정 및 NetworkSimplex deadlock 해결
+  - **결과 v4** (2026-02-10): 79→156 matches (+77), 25,401→23,263 diffs, 30→36 timeouts
+  - **결과 v6** (2026-02-10, deadlock fix 포함):
+    - 156 → **161 matches** (+5), compared=1,401, drift=1,240, diffs=23,273, timeouts=30 (-6)
+    - PORT_ALIGNMENT_DEFAULT 제거 → 182_minNodeSize 복원 (6 diffs → 0 match)
+    - NetworkSimplex deadlock 수정 → nodesEdges + flexible_ports/graph03 = match, 나머지 4개 timeout→drift
+    - [x] 2개 regression 원인 분석 및 수정 완료
+    - [x] 6개 new timeout 원인 분석 → re-entrant Mutex deadlock in get_node_state → 수정 완료
+    - [ ] Layered.melk 나머지 기본값 추가 검토 (spacing, crossMin, wrapping 등 43개 중 미적용 항목)
+  - 남은 과제: 30 timeouts (INTERACTIVE perf), 8 panics, 1,240 drift models

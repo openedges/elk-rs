@@ -1,6 +1,7 @@
 use org_eclipse_elk_core::org::eclipse::elk::core::abstract_layout_provider::AbstractLayoutProvider;
 use org_eclipse_elk_core::org::eclipse::elk::core::graph_layout_engine::IGraphLayoutEngine;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::CoreOptions;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_routing::EdgeRouting;
 use org_eclipse_elk_core::org::eclipse::elk::core::testing::IWhiteBoxTestable;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
@@ -40,8 +41,25 @@ impl Default for LayeredLayoutProvider {
     }
 }
 
+fn apply_layered_algorithm_defaults(graph: &ElkNodeRef) {
+    let mut graph_mut = graph.borrow_mut();
+    let props = graph_mut.connectable().shape().graph_element().properties_mut();
+    if !props.has_property_id(LayeredOptions::EDGE_ROUTING.id()) {
+        props.set_property(&*LayeredOptions::EDGE_ROUTING, Some(EdgeRouting::Orthogonal));
+    }
+    // NOTE: PORT_ALIGNMENT_DEFAULT is NOT set here. Java's Layered.melk declares
+    // "supports portAlignment.default = JUSTIFIED" as metadata-only, not applied at runtime.
+    // Java uses the Property global default (Distributed) via getProperty(CoreOptions.PORT_ALIGNMENT_DEFAULT).
+    // Setting Justified here caused regressions in port positioning (182_minNodeSizeForHierarchicalNodes.elkt).
+    if !props.has_property_id(LayeredOptions::SEPARATE_CONNECTED_COMPONENTS.id()) {
+        props.set_property(&*LayeredOptions::SEPARATE_CONNECTED_COMPONENTS, Some(true));
+    }
+}
+
 impl IGraphLayoutEngine for LayeredLayoutProvider {
     fn layout(&mut self, layout_graph: &ElkNodeRef, progress_monitor: &mut dyn IElkProgressMonitor) {
+        apply_layered_algorithm_defaults(layout_graph);
+
         let omit_micro_layout = {
             let mut graph_mut = layout_graph.borrow_mut();
             graph_mut

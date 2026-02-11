@@ -18,7 +18,7 @@ use crate::org::eclipse::elk::alg::layered::intermediate::{
     NorthSouthPortPreprocessor, NodePromotion, PartitionMidprocessor, PartitionPostprocessor, PartitionPreprocessor,
     PortListSorter, PortSideProcessor, ReversedEdgeRestorer, SelfLoopPortRestorer,
     SelfLoopPostProcessor, SelfLoopPreProcessor, SelfLoopRouter, SemiInteractiveCrossMinProcessor,
-    SortByInputModelProcessor,
+    SortByInputModelProcessor, HierarchicalNodeResizingProcessor,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
@@ -229,6 +229,9 @@ impl ILayoutProcessorFactory<LGraph> for IntermediateProcessorStrategy {
             IntermediateProcessorStrategy::SelfLoopRouter => Box::new(SelfLoopRouter),
             IntermediateProcessorStrategy::InteractiveExternalPortPositioner => {
                 Box::new(InteractiveExternalPortPositioner)
+            }
+            IntermediateProcessorStrategy::HierarchicalNodeResizer => {
+                Box::new(HierarchicalNodeResizingProcessor)
             }
             _ => Box::new(NoOpLayoutProcessor),
         }

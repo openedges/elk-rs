@@ -1,0 +1,1 @@
+{"children":[{"children":[{"height":0.0,"id":"C1","width":0.0,"x":12.0,"y":12.0}],"height":24.0,"id":"N1","layoutOptions":{"org.eclipse.elk.nodeSize.constraints":"[PORTS]"},"ports":[{"height":0.0,"id":"P1","width":0.0,"x":-0.0,"y":12.0}],"width":24.0,"x":12.0,"y":12.0}],"height":48.0,"id":"n0","layoutOptions":{"org.eclipse.elk.randomSeed":"1"},"width":48.0,"x":0.0,"y":0.0}

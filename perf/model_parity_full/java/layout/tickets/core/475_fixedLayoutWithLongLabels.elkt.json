@@ -1,0 +1,1 @@
+{"id":"n0","children":[{"id":"compound","children":[{"id":"n1","x":200.0,"y":200.0,"width":0.0,"height":0.0}],"layoutOptions":{"org.eclipse.elk.nodeSize.fixedGraphSize":"true","org.eclipse.elk.algorithm":"fixed"},"x":12.0,"y":12.0,"width":50.0,"height":50.0}],"layoutOptions":{"org.eclipse.elk.randomSeed":"1"},"x":0.0,"y":0.0,"width":74.0,"height":74.0}

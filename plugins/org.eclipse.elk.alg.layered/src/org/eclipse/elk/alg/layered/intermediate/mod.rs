@@ -35,6 +35,7 @@ pub mod self_loop_preprocessor;
 pub mod self_loop_postprocessor;
 pub mod self_loop_port_restorer;
 pub mod self_loop_router;
+pub mod hierarchical_node_resizing_processor;
 
 pub use intermediate_processor_strategy::IntermediateProcessorStrategy;
 pub use graph_transformer::{GraphTransformer, Mode as GraphTransformerMode};
@@ -73,3 +74,4 @@ pub use self_loop_preprocessor::SelfLoopPreProcessor;
 pub use self_loop_postprocessor::SelfLoopPostProcessor;
 pub use self_loop_port_restorer::SelfLoopPortRestorer;
 pub use self_loop_router::SelfLoopRouter;
+pub use hierarchical_node_resizing_processor::HierarchicalNodeResizingProcessor;

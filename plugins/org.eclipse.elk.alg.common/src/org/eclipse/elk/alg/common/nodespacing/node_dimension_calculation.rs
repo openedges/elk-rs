@@ -114,8 +114,15 @@ impl NodeDimensionCalculation {
                 let per_side_count = side_counts[side_idx];
                 side_indices[side_idx] += 1;
 
+                // Java's NodeContext.comparePortContexts reverses WEST/SOUTH ports in TreeMultimap
+                let effective_index = if port.get_side() == PortSide::West || port.get_side() == PortSide::South {
+                    per_side_count.saturating_sub(1).saturating_sub(per_side_index)
+                } else {
+                    per_side_index
+                };
+
                 let relation = Self::label_placement_relation(
-                    per_side_index,
+                    effective_index,
                     per_side_count,
                     any_incident_edges,
                     inside_label_placement,
@@ -362,8 +369,15 @@ impl NodeDimensionCalculation {
                 let per_side_count = side_counts[side_idx];
                 side_indices[side_idx] += 1;
 
+                // Java's NodeContext.comparePortContexts reverses WEST/SOUTH ports in TreeMultimap
+                let effective_index = if port.get_side() == PortSide::West || port.get_side() == PortSide::South {
+                    per_side_count.saturating_sub(1).saturating_sub(per_side_index)
+                } else {
+                    per_side_index
+                };
+
                 let relation = Self::label_placement_relation(
-                    per_side_index,
+                    effective_index,
                     per_side_count,
                     any_incident_edges,
                     inside_label_placement,
@@ -609,8 +623,15 @@ impl NodeDimensionCalculation {
                 let per_side_count = side_counts[side_idx];
                 side_indices[side_idx] += 1;
 
+                // Java's NodeContext.comparePortContexts reverses WEST/SOUTH ports in TreeMultimap
+                let effective_index = if port.get_side() == PortSide::West || port.get_side() == PortSide::South {
+                    per_side_count.saturating_sub(1).saturating_sub(per_side_index)
+                } else {
+                    per_side_index
+                };
+
                 let relation = Self::label_placement_relation(
-                    per_side_index,
+                    effective_index,
                     per_side_count,
                     any_incident_edges,
                     inside_label_placement,

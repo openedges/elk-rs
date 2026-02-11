@@ -593,11 +593,12 @@ impl NetworkSimplexPlacer {
                     .map(|node_guard| node_guard.connected_edges())
                     .unwrap_or_default();
                 for edge in edges {
-                    let in_layer = edge
-                        .lock()
-                        .ok()
-                        .map(|edge_guard| edge_guard.is_in_layer_edge())
-                        .unwrap_or(false);
+                    let in_layer = {
+                        let (sp, tp) = edge.lock().ok()
+                            .map(|eg| (eg.source(), eg.target()))
+                            .unwrap_or((None, None));
+                        check_in_layer_edge_ports(&sp, &tp)
+                    };
                     if !in_layer {
                         continue;
                     }
@@ -1113,10 +1114,20 @@ impl NetworkSimplexPlacer {
     }
 
     fn follow(&mut self, edge: &LEdgeRef, current: &LNodeRef, mut path: Path) -> Path {
-        let other = edge
-            .lock()
-            .ok()
-            .map(|edge_guard| edge_guard.other_node(current));
+        // Extract ports first, drop edge lock, then resolve other_node
+        // (other_node locks ports which could deadlock if edge lock is held)
+        let other = {
+            let (sp, tp) = edge.lock().ok()
+                .map(|eg| (eg.source(), eg.target()))
+                .unwrap_or((None, None));
+            let source_node = sp.and_then(|p| p.lock().ok().and_then(|p| p.node()));
+            let target_node = tp.and_then(|p| p.lock().ok().and_then(|p| p.node()));
+            if source_node.as_ref().map_or(false, |n| Arc::ptr_eq(n, current)) {
+                target_node
+            } else {
+                source_node
+            }
+        };
         path.edges.push(edge.clone());
 
         let Some(other) = other else { return path; };
@@ -1182,21 +1193,27 @@ impl NetworkSimplexPlacer {
                     .map(|port_guard| port_guard.outgoing_edges().clone())
                     .unwrap_or_default();
                 for edge in outgoing {
-                    let skip = edge
-                        .lock()
-                        .ok()
-                        .map(|edge_guard| {
-                            edge_guard.is_in_layer_edge()
-                                || edge_guard.is_self_loop()
-                                || edge_guard
-                                    .target()
-                                    .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
-                                    .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.layer()))
-                                    .map(|layer| !Arc::ptr_eq(&layer, right))
-                                    .unwrap_or(true)
-                        })
+                    // Extract ports WITHOUT holding edge lock during property checks
+                    let (source_port, target_port) = {
+                        let edge_guard = match edge.lock() {
+                            Ok(g) => g,
+                            Err(_) => { continue; }
+                        };
+                        (edge_guard.source(), edge_guard.target())
+                        // edge_guard (MutexGuard) dropped here
+                    };
+
+                    // Check skip conditions with NO edge lock held
+                    let is_self = check_self_loop_ports(&source_port, &target_port);
+                    let is_in_layer = if is_self { false } else { check_in_layer_edge_ports(&source_port, &target_port) };
+                    let target_not_in_right = target_port
+                        .as_ref()
+                        .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
+                        .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.layer()))
+                        .map(|layer| !Arc::ptr_eq(&layer, right))
                         .unwrap_or(true);
-                    if skip {
+
+                    if is_self || is_in_layer || target_not_in_right {
                         continue;
                     }
                     open_edges.push(edge);
@@ -1222,21 +1239,27 @@ impl NetworkSimplexPlacer {
                     .map(|port_guard| port_guard.incoming_edges().clone())
                     .unwrap_or_default();
                 for edge in incoming {
-                    let skip = edge
-                        .lock()
-                        .ok()
-                        .map(|edge_guard| {
-                            edge_guard.is_in_layer_edge()
-                                || edge_guard.is_self_loop()
-                                || edge_guard
-                                    .source()
-                                    .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
-                                    .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.layer()))
-                                    .map(|layer| !Arc::ptr_eq(&layer, left))
-                                    .unwrap_or(true)
-                        })
+                    // Extract ports WITHOUT holding edge lock during property checks
+                    let (source_port, target_port) = {
+                        let edge_guard = match edge.lock() {
+                            Ok(g) => g,
+                            Err(_) => { continue; }
+                        };
+                        (edge_guard.source(), edge_guard.target())
+                        // edge_guard (MutexGuard) dropped here
+                    };
+
+                    // Check skip conditions with NO edge lock held
+                    let is_self = check_self_loop_ports(&source_port, &target_port);
+                    let is_in_layer = if is_self { false } else { check_in_layer_edge_ports(&source_port, &target_port) };
+                    let source_not_in_left = source_port
+                        .as_ref()
+                        .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
+                        .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.layer()))
+                        .map(|layer| !Arc::ptr_eq(&layer, left))
                         .unwrap_or(true);
-                    if skip {
+
+                    if is_self || is_in_layer || source_not_in_left {
                         continue;
                     }
 
@@ -1533,10 +1556,11 @@ fn edge_type_weight(node_type1: NodeType, node_type2: NodeType) -> f64 {
 }
 
 fn is_handled_edge(edge: &LEdgeRef) -> bool {
-    edge.lock()
-        .ok()
-        .map(|edge_guard| !edge_guard.is_self_loop() && !edge_guard.is_in_layer_edge())
-        .unwrap_or(false)
+    // Extract ports first, drop edge lock, then check (avoids edge→port nested locking)
+    let (sp, tp) = edge.lock().ok()
+        .map(|eg| (eg.source(), eg.target()))
+        .unwrap_or((None, None));
+    !check_self_loop_ports(&sp, &tp) && !check_in_layer_edge_ports(&sp, &tp)
 }
 
 fn get_node_state(node: &LNodeRef) -> i32 {
@@ -1548,20 +1572,36 @@ fn get_node_state(node: &LNodeRef) -> i32 {
     let mut inco = 0usize;
     let mut ouco = 0usize;
     for port in ports {
-        if let Ok(port_guard) = port.lock() {
-            inco += port_guard
-                .incoming_edges()
-                .iter()
-                .filter(|edge| edge.lock().ok().map(|edge_guard| !edge_guard.is_self_loop()).unwrap_or(false))
-                .count();
-            ouco += port_guard
-                .outgoing_edges()
-                .iter()
-                .filter(|edge| edge.lock().ok().map(|edge_guard| !edge_guard.is_self_loop()).unwrap_or(false))
-                .count();
-            if inco > 1 || ouco > 1 {
-                return JUNCTION;
+        // Extract edge lists, then DROP port lock before checking is_self_loop
+        // (is_self_loop locks source/target ports, which would deadlock if this port is held)
+        let (incoming, outgoing) = {
+            if let Ok(port_guard) = port.lock() {
+                (port_guard.incoming_edges().clone(), port_guard.outgoing_edges().clone())
+            } else {
+                continue;
             }
+            // port lock dropped here
+        };
+        inco += incoming
+            .iter()
+            .filter(|edge| {
+                let (sp, tp) = edge.lock().ok()
+                    .map(|eg| (eg.source(), eg.target()))
+                    .unwrap_or((None, None));
+                !check_self_loop_ports(&sp, &tp)
+            })
+            .count();
+        ouco += outgoing
+            .iter()
+            .filter(|edge| {
+                let (sp, tp) = edge.lock().ok()
+                    .map(|eg| (eg.source(), eg.target()))
+                    .unwrap_or((None, None));
+                !check_self_loop_ports(&sp, &tp)
+            })
+            .count();
+        if inco > 1 || ouco > 1 {
+            return JUNCTION;
         }
     }
     if inco + ouco == 1 {
@@ -1602,6 +1642,35 @@ fn edge_id(edge: &LEdgeRef) -> usize {
         .ok()
         .map(|mut edge_guard| edge_guard.graph_element().id as usize)
         .unwrap_or(0)
+}
+
+fn check_self_loop_ports(source: &Option<LPortRef>, target: &Option<LPortRef>) -> bool {
+    match (source, target) {
+        (Some(source), Some(target)) => {
+            let source_node = source.lock().ok().and_then(|port| port.node());
+            let target_node = target.lock().ok().and_then(|port| port.node());
+            if let (Some(source_node), Some(target_node)) = (source_node, target_node) {
+                Arc::ptr_eq(&source_node, &target_node)
+            } else {
+                false
+            }
+        }
+        _ => false,
+    }
+}
+
+fn check_in_layer_edge_ports(source: &Option<LPortRef>, target: &Option<LPortRef>) -> bool {
+    if check_self_loop_ports(source, target) {
+        return false;
+    }
+    if let (Some(source), Some(target)) = (source, target) {
+        let source_layer = source.lock().ok().and_then(|port| port.node()).and_then(|node| node.lock().ok().and_then(|node| node.layer()));
+        let target_layer = target.lock().ok().and_then(|port| port.node()).and_then(|node| node.lock().ok().and_then(|node| node.layer()));
+        if let (Some(source_layer), Some(target_layer)) = (source_layer, target_layer) {
+            return Arc::ptr_eq(&source_layer, &target_layer);
+        }
+    }
+    false
 }
 
 fn port_key(port: &LPortRef) -> usize {

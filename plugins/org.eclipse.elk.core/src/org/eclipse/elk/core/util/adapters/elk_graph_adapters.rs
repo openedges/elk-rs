@@ -802,7 +802,7 @@ impl PortComparator {
             PortSide::West => {
                 let y1 = with_port_shape_mut(port1, |shape| shape.y());
                 let y2 = with_port_shape_mut(port2, |shape| shape.y());
-                y1.partial_cmp(&y2).unwrap_or(Ordering::Equal)
+                y2.partial_cmp(&y1).unwrap_or(Ordering::Equal)
             }
             PortSide::Undefined => Ordering::Equal,
         }
