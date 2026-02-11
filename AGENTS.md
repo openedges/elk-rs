@@ -792,6 +792,7 @@
 - LabelDummySwitcher long-edge 더미 순회 루프 가드 추가(NodeRefKey HashSet)로 순환 대비; `layerSelection_center_01` 단건 재실행에서도 LabelDummySwitcher 단계 timeout 지속(원인 추가 분석 필요)
 - LabelDummySwitcher 데드락 해소: graph.lock 재진입 제거(레이어/spacing 캐시, `find_max_non_dummy_node_width` 방향 인자화)로 `layerSelection_center_{01,02}`/`layerSelection_widest` 3/3 ok 확인
 - label subset 61개 parity 재실행(2026-02-11, release): ok=61/timeout=0, matches=21, drift=40, total_diffs=614 (`/tmp/report_labels_after_deadlock_fix.md`)
+- LabelAndNodeSizeProcessor 포트 최소 길이 보정: PortAlignment::Distributed가 port spacing을 양끝에 추가하도록 반영 → `treat_as_group_inside` 등 포트 라벨 케이스 높이/포트 위치 복구, label subset total_diffs 614→598 (`/tmp/report_labels_after_portspacing_fix.md`)
 ## 진행률(최신)
 - 전체 목표 대비 추정 진행률: 약 100.0% (기준: Java 기능/API/테스트 parity, 빌드/클리피, 성능 자동화)
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)

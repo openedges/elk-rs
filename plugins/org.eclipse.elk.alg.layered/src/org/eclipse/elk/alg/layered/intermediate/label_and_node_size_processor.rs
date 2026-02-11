@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::elk_margin::ElkMargin;
@@ -21,6 +21,9 @@ use crate::org::eclipse::elk::alg::layered::options::graph_properties::GraphProp
 use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions};
 
 pub struct LabelAndNodeSizeProcessor;
+
+static TRACE_NODE_SIZE: LazyLock<bool> =
+    LazyLock::new(|| std::env::var("ELK_TRACE_NODE_SIZE").is_ok());
 
 impl Default for LabelAndNodeSizeProcessor {
     fn default() -> Self {
@@ -139,6 +142,39 @@ fn place_ports_on_node(node: &LNodeRef, graph_port_spacing: f64, graph_ports_sur
         ),
         Err(_) => return,
     };
+    if *TRACE_NODE_SIZE {
+        let id = node
+            .lock()
+            .ok()
+            .map(|mut node_guard| node_guard.shape().graph_element().id)
+            .unwrap_or(-1);
+        let (n_count, e_count, s_count, w_count, u_count) = node
+            .lock()
+            .ok()
+            .map(|mut node_guard| {
+                (
+                    node_guard.port_side_view(PortSide::North).len(),
+                    node_guard.port_side_view(PortSide::East).len(),
+                    node_guard.port_side_view(PortSide::South).len(),
+                    node_guard.port_side_view(PortSide::West).len(),
+                    node_guard.port_side_view(PortSide::Undefined).len(),
+                )
+            })
+            .unwrap_or((0, 0, 0, 0, 0));
+        eprintln!(
+            "label-node-size: node id={} size=({}, {}) constraints={:?} port_constraints={:?} sides(N/E/S/W/U)=({}/{}/{}/{}/{})",
+            id,
+            node_size.x,
+            node_size.y,
+            size_constraints,
+            port_constraints,
+            n_count,
+            e_count,
+            s_count,
+            w_count,
+            u_count
+        );
+    }
 
     if node_type != NodeType::Normal {
         return;
@@ -632,15 +668,12 @@ fn required_axis_length_for_side(
         PortSide::Undefined => (0.0, 0.0),
     };
 
+    let base = surrounding_start.max(0.0)
+        + surrounding_end.max(0.0)
+        + port_spacing.max(0.0) * (count as f64 - 1.0);
     match alignment {
-        PortAlignment::Begin | PortAlignment::End | PortAlignment::Center => {
-            surrounding_start.max(0.0)
-                + surrounding_end.max(0.0)
-                + port_spacing.max(0.0) * (count as f64 - 1.0)
-        }
-        PortAlignment::Distributed | PortAlignment::Justified => {
-            surrounding_start.max(0.0) + surrounding_end.max(0.0)
-        }
+        PortAlignment::Distributed => base + 2.0 * port_spacing.max(0.0),
+        PortAlignment::Justified | PortAlignment::Begin | PortAlignment::End | PortAlignment::Center => base,
     }
 }
 
