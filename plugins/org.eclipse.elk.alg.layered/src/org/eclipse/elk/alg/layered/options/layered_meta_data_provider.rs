@@ -11,12 +11,15 @@ use org_eclipse_elk_core::org::eclipse::elk::core::data::{
     LayoutOptionType, LayoutOptionVisibility,
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::options::CoreOptions;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_routing::EdgeRouting;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::port_alignment::PortAlignment;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::topdown_node_types::TopdownNodeTypes;
 
 use super::{
     CenterEdgeLabelPlacementStrategy, ConstraintCalculationStrategy, CrossingMinimizationStrategy,
     CuttingStrategy, CycleBreakingStrategy, DirectionCongruency, EdgeLabelSideSelection,
     EdgeStraighteningStrategy, FixedAlignment, GraphCompactionStrategy, GreedySwitchType,
-    GroupOrderStrategy, InteractiveReferencePoint, LayerUnzippingStrategy, LayeredOptions,
+    GroupOrderStrategy, InLayerConstraint, InteractiveReferencePoint, LayerUnzippingStrategy, LayeredOptions,
     LayerConstraint, LayeringStrategy, LongEdgeOrderingStrategy, NodeFlexibility, NodePlacementStrategy,
     NodePromotionStrategy, OrderingStrategy, PortSortingStrategy, SelfLoopDistributionStrategy,
     SelfLoopOrderingStrategy, SplineRoutingMode, ValidifyStrategy, WrappingStrategy,
@@ -1319,7 +1322,11 @@ fn register_option_supports(registry: &mut dyn LayoutMetaDataRegistry) {
     registry.add_option_support(algo, LayeredOptions::SPACING_EDGE_EDGE_BETWEEN_LAYERS.id(), property_default_any(LayeredOptions::SPACING_EDGE_EDGE_BETWEEN_LAYERS));
     registry.add_option_support(algo, LayeredOptions::SPACING_EDGE_NODE_BETWEEN_LAYERS.id(), property_default_any(LayeredOptions::SPACING_EDGE_NODE_BETWEEN_LAYERS));
     registry.add_option_support(algo, LayeredOptions::SPACING_NODE_NODE_BETWEEN_LAYERS.id(), property_default_any(LayeredOptions::SPACING_NODE_NODE_BETWEEN_LAYERS));
-    registry.add_option_support(algo, CoreOptions::PRIORITY.id(), property_default_any(CoreOptions::PRIORITY));
+    registry.add_option_support(
+        algo,
+        LayeredOptions::PRIORITY.id(),
+        explicit_default_any(0),
+    );
     registry.add_option_support(algo, LayeredOptions::PRIORITY_DIRECTION.id(), property_default_any(LayeredOptions::PRIORITY_DIRECTION));
     registry.add_option_support(algo, LayeredOptions::PRIORITY_SHORTNESS.id(), property_default_any(LayeredOptions::PRIORITY_SHORTNESS));
     registry.add_option_support(algo, LayeredOptions::PRIORITY_STRAIGHTNESS.id(), property_default_any(LayeredOptions::PRIORITY_STRAIGHTNESS));
@@ -1346,19 +1353,43 @@ fn register_option_supports(registry: &mut dyn LayoutMetaDataRegistry) {
     registry.add_option_support(algo, CoreOptions::TOPDOWN_SCALE_FACTOR.id(), property_default_any(CoreOptions::TOPDOWN_SCALE_FACTOR));
     registry.add_option_support(algo, CoreOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH.id(), property_default_any(CoreOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH));
     registry.add_option_support(algo, CoreOptions::TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO.id(), property_default_any(CoreOptions::TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO));
-    registry.add_option_support(algo, CoreOptions::TOPDOWN_NODE_TYPE.id(), property_default_any(CoreOptions::TOPDOWN_NODE_TYPE));
+    registry.add_option_support(
+        algo,
+        LayeredOptions::TOPDOWN_NODE_TYPE.id(),
+        explicit_default_any(TopdownNodeTypes::HierarchicalNode),
+    );
     registry.add_option_support(algo, CoreOptions::PADDING.id(), property_default_any(CoreOptions::PADDING));
-    registry.add_option_support(algo, LayeredOptions::EDGE_ROUTING.id(), property_default_any(LayeredOptions::EDGE_ROUTING));
-    registry.add_option_support(algo, LayeredOptions::PORT_BORDER_OFFSET.id(), property_default_any(LayeredOptions::PORT_BORDER_OFFSET));
-    registry.add_option_support(algo, LayeredOptions::RANDOM_SEED.id(), property_default_any(LayeredOptions::RANDOM_SEED));
-    registry.add_option_support(algo, LayeredOptions::ASPECT_RATIO.id(), property_default_any(LayeredOptions::ASPECT_RATIO));
+    registry.add_option_support(
+        algo,
+        LayeredOptions::EDGE_ROUTING.id(),
+        explicit_default_any(EdgeRouting::Orthogonal),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::PORT_BORDER_OFFSET.id(),
+        explicit_default_any(0.0),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::RANDOM_SEED.id(),
+        explicit_default_any(1),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::ASPECT_RATIO.id(),
+        explicit_default_any(1.6),
+    );
     registry.add_option_support(algo, CoreOptions::NO_LAYOUT.id(), property_default_any(CoreOptions::NO_LAYOUT));
     registry.add_option_support(algo, LayeredOptions::PORT_CONSTRAINTS.id(), property_default_any(LayeredOptions::PORT_CONSTRAINTS));
     registry.add_option_support(algo, LayeredOptions::PORT_SIDE.id(), property_default_any(LayeredOptions::PORT_SIDE));
     registry.add_option_support(algo, CoreOptions::DEBUG_MODE.id(), property_default_any(CoreOptions::DEBUG_MODE));
     registry.add_option_support(algo, LayeredOptions::ALIGNMENT.id(), property_default_any(LayeredOptions::ALIGNMENT));
     registry.add_option_support(algo, LayeredOptions::HIERARCHY_HANDLING.id(), property_default_any(LayeredOptions::HIERARCHY_HANDLING));
-    registry.add_option_support(algo, LayeredOptions::SEPARATE_CONNECTED_COMPONENTS.id(), property_default_any(LayeredOptions::SEPARATE_CONNECTED_COMPONENTS));
+    registry.add_option_support(
+        algo,
+        LayeredOptions::SEPARATE_CONNECTED_COMPONENTS.id(),
+        explicit_default_any(true),
+    );
     registry.add_option_support(algo, CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE.id(), property_default_any(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE));
     registry.add_option_support(algo, CoreOptions::INSIDE_SELF_LOOPS_YO.id(), property_default_any(CoreOptions::INSIDE_SELF_LOOPS_YO));
     registry.add_option_support(algo, LayeredOptions::NODE_SIZE_CONSTRAINTS.id(), property_default_any(LayeredOptions::NODE_SIZE_CONSTRAINTS));
@@ -1370,7 +1401,11 @@ fn register_option_supports(registry: &mut dyn LayoutMetaDataRegistry) {
     registry.add_option_support(algo, CoreOptions::PORT_LABELS_PLACEMENT.id(), property_default_any(CoreOptions::PORT_LABELS_PLACEMENT));
     registry.add_option_support(algo, CoreOptions::PORT_LABELS_NEXT_TO_PORT_IF_POSSIBLE.id(), property_default_any(CoreOptions::PORT_LABELS_NEXT_TO_PORT_IF_POSSIBLE));
     registry.add_option_support(algo, CoreOptions::PORT_LABELS_TREAT_AS_GROUP.id(), property_default_any(CoreOptions::PORT_LABELS_TREAT_AS_GROUP));
-    registry.add_option_support(algo, CoreOptions::PORT_ALIGNMENT_DEFAULT.id(), property_default_any(CoreOptions::PORT_ALIGNMENT_DEFAULT));
+    registry.add_option_support(
+        algo,
+        CoreOptions::PORT_ALIGNMENT_DEFAULT.id(),
+        explicit_default_any(PortAlignment::Justified),
+    );
     registry.add_option_support(algo, CoreOptions::PORT_ALIGNMENT_NORTH.id(), property_default_any(CoreOptions::PORT_ALIGNMENT_NORTH));
     registry.add_option_support(algo, CoreOptions::PORT_ALIGNMENT_SOUTH.id(), property_default_any(CoreOptions::PORT_ALIGNMENT_SOUTH));
     registry.add_option_support(algo, CoreOptions::PORT_ALIGNMENT_WEST.id(), property_default_any(CoreOptions::PORT_ALIGNMENT_WEST));
@@ -1814,6 +1849,10 @@ fn property_default_any<T: Clone + Send + Sync + 'static>(
         .map(|value| Arc::new(value) as Arc<dyn Any + Send + Sync>)
 }
 
+fn explicit_default_any<T: Send + Sync + 'static>(value: T) -> Option<Arc<dyn Any + Send + Sync>> {
+    Some(Arc::new(value))
+}
+
 fn bound_f64(value: f64) -> Arc<dyn Any + Send + Sync> {
     Arc::new(value)
 }
@@ -1841,6 +1880,14 @@ fn init_reflect() {
         ElkReflect::register(
             Some(|| GroupOrderStrategy::OnlyWithinGroup),
             Some(|v: &GroupOrderStrategy| *v),
+        );
+        ElkReflect::register(
+            Some(|| LayerConstraint::None),
+            Some(|v: &LayerConstraint| *v),
+        );
+        ElkReflect::register(
+            Some(|| InLayerConstraint::None),
+            Some(|v: &InLayerConstraint| *v),
         );
         ElkReflect::register(
             Some(|| InteractiveReferencePoint::Center),

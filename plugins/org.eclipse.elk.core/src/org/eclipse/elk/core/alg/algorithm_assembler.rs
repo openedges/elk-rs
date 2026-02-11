@@ -3,6 +3,7 @@ use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap};
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use crate::org::eclipse::elk::core::util::{EnumSetType, IElkProgressMonitor};
 
@@ -242,10 +243,17 @@ struct SharedProcessorAdapter<G> {
 impl<G: 'static> ILayoutProcessor<G> for SharedProcessorAdapter<G> {
     fn process(&mut self, graph: &mut G, progress_monitor: &mut dyn IElkProgressMonitor) {
         let mut processor = self.processor.lock().expect("processor lock");
-        if std::env::var_os("ELK_TRACE_PROCESSORS").is_some() {
+        let trace_processors = std::env::var_os("ELK_TRACE_PROCESSORS").is_some();
+        let trace_timing = std::env::var_os("ELK_TRACE_PROCESSOR_TIMING").is_some();
+        if trace_processors {
             eprintln!("processor: {}", processor.type_name());
         }
+        let start = if trace_timing { Some(Instant::now()) } else { None };
         processor.process(graph, progress_monitor);
+        if let Some(start) = start {
+            let elapsed_ms = start.elapsed().as_millis();
+            eprintln!("processor_done: {} ({} ms)", processor.type_name(), elapsed_ms);
+        }
     }
 }
 
@@ -259,10 +267,17 @@ where
 {
     fn process(&mut self, graph: &mut G, progress_monitor: &mut dyn IElkProgressMonitor) {
         let mut phase = self.phase.lock().expect("phase lock");
-        if std::env::var_os("ELK_TRACE_PHASES").is_some() {
+        let trace_phases = std::env::var_os("ELK_TRACE_PHASES").is_some();
+        let trace_timing = std::env::var_os("ELK_TRACE_PHASE_TIMING").is_some();
+        if trace_phases {
             eprintln!("phase: {}", phase.type_name());
         }
+        let start = if trace_timing { Some(Instant::now()) } else { None };
         phase.process(graph, progress_monitor);
+        if let Some(start) = start {
+            let elapsed_ms = start.elapsed().as_millis();
+            eprintln!("phase_done: {} ({} ms)", phase.type_name(), elapsed_ms);
+        }
     }
 }
 

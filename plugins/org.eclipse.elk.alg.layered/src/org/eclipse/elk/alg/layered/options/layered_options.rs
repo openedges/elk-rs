@@ -22,6 +22,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_label_placement
 use org_eclipse_elk_core::org::eclipse::elk::core::options::hierarchy_handling::HierarchyHandling;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::size_constraint::SizeConstraint;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::topdown_node_types::TopdownNodeTypes;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::EnumSet;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IndividualSpacings;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::elk_margin::ElkMargin;
@@ -673,6 +674,7 @@ impl LayeredOptions {
     pub const SPACING_PORTS_SURROUNDING: &'static LazyLock<Property<ElkMargin>> =
         CoreOptions::SPACING_PORTS_SURROUNDING;
 
+    pub const PRIORITY: &'static LazyLock<Property<i32>> = CoreOptions::PRIORITY;
     pub const PRIORITY_DIRECTION: &'static LazyLock<Property<i32>> = &PRIORITY_DIRECTION_PROPERTY;
     pub const PRIORITY_SHORTNESS: &'static LazyLock<Property<i32>> = &PRIORITY_SHORTNESS_PROPERTY;
     pub const PRIORITY_STRAIGHTNESS: &'static LazyLock<Property<i32>> = &PRIORITY_STRAIGHTNESS_PROPERTY;
@@ -850,6 +852,8 @@ impl LayeredOptions {
     pub const POSITION: &'static LazyLock<Property<KVector>> = CoreOptions::POSITION;
     pub const SEPARATE_CONNECTED_COMPONENTS: &'static LazyLock<Property<bool>> =
         CoreOptions::SEPARATE_CONNECTED_COMPONENTS;
+    pub const TOPDOWN_NODE_TYPE: &'static LazyLock<Property<TopdownNodeTypes>> =
+        CoreOptions::TOPDOWN_NODE_TYPE;
     pub const PORT_ANCHOR: &'static LazyLock<
         Property<org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector>,
     > = CoreOptions::PORT_ANCHOR;

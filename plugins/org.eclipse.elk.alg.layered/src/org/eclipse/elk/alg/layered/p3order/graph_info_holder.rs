@@ -77,6 +77,11 @@ impl GraphInfoHolder {
                 graph_guard.get_property(LayeredOptions::CROSSING_MINIMIZATION_FORCE_NODE_MODEL_ORDER)
             })
             .unwrap_or(false);
+        let max_model_order_nodes = graph
+            .lock()
+            .ok()
+            .and_then(|mut graph_guard| graph_guard.get_property(InternalProperties::MAX_MODEL_ORDER_NODES))
+            .unwrap_or(0);
         let constraints_between_non_dummies = graph
             .lock()
             .ok()
@@ -142,6 +147,7 @@ impl GraphInfoHolder {
             graph_properties,
             random,
             force_model_order,
+            max_model_order_nodes,
             constraints_between_non_dummies,
             hierarchical_sweepiness,
             consider_model_order_strategy,
@@ -179,6 +185,9 @@ impl GraphInfoHolder {
         let force_model_order = graph
             .get_property(LayeredOptions::CROSSING_MINIMIZATION_FORCE_NODE_MODEL_ORDER)
             .unwrap_or(false);
+        let max_model_order_nodes = graph
+            .get_property(InternalProperties::MAX_MODEL_ORDER_NODES)
+            .unwrap_or(0);
         let constraints_between_non_dummies = graph
             .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS_BETWEEN_NON_DUMMIES)
             .unwrap_or(false);
@@ -212,6 +221,7 @@ impl GraphInfoHolder {
             graph_properties,
             random,
             force_model_order,
+            max_model_order_nodes,
             constraints_between_non_dummies,
             hierarchical_sweepiness,
             consider_model_order_strategy,
@@ -232,6 +242,7 @@ impl GraphInfoHolder {
         graph_properties: EnumSet<GraphProperties>,
         random: Random,
         force_model_order: bool,
+        max_model_order_nodes: i32,
         constraints_between_non_dummies: bool,
         hierarchical_sweepiness: f64,
         consider_model_order_strategy: OrderingStrategy,
@@ -274,7 +285,14 @@ impl GraphInfoHolder {
                     .take()
                     .expect("barycenter distributor missing");
                 if force_model_order {
-                    Box::new(ModelOrderBarycenterHeuristic::new(resolver, random, distributor))
+                    Box::new(ModelOrderBarycenterHeuristic::new(
+                        resolver,
+                        random,
+                        distributor,
+                        force_model_order,
+                        max_model_order_nodes,
+                        group_order_strategy,
+                    ))
                 } else {
                     Box::new(BarycenterHeuristic::new(resolver, random, distributor))
                 }
@@ -560,13 +578,20 @@ fn create_port_distributors(
     Box<dyn ISweepPortDistributor>,
     Option<Box<dyn BarycenterPortDistributor>>,
 ) {
+    let trace = std::env::var_os("ELK_TRACE_CROSSMIN").is_some();
     if cross_min_type == CrossMinType::TwoSidedGreedySwitch {
+        if trace {
+            eprintln!("crossmin: port_distributor=GreedySwitch");
+        }
         return (Box::new(GreedyPortDistributor::new()), None);
     }
 
     let use_node_relative = random.next_int(2) == 0;
     let needs_barycenter = cross_min_type == CrossMinType::Barycenter;
     if use_node_relative {
+        if trace {
+            eprintln!("crossmin: port_distributor=NodeRelative (barycenter={})", needs_barycenter);
+        }
         let sweep = Box::new(NodeRelativePortDistributor::new(num_layers)) as Box<dyn ISweepPortDistributor>;
         let barycenter = if needs_barycenter {
             Some(Box::new(NodeRelativePortDistributor::new(num_layers)) as Box<dyn BarycenterPortDistributor>)
@@ -575,6 +600,9 @@ fn create_port_distributors(
         };
         (sweep, barycenter)
     } else {
+        if trace {
+            eprintln!("crossmin: port_distributor=LayerTotal (barycenter={})", needs_barycenter);
+        }
         let sweep = Box::new(LayerTotalPortDistributor::new(num_layers)) as Box<dyn ISweepPortDistributor>;
         let barycenter = if needs_barycenter {
             Some(Box::new(LayerTotalPortDistributor::new(num_layers)) as Box<dyn BarycenterPortDistributor>)

@@ -67,22 +67,47 @@ pub(crate) fn edge_key(edge: &LEdgeRef) -> usize {
 }
 
 pub(crate) fn edge_between(source: &LNodeRef, target: &LNodeRef) -> Option<LEdgeRef> {
-    let edges = source
+    fn edge_matches(edge: &LEdgeRef, source_id: usize, target_id: usize) -> bool {
+        let (src_node, tgt_node) = edge
+            .lock()
+            .ok()
+            .and_then(|edge_guard| {
+                let src = edge_guard.source().and_then(|port| port.lock().ok().and_then(|port| port.node()));
+                let tgt = edge_guard.target().and_then(|port| port.lock().ok().and_then(|port| port.node()));
+                Some((src, tgt))
+            })
+            .unwrap_or((None, None));
+        if let (Some(src_node), Some(tgt_node)) = (src_node, tgt_node) {
+            let src_id = node_id(&src_node);
+            let tgt_id = node_id(&tgt_node);
+            return (src_id == source_id && tgt_id == target_id)
+                || (src_id == target_id && tgt_id == source_id);
+        }
+        false
+    }
+
+    let source_id = node_id(source);
+    let target_id = node_id(target);
+
+    let source_edges = source
         .lock()
         .ok()
         .map(|node_guard| node_guard.connected_edges())
         .unwrap_or_default();
-    let target_id = node_id(target);
+    for edge in source_edges {
+        if edge_matches(&edge, source_id, target_id) {
+            return Some(edge);
+        }
+    }
 
-    for edge in edges {
-        let other = edge
-            .lock()
-            .ok()
-            .map(|edge_guard| edge_guard.other_node(source));
-        if let Some(other) = other {
-            if node_id(&other) == target_id {
-                return Some(edge);
-            }
+    let target_edges = target
+        .lock()
+        .ok()
+        .map(|node_guard| node_guard.connected_edges())
+        .unwrap_or_default();
+    for edge in target_edges {
+        if edge_matches(&edge, source_id, target_id) {
+            return Some(edge);
         }
     }
 

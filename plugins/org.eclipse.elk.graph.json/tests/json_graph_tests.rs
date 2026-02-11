@@ -4,7 +4,7 @@ use std::rc::Rc;
 use serde_json::Value;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::math::{ElkMargin, ElkPadding, KVector, KVectorChain};
-use org_eclipse_elk_core::org::eclipse::elk::core::options::{CoreOptions, Direction};
+use org_eclipse_elk_core::org::eclipse::elk::core::options::{CoreOptions, Direction, EdgeLabelPlacement};
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{
     BasicProgressMonitor, IndividualSpacings, Maybe,
 };
@@ -207,6 +207,49 @@ fn edge_containment_import() {
 
     let root = ElkGraphJson::for_graph(graph).to_elk().unwrap();
     assert_eq!(node_edges(&root).len(), 1);
+}
+
+#[test]
+fn edge_label_placement_option_parses_enum() {
+    let graph = r#"
+    {
+      "id": "root",
+      "children": [{"id": "n1"}, {"id": "n2"}],
+      "edges": [
+        {"id": "e1",
+         "source": "n1",
+         "target": "n2",
+         "labels": [
+           {"text": "tail", "layoutOptions": {"org.eclipse.elk.edgeLabels.placement": "TAIL"}}
+         ]
+        }
+      ]
+    }
+    "#;
+
+    let root = ElkGraphJson::for_graph(graph).to_elk().unwrap();
+    let mut edges = node_edges(&root);
+    assert_eq!(edges.len(), 1);
+    let edge = edges.remove(0);
+    let labels: Vec<_> = edge
+        .borrow_mut()
+        .element()
+        .labels()
+        .iter()
+        .cloned()
+        .collect();
+    assert_eq!(labels.len(), 1);
+    let label = labels.get(0).unwrap();
+    let placement = {
+        let mut label_mut = label.borrow_mut();
+        let mut props = label_mut
+            .shape()
+            .graph_element()
+            .properties()
+            .clone();
+        props.get_property(CoreOptions::EDGE_LABELS_PLACEMENT)
+    };
+    assert_eq!(placement, Some(EdgeLabelPlacement::Tail));
 }
 
 #[test]

@@ -140,6 +140,14 @@ fn assert_correct_port_sides(dummy: &LNodeRef) -> Option<LNodeRef> {
         .ok()
         .and_then(|mut node_guard| node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT));
     let origin = origin?;
+    let origin_constraints = origin
+        .lock()
+        .ok()
+        .and_then(|mut node_guard| node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS))
+        .unwrap_or(PortConstraints::Undefined);
+    if origin_constraints.is_pos_fixed() {
+        return Some(origin);
+    }
     let dummy_ports = dummy
         .lock()
         .ok()

@@ -237,6 +237,7 @@ impl AbstractBarycenterPortDistributor {
     }
 
     fn distribute_ports(&mut self, node: &LNodeRef, side: PortSide, layer_index: usize, layer_size: usize) {
+        let timing = std::env::var_os("ELK_TRACE_CROSSMIN_TIMING").is_some();
         let (node_id, constraints, ports_snapshot) = if let Ok(mut node_guard) = node.lock() {
             (
                 node_guard.shape().graph_element().id,
@@ -248,18 +249,43 @@ impl AbstractBarycenterPortDistributor {
         } else {
             (-1, PortConstraints::Undefined, Vec::new())
         };
+        if timing {
+            eprintln!(
+                "crossmin: distribute_ports begin node={} side={:?} layer={} ports={} constraints={:?}",
+                node_id,
+                side,
+                layer_index,
+                ports_snapshot.len(),
+                constraints
+            );
+        }
         let side_ports = ports_by_side(&ports_snapshot, side);
         let south_ports = ports_by_side(&ports_snapshot, PortSide::South);
         let north_ports = ports_by_side(&ports_snapshot, PortSide::North);
 
         if constraints.is_order_fixed() {
+            if timing {
+                eprintln!("crossmin: distribute_ports node={} fixed-order skip", node_id);
+            }
             return;
         }
 
+        if timing {
+            eprintln!(
+                "crossmin: distribute_ports node={} side_ports={} south_ports={} north_ports={}",
+                node_id,
+                side_ports.len(),
+                south_ports.len(),
+                north_ports.len()
+            );
+        }
         self.distribute_ports_for_iter(node, side_ports, node_id, layer_index, layer_size);
         self.distribute_ports_for_iter(node, south_ports, node_id, layer_index, layer_size);
         self.distribute_ports_for_iter(node, north_ports, node_id, layer_index, layer_size);
         self.sort_ports(node);
+        if timing {
+            eprintln!("crossmin: distribute_ports end node={}", node_id);
+        }
     }
 
     fn distribute_ports_for_iter(
@@ -273,8 +299,24 @@ impl AbstractBarycenterPortDistributor {
         if ports.len() <= 1 {
             return;
         }
+        let timing = std::env::var_os("ELK_TRACE_CROSSMIN_TIMING").is_some();
+        if timing {
+            eprintln!(
+                "crossmin: distribute_ports_for_iter node={} layer={} ports={}",
+                node_id,
+                layer_index,
+                ports.len()
+            );
+        }
         self.in_layer_ports.clear();
         self.iterate_ports_and_collect_in_layer_ports(node, &ports);
+        if timing {
+            eprintln!(
+                "crossmin: in_layer_ports collected node={} count={}",
+                node_id,
+                self.in_layer_ports.len()
+            );
+        }
         if !self.in_layer_ports.is_empty() {
             self.calculate_in_layer_ports_barycenter_values(node, node_id, layer_index, layer_size);
         }
@@ -284,13 +326,21 @@ impl AbstractBarycenterPortDistributor {
         self.min_barycenter = 0.0;
         self.max_barycenter = 0.0;
         let absurdly_large_float = 2.0 * self.layer_size(node) as f64 + 1.0;
+        let timing = std::env::var_os("ELK_TRACE_CROSSMIN_TIMING").is_some();
 
         'port_iteration: for port in ports {
+            let pid = port_id(port);
+            if timing {
+                eprintln!("crossmin: iterate_ports port_id={}", pid);
+            }
             let side = port
                 .lock()
                 .ok()
                 .map(|port_guard| port_guard.side())
                 .unwrap_or(PortSide::Undefined);
+            if timing {
+                eprintln!("crossmin: port_id={} side={:?}", pid, side);
+            }
             let north_south_port = matches!(side, PortSide::North | PortSide::South);
             let mut sum = 0.0;
 
@@ -302,7 +352,14 @@ impl AbstractBarycenterPortDistributor {
                 let Some(dummy) = dummy else {
                     continue;
                 };
-                sum += self.deal_with_north_south_ports(absurdly_large_float, port, &dummy);
+                let contribution = self.deal_with_north_south_ports(absurdly_large_float, port, &dummy);
+                sum += contribution;
+                if timing {
+                    eprintln!(
+                        "crossmin: north_south contribution port_id={} sum={}",
+                        pid, sum
+                    );
+                }
             } else {
                 let outgoing_edges = connected_outgoing_edges(port);
                 for edge in outgoing_edges {
@@ -423,6 +480,7 @@ impl AbstractBarycenterPortDistributor {
         port: &LPortRef,
         port_dummy: &LNodeRef,
     ) -> f64 {
+        let timing = std::env::var_os("ELK_TRACE_CROSSMIN_TIMING").is_some();
         let mut input = false;
         let mut output = false;
         let dummy_ports = port_dummy
@@ -430,6 +488,13 @@ impl AbstractBarycenterPortDistributor {
             .ok()
             .map(|node_guard| node_guard.ports().clone())
             .unwrap_or_default();
+        if timing {
+            eprintln!(
+                "crossmin: deal_with_north_south_ports dummy_ports={} for port_id={}",
+                dummy_ports.len(),
+                port_id(port)
+            );
+        }
         for dummy_port in dummy_ports {
             let origin_matches = dummy_port
                 .lock()
@@ -443,39 +508,129 @@ impl AbstractBarycenterPortDistributor {
                 })
                 .map(|origin| Arc::ptr_eq(&origin, port))
                 .unwrap_or(false);
+            if timing {
+                eprintln!(
+                    "crossmin: dummy_port origin_matches={} dummy_port_id={}",
+                    origin_matches,
+                    port_id(&dummy_port)
+                );
+            }
             if !origin_matches {
                 continue;
             }
-            if dummy_port
+            if timing {
+                eprintln!(
+                    "crossmin: dummy_port check outgoing port_id={}",
+                    port_id(&dummy_port)
+                );
+            }
+            let has_outgoing = dummy_port
                 .lock()
                 .ok()
                 .map(|port_guard| !port_guard.outgoing_edges().is_empty())
-                .unwrap_or(false)
-            {
+                .unwrap_or(false);
+            if timing {
+                eprintln!(
+                    "crossmin: dummy_port outgoing done port_id={} has_outgoing={}",
+                    port_id(&dummy_port),
+                    has_outgoing
+                );
+            }
+            if has_outgoing {
                 output = true;
-            } else if dummy_port
-                .lock()
-                .ok()
-                .map(|port_guard| !port_guard.incoming_edges().is_empty())
-                .unwrap_or(false)
-            {
+            } else {
+                if timing {
+                    eprintln!(
+                        "crossmin: dummy_port check incoming port_id={}",
+                        port_id(&dummy_port)
+                    );
+                }
+                let has_incoming = dummy_port
+                    .lock()
+                    .ok()
+                    .map(|port_guard| !port_guard.incoming_edges().is_empty())
+                    .unwrap_or(false);
+                if timing {
+                    eprintln!(
+                        "crossmin: dummy_port incoming done port_id={} has_incoming={}",
+                        port_id(&dummy_port),
+                        has_incoming
+                    );
+                }
+                if has_incoming {
                 input = true;
+                }
             }
         }
 
+        if timing {
+            eprintln!(
+                "crossmin: deal_with_north_south_ports lock port side start port_id={}",
+                port_id(port)
+            );
+        }
         let side = port
             .lock()
             .ok()
             .map(|port_guard| port_guard.side())
             .unwrap_or(PortSide::Undefined);
-        if input && input ^ output {
+        if timing {
+            eprintln!(
+                "crossmin: deal_with_north_south_ports lock port side done port_id={} side={:?}",
+                port_id(port),
+                side
+            );
+        }
+        let result = if input && input ^ output {
             if side == PortSide::North {
-                -(self.position_of(port_dummy) as f64)
+                if timing {
+                    eprintln!(
+                        "crossmin: deal_with_north_south_ports position_of start (input-only) port_id={}",
+                        port_id(port)
+                    );
+                }
+                let pos = self.position_of(port_dummy);
+                if timing {
+                    eprintln!(
+                        "crossmin: deal_with_north_south_ports position_of (input-only) port_id={} pos={}",
+                        port_id(port),
+                        pos
+                    );
+                }
+                -(pos as f64)
             } else {
-                absurdly_large_float - self.position_of(port_dummy) as f64
+                if timing {
+                    eprintln!(
+                        "crossmin: deal_with_north_south_ports position_of start (input-only) port_id={}",
+                        port_id(port)
+                    );
+                }
+                let pos = self.position_of(port_dummy);
+                if timing {
+                    eprintln!(
+                        "crossmin: deal_with_north_south_ports position_of (input-only) port_id={} pos={}",
+                        port_id(port),
+                        pos
+                    );
+                }
+                absurdly_large_float - pos as f64
             }
         } else if output && input ^ output {
-            self.position_of(port_dummy) as f64 + 1.0
+            if timing {
+                eprintln!(
+                    "crossmin: deal_with_north_south_ports position_of start (output-only) port_id={}",
+                    port_id(port)
+                );
+            }
+            let pos = self.position_of(port_dummy);
+            if timing {
+                eprintln!(
+                    "crossmin: deal_with_north_south_ports position_of (output-only) port_id={} pos={}",
+                    port_id(port),
+                    pos
+                );
+            }
+            pos as f64 + 1.0
         } else if input && output {
             if side == PortSide::North {
                 0.0
@@ -484,7 +639,18 @@ impl AbstractBarycenterPortDistributor {
             }
         } else {
             0.0
+        };
+        if timing {
+            eprintln!(
+                "crossmin: deal_with_north_south_ports done port_id={} side={:?} input={} output={} result={}",
+                port_id(port),
+                side,
+                input,
+                output,
+                result
+            );
         }
+        result
     }
 
     fn position_of(&self, node: &LNodeRef) -> usize {
@@ -609,6 +775,7 @@ impl ISweepPortDistributor for AbstractBarycenterPortDistributor {
         current_index: usize,
         is_forward_sweep: bool,
     ) -> bool {
+        let timing = std::env::var_os("ELK_TRACE_CROSSMIN_TIMING").is_some();
         self.update_node_positions(node_order, current_index);
         let free_layer = &node_order[current_index];
         let side = if is_forward_sweep {
@@ -624,23 +791,81 @@ impl ISweepPortDistributor for AbstractBarycenterPortDistributor {
                 current_index + 1
             };
             let fixed_layer = &node_order[fixed_layer_index];
+            let start = if timing { Some(std::time::Instant::now()) } else { None };
             self.calculate_port_ranks(fixed_layer, self.port_type_for(is_forward_sweep));
+            if let Some(start) = start {
+                eprintln!(
+                    "crossmin: port_ranks fixed_layer={} done in {} ms",
+                    fixed_layer_index,
+                    start.elapsed().as_millis()
+                );
+            }
             let free_layer_size = free_layer.len();
             for node in free_layer {
+                let start = if timing { Some(std::time::Instant::now()) } else { None };
                 self.distribute_ports(node, side, current_index, free_layer_size);
+                if let Some(start) = start {
+                    let node_id = node
+                        .lock()
+                        .ok()
+                        .map(|mut node_guard| node_guard.shape().graph_element().id)
+                        .unwrap_or(-1);
+                    eprintln!(
+                        "crossmin: distribute_ports node={} layer={} done in {} ms",
+                        node_id,
+                        current_index,
+                        start.elapsed().as_millis()
+                    );
+                }
             }
 
+            let start = if timing { Some(std::time::Instant::now()) } else { None };
             self.calculate_port_ranks(free_layer, self.port_type_for(!is_forward_sweep));
+            if let Some(start) = start {
+                eprintln!(
+                    "crossmin: port_ranks free_layer={} done in {} ms",
+                    current_index,
+                    start.elapsed().as_millis()
+                );
+            }
             let fixed_layer_size = fixed_layer.len();
             for node in fixed_layer {
                 if !self.has_nested_graph(node) {
+                    let start = if timing { Some(std::time::Instant::now()) } else { None };
                     self.distribute_ports(node, side.opposed(), fixed_layer_index, fixed_layer_size);
+                    if let Some(start) = start {
+                        let node_id = node
+                            .lock()
+                            .ok()
+                            .map(|mut node_guard| node_guard.shape().graph_element().id)
+                            .unwrap_or(-1);
+                        eprintln!(
+                            "crossmin: distribute_ports node={} layer={} done in {} ms",
+                            node_id,
+                            fixed_layer_index,
+                            start.elapsed().as_millis()
+                        );
+                    }
                 }
             }
         } else {
             let free_layer_size = free_layer.len();
             for node in free_layer {
+                let start = if timing { Some(std::time::Instant::now()) } else { None };
                 self.distribute_ports(node, side, current_index, free_layer_size);
+                if let Some(start) = start {
+                    let node_id = node
+                        .lock()
+                        .ok()
+                        .map(|mut node_guard| node_guard.shape().graph_element().id)
+                        .unwrap_or(-1);
+                    eprintln!(
+                        "crossmin: distribute_ports node={} layer={} done in {} ms",
+                        node_id,
+                        current_index,
+                        start.elapsed().as_millis()
+                    );
+                }
             }
         }
 
@@ -729,7 +954,12 @@ fn layer_index(node: &LNodeRef) -> Option<usize> {
     node.lock()
         .ok()
         .and_then(|node_guard| node_guard.layer())
-        .and_then(|layer| layer.lock().ok().and_then(|layer_guard| layer_guard.index()))
+        .and_then(|layer| {
+            layer
+                .lock()
+                .ok()
+                .map(|mut layer_guard| layer_guard.graph_element().id as usize)
+        })
 }
 
 fn port_same_layer(port: &LPortRef, node: &LNodeRef) -> bool {

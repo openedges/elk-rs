@@ -17,6 +17,9 @@ pub struct ModelOrderBarycenterHeuristic {
     base: BarycenterHeuristic,
     bigger_than: BTreeMap<usize, BTreeSet<usize>>,
     smaller_than: BTreeMap<usize, BTreeSet<usize>>,
+    force_model_order: bool,
+    max_model_order_nodes: i32,
+    group_order_strategy: GroupOrderStrategy,
 }
 
 impl ModelOrderBarycenterHeuristic {
@@ -24,11 +27,17 @@ impl ModelOrderBarycenterHeuristic {
         constraint_resolver: ForsterConstraintResolver,
         random: Random,
         port_distributor: Box<dyn BarycenterPortDistributor>,
+        force_model_order: bool,
+        max_model_order_nodes: i32,
+        group_order_strategy: GroupOrderStrategy,
     ) -> Self {
         ModelOrderBarycenterHeuristic {
             base: BarycenterHeuristic::new(constraint_resolver, random, port_distributor),
             bigger_than: BTreeMap::new(),
             smaller_than: BTreeMap::new(),
+            force_model_order,
+            max_model_order_nodes,
+            group_order_strategy,
         }
     }
 
@@ -175,11 +184,7 @@ impl ModelOrderBarycenterHeuristic {
                 .ok()
                 .and_then(|node_guard| node_guard.graph());
             if let Some(graph) = graph {
-                let max_nodes = graph
-                    .lock()
-                    .ok()
-                    .and_then(|mut graph_guard| graph_guard.get_property(InternalProperties::MAX_MODEL_ORDER_NODES))
-                    .unwrap_or(0);
+                let max_nodes = self.max_model_order_nodes;
                 let value = CMGroupModelOrderCalculator::calculate_model_order_or_group_model_order(
                     n1,
                     n2,
@@ -200,14 +205,7 @@ impl ModelOrderBarycenterHeuristic {
                     Ordering::Equal => 0,
                 };
 
-                let group_strategy = graph
-                    .lock()
-                    .ok()
-                    .and_then(|mut graph_guard| {
-                        graph_guard.get_property(LayeredOptions::GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY)
-                    })
-                    .unwrap_or(GroupOrderStrategy::OnlyWithinGroup);
-                if group_strategy == GroupOrderStrategy::OnlyWithinGroup {
+                if self.group_order_strategy == GroupOrderStrategy::OnlyWithinGroup {
                     let n1_group = n1
                         .lock()
                         .ok()
@@ -302,20 +300,7 @@ impl ICrossingMinimizationHeuristic for ModelOrderBarycenterHeuristic {
         self.base.fill_in_unknown_barycenters(&nodes, pre_ordered);
 
         if nodes.len() > 1 {
-            let force_model_order = nodes
-                .first()
-                .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.graph()))
-                .and_then(|graph| {
-                    graph
-                        .lock()
-                        .ok()
-                        .and_then(|mut graph_guard| {
-                            graph_guard.get_property(LayeredOptions::CROSSING_MINIMIZATION_FORCE_NODE_MODEL_ORDER)
-                        })
-                })
-                .unwrap_or(false);
-
-            if force_model_order {
+            if self.force_model_order {
                 self.insertion_sort(&mut nodes);
             } else {
                 nodes.sort_by(|a, b| {

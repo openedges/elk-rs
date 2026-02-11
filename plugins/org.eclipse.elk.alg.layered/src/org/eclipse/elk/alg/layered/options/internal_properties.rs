@@ -1,5 +1,7 @@
-use std::sync::LazyLock;
+use std::hash::{Hash, Hasher};
+use std::sync::{Arc, LazyLock, Mutex};
 
+use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::nodespacing::LabelCell;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::SharedProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::label_side::LabelSide;
@@ -13,6 +15,7 @@ use crate::org::eclipse::elk::alg::layered::graph::{
     LGraph, LEdgeRef, LGraphRef, LLabelRef, LNodeRef, LPortRef, NodeRefKey,
 };
 use crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfLoopHolderRef;
+use crate::org::eclipse::elk::alg::layered::graph::transform::l_graph_adapters::LLabelAdapter;
 use crate::org::eclipse::elk::alg::layered::p5edges::splines::SplineSegmentRef;
 use crate::org::eclipse::elk::alg::layered::options::{
     EdgeConstraint, GraphProperties, InLayerConstraint, Spacings,
@@ -21,6 +24,39 @@ use crate::org::eclipse::elk::alg::layered::options::{
 pub struct InternalProperties;
 
 pub type OriginId = usize;
+
+#[allow(clippy::mutable_key_type)]
+#[derive(Clone)]
+pub struct PortRefKey(pub LPortRef);
+
+impl PartialEq for PortRefKey {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl Eq for PortRefKey {}
+
+impl PartialOrd for PortRefKey {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for PortRefKey {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        let self_ptr = Arc::as_ptr(&self.0) as usize;
+        let other_ptr = Arc::as_ptr(&other.0) as usize;
+        self_ptr.cmp(&other_ptr)
+    }
+}
+
+impl Hash for PortRefKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        let ptr = Arc::as_ptr(&self.0) as usize;
+        ptr.hash(state);
+    }
+}
 
 #[derive(Clone)]
 pub enum Origin {
@@ -35,11 +71,17 @@ pub enum Origin {
     LLabel(LLabelRef),
 }
 
+pub type EndLabelCell = Arc<Mutex<LabelCell<LLabelAdapter, LLabelRef>>>;
+pub type EndLabelMap = std::collections::HashMap<PortRefKey, EndLabelCell>;
+
 pub static ORIGIN_PROPERTY: LazyLock<Property<Origin>> =
     LazyLock::new(|| Property::new("origin"));
 
 pub static REPRESENTED_LABELS_PROPERTY: LazyLock<Property<Vec<LLabelRef>>> =
     LazyLock::new(|| Property::new("representedLabels"));
+
+pub static END_LABELS_PROPERTY: LazyLock<Property<EndLabelMap>> =
+    LazyLock::new(|| Property::new("endLabels"));
 
 pub static END_LABEL_EDGE_PROPERTY: LazyLock<Property<LEdgeRef>> =
     LazyLock::new(|| Property::new("endLabel.origin"));
@@ -157,6 +199,9 @@ pub static LONG_EDGE_TARGET_PROPERTY: LazyLock<Property<LPortRef>> =
 pub static LONG_EDGE_HAS_LABEL_DUMMIES_PROPERTY: LazyLock<Property<bool>> =
     LazyLock::new(|| Property::with_default("longEdgeHasLabelDummies", false));
 
+pub static LONG_EDGE_BEFORE_LABEL_DUMMY_PROPERTY: LazyLock<Property<bool>> =
+    LazyLock::new(|| Property::with_default("longEdgeBeforeLabelDummy", false));
+
 pub static LONG_EDGE_TARGET_NODE_PROPERTY: LazyLock<Property<LNodeRef>> =
     LazyLock::new(|| Property::new("longEdgeTargetNode"));
 
@@ -207,6 +252,9 @@ pub static PARTITION_DUMMY_PROPERTY: LazyLock<Property<bool>> =
 pub static LABEL_SIDE_PROPERTY: LazyLock<Property<LabelSide>> =
     LazyLock::new(|| Property::with_default("labelSide", LabelSide::Unknown));
 
+pub static MAX_EDGE_THICKNESS_PROPERTY: LazyLock<Property<f64>> =
+    LazyLock::new(|| Property::with_default("maxEdgeThickness", 0.0));
+
 pub static SELF_LOOP_HOLDER_PROPERTY: LazyLock<Property<SelfLoopHolderRef>> =
     LazyLock::new(|| Property::new("selfLoopHolder"));
 
@@ -217,6 +265,7 @@ impl InternalProperties {
     pub const ORIGIN: &'static LazyLock<Property<Origin>> = &ORIGIN_PROPERTY;
     pub const REPRESENTED_LABELS: &'static LazyLock<Property<Vec<LLabelRef>>> =
         &REPRESENTED_LABELS_PROPERTY;
+    pub const END_LABELS: &'static LazyLock<Property<EndLabelMap>> = &END_LABELS_PROPERTY;
     pub const END_LABEL_EDGE: &'static LazyLock<Property<LEdgeRef>> =
         &END_LABEL_EDGE_PROPERTY;
     pub const REVERSED: &'static LazyLock<Property<bool>> = &REVERSED_PROPERTY;
@@ -271,6 +320,8 @@ impl InternalProperties {
     pub const LONG_EDGE_TARGET: &'static LazyLock<Property<LPortRef>> = &LONG_EDGE_TARGET_PROPERTY;
     pub const LONG_EDGE_HAS_LABEL_DUMMIES: &'static LazyLock<Property<bool>> =
         &LONG_EDGE_HAS_LABEL_DUMMIES_PROPERTY;
+    pub const LONG_EDGE_BEFORE_LABEL_DUMMY: &'static LazyLock<Property<bool>> =
+        &LONG_EDGE_BEFORE_LABEL_DUMMY_PROPERTY;
     pub const LONG_EDGE_TARGET_NODE: &'static LazyLock<Property<LNodeRef>> =
         &LONG_EDGE_TARGET_NODE_PROPERTY;
     pub const TARGET_NODE_MODEL_ORDER: &'static LazyLock<Property<std::collections::HashMap<NodeRefKey, i32>>> =
@@ -293,6 +344,8 @@ impl InternalProperties {
         &ORIGINAL_OPPOSITE_PORT_PROPERTY;
     pub const PARTITION_DUMMY: &'static LazyLock<Property<bool>> = &PARTITION_DUMMY_PROPERTY;
     pub const LABEL_SIDE: &'static LazyLock<Property<LabelSide>> = &LABEL_SIDE_PROPERTY;
+    pub const MAX_EDGE_THICKNESS: &'static LazyLock<Property<f64>> =
+        &MAX_EDGE_THICKNESS_PROPERTY;
     pub const SELF_LOOP_HOLDER: &'static LazyLock<Property<SelfLoopHolderRef>> =
         &SELF_LOOP_HOLDER_PROPERTY;
     pub const COMPOUND_NODE: &'static LazyLock<Property<bool>> = &COMPOUND_NODE_PROPERTY;

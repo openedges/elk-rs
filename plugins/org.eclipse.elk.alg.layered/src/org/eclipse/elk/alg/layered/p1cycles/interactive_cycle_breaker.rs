@@ -7,6 +7,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LEdge, LEdgeRef, LGraph, LNodeRef};
 use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorStrategy;
+use crate::org::eclipse::elk::alg::layered::options::{InteractiveReferencePoint, LayeredOptions};
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
 
 static INTERMEDIATE_PROCESSING_CONFIGURATION: LazyLock<
@@ -29,6 +30,20 @@ pub struct InteractiveCycleBreaker;
 impl InteractiveCycleBreaker {
     pub fn new() -> Self {
         InteractiveCycleBreaker
+    }
+
+    fn reference_x(node: &LNodeRef, reference: InteractiveReferencePoint) -> f64 {
+        node.lock()
+            .ok()
+            .map(|mut node_guard| {
+                let shape = node_guard.shape();
+                let pos_x = shape.position_ref().x;
+                match reference {
+                    InteractiveReferencePoint::Center => pos_x + shape.size_ref().x / 2.0,
+                    InteractiveReferencePoint::TopLeft => pos_x,
+                }
+            })
+            .unwrap_or(0.0)
     }
 
     fn find_cycles(start: &LNodeRef, rev_edges: &mut Vec<LEdgeRef>) {
@@ -111,6 +126,9 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveCycleBreaker {
         monitor.begin("Interactive cycle breaking", 1.0);
 
         let nodes = graph.layerless_nodes().clone();
+        let reference_point = graph
+            .get_property(LayeredOptions::INTERACTIVE_REFERENCE_POINT)
+            .unwrap_or(InteractiveReferencePoint::Center);
         let mut rev_edges: Vec<LEdgeRef> = Vec::new();
 
         // Phase 1: reverse edges that go backwards based on interactive reference point
@@ -121,11 +139,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveCycleBreaker {
         }
 
         for source in &nodes {
-            let source_x = source
-                .lock()
-                .ok()
-                .and_then(|mut g| g.interactive_reference_point().map(|v| v.x))
-                .unwrap_or(0.0);
+            let source_x = Self::reference_x(source, reference_point);
 
             let outgoing = source
                 .lock()
@@ -146,11 +160,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveCycleBreaker {
                     continue;
                 }
 
-                let target_x = target
-                    .lock()
-                    .ok()
-                    .and_then(|mut g| g.interactive_reference_point().map(|v| v.x))
-                    .unwrap_or(0.0);
+                let target_x = Self::reference_x(&target, reference_point);
 
                 if target_x < source_x {
                     rev_edges.push(edge);

@@ -286,12 +286,32 @@ fn origin_port_allows_switch(dummy: &LNodeRef) -> bool {
         return false;
     };
 
-    let allows = origin_port
-        .lock()
-        .ok()
-        .and_then(|mut port_guard| {
-            port_guard.get_property(LayeredOptions::ALLOW_NON_FLOW_PORTS_TO_SWITCH_SIDES)
+    let (allows_switch, port_constraints, origin_node) = {
+        let Ok(mut port_guard) = origin_port.lock() else {
+            return false;
+        };
+        (
+            port_guard
+                .get_property(LayeredOptions::ALLOW_NON_FLOW_PORTS_TO_SWITCH_SIDES)
+                .unwrap_or(false),
+            port_guard.get_property(LayeredOptions::PORT_CONSTRAINTS),
+            port_guard.node(),
+        )
+    };
+
+    let port_constraints = port_constraints
+        .or_else(|| {
+            origin_node.and_then(|node| {
+                node.lock()
+                    .ok()
+                    .and_then(|mut node_guard| node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS))
+            })
         })
-        .unwrap_or(false);
-    allows
+        .unwrap_or(PortConstraints::Undefined);
+
+    if port_constraints.is_pos_fixed() {
+        return false;
+    }
+
+    allows_switch
 }

@@ -772,6 +772,24 @@
 - parity runner timeout/heartbeat 추가(최신-103): `model_parity_layout_runner.rs`에 모델별 120s timeout, 10s heartbeat, 중간 manifest flush 추가로 hang 모델 격리 및 대형 샘플 안정 실행 확보
 - Mutex deadlock 수정(최신-104): `routing_slot_assigner.rs`의 `random_from_holder()`가 `elk_layered::layout_component()`에서 이미 잡고 있는 graph Mutex를 재획득 시도하여 deadlock 발생(Rust Mutex 비재진입). `assign_routing_slots` 시그니처를 `&mut Random` 파라미터로 변경하고, `self_loop_router.rs`에서 graph에서 Random을 미리 추출하여 전달하도록 수정. `insideSelfLoops.elkt`(5ms), `labels.elkt`(2ms)로 해결
 - parity 10/10 완전 통과(최신-104): 샘플 10건 기준 10/10 ok, 0 drift, 0 error, 0 timeout 달성
+- Layered.melk core 기본값 메타데이터 적용 보강(PRIORITY/TOPDOWN_NODE_TYPE/EDGE_ROUTING/PORT_BORDER_OFFSET/RANDOM_SEED/ASPECT_RATIO/SEPARATE_CONNECTED_COMPONENTS/PORT_ALIGNMENT_DEFAULT) 및 LayeredOptions alias 보강
+- allowNonFlowPortsToSwitchSides FixedPos 케이스: FixedPos면 port side switching 차단(north_south_port_preprocessor + sweep_copy)으로 Java 테스트 기대값 복원
+- 검증: `cargo test -p org-eclipse-elk-alg-layered --test allow_non_flow_ports_to_switch_sides_test`, `cargo test -p org-eclipse-elk-core --test layout_algorithm_metadata_test`, `cargo test -p org-eclipse-elk-alg-layered --test layered_metadata_test`
+- timeout 36건 해소: crossmin `layer_index`를 `Layer.graph_element().id` 기반으로 변경해 graph lock 데드락 제거, `InteractiveCycleBreaker`가 graph lock 없이 reference point 계산하도록 수정
+- model order timeouts 해소: `ModelOrderBarycenterHeuristic`에 `force_model_order/max_model_order_nodes/group_order_strategy` 캐시 도입으로 graph lock 제거, `LayerConstraint/InLayerConstraint` ElkReflect 등록
+- 재검증: timeout 36건 목록 전부 `MODEL_PARITY_TIMEOUT_SECS=10` 내 통과(36/36 ok)
+- 1,448 모델 Rust 재실행(2026-02-11): `rust_manifest.tsv` 갱신, timeouts=0/errors=0, compared=1439, matches=169, drift=1270, total_diffs=23793, `perf/model_parity_full/report.md`/`diff_details.tsv` 갱신
+- layered LabelDummyInserter/LabelDummySwitcher 포팅 및 wiring: 라벨 더미 삽입/스위칭 로직, `LONG_EDGE_BEFORE_LABEL_DUMMY` 내부 프로퍼티 추가, `LabelDummySwitcher.INCLUDE_LABEL`을 `ElkGraphLayoutTransferrer`로 전달하도록 보강
+- 테스트 추가/검증: `label_dummy_inserter_test`, `label_dummy_switcher_test` 신규 추가 후 `cargo test -p org-eclipse-elk-alg-layered --test label_dummy_inserter_test --test label_dummy_switcher_test` 통과
+- label 관련 61개 모델 parity 스모크(2026-02-11): `/tmp/java_manifest_labels_local.tsv` 기반 Rust 재실행(ok=61, error=0) 후 비교 결과 matches=12, drift=49, total_diffs=854 (`/tmp/report_labels.md`, label/section/coordinate 비중 높음)
+- common overlaps/cellsystem 보강: `RectangleStripOverlapRemover` 스캔라인 overlap 계산/전략 처리 보정, `LabelCell` 패딩 참조 처리 정리
+- layered EndLabelPre/Postprocessor 포팅 및 연결: `END_LABELS`/`MAX_EDGE_THICKNESS` 내부 프로퍼티, `PortRefKey`/LabelCell map, `LGraphAdapters::adapt_label` 추가, IntermediateProcessorStrategy wiring
+- 테스트 실행: `cargo test -p org-eclipse-elk-alg-layered --test intermediate_processors_test --test issue_541_test` 통과(기존 경고 유지)
+- label 관련 61개 모델 parity 재스모크(2026-02-11): Rust 재실행 ok=61, 비교 결과 matches=12, drift=49, total_diffs=854 (`/tmp/report_labels_after_endlabels.md`, 변화 없음)
+- JSON importer enum 파싱 검증 추가: `edge_label_placement_option_parses_enum` 테스트로 `edgeLabels.placement=TAIL` 파싱 확인
+- layered EndLabels 그래프 프로퍼티 테스트 추가: `end_label_graph_properties_test`에서 `initialize_plain_java_layout()` 후 `GraphProperties::EndLabels` 포함 확인
+- label 관련 61개 모델 parity 재실행(2026-02-11, release): `/tmp/java_manifest_labels.tsv` 기반 Rust 재실행 ok=58/timeout=3 후 비교 결과 matches=21, drift=37, total_diffs=582 (`/tmp/report_labels_after_endlabels_v2.md`, `layerSelection_center_{01,02}`/`layerSelection_widest` timeout)
+- LabelDummySwitcher long-edge 더미 순회 루프 가드 추가(NodeRefKey HashSet)로 순환 대비; `layerSelection_center_01` 단건 재실행에서도 LabelDummySwitcher 단계 timeout 지속(원인 추가 분석 필요)
 ## 진행률(최신)
 - 전체 목표 대비 추정 진행률: 약 100.0% (기준: Java 기능/API/테스트 parity, 빌드/클리피, 성능 자동화)
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
@@ -785,6 +803,8 @@
 - external/elk-models Java↔Rust 레이아웃 결과 parity(샘플 검증): 100% (sample 10 기준 10/10 perfect match, 0 drift, Mutex deadlock 수정 완료)
 - external/elk-models Java↔Rust 대형 샘플 안정성: deadlock 수정 완료(routing_slot_assigner.rs), `JAVA_PARITY_LIMIT=100` 스케일업 검증 예정
 - external/elk 무수정 운영 체계: 100% (격리 실행 + 자동 정리)
+- 1,448 모델 parity 기준선(v4)에서 실패 목록(36 timeouts/8 panics/9 java non-ok) 정리 및 재현 대상 모델 목록 확보
+- panic 8건 해소: OrthogonalRoutingGenerator minimumDifference NaN 안전화(total_cmp + bit-eq dedup + NaN 전파), BK aligner edge_between 양방향 탐색 보강(701_portLabels) 및 회귀 테스트 추가(NaN unit test, 701 외부 리소스 테스트), 8개 panic 모델 재현 → 모두 ok 확인
 
 ## 다음 작업
 - [x] common `NodeLabelAndSizeCalculator#process` 전체 경로(inside/outside node label 배치 + node container width/height 확정 + apply 단계) 1:1 포팅 마무리
@@ -840,5 +860,10 @@
     - NetworkSimplex deadlock 수정 → nodesEdges + flexible_ports/graph03 = match, 나머지 4개 timeout→drift
     - [x] 2개 regression 원인 분석 및 수정 완료
     - [x] 6개 new timeout 원인 분석 → re-entrant Mutex deadlock in get_node_state → 수정 완료
-    - [ ] Layered.melk 나머지 기본값 추가 검토 (spacing, crossMin, wrapping 등 43개 중 미적용 항목)
+    - [x] Layered.melk 나머지 기본값 추가 검토 (spacing, crossMin, wrapping 등 43개 중 미적용 항목)
   - 남은 과제: 30 timeouts (INTERACTIVE perf), 8 panics, 1,240 drift models
+- [x] 1,448 모델 parity 기준선(v4 report)에서 실패 목록(36 timeouts/8 panics/9 java non-ok) 정리 및 재현 입력 목록 확보
+- [x] panic 8건 재현/수정/회귀 테스트 추가
+- [x] timeout 36건 재현/프로파일링/성능·루프 수정/회귀 테스트 추가
+- [ ] drift 대량 원인(p1cycles/p2layers/p3order 중심) 정합화 및 회귀 테스트 추가
+- [ ] 1,448 모델 전체 parity 100% match 재실행 확인 및 리포트 갱신

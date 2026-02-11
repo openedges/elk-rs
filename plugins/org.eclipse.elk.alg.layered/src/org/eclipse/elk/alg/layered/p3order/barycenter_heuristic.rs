@@ -1,6 +1,7 @@
 use std::any::Any;
 use std::cmp::Ordering;
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::util::Random;
 
@@ -269,16 +270,33 @@ impl BarycenterHeuristic {
         randomize: bool,
         forward: bool,
     ) {
+        let trace = std::env::var_os("ELK_TRACE_CROSSMIN_TIMING").is_some();
+        let start = if trace { Some(Instant::now()) } else { None };
         if randomize {
             self.randomize_barycenters(layer);
         } else {
             self.calculate_barycenters(layer, forward);
             self.fill_in_unknown_barycenters(layer, pre_ordered);
         }
+        if let Some(start) = start {
+            eprintln!(
+                "crossmin: barycenter barycenters done in {} ms (randomize={})",
+                start.elapsed().as_millis(),
+                randomize
+            );
+        }
 
         if layer.len() > 1 {
+            let sort_start = if trace { Some(Instant::now()) } else { None };
             layer.sort_by(|left, right| self.compare_barycenter(left, right));
             self.constraint_resolver.process_constraints(layer);
+            if let Some(sort_start) = sort_start {
+                eprintln!(
+                    "crossmin: barycenter sort+constraints done in {} ms (len={})",
+                    sort_start.elapsed().as_millis(),
+                    layer.len()
+                );
+            }
         }
     }
 

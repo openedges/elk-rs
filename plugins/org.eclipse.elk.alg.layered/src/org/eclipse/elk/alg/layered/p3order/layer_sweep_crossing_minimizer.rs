@@ -1,6 +1,6 @@
 #![allow(clippy::mutable_key_type)]
 
-use std::collections::{BTreeSet, VecDeque};
+use std::collections::{BTreeSet, HashSet, VecDeque};
 use std::sync::{Arc, LazyLock};
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutPhase;
@@ -440,6 +440,8 @@ impl LayerSweepCrossingMinimizer {
     }
 
     fn count_current_number_of_crossings(&mut self, start_index: usize) -> i32 {
+        let trace = std::env::var_os("ELK_TRACE_CROSSMIN_TIMING").is_some();
+        let start = if trace { Some(std::time::Instant::now()) } else { None };
         let mut total_crossings = 0;
         let mut stack = VecDeque::new();
         stack.push_back(start_index);
@@ -457,10 +459,20 @@ impl LayerSweepCrossingMinimizer {
                 }
             }
         }
+        if let Some(start) = start {
+            eprintln!(
+                "crossmin: count_crossings index={} total={} took {} ms",
+                start_index,
+                total_crossings,
+                start.elapsed().as_millis()
+            );
+        }
         total_crossings
     }
 
     fn count_current_number_of_crossings_node_port_order(&mut self, start_index: usize) -> f64 {
+        let trace = std::env::var_os("ELK_TRACE_CROSSMIN_TIMING").is_some();
+        let start = if trace { Some(std::time::Instant::now()) } else { None };
         let mut total_crossings = 0.0;
         let mut stack = VecDeque::new();
         stack.push_back(start_index);
@@ -507,6 +519,14 @@ impl LayerSweepCrossingMinimizer {
                 }
             }
         }
+        if let Some(start) = start {
+            eprintln!(
+                "crossmin: count_crossings_node_port index={} total={} took {} ms",
+                start_index,
+                total_crossings,
+                start.elapsed().as_millis()
+            );
+        }
         total_crossings
     }
 
@@ -516,6 +536,7 @@ impl LayerSweepCrossingMinimizer {
         if length == 0 {
             return false;
         }
+        let timing = std::env::var_os("ELK_TRACE_CROSSMIN_TIMING").is_some();
         let mut improved = {
             let graph_data = &mut self.graph_info_holders[index];
             let order = graph_data.current_node_order().clone();
@@ -527,14 +548,31 @@ impl LayerSweepCrossingMinimizer {
                     first_sweep
                 );
             }
-            graph_data.port_distributor().distribute_ports_while_sweeping(
+            let start = if timing { Some(std::time::Instant::now()) } else { None };
+            let improved = graph_data.port_distributor().distribute_ports_while_sweeping(
                 &order,
                 first_index(forward, length),
                 forward,
-            )
+            );
+            if let Some(start) = start {
+                eprintln!(
+                    "crossmin: distribute_ports layer={} done in {} ms",
+                    first_index(forward, length),
+                    start.elapsed().as_millis()
+                );
+            }
+            improved
         };
         let first_layer = self.graph_info_holders[index].current_node_order()[first_index(forward, length)].clone();
+        let start = if timing { Some(std::time::Instant::now()) } else { None };
         improved |= self.sweep_in_hierarchical_nodes(&first_layer, forward, first_sweep);
+        if let Some(start) = start {
+            eprintln!(
+                "crossmin: sweep_in_hierarchical_nodes layer={} done in {} ms",
+                first_index(forward, length),
+                start.elapsed().as_millis()
+            );
+        }
 
         let mut i = first_free(forward, length) as isize;
         while is_not_end(length, i, forward) {
@@ -563,14 +601,29 @@ impl LayerSweepCrossingMinimizer {
                         i_usize, forward, first_sweep
                     );
                 }
-                improved |= graph_data.port_distributor().distribute_ports_while_sweeping(
-                    &order,
-                    i_usize,
-                    forward,
-                );
+                let start = if timing { Some(std::time::Instant::now()) } else { None };
+                let distributed = graph_data
+                    .port_distributor()
+                    .distribute_ports_while_sweeping(&order, i_usize, forward);
+                if let Some(start) = start {
+                    eprintln!(
+                        "crossmin: distribute_ports layer={} done in {} ms",
+                        i_usize,
+                        start.elapsed().as_millis()
+                    );
+                }
+                improved |= distributed;
             }
             let layer = self.graph_info_holders[index].current_node_order()[i_usize].clone();
+            let start = if timing { Some(std::time::Instant::now()) } else { None };
             improved |= self.sweep_in_hierarchical_nodes(&layer, forward, first_sweep);
+            if let Some(start) = start {
+                eprintln!(
+                    "crossmin: sweep_in_hierarchical_nodes layer={} done in {} ms",
+                    i_usize,
+                    start.elapsed().as_millis()
+                );
+            }
             i += next(forward);
         }
 
@@ -775,6 +828,9 @@ impl LayerSweepCrossingMinimizer {
             } else {
                 GraphInfoHolder::new(graph.clone(), self.cross_min_type)
             };
+            if std::env::var_os("ELK_TRACE_CROSSMIN_STATS").is_some() {
+                Self::log_graph_stats(index, &g_data);
+            }
             let parent_index = g_data
                 .parent_graph_ref()
                 .and_then(|parent_graph| {
@@ -803,6 +859,44 @@ impl LayerSweepCrossingMinimizer {
         }
 
         graphs_to_sweep_on
+    }
+
+    fn log_graph_stats(index: usize, holder: &GraphInfoHolder) {
+        let layers = holder.current_node_order();
+        let layer_count = layers.len();
+        let node_count: usize = layers.iter().map(|layer| layer.len()).sum();
+        let mut port_count = 0usize;
+        let mut edges: HashSet<usize> = HashSet::new();
+
+        for layer in layers {
+            for node in layer {
+                let ports = node
+                    .lock()
+                    .ok()
+                    .map(|node_guard| node_guard.ports().clone())
+                    .unwrap_or_default();
+                port_count += ports.len();
+                for port in ports {
+                    let connected = port
+                        .lock()
+                        .ok()
+                        .map(|port_guard| port_guard.connected_edges().clone())
+                        .unwrap_or_default();
+                    for edge in connected {
+                        edges.insert(Arc::as_ptr(&edge) as usize);
+                    }
+                }
+            }
+        }
+
+        eprintln!(
+            "crossmin: graph_stats index={} layers={} nodes={} ports={} edges={}",
+            index,
+            layer_count,
+            node_count,
+            port_count,
+            edges.len()
+        );
     }
 
     fn transfer_node_and_port_orders_to_graph(

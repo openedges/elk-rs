@@ -13,6 +13,7 @@ pub mod naive_min_st;
 pub mod rectilinear_convex_hull;
 pub mod spore;
 pub mod nodespacing;
+pub mod overlaps;
 
 pub use node_micro_layout::NodeMicroLayout;
 pub use t_edge::TEdge;

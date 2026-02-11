@@ -6,7 +6,10 @@ use std::panic::{self, AssertUnwindSafe};
 use std::path::PathBuf;
 
 use elkt_test_loader::load_layered_graph_from_elk_text;
-use issue_support::{init_layered_options, run_layout};
+use issue_support::{init_layered_options, run_layout, set_node_property};
+use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::{
+    LayeredOptions, NodePlacementStrategy,
+};
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::PortSide;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkLabelRef, ElkNodeRef, ElkPortRef};
@@ -174,4 +177,32 @@ fn external_port_label_variants_support_configurator_side_sweep_if_available() {
             "expected at least one port label for configurator side sweep ({side:?})"
         );
     }
+}
+
+#[test]
+fn ticket_701_port_labels_runs_without_panic_if_available() {
+    init_layered_options();
+
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../external/elk-models/tickets/layered/701_portLabels.elkt");
+    if !path.exists() {
+        eprintln!("port-label regression: 701_portLabels.elkt not found");
+        return;
+    }
+    let path = path.to_string_lossy().into_owned();
+
+    let graph = load_layered_graph_from_elk_text(&path)
+        .unwrap_or_else(|err| panic!("failed to load 701_portLabels resource {path}: {err}"));
+    set_node_property(
+        &graph,
+        LayeredOptions::NODE_PLACEMENT_STRATEGY,
+        NodePlacementStrategy::BrandesKoepf,
+    );
+    run_layout(&graph);
+
+    let label_count = port_label_count_and_finite_geometry(&graph, &path);
+    assert!(
+        label_count > 0,
+        "expected at least one port label in 701_portLabels resource"
+    );
 }

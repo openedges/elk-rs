@@ -270,8 +270,10 @@ impl OrthogonalRoutingGenerator {
             return f64::MAX;
         }
         let mut sorted = numbers.to_vec();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        sorted.dedup_by(|a, b| (*a - *b).abs() < f64::EPSILON);
+        // Java Stream.sorted() uses Double.compare which defines a total order (incl. NaN/-0.0).
+        sorted.sort_by(|a, b| a.total_cmp(b));
+        // Match Double#equals semantics (NaN == NaN, -0.0 != 0.0).
+        sorted.dedup_by(|a, b| a.to_bits() == b.to_bits());
 
         if sorted.len() < 2 {
             return f64::MAX;
@@ -280,6 +282,9 @@ impl OrthogonalRoutingGenerator {
         let mut min_difference = f64::MAX;
         for window in sorted.windows(2) {
             let diff = window[1] - window[0];
+            if diff.is_nan() {
+                return f64::NAN;
+            }
             if diff < min_difference {
                 min_difference = diff;
             }
@@ -385,5 +390,17 @@ fn pop_front(list: &mut Vec<HyperEdgeSegmentRef>) -> Option<HyperEdgeSegmentRef>
         None
     } else {
         Some(list.remove(0))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::OrthogonalRoutingGenerator;
+
+    #[test]
+    fn minimum_difference_handles_nan_like_java() {
+        let values = vec![1.0, f64::NAN, 3.0, f64::NAN];
+        let result = OrthogonalRoutingGenerator::minimum_difference(&values);
+        assert!(result.is_nan(), "expected NaN minimum difference when NaN is present");
     }
 }

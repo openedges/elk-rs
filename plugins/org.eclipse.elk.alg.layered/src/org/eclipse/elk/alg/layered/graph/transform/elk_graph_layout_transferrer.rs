@@ -18,6 +18,7 @@ use crate::org::eclipse::elk::alg::layered::graph::NodeType;
 use crate::org::eclipse::elk::alg::layered::graph::{
     LEdgeRef, LGraphRef, LLabelRef, LNodeRef, LPortRef,
 };
+use crate::org::eclipse::elk::alg::layered::intermediate::INCLUDE_LABEL;
 use crate::org::eclipse::elk::alg::layered::options::{
     GraphProperties, InternalProperties, LayeredOptions, Origin,
 };
@@ -619,7 +620,7 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
 
         // Apply label positions with edge_offset (Java also sets dimensions)
         for label in &labels {
-            let (label_origin, label_position, label_size) = {
+            let (label_origin, label_position, label_size, include_label) = {
                 let mut label_guard = match label.lock() {
                     Ok(guard) => guard,
                     Err(_) => continue,
@@ -627,7 +628,8 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
                 let origin = label_guard.get_property(InternalProperties::ORIGIN);
                 let position = *label_guard.shape().position_ref();
                 let size = *label_guard.shape().size_ref();
-                (origin, position, size)
+                let include_label = label_guard.get_property(&INCLUDE_LABEL);
+                (origin, position, size, include_label)
             };
 
             let Some(Origin::ElkLabel(label_id)) = label_origin else {
@@ -641,6 +643,17 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
             let shape = elk_label_mut.shape();
             shape.set_dimensions(label_size.x, label_size.y);
             shape.set_location(label_position.x + edge_offset.x, label_position.y + edge_offset.y);
+            if let Some(include_label) = include_label {
+                shape
+                    .graph_element()
+                    .properties_mut()
+                    .set_property(&INCLUDE_LABEL, Some(include_label));
+            } else {
+                shape
+                    .graph_element()
+                    .properties_mut()
+                    .set_property::<bool>(&INCLUDE_LABEL, None);
+            }
         }
 
         // Copy junction points (offset them) or set to None

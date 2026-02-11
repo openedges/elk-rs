@@ -103,6 +103,11 @@ impl LGraphAdapters {
             properties,
         }
     }
+
+    /// Adapt an LLabel for use in label placement utilities.
+    pub fn adapt_label(label: LLabelRef) -> LLabelAdapter {
+        LLabelAdapter::new(label)
+    }
 }
 
 /// Adapter wrapping an LGraph as a GraphAdapter.

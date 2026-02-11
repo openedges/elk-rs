@@ -12,7 +12,8 @@ use crate::org::eclipse::elk::alg::layered::intermediate::graph_transformer::{
 use crate::org::eclipse::elk::alg::layered::intermediate::{
     CommentNodeMarginCalculator, CommentPostprocessor, CommentPreprocessor,
     EdgeAndLayerConstraintEdgeReverser, InLayerConstraintProcessor, InvertedPortProcessor,
-    EndLabelSorter, LabelAndNodeSizeProcessor, LabelDummyRemover, LabelSideSelector, LayerConstraintPostprocessor,
+    EndLabelSorter, EndLabelPreprocessor, EndLabelPostprocessor, LabelAndNodeSizeProcessor, LabelDummyInserter, LabelDummyRemover, LabelDummySwitcher,
+    LabelSideSelector, LayerConstraintPostprocessor,
     LayerConstraintPreprocessor, InteractiveExternalPortPositioner,
     LayerSizeAndGraphHeightCalculator, LongEdgeJoiner, LongEdgeSplitter, NorthSouthPortPostprocessor,
     NorthSouthPortPreprocessor, NodePromotion, PartitionMidprocessor, PartitionPostprocessor, PartitionPreprocessor,
@@ -170,6 +171,7 @@ impl ILayoutProcessorFactory<LGraph> for IntermediateProcessorStrategy {
             IntermediateProcessorStrategy::LabelAndNodeSizeProcessor => {
                 Box::new(LabelAndNodeSizeProcessor)
             }
+            IntermediateProcessorStrategy::LabelDummyInserter => Box::new(LabelDummyInserter),
             IntermediateProcessorStrategy::PortListSorter => Box::new(PortListSorter),
             IntermediateProcessorStrategy::SortByInputOrderOfModel => {
                 Box::new(SortByInputModelProcessor)
@@ -219,8 +221,11 @@ impl ILayoutProcessorFactory<LGraph> for IntermediateProcessorStrategy {
                 Box::new(CommentNodeMarginCalculator)
             }
             IntermediateProcessorStrategy::LabelSideSelector => Box::new(LabelSideSelector),
+            IntermediateProcessorStrategy::LabelDummySwitcher => Box::new(LabelDummySwitcher::default()),
             IntermediateProcessorStrategy::LabelDummyRemover => Box::new(LabelDummyRemover),
             IntermediateProcessorStrategy::EndLabelSorter => Box::new(EndLabelSorter),
+            IntermediateProcessorStrategy::EndLabelPreprocessor => Box::new(EndLabelPreprocessor),
+            IntermediateProcessorStrategy::EndLabelPostprocessor => Box::new(EndLabelPostprocessor),
             IntermediateProcessorStrategy::CommentPostprocessor => Box::new(CommentPostprocessor),
             IntermediateProcessorStrategy::CommentPreprocessor => Box::new(CommentPreprocessor),
             IntermediateProcessorStrategy::SelfLoopPostprocessor => {
