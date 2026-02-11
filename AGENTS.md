@@ -790,6 +790,8 @@
 - layered EndLabels 그래프 프로퍼티 테스트 추가: `end_label_graph_properties_test`에서 `initialize_plain_java_layout()` 후 `GraphProperties::EndLabels` 포함 확인
 - label 관련 61개 모델 parity 재실행(2026-02-11, release): `/tmp/java_manifest_labels.tsv` 기반 Rust 재실행 ok=58/timeout=3 후 비교 결과 matches=21, drift=37, total_diffs=582 (`/tmp/report_labels_after_endlabels_v2.md`, `layerSelection_center_{01,02}`/`layerSelection_widest` timeout)
 - LabelDummySwitcher long-edge 더미 순회 루프 가드 추가(NodeRefKey HashSet)로 순환 대비; `layerSelection_center_01` 단건 재실행에서도 LabelDummySwitcher 단계 timeout 지속(원인 추가 분석 필요)
+- LabelDummySwitcher 데드락 해소: graph.lock 재진입 제거(레이어/spacing 캐시, `find_max_non_dummy_node_width` 방향 인자화)로 `layerSelection_center_{01,02}`/`layerSelection_widest` 3/3 ok 확인
+- label subset 61개 parity 재실행(2026-02-11, release): ok=61/timeout=0, matches=21, drift=40, total_diffs=614 (`/tmp/report_labels_after_deadlock_fix.md`)
 ## 진행률(최신)
 - 전체 목표 대비 추정 진행률: 약 100.0% (기준: Java 기능/API/테스트 parity, 빌드/클리피, 성능 자동화)
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
@@ -865,5 +867,7 @@
 - [x] 1,448 모델 parity 기준선(v4 report)에서 실패 목록(36 timeouts/8 panics/9 java non-ok) 정리 및 재현 입력 목록 확보
 - [x] panic 8건 재현/수정/회귀 테스트 추가
 - [x] timeout 36건 재현/프로파일링/성능·루프 수정/회귀 테스트 추가
+- [x] label 관련 timeout 3건(`layerSelection_center_01/02`, `layerSelection_widest`) LabelDummySwitcher 단계 루프/락 원인 분석 및 수정
+- [x] label subset parity(61 모델) 재실행 후 drift/timeout 변화 리포트 갱신
 - [ ] drift 대량 원인(p1cycles/p2layers/p3order 중심) 정합화 및 회귀 테스트 추가
 - [ ] 1,448 모델 전체 parity 100% match 재실행 확인 및 리포트 갱신

@@ -273,13 +273,13 @@ impl LGraphUtil {
         }
     }
 
-    pub fn find_max_non_dummy_node_width(layer: &LayerRef, respect_node_margins: bool) -> f64 {
-        let (direction, nodes) = if let Ok(layer_guard) = layer.lock() {
-            let direction = layer_guard
-                .graph()
-                .and_then(|graph| graph.lock().ok().and_then(|mut g| g.get_property(LayeredOptions::DIRECTION)))
-                .unwrap_or(Direction::Undefined);
-            (direction, layer_guard.nodes().clone())
+    pub fn find_max_non_dummy_node_width(
+        layer: &LayerRef,
+        direction: Direction,
+        respect_node_margins: bool,
+    ) -> f64 {
+        let nodes = if let Ok(layer_guard) = layer.lock() {
+            layer_guard.nodes().clone()
         } else {
             return 0.0;
         };

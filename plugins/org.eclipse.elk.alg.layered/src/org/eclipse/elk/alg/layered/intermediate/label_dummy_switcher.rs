@@ -3,11 +3,12 @@ use std::sync::LazyLock;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::alignment::Alignment;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::direction::Direction;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 
 use crate::org::eclipse::elk::alg::layered::graph::{
-    index_of_arc, LEdge, LGraph, LGraphUtil, LNodeRef, LPortRef, NodeRefKey, NodeType,
+    index_of_arc, LEdge, LGraph, LGraphUtil, LNodeRef, LPortRef, LayerRef, NodeRefKey, NodeType,
 };
 use crate::org::eclipse::elk::alg::layered::options::{
     CenterEdgeLabelPlacementStrategy, InternalProperties, LayeredOptions, PortType,
@@ -16,6 +17,8 @@ use crate::org::eclipse::elk::alg::layered::options::{
 pub static INCLUDE_LABEL: LazyLock<Property<bool>> = LazyLock::new(|| {
     Property::with_default("edgelabelcenterednessanalysis.includelabel", false)
 });
+static TRACE_LABEL_DUMMY_SWITCHER: LazyLock<bool> =
+    LazyLock::new(|| std::env::var("ELK_TRACE_LABEL_DUMMY_SWITCHER").is_ok());
 
 const STRATEGIES: [CenterEdgeLabelPlacementStrategy; 6] = [
     CenterEdgeLabelPlacementStrategy::MedianLayer,
@@ -28,12 +31,16 @@ const STRATEGIES: [CenterEdgeLabelPlacementStrategy; 6] = [
 
 pub struct LabelDummySwitcher {
     layer_widths: Vec<f64>,
+    layers: Vec<LayerRef>,
+    min_space_between_layers: f64,
 }
 
 impl Default for LabelDummySwitcher {
     fn default() -> Self {
         Self {
             layer_widths: Vec::new(),
+            layers: Vec::new(),
+            min_space_between_layers: 0.0,
         }
     }
 }
@@ -41,23 +48,57 @@ impl Default for LabelDummySwitcher {
 impl ILayoutProcessor<LGraph> for LabelDummySwitcher {
     fn process(&mut self, layered_graph: &mut LGraph, monitor: &mut dyn IElkProgressMonitor) {
         monitor.begin("Label dummy switching", 1.0);
+        if *TRACE_LABEL_DUMMY_SWITCHER {
+            eprintln!(
+                "label-dummy-switcher: start layers={}",
+                layered_graph.layers().len()
+            );
+        }
 
         let default_strategy = layered_graph
             .get_property(LayeredOptions::EDGE_LABELS_CENTER_LABEL_PLACEMENT_STRATEGY)
             .unwrap_or(CenterEdgeLabelPlacementStrategy::MedianLayer);
+        let direction = layered_graph
+            .get_property(LayeredOptions::DIRECTION)
+            .unwrap_or(Direction::Undefined);
+        self.layers = layered_graph.layers().clone();
+        let edge_node_spacing = layered_graph
+            .get_property(LayeredOptions::SPACING_EDGE_NODE_BETWEEN_LAYERS)
+            .unwrap_or(0.0)
+            * 2.0;
+        let node_node_spacing = layered_graph
+            .get_property(LayeredOptions::SPACING_NODE_NODE_BETWEEN_LAYERS)
+            .unwrap_or(0.0);
+        self.min_space_between_layers = edge_node_spacing.max(node_node_spacing);
 
         assign_ids_to_layers(layered_graph);
+        if *TRACE_LABEL_DUMMY_SWITCHER {
+            eprintln!("label-dummy-switcher: assigned layer ids");
+        }
 
         let mut label_dummy_infos =
             gather_label_dummy_infos(layered_graph, default_strategy);
+        if *TRACE_LABEL_DUMMY_SWITCHER {
+            let total: usize = label_dummy_infos.values().map(|list| list.len()).sum();
+            eprintln!(
+                "label-dummy-switcher: gathered label dummies total={}",
+                total
+            );
+        }
 
-        self.layer_widths = vec![0.0; layered_graph.layers().len()];
+        self.layer_widths = vec![0.0; self.layers.len()];
 
         for strategy in STRATEGIES {
             if strategy.uses_label_size_information() {
                 if let Some(infos) = label_dummy_infos.get(&strategy) {
                     if !infos.is_empty() {
-                        self.calculate_layer_widths(layered_graph);
+                        if *TRACE_LABEL_DUMMY_SWITCHER {
+                            eprintln!(
+                                "label-dummy-switcher: calculating layer widths for {:?}",
+                                strategy
+                            );
+                        }
+                        self.calculate_layer_widths(direction);
                         break;
                     }
                 }
@@ -81,6 +122,8 @@ impl ILayoutProcessor<LGraph> for LabelDummySwitcher {
         }
 
         self.layer_widths.clear();
+        self.layers.clear();
+        self.min_space_between_layers = 0.0;
         monitor.done();
     }
 }
@@ -130,15 +173,34 @@ fn gather_label_dummy_infos(
 }
 
 impl LabelDummySwitcher {
-    fn calculate_layer_widths(&mut self, layered_graph: &LGraph) {
-        for layer in layered_graph.layers() {
-            let layer_id = layer
+    fn calculate_layer_widths(&mut self, direction: Direction) {
+        for layer in &self.layers {
+            let (layer_id, node_count) = layer
                 .lock()
                 .ok()
-                .map(|mut layer_guard| layer_guard.graph_element().id)
-                .unwrap_or(0);
+                .map(|mut layer_guard| (layer_guard.graph_element().id, layer_guard.nodes().len()))
+                .unwrap_or((0, 0));
+            if *TRACE_LABEL_DUMMY_SWITCHER {
+                eprintln!(
+                    "label-dummy-switcher: layer id={} nodes={}",
+                    layer_id, node_count
+                );
+            }
             if layer_id >= 0 {
-                let width = LGraphUtil::find_max_non_dummy_node_width(layer, false);
+                if *TRACE_LABEL_DUMMY_SWITCHER {
+                    eprintln!("label-dummy-switcher: layer id={} width calc start", layer_id);
+                }
+                let width = LGraphUtil::find_max_non_dummy_node_width(
+                    layer,
+                    direction,
+                    false,
+                );
+                if *TRACE_LABEL_DUMMY_SWITCHER {
+                    eprintln!(
+                        "label-dummy-switcher: layer id={} width calc done width={}",
+                        layer_id, width
+                    );
+                }
                 if let Some(entry) = self.layer_widths.get_mut(layer_id as usize) {
                     *entry = width;
                 }
@@ -150,6 +212,13 @@ impl LabelDummySwitcher {
         if label_dummy_infos.is_empty() {
             return;
         }
+        if *TRACE_LABEL_DUMMY_SWITCHER {
+            eprintln!(
+                "label-dummy-switcher: strategy {:?} count={}",
+                label_dummy_infos[0].placement_strategy,
+                label_dummy_infos.len()
+            );
+        }
 
         if label_dummy_infos[0].placement_strategy
             == CenterEdgeLabelPlacementStrategy::SpaceEfficientLayer
@@ -159,6 +228,15 @@ impl LabelDummySwitcher {
         }
 
         for label_dummy_info in label_dummy_infos.iter() {
+            if *TRACE_LABEL_DUMMY_SWITCHER {
+                eprintln!(
+                    "label-dummy-switcher: label left={} right={} left_dummies={} right_dummies={}",
+                    label_dummy_info.leftmost_layer_id,
+                    label_dummy_info.rightmost_layer_id,
+                    label_dummy_info.left_long_edge_dummies.len(),
+                    label_dummy_info.right_long_edge_dummies.len()
+                );
+            }
             match label_dummy_info.placement_strategy {
                 CenterEdgeLabelPlacementStrategy::CenterLayer => {
                     let target = self.find_center_layer_target_id(label_dummy_info);
@@ -219,29 +297,7 @@ impl LabelDummySwitcher {
     }
 
     fn compute_layer_width_sums(&self, label_dummy_info: &LabelDummyInfo) -> Vec<f64> {
-        let graph = label_dummy_info
-            .label_dummy
-            .lock()
-            .ok()
-            .and_then(|node_guard| node_guard.graph());
-        let Some(graph) = graph else {
-            return Vec::new();
-        };
-
-        let min_space_between_layers = graph
-            .lock()
-            .ok()
-            .map(|mut graph_guard| {
-                let edge_node_spacing = graph_guard
-                    .get_property(LayeredOptions::SPACING_EDGE_NODE_BETWEEN_LAYERS)
-                    .unwrap_or(0.0)
-                    * 2.0;
-                let node_node_spacing = graph_guard
-                    .get_property(LayeredOptions::SPACING_NODE_NODE_BETWEEN_LAYERS)
-                    .unwrap_or(0.0);
-                edge_node_spacing.max(node_node_spacing)
-            })
-            .unwrap_or(0.0);
+        let min_space_between_layers = self.min_space_between_layers;
 
         let mut sums = vec![0.0; label_dummy_info.total_dummy_count()];
         let mut current_sum = -min_space_between_layers;
@@ -370,23 +426,9 @@ impl LabelDummySwitcher {
 
     fn assign_to_wider_layer(&mut self, label_dummy_info: &LabelDummyInfo) -> bool {
         let dummy_width = label_dummy_info.label_dummy_width();
-        let graph = label_dummy_info
-            .label_dummy
-            .lock()
-            .ok()
-            .and_then(|node_guard| node_guard.graph());
-        let Some(graph) = graph else {
-            return false;
-        };
-
-        let layers = graph
-            .lock()
-            .ok()
-            .map(|graph_guard| graph_guard.layers().clone())
-            .unwrap_or_default();
 
         for layer_index in label_dummy_info.leftmost_layer_id..=label_dummy_info.rightmost_layer_id {
-            if let Some(layer) = layers.get(layer_index) {
+            if let Some(layer) = self.layers.get(layer_index) {
                 let layer_width = layer
                     .lock()
                     .ok()
@@ -447,6 +489,15 @@ impl LabelDummySwitcher {
         let current_layer_index =
             label_dummy_info.leftmost_layer_id + label_dummy_info.left_long_edge_dummies.len();
 
+        if *TRACE_LABEL_DUMMY_SWITCHER {
+            eprintln!(
+                "label-dummy-switcher: assign target={} current={} left={} right={}",
+                target_layer_index,
+                current_layer_index,
+                label_dummy_info.leftmost_layer_id,
+                label_dummy_info.rightmost_layer_id
+            );
+        }
         if target_layer_index != current_layer_index {
             let swap_index = target_layer_index - label_dummy_info.leftmost_layer_id;
             let swap_node = label_dummy_info.ith_dummy_node(swap_index);
@@ -475,9 +526,18 @@ impl LabelDummySwitcher {
                 label_guard.set_property(&INCLUDE_LABEL, Some(true));
             }
         }
+        if *TRACE_LABEL_DUMMY_SWITCHER {
+            eprintln!(
+                "label-dummy-switcher: assign done target={}",
+                target_layer_index
+            );
+        }
     }
 
     fn swap_nodes(&self, label_dummy: &LNodeRef, long_edge_dummy: &LNodeRef) {
+        if *TRACE_LABEL_DUMMY_SWITCHER {
+            eprintln!("label-dummy-switcher: swap start");
+        }
         let (layer1, layer2) = match (
             label_dummy.lock().ok().and_then(|node_guard| node_guard.layer()),
             long_edge_dummy
@@ -553,6 +613,9 @@ impl LabelDummySwitcher {
         }
         for edge in outgoing_edges1 {
             LEdge::set_source(&edge, Some(output2.clone()));
+        }
+        if *TRACE_LABEL_DUMMY_SWITCHER {
+            eprintln!("label-dummy-switcher: swap done");
         }
     }
 
