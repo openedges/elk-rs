@@ -163,6 +163,31 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
                         }
                     }
                 }
+                let incoming = port
+                    .lock()
+                    .ok()
+                    .map(|port_guard| port_guard.incoming_edges().clone())
+                    .unwrap_or_default();
+                for edge in incoming {
+                    // Check if edge source node is a descendant of lnode
+                    let source_node = edge
+                        .lock()
+                        .ok()
+                        .and_then(|edge_guard| edge_guard.source())
+                        .and_then(|source_port| {
+                            source_port.lock().ok().and_then(|port| port.node())
+                        });
+                    let is_descendant = source_node
+                        .as_ref()
+                        .map(|sn| LGraphUtil::is_descendant(sn, lnode))
+                        .unwrap_or(false);
+                    if !is_descendant {
+                        let key = Arc::as_ptr(&edge) as usize;
+                        if edge_seen.insert(key) {
+                            edges.push(edge);
+                        }
+                    }
+                }
             }
         }
 
@@ -190,6 +215,30 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
                     let is_descendant = target_node
                         .as_ref()
                         .map(|tn| LGraphUtil::is_descendant(tn, parent_lnode))
+                        .unwrap_or(false);
+                    if is_descendant {
+                        let key = Arc::as_ptr(&edge) as usize;
+                        if edge_seen.insert(key) {
+                            edges.push(edge);
+                        }
+                    }
+                }
+                let incoming = port
+                    .lock()
+                    .ok()
+                    .map(|port_guard| port_guard.incoming_edges().clone())
+                    .unwrap_or_default();
+                for edge in incoming {
+                    let source_node = edge
+                        .lock()
+                        .ok()
+                        .and_then(|edge_guard| edge_guard.source())
+                        .and_then(|source_port| {
+                            source_port.lock().ok().and_then(|port| port.node())
+                        });
+                    let is_descendant = source_node
+                        .as_ref()
+                        .map(|sn| LGraphUtil::is_descendant(sn, parent_lnode))
                         .unwrap_or(false);
                     if is_descendant {
                         let key = Arc::as_ptr(&edge) as usize;
