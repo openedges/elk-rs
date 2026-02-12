@@ -814,9 +814,10 @@
 - drift 재분류 갱신(2026-02-12): drift 1,143건 중 other 515, ordering_diff 336, layering_diff 292. 최소 diff_count 샘플은 계층 실세계 모델에서 edge `sections` 누락(예: `realworld/ptolemy/hierarchical/*TerrainModel*`, diff=6)과 일부 ordering/label/section id 불일치 확인
 - 계층 그래프 edge `sections` 누락 재보정(2026-02-12): `ElkGraphLayoutTransferrer`에서 그래프 내 LEdge origin 매핑을 보강하고 fallback에서 port identifier로 실제 port를 재해석하도록 수정, `realworld/ptolemy/hierarchical/*TerrainModel*.elkt` 3개 샘플 재실행 시 `missing keys on right: sections` 0건 확인(`/tmp/elk_parity_hier_sections_*`). `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --tests -- -D warnings` 통과
 - 포트 배치 parity 보강(2026-02-12): `LabelAndNodeSizeProcessor`에 Java `PortPlacementCalculator` 규칙 반영(라벨 마진/spacing/`PORTS_OVERHANG`/균등 간격, `FIXED_RATIO` 반영) 및 `port_side_view` 캐시 안전화. `cargo clippy -p org-eclipse-elk-alg-layered --tests -- -D warnings`, `cargo test -p org-eclipse-elk-alg-layered --tests` 통과. TerrainModel 단일 parity 재검증 결과 diff 8 유지(`model_parity_layout_runner` + `compare_model_parity_layouts.py`)로 포트 위치/section drift 지속 확인
+- 계층 외부 포트 importer 보강(2026-02-12): `ElkGraphImporter`에 External Port 체크/변환/포트 side 정의, net flow/label spacing 반영 및 더미 매핑 추가. `compound_external_port_side_test` 추가, `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과
 ## 진행률(최신)
-- 전체 목표 대비 추정 진행률: 약 20.6% (기준: Java↔Rust 모델 parity full match 296/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
-- 단계 진행률(다음 작업 체크리스트 기준): 96.6% (완료 57/59, 미완료 2) [2026-02-12 갱신]
+- 전체 목표 대비 추정 진행률: 약 20.6% (기준: Java↔Rust 모델 parity full match 296/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태, Step 12 이후 재측정 필요)
+- 단계 진행률(다음 작업 체크리스트 기준): 98.3% (완료 58/59, 미완료 1) [2026-02-12 갱신]
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
 - Java direct-mapped 모듈 테스트 parity: 146.1% (Rust 875 / Java 599, `perf/java_test_module_parity.md`)
@@ -900,7 +901,7 @@
 - [x] 1,448 모델 parity 기준선(v4 report)에서 실패 목록(36 timeouts/8 panics/9 java non-ok) 정리 및 재현 입력 목록 확보
 - [x] panic 8건 재현/수정/회귀 테스트 추가
 - [x] Step 11: `LabelAndNodeSizeProcessor` 포트 배치 Java 규칙(라벨 마진/spacing/`PORTS_OVERHANG`/균등 간격) 및 `FIXED_RATIO` 반영, 테스트/클리피 통과, TerrainModel 단일 parity diff 8 유지 확인
-- [ ] Step 12: 계층 그래프 포트 side 불일치(속성 vs LPort side) 원인 분석 및 동기화(PortSideProcessor/Export) + 회귀 테스트 추가
+- [x] Step 12: 계층 그래프 외부 포트 처리 누락(External Port Dummy/PortSide) 원인 보강: importer에 `ensureDefinedPortSide`/`checkExternalPorts`/`transformExternalPort` 포팅, 외부 포트 net flow/label/spacing 반영, 회귀 테스트(`compound_external_port_side_test`) 추가 및 `cargo test`/`cargo clippy` 통과
 - [ ] Step 13: TerrainModel 및 계층 포트 케이스 subset parity 재검증, drift 변화 확인
 - [x] timeout 36건 재현/프로파일링/성능·루프 수정/회귀 테스트 추가
 - [x] label 관련 timeout 3건(`layerSelection_center_01/02`, `layerSelection_widest`) LabelDummySwitcher 단계 루프/락 원인 분석 및 수정

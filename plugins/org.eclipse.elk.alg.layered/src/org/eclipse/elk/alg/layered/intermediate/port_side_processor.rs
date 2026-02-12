@@ -82,7 +82,8 @@ fn process_node(node: &LNodeRef) {
 pub fn set_port_side(port: &LPortRef) {
     let mut assigned_side: Option<PortSide> = None;
     if let Ok(mut port_guard) = port.lock() {
-        if let Some(port_dummy) = port_guard.get_property(InternalProperties::PORT_DUMMY) {
+        let port_dummy = port_guard.get_property(InternalProperties::PORT_DUMMY);
+        if let Some(port_dummy) = port_dummy.as_ref() {
             assigned_side = port_dummy
                 .lock()
                 .ok()

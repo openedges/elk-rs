@@ -282,18 +282,22 @@ impl CompoundGraphPreprocessor {
                 port_guard.set_side(dummy_side);
             }
 
-            let node_graph = external_port
-                .lock()
-                .ok()
-                .and_then(|port| port.node())
-                .and_then(|node| node.lock().ok().and_then(|node| node.graph()));
+            let node_ref = external_port.lock().ok().and_then(|port| port.node());
+            let node_graph = node_ref
+                .as_ref()
+                .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.graph()));
 
-            if let Some(graph) = node_graph {
-                if let Ok(mut graph_guard) = graph.lock() {
-                    graph_guard.set_property(
+            if let Some(node_ref) = &node_ref {
+                if let Ok(mut node_guard) = node_ref.lock() {
+                    node_guard.set_property(
                         LayeredOptions::PORT_CONSTRAINTS,
                         Some(PortConstraints::FixedSide),
                     );
+                }
+            }
+
+            if let Some(graph) = node_graph {
+                if let Ok(mut graph_guard) = graph.lock() {
                     let mut props = graph_guard
                         .get_property(InternalProperties::GRAPH_PROPERTIES)
                         .unwrap_or_else(EnumSet::none_of);
