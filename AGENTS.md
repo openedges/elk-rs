@@ -18,7 +18,7 @@
 - 테스트/빌드 실패 시, 우선 수정하고 재시도한 후 계속 진행한다.
 - 새 단계 완료 시 AGENTS.md 진행 기록을 즉시 갱신한다.
 - 각 단계 마무리 시 `cargo test`/`cargo clippy` 검증을 수행하고, 변경 코드 리뷰 후 `git commit`까지 완료한다(불가 시 사유/대안을 AGENTS.md에 기록).
-- 각 단계 마무리 시 `진행률(최신)`에 단계 진행률(다음 작업 체크리스트 기준)과 완료 개수를 갱신한다.
+- 각 단계 마무리 시 `진행률(최신)`은 전체 개발 진행률로 표시하고, 완료 개수를 갱신한다(다음 작업 체크리스트 기준).
 - AGENTS.md 본문 설명은 한글로 작성한다(코드/명령어/식별자/경로는 원문 영문 유지).
 
 ## 진행된 작업
@@ -802,9 +802,10 @@
 - 단계 재검증(2026-02-12): `cargo clippy -p org-eclipse-elk-alg-layered --tests -- -D warnings`, `cargo test -p org-eclipse-elk-alg-layered --tests` 통과
 - 모델 parity full 재실행(2026-02-12): `JAVA_PARITY_MVN_LOCAL_REPO=/tmp/elk-m2-parity` + `JAVA_PARITY_MVN_ARGS=-Ddash.skip=true`로 `scripts/run_model_parity_elk_vs_rust.sh` 실행, Java export success=1439/1448(9 java_non_ok), Rust replay ok=1439/1448(errors=0), 비교 결과 matches=293, drift=1146, total_diffs=21360 갱신(`perf/model_parity_full/report.md`, `diff_details.tsv`, `rust_manifest.tsv`)
 - 단계 재검증(2026-02-12): `cargo clippy -p org-eclipse-elk-alg-layered --tests -- -D warnings`, `cargo test -p org-eclipse-elk-alg-layered --tests` 통과
+- drift 분류 재분석(2026-02-12): `scripts/analyze_layered_drift.py` 기준 drift 1146건 중 other 479, ordering_diff 403, layering_diff 264. 최소 diff_count 샘플로 `tests/layered/edge_label_placement/hierarchy_center_edge_label_problem.elkt`, `tickets/layered/040_includeChildrenWithFixedOrder.elkt`, `tickets/layered/425_selfLoopInCompoundNode.elkt` 등 좌표/section 불일치 우선 후보 확인
 ## 진행률(최신)
-- 전체 목표 대비 추정 진행률: 약 100.0% (기준: Java 기능/API/테스트 parity, 빌드/클리피, 성능 자동화)
-- 단계 진행률(다음 작업 체크리스트 기준): 100.0% (완료 49/49, 미완료 0) [2026-02-12 갱신]
+- 전체 목표 대비 추정 진행률: 약 20.4% (기준: Java↔Rust 모델 parity full match 293/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
+- 단계 진행률(다음 작업 체크리스트 기준): 96.2% (완료 50/52, 미완료 2) [2026-02-12 갱신]
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
 - Java direct-mapped 모듈 테스트 parity: 146.1% (Rust 875 / Java 599, `perf/java_test_module_parity.md`)
@@ -813,13 +814,16 @@
 - topdown 모듈 테스트 parity(수량): 100% (Rust 11 / Java 11)
 - mrtree 모듈 테스트 parity(수량): 100% (Rust 2 / Java 2, 기본 테스트 경로 활성화 완료)
 - Java-Rust 성능 비교 파이프라인/회귀 게이트: 운영 자동화 100% (baseline/results/both + scenario/runtime gate + CI 연동)
-- external/elk-models Java↔Rust 레이아웃 결과 parity(샘플 검증): 100% (sample 10 기준 10/10 perfect match, 0 drift, Mutex deadlock 수정 완료)
+- external/elk-models Java↔Rust 레이아웃 결과 parity(전체 1,448 모델): 20.4% (matches=293/compared=1439, drift=1146, errors=0, total_diffs=21360)
 - external/elk-models Java↔Rust 대형 샘플 안정성: deadlock 수정 완료(routing_slot_assigner.rs), `JAVA_PARITY_LIMIT=100` 스케일업 검증 예정
 - external/elk 무수정 운영 체계: 100% (격리 실행 + 자동 정리)
 - 1,448 모델 parity 기준선(v4)에서 실패 목록(36 timeouts/8 panics/9 java non-ok) 정리 및 재현 대상 모델 목록 확보
 - panic 8건 해소: OrthogonalRoutingGenerator minimumDifference NaN 안전화(total_cmp + bit-eq dedup + NaN 전파), BK aligner edge_between 양방향 탐색 보강(701_portLabels) 및 회귀 테스트 추가(NaN unit test, 701 외부 리소스 테스트), 8개 panic 모델 재현 → 모두 ok 확인
 
 ## 다음 작업
+- [x] Step 4: 1,448 모델 drift 재분류(`scripts/analyze_layered_drift.py`) 및 상위 원인/최소 diff_count 샘플 후보 정리
+- [ ] Step 5: 최소 diff_count drift 케이스 2~3개 root cause 분석 + 회귀 테스트 후보 선정
+- [ ] Step 6: 상위 원인 1건 수정 후 tickets/tests subset parity 재검증
 - [x] Step 1: 워크스페이스 clippy/test 재검증 및 경고 정리
 - [x] Step 2: drift 분석 샘플 보정(self-loop bendPoints 중복 유지) + 회귀 테스트 추가
 - [x] Step 3: Java↔Rust parity 재실행(모델 parity full) 및 리포트 갱신
