@@ -467,6 +467,10 @@ pub static ALLOW_NON_FLOW_PORTS_TO_SWITCH_SIDES_PROPERTY: LazyLock<Property<bool
 
 pub static PORT_SORTING_STRATEGY_PROPERTY: LazyLock<Property<PortSortingStrategy>> =
     LazyLock::new(|| {
+        ElkReflect::register(
+            Some(|| PortSortingStrategy::InputOrder),
+            Some(|v: &PortSortingStrategy| *v),
+        );
         Property::with_default(
             "org.eclipse.elk.alg.layered.portSortingStrategy",
             PortSortingStrategy::InputOrder,
