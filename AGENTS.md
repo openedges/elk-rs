@@ -17,6 +17,8 @@
 - 외부 의존성/환경 문제로 완전 구현이 불가한 경우, 합리적 가정과 최소 동작(에러 메시지/기본값/비활성화)을 넣어 빌드·테스트를 유지하고 TODO를 남긴 뒤 다음 항목으로 진행한다.
 - 테스트/빌드 실패 시, 우선 수정하고 재시도한 후 계속 진행한다.
 - 새 단계 완료 시 AGENTS.md 진행 기록을 즉시 갱신한다.
+- 각 단계 마무리 시 `cargo test`/`cargo clippy` 검증을 수행하고, 변경 코드 리뷰 후 `git commit`까지 완료한다(불가 시 사유/대안을 AGENTS.md에 기록).
+- 각 단계 마무리 시 `진행률(최신)`에 단계 진행률(다음 작업 체크리스트 기준)과 완료 개수를 갱신한다.
 - AGENTS.md 본문 설명은 한글로 작성한다(코드/명령어/식별자/경로는 원문 영문 유지).
 
 ## 진행된 작업
@@ -795,6 +797,7 @@
 - LabelAndNodeSizeProcessor 포트 최소 길이 보정: PortAlignment::Distributed가 port spacing을 양끝에 추가하도록 반영 → `treat_as_group_inside` 등 포트 라벨 케이스 높이/포트 위치 복구, label subset total_diffs 614→598 (`/tmp/report_labels_after_portspacing_fix.md`)
 ## 진행률(최신)
 - 전체 목표 대비 추정 진행률: 약 100.0% (기준: Java 기능/API/테스트 parity, 빌드/클리피, 성능 자동화)
+- 단계 진행률(다음 작업 체크리스트 기준): 100.0% (완료 46/46, 미완료 0)
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
 - Java direct-mapped 모듈 테스트 parity: 146.1% (Rust 875 / Java 599, `perf/java_test_module_parity.md`)
