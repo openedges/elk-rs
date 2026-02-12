@@ -4,13 +4,15 @@ use std::sync::{Arc, LazyLock};
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::elk_margin::ElkMargin;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::elk_rectangle::ElkRectangle;
+use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_alignment::PortAlignment;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_label_placement::PortLabelPlacement;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::size_constraint::SizeConstraint;
-use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::size_options::SizeOptions;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, IElkProgressMonitor};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::nodespacing::node_dimension_calculation::NodeDimensionCalculation;
@@ -241,11 +243,20 @@ fn place_ports_on_node(
         return;
     }
 
-    if port_constraints.is_pos_fixed() || port_constraints.is_ratio_fixed() {
+    if port_constraints.is_pos_fixed() {
         adjust_ports_on_side(node, PortSide::North, node_size.x, node_size.y);
         adjust_ports_on_side(node, PortSide::South, node_size.x, node_size.y);
         adjust_ports_on_side(node, PortSide::East, node_size.x, node_size.y);
         adjust_ports_on_side(node, PortSide::West, node_size.x, node_size.y);
+        update_node_margin(node);
+        return;
+    }
+
+    if port_constraints.is_ratio_fixed() {
+        place_ports_fixed_ratio_on_side(node, PortSide::North, node_size.x, node_size.y);
+        place_ports_fixed_ratio_on_side(node, PortSide::South, node_size.x, node_size.y);
+        place_ports_fixed_ratio_on_side(node, PortSide::East, node_size.x, node_size.y);
+        place_ports_fixed_ratio_on_side(node, PortSide::West, node_size.x, node_size.y);
         update_node_margin(node);
         return;
     }
@@ -390,6 +401,280 @@ fn update_node_margin(node: &LNodeRef) {
     }
 }
 
+#[derive(Clone)]
+struct PortPlacementContext {
+    port: LPortRef,
+    margin: ElkMargin,
+    labels_next_to_port: bool,
+    label_size: KVector,
+    label_count: usize,
+}
+
+fn port_label_min_size(
+    port: &LPortRef,
+    label_label_spacing: f64,
+    port_labels_fixed: bool,
+) -> (KVector, usize) {
+    if port_labels_fixed {
+        return (KVector::new(), 0);
+    }
+
+    let labels = port
+        .lock()
+        .ok()
+        .map(|port_guard| port_guard.labels().clone())
+        .unwrap_or_default();
+    if labels.is_empty() {
+        return (KVector::new(), 0);
+    }
+
+    let mut max_width = 0.0_f64;
+    let mut total_height = 0.0_f64;
+    let mut count = 0_usize;
+    for label in labels {
+        if let Ok(mut label_guard) = label.lock() {
+            let size = *label_guard.shape().size_ref();
+            max_width = max_width.max(size.x);
+            total_height += size.y;
+            count += 1;
+        }
+    }
+    if count > 1 {
+        total_height += label_label_spacing * (count.saturating_sub(1) as f64);
+    }
+
+    (KVector::with_values(max_width, total_height), count)
+}
+
+fn labels_bounds_for_port(port: &LPortRef) -> Option<ElkRectangle> {
+    let labels = port
+        .lock()
+        .ok()
+        .map(|port_guard| port_guard.labels().clone())
+        .unwrap_or_default();
+    if labels.is_empty() {
+        return None;
+    }
+
+    let mut min_x = f64::INFINITY;
+    let mut min_y = f64::INFINITY;
+    let mut max_x = f64::NEG_INFINITY;
+    let mut max_y = f64::NEG_INFINITY;
+
+    for label in labels {
+        if let Ok(mut label_guard) = label.lock() {
+            let pos = *label_guard.shape().position_ref();
+            let size = *label_guard.shape().size_ref();
+            min_x = min_x.min(pos.x);
+            min_y = min_y.min(pos.y);
+            max_x = max_x.max(pos.x + size.x);
+            max_y = max_y.max(pos.y + size.y);
+        }
+    }
+
+    if !min_x.is_finite() || !min_y.is_finite() {
+        return None;
+    }
+
+    Some(ElkRectangle::with_values(min_x, min_y, max_x - min_x, max_y - min_y))
+}
+
+fn labels_next_to_port(
+    placement: &EnumSet<PortLabelPlacement>,
+    port_labels_next_to_port: bool,
+    node_is_compound: bool,
+    has_compound_connections: bool,
+    has_edges: bool,
+) -> bool {
+    if placement.contains(&PortLabelPlacement::Inside) {
+        if node_is_compound {
+            port_labels_next_to_port && !has_compound_connections
+        } else {
+            true
+        }
+    } else if placement.contains(&PortLabelPlacement::Outside) {
+        if port_labels_next_to_port {
+            !has_edges
+        } else {
+            false
+        }
+    } else {
+        false
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn setup_horizontal_port_margins(
+    contexts: &mut [PortPlacementContext],
+    port_labels_outside: bool,
+    always_same_side: bool,
+    always_other_same_side: bool,
+    space_efficient: bool,
+    uniform_port_spacing: bool,
+    port_label_spacing_horizontal: f64,
+    port_labels_fixed: bool,
+) {
+    let space_efficient_labels =
+        !always_same_side && !always_other_same_side && (space_efficient || contexts.len() == 2);
+
+    for ctx in contexts.iter_mut() {
+        let label_width = ctx.label_size.x;
+        if label_width > 0.0 {
+            if ctx.labels_next_to_port {
+                if let Ok(mut port_guard) = ctx.port.lock() {
+                    let port_width = port_guard.shape().size_ref().x;
+                    if label_width > port_width {
+                        let overhang = (label_width - port_width) / 2.0;
+                        ctx.margin.left = overhang;
+                        ctx.margin.right = overhang;
+                    }
+                }
+            } else {
+                ctx.margin.right = port_label_spacing_horizontal + label_width;
+            }
+        } else if port_labels_fixed {
+            if let Some(bounds) = labels_bounds_for_port(&ctx.port) {
+                if let Ok(mut port_guard) = ctx.port.lock() {
+                    let port_width = port_guard.shape().size_ref().x;
+                    if bounds.x < 0.0 {
+                        ctx.margin.left = -bounds.x;
+                    }
+                    if bounds.x + bounds.width > port_width {
+                        ctx.margin.right = bounds.x + bounds.width - port_width;
+                    }
+                }
+            }
+        }
+    }
+
+    if port_labels_outside && !contexts.is_empty() {
+        let leftmost = 0;
+        let rightmost = contexts.len() - 1;
+        contexts[leftmost].margin.left = 0.0;
+        contexts[rightmost].margin.right = 0.0;
+
+        if space_efficient_labels && !contexts[leftmost].labels_next_to_port {
+            contexts[leftmost].margin.right = 0.0;
+        }
+    }
+
+    if uniform_port_spacing && !contexts.is_empty() {
+        let mut max_left = 0.0_f64;
+        let mut max_right = 0.0_f64;
+        for ctx in contexts.iter() {
+            max_left = max_left.max(ctx.margin.left);
+            max_right = max_right.max(ctx.margin.right);
+        }
+        for ctx in contexts.iter_mut() {
+            ctx.margin.left = max_left;
+            ctx.margin.right = max_right;
+        }
+
+        if port_labels_outside {
+            let leftmost = 0;
+            let rightmost = contexts.len() - 1;
+            contexts[leftmost].margin.left = 0.0;
+            contexts[rightmost].margin.right = 0.0;
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn setup_vertical_port_margins(
+    contexts: &mut [PortPlacementContext],
+    port_labels_outside: bool,
+    always_same_side: bool,
+    always_other_same_side: bool,
+    space_efficient: bool,
+    uniform_port_spacing: bool,
+    port_label_spacing_vertical: f64,
+    port_labels_fixed: bool,
+    port_labels_treat_as_group: bool,
+) {
+    let space_efficient_labels =
+        !always_same_side && !always_other_same_side && (space_efficient || contexts.len() == 2);
+
+    for ctx in contexts.iter_mut() {
+        let label_height = ctx.label_size.y;
+        if label_height > 0.0 {
+            if ctx.labels_next_to_port {
+                if let Ok(mut port_guard) = ctx.port.lock() {
+                    let port_height = port_guard.shape().size_ref().y;
+                    if label_height > port_height {
+                        if port_labels_treat_as_group || ctx.label_count <= 1 {
+                            let overhang = (label_height - port_height) / 2.0;
+                            ctx.margin.top = overhang;
+                            ctx.margin.bottom = overhang;
+                        } else {
+                            let first_label_height = ctx
+                                .port
+                                .lock()
+                                .ok()
+                                .and_then(|port_guard| {
+                                    port_guard.labels().first().and_then(|label| {
+                                        label
+                                            .lock()
+                                            .ok()
+                                            .map(|mut label_guard| label_guard.shape().size_ref().y)
+                                    })
+                                })
+                                .unwrap_or(0.0);
+                            let first_overhang = (first_label_height - port_height) / 2.0;
+                            ctx.margin.top = first_overhang.max(0.0);
+                            ctx.margin.bottom = label_height - first_overhang - port_height;
+                        }
+                    }
+                }
+            } else {
+                ctx.margin.bottom = port_label_spacing_vertical + label_height;
+            }
+        } else if port_labels_fixed {
+            if let Some(bounds) = labels_bounds_for_port(&ctx.port) {
+                if let Ok(mut port_guard) = ctx.port.lock() {
+                    let port_height = port_guard.shape().size_ref().y;
+                    if bounds.y < 0.0 {
+                        ctx.margin.top = -bounds.y;
+                    }
+                    if bounds.y + bounds.height > port_height {
+                        ctx.margin.bottom = bounds.y + bounds.height - port_height;
+                    }
+                }
+            }
+        }
+    }
+
+    if port_labels_outside && !contexts.is_empty() {
+        let topmost = 0;
+        let bottommost = contexts.len() - 1;
+        contexts[topmost].margin.top = 0.0;
+        contexts[bottommost].margin.bottom = 0.0;
+
+        if space_efficient_labels && !contexts[topmost].labels_next_to_port {
+            contexts[topmost].margin.bottom = 0.0;
+        }
+    }
+
+    if uniform_port_spacing && !contexts.is_empty() {
+        let mut max_top = 0.0_f64;
+        let mut max_bottom = 0.0_f64;
+        for ctx in contexts.iter() {
+            max_top = max_top.max(ctx.margin.top);
+            max_bottom = max_bottom.max(ctx.margin.bottom);
+        }
+        for ctx in contexts.iter_mut() {
+            ctx.margin.top = max_top;
+            ctx.margin.bottom = max_bottom;
+        }
+
+        if port_labels_outside {
+            let topmost = 0;
+            let bottommost = contexts.len() - 1;
+            contexts[topmost].margin.top = 0.0;
+            contexts[bottommost].margin.bottom = 0.0;
+        }
+    }
+}
+
 fn place_ports_on_side(
     node: &LNodeRef,
     side: PortSide,
@@ -398,7 +683,21 @@ fn place_ports_on_side(
     graph_port_spacing: f64,
     graph_ports_surrounding: &ElkMargin,
 ) {
-    let (ports, alignment, port_spacing, surrounding_spacing, constraints) = node
+    let (
+        ports,
+        mut alignment,
+        port_spacing,
+        surrounding_spacing,
+        constraints,
+        size_constraints,
+        size_options,
+        port_label_placement,
+        port_labels_treat_as_group,
+        label_label_spacing,
+        label_port_spacing_horizontal,
+        label_port_spacing_vertical,
+        node_is_compound,
+    ) = node
         .lock()
         .ok()
         .map(|mut node_guard| {
@@ -418,6 +717,36 @@ fn place_ports_on_side(
                 node_guard
                     .get_property(CoreOptions::PORT_CONSTRAINTS)
                     .unwrap_or(PortConstraints::Undefined),
+                node_guard
+                    .get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)
+                    .unwrap_or_default(),
+                node_guard
+                    .get_property(CoreOptions::NODE_SIZE_OPTIONS)
+                    .unwrap_or_default(),
+                node_guard
+                    .get_property(CoreOptions::PORT_LABELS_PLACEMENT)
+                    .unwrap_or_default(),
+                node_guard
+                    .get_property(CoreOptions::PORT_LABELS_TREAT_AS_GROUP)
+                    .unwrap_or(true),
+                property_with_graph_default(
+                    &mut node_guard,
+                    CoreOptions::SPACING_LABEL_LABEL,
+                    0.0,
+                ),
+                property_with_graph_default(
+                    &mut node_guard,
+                    CoreOptions::SPACING_LABEL_PORT_HORIZONTAL,
+                    0.0,
+                ),
+                property_with_graph_default(
+                    &mut node_guard,
+                    CoreOptions::SPACING_LABEL_PORT_VERTICAL,
+                    0.0,
+                ),
+                node_guard
+                    .get_property(InternalProperties::COMPOUND_NODE)
+                    .unwrap_or(false),
             )
         })
         .unwrap_or_else(|| {
@@ -427,6 +756,14 @@ fn place_ports_on_side(
                 graph_port_spacing,
                 graph_ports_surrounding.clone(),
                 PortConstraints::Undefined,
+                EnumSet::none_of(),
+                EnumSet::none_of(),
+                EnumSet::none_of(),
+                true,
+                0.0,
+                0.0,
+                0.0,
+                false,
             )
         });
     let count = ports.len();
@@ -458,76 +795,199 @@ fn place_ports_on_side(
         _ => ports.iter().collect(),
     };
 
-    let port_axis_sizes: Vec<f64> = ordered_ports
+    let port_labels_next_to_port = port_label_placement.contains(&PortLabelPlacement::NextToPortIfPossible);
+    let port_labels_outside = port_label_placement.contains(&PortLabelPlacement::Outside);
+    let always_same_side = port_label_placement.contains(&PortLabelPlacement::AlwaysSameSide);
+    let always_other_same_side = port_label_placement.contains(&PortLabelPlacement::AlwaysOtherSameSide);
+    let space_efficient = port_label_placement.contains(&PortLabelPlacement::SpaceEfficient);
+    let port_labels_fixed = PortLabelPlacement::is_fixed(&port_label_placement);
+    let include_label_margins = size_constraints.contains(&SizeConstraint::PortLabels);
+
+    let mut contexts: Vec<PortPlacementContext> = ordered_ports
         .iter()
-        .map(|p| {
-            p.lock()
-                .ok()
-                .map(|mut g| {
-                    let sz = g.shape().size_ref();
-                    match side {
-                        PortSide::North | PortSide::South => sz.x,
-                        PortSide::East | PortSide::West => sz.y,
-                        _ => 0.0,
-                    }
+        .map(|port| {
+            let has_edges = port
+                .lock()
+                .map(|port_guard| {
+                    !(port_guard.incoming_edges().is_empty() && port_guard.outgoing_edges().is_empty())
                 })
-                .unwrap_or(0.0)
+                .unwrap_or(false);
+            let has_compound_connections = port
+                .lock()
+                .ok()
+                .and_then(|mut port_guard| {
+                    port_guard
+                        .get_property(InternalProperties::INSIDE_CONNECTIONS)
+                })
+                .unwrap_or(false);
+            let labels_next = labels_next_to_port(
+                &port_label_placement,
+                port_labels_next_to_port,
+                node_is_compound,
+                has_compound_connections,
+                has_edges,
+            );
+            let (label_size, label_count) =
+                port_label_min_size(port, label_label_spacing, port_labels_fixed);
+            PortPlacementContext {
+                port: (*port).clone(),
+                margin: ElkMargin::new(),
+                labels_next_to_port: labels_next,
+                label_size,
+                label_count,
+            }
         })
         .collect();
 
-    let positions = axis_positions_for_side(
-        count,
-        length,
-        surrounding_start,
-        surrounding_end,
-        alignment,
-        port_spacing,
-        &port_axis_sizes,
-    );
+    if include_label_margins {
+        match side {
+            PortSide::North | PortSide::South => {
+                setup_horizontal_port_margins(
+                    &mut contexts,
+                    port_labels_outside,
+                    always_same_side,
+                    always_other_same_side,
+                    space_efficient,
+                    size_options.contains(&SizeOptions::UniformPortSpacing),
+                    label_port_spacing_horizontal,
+                    port_labels_fixed,
+                );
+            }
+            PortSide::East | PortSide::West => {
+                setup_vertical_port_margins(
+                    &mut contexts,
+                    port_labels_outside,
+                    always_same_side,
+                    always_other_same_side,
+                    space_efficient,
+                    size_options.contains(&SizeOptions::UniformPortSpacing),
+                    label_port_spacing_vertical,
+                    port_labels_fixed,
+                    port_labels_treat_as_group,
+                );
+            }
+            _ => {}
+        }
+    }
 
-    for (index, port) in ordered_ports.iter().enumerate() {
-        if let Ok(mut port_guard) = port.lock() {
+    let ports_overhang = size_options.contains(&SizeOptions::PortsOverhang);
+    let mut placement_size = 0.0_f64;
+    for (index, ctx) in contexts.iter().enumerate() {
+        let port_size = ctx
+            .port
+            .lock()
+            .ok()
+            .map(|mut port_guard| *port_guard.shape().size_ref())
+            .unwrap_or_else(KVector::new);
+        let (margin_start, margin_end) = match side {
+            PortSide::North | PortSide::South => (ctx.margin.left, ctx.margin.right),
+            PortSide::East | PortSide::West => (ctx.margin.top, ctx.margin.bottom),
+            _ => (0.0, 0.0),
+        };
+        let axis_size = match side {
+            PortSide::North | PortSide::South => port_size.x,
+            PortSide::East | PortSide::West => port_size.y,
+            _ => 0.0,
+        };
+        placement_size += margin_start + axis_size + margin_end;
+        if index + 1 < contexts.len() {
+            placement_size += port_spacing;
+        }
+    }
+    if alignment == PortAlignment::Distributed {
+        placement_size += 2.0 * port_spacing;
+    }
+
+    if (alignment == PortAlignment::Distributed || alignment == PortAlignment::Justified) && count == 1 {
+        if alignment == PortAlignment::Distributed {
+            placement_size -= 2.0 * port_spacing;
+        }
+        alignment = PortAlignment::Center;
+    }
+
+    let available_space = length - surrounding_start - surrounding_end;
+    let mut current_pos = surrounding_start;
+    let mut space_between_ports = port_spacing;
+
+    if available_space < placement_size && !ports_overhang {
+        if alignment == PortAlignment::Distributed {
+            space_between_ports += (available_space - placement_size) / (count as f64 + 1.0);
+            current_pos += space_between_ports;
+        } else if count > 1 {
+            space_between_ports += (available_space - placement_size) / (count as f64 - 1.0);
+        }
+    } else {
+        if available_space < placement_size
+            && (alignment == PortAlignment::Distributed || alignment == PortAlignment::Justified)
+        {
+            if alignment == PortAlignment::Distributed {
+                placement_size -= 2.0 * port_spacing;
+            }
+            alignment = PortAlignment::Center;
+        }
+
+        match alignment {
+            PortAlignment::Begin => {}
+            PortAlignment::Center => {
+                current_pos += (available_space - placement_size) / 2.0;
+            }
+            PortAlignment::End => {
+                current_pos += available_space - placement_size;
+            }
+            PortAlignment::Distributed => {
+                let additional =
+                    (available_space - placement_size) / (count as f64 + 1.0);
+                space_between_ports += additional.max(0.0);
+                current_pos += space_between_ports;
+            }
+            PortAlignment::Justified => {
+                if count > 1 {
+                    let additional =
+                        (available_space - placement_size) / (count as f64 - 1.0);
+                    space_between_ports += additional.max(0.0);
+                }
+            }
+        }
+    }
+
+    for ctx in contexts.iter() {
+        if let Ok(mut port_guard) = ctx.port.lock() {
             let port_size = *port_guard.shape().size_ref();
             let border_offset = port_guard
                 .get_property(CoreOptions::PORT_BORDER_OFFSET)
                 .unwrap_or(0.0);
             let pos = port_guard.shape().position();
+            let (margin_start, margin_end) = match side {
+                PortSide::North | PortSide::South => (ctx.margin.left, ctx.margin.right),
+                PortSide::East | PortSide::West => (ctx.margin.top, ctx.margin.bottom),
+                _ => (0.0, 0.0),
+            };
             let axis_size = match side {
                 PortSide::North | PortSide::South => port_size.x,
                 PortSide::East | PortSide::West => port_size.y,
                 _ => 0.0,
             };
-            let mut axis_position = positions.get(index).copied().unwrap_or(length / 2.0);
-            if side == PortSide::West && alignment == PortAlignment::Begin && surrounding_start > 0.0 {
-                axis_position -= 1.0;
-            }
-            if side == PortSide::East
-                && alignment == PortAlignment::Center
-                && count == 2
-                && surrounding_start > 0.0
-                && surrounding_end <= 0.0
-            {
-                axis_position -= 0.5;
-            }
+            let axis_position = current_pos + margin_start;
             match side {
                 PortSide::North => {
-                    pos.x = axis_position - axis_size / 2.0;
+                    pos.x = axis_position;
                     pos.y = -port_size.y - border_offset;
                 }
                 PortSide::South => {
-                    pos.x = axis_position - axis_size / 2.0;
+                    pos.x = axis_position;
                     pos.y = height + border_offset;
                 }
                 PortSide::East => {
                     pos.x = width + border_offset;
-                    pos.y = axis_position - axis_size / 2.0;
+                    pos.y = axis_position;
                 }
                 PortSide::West => {
                     pos.x = -port_size.x - border_offset;
-                    pos.y = axis_position - axis_size / 2.0;
+                    pos.y = axis_position;
                 }
                 _ => {}
             }
+            current_pos += margin_start + axis_size + margin_end + space_between_ports;
         }
     }
 }
@@ -663,93 +1123,6 @@ fn port_alignment_for_side(
     }
     .or_else(|| node_guard.get_property(CoreOptions::PORT_ALIGNMENT_DEFAULT))
     .unwrap_or(PortAlignment::Distributed)
-}
-
-fn axis_positions_for_side(
-    count: usize,
-    length: f64,
-    surrounding_start: f64,
-    surrounding_end: f64,
-    alignment: PortAlignment,
-    desired_spacing: f64,
-    port_axis_sizes: &[f64],
-) -> Vec<f64> {
-    let count_f64 = count as f64;
-    let start = surrounding_start.max(0.0);
-    let end = (length - surrounding_end.max(0.0)).max(start);
-    let available = (end - start).max(0.0);
-
-    if count == 1 {
-        let position = match alignment {
-            PortAlignment::Begin => start,
-            PortAlignment::End => end,
-            PortAlignment::Center | PortAlignment::Distributed | PortAlignment::Justified => {
-                start + available / 2.0
-            }
-        };
-        return vec![position];
-    }
-
-    let justified_positions = || {
-        let step = if count > 1 {
-            available / (count_f64 - 1.0)
-        } else {
-            0.0
-        };
-        (0..count).map(|index| start + step * index as f64).collect::<Vec<_>>()
-    };
-
-    match alignment {
-        PortAlignment::Distributed => {
-            let total_port_size: f64 = port_axis_sizes.iter().sum();
-            let gap = if count > 0 {
-                (available - total_port_size).max(0.0) / (count_f64 + 1.0)
-            } else {
-                0.0
-            };
-            let mut positions = Vec::with_capacity(count);
-            let mut cursor = start + gap;
-            for i in 0..count {
-                let port_size = port_axis_sizes.get(i).copied().unwrap_or(0.0);
-                positions.push(cursor + port_size / 2.0);
-                cursor += port_size + gap;
-            }
-            positions
-        }
-        PortAlignment::Justified => justified_positions(),
-        PortAlignment::Begin => {
-            let required = desired_spacing * (count_f64 - 1.0);
-            if required <= available {
-                (0..count)
-                    .map(|index| start + desired_spacing * index as f64)
-                    .collect()
-            } else {
-                justified_positions()
-            }
-        }
-        PortAlignment::End => {
-            let required = desired_spacing * (count_f64 - 1.0);
-            if required <= available {
-                let first = end - required;
-                (0..count)
-                    .map(|index| first + desired_spacing * index as f64)
-                    .collect()
-            } else {
-                justified_positions()
-            }
-        }
-        PortAlignment::Center => {
-            let required = desired_spacing * (count_f64 - 1.0);
-            if required <= available {
-                let first = start + (available - required) / 2.0;
-                (0..count)
-                    .map(|index| first + desired_spacing * index as f64)
-                    .collect()
-            } else {
-                justified_positions()
-            }
-        }
-    }
 }
 
 fn enforce_port_driven_minimum_size(
@@ -1060,6 +1433,49 @@ fn adjust_ports_on_side(node: &LNodeRef, side: PortSide, width: f64, height: f64
                 }
                 PortSide::West => {
                     pos.x = -port_size.x - border_offset;
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+fn place_ports_fixed_ratio_on_side(node: &LNodeRef, side: PortSide, width: f64, height: f64) {
+    let ports = node
+        .lock()
+        .ok()
+        .map(|mut node_guard| node_guard.port_side_view(side))
+        .unwrap_or_default();
+    if ports.is_empty() {
+        return;
+    }
+
+    for port in ports {
+        if let Ok(mut port_guard) = port.lock() {
+            let port_size = *port_guard.shape().size_ref();
+            let border_offset = port_guard
+                .get_property(CoreOptions::PORT_BORDER_OFFSET)
+                .unwrap_or(0.0);
+            let ratio = port_guard
+                .get_property(InternalProperties::PORT_RATIO_OR_POSITION)
+                .unwrap_or(0.0);
+            let pos = port_guard.shape().position();
+            match side {
+                PortSide::North => {
+                    pos.x = width * ratio;
+                    pos.y = -port_size.y - border_offset;
+                }
+                PortSide::South => {
+                    pos.x = width * ratio;
+                    pos.y = height + border_offset;
+                }
+                PortSide::East => {
+                    pos.x = width + border_offset;
+                    pos.y = height * ratio;
+                }
+                PortSide::West => {
+                    pos.x = -port_size.x - border_offset;
+                    pos.y = height * ratio;
                 }
                 _ => {}
             }

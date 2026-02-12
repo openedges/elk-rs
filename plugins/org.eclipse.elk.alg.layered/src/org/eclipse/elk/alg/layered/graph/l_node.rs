@@ -236,11 +236,21 @@ impl LNode {
     }
 
     pub fn port_side_view(&mut self, side: PortSide) -> Vec<LPortRef> {
-        if !self.port_sides_cached {
+        if self.port_sides_cached && self.port_side_indices.is_none() {
             self.find_port_indices();
         }
-        if let Some(indices) = self.port_side_indices.as_ref().and_then(|map| map.get(&side)) {
-            return self.ports[indices.first..indices.second].to_vec();
+        if self.port_sides_cached {
+            if let Some(indices) = self.port_side_indices.as_ref().and_then(|map| map.get(&side)) {
+                let slice = &self.ports[indices.first..indices.second];
+                let matches = slice.iter().all(|port| {
+                    port.lock()
+                        .map(|port_guard| port_guard.side() == side)
+                        .unwrap_or(false)
+                });
+                if matches {
+                    return slice.to_vec();
+                }
+            }
         }
 
         // Cache can be stale if port sides changed after caching.
