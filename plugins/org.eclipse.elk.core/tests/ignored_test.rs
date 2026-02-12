@@ -1,10 +1,10 @@
 #[test]
 fn ignored_test_success() {
-    assert!(true);
+    assert!(std::env::var_os("ELK_IGNORE_TEST_MARKER").is_none());
 }
 
 #[test]
 #[ignore]
 fn ignored_test_fail() {
-    assert!(false, "ignored test should not execute");
+    panic!("ignored test should not execute");
 }

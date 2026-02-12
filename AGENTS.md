@@ -797,9 +797,10 @@
 - LabelAndNodeSizeProcessor 포트 최소 길이 보정: PortAlignment::Distributed가 port spacing을 양끝에 추가하도록 반영 → `treat_as_group_inside` 등 포트 라벨 케이스 높이/포트 위치 복구, label subset total_diffs 614→598 (`/tmp/report_labels_after_portspacing_fix.md`)
 - clippy 경고 정리(2026-02-12): layered/rectpacking/common lint 정리(불필요 borrow/mut/ptr_arg, entry API 적용, type alias 도입, map/clone 제거, allow(`mutable_key_type`) 모듈 보강) 및 테스트 경고 정리
 - 단계 재검증(2026-02-12): `cargo clippy -p org-eclipse-elk-alg-layered --tests -- -D warnings`, `cargo test -p org-eclipse-elk-alg-layered --tests` 통과
+- 워크스페이스 검증 보강(2026-02-12): `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace` 통과. nodespacing `constrained_outside_north_port_labels_stack_without_overlap`는 `SizeConstraint::PortLabels` 조건 하에서만 스택되도록 테스트 조건 정합화, core ignored 테스트/graph.json 테스트 clippy 경고 정리
 ## 진행률(최신)
 - 전체 목표 대비 추정 진행률: 약 100.0% (기준: Java 기능/API/테스트 parity, 빌드/클리피, 성능 자동화)
-- 단계 진행률(다음 작업 체크리스트 기준): 100.0% (완료 46/46, 미완료 0)
+- 단계 진행률(다음 작업 체크리스트 기준): 100.0% (완료 46/46, 미완료 0) [2026-02-12 갱신]
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
 - Java direct-mapped 모듈 테스트 parity: 146.1% (Rust 875 / Java 599, `perf/java_test_module_parity.md`)

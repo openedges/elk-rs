@@ -154,7 +154,10 @@ fn constrained_outside_north_label_rectangles() -> Vec<(f64, f64, f64, f64)> {
         .shape()
         .graph_element()
         .properties_mut()
-        .set_property(CoreOptions::NODE_SIZE_CONSTRAINTS, Some(EnumSet::none_of()));
+        .set_property(
+            CoreOptions::NODE_SIZE_CONSTRAINTS,
+            Some(EnumSet::of(&[SizeConstraint::PortLabels])),
+        );
 
     let mut ports = Vec::new();
     for index in 0..3 {

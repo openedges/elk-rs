@@ -205,7 +205,7 @@ fn edge_label_placement_option_parses_enum() {
         .cloned()
         .collect();
     assert_eq!(labels.len(), 1);
-    let label = labels.get(0).unwrap();
+    let label = labels.first().unwrap();
     let placement = {
         let mut label_mut = label.borrow_mut();
         let mut props = label_mut
