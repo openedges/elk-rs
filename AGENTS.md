@@ -807,6 +807,8 @@
 - hierarchical edge `sections` 누락 보정(2026-02-12): `ElkGraphLayoutTransferrer`에서 port outgoing/incoming 모두 수집하고, target/source가 하위 그래프 노드일 때 parent port도 포함하도록 보강해 hierarchical edge도 `sections` 전송되도록 수정
 - 회귀 테스트 추가(2026-02-12): `hierarchical_edge_sections_test`로 `hierarchy_center_edge_label_problem`/`040_includeChildrenWithFixedOrder` ELKT 로드 후 edge `sections` 존재 검증, `cargo test -p org-eclipse-elk-alg-layered --test hierarchical_edge_sections_test` 및 `cargo clippy -p org-eclipse-elk-alg-layered --tests -- -D warnings` 통과
 - subset parity 재검증(2026-02-12): 위 2개 모델 Rust 재실행/비교 결과 matches=0, drift=2, total_diffs=6 (`/tmp/elk-parity-subset/report_subset.md`), `sections`는 생성되었으나 node x/graph width/section endPoint x 차이로 drift 지속 확인
+- hierarchical external port 더미 보강(2026-02-12): `ensure_external_port_dummy`에서 port constraints/position/size를 실제 port/parent에서 반영하고, 외부 포트 생성 시 graph `PORT_CONSTRAINTS`를 Java와 동일하게 `FIXED_SIDE`/`FREE`로 조정하여 hierarchical port 제약 처리 정합성 보강
+- subset parity 재검증(2026-02-12): 동일 2개 모델 Rust 재실행/비교 결과 matches=0, drift=2, total_diffs=6 (`/tmp/elk-parity-subset/report_subset_v3.md`), 좌표/section/width drift 지속 확인
 ## 진행률(최신)
 - 전체 목표 대비 추정 진행률: 약 20.4% (기준: Java↔Rust 모델 parity full match 293/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
 - 단계 진행률(다음 작업 체크리스트 기준): 98.5% (완료 66/67, 미완료 1) [2026-02-12 갱신]

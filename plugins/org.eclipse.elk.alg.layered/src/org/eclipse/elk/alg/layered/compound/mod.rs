@@ -1118,7 +1118,7 @@ impl CompoundGraphPreprocessor {
         &self,
         graph: &LGraphRef,
         port: &LPortRef,
-        port_constraints: PortConstraints,
+        fallback_constraints: PortConstraints,
         net_flow: i32,
         dummy_node_map: &mut HashMap<PortRefKey, LNodeRef>,
     ) -> LNodeRef {
@@ -1127,21 +1127,55 @@ impl CompoundGraphPreprocessor {
             return existing.clone();
         }
 
-        let (port_side, port_size, direction) = (
-            port.lock().ok().map(|port_guard| port_guard.side()).unwrap_or(PortSide::Undefined),
-            port.lock()
-                .ok()
-                .map(|mut port_guard| *port_guard.shape().size_ref())
-                .unwrap_or_default(),
-            graph
+        let (port_side, port_size, port_position, port_node_size, port_constraints, direction) = {
+            let (port_side, port_size, port_position, port_node, port_constraints) =
+                port.lock()
+                    .ok()
+                    .map(|mut port_guard| {
+                        (
+                            port_guard.side(),
+                            *port_guard.shape().size_ref(),
+                            *port_guard.shape().position_ref(),
+                            port_guard.node(),
+                            port_guard.get_property(LayeredOptions::PORT_CONSTRAINTS),
+                        )
+                    })
+                    .unwrap_or((
+                        PortSide::Undefined,
+                        KVector::new(),
+                        KVector::new(),
+                        None,
+                        None,
+                    ));
+            let port_node_size = port_node
+                .as_ref()
+                .and_then(|node| node.lock().ok().map(|mut node_guard| *node_guard.shape().size_ref()))
+                .unwrap_or_default();
+            let port_constraints = port_constraints
+                .or_else(|| {
+                    port_node
+                        .as_ref()
+                        .and_then(|node| node.lock().ok())
+                        .and_then(|mut node_guard| {
+                            node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
+                        })
+                })
+                .unwrap_or(fallback_constraints);
+            let direction = graph
                 .lock()
                 .ok()
                 .and_then(|mut graph_guard| graph_guard.get_property(LayeredOptions::DIRECTION))
-                .unwrap_or(Direction::Undefined),
-        );
+                .unwrap_or(Direction::Undefined);
+            (
+                port_side,
+                port_size,
+                port_position,
+                port_node_size,
+                port_constraints,
+                direction,
+            )
+        };
 
-        let port_node_size = KVector::new();
-        let port_position = KVector::new();
         let mut props = port_property_holder(port);
         let dummy_node = LGraphUtil::create_external_port_dummy(
             &mut props,
@@ -1164,6 +1198,21 @@ impl CompoundGraphPreprocessor {
 
         if let Ok(mut graph_guard) = graph.lock() {
             graph_guard.layerless_nodes_mut().push(dummy_node.clone());
+            let mut props = graph_guard
+                .get_property(InternalProperties::GRAPH_PROPERTIES)
+                .unwrap_or_else(EnumSet::none_of);
+            props.insert(GraphProperties::ExternalPorts);
+            graph_guard.set_property(InternalProperties::GRAPH_PROPERTIES, Some(props));
+
+            let graph_constraints = graph_guard
+                .get_property(LayeredOptions::PORT_CONSTRAINTS)
+                .unwrap_or(PortConstraints::Undefined);
+            let new_constraints = if graph_constraints.is_side_fixed() {
+                PortConstraints::FixedSide
+            } else {
+                PortConstraints::Free
+            };
+            graph_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(new_constraints));
         }
 
         dummy_node
