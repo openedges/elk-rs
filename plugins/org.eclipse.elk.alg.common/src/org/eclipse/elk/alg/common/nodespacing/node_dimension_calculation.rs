@@ -706,6 +706,7 @@ impl NodeDimensionCalculation {
         }
     }
 
+    #[allow(dead_code)]
     fn calculate_label_and_node_sizes_generic<T, G>(adapter: &G)
     where
         G: GraphAdapter<T>,

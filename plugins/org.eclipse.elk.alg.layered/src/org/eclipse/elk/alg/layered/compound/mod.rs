@@ -1,3 +1,5 @@
+#![allow(clippy::mutable_key_type)]
+
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
@@ -150,7 +152,7 @@ fn hierarchy_level(nested_graph: &LGraphRef, top_graph: &LGraphRef) -> i32 {
     }
 }
 
-fn sort_cross_hierarchy_edges(edges: &mut Vec<CrossHierarchyEdge>, graph: &LGraphRef) {
+fn sort_cross_hierarchy_edges(edges: &mut [CrossHierarchyEdge], graph: &LGraphRef) {
     edges.sort_by(|edge1, edge2| {
         if edge1.port_type == PortType::Output && edge2.port_type == PortType::Input {
             return std::cmp::Ordering::Less;
@@ -1167,6 +1169,7 @@ impl CompoundGraphPreprocessor {
         dummy_node
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn introduce_hierarchical_edge_segment(
         &self,
         graph: &LGraphRef,
@@ -1388,7 +1391,6 @@ impl CompoundGraphPreprocessor {
                 .ok()
                 .and_then(|mut node_guard| node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS))
                 .unwrap_or(PortConstraints::Undefined);
-            let port_side = port_side;
             let net_flow = self.calculate_net_flow(&outside_port);
             let port_node_size = KVector::new();
             let (port_position, port_size) = if let Ok(mut port_guard) = outside_port.lock() {
@@ -1820,9 +1822,12 @@ impl CompoundGraphPostprocessor {
                     let y_diff_enough =
                         (last_point.y - next_point.y).abs() > OrthogonalRoutingGenerator::TOLERANCE;
 
-                    if (!add_unnecessary_bendpoints && x_diff_enough && y_diff_enough)
-                        || (add_unnecessary_bendpoints && (x_diff_enough || y_diff_enough))
-                    {
+                    let should_add = if add_unnecessary_bendpoints {
+                        x_diff_enough || y_diff_enough
+                    } else {
+                        x_diff_enough && y_diff_enough
+                    };
+                    if should_add {
                         if let Ok(mut edge_guard) = orig_edge.lock() {
                             edge_guard.bend_points().add_vector(source_point);
                         }

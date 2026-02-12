@@ -1,3 +1,5 @@
+#![allow(clippy::mutable_key_type)]
+
 use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
 
@@ -208,7 +210,7 @@ impl LabelDummySwitcher {
         }
     }
 
-    fn process_strategy(&mut self, label_dummy_infos: &mut Vec<LabelDummyInfo>) {
+    fn process_strategy(&mut self, label_dummy_infos: &mut [LabelDummyInfo]) {
         if label_dummy_infos.is_empty() {
             return;
         }
@@ -390,7 +392,7 @@ impl LabelDummySwitcher {
         incoming_reversed || outgoing_reversed
     }
 
-    fn compute_space_efficient_assignment(&mut self, label_dummy_infos: &mut Vec<LabelDummyInfo>) {
+    fn compute_space_efficient_assignment(&mut self, label_dummy_infos: &mut [LabelDummyInfo]) {
         let mut non_trivial_labels = self.perform_trivial_assignments(label_dummy_infos);
         if non_trivial_labels.is_empty() {
             return;
@@ -463,8 +465,7 @@ impl LabelDummySwitcher {
             let mut potential_width = self.layer_widths.get(layer).copied().unwrap_or(0.0);
             let mut largest_unassigned = None;
 
-            for label in (label_index + 1)..label_dummy_infos.len() {
-                let candidate = &label_dummy_infos[label];
+            for candidate in label_dummy_infos.iter().skip(label_index + 1) {
                 if candidate.leftmost_layer_id <= layer
                     && candidate.rightmost_layer_id >= layer
                 {
@@ -723,13 +724,13 @@ impl LabelDummyInfo {
         info.leftmost_layer_id = info
             .left_long_edge_dummies
             .first()
-            .and_then(|node| node_layer_id(node))
+            .and_then(node_layer_id)
             .or_else(|| node_layer_id(&info.label_dummy))
             .unwrap_or(0);
         info.rightmost_layer_id = info
             .right_long_edge_dummies
             .last()
-            .and_then(|node| node_layer_id(node))
+            .and_then(node_layer_id)
             .or_else(|| node_layer_id(&info.label_dummy))
             .unwrap_or(info.leftmost_layer_id);
 

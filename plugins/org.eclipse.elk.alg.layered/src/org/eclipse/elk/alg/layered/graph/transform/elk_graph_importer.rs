@@ -111,7 +111,6 @@ impl<'a> ElkGraphImporter<'a> {
     }
 
     fn import_flat_graph_nodes(&mut self, elkgraph: &ElkNodeRef, lgraph: &LGraphRef) {
-        let needs_model_order = self.needs_model_order_based_on_parent(elkgraph);
         let mut model_order_index = 0i32;
         let mut cb_group_model_orders: HashSet<i32> = HashSet::new();
 

@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::collections::{BTreeMap, VecDeque};
 
 use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LNodeRef};
 use crate::org::eclipse::elk::alg::layered::options::{

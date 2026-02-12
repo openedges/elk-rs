@@ -130,7 +130,7 @@ impl OrthogonalRoutingGenerator {
                 .ports()
                 .iter()
                 .map(|port| {
-                    if let Ok(mut port_guard) = port.lock() {
+                    if let Ok(port_guard) = port.lock() {
                         let node_name = port_guard
                             .node()
                             .and_then(|node| node.lock().ok().map(|mut node_guard| node_guard.designation()))

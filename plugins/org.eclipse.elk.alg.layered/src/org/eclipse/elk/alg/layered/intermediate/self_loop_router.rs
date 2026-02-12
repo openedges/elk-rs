@@ -14,7 +14,6 @@ use crate::org::eclipse::elk::alg::layered::intermediate::loops::routing::{
     LabelPlacer, RoutingDirector, RoutingSlotAssigner,
 };
 use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions};
-use org_eclipse_elk_core::org::eclipse::elk::core::util::Random;
 
 const EPSILON: f64 = 1e-3;
 

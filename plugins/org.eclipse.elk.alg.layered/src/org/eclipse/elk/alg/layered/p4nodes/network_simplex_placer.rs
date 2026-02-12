@@ -1122,7 +1122,10 @@ impl NetworkSimplexPlacer {
                 .unwrap_or((None, None));
             let source_node = sp.and_then(|p| p.lock().ok().and_then(|p| p.node()));
             let target_node = tp.and_then(|p| p.lock().ok().and_then(|p| p.node()));
-            if source_node.as_ref().map_or(false, |n| Arc::ptr_eq(n, current)) {
+            if source_node
+                .as_ref()
+                .is_some_and(|n| Arc::ptr_eq(n, current))
+            {
                 target_node
             } else {
                 source_node

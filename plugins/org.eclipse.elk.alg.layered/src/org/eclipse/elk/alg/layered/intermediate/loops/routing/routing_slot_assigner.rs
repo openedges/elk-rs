@@ -497,21 +497,28 @@ fn shift_towards_node_on_side(
         let active_at_port = sl_loop_activity_over_ports.get(&loop_key);
         let mut lowest_available_slot = 0i32;
 
-        for port_index in min_l_port_index..=max_l_port_index {
+        for (port_index, next_free_slot) in next_free_routing_slot_at_port
+            .iter()
+            .enumerate()
+            .take(max_l_port_index + 1)
+            .skip(min_l_port_index)
+        {
             if active_at_port
                 .and_then(|active| active.get(port_index))
                 .copied()
                 .unwrap_or(false)
             {
-                lowest_available_slot =
-                    lowest_available_slot.max(next_free_routing_slot_at_port[port_index]);
+                lowest_available_slot = lowest_available_slot.max(*next_free_slot);
             }
         }
 
         if let Some(&our_label_idx) = label_id_by_loop.get(&loop_key) {
             let mut slots_with_label_conflicts = HashSet::new();
-            for other_label_idx in 0..label_crossing_matrix.len() {
-                if label_crossing_matrix[our_label_idx][other_label_idx] {
+            for (other_label_idx, crosses) in label_crossing_matrix[our_label_idx]
+                .iter()
+                .enumerate()
+            {
+                if *crosses {
                     let assigned_slot = slot_assigned_to_label[other_label_idx];
                     if assigned_slot >= 0 {
                         slots_with_label_conflicts.insert(assigned_slot);
@@ -528,13 +535,18 @@ fn shift_towards_node_on_side(
             sl_loop_guard.set_routing_slot(side, lowest_available_slot);
         }
 
-        for port_index in min_l_port_index..=max_l_port_index {
+        for (port_index, next_free_slot) in next_free_routing_slot_at_port
+            .iter_mut()
+            .enumerate()
+            .take(max_l_port_index + 1)
+            .skip(min_l_port_index)
+        {
             if active_at_port
                 .and_then(|active| active.get(port_index))
                 .copied()
                 .unwrap_or(false)
             {
-                next_free_routing_slot_at_port[port_index] = lowest_available_slot + 1;
+                *next_free_slot = lowest_available_slot + 1;
             }
         }
 

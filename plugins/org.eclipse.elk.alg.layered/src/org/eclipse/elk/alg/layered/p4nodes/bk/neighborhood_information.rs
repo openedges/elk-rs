@@ -201,8 +201,8 @@ fn prefer_real_edges(neighbors: &mut Vec<Pair<LNodeRef, LEdgeRef>>) {
     }
     let real: Vec<_> = neighbors
         .iter()
-        .cloned()
         .filter(|pair| edge_has_origin(&pair.second))
+        .cloned()
         .collect();
     if !real.is_empty() {
         *neighbors = real;

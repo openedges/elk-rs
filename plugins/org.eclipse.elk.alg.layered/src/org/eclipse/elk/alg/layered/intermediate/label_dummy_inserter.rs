@@ -86,7 +86,7 @@ fn edge_needs_processing(edge: &LEdgeRef) -> bool {
     if is_self_loop {
         return false;
     }
-    labels.iter().any(|label| label_is_center(label))
+    labels.iter().any(label_is_center)
 }
 
 fn label_is_center(label: &LLabelRef) -> bool {

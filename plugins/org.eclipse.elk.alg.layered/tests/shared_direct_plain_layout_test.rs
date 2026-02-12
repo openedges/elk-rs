@@ -122,7 +122,7 @@ fn add_layered_options(graph: &ElkNodeRef) {
             .graph_element()
             .labels()
             .get(0)
-            .map(|label| label.borrow().text().to_string() == "node1")
+            .map(|label| label.borrow().text() == "node1")
             .unwrap_or(false);
 
         for (idx, port) in ports.into_iter().enumerate() {

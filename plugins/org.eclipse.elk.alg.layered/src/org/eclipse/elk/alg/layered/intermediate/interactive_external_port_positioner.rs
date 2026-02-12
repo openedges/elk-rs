@@ -2,7 +2,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILay
 use org_eclipse_elk_core::org::eclipse::elk::core::options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LNode, NodeType as LNodeType};
+use crate::org::eclipse::elk::alg::layered::graph::{LGraph, NodeType as LNodeType};
 use crate::org::eclipse::elk::alg::layered::options::{
     GraphProperties, InLayerConstraint, LayerConstraint, LayeredOptions,
 };
@@ -40,10 +40,7 @@ impl ILayoutProcessor<LGraph> for InteractiveExternalPortPositioner {
                 if node.node_type() == LNodeType::Normal {
                     let pos = *node.shape().position();
                     let size = *node.shape().size();
-                    let margins = node
-                        .get_property(CoreOptions::MARGINS)
-                        .map(|m| m.clone())
-                        .unwrap_or_default();
+                    let margins = node.get_property(CoreOptions::MARGINS).unwrap_or_default();
 
                     min_x = min_x.min(pos.x - margins.left);
                     max_x = max_x.max(pos.x + size.x + margins.right);
@@ -60,55 +57,51 @@ impl ILayoutProcessor<LGraph> for InteractiveExternalPortPositioner {
         let nodes = graph.layerless_nodes().clone();
         for node_ref in &nodes {
             if let Ok(mut node) = node_ref.lock() {
-                let node_type = node.node_type();
-                if node_type != LNodeType::Normal {
-                    match node_type {
-                        LNodeType::ExternalPort => {
-                            // Check layer constraint for WEST/EAST ports
-                            if let Some(lc) = node.get_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT) {
-                                match lc {
-                                    LayerConstraint::FirstSeparate => {
-                                        // WEST port - position left of all nodes
-                                        node.shape().position().x = min_x - ARBITRARY_SPACING;
+                if node.node_type() != LNodeType::ExternalPort {
+                    continue;
+                }
 
-                                        // Find Y coordinate from connected target node
-                                        if let Some(y) = Self::find_y_from_targets(&node_ref) {
-                                            node.shape().position().y = y;
-                                        }
-                                    }
-                                    LayerConstraint::LastSeparate => {
-                                        // EAST port - position right of all nodes
-                                        node.shape().position().x = max_x + ARBITRARY_SPACING;
+                // Check layer constraint for WEST/EAST ports
+                if let Some(lc) = node.get_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT) {
+                    match lc {
+                        LayerConstraint::FirstSeparate => {
+                            // WEST port - position left of all nodes
+                            node.shape().position().x = min_x - ARBITRARY_SPACING;
 
-                                        // Find Y coordinate from connected source node
-                                        if let Some(y) = Self::find_y_from_sources(&node_ref) {
-                                            node.shape().position().y = y;
-                                        }
-                                    }
-                                    _ => {}
-                                }
+                            // Find Y coordinate from connected target node
+                            if let Some(y) = Self::find_y_from_targets(node_ref) {
+                                node.shape().position().y = y;
                             }
+                        }
+                        LayerConstraint::LastSeparate => {
+                            // EAST port - position right of all nodes
+                            node.shape().position().x = max_x + ARBITRARY_SPACING;
 
-                            // Check in-layer constraint for NORTH/SOUTH ports
-                            if let Some(ilc) = node.get_property(InternalProperties::IN_LAYER_CONSTRAINT) {
-                                match ilc {
-                                    InLayerConstraint::Top => {
-                                        // NORTH port
-                                        if let Some(x) = Self::find_north_south_x(&node_ref) {
-                                            node.shape().position().x = x + ARBITRARY_SPACING;
-                                        }
-                                        node.shape().position().y = min_y - ARBITRARY_SPACING;
-                                    }
-                                    InLayerConstraint::Bottom => {
-                                        // SOUTH port
-                                        if let Some(x) = Self::find_north_south_x(&node_ref) {
-                                            node.shape().position().x = x + ARBITRARY_SPACING;
-                                        }
-                                        node.shape().position().y = max_y + ARBITRARY_SPACING;
-                                    }
-                                    _ => {}
-                                }
+                            // Find Y coordinate from connected source node
+                            if let Some(y) = Self::find_y_from_sources(node_ref) {
+                                node.shape().position().y = y;
                             }
+                        }
+                        _ => {}
+                    }
+                }
+
+                // Check in-layer constraint for NORTH/SOUTH ports
+                if let Some(ilc) = node.get_property(InternalProperties::IN_LAYER_CONSTRAINT) {
+                    match ilc {
+                        InLayerConstraint::Top => {
+                            // NORTH port
+                            if let Some(x) = Self::find_north_south_x(node_ref) {
+                                node.shape().position().x = x + ARBITRARY_SPACING;
+                            }
+                            node.shape().position().y = min_y - ARBITRARY_SPACING;
+                        }
+                        InLayerConstraint::Bottom => {
+                            // SOUTH port
+                            if let Some(x) = Self::find_north_south_x(node_ref) {
+                                node.shape().position().x = x + ARBITRARY_SPACING;
+                            }
+                            node.shape().position().y = max_y + ARBITRARY_SPACING;
                         }
                         _ => {}
                     }
@@ -121,7 +114,7 @@ impl ILayoutProcessor<LGraph> for InteractiveExternalPortPositioner {
 impl InteractiveExternalPortPositioner {
     /// Find Y coordinate for WEST ports by looking at target nodes
     fn find_y_from_targets(node_ref: &crate::org::eclipse::elk::alg::layered::graph::LNodeRef) -> Option<f64> {
-        if let Ok(mut node) = node_ref.lock() {
+        if let Ok(node) = node_ref.lock() {
             for edge_ref in node.outgoing_edges() {
                 if let Ok(edge) = edge_ref.lock() {
                     if let Some(target_port) = edge.target() {
@@ -143,7 +136,7 @@ impl InteractiveExternalPortPositioner {
 
     /// Find Y coordinate for EAST ports by looking at source nodes
     fn find_y_from_sources(node_ref: &crate::org::eclipse::elk::alg::layered::graph::LNodeRef) -> Option<f64> {
-        if let Ok(mut node) = node_ref.lock() {
+        if let Ok(node) = node_ref.lock() {
             for edge_ref in node.incoming_edges() {
                 if let Ok(edge) = edge_ref.lock() {
                     if let Some(source_port) = edge.source() {
@@ -165,7 +158,7 @@ impl InteractiveExternalPortPositioner {
 
     /// Find X coordinate for NORTH/SOUTH ports
     fn find_north_south_x(node_ref: &crate::org::eclipse::elk::alg::layered::graph::LNodeRef) -> Option<f64> {
-        if let Ok(mut node) = node_ref.lock() {
+        if let Ok(node) = node_ref.lock() {
             let ports = node.ports();
             if ports.is_empty() {
                 return None;
@@ -187,10 +180,8 @@ impl InteractiveExternalPortPositioner {
                                     if let Some(target_node_ref) = tp.node() {
                                         if let Ok(mut target_node) = target_node_ref.lock() {
                                             let pos = *target_node.shape().position();
-                                            let margins = target_node
-                                                .get_property(CoreOptions::MARGINS)
-                                                .map(|m| m.clone())
-                                                .unwrap_or_default();
+                                            let margins =
+                                                target_node.get_property(CoreOptions::MARGINS).unwrap_or_default();
                                             min = min.min(pos.x - margins.left);
                                         }
                                     }
@@ -214,10 +205,8 @@ impl InteractiveExternalPortPositioner {
                                         if let Ok(mut source_node) = source_node_ref.lock() {
                                             let pos = *source_node.shape().position();
                                             let size = *source_node.shape().size();
-                                            let margins = source_node
-                                                .get_property(CoreOptions::MARGINS)
-                                                .map(|m| m.clone())
-                                                .unwrap_or_default();
+                                            let margins =
+                                                source_node.get_property(CoreOptions::MARGINS).unwrap_or_default();
                                             max = max.max(pos.x + size.x + margins.right);
                                         }
                                     }

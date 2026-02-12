@@ -1,3 +1,5 @@
+#![allow(clippy::mutable_key_type)]
+
 use std::sync::{Arc, Mutex};
 
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::nodespacing::{

@@ -45,14 +45,14 @@ fn apply_layered_algorithm_defaults(graph: &ElkNodeRef) {
     let mut graph_mut = graph.borrow_mut();
     let props = graph_mut.connectable().shape().graph_element().properties_mut();
     if !props.has_property_id(LayeredOptions::EDGE_ROUTING.id()) {
-        props.set_property(&*LayeredOptions::EDGE_ROUTING, Some(EdgeRouting::Orthogonal));
+        props.set_property(LayeredOptions::EDGE_ROUTING, Some(EdgeRouting::Orthogonal));
     }
     // NOTE: PORT_ALIGNMENT_DEFAULT is NOT set here. Java's Layered.melk declares
     // "supports portAlignment.default = JUSTIFIED" as metadata-only, not applied at runtime.
     // Java uses the Property global default (Distributed) via getProperty(CoreOptions.PORT_ALIGNMENT_DEFAULT).
     // Setting Justified here caused regressions in port positioning (182_minNodeSizeForHierarchicalNodes.elkt).
     if !props.has_property_id(LayeredOptions::SEPARATE_CONNECTED_COMPONENTS.id()) {
-        props.set_property(&*LayeredOptions::SEPARATE_CONNECTED_COMPONENTS, Some(true));
+        props.set_property(LayeredOptions::SEPARATE_CONNECTED_COMPONENTS, Some(true));
     }
 }
 

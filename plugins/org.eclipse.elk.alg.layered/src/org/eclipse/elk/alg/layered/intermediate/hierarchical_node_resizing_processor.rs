@@ -8,9 +8,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::size_constraint::Siz
 use org_eclipse_elk_core::org::eclipse::elk::core::options::size_options::SizeOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_util::ElkUtil;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, IElkProgressMonitor};
-use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
-
-use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LGraphRef, LGraphUtil, LNode, LNodeRef, NodeType};
+use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LGraphUtil, LNode, LNodeRef, NodeType};
 use crate::org::eclipse::elk::alg::layered::options::{GraphProperties, InternalProperties, LayeredOptions};
 use crate::org::eclipse::elk::alg::layered::options::internal_properties::Origin;
 
@@ -213,7 +211,7 @@ fn graph_layout_to_node(node: &LNodeRef, lgraph: &mut LGraph) {
     let actual_graph_size = lgraph.actual_size();
     let has_external_ports = lgraph
         .get_property_ref(InternalProperties::GRAPH_PROPERTIES)
-        .unwrap_or_else(|| EnumSet::none_of())
+        .unwrap_or_else(EnumSet::none_of)
         .contains(&GraphProperties::ExternalPorts);
 
     if let Ok(mut node_guard) = node.lock() {
@@ -226,7 +224,7 @@ fn graph_layout_to_node(node: &LNodeRef, lgraph: &mut LGraph) {
                 if let Ok(mut parent_graph_guard) = parent_graph_ref.lock() {
                     let mut graph_props = parent_graph_guard
                         .get_property(InternalProperties::GRAPH_PROPERTIES)
-                        .unwrap_or_else(|| EnumSet::none_of());
+                        .unwrap_or_else(EnumSet::none_of);
                     graph_props.insert(GraphProperties::NonFreePorts);
                     parent_graph_guard.set_property(
                         InternalProperties::GRAPH_PROPERTIES,
@@ -317,10 +315,10 @@ fn get_external_port_position_for_graph(
 fn resize_graph(lgraph: &mut LGraph) {
     let size_constraint = lgraph
         .get_property_ref(LayeredOptions::NODE_SIZE_CONSTRAINTS)
-        .unwrap_or_else(|| EnumSet::none_of());
+        .unwrap_or_else(EnumSet::none_of);
     let size_options = lgraph
         .get_property_ref(CoreOptions::NODE_SIZE_OPTIONS)
-        .unwrap_or_else(|| EnumSet::none_of());
+        .unwrap_or_else(EnumSet::none_of);
 
     // getActualSize() used to take the border spacing (what is now included in the padding)
     // into account, which is why by this point it had to be cleared since it had already
@@ -333,7 +331,7 @@ fn resize_graph(lgraph: &mut LGraph) {
     if size_constraint.contains(&SizeConstraint::MinimumSize) {
         let mut min_size = lgraph
             .get_property_ref(LayeredOptions::NODE_SIZE_MINIMUM)
-            .unwrap_or_else(KVector::new);
+            .unwrap_or_default();
 
         // if minimum width or height are not set, maybe default to default values
         if size_options.contains(&SizeOptions::DefaultMinimumSize) {
@@ -366,7 +364,7 @@ fn resize_graph_no_really_i_mean_it(lgraph: &mut LGraph, old_size: &KVector, new
     // obey to specified alignment constraints
     let content_alignment = lgraph
         .get_property_ref(CoreOptions::CONTENT_ALIGNMENT)
-        .unwrap_or_else(|| EnumSet::none_of());
+        .unwrap_or_else(EnumSet::none_of);
 
     // horizontal alignment
     if new_size.x > old_size.x {
@@ -389,7 +387,7 @@ fn resize_graph_no_really_i_mean_it(lgraph: &mut LGraph, old_size: &KVector, new
     // correct the position of eastern and southern hierarchical ports, if necessary
     let has_external_ports = lgraph
         .get_property_ref(InternalProperties::GRAPH_PROPERTIES)
-        .unwrap_or_else(|| EnumSet::none_of())
+        .unwrap_or_else(EnumSet::none_of)
         .contains(&GraphProperties::ExternalPorts);
 
     if has_external_ports && (new_size.x > old_size.x || new_size.y > old_size.y) {

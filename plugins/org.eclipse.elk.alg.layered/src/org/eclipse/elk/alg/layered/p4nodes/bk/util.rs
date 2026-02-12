@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LNodeRef, LPortRef, NodeType};
@@ -71,10 +71,10 @@ pub(crate) fn edge_between(source: &LNodeRef, target: &LNodeRef) -> Option<LEdge
         let (src_node, tgt_node) = edge
             .lock()
             .ok()
-            .and_then(|edge_guard| {
+            .map(|edge_guard| {
                 let src = edge_guard.source().and_then(|port| port.lock().ok().and_then(|port| port.node()));
                 let tgt = edge_guard.target().and_then(|port| port.lock().ok().and_then(|port| port.node()));
-                Some((src, tgt))
+                (src, tgt)
             })
             .unwrap_or((None, None));
         if let (Some(src_node), Some(tgt_node)) = (src_node, tgt_node) {
@@ -94,10 +94,11 @@ pub(crate) fn edge_between(source: &LNodeRef, target: &LNodeRef) -> Option<LEdge
         .ok()
         .map(|node_guard| node_guard.connected_edges())
         .unwrap_or_default();
-    for edge in source_edges {
-        if edge_matches(&edge, source_id, target_id) {
-            return Some(edge);
-        }
+    if let Some(edge) = source_edges
+        .into_iter()
+        .find(|edge| edge_matches(edge, source_id, target_id))
+    {
+        return Some(edge);
     }
 
     let target_edges = target
@@ -105,13 +106,9 @@ pub(crate) fn edge_between(source: &LNodeRef, target: &LNodeRef) -> Option<LEdge
         .ok()
         .map(|node_guard| node_guard.connected_edges())
         .unwrap_or_default();
-    for edge in target_edges {
-        if edge_matches(&edge, source_id, target_id) {
-            return Some(edge);
-        }
-    }
-
-    None
+    target_edges
+        .into_iter()
+        .find(|edge| edge_matches(edge, source_id, target_id))
 }
 
 pub(crate) fn get_blocks(bal: &BKAlignedLayout) -> BTreeMap<usize, Vec<LNodeRef>> {

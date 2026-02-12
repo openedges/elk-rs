@@ -4,7 +4,6 @@ use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutP
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase_factory::ILayoutPhaseFactory;
 
 use crate::org::eclipse::elk::alg::layered::graph::LGraph;
-use crate::org::eclipse::elk::alg::layered::no_op_phase::NoOpPhase;
 use crate::org::eclipse::elk::alg::layered::p1cycles::{
     BfsNodeOrderCycleBreaker, DepthFirstCycleBreaker, DfsNodeOrderCycleBreaker, GreedyCycleBreaker,
     InteractiveCycleBreaker, ModelOrderCycleBreaker, ScConnectivityCycleBreaker, SccNodeTypeCycleBreaker,

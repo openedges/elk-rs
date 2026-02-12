@@ -1,6 +1,6 @@
 use std::any::Any;
 use std::cmp::Ordering;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{btree_map::Entry, BTreeMap, BTreeSet};
 
 use org_eclipse_elk_core::org::eclipse::elk::core::util::Random;
 
@@ -54,25 +54,45 @@ impl ModelOrderBarycenterHeuristic {
         let id2 = node_ptr_id(n2);
 
         // Initialize empty sets if they don't exist (matching Java behavior)
-        if !self.bigger_than.contains_key(&id1) {
-            self.bigger_than.insert(id1, BTreeSet::new());
-        } else if self.bigger_than.get(&id1).unwrap().contains(&id2) {
-            return 1;
+        match self.bigger_than.entry(id1) {
+            Entry::Vacant(entry) => {
+                entry.insert(BTreeSet::new());
+            }
+            Entry::Occupied(entry) => {
+                if entry.get().contains(&id2) {
+                    return 1;
+                }
+            }
         }
-        if !self.bigger_than.contains_key(&id2) {
-            self.bigger_than.insert(id2, BTreeSet::new());
-        } else if self.bigger_than.get(&id2).unwrap().contains(&id1) {
-            return -1;
+        match self.bigger_than.entry(id2) {
+            Entry::Vacant(entry) => {
+                entry.insert(BTreeSet::new());
+            }
+            Entry::Occupied(entry) => {
+                if entry.get().contains(&id1) {
+                    return -1;
+                }
+            }
         }
-        if !self.smaller_than.contains_key(&id1) {
-            self.smaller_than.insert(id1, BTreeSet::new());
-        } else if self.smaller_than.get(&id1).unwrap().contains(&id2) {
-            return -1;
+        match self.smaller_than.entry(id1) {
+            Entry::Vacant(entry) => {
+                entry.insert(BTreeSet::new());
+            }
+            Entry::Occupied(entry) => {
+                if entry.get().contains(&id2) {
+                    return -1;
+                }
+            }
         }
-        if !self.smaller_than.contains_key(&id2) {
-            self.smaller_than.insert(id2, BTreeSet::new());
-        } else if self.smaller_than.get(&id2).unwrap().contains(&id1) {
-            return 1;
+        match self.smaller_than.entry(id2) {
+            Entry::Vacant(entry) => {
+                entry.insert(BTreeSet::new());
+            }
+            Entry::Occupied(entry) => {
+                if entry.get().contains(&id1) {
+                    return 1;
+                }
+            }
         }
         0
     }

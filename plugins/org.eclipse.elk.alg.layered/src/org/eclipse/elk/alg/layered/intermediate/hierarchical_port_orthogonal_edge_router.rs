@@ -1,3 +1,5 @@
+#![allow(clippy::mutable_key_type)]
+
 use std::collections::HashSet;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
@@ -171,7 +173,7 @@ impl HierarchicalPortOrthogonalEdgeRouter {
                         dummy_port
                             .lock()
                             .ok()
-                            .map(|mut port_guard| port_guard.labels().clone())
+                            .map(|port_guard| port_guard.labels().clone())
                             .unwrap_or_default(),
                     )
                 })
@@ -201,7 +203,7 @@ impl HierarchicalPortOrthogonalEdgeRouter {
                         dummy_port
                             .lock()
                             .ok()
-                            .map(|mut port_guard| port_guard.labels().clone())
+                            .map(|port_guard| port_guard.labels().clone())
                             .unwrap_or_default(),
                     )
                 })

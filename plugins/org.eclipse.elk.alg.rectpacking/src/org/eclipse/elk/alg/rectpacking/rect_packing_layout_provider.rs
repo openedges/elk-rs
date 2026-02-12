@@ -225,13 +225,13 @@ fn apply_algorithm_defaults(graph: &ElkNodeRef) {
         .graph_element()
         .properties_mut();
     if !props.has_property_id(CoreOptions::PADDING.id()) {
-        props.set_property(&*CoreOptions::PADDING, Some(ElkPadding::with_any(15.0)));
+        props.set_property(CoreOptions::PADDING, Some(ElkPadding::with_any(15.0)));
     }
     if !props.has_property_id(CoreOptions::SPACING_NODE_NODE.id()) {
-        props.set_property(&*CoreOptions::SPACING_NODE_NODE, Some(15.0_f64));
+        props.set_property(CoreOptions::SPACING_NODE_NODE, Some(15.0_f64));
     }
     if !props.has_property_id(CoreOptions::ASPECT_RATIO.id()) {
-        props.set_property(&*CoreOptions::ASPECT_RATIO, Some(1.3_f64));
+        props.set_property(CoreOptions::ASPECT_RATIO, Some(1.3_f64));
     }
 }
 

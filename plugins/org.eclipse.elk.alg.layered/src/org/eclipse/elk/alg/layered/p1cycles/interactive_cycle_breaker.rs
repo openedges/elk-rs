@@ -10,6 +10,8 @@ use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorS
 use crate::org::eclipse::elk::alg::layered::options::{InteractiveReferencePoint, LayeredOptions};
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
 
+type StackEntry = (LNodeRef, Vec<(LEdgeRef, LNodeRef)>, usize);
+
 static INTERMEDIATE_PROCESSING_CONFIGURATION: LazyLock<
     LayoutProcessorConfiguration<LayeredPhases, LGraph>,
 > = LazyLock::new(|| {
@@ -50,7 +52,7 @@ impl InteractiveCycleBreaker {
         // Iterative DFS matching Java's recursive approach.
         // Stack stores: (node, cached outgoing edges, edge_index)
         // Edges are cached once when a node is pushed to avoid repeated mutex locks.
-        let mut stack: Vec<(LNodeRef, Vec<(LEdgeRef, LNodeRef)>, usize)> = Vec::new();
+        let mut stack: Vec<StackEntry> = Vec::new();
 
         let start_edges = Self::get_outgoing(start);
         if let Ok(mut guard) = start.lock() {

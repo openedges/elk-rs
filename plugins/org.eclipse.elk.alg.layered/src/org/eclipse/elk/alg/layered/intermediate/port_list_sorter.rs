@@ -139,7 +139,7 @@ fn compare_fixed_order_and_pos(
     }
 }
 
-fn reverse_west_and_south_side(ports: &mut Vec<LPortRef>) {
+fn reverse_west_and_south_side(ports: &mut [LPortRef]) {
     if ports.len() <= 1 {
         return;
     }
@@ -172,7 +172,7 @@ fn find_port_side_range(ports: &[LPortRef], side: PortSide) -> (usize, usize) {
     (low_idx, high_idx)
 }
 
-fn reverse_range(ports: &mut Vec<LPortRef>, low_idx: usize, high_idx: usize) {
+fn reverse_range(ports: &mut [LPortRef], low_idx: usize, high_idx: usize) {
     if high_idx <= low_idx + 1 {
         return;
     }
