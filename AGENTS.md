@@ -810,9 +810,10 @@
 - hierarchical external port 더미 보강(2026-02-12): `ensure_external_port_dummy`에서 port constraints/position/size를 실제 port/parent에서 반영하고, 외부 포트 생성 시 graph `PORT_CONSTRAINTS`를 Java와 동일하게 `FIXED_SIDE`/`FREE`로 조정하여 hierarchical port 제약 처리 정합성 보강
 - subset parity 재검증(2026-02-12): 동일 2개 모델 Rust 재실행/비교 결과 matches=0, drift=2, total_diffs=6 (`/tmp/elk-parity-subset/report_subset_v3.md`), 좌표/section/width drift 지속 확인
 - 계층 edge 좌표 drift(±5) 원인 해결(2026-02-12): `LabelAndNodeSizeProcessor::adjust_ports_on_side`가 `PORT_BORDER_OFFSET`를 무시해 hierarchical port offset(-5)이 소실되던 문제 수정(N/E/S/W에 border offset 반영), `040_includeChildrenWithFixedOrder`/`hierarchy_center_edge_label_problem` Java↔Rust match 확인, `cargo test -p org-eclipse-elk-alg-layered --tests`/`cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과
+- 모델 parity full 재실행(2026-02-12): `scripts/run_model_parity_elk_vs_rust.sh` 결과 compared=1439, matches=296, drift=1143, total_diffs=21346 (`perf/model_parity_full/report.md`, `diff_details.tsv`, `rust_manifest.tsv` 갱신). 코드 변경 없음으로 `cargo test`/`cargo clippy`는 생략하고, 기록 갱신은 `AGENTS.md` 커밋으로 남김
 ## 진행률(최신)
-- 전체 목표 대비 추정 진행률: 약 20.4% (full parity 재실행 전, subset 2건 drift 해소 확인; 기준: Java↔Rust 모델 parity full match 293/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
-- 단계 진행률(다음 작업 체크리스트 기준): 100% (완료 67/67, 미완료 0) [2026-02-12 갱신]
+- 전체 목표 대비 추정 진행률: 약 20.6% (기준: Java↔Rust 모델 parity full match 296/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
+- 단계 진행률(다음 작업 체크리스트 기준): 98.6% (완료 68/69, 미완료 1) [2026-02-12 갱신]
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
 - Java direct-mapped 모듈 테스트 parity: 146.1% (Rust 875 / Java 599, `perf/java_test_module_parity.md`)
@@ -821,7 +822,7 @@
 - topdown 모듈 테스트 parity(수량): 100% (Rust 11 / Java 11)
 - mrtree 모듈 테스트 parity(수량): 100% (Rust 2 / Java 2, 기본 테스트 경로 활성화 완료)
 - Java-Rust 성능 비교 파이프라인/회귀 게이트: 운영 자동화 100% (baseline/results/both + scenario/runtime gate + CI 연동)
-- external/elk-models Java↔Rust 레이아웃 결과 parity(전체 1,448 모델): 20.4% (matches=293/compared=1439, drift=1146, errors=0, total_diffs=21360)
+- external/elk-models Java↔Rust 레이아웃 결과 parity(전체 1,448 모델): 20.6% (matches=296/compared=1439, drift=1143, errors=0, total_diffs=21346)
 - external/elk-models Java↔Rust 대형 샘플 안정성: deadlock 수정 완료(routing_slot_assigner.rs), `JAVA_PARITY_LIMIT=100` 스케일업 검증 예정
 - external/elk 무수정 운영 체계: 100% (격리 실행 + 자동 정리)
 - 1,448 모델 parity 기준선(v4)에서 실패 목록(36 timeouts/8 panics/9 java non-ok) 정리 및 재현 대상 모델 목록 확보
@@ -832,6 +833,8 @@
 - [x] Step 5: 최소 diff_count drift 케이스 2~3개 root cause 분석 + 회귀 테스트 후보 선정
 - [x] Step 6: 상위 원인 1건 수정 후 tickets/tests subset parity 재검증(계층 edge `sections` 전송 보정)
 - [x] Step 7: 계층 edge 포함 케이스 좌표/width drift(±5) 원인 규명 및 동일 subset parity 재검증
+- [x] Step 8: 모델 parity full 재실행 및 리포트 갱신
+- [ ] Step 9: drift 재분류(`scripts/analyze_layered_drift.py`) 및 상위 원인/최소 diff_count 샘플 갱신
 - [x] Step 1: 워크스페이스 clippy/test 재검증 및 경고 정리
 - [x] Step 2: drift 분석 샘플 보정(self-loop bendPoints 중복 유지) + 회귀 테스트 추가
 - [x] Step 3: Java↔Rust parity 재실행(모델 parity full) 및 리포트 갱신
