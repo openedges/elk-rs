@@ -803,9 +803,10 @@
 - 모델 parity full 재실행(2026-02-12): `JAVA_PARITY_MVN_LOCAL_REPO=/tmp/elk-m2-parity` + `JAVA_PARITY_MVN_ARGS=-Ddash.skip=true`로 `scripts/run_model_parity_elk_vs_rust.sh` 실행, Java export success=1439/1448(9 java_non_ok), Rust replay ok=1439/1448(errors=0), 비교 결과 matches=293, drift=1146, total_diffs=21360 갱신(`perf/model_parity_full/report.md`, `diff_details.tsv`, `rust_manifest.tsv`)
 - 단계 재검증(2026-02-12): `cargo clippy -p org-eclipse-elk-alg-layered --tests -- -D warnings`, `cargo test -p org-eclipse-elk-alg-layered --tests` 통과
 - drift 분류 재분석(2026-02-12): `scripts/analyze_layered_drift.py` 기준 drift 1146건 중 other 479, ordering_diff 403, layering_diff 264. 최소 diff_count 샘플로 `tests/layered/edge_label_placement/hierarchy_center_edge_label_problem.elkt`, `tickets/layered/040_includeChildrenWithFixedOrder.elkt`, `tickets/layered/425_selfLoopInCompoundNode.elkt` 등 좌표/section 불일치 우선 후보 확인
+- drift root cause 1차 점검(2026-02-12): `hierarchy_center_edge_label_problem`/`040_includeChildrenWithFixedOrder`는 hierarchical edge에서 `sections` 누락 + 노드 순서/크기 차이가 함께 발생(Edge routing/transfer 경로 의심). `425_selfLoopInCompoundNode`는 compound 내부 노드 최소 크기 미적용 + self-loop edge container/sections 불일치 확인. 회귀 테스트 후보: 위 2~3개 ELKT 기반으로 edge `sections` 존재, node size/edge container 일치 검증 추가 예정
 ## 진행률(최신)
 - 전체 목표 대비 추정 진행률: 약 20.4% (기준: Java↔Rust 모델 parity full match 293/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
-- 단계 진행률(다음 작업 체크리스트 기준): 96.2% (완료 50/52, 미완료 2) [2026-02-12 갱신]
+- 단계 진행률(다음 작업 체크리스트 기준): 98.1% (완료 51/52, 미완료 1) [2026-02-12 갱신]
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
 - Java direct-mapped 모듈 테스트 parity: 146.1% (Rust 875 / Java 599, `perf/java_test_module_parity.md`)
@@ -822,7 +823,7 @@
 
 ## 다음 작업
 - [x] Step 4: 1,448 모델 drift 재분류(`scripts/analyze_layered_drift.py`) 및 상위 원인/최소 diff_count 샘플 후보 정리
-- [ ] Step 5: 최소 diff_count drift 케이스 2~3개 root cause 분석 + 회귀 테스트 후보 선정
+- [x] Step 5: 최소 diff_count drift 케이스 2~3개 root cause 분석 + 회귀 테스트 후보 선정
 - [ ] Step 6: 상위 원인 1건 수정 후 tickets/tests subset parity 재검증
 - [x] Step 1: 워크스페이스 clippy/test 재검증 및 경고 정리
 - [x] Step 2: drift 분석 샘플 보정(self-loop bendPoints 중복 유지) + 회귀 테스트 추가
