@@ -309,7 +309,7 @@ fn compute_orthogonal_bend_points(
     routing_slot_positions: &[Vec<f64>],
 ) -> Vec<KVector> {
     let mut points = Vec::new();
-    push_unique(&mut points, source.outer_anchor);
+    push_point(&mut points, source.outer_anchor);
 
     if source.side != target.side {
         let clockwise = compute_edge_routing_direction(sl_loop, source_port, target_port, source.side, target.side);
@@ -345,13 +345,13 @@ fn compute_orthogonal_bend_points(
 
             let mut corner = curr_component;
             corner.add(&next_component);
-            push_unique(&mut points, corner);
+            push_point(&mut points, corner);
 
             curr_side = next_side;
         }
     }
 
-    push_unique(&mut points, target.outer_anchor);
+    push_point(&mut points, target.outer_anchor);
     points
 }
 
@@ -659,18 +659,8 @@ fn side_index(side: PortSide) -> usize {
     }
 }
 
-fn push_unique(points: &mut Vec<KVector>, point: KVector) {
-    let should_push = match points.last() {
-        Some(last) => !near_point(last, &point),
-        None => true,
-    };
-    if should_push {
-        points.push(point);
-    }
-}
-
-fn near_point(a: &KVector, b: &KVector) -> bool {
-    near(a.x, b.x) && near(a.y, b.y)
+fn push_point(points: &mut Vec<KVector>, point: KVector) {
+    points.push(point);
 }
 
 fn near(a: f64, b: f64) -> bool {

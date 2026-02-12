@@ -579,6 +579,65 @@ fn build_corner_and_dummy_combined_graph() -> CornerDummyCombinedGraph {
 }
 
 #[test]
+fn self_loop_router_keeps_duplicate_bend_points_for_same_port() {
+    init_layered_metadata();
+    let graph = LGraph::new();
+    let node = LNode::new(&graph);
+    {
+        let mut node_guard = node.lock().expect("node lock");
+        node_guard.shape().size().x = 50.0;
+        node_guard.shape().size().y = 40.0;
+        node_guard.shape().position().x = 10.0;
+        node_guard.shape().position().y = 20.0;
+        node_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::Free));
+        node_guard.set_property(LayeredOptions::EDGE_ROUTING, Some(EdgeRouting::Orthogonal));
+    }
+    graph
+        .lock()
+        .expect("graph lock")
+        .layerless_nodes_mut()
+        .push(node.clone());
+
+    let port = create_port(&node, PortSide::North, 20.0, 0.0);
+    let edge = add_edge(&port, &port);
+
+    let mut pre = SelfLoopPreProcessor;
+    run_processor(&mut pre, &graph);
+
+    let layer = Layer::new(&graph);
+    {
+        graph.lock()
+            .expect("graph lock")
+            .layers_mut()
+            .push(layer.clone());
+    }
+    LNode::set_layer(&node, Some(layer));
+    graph
+        .lock()
+        .expect("graph lock")
+        .layerless_nodes_mut()
+        .retain(|candidate| !Arc::ptr_eq(candidate, &node));
+
+    let mut restorer = SelfLoopPortRestorer;
+    run_processor(&mut restorer, &graph);
+    let mut router = SelfLoopRouter;
+    run_processor(&mut router, &graph);
+    let mut post = SelfLoopPostProcessor;
+    run_processor(&mut post, &graph);
+
+    let bends = edge
+        .lock()
+        .expect("edge lock")
+        .bend_points_ref()
+        .to_array();
+    assert_eq!(bends.len(), 2, "duplicate outer bend points should be preserved");
+    assert!(
+        (bends[0].x - bends[1].x).abs() < 1e-9 && (bends[0].y - bends[1].y).abs() < 1e-9,
+        "expected identical bend points, got {bends:?}"
+    );
+}
+
+#[test]
 fn self_loop_router_creates_outside_bend_points_for_hidden_loops() {
     init_layered_metadata();
     let (graph, node, edges) = build_self_loop_graph();
