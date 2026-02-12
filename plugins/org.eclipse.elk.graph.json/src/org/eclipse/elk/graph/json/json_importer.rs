@@ -919,13 +919,16 @@ impl JsonImporter {
 
         let container_id = if let Some(parent) = self.edge_original_parent.get(&edge_key(edge)) {
             if self.edge_coords_mode(&ElkGraphElementRef::Node(parent.clone())) == EdgeCoords::Container {
-                parent
-                    .borrow_mut()
-                    .connectable()
-                    .shape()
-                    .graph_element()
-                    .identifier()
-                    .map(|v| v.to_string())
+                edge.borrow().containing_node().and_then(|node| {
+                    let id = node
+                        .borrow_mut()
+                        .connectable()
+                        .shape()
+                        .graph_element()
+                        .identifier()
+                        .map(|value| value.to_string());
+                    id
+                })
             } else {
                 None
             }
@@ -1305,6 +1308,17 @@ fn json_id_value(id: &JsonId) -> Value {
 }
 
 fn f64_to_number(value: f64) -> serde_json::Number {
+    if value.is_finite() {
+        let rounded = value.round();
+        if (value - rounded).abs() <= 1e-6 {
+            if rounded >= 0.0 && rounded <= u64::MAX as f64 {
+                return serde_json::Number::from(rounded as u64);
+            }
+            if rounded >= i64::MIN as f64 && rounded <= i64::MAX as f64 {
+                return serde_json::Number::from(rounded as i64);
+            }
+        }
+    }
     serde_json::Number::from_f64(value).unwrap_or_else(|| serde_json::Number::from(0))
 }
 

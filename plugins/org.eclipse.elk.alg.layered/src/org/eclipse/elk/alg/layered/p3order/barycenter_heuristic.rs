@@ -39,6 +39,10 @@ impl BarycenterHeuristic {
         self.random = random;
     }
 
+    pub fn set_random_seed(&mut self, seed: u64) {
+        self.random.set_seed(seed);
+    }
+
     pub(crate) fn randomize_barycenters(&mut self, nodes: &[LNodeRef]) {
         for node in nodes {
             let value = self.random.next_double();

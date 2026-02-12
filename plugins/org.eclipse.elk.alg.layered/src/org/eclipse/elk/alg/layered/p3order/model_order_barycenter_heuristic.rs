@@ -45,6 +45,10 @@ impl ModelOrderBarycenterHeuristic {
         self.base.set_random(random);
     }
 
+    pub fn set_random_seed(&mut self, seed: u64) {
+        self.base.set_random_seed(seed);
+    }
+
     fn compare_based_on_transitive_dependencies(&mut self, n1: &LNodeRef, n2: &LNodeRef) -> i32 {
         let id1 = node_ptr_id(n1);
         let id2 = node_ptr_id(n2);

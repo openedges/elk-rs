@@ -14,6 +14,7 @@
 
 # Model parity outputs
 /perf/model_parity_full/rust/
+/perf/test_parity/
 
 # Python cache
 __pycache__/

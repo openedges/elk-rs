@@ -114,12 +114,8 @@ fn route_node(
         return;
     };
 
-    let (node_pos, node_size, mut new_margins) = if let Ok(mut node_guard) = l_node.lock() {
-        (
-            *node_guard.shape().position_ref(),
-            *node_guard.shape().size_ref(),
-            node_guard.margin().clone(),
-        )
+    let (node_size, mut new_margins) = if let Ok(mut node_guard) = l_node.lock() {
+        (*node_guard.shape().size_ref(), node_guard.margin().clone())
     } else {
         return;
     };
@@ -205,7 +201,6 @@ fn route_node(
 
         place_loop_labels(
             sl_loop,
-            node_pos,
             node_size,
             edge_label_distance,
             &routing_slot_positions,
@@ -446,7 +441,6 @@ fn compute_edge_routing_direction(
 
 fn place_loop_labels(
     sl_loop: &SelfHyperLoopRef,
-    node_pos: KVector,
     node_size: KVector,
     edge_label_distance: f64,
     routing_slot_positions: &[Vec<f64>],
@@ -488,35 +482,35 @@ fn place_loop_labels(
     let local = local_position(node_size, label_size, alignment, align_ref);
     let label_distance = if inline_labels { 0.0 } else { edge_label_distance };
 
-    let mut absolute = KVector::new();
+    let mut relative = KVector::new();
     match side {
         PortSide::North => {
-            absolute.x = node_pos.x + local.x;
-            absolute.y = node_pos.y + lane_position - label_distance - label_size.y;
+            relative.x = local.x;
+            relative.y = lane_position - label_distance - label_size.y;
         }
         PortSide::South => {
-            absolute.x = node_pos.x + local.x;
-            absolute.y = node_pos.y + lane_position + label_distance;
+            relative.x = local.x;
+            relative.y = lane_position + label_distance;
         }
         PortSide::East => {
-            absolute.x = node_pos.x + lane_position + label_distance;
-            absolute.y = node_pos.y + local.y;
+            relative.x = lane_position + label_distance;
+            relative.y = local.y;
         }
         PortSide::West => {
-            absolute.x = node_pos.x + lane_position - label_distance - label_size.x;
-            absolute.y = node_pos.y + local.y;
+            relative.x = lane_position - label_distance - label_size.x;
+            relative.y = local.y;
         }
         PortSide::Undefined => return,
     }
 
     if let Ok(mut sl_loop_guard) = sl_loop.lock() {
         if let Some(labels) = sl_loop_guard.sl_labels_mut() {
-            labels.apply_vertical_stack(absolute, 2.0);
-            *labels.position_mut() = absolute;
-            let local_top_left = KVector::with_values(absolute.x - node_pos.x, absolute.y - node_pos.y);
+            labels.apply_vertical_stack(relative, 2.0);
+            *labels.position_mut() = relative;
+            let local_top_left = relative;
             let local_bottom_right = KVector::with_values(
-                local_top_left.x + labels.size().x,
-                local_top_left.y + labels.size().y,
+                relative.x + labels.size().x,
+                relative.y + labels.size().y,
             );
             update_margins_with_point(node_size, margins, &local_top_left);
             update_margins_with_point(node_size, margins, &local_bottom_right);

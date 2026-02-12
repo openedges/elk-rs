@@ -1341,21 +1341,21 @@ impl NodeLabelAndSizeCalculator {
                 required_height = required_height.max(initial_node_size.y);
             }
 
-            let node_size_fixed_graph_size = node
-                .get_graph()
-                .and_then(|graph| graph.get_property(CoreOptions::NODE_SIZE_FIXED_GRAPH_SIZE))
-                .unwrap_or(false);
+        let node_size_fixed_graph_size = node
+            .get_graph()
+            .and_then(|graph| graph.get_property(CoreOptions::NODE_SIZE_FIXED_GRAPH_SIZE))
+            .unwrap_or(false);
 
-            target_node_size.x = if node_size_fixed_graph_size {
-                initial_node_size.x.max(required_width)
-            } else {
-                required_width
-            };
-            target_node_size.y = if node_size_fixed_graph_size {
-                initial_node_size.y.max(required_height)
-            } else {
-                required_height
-            };
+        target_node_size.x = if node_size_fixed_graph_size {
+            initial_node_size.x.max(required_width)
+        } else {
+            required_width
+        };
+        target_node_size.y = if node_size_fixed_graph_size {
+            initial_node_size.y.max(required_height)
+        } else {
+            required_height
+        };
             node.set_size(target_node_size);
         }
 

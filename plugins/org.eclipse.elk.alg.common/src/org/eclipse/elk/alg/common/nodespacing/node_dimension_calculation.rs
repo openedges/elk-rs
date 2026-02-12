@@ -1,13 +1,16 @@
 use std::any::Any;
 use std::cmp::Ordering;
+use std::sync::LazyLock;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::options::{
-    CoreOptions, Direction, PortConstraints, PortLabelPlacement, PortSide, SizeConstraint,
+    CoreOptions, Direction, NodeLabelPlacement, PortLabelPlacement, PortSide, SizeConstraint,
 };
+use org_eclipse_elk_core::org::eclipse::elk::core::math::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::adapters::{
     ElkGraphAdapter, ElkLabelAdapter, ElkNodeAdapter, ElkPortAdapter, GraphAdapter,
     GraphElementAdapter, NodeAdapter, PortAdapter,
 };
+use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkConnectableShapeRef, ElkEdgeRef, ElkNodeRef, ElkPortRef};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use std::rc::Rc;
@@ -16,6 +19,39 @@ use super::node_label_and_size_calculator::NodeLabelAndSizeCalculator;
 use super::node_margin_calculator::NodeMarginCalculator;
 
 pub struct NodeDimensionCalculation;
+
+static COMPOUND_NODE_PROPERTY: LazyLock<Property<bool>> =
+    LazyLock::new(|| Property::with_default("compoundNode", false));
+
+#[derive(Clone, Copy, Default)]
+struct Rect {
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+}
+
+impl Rect {
+    fn union(self, other: Rect) -> Rect {
+        let left = self.x.min(other.x);
+        let top = self.y.min(other.y);
+        let right = (self.x + self.width).max(other.x + other.width);
+        let bottom = (self.y + self.height).max(other.y + other.height);
+        Rect {
+            x: left,
+            y: top,
+            width: right - left,
+            height: bottom - top,
+        }
+    }
+
+    fn overlaps(self, other: Rect) -> bool {
+        self.x < other.x + other.width
+            && self.x + self.width > other.x
+            && self.y < other.y + other.height
+            && self.y + self.height > other.y
+    }
+}
 
 #[derive(Clone, Copy)]
 struct HorizontalStackConfig {
@@ -46,11 +82,10 @@ impl NodeDimensionCalculation {
             return;
         }
 
-        // Note: _with_process_node and _generic produce identical results because
-        // LNodeAdapter::get_graph() returns None, making process_node skip its logic.
-        // Phase 1 port placement in LabelAndNodeSizeProcessor handles what process_node
-        // would do in the Java ELK path. Keep _generic for now.
-        Self::calculate_label_and_node_sizes_generic(adapter);
+        // Java: NodeLabelAndSizeCalculator.process(adapter) handles node labels first,
+        // then port label placement. For non-ELK adapters (e.g. LGraph), we mimic this
+        // by running process_node before placing port labels.
+        Self::calculate_label_and_node_sizes_with_process_node(adapter);
     }
 
     pub fn calculate_label_and_node_sizes_for_elk(adapter: &ElkGraphAdapter) {
@@ -67,7 +102,11 @@ impl NodeDimensionCalculation {
                 continue;
             }
 
-            let constrained_placement = Self::has_constrained_port_label_placement(&node);
+            let size_constraints = node
+                .get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)
+                .unwrap_or_default();
+            let constrained_placement = placement.contains(&PortLabelPlacement::Inside)
+                || placement.contains(&PortLabelPlacement::Outside);
             let inside_label_placement = placement.contains(&PortLabelPlacement::Inside);
             let next_to_port_if_possible =
                 placement.contains(&PortLabelPlacement::NextToPortIfPossible);
@@ -82,10 +121,14 @@ impl NodeDimensionCalculation {
                 .unwrap_or(1.0);
             let node_width = node.get_size().x;
 
+            let node_label_bounds = Self::inside_node_label_bounds(&node);
             let ports = node.get_ports();
+            let node_is_compound = node.element().borrow().is_hierarchical();
             let any_incident_edges = ports.iter().any(|port| {
                 !port.get_incoming_edges().is_empty() || !port.get_outgoing_edges().is_empty()
-            });
+            }) || node_is_compound;
+            let stack_label_overlaps = size_constraints.contains(&SizeConstraint::PortLabels);
+            let stack_inside_labels = inside_label_placement && stack_label_overlaps;
             // Compute per-side port counts for label_placement_relation
             let mut side_counts: [usize; 5] = [0; 5];
             for port in ports.iter() {
@@ -101,6 +144,8 @@ impl NodeDimensionCalculation {
             let mut side_indices: [usize; 5] = [0; 5];
             let mut north_entries = Vec::new();
             let mut south_entries = Vec::new();
+            let mut east_entries = Vec::new();
+            let mut west_entries = Vec::new();
 
             for port in ports.iter() {
                 let side_idx = match port.get_side() {
@@ -245,54 +290,97 @@ impl NodeDimensionCalculation {
                             }
                         }
                     }
+                    if stack_label_overlaps {
+                        if let Some(bounds) = node_label_bounds {
+                            label_pos = Self::avoid_node_label_overlap(
+                                &node,
+                                port,
+                                label_pos,
+                                label_size,
+                                bounds,
+                                label_gap_horizontal,
+                                label_gap_vertical,
+                            );
+                        }
+                    }
                     label.set_position(label_pos);
 
                     if constrained_placement {
                         match port.get_side() {
                             PortSide::North => north_entries.push((port.clone(), label.clone())),
                             PortSide::South => south_entries.push((port.clone(), label.clone())),
-                            _ => {}
+                            PortSide::East => east_entries.push((port.clone(), label.clone())),
+                            PortSide::West | PortSide::Undefined => {
+                                west_entries.push((port.clone(), label.clone()))
+                            }
                         }
                     }
                 }
             }
 
             if constrained_placement {
-                let north_positive = inside_label_placement;
-                let south_positive = !inside_label_placement;
-                let clamp_x = inside_label_placement
-                    .then_some(Self::inside_horizontal_label_clamp_bounds(&node, node_width));
+                let stack_constrained_inside = inside_label_placement
+                    && (always_same_side || always_other_same_side);
+                if stack_label_overlaps || stack_constrained_inside {
+                    let north_positive = inside_label_placement;
+                    let south_positive = !inside_label_placement;
+                    let clamp_x = inside_label_placement
+                        .then_some(Self::inside_horizontal_label_clamp_bounds(&node, node_width));
 
-                // Java uses a strip overlap remover with side-dependent start coordinates.
-                // This simplified variant keeps the same directional stacking behavior.
-                Self::stack_horizontal_side_labels(
-                    &north_entries,
-                    HorizontalStackConfig {
-                        positive_direction: north_positive,
-                        gap_x: label_gap_horizontal,
-                        gap_y: label_gap_vertical,
-                        start_coordinate: Self::compute_stack_start_coordinate(
-                            &north_entries,
-                            north_positive,
-                            label_gap_vertical,
-                        ),
-                        clamp_x,
-                    },
-                );
-                Self::stack_horizontal_side_labels(
-                    &south_entries,
-                    HorizontalStackConfig {
-                        positive_direction: south_positive,
-                        gap_x: label_gap_horizontal,
-                        gap_y: label_gap_vertical,
-                        start_coordinate: Self::compute_stack_start_coordinate(
-                            &south_entries,
-                            south_positive,
-                            label_gap_vertical,
-                        ),
-                        clamp_x,
-                    },
-                );
+                    // Java uses a strip overlap remover with side-dependent start coordinates.
+                    // This simplified variant keeps the same directional stacking behavior.
+                    Self::stack_horizontal_side_labels(
+                        &north_entries,
+                        HorizontalStackConfig {
+                            positive_direction: north_positive,
+                            gap_x: label_gap_horizontal,
+                            gap_y: label_gap_vertical,
+                            start_coordinate: Self::compute_stack_start_coordinate(
+                                &north_entries,
+                                north_positive,
+                                label_gap_vertical,
+                            ),
+                            clamp_x,
+                        },
+                    );
+                    Self::stack_horizontal_side_labels(
+                        &south_entries,
+                        HorizontalStackConfig {
+                            positive_direction: south_positive,
+                            gap_x: label_gap_horizontal,
+                            gap_y: label_gap_vertical,
+                            start_coordinate: Self::compute_stack_start_coordinate(
+                                &south_entries,
+                                south_positive,
+                                label_gap_vertical,
+                            ),
+                            clamp_x,
+                        },
+                    );
+                }
+
+                if stack_inside_labels {
+                    let mut avoid_rects = Vec::new();
+                    if let Some(bounds) = node_label_bounds {
+                        avoid_rects.push(bounds);
+                    }
+                    Self::append_label_rects(&mut avoid_rects, &north_entries);
+                    Self::append_label_rects(&mut avoid_rects, &south_entries);
+                    Self::stack_vertical_side_labels(
+                        &west_entries,
+                        label_gap_horizontal,
+                        label_gap_vertical,
+                        &avoid_rects,
+                        next_to_port_if_possible,
+                    );
+                    Self::stack_vertical_side_labels(
+                        &east_entries,
+                        label_gap_horizontal,
+                        label_gap_vertical,
+                        &avoid_rects,
+                        next_to_port_if_possible,
+                    );
+                }
             }
         }
     }
@@ -337,11 +425,22 @@ impl NodeDimensionCalculation {
                 .get_property(CoreOptions::SPACING_LABEL_PORT_VERTICAL)
                 .unwrap_or(1.0);
             let node_width = node.get_size().x;
+            let size_constraints = node
+                .get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)
+                .unwrap_or_default();
+            let stack_label_overlaps = size_constraints.contains(&SizeConstraint::PortLabels);
+            let stack_inside_labels = inside_label_placement && stack_label_overlaps;
+            let node_label_bounds = Self::inside_node_label_bounds_generic(&node);
 
             let ports = node.get_ports();
+            let node_is_compound = node
+                .get_property(&COMPOUND_NODE_PROPERTY)
+                .unwrap_or(false);
             let any_incident_edges = ports.iter().any(|port| {
-                !port.get_incoming_edges().is_empty() || !port.get_outgoing_edges().is_empty()
-            });
+                !port.get_incoming_edges().is_empty()
+                    || !port.get_outgoing_edges().is_empty()
+                    || port.has_compound_connections()
+            }) || node_is_compound;
             let mut side_counts: [usize; 5] = [0; 5];
             for port in ports.iter() {
                 let idx = match port.get_side() {
@@ -356,6 +455,8 @@ impl NodeDimensionCalculation {
             let mut side_indices: [usize; 5] = [0; 5];
             let mut north_entries: Vec<(usize, usize)> = Vec::new();
             let mut south_entries: Vec<(usize, usize)> = Vec::new();
+            let mut east_entries: Vec<(usize, usize)> = Vec::new();
+            let mut west_entries: Vec<(usize, usize)> = Vec::new();
 
             for (port_idx, port) in ports.iter().enumerate() {
                 let side_idx = match port.get_side() {
@@ -505,56 +606,102 @@ impl NodeDimensionCalculation {
                             }
                         }
                     }
+                    if stack_label_overlaps {
+                        if let Some(bounds) = node_label_bounds {
+                            label_pos = Self::avoid_node_label_overlap_generic(
+                                &node,
+                                port,
+                                label_pos,
+                                label_size,
+                                bounds,
+                                label_gap_horizontal,
+                                label_gap_vertical,
+                            );
+                        }
+                    }
                     label.set_position(label_pos);
 
                     if constrained_placement {
                         match port.get_side() {
                             PortSide::North => north_entries.push((port_idx, label_idx)),
                             PortSide::South => south_entries.push((port_idx, label_idx)),
-                            _ => {}
+                            PortSide::East => east_entries.push((port_idx, label_idx)),
+                            PortSide::West | PortSide::Undefined => {
+                                west_entries.push((port_idx, label_idx))
+                            }
                         }
                     }
                 }
             }
 
             if constrained_placement {
-                let north_positive = inside_label_placement;
-                let south_positive = !inside_label_placement;
-                let clamp_x = inside_label_placement
-                    .then(|| Self::inside_horizontal_label_clamp_bounds_generic(&node, node_width));
+                let stack_constrained_inside = inside_label_placement
+                    && (always_same_side || always_other_same_side);
+                if stack_label_overlaps || stack_constrained_inside {
+                    let north_positive = inside_label_placement;
+                    let south_positive = !inside_label_placement;
+                    let clamp_x = inside_label_placement.then(|| {
+                        Self::inside_horizontal_label_clamp_bounds_generic(&node, node_width)
+                    });
 
-                Self::stack_horizontal_side_labels_generic(
-                    &node,
-                    &north_entries,
-                    HorizontalStackConfig {
-                        positive_direction: north_positive,
-                        gap_x: label_gap_horizontal,
-                        gap_y: label_gap_vertical,
-                        start_coordinate: Self::compute_stack_start_coordinate_generic(
-                            &node,
-                            &north_entries,
-                            north_positive,
-                            label_gap_vertical,
-                        ),
-                        clamp_x,
-                    },
-                );
-                Self::stack_horizontal_side_labels_generic(
-                    &node,
-                    &south_entries,
-                    HorizontalStackConfig {
-                        positive_direction: south_positive,
-                        gap_x: label_gap_horizontal,
-                        gap_y: label_gap_vertical,
-                        start_coordinate: Self::compute_stack_start_coordinate_generic(
-                            &node,
-                            &south_entries,
-                            south_positive,
-                            label_gap_vertical,
-                        ),
-                        clamp_x,
-                    },
-                );
+                    Self::stack_horizontal_side_labels_generic(
+                        &node,
+                        &north_entries,
+                        HorizontalStackConfig {
+                            positive_direction: north_positive,
+                            gap_x: label_gap_horizontal,
+                            gap_y: label_gap_vertical,
+                            start_coordinate: Self::compute_stack_start_coordinate_generic(
+                                &node,
+                                &north_entries,
+                                north_positive,
+                                label_gap_vertical,
+                            ),
+                            clamp_x,
+                        },
+                    );
+                    Self::stack_horizontal_side_labels_generic(
+                        &node,
+                        &south_entries,
+                        HorizontalStackConfig {
+                            positive_direction: south_positive,
+                            gap_x: label_gap_horizontal,
+                            gap_y: label_gap_vertical,
+                            start_coordinate: Self::compute_stack_start_coordinate_generic(
+                                &node,
+                                &south_entries,
+                                south_positive,
+                                label_gap_vertical,
+                            ),
+                            clamp_x,
+                        },
+                    );
+                }
+
+                if stack_inside_labels {
+                    let mut avoid_rects = Vec::new();
+                    if let Some(bounds) = node_label_bounds {
+                        avoid_rects.push(bounds);
+                    }
+                    Self::append_label_rects_generic(&node, &mut avoid_rects, &north_entries);
+                    Self::append_label_rects_generic(&node, &mut avoid_rects, &south_entries);
+                    Self::stack_vertical_side_labels_generic(
+                        &node,
+                        &west_entries,
+                        label_gap_horizontal,
+                        label_gap_vertical,
+                        &avoid_rects,
+                        next_to_port_if_possible,
+                    );
+                    Self::stack_vertical_side_labels_generic(
+                        &node,
+                        &east_entries,
+                        label_gap_horizontal,
+                        label_gap_vertical,
+                        &avoid_rects,
+                        next_to_port_if_possible,
+                    );
+                }
             }
         }
     }
@@ -579,9 +726,14 @@ impl NodeDimensionCalculation {
             let space_efficient = placement.contains(&PortLabelPlacement::SpaceEfficient);
 
             let ports = node.get_ports();
+            let node_is_compound = node
+                .get_property(&COMPOUND_NODE_PROPERTY)
+                .unwrap_or(false);
             let any_incident_edges = ports.iter().any(|port| {
-                !port.get_incoming_edges().is_empty() || !port.get_outgoing_edges().is_empty()
-            });
+                !port.get_incoming_edges().is_empty()
+                    || !port.get_outgoing_edges().is_empty()
+                    || port.has_compound_connections()
+            }) || node_is_compound;
 
             // Compute per-side port counts (Java uses per-side index/count for label_placement_relation)
             let mut side_counts: [usize; 5] = [0; 5]; // N=0, E=1, S=2, W=3, Undef=4
@@ -606,10 +758,18 @@ impl NodeDimensionCalculation {
                 .get_property(CoreOptions::SPACING_LABEL_PORT_VERTICAL)
                 .unwrap_or(1.0);
             let node_width = node.get_size().x;
+            let size_constraints = node
+                .get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)
+                .unwrap_or_default();
+            let stack_label_overlaps = size_constraints.contains(&SizeConstraint::PortLabels);
+            let stack_inside_labels = inside_label_placement && stack_label_overlaps;
+            let node_label_bounds = Self::inside_node_label_bounds_generic(&node);
 
             // Collect north/south entries for stacking (generic version stores tuples)
             let mut north_entries: Vec<(usize, usize)> = Vec::new(); // (port_idx, label_idx)
             let mut south_entries: Vec<(usize, usize)> = Vec::new();
+            let mut east_entries: Vec<(usize, usize)> = Vec::new();
+            let mut west_entries: Vec<(usize, usize)> = Vec::new();
 
             for (port_idx, port) in ports.iter().enumerate() {
                 let side_idx = match port.get_side() {
@@ -760,6 +920,19 @@ impl NodeDimensionCalculation {
                             }
                         }
                     }
+                    if stack_label_overlaps {
+                        if let Some(bounds) = node_label_bounds {
+                            label_pos = Self::avoid_node_label_overlap_generic(
+                                &node,
+                                port,
+                                label_pos,
+                                label_size,
+                                bounds,
+                                label_gap_horizontal,
+                                label_gap_vertical,
+                            );
+                        }
+                    }
                     label.set_position(label_pos);
 
                     // Collect north/south entries for stacking
@@ -767,7 +940,10 @@ impl NodeDimensionCalculation {
                         match port.get_side() {
                             PortSide::North => north_entries.push((port_idx, label_idx)),
                             PortSide::South => south_entries.push((port_idx, label_idx)),
-                            _ => {}
+                            PortSide::East => east_entries.push((port_idx, label_idx)),
+                            PortSide::West | PortSide::Undefined => {
+                                west_entries.push((port_idx, label_idx))
+                            }
                         }
                     }
                 }
@@ -775,43 +951,73 @@ impl NodeDimensionCalculation {
 
             // Apply stacking to north/south labels (generic version using stored indices)
             if constrained_placement {
-                let north_positive = inside_label_placement;
-                let south_positive = !inside_label_placement;
-                let clamp_x = inside_label_placement
-                    .then(|| Self::inside_horizontal_label_clamp_bounds_generic(&node, node_width));
+                let stack_constrained_inside = inside_label_placement
+                    && (always_same_side || always_other_same_side);
+                if stack_label_overlaps || stack_constrained_inside {
+                    let north_positive = inside_label_placement;
+                    let south_positive = !inside_label_placement;
+                    let clamp_x = inside_label_placement.then(|| {
+                        Self::inside_horizontal_label_clamp_bounds_generic(&node, node_width)
+                    });
 
-                Self::stack_horizontal_side_labels_generic(
-                    &node,
-                    &north_entries,
-                    HorizontalStackConfig {
-                        positive_direction: north_positive,
-                        gap_x: label_gap_horizontal,
-                        gap_y: label_gap_vertical,
-                        start_coordinate: Self::compute_stack_start_coordinate_generic(
-                            &node,
-                            &north_entries,
-                            north_positive,
-                            label_gap_vertical,
-                        ),
-                        clamp_x,
-                    },
-                );
-                Self::stack_horizontal_side_labels_generic(
-                    &node,
-                    &south_entries,
-                    HorizontalStackConfig {
-                        positive_direction: south_positive,
-                        gap_x: label_gap_horizontal,
-                        gap_y: label_gap_vertical,
-                        start_coordinate: Self::compute_stack_start_coordinate_generic(
-                            &node,
-                            &south_entries,
-                            south_positive,
-                            label_gap_vertical,
-                        ),
-                        clamp_x,
-                    },
-                );
+                    Self::stack_horizontal_side_labels_generic(
+                        &node,
+                        &north_entries,
+                        HorizontalStackConfig {
+                            positive_direction: north_positive,
+                            gap_x: label_gap_horizontal,
+                            gap_y: label_gap_vertical,
+                            start_coordinate: Self::compute_stack_start_coordinate_generic(
+                                &node,
+                                &north_entries,
+                                north_positive,
+                                label_gap_vertical,
+                            ),
+                            clamp_x,
+                        },
+                    );
+                    Self::stack_horizontal_side_labels_generic(
+                        &node,
+                        &south_entries,
+                        HorizontalStackConfig {
+                            positive_direction: south_positive,
+                            gap_x: label_gap_horizontal,
+                            gap_y: label_gap_vertical,
+                            start_coordinate: Self::compute_stack_start_coordinate_generic(
+                                &node,
+                                &south_entries,
+                                south_positive,
+                                label_gap_vertical,
+                            ),
+                            clamp_x,
+                        },
+                    );
+                }
+
+                if stack_inside_labels {
+                    let mut avoid_rects = Vec::new();
+                    if let Some(bounds) = node_label_bounds {
+                        avoid_rects.push(bounds);
+                    }
+                    Self::append_label_rects_generic(&node, &mut avoid_rects, &north_entries);
+                    Self::append_label_rects_generic(&node, &mut avoid_rects, &south_entries);
+                    Self::stack_vertical_side_labels_generic(
+                        &node,
+                        &west_entries,
+                        label_gap_horizontal,
+                        label_gap_vertical,
+                        &avoid_rects,
+                        next_to_port_if_possible,
+                    );
+                    Self::stack_vertical_side_labels_generic(
+                        &node,
+                        &east_entries,
+                        label_gap_horizontal,
+                        label_gap_vertical,
+                        &avoid_rects,
+                        next_to_port_if_possible,
+                    );
+                }
             }
         }
     }
@@ -978,12 +1184,15 @@ impl NodeDimensionCalculation {
     {
         let has_incident_edge =
             !port.get_incoming_edges().is_empty() || !port.get_outgoing_edges().is_empty();
-        if !has_incident_edge {
+        let has_inside_connections = port.has_compound_connections();
+        if !has_incident_edge && !has_inside_connections {
             return true;
         }
-
-        // Generic adapters do not expose endpoint ownership, so use a conservative fallback.
-        !inside_label_placement
+        if inside_label_placement {
+            !has_inside_connections
+        } else {
+            has_inside_connections
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1021,18 +1230,6 @@ impl NodeDimensionCalculation {
         } else {
             LabelPlacementRelation::BelowOrRight
         }
-    }
-
-    fn has_constrained_port_label_placement(node: &ElkNodeAdapter) -> bool {
-        let size_constraints = node
-            .get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)
-            .unwrap_or_default();
-        let port_constraints = node
-            .get_property(CoreOptions::PORT_CONSTRAINTS)
-            .unwrap_or(PortConstraints::Undefined);
-
-        !size_constraints.contains(&SizeConstraint::PortLabels)
-            || port_constraints == PortConstraints::FixedPos
     }
 
     fn port_label_border_offset_for_port_side(
@@ -1160,6 +1357,141 @@ impl NodeDimensionCalculation {
         }
     }
 
+    fn stack_vertical_side_labels(
+        entries: &[(ElkPortAdapter, ElkLabelAdapter)],
+        gap_x: f64,
+        gap_y: f64,
+        avoid_rects: &[Rect],
+        restrict_to_port_band: bool,
+    ) {
+        if entries.is_empty() {
+            return;
+        }
+        if entries.len() <= 1 && avoid_rects.is_empty() {
+            return;
+        }
+
+        let mut sorted: Vec<(ElkPortAdapter, ElkLabelAdapter)> = if restrict_to_port_band {
+            entries
+                .iter()
+                .filter(|(port, label)| {
+                    let port_height = port.get_size().y;
+                    let label_pos = label.get_position();
+                    let label_size = label.get_size();
+                    label_pos.y + label_size.y > 0.0 && label_pos.y < port_height
+                })
+                .cloned()
+                .collect()
+        } else {
+            entries.to_vec()
+        };
+        if sorted.is_empty() {
+            return;
+        }
+        if sorted.len() <= 1 && avoid_rects.is_empty() {
+            return;
+        }
+
+        sorted.sort_by(|(left_port, left_label), (right_port, right_label)| {
+            let left_y = left_port.get_position().y + left_label.get_position().y;
+            let right_y = right_port.get_position().y + right_label.get_position().y;
+            left_y.partial_cmp(&right_y).unwrap_or(Ordering::Equal)
+        });
+
+        let mut placed_rectangles: Vec<(f64, f64, f64, f64)> =
+            Vec::with_capacity(avoid_rects.len());
+        for rect in avoid_rects {
+            placed_rectangles.push((rect.x, rect.y, rect.width, rect.height));
+        }
+
+        for (port, label) in sorted {
+            let port_position = port.get_position();
+            let label_size = label.get_size();
+            let mut label_position = label.get_position();
+            let port_height = port.get_size().y;
+
+            let absolute_x = port_position.x + label_position.x;
+            let mut absolute_y = port_position.y + label_position.y;
+            let min_abs_y = port_position.y - label_size.y;
+            let max_abs_y = port_position.y + port_height;
+
+            loop {
+                let mut adjusted = false;
+                for (placed_x, placed_y, placed_w, placed_h) in &placed_rectangles {
+                    let horizontal_overlap = absolute_x < *placed_x + *placed_w + gap_x
+                        && absolute_x + label_size.x > *placed_x - gap_x;
+                    let vertical_overlap = absolute_y < *placed_y + *placed_h + gap_y
+                        && absolute_y + label_size.y > *placed_y - gap_y;
+
+                    if horizontal_overlap && vertical_overlap {
+                        absolute_y = *placed_y + *placed_h + gap_y;
+                        adjusted = true;
+                    }
+                }
+
+                if !adjusted {
+                    break;
+                }
+            }
+
+            if restrict_to_port_band {
+                if absolute_y < min_abs_y {
+                    absolute_y = min_abs_y;
+                } else if absolute_y > max_abs_y {
+                    absolute_y = max_abs_y;
+                }
+            }
+            label_position.y = absolute_y - port_position.y;
+            label.set_position(label_position);
+            placed_rectangles.push((absolute_x, absolute_y, label_size.x, label_size.y));
+        }
+    }
+
+    fn append_label_rects(
+        avoid_rects: &mut Vec<Rect>,
+        entries: &[(ElkPortAdapter, ElkLabelAdapter)],
+    ) {
+        for (port, label) in entries {
+            let port_pos = port.get_position();
+            let label_pos = label.get_position();
+            let label_size = label.get_size();
+            avoid_rects.push(Rect {
+                x: port_pos.x + label_pos.x,
+                y: port_pos.y + label_pos.y,
+                width: label_size.x,
+                height: label_size.y,
+            });
+        }
+    }
+
+    fn append_label_rects_generic<T, N>(
+        node: &N,
+        avoid_rects: &mut Vec<Rect>,
+        entries: &[(usize, usize)],
+    ) where
+        N: NodeAdapter<T>,
+    {
+        let ports = node.get_ports();
+        for (port_idx, label_idx) in entries {
+            let Some(port) = ports.get(*port_idx) else {
+                continue;
+            };
+            let labels = port.get_labels();
+            let Some(label) = labels.get(*label_idx) else {
+                continue;
+            };
+            let port_pos = port.get_position();
+            let label_pos = label.get_position();
+            let label_size = label.get_size();
+            avoid_rects.push(Rect {
+                x: port_pos.x + label_pos.x,
+                y: port_pos.y + label_pos.y,
+                width: label_size.x,
+                height: label_size.y,
+            });
+        }
+    }
+
     fn compute_stack_start_coordinate(
         entries: &[(ElkPortAdapter, ElkLabelAdapter)],
         positive_direction: bool,
@@ -1186,6 +1518,96 @@ impl NodeDimensionCalculation {
                 .fold(f64::INFINITY, f64::min);
             Some(baseline - gap_y)
         }
+    }
+
+    fn inside_node_label_bounds(node: &ElkNodeAdapter) -> Option<Rect> {
+        let node_placement = node
+            .get_property(CoreOptions::NODE_LABELS_PLACEMENT)
+            .unwrap_or_else(NodeLabelPlacement::fixed);
+        let mut bounds: Option<Rect> = None;
+        for label in node.get_labels() {
+            let placement = if label.has_property(CoreOptions::NODE_LABELS_PLACEMENT) {
+                label
+                    .get_property(CoreOptions::NODE_LABELS_PLACEMENT)
+                    .unwrap_or_else(|| node_placement.clone())
+            } else {
+                node_placement.clone()
+            };
+            if !placement.contains(&NodeLabelPlacement::Inside) {
+                continue;
+            }
+            let pos = label.get_position();
+            let size = label.get_size();
+            let rect = Rect {
+                x: pos.x,
+                y: pos.y,
+                width: size.x,
+                height: size.y,
+            };
+            bounds = Some(bounds.map_or(rect, |existing| existing.union(rect)));
+        }
+        bounds
+    }
+
+    fn avoid_node_label_overlap(
+        node: &ElkNodeAdapter,
+        port: &ElkPortAdapter,
+        mut label_pos: KVector,
+        label_size: KVector,
+        node_label_bounds: Rect,
+        label_gap_horizontal: f64,
+        label_gap_vertical: f64,
+    ) -> KVector {
+        let port_pos = port.get_position();
+        let label_rect = Rect {
+            x: port_pos.x + label_pos.x,
+            y: port_pos.y + label_pos.y,
+            width: label_size.x,
+            height: label_size.y,
+        };
+        if !label_rect.overlaps(node_label_bounds) {
+            return label_pos;
+        }
+
+        match port.get_side() {
+            PortSide::East | PortSide::West | PortSide::Undefined => {
+                let label_center = label_rect.y + label_rect.height / 2.0;
+                let node_center = node_label_bounds.y + node_label_bounds.height / 2.0;
+                let new_abs_y = if label_center <= node_center {
+                    node_label_bounds.y - label_size.y - label_gap_vertical
+                } else {
+                    node_label_bounds.y + node_label_bounds.height + label_gap_vertical
+                };
+                label_pos.y = new_abs_y - port_pos.y;
+            }
+            PortSide::North | PortSide::South => {
+                let label_center = label_rect.x + label_rect.width / 2.0;
+                let node_center = node_label_bounds.x + node_label_bounds.width / 2.0;
+                let new_abs_x = if label_center <= node_center {
+                    node_label_bounds.x - label_size.x - label_gap_horizontal
+                } else {
+                    node_label_bounds.x + node_label_bounds.width + label_gap_horizontal
+                };
+                label_pos.x = new_abs_x - port_pos.x;
+            }
+        }
+
+        let node_size = node.get_size();
+        if label_pos.x.is_nan()
+            || label_pos.y.is_nan()
+            || label_pos.x.is_infinite()
+            || label_pos.y.is_infinite()
+        {
+            return label_pos;
+        }
+        if label_pos.x + label_size.x < -node_size.x {
+            label_pos.x = -node_size.x;
+        }
+        if label_pos.y + label_size.y < -node_size.y {
+            label_pos.y = -node_size.y;
+        }
+
+        label_pos
     }
 
     fn inside_horizontal_label_clamp_bounds_generic<T, N>(node: &N, node_width: f64) -> (f64, f64)
@@ -1218,6 +1640,102 @@ impl NodeDimensionCalculation {
         }
 
         (min_x, max_x)
+    }
+
+    fn inside_node_label_bounds_generic<T, N>(node: &N) -> Option<Rect>
+    where
+        N: NodeAdapter<T>,
+    {
+        let node_placement = node
+            .get_property(CoreOptions::NODE_LABELS_PLACEMENT)
+            .unwrap_or_else(NodeLabelPlacement::fixed);
+        let mut bounds: Option<Rect> = None;
+        for label in node.get_labels() {
+            let placement = if label.has_property(CoreOptions::NODE_LABELS_PLACEMENT) {
+                label
+                    .get_property(CoreOptions::NODE_LABELS_PLACEMENT)
+                    .unwrap_or_else(|| node_placement.clone())
+            } else {
+                node_placement.clone()
+            };
+            if !placement.contains(&NodeLabelPlacement::Inside) {
+                continue;
+            }
+            let pos = label.get_position();
+            let size = label.get_size();
+            let rect = Rect {
+                x: pos.x,
+                y: pos.y,
+                width: size.x,
+                height: size.y,
+            };
+            bounds = Some(bounds.map_or(rect, |existing| existing.union(rect)));
+        }
+        bounds
+    }
+
+    fn avoid_node_label_overlap_generic<T, N>(
+        node: &N,
+        port: &<N as NodeAdapter<T>>::PortAdapter,
+        mut label_pos: KVector,
+        label_size: KVector,
+        node_label_bounds: Rect,
+        label_gap_horizontal: f64,
+        label_gap_vertical: f64,
+    ) -> KVector
+    where
+        N: NodeAdapter<T>,
+    {
+        let port_pos = port.get_position();
+        let label_rect = Rect {
+            x: port_pos.x + label_pos.x,
+            y: port_pos.y + label_pos.y,
+            width: label_size.x,
+            height: label_size.y,
+        };
+        if !label_rect.overlaps(node_label_bounds) {
+            return label_pos;
+        }
+
+        match port.get_side() {
+            PortSide::East | PortSide::West | PortSide::Undefined => {
+                let label_center = label_rect.y + label_rect.height / 2.0;
+                let node_center = node_label_bounds.y + node_label_bounds.height / 2.0;
+                let new_abs_y = if label_center <= node_center {
+                    node_label_bounds.y - label_size.y - label_gap_vertical
+                } else {
+                    node_label_bounds.y + node_label_bounds.height + label_gap_vertical
+                };
+                label_pos.y = new_abs_y - port_pos.y;
+            }
+            PortSide::North | PortSide::South => {
+                let label_center = label_rect.x + label_rect.width / 2.0;
+                let node_center = node_label_bounds.x + node_label_bounds.width / 2.0;
+                let new_abs_x = if label_center <= node_center {
+                    node_label_bounds.x - label_size.x - label_gap_horizontal
+                } else {
+                    node_label_bounds.x + node_label_bounds.width + label_gap_horizontal
+                };
+                label_pos.x = new_abs_x - port_pos.x;
+            }
+        }
+
+        let node_size = node.get_size();
+        if label_pos.x.is_nan()
+            || label_pos.y.is_nan()
+            || label_pos.x.is_infinite()
+            || label_pos.y.is_infinite()
+        {
+            return label_pos;
+        }
+        if label_pos.x + label_size.x < -node_size.x {
+            label_pos.x = -node_size.x;
+        }
+        if label_pos.y + label_size.y < -node_size.y {
+            label_pos.y = -node_size.y;
+        }
+
+        label_pos
     }
 
     fn stack_horizontal_side_labels_generic<T, N>(
@@ -1307,6 +1825,105 @@ impl NodeDimensionCalculation {
             }
 
             label_position.x = absolute_x - port_position.x;
+            label_position.y = absolute_y - port_position.y;
+            label.set_position(label_position);
+            placed_rectangles.push((absolute_x, absolute_y, label_size.x, label_size.y));
+        }
+    }
+
+    fn stack_vertical_side_labels_generic<T, N>(
+        node: &N,
+        entries: &[(usize, usize)],
+        gap_x: f64,
+        gap_y: f64,
+        avoid_rects: &[Rect],
+        restrict_to_port_band: bool,
+    ) where
+        N: NodeAdapter<T>,
+    {
+        if entries.is_empty() {
+            return;
+        }
+        if entries.len() <= 1 && avoid_rects.is_empty() {
+            return;
+        }
+
+        let ports = node.get_ports();
+        let mut sortable_entries: Vec<(usize, usize, f64)> = Vec::new();
+        for &(port_idx, label_idx) in entries {
+            let port = &ports[port_idx];
+            let labels = port.get_labels();
+            let label = &labels[label_idx];
+            if restrict_to_port_band {
+                let port_height = port.get_size().y;
+                let label_position = label.get_position();
+                let label_size = label.get_size();
+                if label_position.y + label_size.y <= 0.0 || label_position.y >= port_height {
+                    continue;
+                }
+            }
+            let port_position = port.get_position();
+            let label_position = label.get_position();
+            let absolute_y = port_position.y + label_position.y;
+            sortable_entries.push((port_idx, label_idx, absolute_y));
+        }
+
+        if sortable_entries.is_empty() {
+            return;
+        }
+        if sortable_entries.len() <= 1 && avoid_rects.is_empty() {
+            return;
+        }
+
+        sortable_entries.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(Ordering::Equal));
+
+        let mut placed_rectangles: Vec<(f64, f64, f64, f64)> =
+            Vec::with_capacity(avoid_rects.len());
+        for rect in avoid_rects {
+            placed_rectangles.push((rect.x, rect.y, rect.width, rect.height));
+        }
+
+        for (port_idx, label_idx, _) in sortable_entries {
+            let port = &ports[port_idx];
+            let labels = port.get_labels();
+            let label = &labels[label_idx];
+
+            let port_position = port.get_position();
+            let port_height = port.get_size().y;
+            let label_size = label.get_size();
+            let mut label_position = label.get_position();
+
+            let absolute_x = port_position.x + label_position.x;
+            let mut absolute_y = port_position.y + label_position.y;
+            let min_abs_y = port_position.y - label_size.y;
+            let max_abs_y = port_position.y + port_height;
+
+            loop {
+                let mut adjusted = false;
+                for (placed_x, placed_y, placed_w, placed_h) in &placed_rectangles {
+                    let horizontal_overlap = absolute_x < *placed_x + *placed_w + gap_x
+                        && absolute_x + label_size.x > *placed_x - gap_x;
+                    let vertical_overlap = absolute_y < *placed_y + *placed_h + gap_y
+                        && absolute_y + label_size.y > *placed_y - gap_y;
+
+                    if horizontal_overlap && vertical_overlap {
+                        absolute_y = *placed_y + *placed_h + gap_y;
+                        adjusted = true;
+                    }
+                }
+
+                if !adjusted {
+                    break;
+                }
+            }
+
+            if restrict_to_port_band {
+                if absolute_y < min_abs_y {
+                    absolute_y = min_abs_y;
+                } else if absolute_y > max_abs_y {
+                    absolute_y = max_abs_y;
+                }
+            }
             label_position.y = absolute_y - port_position.y;
             label.set_position(label_position);
             placed_rectangles.push((absolute_x, absolute_y, label_size.x, label_size.y));

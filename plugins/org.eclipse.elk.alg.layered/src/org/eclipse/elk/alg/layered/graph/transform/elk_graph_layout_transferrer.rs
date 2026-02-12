@@ -510,6 +510,26 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
             return;
         };
 
+        if std::env::var("ELK_TRACE").is_ok() {
+            let edge_id_str = {
+                let mut edge_mut = elk_edge.borrow_mut();
+                edge_mut.element().identifier().map(|id| id.to_string())
+            };
+            if edge_id_str.as_deref() == Some("e2") {
+                let bend_count = ledge
+                    .lock()
+                    .ok()
+                    .map(|edge_guard| edge_guard.bend_points_ref().len())
+                    .unwrap_or(0);
+                eprintln!(
+                    "[transferrer] e2 apply_layout source_present={} target_present={} bendpoints={}",
+                    source.is_some(),
+                    target.is_some(),
+                    bend_count
+                );
+            }
+        }
+
         let edge_offset = offset;
 
         // Determine source and target nodes for the is_descendant check

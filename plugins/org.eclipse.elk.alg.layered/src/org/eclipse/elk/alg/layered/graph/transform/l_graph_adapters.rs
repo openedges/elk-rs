@@ -174,6 +174,10 @@ impl LNodeAdapter {
             transparent_north_south_edges,
         }
     }
+
+    pub fn element(&self) -> &LNodeRef {
+        &self.node
+    }
 }
 
 impl GraphElementAdapter<LNodeRef> for LNodeAdapter {

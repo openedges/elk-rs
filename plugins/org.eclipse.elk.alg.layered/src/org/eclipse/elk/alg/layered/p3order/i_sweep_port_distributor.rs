@@ -24,7 +24,7 @@ impl dyn ISweepPortDistributor {
     ) -> Box<dyn ISweepPortDistributor> {
         if cross_min_type == CrossMinType::TwoSidedGreedySwitch {
             Box::new(GreedyPortDistributor::new())
-        } else if random.next_int(2) == 0 {
+        } else if random.next_boolean() {
             Box::new(NodeRelativePortDistributor::new(num_layers))
         } else {
             Box::new(LayerTotalPortDistributor::new(num_layers))

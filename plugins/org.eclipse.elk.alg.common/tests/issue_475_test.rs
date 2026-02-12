@@ -1,4 +1,7 @@
-use org_eclipse_elk_core::org::eclipse::elk::core::math::KVector;
+#[path = "../../org.eclipse.elk.alg.layered/tests/elkt_test_loader.rs"]
+mod elkt_test_loader;
+
+use elkt_test_loader::load_graph_from_elkt;
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::FixedLayouterOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{
@@ -6,64 +9,69 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::{
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::IGraphLayoutEngine;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
-use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
+use std::path::PathBuf;
 
 const SIZE: f64 = 20.0;
 
 #[test]
 fn test_compound_node_size() {
-    let fixed_size_graph = create_compound_graph(true);
-    let resizable_graph = create_compound_graph(false);
+    let fixed_size_graph = load_issue_475_graph();
+    let resizable_graph = load_issue_475_graph();
+
+    configure_fixed_graph_size(&fixed_size_graph, true);
+    configure_fixed_graph_size(&resizable_graph, false);
 
     run_fixed_layout(&fixed_size_graph);
     run_fixed_layout(&resizable_graph);
 
-    do_test_compound_node_size(&fixed_size_graph);
-    do_test_compound_node_size(&resizable_graph);
+    assert_graph_size_behavior(&fixed_size_graph);
+    assert_graph_size_behavior(&resizable_graph);
 }
 
-fn create_compound_graph(fixed_graph_size: bool) -> ElkNodeRef {
-    let graph = ElkGraphUtil::create_graph();
-    set_node_dimensions(&graph, SIZE, SIZE);
-    set_node_property(
-        &graph,
-        FixedLayouterOptions::NODE_SIZE_FIXED_GRAPH_SIZE,
-        fixed_graph_size,
-    );
+fn load_issue_475_graph() -> ElkNodeRef {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../external/elk-models/tickets/core/475_fixedLayoutWithLongLabels.elkt");
+    let path = path.to_string_lossy().into_owned();
+    load_graph_from_elkt(&path, Some(FixedLayouterOptions::ALGORITHM_ID))
+        .unwrap_or_else(|err| panic!("issue 475 graph should load: {err}"))
+}
 
-    let child_a = ElkGraphUtil::create_node(Some(graph.clone()));
-    set_node_dimensions(&child_a, 10.0, 8.0);
-    set_node_property(
-        &child_a,
-        FixedLayouterOptions::POSITION,
-        KVector::with_values(6.0, 3.0),
-    );
-
-    let child_b = ElkGraphUtil::create_node(Some(graph.clone()));
-    set_node_dimensions(&child_b, 12.0, 9.0);
-    set_node_property(
-        &child_b,
-        FixedLayouterOptions::POSITION,
-        KVector::with_values(26.0, 4.0),
-    );
-
-    let child_c = ElkGraphUtil::create_node(Some(graph.clone()));
-    set_node_dimensions(&child_c, 7.0, 12.0);
-    set_node_property(
-        &child_c,
-        FixedLayouterOptions::POSITION,
-        KVector::with_values(2.0, 22.0),
-    );
-
-    graph
+fn configure_fixed_graph_size(graph: &ElkNodeRef, fixed_graph_size: bool) {
+    let children: Vec<ElkNodeRef> = graph.borrow_mut().children().iter().cloned().collect();
+    for child in children {
+        set_node_property(
+            &child,
+            FixedLayouterOptions::NODE_SIZE_FIXED_GRAPH_SIZE,
+            fixed_graph_size,
+        );
+        if fixed_graph_size {
+            set_node_dimensions(&child, SIZE, SIZE);
+        }
+    }
 }
 
 fn run_fixed_layout(graph: &ElkNodeRef) {
     LayoutMetaDataService::get_instance();
-    let mut provider = FixedLayoutProvider::new();
-    let mut monitor = NullElkProgressMonitor;
-    provider.layout(graph, &mut monitor);
+    let children: Vec<ElkNodeRef> = graph.borrow_mut().children().iter().cloned().collect();
+    if children.is_empty() {
+        let mut provider = FixedLayoutProvider::new();
+        let mut monitor = NullElkProgressMonitor;
+        provider.layout(graph, &mut monitor);
+    } else {
+        for child in children {
+            let mut provider = FixedLayoutProvider::new();
+            let mut monitor = NullElkProgressMonitor;
+            provider.layout(&child, &mut monitor);
+        }
+    }
+}
+
+fn assert_graph_size_behavior(graph: &ElkNodeRef) {
+    let children: Vec<ElkNodeRef> = graph.borrow_mut().children().iter().cloned().collect();
+    for node in children {
+        do_test_compound_node_size(&node);
+    }
 }
 
 fn do_test_compound_node_size(node: &ElkNodeRef) {

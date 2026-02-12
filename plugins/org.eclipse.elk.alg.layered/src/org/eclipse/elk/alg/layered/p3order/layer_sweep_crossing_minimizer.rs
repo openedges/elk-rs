@@ -45,7 +45,7 @@ pub struct LayerSweepCrossingMinimizer {
     graph_info_holders: Vec<GraphInfoHolder>,
     graphs_whose_node_order_changed: BTreeSet<usize>,
     random: Random,
-    random_seed: Random,
+    random_seed: u64,
 }
 
 impl LayerSweepCrossingMinimizer {
@@ -55,7 +55,7 @@ impl LayerSweepCrossingMinimizer {
             graph_info_holders: Vec::new(),
             graphs_whose_node_order_changed: BTreeSet::new(),
             random: Random::default(),
-            random_seed: Random::default(),
+            random_seed: 0,
         }
     }
 
@@ -99,7 +99,7 @@ impl LayerSweepCrossingMinimizer {
     }
 
     fn minimize_crossings_no_counter(&mut self, index: usize) {
-        let mut is_forward_sweep = self.random.next_int(2) == 0;
+        let mut is_forward_sweep = self.random.next_boolean();
         let mut previous_crossings = self.count_current_number_of_crossings(index);
         loop {
             self.prepare_cross_minimizer(index);
@@ -195,7 +195,7 @@ impl LayerSweepCrossingMinimizer {
 
     fn minimize_crossings_with_counter(&mut self, index: usize) -> i32 {
         let trace = std::env::var_os("ELK_TRACE_CROSSMIN").is_some();
-        let mut is_forward_sweep = self.random.next_int(2) == 0;
+        let mut is_forward_sweep = self.random.next_boolean();
 
         let initial_crossings = self.count_current_number_of_crossings(index) as f64;
         if trace {
@@ -272,7 +272,7 @@ impl LayerSweepCrossingMinimizer {
 
     fn minimize_crossings_node_port_order_with_counter(&mut self, index: usize) -> f64 {
         let trace = std::env::var_os("ELK_TRACE_CROSSMIN").is_some();
-        let mut is_forward_sweep = self.random.next_int(2) == 0;
+        let mut is_forward_sweep = self.random.next_boolean();
 
         let initial_crossings = self.count_current_number_of_crossings_node_port_order(index);
         if trace {
@@ -773,24 +773,35 @@ impl LayerSweepCrossingMinimizer {
         if std::env::var_os("ELK_TRACE_CROSSMIN").is_some() {
             eprintln!("crossmin: reset_random_for_all_graphs");
         }
-        self.random = self.random_seed.clone();
-        let seed = self.random_seed.clone();
+        self.random.set_seed(self.random_seed);
         for graph_data in &mut self.graph_info_holders {
-            let _ = Self::reset_random_for_graph(graph_data, seed.clone());
+            let _ = Self::reset_random_for_graph(graph_data, self.random_seed);
         }
     }
 
-    fn reset_random_for_graph(graph_data: &mut GraphInfoHolder, seed: Random) -> Option<()> {
-        if let Some(heuristic) = graph_data.cross_minimizer().as_any_mut().downcast_mut::<crate::org::eclipse::elk::alg::layered::p3order::BarycenterHeuristic>() {
-            heuristic.set_random(seed);
+    fn reset_random_for_graph(graph_data: &mut GraphInfoHolder, seed: u64) -> Option<()> {
+        if let Some(heuristic) = graph_data
+            .cross_minimizer()
+            .as_any_mut()
+            .downcast_mut::<crate::org::eclipse::elk::alg::layered::p3order::BarycenterHeuristic>()
+        {
+            heuristic.set_random_seed(seed);
             return Some(());
         }
-        if let Some(heuristic) = graph_data.cross_minimizer().as_any_mut().downcast_mut::<crate::org::eclipse::elk::alg::layered::p3order::ModelOrderBarycenterHeuristic>() {
-            heuristic.set_random(seed);
+        if let Some(heuristic) = graph_data
+            .cross_minimizer()
+            .as_any_mut()
+            .downcast_mut::<crate::org::eclipse::elk::alg::layered::p3order::ModelOrderBarycenterHeuristic>()
+        {
+            heuristic.set_random_seed(seed);
             return Some(());
         }
-        if let Some(heuristic) = graph_data.cross_minimizer().as_any_mut().downcast_mut::<crate::org::eclipse::elk::alg::layered::p3order::MedianHeuristic>() {
-            heuristic.set_random(seed);
+        if let Some(heuristic) = graph_data
+            .cross_minimizer()
+            .as_any_mut()
+            .downcast_mut::<crate::org::eclipse::elk::alg::layered::p3order::MedianHeuristic>()
+        {
+            heuristic.set_random_seed(seed);
             return Some(());
         }
         None
@@ -804,7 +815,7 @@ impl LayerSweepCrossingMinimizer {
         self.random = root_graph_guard
             .get_property(InternalProperties::RANDOM)
             .unwrap_or_default();
-        self.random_seed = self.random.clone();
+        self.random_seed = self.random.next_long() as u64;
 
         let mut graphs_to_sweep_on: Vec<usize> = Vec::new();
         let mut queue: VecDeque<LGraphRef> = VecDeque::new();

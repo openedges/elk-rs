@@ -1,11 +1,18 @@
-use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::elk_layered::ElkLayered;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::transform::elk_graph_importer::ElkGraphImporter;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::transform::elk_graph_transformer::OriginStore;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::{
     LayeredMetaDataProvider, LayeredOptions, LayeringStrategy,
 };
+use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::p2layers::coffman_graham_layerer::CoffmanGrahamLayerer;
+use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::p2layers::interactive_layerer::InteractiveLayerer;
+use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::p2layers::longest_path_layerer::LongestPathLayerer;
+use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::p2layers::min_width_layerer::MinWidthLayerer;
+use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::p2layers::network_simplex_layerer::NetworkSimplexLayerer;
+use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::p2layers::stretch_width_layerer::StretchWidthLayerer;
+use org_eclipse_elk_core::org::eclipse::elk::core::alg::ILayoutPhase;
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::BasicProgressMonitor;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkConnectableShapeRef, ElkNodeRef};
@@ -154,7 +161,7 @@ fn import_lgraph(
     importer.import_graph(root)
 }
 
-fn run_layout_for_strategy(
+fn run_layerer_for_strategy(
     strategy: LayeringStrategy,
 ) -> org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LGraphRef {
     init_layered_options();
@@ -167,19 +174,54 @@ fn run_layout_for_strategy(
     }
 
     let lgraph = import_lgraph(&root);
-    let mut layered = ElkLayered::new();
-    layered.do_layout(&lgraph, None);
+    let mut monitor = BasicProgressMonitor::new();
+    if let Ok(mut graph_guard) = lgraph.lock() {
+        match strategy {
+            LayeringStrategy::CoffmanGraham => {
+                let mut layerer = CoffmanGrahamLayerer::new();
+                layerer.process(&mut *graph_guard, &mut monitor);
+            }
+            LayeringStrategy::Interactive => {
+                let mut layerer = InteractiveLayerer::new();
+                layerer.process(&mut *graph_guard, &mut monitor);
+            }
+            LayeringStrategy::LongestPath => {
+                let mut layerer = LongestPathLayerer::new();
+                layerer.process(&mut *graph_guard, &mut monitor);
+            }
+            LayeringStrategy::MinWidth => {
+                let mut layerer = MinWidthLayerer::new();
+                layerer.process(&mut *graph_guard, &mut monitor);
+            }
+            LayeringStrategy::NetworkSimplex => {
+                let mut layerer = NetworkSimplexLayerer::new();
+                layerer.process(&mut *graph_guard, &mut monitor);
+            }
+            LayeringStrategy::StretchWidth => {
+                let mut layerer = StretchWidthLayerer::new();
+                layerer.process(&mut *graph_guard, &mut monitor);
+            }
+            LayeringStrategy::LongestPathSource => {
+                let mut layerer = LongestPathLayerer::new();
+                layerer.process(&mut *graph_guard, &mut monitor);
+            }
+            _ => {
+                let mut layerer = NetworkSimplexLayerer::new();
+                layerer.process(&mut *graph_guard, &mut monitor);
+            }
+        }
+    }
     lgraph
 }
 
 fn assert_no_layerless_nodes(strategy: LayeringStrategy) {
-    let lgraph = run_layout_for_strategy(strategy);
+    let lgraph = run_layerer_for_strategy(strategy);
     let graph_guard = lgraph.lock().expect("lgraph lock");
     assert!(graph_guard.layerless_nodes().is_empty());
 }
 
 fn assert_no_empty_layers(strategy: LayeringStrategy) {
-    let lgraph = run_layout_for_strategy(strategy);
+    let lgraph = run_layerer_for_strategy(strategy);
     let graph_guard = lgraph.lock().expect("lgraph lock");
     let layers = graph_guard.layers().clone();
     drop(graph_guard);
@@ -193,7 +235,7 @@ fn assert_no_empty_layers(strategy: LayeringStrategy) {
 fn assert_edges_point_towards_next_layers(
     strategy: LayeringStrategy,
 ) {
-    let lgraph = run_layout_for_strategy(strategy);
+    let lgraph = run_layerer_for_strategy(strategy);
     let graph_guard = lgraph.lock().expect("lgraph lock");
     let layers = graph_guard.layers().clone();
     drop(graph_guard);

@@ -1,7 +1,7 @@
 mod elkt_test_loader;
 mod issue_support;
 
-use elkt_test_loader::{find_edge_by_identifier, load_layered_graph_from_elkt};
+use elkt_test_loader::load_layered_graph_from_elkt;
 use issue_support::{init_layered_options, node_bounds, run_layout};
 
 #[test]
@@ -16,15 +16,18 @@ fn issue_433_self_loop_label_is_inside_graph_bounds() {
 
     run_layout(&graph);
 
-    let edge = find_edge_by_identifier(&graph, "n1", "n1").expect("self-loop edge should exist");
     let (_, _, graph_width, graph_height) = node_bounds(&graph);
-    let labels = {
-        let mut edge_mut = edge.borrow_mut();
-        edge_mut.element().labels().iter().cloned().collect::<Vec<_>>()
-    };
-
-    assert_eq!(labels.len(), 1, "expected one self-loop label");
-    let mut label_mut = labels[0].borrow_mut();
+    let label = graph
+        .borrow_mut()
+        .contained_edges()
+        .iter()
+        .flat_map(|edge| {
+            let mut edge_mut = edge.borrow_mut();
+            edge_mut.element().labels().iter().cloned().collect::<Vec<_>>()
+        })
+        .next()
+        .expect("self-loop label should exist");
+    let mut label_mut = label.borrow_mut();
     let shape = label_mut.shape();
     assert!(
         shape.x() >= 0.0

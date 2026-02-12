@@ -60,3 +60,43 @@ fn test_partition_order() {
         p1_leftmost
     );
 }
+
+#[test]
+fn test_partition_order_non_consecutive() {
+    init_layered_options();
+
+    let graph = create_graph();
+    set_node_property(&graph, CoreOptions::PARTITIONING_ACTIVATE, true);
+
+    let p1 = create_node(&graph, 30.0, 30.0);
+    let p3 = create_node(&graph, 30.0, 30.0);
+
+    set_node_property(&p1, CoreOptions::PARTITIONING_PARTITION, 1);
+    set_node_property(&p3, CoreOptions::PARTITIONING_PARTITION, 3);
+
+    // Create an edge that violates partition order to exercise reversal logic.
+    ElkGraphUtil::create_simple_edge(
+        ElkConnectableShapeRef::Node(p3.clone()),
+        ElkConnectableShapeRef::Node(p1.clone()),
+    );
+
+    run_layout(&graph);
+
+    let p1_rightmost = {
+        let mut node_mut = p1.borrow_mut();
+        let shape = node_mut.connectable().shape();
+        shape.x() + shape.width()
+    };
+    let p3_leftmost = {
+        let mut node_mut = p3.borrow_mut();
+        let shape = node_mut.connectable().shape();
+        shape.x()
+    };
+
+    assert!(
+        p1_rightmost < p3_leftmost,
+        "partition order must hold for non-consecutive partitions: rightmost(p1)={} leftmost(p3)={}",
+        p1_rightmost,
+        p3_leftmost
+    );
+}

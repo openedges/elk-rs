@@ -67,6 +67,7 @@ impl OrthogonalRoutingGenerator {
             &mut edge_segments,
             &mut port_to_segment_map,
         );
+        self.trace_segments("initial", &edge_segments);
 
         self.critical_conflict_threshold =
             Self::CRITICAL_CONFLICT_THRESHOLD_FACTOR * self.minimum_horizontal_segment_distance(&edge_segments);
@@ -88,8 +89,10 @@ impl OrthogonalRoutingGenerator {
         if critical_dependency_count >= 2 {
             self.break_critical_cycles(&mut edge_segments, &mut random);
         }
+        self.trace_segments("after_critical", &edge_segments);
 
         Self::break_non_critical_cycles(&edge_segments, &mut random);
+        self.trace_segments("after_noncritical", &edge_segments);
 
         Self::topological_numbering(&edge_segments);
 
@@ -106,6 +109,53 @@ impl OrthogonalRoutingGenerator {
 
         self.routing_strategy.clear_created_junction_points();
         rank_count + 1
+    }
+
+    fn trace_segments(&self, label: &str, edge_segments: &[HyperEdgeSegmentRef]) {
+        if std::env::var("ELK_TRACE_ORTHO").is_err() {
+            return;
+        }
+
+        let prefix = self.debug_prefix.as_deref().unwrap_or("?");
+        eprintln!(
+            "[orthogonal:{}] {} segments={}",
+            prefix,
+            label,
+            edge_segments.len()
+        );
+
+        for (idx, segment) in edge_segments.iter().enumerate() {
+            let seg = segment.borrow();
+            let ports = seg
+                .ports()
+                .iter()
+                .map(|port| {
+                    if let Ok(mut port_guard) = port.lock() {
+                        let node_name = port_guard
+                            .node()
+                            .and_then(|node| node.lock().ok().map(|mut node_guard| node_guard.designation()))
+                            .unwrap_or_else(|| "?".to_string());
+                        let anchor = port_guard.absolute_anchor().map(|a| a.y).unwrap_or(0.0);
+                        format!("{}:{:?}@{:.1}", node_name, port_guard.side(), anchor)
+                    } else {
+                        "?".to_string()
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            eprintln!(
+                "  seg#{idx} slot={} start={:.1} end={:.1} incoming={:?} outgoing={:?} split_by={} split_partner={} ports=[{}]",
+                seg.routing_slot(),
+                seg.start_coordinate(),
+                seg.end_coordinate(),
+                seg.incoming_connection_coordinates(),
+                seg.outgoing_connection_coordinates(),
+                seg.split_by().is_some(),
+                seg.split_partner().is_some(),
+                ports
+            );
+        }
     }
 
     fn create_hyper_edge_segments(

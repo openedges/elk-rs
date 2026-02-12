@@ -14,13 +14,3 @@ portLabel west text:west size:20,10
 portLabel east text:east size:20,10
 portLabel north text:north size:20,10
 portLabel south text:south size:20,10
-
-node west_partner [size:30,20]
-node east_partner [size:30,20]
-node north_partner [size:30,20]
-node south_partner [size:30,20]
-
-edge west_in: west_partner -> west
-edge east_out: east -> east_partner
-edge north_out: north -> north_partner
-edge south_in: south_partner -> south

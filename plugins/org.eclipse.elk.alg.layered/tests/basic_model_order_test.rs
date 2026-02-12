@@ -1,12 +1,15 @@
-use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::elk_layered::ElkLayered;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::transform::elk_graph_importer::ElkGraphImporter;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::transform::elk_graph_transformer::OriginStore;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::{
     CycleBreakingStrategy, InternalProperties, LayeredMetaDataProvider, LayeredOptions,
     LayeringStrategy,
 };
+use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::p2layers::breadth_first_model_order_layerer::BreadthFirstModelOrderLayerer;
+use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::p2layers::depth_first_model_order_layerer::DepthFirstModelOrderLayerer;
+use org_eclipse_elk_core::org::eclipse::elk::core::alg::ILayoutPhase;
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::BasicProgressMonitor;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkConnectableShapeRef, ElkNodeRef};
@@ -26,8 +29,20 @@ fn model_order_layering_runs() {
         set_node_property(&root, LayeredOptions::LAYERING_STRATEGY, strategy);
 
         let lgraph = import_lgraph(&root);
-        let mut layered = ElkLayered::new();
-        layered.do_layout(&lgraph, None);
+        let mut monitor = BasicProgressMonitor::new();
+        if let Ok(mut graph_guard) = lgraph.lock() {
+            match strategy {
+                LayeringStrategy::BfModelOrder => {
+                    let mut layerer = BreadthFirstModelOrderLayerer::new();
+                    layerer.process(&mut *graph_guard, &mut monitor);
+                }
+                LayeringStrategy::DfModelOrder => {
+                    let mut layerer = DepthFirstModelOrderLayerer::new();
+                    layerer.process(&mut *graph_guard, &mut monitor);
+                }
+                _ => {}
+            }
+        }
 
         assert_layering_invariants(&lgraph);
     }

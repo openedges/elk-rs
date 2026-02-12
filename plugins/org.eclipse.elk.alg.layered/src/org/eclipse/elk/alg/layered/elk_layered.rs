@@ -22,6 +22,16 @@ use crate::org::eclipse::elk::alg::layered::options::{
     GraphProperties, InternalProperties, LayeredOptions,
 };
 
+#[cfg(debug_assertions)]
+fn trace_step(message: &str) {
+    if std::env::var("ELK_TRACE").is_ok() {
+        eprintln!("[elk-layered] {message}");
+    }
+}
+
+#[cfg(not(debug_assertions))]
+fn trace_step(_message: &str) {}
+
 pub struct ElkLayered {
     graph_configurator: GraphConfigurator,
     components_processor: ComponentsProcessor,
@@ -106,28 +116,40 @@ impl ElkLayered {
         lgraph: &LGraphRef,
         monitor: &mut dyn IElkProgressMonitor,
     ) {
+        trace_step("compound layout: begin");
         monitor.begin("Layered layout", 2.0);
 
         let mut pre_monitor = monitor.sub_task(1.0);
-        if let Ok(mut graph_guard) = lgraph.lock() {
+        trace_step("compound layout: preprocessor start");
+        if let Ok(graph_guard) = lgraph.lock() {
             self.notify_processor_ready_with_graph(&graph_guard, &self.compound_graph_preprocessor);
-            self.compound_graph_preprocessor
-                .process(&mut *graph_guard, pre_monitor.as_mut());
+        }
+        self.compound_graph_preprocessor
+            .process_with_ref(lgraph, pre_monitor.as_mut());
+        if let Ok(graph_guard) = lgraph.lock() {
             self.notify_processor_finished_with_graph(&graph_guard, &self.compound_graph_preprocessor);
         }
+        trace_step("compound layout: preprocessor done");
 
         let mut layout_monitor = monitor.sub_task(1.0);
+        trace_step("compound layout: hierarchical layout start");
         self.hierarchical_layout(lgraph, layout_monitor.as_mut());
+        trace_step("compound layout: hierarchical layout done");
 
         let mut post_monitor = monitor.sub_task(1.0);
-        if let Ok(mut graph_guard) = lgraph.lock() {
+        trace_step("compound layout: postprocessor start");
+        if let Ok(graph_guard) = lgraph.lock() {
             self.notify_processor_ready_with_graph(&graph_guard, &self.compound_graph_postprocessor);
-            self.compound_graph_postprocessor
-                .process(&mut *graph_guard, post_monitor.as_mut());
+        }
+        self.compound_graph_postprocessor
+            .process_with_ref(lgraph, post_monitor.as_mut());
+        if let Ok(graph_guard) = lgraph.lock() {
             self.notify_processor_finished_with_graph(&graph_guard, &self.compound_graph_postprocessor);
         }
+        trace_step("compound layout: postprocessor done");
 
         monitor.done();
+        trace_step("compound layout: done");
     }
 
     pub fn prepare_layout_test(&mut self, lgraph: &LGraphRef) -> TestExecutionState {
@@ -279,9 +301,12 @@ impl ElkLayered {
             let mut sub_monitor = monitor.sub_task(monitor_progress);
             if let Ok(mut graph_guard) = lgraph.lock() {
                 if let Ok(mut proc_guard) = processor.lock() {
+                    let proc_name = proc_guard.type_name();
+                    trace_step(&format!("processor start: {proc_name}"));
                     self.notify_processor_ready_with_graph(&graph_guard, proc_guard.as_ref());
                     proc_guard.process(&mut *graph_guard, sub_monitor.as_mut());
                     self.notify_processor_finished_with_graph(&graph_guard, proc_guard.as_ref());
+                    trace_step(&format!("processor done: {proc_name}"));
                 }
             }
         }

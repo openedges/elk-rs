@@ -586,7 +586,7 @@ fn create_port_distributors(
         return (Box::new(GreedyPortDistributor::new()), None);
     }
 
-    let use_node_relative = random.next_int(2) == 0;
+    let use_node_relative = random.next_boolean();
     let needs_barycenter = cross_min_type == CrossMinType::Barycenter;
     if use_node_relative {
         if trace {

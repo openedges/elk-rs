@@ -67,6 +67,10 @@ impl ComponentsProcessor {
                 continue;
             }
 
+            if result.is_empty() && component_nodes.len() == nodes.len() {
+                return vec![graph.clone()];
+            }
+
             let component_graph = LGraph::new();
             if let Ok(mut component_guard) = component_graph.lock() {
                 *component_guard.graph_element().properties_mut() = graph_props.clone();

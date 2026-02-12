@@ -1,41 +1,95 @@
 mod elkt_test_loader;
-mod issue_support;
-
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, OnceLock};
 
 use elkt_test_loader::load_graph_from_elkt;
-use issue_support::{init_layered_options, run_recursive_layout};
 
-use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::LayeredOptions;
+use org_eclipse_elk_alg_force::org::eclipse::elk::alg::force::options::{
+    ForceMetaDataProvider, StressMetaDataProvider, StressOptions,
+};
+use org_eclipse_elk_alg_force::org::eclipse::elk::alg::force::stress::StressLayoutProvider;
+use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::plain_java_initialization::initialize_plain_java_layout;
+use org_eclipse_elk_alg_rectpacking::org::eclipse::elk::alg::rectpacking::options::{
+    RectPackingMetaDataProvider, RectPackingOptions,
+};
+use org_eclipse_elk_alg_rectpacking::org::eclipse::elk::alg::rectpacking::RectPackingLayoutProvider;
+use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
+use org_eclipse_elk_core::org::eclipse::elk::core::IGraphLayoutEngine;
+use org_eclipse_elk_core::org::eclipse::elk::core::recursive_graph_layout_engine::RecursiveGraphLayoutEngine;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::{AlgorithmFactory, InstancePool, NullElkProgressMonitor};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 
-const LIVE_EXAMPLES: &[&str] = &[
-    "external/elk/plugins/org.eclipse.elk.alg.layered/images/example.elkt",
-    "external/elk/plugins/org.eclipse.elk.core/images/exampleBox.elkt",
-    "external/elk/plugins/org.eclipse.elk.core/images/exampleRandomizer.elkt",
-];
-
 #[test]
-fn live_examples_load_and_layout_without_exceptions() {
-    init_layered_options();
+fn elk_live_examples_test() {
+    init_live_examples_layout();
 
-    for relative_path in LIVE_EXAMPLES {
-        let path = workspace_path(relative_path);
-        assert!(
-            path.exists(),
-            "example file should exist: {}",
-            path.display()
-        );
+    let examples_root = workspace_path("external/elk-models/examples");
+    assert!(
+        examples_root.exists(),
+        "examples directory should exist: {}",
+        examples_root.display()
+    );
+
+    let mut example_files = Vec::new();
+    collect_elkt_files(&examples_root, &mut example_files);
+    example_files.sort();
+
+    assert!(
+        !example_files.is_empty(),
+        "expected to find .elkt examples under {}",
+        examples_root.display()
+    );
+
+    for path in example_files {
         let path_str = path.to_string_lossy().to_string();
-
-        let graph =
-            load_graph_from_elkt(path_str.as_str(), Some(LayeredOptions::ALGORITHM_ID))
-                .unwrap_or_else(|err| {
-                    panic!("failed to load example '{}': {err}", path.display());
-                });
+        let graph = load_graph_from_elkt(path_str.as_str(), None).unwrap_or_else(|err| {
+            panic!("failed to load example '{}': {err}", path.display());
+        });
 
         run_recursive_layout(&graph);
         assert_graph_has_finite_node_geometry(path_str.as_str(), &graph);
+    }
+}
+
+fn init_live_examples_layout() {
+    static INIT: OnceLock<()> = OnceLock::new();
+    INIT.get_or_init(|| {
+        initialize_plain_java_layout();
+
+        let service = LayoutMetaDataService::get_instance();
+        service.register_layout_meta_data_provider(&RectPackingMetaDataProvider);
+        service.register_layout_meta_data_provider(&ForceMetaDataProvider);
+        service.register_layout_meta_data_provider(&StressMetaDataProvider);
+
+        let rect_factory = AlgorithmFactory::new(|| Box::new(RectPackingLayoutProvider::new()));
+        let rect_pool = InstancePool::new(Box::new(rect_factory));
+        service.override_algorithm_provider_pool(RectPackingOptions::ALGORITHM_ID, Arc::new(rect_pool));
+
+        let stress_factory = AlgorithmFactory::new(|| Box::new(StressLayoutProvider::new()));
+        let stress_pool = InstancePool::new(Box::new(stress_factory));
+        service.override_algorithm_provider_pool(StressOptions::ALGORITHM_ID, Arc::new(stress_pool));
+    });
+}
+
+fn run_recursive_layout(graph: &ElkNodeRef) {
+    let mut engine = RecursiveGraphLayoutEngine::new();
+    let mut monitor = NullElkProgressMonitor;
+    engine.layout(graph, &mut monitor);
+}
+
+fn collect_elkt_files(dir: &Path, files: &mut Vec<PathBuf>) {
+    let entries = std::fs::read_dir(dir)
+        .unwrap_or_else(|err| panic!("failed to read directory '{}': {err}", dir.display()));
+    for entry in entries {
+        let entry = entry.unwrap_or_else(|err| {
+            panic!("failed to read directory entry in '{}': {err}", dir.display())
+        });
+        let path = entry.path();
+        if path.is_dir() {
+            collect_elkt_files(&path, files);
+        } else if path.extension().and_then(|ext| ext.to_str()) == Some("elkt") {
+            files.push(path);
+        }
     }
 }
 

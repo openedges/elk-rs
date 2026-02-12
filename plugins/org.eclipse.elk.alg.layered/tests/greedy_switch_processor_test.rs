@@ -34,9 +34,16 @@ fn new_graph() -> LGraphRef {
             LayeredOptions::HIERARCHY_HANDLING,
             Some(HierarchyHandling::IncludeChildren),
         );
-        graph_guard.set_property(InternalProperties::RANDOM, Some(Random::new(4096)));
+        graph_guard.set_property(InternalProperties::RANDOM, Some(mock_random(true)));
     }
     graph
+}
+
+fn mock_random(next_boolean: bool) -> Random {
+    let mut random = Random::new(0);
+    random.set_mock_next_boolean(next_boolean);
+    random.set_mock_double_sequence(0.01, 0.01);
+    random
 }
 
 fn make_layer(graph: &LGraphRef) -> LayerRef {

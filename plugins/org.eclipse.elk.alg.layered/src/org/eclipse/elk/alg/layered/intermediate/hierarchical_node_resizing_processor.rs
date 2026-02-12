@@ -14,6 +14,12 @@ use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LGraphRef, LGraphUti
 use crate::org::eclipse::elk::alg::layered::options::{GraphProperties, InternalProperties, LayeredOptions};
 use crate::org::eclipse::elk::alg::layered::options::internal_properties::Origin;
 
+fn trace_resize(message: &str) {
+    if std::env::var("ELK_TRACE").is_ok() {
+        eprintln!("[hierarchical-resize] {message}");
+    }
+}
+
 /// This processor resizes a child graph to fit the parent node. It must be run as the last non-hierarchical processor in
 /// a hierarchical graph.
 ///
@@ -35,6 +41,7 @@ impl Default for HierarchicalNodeResizingProcessor {
 
 impl ILayoutProcessor<LGraph> for HierarchicalNodeResizingProcessor {
     fn process(&mut self, graph: &mut LGraph, progress_monitor: &mut dyn IElkProgressMonitor) {
+        trace_resize("start");
         progress_monitor.begin("Resize child graph to fit parent.", 1.0);
 
         // Move all nodes from all layers to layerless
@@ -46,6 +53,7 @@ impl ILayoutProcessor<LGraph> for HierarchicalNodeResizingProcessor {
                 layer_guard.nodes_mut().clear();
             }
         }
+        trace_resize("moved nodes to layerless");
 
         // Clear layer assignments for all layerless nodes
         for node in graph.layerless_nodes().clone() {
@@ -54,18 +62,23 @@ impl ILayoutProcessor<LGraph> for HierarchicalNodeResizingProcessor {
 
         // Clear all layers
         graph.layers_mut().clear();
+        trace_resize("cleared layers");
 
         // Resize the graph
         resize_graph(graph);
+        trace_resize("resized graph");
 
         // If nested, transfer layout to parent node
         if is_nested(graph) {
             if let Some(parent_node) = graph.parent_node() {
+                trace_resize("transfer layout to parent");
                 graph_layout_to_node(&parent_node, graph);
+                trace_resize("transfer layout done");
             }
         }
 
         progress_monitor.done();
+        trace_resize("done");
     }
 }
 
@@ -75,48 +88,128 @@ impl ILayoutProcessor<LGraph> for HierarchicalNodeResizingProcessor {
 /// * `node` - a compound node
 /// * `lgraph` - the graph nested in the compound node
 fn graph_layout_to_node(node: &LNodeRef, lgraph: &mut LGraph) {
+    let trace_external_ports = std::env::var("ELK_TRACE_EXTERNAL_PORTS").is_ok();
+    let (graph_padding, graph_offset) = if trace_external_ports {
+        (
+            lgraph.padding_ref().clone(),
+            *lgraph.offset_ref(),
+        )
+    } else {
+        (Default::default(), KVector::new())
+    };
     // Process external ports
     let layerless_nodes = lgraph.layerless_nodes().clone();
     for child_node in &layerless_nodes {
-        if let Ok(mut child_guard) = child_node.lock() {
-            if let Some(Origin::LPort(port_ref)) = child_guard.get_property(InternalProperties::ORIGIN) {
-                // Get port size and external port side
-                let port_size = if let Ok(mut port_guard) = port_ref.lock() {
-                    *port_guard.shape().size_ref()
-                } else {
-                    continue;
-                };
+        let (port_ref, ext_port_side) = {
+            let mut child_guard = match child_node.lock() {
+                Ok(guard) => guard,
+                Err(_) => continue,
+            };
+            let port_ref = match child_guard.get_property(InternalProperties::ORIGIN) {
+                Some(Origin::LPort(port_ref)) => port_ref,
+                _ => continue,
+            };
+            let ext_port_side = child_guard
+                .get_property(InternalProperties::EXT_PORT_SIDE)
+                .unwrap_or(PortSide::Undefined);
+            (port_ref, ext_port_side)
+        };
 
-                let ext_port_side = child_guard
-                    .get_property(InternalProperties::EXT_PORT_SIDE)
-                    .unwrap_or(PortSide::Undefined);
+        trace_resize("external port dummy found");
 
-                // Get the graph reference
-                let graph_ref = if let Some(graph) = child_guard.graph() {
-                    graph
-                } else {
-                    continue;
-                };
+        // Get port size and external port side
+        let port_size = if let Ok(mut port_guard) = port_ref.lock() {
+            *port_guard.shape().size_ref()
+        } else {
+            continue;
+        };
 
-                let port_position = LGraphUtil::get_external_port_position(
-                    &graph_ref,
-                    child_node,
-                    port_size.x,
-                    port_size.y,
-                );
-
-                // Set port position and side
-                if let Ok(mut port_guard) = port_ref.lock() {
-                    let pos = port_guard.shape().position();
-                    pos.x = port_position.x;
-                    pos.y = port_position.y;
-                    port_guard.set_side(ext_port_side);
-                }
-            }
+        let port_position = get_external_port_position_for_graph(
+            lgraph,
+            child_node,
+            port_size.x,
+            port_size.y,
+        );
+        if trace_external_ports {
+            let (dummy_pos, dummy_size, dummy_id, dummy_layer_id, dummy_margin_top, dummy_margin_bottom) = child_node
+                .lock()
+                .ok()
+                .map(|mut dummy_guard| {
+                    (
+                        *dummy_guard.shape().position_ref(),
+                        *dummy_guard.shape().size_ref(),
+                        dummy_guard.shape().graph_element().id,
+                        dummy_guard
+                            .get_property(LayeredOptions::LAYERING_LAYER_ID)
+                            .unwrap_or(-1),
+                        dummy_guard.margin().top,
+                        dummy_guard.margin().bottom,
+                    )
+                })
+                .unwrap_or((KVector::new(), KVector::new(), 0, -1, 0.0, 0.0));
+            let port_id = port_ref
+                .lock()
+                .ok()
+                .map(|mut port_guard| port_guard.shape().graph_element().id)
+                .unwrap_or(-1);
+            let label_debug = child_node
+                .lock()
+                .ok()
+                .and_then(|dummy_guard| dummy_guard.ports().first().cloned())
+                .and_then(|port| {
+                    port.lock().ok().map(|port_guard| {
+                        port_guard
+                            .labels()
+                            .iter()
+                            .filter_map(|label| {
+                                label.lock().ok().map(|mut label_guard| {
+                                    let pos = *label_guard.shape().position_ref();
+                                    let size = *label_guard.shape().size_ref();
+                                    format!("({:.1},{:.1})[{:.1}x{:.1}]", pos.x, pos.y, size.x, size.y)
+                                })
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                })
+                .unwrap_or_default()
+                .join(",");
+            eprintln!(
+                "[ext-port] port_id={} dummy_id={} layer_id={} side={:?} dummy_pos=({:.1},{:.1}) dummy_size=({:.1},{:.1}) margin=({:.1},{:.1}) labels=[{}] graph_pad=({:.1},{:.1},{:.1},{:.1}) graph_offset=({:.1},{:.1}) port_size=({:.1},{:.1}) port_pos=({:.1},{:.1})",
+                port_id,
+                dummy_id,
+                dummy_layer_id,
+                ext_port_side,
+                dummy_pos.x,
+                dummy_pos.y,
+                dummy_size.x,
+                dummy_size.y,
+                dummy_margin_top,
+                dummy_margin_bottom,
+                label_debug,
+                graph_padding.left,
+                graph_padding.top,
+                graph_padding.right,
+                graph_padding.bottom,
+                graph_offset.x,
+                graph_offset.y,
+                port_size.x,
+                port_size.y,
+                port_position.x,
+                port_position.y
+            );
         }
+
+        // Set port position and side
+        if let Ok(mut port_guard) = port_ref.lock() {
+            let pos = port_guard.shape().position();
+            pos.x = port_position.x;
+            pos.y = port_position.y;
+            port_guard.set_side(ext_port_side);
+        };
     }
 
     // Setup the parent node
+    trace_resize("setup parent node");
     let actual_graph_size = lgraph.actual_size();
     let has_external_ports = lgraph
         .get_property_ref(InternalProperties::GRAPH_PROPERTIES)
@@ -154,6 +247,62 @@ fn graph_layout_to_node(node: &LNodeRef, lgraph: &mut LGraph) {
 
 fn is_nested(graph: &LGraph) -> bool {
     graph.parent_node().is_some()
+}
+
+fn get_external_port_position_for_graph(
+    graph: &LGraph,
+    port_dummy: &LNodeRef,
+    port_width: f64,
+    port_height: f64,
+) -> KVector {
+    let mut dummy_guard = match port_dummy.lock() {
+        Ok(guard) => guard,
+        Err(_) => return KVector::new(),
+    };
+
+    let pos = *dummy_guard.shape().position_ref();
+    let size = *dummy_guard.shape().size_ref();
+    let mut port_pos = KVector::from_vector(&pos);
+    port_pos.x += size.x / 2.0;
+    port_pos.y += size.y / 2.0;
+    let port_offset = dummy_guard
+        .get_property(LayeredOptions::PORT_BORDER_OFFSET)
+        .unwrap_or(0.0);
+    let ext_side = dummy_guard
+        .get_property(InternalProperties::EXT_PORT_SIDE)
+        .unwrap_or(PortSide::Undefined);
+
+    let graph_size = *graph.size_ref();
+    let padding = graph.padding_ref().clone();
+    let graph_offset = *graph.offset_ref();
+
+    match ext_side {
+        PortSide::North => {
+            port_pos.x += padding.left + graph_offset.x - (port_width / 2.0);
+            port_pos.y = -port_height - port_offset;
+            dummy_guard.shape().position().y = -(padding.top + port_offset + graph_offset.y);
+        }
+        PortSide::East => {
+            port_pos.x = graph_size.x + padding.left + padding.right + port_offset;
+            port_pos.y += padding.top + graph_offset.y - (port_height / 2.0);
+            dummy_guard.shape().position().x =
+                graph_size.x + padding.right + port_offset - graph_offset.x;
+        }
+        PortSide::South => {
+            port_pos.x += padding.left + graph_offset.x - (port_width / 2.0);
+            port_pos.y = graph_size.y + padding.top + padding.bottom + port_offset;
+            dummy_guard.shape().position().y =
+                graph_size.y + padding.bottom + port_offset - graph_offset.y;
+        }
+        PortSide::West => {
+            port_pos.x = -port_width - port_offset;
+            port_pos.y += padding.top + graph_offset.y - (port_height / 2.0);
+            dummy_guard.shape().position().x = -(padding.left + port_offset + graph_offset.x);
+        }
+        PortSide::Undefined => {}
+    }
+
+    port_pos
 }
 
 /// Sets the size of the given graph such that size constraints are adhered to. Furthermore, the padding is

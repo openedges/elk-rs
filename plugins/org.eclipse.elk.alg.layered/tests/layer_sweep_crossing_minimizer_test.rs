@@ -26,7 +26,7 @@ fn new_graph() -> LGraphRef {
     init_layered_options();
     let graph = LGraph::new();
     if let Ok(mut graph_guard) = graph.lock() {
-        graph_guard.set_property(InternalProperties::RANDOM, Some(Random::new(17)));
+        graph_guard.set_property(InternalProperties::RANDOM, Some(mock_random(true)));
         graph_guard.set_property(LayeredOptions::EDGE_ROUTING, Some(EdgeRouting::Orthogonal));
         graph_guard.set_property(
             LayeredOptions::HIERARCHY_HANDLING,
@@ -34,6 +34,13 @@ fn new_graph() -> LGraphRef {
         );
     }
     graph
+}
+
+fn mock_random(next_boolean: bool) -> Random {
+    let mut random = Random::new(0);
+    random.set_mock_next_boolean(next_boolean);
+    random.set_mock_double_sequence(0.01, 0.01);
+    random
 }
 
 fn make_layer(graph: &LGraphRef) -> std::sync::Arc<std::sync::Mutex<Layer>> {
@@ -186,13 +193,32 @@ fn nested_graph(node: &LNodeRef) -> LGraphRef {
     if let Some(existing) = node.lock().ok().and_then(|guard| guard.nested_graph()) {
         return existing;
     }
-    let nested = new_graph();
+    let nested = LGraph::new();
+    let parent_random = {
+        let parent_graph = node
+            .lock()
+            .ok()
+            .and_then(|node_guard| node_guard.graph());
+        if let Some(parent_graph) = parent_graph {
+            if let Ok(mut graph_guard) = parent_graph.lock() {
+                graph_guard.get_property(InternalProperties::RANDOM)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    };
     if let Ok(mut nested_guard) = nested.lock() {
         nested_guard.set_parent_node(Some(node.clone()));
+        nested_guard.set_property(LayeredOptions::EDGE_ROUTING, Some(EdgeRouting::Orthogonal));
         nested_guard.set_property(
             LayeredOptions::HIERARCHY_HANDLING,
             Some(HierarchyHandling::IncludeChildren),
         );
+        if let Some(random) = parent_random {
+            nested_guard.set_property(InternalProperties::RANDOM, Some(random));
+        }
     }
     if let Ok(mut node_guard) = node.lock() {
         node_guard.set_nested_graph(Some(nested.clone()));
@@ -579,7 +605,7 @@ fn assert_simple_hierarchical_cross_sweeping_right_to_left_results_in_no_crossin
 ) {
     let graph = new_graph();
     if let Ok(mut graph_guard) = graph.lock() {
-        graph_guard.set_property(InternalProperties::RANDOM, Some(Random::new(0)));
+        graph_guard.set_property(InternalProperties::RANDOM, Some(mock_random(false)));
     }
     let left_layer = make_layer(&graph);
     let right_layer = make_layer(&graph);
@@ -839,8 +865,8 @@ fn given_compound_graph_where_order_is_only_corrected_on_forward_sweep_removes_c
 fn assert_graph_without_nesting_improves_on_backward_sweep(cross_min_type: CrossMinType) {
     let graph = new_graph();
     if let Ok(mut graph_guard) = graph.lock() {
-        // Random::new(0) produces backward as first sweep after distributor initialization.
-        graph_guard.set_property(InternalProperties::RANDOM, Some(Random::new(0)));
+        // Match Java MockRandom: force backward sweep.
+        graph_guard.set_property(InternalProperties::RANDOM, Some(mock_random(false)));
     }
     let left_layer = make_layer(&graph);
     let right_layer = make_layer(&graph);

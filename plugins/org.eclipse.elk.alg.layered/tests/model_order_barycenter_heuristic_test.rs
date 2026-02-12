@@ -4,7 +4,8 @@ use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::{
     LEdge, LGraph, LGraphRef, LNode, LNodeRef, LPort, Layer, LayerRef, NodeType,
 };
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::{
-    InternalProperties, LayerConstraint, LayeredMetaDataProvider, LayeredOptions, OrderingStrategy,
+    GroupOrderStrategy, InternalProperties, LayerConstraint, LayeredMetaDataProvider, LayeredOptions,
+    OrderingStrategy,
 };
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::p3order::counting::i_initializable::{
     init, IInitializable,
@@ -181,6 +182,9 @@ fn create_heuristic(node_order: &[Vec<LNodeRef>], seed: u64) -> ModelOrderBaryce
         constraint_resolver,
         Random::new(seed),
         Box::new(port_distributor),
+        true,
+        0,
+        GroupOrderStrategy::OnlyWithinGroup,
     );
     let mut heuristic_initializable: [&mut dyn IInitializable; 1] = [&mut heuristic];
     init(&mut heuristic_initializable, node_order);

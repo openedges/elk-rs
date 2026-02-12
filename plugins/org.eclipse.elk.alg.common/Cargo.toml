@@ -7,3 +7,10 @@ license = "EPL-2.0"
 [dependencies]
 org-eclipse-elk-core = { path = "../org.eclipse.elk.core" }
 org-eclipse-elk-graph = { path = "../org.eclipse.elk.graph" }
+
+[dev-dependencies]
+org-eclipse-elk-alg-force = { path = "../org.eclipse.elk.alg.force" }
+org-eclipse-elk-alg-layered = { path = "../org.eclipse.elk.alg.layered" }
+org-eclipse-elk-alg-mrtree = { path = "../org.eclipse.elk.alg.mrtree" }
+org-eclipse-elk-alg-radial = { path = "../org.eclipse.elk.alg.radial" }
+org-eclipse-elk-alg-rectpacking = { path = "../org.eclipse.elk.alg.rectpacking" }

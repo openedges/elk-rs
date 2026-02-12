@@ -101,6 +101,7 @@ impl HyperEdgeCycleDetector {
         random: &mut Random,
     ) {
         let mut unprocessed: Vec<HyperEdgeSegmentRef> = segments.to_vec();
+        unprocessed.sort_by(|a, b| a.borrow().mark.cmp(&b.borrow().mark));
         let mut max_segments: Vec<HyperEdgeSegmentRef> = Vec::new();
 
         let mark_base = segments.len() as i32;

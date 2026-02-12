@@ -4,6 +4,7 @@ use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::compaction::oned
     CGraph, CGraphRef, CGroup, CNode, CNodeRef, ISpacingsHandler, OneDimensionalCompactor,
     QuadraticConstraintCalculation,
 };
+use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::compaction::oned::scanline_constraint_calculator::ScanlineConstraintCalculator;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::ElkRectangle;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::Direction;
 
@@ -59,6 +60,7 @@ fn test_left_compaction_equal_y_coordinate() {
     let bottom = node(&graph, 30.0, 20.0, 20.0, 20.0);
 
     let mut compactor = compacter(&graph);
+    compactor.set_constraint_algorithm(Box::new(ScanlineConstraintCalculator));
     compactor.change_direction(Direction::Left).compact().finish();
 
     assert_close(top.borrow().hitbox.x, 0.0);

@@ -12,14 +12,16 @@ use crate::org::eclipse::elk::alg::layered::intermediate::graph_transformer::{
 use crate::org::eclipse::elk::alg::layered::intermediate::{
     CommentNodeMarginCalculator, CommentPostprocessor, CommentPreprocessor,
     EdgeAndLayerConstraintEdgeReverser, InLayerConstraintProcessor, InvertedPortProcessor,
-    EndLabelSorter, EndLabelPreprocessor, EndLabelPostprocessor, LabelAndNodeSizeProcessor, LabelDummyInserter, LabelDummyRemover, LabelDummySwitcher,
-    LabelSideSelector, LayerConstraintPostprocessor,
-    LayerConstraintPreprocessor, InteractiveExternalPortPositioner,
+    EndLabelSorter, EndLabelPreprocessor, EndLabelPostprocessor, LabelAndNodeSizeProcessor,
+    LabelDummyInserter, LabelDummyRemover, LabelDummySwitcher, LabelSideSelector,
+    LayerConstraintPostprocessor, LayerConstraintPreprocessor, InteractiveExternalPortPositioner,
     LayerSizeAndGraphHeightCalculator, LongEdgeJoiner, LongEdgeSplitter, NorthSouthPortPostprocessor,
     NorthSouthPortPreprocessor, NodePromotion, PartitionMidprocessor, PartitionPostprocessor, PartitionPreprocessor,
     PortListSorter, PortSideProcessor, ReversedEdgeRestorer, SelfLoopPortRestorer,
     SelfLoopPostProcessor, SelfLoopPreProcessor, SelfLoopRouter, SemiInteractiveCrossMinProcessor,
-    SortByInputModelProcessor, HierarchicalNodeResizingProcessor,
+    SortByInputModelProcessor, HierarchicalNodeResizingProcessor, InnermostNodeMarginCalculator,
+    HierarchicalPortConstraintProcessor, HierarchicalPortDummySizeProcessor,
+    HierarchicalPortPositionProcessor, HierarchicalPortOrthogonalEdgeRouter,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
@@ -220,6 +222,9 @@ impl ILayoutProcessorFactory<LGraph> for IntermediateProcessorStrategy {
             IntermediateProcessorStrategy::CommentNodeMarginCalculator => {
                 Box::new(CommentNodeMarginCalculator)
             }
+            IntermediateProcessorStrategy::InnermostNodeMarginCalculator => {
+                Box::new(InnermostNodeMarginCalculator)
+            }
             IntermediateProcessorStrategy::LabelSideSelector => Box::new(LabelSideSelector),
             IntermediateProcessorStrategy::LabelDummySwitcher => Box::new(LabelDummySwitcher::default()),
             IntermediateProcessorStrategy::LabelDummyRemover => Box::new(LabelDummyRemover),
@@ -237,6 +242,18 @@ impl ILayoutProcessorFactory<LGraph> for IntermediateProcessorStrategy {
             }
             IntermediateProcessorStrategy::HierarchicalNodeResizer => {
                 Box::new(HierarchicalNodeResizingProcessor)
+            }
+            IntermediateProcessorStrategy::HierarchicalPortConstraintProcessor => {
+                Box::new(HierarchicalPortConstraintProcessor)
+            }
+            IntermediateProcessorStrategy::HierarchicalPortDummySizeProcessor => {
+                Box::new(HierarchicalPortDummySizeProcessor)
+            }
+            IntermediateProcessorStrategy::HierarchicalPortPositionProcessor => {
+                Box::new(HierarchicalPortPositionProcessor)
+            }
+            IntermediateProcessorStrategy::HierarchicalPortOrthogonalEdgeRouter => {
+                Box::new(HierarchicalPortOrthogonalEdgeRouter::default())
             }
             _ => Box::new(NoOpLayoutProcessor),
         }

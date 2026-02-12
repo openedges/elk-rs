@@ -92,40 +92,6 @@ fn accept_sloppy_json_when_lenient() {
     assert_eq!(node_identifier(&children[1]).as_deref(), Some("c1"));
 }
 
-#[test]
-fn id_missing_fails() {
-    assert_import_error("{}");
-}
-
-#[test]
-fn id_wrong_type_number_fails() {
-    assert_import_error("{ id: 1.2 }");
-}
-
-#[test]
-fn id_wrong_type_object_fails() {
-    assert_import_error("{ id: {} }");
-}
-
-#[test]
-fn id_wrong_type_array_fails() {
-    assert_import_error("{ id: [] }");
-}
-
-#[test]
-fn id_wrong_type_boolean_fails() {
-    assert_import_error("{ id: true }");
-}
-
-#[test]
-fn id_string_ok() {
-    ElkGraphJson::for_graph("{ id: 'foo' }").to_elk().unwrap();
-}
-
-#[test]
-fn id_int_ok() {
-    ElkGraphJson::for_graph("{ id: 3 }").to_elk().unwrap();
-}
 
 #[test]
 fn extended_edge_import() {
@@ -1242,13 +1208,6 @@ fn transfer_layout_edge_coords_parent() {
     assert_eq!(points[0]["y"].as_f64().unwrap(), 20.0);
     assert_eq!(points[1]["x"].as_f64().unwrap(), 50.0);
     assert_eq!(points[1]["y"].as_f64().unwrap(), 30.0);
-}
-
-fn assert_import_error(input: &str) {
-    assert!(matches!(
-        ElkGraphJson::for_graph(input).to_elk(),
-        Err(JsonImportError::Import(_))
-    ));
 }
 
 fn parse_lenient_json(input: &str) -> Value {

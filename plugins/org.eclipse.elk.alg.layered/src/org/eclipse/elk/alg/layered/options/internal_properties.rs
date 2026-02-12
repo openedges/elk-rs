@@ -11,6 +11,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, Random};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkReflect;
 
+use crate::org::eclipse::elk::alg::layered::compound::CrossHierarchyMap;
 use crate::org::eclipse::elk::alg::layered::graph::{
     LGraph, LEdgeRef, LGraphRef, LLabelRef, LNodeRef, LPortRef, NodeRefKey,
 };
@@ -113,6 +114,12 @@ pub static GRAPH_PROPERTIES_PROPERTY: LazyLock<Property<EnumSet<GraphProperties>
         Property::with_default("graphProperties", EnumSet::none_of())
     });
 
+pub static CROSS_HIERARCHY_MAP_PROPERTY: LazyLock<Property<CrossHierarchyMap>> =
+    LazyLock::new(|| Property::new("crossHierarchyMap"));
+
+pub static ORIGINAL_LABEL_EDGE_PROPERTY: LazyLock<Property<LEdgeRef>> =
+    LazyLock::new(|| Property::new("originalLabelEdge"));
+
 pub static PROCESSORS_PROPERTY: LazyLock<Property<Vec<SharedProcessor<LGraph>>>> =
     LazyLock::new(|| Property::new("processors"));
 
@@ -148,6 +155,12 @@ pub static EXT_PORT_SIDE_PROPERTY: LazyLock<Property<PortSide>> =
 
 pub static EXT_PORT_SIZE_PROPERTY: LazyLock<Property<KVector>> =
     LazyLock::new(|| Property::with_default("externalPortSize", KVector::new()));
+
+pub static EXT_PORT_REPLACED_DUMMIES_PROPERTY: LazyLock<Property<Vec<LNodeRef>>> =
+    LazyLock::new(|| Property::new("externalPortReplacedDummies"));
+
+pub static EXT_PORT_REPLACED_DUMMY_PROPERTY: LazyLock<Property<LNodeRef>> =
+    LazyLock::new(|| Property::new("externalPortReplacedDummy"));
 
 pub static EXT_PORT_CONNECTIONS_PROPERTY: LazyLock<Property<EnumSet<PortSide>>> =
     LazyLock::new(|| {
@@ -277,6 +290,10 @@ impl InternalProperties {
         &IN_LAYER_CONSTRAINT_PROPERTY;
     pub const GRAPH_PROPERTIES: &'static LazyLock<Property<EnumSet<GraphProperties>>> =
         &GRAPH_PROPERTIES_PROPERTY;
+    pub const CROSS_HIERARCHY_MAP: &'static LazyLock<Property<CrossHierarchyMap>> =
+        &CROSS_HIERARCHY_MAP_PROPERTY;
+    pub const ORIGINAL_LABEL_EDGE: &'static LazyLock<Property<LEdgeRef>> =
+        &ORIGINAL_LABEL_EDGE_PROPERTY;
     pub const PROCESSORS: &'static LazyLock<Property<Vec<SharedProcessor<LGraph>>>> =
         &PROCESSORS_PROPERTY;
     pub const RANDOM: &'static LazyLock<Property<Random>> = &RANDOM_PROPERTY;
@@ -295,6 +312,10 @@ impl InternalProperties {
         &SPLINE_NS_PORT_Y_COORD_PROPERTY;
     pub const EXT_PORT_SIDE: &'static LazyLock<Property<PortSide>> = &EXT_PORT_SIDE_PROPERTY;
     pub const EXT_PORT_SIZE: &'static LazyLock<Property<KVector>> = &EXT_PORT_SIZE_PROPERTY;
+    pub const EXT_PORT_REPLACED_DUMMIES: &'static LazyLock<Property<Vec<LNodeRef>>> =
+        &EXT_PORT_REPLACED_DUMMIES_PROPERTY;
+    pub const EXT_PORT_REPLACED_DUMMY: &'static LazyLock<Property<LNodeRef>> =
+        &EXT_PORT_REPLACED_DUMMY_PROPERTY;
     pub const EXT_PORT_CONNECTIONS: &'static LazyLock<Property<EnumSet<PortSide>>> =
         &EXT_PORT_CONNECTIONS_PROPERTY;
     pub const PORT_RATIO_OR_POSITION: &'static LazyLock<Property<f64>> =

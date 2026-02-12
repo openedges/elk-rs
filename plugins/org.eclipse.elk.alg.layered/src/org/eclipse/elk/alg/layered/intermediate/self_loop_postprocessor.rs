@@ -64,6 +64,28 @@ fn process_node(node: &LNodeRef) {
         .unwrap_or_default();
 
     for sl_loop in loops {
+        let label_refs = if let Ok(mut loop_guard) = sl_loop.lock() {
+            if let Some(labels) = loop_guard.sl_labels_mut() {
+                let pos = labels.position_mut();
+                pos.x += node_pos.x;
+                pos.y += node_pos.y;
+                Some(labels.l_labels().clone())
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        if let Some(label_refs) = label_refs {
+            for label in label_refs {
+                if let Ok(mut label_guard) = label.lock() {
+                    label_guard.shape().position().x += node_pos.x;
+                    label_guard.shape().position().y += node_pos.y;
+                }
+            }
+        }
+
         let sl_edges = sl_loop
             .lock()
             .ok()

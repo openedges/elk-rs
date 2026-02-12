@@ -89,6 +89,11 @@ checksum = "f52b00d39961fc5b2736ea853c9cc86238e165017a493d1d5c8eac6bdc4cc273"
 name = "org-eclipse-elk-alg-common"
 version = "0.1.0"
 dependencies = [
+ "org-eclipse-elk-alg-force",
+ "org-eclipse-elk-alg-layered",
+ "org-eclipse-elk-alg-mrtree",
+ "org-eclipse-elk-alg-radial",
+ "org-eclipse-elk-alg-rectpacking",
  "org-eclipse-elk-core",
  "org-eclipse-elk-graph",
 ]
@@ -130,6 +135,8 @@ name = "org-eclipse-elk-alg-layered"
 version = "0.1.0"
 dependencies = [
  "org-eclipse-elk-alg-common",
+ "org-eclipse-elk-alg-force",
+ "org-eclipse-elk-alg-rectpacking",
  "org-eclipse-elk-core",
  "org-eclipse-elk-graph",
 ]
@@ -209,6 +216,13 @@ dependencies = [
 name = "org-eclipse-elk-core"
 version = "0.1.0"
 dependencies = [
+ "org-eclipse-elk-alg-disco",
+ "org-eclipse-elk-alg-force",
+ "org-eclipse-elk-alg-layered",
+ "org-eclipse-elk-alg-mrtree",
+ "org-eclipse-elk-alg-radial",
+ "org-eclipse-elk-alg-rectpacking",
+ "org-eclipse-elk-alg-spore",
  "org-eclipse-elk-graph",
 ]
 

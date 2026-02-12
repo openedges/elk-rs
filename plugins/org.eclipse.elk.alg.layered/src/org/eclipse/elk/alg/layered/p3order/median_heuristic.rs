@@ -21,6 +21,10 @@ impl MedianHeuristic {
         self.random = random;
     }
 
+    pub fn set_random_seed(&mut self, seed: u64) {
+        self.random.set_seed(seed);
+    }
+
     fn weight_of(node: &LNodeRef) -> Option<f64> {
         node.lock()
             .ok()

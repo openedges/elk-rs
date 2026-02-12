@@ -12,6 +12,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOp
 use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_label_placement::EdgeLabelPlacement;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_routing::EdgeRouting;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::size_constraint::SizeConstraint;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::Direction;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::HierarchyHandling;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::NodeLabelPlacement;
@@ -123,16 +124,36 @@ pub fn load_graph_from_elkt(path: &str, default_algorithm: Option<&str>) -> Resu
     let mut label_identifiers: HashSet<String> = HashSet::new();
     let mut anonymous_edge_counter: usize = 0;
     let mut block_stack: Vec<BlockContext> = Vec::new();
+    let mut in_block_comment = false;
 
     for (line_index, raw_line) in content.lines().enumerate() {
         let line_number = line_index + 1;
-        let mut line = raw_line.trim();
-        if line.is_empty()
-            || line.starts_with("//")
-            || line.starts_with("/*")
-            || line.starts_with('*')
-            || line.starts_with("*/")
-        {
+        let mut line = raw_line.to_string();
+
+        if in_block_comment {
+            if let Some(end) = line.find("*/") {
+                line = line[end + 2..].to_string();
+                in_block_comment = false;
+            } else {
+                continue;
+            }
+        }
+
+        if let Some(start) = line.find("/*") {
+            if let Some(end) = line[start + 2..].find("*/") {
+                let end = start + 2 + end;
+                let mut combined = String::new();
+                combined.push_str(&line[..start]);
+                combined.push_str(&line[end + 2..]);
+                line = combined;
+            } else {
+                in_block_comment = true;
+                line = line[..start].to_string();
+            }
+        }
+
+        let mut line = line.trim();
+        if line.is_empty() || line.starts_with("//") || line.starts_with('*') {
             continue;
         }
 
@@ -1188,10 +1209,12 @@ fn find_port_by_identifier_reference(
 }
 
 fn apply_node_property(node: &ElkNodeRef, property_name: &str, property_value: &str) {
+    let property_value = trim_inline_token(property_value);
     match normalize_property_key(property_name).as_str() {
         "algorithm" => {
-            if property_value.eq_ignore_ascii_case("layered") {
-                set_node_property(node, CoreOptions::ALGORITHM, LayeredOptions::ALGORITHM_ID.to_string());
+            let value = property_value.trim();
+            if !value.is_empty() {
+                set_node_property(node, CoreOptions::ALGORITHM, value.to_string());
             }
         }
         "hierarchyhandling" => {
@@ -1234,6 +1257,11 @@ fn apply_node_property(node: &ElkNodeRef, property_name: &str, property_value: &
                 set_node_property(node, LayeredOptions::PORT_CONSTRAINTS, constraints);
             }
         }
+        "nodesizeconstraints" | "nodesizeconstraint" => {
+            if let Some(constraints) = parse_size_constraints(property_value) {
+                set_node_property(node, CoreOptions::NODE_SIZE_CONSTRAINTS, constraints);
+            }
+        }
         "nodelabelsplacement" => {
             if let Some(placement) = parse_node_label_placement(property_value) {
                 set_node_property(node, LayeredOptions::NODE_LABELS_PLACEMENT, placement);
@@ -1259,6 +1287,7 @@ fn apply_node_property(node: &ElkNodeRef, property_name: &str, property_value: &
 }
 
 fn apply_port_property(port: &ElkPortRef, property_name: &str, property_value: &str) {
+    let property_value = trim_inline_token(property_value);
     match normalize_property_key(property_name).as_str() {
         "side" | "portside" => {
             if let Some(side) = parse_port_side(property_value) {
@@ -1280,11 +1309,17 @@ fn apply_port_property(port: &ElkPortRef, property_name: &str, property_value: &
                 );
             }
         }
+        "portindex" => {
+            if let Ok(index) = property_value.trim().parse::<i32>() {
+                set_port_property(port, LayeredOptions::PORT_INDEX, index);
+            }
+        }
         _ => {}
     }
 }
 
 fn apply_edge_property(edge: &ElkEdgeRef, property_name: &str, property_value: &str) {
+    let property_value = trim_inline_token(property_value);
     match normalize_property_key(property_name).as_str() {
         "yo" | "insideselfloopsyo" => {
             if let Some(enabled) = parse_bool(property_value) {
@@ -1802,6 +1837,36 @@ fn parse_node_label_placement(value: &str) -> Option<EnumSet<NodeLabelPlacement>
         None
     } else {
         Some(EnumSet::of(&placements))
+    }
+}
+
+fn parse_size_constraints(value: &str) -> Option<EnumSet<SizeConstraint>> {
+    match normalize_key(value).as_str() {
+        "fixed" | "none" => return Some(SizeConstraint::fixed()),
+        "minimumsize" => return Some(SizeConstraint::minimum_size()),
+        "minimumsizewithports" | "minimumsizeports" => {
+            return Some(SizeConstraint::minimum_size_with_ports());
+        }
+        "free" | "all" => return Some(SizeConstraint::free()),
+        _ => {}
+    }
+
+    let constraints = value
+        .split([',', '[', ']', '{', '}', ' '])
+        .map(normalize_key)
+        .filter_map(|token| match token.as_str() {
+            "ports" => Some(SizeConstraint::Ports),
+            "portlabels" => Some(SizeConstraint::PortLabels),
+            "nodelabels" => Some(SizeConstraint::NodeLabels),
+            "minimumsize" => Some(SizeConstraint::MinimumSize),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+
+    if constraints.is_empty() {
+        None
+    } else {
+        Some(EnumSet::of(&constraints))
     }
 }
 

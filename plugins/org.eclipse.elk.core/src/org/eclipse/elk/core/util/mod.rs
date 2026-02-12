@@ -1,4 +1,5 @@
 use std::collections::{BTreeSet, HashSet};
+use std::sync::{Arc, Mutex};
 use std::hash::Hash;
 
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::{MapPropertyHolder, Property};
@@ -74,7 +75,15 @@ where
 
 #[derive(Clone, Debug)]
 pub struct Random {
-    seed: u64,
+    state: Arc<Mutex<u64>>,
+    mock_next_boolean: Arc<Mutex<Option<bool>>>,
+    mock_double_sequence: Arc<Mutex<Option<MockDoubleSequence>>>,
+}
+
+#[derive(Clone, Debug)]
+struct MockDoubleSequence {
+    current: f64,
+    step: f64,
 }
 
 impl Random {
@@ -84,10 +93,27 @@ impl Random {
 
     pub fn new(seed: u64) -> Self {
         let scrambled = (seed ^ Self::MULTIPLIER) & Self::MASK;
-        Random { seed: scrambled }
+        Random {
+            state: Arc::new(Mutex::new(scrambled)),
+            mock_next_boolean: Arc::new(Mutex::new(None)),
+            mock_double_sequence: Arc::new(Mutex::new(None)),
+        }
+    }
+
+    pub fn set_seed(&mut self, seed: u64) {
+        let scrambled = (seed ^ Self::MULTIPLIER) & Self::MASK;
+        if let Ok(mut state) = self.state.lock() {
+            *state = scrambled;
+        }
     }
 
     pub fn next_double(&mut self) -> f64 {
+        if let Ok(mut sequence) = self.mock_double_sequence.lock() {
+            if let Some(sequence) = sequence.as_mut() {
+                sequence.current += sequence.step;
+                return sequence.current;
+            }
+        }
         let high = self.next(26) as u64;
         let low = self.next(27) as u64;
         let value = (high << 27) + low;
@@ -95,10 +121,34 @@ impl Random {
     }
 
     pub fn next_float(&mut self) -> f64 {
+        let use_mock = self
+            .mock_double_sequence
+            .lock()
+            .map(|sequence| sequence.is_some())
+            .unwrap_or(false);
+        if use_mock {
+            let value = self.next_double();
+            return value as f32 as f64;
+        }
         let value = self.next(24);
         // Match Java's nextFloat() precision: return 32-bit float converted to f64
         // Java: return next(24) / ((float)(1 << 24));
         ((value as f32) / ((1u32 << 24) as f32)) as f64
+    }
+
+    pub fn next_long(&mut self) -> i64 {
+        let high = self.next(32) as u64;
+        let low = self.next(32) as u64;
+        ((high << 32) | low) as i64
+    }
+
+    pub fn next_boolean(&mut self) -> bool {
+        if let Ok(next_boolean) = self.mock_next_boolean.lock() {
+            if let Some(value) = *next_boolean {
+                return value;
+            }
+        }
+        self.next(1) != 0
     }
 
     pub fn next_int(&mut self, bound: i32) -> i32 {
@@ -118,8 +168,33 @@ impl Random {
     }
 
     fn next(&mut self, bits: u32) -> u32 {
-        self.seed = (self.seed.wrapping_mul(Self::MULTIPLIER).wrapping_add(Self::ADDEND)) & Self::MASK;
-        (self.seed >> (48 - bits)) as u32
+        let mut state = self.state.lock().expect("random lock poisoned");
+        *state = (state.wrapping_mul(Self::MULTIPLIER).wrapping_add(Self::ADDEND)) & Self::MASK;
+        (*state >> (48 - bits)) as u32
+    }
+
+    pub fn set_mock_next_boolean(&mut self, value: bool) {
+        if let Ok(mut next_boolean) = self.mock_next_boolean.lock() {
+            *next_boolean = Some(value);
+        }
+    }
+
+    pub fn clear_mock_next_boolean(&mut self) {
+        if let Ok(mut next_boolean) = self.mock_next_boolean.lock() {
+            *next_boolean = None;
+        }
+    }
+
+    pub fn set_mock_double_sequence(&mut self, start: f64, step: f64) {
+        if let Ok(mut sequence) = self.mock_double_sequence.lock() {
+            *sequence = Some(MockDoubleSequence { current: start, step });
+        }
+    }
+
+    pub fn clear_mock_double_sequence(&mut self) {
+        if let Ok(mut sequence) = self.mock_double_sequence.lock() {
+            *sequence = None;
+        }
     }
 }
 

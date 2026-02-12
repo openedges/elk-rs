@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::nodespacing::NodeLabelAndSizeCalculator;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
@@ -7,7 +8,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::hierarchy_handling::
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{ElkUtil, EnumSet};
-use org_eclipse_elk_core::org::eclipse::elk::core::util::adapters::ElkGraphAdapters;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::adapters::{ElkGraphAdapters, PortAdapter};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::MapPropertyHolder;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{
     ElkConnectableShapeRef, ElkEdgeRef, ElkGraphElementRef, ElkLabelRef, ElkNodeRef, ElkPortRef,
@@ -74,7 +75,7 @@ impl<'a> ElkGraphImporter<'a> {
     }
 
     fn import_hierarchical_graph(&mut self, elkgraph: &ElkNodeRef, lgraph: &LGraphRef) {
-        self.import_flat_graph(elkgraph, lgraph);
+        self.import_flat_graph_nodes(elkgraph, lgraph);
 
         let children: Vec<ElkNodeRef> = {
             let mut graph_mut = elkgraph.borrow_mut();
@@ -100,9 +101,16 @@ impl<'a> ElkGraphImporter<'a> {
                 self.import_hierarchical_graph(&child, &nested_graph);
             }
         }
+
+        self.import_flat_graph_edges(elkgraph, lgraph);
     }
 
     fn import_flat_graph(&mut self, elkgraph: &ElkNodeRef, lgraph: &LGraphRef) {
+        self.import_flat_graph_nodes(elkgraph, lgraph);
+        self.import_flat_graph_edges(elkgraph, lgraph);
+    }
+
+    fn import_flat_graph_nodes(&mut self, elkgraph: &ElkNodeRef, lgraph: &LGraphRef) {
         let needs_model_order = self.needs_model_order_based_on_parent(elkgraph);
         let mut model_order_index = 0i32;
         let mut cb_group_model_orders: HashSet<i32> = HashSet::new();
@@ -139,7 +147,10 @@ impl<'a> ElkGraphImporter<'a> {
                 Some(cb_group_model_orders.len() as i32),
             );
         }
+    }
 
+    fn import_flat_graph_edges(&mut self, elkgraph: &ElkNodeRef, lgraph: &LGraphRef) {
+        let needs_model_order = self.needs_model_order_based_on_parent(elkgraph);
         let edges: Vec<ElkEdgeRef> = {
             let mut graph_mut = elkgraph.borrow_mut();
             graph_mut.contained_edges().iter().cloned().collect()
@@ -214,7 +225,7 @@ impl<'a> ElkGraphImporter<'a> {
         let lnode = LNode::new(lgraph);
         let origin_id = self.origin_store.store(ElkGraphElementRef::Node(elknode.clone()));
 
-        let (mut properties, position, mut size, labels, ports) = {
+        let (mut properties, position, mut size, labels, ports, is_hierarchical) = {
             let mut node_mut = elknode.borrow_mut();
             let shape = node_mut.connectable().shape();
             let props = shape.graph_element().properties().clone();
@@ -222,7 +233,7 @@ impl<'a> ElkGraphImporter<'a> {
             let size = (shape.width(), shape.height());
             let labels: Vec<ElkLabelRef> = shape.graph_element().labels().iter().cloned().collect();
             let ports: Vec<ElkPortRef> = node_mut.ports().iter().cloned().collect();
-            (props, position, size, labels, ports)
+            (props, position, size, labels, ports, node_mut.is_hierarchical())
         };
 
         let inside_self_loops_active = properties
@@ -255,6 +266,9 @@ impl<'a> ElkGraphImporter<'a> {
             size_vec.x = size.0;
             size_vec.y = size.1;
             node_guard.set_property(InternalProperties::ORIGIN, Some(Origin::ElkNode(origin_id)));
+            if is_hierarchical {
+                node_guard.set_property(InternalProperties::COMPOUND_NODE, Some(true));
+            }
 
             // Explicitly transfer PARTITIONING_PARTITION property with correct type
             if let Some(partition) = self.graph_property(elknode, CoreOptions::PARTITIONING_PARTITION) {
@@ -330,6 +344,9 @@ impl<'a> ElkGraphImporter<'a> {
             port_guard.set_side(port_side);
 
             port_guard.set_property(InternalProperties::ORIGIN, Some(Origin::ElkPort(origin_id)));
+            if ElkGraphAdapters::adapt_single_port(elkport.clone()).has_compound_connections() {
+                port_guard.set_property(InternalProperties::INSIDE_CONNECTIONS, Some(true));
+            }
         }
 
         self.port_map.insert(origin_id, lport.clone());
@@ -345,7 +362,7 @@ impl<'a> ElkGraphImporter<'a> {
     }
 
     fn transform_edge(&mut self, elkedge: &ElkEdgeRef, lgraph: &LGraphRef) {
-        let (sources, targets, properties, labels) = {
+        let (sources, targets, mut properties, labels) = {
             let mut edge_mut = elkedge.borrow_mut();
             let sources: Vec<ElkConnectableShapeRef> = edge_mut.sources_ro().iter().cloned().collect();
             let targets: Vec<ElkConnectableShapeRef> = edge_mut.targets_ro().iter().cloned().collect();
@@ -369,6 +386,30 @@ impl<'a> ElkGraphImporter<'a> {
             Some(port) => port,
             None => return,
         };
+
+        let inside_self_loops = properties
+            .get_property(CoreOptions::INSIDE_SELF_LOOPS_YO)
+            .unwrap_or(false);
+        if let (Some(source_node), Some(target_node)) = (
+            ElkGraphUtil::connectable_shape_to_node(source_shape),
+            ElkGraphUtil::connectable_shape_to_node(target_shape),
+        ) {
+            let source_inside = ElkGraphUtil::is_descendant(&target_node, &source_node)
+                || (inside_self_loops && Rc::ptr_eq(&target_node, &source_node));
+            let target_inside = ElkGraphUtil::is_descendant(&source_node, &target_node)
+                || (inside_self_loops && Rc::ptr_eq(&source_node, &target_node));
+
+            if source_inside {
+                if let Ok(mut port_guard) = source_port.lock() {
+                    port_guard.set_property(InternalProperties::INSIDE_CONNECTIONS, Some(true));
+                }
+            }
+            if target_inside {
+                if let Ok(mut port_guard) = target_port.lock() {
+                    port_guard.set_property(InternalProperties::INSIDE_CONNECTIONS, Some(true));
+                }
+            }
+        }
 
         let ledge = LEdge::new();
         LEdge::set_source(&ledge, Some(source_port));

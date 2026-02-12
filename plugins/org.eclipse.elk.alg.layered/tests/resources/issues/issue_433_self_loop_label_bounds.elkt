@@ -1,5 +1,11 @@
 algorithm: layered
 
-node n1 [size: 50, 30]
-edge loop: n1 -> n1
-edgeLabel loop text:loop size:24,12
+node N1 {
+    port P1
+    port P2
+}
+node N2
+
+edge loop: N1.P1 -> N1.P2
+edgeLabel loop text:"A rather long self loop label that should contribute to the graph's size" size:200,12
+edge n1_to_n2: N1 -> N2

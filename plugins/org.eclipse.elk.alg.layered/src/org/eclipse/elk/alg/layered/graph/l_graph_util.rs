@@ -314,7 +314,11 @@ impl LGraphUtil {
             .map(|graph_guard| graph_guard.layerless_nodes().clone())
             .unwrap_or_default();
 
-        let mut props = EnumSet::none_of();
+        let mut props = layered_graph
+            .lock()
+            .ok()
+            .and_then(|mut graph_guard| graph_guard.get_property(InternalProperties::GRAPH_PROPERTIES))
+            .unwrap_or_else(EnumSet::none_of);
 
         for node in nodes {
             let (node_type, is_comment, is_hypernode, ports, port_constraints) =

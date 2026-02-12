@@ -714,12 +714,13 @@ impl AbstractBarycenterPortDistributor {
     }
 
     fn sort_ports(&mut self, node: &LNodeRef) {
-        let mut ports = node
+        let ports = node
             .lock()
             .ok()
             .map(|node_guard| node_guard.ports().clone())
             .unwrap_or_default();
-        ports.sort_by(|port1, port2| {
+        let mut indexed: Vec<(usize, LPortRef)> = ports.into_iter().enumerate().collect();
+        indexed.sort_by(|(idx1, port1), (idx2, port2)| {
             let side1 = port1
                 .lock()
                 .ok()
@@ -730,21 +731,29 @@ impl AbstractBarycenterPortDistributor {
                 .ok()
                 .map(|port_guard| port_guard.side())
                 .unwrap_or(PortSide::Undefined);
-            if side1 != side2 {
-                return side1.cmp(&side2);
-            }
-            let bary1 = self.port_barycenter.get(port_id(port1)).copied().unwrap_or(0.0);
-            let bary2 = self.port_barycenter.get(port_id(port2)).copied().unwrap_or(0.0);
-            if bary1 == 0.0 && bary2 == 0.0 {
-                Ordering::Equal
-            } else if bary1 == 0.0 {
-                Ordering::Less
-            } else if bary2 == 0.0 {
-                Ordering::Greater
+            let ord = if side1 != side2 {
+                side1.cmp(&side2)
             } else {
-                bary1.partial_cmp(&bary2).unwrap_or(Ordering::Equal)
+                let bary1 = self.port_barycenter.get(port_id(port1)).copied().unwrap_or(0.0);
+                let bary2 = self.port_barycenter.get(port_id(port2)).copied().unwrap_or(0.0);
+                if bary1 == 0.0 && bary2 == 0.0 {
+                    Ordering::Equal
+                } else if bary1 == 0.0 {
+                    Ordering::Less
+                } else if bary2 == 0.0 {
+                    Ordering::Greater
+                } else {
+                    bary1.partial_cmp(&bary2).unwrap_or(Ordering::Equal)
+                }
+            };
+
+            if ord == Ordering::Equal {
+                idx1.cmp(idx2)
+            } else {
+                ord
             }
         });
+        let ports = indexed.into_iter().map(|(_, port)| port).collect();
 
         if let Ok(mut node_guard) = node.lock() {
             *node_guard.ports_mut() = ports;
