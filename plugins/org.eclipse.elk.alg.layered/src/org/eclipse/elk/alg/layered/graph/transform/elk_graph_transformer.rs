@@ -10,13 +10,14 @@ use crate::org::eclipse::elk::alg::layered::graph::transform::elk_graph_layout_t
     ElkGraphLayoutTransferrer;
 use crate::org::eclipse::elk::alg::layered::graph::transform::IGraphTransformer;
 use crate::org::eclipse::elk::alg::layered::options::internal_properties::OriginId;
-use crate::org::eclipse::elk::alg::layered::graph::LGraphRef;
+use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LGraphRef};
 
 #[derive(Default)]
 pub struct OriginStore {
     next_id: OriginId,
     elements: HashMap<OriginId, ElkGraphElementRef>,
     index: HashMap<usize, OriginId>,
+    ledges: HashMap<OriginId, LEdgeRef>,
 }
 
 impl OriginStore {
@@ -25,6 +26,7 @@ impl OriginStore {
             next_id: 0,
             elements: HashMap::new(),
             index: HashMap::new(),
+            ledges: HashMap::new(),
         }
     }
 
@@ -38,6 +40,11 @@ impl OriginStore {
         self.elements.insert(id, element);
         self.index.insert(key, id);
         id
+    }
+
+    pub fn get_id(&self, element: &ElkGraphElementRef) -> Option<OriginId> {
+        let key = element_key(element);
+        self.index.get(&key).cloned()
     }
 
     pub fn get(&self, id: OriginId) -> Option<ElkGraphElementRef> {
@@ -70,6 +77,14 @@ impl OriginStore {
             Some(ElkGraphElementRef::Label(label)) => Some(label),
             _ => None,
         }
+    }
+
+    pub fn register_ledge(&mut self, id: OriginId, edge: LEdgeRef) {
+        self.ledges.insert(id, edge);
+    }
+
+    pub fn get_ledge(&self, id: OriginId) -> Option<LEdgeRef> {
+        self.ledges.get(&id).cloned()
     }
 }
 

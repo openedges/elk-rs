@@ -812,9 +812,10 @@
 - 계층 edge 좌표 drift(±5) 원인 해결(2026-02-12): `LabelAndNodeSizeProcessor::adjust_ports_on_side`가 `PORT_BORDER_OFFSET`를 무시해 hierarchical port offset(-5)이 소실되던 문제 수정(N/E/S/W에 border offset 반영), `040_includeChildrenWithFixedOrder`/`hierarchy_center_edge_label_problem` Java↔Rust match 확인, `cargo test -p org-eclipse-elk-alg-layered --tests`/`cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과
 - 모델 parity full 재실행(2026-02-12): `scripts/run_model_parity_elk_vs_rust.sh` 결과 compared=1439, matches=296, drift=1143, total_diffs=21346 (`perf/model_parity_full/report.md`, `diff_details.tsv`, `rust_manifest.tsv` 갱신). 코드 변경 없음으로 `cargo test`/`cargo clippy`는 생략하고, 기록 갱신은 `AGENTS.md` 커밋으로 남김
 - drift 재분류 갱신(2026-02-12): drift 1,143건 중 other 515, ordering_diff 336, layering_diff 292. 최소 diff_count 샘플은 계층 실세계 모델에서 edge `sections` 누락(예: `realworld/ptolemy/hierarchical/*TerrainModel*`, diff=6)과 일부 ordering/label/section id 불일치 확인
+- 계층 그래프 edge `sections` 누락 재보정(2026-02-12): `ElkGraphLayoutTransferrer`에서 그래프 내 LEdge origin 매핑을 보강하고 fallback에서 port identifier로 실제 port를 재해석하도록 수정, `realworld/ptolemy/hierarchical/*TerrainModel*.elkt` 3개 샘플 재실행 시 `missing keys on right: sections` 0건 확인(`/tmp/elk_parity_hier_sections_*`). `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --tests -- -D warnings` 통과
 ## 진행률(최신)
 - 전체 목표 대비 추정 진행률: 약 20.6% (기준: Java↔Rust 모델 parity full match 296/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
-- 단계 진행률(다음 작업 체크리스트 기준): 98.6% (완료 69/70, 미완료 1) [2026-02-12 갱신]
+- 단계 진행률(다음 작업 체크리스트 기준): 100.0% (완료 70/70, 미완료 0) [2026-02-12 갱신]
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
 - Java direct-mapped 모듈 테스트 parity: 146.1% (Rust 875 / Java 599, `perf/java_test_module_parity.md`)
@@ -836,7 +837,7 @@
 - [x] Step 7: 계층 edge 포함 케이스 좌표/width drift(±5) 원인 규명 및 동일 subset parity 재검증
 - [x] Step 8: 모델 parity full 재실행 및 리포트 갱신
 - [x] Step 9: drift 재분류(`scripts/analyze_layered_drift.py`) 및 상위 원인/최소 diff_count 샘플 갱신
-- [ ] Step 10: 계층 그래프 edge `sections` 누락 케이스 root cause 분석 및 회귀 테스트/보정
+- [x] Step 10: 계층 그래프 edge `sections` 누락 케이스 root cause 분석 및 회귀 테스트/보정
 - [x] Step 1: 워크스페이스 clippy/test 재검증 및 경고 정리
 - [x] Step 2: drift 분석 샘플 보정(self-loop bendPoints 중복 유지) + 회귀 테스트 추가
 - [x] Step 3: Java↔Rust parity 재실행(모델 parity full) 및 리포트 갱신

@@ -421,6 +421,7 @@ impl<'a> ElkGraphImporter<'a> {
                 .copy_properties(&properties);
             let origin_id = self.origin_store.store(ElkGraphElementRef::Edge(elkedge.clone()));
             edge_guard.set_property(InternalProperties::ORIGIN, Some(Origin::ElkEdge(origin_id)));
+            self.origin_store.register_ledge(origin_id, ledge.clone());
 
             for label in labels {
                 let llabel = self.transform_label(&label);

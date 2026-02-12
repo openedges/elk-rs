@@ -7,9 +7,10 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::size_options::SizeOp
 use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_util::ElkUtil;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::EnumSet;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{
-    ElkConnectableShapeRef, ElkEdgeSection,
+    ElkConnectableShapeRef, ElkEdgeRef, ElkEdgeSection, ElkGraphElementRef, ElkNodeRef, ElkPortRef,
 };
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::rc::Rc;
 use std::sync::Arc;
 
 use crate::org::eclipse::elk::alg::layered::graph::l_graph_util::LGraphUtil;
@@ -20,9 +21,10 @@ use crate::org::eclipse::elk::alg::layered::graph::{
 };
 use crate::org::eclipse::elk::alg::layered::intermediate::INCLUDE_LABEL;
 use crate::org::eclipse::elk::alg::layered::options::{
-    GraphProperties, InternalProperties, LayeredOptions, Origin,
+    GraphProperties, InternalProperties, LayeredOptions, Origin, OriginId,
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::PortSide;
 
 pub struct ElkGraphLayoutTransferrer<'a> {
     origin_store: &'a OriginStore,
@@ -87,8 +89,29 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
             collect_nodes_from_graph(&graph_guard)
         };
 
-        let mut edges: Vec<LEdgeRef> = Vec::new();
-        let mut edge_seen: HashSet<usize> = HashSet::new();
+        let elk_edges = elk_node
+            .borrow_mut()
+            .contained_edges()
+            .iter()
+            .cloned()
+            .collect::<Vec<_>>();
+
+        let ledge_by_origin = collect_edges_by_origin(&all_nodes);
+        let edges: Vec<(LEdgeRef, OriginId)> = {
+            let mut result = Vec::new();
+            for elk_edge in &elk_edges {
+                let origin_id =
+                    self.origin_store
+                        .get_id(&ElkGraphElementRef::Edge(elk_edge.clone()));
+                let Some(origin_id) = origin_id else {
+                    continue;
+                };
+                if let Some(ledge) = ledge_by_origin.get(&origin_id) {
+                    result.push((ledge.clone(), origin_id));
+                }
+            }
+            result
+        };
 
         for lnode in &all_nodes {
             let (node_origin, node_type) = {
@@ -130,125 +153,9 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
                 }
                 _ => {}
             }
-
-            // Collect outgoing edges (filtering: !LGraphUtil::is_descendant(edge.target.node, lnode))
-            let ports = lnode
-                .lock()
-                .ok()
-                .map(|node_guard| node_guard.ports().clone())
-                .unwrap_or_default();
-            for port in &ports {
-                let outgoing = port
-                    .lock()
-                    .ok()
-                    .map(|port_guard| port_guard.outgoing_edges().clone())
-                    .unwrap_or_default();
-                for edge in outgoing {
-                    // Check if edge target node is a descendant of lnode
-                    let target_node = edge
-                        .lock()
-                        .ok()
-                        .and_then(|edge_guard| edge_guard.target())
-                        .and_then(|target_port| {
-                            target_port.lock().ok().and_then(|port| port.node())
-                        });
-                    let is_descendant = target_node
-                        .as_ref()
-                        .map(|tn| LGraphUtil::is_descendant(tn, lnode))
-                        .unwrap_or(false);
-                    if !is_descendant {
-                        let key = Arc::as_ptr(&edge) as usize;
-                        if edge_seen.insert(key) {
-                            edges.push(edge);
-                        }
-                    }
-                }
-                let incoming = port
-                    .lock()
-                    .ok()
-                    .map(|port_guard| port_guard.incoming_edges().clone())
-                    .unwrap_or_default();
-                for edge in incoming {
-                    // Check if edge source node is a descendant of lnode
-                    let source_node = edge
-                        .lock()
-                        .ok()
-                        .and_then(|edge_guard| edge_guard.source())
-                        .and_then(|source_port| {
-                            source_port.lock().ok().and_then(|port| port.node())
-                        });
-                    let is_descendant = source_node
-                        .as_ref()
-                        .map(|sn| LGraphUtil::is_descendant(sn, lnode))
-                        .unwrap_or(false);
-                    if !is_descendant {
-                        let key = Arc::as_ptr(&edge) as usize;
-                        if edge_seen.insert(key) {
-                            edges.push(edge);
-                        }
-                    }
-                }
-            }
         }
 
-        // 6. Collect hierarchical edges from parent LNode's ports (outgoing edges where target IS descendant)
-        if let Some(ref parent_lnode) = parent_node {
-            let parent_ports = parent_lnode
-                .lock()
-                .ok()
-                .map(|node_guard| node_guard.ports().clone())
-                .unwrap_or_default();
-            for port in &parent_ports {
-                let outgoing = port
-                    .lock()
-                    .ok()
-                    .map(|port_guard| port_guard.outgoing_edges().clone())
-                    .unwrap_or_default();
-                for edge in outgoing {
-                    let target_node = edge
-                        .lock()
-                        .ok()
-                        .and_then(|edge_guard| edge_guard.target())
-                        .and_then(|target_port| {
-                            target_port.lock().ok().and_then(|port| port.node())
-                        });
-                    let is_descendant = target_node
-                        .as_ref()
-                        .map(|tn| LGraphUtil::is_descendant(tn, parent_lnode))
-                        .unwrap_or(false);
-                    if is_descendant {
-                        let key = Arc::as_ptr(&edge) as usize;
-                        if edge_seen.insert(key) {
-                            edges.push(edge);
-                        }
-                    }
-                }
-                let incoming = port
-                    .lock()
-                    .ok()
-                    .map(|port_guard| port_guard.incoming_edges().clone())
-                    .unwrap_or_default();
-                for edge in incoming {
-                    let source_node = edge
-                        .lock()
-                        .ok()
-                        .and_then(|edge_guard| edge_guard.source())
-                        .and_then(|source_port| {
-                            source_port.lock().ok().and_then(|port| port.node())
-                        });
-                    let is_descendant = source_node
-                        .as_ref()
-                        .map(|sn| LGraphUtil::is_descendant(sn, parent_lnode))
-                        .unwrap_or(false);
-                    if is_descendant {
-                        let key = Arc::as_ptr(&edge) as usize;
-                        if edge_seen.insert(key) {
-                            edges.push(edge);
-                        }
-                    }
-                }
-            }
-        }
+        // 6. Edges are collected from the ElkNode container via OriginStore.
 
         // 7. Get edge_routing from ElkNode property
         let edge_routing = {
@@ -263,9 +170,11 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
         };
 
         // 8. Apply edge layout to all collected edges
-        for edge in &edges {
-            self.apply_edge_layout(edge, offset, edge_routing);
+        for (edge, edge_id) in &edges {
+            self.apply_edge_layout(edge, *edge_id, offset, edge_routing);
         }
+
+        self.apply_fallback_sections(&elk_edges, &elk_node);
 
         // 9. Apply parent node layout
         self.apply_parent_node_layout(lgraph);
@@ -539,23 +448,25 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
         shape.set_location(position.x, position.y);
     }
 
-    fn apply_edge_layout(&self, ledge: &LEdgeRef, offset: KVector, edge_routing: EdgeRouting) {
-        let (origin, source, target, labels) = {
-            let mut edge_guard = match ledge.lock() {
+    fn apply_edge_layout(
+        &self,
+        ledge: &LEdgeRef,
+        origin_id: OriginId,
+        offset: KVector,
+        edge_routing: EdgeRouting,
+    ) {
+        let (source, target, labels) = {
+            let edge_guard = match ledge.lock() {
                 Ok(guard) => guard,
                 Err(_) => return,
             };
-            let origin = edge_guard.get_property(InternalProperties::ORIGIN);
             let source = edge_guard.source();
             let target = edge_guard.target();
             let labels = edge_guard.labels().clone();
-            (origin, source, target, labels)
+            (source, target, labels)
         };
 
-        let Some(Origin::ElkEdge(edge_id)) = origin else {
-            return;
-        };
-        let Some(elk_edge) = self.origin_store.get_edge(edge_id) else {
+        let Some(elk_edge) = self.origin_store.get_edge(origin_id) else {
             return;
         };
 
@@ -763,6 +674,52 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
             }
         }
     }
+
+    fn apply_fallback_sections(&self, elk_edges: &[ElkEdgeRef], container: &ElkNodeRef) {
+        let container_abs = ElkUtil::absolute_position(&ElkGraphElementRef::Node(container.clone()))
+            .unwrap_or_default();
+
+        for edge in elk_edges {
+            let has_sections = {
+                let mut edge_mut = edge.borrow_mut();
+                let has = edge_mut.sections().iter().next().is_some();
+                has
+            };
+            if has_sections {
+                continue;
+            }
+
+            let (incoming_shape, outgoing_shape) = {
+                let edge_ref = edge.borrow();
+                (
+                    first_shape(edge_ref.sources_ro()),
+                    first_shape(edge_ref.targets_ro()),
+                )
+            };
+
+            let start = fallback_anchor_for_shape(&incoming_shape, container, &container_abs);
+            let end = fallback_anchor_for_shape(&outgoing_shape, container, &container_abs);
+            let (Some(start), Some(end)) = (start, end) else {
+                continue;
+            };
+
+            let section = ElkEdgeSection::new();
+            {
+                let mut section_mut = section.borrow_mut();
+                section_mut.set_incoming_shape(incoming_shape.clone());
+                section_mut.set_outgoing_shape(outgoing_shape.clone());
+            }
+
+            let mut chain = KVectorChain::new();
+            chain.add_first_values(start.x, start.y);
+            chain.add_last_values(end.x, end.y);
+            ElkUtil::apply_vector_chain(&chain, &section);
+
+            let mut edge_mut = edge.borrow_mut();
+            edge_mut.sections().clear();
+            edge_mut.sections().add(section);
+        }
+    }
 }
 
 fn collect_nodes_from_graph(
@@ -790,6 +747,198 @@ fn collect_nodes_from_graph(
     }
 
     nodes
+}
+
+fn collect_edges_by_origin(nodes: &[LNodeRef]) -> HashMap<OriginId, LEdgeRef> {
+    let mut edges: HashMap<OriginId, LEdgeRef> = HashMap::new();
+    let mut seen: HashSet<usize> = HashSet::new();
+
+    for node in nodes {
+        let ports = match node.lock() {
+            Ok(guard) => guard.ports().clone(),
+            Err(_) => continue,
+        };
+        for port in ports {
+            let (incoming, outgoing) = match port.lock() {
+                Ok(port_guard) => (
+                    port_guard.incoming_edges().clone(),
+                    port_guard.outgoing_edges().clone(),
+                ),
+                Err(_) => continue,
+            };
+            for edge in incoming.iter().chain(outgoing.iter()) {
+                let key = Arc::as_ptr(edge) as usize;
+                if !seen.insert(key) {
+                    continue;
+                }
+                if let Some(origin_id) = origin_id_for_edge(edge) {
+                    edges.entry(origin_id).or_insert_with(|| edge.clone());
+                }
+            }
+        }
+    }
+
+    edges
+}
+
+fn origin_id_for_edge(edge: &LEdgeRef) -> Option<OriginId> {
+    let origin = edge
+        .lock()
+        .ok()
+        .and_then(|mut guard| guard.get_property(InternalProperties::ORIGIN));
+    match origin {
+        Some(Origin::ElkEdge(origin_id)) => Some(origin_id),
+        _ => None,
+    }
+}
+
+fn resolve_port_for_fallback(container: &ElkNodeRef, port: &ElkPortRef) -> ElkPortRef {
+    let identifier = {
+        let mut port_mut = port.borrow_mut();
+        port_mut
+            .connectable()
+            .shape()
+            .graph_element()
+            .identifier()
+            .map(|value| value.to_string())
+    };
+
+    if let Some(identifier) = identifier {
+        if let Some(found) = find_port_by_identifier(container, &identifier) {
+            return found;
+        }
+    }
+
+    port.clone()
+}
+
+fn find_port_by_identifier(graph: &ElkNodeRef, identifier: &str) -> Option<ElkPortRef> {
+    let mut queue: VecDeque<ElkNodeRef> = VecDeque::new();
+    queue.push_back(graph.clone());
+
+    while let Some(node) = queue.pop_front() {
+        for port in node.borrow_mut().ports().iter() {
+            let matches = {
+                let mut port_mut = port.borrow_mut();
+                port_mut
+                    .connectable()
+                    .shape()
+                    .graph_element()
+                    .identifier()
+                    == Some(identifier)
+            };
+            if matches {
+                return Some(port.clone());
+            }
+        }
+
+        let children: Vec<_> = node.borrow_mut().children().iter().cloned().collect();
+        queue.extend(children);
+    }
+
+    None
+}
+
+fn fallback_anchor_for_shape(
+    shape: &Option<ElkConnectableShapeRef>,
+    container: &ElkNodeRef,
+    container_abs: &KVector,
+) -> Option<KVector> {
+    match shape {
+        Some(ElkConnectableShapeRef::Port(port)) => {
+            let resolved = resolve_port_for_fallback(container, port);
+            fallback_anchor_for_port(&resolved, container, container_abs)
+        }
+        Some(ElkConnectableShapeRef::Node(node)) => {
+            let (width, height) = {
+                let mut node_mut = node.borrow_mut();
+                let shape = node_mut.connectable().shape();
+                (shape.width(), shape.height())
+            };
+            let node_abs =
+                ElkUtil::absolute_position(&ElkGraphElementRef::Node(node.clone()))?;
+            Some(KVector::with_values(
+                node_abs.x + width / 2.0 - container_abs.x,
+                node_abs.y + height / 2.0 - container_abs.y,
+            ))
+        }
+        _ => None,
+    }
+}
+
+fn fallback_anchor_for_port(
+    port: &ElkPortRef,
+    container: &ElkNodeRef,
+    container_abs: &KVector,
+) -> Option<KVector> {
+    let parent = port.borrow().parent()?;
+    let (port_x, port_y, port_w, port_h, side) = {
+        let mut port_mut = port.borrow_mut();
+        let shape = port_mut.connectable().shape();
+        let side = shape
+            .graph_element()
+            .properties_mut()
+            .get_property(LayeredOptions::PORT_SIDE)
+            .unwrap_or(PortSide::Undefined);
+        (
+            shape.x(),
+            shape.y(),
+            shape.width(),
+            shape.height(),
+            side,
+        )
+    };
+
+    let (node_w, _node_h) = {
+        let mut node_mut = parent.borrow_mut();
+        let shape = node_mut.connectable().shape();
+        (shape.width(), shape.height())
+    };
+
+    let side = if side == PortSide::Undefined {
+        if port_x <= 0.0 {
+            PortSide::West
+        } else if port_x + port_w >= node_w {
+            PortSide::East
+        } else if port_y <= 0.0 {
+            PortSide::North
+        } else {
+            PortSide::South
+        }
+    } else {
+        side
+    };
+
+    let on_container = Rc::ptr_eq(&parent, container);
+
+    let (anchor_x, anchor_y) = match side {
+        PortSide::West => (
+            if on_container { port_x + port_w } else { port_x },
+            port_y + port_h / 2.0,
+        ),
+        PortSide::East => (
+            if on_container { port_x } else { port_x + port_w },
+            port_y + port_h / 2.0,
+        ),
+        PortSide::North => (
+            port_x + port_w / 2.0,
+            if on_container { port_y + port_h } else { port_y },
+        ),
+        PortSide::South => (
+            port_x + port_w / 2.0,
+            if on_container { port_y } else { port_y + port_h },
+        ),
+        _ => (
+            port_x + port_w / 2.0,
+            port_y + port_h / 2.0,
+        ),
+    };
+
+    let parent_abs = ElkUtil::absolute_position(&ElkGraphElementRef::Node(parent))?;
+    Some(KVector::with_values(
+        parent_abs.x + anchor_x - container_abs.x,
+        parent_abs.y + anchor_y - container_abs.y,
+    ))
 }
 
 fn first_shape(

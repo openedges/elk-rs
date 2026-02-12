@@ -2058,7 +2058,10 @@ fn create_dummy_edge(orig_edge: &LEdgeRef) -> LEdgeRef {
                 .properties_mut()
                 .copy_properties(&props);
             dummy_guard.set_property(LayeredOptions::JUNCTION_POINTS, None);
-            dummy_guard.set_property(InternalProperties::ORIGIN, None);
+            dummy_guard.set_property(
+                InternalProperties::ORIGIN,
+                Some(Origin::LEdge(orig_edge.clone())),
+            );
         }
     }
     dummy_edge
