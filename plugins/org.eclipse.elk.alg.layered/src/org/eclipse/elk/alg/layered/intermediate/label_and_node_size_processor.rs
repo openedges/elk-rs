@@ -1044,19 +1044,22 @@ fn adjust_ports_on_side(node: &LNodeRef, side: PortSide, width: f64, height: f64
     for port in ports {
         if let Ok(mut port_guard) = port.lock() {
             let port_size = *port_guard.shape().size_ref();
+            let border_offset = port_guard
+                .get_property(CoreOptions::PORT_BORDER_OFFSET)
+                .unwrap_or(0.0);
             let pos = port_guard.shape().position();
             match side {
                 PortSide::North => {
-                    pos.y = -port_size.y;
+                    pos.y = -port_size.y - border_offset;
                 }
                 PortSide::South => {
-                    pos.y = height;
+                    pos.y = height + border_offset;
                 }
                 PortSide::East => {
-                    pos.x = width;
+                    pos.x = width + border_offset;
                 }
                 PortSide::West => {
-                    pos.x = -port_size.x;
+                    pos.x = -port_size.x - border_offset;
                 }
                 _ => {}
             }
