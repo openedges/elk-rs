@@ -800,9 +800,11 @@
 - 워크스페이스 검증 보강(2026-02-12): `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace` 통과. nodespacing `constrained_outside_north_port_labels_stack_without_overlap`는 `SizeConstraint::PortLabels` 조건 하에서만 스택되도록 테스트 조건 정합화, core ignored 테스트/graph.json 테스트 clippy 경고 정리
 - drift 케이스 보정(2026-02-12): self-loop orthogonal 라우팅에서 동일 포트 self-loop가 동일 좌표의 중복 bendpoints를 유지하도록 `SelfLoopRouter` dedup 제거 및 회귀 테스트(`self_loop_router_keeps_duplicate_bend_points_for_same_port`) 추가
 - 단계 재검증(2026-02-12): `cargo clippy -p org-eclipse-elk-alg-layered --tests -- -D warnings`, `cargo test -p org-eclipse-elk-alg-layered --tests` 통과
+- 모델 parity full 재실행(2026-02-12): `JAVA_PARITY_MVN_LOCAL_REPO=/tmp/elk-m2-parity` + `JAVA_PARITY_MVN_ARGS=-Ddash.skip=true`로 `scripts/run_model_parity_elk_vs_rust.sh` 실행, Java export success=1439/1448(9 java_non_ok), Rust replay ok=1439/1448(errors=0), 비교 결과 matches=293, drift=1146, total_diffs=21360 갱신(`perf/model_parity_full/report.md`, `diff_details.tsv`, `rust_manifest.tsv`)
+- 단계 재검증(2026-02-12): `cargo clippy -p org-eclipse-elk-alg-layered --tests -- -D warnings`, `cargo test -p org-eclipse-elk-alg-layered --tests` 통과
 ## 진행률(최신)
 - 전체 목표 대비 추정 진행률: 약 100.0% (기준: Java 기능/API/테스트 parity, 빌드/클리피, 성능 자동화)
-- 단계 진행률(다음 작업 체크리스트 기준): 98.0% (완료 48/49, 미완료 1) [2026-02-12 갱신]
+- 단계 진행률(다음 작업 체크리스트 기준): 100.0% (완료 49/49, 미완료 0) [2026-02-12 갱신]
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
 - Java direct-mapped 모듈 테스트 parity: 146.1% (Rust 875 / Java 599, `perf/java_test_module_parity.md`)
@@ -820,7 +822,7 @@
 ## 다음 작업
 - [x] Step 1: 워크스페이스 clippy/test 재검증 및 경고 정리
 - [x] Step 2: drift 분석 샘플 보정(self-loop bendPoints 중복 유지) + 회귀 테스트 추가
-- [ ] Step 3: Java↔Rust parity 재실행(모델 parity full) 및 리포트 갱신
+- [x] Step 3: Java↔Rust parity 재실행(모델 parity full) 및 리포트 갱신
 - [x] common `NodeLabelAndSizeCalculator#process` 전체 경로(inside/outside node label 배치 + node container width/height 확정 + apply 단계) 1:1 포팅 마무리
 - [x] recursive 경로 self-loop section 누락(`079/128/273/288/...`) 근본 원인 수정으로 direct fallback 제거(완전 recursive 단독 통과)
 - [x] external/elk-models Java↔Rust layout parity drift 분류(알고리즘/좌표/section-id/label/ordering) 자동 리포트 추가 및 샘플 10건 기준 상위 원인 3종 도출 → 완료: 10/10 모델 0 drift, compare script에 drift classification 추가
