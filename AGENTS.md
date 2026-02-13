@@ -834,9 +834,10 @@
 - 외부 포트 connected components 배치 로직 보강(2026-02-13): ComponentGroupGraphPlacer/ModelOrderRowGraphPlacer 포팅, external ports 존재 시 graph placer 분기 적용(그룹 모델 오더는 TODO). `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과
 - tests 카테고리 parity 재실행(2026-02-13): Java export success=185/193(java_non_ok=8), Rust replay ok=185, matches=51, drift=134, total_diffs=2291 (`perf/model_parity_tests/report.md`, `diff_details.tsv` 갱신). `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과
 - Step 25 모델 오더 외부 포트 그룹 배치 보강(2026-02-13): `ModelOrderComponentGroup`/`ComponentGroupModelOrderGraphPlacer` 포팅(추가 제약/그룹 마지막만 확장), `component_group_test`에 모델 오더 제약 테스트 추가. `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과. tests parity 재검증: Java export success=185/193(java_non_ok=8), Rust replay ok=185, matches=51, drift=134, total_diffs=2286 (`perf/model_parity_tests/report.md`, `diff_details.tsv` 갱신)
+- Step 26 전체 parity full 재실행(2026-02-13): `JAVA_PARITY_MVN_LOCAL_REPO=/tmp/elk-m2-parity-full` + `JAVA_PARITY_MVN_ARGS=-Ddash.skip=true`로 `scripts/run_model_parity_elk_vs_rust.sh` 실행. Java export success=1439/1448(java_non_ok=9), Rust replay ok=1439, matches=305, drift=1134, total_diffs=21476 (`perf/model_parity/report.md`, `diff_details.tsv`, `rust_manifest.tsv` 갱신). `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과
 ## 진행률(최신)
-- 전체 목표 대비 추정 진행률: 약 22.0% (기준: Java↔Rust 모델 parity full match 316/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
-- 단계 진행률(다음 작업 체크리스트 기준): 100.0% (완료 3/3, 미완료 0) [2026-02-13 갱신]
+- 전체 목표 대비 추정 진행률: 약 21.2% (기준: Java↔Rust 모델 parity full match 305/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
+- 단계 진행률(다음 작업 체크리스트 기준): 50.0% (완료 1/2, 미완료 1) [2026-02-13 갱신]
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
 - Java direct-mapped 모듈 테스트 parity: 146.1% (Rust 875 / Java 599, `perf/java_test_module_parity.md`)
@@ -845,7 +846,7 @@
 - topdown 모듈 테스트 parity(수량): 100% (Rust 11 / Java 11)
 - mrtree 모듈 테스트 parity(수량): 100% (Rust 2 / Java 2, 기본 테스트 경로 활성화 완료)
 - Java-Rust 성능 비교 파이프라인/회귀 게이트: 운영 자동화 100% (baseline/results/both + scenario/runtime gate + CI 연동)
-- external/elk-models Java↔Rust 레이아웃 결과 parity(전체 1,448 모델): 22.0% (matches=316/compared=1439, drift=1123, errors=0, timeouts=0, java_non_ok=9, total_diffs=21279)
+- external/elk-models Java↔Rust 레이아웃 결과 parity(전체 1,448 모델): 21.2% (matches=305/compared=1439, drift=1134, errors=0, timeouts=0, java_non_ok=9, total_diffs=21476)
 - external/elk-models Java↔Rust 대형 샘플 안정성: full parity 재실행 완료(`JAVA_PARITY_LIMIT=0`), errors/timeouts 0 확인
 - external/elk 무수정 운영 체계: 100% (격리 실행 + 자동 정리)
 - 1,448 모델 parity 기준선(v4)에서 실패 목록(36 timeouts/8 panics/9 java non-ok) 정리 및 재현 대상 모델 목록 확보
@@ -932,3 +933,5 @@
 - [x] Step 23: 외부 포트 connected components 배치 로직 포팅(ComponentGroupGraphPlacer/ModelOrderRowGraphPlacer) 및 layered 테스트/클리피 재검증
 - [x] Step 24: `run_model_parity_by_category.sh tests` 재실행 후 connected_components/hierarchical_ports drift 변화 리포트 갱신
 - [x] Step 25: `ComponentGroupModelOrderGraphPlacer`/`ModelOrderComponentGroup` 포팅 및 모델 오더 외부 포트 케이스 회귀 테스트/부분 parity 재검증
+- [x] Step 26: 전체 parity full 재실행 및 리포트 갱신(`scripts/run_model_parity_elk_vs_rust.sh`)
+- [ ] Step 27: drift 상위 원인 재분류 및 realworld 상위 10~20건 비교 분석(`scripts/analyze_layered_drift.py` + `scripts/compare_model_parity_layouts.py`) 후 우선순위 갱신
