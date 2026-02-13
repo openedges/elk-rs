@@ -827,9 +827,10 @@
 - 계층 edge fallback 보강(2026-02-13): `ElkGraphLayoutTransferrer`에 nested node 포함 재귀 fallback section 적용(`apply_fallback_sections_recursive`)을 추가해 nested edge `sections` 누락을 보정. subset parity(계층 포트/edge_label_placement 샘플)에서 `sections` 누락 해소 확인(좌표 drift 잔존)
 - tests 카테고리 parity 재실행(2026-02-13): Java export success=185/193(java_non_ok=8), Rust replay ok=185, matches=51, drift=134, total_diffs=2301 (`perf/model_parity_tests/report.md`, `diff_details.tsv`, `rust_manifest.tsv` 갱신)
 - 단계 재검증(2026-02-13): `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --tests -- -D warnings` 통과
+- tickets drift 보정 1차(2026-02-13): `COORDINATE_SYSTEM_ORIGIN` 내부 프로퍼티와 `find_coordinate_system_origin`/계층 오프셋 계산을 포팅해 계층 엣지 좌표 보정. `ElkGraphLayoutTransferrer`에 `calculate_hierarchical_offset` 적용. `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --tests -- -D warnings` 통과. tickets parity 재실행: Java export success=109/110(java_non_ok=1), Rust replay ok=109, matches=42, drift=67, total_diffs=860 (`perf/model_parity_tickets/report.md`, `diff_details.tsv`, `rust_manifest.tsv` 갱신). `.gitignore`에 `perf/model_parity_*/{java,rust}` 및 JSON 출력 제외 추가
 ## 진행률(최신)
 - 전체 목표 대비 추정 진행률: 약 21.2% (기준: Java↔Rust 모델 parity full match 304/1436; 포팅/테스트/빌드/성능 자동화는 완료 상태)
-- 단계 진행률(다음 작업 체크리스트 기준): 50.0% (완료 3/6, 미완료 3) [2026-02-13 갱신]
+- 단계 진행률(다음 작업 체크리스트 기준): 66.7% (완료 4/6, 미완료 2) [2026-02-13 갱신]
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
 - Java direct-mapped 모듈 테스트 parity: 146.1% (Rust 875 / Java 599, `perf/java_test_module_parity.md`)
@@ -848,7 +849,7 @@
 - [x] Step 17: parity 결과 카테고리 분해 및 우선순위 재정의
 - [x] Step 18: non-ok 모델 12건 해소(테스트 3개 panic, Java non-ok 9개) 및 해당 subset parity 재검증
 - [x] Step 19: tests 카테고리 drift 축소 1차(우선: edge_label_placement + hierarchical_ports 계열) 및 `run_model_parity_by_category.sh tests` 재검증
-- [ ] Step 20: tickets 카테고리 drift 축소 1차 및 `run_model_parity_by_category.sh tickets` 재검증
+- [x] Step 20: tickets 카테고리 drift 축소 1차 및 `run_model_parity_by_category.sh tickets` 재검증
 - [ ] Step 21: realworld 카테고리 상위 drift 샘플링(10~20개) 후 root cause 보정 및 `run_model_parity_by_category.sh realworld` 부분 재검증
 - [ ] Step 22: 전체 parity full 재실행 및 리포트 갱신
     - total=1,448, compared=1,401, **matched=79** (5.6%), drift=1,322, skipped=47 (9 java_non_ok + 38 rust errors)

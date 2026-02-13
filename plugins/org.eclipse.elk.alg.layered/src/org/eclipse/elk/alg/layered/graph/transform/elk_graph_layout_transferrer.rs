@@ -493,7 +493,10 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
             }
         }
 
-        let edge_offset = offset;
+        let mut edge_offset = offset;
+        let hierarchical_offset = self.calculate_hierarchical_offset(ledge);
+        edge_offset.x += hierarchical_offset.x;
+        edge_offset.y += hierarchical_offset.y;
 
         // Determine source and target nodes for the is_descendant check
         let source_node = source.as_ref().and_then(|port| {
@@ -676,6 +679,70 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
                     .set_property::<EdgeRouting>(CoreOptions::EDGE_ROUTING, None);
             }
         }
+    }
+
+    fn calculate_hierarchical_offset(&self, ledge: &LEdgeRef) -> KVector {
+        let target_graph = ledge
+            .lock()
+            .ok()
+            .and_then(|mut edge_guard| edge_guard.get_property(InternalProperties::COORDINATE_SYSTEM_ORIGIN));
+        let Some(target_graph) = target_graph else {
+            return KVector::new();
+        };
+
+        let mut result = KVector::new();
+        let current_graph = ledge
+            .lock()
+            .ok()
+            .and_then(|edge_guard| edge_guard.source())
+            .and_then(|source| source.lock().ok().and_then(|port_guard| port_guard.node()))
+            .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.graph()));
+
+        let Some(mut current_graph) = current_graph else {
+            return result;
+        };
+
+        let mut guard = 0usize;
+        while !Arc::ptr_eq(&current_graph, &target_graph) {
+            guard += 1;
+            if guard > 512 {
+                break;
+            }
+
+            let (parent_node, offset, padding) = {
+                let graph_guard = match current_graph.lock() {
+                    Ok(guard) => guard,
+                    Err(_) => break,
+                };
+                (
+                    graph_guard.parent_node(),
+                    *graph_guard.offset_ref(),
+                    graph_guard.padding_ref().clone(),
+                )
+            };
+
+            let Some(parent_node) = parent_node else {
+                break;
+            };
+
+            let (parent_pos, next_graph) = {
+                let mut node_guard = match parent_node.lock() {
+                    Ok(guard) => guard,
+                    Err(_) => break,
+                };
+                (*node_guard.shape().position_ref(), node_guard.graph())
+            };
+
+            result.x += parent_pos.x + offset.x + padding.left;
+            result.y += parent_pos.y + offset.y + padding.top;
+
+            let Some(next_graph) = next_graph else {
+                break;
+            };
+            current_graph = next_graph;
+        }
+
+        result
     }
 
     fn apply_fallback_sections(&self, elk_edges: &[ElkEdgeRef], container: &ElkNodeRef) {

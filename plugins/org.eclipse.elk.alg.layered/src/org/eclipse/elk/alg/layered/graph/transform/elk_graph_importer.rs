@@ -32,6 +32,8 @@ pub struct ElkGraphImporter<'a> {
     node_map: HashMap<OriginId, LNodeRef>,
     port_map: HashMap<OriginId, LPortRef>,
     label_map: HashMap<OriginId, LLabelRef>,
+    top_level_elkgraph: Option<ElkNodeRef>,
+    top_level_lgraph: Option<LGraphRef>,
 }
 
 impl<'a> ElkGraphImporter<'a> {
@@ -41,11 +43,15 @@ impl<'a> ElkGraphImporter<'a> {
             node_map: HashMap::new(),
             port_map: HashMap::new(),
             label_map: HashMap::new(),
+            top_level_elkgraph: None,
+            top_level_lgraph: None,
         }
     }
 
     pub fn import_graph(&mut self, elkgraph: &ElkNodeRef) -> LGraphRef {
         let lgraph = self.create_lgraph(elkgraph);
+        self.top_level_elkgraph = Some(elkgraph.clone());
+        self.top_level_lgraph = Some(lgraph.clone());
 
         if self
             .graph_property(elkgraph, CoreOptions::PARTITIONING_ACTIVATE)
@@ -457,7 +463,60 @@ impl<'a> ElkGraphImporter<'a> {
                 let llabel = self.transform_label(&label);
                 edge_guard.labels_mut().push(llabel);
             }
+
+            if let (Some(top_level_elkgraph), Some(top_level_lgraph)) =
+                (&self.top_level_elkgraph, &self.top_level_lgraph)
+            {
+                let coord_origin =
+                    self.find_coordinate_system_origin(elkedge, top_level_elkgraph, top_level_lgraph);
+                edge_guard.set_property(InternalProperties::COORDINATE_SYSTEM_ORIGIN, coord_origin);
+            }
         };
+    }
+
+    fn find_coordinate_system_origin(
+        &self,
+        elkedge: &ElkEdgeRef,
+        top_level_elkgraph: &ElkNodeRef,
+        top_level_lgraph: &LGraphRef,
+    ) -> Option<LGraphRef> {
+        let (sources, targets, containing_node) = {
+            let edge_ref = elkedge.borrow();
+            let sources = edge_ref.sources_ro().iter().cloned().collect::<Vec<_>>();
+            let targets = edge_ref.targets_ro().iter().cloned().collect::<Vec<_>>();
+            let containing_node = edge_ref.containing_node();
+            (sources, targets, containing_node)
+        };
+
+        let source = sources
+            .first()
+            .and_then(ElkGraphUtil::connectable_shape_to_node)?;
+        let target = targets
+            .first()
+            .and_then(ElkGraphUtil::connectable_shape_to_node)?;
+
+        let source_parent = source.borrow().parent();
+        let target_parent = target.borrow().parent();
+        match (source_parent, target_parent) {
+            (Some(sp), Some(tp)) if Rc::ptr_eq(&sp, &tp) => return None,
+            (None, None) => return None,
+            _ => {}
+        }
+
+        if ElkGraphUtil::is_descendant(&target, &source) {
+            return None;
+        }
+
+        let origin = containing_node?;
+        if Rc::ptr_eq(&origin, top_level_elkgraph) {
+            return Some(top_level_lgraph.clone());
+        }
+
+        let origin_id = self
+            .origin_store
+            .get_id(&ElkGraphElementRef::Node(origin.clone()))?;
+        let lnode = self.node_map.get(&origin_id)?;
+        lnode.lock().ok().and_then(|node_guard| node_guard.nested_graph())
     }
 
     fn transform_label(&mut self, elklabel: &ElkLabelRef) -> LLabelRef {

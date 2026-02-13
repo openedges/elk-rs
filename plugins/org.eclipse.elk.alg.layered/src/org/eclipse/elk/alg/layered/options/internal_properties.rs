@@ -132,6 +132,9 @@ pub static SPACINGS_PROPERTY: LazyLock<Property<Spacings>> =
 pub static TARGET_OFFSET_PROPERTY: LazyLock<Property<KVector>> =
     LazyLock::new(|| Property::new("targetOffset"));
 
+pub static COORDINATE_SYSTEM_ORIGIN_PROPERTY: LazyLock<Property<LGraphRef>> =
+    LazyLock::new(|| Property::new("coordinateOrigin"));
+
 pub static SPLINE_LABEL_SIZE_PROPERTY: LazyLock<Property<KVector>> =
     LazyLock::new(|| Property::with_default("splineLabelSize", KVector::new()));
 
@@ -299,6 +302,8 @@ impl InternalProperties {
     pub const RANDOM: &'static LazyLock<Property<Random>> = &RANDOM_PROPERTY;
     pub const SPACINGS: &'static LazyLock<Property<Spacings>> = &SPACINGS_PROPERTY;
     pub const TARGET_OFFSET: &'static LazyLock<Property<KVector>> = &TARGET_OFFSET_PROPERTY;
+    pub const COORDINATE_SYSTEM_ORIGIN: &'static LazyLock<Property<LGraphRef>> =
+        &COORDINATE_SYSTEM_ORIGIN_PROPERTY;
     pub const SPLINE_LABEL_SIZE: &'static LazyLock<Property<KVector>> = &SPLINE_LABEL_SIZE_PROPERTY;
     pub const ORIGINAL_PORT_CONSTRAINTS: &'static LazyLock<Property<PortConstraints>> =
         &ORIGINAL_PORT_CONSTRAINTS_PROPERTY;
