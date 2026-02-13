@@ -173,7 +173,7 @@ fn find_port_side_range(ports: &[LPortRef], side: PortSide) -> (usize, usize) {
 }
 
 fn reverse_range(ports: &mut [LPortRef], low_idx: usize, high_idx: usize) {
-    if high_idx <= low_idx + 1 {
+    if high_idx <= low_idx + 2 {
         return;
     }
 

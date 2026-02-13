@@ -258,9 +258,15 @@ impl BarycenterHeuristic {
             .and_then(|state| state.lock().ok().and_then(|state_guard| state_guard.barycenter));
 
         match (left_bary, right_bary) {
-            (Some(left_bary), Some(right_bary)) => left_bary
-                .partial_cmp(&right_bary)
-                .unwrap_or(Ordering::Equal),
+            (Some(left_bary), Some(right_bary)) => {
+                let ord = left_bary
+                    .partial_cmp(&right_bary)
+                    .unwrap_or(Ordering::Equal);
+                if ord != Ordering::Equal {
+                    return ord;
+                }
+                Ordering::Equal
+            }
             (Some(_), None) => Ordering::Less,
             (None, Some(_)) => Ordering::Greater,
             _ => Ordering::Equal,
