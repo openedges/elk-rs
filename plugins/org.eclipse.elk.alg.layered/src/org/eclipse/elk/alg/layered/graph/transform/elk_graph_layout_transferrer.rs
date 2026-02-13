@@ -189,6 +189,9 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
                 self.apply_layout(&nested_graph);
             }
         }
+
+        // 11. Ensure every contained edge has at least a fallback section
+        self.apply_fallback_sections_recursive(&elk_node);
     }
 
     fn apply_parent_node_layout(&self, lgraph: &LGraphRef) {
@@ -718,6 +721,20 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
             let mut edge_mut = edge.borrow_mut();
             edge_mut.sections().clear();
             edge_mut.sections().add(section);
+        }
+    }
+
+    fn apply_fallback_sections_recursive(&self, container: &ElkNodeRef) {
+        let (edges, children) = {
+            let mut node_mut = container.borrow_mut();
+            let edges = node_mut.contained_edges().iter().cloned().collect::<Vec<_>>();
+            let children = node_mut.children().iter().cloned().collect::<Vec<_>>();
+            (edges, children)
+        };
+
+        self.apply_fallback_sections(&edges, container);
+        for child in children {
+            self.apply_fallback_sections_recursive(&child);
         }
     }
 }

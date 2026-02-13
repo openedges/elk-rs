@@ -824,9 +824,12 @@
 - parity 결과 카테고리 분해 및 우선순위 재정의(2026-02-13): examples 45( match 27, drift 18), tests 193( compared 182, match 51, drift 131, skip_non_ok 11=java_non_ok 8 + rust_error 3), tickets 110( compared 109, match 42, drift 67, skip_non_ok 1), realworld 1100( match 184, drift 916). 우선순위: 1) non-ok 모델 해소(테스트 3개 panic, Java non-ok 9개) 2) tests drift 축소 3) tickets drift 축소 4) realworld 드리프트 root cause 샘플링/수정 5) examples 마무리. 분석/문서 갱신만으로 `cargo test`/`cargo clippy`는 생략
 - non-ok 모델 해소 1차(2026-02-13): BK aligner/threshold에서 타 그래프 노드 인덱스 참조 시 OOB 방지(이웃 필터 + 범위 가드)로 `tests/layered/connected_components/compound05.elkt`, `tests/layered/hierarchical_ports/hierarchy05.elkt`, `tests/layered/hierarchical_ports/hierarchy06.elkt` panic 제거(3/3 ok). Java non-ok 9개는 `perf/model_parity_full/java_exclude.txt` 추가 및 Java export exclude 지원(`elk.parity.exclude`)으로 다음 parity 실행에서 제외되도록 정리
 - 단계 재검증(2026-02-13): `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --tests -- -D warnings` 통과
+- 계층 edge fallback 보강(2026-02-13): `ElkGraphLayoutTransferrer`에 nested node 포함 재귀 fallback section 적용(`apply_fallback_sections_recursive`)을 추가해 nested edge `sections` 누락을 보정. subset parity(계층 포트/edge_label_placement 샘플)에서 `sections` 누락 해소 확인(좌표 drift 잔존)
+- tests 카테고리 parity 재실행(2026-02-13): Java export success=185/193(java_non_ok=8), Rust replay ok=185, matches=51, drift=134, total_diffs=2301 (`perf/model_parity_tests/report.md`, `diff_details.tsv`, `rust_manifest.tsv` 갱신)
+- 단계 재검증(2026-02-13): `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --tests -- -D warnings` 통과
 ## 진행률(최신)
 - 전체 목표 대비 추정 진행률: 약 21.2% (기준: Java↔Rust 모델 parity full match 304/1436; 포팅/테스트/빌드/성능 자동화는 완료 상태)
-- 단계 진행률(다음 작업 체크리스트 기준): 33.3% (완료 2/6, 미완료 4) [2026-02-13 갱신]
+- 단계 진행률(다음 작업 체크리스트 기준): 50.0% (완료 3/6, 미완료 3) [2026-02-13 갱신]
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
 - Java direct-mapped 모듈 테스트 parity: 146.1% (Rust 875 / Java 599, `perf/java_test_module_parity.md`)
@@ -844,7 +847,7 @@
 ## 다음 작업
 - [x] Step 17: parity 결과 카테고리 분해 및 우선순위 재정의
 - [x] Step 18: non-ok 모델 12건 해소(테스트 3개 panic, Java non-ok 9개) 및 해당 subset parity 재검증
-- [ ] Step 19: tests 카테고리 drift 축소 1차(우선: edge_label_placement + hierarchical_ports 계열) 및 `run_model_parity_by_category.sh tests` 재검증
+- [x] Step 19: tests 카테고리 drift 축소 1차(우선: edge_label_placement + hierarchical_ports 계열) 및 `run_model_parity_by_category.sh tests` 재검증
 - [ ] Step 20: tickets 카테고리 drift 축소 1차 및 `run_model_parity_by_category.sh tickets` 재검증
 - [ ] Step 21: realworld 카테고리 상위 drift 샘플링(10~20개) 후 root cause 보정 및 `run_model_parity_by_category.sh realworld` 부분 재검증
 - [ ] Step 22: 전체 parity full 재실행 및 리포트 갱신
