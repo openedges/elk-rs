@@ -2,46 +2,46 @@
 
 - manifest: `/Users/cody.ij.hwang/Projects/github/elk-rs/perf/model_parity_full/rust_manifest.tsv`
 - total rows: 1448
-- compared rows: 1439
-- matched rows: 293
-- drift rows: 1146
-- skipped rows (java/rust non-ok): 9
+- compared rows: 1426
+- matched rows: 314
+- drift rows: 1112
+- skipped rows (java/rust non-ok): 22
 - compare errors: 0
 - abs tolerance: 1e-06
 - max diffs per model: 20
-- total diffs across all models: 21360
+- total diffs across all models: 21096
 
 ## Drift Classification Summary
 
 | Category | Count | Percentage |
 |----------|------:|-----------:|
-| coordinate | 15284 | 71.6% |
-| section | 3666 | 17.2% |
-| structure | 1917 | 9.0% |
-| label | 224 | 1.0% |
-| ordering | 148 | 0.7% |
-| other | 121 | 0.6% |
+| coordinate | 14547 | 69.0% |
+| section | 5512 | 26.1% |
+| structure | 576 | 2.7% |
+| label | 223 | 1.1% |
+| ordering | 147 | 0.7% |
+| other | 91 | 0.4% |
 
 ### Top Diff Path Prefixes
 
-- `children[*]/y`: 6171 (28.9%)
-- `children[*]/x`: 3028 (14.2%)
-- `children[*]/children[*]/y`: 1552 (7.3%)
-- `children[*]/edges[*]/sections[*]`: 1405 (6.6%)
-- `children[*]/children[*]/x`: 1183 (5.5%)
-- `children[*]/children[*]/children[*]`: 1134 (5.3%)
-- `children[*]/ports[*]/y`: 1109 (5.2%)
-- `children[*]/edges[*]`: 1012 (4.7%)
-- `edges[*]/sections[*]/endPoint`: 780 (3.7%)
-- `edges[*]/sections[*]/startPoint`: 709 (3.3%)
+- `children[*]/y`: 5976 (28.3%)
+- `children[*]/x`: 3083 (14.6%)
+- `children[*]/edges[*]/sections[*]`: 2783 (13.2%)
+- `children[*]/children[*]/x`: 1669 (7.9%)
+- `children[*]/children[*]/y`: 1274 (6.0%)
+- `children[*]/children[*]/children[*]`: 1175 (5.6%)
+- `children[*]/children[*]/edges[*]`: 867 (4.1%)
+- `edges[*]/sections[*]/endPoint`: 708 (3.4%)
+- `edges[*]/sections[*]/bendPoints[*]`: 634 (3.0%)
+- `edges[*]/sections[*]/startPoint`: 630 (3.0%)
 
 ## Drift Samples
 
 - `examples/general/spacing/labels.elkt`: diffs=20 [section=18, coordinate=2], first: children[0]/x: number mismatch (52.0 != 72.0)
 - `examples/general/spacing/nodesEdges.elkt`: diffs=20 [section=14, coordinate=6], first: children[0]/y: number mismatch (37.0 != 33.0)
 - `examples/general/spacing/ports.elkt`: diffs=1 [coordinate=1], first: children[2]/children[1]/height: number mismatch (60.0 != 40.0)
-- `examples/hierarchy/hierarchicalEdges.elkt`: diffs=5 [coordinate=3, section=1, other=1], first: children[0]/children[0]/x: number mismatch (17.0 != 12.0)
-- `examples/hierarchy/hierarchicalLayoutMixing.elkt`: diffs=20 [coordinate=10, section=8, structure=2], first: children[0]/children[0]/x: number mismatch (17.0 != 12.0)
+- `examples/general/spacing/portsSurrounding.elkt`: diffs=6 [coordinate=6], first: children[0]/ports[0]/y: number mismatch (57.0 != 57.5)
+- `examples/hierarchy/hierarchicalLayoutMixing.elkt`: diffs=20 [coordinate=9, section=8, structure=3], first: children[0]/children[0]/y: number mismatch (12.0 != 76.0)
 - `examples/user-hints/interactive-constraints/interactiveLayeredLayout_circle.elkt`: diffs=6 [structure=3, section=2, coordinate=1], first: children[1]/y: number mismatch (23.0 != 12.0)
 - `examples/user-hints/interactive-constraints/interactiveLayeredLayout_circle_pseudo_positions.elkt`: diffs=6 [structure=3, section=2, coordinate=1], first: children[0]/y: number mismatch (12.0 != 23.0)
 - `examples/user-hints/interactive-constraints/interactiveLayeredLayout_hierarchyDirection.elkt`: diffs=20 [section=11, coordinate=6, structure=3], first: children[0]/y: number mismatch (67.0 != 12.0)
