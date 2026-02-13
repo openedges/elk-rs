@@ -2,12 +2,20 @@ use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
-use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::{
+    PortSide, SIDES_EAST, SIDES_EAST_SOUTH, SIDES_EAST_SOUTH_WEST, SIDES_EAST_WEST, SIDES_NONE,
+    SIDES_NORTH, SIDES_NORTH_EAST, SIDES_NORTH_EAST_SOUTH, SIDES_NORTH_EAST_SOUTH_WEST,
+    SIDES_NORTH_EAST_WEST, SIDES_NORTH_SOUTH, SIDES_NORTH_SOUTH_WEST, SIDES_NORTH_WEST, SIDES_SOUTH,
+    SIDES_SOUTH_WEST, SIDES_WEST,
+};
 use org_eclipse_elk_core::org::eclipse::elk::core::util::EnumSet;
 
-use crate::org::eclipse::elk::alg::layered::components::ComponentOrderingStrategy;
+use crate::org::eclipse::elk::alg::layered::components::{
+    ComponentGroup, ComponentOrderingStrategy,
+};
 use crate::org::eclipse::elk::alg::layered::graph::{
     LGraph, LGraphRef, LGraphUtil, LNode, LNodeRef, NodeType,
 };
@@ -132,54 +140,37 @@ impl ComponentsProcessor {
             return;
         }
 
-        let mut ordered_components = components.to_vec();
-        sort_components_by_priority(&mut ordered_components, target);
-
-        if let Ok(mut target_guard) = target.lock() {
-            target_guard.layerless_nodes_mut().clear();
-        }
-
-        if let Some(first_component) = ordered_components.first() {
-            if let (Ok(mut target_guard), Ok(mut first_guard)) = (target.lock(), first_component.lock()) {
-                *target_guard.graph_element().properties_mut() =
-                    first_guard.graph_element().properties().clone();
-            }
-        }
-
-        let (aspect_ratio, component_spacing) = if let Ok(mut target_guard) = target.lock() {
+        let (consider_model_order, has_external_ports) = if let Ok(mut target_guard) = target.lock() {
             (
                 target_guard
-                    .get_property(LayeredOptions::ASPECT_RATIO)
-                    .unwrap_or(1.6),
+                    .get_property(LayeredOptions::CONSIDER_MODEL_ORDER_COMPONENTS)
+                    .unwrap_or(ComponentOrderingStrategy::None),
                 target_guard
-                    .get_property(LayeredOptions::SPACING_COMPONENT_COMPONENT)
-                    .unwrap_or(20.0),
+                    .get_property(InternalProperties::GRAPH_PROPERTIES)
+                    .unwrap_or_else(EnumSet::none_of)
+                    .contains(&GraphProperties::ExternalPorts),
             )
         } else {
-            (1.6, 20.0)
+            (ComponentOrderingStrategy::None, false)
         };
 
-        let mut max_row_width = 0.0f64;
-        let mut total_area = 0.0f64;
-        for component in &ordered_components {
-            if let Ok(component_guard) = component.lock() {
-                let size = component_guard.size_ref();
-                max_row_width = max_row_width.max(size.x);
-                total_area += size.x * size.y;
+        if has_external_ports {
+            match consider_model_order {
+                ComponentOrderingStrategy::ModelOrder => {
+                    combine_model_order_row(components, target);
+                }
+                ComponentOrderingStrategy::GroupModelOrder => {
+                    // TODO: port ComponentGroupModelOrderGraphPlacer for full parity.
+                    combine_component_group(components, target);
+                }
+                ComponentOrderingStrategy::None | ComponentOrderingStrategy::InsidePortSideGroups => {
+                    combine_component_group(components, target);
+                }
             }
+            return;
         }
-        max_row_width = max_row_width.max(total_area.sqrt() * aspect_ratio);
 
-        place_components_in_rows(
-            &ordered_components,
-            target,
-            max_row_width,
-            component_spacing,
-        );
-
-        for component in &ordered_components {
-            move_graph(target, component, 0.0, 0.0);
-        }
+        combine_simple_row(components, target);
     }
 
     fn dfs(
@@ -219,6 +210,453 @@ impl ComponentsProcessor {
             Self::dfs(&connected_node, visited, component_nodes, ext_port_sides);
         }
     }
+}
+
+fn combine_simple_row(components: &[LGraphRef], target: &LGraphRef) {
+    let mut ordered_components = components.to_vec();
+    sort_components_by_priority(&mut ordered_components, target);
+
+    if let Ok(mut target_guard) = target.lock() {
+        target_guard.layerless_nodes_mut().clear();
+    }
+
+    if let Some(first_component) = ordered_components.first() {
+        if let (Ok(mut target_guard), Ok(mut first_guard)) = (target.lock(), first_component.lock()) {
+            *target_guard.graph_element().properties_mut() =
+                first_guard.graph_element().properties().clone();
+        }
+    }
+
+    let (aspect_ratio, component_spacing) = if let Ok(mut target_guard) = target.lock() {
+        (
+            target_guard
+                .get_property(LayeredOptions::ASPECT_RATIO)
+                .unwrap_or(1.6),
+            target_guard
+                .get_property(LayeredOptions::SPACING_COMPONENT_COMPONENT)
+                .unwrap_or(20.0),
+        )
+    } else {
+        (1.6, 20.0)
+    };
+
+    let mut max_row_width = 0.0f64;
+    let mut total_area = 0.0f64;
+    for component in &ordered_components {
+        if let Ok(component_guard) = component.lock() {
+            let size = component_guard.size_ref();
+            max_row_width = max_row_width.max(size.x);
+            total_area += size.x * size.y;
+        }
+    }
+    max_row_width = max_row_width.max(total_area.sqrt() * aspect_ratio);
+
+    place_components_in_rows(
+        &ordered_components,
+        target,
+        max_row_width,
+        component_spacing,
+    );
+
+    for component in &ordered_components {
+        move_graph(target, component, 0.0, 0.0);
+    }
+}
+
+fn combine_component_group(components: &[LGraphRef], target: &LGraphRef) {
+    if let Ok(mut target_guard) = target.lock() {
+        target_guard.layerless_nodes_mut().clear();
+    }
+
+    if components.is_empty() {
+        if let Ok(mut target_guard) = target.lock() {
+            target_guard.size().x = 0.0;
+            target_guard.size().y = 0.0;
+        }
+        return;
+    }
+
+    if let Some(first_component) = components.first() {
+        if let (Ok(mut target_guard), Ok(mut first_guard)) = (target.lock(), first_component.lock()) {
+            *target_guard.graph_element().properties_mut() =
+                first_guard.graph_element().properties().clone();
+        }
+    }
+
+    let mut component_groups: Vec<ComponentGroup> = Vec::new();
+    for component in components {
+        add_component_to_groups(&mut component_groups, component.clone());
+    }
+
+    let component_spacing = components
+        .first()
+        .and_then(|component| component.lock().ok())
+        .and_then(|mut component_guard| {
+            component_guard.get_property(LayeredOptions::SPACING_COMPONENT_COMPONENT)
+        })
+        .unwrap_or(20.0);
+
+    let mut offset = KVector::new();
+    for group in &component_groups {
+        let group_size = place_component_group(group, component_spacing);
+        offset_graphs(&group.get_components(), offset.x, offset.y);
+        offset.x += group_size.x;
+        offset.y += group_size.y;
+    }
+
+    if let Ok(mut target_guard) = target.lock() {
+        target_guard.size().x = (offset.x - component_spacing).max(0.0);
+        target_guard.size().y = (offset.y - component_spacing).max(0.0);
+    }
+
+    for group in component_groups {
+        move_graphs(target, &group.get_components(), 0.0, 0.0);
+    }
+}
+
+fn add_component_to_groups(component_groups: &mut Vec<ComponentGroup>, component: LGraphRef) {
+    for group in component_groups.iter_mut() {
+        if group.add(component.clone()) {
+            return;
+        }
+    }
+
+    component_groups.push(ComponentGroup::with_component(component));
+}
+
+fn place_component_group(group: &ComponentGroup, spacing: f64) -> KVector {
+    let size_c = place_components_in_rows_group(&group.get_components_for(&SIDES_NONE), spacing);
+    let size_n = place_components_horizontally(&group.get_components_for(&SIDES_NORTH), spacing);
+    let size_s = place_components_horizontally(&group.get_components_for(&SIDES_SOUTH), spacing);
+    let size_w = place_components_vertically(&group.get_components_for(&SIDES_WEST), spacing);
+    let size_e = place_components_vertically(&group.get_components_for(&SIDES_EAST), spacing);
+    let size_nw = place_components_horizontally(&group.get_components_for(&SIDES_NORTH_WEST), spacing);
+    let size_ne = place_components_horizontally(&group.get_components_for(&SIDES_NORTH_EAST), spacing);
+    let size_sw = place_components_horizontally(&group.get_components_for(&SIDES_SOUTH_WEST), spacing);
+    let size_se = place_components_horizontally(&group.get_components_for(&SIDES_EAST_SOUTH), spacing);
+    let size_we = place_components_vertically(&group.get_components_for(&SIDES_EAST_WEST), spacing);
+    let size_ns = place_components_horizontally(&group.get_components_for(&SIDES_NORTH_SOUTH), spacing);
+    let size_nwe = place_components_horizontally(
+        &group.get_components_for(&SIDES_NORTH_EAST_WEST),
+        spacing,
+    );
+    let size_swe = place_components_horizontally(
+        &group.get_components_for(&SIDES_EAST_SOUTH_WEST),
+        spacing,
+    );
+    let size_wns = place_components_vertically(
+        &group.get_components_for(&SIDES_NORTH_SOUTH_WEST),
+        spacing,
+    );
+    let size_ens = place_components_vertically(
+        &group.get_components_for(&SIDES_NORTH_EAST_SOUTH),
+        spacing,
+    );
+    let size_nesw = place_components_horizontally(
+        &group.get_components_for(&SIDES_NORTH_EAST_SOUTH_WEST),
+        spacing,
+    );
+
+    let col_left_width = max_of(&[size_nw.x, size_w.x, size_sw.x, size_wns.x]);
+    let col_mid_width = max_of(&[size_n.x, size_c.x, size_s.x, size_nesw.x]);
+    let col_ns_width = size_ns.x;
+    let col_right_width = max_of(&[size_ne.x, size_e.x, size_se.x, size_ens.x]);
+    let row_top_height = max_of(&[size_nw.y, size_n.y, size_ne.y, size_nwe.y]);
+    let row_mid_height = max_of(&[size_w.y, size_c.y, size_e.y, size_nesw.y]);
+    let row_we_height = size_we.y;
+    let row_bottom_height = max_of(&[size_sw.y, size_s.y, size_se.y, size_swe.y]);
+
+    offset_graphs(
+        &group.get_components_for(&SIDES_NONE),
+        col_left_width + col_ns_width,
+        row_top_height + row_we_height,
+    );
+    offset_graphs(
+        &group.get_components_for(&SIDES_NORTH_EAST_SOUTH_WEST),
+        col_left_width + col_ns_width,
+        row_top_height + row_we_height,
+    );
+    offset_graphs(
+        &group.get_components_for(&SIDES_NORTH),
+        col_left_width + col_ns_width,
+        0.0,
+    );
+    offset_graphs(
+        &group.get_components_for(&SIDES_SOUTH),
+        col_left_width + col_ns_width,
+        row_top_height + row_we_height + row_mid_height,
+    );
+    offset_graphs(
+        &group.get_components_for(&SIDES_WEST),
+        0.0,
+        row_top_height + row_we_height,
+    );
+    offset_graphs(
+        &group.get_components_for(&SIDES_EAST),
+        col_left_width + col_ns_width + col_mid_width,
+        row_top_height + row_we_height,
+    );
+    offset_graphs(
+        &group.get_components_for(&SIDES_NORTH_EAST),
+        col_left_width + col_ns_width + col_mid_width,
+        0.0,
+    );
+    offset_graphs(
+        &group.get_components_for(&SIDES_SOUTH_WEST),
+        0.0,
+        row_top_height + row_we_height + row_mid_height,
+    );
+    offset_graphs(
+        &group.get_components_for(&SIDES_EAST_SOUTH),
+        col_left_width + col_ns_width + col_mid_width,
+        row_top_height + row_we_height + row_mid_height,
+    );
+    offset_graphs(
+        &group.get_components_for(&SIDES_EAST_WEST),
+        0.0,
+        row_top_height,
+    );
+    offset_graphs(
+        &group.get_components_for(&SIDES_EAST_SOUTH_WEST),
+        0.0,
+        row_top_height + row_we_height + row_mid_height,
+    );
+    offset_graphs(
+        &group.get_components_for(&SIDES_NORTH_SOUTH),
+        col_left_width,
+        0.0,
+    );
+    offset_graphs(
+        &group.get_components_for(&SIDES_NORTH_EAST_SOUTH),
+        col_left_width + col_ns_width + col_mid_width,
+        0.0,
+    );
+
+    KVector::with_values(
+        max_of(&[
+            col_left_width + col_mid_width + col_ns_width + col_right_width,
+            size_we.x,
+            size_nwe.x,
+            size_swe.x,
+        ]),
+        max_of(&[
+            row_top_height + row_mid_height + row_we_height + row_bottom_height,
+            size_ns.y,
+            size_wns.y,
+            size_ens.y,
+        ]),
+    )
+}
+
+fn place_components_horizontally(components: &[LGraphRef], spacing: f64) -> KVector {
+    let mut size = KVector::new();
+
+    for component in components {
+        offset_graph(component, size.x, 0.0);
+        if let Ok(component_guard) = component.lock() {
+            let component_size = component_guard.size_ref();
+            size.x += component_size.x + spacing;
+            size.y = size.y.max(component_size.y);
+        }
+    }
+
+    if size.y > 0.0 {
+        size.y += spacing;
+    }
+
+    size
+}
+
+fn place_components_vertically(components: &[LGraphRef], spacing: f64) -> KVector {
+    let mut size = KVector::new();
+
+    for component in components {
+        offset_graph(component, 0.0, size.y);
+        if let Ok(component_guard) = component.lock() {
+            let component_size = component_guard.size_ref();
+            size.y += component_size.y + spacing;
+            size.x = size.x.max(component_size.x);
+        }
+    }
+
+    if size.x > 0.0 {
+        size.x += spacing;
+    }
+
+    size
+}
+
+fn place_components_in_rows_group(components: &[LGraphRef], spacing: f64) -> KVector {
+    if components.is_empty() {
+        return KVector::new();
+    }
+
+    let mut max_row_width = 0.0f64;
+    let mut total_area = 0.0f64;
+    for component in components {
+        if let Ok(component_guard) = component.lock() {
+            let size = component_guard.size_ref();
+            max_row_width = max_row_width.max(size.x);
+            total_area += size.x * size.y;
+        }
+    }
+
+    let aspect_ratio = components
+        .first()
+        .and_then(|component| component.lock().ok())
+        .and_then(|mut component_guard| component_guard.get_property(LayeredOptions::ASPECT_RATIO))
+        .unwrap_or(1.6);
+    max_row_width = max_row_width.max(total_area.sqrt() * aspect_ratio);
+
+    let mut xpos = 0.0f64;
+    let mut ypos = 0.0f64;
+    let mut highest_box = 0.0f64;
+    let mut broadest_row = spacing;
+
+    for component in components {
+        let (size_x, size_y) = if let Ok(component_guard) = component.lock() {
+            (component_guard.size_ref().x, component_guard.size_ref().y)
+        } else {
+            (0.0, 0.0)
+        };
+
+        if xpos + size_x > max_row_width {
+            xpos = 0.0;
+            ypos += highest_box + spacing;
+            highest_box = 0.0;
+        }
+
+        offset_graph(component, xpos, ypos);
+
+        broadest_row = broadest_row.max(xpos + size_x);
+        highest_box = highest_box.max(size_y);
+        xpos += size_x + spacing;
+    }
+
+    KVector::with_values(broadest_row + spacing, ypos + highest_box + spacing)
+}
+
+fn combine_model_order_row(components: &[LGraphRef], target: &LGraphRef) {
+    if let Ok(mut target_guard) = target.lock() {
+        target_guard.layerless_nodes_mut().clear();
+    }
+
+    if let Some(first_component) = components.first() {
+        if let (Ok(mut target_guard), Ok(mut first_guard)) = (target.lock(), first_component.lock()) {
+            *target_guard.graph_element().properties_mut() =
+                first_guard.graph_element().properties().clone();
+        }
+    }
+
+    let (aspect_ratio, component_spacing) = if let Ok(mut target_guard) = target.lock() {
+        (
+            target_guard
+                .get_property(LayeredOptions::ASPECT_RATIO)
+                .unwrap_or(1.6),
+            target_guard
+                .get_property(LayeredOptions::SPACING_COMPONENT_COMPONENT)
+                .unwrap_or(20.0),
+        )
+    } else {
+        (1.6, 20.0)
+    };
+
+    let mut max_row_width = 0.0f64;
+    let mut total_area = 0.0f64;
+    for component in components {
+        if let Ok(component_guard) = component.lock() {
+            let size = component_guard.size_ref();
+            max_row_width = max_row_width.max(size.x);
+            total_area += size.x * size.y;
+        }
+    }
+    max_row_width = max_row_width.max(total_area.sqrt() * aspect_ratio);
+
+    place_components_in_rows_model_order(
+        components,
+        target,
+        max_row_width,
+        component_spacing,
+    );
+
+    for component in components {
+        move_graph(target, component, 0.0, 0.0);
+    }
+}
+
+fn place_components_in_rows_model_order(
+    components: &[LGraphRef],
+    target: &LGraphRef,
+    max_row_width: f64,
+    component_spacing: f64,
+) {
+    let mut xpos = 0.0f64;
+    let mut ypos = 0.0f64;
+    let mut highest_box = 0.0f64;
+    let mut broadest_row = component_spacing;
+    let mut last_component: Option<LGraphRef> = None;
+    let mut start_x_of_row = 0.0f64;
+
+    for component in components {
+        let (size_x, size_y, offset_x, offset_y, ext_ports) = if let Ok(mut component_guard) = component.lock() {
+            (
+                component_guard.size_ref().x,
+                component_guard.size_ref().y,
+                component_guard.offset_ref().x,
+                component_guard.offset_ref().y,
+                component_guard
+                    .get_property(InternalProperties::EXT_PORT_CONNECTIONS)
+                    .unwrap_or_else(EnumSet::none_of),
+            )
+        } else {
+            (0.0, 0.0, 0.0, 0.0, EnumSet::none_of())
+        };
+
+        let last_has_east = last_component
+            .as_ref()
+            .and_then(|last| last.lock().ok())
+            .and_then(|mut guard| guard.get_property(InternalProperties::EXT_PORT_CONNECTIONS))
+            .is_some_and(|ports| ports.contains(&PortSide::East));
+
+        if (xpos + size_x > max_row_width && !ext_ports.contains(&PortSide::North))
+            || last_has_east
+            || ext_ports.contains(&PortSide::West)
+        {
+            xpos = start_x_of_row;
+            ypos += highest_box + component_spacing;
+            highest_box = 0.0;
+        }
+
+        if ext_ports.contains(&PortSide::North) {
+            xpos = broadest_row + component_spacing;
+        }
+
+        offset_graph(component, xpos + offset_x, ypos + offset_y);
+        if let Ok(mut component_guard) = component.lock() {
+            component_guard.offset().x = 0.0;
+            component_guard.offset().y = 0.0;
+        }
+
+        broadest_row = broadest_row.max(xpos + size_x);
+        if ext_ports.contains(&PortSide::South) {
+            start_x_of_row = start_x_of_row.max(xpos + size_x + component_spacing);
+        }
+        highest_box = highest_box.max(size_y);
+        xpos += size_x + component_spacing;
+        last_component = Some(component.clone());
+    }
+
+    if let Ok(mut target_guard) = target.lock() {
+        target_guard.size().x = broadest_row;
+        target_guard.size().y = ypos + highest_box;
+    }
+}
+
+fn max_of(values: &[f64]) -> f64 {
+    values
+        .iter()
+        .copied()
+        .fold(0.0, |acc, value| acc.max(value))
 }
 
 fn sort_components_by_priority(components: &mut [LGraphRef], target: &LGraphRef) {
@@ -304,6 +742,18 @@ fn place_components_in_rows(
     if let Ok(mut target_guard) = target.lock() {
         target_guard.size().x = broadest_row;
         target_guard.size().y = ypos + highest_box;
+    }
+}
+
+fn move_graphs(destination: &LGraphRef, sources: &[LGraphRef], offset_x: f64, offset_y: f64) {
+    for source in sources {
+        move_graph(destination, source, offset_x, offset_y);
+    }
+}
+
+fn offset_graphs(graphs: &[LGraphRef], offset_x: f64, offset_y: f64) {
+    for graph in graphs {
+        offset_graph(graph, offset_x, offset_y);
     }
 }
 
