@@ -17,6 +17,7 @@
 /perf/model_parity_full/java/
 /perf/model_parity_full/*.tsv
 /perf/model_parity_full/report.md
+/perf/model_parity_full/**/*.json
 /perf/test_parity/
 
 # Python cache

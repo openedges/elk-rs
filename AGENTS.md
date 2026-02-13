@@ -821,9 +821,10 @@
 - external port dummy/orthogonal 라우팅 deadlock 수정(2026-02-13): `label_next_to_port`가 `is_connected_to_external_nodes` 재진입 락을 잡지 않도록 분리, `HierarchicalPortOrthogonalEdgeRouter`의 north/south dummy 좌표/고정 좌표 보정에서 `border_to_content_area_coordinates` 재락 제거(그래프 padding/offset 직접 적용). `ELK_TRACE_HIER_PORT_ORTHO` 단계 로그 추가, `label-node-size` phase 로그 보강. 회귀 유닛 테스트 `label_next_to_port_outside_path_does_not_deadlock`, `hierarchical_port_position_processor_does_not_deadlock_with_graph_lock` 추가
 - timeout 2건 재검증(2026-02-13): `/tmp/java_manifest_timeouts.tsv`(491_portSpacing, 194_excessiveWhiteSpace) 기준 `MODEL_PARITY_TIMEOUT_SECS=10` 실행 결과 ok=2/2, timeouts=0 확인. `cargo test -p org-eclipse-elk-alg-layered --lib`, `cargo clippy -p org-eclipse-elk-alg-layered --lib --tests -- -D warnings` 통과
 - 모델 parity full 재실행(2026-02-13): `JAVA_PARITY_MVN_LOCAL_REPO=/tmp/elk-m2-parity-full` + `JAVA_PARITY_MVN_ARGS=-Ddash.skip=true`로 `scripts/run_model_parity_elk_vs_rust.sh` 실행. Java export `success=1439/1448`(java_non_ok=9), Rust replay `ok=1436/1448`(errors=3, timeouts=0), 비교 결과 matches=304, drift=1132, total_diffs=21455(`perf/model_parity_full/report.md`, `diff_details.tsv`, `rust_manifest.tsv` 갱신). 코드 변경 없음으로 `cargo test`/`cargo clippy`는 생략하고 기록만 갱신
+- parity 결과 카테고리 분해 및 우선순위 재정의(2026-02-13): examples 45( match 27, drift 18), tests 193( compared 182, match 51, drift 131, skip_non_ok 11=java_non_ok 8 + rust_error 3), tickets 110( compared 109, match 42, drift 67, skip_non_ok 1), realworld 1100( match 184, drift 916). 우선순위: 1) non-ok 모델 해소(테스트 3개 panic, Java non-ok 9개) 2) tests drift 축소 3) tickets drift 축소 4) realworld 드리프트 root cause 샘플링/수정 5) examples 마무리. 분석/문서 갱신만으로 `cargo test`/`cargo clippy`는 생략
 ## 진행률(최신)
 - 전체 목표 대비 추정 진행률: 약 21.2% (기준: Java↔Rust 모델 parity full match 304/1436; 포팅/테스트/빌드/성능 자동화는 완료 상태)
-- 단계 진행률(다음 작업 체크리스트 기준): 100.0% (완료 62/62, 미완료 0) [2026-02-13 갱신]
+- 단계 진행률(다음 작업 체크리스트 기준): 16.7% (완료 1/6, 미완료 5) [2026-02-13 갱신]
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
 - Java direct-mapped 모듈 테스트 parity: 146.1% (Rust 875 / Java 599, `perf/java_test_module_parity.md`)
@@ -839,46 +840,12 @@
 - panic 8건 해소: OrthogonalRoutingGenerator minimumDifference NaN 안전화(total_cmp + bit-eq dedup + NaN 전파), BK aligner edge_between 양방향 탐색 보강(701_portLabels) 및 회귀 테스트 추가(NaN unit test, 701 외부 리소스 테스트), 8개 panic 모델 재현 → 모두 ok 확인
 
 ## 다음 작업
-- [x] Step 4: 1,448 모델 drift 재분류(`scripts/analyze_layered_drift.py`) 및 상위 원인/최소 diff_count 샘플 후보 정리
-- [x] Step 5: 최소 diff_count drift 케이스 2~3개 root cause 분석 + 회귀 테스트 후보 선정
-- [x] Step 6: 상위 원인 1건 수정 후 tickets/tests subset parity 재검증(계층 edge `sections` 전송 보정)
-- [x] Step 7: 계층 edge 포함 케이스 좌표/width drift(±5) 원인 규명 및 동일 subset parity 재검증
-- [x] Step 8: 모델 parity full 재실행 및 리포트 갱신
-- [x] Step 9: drift 재분류(`scripts/analyze_layered_drift.py`) 및 상위 원인/최소 diff_count 샘플 갱신
-- [x] Step 10: 계층 그래프 edge `sections` 누락 케이스 root cause 분석 및 회귀 테스트/보정
-- [x] Step 1: 워크스페이스 clippy/test 재검증 및 경고 정리
-- [x] Step 2: drift 분석 샘플 보정(self-loop bendPoints 중복 유지) + 회귀 테스트 추가
-- [x] Step 3: Java↔Rust parity 재실행(모델 parity full) 및 리포트 갱신
-- [x] common `NodeLabelAndSizeCalculator#process` 전체 경로(inside/outside node label 배치 + node container width/height 확정 + apply 단계) 1:1 포팅 마무리
-- [x] recursive 경로 self-loop section 누락(`079/128/273/288/...`) 근본 원인 수정으로 direct fallback 제거(완전 recursive 단독 통과)
-- [x] external/elk-models Java↔Rust layout parity drift 분류(알고리즘/좌표/section-id/label/ordering) 자동 리포트 추가 및 샘플 10건 기준 상위 원인 3종 도출 → 완료: 10/10 모델 0 drift, compare script에 drift classification 추가
-- [x] drift 상위 원인별 1차 보정(비결정적 필드 정규화 또는 Rust 레이아웃 전/후처리 정합화) 후 `MODEL_PARITY_STRICT=true` 샘플 게이트(`JAVA_PARITY_LIMIT=10`) 통과 목표 → 완료: drift 없음(N/A), 10/10 perfect match
-- [x] parity runner hang 원인 분석(`JAVA_PARITY_LIMIT=100`에서 정체되는 입력 모델 식별 + timeout/heartbeat/중간 manifest flush 추가) 및 대형 샘플 안정 실행 확보 → 완료: Mutex deadlock in `random_from_holder()` 수정(routing_slot_assigner.rs), runner에 timeout/heartbeat/flush 추가
-- [x] `JAVA_PARITY_LIMIT=100` 대형 샘플 parity 검증(deadlock 수정 후 스케일업) → 완료: 95/100 ok(4 timeout, 1 panic), 16 match / 79 drift / 1491 diffs
-- [x] 100-model drift 상위 원인 분석 및 1차 보정 → 완료:
-  - [x] `portConstraints.elkt` panic 수정: `PortSide::Undefined` → `Ordering::Equal` (elk_graph_adapters.rs:807)
-  - [x] `normalize_graph_bounds` 제거 (elk_graph_layout_transferrer.rs) - Java에 없는 좌표 이동 제거 → 1 모델 추가 match (18/96)
-  - [x] BK HashMap→BTreeMap 보정 (compactor.rs/util.rs/node_placer.rs) - 결정적 반복 보장
-  - [x] 근본 원인 규명 완료:
-    1. **PRIMARY**: earlier layout processors (p1cycles/p2layers/p3order)의 미세한 알고리즘 차이로 인한 좌표 drift (coordinate 70.3%, section 18.9%)
-    2. **SECONDARY**: `LabelAndNodeSizeProcessor` NDC 경로에서 WEST/SOUTH 포트 반복 순서 차이 (Java의 volatile ID 기반 역순 vs Rust 입력 순서)
-    3. **FIXED**: RectPacking defaults (PADDING=15.0, SPACING_NODE_NODE=15.0, ASPECT_RATIO=1.3) apply_algorithm_defaults 추가
-  - [x] `LGraphAdapters` 완전 재구현: 4-param adapt(), transparent N/S edges, compound node 판별, property delegation
-  - [x] `HierarchicalNodeResizingProcessor` wiring (mod.rs + IntermediateProcessorStrategy match arm)
-  - [x] `PortComparator` WEST sorting: y2.partial_cmp(&y1) for descending Y (Java parity)
-  - [x] `portLabelsMulti` WEST/SOUTH 포트 label 인덱스 역순 보정 (node_dimension_calculation.rs 3개 call site): Java의 NodeContext.comparePortContexts가 WEST/SOUTH에서 volatile ID 역순으로 TreeMultimap 정렬 → Rust에서 `per_side_count - 1 - per_side_index` 적용
-  - 100-model 최종 상태: 88/100 ok, **23 match** (19→22→23), 65 drift, 1265 diffs, 12 timeout
-  - 남은 drift 원인: p1cycles/p2layers/p3order 알고리즘 미세 차이 (children[*]/y 33.6%, children[*]/x 13.7%)
-- [x] 전체 1,448 모델 parity 테스트 체계 구축 및 실행 → 완료:
-  - `external/elk-models` submodule에 1,448개 모델 포함 (examples 45, tickets 110, tests 193, realworld 1,100)
-  - `scripts/run_model_parity_elk_vs_rust.sh` 개선: `--release` 빌드 기본값, submodule 자동 초기화, report 요약 출력
-  - `scripts/run_model_parity_by_category.sh` 신규: 카테고리별 독립 실행 (examples/tickets/tests/realworld/all)
-  - 실행 명령어:
-    - 전체: `sh scripts/run_model_parity_by_category.sh all`
-    - 카테고리별: `sh scripts/run_model_parity_by_category.sh examples`
-    - 직접 실행: `cargo run --release -p org-eclipse-elk-graph-json --bin model_parity_layout_runner -- --input-manifest <manifest> --output-manifest <out> --rust-layout-dir <dir> --pretty-print false --stop-on-error false`
-  - 결과 디렉토리: `perf/model_parity_full/` (report.md, diff_details.tsv, rust_manifest.tsv)
-  - **1,448 모델 baseline 결과** (2026-02-10):
+- [x] Step 17: parity 결과 카테고리 분해 및 우선순위 재정의
+- [ ] Step 18: non-ok 모델 12건 해소(테스트 3개 panic, Java non-ok 9개) 및 해당 subset parity 재검증
+- [ ] Step 19: tests 카테고리 drift 축소 1차(우선: edge_label_placement + hierarchical_ports 계열) 및 `run_model_parity_by_category.sh tests` 재검증
+- [ ] Step 20: tickets 카테고리 drift 축소 1차 및 `run_model_parity_by_category.sh tickets` 재검증
+- [ ] Step 21: realworld 카테고리 상위 drift 샘플링(10~20개) 후 root cause 보정 및 `run_model_parity_by_category.sh realworld` 부분 재검증
+- [ ] Step 22: 전체 parity full 재실행 및 리포트 갱신
     - total=1,448, compared=1,401, **matched=79** (5.6%), drift=1,322, skipped=47 (9 java_non_ok + 38 rust errors)
     - rust errors: 30 timeouts (120s), 8 panics (orthogonal_routing_generator unwrap + BK aligner missing edge)
     - total diffs=25,401 (coordinate 70.3%, section 18.9%, structure 8.3%, label 1.5%, ordering 0.6%)
