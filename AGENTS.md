@@ -832,9 +832,10 @@
 - 전체 parity full 재실행(2026-02-13): `JAVA_PARITY_MVN_LOCAL_REPO=/tmp/elk-m2-parity-full JAVA_PARITY_MVN_ARGS=-Ddash.skip=true sh scripts/run_model_parity_elk_vs_rust.sh` 실행. Java export success=1439/1448(java_non_ok=9), Rust replay ok=1439, skipped=9, matches=316, drift=1123, total_diffs=21279 (`perf/model_parity/report.md`, `diff_details.tsv`, `rust_manifest.tsv` 갱신). `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --tests -- -D warnings` 통과
 - parity 결과 카테고리별 재분해 및 우선순위 갱신(2026-02-13): examples 45(match 28, drift 17), tests 193(ok 185, match 51, drift 134, java_non_ok 8), tickets 110(ok 109, match 43, drift 66, java_non_ok 1), realworld 1100(match 194, drift 906). diff_total 비중: realworld 84.1%, tests 10.8%, tickets 4.0%, examples 1.1%. 우선순위: 1) realworld(대부분의 diff 차지) root cause 보정 2) tests drift 축소 3) tickets drift 축소 4) examples 정리. `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --tests -- -D warnings` 통과
 - 외부 포트 connected components 배치 로직 보강(2026-02-13): ComponentGroupGraphPlacer/ModelOrderRowGraphPlacer 포팅, external ports 존재 시 graph placer 분기 적용(그룹 모델 오더는 TODO). `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과
+- tests 카테고리 parity 재실행(2026-02-13): Java export success=185/193(java_non_ok=8), Rust replay ok=185, matches=51, drift=134, total_diffs=2291 (`perf/model_parity_tests/report.md`, `diff_details.tsv` 갱신). `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과
 ## 진행률(최신)
 - 전체 목표 대비 추정 진행률: 약 22.0% (기준: Java↔Rust 모델 parity full match 316/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
-- 단계 진행률(다음 작업 체크리스트 기준): 33.3% (완료 1/3, 미완료 2) [2026-02-13 갱신]
+- 단계 진행률(다음 작업 체크리스트 기준): 66.7% (완료 2/3, 미완료 1) [2026-02-13 갱신]
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
 - Java direct-mapped 모듈 테스트 parity: 146.1% (Rust 875 / Java 599, `perf/java_test_module_parity.md`)
@@ -928,5 +929,5 @@
 - [x] Step 15: timeout 2건(`491_portSpacing`, `194_excessiveWhiteSpace`) 원인 분석 및 해결
 - [x] Step 16: 1,448 모델 parity full 재실행 및 리포트 갱신
 - [x] Step 23: 외부 포트 connected components 배치 로직 포팅(ComponentGroupGraphPlacer/ModelOrderRowGraphPlacer) 및 layered 테스트/클리피 재검증
-- [ ] Step 24: `run_model_parity_by_category.sh tests` 재실행 후 connected_components/hierarchical_ports drift 변화 리포트 갱신
+- [x] Step 24: `run_model_parity_by_category.sh tests` 재실행 후 connected_components/hierarchical_ports drift 변화 리포트 갱신
 - [ ] Step 25: `ComponentGroupModelOrderGraphPlacer`/`ModelOrderComponentGroup` 포팅 및 모델 오더 외부 포트 케이스 회귀 테스트/부분 parity 재검증
