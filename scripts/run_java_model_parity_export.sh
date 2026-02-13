@@ -32,6 +32,8 @@ JAVA_PARITY_DRY_RUN=${JAVA_PARITY_DRY_RUN:-false}
 
 JAVA_PARITY_LIMIT=${JAVA_PARITY_LIMIT:-0}
 JAVA_PARITY_INCLUDE=${JAVA_PARITY_INCLUDE:-}
+JAVA_PARITY_EXCLUDE=${JAVA_PARITY_EXCLUDE:-}
+JAVA_PARITY_EXCLUDE_FILE=${JAVA_PARITY_EXCLUDE_FILE:-}
 JAVA_PARITY_FAIL_FAST=${JAVA_PARITY_FAIL_FAST:-false}
 JAVA_PARITY_PRETTY_PRINT=${JAVA_PARITY_PRETTY_PRINT:-false}
 JAVA_PARITY_RESET_OUTPUT=${JAVA_PARITY_RESET_OUTPUT:-true}
@@ -239,7 +241,19 @@ if [ "$JAVA_PARITY_BUILD_PLUGINS" = "true" ]; then
   run_cmd "$@"
 fi
 
-TYCHO_TEST_ARG_LINE="-Delk.parity.run=true -Delk.parity.modelsRoot=$MODELS_ROOT -Delk.parity.outputDir=$OUTPUT_DIR -Delk.parity.limit=$JAVA_PARITY_LIMIT -Delk.parity.include=$JAVA_PARITY_INCLUDE -Delk.parity.failFast=$JAVA_PARITY_FAIL_FAST -Delk.parity.prettyPrint=$JAVA_PARITY_PRETTY_PRINT -Delk.parity.resetOutput=$JAVA_PARITY_RESET_OUTPUT -Delk.parity.randomSeed=$JAVA_PARITY_RANDOM_SEED"
+JAVA_PARITY_EXCLUDE_TOKENS=$JAVA_PARITY_EXCLUDE
+if [ -n "$JAVA_PARITY_EXCLUDE_FILE" ] && [ -f "$JAVA_PARITY_EXCLUDE_FILE" ]; then
+  file_tokens=$(grep -v '^[[:space:]]*$' "$JAVA_PARITY_EXCLUDE_FILE" | grep -v '^[[:space:]]*#' | tr -d '\r' | tr '\n' ',' | sed 's/,$//')
+  if [ -n "$file_tokens" ]; then
+    if [ -n "$JAVA_PARITY_EXCLUDE_TOKENS" ]; then
+      JAVA_PARITY_EXCLUDE_TOKENS="$JAVA_PARITY_EXCLUDE_TOKENS,$file_tokens"
+    else
+      JAVA_PARITY_EXCLUDE_TOKENS="$file_tokens"
+    fi
+  fi
+fi
+
+TYCHO_TEST_ARG_LINE="-Delk.parity.run=true -Delk.parity.modelsRoot=$MODELS_ROOT -Delk.parity.outputDir=$OUTPUT_DIR -Delk.parity.limit=$JAVA_PARITY_LIMIT -Delk.parity.include=$JAVA_PARITY_INCLUDE -Delk.parity.exclude=$JAVA_PARITY_EXCLUDE_TOKENS -Delk.parity.failFast=$JAVA_PARITY_FAIL_FAST -Delk.parity.prettyPrint=$JAVA_PARITY_PRETTY_PRINT -Delk.parity.resetOutput=$JAVA_PARITY_RESET_OUTPUT -Delk.parity.randomSeed=$JAVA_PARITY_RANDOM_SEED"
 
 set -- "$JAVA_PARITY_MVN_BIN" -f "$JAVA_PARITY_TEST_POM"
 if [ -n "$JAVA_PARITY_TEST_MODULES" ]; then

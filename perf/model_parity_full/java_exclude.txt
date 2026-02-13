@@ -1,0 +1,9 @@
+tests/layered/edge_label_placement/labelStacking_down_down.elkt
+tests/layered/edge_label_placement/labelStacking_down_up.elkt
+tests/layered/edge_label_placement/labelStacking_up_down.elkt
+tests/layered/edge_label_placement/labelStacking_up_up.elkt
+tests/layered/edge_label_placement/northSouthPorts_down_down_01.elkt
+tests/layered/edge_label_placement/northSouthPorts_down_down_02.elkt
+tests/layered/edge_label_placement/northSouthPorts_right_down_01.elkt
+tests/layered/edge_label_placement/northSouthPorts_right_down_02.elkt
+tickets/layered/588_hierarchicalLayoutNPE.elkt

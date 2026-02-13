@@ -90,6 +90,7 @@ public class ElkModelParityExportTest {
         final boolean resetOutput = Boolean.parseBoolean(System.getProperty("elk.parity.resetOutput", "true"));
         final int randomSeed = parseIntProperty("elk.parity.randomSeed", 1);
         final List<String> includeTokens = parseCsvTokens(System.getProperty("elk.parity.include", ""));
+        final List<String> excludeTokens = parseCsvTokens(System.getProperty("elk.parity.exclude", ""));
 
         if (!Files.exists(modelsRoot) || !Files.isDirectory(modelsRoot)) {
             throw new IOException("models root does not exist or is not a directory: " + modelsRoot);
@@ -101,7 +102,7 @@ public class ElkModelParityExportTest {
         Files.createDirectories(inputDir);
         Files.createDirectories(layoutDir);
 
-        final List<Path> modelFiles = collectModelFiles(modelsRoot, includeTokens, limit);
+        final List<Path> modelFiles = collectModelFiles(modelsRoot, includeTokens, excludeTokens, limit);
         assertTrue("No model files found under: " + modelsRoot, !modelFiles.isEmpty());
 
         int successCount = 0;
@@ -193,12 +194,14 @@ public class ElkModelParityExportTest {
     private static List<Path> collectModelFiles(
             final Path modelsRoot,
             final List<String> includeTokens,
+            final List<String> excludeTokens,
             final int limit) throws IOException {
 
         try (Stream<Path> stream = Files.walk(modelsRoot)) {
             List<Path> files = stream
                     .filter(Files::isRegularFile)
                     .filter(ElkModelParityExportTest::isSupportedModelFile)
+                    .filter(path -> !matchesExcludeTokens(modelsRoot, path, excludeTokens))
                     .filter(path -> matchesIncludeTokens(modelsRoot, path, includeTokens))
                     .sorted(Comparator.comparing(path -> toUnixPath(modelsRoot.relativize(path))))
                     .collect(Collectors.toList());
@@ -224,6 +227,22 @@ public class ElkModelParityExportTest {
         }
         String relPath = toUnixPath(modelsRoot.relativize(path)).toLowerCase(Locale.ROOT);
         for (String token : includeTokens) {
+            if (relPath.contains(token.toLowerCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean matchesExcludeTokens(
+            final Path modelsRoot,
+            final Path path,
+            final List<String> excludeTokens) {
+        if (excludeTokens.isEmpty()) {
+            return false;
+        }
+        String relPath = toUnixPath(modelsRoot.relativize(path)).toLowerCase(Locale.ROOT);
+        for (String token : excludeTokens) {
             if (relPath.contains(token.toLowerCase(Locale.ROOT))) {
                 return true;
             }

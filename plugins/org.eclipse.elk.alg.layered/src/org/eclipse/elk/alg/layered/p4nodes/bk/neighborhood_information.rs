@@ -59,8 +59,8 @@ impl NeighborhoodInformation {
                 .map(|layer_guard| layer_guard.nodes().clone())
                 .unwrap_or_default();
             for node in nodes {
-                let node_id = node_id(&node);
-                if node_id >= ni.node_count {
+                let current_node_id = node_id(&node);
+                if current_node_id >= ni.node_count {
                     continue;
                 }
                 let mut right: Vec<Pair<LNodeRef, LEdgeRef>> = Vec::new();
@@ -97,13 +97,16 @@ impl NeighborhoodInformation {
                             .and_then(|edge_guard| edge_guard.target())
                             .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
                         if let Some(target_node) = target_node {
-                            right.push(Pair::of(target_node, edge.clone()));
+                            let target_id = node_id(&target_node);
+                            if target_id < ni.node_count {
+                                right.push(Pair::of(target_node, edge.clone()));
+                            }
                         }
                     }
                 }
                 prefer_real_edges(&mut right);
                 right.sort_by(|a, b| neighbor_cmp(&ni, a, b));
-                ni.right_neighbors[node_id] = right;
+                ni.right_neighbors[current_node_id] = right;
 
                 let mut left: Vec<Pair<LNodeRef, LEdgeRef>> = Vec::new();
                 let mut max_priority = 0;
@@ -139,13 +142,16 @@ impl NeighborhoodInformation {
                             .and_then(|edge_guard| edge_guard.source())
                             .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
                         if let Some(source_node) = source_node {
-                            left.push(Pair::of(source_node, edge.clone()));
+                            let source_id = node_id(&source_node);
+                            if source_id < ni.node_count {
+                                left.push(Pair::of(source_node, edge.clone()));
+                            }
                         }
                     }
                 }
                 prefer_real_edges(&mut left);
                 left.sort_by(|a, b| neighbor_cmp(&ni, a, b));
-                ni.left_neighbors[node_id] = left;
+                ni.left_neighbors[current_node_id] = left;
             }
         }
 

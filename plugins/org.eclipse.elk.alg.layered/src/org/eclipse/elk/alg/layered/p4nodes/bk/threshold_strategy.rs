@@ -128,6 +128,9 @@ impl SimpleThresholdStrategy {
                 .map(|edge_guard| edge_guard.other_node(free_node))
                 .map(|node| node_id(&node));
             if let Some(other_node_id) = other_node_id {
+                if other_node_id >= bal.root.len() {
+                    continue;
+                }
                 let other_root = bal.root[other_node_id];
                 if self.block_finished.contains(&other_root) {
                     pp.has_edges = true;
@@ -182,11 +185,18 @@ impl SimpleThresholdStrategy {
                 right_port.clone()
             };
             let other_node_id = port_node_id(&other_port);
+            if other_node_id >= bal.root.len() {
+                return invalid;
+            }
+            let root_node_id = port_node_id(&root_port);
+            if root_node_id >= bal.root.len() {
+                return invalid;
+            }
             let other_root = bal.root[other_node_id];
             bal.y[other_root].unwrap_or(0.0)
                 + bal.inner_shift[other_node_id]
                 + port_offset_y(&other_port)
-                - bal.inner_shift[port_node_id(&root_port)]
+                - bal.inner_shift[root_node_id]
                 - port_offset_y(&root_port)
         } else {
             let root_port = if bal.hdir == Some(HDirection::Left) {
@@ -200,16 +210,31 @@ impl SimpleThresholdStrategy {
                 right_port.clone()
             };
             let other_node_id = port_node_id(&other_port);
+            if other_node_id >= bal.root.len() {
+                return invalid;
+            }
+            let root_node_id = port_node_id(&root_port);
+            if root_node_id >= bal.root.len() {
+                return invalid;
+            }
             let other_root = bal.root[other_node_id];
             bal.y[other_root].unwrap_or(0.0)
                 + bal.inner_shift[other_node_id]
                 + port_offset_y(&other_port)
-                - bal.inner_shift[port_node_id(&root_port)]
+                - bal.inner_shift[root_node_id]
                 - port_offset_y(&root_port)
         };
 
-        let left_root = bal.root[port_node_id(&left_port)];
-        let right_root = bal.root[port_node_id(&right_port)];
+        let left_node_id = port_node_id(&left_port);
+        if left_node_id >= bal.root.len() {
+            return invalid;
+        }
+        let right_node_id = port_node_id(&right_port);
+        if right_node_id >= bal.root.len() {
+            return invalid;
+        }
+        let left_root = bal.root[left_node_id];
+        let right_root = bal.root[right_node_id];
         bal.su[left_root] = true;
         bal.su[right_root] = true;
 

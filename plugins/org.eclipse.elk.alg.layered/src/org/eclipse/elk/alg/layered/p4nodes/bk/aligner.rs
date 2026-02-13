@@ -57,6 +57,9 @@ impl BKAligner {
 
             for node in nodes {
                 let node_id_val = node_id(&node);
+                if node_id_val >= bal.align.len() {
+                    continue;
+                }
                 let neighbors = if hdir == HDirection::Left {
                     ni.right_neighbors
                         .get(node_id_val)
@@ -83,6 +86,9 @@ impl BKAligner {
                             let neighbor = &neighbor_pair.first;
                             let edge = &neighbor_pair.second;
                             let neighbor_id = node_id(neighbor);
+                            if neighbor_id >= bal.align.len() {
+                                continue;
+                            }
                             let neighbor_index = *ni.node_index.get(neighbor_id).unwrap_or(&0) as isize;
 
                             if !marked_edges.contains(&edge_key(edge)) && r > neighbor_index {
@@ -102,6 +108,9 @@ impl BKAligner {
                             let neighbor = &neighbor_pair.first;
                             let edge = &neighbor_pair.second;
                             let neighbor_id = node_id(neighbor);
+                            if neighbor_id >= bal.align.len() {
+                                continue;
+                            }
                             let neighbor_index = *ni.node_index.get(neighbor_id).unwrap_or(&0) as isize;
 
                             if !marked_edges.contains(&edge_key(edge)) && r < neighbor_index {

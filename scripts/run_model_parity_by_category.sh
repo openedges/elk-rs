@@ -36,5 +36,11 @@ echo "Running model parity for category: $CATEGORY"
 echo "  include filter: ${INCLUDE:-<none>}"
 echo "  output dir:     $OUTPUT"
 
+DEFAULT_EXCLUDE_FILE="$SCRIPT_DIR/../perf/model_parity_full/java_exclude.txt"
+if [ -z "${JAVA_PARITY_EXCLUDE_FILE:-}" ] && [ -f "$DEFAULT_EXCLUDE_FILE" ]; then
+  JAVA_PARITY_EXCLUDE_FILE="$DEFAULT_EXCLUDE_FILE"
+  echo "  exclude file:   $JAVA_PARITY_EXCLUDE_FILE"
+fi
+
 JAVA_PARITY_INCLUDE="$INCLUDE" \
   sh "$SCRIPT_DIR/run_model_parity_elk_vs_rust.sh" external/elk-models "$OUTPUT"
