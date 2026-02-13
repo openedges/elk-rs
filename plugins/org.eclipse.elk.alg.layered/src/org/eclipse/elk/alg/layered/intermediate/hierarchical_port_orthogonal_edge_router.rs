@@ -1,6 +1,7 @@
 #![allow(clippy::mutable_key_type)]
 
 use std::collections::HashSet;
+use std::sync::LazyLock;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
@@ -26,6 +27,15 @@ pub struct HierarchicalPortOrthogonalEdgeRouter {
     northern_ext_port_edge_routing_height: f64,
 }
 
+static TRACE_HIER_PORT_ORTHO: LazyLock<bool> =
+    LazyLock::new(|| std::env::var("ELK_TRACE_HIER_PORT_ORTHO").is_ok());
+
+fn trace_step(message: &str) {
+    if *TRACE_HIER_PORT_ORTHO {
+        eprintln!("[hier-port-ortho] {message}");
+    }
+}
+
 impl Default for HierarchicalPortOrthogonalEdgeRouter {
     fn default() -> Self {
         Self {
@@ -39,11 +49,17 @@ impl ILayoutProcessor<LGraph> for HierarchicalPortOrthogonalEdgeRouter {
         monitor.begin("Orthogonally routing hierarchical port edges", 1.0);
         self.northern_ext_port_edge_routing_height = 0.0;
 
+        trace_step("restore_north_south_dummies");
         let north_south_dummies = self.restore_north_south_dummies(layered_graph);
+        trace_step("set_north_south_dummy_coordinates");
         self.set_north_south_dummy_coordinates(layered_graph, &north_south_dummies);
+        trace_step("route_edges");
         self.route_edges(monitor, layered_graph, &north_south_dummies);
+        trace_step("remove_temporary_north_south_dummies");
         self.remove_temporary_north_south_dummies(layered_graph);
+        trace_step("fix_coordinates");
         self.fix_coordinates(layered_graph);
+        trace_step("correct_slanted_edge_segments");
         self.correct_slanted_edge_segments(layered_graph);
 
         monitor.done();
@@ -279,13 +295,17 @@ impl HierarchicalPortOrthogonalEdgeRouter {
                 PortConstraints::FixedRatio => {
                     self.apply_north_south_dummy_ratio(dummy, graph_width);
                     if let Ok(mut dummy_guard) = dummy.lock() {
-                        dummy_guard.border_to_content_area_coordinates(true, false);
+                        let padding_left = layered_graph.padding_ref().left;
+                        let offset_x = layered_graph.offset_ref().x;
+                        dummy_guard.shape().position().x -= padding_left + offset_x;
                     }
                 }
                 PortConstraints::FixedPos => {
                     self.apply_north_south_dummy_position(dummy);
                     if let Ok(mut dummy_guard) = dummy.lock() {
-                        dummy_guard.border_to_content_area_coordinates(true, false);
+                        let padding_left = layered_graph.padding_ref().left;
+                        let offset_x = layered_graph.offset_ref().x;
+                        dummy_guard.shape().position().x -= padding_left + offset_x;
                     }
                     if let Ok(mut dummy_guard) = dummy.lock() {
                         let required_x =
@@ -887,7 +907,7 @@ impl HierarchicalPortOrthogonalEdgeRouter {
                             node_guard.shape().position().y =
                                 graph_actual_size.y * ratio - port_anchor.y;
                             required_height = node_guard.shape().position_ref().y + ext_size.y;
-                            node_guard.border_to_content_area_coordinates(false, true);
+                            node_guard.shape().position().y -= padding.top + offset.y;
                         }
                     } else if constraints == PortConstraints::FixedPos {
                         let pos = node
@@ -900,7 +920,7 @@ impl HierarchicalPortOrthogonalEdgeRouter {
                         if let Ok(mut node_guard) = node.lock() {
                             node_guard.shape().position().y = pos - port_anchor.y;
                             required_height = node_guard.shape().position_ref().y + ext_size.y;
-                            node_guard.border_to_content_area_coordinates(false, true);
+                            node_guard.shape().position().y -= padding.top + offset.y;
                         }
                     }
                 }

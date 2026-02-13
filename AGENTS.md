@@ -818,9 +818,11 @@
 - 계층 외부 포트 importer 보강(2026-02-12): `ElkGraphImporter`에 External Port 체크/변환/포트 side 정의, net flow/label spacing 반영 및 더미 매핑 추가. `compound_external_port_side_test` 추가, `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과
 - 모델 parity full 재실행(2026-02-13): `JAVA_PARITY_MVN_LOCAL_REPO=/tmp/elk-m2-parity-full` + `JAVA_PARITY_MVN_ARGS=-Ddash.skip=true`로 `scripts/run_model_parity_elk_vs_rust.sh` 실행. Java export `success=1439/1448`(java_non_ok=9), Rust replay `ok=1426/1448`(errors=13, timeouts=2). 비교 결과 matches=314, drift=1112, total_diffs=21096(`perf/model_parity_full/report.md`, `diff_details.tsv`, `rust_manifest.tsv` 갱신). `crossings_counter.rs:339` index out of bounds panic 2건(`193_hierarchicalPortOverlaps`, `685_hierarchicalSpike`) 확인. 코드 변경 없음으로 `cargo test`/`cargo clippy`는 생략하고 기록만 갱신
 - crossings_counter 빈 레이어 panic 수정(2026-02-13): `init_positions`가 empty nodes에서 역순 루프 진입하지 않도록 guard 추가, 회귀 테스트 `init_for_counting_between_handles_empty_layer` 보강. `cargo test -p org-eclipse-elk-alg-layered --test crossings_counter_test`, `cargo clippy -p org-eclipse-elk-alg-layered --tests -- -D warnings` 통과
+- external port dummy/orthogonal 라우팅 deadlock 수정(2026-02-13): `label_next_to_port`가 `is_connected_to_external_nodes` 재진입 락을 잡지 않도록 분리, `HierarchicalPortOrthogonalEdgeRouter`의 north/south dummy 좌표/고정 좌표 보정에서 `border_to_content_area_coordinates` 재락 제거(그래프 padding/offset 직접 적용). `ELK_TRACE_HIER_PORT_ORTHO` 단계 로그 추가, `label-node-size` phase 로그 보강. 회귀 유닛 테스트 `label_next_to_port_outside_path_does_not_deadlock`, `hierarchical_port_position_processor_does_not_deadlock_with_graph_lock` 추가
+- timeout 2건 재검증(2026-02-13): `/tmp/java_manifest_timeouts.tsv`(491_portSpacing, 194_excessiveWhiteSpace) 기준 `MODEL_PARITY_TIMEOUT_SECS=10` 실행 결과 ok=2/2, timeouts=0 확인. `cargo test -p org-eclipse-elk-alg-layered --lib`, `cargo clippy -p org-eclipse-elk-alg-layered --lib --tests -- -D warnings` 통과
 ## 진행률(최신)
 - 전체 목표 대비 추정 진행률: 약 22.0% (기준: Java↔Rust 모델 parity full match 314/1426; 포팅/테스트/빌드/성능 자동화는 완료 상태)
-- 단계 진행률(다음 작업 체크리스트 기준): 96.8% (완료 60/62, 미완료 2) [2026-02-13 갱신]
+- 단계 진행률(다음 작업 체크리스트 기준): 98.4% (완료 61/62, 미완료 1) [2026-02-13 갱신]
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
 - Java direct-mapped 모듈 테스트 parity: 146.1% (Rust 875 / Java 599, `perf/java_test_module_parity.md`)
@@ -945,5 +947,5 @@
 - [x] self-loop 라우팅 테스트 Java 동작 정합: 라벨 margin 검증 시 로컬 좌표 기준으로 수정, 병렬 north loop 슬롯 강제 요구 제거 후 `cargo test -p org-eclipse-elk-alg-layered --test self_loop_router_test` 통과
 - [x] layered 전체 테스트 재검증: `cargo test -p org-eclipse-elk-alg-layered --tests` 통과
 - [x] Step 14: `crossings_counter.rs` index out of bounds panic(193_hierarchicalPortOverlaps/685_hierarchicalSpike) 원인 분석 및 수정, 회귀 테스트 추가
-- [ ] Step 15: timeout 2건(`491_portSpacing`, `194_excessiveWhiteSpace`) 원인 분석 및 해결
+- [x] Step 15: timeout 2건(`491_portSpacing`, `194_excessiveWhiteSpace`) 원인 분석 및 해결
 - [ ] Step 16: 1,448 모델 parity full 재실행 및 리포트 갱신

@@ -51,6 +51,9 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
             .unwrap_or(false);
 
         // Phase 1: Place ports on nodes using the original logic
+        if *TRACE_NODE_SIZE {
+            eprintln!("label-node-size: phase1 begin");
+        }
         let mut seen = HashSet::new();
         for node in graph.layerless_nodes().clone() {
             let key = Arc::as_ptr(&node) as usize;
@@ -84,14 +87,26 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
                 }
             }
         }
+        if *TRACE_NODE_SIZE {
+            eprintln!("label-node-size: phase1 done");
+        }
 
         // Phase 2: Apply port label placement via NodeDimensionCalculation (generic path)
+        if *TRACE_NODE_SIZE {
+            eprintln!("label-node-size: phase2 begin");
+        }
         let adapter = LGraphAdapters::adapt(graph, true, true, |node| {
             node.node_type() == NodeType::Normal
         });
         NodeDimensionCalculation::calculate_label_and_node_sizes(&adapter);
+        if *TRACE_NODE_SIZE {
+            eprintln!("label-node-size: phase2 done");
+        }
 
         // Phase 3: If the graph has external ports, handle labels of external port dummies
+        if *TRACE_NODE_SIZE {
+            eprintln!("label-node-size: phase3 begin");
+        }
         let has_external_ports = graph
             .get_property(InternalProperties::GRAPH_PROPERTIES)
             .map(|props| props.contains(&GraphProperties::ExternalPorts))
@@ -134,6 +149,9 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
                     );
                 }
             }
+        }
+        if *TRACE_NODE_SIZE {
+            eprintln!("label-node-size: phase3 done");
         }
 
         monitor.done();
@@ -1644,16 +1662,18 @@ fn label_next_to_port(
         return false;
     }
 
-    if let Ok(port_guard) = dummy_port.lock() {
-        if inside_labels {
-            port_guard.incoming_edges().is_empty() && port_guard.outgoing_edges().is_empty()
-        } else {
-            // Java: !dummyPort.isConnectedToExternalNodes()
-            !is_connected_to_external_nodes(dummy_port)
-        }
-    } else {
-        false
+    if inside_labels {
+        return dummy_port
+            .lock()
+            .ok()
+            .map(|port_guard| {
+                port_guard.incoming_edges().is_empty() && port_guard.outgoing_edges().is_empty()
+            })
+            .unwrap_or(false);
     }
+
+    // Java: !dummyPort.isConnectedToExternalNodes()
+    !is_connected_to_external_nodes(dummy_port)
 }
 
 /// Check if the port is connected to external nodes (nodes outside the dummy's graph).
@@ -1666,5 +1686,17 @@ fn is_connected_to_external_nodes(
         has_incoming || has_outgoing
     } else {
         false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::label_next_to_port;
+    use crate::org::eclipse::elk::alg::layered::graph::LPort;
+
+    #[test]
+    fn label_next_to_port_outside_path_does_not_deadlock() {
+        let port = LPort::new();
+        assert!(label_next_to_port(&port, false, true));
     }
 }

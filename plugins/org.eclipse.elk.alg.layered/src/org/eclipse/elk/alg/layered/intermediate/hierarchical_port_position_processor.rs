@@ -73,8 +73,53 @@ fn fix_coordinates(layer: &LayerRef, layered_graph: &mut LGraph) {
         }
 
         if let Ok(mut node_guard) = node.lock() {
-            node_guard.shape().position().y = final_y - anchor.y;
-            node_guard.border_to_content_area_coordinates(false, true);
+            let padding_top = layered_graph.padding_ref().top;
+            let offset_y = layered_graph.offset_ref().y;
+            node_guard.shape().position().y = final_y - anchor.y - padding_top - offset_y;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::HierarchicalPortPositionProcessor;
+    use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LNode, Layer, NodeType};
+    use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions};
+    use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
+    use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
+    use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
+    use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
+    use org_eclipse_elk_core::org::eclipse::elk::core::util::BasicProgressMonitor;
+
+    #[test]
+    fn hierarchical_port_position_processor_does_not_deadlock_with_graph_lock() {
+        let graph = LGraph::new();
+        let layer = Layer::new(&graph);
+
+        if let Ok(mut graph_guard) = graph.lock() {
+            graph_guard.layers_mut().push(layer.clone());
+            graph_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::FixedPos));
+            let size = graph_guard.size();
+            size.x = 100.0;
+            size.y = 100.0;
+        }
+
+        let node = LNode::new(&graph);
+        LNode::set_layer(&node, Some(layer.clone()));
+        if let Ok(mut node_guard) = node.lock() {
+            node_guard.set_node_type(NodeType::ExternalPort);
+            node_guard.set_property(InternalProperties::EXT_PORT_SIDE, Some(PortSide::East));
+            node_guard.set_property(InternalProperties::PORT_RATIO_OR_POSITION, Some(0.5));
+            node_guard.set_property(LayeredOptions::PORT_ANCHOR, Some(KVector::new()));
+        }
+        if let Ok(mut layer_guard) = layer.lock() {
+            layer_guard.nodes_mut().push(node);
+        }
+
+        let mut processor = HierarchicalPortPositionProcessor;
+        if let Ok(mut graph_guard) = graph.lock() {
+            let mut monitor = BasicProgressMonitor::new();
+            processor.process(&mut graph_guard, &mut monitor);
+        };
     }
 }
