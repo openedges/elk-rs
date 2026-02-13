@@ -18,6 +18,11 @@
 /perf/model_parity_full/*.tsv
 /perf/model_parity_full/report.md
 /perf/model_parity_full/**/*.json
+/perf/model_parity/rust/
+/perf/model_parity/java/*
+!/perf/model_parity/java/
+!/perf/model_parity/java/java_manifest.tsv
+/perf/model_parity/**/*.json
 /perf/model_parity_*/rust/
 /perf/model_parity_*/java/*
 !/perf/model_parity_*/java/
