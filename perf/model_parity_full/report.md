@@ -2,41 +2,42 @@
 
 - manifest: `/Users/cody.ij.hwang/Projects/github/elk-rs/perf/model_parity_full/rust_manifest.tsv`
 - total rows: 1448
-- compared rows: 1426
-- matched rows: 314
-- drift rows: 1112
-- skipped rows (java/rust non-ok): 22
+- compared rows: 1436
+- matched rows: 304
+- drift rows: 1132
+- skipped rows (java/rust non-ok): 12
 - compare errors: 0
 - abs tolerance: 1e-06
 - max diffs per model: 20
-- total diffs across all models: 21096
+- total diffs across all models: 21455
 
 ## Drift Classification Summary
 
 | Category | Count | Percentage |
 |----------|------:|-----------:|
-| coordinate | 14547 | 69.0% |
-| section | 5512 | 26.1% |
-| structure | 576 | 2.7% |
-| label | 223 | 1.1% |
-| ordering | 147 | 0.7% |
-| other | 91 | 0.4% |
+| coordinate | 14660 | 68.3% |
+| section | 5737 | 26.7% |
+| structure | 589 | 2.7% |
+| label | 222 | 1.0% |
+| ordering | 152 | 0.7% |
+| other | 95 | 0.4% |
 
 ### Top Diff Path Prefixes
 
-- `children[*]/y`: 5976 (28.3%)
-- `children[*]/x`: 3083 (14.6%)
-- `children[*]/edges[*]/sections[*]`: 2783 (13.2%)
-- `children[*]/children[*]/x`: 1669 (7.9%)
-- `children[*]/children[*]/y`: 1274 (6.0%)
-- `children[*]/children[*]/children[*]`: 1175 (5.6%)
-- `children[*]/children[*]/edges[*]`: 867 (4.1%)
-- `edges[*]/sections[*]/endPoint`: 708 (3.4%)
-- `edges[*]/sections[*]/bendPoints[*]`: 634 (3.0%)
-- `edges[*]/sections[*]/startPoint`: 630 (3.0%)
+- `children[*]/y`: 6069 (28.3%)
+- `children[*]/x`: 3074 (14.3%)
+- `children[*]/edges[*]/sections[*]`: 2829 (13.2%)
+- `children[*]/children[*]/x`: 1659 (7.7%)
+- `children[*]/children[*]/y`: 1281 (6.0%)
+- `children[*]/children[*]/children[*]`: 1205 (5.6%)
+- `children[*]/children[*]/edges[*]`: 955 (4.5%)
+- `edges[*]/sections[*]/endPoint`: 745 (3.5%)
+- `edges[*]/sections[*]/bendPoints[*]`: 670 (3.1%)
+- `edges[*]/sections[*]/startPoint`: 669 (3.1%)
 
 ## Drift Samples
 
+- `examples/edges/insideSelfLoops.elkt`: diffs=18 [section=16, coordinate=2], first: children[0]/y: number mismatch (22.0 != 12.0)
 - `examples/general/spacing/labels.elkt`: diffs=20 [section=18, coordinate=2], first: children[0]/x: number mismatch (52.0 != 72.0)
 - `examples/general/spacing/nodesEdges.elkt`: diffs=20 [section=14, coordinate=6], first: children[0]/y: number mismatch (37.0 != 33.0)
 - `examples/general/spacing/ports.elkt`: diffs=1 [coordinate=1], first: children[2]/children[1]/height: number mismatch (60.0 != 40.0)
@@ -56,4 +57,3 @@
 - `examples/user-hints/model-order/modelOrderCycleBreaking.elkt`: diffs=20 [section=12, coordinate=7, structure=1], first: children[0]/children[0]/x: number mismatch (62.0 != 82.0)
 - `realworld/ptolemy/flattened/algebraic_heateropentank_HeaterOpenTank.elkg`: diffs=20 [coordinate=14, section=4, structure=1, ordering=1], first: children[5]/x: number mismatch (251.0 != 513.0)
 - `realworld/ptolemy/flattened/algebraic_heateropentank_HeaterOpenTank.elkt`: diffs=20 [coordinate=14, section=4, structure=1, ordering=1], first: children[5]/x: number mismatch (251.0 != 513.0)
-- `realworld/ptolemy/flattened/algebraic_heateropentank_HeaterOpenTankRefactored.elkg`: diffs=20 [coordinate=16, section=2, ordering=2], first: children[0]/y: number mismatch (96.5 != 358.5)
