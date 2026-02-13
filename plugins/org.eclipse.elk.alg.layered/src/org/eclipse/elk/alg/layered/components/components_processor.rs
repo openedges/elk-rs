@@ -799,18 +799,42 @@ fn sort_components_by_priority(components: &mut [LGraphRef], target: &LGraphRef)
         .unwrap_or(ComponentOrderingStrategy::None);
 
     if consider_model_order != ComponentOrderingStrategy::None {
-        components.sort_by_key(LGraphUtil::get_minimal_model_order);
+        let mut keyed: Vec<(usize, i32, LGraphRef)> = components
+            .iter()
+            .cloned()
+            .enumerate()
+            .map(|(index, component)| {
+                let order = LGraphUtil::get_minimal_model_order(&component);
+                (index, order, component)
+            })
+            .collect();
+        keyed.sort_by(|(left_index, left_order, _), (right_index, right_order, _)| {
+            left_order.cmp(right_order).then_with(|| left_index.cmp(right_index))
+        });
+        for (slot, (_, _, component)) in components.iter_mut().zip(keyed) {
+            *slot = component;
+        }
         return;
     }
 
-    components.sort_by(|left, right| {
-        let (left_priority, left_area) = component_priority_and_area(left);
-        let (right_priority, right_area) = component_priority_and_area(right);
-
+    let mut keyed: Vec<(usize, i32, f64, LGraphRef)> = components
+        .iter()
+        .cloned()
+        .enumerate()
+        .map(|(index, component)| {
+            let (priority, area) = component_priority_and_area(&component);
+            (index, priority, area, component)
+        })
+        .collect();
+    keyed.sort_by(|(left_index, left_priority, left_area, _), (right_index, right_priority, right_area, _)| {
         right_priority
-            .cmp(&left_priority)
-            .then_with(|| left_area.partial_cmp(&right_area).unwrap_or(Ordering::Equal))
+            .cmp(left_priority)
+            .then_with(|| left_area.partial_cmp(right_area).unwrap_or(Ordering::Equal))
+            .then_with(|| left_index.cmp(right_index))
     });
+    for (slot, (_, _, _, component)) in components.iter_mut().zip(keyed) {
+        *slot = component;
+    }
 }
 
 fn component_priority_and_area(graph: &LGraphRef) -> (i32, f64) {
@@ -990,5 +1014,49 @@ fn shift_node_and_outgoing_edges(node: &LNodeRef, offset_x: f64, offset_y: f64) 
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
+
+    use crate::org::eclipse::elk::alg::layered::components::components_processor::sort_components_by_priority;
+    use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LNode};
+    use crate::org::eclipse::elk::alg::layered::options::LayeredMetaDataProvider;
+
+    #[test]
+    fn sort_components_by_priority_keeps_input_order_for_ties() {
+        LayoutMetaDataService::get_instance()
+            .register_layout_meta_data_provider(&LayeredMetaDataProvider);
+        let target = LGraph::new();
+        let first = LGraph::new();
+        let second = LGraph::new();
+
+        if let Ok(mut guard) = first.lock() {
+            guard.size().x = 10.0;
+            guard.size().y = 10.0;
+        }
+        if let Ok(mut guard) = second.lock() {
+            guard.size().x = 10.0;
+            guard.size().y = 10.0;
+        }
+
+        let first_node = LNode::new(&first);
+        let second_node = LNode::new(&second);
+        if let Ok(mut guard) = first.lock() {
+            guard.layerless_nodes_mut().push(first_node);
+        }
+        if let Ok(mut guard) = second.lock() {
+            guard.layerless_nodes_mut().push(second_node);
+        }
+
+        let mut components = vec![first.clone(), second.clone()];
+        sort_components_by_priority(&mut components, &target);
+
+        assert!(Arc::ptr_eq(&components[0], &first));
+        assert!(Arc::ptr_eq(&components[1], &second));
     }
 }

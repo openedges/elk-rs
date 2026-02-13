@@ -298,7 +298,17 @@ impl BarycenterHeuristic {
 
         if layer.len() > 1 {
             let sort_start = if trace { Some(Instant::now()) } else { None };
-            layer.sort_by(|left, right| self.compare_barycenter(left, right));
+            let mut entries: Vec<(usize, LNodeRef)> = layer.iter().cloned().enumerate().collect();
+            entries.sort_by(|(left_index, left), (right_index, right)| {
+                let ord = self.compare_barycenter(left, right);
+                if ord == Ordering::Equal {
+                    left_index.cmp(right_index)
+                } else {
+                    ord
+                }
+            });
+            layer.clear();
+            layer.extend(entries.into_iter().map(|(_, node)| node));
             self.constraint_resolver.process_constraints(layer);
             if let Some(sort_start) = sort_start {
                 eprintln!(
