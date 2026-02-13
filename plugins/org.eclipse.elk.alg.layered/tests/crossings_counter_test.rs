@@ -104,6 +104,25 @@ fn assign_ids(
 }
 
 #[test]
+fn init_for_counting_between_handles_empty_layer() {
+    let graph = LGraph::new();
+    let left_layer = Layer::new(&graph);
+    let right_layer = Layer::new(&graph);
+
+    if let Ok(mut graph_guard) = graph.lock() {
+        graph_guard.layers_mut().push(left_layer.clone());
+        graph_guard.layers_mut().push(right_layer.clone());
+    }
+
+    let left_node = add_node(&graph, &left_layer);
+    let _left_port = add_port(&left_node, PortSide::East);
+    assign_ids(&graph);
+
+    let mut counter = CrossingsCounter::new(Vec::new());
+    counter.init_for_counting_between(&[left_node], &[]);
+}
+
+#[test]
 fn count_crossings_between_layers_simple() {
     let graph = LGraph::new();
     let left_layer = Layer::new(&graph);

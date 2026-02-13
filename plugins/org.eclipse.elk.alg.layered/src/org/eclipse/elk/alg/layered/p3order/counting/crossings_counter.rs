@@ -330,11 +330,14 @@ impl CrossingsCounter {
         top_down: bool,
         get_cardinalities: bool,
     ) {
+        if nodes.is_empty() {
+            return;
+        }
         let mut num_ports = ports.len() as i32;
         if get_cardinalities {
             self.node_cardinalities = vec![0; nodes.len()];
         }
-        let mut i = if top_down { 0 } else { nodes.len().saturating_sub(1) as isize };
+        let mut i = if top_down { 0 } else { nodes.len() as isize - 1 };
         while if top_down { i < nodes.len() as isize } else { i >= 0 } {
             let node = nodes[i as usize].clone();
             let node_ports = self.get_ports(&node, side, top_down);
