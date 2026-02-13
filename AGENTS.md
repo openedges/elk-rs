@@ -836,9 +836,10 @@
 - Step 25 모델 오더 외부 포트 그룹 배치 보강(2026-02-13): `ModelOrderComponentGroup`/`ComponentGroupModelOrderGraphPlacer` 포팅(추가 제약/그룹 마지막만 확장), `component_group_test`에 모델 오더 제약 테스트 추가. `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과. tests parity 재검증: Java export success=185/193(java_non_ok=8), Rust replay ok=185, matches=51, drift=134, total_diffs=2286 (`perf/model_parity_tests/report.md`, `diff_details.tsv` 갱신)
 - Step 26 전체 parity full 재실행(2026-02-13): `JAVA_PARITY_MVN_LOCAL_REPO=/tmp/elk-m2-parity-full` + `JAVA_PARITY_MVN_ARGS=-Ddash.skip=true`로 `scripts/run_model_parity_elk_vs_rust.sh` 실행. Java export success=1439/1448(java_non_ok=9), Rust replay ok=1439, matches=305, drift=1134, total_diffs=21476 (`perf/model_parity/report.md`, `diff_details.tsv`, `rust_manifest.tsv` 갱신). `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과
 - Step 27 drift 상위 원인 재분류/realworld 상위 비교(2026-02-13): `scripts/analyze_layered_drift.py`로 전체/realworld 분류(전체 drift 1134 -> other 537, layering_diff 299, ordering_diff 298; realworld drift 916 -> other 374, layering_diff 286, ordering_diff 256) 및 결과(`perf/model_parity/drift_summary.txt`, `drift_summary_realworld.txt`) 기록. realworld drift 상위 15건 추출(`realworld_drift_top15.tsv`, `rust_manifest_realworld_top15.tsv`) 후 `scripts/compare_model_parity_layouts.py`로 상세 비교(`realworld_top15_report.md`, `realworld_top15_diff_details.tsv`, total_diffs=2136, section/coordinate 중심) 완료. 우선순위 갱신: edge section start/end/bendPoints 좌표와 node x/y 좌표 편차 집중
+- Step 28 ordering diff 샘플 추출(2026-02-13): `scripts/analyze_layered_ordering_diff.py` 추가 후 realworld 상위 30건 ordering diff 레이어 순서 추출(`perf/model_parity/ordering_diff_realworld_top30.tsv`) 완료
 ## 진행률(최신)
 - 전체 목표 대비 추정 진행률: 약 21.2% (기준: Java↔Rust 모델 parity full match 305/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
-- 단계 진행률(다음 작업 체크리스트 기준): 100.0% (완료 2/2, 미완료 0) [2026-02-13 갱신]
+- 단계 진행률(다음 작업 체크리스트 기준): 50.0% (완료 1/2, 미완료 1) [2026-02-13 갱신]
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
 - Java direct-mapped 모듈 테스트 parity: 146.1% (Rust 875 / Java 599, `perf/java_test_module_parity.md`)
@@ -936,3 +937,5 @@
 - [x] Step 25: `ComponentGroupModelOrderGraphPlacer`/`ModelOrderComponentGroup` 포팅 및 모델 오더 외부 포트 케이스 회귀 테스트/부분 parity 재검증
 - [x] Step 26: 전체 parity full 재실행 및 리포트 갱신(`scripts/run_model_parity_elk_vs_rust.sh`)
 - [x] Step 27: drift 상위 원인 재분류 및 realworld 상위 10~20건 비교 분석(`scripts/analyze_layered_drift.py` + `scripts/compare_model_parity_layouts.py`) 후 우선순위 갱신
+- [x] Step 28: ordering diff 샘플 추출 및 리포트 추가(`scripts/analyze_layered_ordering_diff.py`, `perf/model_parity/ordering_diff_realworld_top30.tsv`)
+- [ ] Step 29: ordering/layering drift 중 대표 모델 1~2건을 최소 재현 테스트로 축소해 원인 규명 후 수정 및 subset parity 재검증
