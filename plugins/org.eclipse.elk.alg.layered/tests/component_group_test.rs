@@ -1,4 +1,6 @@
-use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::components::ComponentGroup;
+use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::components::{
+    ComponentGroup, ModelOrderComponentGroup,
+};
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::{LGraph, LGraphRef};
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::InternalProperties;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::{
@@ -85,6 +87,17 @@ fn test_invalid_constraints() {
     assert!(!group.add(generate_graph((*SIDES_EAST_SOUTH_WEST).clone())));
     assert!(!group.add(generate_graph((*SIDES_NORTH_SOUTH_WEST).clone())));
     assert!(!group.add(generate_graph((*SIDES_NORTH_EAST_SOUTH_WEST).clone())));
+}
+
+#[test]
+fn test_model_order_constraints() {
+    let mut group = ModelOrderComponentGroup::new();
+    assert!(group.add(generate_graph((*SIDES_NONE).clone())));
+    assert!(!group.add(generate_graph((*SIDES_NORTH).clone())));
+
+    group = ModelOrderComponentGroup::new();
+    assert!(group.add(generate_graph((*SIDES_EAST).clone())));
+    assert!(!group.add(generate_graph((*SIDES_EAST_WEST).clone())));
 }
 
 fn generate_graph(connections: EnumSet<PortSide>) -> LGraphRef {

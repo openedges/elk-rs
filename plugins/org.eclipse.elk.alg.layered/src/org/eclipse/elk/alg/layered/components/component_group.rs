@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::sync::LazyLock;
+
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::EnumSet;
 
@@ -111,6 +114,116 @@ const CONSTRAINT_NORTH_EAST_SOUTH_WEST: [u8; 12] = [
 ];
 const CONSTRAINT_EMPTY: [u8; 0] = [];
 
+const MODEL_ORDER_CONSTRAINT_PAIRS: &[(u8, u8)] = &[
+    (MASK_NORTH, MASK_NONE),
+    (MASK_WEST, MASK_NONE),
+    (MASK_NORTH_EAST, MASK_NONE),
+    (MASK_NORTH_WEST, MASK_NONE),
+    (MASK_NORTH_SOUTH_WEST, MASK_NONE),
+    (MASK_NORTH_EAST_WEST, MASK_NONE),
+    (MASK_NORTH_WEST, MASK_NORTH),
+    (MASK_NONE, MASK_EAST),
+    (MASK_NORTH, MASK_EAST),
+    (MASK_WEST, MASK_EAST),
+    (MASK_NORTH_EAST, MASK_EAST),
+    (MASK_NORTH_SOUTH, MASK_EAST),
+    (MASK_NORTH_WEST, MASK_EAST),
+    (MASK_NORTH_SOUTH_WEST, MASK_EAST),
+    (MASK_NORTH_EAST_WEST, MASK_EAST),
+    (MASK_EAST_WEST, MASK_EAST),
+    (MASK_NONE, MASK_SOUTH),
+    (MASK_NORTH, MASK_SOUTH),
+    (MASK_EAST, MASK_SOUTH),
+    (MASK_WEST, MASK_SOUTH),
+    (MASK_NORTH_EAST, MASK_SOUTH),
+    (MASK_NORTH_SOUTH, MASK_SOUTH),
+    (MASK_NORTH_WEST, MASK_SOUTH),
+    (MASK_EAST_WEST, MASK_SOUTH),
+    (MASK_SOUTH_WEST, MASK_SOUTH),
+    (MASK_NORTH_SOUTH_WEST, MASK_SOUTH),
+    (MASK_NORTH_EAST_SOUTH, MASK_SOUTH),
+    (MASK_NORTH_EAST_WEST, MASK_SOUTH),
+    (MASK_NORTH, MASK_WEST),
+    (MASK_NORTH_EAST, MASK_WEST),
+    (MASK_NORTH_WEST, MASK_WEST),
+    (MASK_NORTH_EAST_WEST, MASK_WEST),
+    (MASK_NORTH, MASK_NORTH_EAST),
+    (MASK_WEST, MASK_NORTH_EAST),
+    (MASK_NORTH_WEST, MASK_NORTH_EAST),
+    (MASK_NORTH_EAST, MASK_NORTH_EAST),
+    (MASK_NORTH_SOUTH_WEST, MASK_NORTH_EAST),
+    (MASK_NONE, MASK_EAST_SOUTH),
+    (MASK_NORTH, MASK_EAST_SOUTH),
+    (MASK_EAST, MASK_EAST_SOUTH),
+    (MASK_SOUTH, MASK_EAST_SOUTH),
+    (MASK_WEST, MASK_EAST_SOUTH),
+    (MASK_NORTH_EAST, MASK_EAST_SOUTH),
+    (MASK_NORTH_SOUTH, MASK_EAST_SOUTH),
+    (MASK_NORTH_WEST, MASK_EAST_SOUTH),
+    (MASK_SOUTH_WEST, MASK_EAST_SOUTH),
+    (MASK_EAST_WEST, MASK_EAST_SOUTH),
+    (MASK_NORTH_EAST_WEST, MASK_EAST_SOUTH),
+    (MASK_NORTH_SOUTH_WEST, MASK_EAST_SOUTH),
+    (MASK_NORTH_EAST_SOUTH_WEST, MASK_EAST_SOUTH),
+    (MASK_NONE, MASK_SOUTH_WEST),
+    (MASK_NORTH, MASK_SOUTH_WEST),
+    (MASK_EAST, MASK_SOUTH_WEST),
+    (MASK_WEST, MASK_SOUTH_WEST),
+    (MASK_NORTH_EAST, MASK_SOUTH_WEST),
+    (MASK_NORTH_SOUTH, MASK_SOUTH_WEST),
+    (MASK_NORTH_WEST, MASK_SOUTH_WEST),
+    (MASK_EAST_WEST, MASK_SOUTH_WEST),
+    (MASK_NORTH_EAST_WEST, MASK_SOUTH_WEST),
+    (MASK_NORTH_EAST_SOUTH, MASK_SOUTH_WEST),
+    (MASK_NORTH_EAST_SOUTH_WEST, MASK_SOUTH_WEST),
+    (MASK_NORTH, MASK_EAST_WEST),
+    (MASK_WEST, MASK_EAST_WEST),
+    (MASK_NORTH_EAST, MASK_EAST_WEST),
+    (MASK_NORTH_WEST, MASK_EAST_WEST),
+    (MASK_SOUTH_WEST, MASK_EAST_WEST),
+    (MASK_NORTH_EAST_WEST, MASK_EAST_WEST),
+    (MASK_NORTH_SOUTH_WEST, MASK_EAST_WEST),
+    (MASK_NONE, MASK_EAST_SOUTH_WEST),
+    (MASK_NORTH, MASK_EAST_SOUTH_WEST),
+    (MASK_EAST, MASK_EAST_SOUTH_WEST),
+    (MASK_WEST, MASK_EAST_SOUTH_WEST),
+    (MASK_NORTH_EAST, MASK_EAST_SOUTH_WEST),
+    (MASK_NORTH_SOUTH, MASK_EAST_SOUTH_WEST),
+    (MASK_NORTH_WEST, MASK_EAST_SOUTH_WEST),
+    (MASK_EAST_WEST, MASK_EAST_SOUTH_WEST),
+    (MASK_NORTH_EAST_WEST, MASK_EAST_SOUTH_WEST),
+    (MASK_NORTH, MASK_NORTH_SOUTH_WEST),
+    (MASK_EAST, MASK_NORTH_SOUTH_WEST),
+    (MASK_SOUTH, MASK_NORTH_SOUTH_WEST),
+    (MASK_NORTH_EAST, MASK_NORTH_SOUTH_WEST),
+    (MASK_NONE, MASK_NORTH_EAST_SOUTH),
+    (MASK_NORTH, MASK_NORTH_EAST_SOUTH),
+    (MASK_SOUTH, MASK_NORTH_EAST_SOUTH),
+    (MASK_WEST, MASK_NORTH_EAST_SOUTH),
+    (MASK_NORTH_EAST, MASK_NORTH_EAST_SOUTH),
+    (MASK_NORTH_SOUTH, MASK_NORTH_EAST_SOUTH),
+    (MASK_NORTH_WEST, MASK_NORTH_EAST_SOUTH),
+    (MASK_NORTH_WEST, MASK_NORTH_EAST_SOUTH_WEST),
+    (MASK_NORTH_EAST, MASK_NORTH_EAST_SOUTH_WEST),
+    (MASK_EAST_WEST, MASK_NONE),
+    (MASK_EAST_WEST, MASK_WEST),
+    (MASK_EAST_WEST, MASK_EAST),
+    (MASK_NORTH_SOUTH, MASK_NONE),
+    (MASK_NORTH_SOUTH, MASK_NORTH),
+    (MASK_NORTH_SOUTH, MASK_SOUTH),
+];
+
+static MODEL_ORDER_CONSTRAINTS: LazyLock<HashMap<u8, Vec<u8>>> = LazyLock::new(|| {
+    let mut map: HashMap<u8, Vec<u8>> = HashMap::new();
+    for &(candidate_mask, constraint_mask) in MODEL_ORDER_CONSTRAINT_PAIRS {
+        let entry = map.entry(candidate_mask).or_default();
+        if !entry.contains(&constraint_mask) {
+            entry.push(constraint_mask);
+        }
+    }
+    map
+});
+
 #[derive(Default)]
 pub struct ComponentGroup {
     components: Vec<(u8, Vec<LGraphRef>)>,
@@ -173,6 +286,86 @@ impl ComponentGroup {
     fn can_add(&self, component: &LGraphRef) -> bool {
         let candidate_mask = component_mask(component);
         for constraint in constraint_masks(candidate_mask) {
+            if self.has_component_with_mask(*constraint) {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn has_component_with_mask(&self, mask: u8) -> bool {
+        self.components
+            .iter()
+            .any(|(entry_mask, components)| *entry_mask == mask && !components.is_empty())
+    }
+}
+
+#[derive(Default)]
+pub struct ModelOrderComponentGroup {
+    components: Vec<(u8, Vec<LGraphRef>)>,
+    component_order: Vec<(u8, LGraphRef)>,
+}
+
+impl ModelOrderComponentGroup {
+    pub fn new() -> Self {
+        Self {
+            components: Vec::new(),
+            component_order: Vec::new(),
+        }
+    }
+
+    pub fn with_component(component: LGraphRef) -> Self {
+        let mut group = Self::new();
+        let _ = group.add(component);
+        group
+    }
+
+    pub fn add(&mut self, component: LGraphRef) -> bool {
+        if !self.can_add(&component) {
+            return false;
+        }
+
+        let candidate_mask = component_mask(&component);
+        if let Some((_, list)) = self.components.iter_mut().find(|(mask, _)| *mask == candidate_mask) {
+            list.push(component.clone());
+        } else {
+            self.components.push((candidate_mask, vec![component.clone()]));
+        }
+        self.component_order.push((candidate_mask, component));
+        true
+    }
+
+    pub fn get_port_sides(&self) -> Vec<EnumSet<PortSide>> {
+        self.component_order
+            .iter()
+            .map(|(mask, _)| mask_to_connections(*mask))
+            .collect()
+    }
+
+    pub fn get_components(&self) -> Vec<LGraphRef> {
+        self.component_order
+            .iter()
+            .map(|(_, component)| component.clone())
+            .collect()
+    }
+
+    pub fn get_components_for(&self, connections: &EnumSet<PortSide>) -> Vec<LGraphRef> {
+        let mask = connections_to_mask(connections);
+        self.components
+            .iter()
+            .find(|(entry_mask, _)| *entry_mask == mask)
+            .map(|(_, components)| components.clone())
+            .unwrap_or_default()
+    }
+
+    fn can_add(&self, component: &LGraphRef) -> bool {
+        let candidate_mask = component_mask(component);
+        for constraint in constraint_masks(candidate_mask) {
+            if self.has_component_with_mask(*constraint) {
+                return false;
+            }
+        }
+        for constraint in model_order_constraint_masks(candidate_mask) {
             if self.has_component_with_mask(*constraint) {
                 return false;
             }
@@ -250,4 +443,11 @@ fn constraint_masks(candidate_mask: u8) -> &'static [u8] {
         MASK_NORTH_EAST_SOUTH_WEST => &CONSTRAINT_NORTH_EAST_SOUTH_WEST,
         _ => &CONSTRAINT_EMPTY,
     }
+}
+
+fn model_order_constraint_masks(candidate_mask: u8) -> &'static [u8] {
+    MODEL_ORDER_CONSTRAINTS
+        .get(&candidate_mask)
+        .map(Vec::as_slice)
+        .unwrap_or(&CONSTRAINT_EMPTY)
 }

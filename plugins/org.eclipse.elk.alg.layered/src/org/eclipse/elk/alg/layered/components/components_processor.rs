@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::direction::Direction;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::{
     PortSide, SIDES_EAST, SIDES_EAST_SOUTH, SIDES_EAST_SOUTH_WEST, SIDES_EAST_WEST, SIDES_NONE,
@@ -14,7 +15,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::{
 use org_eclipse_elk_core::org::eclipse::elk::core::util::EnumSet;
 
 use crate::org::eclipse::elk::alg::layered::components::{
-    ComponentGroup, ComponentOrderingStrategy,
+    ComponentGroup, ComponentOrderingStrategy, ModelOrderComponentGroup,
 };
 use crate::org::eclipse::elk::alg::layered::graph::{
     LGraph, LGraphRef, LGraphUtil, LNode, LNodeRef, NodeType,
@@ -160,8 +161,7 @@ impl ComponentsProcessor {
                     combine_model_order_row(components, target);
                 }
                 ComponentOrderingStrategy::GroupModelOrder => {
-                    // TODO: port ComponentGroupModelOrderGraphPlacer for full parity.
-                    combine_component_group(components, target);
+                    combine_component_group_model_order(components, target);
                 }
                 ComponentOrderingStrategy::None | ComponentOrderingStrategy::InsidePortSideGroups => {
                     combine_component_group(components, target);
@@ -209,6 +209,22 @@ impl ComponentsProcessor {
         for connected_node in connected_nodes {
             Self::dfs(&connected_node, visited, component_nodes, ext_port_sides);
         }
+    }
+}
+
+trait ComponentGroupLike {
+    fn get_components_for(&self, connections: &EnumSet<PortSide>) -> Vec<LGraphRef>;
+}
+
+impl ComponentGroupLike for ComponentGroup {
+    fn get_components_for(&self, connections: &EnumSet<PortSide>) -> Vec<LGraphRef> {
+        self.get_components_for(connections)
+    }
+}
+
+impl ComponentGroupLike for ModelOrderComponentGroup {
+    fn get_components_for(&self, connections: &EnumSet<PortSide>) -> Vec<LGraphRef> {
+        self.get_components_for(connections)
     }
 }
 
@@ -314,6 +330,109 @@ fn combine_component_group(components: &[LGraphRef], target: &LGraphRef) {
     }
 }
 
+fn combine_component_group_model_order(components: &[LGraphRef], target: &LGraphRef) {
+    if let Ok(mut target_guard) = target.lock() {
+        target_guard.layerless_nodes_mut().clear();
+    }
+
+    if components.is_empty() {
+        if let Ok(mut target_guard) = target.lock() {
+            target_guard.size().x = 0.0;
+            target_guard.size().y = 0.0;
+        }
+        return;
+    }
+
+    if let Some(first_component) = components.first() {
+        if let (Ok(mut target_guard), Ok(mut first_guard)) = (target.lock(), first_component.lock()) {
+            *target_guard.graph_element().properties_mut() =
+                first_guard.graph_element().properties().clone();
+        }
+    }
+
+    let mut component_groups: Vec<ModelOrderComponentGroup> = Vec::new();
+    for component in components {
+        add_component_to_model_order_groups(&mut component_groups, component.clone());
+    }
+
+    let component_spacing = components
+        .first()
+        .and_then(|component| component.lock().ok())
+        .and_then(|mut component_guard| {
+            component_guard.get_property(LayeredOptions::SPACING_COMPONENT_COMPONENT)
+        })
+        .unwrap_or(20.0);
+
+    let direction = target
+        .lock()
+        .ok()
+        .and_then(|mut target_guard| target_guard.get_property(CoreOptions::DIRECTION))
+        .unwrap_or(Direction::Right);
+
+    let mut space_blocked_by_south_edges = KVector::new();
+    let mut space_blocked_by_components = KVector::new();
+    let mut offset = KVector::new();
+    let mut max_size = KVector::new();
+
+    for group in &component_groups {
+        if direction.is_horizontal() {
+            offset.x = space_blocked_by_south_edges.x;
+            for side in group.get_port_sides() {
+                if side.contains(&PortSide::North) {
+                    offset.x = space_blocked_by_components.x;
+                    break;
+                }
+            }
+        } else if direction.is_vertical() {
+            offset.y = space_blocked_by_south_edges.y;
+            for side in group.get_port_sides() {
+                if side.contains(&PortSide::West) {
+                    offset.y = space_blocked_by_components.y;
+                    break;
+                }
+            }
+        }
+
+        let group_size = place_component_group(group, component_spacing);
+        offset_graphs(&group.get_components(), offset.x, offset.y);
+
+        if direction.is_horizontal() {
+            space_blocked_by_components.x = offset.x + group_size.x;
+            max_size.x = max_size.x.max(space_blocked_by_components.x);
+            for side in group.get_port_sides() {
+                if side.contains(&PortSide::South) {
+                    space_blocked_by_south_edges.x = offset.x + group_size.x;
+                    break;
+                }
+            }
+            space_blocked_by_components.y = offset.y + group_size.y;
+            offset.y = space_blocked_by_components.y;
+            max_size.y = max_size.y.max(offset.y);
+        } else if direction.is_vertical() {
+            space_blocked_by_components.y = offset.y + group_size.y;
+            max_size.y = max_size.y.max(space_blocked_by_components.y);
+            for side in group.get_port_sides() {
+                if side.contains(&PortSide::East) {
+                    space_blocked_by_south_edges.y = offset.y + group_size.y;
+                    break;
+                }
+            }
+            space_blocked_by_components.x = offset.x + group_size.x;
+            offset.x = space_blocked_by_components.x;
+            max_size.x = max_size.x.max(offset.x);
+        }
+    }
+
+    if let Ok(mut target_guard) = target.lock() {
+        target_guard.size().x = (max_size.x - component_spacing).max(0.0);
+        target_guard.size().y = (max_size.y - component_spacing).max(0.0);
+    }
+
+    for group in component_groups {
+        move_graphs(target, &group.get_components(), 0.0, 0.0);
+    }
+}
+
 fn add_component_to_groups(component_groups: &mut Vec<ComponentGroup>, component: LGraphRef) {
     for group in component_groups.iter_mut() {
         if group.add(component.clone()) {
@@ -324,7 +443,20 @@ fn add_component_to_groups(component_groups: &mut Vec<ComponentGroup>, component
     component_groups.push(ComponentGroup::with_component(component));
 }
 
-fn place_component_group(group: &ComponentGroup, spacing: f64) -> KVector {
+fn add_component_to_model_order_groups(
+    component_groups: &mut Vec<ModelOrderComponentGroup>,
+    component: LGraphRef,
+) {
+    if let Some(group) = component_groups.last_mut() {
+        if group.add(component.clone()) {
+            return;
+        }
+    }
+
+    component_groups.push(ModelOrderComponentGroup::with_component(component));
+}
+
+fn place_component_group<G: ComponentGroupLike>(group: &G, spacing: f64) -> KVector {
     let size_c = place_components_in_rows_group(&group.get_components_for(&SIDES_NONE), spacing);
     let size_n = place_components_horizontally(&group.get_components_for(&SIDES_NORTH), spacing);
     let size_s = place_components_horizontally(&group.get_components_for(&SIDES_SOUTH), spacing);

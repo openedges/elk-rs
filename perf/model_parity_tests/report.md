@@ -9,26 +9,26 @@
 - compare errors: 0
 - abs tolerance: 1e-06
 - max diffs per model: 20
-- total diffs across all models: 2291
+- total diffs across all models: 2286
 
 ## Drift Classification Summary
 
 | Category | Count | Percentage |
 |----------|------:|-----------:|
-| section | 1000 | 43.6% |
-| coordinate | 911 | 39.8% |
-| label | 175 | 7.6% |
-| structure | 95 | 4.1% |
+| section | 996 | 43.6% |
+| coordinate | 910 | 39.8% |
+| label | 175 | 7.7% |
+| structure | 95 | 4.2% |
 | ordering | 66 | 2.9% |
 | other | 44 | 1.9% |
 
 ### Top Diff Path Prefixes
 
-- `children[*]/y`: 469 (20.5%)
+- `children[*]/y`: 468 (20.5%)
 - `children[*]/edges[*]/sections[*]`: 277 (12.1%)
-- `edges[*]/sections[*]/endPoint`: 276 (12.0%)
+- `edges[*]/sections[*]/endPoint`: 274 (12.0%)
 - `edges[*]/sections[*]/bendPoints[*]`: 241 (10.5%)
-- `edges[*]/sections[*]/startPoint`: 237 (10.3%)
+- `edges[*]/sections[*]/startPoint`: 235 (10.3%)
 - `children[*]/x`: 151 (6.6%)
 - `edges[*]/labels[*]/y`: 119 (5.2%)
 - `children[*]/ports[*]/x`: 93 (4.1%)
