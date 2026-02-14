@@ -1,0 +1,3 @@
+model_rel_path	status	diff_count	top_category	first_diff	java_layout_json	rust_layout_json
+tickets/layered/079_selfLoopLabels.elkt	match	0			/Users/luuvish/Projects/research/elk-rs/perf/model_parity/java/layout/tickets/layered/079_selfLoopLabels.elkt.json	perf/model_parity_step43_self_loop/rust/layout/tickets/layered/079_selfLoopLabels.elkt.json
+tickets/layered/463_aioobe_with_self_loops.elkt	match	0			/Users/luuvish/Projects/research/elk-rs/perf/model_parity/java/layout/tickets/layered/463_aioobe_with_self_loops.elkt.json	perf/model_parity_step43_self_loop/rust/layout/tickets/layered/463_aioobe_with_self_loops.elkt.json

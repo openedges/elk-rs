@@ -850,10 +850,13 @@
 - Step 38~39 완료(2026-02-14): root cause를 `HyperedgeDummyMerger` 미구현(`IntermediateProcessorStrategy::HyperedgeDummyMerger`가 `NoOp`)으로 확정. Java `HyperedgeDummyMerger` 로직을 Rust로 포팅(`hyperedge_dummy_merger.rs` 신규, `intermediate/mod.rs` export, `intermediate_processor_strategy.rs` wiring)해 long-edge dummy 병합이 실제 수행되도록 수정. `ca_conway_Conway` 단건 parity 재검증에서 `E33/E34` junction/bend 불일치 해소(`matches=1`, `drift=0`, `total_diffs=0`) 확인. 회귀 테스트 추가: `ordering_realworld_model_test.rs`의 `ordering_realworld_ca_conway_junction_points_match_java` (E33 4 bends+1 junction, E34 2 bends+0 junction) 통과
 - Step 40 완료(2026-02-14): `ordering_diff_realworld_top30` subset(로컬 존재 20건) parity 재실행. `model_parity_layout_runner --release` + `compare_model_parity_layouts.py` 결과 `matches=20`, `drift=0`, `total_diffs=0` 달성. 산출물 갱신: `perf/model_parity_ordering_top30/{rust_manifest.tsv,report.md,diff_details.tsv,rust/**}`
 - Step 41 완료(2026-02-14): full parity 재실행(`scripts/run_model_parity_elk_vs_rust.sh`)로 최신 기준선을 갱신. 네트워크/락 이슈를 우회하기 위해 `/tmp/elk-m2-parity-full` 로컬 Maven repo를 `~/.m2/repository`에서 동기화한 뒤 `JAVA_PARITY_MVN_LOCAL_REPO=/tmp/elk-m2-parity-full`, `JAVA_PARITY_MVN_ARGS='-Ddash.skip=true -o'`로 실행. 결과: total=1,448, compared=1,439, matches=658, drift=781, skipped=9(java_non_ok), errors=0(timeouts=0), total_diffs=14,676. 이전 full 기준(305/1,439, diffs 21,476) 대비 matches +353, drift -353, total_diffs -6,800 개선
+- Step 42 완료(2026-02-14): `scripts/analyze_layered_drift.py` 재실행으로 full parity drift(781) 재분류를 갱신. 분류 결과 `other=509`, `layering_diff=217`, `ordering_diff=55`이며 realworld는 `other=358`, `layering_diff=204`, `ordering_diff=24`로 확인. low-diff 상위 원인(자기루프 polyline bendPoints 길이 불일치)을 Step 43 우선 대상으로 확정하고 요약 산출물(`perf/model_parity/drift_summary_step42.txt`, `drift_summary_realworld_step42.txt`, `drift_summary_non_realworld_step42.txt`)을 추가
+- Step 43 완료(2026-02-14): root cause를 `SelfLoopRouter`에서 polyline 전용 corner-cut(`PolylineSelfLoopRouter::cut_corners`) 후처리가 누락된 것으로 확정하고 Java 경로와 동일하게 source/target anchor 포함 후처리를 연결. 회귀 테스트 `polyline_self_loop_parity_model_test.rs` 신규 추가(079 self-loop labels=4 bends, 463 self-loops=8 bends) 및 `self_loop_router_test` 재검증 통과. subset parity(`perf/model_parity_step43_self_loop`) 결과 `compared=2`, `matches=2`, `drift=0`, `total_diffs=0` 확인
+- Step 44 완료(2026-02-14): Step 43 반영 후 full parity 재실행(`JAVA_PARITY_MVN_LOCAL_REPO=/tmp/elk-m2-parity-full`, `JAVA_PARITY_MVN_ARGS='-Ddash.skip=true -o'`). 결과: total=1,448, compared=1,439, matches=682, drift=757, skipped=9(java_non_ok), errors=0(timeouts=0), total_diffs=14,234. Step 41 대비 `matches +24`, `drift -24`, `total_diffs -442` 개선
 - Java parity 실행 안전 가드 추가(2026-02-14): `run_java_model_parity_export.sh`에 `JAVA_PARITY_REQUIRE_CLEAN_EXTERNAL_ELK=true` 기본 가드를 추가해 `external/elk`가 dirty일 때 실행을 즉시 중단하도록 보강. 우회가 필요한 경우 `JAVA_PARITY_REQUIRE_CLEAN_EXTERNAL_ELK=false`로 비활성화 가능하도록 했고, `scripts/README.md` Model parity env/노트에 사용법을 문서화
 ## 진행률(최신)
-- 전체 목표 대비 추정 진행률: 약 45.7% (기준: Java↔Rust 모델 parity full match 658/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
-- 단계 진행률(다음 작업 체크리스트 기준): 25.0% (완료 1/4, 미완료 3) [2026-02-14 갱신]
+- 전체 목표 대비 추정 진행률: 약 47.4% (기준: Java↔Rust 모델 parity full match 682/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
+- 단계 진행률(다음 작업 체크리스트 기준): 100.0% (완료 4/4, 미완료 0) [2026-02-14 갱신]
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
 - Java direct-mapped 모듈 테스트 parity: 146.1% (Rust 875 / Java 599, `perf/java_test_module_parity.md`)
@@ -862,7 +865,7 @@
 - topdown 모듈 테스트 parity(수량): 100% (Rust 11 / Java 11)
 - mrtree 모듈 테스트 parity(수량): 100% (Rust 2 / Java 2, 기본 테스트 경로 활성화 완료)
 - Java-Rust 성능 비교 파이프라인/회귀 게이트: 운영 자동화 100% (baseline/results/both + scenario/runtime gate + CI 연동)
-- external/elk-models Java↔Rust 레이아웃 결과 parity(전체 1,448 모델): 45.7% (matches=658/compared=1439, drift=781, errors=0, timeouts=0, java_non_ok=9, total_diffs=14676)
+- external/elk-models Java↔Rust 레이아웃 결과 parity(전체 1,448 모델): 47.4% (matches=682/compared=1439, drift=757, errors=0, timeouts=0, java_non_ok=9, total_diffs=14234)
 - external/elk-models Java↔Rust 대형 샘플 안정성: full parity 재실행 완료(`JAVA_PARITY_LIMIT=0`), errors/timeouts 0 확인
 - external/elk 무수정 운영 체계: 100% (격리 실행 + 자동 정리)
 - 1,448 모델 parity 기준선(v4)에서 실패 목록(36 timeouts/8 panics/9 java non-ok) 정리 및 재현 대상 모델 목록 확보
@@ -976,6 +979,9 @@
   - 완료(2026-02-14): subset 20건 재실행 결과 `matches=20`, `drift=0`, `total_diffs=0`로 갱신(`perf/model_parity_ordering_top30/report.md`, `diff_details.tsv`)
 - [x] Step 41: full parity 재실행 및 최신 기준선/리포트 갱신
   - 완료(2026-02-14): `scripts/run_model_parity_elk_vs_rust.sh` 실행 결과 `matches=658`, `drift=781`, `total_diffs=14676`로 갱신. 이전 full 기준 대비 `+353 matches`, `-353 drift`, `-6800 diffs` 개선
-- [ ] Step 42: full parity drift 재분류(`scripts/analyze_layered_drift.py`) 재실행 및 상위 원인/카테고리 우선순위 갱신
-- [ ] Step 43: Step 42 상위 drift 모델 1~2건 최소 재현(root cause + 회귀 테스트) 반영 및 subset parity 재검증
-- [ ] Step 44: Step 43 반영 후 full parity 재실행 및 진행률/리포트 갱신
+- [x] Step 42: full parity drift 재분류(`scripts/analyze_layered_drift.py`) 재실행 및 상위 원인/카테고리 우선순위 갱신
+  - 완료(2026-02-14): drift 781건 재분류(`other=509`, `layering_diff=217`, `ordering_diff=55`), realworld는 `other=358`, `layering_diff=204`, `ordering_diff=24`로 집계. low-diff 상위 원인을 self-loop polyline bendPoints mismatch로 우선순위 지정
+- [x] Step 43: Step 42 상위 drift 모델 1~2건 최소 재현(root cause + 회귀 테스트) 반영 및 subset parity 재검증
+  - 완료(2026-02-14): `SelfLoopRouter` polyline 후처리 누락 수정(`cut_corners` 연결), 회귀 테스트 `polyline_self_loop_parity_model_test` 추가, subset parity(079/463) `matches=2`, `drift=0` 확인
+- [x] Step 44: Step 43 반영 후 full parity 재실행 및 진행률/리포트 갱신
+  - 완료(2026-02-14): full parity 결과 `matches=682`, `drift=757`, `total_diffs=14234`로 갱신. Step 41 대비 `+24 matches`, `-24 drift`, `-442 diffs`

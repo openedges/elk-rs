@@ -3,37 +3,37 @@
 - manifest: `/Users/luuvish/Projects/research/elk-rs/perf/model_parity/rust_manifest.tsv`
 - total rows: 1448
 - compared rows: 1439
-- matched rows: 658
-- drift rows: 781
+- matched rows: 682
+- drift rows: 757
 - skipped rows (java/rust non-ok): 9
 - compare errors: 0
 - abs tolerance: 1e-06
 - max diffs per model: 20
-- total diffs across all models: 14676
+- total diffs across all models: 14234
 
 ## Drift Classification Summary
 
 | Category | Count | Percentage |
 |----------|------:|-----------:|
-| coordinate | 9162 | 62.4% |
-| section | 4820 | 32.8% |
+| coordinate | 8900 | 62.5% |
+| section | 4642 | 32.6% |
 | structure | 249 | 1.7% |
 | label | 243 | 1.7% |
-| ordering | 109 | 0.7% |
-| other | 93 | 0.6% |
+| ordering | 107 | 0.8% |
+| other | 93 | 0.7% |
 
 ### Top Diff Path Prefixes
 
-- `children[*]/edges[*]/sections[*]`: 2774 (18.9%)
-- `children[*]/y`: 2263 (15.4%)
-- `children[*]/children[*]/x`: 1819 (12.4%)
-- `children[*]/x`: 1459 (9.9%)
-- `children[*]/children[*]/y`: 1108 (7.5%)
-- `children[*]/children[*]/children[*]`: 1099 (7.5%)
-- `children[*]/children[*]/edges[*]`: 901 (6.1%)
-- `edges[*]/sections[*]/bendPoints[*]`: 467 (3.2%)
-- `children[*]/ports[*]/y`: 428 (2.9%)
-- `edges[*]/sections[*]/endPoint`: 404 (2.8%)
+- `children[*]/edges[*]/sections[*]`: 2774 (19.5%)
+- `children[*]/y`: 2009 (14.1%)
+- `children[*]/children[*]/x`: 1819 (12.8%)
+- `children[*]/x`: 1459 (10.3%)
+- `children[*]/children[*]/y`: 1108 (7.8%)
+- `children[*]/children[*]/children[*]`: 1099 (7.7%)
+- `children[*]/children[*]/edges[*]`: 901 (6.3%)
+- `children[*]/ports[*]/y`: 428 (3.0%)
+- `edges[*]/sections[*]/bendPoints[*]`: 369 (2.6%)
+- `edges[*]/sections[*]/endPoint`: 360 (2.5%)
 
 ## Drift Samples
 

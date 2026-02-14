@@ -1,0 +1,49 @@
+Drift models classified: 195
+  other: 151
+  ordering_diff: 31
+  layering_diff: 13
+  - examples: total=14 {'other': 9, 'layering_diff': 4, 'ordering_diff': 1}
+  - tests: total=123 {'other': 89, 'layering_diff': 9, 'ordering_diff': 25}
+  - tickets: total=58 {'other': 53, 'ordering_diff': 5}
+
+layering_diff sample (lowest diff_count)
+  tests/layered/node_label_placement/outside_placement_hpriority.elkt diff=17 top=coordinate first=children[0]/x: number mismatch (17.0 != 257.0)
+  examples/hierarchy/hierarchicalLayoutMixing.elkt diff=20 top=coordinate first=children[0]/children[0]/y: number mismatch (12.0 != 76.0)
+  examples/user-hints/layered/partitioning.elkt diff=20 top=coordinate first=children[0]/children[0]/x: number mismatch (24.0 != 201.0)
+  examples/user-hints/model-order/modelOrderCrossingMinimization.elkt diff=20 top=label first=children[0]/edges[1]/labels[0]/y: number mismatch (85.0 != 30.0)
+  examples/user-hints/model-order/modelOrderCycleBreaking.elkt diff=20 top=section first=children[0]/children[0]/x: number mismatch (62.0 != 82.0)
+  tests/core/label_placement/port_labels/variants.elkt diff=20 top=coordinate first=children[0]/children[0]/x: number mismatch (12.0 != 36.0)
+  tests/layered/compaction_oned/labels/labels1.elkt diff=20 top=coordinate first=children[0]/x: number mismatch (305.0 != 340.0)
+  tests/layered/compaction_oned/selfloop/selfloop_spline.elkt diff=20 top=section first=children[0]/y: number mismatch (43.0 != 47.0)
+  tests/layered/compaction_oned/splines/moreThanOneStraightSegmentPath.elkt diff=20 top=section first=children[1]/x: number mismatch (62.0 != 117.0)
+  tests/layered/high_degree_nodes/Fan.elkt diff=20 top=coordinate first=children[0]/x: number mismatch (237.0 != 124.5)
+  tests/layered/high_degree_nodes/high-degree-example.elkt diff=20 top=coordinate first=children[0]/y: number mismatch (135.33333333333331 != 183.66666666666669)
+  tests/layered/self_loops/fixedSide.elkt diff=20 top=coordinate first=children[0]/x: number mismatch (23.333333333333332 != 42.0)
+
+ordering_diff sample (lowest diff_count)
+  tests/layered/node_placement/bk/classes/classes.elkt diff=8 top=section first=children[0]/y: number mismatch (152.0 != 12.0)
+  examples/user-hints/layered/verticalOrder.elkt diff=9 top=coordinate first=children[1]/children[1]/y: number mismatch (52.0 != 32.0)
+  tests/layered/layer_constraints/01.elkt diff=10 top=section first=children[0]/y: number mismatch (152.0 != 12.0)
+  tests/layered/node_placement/bk/classes/classes_two_samesize.elkt diff=12 top=coordinate first=children[0]/y: number mismatch (152.0 != 12.0)
+  tickets/layered/515_polylineOverNodeOutgoing.elkt diff=14 top=section first=children[0]/x: number mismatch (91.66666666666666 != 95.33333333333334)
+  tickets/layered/515_polylineOverNodeIncoming.elkt diff=17 top=section first=children[0]/y: number mismatch (57.0 != 62.0)
+  tests/layered/cross_counting/north_multiple.elkt diff=20 top=coordinate first=children[0]/y: number mismatch (242.0 != 265.0)
+  tests/layered/cross_counting/north_south_fixed_side.elkt diff=20 top=section first=children[0]/ports[9]/x: number mismatch (145.0 != 195.0)
+  tests/layered/cross_counting/south_multiple.elkt diff=20 top=coordinate first=children[1]/y: number mismatch (82.0 != 222.0)
+  tests/layered/edge_label_placement/smartLabelSideSelection_right_01.elkt diff=20 top=section first=children[0]/y: number mismatch (43.0 != 12.0)
+  tests/layered/hyperedge_merging/hyperedge_labels.elkt diff=20 top=section first=children[0]/y: number mismatch (12.0 != 61.0)
+  tests/layered/node_placement/KIPRA-1426/demo2-KIPRA-1426.elkt diff=20 top=coordinate first=children[0]/y: number mismatch (37.0 != 27.5)
+
+other sample (lowest diff_count)
+  tickets/layered/079_selfLoopLabels.elkt diff=1 top=ordering first=edges[0]/sections[0]/bendPoints: array length mismatch (4 != 2)
+  tickets/layered/463_aioobe_with_self_loops.elkt diff=1 top=ordering first=edges[4]/sections[0]/bendPoints: array length mismatch (8 != 4)
+  tests/core/label_placement/port_labels/treat_as_group_inside.elkt diff=2 top=coordinate first=children[0]/ports[1]/y: number mismatch (20.0 != 10.0)
+  tests/layered/connected_components/compound06.elkt diff=2 top=structure first=children[0]/edges[4]/sections[0]: missing keys on right: bendPoints
+  tickets/core/056_portLabelPlacement.elkt diff=2 top=coordinate first=children[0]/ports[0]/y: number mismatch (55.0 != 35.0)
+  tickets/layered/405_differentPortLabelPositionsTwoWestOutsideNextToPort.elkt diff=2 top=coordinate first=children[2]/children[0]/ports[0]/y: number mismatch (-2.333333333333332 != -4.666666666666666)
+  tickets/layered/476_multiLabelInHorizontalLayout.elkt diff=2 top=section first=edges[0]/sections[0]/id: value mismatch ('ES1' != 'E1_s0')
+  tickets/layered/476_multiLabelInVerticalLayout.elkt diff=2 top=section first=edges[0]/sections[0]/id: value mismatch ('ES1' != 'E1_s0')
+  tests/layered/compaction_oned/labels/edgeLabelShouldBeCentered.elkt diff=3 top=label first=edges[2]/labels[0]/x: number mismatch (52.0 != 152.0)
+  tests/layered/compaction_oned/nsport/south_port.elkt diff=4 top=section first=children[2]/x: number mismatch (41.3333 != 61.3333)
+  tests/layered/content_alignment/content_centered.elkt diff=4 top=coordinate first=children[0]/children[0]/x: number mismatch (350.0 != 12.0)
+  tickets/core/491_portSpacing.elkt diff=4 top=coordinate first=children[0]/ports[1]/y: number mismatch (37.0 != 38.0)

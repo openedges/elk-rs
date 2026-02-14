@@ -1,14 +1,15 @@
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::labels::LabelManagementOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
+use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector_chain::KVectorChain;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_routing::EdgeRouting;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LMargin, NodeType};
+use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LMargin, LPortRef, NodeType};
 use crate::org::eclipse::elk::alg::layered::intermediate::loops::{
-    Alignment, SelfHyperLoopRef, SelfLoopEdgeRef, SelfLoopHolderRef,
+    Alignment, PolylineSelfLoopRouter, SelfHyperLoopRef, SelfLoopEdgeRef, SelfLoopHolderRef,
 };
 use crate::org::eclipse::elk::alg::layered::intermediate::loops::routing::{
     LabelPlacer, RoutingDirector, RoutingSlotAssigner,
@@ -16,6 +17,7 @@ use crate::org::eclipse::elk::alg::layered::intermediate::loops::routing::{
 use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions};
 
 const EPSILON: f64 = 1e-3;
+const POLYLINE_SELF_LOOP_CORNER_DISTANCE: f64 = 10.0;
 
 #[derive(Clone, Copy)]
 struct RoutePoint {
@@ -90,6 +92,7 @@ impl ILayoutProcessor<LGraph> for SelfLoopRouter {
                 edge_edge_distance,
                 edge_label_distance,
                 node_self_loop_distance,
+                edge_routing,
             );
         }
 
@@ -102,6 +105,7 @@ fn route_node(
     edge_edge_distance: f64,
     edge_label_distance: f64,
     node_self_loop_distance: f64,
+    edge_routing: EdgeRouting,
 ) {
     let (l_node, routing_slot_count, hyper_loops) = if let Ok(holder_guard) = holder.lock() {
         (
@@ -186,6 +190,12 @@ fn route_node(
                 &source_point,
                 &target_point,
                 &routing_slot_positions,
+            );
+            let path = modify_bend_points(
+                edge_routing,
+                &source_port,
+                &target_port,
+                path,
             );
 
             for bend_point in &path {
@@ -353,6 +363,37 @@ fn compute_orthogonal_bend_points(
 
     push_point(&mut points, target.outer_anchor);
     points
+}
+
+fn modify_bend_points(
+    edge_routing: EdgeRouting,
+    source_port: &LPortRef,
+    target_port: &LPortRef,
+    bend_points: Vec<KVector>,
+) -> Vec<KVector> {
+    if edge_routing != EdgeRouting::Polyline {
+        return bend_points;
+    }
+
+    let mut chain = KVectorChain::new();
+    chain.add_vector(local_port_anchor(source_port));
+    chain.add_all(&bend_points);
+    chain.add_vector(local_port_anchor(target_port));
+
+    PolylineSelfLoopRouter
+        .cut_corners(&chain, POLYLINE_SELF_LOOP_CORNER_DISTANCE)
+        .to_array()
+}
+
+fn local_port_anchor(port: &LPortRef) -> KVector {
+    port.lock()
+        .ok()
+        .map(|mut port_guard| {
+            let mut anchor = KVector::from_vector(port_guard.shape().position_ref());
+            anchor.add(port_guard.anchor_ref());
+            anchor
+        })
+        .unwrap_or_default()
 }
 
 fn inline_label_side_and_size(
