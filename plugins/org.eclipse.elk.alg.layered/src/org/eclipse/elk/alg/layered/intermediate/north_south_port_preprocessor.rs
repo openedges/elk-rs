@@ -70,16 +70,16 @@ impl ILayoutProcessor<LGraph> for NorthSouthPortPreprocessor {
                     continue;
                 }
 
-                if north_ports.is_empty() && south_ports.is_empty() {
-                    continue;
-                }
-
                 let Some(graph_ref) = graph_ref else {
                     continue;
                 };
 
                 if let Ok(mut node_guard) = node.lock() {
                     node_guard.set_property(InternalProperties::IN_LAYER_LAYOUT_UNIT, Some(node.clone()));
+                }
+
+                if north_ports.is_empty() && south_ports.is_empty() {
+                    continue;
                 }
 
                 let mut north_dummy_nodes = Vec::new();

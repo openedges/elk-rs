@@ -98,7 +98,6 @@ fn ordering_realworld_random_sequence_matches_java_reference() {
 }
 
 #[test]
-#[ignore = "TODO(step35): investigate crossing-count/sweep divergence for this model"]
 fn ordering_realworld_algebraic_heater_open_tank_matches_java() {
     init_layered_options();
 

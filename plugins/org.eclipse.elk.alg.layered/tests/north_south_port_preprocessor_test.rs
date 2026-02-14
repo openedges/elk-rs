@@ -3,7 +3,7 @@ use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::{
 };
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::intermediate::NorthSouthPortPreprocessor;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::{
-    LayeredMetaDataProvider, LayeredOptions,
+    InternalProperties, LayeredMetaDataProvider, LayeredOptions,
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
@@ -93,4 +93,35 @@ fn north_south_preprocessor_isolates_north_south_ports() {
             );
         }
     }
+}
+
+#[test]
+fn north_south_preprocessor_sets_layout_unit_for_fixed_side_node_without_north_south_ports() {
+    init_layered_metadata();
+    let (graph, layer) = graph_with_single_layer();
+
+    let owner = add_node(&graph, &layer);
+    owner
+        .lock()
+        .expect("owner lock")
+        .set_property(
+            LayeredOptions::PORT_CONSTRAINTS,
+            Some(PortConstraints::FixedSide),
+        );
+    add_port(&owner, PortSide::East);
+    add_port(&owner, PortSide::West);
+
+    let mut processor = NorthSouthPortPreprocessor;
+    let mut monitor = NullElkProgressMonitor;
+    processor.process(&mut graph.lock().expect("graph lock"), &mut monitor);
+
+    let layout_unit = owner
+        .lock()
+        .expect("owner lock")
+        .get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
+        .expect("layout unit should be set");
+    assert!(
+        std::sync::Arc::ptr_eq(&layout_unit, &owner),
+        "layout unit should point to the owner node"
+    );
 }
