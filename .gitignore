@@ -16,6 +16,7 @@
 /perf/model_parity_full/rust/
 /perf/model_parity_full/java/
 /perf/model_parity_full/*.tsv
+/perf/model_parity_full/*.txt
 /perf/model_parity_full/report.md
 /perf/model_parity_full/**/*.json
 /perf/model_parity/rust/
@@ -28,6 +29,7 @@
 !/perf/model_parity_*/java/
 !/perf/model_parity_*/java/java_manifest.tsv
 /perf/model_parity_*/**/*.json
+/perf/model_parity_categories/
 /perf/test_parity/
 
 # Python cache

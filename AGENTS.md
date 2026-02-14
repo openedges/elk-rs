@@ -1006,3 +1006,117 @@
   - 완료(2026-02-14): `MODEL_PARITY_SKIP_JAVA_EXPORT` 추가(`run_model_parity_elk_vs_rust.sh`), manifest 부재 가드 + `scripts/README.md` 문서 반영
 - [x] Step 51: 고정 Java baseline 기준 full parity 재실행 및 리포트 갱신
   - 완료(2026-02-14): `MODEL_PARITY_SKIP_JAVA_EXPORT=true` 재실행 결과 `matches=647`, `drift=792`, `total_diffs=14926`, `errors/timeouts=0` 재확인
+
+## 검증 계획: 단위테스트 Parity + 모델 Parity
+
+### 축 1: 단위테스트 Parity
+
+#### 현재 상태
+- Java 테스트 클래스: 188개 (14 모듈), `@Test` 메서드: 611개
+- Rust `#[test]` 함수: 886개 (16 모듈)
+- 클래스 이름 매칭: 100% (누락 0)
+- layered issue 테스트: 41/41 (100%)
+- 모듈별 상세: `perf/java_test_module_parity.md`
+
+#### 한계점
+1. 클래스 이름 매칭만 수행 — 메서드 수준 1:1 의미 대응 미검증
+2. 테스트 실행 결과(pass/fail) 미추적 — "존재"만 확인
+3. `org.eclipse.elk.alg.test`(46 클래스)/`shared.test`(4 클래스) 미매핑
+4. 테스트 리소스(`.elkt`) 대응 미검증
+
+#### 개선 작업
+- [x] Step T-1: `report_test_parity.py` 확장 — 메서드 수준 매핑 (`perf/test_parity/method_mapping.tsv`)
+  - 완료: Java 544 @Test 메서드 추출, 318 matched (58.5%), 226 missing
+- [x] Step T-2: `cargo test --workspace` 결과 통합 (`perf/test_parity/rust_test_results.tsv`)
+  - 완료: `--capture-cargo-test` 플래그 추가, 실행 대기 중
+- [x] Step T-3: `alg.test`/`shared.test` 50개 클래스 Rust 대응 매핑
+  - 완료: 17 클래스 중 9/9 실제 테스트 클래스 매핑됨, 8개는 프레임워크 인프라 (Rust 불필요)
+- [ ] Step T-4: Java `@GraphResourceProvider` 리소스 목록 추출 및 Rust 대응 확인
+
+#### 실행 방법
+- `python3 scripts/report_test_parity.py` — 테스트 parity 리포트 생성
+- `cargo test --workspace` — 전체 Rust 테스트 실행
+
+#### 완료 기준
+- Java 611개 `@Test` 메서드 각각에 대응하는 Rust `#[test]` 식별 완료
+- `cargo test --workspace` 전체 통과 (0 failures)
+- `alg.test`/`shared.test` 50개 클래스의 Rust 대응 명시
+
+---
+
+### 축 2: 모델 Parity
+
+#### 현재 상태 (Step 51 기준)
+- 전체 모델: 1,448 (비교 대상: 1,439, java_non_ok 9 제외)
+- **Match: 647 (45.0%)**, Drift: 792, Total diffs: 14,926
+- Errors: 0, Timeouts: 0
+- Drift 분류: coordinate 68.7%, section 26.3%, structure 2.8%, label 1.0%, ordering 0.7%, other 0.4%
+
+#### 파이프라인
+```
+elk-models/ → Java Export → java_manifest.tsv
+                                ↓
+elk-models/ → Rust Layout  → rust_manifest.tsv (model_parity_layout_runner)
+                                ↓
+compare_model_parity_layouts.py → report.md + diff_details.tsv
+                                ↓
+analyze_layered_drift.py → drift 분류 (layering/ordering/other)
+```
+
+#### 한계점
+1. `report.md`가 최신 실행 결과를 반영하지 않음 (304 vs 실제 647)
+2. max diffs per model=20 제한 — 심하게 다른 모델의 상세 분석 불가
+3. drift 분류가 증상(coordinate/section) 기반 — phase별 근본 원인 미분류
+4. 카테고리별(tests/tickets/realworld/examples) parity 추이 미추적
+5. Java baseline 실행 컨텍스트에 따른 결과 변동 (Step 49 확인)
+
+#### 개선 작업
+- [x] Step M-1: report.md 최신화 — full parity 재실행 후 자동 갱신 확인
+  - 완료: Java manifest 경로 수정, 재실행 결과 matches=647, drift=792, diffs=14926 확인
+- [x] Step M-2: Java baseline 고정 운영 (`MODEL_PARITY_SKIP_JAVA_EXPORT=true` 기본화)
+  - 완료: Step 50에서 이미 구현됨
+- [x] Step M-3: 카테고리별 parity 대시보드 (`perf/model_parity_categories/`)
+  - 완료: `scripts/report_model_parity_categories.py` 생성, dashboard.md 출력
+- [ ] Step M-4: drift phase별 원인 분류 (`analyze_layered_drift.py` 확장)
+- [ ] Step M-5: low-diff 모델(1-5 diffs) 우선 해결 → matches 점진적 증가
+
+#### 실행 방법
+- `MODEL_PARITY_SKIP_JAVA_EXPORT=true scripts/run_model_parity_elk_vs_rust.sh` — full parity 실행
+- `python3 scripts/compare_model_parity_layouts.py --manifest perf/model_parity_full/rust_manifest.tsv --out-dir perf/model_parity_full` — 비교/리포트
+- `python3 scripts/analyze_layered_drift.py --details perf/model_parity_full/diff_details.tsv` — drift 분석
+- `scripts/run_model_parity_by_category.sh {tests|tickets|realworld}` — 카테고리별 실행
+
+#### 완료 기준
+- `report.md`가 최신 결과 반영 (647+ matches)
+- 카테고리별 parity 리포트 생성
+- drift 792건의 phase별 원인 분류 완료
+- 점진적으로 matches 증가 → 최종 목표 100% (1,439/1,439)
+
+---
+
+### 검증 실행 순서 (권장)
+
+1. `cargo test --workspace` — 전체 Rust 테스트 통과 확인
+2. `python3 scripts/report_test_parity.py` — 테스트 parity 현황
+3. `MODEL_PARITY_SKIP_JAVA_EXPORT=true scripts/run_model_parity_elk_vs_rust.sh` — full model parity
+4. `python3 scripts/compare_model_parity_layouts.py` + `analyze_layered_drift.py` — 분석
+5. `scripts/run_model_parity_by_category.sh` — 카테고리별 model parity
+
+### 핵심 파일
+
+| 용도 | 경로 |
+|------|------|
+| 테스트 parity 스크립트 | `scripts/report_test_parity.py` |
+| 테스트 parity 리포트 | `perf/java_test_module_parity.md` |
+| 모델 parity 오케스트레이션 | `scripts/run_model_parity_elk_vs_rust.sh` |
+| Rust 레이아웃 러너 | `plugins/org.eclipse.elk.graph.json/src/bin/model_parity_layout_runner.rs` |
+| JSON 비교기 | `scripts/compare_model_parity_layouts.py` |
+| Drift 분석기 | `scripts/analyze_layered_drift.py` |
+| 모델 입력 | `external/elk-models/` |
+| Full parity 리포트 | `perf/model_parity_full/report.md` |
+| Diff 상세 | `perf/model_parity_full/diff_details.tsv` |
+
+### 두 축의 관계
+- **단위테스트**: 개별 알고리즘/모듈의 로직 정확성 검증 (white-box)
+- **모델 Parity**: 전체 파이프라인의 end-to-end 결과 동일성 검증 (black-box)
+- 두 축 모두 100% 달성 시 포팅 완료로 간주
