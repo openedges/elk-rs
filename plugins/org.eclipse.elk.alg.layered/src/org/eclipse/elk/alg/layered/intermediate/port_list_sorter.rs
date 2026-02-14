@@ -156,17 +156,22 @@ fn find_port_side_range(ports: &[LPortRef], side: PortSide) -> (usize, usize) {
         return (0, 0);
     }
 
+    let mut current_side = port_side(&ports[0]);
     let lb = side_ordinal(side);
     let hb = lb + 1;
     let mut low_idx = 0;
 
-    while low_idx < ports.len() && side_ordinal(port_side(&ports[low_idx])) < lb {
+    // Match Java: lowIdx < ports.size() - 1 (not ports.size())
+    while low_idx < ports.len() - 1 && side_ordinal(current_side) < lb {
         low_idx += 1;
+        current_side = port_side(&ports[low_idx]);
     }
 
     let mut high_idx = low_idx;
-    while high_idx < ports.len() && side_ordinal(port_side(&ports[high_idx])) < hb {
+    // Match Java bugs: (1) highIdx < ports.size() - 1, (2) reads ports.get(lowIdx) not highIdx
+    while high_idx < ports.len() - 1 && side_ordinal(current_side) < hb {
         high_idx += 1;
+        current_side = port_side(&ports[low_idx]); // Java bug: reads lowIdx
     }
 
     (low_idx, high_idx)
