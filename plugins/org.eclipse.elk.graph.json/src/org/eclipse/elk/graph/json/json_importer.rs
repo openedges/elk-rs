@@ -818,8 +818,15 @@ impl JsonImporter {
                 let mut json_section_obj = if let Some(pointer) = self.edge_section_ptr_map.get(&edge_section_key(section)) {
                     json_object_clone(json_root, pointer).unwrap_or_default()
                 } else {
+                    let fallback_section_id = {
+                        let section_ref = section.borrow();
+                        section_ref
+                            .identifier()
+                            .map(ToString::to_string)
+                            .unwrap_or_else(|| format!("{edge_id}_s{index}"))
+                    };
                     let mut obj = Map::new();
-                    obj.insert("id".to_string(), Value::String(format!("{edge_id}_s{index}")));
+                    obj.insert("id".to_string(), Value::String(fallback_section_id));
                     obj
                 };
 

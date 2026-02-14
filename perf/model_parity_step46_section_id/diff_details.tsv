@@ -1,0 +1,3 @@
+model_rel_path	status	diff_count	top_category	first_diff	java_layout_json	rust_layout_json
+tickets/layered/476_multiLabelInHorizontalLayout.elkt	match	0			/Users/luuvish/Projects/research/elk-rs/perf/model_parity/java/layout/tickets/layered/476_multiLabelInHorizontalLayout.elkt.json	perf/model_parity_step46_section_id/rust/tickets/layered/476_multiLabelInHorizontalLayout.elkt.json
+tickets/layered/476_multiLabelInVerticalLayout.elkt	match	0			/Users/luuvish/Projects/research/elk-rs/perf/model_parity/java/layout/tickets/layered/476_multiLabelInVerticalLayout.elkt.json	perf/model_parity_step46_section_id/rust/tickets/layered/476_multiLabelInVerticalLayout.elkt.json

@@ -1,0 +1,3 @@
+model_rel_path	input_json	java_layout_json	java_status	java_error
+tickets/layered/476_multiLabelInHorizontalLayout.elkt	/Users/luuvish/Projects/research/elk-rs/perf/model_parity/java/input/tickets/layered/476_multiLabelInHorizontalLayout.elkt.json	/Users/luuvish/Projects/research/elk-rs/perf/model_parity/java/layout/tickets/layered/476_multiLabelInHorizontalLayout.elkt.json	ok	
+tickets/layered/476_multiLabelInVerticalLayout.elkt	/Users/luuvish/Projects/research/elk-rs/perf/model_parity/java/input/tickets/layered/476_multiLabelInVerticalLayout.elkt.json	/Users/luuvish/Projects/research/elk-rs/perf/model_parity/java/layout/tickets/layered/476_multiLabelInVerticalLayout.elkt.json	ok	

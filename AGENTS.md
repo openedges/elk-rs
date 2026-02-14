@@ -854,9 +854,13 @@
 - Step 43 완료(2026-02-14): root cause를 `SelfLoopRouter`에서 polyline 전용 corner-cut(`PolylineSelfLoopRouter::cut_corners`) 후처리가 누락된 것으로 확정하고 Java 경로와 동일하게 source/target anchor 포함 후처리를 연결. 회귀 테스트 `polyline_self_loop_parity_model_test.rs` 신규 추가(079 self-loop labels=4 bends, 463 self-loops=8 bends) 및 `self_loop_router_test` 재검증 통과. subset parity(`perf/model_parity_step43_self_loop`) 결과 `compared=2`, `matches=2`, `drift=0`, `total_diffs=0` 확인
 - Step 44 완료(2026-02-14): Step 43 반영 후 full parity 재실행(`JAVA_PARITY_MVN_LOCAL_REPO=/tmp/elk-m2-parity-full`, `JAVA_PARITY_MVN_ARGS='-Ddash.skip=true -o'`). 결과: total=1,448, compared=1,439, matches=682, drift=757, skipped=9(java_non_ok), errors=0(timeouts=0), total_diffs=14,234. Step 41 대비 `matches +24`, `drift -24`, `total_diffs -442` 개선
 - Java parity 실행 안전 가드 추가(2026-02-14): `run_java_model_parity_export.sh`에 `JAVA_PARITY_REQUIRE_CLEAN_EXTERNAL_ELK=true` 기본 가드를 추가해 `external/elk`가 dirty일 때 실행을 즉시 중단하도록 보강. 우회가 필요한 경우 `JAVA_PARITY_REQUIRE_CLEAN_EXTERNAL_ELK=false`로 비활성화 가능하도록 했고, `scripts/README.md` Model parity env/노트에 사용법을 문서화
+- Step 45 완료(2026-02-14): full parity drift 재분류 재실행(`scripts/analyze_layered_drift.py --manifest perf/model_parity/rust_manifest.tsv`). 결과: drift 757건(`other=488`, `layering_diff=215`, `ordering_diff=54`), prefix별 `examples=14`, `realworld=564`, `tests=123`, `tickets=56`. 저diff `other` 우선 타깃으로 `tickets/layered/476_multiLabelInHorizontalLayout.elkt`, `476_multiLabelInVerticalLayout.elkt`를 선정
+- Step 46 완료(2026-02-14): section identifier drift root cause 보정. `ElkGraphLayoutTransferrer`가 edge section 재생성 시 기존 section identifier를 유지하도록 수정하고(`elk_graph_layout_transferrer.rs`), JSON transfer fallback이 `section.identifier()`를 우선 사용하도록 수정(`json_importer.rs`). 회귀 테스트 `edge_section_identifier_parity_model_test.rs` 추가, subset parity(`perf/model_parity_step46_section_id`) 결과 `compared=2`, `matches=2`, `drift=0`, `total_diffs=0`
+- Step 47 완료(2026-02-14): full parity 재실행(`JAVA_PARITY_MVN_LOCAL_REPO=/tmp/elk-m2-parity-full`, `JAVA_PARITY_MVN_ARGS='-Ddash.skip=true -o'`, `scripts/run_model_parity_elk_vs_rust.sh`). 결과: total=1,448, compared=1,439, matches=647, drift=792, skipped=9(java_non_ok), errors=0(timeouts=0), total_diffs=14,927. Step 44 대비 `matches -35`, `drift +35`, `total_diffs +693` (개선 3건: tickets 368/476, 회귀 38건은 realworld 중심)
+- Step 48 완료(2026-02-14): Java `ElkGraphUtil.firstEdgeSection(edge, true, true)` 정합을 맞추기 위해 `ElkGraphLayoutTransferrer`의 section 처리 로직을 "첫 section 재사용 + geometry reset + 나머지 제거"로 변경. `cargo test -p org-eclipse-elk-alg-layered --test edge_section_identifier_parity_model_test`/`cargo clippy -p org-eclipse-elk-alg-layered --test edge_section_identifier_parity_model_test` 통과. 동일 Java 기준(`perf/model_parity/java/java_manifest.tsv`)으로 Rust-only parity 재실행 결과 `matches=647`, `drift=792` 유지, `total_diffs=14927 -> 14926` 1건 감소(예: `724_includeChildrenModelOrder`의 missing bendPoints 해소). 참고: `cargo test -p org-eclipse-elk-graph-json --test edge_coords_test edge_coords_round_trip`는 기존과 동일하게 실패 상태 유지(원인 별도 추적 필요)
 ## 진행률(최신)
-- 전체 목표 대비 추정 진행률: 약 47.4% (기준: Java↔Rust 모델 parity full match 682/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
-- 단계 진행률(다음 작업 체크리스트 기준): 100.0% (완료 4/4, 미완료 0) [2026-02-14 갱신]
+- 전체 목표 대비 추정 진행률: 약 45.0% (기준: Java↔Rust 모델 parity full match 647/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
+- 단계 진행률(다음 작업 체크리스트 기준): 100.0% (완료 8/8, 미완료 0) [2026-02-14 갱신]
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
 - Java direct-mapped 모듈 테스트 parity: 146.1% (Rust 875 / Java 599, `perf/java_test_module_parity.md`)
@@ -865,7 +869,7 @@
 - topdown 모듈 테스트 parity(수량): 100% (Rust 11 / Java 11)
 - mrtree 모듈 테스트 parity(수량): 100% (Rust 2 / Java 2, 기본 테스트 경로 활성화 완료)
 - Java-Rust 성능 비교 파이프라인/회귀 게이트: 운영 자동화 100% (baseline/results/both + scenario/runtime gate + CI 연동)
-- external/elk-models Java↔Rust 레이아웃 결과 parity(전체 1,448 모델): 47.4% (matches=682/compared=1439, drift=757, errors=0, timeouts=0, java_non_ok=9, total_diffs=14234)
+- external/elk-models Java↔Rust 레이아웃 결과 parity(전체 1,448 모델): 45.0% (matches=647/compared=1439, drift=792, errors=0, timeouts=0, java_non_ok=9, total_diffs=14926)
 - external/elk-models Java↔Rust 대형 샘플 안정성: full parity 재실행 완료(`JAVA_PARITY_LIMIT=0`), errors/timeouts 0 확인
 - external/elk 무수정 운영 체계: 100% (격리 실행 + 자동 정리)
 - 1,448 모델 parity 기준선(v4)에서 실패 목록(36 timeouts/8 panics/9 java non-ok) 정리 및 재현 대상 모델 목록 확보
@@ -985,3 +989,11 @@
   - 완료(2026-02-14): `SelfLoopRouter` polyline 후처리 누락 수정(`cut_corners` 연결), 회귀 테스트 `polyline_self_loop_parity_model_test` 추가, subset parity(079/463) `matches=2`, `drift=0` 확인
 - [x] Step 44: Step 43 반영 후 full parity 재실행 및 진행률/리포트 갱신
   - 완료(2026-02-14): full parity 결과 `matches=682`, `drift=757`, `total_diffs=14234`로 갱신. Step 41 대비 `+24 matches`, `-24 drift`, `-442 diffs`
+- [x] Step 45: full parity drift 재분류(`scripts/analyze_layered_drift.py`) 재실행 및 우선 타깃 선정
+  - 완료(2026-02-14): drift 757건 재분류(`other=488`, `layering_diff=215`, `ordering_diff=54`), 우선 타깃을 `tickets/layered/476_multiLabelInHorizontalLayout.elkt`, `476_multiLabelInVerticalLayout.elkt`로 선정
+- [x] Step 46: section identifier drift(476) root cause 수정 및 회귀 테스트/부분 parity 재검증
+  - 완료(2026-02-14): `ElkGraphLayoutTransferrer` section identifier 유지 + `json_importer` fallback id 보강, `edge_section_identifier_parity_model_test` 추가, subset parity `matches=2`, `drift=0`
+- [x] Step 47: full parity 재실행 및 기준선 갱신
+  - 완료(2026-02-14): `matches=647`, `drift=792`, `total_diffs=14927` (skipped java_non_ok=9, errors/timeouts=0)
+- [x] Step 48: Java `firstEdgeSection(reset/removeOther)` 정합 반영 및 동일 Java 기준 Rust-only parity 검증
+  - 완료(2026-02-14): section 재생성 대신 첫 section 재사용+리셋으로 수정, `edge_section_identifier_parity_model_test`/clippy 통과, Rust-only parity `matches=647`, `drift=792` 유지 및 `total_diffs=14926` 1건 개선 (`edge_coords_round_trip` 실패는 기존 상태로 별도 추적)

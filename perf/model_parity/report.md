@@ -1,43 +1,43 @@
 # ELK Model Parity Report
 
-- manifest: `/Users/luuvish/Projects/research/elk-rs/perf/model_parity/rust_manifest.tsv`
+- manifest: `perf/model_parity/rust_manifest.tsv`
 - total rows: 1448
 - compared rows: 1439
-- matched rows: 682
-- drift rows: 757
+- matched rows: 647
+- drift rows: 792
 - skipped rows (java/rust non-ok): 9
 - compare errors: 0
 - abs tolerance: 1e-06
 - max diffs per model: 20
-- total diffs across all models: 14234
+- total diffs across all models: 14926
 
 ## Drift Classification Summary
 
 | Category | Count | Percentage |
 |----------|------:|-----------:|
-| coordinate | 8900 | 62.5% |
-| section | 4642 | 32.6% |
-| structure | 249 | 1.7% |
-| label | 243 | 1.7% |
-| ordering | 107 | 0.8% |
-| other | 93 | 0.7% |
+| coordinate | 9281 | 62.2% |
+| section | 4970 | 33.3% |
+| label | 242 | 1.6% |
+| structure | 234 | 1.6% |
+| ordering | 107 | 0.7% |
+| other | 92 | 0.6% |
 
 ### Top Diff Path Prefixes
 
-- `children[*]/edges[*]/sections[*]`: 2774 (19.5%)
-- `children[*]/y`: 2009 (14.1%)
-- `children[*]/children[*]/x`: 1819 (12.8%)
-- `children[*]/x`: 1459 (10.3%)
-- `children[*]/children[*]/y`: 1108 (7.8%)
-- `children[*]/children[*]/children[*]`: 1099 (7.7%)
-- `children[*]/children[*]/edges[*]`: 901 (6.3%)
-- `children[*]/ports[*]/y`: 428 (3.0%)
-- `edges[*]/sections[*]/bendPoints[*]`: 369 (2.6%)
-- `edges[*]/sections[*]/endPoint`: 360 (2.5%)
+- `children[*]/edges[*]/sections[*]`: 2738 (18.3%)
+- `children[*]/y`: 2439 (16.3%)
+- `children[*]/children[*]/x`: 1785 (12.0%)
+- `children[*]/x`: 1452 (9.7%)
+- `children[*]/children[*]/children[*]`: 1121 (7.5%)
+- `children[*]/children[*]/y`: 1090 (7.3%)
+- `children[*]/children[*]/edges[*]`: 995 (6.7%)
+- `edges[*]/sections[*]/bendPoints[*]`: 501 (3.4%)
+- `edges[*]/sections[*]/endPoint`: 428 (2.9%)
+- `children[*]/ports[*]/y`: 414 (2.8%)
 
 ## Drift Samples
 
-- `examples/edges/insideSelfLoops.elkt`: diffs=6 [section=4, coordinate=1, other=1], first: children[1]/ports[1]/x: number mismatch (100.0 != 200.0)
+- `examples/edges/insideSelfLoops.elkt`: diffs=20 [section=17, coordinate=3], first: children[0]/y: number mismatch (22.0 != 12.0)
 - `examples/general/spacing/labels.elkt`: diffs=20 [section=18, coordinate=2], first: children[0]/x: number mismatch (52.0 != 72.0)
 - `examples/general/spacing/nodesEdges.elkt`: diffs=20 [section=14, coordinate=6], first: children[0]/y: number mismatch (37.0 != 33.0)
 - `examples/general/spacing/ports.elkt`: diffs=5 [coordinate=5], first: children[0]/ports[0]/x: number mismatch (16.666666666666668 != 33.333333333333336)
@@ -55,5 +55,5 @@
 - `realworld/ptolemy/flattened/algebraic_rlc_RLC.elkt`: diffs=20 [coordinate=20], first: children[0]/x: number mismatch (653.0 != 610.0)
 - `realworld/ptolemy/flattened/backtrack_primetest_PrimeTest.elkg`: diffs=20 [coordinate=20], first: children[0]/x: number mismatch (1170.0 != 206.0)
 - `realworld/ptolemy/flattened/backtrack_primetest_PrimeTest.elkt`: diffs=20 [coordinate=20], first: children[0]/x: number mismatch (1170.0 != 206.0)
-- `realworld/ptolemy/flattened/continuous_cartracking_CarTracking.elkg`: diffs=20 [coordinate=20], first: children[0]/x: number mismatch (1762.0 != 1754.0)
-- `realworld/ptolemy/flattened/continuous_cartracking_CarTracking.elkt`: diffs=20 [coordinate=20], first: children[0]/x: number mismatch (1762.0 != 1754.0)
+- `realworld/ptolemy/flattened/backtrack_trialmodule_TrialModule.elkg`: diffs=20 [section=15, coordinate=5], first: children[0]/y: number mismatch (437.6666666666667 != 427.6666666666667)
+- `realworld/ptolemy/flattened/backtrack_trialmodule_TrialModule.elkt`: diffs=20 [section=15, coordinate=5], first: children[0]/y: number mismatch (437.6666666666667 != 427.6666666666667)

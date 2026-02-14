@@ -573,12 +573,6 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
         // Offset all bend points by edge_offset
         bend_point_chain.offset(edge_offset.x, edge_offset.y);
 
-        // Clear existing sections
-        {
-            let mut edge_mut = elk_edge.borrow_mut();
-            edge_mut.sections().clear();
-        }
-
         // Get incoming/outgoing shapes
         let (incoming_shape, outgoing_shape) = {
             let edge_ref = elk_edge.borrow();
@@ -588,8 +582,29 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
             )
         };
 
-        // Create section
-        let section = ElkEdgeSection::new();
+        // Mirror Java ElkGraphUtil.firstEdgeSection(elkedge, true, true):
+        // reuse the first section (preserving its identifier/properties), reset geometry, and drop extras.
+        let section = {
+            let mut edge_mut = elk_edge.borrow_mut();
+            if let Some(first_section) = edge_mut.sections().get(0) {
+                {
+                    let mut first_mut = first_section.borrow_mut();
+                    first_mut.bend_points().clear();
+                    first_mut.set_start_x(0.0);
+                    first_mut.set_start_y(0.0);
+                    first_mut.set_end_x(0.0);
+                    first_mut.set_end_y(0.0);
+                }
+                edge_mut.sections().clear();
+                edge_mut.sections().add(first_section.clone());
+                first_section
+            } else {
+                let new_section = ElkEdgeSection::new();
+                edge_mut.sections().add(new_section.clone());
+                new_section
+            }
+        };
+
         {
             let mut section_mut = section.borrow_mut();
             section_mut.set_incoming_shape(incoming_shape);
@@ -598,11 +613,6 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
 
         // Apply bend points via ElkUtil::apply_vector_chain
         ElkUtil::apply_vector_chain(&bend_point_chain, &section);
-
-        {
-            let mut edge_mut = elk_edge.borrow_mut();
-            edge_mut.sections().add(section);
-        }
 
         // Apply label positions with edge_offset (Java also sets dimensions)
         for label in &labels {
