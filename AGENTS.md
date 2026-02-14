@@ -846,9 +846,10 @@
 - Step 34 완료(2026-02-14): `LayerSweepCrossingMinimizer::save_all_node_orders_of_changed_graphs`가 Java와 달리 `currentlyBest`가 아닌 `current` 스냅샷을 best로 저장하던 불일치를 수정(현재 best 스윕 우선 저장, fallback은 current). 회귀 테스트 `ordering_realworld_model_test.rs`에 `ordering_realworld_ci_router_drop_queue_matches_java` 추가. `ordering_top30` subset 재검증 결과 `matches=6`, `drift=14`, `total_diffs=278`로 개선(기존 `2/18/360`), `ci_router_dropqueuetest1.{elkg,elkt}` + `ci_router_queuetest1.{elkg,elkt}` 4건 match 전환 확인. 대표 모델 `algebraic_heateropentank_*`는 ordering drift 일부가 잔존하여 추가 원인 분석을 다음 단계로 이관
 - Step 35 완료(2026-02-14): `algebraic_heateropentank_HeaterOpenTankRefactored`의 랜덤 상태 전이 가설을 검증. Java `Random` 기준값(`seed=7564655870752979346`, `distributorNodeRelative=false`, `firstSweep=true`)을 Rust와 대조해 동일함을 확인(랜덤 전이 자체는 Java 정합). 회귀 테스트 보강: `ordering_realworld_random_sequence_matches_java_reference`(활성) 추가, 모델 Java 기대 순서 회귀 `ordering_realworld_algebraic_heater_open_tank_matches_java`를 `#[ignore]`+TODO로 추가. 단건 실험에서 추가 스윕을 제외하면 `N1/N10/N8`, `N13/N4`는 Java와 정합되고 `N5/N6`만 잔존해, 다음 단계 원인을 `P3 추가 스윕 시 crossing-count 평가 경로`로 좁힘
 - Step 36 완료(2026-02-14): `algebraic_heateropentank_HeaterOpenTankRefactored` ordering drift root cause를 `NorthSouthPortPreprocessor`의 `IN_LAYER_LAYOUT_UNIT` 설정 조건 불일치로 확정(Java는 `FixedSide` 정상 노드에 대해 north/south 포트가 없어도 layout unit 설정, Rust는 north/south 포트가 있을 때만 설정). Rust를 Java와 동일하게 수정해 Forster constraint graph의 누락 제약(`pump -> TIn/north4`)이 복구되도록 보정. 회귀 테스트 활성화: `ordering_realworld_algebraic_heater_open_tank_matches_java`의 `#[ignore]` 제거 후 통과, 추가로 `north_south_preprocessor_sets_layout_unit_for_fixed_side_node_without_north_south_ports` 테스트를 추가해 재발 방지. 검증: `cargo test -p org-eclipse-elk-alg-layered --test north_south_port_preprocessor_test`, `cargo test -p org-eclipse-elk-alg-layered --test ordering_realworld_model_test`, `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과
+- Step 37 완료(2026-02-14): Step 36 반영 후 `ordering_diff_realworld_top30` subset parity 재검증 수행. `model_parity_layout_runner --release` + `compare_model_parity_layouts.py` 재실행 결과가 `matches=12`, `drift=8`, `total_diffs=116`으로 개선(기존 `6/14/278`). `ordering_diff_samples.tsv` 재생성 결과 top-level ordering diff 모델은 `0`건으로 축소되었고, 잔여 drift는 4개 모델(`algebraic_heateropentank_HeaterOpenTankRefactored`, `backtrack_ramprollback_RampRollback`, `ca_conway_Conway`, `comm_trellisdecoder_TrellisDecoder`)의 section/coordinate/structure 중심으로 압축
 ## 진행률(최신)
 - 전체 목표 대비 추정 진행률: 약 21.2% (기준: Java↔Rust 모델 parity full match 305/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
-- 단계 진행률(다음 작업 체크리스트 기준): 100.0% (완료 4/4, 미완료 0) [2026-02-14 갱신]
+- 단계 진행률(다음 작업 체크리스트 기준): 25.0% (완료 1/4, 미완료 3) [2026-02-14 갱신]
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
 - Java direct-mapped 모듈 테스트 parity: 146.1% (Rust 875 / Java 599, `perf/java_test_module_parity.md`)
@@ -961,3 +962,8 @@
   - 완료(2026-02-14): 랜덤 시드/분배기 선택/첫 스윕 방향 Java 정합 확인, 랜덤 전이 비원인 확정, 랜덤 시퀀스 회귀 테스트 추가 + 모델 Java 기대 순서 테스트 활성화(ignored 제거)
 - [x] Step 36: `algebraic_heateropentank_HeaterOpenTankRefactored` 잔여 ordering drift(`N5/N6`) 및 추가 스윕에서 발생하는 `N1/N10/N8`, `N13/N4` 역전의 crossing-count/sweep divergence root cause 확정 및 Java 정합 회귀 테스트 활성화
   - 완료(2026-02-14): `NorthSouthPortPreprocessor` layout unit 설정 조건(Java 대비 누락) 수정으로 Forster constraint graph 제약 누락을 해소하고, `ordering_realworld_algebraic_heater_open_tank_matches_java` ignore 제거 후 통과
+- [x] Step 37: Step 36 반영 후 `ordering_diff_realworld_top30` subset parity 재검증 및 리포트 갱신
+  - 완료(2026-02-14): `matches=12`, `drift=8`, `total_diffs=116`, ordering diff 모델 0건 확인
+- [ ] Step 38: 잔여 drift 모델 4개 중 `algebraic_heateropentank_HeaterOpenTankRefactored`의 section/coordinate 불일치(root: x-10 오프셋, `MostRecent_T` y 편차) 원인 확정 및 회귀 테스트 추가
+- [ ] Step 39: `ca_conway_Conway`의 edge(`E33`/`E34`) junctionPoints 불일치 원인 확정 및 수정
+- [ ] Step 40: `ordering_diff_realworld_top30` subset parity 재실행으로 Step 38~39 개선 효과 검증 및 리포트 갱신
