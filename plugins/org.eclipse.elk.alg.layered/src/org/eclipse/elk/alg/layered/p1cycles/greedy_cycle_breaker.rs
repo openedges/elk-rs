@@ -324,7 +324,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for GreedyCycleBreaker {
         while unprocessed > 0 {
             while let Some(sink) = self.sinks.pop_front() {
                 let index = node_index(&sink);
-                if index < self.mark.len() && self.mark[index] == 0 {
+                if index < self.mark.len() {
                     self.mark[index] = next_right;
                     next_right -= 1;
                     self.update_neighbors(&sink);
@@ -334,7 +334,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for GreedyCycleBreaker {
 
             while let Some(source) = self.sources.pop_front() {
                 let index = node_index(&source);
-                if index < self.mark.len() && self.mark[index] == 0 {
+                if index < self.mark.len() {
                     self.mark[index] = next_left;
                     next_left += 1;
                     self.update_neighbors(&source);
