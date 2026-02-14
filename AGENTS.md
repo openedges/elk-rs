@@ -1116,6 +1116,23 @@ analyze_layered_drift.py → drift 분류 (layering/ordering/other)
 | Full parity 리포트 | `perf/model_parity_full/report.md` |
 | Diff 상세 | `perf/model_parity_full/diff_details.tsv` |
 
+### 단계별 작업 워크플로우 (필수)
+
+각 단계(Step) 작업 완료 시 반드시 아래 순서를 따른다:
+
+1. **`cargo clippy --workspace`** — 경고/에러 0건 확인 (unused import 등 cosmetic 경고는 해당 단계에서 수정)
+2. **`cargo test --workspace`** — 기존 테스트 회귀 없음 확인 (known failure: `edge_coords_round_trip` 제외)
+3. **커밋** — 단계별 변경사항을 독립 커밋으로 기록
+   - 커밋 메시지 형식: `<scope>: <변경 요약>` (예: `layered: fix BK alignment for small graphs`)
+   - 회귀 발생 시 커밋하지 않고 원인 분석 후 수정
+
+```
+# 단계 완료 체크리스트
+cargo clippy --workspace 2>&1 | grep -E "^error|^warning" | head -20  # 0건
+cargo test --workspace 2>&1 | tail -5                                  # 1 failed (known)
+git add <changed-files> && git commit -m "<scope>: <summary>"
+```
+
 ### 두 축의 관계
 - **단위테스트**: 개별 알고리즘/모듈의 로직 정확성 검증 (white-box)
 - **모델 Parity**: 전체 파이프라인의 end-to-end 결과 동일성 검증 (black-box)
