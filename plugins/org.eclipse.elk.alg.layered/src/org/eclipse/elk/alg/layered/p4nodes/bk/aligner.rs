@@ -20,6 +20,7 @@ impl BKAligner {
         ni: &NeighborhoodInformation,
         marked_edges: &HashSet<usize>,
     ) {
+        let trace_align = std::env::var_os("ELK_TRACE_BK_ALIGN").is_some();
         for layer in &bal.layers {
             let nodes = layer
                 .lock()
@@ -79,6 +80,17 @@ impl BKAligner {
                 let d = neighbors.len();
                 let low = (d - 1) / 2;
                 let high = d / 2;
+                if trace_align {
+                    let node_name = node
+                        .lock()
+                        .ok()
+                        .map(|mut node_guard| node_guard.designation().to_string())
+                        .unwrap_or_else(|| "<poisoned>".to_string());
+                    eprintln!(
+                        "bk-align: node={}({node_name}) neighbors={} low={} high={} vdir={vdir:?} hdir={hdir:?}",
+                        node_id_val, d, low, high
+                    );
+                }
 
                 if vdir == VDirection::Up {
                     for neighbor_pair in neighbors.iter().take(high + 1).skip(low).rev() {
@@ -90,8 +102,19 @@ impl BKAligner {
                                 continue;
                             }
                             let neighbor_index = *ni.node_index.get(neighbor_id).unwrap_or(&0) as isize;
-
-                            if !marked_edges.contains(&edge_key(edge)) && r > neighbor_index {
+                            let edge_marked = marked_edges.contains(&edge_key(edge));
+                            if trace_align {
+                                let neighbor_name = neighbor
+                                    .lock()
+                                    .ok()
+                                    .map(|mut node_guard| node_guard.designation().to_string())
+                                    .unwrap_or_else(|| "<poisoned>".to_string());
+                                eprintln!(
+                                    "bk-align: try node={} neighbor={}({neighbor_name}) idx={} r={} marked={edge_marked}",
+                                    node_id_val, neighbor_id, neighbor_index, r
+                                );
+                            }
+                            if !edge_marked && r > neighbor_index {
                                 bal.align[neighbor_id] = node_id_val;
                                 let root = bal.root[neighbor_id];
                                 bal.root[node_id_val] = root;
@@ -99,6 +122,12 @@ impl BKAligner {
                                 bal.od[root] =
                                     bal.od[root] && node_type(&node) == NodeType::LongEdge;
                                 r = neighbor_index;
+                                if trace_align {
+                                    eprintln!(
+                                        "bk-align: align-set node={} neighbor={} root={} new_r={}",
+                                        node_id_val, neighbor_id, root, r
+                                    );
+                                }
                             }
                         }
                     }
@@ -112,8 +141,19 @@ impl BKAligner {
                                 continue;
                             }
                             let neighbor_index = *ni.node_index.get(neighbor_id).unwrap_or(&0) as isize;
-
-                            if !marked_edges.contains(&edge_key(edge)) && r < neighbor_index {
+                            let edge_marked = marked_edges.contains(&edge_key(edge));
+                            if trace_align {
+                                let neighbor_name = neighbor
+                                    .lock()
+                                    .ok()
+                                    .map(|mut node_guard| node_guard.designation().to_string())
+                                    .unwrap_or_else(|| "<poisoned>".to_string());
+                                eprintln!(
+                                    "bk-align: try node={} neighbor={}({neighbor_name}) idx={} r={} marked={edge_marked}",
+                                    node_id_val, neighbor_id, neighbor_index, r
+                                );
+                            }
+                            if !edge_marked && r < neighbor_index {
                                 bal.align[neighbor_id] = node_id_val;
                                 let root = bal.root[neighbor_id];
                                 bal.root[node_id_val] = root;
@@ -121,6 +161,12 @@ impl BKAligner {
                                 bal.od[root] =
                                     bal.od[root] && node_type(&node) == NodeType::LongEdge;
                                 r = neighbor_index;
+                                if trace_align {
+                                    eprintln!(
+                                        "bk-align: align-set node={} neighbor={} root={} new_r={}",
+                                        node_id_val, neighbor_id, root, r
+                                    );
+                                }
                             }
                         }
                     }
@@ -132,9 +178,18 @@ impl BKAligner {
     pub fn inside_block_shift(&self, bal: &mut BKAlignedLayout) {
         let blocks = get_blocks(bal);
         let hdir = bal.hdir.expect("BK aligner requires a horizontal direction");
+        let trace_inner = std::env::var_os("ELK_TRACE_BK_INNER").is_some();
 
         for (root_id, _block) in blocks {
             let root_node = bal.nodes_by_id[root_id].clone();
+            let root_name = root_node
+                .lock()
+                .ok()
+                .map(|mut node_guard| node_guard.designation().to_string())
+                .unwrap_or_else(|| "<poisoned>".to_string());
+            if trace_inner {
+                eprintln!("bk-inner: root={root_id}({root_name}) start hdir={hdir:?}");
+            }
 
             let mut space_above = node_margin_top(&root_node);
             let mut space_below = node_size_y(&root_node) + node_margin_bottom(&root_node);
@@ -146,11 +201,58 @@ impl BKAligner {
             loop {
                 let next = bal.align[current];
                 if next == root_id || steps >= max_steps {
+                    if steps >= max_steps && std::env::var("ELK_TRACE_BK_GUARD").is_ok() {
+                        eprintln!(
+                            "bk-guard: inside_block_shift loop1 hit max_steps root_id={} current={} next={} max_steps={}",
+                            root_id, current, next, max_steps
+                        );
+                    }
                     break;
                 }
 
                 let edge = edge_between(&bal.nodes_by_id[current], &bal.nodes_by_id[next])
                     .expect("edge between block nodes is missing");
+                if trace_inner {
+                    let current_id = node_id(&bal.nodes_by_id[current]);
+                    let next_id = node_id(&bal.nodes_by_id[next]);
+                    let candidate_count = bal.nodes_by_id[current]
+                        .lock()
+                        .ok()
+                        .map(|node_guard| node_guard.connected_edges())
+                        .unwrap_or_default()
+                        .into_iter()
+                        .filter(|candidate| {
+                            candidate
+                                .lock()
+                                .ok()
+                                .and_then(|edge_guard| {
+                                    let src = edge_guard.source().and_then(|port| {
+                                        port.lock().ok().and_then(|port_guard| port_guard.node())
+                                    });
+                                    let tgt = edge_guard.target().and_then(|port| {
+                                        port.lock().ok().and_then(|port_guard| port_guard.node())
+                                    });
+                                    Some((src, tgt))
+                                })
+                                .map(|(src, tgt)| {
+                                    if let (Some(src), Some(tgt)) = (src, tgt) {
+                                        let src_id = node_id(&src);
+                                        let tgt_id = node_id(&tgt);
+                                        (src_id == current_id && tgt_id == next_id)
+                                            || (src_id == next_id && tgt_id == current_id)
+                                    } else {
+                                        false
+                                    }
+                                })
+                                .unwrap_or(false)
+                        })
+                        .count();
+                    if candidate_count > 1 {
+                        eprintln!(
+                            "bk-inner: root={root_id} multi-edge current={current_id} next={next_id} candidates={candidate_count}"
+                        );
+                    }
+                }
                 let (source_port, target_port) = edge
                     .lock()
                     .ok()
@@ -165,6 +267,21 @@ impl BKAligner {
 
                 let next_inner_shift = bal.inner_shift[current] + port_pos_diff;
                 bal.inner_shift[next] = next_inner_shift;
+                if trace_inner {
+                    let current_name = bal.nodes_by_id[current]
+                        .lock()
+                        .ok()
+                        .map(|mut node_guard| node_guard.designation().to_string())
+                        .unwrap_or_else(|| "<poisoned>".to_string());
+                    let next_name = bal.nodes_by_id[next]
+                        .lock()
+                        .ok()
+                        .map(|mut node_guard| node_guard.designation().to_string())
+                        .unwrap_or_else(|| "<poisoned>".to_string());
+                    eprintln!(
+                        "bk-inner: root={root_id} step current={current}({current_name}) next={next}({next_name}) port_diff={port_pos_diff:.3} next_inner={next_inner_shift:.3}"
+                    );
+                }
 
                 let next_node = &bal.nodes_by_id[next];
                 space_above = space_above.max(node_margin_top(next_node) - next_inner_shift);
@@ -180,14 +297,37 @@ impl BKAligner {
             let mut steps = 0usize;
             loop {
                 bal.inner_shift[current] += space_above;
+                if trace_inner {
+                    let current_name = bal.nodes_by_id[current]
+                        .lock()
+                        .ok()
+                        .map(|mut node_guard| node_guard.designation().to_string())
+                        .unwrap_or_else(|| "<poisoned>".to_string());
+                    eprintln!(
+                        "bk-inner: root={root_id} apply current={current}({current_name}) inner={:.3}",
+                        bal.inner_shift[current]
+                    );
+                }
                 current = bal.align[current];
                 if current == root_id || steps >= max_steps {
+                    if steps >= max_steps && std::env::var("ELK_TRACE_BK_GUARD").is_ok() {
+                        eprintln!(
+                            "bk-guard: inside_block_shift loop2 hit max_steps root_id={} current={} max_steps={}",
+                            root_id, current, max_steps
+                        );
+                    }
                     break;
                 }
                 steps += 1;
             }
 
             bal.block_size[root_id] = space_above + space_below;
+            if trace_inner {
+                eprintln!(
+                    "bk-inner: root={root_id} done space_above={space_above:.3} space_below={space_below:.3} block_size={:.3}",
+                    bal.block_size[root_id]
+                );
+            }
         }
     }
 }

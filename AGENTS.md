@@ -847,8 +847,11 @@
 - Step 35 완료(2026-02-14): `algebraic_heateropentank_HeaterOpenTankRefactored`의 랜덤 상태 전이 가설을 검증. Java `Random` 기준값(`seed=7564655870752979346`, `distributorNodeRelative=false`, `firstSweep=true`)을 Rust와 대조해 동일함을 확인(랜덤 전이 자체는 Java 정합). 회귀 테스트 보강: `ordering_realworld_random_sequence_matches_java_reference`(활성) 추가, 모델 Java 기대 순서 회귀 `ordering_realworld_algebraic_heater_open_tank_matches_java`를 `#[ignore]`+TODO로 추가. 단건 실험에서 추가 스윕을 제외하면 `N1/N10/N8`, `N13/N4`는 Java와 정합되고 `N5/N6`만 잔존해, 다음 단계 원인을 `P3 추가 스윕 시 crossing-count 평가 경로`로 좁힘
 - Step 36 완료(2026-02-14): `algebraic_heateropentank_HeaterOpenTankRefactored` ordering drift root cause를 `NorthSouthPortPreprocessor`의 `IN_LAYER_LAYOUT_UNIT` 설정 조건 불일치로 확정(Java는 `FixedSide` 정상 노드에 대해 north/south 포트가 없어도 layout unit 설정, Rust는 north/south 포트가 있을 때만 설정). Rust를 Java와 동일하게 수정해 Forster constraint graph의 누락 제약(`pump -> TIn/north4`)이 복구되도록 보정. 회귀 테스트 활성화: `ordering_realworld_algebraic_heater_open_tank_matches_java`의 `#[ignore]` 제거 후 통과, 추가로 `north_south_preprocessor_sets_layout_unit_for_fixed_side_node_without_north_south_ports` 테스트를 추가해 재발 방지. 검증: `cargo test -p org-eclipse-elk-alg-layered --test north_south_port_preprocessor_test`, `cargo test -p org-eclipse-elk-alg-layered --test ordering_realworld_model_test`, `cargo test -p org-eclipse-elk-alg-layered --tests`, `cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과
 - Step 37 완료(2026-02-14): Step 36 반영 후 `ordering_diff_realworld_top30` subset parity 재검증 수행. `model_parity_layout_runner --release` + `compare_model_parity_layouts.py` 재실행 결과가 `matches=12`, `drift=8`, `total_diffs=116`으로 개선(기존 `6/14/278`). `ordering_diff_samples.tsv` 재생성 결과 top-level ordering diff 모델은 `0`건으로 축소되었고, 잔여 drift는 4개 모델(`algebraic_heateropentank_HeaterOpenTankRefactored`, `backtrack_ramprollback_RampRollback`, `ca_conway_Conway`, `comm_trellisdecoder_TrellisDecoder`)의 section/coordinate/structure 중심으로 압축
+- Step 38~39 완료(2026-02-14): root cause를 `HyperedgeDummyMerger` 미구현(`IntermediateProcessorStrategy::HyperedgeDummyMerger`가 `NoOp`)으로 확정. Java `HyperedgeDummyMerger` 로직을 Rust로 포팅(`hyperedge_dummy_merger.rs` 신규, `intermediate/mod.rs` export, `intermediate_processor_strategy.rs` wiring)해 long-edge dummy 병합이 실제 수행되도록 수정. `ca_conway_Conway` 단건 parity 재검증에서 `E33/E34` junction/bend 불일치 해소(`matches=1`, `drift=0`, `total_diffs=0`) 확인. 회귀 테스트 추가: `ordering_realworld_model_test.rs`의 `ordering_realworld_ca_conway_junction_points_match_java` (E33 4 bends+1 junction, E34 2 bends+0 junction) 통과
+- Step 40 완료(2026-02-14): `ordering_diff_realworld_top30` subset(로컬 존재 20건) parity 재실행. `model_parity_layout_runner --release` + `compare_model_parity_layouts.py` 결과 `matches=20`, `drift=0`, `total_diffs=0` 달성. 산출물 갱신: `perf/model_parity_ordering_top30/{rust_manifest.tsv,report.md,diff_details.tsv,rust/**}`
+- Step 41 완료(2026-02-14): full parity 재실행(`scripts/run_model_parity_elk_vs_rust.sh`)로 최신 기준선을 갱신. 네트워크/락 이슈를 우회하기 위해 `/tmp/elk-m2-parity-full` 로컬 Maven repo를 `~/.m2/repository`에서 동기화한 뒤 `JAVA_PARITY_MVN_LOCAL_REPO=/tmp/elk-m2-parity-full`, `JAVA_PARITY_MVN_ARGS='-Ddash.skip=true -o'`로 실행. 결과: total=1,448, compared=1,439, matches=658, drift=781, skipped=9(java_non_ok), errors=0(timeouts=0), total_diffs=14,676. 이전 full 기준(305/1,439, diffs 21,476) 대비 matches +353, drift -353, total_diffs -6,800 개선
 ## 진행률(최신)
-- 전체 목표 대비 추정 진행률: 약 21.2% (기준: Java↔Rust 모델 parity full match 305/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
+- 전체 목표 대비 추정 진행률: 약 45.7% (기준: Java↔Rust 모델 parity full match 658/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
 - 단계 진행률(다음 작업 체크리스트 기준): 25.0% (완료 1/4, 미완료 3) [2026-02-14 갱신]
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
@@ -858,7 +861,7 @@
 - topdown 모듈 테스트 parity(수량): 100% (Rust 11 / Java 11)
 - mrtree 모듈 테스트 parity(수량): 100% (Rust 2 / Java 2, 기본 테스트 경로 활성화 완료)
 - Java-Rust 성능 비교 파이프라인/회귀 게이트: 운영 자동화 100% (baseline/results/both + scenario/runtime gate + CI 연동)
-- external/elk-models Java↔Rust 레이아웃 결과 parity(전체 1,448 모델): 21.2% (matches=305/compared=1439, drift=1134, errors=0, timeouts=0, java_non_ok=9, total_diffs=21476)
+- external/elk-models Java↔Rust 레이아웃 결과 parity(전체 1,448 모델): 45.7% (matches=658/compared=1439, drift=781, errors=0, timeouts=0, java_non_ok=9, total_diffs=14676)
 - external/elk-models Java↔Rust 대형 샘플 안정성: full parity 재실행 완료(`JAVA_PARITY_LIMIT=0`), errors/timeouts 0 확인
 - external/elk 무수정 운영 체계: 100% (격리 실행 + 자동 정리)
 - 1,448 모델 parity 기준선(v4)에서 실패 목록(36 timeouts/8 panics/9 java non-ok) 정리 및 재현 대상 모델 목록 확보
@@ -964,6 +967,14 @@
   - 완료(2026-02-14): `NorthSouthPortPreprocessor` layout unit 설정 조건(Java 대비 누락) 수정으로 Forster constraint graph 제약 누락을 해소하고, `ordering_realworld_algebraic_heater_open_tank_matches_java` ignore 제거 후 통과
 - [x] Step 37: Step 36 반영 후 `ordering_diff_realworld_top30` subset parity 재검증 및 리포트 갱신
   - 완료(2026-02-14): `matches=12`, `drift=8`, `total_diffs=116`, ordering diff 모델 0건 확인
-- [ ] Step 38: 잔여 drift 모델 4개 중 `algebraic_heateropentank_HeaterOpenTankRefactored`의 section/coordinate 불일치(root: x-10 오프셋, `MostRecent_T` y 편차) 원인 확정 및 회귀 테스트 추가
-- [ ] Step 39: `ca_conway_Conway`의 edge(`E33`/`E34`) junctionPoints 불일치 원인 확정 및 수정
-- [ ] Step 40: `ordering_diff_realworld_top30` subset parity 재실행으로 Step 38~39 개선 효과 검증 및 리포트 갱신
+- [x] Step 38: 잔여 drift 모델 4개 중 `algebraic_heateropentank_HeaterOpenTankRefactored`의 section/coordinate 불일치(root: x-10 오프셋, `MostRecent_T` y 편차) 원인 확정 및 회귀 테스트 추가
+  - 완료(2026-02-14): `HyperedgeDummyMerger` 미구현이 long-edge dummy 병합 경로를 누락시키던 근본 원인으로 확인되어 Java 로직을 Rust로 포팅/연결. 결과적으로 `algebraic_heateropentank_*` 포함 잔여 모델의 section/coordinate 불일치가 subset 기준 해소됨
+- [x] Step 39: `ca_conway_Conway`의 edge(`E33`/`E34`) junctionPoints 불일치 원인 확정 및 수정
+  - 완료(2026-02-14): `HyperedgeDummyMerger` 포팅으로 `E33`의 merged bend/junction 보존 및 `E34`의 junction 제거가 Java와 일치. 회귀 테스트 `ordering_realworld_ca_conway_junction_points_match_java` 추가/통과
+- [x] Step 40: `ordering_diff_realworld_top30` subset parity 재실행으로 Step 38~39 개선 효과 검증 및 리포트 갱신
+  - 완료(2026-02-14): subset 20건 재실행 결과 `matches=20`, `drift=0`, `total_diffs=0`로 갱신(`perf/model_parity_ordering_top30/report.md`, `diff_details.tsv`)
+- [x] Step 41: full parity 재실행 및 최신 기준선/리포트 갱신
+  - 완료(2026-02-14): `scripts/run_model_parity_elk_vs_rust.sh` 실행 결과 `matches=658`, `drift=781`, `total_diffs=14676`로 갱신. 이전 full 기준 대비 `+353 matches`, `-353 drift`, `-6800 diffs` 개선
+- [ ] Step 42: full parity drift 재분류(`scripts/analyze_layered_drift.py`) 재실행 및 상위 원인/카테고리 우선순위 갱신
+- [ ] Step 43: Step 42 상위 drift 모델 1~2건 최소 재현(root cause + 회귀 테스트) 반영 및 subset parity 재검증
+- [ ] Step 44: Step 43 반영 후 full parity 재실행 및 진행률/리포트 갱신

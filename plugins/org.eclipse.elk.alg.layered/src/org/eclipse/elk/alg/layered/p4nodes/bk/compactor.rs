@@ -16,6 +16,7 @@ pub struct BKCompactor {
     spacing_node_node: f64,
     threshold_strategy: Box<dyn ThresholdStrategy>,
     sink_nodes: BTreeMap<usize, ClassNode>,
+    sink_order: Vec<usize>,
 }
 
 impl BKCompactor {
@@ -42,6 +43,7 @@ impl BKCompactor {
             spacing_node_node,
             threshold_strategy,
             sink_nodes: BTreeMap::new(),
+            sink_order: Vec::new(),
         }
     }
 
@@ -51,6 +53,7 @@ impl BKCompactor {
         bal: &mut BKAlignedLayout,
         ni: &NeighborhoodInformation,
     ) {
+        let trace_place_block = std::env::var_os("ELK_TRACE_BK_PLACE_BLOCK").is_some();
         if bal.y[root_id].is_some() {
             return;
         }
@@ -59,6 +62,9 @@ impl BKCompactor {
 
         let mut is_initial_assignment = true;
         bal.y[root_id] = Some(0.0);
+        if trace_place_block {
+            eprintln!("bk-place-block: start root={root_id} vdir={:?}", vdir);
+        }
 
         let mut current = root_id;
         let mut thresh = match vdir {
@@ -99,9 +105,21 @@ impl BKCompactor {
 
                 if bal.sink[root_id] == root_id {
                     bal.sink[root_id] = bal.sink[neighbor_root];
+                    if trace_place_block {
+                        eprintln!(
+                            "bk-place-block: root={root_id} adopt-sink from neighbor_root={neighbor_root} sink={}",
+                            bal.sink[root_id]
+                        );
+                    }
                 }
 
                 if bal.sink[root_id] == bal.sink[neighbor_root] {
+                    if trace_place_block {
+                        eprintln!(
+                            "bk-place-block: root={root_id} same-class neighbor_root={neighbor_root} sink={}",
+                            bal.sink[root_id]
+                        );
+                    }
                     let spacing = self.spacings.get_vertical_spacing(&current_node, &neighbor);
 
                     if vdir == VDirection::Up {
@@ -121,6 +139,11 @@ impl BKCompactor {
                             current_position.min(new_position.min(thresh))
                         };
                         bal.y[root_id] = Some(updated);
+                        if trace_place_block {
+                            eprintln!(
+                                "bk-place-block: root={root_id} current={current} neighbor_root={neighbor_root} new={new_position:.3} thresh={thresh:.3} updated={updated:.3} spacing={spacing:.3} up"
+                            );
+                        }
                     } else {
                         let new_position = bal.y[neighbor_root].unwrap_or(0.0)
                             + bal.inner_shift[neighbor_id]
@@ -138,10 +161,36 @@ impl BKCompactor {
                             current_position.max(new_position.max(thresh))
                         };
                         bal.y[root_id] = Some(updated);
+                        if trace_place_block {
+                            let neighbor_inner = bal.inner_shift[neighbor_id];
+                            let current_inner = bal.inner_shift[current];
+                            let neighbor_size = node_size_y(&neighbor);
+                            let neighbor_margin_bottom = node_margin_bottom(&neighbor);
+                            let current_margin_top = node_margin_top(&current_node);
+                            let neighbor_root_y = bal.y[neighbor_root].unwrap_or(0.0);
+                            let current_name = current_node
+                                .lock()
+                                .ok()
+                                .map(|mut node_guard| node_guard.designation().to_string())
+                                .unwrap_or_else(|| "<poisoned>".to_string());
+                            let neighbor_name = neighbor
+                                .lock()
+                                .ok()
+                                .map(|mut node_guard| node_guard.designation().to_string())
+                                .unwrap_or_else(|| "<poisoned>".to_string());
+                            eprintln!(
+                                "bk-place-block: root={root_id} current={current}({current_name}) neighbor_id={neighbor_id}({neighbor_name}) neighbor_root={neighbor_root} new={new_position:.3} thresh={thresh:.3} updated={updated:.3} spacing={spacing:.3} down comp=(y_nr={neighbor_root_y:.3},inner_n={neighbor_inner:.3},size_n={neighbor_size:.3},mb_n={neighbor_margin_bottom:.3},mt_c={current_margin_top:.3},inner_c={current_inner:.3})"
+                            );
+                        }
                     }
                 } else {
                     let sink_id = bal.sink[root_id];
                     let neighbor_sink_id = bal.sink[neighbor_root];
+                    if trace_place_block {
+                        eprintln!(
+                            "bk-place-block: root={root_id} different-class sink={sink_id} neighbor_root={neighbor_root} neighbor_sink={neighbor_sink_id}"
+                        );
+                    }
 
                     if vdir == VDirection::Up {
                         let required_space = bal.y[root_id].unwrap_or(0.0)
@@ -153,6 +202,11 @@ impl BKCompactor {
                                 + bal.inner_shift[neighbor_id]
                                 - node_margin_top(&neighbor));
                         self.add_class_edge(sink_id, neighbor_sink_id, required_space);
+                        if trace_place_block {
+                            eprintln!(
+                                "bk-place-block: class-edge root={root_id} sink={sink_id} neighbor_root={neighbor_root} neighbor_sink={neighbor_sink_id} required={required_space:.3} up"
+                            );
+                        }
                     } else {
                         let required_space = bal.y[root_id].unwrap_or(0.0)
                             + bal.inner_shift[current]
@@ -163,6 +217,11 @@ impl BKCompactor {
                             - node_margin_bottom(&neighbor)
                             - self.spacing_node_node;
                         self.add_class_edge(sink_id, neighbor_sink_id, required_space);
+                        if trace_place_block {
+                            eprintln!(
+                                "bk-place-block: class-edge root={root_id} sink={sink_id} neighbor_root={neighbor_root} neighbor_sink={neighbor_sink_id} required={required_space:.3} down"
+                            );
+                        }
                     }
                 }
             } else {
@@ -171,21 +230,33 @@ impl BKCompactor {
 
             current = bal.align[current];
             if current == root_id || steps >= max_steps {
+                if steps >= max_steps && std::env::var("ELK_TRACE_BK_GUARD").is_ok() {
+                    eprintln!(
+                        "bk-guard: place_block loop hit max_steps root_id={} current={} max_steps={}",
+                        root_id, current, max_steps
+                    );
+                }
                 break;
             }
             steps += 1;
         }
 
+        if trace_place_block {
+            let final_y = bal.y[root_id].unwrap_or(0.0);
+            eprintln!("bk-place-block: done root={root_id} final_y={final_y:.3}");
+        }
         self.threshold_strategy.finish_block(root_id);
     }
 
     fn add_class_edge(&mut self, source_id: usize, target_id: usize, separation: f64) {
-        self.sink_nodes
-            .entry(source_id)
-            .or_insert_with(|| ClassNode::new(source_id));
-        self.sink_nodes
-            .entry(target_id)
-            .or_insert_with(|| ClassNode::new(target_id));
+        if let std::collections::btree_map::Entry::Vacant(entry) = self.sink_nodes.entry(source_id) {
+            entry.insert(ClassNode::new(source_id));
+            self.sink_order.push(source_id);
+        }
+        if let std::collections::btree_map::Entry::Vacant(entry) = self.sink_nodes.entry(target_id) {
+            entry.insert(ClassNode::new(target_id));
+            self.sink_order.push(target_id);
+        }
 
         if let Some(target) = self.sink_nodes.get_mut(&target_id) {
             target.indegree += 1;
@@ -199,10 +270,25 @@ impl BKCompactor {
     }
 
     fn place_classes(&mut self, bal: &mut BKAlignedLayout, vdir: VDirection) {
-        let mut sinks: VecDeque<usize> = self
-            .sink_nodes
-            .iter()
-            .filter_map(|(&id, node)| if node.indegree == 0 { Some(id) } else { None })
+        let mut queue_order: Vec<usize> = self.sink_order.clone();
+        if std::env::var_os("ELK_BK_REVERSE_SINK_QUEUE").is_some() {
+            queue_order.reverse();
+        }
+        if std::env::var_os("ELK_TRACE_BK_CLASSES").is_some() {
+            for id in &queue_order {
+                if let Some(node) = self.sink_nodes.get(id) {
+                    eprintln!(
+                        "bk-classes: sink={} indegree={} outgoing={}",
+                        id,
+                        node.indegree,
+                        node.outgoing.len()
+                    );
+                }
+            }
+        }
+        let mut sinks: VecDeque<usize> = queue_order
+            .into_iter()
+            .filter(|id| self.sink_nodes.get(id).is_some_and(|node| node.indegree == 0))
             .collect();
 
         while let Some(node_id) = sinks.pop_front() {
@@ -241,8 +327,8 @@ impl BKCompactor {
             }
         }
 
-        for (&id, node) in &self.sink_nodes {
-            if let Some(shift) = node.class_shift {
+        for &id in &self.sink_order {
+            if let Some(shift) = self.sink_nodes.get(&id).and_then(|node| node.class_shift) {
                 bal.shift[id] = shift;
             }
         }
@@ -289,6 +375,7 @@ impl ICompactor for BKCompactor {
             }
         }
         self.sink_nodes.clear();
+        self.sink_order.clear();
 
         let mut layers = bal.layers.clone();
         if hdir == HDirection::Left {

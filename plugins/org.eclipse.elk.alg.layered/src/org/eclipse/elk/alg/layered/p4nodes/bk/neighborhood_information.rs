@@ -2,8 +2,8 @@ use std::cmp::Ordering;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::util::pair::Pair;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LGraph, LNodeRef, NodeType};
-use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions};
+use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LGraph, LNodeRef};
+use crate::org::eclipse::elk::alg::layered::options::LayeredOptions;
 
 #[derive(Default)]
 pub struct NeighborhoodInformation {
@@ -104,7 +104,6 @@ impl NeighborhoodInformation {
                         }
                     }
                 }
-                prefer_real_edges(&mut right);
                 right.sort_by(|a, b| neighbor_cmp(&ni, a, b));
                 ni.right_neighbors[current_node_id] = right;
 
@@ -149,7 +148,6 @@ impl NeighborhoodInformation {
                         }
                     }
                 }
-                prefer_real_edges(&mut left);
                 left.sort_by(|a, b| neighbor_cmp(&ni, a, b));
                 ni.left_neighbors[current_node_id] = left;
             }
@@ -172,58 +170,11 @@ fn neighbor_cmp(
     a: &Pair<LNodeRef, LEdgeRef>,
     b: &Pair<LNodeRef, LEdgeRef>,
 ) -> Ordering {
-    let a_type = a
-        .first
-        .lock()
-        .ok()
-        .map(|node_guard| node_guard.node_type())
-        .unwrap_or(NodeType::Normal);
-    let b_type = b
-        .first
-        .lock()
-        .ok()
-        .map(|node_guard| node_guard.node_type())
-        .unwrap_or(NodeType::Normal);
-    let a_is_external = a_type == NodeType::ExternalPort;
-    let b_is_external = b_type == NodeType::ExternalPort;
-    if a_is_external != b_is_external {
-        return if a_is_external {
-            Ordering::Greater
-        } else {
-            Ordering::Less
-        };
-    }
-
     let a_id = node_id(&a.first);
     let b_id = node_id(&b.first);
     let a_index = ni.node_index.get(a_id).copied().unwrap_or(0);
     let b_index = ni.node_index.get(b_id).copied().unwrap_or(0);
     a_index.cmp(&b_index)
-}
-
-fn prefer_real_edges(neighbors: &mut Vec<Pair<LNodeRef, LEdgeRef>>) {
-    if neighbors.is_empty() {
-        return;
-    }
-    let real: Vec<_> = neighbors
-        .iter()
-        .filter(|pair| edge_has_origin(&pair.second))
-        .cloned()
-        .collect();
-    if !real.is_empty() {
-        *neighbors = real;
-    }
-}
-
-fn edge_has_origin(edge: &LEdgeRef) -> bool {
-    edge.lock()
-        .ok()
-        .and_then(|mut edge_guard| {
-            edge_guard
-                .graph_element()
-                .get_property(InternalProperties::ORIGIN)
-        })
-        .is_some()
 }
 
 fn node_id(node: &LNodeRef) -> usize {

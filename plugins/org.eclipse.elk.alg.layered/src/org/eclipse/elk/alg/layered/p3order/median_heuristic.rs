@@ -21,6 +21,10 @@ impl MedianHeuristic {
         self.random = random;
     }
 
+    pub fn random(&self) -> Random {
+        self.random.clone()
+    }
+
     pub fn set_random_seed(&mut self, seed: u64) {
         self.random.set_seed(seed);
     }

@@ -3,10 +3,12 @@ mod issue_support;
 
 use std::path::PathBuf;
 
-use elkt_test_loader::{find_node_by_identifier, load_layered_graph_from_elkt};
+use elkt_test_loader::{find_edge_by_identifier, find_node_by_identifier, load_layered_graph_from_elkt};
 use issue_support::{init_layered_options, run_recursive_layout};
+use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::LayeredOptions;
+use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::Random;
-use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkEdgeRef, ElkNodeRef};
 
 const EPSILON: f64 = 0.1;
 
@@ -140,7 +142,71 @@ fn ordering_realworld_algebraic_heater_open_tank_matches_java() {
     );
 }
 
+#[test]
+fn ordering_realworld_ca_conway_junction_points_match_java() {
+    init_layered_options();
+
+    let resource = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../external/elk-models/realworld/ptolemy/flattened/ca_conway_Conway.elkt");
+    if !resource.exists() {
+        eprintln!(
+            "ordering realworld resource missing, skipping: {}",
+            resource.display()
+        );
+        return;
+    }
+
+    let path = resource.to_string_lossy();
+    let graph =
+        load_layered_graph_from_elkt(path.as_ref()).expect("ca_conway_Conway should load");
+    run_recursive_layout(&graph);
+
+    let e33 = find_edge_by_identifier(&graph, "P57", "P19").expect("E33 edge should exist");
+    let e34 = find_edge_by_identifier(&graph, "P59", "P19").expect("E34 edge should exist");
+
+    let (e33_bends, e33_junctions) = edge_bends_and_junctions(&e33);
+    assert_eq!(e33_bends, 4, "E33 should keep the merged 4-bend route");
+    assert_eq!(e33_junctions.len(), 1, "E33 should keep one junction point");
+    assert!(
+        (e33_junctions[0].x - 873.0).abs() < EPSILON
+            && (e33_junctions[0].y - 450.16666666666663).abs() < EPSILON,
+        "E33 junction point should match Java reference (actual={:?})",
+        e33_junctions[0]
+    );
+
+    let (e34_bends, e34_junctions) = edge_bends_and_junctions(&e34);
+    assert_eq!(e34_bends, 2, "E34 should keep the short 2-bend route");
+    assert!(
+        e34_junctions.is_empty(),
+        "E34 should not carry junction points after long-edge join"
+    );
+}
+
 fn node_y(node: &ElkNodeRef) -> f64 {
     let mut node_mut = node.borrow_mut();
     node_mut.connectable().shape().y()
+}
+
+fn edge_bends_and_junctions(edge: &ElkEdgeRef) -> (usize, Vec<KVector>) {
+    let bend_count = {
+        let mut edge_mut = edge.borrow_mut();
+        let section = edge_mut
+            .sections()
+            .get(0)
+            .expect("edge should contain a section");
+        let mut section_mut = section.borrow_mut();
+        section_mut.bend_points().len()
+    };
+
+    let junctions = {
+        let mut edge_mut = edge.borrow_mut();
+        edge_mut
+            .element()
+            .properties_mut()
+            .get_property(LayeredOptions::JUNCTION_POINTS)
+            .map(|chain| chain.to_array())
+            .unwrap_or_default()
+    };
+
+    (bend_count, junctions)
 }

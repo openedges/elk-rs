@@ -263,11 +263,14 @@ impl OrthogonalRoutingGenerator {
     fn count_conflicts(&self, posis1: &[f64], posis2: &[f64]) -> i32 {
         let mut conflicts = 0;
         if !posis1.is_empty() && !posis2.is_empty() {
-            let mut i = 0;
-            let mut j = 0;
-            while i < posis1.len() && j < posis2.len() {
-                let pos1 = posis1[i];
-                let pos2 = posis2[j];
+            // Keep Java parity: when one iterator is exhausted on equal values, the other
+            // iterator may still advance. This affects critical conflict detection.
+            let mut i = 0usize;
+            let mut j = 0usize;
+            let mut pos1 = posis1[i];
+            let mut pos2 = posis2[j];
+            let mut has_more = true;
+            while has_more {
 
                 if pos1 > pos2 - self.critical_conflict_threshold
                     && pos1 < pos2 + self.critical_conflict_threshold
@@ -277,10 +280,14 @@ impl OrthogonalRoutingGenerator {
                     conflicts += 1;
                 }
 
-                if pos1 <= pos2 {
+                if pos1 <= pos2 && i + 1 < posis1.len() {
                     i += 1;
-                } else {
+                    pos1 = posis1[i];
+                } else if pos2 <= pos1 && j + 1 < posis2.len() {
                     j += 1;
+                    pos2 = posis2[j];
+                } else {
+                    has_more = false;
                 }
             }
         }

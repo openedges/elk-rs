@@ -45,6 +45,10 @@ impl ModelOrderBarycenterHeuristic {
         self.base.set_random(random);
     }
 
+    pub fn random(&self) -> Random {
+        self.base.random()
+    }
+
     pub fn set_random_seed(&mut self, seed: u64) {
         self.base.set_random_seed(seed);
     }

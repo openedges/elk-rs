@@ -372,7 +372,9 @@ impl GraphConfigurator {
             );
         }
 
-        if Self::activate_greedy_switch_for(graph) {
+        if Self::activate_greedy_switch_for(graph)
+            && std::env::var("ELK_DISABLE_GREEDY_SWITCH").is_err()
+        {
             let greedy_type = if Self::is_hierarchical_layout(graph) {
                 graph
                     .get_property(LayeredOptions::CROSSING_MINIMIZATION_GREEDY_SWITCH_HIERARCHICAL_TYPE)

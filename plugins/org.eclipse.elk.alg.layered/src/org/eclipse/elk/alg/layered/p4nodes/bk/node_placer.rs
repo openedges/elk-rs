@@ -202,6 +202,56 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
                 .expect("At least one BK layout must exist")
         });
 
+        if std::env::var_os("ELK_TRACE_BK_NODE_STATE").is_some() {
+            let filter = std::env::var("ELK_TRACE_BK_NODE_FILTER").ok();
+            for layer in &layers {
+                let nodes = layer
+                    .lock()
+                    .ok()
+                    .map(|layer_guard| layer_guard.nodes().clone())
+                    .unwrap_or_default();
+                for node in nodes {
+                    let node_id = node_id(&node);
+                    let (name, label_opt) = node
+                        .lock()
+                        .ok()
+                        .map(|mut node_guard| {
+                            let name = node_guard.designation().to_string();
+                            let label_opt = node_guard.labels().first().and_then(|label| {
+                                label
+                                    .lock()
+                                    .ok()
+                                    .map(|label_guard| label_guard.text().to_string())
+                            });
+                            (name, label_opt)
+                        })
+                        .unwrap_or_else(|| ("<poisoned>".to_string(), None));
+
+                    if let Some(filter) = &filter {
+                        if !name.contains(filter)
+                            && !label_opt
+                                .as_deref()
+                                .is_some_and(|label| label.contains(filter))
+                        {
+                            continue;
+                        }
+                    }
+
+                    let root_id = chosen_layout.root[node_id];
+                    let align_id = chosen_layout.align[node_id];
+                    let sink_id = chosen_layout.sink[node_id];
+                    let y_root = chosen_layout.y[root_id].unwrap_or(0.0);
+                    let y_node = chosen_layout.y[node_id].unwrap_or(0.0);
+                    let inner = chosen_layout.inner_shift[node_id];
+                    let block_size = chosen_layout.block_size[root_id];
+                    eprintln!(
+                        "bk-node-state: node={} label={:?} id={} root={} align={} sink={} y_root={:.3} y_node={:.3} inner={:.3} block_size={:.3}",
+                        name, label_opt, node_id, root_id, align_id, sink_id, y_root, y_node, inner, block_size
+                    );
+                }
+            }
+        }
+
         for layer in &layers {
             let nodes = layer
                 .lock()
@@ -272,6 +322,7 @@ fn build_nodes_by_id(layers: &[LayerRef], node_count: usize) -> Vec<LNodeRef> {
 impl BKNodePlacer {
     fn mark_conflicts(&mut self, layers: &[LayerRef], ni: &NeighborhoodInformation) {
         const MIN_LAYERS_FOR_CONFLICTS: usize = 3;
+        let trace_conflicts = std::env::var_os("ELK_TRACE_BK_CONFLICTS").is_some();
         if layers.len() < MIN_LAYERS_FOR_CONFLICTS {
             return;
         }
@@ -318,6 +369,46 @@ impl BKNodePlacer {
                                     let k = *ni.node_index.get(neighbor_id).unwrap_or(&0);
                                     if k < k_0 || k > k_1 {
                                         self.marked_edges.insert(edge_key(&neighbor.second));
+                                        if trace_conflicts {
+                                            let source = neighbor
+                                                .second
+                                                .lock()
+                                                .ok()
+                                                .and_then(|edge_guard| edge_guard.source())
+                                                .and_then(|port| {
+                                                    port.lock().ok().and_then(|port_guard| port_guard.node())
+                                                });
+                                            let target = neighbor
+                                                .second
+                                                .lock()
+                                                .ok()
+                                                .and_then(|edge_guard| edge_guard.target())
+                                                .and_then(|port| {
+                                                    port.lock().ok().and_then(|port_guard| port_guard.node())
+                                                });
+                                            let src_name = source
+                                                .as_ref()
+                                                .and_then(|node| {
+                                                    node.lock().ok().map(|mut node_guard| {
+                                                        node_guard.designation().to_string()
+                                                    })
+                                                })
+                                                .unwrap_or_else(|| "<none>".to_string());
+                                            let tgt_name = target
+                                                .as_ref()
+                                                .and_then(|node| {
+                                                    node.lock().ok().map(|mut node_guard| {
+                                                        node_guard.designation().to_string()
+                                                    })
+                                                })
+                                                .unwrap_or_else(|| "<none>".to_string());
+                                            let src_id = source.as_ref().map(node_id).unwrap_or(usize::MAX);
+                                            let tgt_id = target.as_ref().map(node_id).unwrap_or(usize::MAX);
+                                            eprintln!(
+                                                "bk-conflict: mark edge {}({src_name})->{}({tgt_name}) k={} k0={} k1={}",
+                                                src_id, tgt_id, k, k_0, k_1
+                                            );
+                                        }
                                     }
                                 }
                             }

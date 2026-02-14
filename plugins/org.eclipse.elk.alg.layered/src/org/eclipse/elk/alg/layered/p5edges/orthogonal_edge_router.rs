@@ -281,7 +281,9 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
         {
             configuration.add_all(&INVERTED_PORT_PROCESSING_ADDITIONS);
             if graph_properties.contains(&GraphProperties::NorthSouthPorts) {
-                configuration.add_all(&NORTH_SOUTH_PORT_PROCESSING_ADDITIONS);
+                if std::env::var("ELK_DISABLE_NS").is_err() {
+                    configuration.add_all(&NORTH_SOUTH_PORT_PROCESSING_ADDITIONS);
+                }
             }
         }
 

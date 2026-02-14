@@ -1,5 +1,6 @@
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
+use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector_chain::KVectorChain;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_routing::EdgeRouting;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
@@ -106,7 +107,7 @@ fn ports_same_origin(ports: &[LPortRef]) -> bool {
     true
 }
 
-fn process_input_port(port: &LPortRef, dummy_y: f64, _add_junction: bool) {
+fn process_input_port(port: &LPortRef, dummy_y: f64, add_junction: bool) {
     let origin_port = port
         .lock()
         .ok()
@@ -132,11 +133,18 @@ fn process_input_port(port: &LPortRef, dummy_y: f64, _add_junction: bool) {
         LEdge::set_target(&edge, Some(origin_port.clone()));
         if let Ok(mut edge_guard) = edge.lock() {
             edge_guard.bend_points().add_last_values(x, dummy_y);
+            if add_junction {
+                let mut junction_points = edge_guard
+                    .get_property(LayeredOptions::JUNCTION_POINTS)
+                    .unwrap_or_else(KVectorChain::new);
+                junction_points.add_vector(KVector::with_values(x, dummy_y));
+                edge_guard.set_property(LayeredOptions::JUNCTION_POINTS, Some(junction_points));
+            }
         }
     }
 }
 
-fn process_output_port(port: &LPortRef, dummy_y: f64, _add_junction: bool) {
+fn process_output_port(port: &LPortRef, dummy_y: f64, add_junction: bool) {
     let origin_port = port
         .lock()
         .ok()
@@ -162,6 +170,13 @@ fn process_output_port(port: &LPortRef, dummy_y: f64, _add_junction: bool) {
         LEdge::set_source(&edge, Some(origin_port.clone()));
         if let Ok(mut edge_guard) = edge.lock() {
             edge_guard.bend_points().add_first_values(x, dummy_y);
+            if add_junction {
+                let mut junction_points = edge_guard
+                    .get_property(LayeredOptions::JUNCTION_POINTS)
+                    .unwrap_or_else(KVectorChain::new);
+                junction_points.add_vector(KVector::with_values(x, dummy_y));
+                edge_guard.set_property(LayeredOptions::JUNCTION_POINTS, Some(junction_points));
+            }
         }
     }
 }

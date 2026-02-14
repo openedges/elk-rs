@@ -131,6 +131,12 @@ impl BKAlignedLayout {
             self.y[current] = Some(new_pos);
             current = self.align[current];
             if current == root || steps >= max_steps {
+                if steps >= max_steps && std::env::var("ELK_TRACE_BK_GUARD").is_ok() {
+                    eprintln!(
+                        "bk-guard: shift_block loop hit max_steps root={} current={} max_steps={}",
+                        root, current, max_steps
+                    );
+                }
                 break;
             }
             steps += 1;
@@ -162,6 +168,12 @@ impl BKAlignedLayout {
             }
             steps += 1;
             if steps >= max_steps {
+                if std::env::var("ELK_TRACE_BK_GUARD").is_ok() {
+                    eprintln!(
+                        "bk-guard: check_space_above loop hit max_steps root={} current={} max_steps={}",
+                        root, current, max_steps
+                    );
+                }
                 break;
             }
         }
@@ -194,6 +206,12 @@ impl BKAlignedLayout {
             }
             steps += 1;
             if steps >= max_steps {
+                if std::env::var("ELK_TRACE_BK_GUARD").is_ok() {
+                    eprintln!(
+                        "bk-guard: check_space_below loop hit max_steps root={} current={} max_steps={}",
+                        root, current, max_steps
+                    );
+                }
                 break;
             }
         }

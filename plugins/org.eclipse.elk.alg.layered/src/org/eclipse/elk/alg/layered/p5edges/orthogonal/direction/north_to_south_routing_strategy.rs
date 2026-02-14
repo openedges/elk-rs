@@ -78,6 +78,7 @@ impl NorthToSouthRoutingStrategy {
 
                 if (source_x - target_x).abs() > OrthogonalRoutingGenerator::TOLERANCE {
                     let mut current_y = segment_y;
+                    let mut current_segment = None;
 
                     let mut bend = KVector::with_values(source_x, current_y);
                     if let Ok(mut edge_guard) = edge.lock() {
@@ -105,12 +106,13 @@ impl NorthToSouthRoutingStrategy {
                             .add_junction_point_if_necessary(&edge, segment, &bend, false);
 
                         current_y = start_pos + split_slot as f64 * edge_spacing;
+                        current_segment = Some(split_partner_ref.clone());
 
                         bend = KVector::with_values(split_x, current_y);
                         if let Ok(mut edge_guard) = edge.lock() {
                             edge_guard.bend_points().add_vector(bend);
                         }
-                        if let Some(split_partner) = segment.split_partner() {
+                        if let Some(split_partner) = current_segment.as_ref() {
                             self.base.add_junction_point_if_necessary(
                                 &edge,
                                 &split_partner.borrow(),
@@ -124,8 +126,17 @@ impl NorthToSouthRoutingStrategy {
                     if let Ok(mut edge_guard) = edge.lock() {
                         edge_guard.bend_points().add_vector(bend);
                     }
-                    self.base
-                        .add_junction_point_if_necessary(&edge, segment, &bend, false);
+                    if let Some(split_partner) = current_segment.as_ref() {
+                        self.base.add_junction_point_if_necessary(
+                            &edge,
+                            &split_partner.borrow(),
+                            &bend,
+                            false,
+                        );
+                    } else {
+                        self.base
+                            .add_junction_point_if_necessary(&edge, segment, &bend, false);
+                    }
                 }
             }
         }

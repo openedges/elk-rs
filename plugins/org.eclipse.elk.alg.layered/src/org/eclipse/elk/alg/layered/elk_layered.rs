@@ -110,6 +110,113 @@ fn trace_edge_wiring(graph: &LGraph, stage: &str) {
 #[cfg(not(debug_assertions))]
 fn trace_edge_wiring(_graph: &LGraph, _stage: &str) {}
 
+#[cfg(debug_assertions)]
+fn trace_node_positions(graph: &LGraph, stage: &str) {
+    if std::env::var("ELK_TRACE_NODES").is_err() {
+        return;
+    }
+
+    let filter = std::env::var("ELK_TRACE_NODES_FILTER").ok();
+    let mut nodes: Vec<(Option<usize>, usize, _)> = graph
+        .layerless_nodes()
+        .iter()
+        .cloned()
+        .map(|node| (None, 0, node))
+        .collect();
+    for (layer_idx, layer) in graph.layers().into_iter().enumerate() {
+        if let Ok(layer_guard) = layer.lock() {
+            nodes.extend(
+                layer_guard
+                    .nodes()
+                    .iter()
+                    .enumerate()
+                    .map(|(node_idx, node)| (Some(layer_idx), node_idx, node.clone())),
+            );
+        }
+    }
+
+    for (layer_idx, layer_node_index, node) in nodes {
+        let (
+            designation,
+            node_id,
+            node_type,
+            pos,
+            size,
+            margin_top,
+            margin_bottom,
+            label_opt,
+            has_in_layer_unit,
+        ) = {
+            let mut node_guard = match node.lock() {
+                Ok(guard) => guard,
+                Err(_) => continue,
+            };
+            let designation = node_guard.designation();
+            let node_id = node_guard.shape().graph_element().id;
+            let node_type = node_guard.node_type();
+            let pos = *node_guard.shape().position_ref();
+            let size = *node_guard.shape().size_ref();
+            let margin_top = node_guard.margin().top;
+            let margin_bottom = node_guard.margin().bottom;
+            let has_in_layer_unit = node_guard
+                .get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
+                .is_some();
+            let label_opt = node_guard
+                .labels()
+                .first()
+                .and_then(|label| label.lock().ok().map(|label_guard| label_guard.text().to_string()));
+            (
+                designation,
+                node_id,
+                node_type,
+                pos,
+                size,
+                margin_top,
+                margin_bottom,
+                label_opt,
+                has_in_layer_unit,
+            )
+        };
+
+        if let Some(filter) = &filter {
+            if !designation.contains(filter)
+                && !label_opt
+                    .as_deref()
+                    .is_some_and(|label| label.contains(filter))
+            {
+                continue;
+            }
+        }
+
+        eprintln!(
+            "[elk-layered][nodes] stage={} layer={} layer_idx={} node={} id={} type={:?} label={:?} has_unit={} pos=({:.3},{:.3}) size=({:.3},{:.3}) margin=({:.3},{:.3})",
+            stage,
+            if layer_idx.is_some() {
+                layer_idx
+                    .map(|index| index.to_string())
+                    .unwrap_or_else(|| "?".to_owned())
+            } else {
+                "layerless".to_owned()
+            },
+            layer_node_index,
+            designation,
+            node_id,
+            node_type,
+            label_opt,
+            has_in_layer_unit,
+            pos.x,
+            pos.y,
+            size.x,
+            size.y,
+            margin_top,
+            margin_bottom
+        );
+    }
+}
+
+#[cfg(not(debug_assertions))]
+fn trace_node_positions(_graph: &LGraph, _stage: &str) {}
+
 pub struct ElkLayered {
     graph_configurator: GraphConfigurator,
     components_processor: ComponentsProcessor,
@@ -385,6 +492,7 @@ impl ElkLayered {
                     proc_guard.process(&mut *graph_guard, sub_monitor.as_mut());
                     self.notify_processor_finished_with_graph(&graph_guard, proc_guard.as_ref());
                     trace_edge_wiring(&graph_guard, &format!("after {proc_name}"));
+                    trace_node_positions(&graph_guard, &format!("after {proc_name}"));
                     trace_step(&format!("processor done: {proc_name}"));
                 }
             }

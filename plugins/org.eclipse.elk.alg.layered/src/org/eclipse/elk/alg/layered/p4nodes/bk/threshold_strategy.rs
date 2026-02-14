@@ -151,6 +151,7 @@ impl SimpleThresholdStrategy {
         block_node: usize,
         is_root: bool,
     ) -> f64 {
+        let trace = std::env::var_os("ELK_TRACE_BK_THRESH").is_some();
         let invalid = match bal.vdir {
             Some(VDirection::Up) => f64::INFINITY,
             _ => f64::NEG_INFINITY,
@@ -159,6 +160,12 @@ impl SimpleThresholdStrategy {
         let pick = self.pick_edge(bal, Postprocessable::new(block_node, is_root));
 
         if pick.edge.is_none() && pick.has_edges {
+            if trace {
+                eprintln!(
+                    "bk-thresh: queue free={} is_root={} has_edges=true reason=no_finished_neighbor",
+                    block_node, is_root
+                );
+            }
             self.post_process_queue.push_back(pick);
             return invalid;
         }
@@ -237,6 +244,12 @@ impl SimpleThresholdStrategy {
         let right_root = bal.root[right_node_id];
         bal.su[left_root] = true;
         bal.su[right_root] = true;
+        if trace {
+            eprintln!(
+                "bk-thresh: bound free={} is_root={} threshold={threshold:.3} left_root={} right_root={}",
+                block_node, is_root, left_root, right_root
+            );
+        }
 
         threshold
     }
@@ -247,6 +260,7 @@ impl SimpleThresholdStrategy {
         ni: &NeighborhoodInformation,
         pp: &Postprocessable,
     ) -> bool {
+        let trace = std::env::var_os("ELK_TRACE_BK_THRESH").is_some();
         let edge = pp.edge.as_ref().expect("processable edge missing");
         let (source_port, target_port) = edge
             .lock()
@@ -264,16 +278,34 @@ impl SimpleThresholdStrategy {
 
         let block_node_id = port_node_id(&block);
         let delta = bal.calculate_delta(&fix, &block);
+        if trace {
+            eprintln!(
+                "bk-thresh: process free={} is_root={} block_node={} delta={delta:.3}",
+                free_id, pp.is_root, block_node_id
+            );
+        }
 
         if delta > 0.0 && delta < THRESHOLD {
             let available_space = bal.check_space_above(block_node_id, delta, ni);
             debug_assert!(available_space.abs() < EPSILON || available_space >= 0.0);
             bal.shift_block(block_node_id, -available_space);
+            if trace {
+                eprintln!(
+                    "bk-thresh: process-up block_node={} delta={delta:.3} available={available_space:.3}",
+                    block_node_id
+                );
+            }
             return available_space > 0.0;
         } else if delta < 0.0 && -delta < THRESHOLD {
             let available_space = bal.check_space_below(block_node_id, -delta, ni);
             debug_assert!(available_space.abs() < EPSILON || available_space >= 0.0);
             bal.shift_block(block_node_id, available_space);
+            if trace {
+                eprintln!(
+                    "bk-thresh: process-down block_node={} delta={delta:.3} available={available_space:.3}",
+                    block_node_id
+                );
+            }
             return available_space > 0.0;
         }
 
@@ -324,9 +356,16 @@ impl ThresholdStrategy for SimpleThresholdStrategy {
     }
 
     fn post_process(&mut self, bal: &mut BKAlignedLayout, ni: &NeighborhoodInformation) {
+        let trace = std::env::var_os("ELK_TRACE_BK_THRESH").is_some();
         while let Some(pp) = self.post_process_queue.pop_front() {
             let pick = self.pick_edge(bal, pp);
             let Some(edge) = pick.edge.clone() else {
+                if trace {
+                    eprintln!(
+                        "bk-thresh: dequeue free={} is_root={} no-edge",
+                        pick.free, pick.is_root
+                    );
+                }
                 continue;
             };
 
@@ -341,12 +380,24 @@ impl ThresholdStrategy for SimpleThresholdStrategy {
             }
 
             let moved = self.process(bal, ni, &pick);
+            if trace {
+                eprintln!(
+                    "bk-thresh: dequeue free={} is_root={} moved={moved}",
+                    pick.free, pick.is_root
+                );
+            }
             if !moved {
                 self.post_process_stack.push(pick);
             }
         }
 
         while let Some(pp) = self.post_process_stack.pop() {
+            if trace {
+                eprintln!(
+                    "bk-thresh: stack-pop free={} is_root={}",
+                    pp.free, pp.is_root
+                );
+            }
             let _ = self.process(bal, ni, &pp);
         }
     }

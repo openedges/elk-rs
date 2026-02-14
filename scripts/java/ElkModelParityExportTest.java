@@ -65,6 +65,9 @@ public class ElkModelParityExportTest {
 
     @BeforeClass
     public static void init() {
+        if (System.getenv("ELK_TRACE_BK_JAVA") != null) {
+            System.setProperty("elk.trace.bk.java", "1");
+        }
         PlainJavaInitialization.initializePlainJavaLayout();
     }
 

@@ -99,7 +99,7 @@ impl LayerSweepCrossingMinimizer {
     }
 
     fn minimize_crossings_no_counter(&mut self, index: usize) {
-        let mut is_forward_sweep = self.random.next_boolean();
+        let mut is_forward_sweep = self.next_boolean_for_graph(index);
         let mut improved = true;
         while improved {
             self.prepare_cross_minimizer(index);
@@ -186,7 +186,7 @@ impl LayerSweepCrossingMinimizer {
 
     fn minimize_crossings_with_counter(&mut self, index: usize) -> i32 {
         let trace = std::env::var_os("ELK_TRACE_CROSSMIN").is_some();
-        let mut is_forward_sweep = self.random.next_boolean();
+        let mut is_forward_sweep = self.next_boolean_for_graph(index);
 
         let initial_crossings = self.count_current_number_of_crossings(index) as f64;
         if trace {
@@ -263,7 +263,7 @@ impl LayerSweepCrossingMinimizer {
 
     fn minimize_crossings_node_port_order_with_counter(&mut self, index: usize) -> f64 {
         let trace = std::env::var_os("ELK_TRACE_CROSSMIN").is_some();
-        let mut is_forward_sweep = self.random.next_boolean();
+        let mut is_forward_sweep = self.next_boolean_for_graph(index);
 
         let initial_crossings = self.count_current_number_of_crossings_node_port_order(index);
         if trace {
@@ -816,6 +816,73 @@ impl LayerSweepCrossingMinimizer {
             return Some(());
         }
         None
+    }
+
+    fn next_boolean_for_graph(&mut self, index: usize) -> bool {
+        self.sync_random_from_graph_heuristic(index);
+        let value = self.random.next_boolean();
+        self.sync_graph_heuristic_from_random(index);
+        value
+    }
+
+    fn sync_random_from_graph_heuristic(&mut self, index: usize) {
+        let random = if let Some(graph_data) = self.graph_info_holders.get_mut(index) {
+            if let Some(heuristic) = graph_data
+                .cross_minimizer()
+                .as_any_mut()
+                .downcast_mut::<crate::org::eclipse::elk::alg::layered::p3order::BarycenterHeuristic>()
+            {
+                Some(heuristic.random())
+            } else if let Some(heuristic) = graph_data
+                .cross_minimizer()
+                .as_any_mut()
+                .downcast_mut::<crate::org::eclipse::elk::alg::layered::p3order::ModelOrderBarycenterHeuristic>()
+            {
+                Some(heuristic.random())
+            } else if let Some(heuristic) = graph_data
+                .cross_minimizer()
+                .as_any_mut()
+                .downcast_mut::<crate::org::eclipse::elk::alg::layered::p3order::MedianHeuristic>()
+            {
+                Some(heuristic.random())
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        if let Some(random) = random {
+            self.random = random;
+        }
+    }
+
+    fn sync_graph_heuristic_from_random(&mut self, index: usize) {
+        let random = self.random.clone();
+        if let Some(graph_data) = self.graph_info_holders.get_mut(index) {
+            if let Some(heuristic) = graph_data
+                .cross_minimizer()
+                .as_any_mut()
+                .downcast_mut::<crate::org::eclipse::elk::alg::layered::p3order::BarycenterHeuristic>()
+            {
+                heuristic.set_random(random);
+                return;
+            }
+            if let Some(heuristic) = graph_data
+                .cross_minimizer()
+                .as_any_mut()
+                .downcast_mut::<crate::org::eclipse::elk::alg::layered::p3order::ModelOrderBarycenterHeuristic>()
+            {
+                heuristic.set_random(random);
+                return;
+            }
+            if let Some(heuristic) = graph_data
+                .cross_minimizer()
+                .as_any_mut()
+                .downcast_mut::<crate::org::eclipse::elk::alg::layered::p3order::MedianHeuristic>()
+            {
+                heuristic.set_random(random);
+            }
+        }
     }
 
     fn initialize(&mut self, root_graph: &LGraphRef, root_graph_guard: &mut LGraph) -> Vec<usize> {

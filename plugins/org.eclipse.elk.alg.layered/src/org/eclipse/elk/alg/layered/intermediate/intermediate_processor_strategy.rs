@@ -20,7 +20,7 @@ use crate::org::eclipse::elk::alg::layered::intermediate::{
     NorthSouthPortPreprocessor, NodePromotion, PartitionMidprocessor, PartitionPostprocessor, PartitionPreprocessor,
     PortListSorter, PortSideProcessor, ReversedEdgeRestorer, SelfLoopPortRestorer,
     SelfLoopPostProcessor, SelfLoopPreProcessor, SelfLoopRouter, SemiInteractiveCrossMinProcessor,
-    SortByInputModelProcessor, HierarchicalNodeResizingProcessor, InnermostNodeMarginCalculator,
+    SortByInputModelProcessor, HyperedgeDummyMerger, HierarchicalNodeResizingProcessor, InnermostNodeMarginCalculator,
     HierarchicalPortConstraintProcessor, HierarchicalPortDummySizeProcessor,
     HierarchicalPortPositionProcessor, HierarchicalPortOrthogonalEdgeRouter,
 };
@@ -236,6 +236,7 @@ impl ILayoutProcessorFactory<LGraph> for IntermediateProcessorStrategy {
                 Box::new(InnermostNodeMarginCalculator)
             }
             IntermediateProcessorStrategy::LabelSideSelector => Box::new(LabelSideSelector),
+            IntermediateProcessorStrategy::HyperedgeDummyMerger => Box::new(HyperedgeDummyMerger),
             IntermediateProcessorStrategy::LabelDummySwitcher => Box::new(LabelDummySwitcher::default()),
             IntermediateProcessorStrategy::LabelDummyRemover => Box::new(LabelDummyRemover),
             IntermediateProcessorStrategy::EndLabelSorter => Box::new(EndLabelSorter),
