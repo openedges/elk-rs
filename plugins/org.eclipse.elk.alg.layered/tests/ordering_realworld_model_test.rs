@@ -10,7 +10,6 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 const EPSILON: f64 = 0.1;
 
 #[test]
-#[ignore = "TODO(step31): P3 crossing minimization flips N9/N10 vs Java on this realworld model"]
 fn ordering_realworld_check_execution_time_constraints_matches_java() {
     init_layered_options();
 

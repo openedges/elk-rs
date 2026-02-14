@@ -137,9 +137,11 @@ impl Random {
     }
 
     pub fn next_long(&mut self) -> i64 {
-        let high = self.next(32) as u64;
-        let low = self.next(32) as u64;
-        ((high << 32) | low) as i64
+        // Match java.util.Random#nextLong():
+        // return ((long)(next(32)) << 32) + next(32);
+        let high = self.next(32) as i32 as i64;
+        let low = self.next(32) as i32 as i64;
+        (high << 32).wrapping_add(low)
     }
 
     pub fn next_boolean(&mut self) -> bool {
