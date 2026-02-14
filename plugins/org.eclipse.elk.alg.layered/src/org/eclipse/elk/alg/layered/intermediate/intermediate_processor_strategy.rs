@@ -2,6 +2,7 @@ use std::any::Any;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor_factory::ILayoutProcessorFactory;
+use org_eclipse_elk_core::org::eclipse::elk::core::alg::ILayoutPhase;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSetType, IElkProgressMonitor};
 
 use crate::org::eclipse::elk::alg::layered::graph::LGraph;
@@ -22,6 +23,9 @@ use crate::org::eclipse::elk::alg::layered::intermediate::{
     SortByInputModelProcessor, HierarchicalNodeResizingProcessor, InnermostNodeMarginCalculator,
     HierarchicalPortConstraintProcessor, HierarchicalPortDummySizeProcessor,
     HierarchicalPortPositionProcessor, HierarchicalPortOrthogonalEdgeRouter,
+};
+use crate::org::eclipse::elk::alg::layered::p3order::{
+    CrossMinType, LayerSweepCrossingMinimizer,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
@@ -213,6 +217,12 @@ impl ILayoutProcessorFactory<LGraph> for IntermediateProcessorStrategy {
             IntermediateProcessorStrategy::SemiInteractiveCrossminProcessor => {
                 Box::new(SemiInteractiveCrossMinProcessor)
             }
+            IntermediateProcessorStrategy::OneSidedGreedySwitch => {
+                Box::new(LayerSweepAsProcessor::new(CrossMinType::OneSidedGreedySwitch))
+            }
+            IntermediateProcessorStrategy::TwoSidedGreedySwitch => {
+                Box::new(LayerSweepAsProcessor::new(CrossMinType::TwoSidedGreedySwitch))
+            }
             IntermediateProcessorStrategy::LongEdgeSplitter => Box::new(LongEdgeSplitter),
             IntermediateProcessorStrategy::LongEdgeJoiner => Box::new(LongEdgeJoiner),
             IntermediateProcessorStrategy::ReversedEdgeRestorer => Box::new(ReversedEdgeRestorer),
@@ -277,4 +287,22 @@ struct NoOpLayoutProcessor;
 
 impl ILayoutProcessor<LGraph> for NoOpLayoutProcessor {
     fn process(&mut self, _graph: &mut LGraph, _progress_monitor: &mut dyn IElkProgressMonitor) {}
+}
+
+struct LayerSweepAsProcessor {
+    minimizer: LayerSweepCrossingMinimizer,
+}
+
+impl LayerSweepAsProcessor {
+    fn new(cross_min_type: CrossMinType) -> Self {
+        Self {
+            minimizer: LayerSweepCrossingMinimizer::new(cross_min_type),
+        }
+    }
+}
+
+impl ILayoutProcessor<LGraph> for LayerSweepAsProcessor {
+    fn process(&mut self, graph: &mut LGraph, progress_monitor: &mut dyn IElkProgressMonitor) {
+        ILayoutPhase::process(&mut self.minimizer, graph, progress_monitor);
+    }
 }

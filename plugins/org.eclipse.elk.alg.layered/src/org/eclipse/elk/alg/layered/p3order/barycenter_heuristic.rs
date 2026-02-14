@@ -259,9 +259,25 @@ impl BarycenterHeuristic {
 
         match (left_bary, right_bary) {
             (Some(left_bary), Some(right_bary)) => {
-                let ord = left_bary
-                    .partial_cmp(&right_bary)
-                    .unwrap_or(Ordering::Equal);
+                let ord = left_bary.partial_cmp(&right_bary).unwrap_or_else(|| {
+                    if std::env::var_os("ELK_TRACE_BARYCENTER_NAN").is_some() {
+                        let left_name = left
+                            .lock()
+                            .ok()
+                            .map(|mut node_guard| node_guard.to_string())
+                            .unwrap_or_else(|| "<poisoned-node>".to_owned());
+                        let right_name = right
+                            .lock()
+                            .ok()
+                            .map(|mut node_guard| node_guard.to_string())
+                            .unwrap_or_else(|| "<poisoned-node>".to_owned());
+                        eprintln!(
+                            "crossmin: barycenter nan compare left={}({}) right={}({})",
+                            left_name, left_bary, right_name, right_bary
+                        );
+                    }
+                    Ordering::Equal
+                });
                 if ord != Ordering::Equal {
                     return ord;
                 }
@@ -294,6 +310,43 @@ impl BarycenterHeuristic {
                 start.elapsed().as_millis(),
                 randomize
             );
+        }
+
+        if std::env::var_os("ELK_TRACE_BARYCENTER_LAYER").is_some()
+            && layer.iter().any(|node| {
+                node.lock()
+                    .ok()
+                    .map(|mut node_guard| node_guard.to_string().contains("pumpOutletPressure"))
+                    .unwrap_or(false)
+            })
+        {
+            eprintln!(
+                "crossmin: barycenter layer_state pre_ordered={} randomize={} forward={}",
+                pre_ordered, randomize, forward
+            );
+            for (index, node) in layer.iter().enumerate() {
+                let name = node
+                    .lock()
+                    .ok()
+                    .map(|mut node_guard| node_guard.to_string())
+                    .unwrap_or_else(|| "<poisoned-node>".to_owned());
+                let (barycenter, degree, summed_weight) = self
+                    .state_of(node)
+                    .and_then(|state| {
+                        state.lock().ok().map(|state_guard| {
+                            (
+                                state_guard.barycenter,
+                                state_guard.degree,
+                                state_guard.summed_weight,
+                            )
+                        })
+                    })
+                    .unwrap_or((None, 0, 0.0));
+                eprintln!(
+                    "crossmin: barycenter node[{}]={} bary={:?} degree={} sum={}",
+                    index, name, barycenter, degree, summed_weight
+                );
+            }
         }
 
         if layer.len() > 1 {

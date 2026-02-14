@@ -527,6 +527,9 @@ fn is_in_layer(edge: &LEdgeRef) -> bool {
     if let (Some(source_layer), Some(target_layer)) = (source_layer, target_layer) {
         Arc::ptr_eq(&source_layer, &target_layer)
     } else {
+        if std::env::var_os("ELK_TRACE_CROSSINGS_BREAKDOWN").is_some() {
+            eprintln!("rust-crossings: is_in_layer missing layer endpoint");
+        }
         false
     }
 }

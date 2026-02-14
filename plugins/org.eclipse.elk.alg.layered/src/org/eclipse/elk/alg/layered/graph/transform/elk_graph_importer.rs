@@ -271,6 +271,31 @@ impl<'a> ElkGraphImporter<'a> {
             (props, position, size, labels, ports, node_mut.is_hierarchical())
         };
 
+        if std::env::var_os("ELK_TRACE_IMPORT_PORT_ORDER").is_some() {
+            let node_id = elknode
+                .borrow_mut()
+                .connectable()
+                .shape()
+                .graph_element()
+                .identifier()
+                .unwrap_or("<no-node-id>")
+                .to_owned();
+            let port_ids = ports
+                .iter()
+                .map(|port| {
+                    port.borrow_mut()
+                        .connectable()
+                        .shape()
+                        .graph_element()
+                        .identifier()
+                        .unwrap_or("<no-port-id>")
+                        .to_owned()
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            eprintln!("rust-import-port-order: node={} ports=[{}]", node_id, port_ids);
+        }
+
         let inside_self_loops_active = properties
             .get_property(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE)
             .unwrap_or(false);

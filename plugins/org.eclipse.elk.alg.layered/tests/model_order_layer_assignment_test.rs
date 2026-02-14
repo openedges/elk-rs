@@ -564,13 +564,13 @@ fn model_order_layer_assignment_backward_no_end_node_preserves_relative_order() 
     assert_less(n1y, n4y, "n4 should be below n1");
     assert_less(n4y, n2y, "n4 should be above n2");
 
-    // Normalized grid for this shape: x=[0,0,50,110], y=[0,6,40,40].
+    // Java baseline normalized grid for this shape is x=[0,0,50,100], y=[0,6,40,40].
     let mut normalized_x: Vec<f64> = normalized.iter().map(|(x, _)| *x).collect();
     normalized_x.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let pattern_java_like = (normalized_x[0] - 0.0).abs() <= ABSOLUTE_PARITY_EPSILON
         && (normalized_x[1] - 0.0).abs() <= ABSOLUTE_PARITY_EPSILON
         && (normalized_x[2] - 50.0).abs() <= ABSOLUTE_PARITY_EPSILON
-        && (normalized_x[3] - 110.0).abs() <= ABSOLUTE_PARITY_EPSILON;
+        && (normalized_x[3] - 100.0).abs() <= ABSOLUTE_PARITY_EPSILON;
     assert!(
         pattern_java_like,
         "unexpected normalized x columns: {:?}",

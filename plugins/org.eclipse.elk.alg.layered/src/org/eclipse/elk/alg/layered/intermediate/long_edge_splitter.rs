@@ -48,9 +48,11 @@ impl ILayoutProcessor<LGraph> for LongEdgeSplitter {
                         .unwrap_or_default();
                     for edge in outgoing {
                         let target_layer_index = target_layer_index(&edge, &layers);
-                        if target_layer_index > layer_index + 1 {
+                        if target_layer_index != layer_index && target_layer_index != layer_index + 1 {
+                            trace_long_edge_split("before", layer_index, target_layer_index, &edge);
                             let dummy = create_dummy_node(&next_layer, &edge);
                             Self::split_edge(&edge, &dummy);
+                            trace_long_edge_split("after", layer_index, target_layer_index, &edge);
                         }
                     }
                 }
@@ -119,6 +121,7 @@ impl LongEdgeSplitter {
         LEdge::set_source(&dummy_edge, Some(dummy_output));
         LEdge::set_target(&dummy_edge, old_edge_target);
 
+        set_dummy_node_properties(dummy_node, edge, &dummy_edge);
         move_head_labels(edge, &dummy_edge);
         dummy_edge
     }
@@ -195,7 +198,125 @@ fn move_head_labels(old_edge: &LEdgeRef, new_edge: &LEdgeRef) {
                 .retain(|candidate| !Arc::ptr_eq(candidate, &label));
         }
         if let Ok(mut new_edge_guard) = new_edge.lock() {
-            new_edge_guard.labels_mut().push(label);
+            new_edge_guard.labels_mut().push(label.clone());
+        }
+        if let Ok(mut label_guard) = label.lock() {
+            if !label_guard
+                .shape()
+                .graph_element()
+                .properties()
+                .has_property(InternalProperties::END_LABEL_EDGE)
+            {
+                label_guard.set_property(InternalProperties::END_LABEL_EDGE, Some(old_edge.clone()));
+            }
         }
     }
+}
+
+fn set_dummy_node_properties(dummy_node: &LNodeRef, in_edge: &LEdgeRef, out_edge: &LEdgeRef) {
+    let in_edge_source = in_edge.lock().ok().and_then(|edge_guard| edge_guard.source());
+    let out_edge_target = out_edge.lock().ok().and_then(|edge_guard| edge_guard.target());
+
+    let in_edge_source_node = in_edge_source
+        .as_ref()
+        .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+    let out_edge_target_node = out_edge_target
+        .as_ref()
+        .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+
+    let in_source_type = in_edge_source_node
+        .as_ref()
+        .and_then(|node| node.lock().ok().map(|node_guard| node_guard.node_type()));
+    let out_target_type = out_edge_target_node
+        .as_ref()
+        .and_then(|node| node.lock().ok().map(|node_guard| node_guard.node_type()));
+
+    if in_source_type == Some(NodeType::LongEdge) {
+        if let Some(in_source_node) = in_edge_source_node {
+            if let (Ok(mut dummy_guard), Ok(mut source_guard)) =
+                (dummy_node.lock(), in_source_node.lock())
+            {
+                dummy_guard.set_property(
+                    InternalProperties::LONG_EDGE_SOURCE,
+                    source_guard.get_property(InternalProperties::LONG_EDGE_SOURCE),
+                );
+                dummy_guard.set_property(
+                    InternalProperties::LONG_EDGE_TARGET,
+                    source_guard.get_property(InternalProperties::LONG_EDGE_TARGET),
+                );
+                dummy_guard.set_property(
+                    InternalProperties::LONG_EDGE_HAS_LABEL_DUMMIES,
+                    source_guard.get_property(InternalProperties::LONG_EDGE_HAS_LABEL_DUMMIES),
+                );
+            }
+        }
+    } else if in_source_type == Some(NodeType::Label) {
+        if let Some(in_source_node) = in_edge_source_node {
+            if let (Ok(mut dummy_guard), Ok(mut source_guard)) =
+                (dummy_node.lock(), in_source_node.lock())
+            {
+                dummy_guard.set_property(
+                    InternalProperties::LONG_EDGE_SOURCE,
+                    source_guard.get_property(InternalProperties::LONG_EDGE_SOURCE),
+                );
+                dummy_guard.set_property(
+                    InternalProperties::LONG_EDGE_TARGET,
+                    source_guard.get_property(InternalProperties::LONG_EDGE_TARGET),
+                );
+                dummy_guard.set_property(InternalProperties::LONG_EDGE_HAS_LABEL_DUMMIES, Some(true));
+            }
+        }
+    } else if out_target_type == Some(NodeType::Label) {
+        if let Some(out_target_node) = out_edge_target_node {
+            if let (Ok(mut dummy_guard), Ok(mut target_guard)) =
+                (dummy_node.lock(), out_target_node.lock())
+            {
+                dummy_guard.set_property(
+                    InternalProperties::LONG_EDGE_SOURCE,
+                    target_guard.get_property(InternalProperties::LONG_EDGE_SOURCE),
+                );
+                dummy_guard.set_property(
+                    InternalProperties::LONG_EDGE_TARGET,
+                    target_guard.get_property(InternalProperties::LONG_EDGE_TARGET),
+                );
+                dummy_guard.set_property(InternalProperties::LONG_EDGE_HAS_LABEL_DUMMIES, Some(true));
+            }
+        }
+    } else if let Ok(mut dummy_guard) = dummy_node.lock() {
+        dummy_guard.set_property(InternalProperties::LONG_EDGE_SOURCE, in_edge_source);
+        dummy_guard.set_property(InternalProperties::LONG_EDGE_TARGET, out_edge_target);
+    }
+}
+
+#[cfg(debug_assertions)]
+fn trace_long_edge_split(phase: &str, layer_index: usize, target_layer_index: usize, edge: &LEdgeRef) {
+    if std::env::var_os("ELK_TRACE_LONG_EDGE_SPLIT").is_none() {
+        return;
+    }
+
+    let (source_ref, target_ref) = edge
+        .lock()
+        .ok()
+        .map(|edge_guard| (edge_guard.source(), edge_guard.target()))
+        .unwrap_or((None, None));
+    let source_desc = source_ref
+        .and_then(|source| source.lock().ok().map(|mut guard| guard.to_string()))
+        .unwrap_or_else(|| "<no-source>".to_owned());
+    let target_desc = target_ref
+        .and_then(|target| target.lock().ok().map(|mut guard| guard.to_string()))
+        .unwrap_or_else(|| "<no-target>".to_owned());
+
+    eprintln!(
+        "rust-long-split: phase={} layer={} target_layer={} {} -> {}",
+        phase, layer_index, target_layer_index, source_desc, target_desc
+    );
+}
+
+#[cfg(not(debug_assertions))]
+fn trace_long_edge_split(
+    _phase: &str,
+    _layer_index: usize,
+    _target_layer_index: usize,
+    _edge: &LEdgeRef,
+) {
 }

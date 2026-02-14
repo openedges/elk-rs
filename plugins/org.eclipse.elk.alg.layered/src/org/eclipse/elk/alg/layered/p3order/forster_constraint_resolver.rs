@@ -57,10 +57,33 @@ impl ForsterConstraintResolver {
             groups.push(group);
         }
 
+        let trace = std::env::var_os("ELK_TRACE_FORSTER_GROUPS").is_some()
+            && groups.iter().any(group_contains_pump);
+        if trace {
+            eprintln!(
+                "crossmin: forster start only_between_normal_nodes={} groups=[{}]",
+                only_between_normal_nodes,
+                format_group_list(self, &groups)
+            );
+        }
+
         self.build_constraints_graph(&groups, only_between_normal_nodes);
 
         while let Some((first, second)) = self.find_violated_constraint(&groups) {
+            if trace {
+                eprintln!(
+                    "crossmin: forster violated first={} second={}",
+                    format_group(self, &first),
+                    format_group(self, &second)
+                );
+            }
             self.handle_violated_constraint(first, second, &mut groups);
+            if trace {
+                eprintln!(
+                    "crossmin: forster after_merge groups=[{}]",
+                    format_group_list(self, &groups)
+                );
+            }
         }
 
         nodes.clear();
@@ -80,6 +103,9 @@ impl ForsterConstraintResolver {
     }
 
     fn build_constraints_graph(&mut self, groups: &[ConstraintGroupRef], only_between_normal_nodes: bool) {
+        let trace = std::env::var_os("ELK_TRACE_FORSTER_GROUPS").is_some()
+            && groups.iter().any(group_contains_pump);
+
         for group in groups.iter() {
             if let Ok(mut group_guard) = group.lock() {
                 group_guard.reset_outgoing_constraints();
@@ -164,6 +190,32 @@ impl ForsterConstraintResolver {
                 }
             }
         }
+
+        if trace {
+            for group in groups {
+                let (incoming_count, outgoing) = group
+                    .lock()
+                    .ok()
+                    .map(|group_guard| {
+                        let outgoing = group_guard
+                            .outgoing_constraints
+                            .clone()
+                            .unwrap_or_default()
+                            .into_iter()
+                            .map(|target| format_group(self, &target))
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        (group_guard.incoming_constraints_count, outgoing)
+                    })
+                    .unwrap_or((0, String::new()));
+                eprintln!(
+                    "crossmin: forster graph group={} incoming_count={} outgoing=[{}]",
+                    format_group(self, group),
+                    incoming_count,
+                    outgoing
+                );
+            }
+        }
     }
 
     fn find_violated_constraint(
@@ -197,7 +249,7 @@ impl ForsterConstraintResolver {
                 for predecessor in incoming {
                     let pred_bary = self.group_barycenter(&predecessor).unwrap_or(0.0);
                     let group_bary = self.group_barycenter(&group).unwrap_or(0.0);
-                    if (pred_bary - group_bary).abs() < 0.0001 {
+                    if pred_bary == group_bary {
                         let pred_index = index_map.get(&group_ptr_id(&predecessor)).copied().unwrap_or(0);
                         let group_index = index_map.get(&group_ptr_id(&group)).copied().unwrap_or(0);
                         if pred_index > group_index {
@@ -548,4 +600,45 @@ fn layer_index(node: &LNodeRef) -> usize {
 
 fn node_ptr_id(node: &LNodeRef) -> usize {
     Arc::as_ptr(node) as usize
+}
+
+fn group_contains_pump(group: &ConstraintGroupRef) -> bool {
+    group.lock().ok().is_some_and(|group_guard| {
+        group_guard.nodes.iter().any(|node| {
+            node.lock()
+                .ok()
+                .map(|mut node_guard| node_guard.to_string().contains("pumpOutletPressure"))
+                .unwrap_or(false)
+        })
+    })
+}
+
+fn format_group_list(resolver: &ForsterConstraintResolver, groups: &[ConstraintGroupRef]) -> String {
+    groups
+        .iter()
+        .map(|group| format_group(resolver, group))
+        .collect::<Vec<_>>()
+        .join(" | ")
+}
+
+fn format_group(resolver: &ForsterConstraintResolver, group: &ConstraintGroupRef) -> String {
+    let bary = resolver.group_barycenter(group);
+    let names = group
+        .lock()
+        .ok()
+        .map(|group_guard| {
+            group_guard
+                .nodes
+                .iter()
+                .map(|node| {
+                    node.lock()
+                        .ok()
+                        .map(|mut node_guard| node_guard.to_string())
+                        .unwrap_or_else(|| "<poisoned-node>".to_owned())
+                })
+                .collect::<Vec<_>>()
+                .join(",")
+        })
+        .unwrap_or_else(|| "<poisoned-group>".to_owned());
+    format!("[{}]<{:?}>", names, bary)
 }

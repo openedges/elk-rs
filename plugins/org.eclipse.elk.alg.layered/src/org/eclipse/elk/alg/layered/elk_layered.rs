@@ -1,5 +1,6 @@
 use std::any::TypeId;
 use std::collections::VecDeque;
+use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::SharedProcessor;
@@ -31,6 +32,83 @@ fn trace_step(message: &str) {
 
 #[cfg(not(debug_assertions))]
 fn trace_step(_message: &str) {}
+
+#[cfg(debug_assertions)]
+fn trace_edge_wiring(graph: &LGraph, stage: &str) {
+    if std::env::var("ELK_TRACE_EDGE_WIRING").is_err() {
+        return;
+    }
+
+    let layers = graph.layers().clone();
+    if layers.len() < 2 {
+        return;
+    }
+
+    for layer_index in 0..(layers.len() - 1) {
+        let current_layer = layers[layer_index].clone();
+        let next_layer = layers[layer_index + 1].clone();
+        let nodes = current_layer
+            .lock()
+            .ok()
+            .map(|layer_guard| layer_guard.nodes().clone())
+            .unwrap_or_default();
+
+        for node in nodes {
+            let ports = node
+                .lock()
+                .ok()
+                .map(|node_guard| node_guard.ports().clone())
+                .unwrap_or_default();
+
+            for source_port in ports {
+                let outgoing = source_port
+                    .lock()
+                    .ok()
+                    .map(|port_guard| port_guard.outgoing_edges().clone())
+                    .unwrap_or_default();
+
+                for edge in outgoing {
+                    let target_port = edge.lock().ok().and_then(|edge_guard| edge_guard.target());
+                    let Some(target_port) = target_port else {
+                        continue;
+                    };
+
+                    let target_layer = target_port
+                        .lock()
+                        .ok()
+                        .and_then(|port_guard| port_guard.node())
+                        .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.layer()));
+                    let Some(target_layer) = target_layer else {
+                        continue;
+                    };
+
+                    if !Arc::ptr_eq(&target_layer, &next_layer) {
+                        continue;
+                    }
+
+                    let source_desc = source_port
+                        .lock()
+                        .ok()
+                        .map(|mut port_guard| port_guard.to_string())
+                        .unwrap_or_else(|| "<poisoned-source-port>".to_owned());
+                    let target_desc = target_port
+                        .lock()
+                        .ok()
+                        .map(|mut port_guard| port_guard.to_string())
+                        .unwrap_or_else(|| "<poisoned-target-port>".to_owned());
+
+                    eprintln!(
+                        "rust-wiring: stage={} layer={} {} -> {}",
+                        stage, layer_index, source_desc, target_desc
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[cfg(not(debug_assertions))]
+fn trace_edge_wiring(_graph: &LGraph, _stage: &str) {}
 
 pub struct ElkLayered {
     graph_configurator: GraphConfigurator,
@@ -306,6 +384,7 @@ impl ElkLayered {
                     self.notify_processor_ready_with_graph(&graph_guard, proc_guard.as_ref());
                     proc_guard.process(&mut *graph_guard, sub_monitor.as_mut());
                     self.notify_processor_finished_with_graph(&graph_guard, proc_guard.as_ref());
+                    trace_edge_wiring(&graph_guard, &format!("after {proc_name}"));
                     trace_step(&format!("processor done: {proc_name}"));
                 }
             }

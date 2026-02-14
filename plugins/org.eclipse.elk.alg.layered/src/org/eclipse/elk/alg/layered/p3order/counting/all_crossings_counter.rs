@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 
@@ -14,6 +15,8 @@ pub struct AllCrossingsCounter {
     has_north_south_ports: Vec<bool>,
     n_ports: i32,
 }
+
+static TRACE_CROSSINGS_CALLS: AtomicUsize = AtomicUsize::new(0);
 
 impl AllCrossingsCounter {
     pub fn new(graph: &[Vec<LNodeRef>]) -> Self {
@@ -32,23 +35,70 @@ impl AllCrossingsCounter {
         if current_order.is_empty() {
             return 0;
         }
-        let mut crossings = self.crossing_counter.count_in_layer_crossings_on_side(
+        let trace = std::env::var_os("ELK_TRACE_CROSSINGS_BREAKDOWN").is_some();
+        let trace_this_call = if trace {
+            let _ = TRACE_CROSSINGS_CALLS.fetch_add(1, Ordering::SeqCst);
+            true
+        } else {
+            false
+        };
+
+        let west = self.crossing_counter.count_in_layer_crossings_on_side(
             &current_order[0],
             PortSide::West,
         );
-        crossings += self.crossing_counter.count_in_layer_crossings_on_side(
+        let east = self.crossing_counter.count_in_layer_crossings_on_side(
             &current_order[current_order.len() - 1],
             PortSide::East,
         );
+        let mut crossings = west + east;
+        if trace_this_call {
+            eprintln!("rust-crossings: west={} east={}", west, east);
+            eprintln!(
+                "rust-crossings: has_hyper_edges={:?} has_north_south={:?} in_layer_edge_counts={:?}",
+                self.has_hyper_edges_east_of_index,
+                self.has_north_south_ports,
+                self.in_layer_edge_counts
+            );
+        }
         for layer_index in 0..current_order.len() {
-            crossings += self.count_crossings_at(layer_index, current_order);
+            let at = self.count_crossings_at(layer_index, current_order, trace_this_call);
+            if trace_this_call {
+                eprintln!("rust-crossings: layer[{}]={}", layer_index, at);
+            }
+            crossings += at;
+        }
+        if trace_this_call {
+            eprintln!("rust-crossings: total={}", crossings);
         }
         crossings
     }
 
-    fn count_crossings_at(&mut self, layer_index: usize, current_order: &[Vec<LNodeRef>]) -> i32 {
+    fn count_crossings_at(
+        &mut self,
+        layer_index: usize,
+        current_order: &[Vec<LNodeRef>],
+        trace_this_call: bool,
+    ) -> i32 {
         let mut total_crossings = 0;
+        let mut hyper = 0;
+        let mut left_east = 0;
+        let mut right_west = 0;
+        let mut between = 0;
+        let mut north_south = 0;
         let left_layer = &current_order[layer_index];
+        if trace_this_call {
+            let left_nodes = node_names(left_layer);
+            let right_nodes = if layer_index + 1 < current_order.len() {
+                node_names(&current_order[layer_index + 1])
+            } else {
+                String::from("<none>")
+            };
+            eprintln!(
+                "rust-crossings: layer[{}] nodes_left=[{}] nodes_right=[{}]",
+                layer_index, left_nodes, right_nodes
+            );
+        }
         if layer_index + 1 < current_order.len() {
             let right_layer = &current_order[layer_index + 1];
             if self
@@ -57,15 +107,21 @@ impl AllCrossingsCounter {
                 .copied()
                 .unwrap_or(false)
             {
-                total_crossings =
-                    self.hyperedge_crossings_counter.count_crossings(left_layer, right_layer);
-                total_crossings +=
-                    self.crossing_counter.count_in_layer_crossings_on_side(left_layer, PortSide::East);
-                total_crossings +=
-                    self.crossing_counter.count_in_layer_crossings_on_side(right_layer, PortSide::West);
+                hyper = self
+                    .hyperedge_crossings_counter
+                    .count_crossings(left_layer, right_layer);
+                left_east = self
+                    .crossing_counter
+                    .count_in_layer_crossings_on_side(left_layer, PortSide::East);
+                right_west = self
+                    .crossing_counter
+                    .count_in_layer_crossings_on_side(right_layer, PortSide::West);
+                total_crossings = hyper + left_east + right_west;
             } else {
-                total_crossings =
-                    self.crossing_counter.count_crossings_between_layers(left_layer, right_layer);
+                between = self
+                    .crossing_counter
+                    .count_crossings_between_layers(left_layer, right_layer);
+                total_crossings = between;
             }
         }
 
@@ -75,12 +131,39 @@ impl AllCrossingsCounter {
             .copied()
             .unwrap_or(false)
         {
-            total_crossings += self
+            north_south = self
                 .crossing_counter
                 .count_north_south_port_crossings_in_layer(left_layer);
+            total_crossings += north_south;
+        }
+
+        if trace_this_call {
+            eprintln!(
+                "rust-crossings: layer[{}] detail hyper={} left_east={} right_west={} between={} north_south={} total={}",
+                layer_index,
+                hyper,
+                left_east,
+                right_west,
+                between,
+                north_south,
+                total_crossings
+            );
         }
         total_crossings
     }
+}
+
+fn node_names(layer: &[LNodeRef]) -> String {
+    layer
+        .iter()
+        .map(|node| {
+            node.lock()
+                .ok()
+                .map(|mut node_guard| node_guard.to_string())
+                .unwrap_or_else(|| String::from("<poisoned-node>"))
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 impl IInitializable for AllCrossingsCounter {

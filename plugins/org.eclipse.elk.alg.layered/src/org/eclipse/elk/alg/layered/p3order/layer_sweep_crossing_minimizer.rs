@@ -100,23 +100,14 @@ impl LayerSweepCrossingMinimizer {
 
     fn minimize_crossings_no_counter(&mut self, index: usize) {
         let mut is_forward_sweep = self.random.next_boolean();
-        let mut previous_crossings = self.count_current_number_of_crossings(index);
-        loop {
+        let mut improved = true;
+        while improved {
             self.prepare_cross_minimizer(index);
-            let first_improved = {
+            improved = {
                 let graph_data = &mut self.graph_info_holders[index];
                 graph_data.set_first_layer_order(is_forward_sweep)
             };
-            let sweep_improved = self.sweep_reducing_crossings(index, is_forward_sweep, false);
-            let improved = first_improved || sweep_improved;
-            if !improved {
-                break;
-            }
-            let current_crossings = self.count_current_number_of_crossings(index);
-            if current_crossings >= previous_crossings {
-                break;
-            }
-            previous_crossings = current_crossings;
+            improved |= self.sweep_reducing_crossings(index, is_forward_sweep, false);
             is_forward_sweep = !is_forward_sweep;
         }
         self.set_currently_best_node_orders();
@@ -563,6 +554,15 @@ impl LayerSweepCrossingMinimizer {
             }
             improved
         };
+        if trace {
+            let order = self.graph_info_holders[index].current_node_order();
+            let first = first_index(forward, length);
+            eprintln!(
+                "crossmin: sweep layer={} order=[{}]",
+                first,
+                format_layer_nodes(&order[first])
+            );
+        }
         let first_layer = self.graph_info_holders[index].current_node_order()[first_index(forward, length)].clone();
         let start = if timing { Some(std::time::Instant::now()) } else { None };
         improved |= self.sweep_in_hierarchical_nodes(&first_layer, forward, first_sweep);
@@ -613,6 +613,14 @@ impl LayerSweepCrossingMinimizer {
                     );
                 }
                 improved |= distributed;
+            }
+            if trace {
+                let order = self.graph_info_holders[index].current_node_order();
+                eprintln!(
+                    "crossmin: sweep layer={} order=[{}]",
+                    i_usize,
+                    format_layer_nodes(&order[i_usize])
+                );
             }
             let layer = self.graph_info_holders[index].current_node_order()[i_usize].clone();
             let start = if timing { Some(std::time::Instant::now()) } else { None };
@@ -1205,4 +1213,17 @@ fn root_graph_ref(graph: &mut LGraph) -> Option<LGraphRef> {
         }
     }
     None
+}
+
+fn format_layer_nodes(layer: &[LNodeRef]) -> String {
+    layer
+        .iter()
+        .map(|node| {
+            node.lock()
+                .ok()
+                .map(|mut guard| guard.to_string())
+                .unwrap_or_else(|| String::from("<poisoned-node>"))
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
 }

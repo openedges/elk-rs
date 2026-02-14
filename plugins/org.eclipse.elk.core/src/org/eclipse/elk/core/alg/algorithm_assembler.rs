@@ -255,6 +255,14 @@ impl<G: 'static> ILayoutProcessor<G> for SharedProcessorAdapter<G> {
             eprintln!("processor_done: {} ({} ms)", processor.type_name(), elapsed_ms);
         }
     }
+
+    fn type_name(&self) -> &'static str {
+        self.processor
+            .lock()
+            .ok()
+            .map(|processor| processor.type_name())
+            .unwrap_or_else(|| std::any::type_name::<Self>())
+    }
 }
 
 struct PhaseProcessorAdapter<P, G> {
@@ -278,6 +286,14 @@ where
             let elapsed_ms = start.elapsed().as_millis();
             eprintln!("phase_done: {} ({} ms)", phase.type_name(), elapsed_ms);
         }
+    }
+
+    fn type_name(&self) -> &'static str {
+        self.phase
+            .lock()
+            .ok()
+            .map(|phase| phase.type_name())
+            .unwrap_or_else(|| std::any::type_name::<Self>())
     }
 }
 

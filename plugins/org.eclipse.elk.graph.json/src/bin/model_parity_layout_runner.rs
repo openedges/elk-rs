@@ -40,6 +40,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::recursive_graph_layout_engine
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{
     AlgorithmFactory, BasicProgressMonitor, InstancePool, Maybe,
 };
+use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 use org_eclipse_elk_graph_json::org::eclipse::elk::graph::json::{ElkGraphJson, JsonImporter};
 
 const HEADER_JAVA: &str = "model_rel_path\tinput_json\tjava_layout_json\tjava_status\tjava_error";
@@ -322,6 +323,10 @@ fn run_layout_case(
                 .set_property(CoreOptions::RANDOM_SEED, Some(seed));
         }
 
+        if std::env::var_os("ELK_TRACE_PRE_LAYOUT_PORT_ORDER").is_some() {
+            trace_port_order_before_layout(&root);
+        }
+
         let mut engine = RecursiveGraphLayoutEngine::new();
         let mut monitor = BasicProgressMonitor::new();
         engine.layout(&root, &mut monitor);
@@ -363,6 +368,45 @@ fn run_layout_case(
     match result {
         Ok(inner) => inner,
         Err(payload) => Err(format!("panic during layout: {}", panic_payload_to_string(payload.as_ref()))),
+    }
+}
+
+fn trace_port_order_before_layout(root: &ElkNodeRef) {
+    let mut stack = vec![root.clone()];
+    while let Some(node) = stack.pop() {
+        let (node_id, port_ids, children) = {
+            let mut node_mut = node.borrow_mut();
+            let node_id = node_mut
+                .connectable()
+                .shape()
+                .graph_element()
+                .identifier()
+                .unwrap_or("<no-node-id>")
+                .to_owned();
+            let port_ids = node_mut
+                .ports()
+                .iter()
+                .map(|port| {
+                    port.borrow_mut()
+                        .connectable()
+                        .shape()
+                        .graph_element()
+                        .identifier()
+                        .unwrap_or("<no-port-id>")
+                        .to_owned()
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            let children = node_mut.children().iter().cloned().collect::<Vec<_>>();
+            (node_id, port_ids, children)
+        };
+        eprintln!(
+            "rust-pre-layout-port-order: node={} ports=[{}]",
+            node_id, port_ids
+        );
+        for child in children {
+            stack.push(child);
+        }
     }
 }
 

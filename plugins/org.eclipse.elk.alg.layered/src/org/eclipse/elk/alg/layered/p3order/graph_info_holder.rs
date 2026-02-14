@@ -259,6 +259,7 @@ impl GraphInfoHolder {
             eprintln!("crossmin: graph_info_holder build start");
         }
         let mut random = random;
+        trace_in_layer_constraints(&current_node_order);
         let has_parent = parent_node.is_some();
         let parent_graph_ref = parent_node
             .as_ref()
@@ -570,6 +571,53 @@ impl IInitializable for GraphInfoHolder {
     fn init_after_traversal(&mut self) {
         self.port_positions = vec![0; self.n_ports];
     }
+}
+
+fn trace_in_layer_constraints(node_order: &[Vec<LNodeRef>]) {
+    if std::env::var_os("ELK_TRACE_CROSSMIN_CONSTRAINTS").is_none() {
+        return;
+    }
+
+    for (layer_index, layer) in node_order.iter().enumerate() {
+        let layer_nodes = layer
+            .iter()
+            .map(node_debug_name)
+            .collect::<Vec<_>>()
+            .join(", ");
+        eprintln!("rust-crossmin: layer[{layer_index}] nodes=[{layer_nodes}]");
+
+        for node in layer {
+            let (node_name, successors) = node
+                .lock()
+                .ok()
+                .map(|mut node_guard| {
+                    let name = node_guard.to_string();
+                    let successors: Vec<LNodeRef> = node_guard
+                        .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
+                        .unwrap_or_default();
+                    (name, successors)
+                })
+                .unwrap_or_else(|| ("<poisoned-node>".to_owned(), Vec::new()));
+
+            if successors.is_empty() {
+                continue;
+            }
+
+            let successor_names = successors
+                .iter()
+                .map(node_debug_name)
+                .collect::<Vec<_>>()
+                .join(", ");
+            eprintln!("rust-crossmin:   constraint {node_name} -> [{successor_names}]");
+        }
+    }
+}
+
+fn node_debug_name(node: &LNodeRef) -> String {
+    node.lock()
+        .ok()
+        .map(|mut node_guard| node_guard.to_string())
+        .unwrap_or_else(|| "<poisoned-node>".to_owned())
 }
 
 #[derive(Clone)]

@@ -465,8 +465,59 @@ impl NodeAdapter<ElkNodeRef> for ElkNodeAdapter {
                 .unwrap_or(PortConstraints::Undefined)
         });
         if constraints.is_order_fixed() {
+            let trace = std::env::var_os("ELK_TRACE_CORE_PORT_SORT").is_some();
+            let node_id = if trace {
+                with_node_shape_mut(&self.inner.element, |shape| {
+                    shape
+                        .graph_element()
+                        .identifier()
+                        .unwrap_or("<no-node-id>")
+                        .to_owned()
+                })
+            } else {
+                String::new()
+            };
+            let before = if trace {
+                let mut node_mut = self.inner.element.borrow_mut();
+                node_mut
+                    .ports()
+                    .iter()
+                    .map(|port| {
+                        with_port_shape_mut(port, |shape| {
+                            shape
+                                .graph_element()
+                                .identifier()
+                                .unwrap_or("<no-port-id>")
+                                .to_owned()
+                        })
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            } else {
+                String::new()
+            };
             let mut node_mut = self.inner.element.borrow_mut();
             node_mut.ports().sort_by(|a, b| comparator(a, b));
+            if trace {
+                let after = node_mut
+                    .ports()
+                    .iter()
+                    .map(|port| {
+                        with_port_shape_mut(port, |shape| {
+                            shape
+                                .graph_element()
+                                .identifier()
+                                .unwrap_or("<no-port-id>")
+                                .to_owned()
+                        })
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                eprintln!(
+                    "rust-core-port-sort: node={} constraints={:?} before=[{}] after=[{}]",
+                    node_id, constraints, before, after
+                );
+            }
         }
     }
 
