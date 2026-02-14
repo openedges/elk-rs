@@ -163,6 +163,7 @@ Model parity env overrides:
 ```
 JAVA_PARITY_DRY_RUN=false
 JAVA_PARITY_EXTERNAL_ISOLATE=true
+JAVA_PARITY_REQUIRE_CLEAN_EXTERNAL_ELK=true
 JAVA_PARITY_BUILD_PLUGINS=true
 JAVA_PARITY_MVN_LOCAL_REPO=
 JAVA_PARITY_LIMIT=0
@@ -189,6 +190,7 @@ Notes:
 - `run_java_perf_layered_issue_scenarios.sh` performs DNS preflight by default and fails early when `repo.eclipse.org` or `repo.maven.apache.org` cannot be resolved (`JAVA_PERF_SKIP_DNS_CHECK=true` bypasses this check).
 - `run_java_perf_layered_issue_scenarios.sh` runs in an isolated temporary directory by default (`JAVA_PERF_EXTERNAL_ISOLATE=true`; git worktree first, temporary copy fallback).
 - `run_java_model_parity_export.sh` also defaults to isolated execution (`JAVA_PARITY_EXTERNAL_ISOLATE=true`) and restores/removes the injected Java class automatically.
+- `run_java_model_parity_export.sh` refuses to run when `external/elk` is dirty by default (`JAVA_PARITY_REQUIRE_CLEAN_EXTERNAL_ELK=true`); set it to `false` only when you intentionally want to include local Java changes.
 - `run_model_parity_elk_vs_rust.sh` reads Java manifest `perf/model_parity/java/java_manifest.tsv`, writes Rust manifest `perf/model_parity/rust_manifest.tsv`, and emits `perf/model_parity/report.md`.
 - Under defaults, the original `external/elk` worktree remains unchanged after runs (set `JAVA_PERF_EXTERNAL_ISOLATE=false` for direct-in-place execution).
 - Model parity strict gate can be enabled with `MODEL_PARITY_STRICT=true` (non-zero exit when drift/errors exist).

@@ -11,6 +11,7 @@ JAVA_PARITY_MVN_BIN=${JAVA_PARITY_MVN_BIN:-mvn}
 JAVA_PARITY_BUILD_PLUGINS=${JAVA_PARITY_BUILD_PLUGINS:-true}
 JAVA_PARITY_EXTERNAL_ELK_ROOT=${JAVA_PARITY_EXTERNAL_ELK_ROOT:-$REPO_ROOT/external/elk}
 JAVA_PARITY_EXTERNAL_ISOLATE=${JAVA_PARITY_EXTERNAL_ISOLATE:-true}
+JAVA_PARITY_REQUIRE_CLEAN_EXTERNAL_ELK=${JAVA_PARITY_REQUIRE_CLEAN_EXTERNAL_ELK:-true}
 JAVA_PARITY_EXTERNAL_WORKTREE_ROOT=${JAVA_PARITY_EXTERNAL_WORKTREE_ROOT:-${TMPDIR:-/tmp}}
 JAVA_PARITY_PREPARE_POM=${JAVA_PARITY_PREPARE_POM:-}
 JAVA_PARITY_TEST_POM=${JAVA_PARITY_TEST_POM:-}
@@ -128,6 +129,26 @@ if [ "$JAVA_PARITY_DRY_RUN" != "true" ]; then
       fi
       ;;
   esac
+fi
+
+if [ "$JAVA_PARITY_DRY_RUN" != "true" ] && [ "$JAVA_PARITY_REQUIRE_CLEAN_EXTERNAL_ELK" = "true" ]; then
+  if ! git -C "$JAVA_PARITY_EXTERNAL_ELK_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    echo "JAVA_PARITY_REQUIRE_CLEAN_EXTERNAL_ELK=true but external ELK root is not a git worktree: $JAVA_PARITY_EXTERNAL_ELK_ROOT" >&2
+    echo "set JAVA_PARITY_REQUIRE_CLEAN_EXTERNAL_ELK=false to bypass this guard." >&2
+    exit 1
+  fi
+
+  dirty_status=$(git -C "$JAVA_PARITY_EXTERNAL_ELK_ROOT" status --porcelain 2>/dev/null || true)
+  if [ -n "$dirty_status" ]; then
+    echo "external ELK tree has local changes; refusing parity export to protect external/elk state." >&2
+    printf "%s\n" "$dirty_status" | sed -n '1,20p' >&2
+    dirty_lines=$(printf "%s\n" "$dirty_status" | wc -l | awk '{print $1}')
+    if [ "$dirty_lines" -gt 20 ]; then
+      echo "... (showing first 20 of $dirty_lines changed paths)" >&2
+    fi
+    echo "set JAVA_PARITY_REQUIRE_CLEAN_EXTERNAL_ELK=false to bypass this guard." >&2
+    exit 1
+  fi
 fi
 
 if [ "$JAVA_PARITY_DRY_RUN" != "true" ] && [ "$JAVA_PARITY_EXTERNAL_ISOLATE" = "true" ]; then
