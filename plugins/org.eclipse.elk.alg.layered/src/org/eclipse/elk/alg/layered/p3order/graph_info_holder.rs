@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, Random};
 
 use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LGraphRef, LNodeRef};
@@ -570,6 +572,166 @@ impl IInitializable for GraphInfoHolder {
     }
 }
 
+#[derive(Clone)]
+struct SharedNodeRelativePortDistributor {
+    inner: Arc<Mutex<NodeRelativePortDistributor>>,
+}
+
+impl SharedNodeRelativePortDistributor {
+    fn from_inner(inner: Arc<Mutex<NodeRelativePortDistributor>>) -> Self {
+        Self { inner }
+    }
+}
+
+impl ISweepPortDistributor for SharedNodeRelativePortDistributor {
+    fn distribute_ports_while_sweeping(
+        &mut self,
+        order: &[Vec<LNodeRef>],
+        free_layer_index: usize,
+        is_forward_sweep: bool,
+    ) -> bool {
+        self.inner
+            .lock()
+            .ok()
+            .map(|mut distributor| {
+                distributor.distribute_ports_while_sweeping(order, free_layer_index, is_forward_sweep)
+            })
+            .unwrap_or(false)
+    }
+}
+
+impl BarycenterPortDistributor for SharedNodeRelativePortDistributor {
+    fn calculate_port_ranks(
+        &mut self,
+        layer: &[LNodeRef],
+        port_type: crate::org::eclipse::elk::alg::layered::options::PortType,
+    ) {
+        if let Ok(mut distributor) = self.inner.lock() {
+            distributor.calculate_port_ranks(layer, port_type);
+        }
+    }
+
+    fn port_ranks(&self) -> Vec<f64> {
+        self.inner
+            .lock()
+            .ok()
+            .map(|distributor| distributor.port_ranks().clone())
+            .unwrap_or_default()
+    }
+}
+
+impl IInitializable for SharedNodeRelativePortDistributor {
+    fn init_at_layer_level(&mut self, layer_index: usize, node_order: &[Vec<LNodeRef>]) {
+        if let Ok(mut distributor) = self.inner.lock() {
+            distributor.init_at_layer_level(layer_index, node_order);
+        }
+    }
+
+    fn init_at_node_level(&mut self, layer_index: usize, node_index: usize, node_order: &[Vec<LNodeRef>]) {
+        if let Ok(mut distributor) = self.inner.lock() {
+            distributor.init_at_node_level(layer_index, node_index, node_order);
+        }
+    }
+
+    fn init_at_port_level(
+        &mut self,
+        layer_index: usize,
+        node_index: usize,
+        port_index: usize,
+        node_order: &[Vec<LNodeRef>],
+    ) {
+        if let Ok(mut distributor) = self.inner.lock() {
+            distributor.init_at_port_level(layer_index, node_index, port_index, node_order);
+        }
+    }
+
+    fn init_after_traversal(&mut self) {
+        if let Ok(mut distributor) = self.inner.lock() {
+            distributor.init_after_traversal();
+        }
+    }
+}
+
+#[derive(Clone)]
+struct SharedLayerTotalPortDistributor {
+    inner: Arc<Mutex<LayerTotalPortDistributor>>,
+}
+
+impl SharedLayerTotalPortDistributor {
+    fn from_inner(inner: Arc<Mutex<LayerTotalPortDistributor>>) -> Self {
+        Self { inner }
+    }
+}
+
+impl ISweepPortDistributor for SharedLayerTotalPortDistributor {
+    fn distribute_ports_while_sweeping(
+        &mut self,
+        order: &[Vec<LNodeRef>],
+        free_layer_index: usize,
+        is_forward_sweep: bool,
+    ) -> bool {
+        self.inner
+            .lock()
+            .ok()
+            .map(|mut distributor| {
+                distributor.distribute_ports_while_sweeping(order, free_layer_index, is_forward_sweep)
+            })
+            .unwrap_or(false)
+    }
+}
+
+impl BarycenterPortDistributor for SharedLayerTotalPortDistributor {
+    fn calculate_port_ranks(
+        &mut self,
+        layer: &[LNodeRef],
+        port_type: crate::org::eclipse::elk::alg::layered::options::PortType,
+    ) {
+        if let Ok(mut distributor) = self.inner.lock() {
+            distributor.calculate_port_ranks(layer, port_type);
+        }
+    }
+
+    fn port_ranks(&self) -> Vec<f64> {
+        self.inner
+            .lock()
+            .ok()
+            .map(|distributor| distributor.port_ranks().clone())
+            .unwrap_or_default()
+    }
+}
+
+impl IInitializable for SharedLayerTotalPortDistributor {
+    fn init_at_layer_level(&mut self, layer_index: usize, node_order: &[Vec<LNodeRef>]) {
+        if let Ok(mut distributor) = self.inner.lock() {
+            distributor.init_at_layer_level(layer_index, node_order);
+        }
+    }
+
+    fn init_at_node_level(&mut self, layer_index: usize, node_index: usize, node_order: &[Vec<LNodeRef>]) {
+        if let Ok(mut distributor) = self.inner.lock() {
+            distributor.init_at_node_level(layer_index, node_index, node_order);
+        }
+    }
+
+    fn init_at_port_level(
+        &mut self,
+        layer_index: usize,
+        node_index: usize,
+        port_index: usize,
+        node_order: &[Vec<LNodeRef>],
+    ) {
+        if let Ok(mut distributor) = self.inner.lock() {
+            distributor.init_at_port_level(layer_index, node_index, port_index, node_order);
+        }
+    }
+
+    fn init_after_traversal(&mut self) {
+        if let Ok(mut distributor) = self.inner.lock() {
+            distributor.init_after_traversal();
+        }
+    }
+}
+
 fn create_port_distributors(
     cross_min_type: CrossMinType,
     random: &mut Random,
@@ -592,9 +754,12 @@ fn create_port_distributors(
         if trace {
             eprintln!("crossmin: port_distributor=NodeRelative (barycenter={})", needs_barycenter);
         }
-        let sweep = Box::new(NodeRelativePortDistributor::new(num_layers)) as Box<dyn ISweepPortDistributor>;
+        let inner = Arc::new(Mutex::new(NodeRelativePortDistributor::new(num_layers)));
+        let sweep = Box::new(SharedNodeRelativePortDistributor::from_inner(inner.clone()))
+            as Box<dyn ISweepPortDistributor>;
         let barycenter = if needs_barycenter {
-            Some(Box::new(NodeRelativePortDistributor::new(num_layers)) as Box<dyn BarycenterPortDistributor>)
+            Some(Box::new(SharedNodeRelativePortDistributor::from_inner(inner))
+                as Box<dyn BarycenterPortDistributor>)
         } else {
             None
         };
@@ -603,9 +768,12 @@ fn create_port_distributors(
         if trace {
             eprintln!("crossmin: port_distributor=LayerTotal (barycenter={})", needs_barycenter);
         }
-        let sweep = Box::new(LayerTotalPortDistributor::new(num_layers)) as Box<dyn ISweepPortDistributor>;
+        let inner = Arc::new(Mutex::new(LayerTotalPortDistributor::new(num_layers)));
+        let sweep = Box::new(SharedLayerTotalPortDistributor::from_inner(inner.clone()))
+            as Box<dyn ISweepPortDistributor>;
         let barycenter = if needs_barycenter {
-            Some(Box::new(LayerTotalPortDistributor::new(num_layers)) as Box<dyn BarycenterPortDistributor>)
+            Some(Box::new(SharedLayerTotalPortDistributor::from_inner(inner))
+                as Box<dyn BarycenterPortDistributor>)
         } else {
             None
         };

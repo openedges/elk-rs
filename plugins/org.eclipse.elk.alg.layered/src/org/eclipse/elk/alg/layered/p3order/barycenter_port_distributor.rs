@@ -7,7 +7,7 @@ use crate::org::eclipse::elk::alg::layered::p3order::counting::IInitializable;
 
 pub trait BarycenterPortDistributor: IInitializable + Send {
     fn calculate_port_ranks(&mut self, layer: &[LNodeRef], port_type: PortType);
-    fn port_ranks(&self) -> &Vec<f64>;
+    fn port_ranks(&self) -> Vec<f64>;
 }
 
 impl BarycenterPortDistributor for AbstractBarycenterPortDistributor {
@@ -15,8 +15,8 @@ impl BarycenterPortDistributor for AbstractBarycenterPortDistributor {
         AbstractBarycenterPortDistributor::calculate_port_ranks(self, layer, port_type);
     }
 
-    fn port_ranks(&self) -> &Vec<f64> {
-        self.port_ranks()
+    fn port_ranks(&self) -> Vec<f64> {
+        self.port_ranks().clone()
     }
 }
 
@@ -25,8 +25,8 @@ impl BarycenterPortDistributor for NodeRelativePortDistributor {
         NodeRelativePortDistributor::calculate_port_ranks(self, layer, port_type);
     }
 
-    fn port_ranks(&self) -> &Vec<f64> {
-        self.port_ranks()
+    fn port_ranks(&self) -> Vec<f64> {
+        self.port_ranks().clone()
     }
 }
 
@@ -35,7 +35,7 @@ impl BarycenterPortDistributor for LayerTotalPortDistributor {
         LayerTotalPortDistributor::calculate_port_ranks(self, layer, port_type);
     }
 
-    fn port_ranks(&self) -> &Vec<f64> {
-        self.port_ranks()
+    fn port_ranks(&self) -> Vec<f64> {
+        self.port_ranks().clone()
     }
 }

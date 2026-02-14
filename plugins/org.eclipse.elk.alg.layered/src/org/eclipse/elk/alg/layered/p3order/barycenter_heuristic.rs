@@ -362,7 +362,7 @@ impl ICrossingMinimizationHeuristic for BarycenterHeuristic {
             let port_type = if forward_sweep { PortType::Output } else { PortType::Input };
             if let Some(layer) = order.get(fixed_layer_index) {
                 self.port_distributor.calculate_port_ranks(layer, port_type);
-                self.port_ranks = self.port_distributor.port_ranks().clone();
+                self.port_ranks = self.port_distributor.port_ranks();
             }
         }
 
@@ -393,7 +393,7 @@ impl IInitializable for BarycenterHeuristic {
         self.constraint_resolver.init_after_traversal();
         self.port_distributor.init_after_traversal();
         self.barycenter_state = self.constraint_resolver.barycenter_states();
-        self.port_ranks = self.port_distributor.port_ranks().clone();
+        self.port_ranks = self.port_distributor.port_ranks();
     }
 
     fn init_at_layer_level(&mut self, layer_index: usize, node_order: &[Vec<LNodeRef>]) {

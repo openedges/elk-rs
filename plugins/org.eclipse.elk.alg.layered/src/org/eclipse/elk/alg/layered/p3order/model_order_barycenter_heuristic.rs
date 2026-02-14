@@ -308,7 +308,7 @@ impl ICrossingMinimizationHeuristic for ModelOrderBarycenterHeuristic {
                 self.base
                     .port_distributor
                     .calculate_port_ranks(layer, port_type);
-                self.base.port_ranks = self.base.port_distributor.port_ranks().clone();
+                self.base.port_ranks = self.base.port_distributor.port_ranks();
             }
         }
 
