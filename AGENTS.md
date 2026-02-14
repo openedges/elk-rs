@@ -841,9 +841,11 @@
 - Step 30 ordering 안정성 보강(2026-02-13): 컴포넌트 정렬 tie-breaker(입력 순서 유지) 및 barycenter 정렬 안정화(동일 barycenter 시 입력 순서 유지) 적용. `components_processor` 유닛 테스트 추가(`sort_components_by_priority_keeps_input_order_for_ties`). subset parity(ptolemy `aspect_compositeqm_CheckExecutionTimeConstraints`) 재실행 결과 N9/N10 ordering drift는 잔존(원인 추가 분석 TODO). `cargo test -p org-eclipse-elk-alg-layered`, `cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과
 - Step 31 ordering diff 대표 모델 root cause 수정(2026-02-14): 대표 모델 `realworld/ptolemy/flattened/aspect_compositeqm_CheckExecutionTimeConstraints`에서 P2 정상/P3 역전 현상을 재현한 뒤, 원인을 `Random::next_long()`의 Java `Random.nextLong()` 부호 확장 불일치로 확인. `plugins/org.eclipse.elk.core/src/org/eclipse/elk/core/util/mod.rs`에서 `next_long`을 Java 식(`((long)next(32) << 32) + next(32)`)과 동일하게 보정. 회귀 테스트 `ordering_realworld_model_test.rs`의 `#[ignore]` 제거 후 통과 확인
 - Step 32 ordering_diff_realworld_top30 subset parity 재검증(2026-02-14): `perf/model_parity/ordering_diff_realworld_top30.tsv` 기반 subset manifest를 구성해 parity 재실행. 로컬 입력 JSON이 존재하는 20건(원본 30건 중 10건 파일 부재) 대상 `model_parity_layout_runner --release` + `compare_model_parity_layouts.py` 수행. 결과: compared=20, matches=0, drift=20, errors=0, total_diffs=400. 분류: coordinate 352(88.0%), section 40(10.0%), ordering 4(1.0%), structure 4(1.0%). 산출물 갱신: `perf/model_parity_ordering_top30/{java_manifest.tsv,java_manifest_existing.tsv,rust_manifest.tsv,report.md,diff_details.tsv,ordering_diff_samples.tsv}` (`ordering_diff_samples.tsv` 기준 ordering diff 모델 16건)
+- Step 33 ordering_diff_realworld_top30 재검증(2026-02-14): Step 31(Random `next_long` Java 정합) 반영 후 동일 subset(20건) parity 재실행. 결과: compared=20, matches=2, drift=18, errors=0, total_diffs=360. 분류: coordinate 332(92.2%), section 20(5.6%), ordering 4(1.1%), structure 4(1.1%). `aspect_compositeqm_CheckExecutionTimeConstraints.{elkg,elkt}` 2건 match 전환 확인, `ordering_diff_samples.tsv` 모델 수 16→14 감소
+- Step 34 착수 분석(2026-02-14): 잔여 대표 모델 `algebraic_heateropentank_HeaterOpenTankRefactored.elkt` 단건 실험(기본 vs `crossingMinimization.strategy=NONE`) 수행. `N1/N10/N8`의 y-순서가 Java=`N1,N10,N8`, Rust 기본=`N10,N8,N1`, Rust NONE=`N1,N8,N10`으로 확인되어 P3 영향은 존재하나 NONE에서도 Java와 불일치(추가 원인 존재) 상태로 root cause 수정은 계속 진행 필요
 ## 진행률(최신)
 - 전체 목표 대비 추정 진행률: 약 21.2% (기준: Java↔Rust 모델 parity full match 305/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
-- 단계 진행률(다음 작업 체크리스트 기준): 100.0% (완료 3/3, 미완료 0) [2026-02-14 갱신]
+- 단계 진행률(다음 작업 체크리스트 기준): 50.0% (완료 1/2, 미완료 1) [2026-02-14 갱신]
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
 - Java direct-mapped 모듈 테스트 parity: 146.1% (Rust 875 / Java 599, `perf/java_test_module_parity.md`)
@@ -947,3 +949,6 @@
 - [x] Step 31: ordering diff 대표 모델 1건 P2 초기 레이어 순서 vs P3 교차 최소화 영향 분석 및 root cause 수정/회귀 테스트 추가
   - 완료(2026-02-14): `Random::next_long` Java 정합화 수정 + `ordering_realworld_model_test.rs` ignore 제거/통과
 - [x] Step 32: ordering_diff_realworld_top30 subset parity 재검증 및 리포트 갱신
+- [x] Step 33: Step 31 수정 반영 후 `ordering_diff_realworld_top30` subset parity 재검증 및 리포트 갱신
+  - 결과(2026-02-14): matches 0→2, drift 20→18, total_diffs 400→360, ordering diff 모델 16→14
+- [ ] Step 34: ordering diff 잔여 상위 모델(`algebraic_heateropentank_HeaterOpenTankRefactored`) P2 vs P3 영향 분석 및 root cause 수정/회귀 테스트 추가

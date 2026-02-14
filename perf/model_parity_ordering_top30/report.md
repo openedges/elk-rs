@@ -3,41 +3,38 @@
 - manifest: `perf/model_parity_ordering_top30/rust_manifest.tsv`
 - total rows: 20
 - compared rows: 20
-- matched rows: 0
-- drift rows: 20
+- matched rows: 2
+- drift rows: 18
 - skipped rows (java/rust non-ok): 0
 - compare errors: 0
 - abs tolerance: 1e-06
 - max diffs per model: 20
-- total diffs across all models: 400
+- total diffs across all models: 360
 
 ## Drift Classification Summary
 
 | Category | Count | Percentage |
 |----------|------:|-----------:|
-| coordinate | 352 | 88.0% |
-| section | 40 | 10.0% |
-| ordering | 4 | 1.0% |
-| structure | 4 | 1.0% |
+| coordinate | 332 | 92.2% |
+| section | 20 | 5.6% |
+| ordering | 4 | 1.1% |
+| structure | 4 | 1.1% |
 
 ### Top Diff Path Prefixes
 
-- `children[*]/y`: 258 (64.5%)
-- `children[*]/x`: 92 (23.0%)
-- `edges[*]/sections[*]/endPoint`: 16 (4.0%)
-- `edges[*]/sections[*]/startPoint`: 14 (3.5%)
-- `edges[*]/sections[*]/bendPoints[*]`: 10 (2.5%)
-- `edges[*]/sections[*]`: 4 (1.0%)
-- `edges[*]/junctionPoints`: 2 (0.5%)
-- `edges[*]/sections[*]/bendPoints`: 2 (0.5%)
-- `edges[*]/junctionPoints[*]/y`: 2 (0.5%)
+- `children[*]/y`: 240 (66.7%)
+- `children[*]/x`: 92 (25.6%)
+- `edges[*]/sections[*]/endPoint`: 8 (2.2%)
+- `edges[*]/sections[*]/startPoint`: 8 (2.2%)
+- `edges[*]/sections[*]/bendPoints[*]`: 4 (1.1%)
+- `edges[*]/sections[*]`: 4 (1.1%)
+- `edges[*]/junctionPoints`: 2 (0.6%)
+- `edges[*]/sections[*]/bendPoints`: 2 (0.6%)
 
 ## Drift Samples
 
 - `realworld/ptolemy/flattened/algebraic_heateropentank_HeaterOpenTankRefactored.elkg`: diffs=20 [coordinate=16, section=2, ordering=2], first: children[0]/y: number mismatch (96.5 != 358.5)
 - `realworld/ptolemy/flattened/algebraic_heateropentank_HeaterOpenTankRefactored.elkt`: diffs=20 [coordinate=16, section=2, ordering=2], first: children[0]/y: number mismatch (96.5 != 358.5)
-- `realworld/ptolemy/flattened/aspect_compositeqm_CheckExecutionTimeConstraints.elkg`: diffs=20 [coordinate=10, section=10], first: children[1]/y: number mismatch (359.5 != 278.5)
-- `realworld/ptolemy/flattened/aspect_compositeqm_CheckExecutionTimeConstraints.elkt`: diffs=20 [coordinate=10, section=10], first: children[1]/y: number mismatch (359.5 != 278.5)
 - `realworld/ptolemy/flattened/backtrack_ramprollback_RampRollback.elkg`: diffs=20 [coordinate=11, section=8, structure=1], first: children[0]/y: number mismatch (46.0 != 32.0)
 - `realworld/ptolemy/flattened/backtrack_ramprollback_RampRollback.elkt`: diffs=20 [coordinate=11, section=8, structure=1], first: children[0]/y: number mismatch (46.0 != 32.0)
 - `realworld/ptolemy/flattened/backtrack_trialmodule_TrialModule.elkg`: diffs=20 [coordinate=20], first: children[0]/y: number mismatch (427.6666666666667 != 96.0)
