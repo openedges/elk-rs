@@ -729,7 +729,10 @@ impl LayerSweepCrossingMinimizer {
     fn save_all_node_orders_of_changed_graphs(&mut self) {
         let indices: Vec<usize> = self.graphs_whose_node_order_changed.iter().copied().collect();
         for index in indices {
-            let sweep = SweepCopy::new(self.graph_info_holders[index].current_node_order());
+            let sweep = self.graph_info_holders[index]
+                .currently_best_node_and_port_order()
+                .cloned()
+                .unwrap_or_else(|| SweepCopy::new(self.graph_info_holders[index].current_node_order()));
             self.graph_info_holders[index].set_best_node_and_port_order(sweep);
         }
     }
