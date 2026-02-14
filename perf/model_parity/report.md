@@ -1,6 +1,6 @@
 # ELK Model Parity Report
 
-- manifest: `perf/model_parity/rust_manifest.tsv`
+- manifest: `/Users/luuvish/Projects/research/elk-rs/perf/model_parity/rust_manifest.tsv`
 - total rows: 1448
 - compared rows: 1439
 - matched rows: 647

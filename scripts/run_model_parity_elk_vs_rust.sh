@@ -37,15 +37,25 @@ MODEL_PARITY_ABS_TOL=${MODEL_PARITY_ABS_TOL:-1e-6}
 MODEL_PARITY_MAX_DIFFS_PER_MODEL=${MODEL_PARITY_MAX_DIFFS_PER_MODEL:-20}
 MODEL_PARITY_STRICT=${MODEL_PARITY_STRICT:-false}
 MODEL_PARITY_RANDOM_SEED=${MODEL_PARITY_RANDOM_SEED:-1}
+MODEL_PARITY_SKIP_JAVA_EXPORT=${MODEL_PARITY_SKIP_JAVA_EXPORT:-false}
 JAVA_PARITY_EXCLUDE_FILE=${JAVA_PARITY_EXCLUDE_FILE:-}
 
 if [ -z "$JAVA_PARITY_EXCLUDE_FILE" ] && [ -f "$OUTPUT_ROOT/java_exclude.txt" ]; then
   JAVA_PARITY_EXCLUDE_FILE="$OUTPUT_ROOT/java_exclude.txt"
 fi
 
-JAVA_PARITY_EXCLUDE_FILE="$JAVA_PARITY_EXCLUDE_FILE" \
-JAVA_PARITY_RANDOM_SEED="$MODEL_PARITY_RANDOM_SEED" \
-  sh "$SCRIPT_DIR/run_java_model_parity_export.sh" "$MODELS_ROOT" "$JAVA_OUTPUT_DIR"
+if [ "$MODEL_PARITY_SKIP_JAVA_EXPORT" = "true" ]; then
+  if [ ! -f "$JAVA_MANIFEST" ]; then
+    echo "MODEL_PARITY_SKIP_JAVA_EXPORT=true but Java manifest is missing: $JAVA_MANIFEST" >&2
+    echo "run once without MODEL_PARITY_SKIP_JAVA_EXPORT to create Java baseline first." >&2
+    exit 1
+  fi
+  echo "skipping Java parity export; reusing existing manifest: $JAVA_MANIFEST"
+else
+  JAVA_PARITY_EXCLUDE_FILE="$JAVA_PARITY_EXCLUDE_FILE" \
+  JAVA_PARITY_RANDOM_SEED="$MODEL_PARITY_RANDOM_SEED" \
+    sh "$SCRIPT_DIR/run_java_model_parity_export.sh" "$MODELS_ROOT" "$JAVA_OUTPUT_DIR"
+fi
 
 MODEL_PARITY_RANDOM_SEED="$MODEL_PARITY_RANDOM_SEED" \
   cargo run -p org-eclipse-elk-graph-json --bin model_parity_layout_runner \

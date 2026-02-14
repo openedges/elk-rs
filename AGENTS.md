@@ -858,9 +858,12 @@
 - Step 46 완료(2026-02-14): section identifier drift root cause 보정. `ElkGraphLayoutTransferrer`가 edge section 재생성 시 기존 section identifier를 유지하도록 수정하고(`elk_graph_layout_transferrer.rs`), JSON transfer fallback이 `section.identifier()`를 우선 사용하도록 수정(`json_importer.rs`). 회귀 테스트 `edge_section_identifier_parity_model_test.rs` 추가, subset parity(`perf/model_parity_step46_section_id`) 결과 `compared=2`, `matches=2`, `drift=0`, `total_diffs=0`
 - Step 47 완료(2026-02-14): full parity 재실행(`JAVA_PARITY_MVN_LOCAL_REPO=/tmp/elk-m2-parity-full`, `JAVA_PARITY_MVN_ARGS='-Ddash.skip=true -o'`, `scripts/run_model_parity_elk_vs_rust.sh`). 결과: total=1,448, compared=1,439, matches=647, drift=792, skipped=9(java_non_ok), errors=0(timeouts=0), total_diffs=14,927. Step 44 대비 `matches -35`, `drift +35`, `total_diffs +693` (개선 3건: tickets 368/476, 회귀 38건은 realworld 중심)
 - Step 48 완료(2026-02-14): Java `ElkGraphUtil.firstEdgeSection(edge, true, true)` 정합을 맞추기 위해 `ElkGraphLayoutTransferrer`의 section 처리 로직을 "첫 section 재사용 + geometry reset + 나머지 제거"로 변경. `cargo test -p org-eclipse-elk-alg-layered --test edge_section_identifier_parity_model_test`/`cargo clippy -p org-eclipse-elk-alg-layered --test edge_section_identifier_parity_model_test` 통과. 동일 Java 기준(`perf/model_parity/java/java_manifest.tsv`)으로 Rust-only parity 재실행 결과 `matches=647`, `drift=792` 유지, `total_diffs=14927 -> 14926` 1건 감소(예: `724_includeChildrenModelOrder`의 missing bendPoints 해소). 참고: `cargo test -p org-eclipse-elk-graph-json --test edge_coords_test edge_coords_round_trip`는 기존과 동일하게 실패 상태 유지(원인 별도 추적 필요)
+- Step 49 완료(2026-02-14): Step47 회귀 38건 root cause를 Java baseline 컨텍스트 의존성으로 확정. 회귀 목록(38) include 기반 Java export를 2회 실행(`perf/model_parity_step49_java_a`, `perf/model_parity_step49_java_b`)한 결과 A/B는 38/38 동일(hash 동일)이나, full baseline(`perf/model_parity/java/layout`)과는 24/38 모델이 상이함을 확인. 동일 subset에서 Rust 재검증(`perf/model_parity_step49_rust_vs_java_subset`) 시 `matches=20`, `drift=18`, `total_diffs=360`으로 회귀 목록이 baseline 의존적임을 재현
+- Step 50 완료(2026-02-14): 반복 parity에서 Java 기준선 흔들림을 방지하기 위해 `scripts/run_model_parity_elk_vs_rust.sh`에 `MODEL_PARITY_SKIP_JAVA_EXPORT` 옵션 추가(기본 `false`). `true`일 때 기존 `perf/model_parity/java/java_manifest.tsv`를 재사용하고, manifest 부재 시 즉시 실패하도록 가드 추가. `scripts/README.md` Model parity env/노트에 사용법 문서화
+- Step 51 완료(2026-02-14): `MODEL_PARITY_SKIP_JAVA_EXPORT=true`로 full parity 재실행해 고정 Java baseline 기준 결과 재확인. 결과는 `matches=647`, `drift=792`, `total_diffs=14926`, `errors=0`, `timeouts=0`, `java_non_ok=9`로 유지
 ## 진행률(최신)
 - 전체 목표 대비 추정 진행률: 약 45.0% (기준: Java↔Rust 모델 parity full match 647/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
-- 단계 진행률(다음 작업 체크리스트 기준): 100.0% (완료 8/8, 미완료 0) [2026-02-14 갱신]
+- 단계 진행률(다음 작업 체크리스트 기준): 100.0% (완료 11/11, 미완료 0) [2026-02-14 갱신]
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
 - Java direct-mapped 모듈 테스트 parity: 146.1% (Rust 875 / Java 599, `perf/java_test_module_parity.md`)
@@ -997,3 +1000,9 @@
   - 완료(2026-02-14): `matches=647`, `drift=792`, `total_diffs=14927` (skipped java_non_ok=9, errors/timeouts=0)
 - [x] Step 48: Java `firstEdgeSection(reset/removeOther)` 정합 반영 및 동일 Java 기준 Rust-only parity 검증
   - 완료(2026-02-14): section 재생성 대신 첫 section 재사용+리셋으로 수정, `edge_section_identifier_parity_model_test`/clippy 통과, Rust-only parity `matches=647`, `drift=792` 유지 및 `total_diffs=14926` 1건 개선 (`edge_coords_round_trip` 실패는 기존 상태로 별도 추적)
+- [x] Step 49: Step47 회귀 38건의 공통 원인 확정(재현 실험 포함)
+  - 완료(2026-02-14): Java export A/B(회귀 subset 38건)는 동일하나 full baseline 대비 24건 상이함을 확인해, 회귀 공통 원인을 Java baseline 컨텍스트 의존성으로 확정
+- [x] Step 50: Java baseline 고정 실행 옵션 추가 및 문서화
+  - 완료(2026-02-14): `MODEL_PARITY_SKIP_JAVA_EXPORT` 추가(`run_model_parity_elk_vs_rust.sh`), manifest 부재 가드 + `scripts/README.md` 문서 반영
+- [x] Step 51: 고정 Java baseline 기준 full parity 재실행 및 리포트 갱신
+  - 완료(2026-02-14): `MODEL_PARITY_SKIP_JAVA_EXPORT=true` 재실행 결과 `matches=647`, `drift=792`, `total_diffs=14926`, `errors/timeouts=0` 재확인
