@@ -984,7 +984,9 @@ impl<'a> ElkGraphImporter<'a> {
 
         let net_flow = self.net_flow(elkport);
         let default_side = PortSide::from_direction(direction);
-        if net_flow >= 0 {
+        // Java ElkGraphImporter uses strict > 0 (not >=).
+        // For net_flow == 0 (no edges), port goes to opposed side.
+        if net_flow > 0 {
             default_side
         } else {
             default_side.opposed()

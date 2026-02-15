@@ -227,7 +227,10 @@ impl BarycenterHeuristic {
         if let Some(state) = self.state_of(node) {
             if let Ok(mut state_guard) = state.lock() {
                 if state_guard.degree > 0 {
-                    let perturbation = self.random.next_float() * RANDOM_AMOUNT - RANDOM_AMOUNT / 2.0;
+                    // Java: float perturbation = random.nextFloat() * RANDOM_AMOUNT - RANDOM_AMOUNT / 2.0f
+                    // All float (f32) arithmetic, then promoted to double for +=
+                    let rand_f32 = self.random.next_float() as f32;
+                    let perturbation = (rand_f32 * 0.07_f32 - 0.07_f32 / 2.0_f32) as f64;
                     state_guard.summed_weight += perturbation;
                     state_guard.barycenter = Some(state_guard.summed_weight / state_guard.degree as f64);
                 }
@@ -536,7 +539,8 @@ impl BarycenterState {
     }
 }
 
-const RANDOM_AMOUNT: f64 = 0.07;
+// Java uses 0.07f (f32 literal). Match f32 precision for parity.
+const RANDOM_AMOUNT: f64 = 0.07_f32 as f64;
 
 fn node_id(node: &LNodeRef) -> usize {
     node.lock()

@@ -249,7 +249,8 @@ impl ForsterConstraintResolver {
                 for predecessor in incoming {
                     let pred_bary = self.group_barycenter(&predecessor).unwrap_or(0.0);
                     let group_bary = self.group_barycenter(&group).unwrap_or(0.0);
-                    if pred_bary == group_bary {
+                    // Java compares via .floatValue() (f32 truncation)
+                    if (pred_bary as f32) == (group_bary as f32) {
                         let pred_index = index_map.get(&group_ptr_id(&predecessor)).copied().unwrap_or(0);
                         let group_index = index_map.get(&group_ptr_id(&group)).copied().unwrap_or(0);
                         if pred_index > group_index {

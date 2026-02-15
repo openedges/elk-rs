@@ -102,7 +102,7 @@ impl LayerSweepCrossingMinimizer {
         let mut is_forward_sweep = self.next_boolean_for_graph(index);
         let mut improved = true;
         while improved {
-            self.prepare_cross_minimizer(index);
+            // Java does NOT call prepareCrossMinimizer inside this loop
             improved = {
                 let graph_data = &mut self.graph_info_holders[index];
                 graph_data.set_first_layer_order(is_forward_sweep)
@@ -134,7 +134,9 @@ impl LayerSweepCrossingMinimizer {
             );
         }
 
-        if node_influence != 0.0 || port_influence != 0.0 {
+        // Java has a copy-paste bug: checks NODE_INFLUENCE twice instead of NODE_INFLUENCE || PORT_INFLUENCE.
+        // Match Java's behavior for parity.
+        if node_influence != 0.0 {
             let mut best_crossings = f64::MAX;
             let consider_model_order = consider_model_order_strategy != OrderingStrategy::None;
             if consider_model_order {
@@ -784,10 +786,8 @@ impl LayerSweepCrossingMinimizer {
         if std::env::var_os("ELK_TRACE_CROSSMIN").is_some() {
             eprintln!("crossmin: reset_random_for_all_graphs");
         }
+        // Java only resets the shared random object, NOT individual heuristic seeds
         self.random.set_seed(self.random_seed);
-        for graph_data in &mut self.graph_info_holders {
-            let _ = Self::reset_random_for_graph(graph_data, self.random_seed);
-        }
     }
 
     fn reset_random_for_graph(graph_data: &mut GraphInfoHolder, seed: u64) -> Option<()> {

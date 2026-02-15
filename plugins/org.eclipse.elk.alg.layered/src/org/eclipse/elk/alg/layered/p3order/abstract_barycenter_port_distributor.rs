@@ -9,6 +9,12 @@ use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, Layere
 use crate::org::eclipse::elk::alg::layered::p3order::counting::IInitializable;
 use crate::org::eclipse::elk::alg::layered::p3order::i_sweep_port_distributor::ISweepPortDistributor;
 
+/// Truncate f64 to f32 precision, matching Java's float[] storage.
+#[inline(always)]
+fn f32t(v: f64) -> f64 {
+    v as f32 as f64
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PortRankStrategy {
     NodeRelative,
@@ -113,10 +119,10 @@ impl AbstractBarycenterPortDistributor {
                         .map(|port_guard| port_guard.side())
                         .unwrap_or(PortSide::Undefined);
                     if side == PortSide::North {
-                        self.port_ranks[pid] = north_pos;
+                        self.port_ranks[pid] = f32t(north_pos);
                         north_pos -= incr;
                     } else {
-                        self.port_ranks[pid] = rest_pos;
+                        self.port_ranks[pid] = f32t(rest_pos);
                         rest_pos -= incr;
                     }
                 }
@@ -147,7 +153,7 @@ impl AbstractBarycenterPortDistributor {
                 for port in output_ports {
                     let pid = port_id(&port);
                     self.ensure_port_capacity(pid);
-                    self.port_ranks[pid] = pos;
+                    self.port_ranks[pid] = f32t(pos);
                     pos += incr;
                 }
                 1.0
@@ -208,10 +214,10 @@ impl AbstractBarycenterPortDistributor {
                         .map(|port_guard| port_guard.side())
                         .unwrap_or(PortSide::Undefined);
                     if side == PortSide::North {
-                        self.port_ranks[pid] = north_pos;
+                        self.port_ranks[pid] = f32t(north_pos);
                         north_pos -= 1.0;
                     } else {
-                        self.port_ranks[pid] = rest_pos;
+                        self.port_ranks[pid] = f32t(rest_pos);
                         rest_pos -= 1.0;
                     }
                 }
@@ -228,7 +234,7 @@ impl AbstractBarycenterPortDistributor {
                     pos += 1.0;
                     let pid = port_id(&port);
                     self.ensure_port_capacity(pid);
-                    self.port_ranks[pid] = rank_sum + pos;
+                    self.port_ranks[pid] = f32t(rank_sum + pos);
                 }
                 pos
             }
@@ -402,12 +408,12 @@ impl AbstractBarycenterPortDistributor {
             let pid = port_id(port);
             self.ensure_port_capacity(pid);
             if degree > 0.0 {
-                let value = sum / degree;
+                let value = f32t(sum / degree);
                 self.port_barycenter[pid] = value;
                 self.min_barycenter = self.min_barycenter.min(value);
                 self.max_barycenter = self.max_barycenter.max(value);
             } else if north_south_port {
-                self.port_barycenter[pid] = sum;
+                self.port_barycenter[pid] = f32t(sum);
             }
         }
     }
@@ -459,15 +465,15 @@ impl AbstractBarycenterPortDistributor {
             self.ensure_port_capacity(pid);
             if side == PortSide::East {
                 if barycenter < node_index_in_layer {
-                    self.port_barycenter[pid] = self.min_barycenter - barycenter;
+                    self.port_barycenter[pid] = f32t(self.min_barycenter - barycenter);
                 } else {
-                    self.port_barycenter[pid] = self.max_barycenter + (layer_size - barycenter);
+                    self.port_barycenter[pid] = f32t(self.max_barycenter + (layer_size - barycenter));
                 }
             } else if side == PortSide::West {
                 if barycenter < node_index_in_layer {
-                    self.port_barycenter[pid] = self.max_barycenter + barycenter;
+                    self.port_barycenter[pid] = f32t(self.max_barycenter + barycenter);
                 } else {
-                    self.port_barycenter[pid] = self.min_barycenter - (layer_size - barycenter);
+                    self.port_barycenter[pid] = f32t(self.min_barycenter - (layer_size - barycenter));
                 }
             }
         }
