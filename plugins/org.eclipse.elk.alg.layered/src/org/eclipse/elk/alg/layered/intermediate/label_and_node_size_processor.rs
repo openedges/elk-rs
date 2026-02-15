@@ -50,9 +50,26 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
             .get_property(CoreOptions::NODE_SIZE_FIXED_GRAPH_SIZE)
             .unwrap_or(false);
 
-        // Phase 1: Place ports on nodes using the original logic
+        // Step 1: Calculate node sizes and labels via NodeDimensionCalculation (matching Java)
+        // Java's LabelAndNodeSizeProcessor calls this FIRST, then port positions are set by
+        // the internal PortPlacementCalculator within process_node. Since Rust's process_node
+        // doesn't have PortPlacementCalculator, we do node sizing first, then port placement.
         if *TRACE_NODE_SIZE {
-            eprintln!("label-node-size: phase1 begin");
+            eprintln!("label-node-size: step1 (node sizing) begin");
+        }
+        let adapter = LGraphAdapters::adapt(graph, true, true, |node| {
+            node.node_type() == NodeType::Normal
+        });
+        NodeDimensionCalculation::calculate_label_and_node_sizes(&adapter);
+        if *TRACE_NODE_SIZE {
+            eprintln!("label-node-size: step1 (node sizing) done");
+        }
+
+        // Step 2: Place ports on nodes using updated node sizes
+        // This is a workaround for the missing PortPlacementCalculator in Rust's process_node.
+        // Port placement runs AFTER node sizing so ports use the correct node dimensions.
+        if *TRACE_NODE_SIZE {
+            eprintln!("label-node-size: step2 (port placement) begin");
         }
         let mut seen = HashSet::new();
         for node in graph.layerless_nodes().clone() {
@@ -88,19 +105,7 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
             }
         }
         if *TRACE_NODE_SIZE {
-            eprintln!("label-node-size: phase1 done");
-        }
-
-        // Phase 2: Apply port label placement via NodeDimensionCalculation (generic path)
-        if *TRACE_NODE_SIZE {
-            eprintln!("label-node-size: phase2 begin");
-        }
-        let adapter = LGraphAdapters::adapt(graph, true, true, |node| {
-            node.node_type() == NodeType::Normal
-        });
-        NodeDimensionCalculation::calculate_label_and_node_sizes(&adapter);
-        if *TRACE_NODE_SIZE {
-            eprintln!("label-node-size: phase2 done");
+            eprintln!("label-node-size: step2 (port placement) done");
         }
 
         // Phase 3: If the graph has external ports, handle labels of external port dummies
