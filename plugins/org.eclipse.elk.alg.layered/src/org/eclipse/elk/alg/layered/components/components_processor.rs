@@ -122,8 +122,7 @@ impl ComponentsProcessor {
                 move_graph(target, &source, 0.0, 0.0);
 
                 if let (Ok(mut target_guard), Ok(mut source_guard)) = (target.lock(), source.lock()) {
-                    *target_guard.graph_element().properties_mut() =
-                        source_guard.graph_element().properties().clone();
+                    target_guard.graph_element().properties_mut().copy_properties(source_guard.graph_element().properties());
                     *target_guard.padding() = source_guard.padding_ref().clone();
                     target_guard.size().x = source_guard.size_ref().x;
                     target_guard.size().y = source_guard.size_ref().y;
@@ -238,8 +237,7 @@ fn combine_simple_row(components: &[LGraphRef], target: &LGraphRef) {
 
     if let Some(first_component) = ordered_components.first() {
         if let (Ok(mut target_guard), Ok(mut first_guard)) = (target.lock(), first_component.lock()) {
-            *target_guard.graph_element().properties_mut() =
-                first_guard.graph_element().properties().clone();
+            target_guard.graph_element().properties_mut().copy_properties(first_guard.graph_element().properties());
         }
     }
 
@@ -294,8 +292,7 @@ fn combine_component_group(components: &[LGraphRef], target: &LGraphRef) {
 
     if let Some(first_component) = components.first() {
         if let (Ok(mut target_guard), Ok(mut first_guard)) = (target.lock(), first_component.lock()) {
-            *target_guard.graph_element().properties_mut() =
-                first_guard.graph_element().properties().clone();
+            target_guard.graph_element().properties_mut().copy_properties(first_guard.graph_element().properties());
         }
     }
 
@@ -345,8 +342,7 @@ fn combine_component_group_model_order(components: &[LGraphRef], target: &LGraph
 
     if let Some(first_component) = components.first() {
         if let (Ok(mut target_guard), Ok(mut first_guard)) = (target.lock(), first_component.lock()) {
-            *target_guard.graph_element().properties_mut() =
-                first_guard.graph_element().properties().clone();
+            target_guard.graph_element().properties_mut().copy_properties(first_guard.graph_element().properties());
         }
     }
 
@@ -675,8 +671,7 @@ fn combine_model_order_row(components: &[LGraphRef], target: &LGraphRef) {
 
     if let Some(first_component) = components.first() {
         if let (Ok(mut target_guard), Ok(mut first_guard)) = (target.lock(), first_component.lock()) {
-            *target_guard.graph_element().properties_mut() =
-                first_guard.graph_element().properties().clone();
+            target_guard.graph_element().properties_mut().copy_properties(first_guard.graph_element().properties());
         }
     }
 

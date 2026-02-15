@@ -11,7 +11,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 use crate::org::eclipse::elk::alg::layered::graph::{
     LEdge, LGraph, LGraphRef, LNode, LNodeRef, LPort, Layer, LayerRef, NodeType,
 };
-use crate::org::eclipse::elk::alg::layered::options::internal_properties::{Origin, PortRefKey};
+use crate::org::eclipse::elk::alg::layered::options::internal_properties::{Origin, OriginId};
 use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions};
 
 const DUMMY_INPUT_PORT: usize = 0;
@@ -157,7 +157,7 @@ fn process_northern_and_southern_port_dummies(layered_graph: &mut LGraph) {
         return;
     };
 
-    let mut ext_port_to_dummy_node_map: Vec<HashMap<PortRefKey, LNodeRef>> =
+    let mut ext_port_to_dummy_node_map: Vec<HashMap<OriginId, LNodeRef>> =
         vec![HashMap::new(); layer_count + 2];
     let mut new_dummy_nodes: Vec<Vec<LNodeRef>> = vec![Vec::new(); layer_count + 2];
     let mut original_external_port_dummies: Vec<LNodeRef> = Vec::new();
@@ -319,13 +319,17 @@ fn is_northern_or_southern_dummy(node: &LNodeRef) -> bool {
     node_type == NodeType::ExternalPort && (port_side == PortSide::North || port_side == PortSide::South)
 }
 
-fn origin_port_key(node: &LNodeRef) -> Option<PortRefKey> {
+fn origin_port_key(node: &LNodeRef) -> Option<OriginId> {
     let origin = node
         .lock()
         .ok()
         .and_then(|mut node_guard| node_guard.get_property(InternalProperties::ORIGIN));
     match origin {
-        Some(Origin::LPort(port)) => Some(PortRefKey(port)),
+        Some(Origin::ElkPort(origin_id)) => Some(origin_id),
+        Some(Origin::LPort(port)) => {
+            // Fallback: use Arc pointer address as unique key
+            Some(std::sync::Arc::as_ptr(&port) as usize)
+        }
         _ => None,
     }
 }

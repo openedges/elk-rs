@@ -307,7 +307,7 @@ impl NubSpline {
         }
         knot_index = knot_index.saturating_sub(1);
 
-        self.insert_knot_at_current_position(insertions, knot_to_insert, cp_index, knot_index);
+        let _ = self.insert_knot_at_current_position(insertions, knot_to_insert, cp_index, knot_index);
     }
 
     fn insert_knot_at_current_position(
@@ -316,7 +316,7 @@ impl NubSpline {
         knot_to_insert: f64,
         mut cp_index: usize,
         mut knot_index: usize,
-    ) {
+    ) -> (usize, usize) {
         let multiplicity = self.get_multiplicity(knot_to_insert);
         for i in 0..insertions {
             self.knot_vector.insert(knot_index, knot_to_insert);
@@ -357,6 +357,7 @@ impl NubSpline {
                 }
             }
         }
+        (cp_index, knot_index)
     }
 
     pub fn get_first_vertical_point(nub_spline: &NubSpline, accuracy: f64, max_recursion: usize) -> KVector {
@@ -541,12 +542,14 @@ impl NubSpline {
 
             if occurrence < self.dim_nubs {
                 knot_index = knot_index.saturating_sub(1);
-                self.insert_knot_at_current_position(
+                let (new_cp_index, new_knot_index) = self.insert_knot_at_current_position(
                     self.dim_nubs - occurrence,
                     knot_to_count,
                     cp_index,
                     knot_index,
                 );
+                cp_index = new_cp_index;
+                knot_index = new_knot_index;
                 knot_index += 1;
             }
 
