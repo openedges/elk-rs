@@ -55,7 +55,6 @@ impl ILayoutProcessor<LGraph> for LabelDummyRemover {
                 );
 
                 LongEdgeJoiner::join_at(&node, edge_routing == EdgeRouting::Polyline);
-                Self::cleanup_label_dummy_bends(&node, layout_direction);
                 LNode::set_layer(&node, None);
             }
         }
@@ -97,7 +96,6 @@ impl LabelDummyRemover {
                 == LabelSide::Below;
 
             let mut curr_label_pos = KVector::from_vector(node_guard.shape().position_ref());
-            Self::maybe_override_label_position(&origin_edge, layout_direction, &mut curr_label_pos);
             if labels_below_edge {
                 curr_label_pos.y += thickness + edge_label_spacing;
             }
@@ -149,98 +147,6 @@ impl LabelDummyRemover {
         if let Ok(mut edge_guard) = origin_edge.lock() {
             edge_guard.labels_mut().extend(represented_labels);
         };
-    }
-
-    fn maybe_override_label_position(
-        origin_edge: &crate::org::eclipse::elk::alg::layered::graph::LEdgeRef,
-        layout_direction: Direction,
-        label_pos: &mut KVector,
-    ) {
-        if !layout_direction.is_horizontal() {
-            return;
-        }
-        let Ok(edge_guard) = origin_edge.try_lock() else {
-            return;
-        };
-        let source_anchor = edge_guard
-            .source()
-            .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.absolute_anchor()));
-        let Some(source_anchor) = source_anchor else {
-            return;
-        };
-        let bends = edge_guard.bend_points_ref().to_array();
-        if bends.len() >= 2 {
-            let p0 = bends[0];
-            let p1 = bends[1];
-            if approx_eq(p0.y, source_anchor.y) && !approx_eq(p1.y, source_anchor.y) {
-                label_pos.y = source_anchor.y;
-            }
-        }
-    }
-
-    fn cleanup_label_dummy_bends(node: &LNodeRef, layout_direction: Direction) {
-        if !layout_direction.is_horizontal() {
-            return;
-        }
-        let origin_edge = node
-            .lock()
-            .ok()
-            .and_then(|mut node_guard| node_guard.get_property(InternalProperties::ORIGIN))
-            .and_then(|origin| match origin {
-                Origin::LEdge(edge) => Some(edge),
-                _ => None,
-            });
-        let Some(origin_edge) = origin_edge else {
-            return;
-        };
-        let has_labels = node
-            .lock()
-            .ok()
-            .and_then(|mut node_guard| node_guard.get_property(InternalProperties::REPRESENTED_LABELS))
-            .map(|labels| !labels.is_empty())
-            .unwrap_or(false);
-        if !has_labels {
-            return;
-        }
-
-        let source_anchor = origin_edge
-            .lock()
-            .ok()
-            .and_then(|edge_guard| edge_guard.source())
-            .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.absolute_anchor()));
-        let Some(source_anchor) = source_anchor else {
-            return;
-        };
-
-        let mut edge_guard = match origin_edge.lock() {
-            Ok(guard) => guard,
-            Err(_) => return,
-        };
-        let bends = edge_guard.bend_points_ref().to_array();
-        if bends.len() < 3 {
-            return;
-        }
-        let p0 = bends[0];
-        let p1 = bends[1];
-        let p2 = bends[2];
-        let next_x_aligned = bends
-            .get(3)
-            .map(|p3| approx_eq(p2.x, p3.x))
-            .unwrap_or(true);
-        if approx_eq(p0.y, source_anchor.y)
-            && approx_eq(p0.x, p1.x)
-            && approx_eq(p1.y, p2.y)
-            && !approx_eq(p1.y, source_anchor.y)
-            && next_x_aligned
-        {
-            let mut new_bends = Vec::with_capacity(bends.len().saturating_sub(2));
-            new_bends.push(KVector::with_values(p2.x, source_anchor.y));
-            if bends.len() > 3 {
-                new_bends.extend_from_slice(&bends[3..]);
-            }
-            edge_guard.bend_points().clear();
-            edge_guard.bend_points().add_all(&new_bends);
-        }
     }
 
     fn place_labels_for_horizontal_layout(
@@ -359,8 +265,4 @@ impl LabelDummyRemover {
             })
             .unwrap_or(false)
     }
-}
-
-fn approx_eq(a: f64, b: f64) -> bool {
-    (a - b).abs() <= 1e-6
 }
