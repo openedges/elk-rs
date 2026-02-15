@@ -142,7 +142,7 @@ fn create_configured_label_cell(
 
 const NO_INCIDENT_EDGE_THICKNESS: f64 = -1.0;
 
-fn gather_labels(port: &LPortRef) -> Option<Vec<LLabelRef>> {
+pub(crate) fn gather_labels(port: &LPortRef) -> Option<Vec<LLabelRef>> {
     let mut labels: Vec<LLabelRef> = Vec::new();
     let mut max_edge_thickness = gather_labels_from_port(port, &mut labels);
 
