@@ -645,16 +645,6 @@ impl RecursiveGraphLayoutEngine {
 
         let mut inside_self_loops = Vec::new();
         for edge in ElkGraphUtil::all_outgoing_edges(node) {
-            let is_locally_contained = {
-                let edge_borrow = edge.borrow();
-                edge_borrow
-                    .containing_node()
-                    .is_some_and(|containing_node| std::rc::Rc::ptr_eq(&containing_node, node))
-            };
-            if !is_locally_contained {
-                continue;
-            }
-
             let is_self_loop = edge.borrow().is_selfloop();
             if !is_self_loop {
                 continue;

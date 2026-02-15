@@ -801,14 +801,16 @@ fn place_ports_on_side(
         PortSide::Undefined => (0.0, 0.0),
     };
     let ordered_ports: Vec<_> = match side {
-        PortSide::West if alignment == PortAlignment::Center => {
+        PortSide::West if alignment == PortAlignment::Center && constraints.is_order_fixed() => {
             let mut rotated: Vec<_> = ports.iter().collect();
             if rotated.len() > 1 {
                 rotated.rotate_right(1);
             }
             rotated
         }
-        PortSide::West => ports.iter().rev().collect(),
+        // Only reverse WEST if ensure_clockwise_port_order didn't already reverse
+        // (ensure_clockwise_port_order runs for FIXED_SIDE but NOT FIXED_ORDER)
+        PortSide::West if constraints.is_order_fixed() => ports.iter().rev().collect(),
         PortSide::South if constraints.is_order_fixed() => ports.iter().rev().collect(),
         _ => ports.iter().collect(),
     };
