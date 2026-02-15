@@ -48,9 +48,6 @@ impl ILayoutProcessor<LGraph> for NorthSouthPortPostprocessor {
                     continue;
                 }
 
-                eprintln!("DEBUG: Found NorthSouthPort dummy with {} ports, pos=({}, {})",
-                          ports.len(), dummy_pos.x, dummy_pos.y);
-
                 if routing == EdgeRouting::Splines {
                     // Fall back to non-spline processing for now.
                 }
@@ -169,12 +166,9 @@ fn process_output_port(port: &LPortRef, dummy_y: f64, add_junction: bool) {
         .map(|port_guard| LGraphUtil::to_edge_array(port_guard.outgoing_edges()))
         .unwrap_or_default();
 
-    eprintln!("DEBUG: process_output_port: x={}, dummy_y={}, edges={}", x, dummy_y, edges.len());
-
     for edge in edges {
         LEdge::set_source(&edge, Some(origin_port.clone()));
         if let Ok(mut edge_guard) = edge.lock() {
-            eprintln!("DEBUG: Adding bend point ({}, {}) to edge", x, dummy_y);
             edge_guard.bend_points().add_first_values(x, dummy_y);
             if add_junction {
                 let mut junction_points = edge_guard

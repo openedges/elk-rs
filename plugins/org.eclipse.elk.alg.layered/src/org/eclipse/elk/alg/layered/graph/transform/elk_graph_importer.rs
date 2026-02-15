@@ -393,13 +393,6 @@ impl<'a> ElkGraphImporter<'a> {
             size_vec.x = size.0;
             size_vec.y = size.1;
 
-            if let Some(anchor) = anchor {
-                let port_anchor = port_guard.anchor();
-                port_anchor.x = anchor.x;
-                port_anchor.y = anchor.y;
-                port_guard.set_explicitly_supplied_port_anchor(true);
-            }
-
             let port_side = self.determine_port_side(elkport, lgraph);
             port_guard.set_side(port_side);
 
@@ -407,6 +400,21 @@ impl<'a> ElkGraphImporter<'a> {
             if ElkGraphAdapters::adapt_single_port(elkport.clone()).has_compound_connections() {
                 port_guard.set_property(InternalProperties::INSIDE_CONNECTIONS, Some(true));
             }
+        }
+
+        // Initialize port side, border offset, ratio, and anchor (Java: LGraphUtil.initializePort)
+        {
+            let port_constraints = elkport
+                .borrow()
+                .parent()
+                .and_then(|parent| self.graph_property(&parent, LayeredOptions::PORT_CONSTRAINTS))
+                .unwrap_or(PortConstraints::Undefined);
+            let direction = lgraph
+                .lock()
+                .ok()
+                .and_then(|mut graph_guard| graph_guard.get_property(LayeredOptions::DIRECTION))
+                .unwrap_or(Direction::Right);
+            LGraphUtil::initialize_port(&lport, port_constraints, direction, anchor);
         }
 
         self.port_map.insert(origin_id, lport.clone());
@@ -951,8 +959,12 @@ impl<'a> ElkGraphImporter<'a> {
         let port_side = self
             .graph_property(elkport, LayeredOptions::PORT_SIDE)
             .unwrap_or(PortSide::Undefined);
-        let port_constraints = self
-            .graph_property(elkport, LayeredOptions::PORT_CONSTRAINTS)
+        // Read PORT_CONSTRAINTS from the parent node, not the port itself.
+        // Java reads from lnode/lgraph (the parent), not the port.
+        let port_constraints = elkport
+            .borrow()
+            .parent()
+            .and_then(|parent| self.graph_property(&parent, LayeredOptions::PORT_CONSTRAINTS))
             .unwrap_or(PortConstraints::Undefined);
 
         if port_constraints.is_side_fixed() {
