@@ -160,7 +160,10 @@ impl LabelDummyRemover {
                 let label_size_x = label_guard.shape().size_ref().x;
                 let label_size_y = label_guard.shape().size_ref().y;
 
+                eprintln!("DEBUG: place_labels_for_horizontal_layout: label_pos.x={}, label_space.x={}, label_size_x={}",
+                    label_pos.x, label_space.x, label_size_x);
                 label_guard.shape().position().x = label_pos.x + (label_space.x - label_size_x) / 2.0;
+                eprintln!("DEBUG: final label x position: {}", label_guard.shape().position().x);
                 label_guard.shape().position().y = label_pos.y;
 
                 label_pos.y += label_size_y + label_spacing;

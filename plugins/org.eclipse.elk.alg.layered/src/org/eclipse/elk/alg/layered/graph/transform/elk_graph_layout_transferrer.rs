@@ -1,5 +1,6 @@
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector_chain::KVectorChain;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::content_alignment::ContentAlignment;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_routing::EdgeRouting;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::size_constraint::SizeConstraint;
@@ -39,7 +40,7 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
         // 1. Extract parent ElkNode from LGraph's ORIGIN property
         // 2. Get offset from LGraph (offset + padding.left/top)
         // 3. Get padding
-        let (origin, offset, padding) = {
+        let (origin, mut offset, padding) = {
             let mut graph_guard = match lgraph.lock() {
                 Ok(guard) => guard,
                 Err(_) => return,
@@ -58,6 +59,10 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
         let Some(elk_node) = self.origin_store.get_node(graph_id) else {
             return;
         };
+
+        // Apply content alignment adjustments to offset (like HierarchicalNodeResizingProcessor)
+        // This centers/aligns content when minimum size constraints create extra space
+        self.apply_content_alignment_offset(lgraph, &mut offset);
 
         // 4. Set computed padding if NODE_SIZE_OPTIONS.COMPUTE_PADDING on the ElkNode
         {
@@ -96,7 +101,13 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
             .cloned()
             .collect::<Vec<_>>();
 
-        let ledge_by_origin = collect_edges_by_origin(&all_nodes);
+        let ledge_by_origin = collect_edges_by_origin(&all_nodes, parent_node.as_ref());
+
+        if std::env::var("ELK_DEBUG_EDGES").is_ok() {
+            eprintln!("DEBUG: collected {} ledges by origin, {} elk_edges",
+                      ledge_by_origin.len(), elk_edges.len());
+        }
+
         let edges: Vec<(LEdgeRef, OriginId)> = {
             let mut result = Vec::new();
             for elk_edge in &elk_edges {
@@ -108,6 +119,12 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
                 };
                 if let Some(ledge) = ledge_by_origin.get(&origin_id) {
                     result.push((ledge.clone(), origin_id));
+                } else if std::env::var("ELK_DEBUG_EDGES").is_ok() {
+                    let edge_id = {
+                        let mut edge_mut = elk_edge.borrow_mut();
+                        edge_mut.element().identifier().map(|id| id.to_string())
+                    };
+                    eprintln!("DEBUG: elk_edge {:?} not found in ledge_by_origin", edge_id);
                 }
             }
             result
@@ -814,6 +831,76 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
             self.apply_fallback_sections_recursive(&child);
         }
     }
+
+    /// Applies content alignment adjustments to the offset when the actual graph size
+    /// (with minimum size constraints) is larger than the calculated size.
+    /// This is analogous to HierarchicalNodeResizingProcessor::resizeGraphNoReallyIMeanIt.
+    fn apply_content_alignment_offset(&self, lgraph: &LGraphRef, offset: &mut KVector) {
+        let (size_constraint, content_alignment, calculated_size) = {
+            let mut graph_guard = match lgraph.lock() {
+                Ok(guard) => guard,
+                Err(_) => return,
+            };
+            let size_constraint = graph_guard
+                .get_property_ref(LayeredOptions::NODE_SIZE_CONSTRAINTS)
+                .unwrap_or_else(EnumSet::none_of);
+            let content_alignment = graph_guard
+                .get_property_ref(CoreOptions::CONTENT_ALIGNMENT)
+                .unwrap_or_else(EnumSet::none_of);
+            let calculated_size = graph_guard.actual_size();
+            (size_constraint, content_alignment, calculated_size)
+        };
+
+        // Only apply content alignment if there's a minimum size constraint
+        if !size_constraint.contains(&SizeConstraint::MinimumSize) {
+            return;
+        }
+
+        // Get minimum size (same logic as HierarchicalNodeResizingProcessor::resize_graph)
+        let mut min_size = lgraph
+            .lock()
+            .ok()
+            .and_then(|mut g| g.get_property_ref(LayeredOptions::NODE_SIZE_MINIMUM))
+            .unwrap_or_default();
+
+        let size_options = lgraph
+            .lock()
+            .ok()
+            .and_then(|mut g| g.get_property_ref(CoreOptions::NODE_SIZE_OPTIONS))
+            .unwrap_or_else(EnumSet::none_of);
+
+        if size_options.contains(&SizeOptions::DefaultMinimumSize) {
+            if min_size.x <= 0.0 {
+                min_size.x = ElkUtil::DEFAULT_MIN_WIDTH;
+            }
+            if min_size.y <= 0.0 {
+                min_size.y = ElkUtil::DEFAULT_MIN_HEIGHT;
+            }
+        }
+
+        let actual_size = KVector::with_values(
+            calculated_size.x.max(min_size.x),
+            calculated_size.y.max(min_size.y),
+        );
+
+        // Apply horizontal alignment
+        if actual_size.x > calculated_size.x {
+            if content_alignment.contains(&ContentAlignment::HCenter) {
+                offset.x += (actual_size.x - calculated_size.x) / 2.0;
+            } else if content_alignment.contains(&ContentAlignment::HRight) {
+                offset.x += actual_size.x - calculated_size.x;
+            }
+        }
+
+        // Apply vertical alignment
+        if actual_size.y > calculated_size.y {
+            if content_alignment.contains(&ContentAlignment::VCenter) {
+                offset.y += (actual_size.y - calculated_size.y) / 2.0;
+            } else if content_alignment.contains(&ContentAlignment::VBottom) {
+                offset.y += actual_size.y - calculated_size.y;
+            }
+        }
+    }
 }
 
 fn collect_nodes_from_graph(
@@ -843,9 +930,48 @@ fn collect_nodes_from_graph(
     nodes
 }
 
-fn collect_edges_by_origin(nodes: &[LNodeRef]) -> HashMap<OriginId, LEdgeRef> {
+fn collect_edges_by_origin(nodes: &[LNodeRef], parent_node: Option<&LNodeRef>) -> HashMap<OriginId, LEdgeRef> {
     let mut edges: HashMap<OriginId, LEdgeRef> = HashMap::new();
     let mut seen: HashSet<usize> = HashSet::new();
+
+    // Collect edges from parent node's ports (edges going down into descendants)
+    if let Some(parent_lnode) = parent_node {
+        let ports = match parent_lnode.lock() {
+            Ok(guard) => guard.ports().clone(),
+            Err(_) => Vec::new(),
+        };
+        eprintln!("DEBUG: parent node has {} ports", ports.len());
+        for port in ports {
+            let outgoing = match port.lock() {
+                Ok(port_guard) => port_guard.outgoing_edges().clone(),
+                Err(_) => continue,
+            };
+            eprintln!("DEBUG: parent port has {} outgoing edges", outgoing.len());
+            for edge in outgoing {
+                // Filter: only include edges where target is a descendant of parent
+                let target_node = edge.lock().ok()
+                    .and_then(|edge_guard| edge_guard.target())
+                    .and_then(|target_port| target_port.lock().ok()
+                        .and_then(|port_guard| port_guard.node()));
+
+                if let Some(target_node_ref) = target_node {
+                    let is_desc = LGraphUtil::is_descendant(&target_node_ref, parent_lnode);
+                    eprintln!("DEBUG: edge target is_descendant = {}", is_desc);
+                    if is_desc {
+                        let key = Arc::as_ptr(&edge) as usize;
+                        if seen.insert(key) {
+                            if let Some(origin_id) = origin_id_for_edge(&edge) {
+                                eprintln!("DEBUG: collected parent edge with origin_id {:?}", origin_id);
+                                edges.entry(origin_id).or_insert_with(|| edge.clone());
+                            }
+                        }
+                    }
+                } else {
+                    eprintln!("DEBUG: edge has no target node");
+                }
+            }
+        }
+    }
 
     for node in nodes {
         let ports = match node.lock() {

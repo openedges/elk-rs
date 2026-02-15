@@ -433,11 +433,12 @@ fn apply_label_side_to_dummy(node: &LNodeRef, side: LabelSide) {
                 .unwrap_or(0.0);
             port_pos = node_height - (thickness / 2.0).ceil();
         } else if effective_side == LabelSide::Inline {
+            // Use try_lock to avoid deadlock when graph mutex is already held by process()
             let edge_label_spacing = node
                 .lock()
                 .ok()
                 .and_then(|ng| ng.graph())
-                .and_then(|g| g.lock().ok().and_then(|mut gg| gg.get_property(LayeredOptions::SPACING_EDGE_LABEL)))
+                .and_then(|g| g.try_lock().ok().and_then(|mut gg| gg.get_property(LayeredOptions::SPACING_EDGE_LABEL)))
                 .unwrap_or(0.0);
 
             let node_height = node
