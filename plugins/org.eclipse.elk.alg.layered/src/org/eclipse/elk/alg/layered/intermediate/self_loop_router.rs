@@ -15,6 +15,7 @@ use crate::org::eclipse::elk::alg::layered::intermediate::loops::routing::{
     LabelPlacer, RoutingDirector, RoutingSlotAssigner,
 };
 use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions};
+use crate::org::eclipse::elk::alg::layered::p5edges::splines::{NubSpline, SplinesMath};
 
 const EPSILON: f64 = 1e-3;
 const POLYLINE_SELF_LOOP_CORNER_DISTANCE: f64 = 10.0;
@@ -36,23 +37,15 @@ impl ILayoutProcessor<LGraph> for SelfLoopRouter {
             .unwrap_or(EdgeRouting::Orthogonal);
         let label_manager = graph.get_property(LabelManagementOptions::LABEL_MANAGER);
         let mut random = graph.get_property(InternalProperties::RANDOM).unwrap_or_default();
-        let spacing_factor = if edge_routing == EdgeRouting::Splines {
-            1.5
-        } else {
-            1.0
-        };
         let edge_edge_distance = graph
             .get_property(LayeredOptions::SPACING_EDGE_EDGE)
-            .unwrap_or(10.0)
-            * spacing_factor;
+            .unwrap_or(10.0);
         let edge_label_distance = graph
             .get_property(LayeredOptions::SPACING_EDGE_LABEL)
-            .unwrap_or(2.0)
-            * spacing_factor;
+            .unwrap_or(2.0);
         let node_self_loop_distance = graph
             .get_property(LayeredOptions::SPACING_NODE_SELF_LOOP)
-            .unwrap_or(10.0)
-            * spacing_factor;
+            .unwrap_or(10.0);
 
         let nodes = graph
             .layers()
@@ -164,18 +157,6 @@ fn route_node(
                 .map(|port_guard| port_guard.l_port().clone())
                 .unwrap_or_else(|| panic!("self loop target lock poisoned"));
 
-            let inside_self_loop = l_edge
-                .lock()
-                .ok()
-                .and_then(|mut edge_guard| edge_guard.get_property(CoreOptions::INSIDE_SELF_LOOPS_YO))
-                .unwrap_or(false);
-            if inside_self_loop {
-                if let Ok(mut edge_guard) = l_edge.lock() {
-                    edge_guard.bend_points().clear();
-                }
-                continue;
-            }
-
             let source_point = route_point_for_port(&source_port, &routing_slot_positions, sl_loop, node_size);
             let target_point = route_point_for_port(&target_port, &routing_slot_positions, sl_loop, node_size);
             let (Some(source_point), Some(target_point)) = (source_point, target_point) else {
@@ -191,11 +172,17 @@ fn route_node(
                 &target_point,
                 &routing_slot_positions,
             );
+            let clockwise = compute_edge_routing_direction(
+                sl_loop, &source_port, &target_port, source_point.side, target_point.side,
+            );
             let path = modify_bend_points(
                 edge_routing,
                 &source_port,
                 &target_port,
                 path,
+                source_point.side,
+                clockwise,
+                edge_label_distance,
             );
 
             for bend_point in &path {
@@ -370,19 +357,59 @@ fn modify_bend_points(
     source_port: &LPortRef,
     target_port: &LPortRef,
     bend_points: Vec<KVector>,
+    source_side: PortSide,
+    clockwise: bool,
+    edge_label_distance: f64,
 ) -> Vec<KVector> {
-    if edge_routing != EdgeRouting::Polyline {
-        return bend_points;
+    match edge_routing {
+        EdgeRouting::Polyline => {
+            let mut chain = KVectorChain::new();
+            chain.add_vector(local_port_anchor(source_port));
+            chain.add_all(&bend_points);
+            chain.add_vector(local_port_anchor(target_port));
+
+            PolylineSelfLoopRouter
+                .cut_corners(&chain, POLYLINE_SELF_LOOP_CORNER_DISTANCE)
+                .to_array()
+        }
+        EdgeRouting::Splines => {
+            let source_anchor = local_port_anchor(source_port);
+            let target_anchor = local_port_anchor(target_port);
+
+            let mut spline_points = KVectorChain::new();
+            spline_points.add_vector(source_anchor);
+
+            if bend_points.len() >= 2 {
+                let mut curr_side = source_side;
+                let mut first_bp = &bend_points[0];
+
+                for i in 1..bend_points.len() {
+                    let second_bp = &bend_points[i];
+
+                    spline_points.add_vector(first_bp.clone());
+
+                    // Compute midpoint offset away from node
+                    let direction = SplinesMath::port_side_to_direction(curr_side);
+                    let mid = KVector::with_values(
+                        (first_bp.x + second_bp.x) * 0.5 + direction.cos() * edge_label_distance,
+                        (first_bp.y + second_bp.y) * 0.5 + direction.sin() * edge_label_distance,
+                    );
+                    spline_points.add_vector(mid);
+
+                    first_bp = second_bp;
+                    curr_side = if clockwise { curr_side.right() } else { curr_side.left() };
+                }
+
+                spline_points.add_vector(bend_points.last().unwrap().clone());
+            }
+
+            spline_points.add_vector(target_anchor);
+
+            let mut nub = NubSpline::new(true, 3, spline_points);
+            nub.get_bezier_cp_default().to_array()
+        }
+        _ => bend_points,
     }
-
-    let mut chain = KVectorChain::new();
-    chain.add_vector(local_port_anchor(source_port));
-    chain.add_all(&bend_points);
-    chain.add_vector(local_port_anchor(target_port));
-
-    PolylineSelfLoopRouter
-        .cut_corners(&chain, POLYLINE_SELF_LOOP_CORNER_DISTANCE)
-        .to_array()
 }
 
 fn local_port_anchor(port: &LPortRef) -> KVector {
