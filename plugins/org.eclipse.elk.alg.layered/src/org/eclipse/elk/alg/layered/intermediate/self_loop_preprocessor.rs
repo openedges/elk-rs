@@ -3,7 +3,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::Po
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LEdge, LGraph, LPort};
-use crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfLoopHolder;
+use crate::org::eclipse::elk::alg::layered::intermediate::loops::{SelfLoopHolder, SelfLoopHolderRef};
 use crate::org::eclipse::elk::alg::layered::options::{
     GraphProperties, InternalProperties, LayeredOptions,
 };
@@ -14,15 +14,46 @@ impl ILayoutProcessor<LGraph> for SelfLoopPreProcessor {
     fn process(&mut self, graph: &mut LGraph, monitor: &mut dyn IElkProgressMonitor) {
         monitor.begin("Self-Loop pre-processing", 1.0);
 
+        // Read graph-level properties BEFORE iterating nodes (graph is &mut, no Mutex).
+        let graph_spacing = graph.get_property(LayeredOptions::SPACING_LABEL_LABEL);
+        let graph_direction = graph.get_property(LayeredOptions::DIRECTION);
+
+        // Compute graph-level layout properties (Java: getIndividualOrInherited).
+        // LNode.get_property returns Some(default) even when not explicitly set, so we
+        // only use graph-level properties here to match Java's hasProperty() check.
+        let label_label_spacing = graph_spacing
+            .or_else(|| LayeredOptions::SPACING_LABEL_LABEL.get_default())
+            .unwrap_or(0.0);
+        let direction = graph_direction.unwrap_or(
+            org_eclipse_elk_core::org::eclipse::elk::core::options::direction::Direction::Right,
+        );
+        let layout_dir_horizontal = direction.is_horizontal();
+
         for lnode in graph.layerless_nodes().clone() {
             if SelfLoopHolder::needs_self_loop_processing(&lnode) {
                 let sl_holder = SelfLoopHolder::install(&lnode);
+
+                set_hyper_loop_label_properties(&sl_holder, label_label_spacing, layout_dir_horizontal);
+
                 hide_self_loops(&sl_holder);
                 hide_ports(&sl_holder);
             }
         }
 
         monitor.done();
+    }
+}
+
+fn set_hyper_loop_label_properties(holder: &SelfLoopHolderRef, spacing: f64, horizontal: bool) {
+    if let Ok(holder_guard) = holder.lock() {
+        for hyper_loop in holder_guard.sl_hyper_loops() {
+            if let Ok(mut loop_guard) = hyper_loop.lock() {
+                if let Some(sl_labels) = loop_guard.sl_labels_mut() {
+                    sl_labels.set_layout_direction_horizontal(horizontal);
+                    sl_labels.set_label_label_spacing(spacing);
+                }
+            }
+        }
     }
 }
 

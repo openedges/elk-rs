@@ -22,6 +22,8 @@ pub struct SelfHyperLoopLabels {
     side: PortSide,
     alignment: Alignment,
     alignment_reference_sl_port: Option<SelfLoopPortRef>,
+    label_label_spacing: f64,
+    layout_direction_horizontal: bool,
 }
 
 impl SelfHyperLoopLabels {
@@ -33,7 +35,44 @@ impl SelfHyperLoopLabels {
             side: PortSide::Undefined,
             alignment: Alignment::Center,
             alignment_reference_sl_port: None,
+            label_label_spacing: 0.0,
+            layout_direction_horizontal: true,
         }
+    }
+
+    pub fn set_label_label_spacing(&mut self, spacing: f64) {
+        self.label_label_spacing = spacing;
+        self.recalculate_size();
+    }
+
+    pub fn set_layout_direction_horizontal(&mut self, horizontal: bool) {
+        self.layout_direction_horizontal = horizontal;
+        self.recalculate_size();
+    }
+
+    fn recalculate_size(&mut self) {
+        let mut new_size = KVector::new();
+        let labels: Vec<_> = self.l_labels.clone();
+        for (i, l_label) in labels.iter().enumerate() {
+            if let Ok(mut label_guard) = l_label.lock() {
+                let width = label_guard.shape().size_ref().x;
+                let height = label_guard.shape().size_ref().y;
+                if self.layout_direction_horizontal {
+                    new_size.x = new_size.x.max(width);
+                    new_size.y += height;
+                    if i > 0 {
+                        new_size.y += self.label_label_spacing;
+                    }
+                } else {
+                    new_size.x += width;
+                    new_size.y = new_size.y.max(height);
+                    if i > 0 {
+                        new_size.x += self.label_label_spacing;
+                    }
+                }
+            }
+        }
+        self.size = new_size;
     }
 
     pub fn add_l_labels(&mut self, labels: &[LLabelRef]) {
@@ -90,32 +129,62 @@ impl SelfHyperLoopLabels {
         self.alignment_reference_sl_port = sl_port;
     }
 
-    pub fn apply_vertical_stack(&mut self, absolute_position: KVector, spacing: f64) {
-        let mut next_y = absolute_position.y;
+    /// Applies placement to individual labels, matching Java's applyPlacement.
+    /// `offset` is added to each label's position after computing it from self.position.
+    pub fn apply_placement(&mut self, offset: KVector) {
+        if self.layout_direction_horizontal {
+            self.apply_placement_for_horizontal_layout(offset);
+        } else {
+            self.apply_placement_for_vertical_layout(offset);
+        }
+    }
+
+    fn apply_placement_for_horizontal_layout(&mut self, offset: KVector) {
+        let x = self.position.x;
+        let mut y = self.position.y;
+
         for l_label in &self.l_labels {
             if let Ok(mut label_guard) = l_label.lock() {
-                let width = label_guard.shape().size_ref().x;
-                let x = match self.alignment {
-                    Alignment::Left => absolute_position.x,
-                    Alignment::Right => absolute_position.x + self.size.x - width,
-                    Alignment::Center | Alignment::Top => {
-                        absolute_position.x + (self.size.x - width) / 2.0
-                    }
+                let label_width = label_guard.shape().size_ref().x;
+                let label_height = label_guard.shape().size_ref().y;
+
+                // X depends on alignment and/or side
+                let label_x = if self.alignment == Alignment::Left || self.side == PortSide::East {
+                    x
+                } else if self.alignment == Alignment::Right || self.side == PortSide::West {
+                    x + self.size.x - label_width
+                } else {
+                    // Center
+                    x + (self.size.x - label_width) / 2.0
                 };
-                label_guard.shape().position().x = x;
-                label_guard.shape().position().y = next_y;
-                next_y += label_guard.shape().size_ref().y + spacing;
+
+                label_guard.shape().position().x = label_x + offset.x;
+                label_guard.shape().position().y = y + offset.y;
+                y += label_height + self.label_label_spacing;
             }
         }
     }
 
-    pub fn apply_horizontal_stack(&mut self, absolute_position: KVector, spacing: f64) {
-        let mut next_x = absolute_position.x;
+    fn apply_placement_for_vertical_layout(&mut self, offset: KVector) {
+        let mut x = self.position.x;
+        let y = self.position.y;
+
         for l_label in &self.l_labels {
             if let Ok(mut label_guard) = l_label.lock() {
-                label_guard.shape().position().x = next_x;
-                label_guard.shape().position().y = absolute_position.y;
-                next_x += label_guard.shape().size_ref().x + spacing;
+                let label_width = label_guard.shape().size_ref().x;
+                let label_height = label_guard.shape().size_ref().y;
+
+                label_guard.shape().position().x = x + offset.x;
+
+                // Always top-align, except for northern side
+                let label_y = if self.side == PortSide::North {
+                    y + self.size.y - label_height
+                } else {
+                    y
+                };
+
+                label_guard.shape().position().y = label_y + offset.y;
+                x += label_width + self.label_label_spacing;
             }
         }
     }
@@ -152,10 +221,18 @@ impl SelfHyperLoopLabels {
         if let Ok(mut label_guard) = l_label.lock() {
             let width = label_guard.shape().size_ref().x;
             let height = label_guard.shape().size_ref().y;
-            self.size.x = self.size.x.max(width);
-            self.size.y += height;
-            if self.l_labels.len() > 1 {
-                self.size.y += 2.0;
+            if self.layout_direction_horizontal {
+                self.size.x = self.size.x.max(width);
+                self.size.y += height;
+                if self.l_labels.len() > 1 {
+                    self.size.y += self.label_label_spacing;
+                }
+            } else {
+                self.size.x += width;
+                self.size.y = self.size.y.max(height);
+                if self.l_labels.len() > 1 {
+                    self.size.x += self.label_label_spacing;
+                }
             }
         }
     }

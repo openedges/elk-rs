@@ -545,8 +545,8 @@ fn place_loop_labels(
 
     if let Ok(mut sl_loop_guard) = sl_loop.lock() {
         if let Some(labels) = sl_loop_guard.sl_labels_mut() {
-            labels.apply_vertical_stack(relative, 2.0);
             *labels.position_mut() = relative;
+            labels.apply_placement(KVector::new());
             let local_top_left = relative;
             let local_bottom_right = KVector::with_values(
                 relative.x + labels.size().x,

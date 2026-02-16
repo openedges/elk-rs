@@ -1210,12 +1210,8 @@ impl NodeDimensionCalculation {
     ) -> LabelPlacementRelation {
         let labels_next_to_port = next_to_port_if_possible && should_place_next_to_port;
 
-        if next_to_port_if_possible {
-            if labels_next_to_port {
-                LabelPlacementRelation::Centered
-            } else {
-                LabelPlacementRelation::BelowOrRight
-            }
+        if labels_next_to_port {
+            LabelPlacementRelation::Centered
         } else if inside_label_placement {
             if any_incident_edges {
                 LabelPlacementRelation::BelowOrRight

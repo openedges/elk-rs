@@ -117,8 +117,8 @@ impl LabelPlacer {
 
             if let Ok(mut sl_loop_guard) = sl_loop.lock() {
                 if let Some(labels) = sl_loop_guard.sl_labels_mut() {
-                    labels.apply_vertical_stack(absolute, 2.0);
                     *labels.position_mut() = absolute;
+                    labels.apply_placement(KVector::new());
                     let local_top_left =
                         KVector::with_values(absolute.x - node_pos.x, absolute.y - node_pos.y);
                     let local_bottom_right = KVector::with_values(
