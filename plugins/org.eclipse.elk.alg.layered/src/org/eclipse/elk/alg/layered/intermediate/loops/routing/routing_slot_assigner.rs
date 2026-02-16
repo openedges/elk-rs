@@ -31,13 +31,16 @@ impl RoutingSlotAssigner {
 
         assign_raw_routing_slots_to_segments(&hyper_edge_segments);
         assign_raw_routing_slots_to_loops(holder, &sl_loop_to_segment_map);
+        // Java parity: update holder counts BEFORE shift phase.
+        // Java's setRoutingSlot() does Math.max inline, so holder reflects raw (max) slots.
+        // The shift phase only lowers slots, so Java's max is always the raw phase max.
+        update_holder_routing_slot_count(holder);
         shift_towards_node(
             holder,
             &label_crossing_matrix,
             &label_id_by_loop,
             &sl_loop_activity_over_ports,
         );
-        update_holder_routing_slot_count(holder);
     }
 }
 
@@ -116,10 +119,11 @@ fn loop_label_span(sl_loop: &SelfHyperLoopRef) -> Option<(PortSide, f64, f64)> {
 }
 
 fn loop_has_labels(sl_loop: &SelfHyperLoopRef) -> bool {
+    // Java parity: match `getSLLabels() != null` — don't check if labels list is empty
     sl_loop
         .lock()
         .ok()
-        .and_then(|sl_loop_guard| sl_loop_guard.sl_labels().map(|labels| !labels.l_labels().is_empty()))
+        .map(|sl_loop_guard| sl_loop_guard.sl_labels().is_some())
         .unwrap_or(false)
 }
 
