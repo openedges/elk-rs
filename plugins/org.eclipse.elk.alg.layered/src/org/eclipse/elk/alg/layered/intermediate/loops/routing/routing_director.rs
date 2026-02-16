@@ -5,6 +5,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use crate::org::eclipse::elk::alg::layered::intermediate::loops::{
     SelfLoopHolderRef, SelfLoopPortRef, SelfLoopType,
 };
+use crate::org::eclipse::elk::alg::layered::options::LayeredOptions;
 
 pub struct RoutingDirector;
 
@@ -41,7 +42,21 @@ fn assign_port_ids(holder: &SelfLoopHolderRef) {
         .and_then(|node| node.lock().ok().map(|node_guard| node_guard.ports().clone()))
         .unwrap_or_default();
 
-    for (index, port) in ports.into_iter().enumerate() {
+    let mut ordered_ports: Vec<(i32, usize, crate::org::eclipse::elk::alg::layered::graph::LPortRef)> = ports
+        .into_iter()
+        .enumerate()
+        .map(|(original_order, port)| {
+            let explicit_index = port
+                .lock()
+                .ok()
+                .and_then(|mut port_guard| port_guard.get_property(LayeredOptions::PORT_INDEX))
+                .unwrap_or(i32::MAX);
+            (explicit_index, original_order, port)
+        })
+        .collect();
+    ordered_ports.sort_by_key(|(explicit_index, original_order, _)| (*explicit_index, *original_order));
+
+    for (index, (_, _, port)) in ordered_ports.into_iter().enumerate() {
         if let Ok(mut port_guard) = port.lock() {
             port_guard.shape().graph_element().id = index as i32;
         }
