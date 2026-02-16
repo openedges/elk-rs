@@ -327,6 +327,7 @@ fn resize_graph(lgraph: &mut LGraph) {
     let calculated_size = lgraph.actual_size();
     let mut adjusted_size = KVector::from_vector(&calculated_size);
 
+
     // calculate the new size
     if size_constraint.contains(&SizeConstraint::MinimumSize) {
         let mut min_size = lgraph

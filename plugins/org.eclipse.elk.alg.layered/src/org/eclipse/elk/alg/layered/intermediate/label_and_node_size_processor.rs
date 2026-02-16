@@ -267,10 +267,8 @@ fn place_ports_on_node(
     }
 
     if port_constraints.is_pos_fixed() {
-        adjust_ports_on_side(node, PortSide::North, node_size.x, node_size.y);
-        adjust_ports_on_side(node, PortSide::South, node_size.x, node_size.y);
-        adjust_ports_on_side(node, PortSide::East, node_size.x, node_size.y);
-        adjust_ports_on_side(node, PortSide::West, node_size.x, node_size.y);
+        // Java's PortPlacementCalculator preserves preset port positions for FIXED_POS.
+        // Do NOT call adjust_ports_on_side which would overwrite the imported positions.
         update_node_margin(node);
         return;
     }
@@ -323,7 +321,7 @@ fn place_inside_self_loop_ports(node: &LNodeRef, width: f64, height: f64) {
     adjust_ports_on_side(node, PortSide::North, width, height);
     adjust_ports_on_side(node, PortSide::South, width, height);
 
-    let center_y = 12.0;
+    let center_y = height / 2.0;
     let west_ports = node
         .lock()
         .ok()
