@@ -112,6 +112,7 @@ impl<'a> ElkGraphImporter<'a> {
 
     fn import_hierarchical_graph(&mut self, elkgraph: &ElkNodeRef, lgraph: &LGraphRef) {
         self.import_flat_graph_nodes(elkgraph, lgraph);
+        let parent_graph_direction = LGraphUtil::get_direction(lgraph);
 
         let children: Vec<ElkNodeRef> = {
             let mut graph_mut = elkgraph.borrow_mut();
@@ -128,6 +129,10 @@ impl<'a> ElkGraphImporter<'a> {
                 };
                 let nested_graph = self.create_lgraph(&child);
                 if let Ok(mut nested_guard) = nested_graph.lock() {
+                    nested_guard.set_property(
+                        LayeredOptions::DIRECTION,
+                        Some(parent_graph_direction),
+                    );
                     nested_guard.set_parent_node(Some(lnode.clone()));
                 }
                 if let Ok(mut node_guard) = lnode.lock() {
@@ -409,11 +414,7 @@ impl<'a> ElkGraphImporter<'a> {
                 .parent()
                 .and_then(|parent| self.graph_property(&parent, LayeredOptions::PORT_CONSTRAINTS))
                 .unwrap_or(PortConstraints::Undefined);
-            let direction = lgraph
-                .lock()
-                .ok()
-                .and_then(|mut graph_guard| graph_guard.get_property(LayeredOptions::DIRECTION))
-                .unwrap_or(Direction::Right);
+            let direction = LGraphUtil::get_direction(lgraph);
             LGraphUtil::initialize_port(&lport, port_constraints, direction, anchor);
         }
 
@@ -613,11 +614,7 @@ impl<'a> ElkGraphImporter<'a> {
     }
 
     fn ensure_defined_port_side(&self, lgraph: &LGraphRef, elkport: &ElkPortRef) {
-        let direction = lgraph
-            .lock()
-            .ok()
-            .and_then(|mut graph_guard| graph_guard.get_property(LayeredOptions::DIRECTION))
-            .unwrap_or(Direction::Right);
+        let direction = LGraphUtil::get_direction(lgraph);
         let port_constraints = lgraph
             .lock()
             .ok()
@@ -786,11 +783,7 @@ impl<'a> ElkGraphImporter<'a> {
         let port_constraints = self
             .graph_property(elkgraph, LayeredOptions::PORT_CONSTRAINTS)
             .unwrap_or(PortConstraints::Undefined);
-        let layout_direction = lgraph
-            .lock()
-            .ok()
-            .and_then(|mut graph_guard| graph_guard.get_property(LayeredOptions::DIRECTION))
-            .unwrap_or(Direction::Right);
+        let layout_direction = LGraphUtil::get_direction(lgraph);
 
         let graph_size = {
             let mut graph_mut = elkgraph.borrow_mut();
@@ -950,11 +943,7 @@ impl<'a> ElkGraphImporter<'a> {
     }
 
     fn determine_port_side(&self, elkport: &ElkPortRef, lgraph: &LGraphRef) -> PortSide {
-        let direction = lgraph
-            .lock()
-            .ok()
-            .and_then(|mut graph_guard| graph_guard.get_property(LayeredOptions::DIRECTION))
-            .unwrap_or(Direction::Right);
+        let direction = LGraphUtil::get_direction(lgraph);
 
         let port_side = self
             .graph_property(elkport, LayeredOptions::PORT_SIDE)

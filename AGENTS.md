@@ -868,9 +868,10 @@
 - Step L1-5 완료(2026-02-16): `south_port` 4-diff의 root cause를 `IntermediateProcessorStrategy::HorizontalCompactor`가 `NoOp`인 미구현 경로로 확정. Java `HorizontalGraphCompactor` 핵심 경로(ORTHOGONAL 세그먼트 수집/병합, OneDimensionalCompactor 적용, spacing handler, compaction 결과를 node/bend/graph bounds에 반영)를 Rust `horizontal_graph_compactor.rs`로 최소 포팅하고 전략 wiring을 연결. 단건 parity 재검증(`/tmp/l1_5_south_port_after/report.md`)에서 `1/1 match`, low-diff subset(9건) 재실행(`/tmp/elk_l1_low_subset_after2/report.md`) 결과 `matches=4`, `drift=5`, `total_diffs=23`로 개선
 - Step L1-6 완료(2026-02-16): `491_portSpacing` 4-diff의 root cause를 `LabelAndNodeSizeProcessor`의 outside label 배치 분기에서 Java `dummyPort.isConnectedToExternalNodes()` 의미를 쓰지 않고 단순 edge 존재 여부로 판정하던 불일치로 확정. `label_next_to_port` outside 경로를 `LPort::is_connected_to_external_nodes()` 기반으로 수정해 Java importer가 계산한 external 연결 플래그를 그대로 사용하도록 보정. 단건 parity 재검증(`/tmp/l1_6_491/report.md`)에서 `1/1 match`, low-diff subset(9건) 재실행(`/tmp/elk_l1_low_subset_after3/report.md`) 결과 `matches=5`, `drift=4`, `total_diffs=19`로 개선
 - Step L1-7 완료(2026-02-16): `425_selfLoopInCompoundNode` 4-diff 대상 단건 parity를 최신 코드 기준으로 재검증(`/tmp/l1_7_425/report.md`)한 결과 이미 `1/1 match` 상태임을 확인. 추가 코드 수정 없이 단계 완료 처리
+- Step L1-8 완료(2026-02-16): `600_outgoingEdgeInLastSeparateNode` 4-diff의 root cause를 external port dummy side 결정 경로의 direction 해석 불일치로 확정. Rust는 importer/compound 경로에서 `LayeredOptions::DIRECTION` 원시값(`Undefined`)을 그대로 사용해 `LGraphUtil::create_external_port_dummy`의 `EXT_PORT_SIDE`가 `Undefined`로 남았고, 이로 인해 `HierarchicalPortOrthogonalEdgeRouter.fix_coordinates`의 east/west 보정이 건너뛰어 endpoint/port x가 `-12` drift. `ElkGraphImporter`(및 compound 보조 경로)에서 direction 조회를 `LGraphUtil::get_direction(...)`로 통일해 Java와 동일하게 `Undefined -> Right/Down` fallback이 적용되도록 수정. 단건 parity 재검증(`/tmp/l1_8_600/report.md`)에서 `1/1 match`, low-diff subset(9건) 재실행(`/tmp/elk_l1_low_subset_after4/report.md`) 결과 `matches=7`, `drift=2`, `total_diffs=10`으로 개선. 단계 검증: `cargo test -p org-eclipse-elk-alg-layered --test compound_external_port_side_test --test hierarchical_edge_sections_test --test issue_316_test --test issue_665_test` 통과, `cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과(기존 경고 유지)
 ## 진행률(최신)
 - 전체 목표 대비 추정 진행률: 약 45.0% (기준: Java↔Rust 모델 parity full match 647/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
-- 단계 진행률(다음 작업 체크리스트 기준): 38.9% (완료 7/18, 미완료 11) [2026-02-16 갱신]
+- 단계 진행률(다음 작업 체크리스트 기준): 44.4% (완료 8/18, 미완료 10) [2026-02-16 갱신]
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
 - Java direct-mapped 모듈 테스트 parity: 146.1% (Rust 875 / Java 599, `perf/java_test_module_parity.md`)
@@ -1175,7 +1176,8 @@ git add <changed-files> && git commit -m "<scope>: <summary>"
   - 완료(2026-02-16): `label_next_to_port` outside 경로를 Java와 동일하게 `LPort::is_connected_to_external_nodes()` 기반 판정으로 수정해 1px port y drift를 해소, 단건 `491_portSpacing`는 `1/1 match`, 저diff subset(9건)은 `5/9 match`로 개선
 - [x] Step L1-7: `425_selfLoopInCompoundNode` (4 diffs) — self-loop node width
   - 완료(2026-02-16): 단건 parity 재검증(`/tmp/l1_7_425/report.md`) 결과 최신 코드 기준 `1/1 match` 확인(추가 수정 불필요)
-- [ ] Step L1-8: `600_outgoingEdgeInLastSeparateNode` (4 diffs) — separate node edge
+- [x] Step L1-8: `600_outgoingEdgeInLastSeparateNode` (4 diffs) — separate node edge
+  - 완료(2026-02-16): importer/compound의 direction 조회를 `LGraphUtil::get_direction`로 정규화해 external port dummy `EXT_PORT_SIDE`가 `Undefined`로 남던 문제를 수정, 단건 `600`은 `1/1 match`, 저diff subset(9건)은 `7/9 match`로 개선
 - [ ] Step L1-9: `next_to_port_if_possible_inside` (5 diffs) — port x +20
 - [ ] Step L1-10: `self_loops/label` (5 diffs) — self-loop label spacing
 - [ ] Step L1-11: `316_wrongGraphSizeWithIncludeChildren` (5 diffs) — includeChildren sizing

@@ -7,7 +7,6 @@ use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILay
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector_chain::KVectorChain;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
-use org_eclipse_elk_core::org::eclipse::elk::core::options::direction::Direction;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_label_placement::EdgeLabelPlacement;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_label_placement::PortLabelPlacement;
@@ -370,11 +369,7 @@ impl CompoundGraphPreprocessor {
                         };
 
                     let inside_port_labels = port_label_placement.contains(&PortLabelPlacement::Inside);
-                    let direction = nested_graph
-                        .lock()
-                        .ok()
-                        .and_then(|mut graph_guard| graph_guard.get_property(LayeredOptions::DIRECTION))
-                        .unwrap_or(Direction::Undefined);
+                    let direction = LGraphUtil::get_direction(&nested_graph);
 
                     for port in ports {
                         let port_key = PortRefKey(port.clone());
@@ -1165,11 +1160,7 @@ impl CompoundGraphPreprocessor {
                         })
                 })
                 .unwrap_or(fallback_constraints);
-            let direction = graph
-                .lock()
-                .ok()
-                .and_then(|mut graph_guard| graph_guard.get_property(LayeredOptions::DIRECTION))
-                .unwrap_or(Direction::Undefined);
+            let direction = LGraphUtil::get_direction(graph);
             (
                 port_side,
                 port_size,
