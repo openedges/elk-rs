@@ -49,7 +49,30 @@ impl ILayoutProcessor<LGraph> for NorthSouthPortPostprocessor {
                 }
 
                 if routing == EdgeRouting::Splines {
-                    // Fall back to non-spline processing for now.
+                    // Spline routing: reroute edges and set SPLINE_NS_PORT_Y_COORD,
+                    // but do NOT add bend points (Java: processSplineInput/OutputPort)
+                    for port in &ports {
+                        let has_in = port
+                            .lock()
+                            .ok()
+                            .map(|port_guard| !port_guard.incoming_edges().is_empty())
+                            .unwrap_or(false);
+                        let has_out = port
+                            .lock()
+                            .ok()
+                            .map(|port_guard| !port_guard.outgoing_edges().is_empty())
+                            .unwrap_or(false);
+
+                        if has_in {
+                            process_spline_input_port(port, dummy_pos.y);
+                        }
+                        if has_out {
+                            process_spline_output_port(port, dummy_pos.y);
+                        }
+                    }
+
+                    LNode::set_layer(&node, None);
+                    continue;
                 }
 
                 let same_origin = ports_same_origin(&ports);
@@ -178,5 +201,61 @@ fn process_output_port(port: &LPortRef, dummy_y: f64, add_junction: bool) {
                 edge_guard.set_property(LayeredOptions::JUNCTION_POINTS, Some(junction_points));
             }
         }
+    }
+}
+
+/// Spline-specific input port processing: reroute edges to origin port and set
+/// SPLINE_NS_PORT_Y_COORD, but do NOT add bend points (Java: processSplineInputPort)
+fn process_spline_input_port(port: &LPortRef, dummy_y: f64) {
+    let origin_port = port
+        .lock()
+        .ok()
+        .and_then(|mut port_guard| port_guard.get_property(InternalProperties::ORIGIN));
+    let Some(Origin::LPort(origin_port)) = origin_port else {
+        return;
+    };
+
+    // Set SPLINE_NS_PORT_Y_COORD on the origin port
+    if let Ok(mut origin_guard) = origin_port.lock() {
+        origin_guard.set_property(InternalProperties::SPLINE_NS_PORT_Y_COORD, Some(dummy_y));
+    }
+
+    // Reroute edges to origin port (no bend points added)
+    let edges = port
+        .lock()
+        .ok()
+        .map(|port_guard| LGraphUtil::to_edge_array(port_guard.incoming_edges()))
+        .unwrap_or_default();
+
+    for edge in edges {
+        LEdge::set_target(&edge, Some(origin_port.clone()));
+    }
+}
+
+/// Spline-specific output port processing: reroute edges to origin port and set
+/// SPLINE_NS_PORT_Y_COORD, but do NOT add bend points (Java: processSplineOutputPort)
+fn process_spline_output_port(port: &LPortRef, dummy_y: f64) {
+    let origin_port = port
+        .lock()
+        .ok()
+        .and_then(|mut port_guard| port_guard.get_property(InternalProperties::ORIGIN));
+    let Some(Origin::LPort(origin_port)) = origin_port else {
+        return;
+    };
+
+    // Set SPLINE_NS_PORT_Y_COORD on the origin port
+    if let Ok(mut origin_guard) = origin_port.lock() {
+        origin_guard.set_property(InternalProperties::SPLINE_NS_PORT_Y_COORD, Some(dummy_y));
+    }
+
+    // Reroute edges to origin port (no bend points added)
+    let edges = port
+        .lock()
+        .ok()
+        .map(|port_guard| LGraphUtil::to_edge_array(port_guard.outgoing_edges()))
+        .unwrap_or_default();
+
+    for edge in edges {
+        LEdge::set_source(&edge, Some(origin_port.clone()));
     }
 }
