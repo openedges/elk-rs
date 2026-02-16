@@ -23,19 +23,38 @@ impl ILayoutProcessor<LGraph> for LabelSideSelector {
         let mode = layered_graph
             .get_property(LayeredOptions::EDGE_LABELS_SIDE_SELECTION)
             .unwrap_or(EdgeLabelSideSelection::SmartDown);
+        let edge_label_spacing = if layered_graph
+            .graph_element()
+            .properties()
+            .has_property(LayeredOptions::SPACING_EDGE_LABEL)
+        {
+            layered_graph
+                .get_property(LayeredOptions::SPACING_EDGE_LABEL)
+                .unwrap_or(2.0)
+        } else {
+            2.0
+        };
         monitor.begin("Label side selection", 1.0);
 
         match mode {
-            EdgeLabelSideSelection::AlwaysUp => same_side(layered_graph, LabelSide::Above),
-            EdgeLabelSideSelection::AlwaysDown => same_side(layered_graph, LabelSide::Below),
+            EdgeLabelSideSelection::AlwaysUp => {
+                same_side(layered_graph, LabelSide::Above, edge_label_spacing)
+            }
+            EdgeLabelSideSelection::AlwaysDown => {
+                same_side(layered_graph, LabelSide::Below, edge_label_spacing)
+            }
             EdgeLabelSideSelection::DirectionUp => {
-                based_on_direction(layered_graph, LabelSide::Above)
+                based_on_direction(layered_graph, LabelSide::Above, edge_label_spacing)
             }
             EdgeLabelSideSelection::DirectionDown => {
-                based_on_direction(layered_graph, LabelSide::Below)
+                based_on_direction(layered_graph, LabelSide::Below, edge_label_spacing)
             }
-            EdgeLabelSideSelection::SmartUp => smart(layered_graph, LabelSide::Above),
-            EdgeLabelSideSelection::SmartDown => smart(layered_graph, LabelSide::Below),
+            EdgeLabelSideSelection::SmartUp => {
+                smart(layered_graph, LabelSide::Above, edge_label_spacing)
+            }
+            EdgeLabelSideSelection::SmartDown => {
+                smart(layered_graph, LabelSide::Below, edge_label_spacing)
+            }
         }
 
         monitor.done();
@@ -47,7 +66,7 @@ impl ILayoutProcessor<LGraph> for LabelSideSelector {
 // ========================================================================================
 
 /// Configures all labels to be placed on the given side.
-fn same_side(graph: &LGraph, label_side: LabelSide) {
+fn same_side(graph: &LGraph, label_side: LabelSide, edge_label_spacing: f64) {
     let layers = graph.layers().clone();
     for layer in layers {
         let nodes = layer
@@ -56,7 +75,7 @@ fn same_side(graph: &LGraph, label_side: LabelSide) {
             .map(|layer_guard| layer_guard.nodes().clone())
             .unwrap_or_default();
         for node in nodes {
-            apply_label_side_to_dummy(&node, label_side);
+            apply_label_side_to_dummy(&node, label_side, edge_label_spacing);
 
             let outgoing = node
                 .lock()
@@ -71,7 +90,7 @@ fn same_side(graph: &LGraph, label_side: LabelSide) {
 }
 
 /// Configures all labels to be placed according to their edge's direction.
-fn based_on_direction(graph: &LGraph, side_for_rightward_edges: LabelSide) {
+fn based_on_direction(graph: &LGraph, side_for_rightward_edges: LabelSide, edge_label_spacing: f64) {
     let layers = graph.layers().clone();
     for layer in layers {
         let nodes = layer
@@ -91,7 +110,7 @@ fn based_on_direction(graph: &LGraph, side_for_rightward_edges: LabelSide) {
                 } else {
                     side_for_rightward_edges.opposite()
                 };
-                apply_label_side_to_dummy(&node, side);
+                apply_label_side_to_dummy(&node, side, edge_label_spacing);
             }
 
             let outgoing = node
@@ -116,7 +135,7 @@ fn based_on_direction(graph: &LGraph, side_for_rightward_edges: LabelSide) {
 // ========================================================================================
 
 /// Chooses label sides depending on certain patterns. If in doubt, uses the given default side.
-fn smart(graph: &LGraph, default_side: LabelSide) {
+fn smart(graph: &LGraph, default_side: LabelSide, edge_label_spacing: f64) {
     let mut dummy_node_queue: VecDeque<LNodeRef> = VecDeque::new();
 
     let layers = graph.layers().clone();
@@ -159,6 +178,7 @@ fn smart(graph: &LGraph, default_side: LabelSide) {
                             top_group,
                             false,
                             default_side,
+                            edge_label_spacing,
                         );
                     }
 
@@ -177,6 +197,7 @@ fn smart(graph: &LGraph, default_side: LabelSide) {
                 top_group,
                 true,
                 default_side,
+                edge_label_spacing,
             );
         }
     }
@@ -189,6 +210,7 @@ fn smart_for_consecutive_dummy_node_run(
     top_group: bool,
     bottom_group: bool,
     default_side: LabelSide,
+    edge_label_spacing: f64,
 ) {
     assert!(!dummy_nodes.is_empty());
 
@@ -208,7 +230,7 @@ fn smart_for_consecutive_dummy_node_run(
     {
         // Top of layer with single label dummy at top -> ABOVE
         if let Some(front) = dummy_nodes.front() {
-            apply_label_side_to_dummy(front, LabelSide::Above);
+            apply_label_side_to_dummy(front, LabelSide::Above, edge_label_spacing);
         }
     } else if bottom_group
         && (!top_group || dummy_nodes.len() > 1)
@@ -217,19 +239,24 @@ fn smart_for_consecutive_dummy_node_run(
     {
         // Bottom of layer with single label dummy at bottom -> BELOW
         if let Some(back) = dummy_nodes.back() {
-            apply_label_side_to_dummy(back, LabelSide::Below);
+            apply_label_side_to_dummy(back, LabelSide::Below, edge_label_spacing);
         }
     } else if dummy_nodes.len() == 2 {
         // Two-node run: first ABOVE, second BELOW
         if let Some(first) = dummy_nodes.pop_front() {
-            apply_label_side_to_dummy(&first, LabelSide::Above);
+            apply_label_side_to_dummy(&first, LabelSide::Above, edge_label_spacing);
         }
         if let Some(second) = dummy_nodes.pop_front() {
-            apply_label_side_to_dummy(&second, LabelSide::Below);
+            apply_label_side_to_dummy(&second, LabelSide::Below, edge_label_spacing);
         }
     } else {
         // Not a special case: check for simple loops
-        apply_for_dummy_node_run_with_simple_loops(dummy_nodes, label_dummy_count, default_side);
+        apply_for_dummy_node_run_with_simple_loops(
+            dummy_nodes,
+            label_dummy_count,
+            default_side,
+            edge_label_spacing,
+        );
     }
 
     dummy_nodes.clear();
@@ -241,6 +268,7 @@ fn apply_for_dummy_node_run_with_simple_loops(
     dummy_nodes: &VecDeque<LNodeRef>,
     _label_dummy_count: usize,
     default_side: LabelSide,
+    edge_label_spacing: f64,
 ) {
     let mut label_dummy_run: Vec<LNodeRef> = Vec::with_capacity(dummy_nodes.len());
     let mut prev_long_edge_source: Option<LNodeRef> = None;
@@ -263,7 +291,11 @@ fn apply_for_dummy_node_run_with_simple_loops(
 
         if !same_source || !same_target {
             // Starting a new run
-            apply_label_sides_to_label_dummy_run(&mut label_dummy_run, default_side);
+            apply_label_sides_to_label_dummy_run(
+                &mut label_dummy_run,
+                default_side,
+                edge_label_spacing,
+            );
             prev_long_edge_source = curr_long_edge_source;
             prev_long_edge_target = curr_long_edge_target;
         }
@@ -272,7 +304,11 @@ fn apply_for_dummy_node_run_with_simple_loops(
     }
 
     // Assign label sides to whatever dummy nodes are left
-    apply_label_sides_to_label_dummy_run(&mut label_dummy_run, default_side);
+    apply_label_sides_to_label_dummy_run(
+        &mut label_dummy_run,
+        default_side,
+        edge_label_spacing,
+    );
 }
 
 /// Returns either the long edge source or target node of the given dummy node.
@@ -292,14 +328,15 @@ fn get_long_edge_end_node(dummy: &LNodeRef, source: bool) -> Option<LNodeRef> {
 fn apply_label_sides_to_label_dummy_run(
     label_dummy_run: &mut Vec<LNodeRef>,
     default_side: LabelSide,
+    edge_label_spacing: f64,
 ) {
     if !label_dummy_run.is_empty() {
         if label_dummy_run.len() == 2 {
-            apply_label_side_to_dummy(&label_dummy_run[0], LabelSide::Above);
-            apply_label_side_to_dummy(&label_dummy_run[1], LabelSide::Below);
+            apply_label_side_to_dummy(&label_dummy_run[0], LabelSide::Above, edge_label_spacing);
+            apply_label_side_to_dummy(&label_dummy_run[1], LabelSide::Below, edge_label_spacing);
         } else {
             for dummy_node in label_dummy_run.iter() {
-                apply_label_side_to_dummy(dummy_node, default_side);
+                apply_label_side_to_dummy(dummy_node, default_side, edge_label_spacing);
             }
         }
         label_dummy_run.clear();
@@ -385,7 +422,7 @@ fn smart_for_regular_node_port_end_labels(
 
 /// Applies the given label side to the given label dummy node. If necessary, its ports are
 /// moved to reserve space for the label on the correct side.
-fn apply_label_side_to_dummy(node: &LNodeRef, side: LabelSide) {
+fn apply_label_side_to_dummy(node: &LNodeRef, side: LabelSide, edge_label_spacing: f64) {
     let is_label_dummy = node
         .lock()
         .ok()
@@ -433,14 +470,6 @@ fn apply_label_side_to_dummy(node: &LNodeRef, side: LabelSide) {
                 .unwrap_or(0.0);
             port_pos = node_height - (thickness / 2.0).ceil();
         } else if effective_side == LabelSide::Inline {
-            // Use try_lock to avoid deadlock when graph mutex is already held by process()
-            let edge_label_spacing = node
-                .lock()
-                .ok()
-                .and_then(|ng| ng.graph())
-                .and_then(|g| g.try_lock().ok().and_then(|mut gg| gg.get_property(LayeredOptions::SPACING_EDGE_LABEL)))
-                .unwrap_or(0.0);
-
             let node_height = node
                 .lock()
                 .ok()

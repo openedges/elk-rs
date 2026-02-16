@@ -872,10 +872,13 @@
 - Step L1-9 완료(2026-02-16): `next_to_port_if_possible_inside` 5-diff의 root cause를 `ExternalPorts + graph_size.x==0 + NEXT_TO_PORT_IF_POSSIBLE` 조합에서 east span을 일반식(`graph_size + padding`)으로 계산해 `+20`이 누적되던 불일치로 확정. `l_graph_util.rs`/`hierarchical_node_resizing_processor.rs`/`elk_graph_layout_transferrer.rs`에 `PORT_LABELS_PLACEMENT` 기반 조건 보정(해당 조합에서만 compact width=4 적용)을 추가해 Java와 동일한 포트/노드 폭을 복원. 단건 parity 재검증(`/tmp/l1_9_final/report.md`) `1/1 match`, 회귀 감시 단건(`491_portSpacing`, `600_outgoingEdgeInLastSeparateNode`, `south_port`, `425_selfLoopInCompoundNode`)도 모두 `match` 확인(`/tmp/l1_9_regression_recheck_after_reapply/summary.tsv`). 검증: `cargo clippy --workspace --all-targets` 종료코드 0, `cargo test --workspace`는 기존과 동일하게 `inside_port_label_test` 1건 실패(패치 전 HEAD에서도 동일 재현)로 신규 회귀 아님을 확인
 - Step L1-10 완료(2026-02-16): `tests/layered/self_loops/label.elkt` 단건 parity 재검증(`/tmp/l1_10_self_loops_label/report.md`) 결과 최신 코드 기준 `1/1 match` 확인. drift 재현이 없어 코드 수정 없이 단계 완료 처리
 - Step L1-11 완료(2026-02-16): root cause를 `ElkGraphImporter`의 최소 그래프 크기 산출 경로 누락으로 확정. Java와 동일하게 `shouldCalculateMinimumGraphSize`/`calculateMinimumGraphSize` 흐름을 top-level+nested import 경로에 포팅해 includeChildren 대형 포트 케이스의 `NODE_SIZE_MINIMUM` 반영을 복원. 단건 parity 재검증(`/tmp/l1_11_316_after/report.md`)에서 `316_wrongGraphSizeWithIncludeChildren*` 2건 모두 `match`
-- Step L2-1 완료(2026-02-16): `perf/model_parity_full/diff_details.tsv` 기준 medium range(6..19 diff) first-diff 패턴 그루핑 산출(`perf/model_parity_full/medium_diff_first_patterns.md`). 현재 기준 medium 모델 수는 84건(기존 계획 59건 대비 +25)이며 상위 패턴은 `children[*]/y`(28), `children[*]/children[*]/x`(10), `children[*]/height`(8), `children[*]/children[*]/y`(7), `children[*]/x`(7). prefix 분포는 `tests=39`, `tickets=32`, `realworld=10`, `examples=3`
+- Step L2-1 완료(2026-02-16): `perf/model_parity_full/diff_details.tsv` 기준 medium range(6..19 diff) first-diff 패턴 그루핑 산출(`perf/model_parity_full/medium_diff_first_patterns.md`). L2-3 재실행 기준 medium 모델 수는 37건이며 상위 패턴은 `children[*]/children[*]/children[*]/y`(6), `children[*]/children[*]/y`(6), `children[*]/x`(5), `children[*]/ports[*]/x`(4)
+- Step L2-2 완료(2026-02-16): 공통 root cause를 `LabelSideSelector`의 inline label dummy 처리에서 graph lock 회피용 `try_lock` fallback(`SPACING_EDGE_LABEL=0`)으로 확정. Java와 동일하게 process 시점의 `SPACING_EDGE_LABEL` 값을 캡처해 helper 체인으로 전달하도록 `label_side_selector.rs`를 수정해 fallback drift를 제거. 검증: `cargo test -p org-eclipse-elk-alg-layered --test label_side_selector_test` 통과, `cargo clippy -p org-eclipse-elk-alg-layered --test label_side_selector_test` 통과
+- Step L2-2 효과 검증(2026-02-16): 상위 medium 패턴 `children[*]/y` 28건 subset parity 재실행(`/tmp/l2_2_children_y_report.md`) 결과 `matches=25`, `drift=3`로 개선(기존 28건 전부 drift 대비 +25 match)
+- Step L2-3 완료(2026-02-16): 고정 Java baseline 기준 full parity 재실행(`MODEL_PARITY_SKIP_JAVA_EXPORT=true sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models perf/model_parity_full`) 결과 `matches=1106`, `drift=333`, `total_diffs=6269`, `errors/timeouts=0`, `java_non_ok=9`로 갱신. drift 재분류(`perf/model_parity_full/drift_summary_l2_3.txt`) 기준 `other=165`, `layering_diff=138`, `ordering_diff=30`, medium bucket은 `84 -> 37`, high bucket은 `688 -> 288`로 축소
 ## 진행률(최신)
-- 전체 목표 대비 추정 진행률: 약 45.0% (기준: Java↔Rust 모델 parity full match 647/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
-- 단계 진행률(다음 작업 체크리스트 기준): 66.7% (완료 12/18, 미완료 6) [2026-02-16 갱신]
+- 전체 목표 대비 추정 진행률: 약 76.9% (기준: Java↔Rust 모델 parity full match 1106/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
+- 단계 진행률(다음 작업 체크리스트 기준): 77.8% (완료 14/18, 미완료 4) [2026-02-16 갱신]
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
 - Java direct-mapped 모듈 테스트 parity: 146.1% (Rust 875 / Java 599, `perf/java_test_module_parity.md`)
@@ -884,7 +887,7 @@
 - topdown 모듈 테스트 parity(수량): 100% (Rust 11 / Java 11)
 - mrtree 모듈 테스트 parity(수량): 100% (Rust 2 / Java 2, 기본 테스트 경로 활성화 완료)
 - Java-Rust 성능 비교 파이프라인/회귀 게이트: 운영 자동화 100% (baseline/results/both + scenario/runtime gate + CI 연동)
-- external/elk-models Java↔Rust 레이아웃 결과 parity(전체 1,448 모델): 45.0% (matches=647/compared=1439, drift=792, errors=0, timeouts=0, java_non_ok=9, total_diffs=14926)
+- external/elk-models Java↔Rust 레이아웃 결과 parity(전체 1,448 모델): 76.9% (matches=1106/compared=1439, drift=333, errors=0, timeouts=0, java_non_ok=9, total_diffs=6269)
 - external/elk-models Java↔Rust 대형 샘플 안정성: full parity 재실행 완료(`JAVA_PARITY_LIMIT=0`), errors/timeouts 0 확인
 - external/elk 무수정 운영 체계: 100% (격리 실행 + 자동 정리)
 - 1,448 모델 parity 기준선(v4)에서 실패 목록(36 timeouts/8 panics/9 java non-ok) 정리 및 재현 대상 모델 목록 확보
@@ -1189,13 +1192,15 @@ git add <changed-files> && git commit -m "<scope>: <summary>"
 - [x] Step L1-11: `316_wrongGraphSizeWithIncludeChildren` (5 diffs) — includeChildren sizing
   - 완료(2026-02-16): root cause를 `ElkGraphImporter`의 최소 그래프 크기 산출 경로 누락으로 확정. Java와 동일하게 `shouldCalculateMinimumGraphSize`/`calculateMinimumGraphSize` 흐름을 top-level + nested import 경로에 포팅해 includeChildren + 대형 포트 케이스의 `NODE_SIZE_MINIMUM`/`NODE_SIZE_CONSTRAINTS`가 반영되도록 수정. 단건 parity 재검증(`/tmp/l1_11_316_after/report.md`) 결과 `316_wrongGraphSizeWithIncludeChildren`, `316_wrongGraphSizeWithIncludeChildren2` 모두 `match`(`2/2`)
 
-### Layer 2: Medium-diff 패턴 분석 및 batch fix (59 models)
+### Layer 2: Medium-diff 패턴 분석 및 batch fix (현재 37 models)
 - [x] Step L2-1: medium-diff 59 models의 first diff 패턴 그루핑
-  - 완료(2026-02-16): `perf/model_parity_full/diff_details.tsv`를 기준으로 medium range(6..19)를 재산출해 first-diff path 패턴을 그루핑하고 상세 산출물을 추가(`perf/model_parity_full/medium_diff_first_patterns.md`). 현재 기준 medium 모델은 84건이며 상위 패턴은 `children[*]/y`(28), `children[*]/children[*]/x`(10), `children[*]/height`(8)
-- [ ] Step L2-2: 공통 root cause 식별 및 batch fix
-- [ ] Step L2-3: parity 재실행 및 진행률 갱신
+  - 완료(2026-02-16): `perf/model_parity_full/diff_details.tsv`를 기준으로 medium range(6..19)를 재산출해 first-diff path 패턴을 그루핑하고 상세 산출물을 추가(`perf/model_parity_full/medium_diff_first_patterns.md`). L2-3 기준 medium 모델은 37건
+- [x] Step L2-2: 공통 root cause 식별 및 batch fix
+  - 완료(2026-02-16): root cause를 `LabelSideSelector` inline label dummy 경로의 `SPACING_EDGE_LABEL` 조회 fallback(`try_lock` 실패 시 0.0)으로 확정하고, process 시점 spacing 값을 helper 체인으로 전달하도록 수정(`label_side_selector.rs`). 검증: `cargo test -p org-eclipse-elk-alg-layered --test label_side_selector_test`, `cargo clippy -p org-eclipse-elk-alg-layered --test label_side_selector_test` 통과. 효과: 상위 `children[*]/y` subset(28) parity `matches=25`, `drift=3` (`/tmp/l2_2_children_y_report.md`)
+- [x] Step L2-3: parity 재실행 및 진행률 갱신
+  - 완료(2026-02-16): 고정 Java baseline 기준 full parity 재실행 결과 `matches=1106/1439`, `drift=333`, `total_diffs=6269`, `errors/timeouts=0`, `java_non_ok=9`. medium/high bucket은 각각 `37`, `288`로 갱신
 
-### Layer 3: Max-diff systemic root cause (647 models)
+### Layer 3: Max-diff systemic root cause (288 models)
 - [ ] Step L3-1: LabelAndNodeSizeProcessor Phase 1 제거 실험 (Java에 없는 코드)
 - [ ] Step L3-2: compound node width calculation Java 비교/정합
 - [ ] Step L3-3: crossing minimization 결과 비교 (Phase 3 entry point)
