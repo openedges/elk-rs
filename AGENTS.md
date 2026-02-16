@@ -871,9 +871,11 @@
 - Step L1-8 완료(2026-02-16): `600_outgoingEdgeInLastSeparateNode` 4-diff의 root cause를 external port dummy side 결정 경로의 direction 해석 불일치로 확정. Rust는 importer/compound 경로에서 `LayeredOptions::DIRECTION` 원시값(`Undefined`)을 그대로 사용해 `LGraphUtil::create_external_port_dummy`의 `EXT_PORT_SIDE`가 `Undefined`로 남았고, 이로 인해 `HierarchicalPortOrthogonalEdgeRouter.fix_coordinates`의 east/west 보정이 건너뛰어 endpoint/port x가 `-12` drift. `ElkGraphImporter`(및 compound 보조 경로)에서 direction 조회를 `LGraphUtil::get_direction(...)`로 통일해 Java와 동일하게 `Undefined -> Right/Down` fallback이 적용되도록 수정. 단건 parity 재검증(`/tmp/l1_8_600/report.md`)에서 `1/1 match`, low-diff subset(9건) 재실행(`/tmp/elk_l1_low_subset_after4/report.md`) 결과 `matches=7`, `drift=2`, `total_diffs=10`으로 개선. 단계 검증: `cargo test -p org-eclipse-elk-alg-layered --test compound_external_port_side_test --test hierarchical_edge_sections_test --test issue_316_test --test issue_665_test` 통과, `cargo clippy -p org-eclipse-elk-alg-layered --tests` 통과(기존 경고 유지)
 - Step L1-9 완료(2026-02-16): `next_to_port_if_possible_inside` 5-diff의 root cause를 `ExternalPorts + graph_size.x==0 + NEXT_TO_PORT_IF_POSSIBLE` 조합에서 east span을 일반식(`graph_size + padding`)으로 계산해 `+20`이 누적되던 불일치로 확정. `l_graph_util.rs`/`hierarchical_node_resizing_processor.rs`/`elk_graph_layout_transferrer.rs`에 `PORT_LABELS_PLACEMENT` 기반 조건 보정(해당 조합에서만 compact width=4 적용)을 추가해 Java와 동일한 포트/노드 폭을 복원. 단건 parity 재검증(`/tmp/l1_9_final/report.md`) `1/1 match`, 회귀 감시 단건(`491_portSpacing`, `600_outgoingEdgeInLastSeparateNode`, `south_port`, `425_selfLoopInCompoundNode`)도 모두 `match` 확인(`/tmp/l1_9_regression_recheck_after_reapply/summary.tsv`). 검증: `cargo clippy --workspace --all-targets` 종료코드 0, `cargo test --workspace`는 기존과 동일하게 `inside_port_label_test` 1건 실패(패치 전 HEAD에서도 동일 재현)로 신규 회귀 아님을 확인
 - Step L1-10 완료(2026-02-16): `tests/layered/self_loops/label.elkt` 단건 parity 재검증(`/tmp/l1_10_self_loops_label/report.md`) 결과 최신 코드 기준 `1/1 match` 확인. drift 재현이 없어 코드 수정 없이 단계 완료 처리
+- Step L1-11 완료(2026-02-16): root cause를 `ElkGraphImporter`의 최소 그래프 크기 산출 경로 누락으로 확정. Java와 동일하게 `shouldCalculateMinimumGraphSize`/`calculateMinimumGraphSize` 흐름을 top-level+nested import 경로에 포팅해 includeChildren 대형 포트 케이스의 `NODE_SIZE_MINIMUM` 반영을 복원. 단건 parity 재검증(`/tmp/l1_11_316_after/report.md`)에서 `316_wrongGraphSizeWithIncludeChildren*` 2건 모두 `match`
+- Step L2-1 완료(2026-02-16): `perf/model_parity_full/diff_details.tsv` 기준 medium range(6..19 diff) first-diff 패턴 그루핑 산출(`perf/model_parity_full/medium_diff_first_patterns.md`). 현재 기준 medium 모델 수는 84건(기존 계획 59건 대비 +25)이며 상위 패턴은 `children[*]/y`(28), `children[*]/children[*]/x`(10), `children[*]/height`(8), `children[*]/children[*]/y`(7), `children[*]/x`(7). prefix 분포는 `tests=39`, `tickets=32`, `realworld=10`, `examples=3`
 ## 진행률(최신)
 - 전체 목표 대비 추정 진행률: 약 45.0% (기준: Java↔Rust 모델 parity full match 647/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
-- 단계 진행률(다음 작업 체크리스트 기준): 61.1% (완료 11/18, 미완료 7) [2026-02-16 갱신]
+- 단계 진행률(다음 작업 체크리스트 기준): 66.7% (완료 12/18, 미완료 6) [2026-02-16 갱신]
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
 - Java direct-mapped 모듈 테스트 parity: 146.1% (Rust 875 / Java 599, `perf/java_test_module_parity.md`)
@@ -1188,7 +1190,8 @@ git add <changed-files> && git commit -m "<scope>: <summary>"
   - 완료(2026-02-16): root cause를 `ElkGraphImporter`의 최소 그래프 크기 산출 경로 누락으로 확정. Java와 동일하게 `shouldCalculateMinimumGraphSize`/`calculateMinimumGraphSize` 흐름을 top-level + nested import 경로에 포팅해 includeChildren + 대형 포트 케이스의 `NODE_SIZE_MINIMUM`/`NODE_SIZE_CONSTRAINTS`가 반영되도록 수정. 단건 parity 재검증(`/tmp/l1_11_316_after/report.md`) 결과 `316_wrongGraphSizeWithIncludeChildren`, `316_wrongGraphSizeWithIncludeChildren2` 모두 `match`(`2/2`)
 
 ### Layer 2: Medium-diff 패턴 분석 및 batch fix (59 models)
-- [ ] Step L2-1: medium-diff 59 models의 first diff 패턴 그루핑
+- [x] Step L2-1: medium-diff 59 models의 first diff 패턴 그루핑
+  - 완료(2026-02-16): `perf/model_parity_full/diff_details.tsv`를 기준으로 medium range(6..19)를 재산출해 first-diff path 패턴을 그루핑하고 상세 산출물을 추가(`perf/model_parity_full/medium_diff_first_patterns.md`). 현재 기준 medium 모델은 84건이며 상위 패턴은 `children[*]/y`(28), `children[*]/children[*]/x`(10), `children[*]/height`(8)
 - [ ] Step L2-2: 공통 root cause 식별 및 batch fix
 - [ ] Step L2-3: parity 재실행 및 진행률 갱신
 
