@@ -170,7 +170,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
             OrthogonalRoutingGenerator::new(RoutingDirection::WestToEast, edge_edge_spacing, Some("phase5".to_string()));
 
         let layers = layered_graph.layers().clone();
-        let mut xpos = 0.0;
+        // Java uses `float xpos` (f32). Truncate through f32 at each step for parity.
+        let mut xpos: f64 = 0.0;
         let mut left_layer = None;
         let mut left_layer_nodes = None;
         let mut left_layer_index: i32 = -1;
@@ -199,13 +200,14 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
                     .ok()
                     .map(|layer_guard| layer_guard.size_ref().x)
                     .unwrap_or(0.0);
-                xpos += left_width;
+                xpos = (xpos + left_width) as f32 as f64;
             }
 
+            // Java: float startPos = leftLayer == null ? xpos : xpos + edgeNodeSpacing;
             let start_pos = if left_layer.is_none() {
-                xpos
+                xpos as f32 as f64
             } else {
-                xpos + edge_node_spacing
+                (xpos + edge_node_spacing) as f32 as f64
             };
 
             let slots_count = routing_generator.route_edges(
@@ -228,19 +230,20 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
                 .unwrap_or(true);
 
             if slots_count > 0 {
-                let mut routing_width = (slots_count as f64 - 1.0) * edge_edge_spacing;
+                // Java: float routingWidth — truncate through f32 at each step
+                let mut routing_width = ((slots_count as f32 - 1.0_f32) * edge_edge_spacing as f32) as f64;
                 if left_layer.is_some() {
-                    routing_width += edge_node_spacing;
+                    routing_width = (routing_width as f32 + edge_node_spacing as f32) as f64;
                 }
                 if right_layer.is_some() {
-                    routing_width += edge_node_spacing;
+                    routing_width = (routing_width as f32 + edge_node_spacing as f32) as f64;
                 }
                 if routing_width < node_node_spacing && !is_left_layer_external && !is_right_layer_external {
                     routing_width = node_node_spacing;
                 }
-                xpos += routing_width;
+                xpos = (xpos + routing_width) as f32 as f64;
             } else if !is_left_layer_external && !is_right_layer_external {
-                xpos += node_node_spacing;
+                xpos = (xpos + node_node_spacing) as f32 as f64;
             }
 
             left_layer = right_layer;
@@ -256,7 +259,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
             }
         }
 
-        layered_graph.size().x = xpos;
+        layered_graph.size().x = xpos as f32 as f64;
         monitor.done();
     }
 

@@ -48,10 +48,11 @@ impl LGraphUtil {
             Err(_) => return,
         };
 
-        let width_ratio = new_size.x / old_size.x;
-        let height_ratio = new_size.y / old_size.y;
-        let width_diff = new_size.x - old_size.x;
-        let height_diff = new_size.y - old_size.y;
+        // Java uses float (f32) for these variables. Truncate to match.
+        let width_ratio = (new_size.x / old_size.x) as f32 as f64;
+        let height_ratio = (new_size.y / old_size.y) as f32 as f64;
+        let width_diff = (new_size.x - old_size.x) as f32 as f64;
+        let height_diff = (new_size.y - old_size.y) as f32 as f64;
 
         if move_ports {
             for port in ports {
