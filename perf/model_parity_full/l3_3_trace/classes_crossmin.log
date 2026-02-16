@@ -1,0 +1,3 @@
+model parity rust runner: total=1, timeout=120s
+[1/1] ok tests/layered/node_placement/bk/classes/classes_two_samesize.elkt (1 ms)
+model parity rust runner completed: total=1, ok=1, skipped=0, errors=0 (timeouts=0)

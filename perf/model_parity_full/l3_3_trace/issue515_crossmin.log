@@ -1,0 +1,3 @@
+model parity rust runner: total=1, timeout=120s
+[1/1] ok tickets/layered/515_polylineOverNodeOutgoing.elkt (0 ms)
+model parity rust runner completed: total=1, ok=1, skipped=0, errors=0 (timeouts=0)
