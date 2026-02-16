@@ -40,6 +40,7 @@ pub mod hierarchical_port_constraint_processor;
 pub mod hierarchical_port_dummy_size_processor;
 pub mod hierarchical_port_position_processor;
 pub mod hierarchical_port_orthogonal_edge_router;
+pub mod horizontal_graph_compactor;
 pub mod loops;
 pub mod self_loop_preprocessor;
 pub mod self_loop_postprocessor;
@@ -89,6 +90,7 @@ pub use hierarchical_port_constraint_processor::HierarchicalPortConstraintProces
 pub use hierarchical_port_dummy_size_processor::HierarchicalPortDummySizeProcessor;
 pub use hierarchical_port_position_processor::HierarchicalPortPositionProcessor;
 pub use hierarchical_port_orthogonal_edge_router::HierarchicalPortOrthogonalEdgeRouter;
+pub use horizontal_graph_compactor::HorizontalGraphCompactor;
 pub use loops::PolylineSelfLoopRouter;
 pub use self_loop_preprocessor::SelfLoopPreProcessor;
 pub use self_loop_postprocessor::SelfLoopPostProcessor;

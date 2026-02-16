@@ -861,9 +861,14 @@
 - Step 49 완료(2026-02-14): Step47 회귀 38건 root cause를 Java baseline 컨텍스트 의존성으로 확정. 회귀 목록(38) include 기반 Java export를 2회 실행(`perf/model_parity_step49_java_a`, `perf/model_parity_step49_java_b`)한 결과 A/B는 38/38 동일(hash 동일)이나, full baseline(`perf/model_parity/java/layout`)과는 24/38 모델이 상이함을 확인. 동일 subset에서 Rust 재검증(`perf/model_parity_step49_rust_vs_java_subset`) 시 `matches=20`, `drift=18`, `total_diffs=360`으로 회귀 목록이 baseline 의존적임을 재현
 - Step 50 완료(2026-02-14): 반복 parity에서 Java 기준선 흔들림을 방지하기 위해 `scripts/run_model_parity_elk_vs_rust.sh`에 `MODEL_PARITY_SKIP_JAVA_EXPORT` 옵션 추가(기본 `false`). `true`일 때 기존 `perf/model_parity/java/java_manifest.tsv`를 재사용하고, manifest 부재 시 즉시 실패하도록 가드 추가. `scripts/README.md` Model parity env/노트에 사용법 문서화
 - Step 51 완료(2026-02-14): `MODEL_PARITY_SKIP_JAVA_EXPORT=true`로 full parity 재실행해 고정 Java baseline 기준 결과 재확인. 결과는 `matches=647`, `drift=792`, `total_diffs=14926`, `errors=0`, `timeouts=0`, `java_non_ok=9`로 유지
+- Step L1-1 완료(2026-02-16): `edgeLabelShouldBeCentered` 1-diff의 root cause를 `HorizontalCompactor` 미구현(`IntermediateProcessorStrategy::HorizontalCompactor`가 `NoOp`) 상태에서 center-label dummy X가 보정되지 않는 문제로 확정. 즉시 완전 포팅 대신 `LabelDummyRemover`에 compaction-aware 보정(LEFT/RIGHT에서 인접 source/target 노드와 `InternalProperties::SPACINGS` 기반 bound 계산) 추가. 단건 parity 재검증(`tests/layered/compaction_oned/labels/edgeLabelShouldBeCentered.elkt`)에서 `x=152 -> 52`로 match 전환 확인, low-diff subset(9건) 재실행 결과 `matches=1`, `drift=8`, `total_diffs=31`로 갱신(`report: /tmp/elk_l1_low_subset_after/report.md`)
+- Step L1-2 완료(2026-02-16): `AdaptiveCarWashFSM(elkg/elkt)` 2건의 `routing slot y (+80)` drift를 self-loop opposing route 선택의 port ID 기준 불일치로 확정. Rust `RoutingDirector::assign_port_ids`가 LGraph 현재 포트 순서(일부 케이스에서 Java와 역순)에 의존해 `East->West`를 option1으로 선택하던 경로를, `LayeredOptions::PORT_INDEX` 우선 정렬 후 연속 ID 재부여로 보정해 Java와 동일한 `West->East` 경로(북쪽 lane) 선택으로 일치시킴. 재검증: `/tmp/adaptive_pair/report.md` 기준 2/2 match, low-diff subset(9건) 재실행 결과 `matches=3`, `drift=6`, `total_diffs=27`
+- Step L1-3 완료(2026-02-16): `724_includeChildrenModelOrder`는 현재 고정 Java baseline 기준 이미 `match` 상태임을 단건 재실행(`/tmp/l1_3_724/report.md`)으로 확인. 추가 코드 수정 없이 drift 재현 없음(`1/1 match`)
+- Step L1-4 완료(2026-02-16): `portLabelsMulti + multilabels` 대상 2건을 단건 묶음 재검증(`/tmp/l1_4_verify/report.md`)해 모두 `match` 유지 확인(`2/2 match`)
+- Step L1-5 완료(2026-02-16): `south_port` 4-diff의 root cause를 `IntermediateProcessorStrategy::HorizontalCompactor`가 `NoOp`인 미구현 경로로 확정. Java `HorizontalGraphCompactor` 핵심 경로(ORTHOGONAL 세그먼트 수집/병합, OneDimensionalCompactor 적용, spacing handler, compaction 결과를 node/bend/graph bounds에 반영)를 Rust `horizontal_graph_compactor.rs`로 최소 포팅하고 전략 wiring을 연결. 단건 parity 재검증(`/tmp/l1_5_south_port_after/report.md`)에서 `1/1 match`, low-diff subset(9건) 재실행(`/tmp/elk_l1_low_subset_after2/report.md`) 결과 `matches=4`, `drift=5`, `total_diffs=23`로 개선
 ## 진행률(최신)
 - 전체 목표 대비 추정 진행률: 약 45.0% (기준: Java↔Rust 모델 parity full match 647/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
-- 단계 진행률(다음 작업 체크리스트 기준): 100.0% (완료 11/11, 미완료 0) [2026-02-14 갱신]
+- 단계 진행률(다음 작업 체크리스트 기준): 27.8% (완료 5/18, 미완료 13) [2026-02-16 갱신]
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
 - Java direct-mapped 모듈 테스트 parity: 146.1% (Rust 875 / Java 599, `perf/java_test_module_parity.md`)
@@ -1137,3 +1142,47 @@ git add <changed-files> && git commit -m "<scope>: <summary>"
 - **단위테스트**: 개별 알고리즘/모듈의 로직 정확성 검증 (white-box)
 - **모델 Parity**: 전체 파이프라인의 end-to-end 결과 동일성 검증 (black-box)
 - 두 축 모두 100% 달성 시 포팅 완료로 간주
+
+---
+
+## Parity 720→1439 전략 (2026-02-15 Session 3)
+
+### Baseline
+- **720 match / 719 drift** (50.0%), 1439 compared, 0 timeouts, total_diffs=13759
+
+### Drift 분포
+
+| Tier | Diffs | Models | 비고 |
+|------|-------|--------|------|
+| Low | 1-5 | 13 | 개별 root cause, 즉시 match 전환 가능 |
+| Medium | 6-19 | 59 | tickets=30, tests=16, realworld=10, examples=3 |
+| Max (capped) | 20 | 647 | realworld=594(주로 ptolemy), tests=40, tickets=9, examples=4 |
+
+### Layer 1: Low-diff 개별 수정 (13 models → +13 matches 목표)
+- [x] Step L1-1: `edgeLabelShouldBeCentered` (1 diff) — 1D compaction label x
+  - 완료(2026-02-16): `LabelDummyRemover`에 post-compaction LEFT/RIGHT bound 보정을 추가해 해당 모델 drift(1) 해소 및 match 전환 확인(저diff subset 9건 기준 `0 -> 1 matches`)
+- [x] Step L1-2: `AdaptiveCarWashFSM` x2 (2 diffs) — routing slot y
+  - 완료(2026-02-16): `RoutingDirector.assign_port_ids`를 `port.index` 우선 정렬 기준으로 보정해 opposing self-loop route 선택을 Java와 동기화, `AdaptiveCarWashFSM(elkg/elkt)` 2건 drift 해소
+- [x] Step L1-3: `724_includeChildrenModelOrder` (3 diffs) — 0.5px y rounding
+  - 완료(2026-02-16): 고정 Java baseline 기준 단건 parity 재검증에서 `match` 유지 확인(추가 수정 불필요)
+- [x] Step L1-4: `portLabelsMulti` + `multilabels` (4 diffs) — PortLabelPlacement
+  - 완료(2026-02-16): 2건 parity 재검증에서 모두 `match` 유지 확인(추가 수정 불필요)
+- [x] Step L1-5: `south_port` (4 diffs) — compound node width +20
+  - 완료(2026-02-16): `HorizontalGraphCompactor` 최소 포팅 + `IntermediateProcessorStrategy` wiring으로 compaction 후처리가 실제 실행되도록 보정, 단건 `south_port`는 `1/1 match`, 저diff subset(9건)은 `4/9 match`로 개선
+- [ ] Step L1-6: `491_portSpacing` (4 diffs) — port y 1px
+- [ ] Step L1-7: `425_selfLoopInCompoundNode` (4 diffs) — self-loop node width
+- [ ] Step L1-8: `600_outgoingEdgeInLastSeparateNode` (4 diffs) — separate node edge
+- [ ] Step L1-9: `next_to_port_if_possible_inside` (5 diffs) — port x +20
+- [ ] Step L1-10: `self_loops/label` (5 diffs) — self-loop label spacing
+- [ ] Step L1-11: `316_wrongGraphSizeWithIncludeChildren` (5 diffs) — includeChildren sizing
+
+### Layer 2: Medium-diff 패턴 분석 및 batch fix (59 models)
+- [ ] Step L2-1: medium-diff 59 models의 first diff 패턴 그루핑
+- [ ] Step L2-2: 공통 root cause 식별 및 batch fix
+- [ ] Step L2-3: parity 재실행 및 진행률 갱신
+
+### Layer 3: Max-diff systemic root cause (647 models)
+- [ ] Step L3-1: LabelAndNodeSizeProcessor Phase 1 제거 실험 (Java에 없는 코드)
+- [ ] Step L3-2: compound node width calculation Java 비교/정합
+- [ ] Step L3-3: crossing minimization 결과 비교 (Phase 3 entry point)
+- [ ] Step L3-4: parity 재실행 및 대규모 진행률 갱신

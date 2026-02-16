@@ -23,6 +23,7 @@ use crate::org::eclipse::elk::alg::layered::intermediate::{
     SortByInputModelProcessor, HyperedgeDummyMerger, HierarchicalNodeResizingProcessor, InnermostNodeMarginCalculator,
     HierarchicalPortConstraintProcessor, HierarchicalPortDummySizeProcessor,
     HierarchicalPortPositionProcessor, HierarchicalPortOrthogonalEdgeRouter,
+    HorizontalGraphCompactor,
 };
 use crate::org::eclipse::elk::alg::layered::p3order::{
     CrossMinType, LayerSweepCrossingMinimizer,
@@ -265,6 +266,9 @@ impl ILayoutProcessorFactory<LGraph> for IntermediateProcessorStrategy {
             }
             IntermediateProcessorStrategy::HierarchicalPortOrthogonalEdgeRouter => {
                 Box::new(HierarchicalPortOrthogonalEdgeRouter::default())
+            }
+            IntermediateProcessorStrategy::HorizontalCompactor => {
+                Box::new(HorizontalGraphCompactor)
             }
             _ => Box::new(NoOpLayoutProcessor),
         }
