@@ -1082,8 +1082,10 @@ fn reverse_west_and_south_side(ports: &mut [LPortRef]) {
         return;
     }
 
-    let (south_low, south_high) = find_port_side_range(ports, PortSide::South);
-    reverse_range(ports, south_low, south_high);
+    // Java's PortPlacementCalculator does NOT reverse SOUTH ports before placement.
+    // Only reverse WEST for clockwise order; SOUTH reversal is handled by PortListSorter later.
+    // let (south_low, south_high) = find_port_side_range(ports, PortSide::South);
+    // reverse_range(ports, south_low, south_high);
 
     let (west_low, west_high) = find_port_side_range(ports, PortSide::West);
     reverse_range(ports, west_low, west_high);

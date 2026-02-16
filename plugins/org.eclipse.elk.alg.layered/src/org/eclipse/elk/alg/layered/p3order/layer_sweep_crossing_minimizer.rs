@@ -213,7 +213,7 @@ impl LayerSweepCrossingMinimizer {
         };
         let use_initial = (first_try || second_try) && model_order != OrderingStrategy::None;
         if !use_initial {
-            self.prepare_cross_minimizer(index);
+            // Java does NOT call prepareCrossMinimizer here - only setFirstLayerOrder
             let graph_data = &mut self.graph_info_holders[index];
             graph_data.set_first_layer_order(is_forward_sweep);
         } else {
@@ -293,7 +293,7 @@ impl LayerSweepCrossingMinimizer {
         };
         let use_initial = (first_try || second_try) && model_order != OrderingStrategy::None;
         if !use_initial {
-            self.prepare_cross_minimizer(index);
+            // Java does NOT call prepareCrossMinimizer here - only setFirstLayerOrder
             let graph_data = &mut self.graph_info_holders[index];
             graph_data.set_first_layer_order(is_forward_sweep);
         } else {
@@ -587,7 +587,7 @@ impl LayerSweepCrossingMinimizer {
             };
 
             {
-                self.prepare_cross_minimizer(index);
+                // Java does NOT call prepareCrossMinimizer per-layer
                 let graph_data = &mut self.graph_info_holders[index];
                 if trace {
                     eprintln!(
@@ -699,7 +699,7 @@ impl LayerSweepCrossingMinimizer {
                 };
                 self.graph_info_holders[nested_index].current_node_order_mut()[start_index] = sorted;
             } else {
-                self.prepare_cross_minimizer(nested_index);
+                // Java does NOT call prepareCrossMinimizer for nested graphs
                 let graph_data = &mut self.graph_info_holders[nested_index];
                 graph_data.set_first_layer_order(is_forward_sweep);
             }
