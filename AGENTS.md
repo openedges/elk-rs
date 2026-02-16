@@ -873,7 +873,7 @@
 - Step L1-10 완료(2026-02-16): `tests/layered/self_loops/label.elkt` 단건 parity 재검증(`/tmp/l1_10_self_loops_label/report.md`) 결과 최신 코드 기준 `1/1 match` 확인. drift 재현이 없어 코드 수정 없이 단계 완료 처리
 ## 진행률(최신)
 - 전체 목표 대비 추정 진행률: 약 45.0% (기준: Java↔Rust 모델 parity full match 647/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
-- 단계 진행률(다음 작업 체크리스트 기준): 55.6% (완료 10/18, 미완료 8) [2026-02-16 갱신]
+- 단계 진행률(다음 작업 체크리스트 기준): 61.1% (완료 11/18, 미완료 7) [2026-02-16 갱신]
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
 - Java direct-mapped 모듈 테스트 parity: 146.1% (Rust 875 / Java 599, `perf/java_test_module_parity.md`)
@@ -1184,7 +1184,8 @@ git add <changed-files> && git commit -m "<scope>: <summary>"
   - 완료(2026-02-16): `ExternalPorts + graph_size.x==0 + NEXT_TO_PORT_IF_POSSIBLE` 조건에서만 east span/부모 너비를 compact(4) 처리하도록 보정해 단건 `1/1 match` 달성, `491/600/south_port/425` 회귀 없음 확인
 - [x] Step L1-10: `self_loops/label` (5 diffs) — self-loop label spacing
   - 완료(2026-02-16): 단건 parity 재검증 결과 최신 기준 `1/1 match` 확인(추가 수정 불필요)
-- [ ] Step L1-11: `316_wrongGraphSizeWithIncludeChildren` (5 diffs) — includeChildren sizing
+- [x] Step L1-11: `316_wrongGraphSizeWithIncludeChildren` (5 diffs) — includeChildren sizing
+  - 완료(2026-02-16): root cause를 `ElkGraphImporter`의 최소 그래프 크기 산출 경로 누락으로 확정. Java와 동일하게 `shouldCalculateMinimumGraphSize`/`calculateMinimumGraphSize` 흐름을 top-level + nested import 경로에 포팅해 includeChildren + 대형 포트 케이스의 `NODE_SIZE_MINIMUM`/`NODE_SIZE_CONSTRAINTS`가 반영되도록 수정. 단건 parity 재검증(`/tmp/l1_11_316_after/report.md`) 결과 `316_wrongGraphSizeWithIncludeChildren`, `316_wrongGraphSizeWithIncludeChildren2` 모두 `match`(`2/2`)
 
 ### Layer 2: Medium-diff 패턴 분석 및 batch fix (59 models)
 - [ ] Step L2-1: medium-diff 59 models의 first diff 패턴 그루핑

@@ -8,6 +8,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::hierarchy_handling::
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_label_placement::PortLabelPlacement;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::size_constraint::SizeConstraint;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{ElkUtil, EnumSet};
 use org_eclipse_elk_core::org::eclipse::elk::core::util::adapters::{ElkGraphAdapters, PortAdapter};
@@ -97,6 +98,10 @@ impl<'a> ElkGraphImporter<'a> {
             }
         }
 
+        if self.should_calculate_minimum_graph_size(elkgraph) {
+            self.calculate_minimum_graph_size(elkgraph, &lgraph);
+        }
+
         let hierarchy_handling = self
             .graph_property(elkgraph, LayeredOptions::HIERARCHY_HANDLING)
             .unwrap_or(HierarchyHandling::Inherit);
@@ -138,6 +143,16 @@ impl<'a> ElkGraphImporter<'a> {
                 if let Ok(mut node_guard) = lnode.lock() {
                     node_guard.set_nested_graph(Some(nested_graph.clone()));
                     node_guard.set_property(InternalProperties::COMPOUND_NODE, Some(true));
+                }
+                if self.should_calculate_minimum_graph_size(&child) {
+                    let child_ports: Vec<ElkPortRef> = {
+                        let mut child_mut = child.borrow_mut();
+                        child_mut.ports().iter().cloned().collect()
+                    };
+                    for port in &child_ports {
+                        self.ensure_defined_port_side(&nested_graph, port);
+                    }
+                    self.calculate_minimum_graph_size(&child, &nested_graph);
                 }
                 self.import_hierarchical_graph(&child, &nested_graph);
             }
@@ -210,6 +225,133 @@ impl<'a> ElkGraphImporter<'a> {
 
     fn should_skip_node(&self, node: &ElkNodeRef) -> bool {
         self.graph_property(node, CoreOptions::NO_LAYOUT).unwrap_or(false)
+    }
+
+    fn should_calculate_minimum_graph_size(&self, elkgraph: &ElkNodeRef) -> bool {
+        !self
+            .graph_property(elkgraph, LayeredOptions::NODE_SIZE_CONSTRAINTS)
+            .unwrap_or_else(EnumSet::none_of)
+            .is_empty()
+    }
+
+    fn calculate_minimum_graph_size(&self, elkgraph: &ElkNodeRef, lgraph: &LGraphRef) {
+        let has_parent = elkgraph.borrow().parent().is_some();
+        if !has_parent {
+            return;
+        }
+
+        let mut size_constraints = if let Ok(graph_guard) = lgraph.lock() {
+            graph_guard
+                .get_property_ref(LayeredOptions::NODE_SIZE_CONSTRAINTS)
+                .unwrap_or_else(EnumSet::none_of)
+        } else {
+            return;
+        };
+        if size_constraints.is_empty() {
+            return;
+        }
+
+        if self
+            .graph_property(elkgraph, LayeredOptions::PORT_CONSTRAINTS)
+            .unwrap_or(PortConstraints::Undefined)
+            == PortConstraints::Undefined
+        {
+            let mut node_mut = elkgraph.borrow_mut();
+            node_mut
+                .connectable()
+                .shape()
+                .graph_element()
+                .properties_mut()
+                .set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::Free));
+        }
+
+        let mut min_size = if let Ok(graph_guard) = lgraph.lock() {
+            graph_guard
+                .get_property_ref(LayeredOptions::NODE_SIZE_MINIMUM)
+                .unwrap_or_default()
+        } else {
+            return;
+        };
+
+        if size_constraints.contains(&SizeConstraint::Ports) {
+            let port_spacing = self
+                .graph_property(elkgraph, CoreOptions::SPACING_PORT_PORT)
+                .unwrap_or(10.0);
+            let ports: Vec<ElkPortRef> = {
+                let mut node_mut = elkgraph.borrow_mut();
+                node_mut.ports().iter().cloned().collect()
+            };
+
+            let mut north_total = 0.0;
+            let mut east_total = 0.0;
+            let mut south_total = 0.0;
+            let mut west_total = 0.0;
+            let mut north_count = 0usize;
+            let mut east_count = 0usize;
+            let mut south_count = 0usize;
+            let mut west_count = 0usize;
+
+            for port in ports {
+                let (side, width, height) = {
+                    let mut port_mut = port.borrow_mut();
+                    let side = port_mut
+                        .connectable()
+                        .shape()
+                        .graph_element()
+                        .properties_mut()
+                        .get_property(CoreOptions::PORT_SIDE)
+                        .unwrap_or(PortSide::Undefined);
+                    let shape = port_mut.connectable().shape();
+                    (side, shape.width(), shape.height())
+                };
+
+                match side {
+                    PortSide::North => {
+                        north_total += width;
+                        north_count += 1;
+                    }
+                    PortSide::East => {
+                        east_total += height;
+                        east_count += 1;
+                    }
+                    PortSide::South => {
+                        south_total += width;
+                        south_count += 1;
+                    }
+                    PortSide::West => {
+                        west_total += height;
+                        west_count += 1;
+                    }
+                    PortSide::Undefined => {}
+                }
+            }
+
+            let side_required_span = |total: f64, count: usize| -> f64 {
+                if count == 0 {
+                    0.0
+                } else {
+                    total + port_spacing * (count as f64 + 1.0)
+                }
+            };
+
+            let vertical_port_min = side_required_span(west_total, west_count)
+                .max(side_required_span(east_total, east_count));
+            let horizontal_port_min = side_required_span(north_total, north_count)
+                .max(side_required_span(south_total, south_count));
+
+            min_size.x = min_size.x.max(horizontal_port_min);
+            min_size.y = min_size.y.max(vertical_port_min);
+        }
+
+        size_constraints.insert(SizeConstraint::MinimumSize);
+
+        if let Ok(mut graph_guard) = lgraph.lock() {
+            graph_guard.set_property(
+                LayeredOptions::NODE_SIZE_CONSTRAINTS,
+                Some(size_constraints),
+            );
+            graph_guard.set_property(LayeredOptions::NODE_SIZE_MINIMUM, Some(min_size));
+        }
     }
 
     fn create_lgraph(&mut self, elkgraph: &ElkNodeRef) -> LGraphRef {
