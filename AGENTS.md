@@ -866,9 +866,10 @@
 - Step L1-3 완료(2026-02-16): `724_includeChildrenModelOrder`는 현재 고정 Java baseline 기준 이미 `match` 상태임을 단건 재실행(`/tmp/l1_3_724/report.md`)으로 확인. 추가 코드 수정 없이 drift 재현 없음(`1/1 match`)
 - Step L1-4 완료(2026-02-16): `portLabelsMulti + multilabels` 대상 2건을 단건 묶음 재검증(`/tmp/l1_4_verify/report.md`)해 모두 `match` 유지 확인(`2/2 match`)
 - Step L1-5 완료(2026-02-16): `south_port` 4-diff의 root cause를 `IntermediateProcessorStrategy::HorizontalCompactor`가 `NoOp`인 미구현 경로로 확정. Java `HorizontalGraphCompactor` 핵심 경로(ORTHOGONAL 세그먼트 수집/병합, OneDimensionalCompactor 적용, spacing handler, compaction 결과를 node/bend/graph bounds에 반영)를 Rust `horizontal_graph_compactor.rs`로 최소 포팅하고 전략 wiring을 연결. 단건 parity 재검증(`/tmp/l1_5_south_port_after/report.md`)에서 `1/1 match`, low-diff subset(9건) 재실행(`/tmp/elk_l1_low_subset_after2/report.md`) 결과 `matches=4`, `drift=5`, `total_diffs=23`로 개선
+- Step L1-6 완료(2026-02-16): `491_portSpacing` 4-diff의 root cause를 `LabelAndNodeSizeProcessor`의 outside label 배치 분기에서 Java `dummyPort.isConnectedToExternalNodes()` 의미를 쓰지 않고 단순 edge 존재 여부로 판정하던 불일치로 확정. `label_next_to_port` outside 경로를 `LPort::is_connected_to_external_nodes()` 기반으로 수정해 Java importer가 계산한 external 연결 플래그를 그대로 사용하도록 보정. 단건 parity 재검증(`/tmp/l1_6_491/report.md`)에서 `1/1 match`, low-diff subset(9건) 재실행(`/tmp/elk_l1_low_subset_after3/report.md`) 결과 `matches=5`, `drift=4`, `total_diffs=19`로 개선
 ## 진행률(최신)
 - 전체 목표 대비 추정 진행률: 약 45.0% (기준: Java↔Rust 모델 parity full match 647/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
-- 단계 진행률(다음 작업 체크리스트 기준): 27.8% (완료 5/18, 미완료 13) [2026-02-16 갱신]
+- 단계 진행률(다음 작업 체크리스트 기준): 33.3% (완료 6/18, 미완료 12) [2026-02-16 갱신]
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
 - Java direct-mapped 모듈 테스트 parity: 146.1% (Rust 875 / Java 599, `perf/java_test_module_parity.md`)
@@ -1169,7 +1170,8 @@ git add <changed-files> && git commit -m "<scope>: <summary>"
   - 완료(2026-02-16): 2건 parity 재검증에서 모두 `match` 유지 확인(추가 수정 불필요)
 - [x] Step L1-5: `south_port` (4 diffs) — compound node width +20
   - 완료(2026-02-16): `HorizontalGraphCompactor` 최소 포팅 + `IntermediateProcessorStrategy` wiring으로 compaction 후처리가 실제 실행되도록 보정, 단건 `south_port`는 `1/1 match`, 저diff subset(9건)은 `4/9 match`로 개선
-- [ ] Step L1-6: `491_portSpacing` (4 diffs) — port y 1px
+- [x] Step L1-6: `491_portSpacing` (4 diffs) — port y 1px
+  - 완료(2026-02-16): `label_next_to_port` outside 경로를 Java와 동일하게 `LPort::is_connected_to_external_nodes()` 기반 판정으로 수정해 1px port y drift를 해소, 단건 `491_portSpacing`는 `1/1 match`, 저diff subset(9건)은 `5/9 match`로 개선
 - [ ] Step L1-7: `425_selfLoopInCompoundNode` (4 diffs) — self-loop node width
 - [ ] Step L1-8: `600_outgoingEdgeInLastSeparateNode` (4 diffs) — separate node edge
 - [ ] Step L1-9: `next_to_port_if_possible_inside` (5 diffs) — port x +20

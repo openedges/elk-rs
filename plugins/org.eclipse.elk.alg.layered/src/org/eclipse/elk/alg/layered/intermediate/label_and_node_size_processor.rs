@@ -1680,20 +1680,11 @@ fn label_next_to_port(
     }
 
     // Java: !dummyPort.isConnectedToExternalNodes()
-    !is_connected_to_external_nodes(dummy_port)
-}
-
-/// Check if the port is connected to external nodes (nodes outside the dummy's graph).
-fn is_connected_to_external_nodes(
-    port: &crate::org::eclipse::elk::alg::layered::graph::LPortRef,
-) -> bool {
-    if let Ok(port_guard) = port.lock() {
-        let has_incoming = !port_guard.incoming_edges().is_empty();
-        let has_outgoing = !port_guard.outgoing_edges().is_empty();
-        has_incoming || has_outgoing
-    } else {
-        false
-    }
+    !dummy_port
+        .lock()
+        .ok()
+        .map(|port_guard| port_guard.is_connected_to_external_nodes())
+        .unwrap_or(false)
 }
 
 #[cfg(test)]
@@ -1704,6 +1695,6 @@ mod tests {
     #[test]
     fn label_next_to_port_outside_path_does_not_deadlock() {
         let port = LPort::new();
-        assert!(label_next_to_port(&port, false, true));
+        assert!(!label_next_to_port(&port, false, true));
     }
 }
