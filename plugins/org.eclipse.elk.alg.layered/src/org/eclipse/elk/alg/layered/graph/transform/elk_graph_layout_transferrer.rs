@@ -3,6 +3,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector_chain::KVectorC
 use org_eclipse_elk_core::org::eclipse::elk::core::options::content_alignment::ContentAlignment;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_routing::EdgeRouting;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::port_label_placement::PortLabelPlacement;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::size_constraint::SizeConstraint;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::size_options::SizeOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_util::ElkUtil;
@@ -241,7 +242,18 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
         // Only resize for the top-level graph (no parent node)
         let parent_node = lgraph.lock().ok().and_then(|g| g.parent_node());
         if parent_node.is_none() {
-            let (graph_props, actual_graph_size) = {
+            let next_to_port_if_possible = {
+                let mut elk_node_mut = elk_node.borrow_mut();
+                elk_node_mut
+                    .connectable()
+                    .shape()
+                    .graph_element()
+                    .properties_mut()
+                    .get_property(CoreOptions::PORT_LABELS_PLACEMENT)
+                    .unwrap_or_else(PortLabelPlacement::outside)
+                    .contains(&PortLabelPlacement::NextToPortIfPossible)
+            };
+            let (graph_props, actual_graph_size, graph_size) = {
                 let mut graph_guard = match lgraph.lock() {
                     Ok(guard) => guard,
                     Err(_) => return,
@@ -250,7 +262,8 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
                     .get_property(InternalProperties::GRAPH_PROPERTIES)
                     .unwrap_or_else(EnumSet::none_of);
                 let size = graph_guard.actual_size();
-                (gp, size)
+                let graph_size = *graph_guard.size_ref();
+                (gp, size, graph_size)
             };
 
             if graph_props.contains(&GraphProperties::ExternalPorts) {
@@ -265,9 +278,14 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
                         .set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::FixedPos));
                 }
                 // Resize: move_ports=false, move_labels=true
+                let external_width = if graph_size.x <= 0.0 && next_to_port_if_possible {
+                    4.0
+                } else {
+                    actual_graph_size.x
+                };
                 ElkUtil::resize_node_with(
                     &elk_node,
-                    actual_graph_size.x,
+                    external_width,
                     actual_graph_size.y,
                     false,
                     true,

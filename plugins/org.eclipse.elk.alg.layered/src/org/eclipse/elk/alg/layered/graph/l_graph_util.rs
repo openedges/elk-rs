@@ -5,6 +5,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::alignment::Alignment
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::direction::Direction;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_label_placement::EdgeLabelPlacement;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::port_label_placement::PortLabelPlacement;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::size_constraint::SizeConstraint;
@@ -1032,11 +1033,16 @@ impl LGraphUtil {
             return KVector::new();
         };
 
-        let (graph_size, padding, graph_offset) = if let Ok(graph_guard) = graph.lock() {
+        let (graph_size, padding, graph_offset, next_to_port_if_possible) =
+            if let Ok(graph_guard) = graph.lock() {
             (
                 *graph_guard.size_ref(),
                 graph_guard.padding_ref().clone(),
                 *graph_guard.offset_ref(),
+                graph_guard
+                    .get_property_ref(CoreOptions::PORT_LABELS_PLACEMENT)
+                    .unwrap_or_else(PortLabelPlacement::outside)
+                    .contains(&PortLabelPlacement::NextToPortIfPossible),
             )
         } else {
             return port_pos;
@@ -1052,11 +1058,22 @@ impl LGraphUtil {
                 }
             }
             PortSide::East => {
-                port_pos.x = graph_size.x + padding.left + padding.right + port_offset;
+                let use_compact_zero_width = graph_size.x <= 0.0 && next_to_port_if_possible;
+                let horizontal_span = if use_compact_zero_width {
+                    4.0
+                } else {
+                    graph_size.x + padding.left + padding.right
+                };
+                port_pos.x = horizontal_span + port_offset;
                 port_pos.y += padding.top + graph_offset.y - (port_height / 2.0);
                 if let Ok(mut dummy_guard) = port_dummy.lock() {
+                    let dummy_x_span = if use_compact_zero_width {
+                        horizontal_span
+                    } else {
+                        graph_size.x
+                    };
                     dummy_guard.shape().position().x =
-                        graph_size.x + padding.right + port_offset - graph_offset.x;
+                        dummy_x_span + padding.right + port_offset - graph_offset.x;
                 }
             }
             PortSide::South => {
