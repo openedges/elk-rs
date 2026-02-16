@@ -26,6 +26,11 @@ pub struct LabelAndNodeSizeProcessor;
 
 static TRACE_NODE_SIZE: LazyLock<bool> =
     LazyLock::new(|| std::env::var("ELK_TRACE_NODE_SIZE").is_ok());
+static ENABLE_PHASE1_PORT_PLACEMENT: LazyLock<bool> = LazyLock::new(|| {
+    std::env::var("ELK_LAYERED_ENABLE_LABEL_NODE_PHASE1")
+        .map(|value| !(value == "0" || value.eq_ignore_ascii_case("false")))
+        .unwrap_or(true)
+});
 
 impl Default for LabelAndNodeSizeProcessor {
     fn default() -> Self {
@@ -65,33 +70,14 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
             eprintln!("label-node-size: step1 (node sizing) done");
         }
 
-        // Step 2: Place ports on nodes using updated node sizes
-        // This is a workaround for the missing PortPlacementCalculator in Rust's process_node.
-        // Port placement runs AFTER node sizing so ports use the correct node dimensions.
-        if *TRACE_NODE_SIZE {
-            eprintln!("label-node-size: step2 (port placement) begin");
-        }
-        let mut seen = HashSet::new();
-        for node in graph.layerless_nodes().clone() {
-            let key = Arc::as_ptr(&node) as usize;
-            if seen.insert(key) {
-                place_ports_on_node(
-                    &node,
-                    graph_port_spacing,
-                    &graph_ports_surrounding,
-                    graph_topdown_layout,
-                    graph_node_size_fixed_graph_size,
-                );
+        // Step 2: Port placement workaround (not present in Java).
+        // Keep enabled by default for current behavior; allow disabling for parity experiments.
+        if *ENABLE_PHASE1_PORT_PLACEMENT {
+            if *TRACE_NODE_SIZE {
+                eprintln!("label-node-size: step2 (port placement) begin");
             }
-        }
-
-        for layer in graph.layers().clone() {
-            let nodes = layer
-                .lock()
-                .ok()
-                .map(|layer_guard| LGraphUtil::to_node_array(layer_guard.nodes()))
-                .unwrap_or_default();
-            for node in nodes {
+            let mut seen = HashSet::new();
+            for node in graph.layerless_nodes().clone() {
                 let key = Arc::as_ptr(&node) as usize;
                 if seen.insert(key) {
                     place_ports_on_node(
@@ -103,9 +89,31 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
                     );
                 }
             }
-        }
-        if *TRACE_NODE_SIZE {
-            eprintln!("label-node-size: step2 (port placement) done");
+
+            for layer in graph.layers().clone() {
+                let nodes = layer
+                    .lock()
+                    .ok()
+                    .map(|layer_guard| LGraphUtil::to_node_array(layer_guard.nodes()))
+                    .unwrap_or_default();
+                for node in nodes {
+                    let key = Arc::as_ptr(&node) as usize;
+                    if seen.insert(key) {
+                        place_ports_on_node(
+                            &node,
+                            graph_port_spacing,
+                            &graph_ports_surrounding,
+                            graph_topdown_layout,
+                            graph_node_size_fixed_graph_size,
+                        );
+                    }
+                }
+            }
+            if *TRACE_NODE_SIZE {
+                eprintln!("label-node-size: step2 (port placement) done");
+            }
+        } else if *TRACE_NODE_SIZE {
+            eprintln!("label-node-size: step2 skipped (experiment)");
         }
 
         // Phase 3: If the graph has external ports, handle labels of external port dummies

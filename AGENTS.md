@@ -876,9 +876,10 @@
 - Step L2-2 완료(2026-02-16): 공통 root cause를 `LabelSideSelector`의 inline label dummy 처리에서 graph lock 회피용 `try_lock` fallback(`SPACING_EDGE_LABEL=0`)으로 확정. Java와 동일하게 process 시점의 `SPACING_EDGE_LABEL` 값을 캡처해 helper 체인으로 전달하도록 `label_side_selector.rs`를 수정해 fallback drift를 제거. 검증: `cargo test -p org-eclipse-elk-alg-layered --test label_side_selector_test` 통과, `cargo clippy -p org-eclipse-elk-alg-layered --test label_side_selector_test` 통과
 - Step L2-2 효과 검증(2026-02-16): 상위 medium 패턴 `children[*]/y` 28건 subset parity 재실행(`/tmp/l2_2_children_y_report.md`) 결과 `matches=25`, `drift=3`로 개선(기존 28건 전부 drift 대비 +25 match)
 - Step L2-3 완료(2026-02-16): 고정 Java baseline 기준 full parity 재실행(`MODEL_PARITY_SKIP_JAVA_EXPORT=true sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models perf/model_parity_full`) 결과 `matches=1106`, `drift=333`, `total_diffs=6269`, `errors/timeouts=0`, `java_non_ok=9`로 갱신. drift 재분류(`perf/model_parity_full/drift_summary_l2_3.txt`) 기준 `other=165`, `layering_diff=138`, `ordering_diff=30`, medium bucket은 `84 -> 37`, high bucket은 `688 -> 288`로 축소
+- Step L3-1 완료(2026-02-16): `LabelAndNodeSizeProcessor`의 Java 미존재 Phase 1(포트 재배치) 제거 가능성을 토글 실험으로 검증. `ELK_LAYERED_ENABLE_LABEL_NODE_PHASE1`(기본 `true`)를 도입해 동일 코드 경로에서 on/off 비교를 가능하게 하고, `false`로 full parity 재실행(`MODEL_PARITY_SKIP_JAVA_EXPORT=true MODEL_PARITY_CARGO_FLAGS=--release ELK_LAYERED_ENABLE_LABEL_NODE_PHASE1=false sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models /tmp/model_parity_l3_phase1_off`)한 결과 `matches=776/1439`, `drift=663`, `total_diffs=11198`로 기준선(`1106/333/6269`) 대비 대폭 악화 확인. 결론: Phase 1 기본 제거는 보류하고, 원인 분석용 실험 토글만 유지. 검증: `CARGO_TARGET_DIR=/tmp/elk-rs-l3-1-target cargo clippy --workspace --all-targets` 종료코드 0, `CARGO_TARGET_DIR=/tmp/elk-rs-l3-1-target cargo test --workspace`는 기존과 동일하게 `inside_port_label_test` 1건 실패(신규 회귀 아님)
 ## 진행률(최신)
 - 전체 목표 대비 추정 진행률: 약 76.9% (기준: Java↔Rust 모델 parity full match 1106/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
-- 단계 진행률(다음 작업 체크리스트 기준): 77.8% (완료 14/18, 미완료 4) [2026-02-16 갱신]
+- 단계 진행률(다음 작업 체크리스트 기준): 83.3% (완료 15/18, 미완료 3) [2026-02-16 갱신]
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
 - Java direct-mapped 모듈 테스트 parity: 146.1% (Rust 875 / Java 599, `perf/java_test_module_parity.md`)
@@ -1201,7 +1202,8 @@ git add <changed-files> && git commit -m "<scope>: <summary>"
   - 완료(2026-02-16): 고정 Java baseline 기준 full parity 재실행 결과 `matches=1106/1439`, `drift=333`, `total_diffs=6269`, `errors/timeouts=0`, `java_non_ok=9`. medium/high bucket은 각각 `37`, `288`로 갱신
 
 ### Layer 3: Max-diff systemic root cause (288 models)
-- [ ] Step L3-1: LabelAndNodeSizeProcessor Phase 1 제거 실험 (Java에 없는 코드)
+- [x] Step L3-1: LabelAndNodeSizeProcessor Phase 1 제거 실험 (Java에 없는 코드)
+  - 완료(2026-02-16): `ELK_LAYERED_ENABLE_LABEL_NODE_PHASE1` 실험 토글로 full parity A/B를 비교. baseline(on) 대비 off 결과가 `matches 1106 -> 776`, `drift 333 -> 663`, `total_diffs 6269 -> 11198`로 크게 악화되어 기본 제거는 보류하고 토글 기반 원인 분석 경로만 유지. 검증: `cargo clippy --workspace --all-targets` 종료코드 0, `cargo test --workspace`는 기존과 동일하게 `inside_port_label_test` 1건 실패(신규 회귀 아님)
 - [ ] Step L3-2: compound node width calculation Java 비교/정합
 - [ ] Step L3-3: crossing minimization 결과 비교 (Phase 3 entry point)
 - [ ] Step L3-4: parity 재실행 및 대규모 진행률 갱신
