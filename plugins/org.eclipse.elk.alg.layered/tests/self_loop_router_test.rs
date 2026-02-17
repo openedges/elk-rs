@@ -200,6 +200,30 @@ fn build_north_south_self_loop_graph_with_label(inline: bool) -> (LGraphRef, LNo
     (graph, node, edge)
 }
 
+fn build_east_west_self_loop_graph() -> (LGraphRef, LNodeRef, LEdgeRef) {
+    let graph = LGraph::new();
+    let node = LNode::new(&graph);
+    {
+        let mut node_guard = node.lock().expect("node lock");
+        node_guard.shape().size().x = 80.0;
+        node_guard.shape().size().y = 60.0;
+        node_guard.shape().position().x = 10.0;
+        node_guard.shape().position().y = 20.0;
+        node_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::FixedOrder));
+        node_guard.set_property(LayeredOptions::EDGE_ROUTING, Some(EdgeRouting::Orthogonal));
+    }
+    graph
+        .lock()
+        .expect("graph lock")
+        .layerless_nodes_mut()
+        .push(node.clone());
+
+    let west = create_port(&node, PortSide::West, 0.0, 30.0);
+    let east = create_port(&node, PortSide::East, 80.0, 30.0);
+    let edge = add_edge(&west, &east);
+    (graph, node, edge)
+}
+
 fn build_opposing_self_loop_with_side_penalty(
     east_connected: bool,
     west_connected: bool,
@@ -1181,6 +1205,51 @@ fn self_loop_router_prefers_east_route_when_west_ports_are_more_connected() {
         max_x > node_x + node_w + 1e-6,
         "expected east route when west side is more connected, max_x={max_x}, node_right={}",
         node_x + node_w
+    );
+}
+
+#[test]
+fn self_loop_router_prefers_north_route_on_east_west_tie() {
+    init_layered_metadata();
+    let (graph, node, self_loop) = build_east_west_self_loop_graph();
+
+    let mut pre = SelfLoopPreProcessor;
+    run_processor(&mut pre, &graph);
+    let layer = Layer::new(&graph);
+    graph
+        .lock()
+        .expect("graph lock")
+        .layers_mut()
+        .push(layer.clone());
+    LNode::set_layer(&node, Some(layer));
+    graph
+        .lock()
+        .expect("graph lock")
+        .layerless_nodes_mut()
+        .retain(|candidate| !Arc::ptr_eq(candidate, &node));
+    let mut restorer = SelfLoopPortRestorer;
+    run_processor(&mut restorer, &graph);
+    let mut router = SelfLoopRouter;
+    run_processor(&mut router, &graph);
+    let mut post = SelfLoopPostProcessor;
+    run_processor(&mut post, &graph);
+
+    let node_y = {
+        let mut node_guard = node.lock().expect("node lock");
+        node_guard.shape().position_ref().y
+    };
+    let min_y = {
+        let edge_guard = self_loop.lock().expect("self-loop edge lock");
+        edge_guard
+            .bend_points_ref()
+            .iter()
+            .map(|point| point.y)
+            .fold(f64::INFINITY, f64::min)
+    };
+
+    assert!(
+        min_y < node_y - 1e-6,
+        "expected north route for east/west tie, min_y={min_y}, node_y={node_y}"
     );
 }
 

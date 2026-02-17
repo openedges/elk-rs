@@ -196,12 +196,37 @@ fn determine_two_side_opposing_route(
     let option2_penalty =
         compute_edge_penalty(holder, port_penalties, &option2_left, &option2_right);
 
-    if option1_penalty <= option2_penalty {
+    if option1_penalty < option2_penalty {
+        sl_loop.set_leftmost_port(Some(option1_left));
+        sl_loop.set_rightmost_port(Some(option1_right));
+        return;
+    }
+    if option2_penalty < option1_penalty {
+        sl_loop.set_leftmost_port(Some(option2_left));
+        sl_loop.set_rightmost_port(Some(option2_right));
+        return;
+    }
+
+    // Java parity: opposing-side ties are effectively biased towards top/left routing.
+    // Choose the option whose clockwise intermediate side is preferred.
+    let option1_mid = sides[0].right();
+    let option2_mid = sides[1].right();
+    if opposing_tie_break_rank(option1_mid) <= opposing_tie_break_rank(option2_mid) {
         sl_loop.set_leftmost_port(Some(option1_left));
         sl_loop.set_rightmost_port(Some(option1_right));
     } else {
         sl_loop.set_leftmost_port(Some(option2_left));
         sl_loop.set_rightmost_port(Some(option2_right));
+    }
+}
+
+fn opposing_tie_break_rank(side: PortSide) -> i32 {
+    match side {
+        PortSide::North => 0,
+        PortSide::West => 1,
+        PortSide::South => 2,
+        PortSide::East => 3,
+        PortSide::Undefined => 4,
     }
 }
 

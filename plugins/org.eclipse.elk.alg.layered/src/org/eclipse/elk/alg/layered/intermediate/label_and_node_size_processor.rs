@@ -79,7 +79,7 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
             let mut seen = HashSet::new();
             for node in graph.layerless_nodes().clone() {
                 let key = Arc::as_ptr(&node) as usize;
-                if seen.insert(key) {
+                if seen.insert(key) && should_apply_phase1_port_placement(&node) {
                     place_ports_on_node(
                         &node,
                         graph_port_spacing,
@@ -98,7 +98,7 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
                     .unwrap_or_default();
                 for node in nodes {
                     let key = Arc::as_ptr(&node) as usize;
-                    if seen.insert(key) {
+                    if seen.insert(key) && should_apply_phase1_port_placement(&node) {
                         place_ports_on_node(
                             &node,
                             graph_port_spacing,
@@ -174,6 +174,14 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
 // ============================================================
 // Phase 1: Port placement
 // ============================================================
+
+fn should_apply_phase1_port_placement(node: &LNodeRef) -> bool {
+    !node
+        .lock()
+        .ok()
+        .and_then(|mut node_guard| node_guard.get_property(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE))
+        .unwrap_or(false)
+}
 
 fn place_ports_on_node(
     node: &LNodeRef,
