@@ -4,9 +4,8 @@ use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutP
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase_factory::ILayoutPhaseFactory;
 
 use crate::org::eclipse::elk::alg::layered::graph::LGraph;
-use crate::org::eclipse::elk::alg::layered::no_op_phase::NoOpPhase;
 use crate::org::eclipse::elk::alg::layered::p3order::{
-    CrossMinType, LayerSweepCrossingMinimizer, NoCrossingMinimizer,
+    CrossMinType, InteractiveCrossingMinimizer, LayerSweepCrossingMinimizer, NoCrossingMinimizer,
 };
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
 
@@ -40,7 +39,9 @@ impl ILayoutPhaseFactory<LayeredPhases, LGraph> for CrossingMinimizationStrategy
             CrossingMinimizationStrategy::MedianLayerSweep => {
                 Box::new(LayerSweepCrossingMinimizer::new(CrossMinType::Median))
             }
-            _ => Box::new(NoOpPhase::new()),
+            CrossingMinimizationStrategy::Interactive => {
+                Box::new(InteractiveCrossingMinimizer::new())
+            }
         }
     }
 
