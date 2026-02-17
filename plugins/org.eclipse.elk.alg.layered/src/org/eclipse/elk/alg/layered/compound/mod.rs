@@ -1126,59 +1126,25 @@ impl CompoundGraphPreprocessor {
             return existing.clone();
         }
 
-        let (port_side, port_size, port_position, port_node_size, port_constraints, direction) = {
-            let (port_side, port_size, port_position, port_node, port_constraints) =
-                port.lock()
-                    .ok()
-                    .map(|mut port_guard| {
-                        (
-                            port_guard.side(),
-                            *port_guard.shape().size_ref(),
-                            *port_guard.shape().position_ref(),
-                            port_guard.node(),
-                            port_guard.get_property(LayeredOptions::PORT_CONSTRAINTS),
-                        )
-                    })
-                    .unwrap_or((
-                        PortSide::Undefined,
-                        KVector::new(),
-                        KVector::new(),
-                        None,
-                        None,
-                    ));
-            let port_node_size = port_node
-                .as_ref()
-                .and_then(|node| node.lock().ok().map(|mut node_guard| *node_guard.shape().size_ref()))
-                .unwrap_or_default();
-            let port_constraints = port_constraints
-                .or_else(|| {
-                    port_node
-                        .as_ref()
-                        .and_then(|node| node.lock().ok())
-                        .and_then(|mut node_guard| {
-                            node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
-                        })
-                })
-                .unwrap_or(fallback_constraints);
-            let direction = LGraphUtil::get_direction(graph);
-            (
-                port_side,
-                port_size,
-                port_position,
-                port_node_size,
-                port_constraints,
-                direction,
-            )
+        let (port_side, port_size, direction) = {
+            let (port_side, port_size) = port
+                .lock()
+                .ok()
+                .map(|mut port_guard| (port_guard.side(), *port_guard.shape().size_ref()))
+                .unwrap_or((PortSide::Undefined, KVector::new()));
+            (port_side, port_size, LGraphUtil::get_direction(graph))
         };
 
         let mut props = port_property_holder(port);
+        // Java inside-self-loop path uses PortConstraints.FREE with null position/node-size context.
+        // Match that behavior by keeping FREE constraints and zero vectors.
         let dummy_node = LGraphUtil::create_external_port_dummy(
             &mut props,
-            port_constraints,
+            fallback_constraints,
             port_side,
             net_flow,
-            &port_node_size,
-            &port_position,
+            &KVector::new(),
+            &KVector::new(),
             &port_size,
             direction,
             graph,

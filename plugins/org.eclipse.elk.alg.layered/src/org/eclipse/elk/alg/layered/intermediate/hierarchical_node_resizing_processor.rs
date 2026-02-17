@@ -99,7 +99,7 @@ fn graph_layout_to_node(node: &LNodeRef, lgraph: &mut LGraph) {
     // Process external ports
     let layerless_nodes = lgraph.layerless_nodes().clone();
     for child_node in &layerless_nodes {
-        let (port_ref, ext_port_side) = {
+        let (port_ref, ext_port_side, dummy_pos_y) = {
             let mut child_guard = match child_node.lock() {
                 Ok(guard) => guard,
                 Err(_) => continue,
@@ -111,7 +111,8 @@ fn graph_layout_to_node(node: &LNodeRef, lgraph: &mut LGraph) {
             let ext_port_side = child_guard
                 .get_property(InternalProperties::EXT_PORT_SIDE)
                 .unwrap_or(PortSide::Undefined);
-            (port_ref, ext_port_side)
+            let dummy_pos_y = child_guard.shape().position_ref().y;
+            (port_ref, ext_port_side, dummy_pos_y)
         };
 
         trace_resize("external port dummy found");
@@ -123,12 +124,17 @@ fn graph_layout_to_node(node: &LNodeRef, lgraph: &mut LGraph) {
             continue;
         };
 
-        let port_position = get_external_port_position_for_graph(
+        let mut port_position = get_external_port_position_for_graph(
             lgraph,
             child_node,
             port_size.x,
             port_size.y,
         );
+        // For pure self-loop sources on the east side, Java effectively keeps the dummy's y-origin
+        // at the content top. Compensate the dummy y-shift here before writing back to the parent port.
+        if ext_port_side == PortSide::East && is_pure_self_loop_port(&port_ref) {
+            port_position.y -= dummy_pos_y;
+        }
         if trace_external_ports {
             let (dummy_pos, dummy_size, dummy_id, dummy_layer_id, dummy_margin_top, dummy_margin_bottom) = child_node
                 .lock()
@@ -246,6 +252,23 @@ fn graph_layout_to_node(node: &LNodeRef, lgraph: &mut LGraph) {
 
 fn is_nested(graph: &LGraph) -> bool {
     graph.parent_node().is_some()
+}
+
+fn is_pure_self_loop_port(port: &crate::org::eclipse::elk::alg::layered::graph::LPortRef) -> bool {
+    let (incoming, outgoing) = match port.lock() {
+        Ok(port_guard) => (port_guard.incoming_edges().clone(), port_guard.outgoing_edges().clone()),
+        Err(_) => return false,
+    };
+
+    let mut all_edges = incoming;
+    all_edges.extend(outgoing);
+    if all_edges.is_empty() {
+        return false;
+    }
+
+    all_edges
+        .into_iter()
+        .all(|edge| edge.lock().ok().is_some_and(|edge_guard| edge_guard.is_self_loop()))
 }
 
 fn get_external_port_position_for_graph(
