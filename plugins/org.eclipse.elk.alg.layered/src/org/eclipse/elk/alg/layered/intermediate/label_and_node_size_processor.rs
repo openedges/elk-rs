@@ -275,8 +275,12 @@ fn place_ports_on_node(
     }
 
     if port_constraints.is_pos_fixed() {
-        // Java's PortPlacementCalculator preserves preset port positions for FIXED_POS.
-        // Do NOT call adjust_ports_on_side which would overwrite the imported positions.
+        // Java's FIXED_POS path keeps the axis-aligned coordinate and snaps only the
+        // border coordinate according to side/border-offset.
+        adjust_ports_on_side(node, PortSide::North, node_size.x, node_size.y);
+        adjust_ports_on_side(node, PortSide::South, node_size.x, node_size.y);
+        adjust_ports_on_side(node, PortSide::East, node_size.x, node_size.y);
+        adjust_ports_on_side(node, PortSide::West, node_size.x, node_size.y);
         update_node_margin(node);
         return;
     }
@@ -1249,6 +1253,8 @@ fn enforce_inside_port_label_minimum_size(
     let mut max_east = 0.0_f64;
     let mut max_north = 0.0_f64;
     let mut max_south = 0.0_f64;
+    let mut has_east_west_labels = false;
+    let mut has_north_south_labels = false;
     let mut max_label_height_west = 0.0_f64;
     let mut max_label_height_east = 0.0_f64;
     let mut max_port_height_west = 0.0_f64;
@@ -1287,16 +1293,20 @@ fn enforce_inside_port_label_minimum_size(
                 PortSide::West | PortSide::Undefined => {
                     max_west = max_west.max(label_size.x);
                     max_label_height_west = max_label_height_west.max(label_size.y);
+                    has_east_west_labels = true;
                 }
                 PortSide::East => {
                     max_east = max_east.max(label_size.x);
                     max_label_height_east = max_label_height_east.max(label_size.y);
+                    has_east_west_labels = true;
                 }
                 PortSide::North => {
                     max_north = max_north.max(label_size.y);
+                    has_north_south_labels = true;
                 }
                 PortSide::South => {
                     max_south = max_south.max(label_size.y);
+                    has_north_south_labels = true;
                 }
             }
         }
@@ -1323,9 +1333,12 @@ fn enforce_inside_port_label_minimum_size(
     let required_height = padding.top
         + padding.bottom
         + north_south_height.max(west_required_height).max(east_required_height);
+    // Phase 1 places labels in step 1. Shrinking afterwards can reintroduce overlaps
+    // when inside labels exist on both horizontal and vertical sides.
+    let prevent_shrink_for_mixed_inside_sides = has_east_west_labels && has_north_south_labels;
 
     let mut adjusted = node_size;
-    if allow_shrink {
+    if allow_shrink && !prevent_shrink_for_mixed_inside_sides {
         if required_width > 0.0 {
             adjusted.x = required_width;
         }

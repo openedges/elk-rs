@@ -394,6 +394,10 @@ pub static EDGE_ROUTING_SELF_LOOP_ORDERING_PROPERTY: LazyLock<Property<SelfLoopO
 
 pub static COMPACTION_POST_COMPACTION_STRATEGY_PROPERTY: LazyLock<Property<GraphCompactionStrategy>> =
     LazyLock::new(|| {
+        ElkReflect::register(
+            Some(|| GraphCompactionStrategy::None),
+            Some(|v: &GraphCompactionStrategy| *v),
+        );
         Property::with_default(
             "org.eclipse.elk.alg.layered.compaction.postCompaction.strategy",
             GraphCompactionStrategy::None,
@@ -403,6 +407,10 @@ pub static COMPACTION_POST_COMPACTION_STRATEGY_PROPERTY: LazyLock<Property<Graph
 pub static COMPACTION_POST_COMPACTION_CONSTRAINTS_PROPERTY: LazyLock<
     Property<ConstraintCalculationStrategy>,
 > = LazyLock::new(|| {
+    ElkReflect::register(
+        Some(|| ConstraintCalculationStrategy::Scanline),
+        Some(|v: &ConstraintCalculationStrategy| *v),
+    );
     Property::with_default(
         "org.eclipse.elk.alg.layered.compaction.postCompaction.constraints",
         ConstraintCalculationStrategy::Scanline,

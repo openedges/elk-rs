@@ -443,7 +443,10 @@ fn crossing_before_last_layer_causes_crossing_outside_two_sided_prevents() {
 fn crossing_before_first_layer_causes_crossing_outside_two_sided_prevents() {
     let graph = new_graph();
     if let Ok(mut graph_guard) = graph.lock() {
-        graph_guard.set_property(InternalProperties::RANDOM, Some(Random::new(0)));
+        let mut random = Random::new(0);
+        random.set_mock_next_boolean(false);
+        random.set_mock_double_sequence(0.0, 0.0001);
+        graph_guard.set_property(InternalProperties::RANDOM, Some(random));
     }
     let left_node = add_node(&graph, &make_layer(&graph));
     let right_node = add_node(&graph, &make_layer(&graph));

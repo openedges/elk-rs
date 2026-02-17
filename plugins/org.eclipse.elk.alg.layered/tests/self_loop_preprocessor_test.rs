@@ -6,6 +6,7 @@ use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::{
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::intermediate::SelfLoopPreProcessor;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::LayeredOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
+use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::NullElkProgressMonitor;
@@ -156,6 +157,7 @@ impl TestGraph {
 }
 
 fn run_preprocessor(graph: &LGraphRef) {
+    LayoutMetaDataService::get_instance();
     let mut preprocessor = SelfLoopPreProcessor;
     let mut monitor = NullElkProgressMonitor;
     preprocessor.process(&mut graph.lock().expect("graph lock"), &mut monitor);
