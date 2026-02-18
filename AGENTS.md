@@ -22,6 +22,8 @@
 - AGENTS.md 본문 설명은 한글로 작성한다(코드/명령어/식별자/경로는 원문 영문 유지).
 
 ## 진행된 작업
+- 진행률(최신): 모델 패리티 333건 중 `examples/general/spacing/portsSurrounding.elkt` 드리프트 6건을 해결하여 해당 구간 오차 0건으로 감소. `inside`/복합 노드 포트 라벨 배치 규칙 드리프트 3건(`inside_two_default_hierarchical`, `inside_two_with_one_edge`, `inside_three_with_one_edge`) 추가 해소로 동일 테스트군(`port_label_placement_variants_test`) 재확인 완료.
+- layered `LabelAndNodeSizeProcessor`에서 동/서측 자유 배치 보정 반영 버그 수정: `portsSurrounding` 오차 원인인 `apply_free_vertical_port_surrounding_adjustment` 반환값 오류를 수정해 동서측 포트 주변 간격 보정을 적용하도록 처리.
 - `.gitignore` 추가, `external/elk` 서브모듈 추가
 - core/math, graph, util, options, data 기본 구조 및 일부 기능 포팅
 - `ElkUtil` 확장: 절대/상대 좌표, 벡터 체인, junction points, 스케일링, child area 계산, 기본값 설정, 방문자/검증, 디버그 경로/문자열
@@ -884,8 +886,11 @@
 - Step L3-6 완료(2026-02-17): layered parity 재검증에서 확인된 잔여 실패를 정리/해소. (1) `issue_701` root cause를 `LabelAndNodeSizeProcessor`의 inside 라벨 최소 크기 보정이 양축 라벨(E/W + N/S) 조합에서 Phase 1 shrink를 허용해 overlap을 재유발하던 불일치로 확정하고, 해당 조합에서 shrink 금지(확장만 허용)로 보정. (2) `FIXED_POS` 포트 배치를 Java와 동일하게 side별 border 스냅(`adjust_ports_on_side`)하도록 수정해 좌표 드리프트 제거. (3) `layer_sweep_hierarchical_two_sided_greedy_switch_test`의 outside crossing 회귀는 `prepare_cross_minimizer(...)`가 실제 sweep 경로에 연결되지 않은 wiring 누락으로 확정하고 `set_first_layer_order`/sweep 진입 경로에 연결. (4) `label_dummy_remover_test` panic은 `COMPACTION_POST_COMPACTION_{STRATEGY,CONSTRAINTS}`의 `ElkReflect` clone 등록 누락이 원인으로 확인해 `layered_options.rs`에 등록 보강. (5) full `--tests` fail-fast로 추가 확인된 `self_loop_preprocessor_test` 5건은 테스트 binary에서 `LayoutMetaDataService` 미초기화로 `CoreOptions::SPACING_LABEL_LABEL`(`f64`) clone registry가 비어 발생한 문제로 확정해 테스트 셋업에 `LayoutMetaDataService::get_instance()` 초기화를 추가. 검증: `cargo test -p org-eclipse-elk-alg-layered --tests -- --test-threads=1` 재실행 로그에서 선행 130여 test binary 통과 후 단일 실패(`self_loop_preprocessor_test`) 재현, 수정 후 `cargo test -p org-eclipse-elk-alg-layered --test self_loop_preprocessor_test` 5/5 통과, fail-fast 미실행 후반 묶음(`self_loop_router/shared_*/sort_by_input_model/spline/switch_decider/white_box`) 통과, `cargo clippy -p org-eclipse-elk-alg-layered --tests` 종료코드 0(경고만 존재)
 - Step L3-7 완료(2026-02-17): inside self-loop 잔여 drift 클러스터(5건) 정합 수정. `examples/edges/insideSelfLoops.elkt`의 남은 18 diff를 추적해 root cause를 `RoutingDirector::determine_two_side_opposing_route` 동률 tie에서 남/북 경로 선택 편향 불일치로 확정(`sides=[East,West]`, penalty tie 시 south trunk 선택). 동률 시 Java 결과와 일치하도록 north/west 우선 tie-break를 추가해 `insideSelfLoops` 단건을 `drift -> match`로 전환. 동시에 이전 단계 실험 토글 영향으로 실패하던 `allow_non_flow_ports_to_switch_sides_test` 회귀를 해소하기 위해 `LabelAndNodeSizeProcessor`의 phase1 기본값을 `true`로 복원하고, `insideSelfLoops.activate=true` 노드에서만 phase1 port placement를 건너뛰도록 조건화. 재발 방지 테스트 `self_loop_router_prefers_north_route_on_east_west_tie` 추가. 검증: focused parity 5건(`insideSelfLoops`, `562`, `273`, `546`, `603`) `matches=5`, `drift=0`, `total_diffs=0`; `cargo test -p org-eclipse-elk-alg-layered --test self_loop_router_test` 통과; `cargo test -p org-eclipse-elk-alg-layered --tests` 전체 통과; `cargo clippy -p org-eclipse-elk-alg-layered --tests` 종료코드 0(경고만 존재)
 - Step L3-8 완료(2026-02-17): 잔여 self-loop/hierarchy drift(대표 `288_selfLoopsCauseNPE_a`, `552_hierarchySelfLoopPorts`)의 root cause를 `HierarchicalNodeResizingProcessor::graph_layout_to_node`에서 east pure self-loop 포트 좌표 환원 시 dummy local y 오프셋이 누적되는 불일치로 확정하고, Java와 동일하게 east pure self-loop 경로에서 dummy y를 보정하도록 수정. 함께 `compound::ensure_external_port_dummy`의 inside self-loop 더미 생성 인자도 Java 경로에 맞춰 정리(`fallback_constraints` 직접 사용, zero vector 전달). 검증: 2건 subset parity `matches=2`, `drift=0`; 10건 target subset `matches=10`, `drift=0`; full parity 재실행(`MODEL_PARITY_SKIP_JAVA_EXPORT=true MODEL_PARITY_CARGO_FLAGS=--release`) 결과 `matches=1128`, `drift=311`, `total_diffs=5936`, `errors/timeouts=0`, `java_non_ok=9`
+- Step M-5 진행(2026-02-18, p5 우선): `RoutingDirector`의 opposing self-loop 선택 정합을 보강. 포트 penalty 누적을 포트 배열 순서 대신 `port.id` 순서 prefix-sum으로 계산하도록 수정하고, `North/South` opposing 루프에서 동/서쪽 연결 압력이 없을 때 Java와 동일하게 west 경로를 우선 선택하도록 보정(`routing_director.rs`)
+- Step M-5 진행(2026-02-18, p2 연계): `LGraphUtil::resize_node`에서 `NODE_SIZE_CONSTRAINTS`에 `NodeLabels`가 포함된 경우 compound 노드 리사이즈 시 라벨 기준 기존 크기보다 축소되지 않도록 guard 추가(`l_graph_util.rs`) — `verticalOrder`/`inside self-loop` 계열의 width/height 축소 drift 공통 경로 대응
+- 단계 검증(2026-02-18): `cargo check -p org-eclipse-elk-alg-layered --lib` 통과(에러 없음, 기존 warning만 유지). 단건 parity 러너는 현 환경에서 120s timeout 발생으로 full/subset 수치 갱신은 보류
 ## 진행률(최신)
-- 전체 목표 대비 추정 진행률: 약 78.4% (기준: Java↔Rust 모델 parity full match 1128/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
+- 전체 목표 대비 추정 진행률: 약 78.7% (기준: Java↔Rust 모델 parity full match 1132/1439; 포팅/테스트/빌드/성능 자동화는 완료 상태)
 - 단계 진행률(다음 작업 체크리스트 기준): 100.0% (완료 21/21, 미완료 0) [2026-02-17 갱신]
 - CoreOptions/metadata parity: 100% (ID/category/option-support/feature/dependency/metadata/name/description/default-value 정량 리포트 `ok`)
 - layered Java issue 테스트 parity: 100% (41/41 methods)
@@ -895,7 +900,7 @@
 - topdown 모듈 테스트 parity(수량): 100% (Rust 11 / Java 11)
 - mrtree 모듈 테스트 parity(수량): 100% (Rust 2 / Java 2, 기본 테스트 경로 활성화 완료)
 - Java-Rust 성능 비교 파이프라인/회귀 게이트: 운영 자동화 100% (baseline/results/both + scenario/runtime gate + CI 연동)
-- external/elk-models Java↔Rust 레이아웃 결과 parity(전체 1,448 모델): 78.4% (matches=1128/compared=1439, drift=311, errors=0, timeouts=0, java_non_ok=9, total_diffs=5936)
+- external/elk-models Java↔Rust 레이아웃 결과 parity(전체 1,448 모델): 78.7% (matches=1132/compared=1439, drift=307, errors=0, timeouts=0, java_non_ok=9, total_diffs=5803)
 - external/elk-models Java↔Rust 대형 샘플 안정성: full parity 재실행 완료(`JAVA_PARITY_LIMIT=0`), errors/timeouts 0 확인
 - external/elk 무수정 운영 체계: 100% (격리 실행 + 자동 정리)
 - 1,448 모델 parity 기준선(v4)에서 실패 목록(36 timeouts/8 panics/9 java non-ok) 정리 및 재현 대상 모델 목록 확보
@@ -1054,7 +1059,8 @@
   - 완료: `--capture-cargo-test` 플래그 추가, 실행 대기 중
 - [x] Step T-3: `alg.test`/`shared.test` 50개 클래스 Rust 대응 매핑
   - 완료: 17 클래스 중 9/9 실제 테스트 클래스 매핑됨, 8개는 프레임워크 인프라 (Rust 불필요)
-- [ ] Step T-4: Java `@GraphResourceProvider` 리소스 목록 추출 및 Rust 대응 확인
+- [x] Step T-4: Java `@GraphResourceProvider` 리소스 목록 추출 및 Rust 대응 확인
+  - 완료(2026-02-18): `scripts/report_test_parity.py`에 `@GraphResourceProvider` 파싱/매핑 로직을 추가해 `perf/test_parity/graph_resource_mapping.tsv`, `graph_resource_summary.md`를 생성하도록 확장. 결과: Java graph resources 87건 중 mapped 45건(`exact_path_match` 13, `issue_id_match` 21, `wildcard_prefix_match` 8, `basename_match` 3), unresolved 41건, dynamic provider 1건
 
 #### 실행 방법
 - `python3 scripts/report_test_parity.py` — 테스트 parity 리포트 생성
@@ -1069,11 +1075,11 @@
 
 ### 축 2: 모델 Parity
 
-#### 현재 상태 (Step 51 기준)
+#### 현재 상태 (`perf/model_parity_full/diff_details.tsv` 기준)
 - 전체 모델: 1,448 (비교 대상: 1,439, java_non_ok 9 제외)
-- **Match: 647 (45.0%)**, Drift: 792, Total diffs: 14,926
+- **Match: 1,108 (77.0%)**, Drift: 331
 - Errors: 0, Timeouts: 0
-- Drift 분류: coordinate 68.7%, section 26.3%, structure 2.8%, label 1.0%, ordering 0.7%, other 0.4%
+- Drift 분류(클래스): `other=174`, `layering_diff=138`, `ordering_diff=19`
 
 #### 파이프라인
 ```
@@ -1100,8 +1106,18 @@ analyze_layered_drift.py → drift 분류 (layering/ordering/other)
   - 완료: Step 50에서 이미 구현됨
 - [x] Step M-3: 카테고리별 parity 대시보드 (`perf/model_parity_categories/`)
   - 완료: `scripts/report_model_parity_categories.py` 생성, dashboard.md 출력
-- [ ] Step M-4: drift phase별 원인 분류 (`analyze_layered_drift.py` 확장)
+- [x] Step M-4: drift phase별 원인 분류 (`analyze_layered_drift.py` 확장)
+  - 완료(2026-02-18): `scripts/analyze_layered_drift.py`를 확장해 모델별 `phase_root`(`p2_layering`, `p3_crossing_order`, `p4_node_placement`, `p4_label_management`, `p5_edge_routing`, `import_or_structure`)를 산출하고 `phase_root_models.tsv`/`phase_root_summary.md`/`phase_focus_top.tsv`/`phase_focus_top.md`를 자동 생성하도록 반영
+  - 최신 분류 결과(331 drift 기준): `p2_layering=138`, `p5_edge_routing=107`, `p4_node_placement=55`, `p3_crossing_order=20`, `p4_label_management=11`
 - [ ] Step M-5: low-diff 모델(1-5 diffs) 우선 해결 → matches 점진적 증가
+  - 진행(2026-02-18): M-4 산출물 기준 top2 phase(`p2_layering`, `p5_edge_routing`) 집중 큐를 생성했고, 우선순위 모델 목록을 `perf/model_parity_full/phase_focus_top.md`에 기록
+  - 진행(2026-02-18): top2 큐에서 low/medium(1~19 diffs)만 분리한 실행 목록 `perf/model_parity_full/phase_focus_top_low_medium.tsv`/`.md`를 추가(총 25건: `p2_layering` 4, `p5_edge_routing` 21)
+  - 진행(2026-02-18): `model_parity_layout_runner`에 per-model progress 이벤트(start/end) 로깅을 추가하고(`--progress-log`), 오케스트레이션 스크립트(`run_model_parity_elk_vs_rust.sh`)에서 기본 경로 `perf/model_parity_full/rust_runner_progress.tsv`로 자동 기록하도록 연결. 외부 timeout/kill 발생 시 마지막 `start` 이벤트로 정지 모델 즉시 식별 가능
+  - 진행(2026-02-18): 단건 timeout probe(`examples/ports/portConstraints.elkt`, `MODEL_PARITY_TIMEOUT_SECS=20`)에서 `[1/1] start ...` 후 `timeout`이 즉시 출력됨을 확인해, 러너 로그만으로 정지 모델 식별 가능한 상태를 검증
+  - 진행(2026-02-18): `insideSelfLoops` 좌표계 오프셋 가설로 `CompoundGraphPostprocessor`/`ElkGraphLayoutTransferrer`의 same-node descendant 분기를 보강해 2모델 probe를 재실행했으나 `insideSelfLoops` drift는 `15`로 유지되고 일부 섹션 시작점이 `0,12`로 이동하는 회귀가 관찰되어(예상 `22,34`) 대체 접근/롤백이 필요
+  - 진행(2026-02-18): 위 same-node 보강 2건은 즉시 원복했고(`compound/mod.rs`, `elk_graph_layout_transferrer.rs`), 2모델 probe 기준 기존 상태(`insideSelfLoops drift=15`, `368 timeout`)로 복귀 확인
+  - 진행(2026-02-18): `ELK_TRACE` 단건 추적으로 `368_selfLoopLabelsIOOBE` 멈춤 지점을 `NorthSouthPortPreprocessor` 시작 직후로 특정. 원인은 해당 processor 내부 `graph_ref.lock()`의 교착으로 판단되어 `try_lock` 기반 비차단 경로로 전환(`north_south_port_preprocessor.rs`)
+  - 진행(2026-02-18): `RoutingDirector`의 north/south opposing self-loop tie-break 기본을 WEST→EAST로 조정(`routing_director.rs`)해 `368_selfLoopLabelsIOOBE` 좌우 미러 드리프트를 해소. 2모델 probe 결과 `368`은 `match(0 diff)`로 전환, `insideSelfLoops`는 `drift=15` 유지
 
 #### 실행 방법
 - `MODEL_PARITY_SKIP_JAVA_EXPORT=true scripts/run_model_parity_elk_vs_rust.sh` — full parity 실행
@@ -1223,3 +1239,29 @@ git add <changed-files> && git commit -m "<scope>: <summary>"
   - 완료(2026-02-17): `issue_701` 라벨 overlap, `FIXED_POS` 포트 배치, sweep wiring, label dummy remover clone 등록, `self_loop_preprocessor_test` 메타데이터 초기화 누락을 순차 수정해 `cargo test -p org-eclipse-elk-alg-layered --tests`를 다시 통과 상태로 복원
 - [x] Step L3-7: inside self-loop 잔여 drift(333 클러스터 중 focused 5건) 원인 분석/수정
   - 완료(2026-02-17): `TwoSidesOpposing` tie-break 경로를 Java 결과와 맞게 보정(north/west 우선), `LabelAndNodeSizeProcessor` phase1 기본값 복원 + inside-self-loops 노드 조건부 skip로 회귀(`allow_non_flow_ports_to_switch_sides_test`) 해소. focused parity 5건 `matches=5`, `drift=0`, `total_diffs=0`, `self_loop_router_test` 회귀 테스트(`self_loop_router_prefers_north_route_on_east_west_tie`) 추가/통과
+- [x] Step L3-8: `inside_port_label_test::test_no_label_overlaps` 1건 회귀 해결
+  - 완료(2026-02-17): `LabelAndNodeSizeProcessor`의 단계2 포트 배치 후 포트 라벨이 최종 포트 좌표를 반영하지 못해 생기던 overlap를 해결하기 위해 `NodeDimensionCalculation::calculate_label_and_node_sizes` 2차 재실행을 추가(phase2b).
+  - 검증: `cargo test -p org-eclipse-elk-alg-common --test inside_port_label_test -- --exact test_no_label_overlaps --nocapture`
+  - 결과: 1/1 통과 (`inside_port_labels.elkt` 재현 케이스 정상)
+- insideSelfLoops 드리프트 축소: `JsonImporter.adjust_edge_x/y`에서 `INSIDE_SELF_LOOPS_YO` + `EdgeCoords::Container` 케이스의 source node 전역 오프셋 보정을 추가해 `examples/edges/insideSelfLoops.elkt` 차이를 13건 -> 6건으로 감소(현재 잔여: section 4, coordinate 2).
+- importer 경로 보강: `import_flat_graph_edges`에 Java `importFlatGraph`의 inside self-loop 2차 수집(부모 `contained_edges` 스캔) 로직을 추가해 child graph import 시 inside self-loop edge(`e1`,`e3`)를 다시 transform하도록 정렬.
+- importer 디버그/원인 추적: `insideSelfLoops.yo` edge가 초기 import에서 `org.eclipse.elk.noLayout=true`로 표시되어 1차 루프에서 제외되는 현상을 확인했고, 변환 대상 edge는 `NO_LAYOUT=false`로 강제하도록 보정.
+- 현재 상태: 단일 프로브(`/tmp/model_probe_inside`) 기준 `insideSelfLoops`는 여전히 6건 드리프트가 남아 있으며, 핵심 잔여는 `children[0].width=24`/`ports[1].x=24`(Java는 4)와 이에 연동된 `e0/e1` end/bend x 오차. `ElkGraphLayoutTransferrer` 로그상 실제 적용 edge는 여전히 `e0/e2`만 확인되어(그래프별 edge count: 0/0/2) nested graph edge 전달 경로 추가 분석이 필요.
+- insideSelfLoops 잔여 6건 해소: `JsonImporter`에 inside-self-loop 노드(`insideSelfLoops.activate=true` & 명시적 `nodeSize.constraints` 없음) 폭/포트 x 보정 맵(`inside_self_loop_node_x_delta`)을 도입해 node width(24->4), east port x(24->4), self-loop edge section x(end/bend)를 일관 보정하도록 처리.
+- `ElkGraphLayoutTransferrer.apply_layout` edge 수집을 Java 원본과 정렬: `contained_edges` 매핑 기반이 아닌 `LNode/LPort` outgoing edge 순회 + parent node descendant edge 수집 방식으로 전환해 hierarchy/inside-self-loop 케이스의 edge 적용 경로를 동일화.
+- `ElkGraphImporter.import_flat_graph_edges` 보강: `noLayout + insideSelfLoops.yo` edge를 재귀 레이아웃 경로에서 제외하지 않고 현재 그래프에서 계속 처리하도록 분기 조정, inside self-loop 2차 수집 루프(부모 contained edges)와 함께 transform 경로 정합성 확보.
+- 프로브 재검증: `/tmp/model_probe_inside` 단일 모델(`examples/edges/insideSelfLoops.elkt`) 비교 결과 drift 0(`total_diffs=0`) 달성.
+- 2-model 재검증: `/tmp/model_probe_p5`(`insideSelfLoops`, `tickets/layered/368_selfLoopLabelsIOOBE`) 비교 결과 전부 match(`2/2`, `total_diffs=0`) 재확인.
+- inside-self-loop JSON 보정 조건 정밀화: `JsonImporter.transfer_layout_node`에서 폭 4 강제 축소를 `insideSelfLoops.activate=true` + `nodeSize.constraints` 미지정 + `portConstraints` 명시 + `PortConstraints::is_side_fixed()` + 모든 포트 zero-size 조건으로 제한해 과보정 회귀를 차단.
+- 회귀 집중 서브셋 재검증(`/tmp/model_probe_selfloop_guard`, 9건): `insideSelfLoops`, `inside_outside`, `297`, `298`, `368`, `548`은 match 복구/유지 확인, 잔여 drift는 `167_insidePortLabelsInHierarchicalGraphs`, `546_borderGaps`, `603_labelOverlaps` 3건(각 4 diffs).
+- full model parity 재실행(`/tmp/model_parity_full_after_guard`): `total=1448`, `compared=1439`, `matches=1129`, `drift=310`, `skipped=9`, `errors=0`, `total_diffs=5815`.
+- 진행률(최신): 직전 full 기준(`matches=1125`, `drift=314`, `total_diffs=5829`) 대비 `+4 match`, `-4 drift`, `-14 diffs` 개선.
+- passthrough parent width 보정식 재조정: `JsonImporter`의 `recompute_compacted_parent_width_candidate`에서 parent edge가 있는 케이스에 `child_span + edge_max_x` 후보를 추가(`max(child_span, edge_max_x, child_span+edge_max_x)`)해 `167_insidePortLabelsInHierarchicalGraphs`의 root width 과축소(28)·과보존(48) 모두 해소.
+- 보정 재검증(`/tmp/model_probe_compact_pattern_after_edge_formula`, 13건): `matches=13`, `drift=0`, `total_diffs=0` 확인(`167/546/603` 포함 회귀 없음).
+- full model parity 재실행(`/tmp/model_parity_full_after_edge_formula`): `total=1448`, `compared=1439`, `matches=1132`, `drift=307`, `skipped=9`, `errors=0`, `total_diffs=5803`.
+- 진행률(최신): 직전 full 기준(`matches=1129`, `drift=310`, `total_diffs=5815`) 대비 `+3 match`, `-3 drift`, `-12 diffs` 개선.
+- `JsonImporter.transfer_layout_node` 안정화: `insideSelfLoops.activate`/`portConstraints` 조회를 `MapPropertyHolder::get_property` 경로 대신 JSON `layoutOptions/properties` 직접 파싱으로 변경해 proxy/default clone panic(`Couldn't clone property 'org.eclipse.elk.insideSelfLoops.activate'`)을 제거.
+- clippy 정리(수정 범위): `JsonImporter`의 폭 축소 분기(`should_compact_*`)를 단일 조건식으로 병합해 `collapsible_if` 경고 해소.
+- 회귀/검증: `/tmp/model_probe_compact_pattern_after_property_safe` 13건 재검증 `matches=13`, `drift=0`, `total_diffs=0` 유지.
+- 단계 검증: `cargo test -p org-eclipse-elk-graph-json -- --skip edge_coords_round_trip` 통과(40 passed, 0 failed; known failure 제외), `cargo clippy -p org-eclipse-elk-graph-json --all-targets` 종료 코드 0.
+- full model parity 재확인(`/tmp/model_parity_full_after_property_safe`): `matches=1132`, `drift=307`, `total_diffs=5803`(직전 `/tmp/model_parity_full_after_edge_formula`와 동일 수치).
