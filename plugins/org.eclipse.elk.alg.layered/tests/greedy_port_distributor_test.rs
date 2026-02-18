@@ -63,7 +63,10 @@ fn add_port_on_side(node: &LNodeRef, side: PortSide) -> LPortRef {
             .get_property(LayeredOptions::PORT_CONSTRAINTS)
             .unwrap_or(PortConstraints::Undefined);
         if !constraints.is_side_fixed() {
-            node_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::FixedSide));
+            node_guard.set_property(
+                LayeredOptions::PORT_CONSTRAINTS,
+                Some(PortConstraints::FixedSide),
+            );
         }
     }
     port
@@ -106,14 +109,23 @@ fn port_ids(node: &LNodeRef) -> Vec<i32> {
 
 fn port_ptrs(node: &LNodeRef) -> Vec<usize> {
     let ports = node.lock().expect("node lock").ports().clone();
-    ports.iter().map(|port| Arc::as_ptr(port) as usize).collect()
+    ports
+        .iter()
+        .map(|port| Arc::as_ptr(port) as usize)
+        .collect()
 }
 
 fn port_ptrs_from_ports(ports: &[LPortRef]) -> Vec<usize> {
-    ports.iter().map(|port| Arc::as_ptr(port) as usize).collect()
+    ports
+        .iter()
+        .map(|port| Arc::as_ptr(port) as usize)
+        .collect()
 }
 
-fn prepare_distributor(graph: &LGraphRef, distributor: &mut GreedyPortDistributor) -> Vec<Vec<LNodeRef>> {
+fn prepare_distributor(
+    graph: &LGraphRef,
+    distributor: &mut GreedyPortDistributor,
+) -> Vec<Vec<LNodeRef>> {
     let node_order = graph.lock().expect("graph lock").to_node_array();
     let mut initables: [&mut dyn IInitializable; 1] = [distributor];
     init(&mut initables, &node_order);
@@ -126,7 +138,11 @@ fn init_layered_options() {
 }
 
 fn nested_graph(node: &LNodeRef) -> LGraphRef {
-    if let Some(nested_graph) = node.lock().ok().and_then(|node_guard| node_guard.nested_graph()) {
+    if let Some(nested_graph) = node
+        .lock()
+        .ok()
+        .and_then(|node_guard| node_guard.nested_graph())
+    {
         return nested_graph;
     }
 
@@ -142,13 +158,24 @@ fn nested_graph(node: &LNodeRef) -> LGraphRef {
 }
 
 fn add_external_port_dummy_node_to_layer(layer: &LayerRef, port: &LPortRef) -> LNodeRef {
-    let graph = layer.lock().ok().and_then(|layer_guard| layer_guard.graph()).expect("layer graph");
+    let graph = layer
+        .lock()
+        .ok()
+        .and_then(|layer_guard| layer_guard.graph())
+        .expect("layer graph");
     let node = add_node(&graph, layer);
-    let port_side = port.lock().ok().map(|port_guard| port_guard.side()).unwrap_or(PortSide::Undefined);
+    let port_side = port
+        .lock()
+        .ok()
+        .map(|port_guard| port_guard.side())
+        .unwrap_or(PortSide::Undefined);
 
     if let Ok(mut node_guard) = node.lock() {
         node_guard.set_node_type(NodeType::ExternalPort);
-        node_guard.set_property(InternalProperties::ORIGIN, Some(Origin::LPort(port.clone())));
+        node_guard.set_property(
+            InternalProperties::ORIGIN,
+            Some(Origin::LPort(port.clone())),
+        );
         node_guard.set_property(InternalProperties::EXT_PORT_SIDE, Some(port_side));
     }
 
@@ -179,8 +206,15 @@ fn add_external_port_dummies_to_layer(layer: &LayerRef, ports: &[LPortRef]) -> V
         .unwrap_or(PortSide::Undefined);
     let mut nodes = Vec::with_capacity(ports.len());
     for i in 0..ports.len() {
-        let port_index = if side == PortSide::East { i } else { ports.len() - 1 - i };
-        nodes.push(add_external_port_dummy_node_to_layer(layer, &ports[port_index]));
+        let port_index = if side == PortSide::East {
+            i
+        } else {
+            ports.len() - 1 - i
+        };
+        nodes.push(add_external_port_dummy_node_to_layer(
+            layer,
+            &ports[port_index],
+        ));
     }
     nodes
 }
@@ -267,8 +301,14 @@ fn distribute_ports_crossings_on_eastern_side_removes_them() {
     let left_nodes = add_nodes(&graph, &left_layer, 1);
     let right_nodes = add_nodes(&graph, &right_layer, 2);
 
-    connect_node_to_port(&left_nodes[0], &add_port_on_side(&right_nodes[1], PortSide::West));
-    connect_node_to_port(&left_nodes[0], &add_port_on_side(&right_nodes[0], PortSide::West));
+    connect_node_to_port(
+        &left_nodes[0],
+        &add_port_on_side(&right_nodes[1], PortSide::West),
+    );
+    connect_node_to_port(
+        &left_nodes[0],
+        &add_port_on_side(&right_nodes[0], PortSide::West),
+    );
 
     let mut distributor = GreedyPortDistributor::new();
     let node_order = prepare_distributor(&graph, &mut distributor);
@@ -291,11 +331,20 @@ fn distribute_ports_fixed_order_no_change() {
     let right_nodes = add_nodes(&graph, &right_layer, 2);
 
     if let Ok(mut node_guard) = left_nodes[0].lock() {
-        node_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::FixedOrder));
+        node_guard.set_property(
+            LayeredOptions::PORT_CONSTRAINTS,
+            Some(PortConstraints::FixedOrder),
+        );
     }
 
-    connect_node_to_port(&left_nodes[0], &add_port_on_side(&right_nodes[1], PortSide::West));
-    connect_node_to_port(&left_nodes[0], &add_port_on_side(&right_nodes[0], PortSide::West));
+    connect_node_to_port(
+        &left_nodes[0],
+        &add_port_on_side(&right_nodes[1], PortSide::West),
+    );
+    connect_node_to_port(
+        &left_nodes[0],
+        &add_port_on_side(&right_nodes[0], PortSide::West),
+    );
 
     let mut distributor = GreedyPortDistributor::new();
     let node_order = prepare_distributor(&graph, &mut distributor);
@@ -440,7 +489,8 @@ fn distribute_ports_more_hierarchical_nodes_variant_no_switch() {
     let left_inner_graph = nested_graph(&left_outer_node);
     let left_inner_node = add_node(&left_inner_graph, &make_layer(&left_inner_graph));
     let right_inner_nodes = add_nodes(&left_inner_graph, &make_layer(&left_inner_graph), 3);
-    let dummy_nodes = add_external_port_dummies_to_layer(&make_layer(&left_inner_graph), &left_outer_ports);
+    let dummy_nodes =
+        add_external_port_dummies_to_layer(&make_layer(&left_inner_graph), &left_outer_ports);
 
     connect_nodes_east_west(&left_inner_node, &right_inner_nodes[2]);
     connect_nodes_east_west(&right_inner_nodes[0], &dummy_nodes[0]);

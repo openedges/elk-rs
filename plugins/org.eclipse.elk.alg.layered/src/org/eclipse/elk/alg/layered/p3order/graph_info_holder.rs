@@ -19,10 +19,10 @@ use crate::org::eclipse::elk::alg::layered::p3order::layer_sweep_crossing_minimi
 use crate::org::eclipse::elk::alg::layered::p3order::layer_sweep_type_decider::LayerSweepTypeDecider;
 use crate::org::eclipse::elk::alg::layered::p3order::median_heuristic::MedianHeuristic;
 use crate::org::eclipse::elk::alg::layered::p3order::model_order_barycenter_heuristic::ModelOrderBarycenterHeuristic;
+use crate::org::eclipse::elk::alg::layered::p3order::sweep_copy::SweepCopy;
 use crate::org::eclipse::elk::alg::layered::p3order::{
     GreedyPortDistributor, LayerTotalPortDistributor, NodeRelativePortDistributor,
 };
-use crate::org::eclipse::elk::alg::layered::p3order::sweep_copy::SweepCopy;
 
 pub struct GraphInfoHolder {
     l_graph: LGraphRef,
@@ -52,20 +52,22 @@ pub struct GraphInfoHolder {
 }
 
 impl GraphInfoHolder {
-    pub fn new(
-        graph: LGraphRef,
-        cross_min_type: CrossMinType,
-    ) -> Self {
+    pub fn new(graph: LGraphRef, cross_min_type: CrossMinType) -> Self {
         let current_node_order = graph
             .lock()
             .ok()
             .map(|graph_guard| graph_guard.to_node_array())
             .unwrap_or_default();
-        let parent_node = graph.lock().ok().and_then(|graph_guard| graph_guard.parent_node());
+        let parent_node = graph
+            .lock()
+            .ok()
+            .and_then(|graph_guard| graph_guard.parent_node());
         let graph_properties = graph
             .lock()
             .ok()
-            .and_then(|mut graph_guard| graph_guard.get_property(InternalProperties::GRAPH_PROPERTIES))
+            .and_then(|mut graph_guard| {
+                graph_guard.get_property(InternalProperties::GRAPH_PROPERTIES)
+            })
             .unwrap_or_default();
         let random = graph
             .lock()
@@ -76,13 +78,16 @@ impl GraphInfoHolder {
             .lock()
             .ok()
             .and_then(|mut graph_guard| {
-                graph_guard.get_property(LayeredOptions::CROSSING_MINIMIZATION_FORCE_NODE_MODEL_ORDER)
+                graph_guard
+                    .get_property(LayeredOptions::CROSSING_MINIMIZATION_FORCE_NODE_MODEL_ORDER)
             })
             .unwrap_or(false);
         let max_model_order_nodes = graph
             .lock()
             .ok()
-            .and_then(|mut graph_guard| graph_guard.get_property(InternalProperties::MAX_MODEL_ORDER_NODES))
+            .and_then(|mut graph_guard| {
+                graph_guard.get_property(InternalProperties::MAX_MODEL_ORDER_NODES)
+            })
             .unwrap_or(0);
         let constraints_between_non_dummies = graph
             .lock()
@@ -97,7 +102,8 @@ impl GraphInfoHolder {
             .lock()
             .ok()
             .and_then(|mut graph_guard| {
-                graph_guard.get_property(LayeredOptions::CROSSING_MINIMIZATION_HIERARCHICAL_SWEEPINESS)
+                graph_guard
+                    .get_property(LayeredOptions::CROSSING_MINIMIZATION_HIERARCHICAL_SWEEPINESS)
             })
             .unwrap_or(0.0);
         let consider_model_order_strategy = graph
@@ -125,14 +131,18 @@ impl GraphInfoHolder {
             .lock()
             .ok()
             .and_then(|mut graph_guard| {
-                graph_guard.get_property(LayeredOptions::CONSIDER_MODEL_ORDER_CROSSING_COUNTER_NODE_INFLUENCE)
+                graph_guard.get_property(
+                    LayeredOptions::CONSIDER_MODEL_ORDER_CROSSING_COUNTER_NODE_INFLUENCE,
+                )
             })
             .unwrap_or(0.0);
         let port_influence = graph
             .lock()
             .ok()
             .and_then(|mut graph_guard| {
-                graph_guard.get_property(LayeredOptions::CONSIDER_MODEL_ORDER_CROSSING_COUNTER_PORT_INFLUENCE)
+                graph_guard.get_property(
+                    LayeredOptions::CONSIDER_MODEL_ORDER_CROSSING_COUNTER_PORT_INFLUENCE,
+                )
             })
             .unwrap_or(0.0);
         let thoroughness = graph
@@ -282,8 +292,10 @@ impl GraphInfoHolder {
 
         let cross_minimizer: Box<dyn ICrossingMinimizationHeuristic> = match cross_min_type {
             CrossMinType::Barycenter => {
-                let resolver =
-                    ForsterConstraintResolver::new(&current_node_order, constraints_between_non_dummies);
+                let resolver = ForsterConstraintResolver::new(
+                    &current_node_order,
+                    constraints_between_non_dummies,
+                );
                 let distributor = barycenter_port_distributor
                     .take()
                     .expect("barycenter distributor missing");
@@ -310,8 +322,12 @@ impl GraphInfoHolder {
         }
 
         let cross_min_deterministic = cross_minimizer.is_deterministic();
-        let mut layer_sweep_type_decider =
-            LayerSweepTypeDecider::new(graph.clone(), parent_node.clone(), has_parent, cross_min_deterministic);
+        let mut layer_sweep_type_decider = LayerSweepTypeDecider::new(
+            graph.clone(),
+            parent_node.clone(),
+            has_parent,
+            cross_min_deterministic,
+        );
         if trace {
             eprintln!("crossmin: graph_info_holder sweep type decider ready");
         }
@@ -367,7 +383,10 @@ impl GraphInfoHolder {
         holder.use_bottom_up =
             layer_sweep_type_decider.use_bottom_up_with_boundary(&order, hierarchical_sweepiness);
         if trace {
-            eprintln!("crossmin: graph_info_holder use_bottom_up={}", holder.use_bottom_up);
+            eprintln!(
+                "crossmin: graph_info_holder use_bottom_up={}",
+                holder.use_bottom_up
+            );
         }
         holder.update_greedy_context(None);
 
@@ -544,7 +563,12 @@ impl GraphInfoHolder {
 }
 
 impl IInitializable for GraphInfoHolder {
-    fn init_at_node_level(&mut self, layer_index: usize, node_index: usize, node_order: &[Vec<LNodeRef>]) {
+    fn init_at_node_level(
+        &mut self,
+        layer_index: usize,
+        node_index: usize,
+        node_order: &[Vec<LNodeRef>],
+    ) {
         let node = node_order
             .get(layer_index)
             .and_then(|layer| layer.get(node_index))
@@ -642,7 +666,11 @@ impl ISweepPortDistributor for SharedNodeRelativePortDistributor {
             .lock()
             .ok()
             .map(|mut distributor| {
-                distributor.distribute_ports_while_sweeping(order, free_layer_index, is_forward_sweep)
+                distributor.distribute_ports_while_sweeping(
+                    order,
+                    free_layer_index,
+                    is_forward_sweep,
+                )
             })
             .unwrap_or(false)
     }
@@ -675,7 +703,12 @@ impl IInitializable for SharedNodeRelativePortDistributor {
         }
     }
 
-    fn init_at_node_level(&mut self, layer_index: usize, node_index: usize, node_order: &[Vec<LNodeRef>]) {
+    fn init_at_node_level(
+        &mut self,
+        layer_index: usize,
+        node_index: usize,
+        node_order: &[Vec<LNodeRef>],
+    ) {
         if let Ok(mut distributor) = self.inner.lock() {
             distributor.init_at_node_level(layer_index, node_index, node_order);
         }
@@ -722,7 +755,11 @@ impl ISweepPortDistributor for SharedLayerTotalPortDistributor {
             .lock()
             .ok()
             .map(|mut distributor| {
-                distributor.distribute_ports_while_sweeping(order, free_layer_index, is_forward_sweep)
+                distributor.distribute_ports_while_sweeping(
+                    order,
+                    free_layer_index,
+                    is_forward_sweep,
+                )
             })
             .unwrap_or(false)
     }
@@ -755,7 +792,12 @@ impl IInitializable for SharedLayerTotalPortDistributor {
         }
     }
 
-    fn init_at_node_level(&mut self, layer_index: usize, node_index: usize, node_order: &[Vec<LNodeRef>]) {
+    fn init_at_node_level(
+        &mut self,
+        layer_index: usize,
+        node_index: usize,
+        node_order: &[Vec<LNodeRef>],
+    ) {
         if let Ok(mut distributor) = self.inner.lock() {
             distributor.init_at_node_level(layer_index, node_index, node_order);
         }
@@ -800,21 +842,29 @@ fn create_port_distributors(
     let needs_barycenter = cross_min_type == CrossMinType::Barycenter;
     if use_node_relative {
         if trace {
-            eprintln!("crossmin: port_distributor=NodeRelative (barycenter={})", needs_barycenter);
+            eprintln!(
+                "crossmin: port_distributor=NodeRelative (barycenter={})",
+                needs_barycenter
+            );
         }
         let inner = Arc::new(Mutex::new(NodeRelativePortDistributor::new(num_layers)));
         let sweep = Box::new(SharedNodeRelativePortDistributor::from_inner(inner.clone()))
             as Box<dyn ISweepPortDistributor>;
         let barycenter = if needs_barycenter {
-            Some(Box::new(SharedNodeRelativePortDistributor::from_inner(inner))
-                as Box<dyn BarycenterPortDistributor>)
+            Some(
+                Box::new(SharedNodeRelativePortDistributor::from_inner(inner))
+                    as Box<dyn BarycenterPortDistributor>,
+            )
         } else {
             None
         };
         (sweep, barycenter)
     } else {
         if trace {
-            eprintln!("crossmin: port_distributor=LayerTotal (barycenter={})", needs_barycenter);
+            eprintln!(
+                "crossmin: port_distributor=LayerTotal (barycenter={})",
+                needs_barycenter
+            );
         }
         let inner = Arc::new(Mutex::new(LayerTotalPortDistributor::new(num_layers)));
         let sweep = Box::new(SharedLayerTotalPortDistributor::from_inner(inner.clone()))

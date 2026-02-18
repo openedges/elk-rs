@@ -1,5 +1,5 @@
-use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 
 pub struct VertiFlexUtil;
 

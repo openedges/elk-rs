@@ -15,7 +15,9 @@ impl<T> Maybe<T> {
     }
 
     pub fn with(object: T) -> Self {
-        Maybe { object: Some(object) }
+        Maybe {
+            object: Some(object),
+        }
     }
 
     pub fn set(&mut self, object: T) {

@@ -41,7 +41,9 @@ fn add_node_to_layer(graph: &LGraphRef, layer: &LayerRef) -> LNodeRef {
 }
 
 fn add_nodes_to_layer(graph: &LGraphRef, layer: &LayerRef, count: usize) -> Vec<LNodeRef> {
-    (0..count).map(|_| add_node_to_layer(graph, layer)).collect()
+    (0..count)
+        .map(|_| add_node_to_layer(graph, layer))
+        .collect()
 }
 
 fn add_port_on_side(node: &LNodeRef, side: PortSide) -> LPortRef {

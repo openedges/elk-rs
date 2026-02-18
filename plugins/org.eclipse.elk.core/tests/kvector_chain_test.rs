@@ -53,4 +53,3 @@ fn test_get_point_on_line() {
     assert_eq!(v1, kv.point_on_line(5.0));
     assert_eq!(v2, kv.point_on_line(40.0));
 }
-

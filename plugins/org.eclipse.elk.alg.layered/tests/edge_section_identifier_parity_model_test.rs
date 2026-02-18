@@ -20,7 +20,12 @@ fn preserves_issue_476_horizontal_section_identifier() {
 #[test]
 fn preserves_issue_476_vertical_section_identifier() {
     init_layered_options();
-    assert_first_section_identifier("476_multiLabelInVerticalLayout.elkt", "Node1", "Node2", "ES1");
+    assert_first_section_identifier(
+        "476_multiLabelInVerticalLayout.elkt",
+        "Node1",
+        "Node2",
+        "ES1",
+    );
 }
 
 fn assert_first_section_identifier(
@@ -29,8 +34,9 @@ fn assert_first_section_identifier(
     target_identifier: &str,
     expected_section_id: &str,
 ) {
-    let resource = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join(format!("../../external/elk-models/tickets/layered/{model_name}"));
+    let resource = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!(
+        "../../external/elk-models/tickets/layered/{model_name}"
+    ));
     if !resource.exists() {
         eprintln!(
             "edge section identifier resource missing, skipping: {}",

@@ -81,14 +81,21 @@ impl LongEdgeJoiner {
             .lock()
             .ok()
             .and_then(|node_guard| node_guard.ports().first().cloned())
-            .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.absolute_anchor()));
+            .and_then(|port| {
+                port.lock()
+                    .ok()
+                    .and_then(|port_guard| port_guard.absolute_anchor())
+            });
 
         while edge_count > 0 {
             edge_count -= 1;
             let surviving_edge = input_edges.remove(0);
             let dropped_edge = output_edges.remove(0);
 
-            let dropped_target = dropped_edge.lock().ok().and_then(|edge_guard| edge_guard.target());
+            let dropped_target = dropped_edge
+                .lock()
+                .ok()
+                .and_then(|edge_guard| edge_guard.target());
             let Some(dropped_target) = dropped_target else {
                 continue;
             };
@@ -167,10 +174,8 @@ impl LongEdgeJoiner {
                         KVectorChain::new()
                     };
                     surviving_junctions.add_all(&dropped_junction_points.to_array());
-                    surviving_guard.set_property(
-                        LayeredOptions::JUNCTION_POINTS,
-                        Some(surviving_junctions),
-                    );
+                    surviving_guard
+                        .set_property(LayeredOptions::JUNCTION_POINTS, Some(surviving_junctions));
                 }
             }
         }

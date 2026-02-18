@@ -1,12 +1,13 @@
 use org_eclipse_elk_core::org::eclipse::elk::core::math::{ElkPadding, KVector};
 use org_eclipse_elk_core::org::eclipse::elk::core::options::{
-    CoreOptions, Direction, NodeLabelPlacement, SizeConstraint, SizeOptions,
+    CoreOptions, Direction, NodeLabelPlacement, PortLabelPlacement, PortSide, SizeConstraint,
+    SizeOptions,
+};
+use org_eclipse_elk_core::org::eclipse::elk::core::util::adapters::{
+    GraphElementAdapter, NodeAdapter, PortAdapter,
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::util::ElkUtil;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, IndividualSpacings};
-use org_eclipse_elk_core::org::eclipse::elk::core::util::adapters::{
-    GraphElementAdapter, NodeAdapter,
-};
 /// Type-erased label wrapper. Stores any label that implements GraphElementAdapter
 /// so that LabelCellLayout can work with both ElkLabelAdapter and LLabelAdapter.
 trait DynLabelOps {
@@ -56,7 +57,11 @@ enum ContainerArea {
 
 impl ContainerArea {
     fn values() -> [ContainerArea; 3] {
-        [ContainerArea::Begin, ContainerArea::Center, ContainerArea::End]
+        [
+            ContainerArea::Begin,
+            ContainerArea::Center,
+            ContainerArea::End,
+        ]
     }
 
     fn index(self) -> usize {
@@ -133,8 +138,11 @@ impl LabelCellLayout {
     }
 
     fn add_label(&mut self, label: DynLabel) {
-        self.minimum_content_area_size
-            .add_label(label.get_size(), self.label_gap, self.horizontal_layout_mode);
+        self.minimum_content_area_size.add_label(
+            label.get_size(),
+            self.label_gap,
+            self.horizontal_layout_mode,
+        );
         self.labels.push(label);
     }
 
@@ -354,7 +362,8 @@ impl InsideNodeLabelGrid {
             if let Some(center_min_size) = self.center_cell_min_size {
                 (center_min_size.x, center_min_size.y)
             } else {
-                let center = self.cells[ContainerArea::Center.index()][ContainerArea::Center.index()];
+                let center =
+                    self.cells[ContainerArea::Center.index()][ContainerArea::Center.index()];
                 (center.width, center.height)
             }
         } else {
@@ -363,13 +372,18 @@ impl InsideNodeLabelGrid {
                 width = sum_with_gaps_with_gap(self.min_column_widths(None), self.container_gap);
             } else {
                 for row in ContainerArea::values() {
-                    let row_width =
-                        sum_with_gaps_with_gap(self.min_column_widths(Some(row)), self.container_gap);
+                    let row_width = sum_with_gaps_with_gap(
+                        self.min_column_widths(Some(row)),
+                        self.container_gap,
+                    );
                     width = width.max(row_width);
                 }
             }
 
-            (width, sum_with_gaps_with_gap(self.min_row_heights(), self.container_gap))
+            (
+                width,
+                sum_with_gaps_with_gap(self.min_row_heights(), self.container_gap),
+            )
         };
 
         if min_width > 0.0 {
@@ -473,12 +487,12 @@ fn layout_axis_three(
     let center_span = min_spans[ContainerArea::Center.index()].max(free_content_span);
 
     let start_pos = start + padding_start;
-    let center_pos = start + padding_start + start_span_with_gap - (center_span - free_content_span) / 2.0;
+    let center_pos =
+        start + padding_start + start_span_with_gap - (center_span - free_content_span) / 2.0;
     let end_pos = start + span - padding_end - min_spans[ContainerArea::End.index()];
 
     let clamped_center_span = free_content_span.max(0.0);
-    let center_area_start =
-        start + padding_start + (clamped_center_span - free_content_span) / 2.0;
+    let center_area_start = start + padding_start + (clamped_center_span - free_content_span) / 2.0;
 
     AxisLayout {
         starts: [start_pos, center_pos, end_pos],
@@ -589,7 +603,8 @@ impl StripContainerLayout {
         ];
 
         if self.symmetrical {
-            let side_width = widths[ContainerArea::Begin.index()].max(widths[ContainerArea::End.index()]);
+            let side_width =
+                widths[ContainerArea::Begin.index()].max(widths[ContainerArea::End.index()]);
             widths[ContainerArea::Begin.index()] = side_width;
             widths[ContainerArea::End.index()] = side_width;
         }
@@ -701,7 +716,8 @@ impl StripContainerLayout {
 struct InsideLabelLayoutGrid {
     cells: [[LabelCellLayout; 3]; 3],
     container_gap: f64,
-    padding: ElkPadding,
+    node_label_padding: ElkPadding,
+    node_padding: ElkPadding,
     tabular: bool,
     symmetrical: bool,
     center_cell_min_size: Option<KVector>,
@@ -726,6 +742,7 @@ impl InsideLabelLayoutGrid {
             CoreOptions::NODE_LABELS_PADDING,
         )
         .unwrap_or_default();
+        let node_padding = ElkPadding::new();
         let tabular = size_options.contains(&SizeOptions::ForceTabularNodeLabels);
         let symmetrical = !size_options.contains(&SizeOptions::Asymmetrical);
         let center_cell_min_size = if size_constraints.contains(&SizeConstraint::MinimumSize)
@@ -750,7 +767,8 @@ impl InsideLabelLayoutGrid {
         InsideLabelLayoutGrid {
             cells,
             container_gap,
-            padding,
+            node_label_padding: padding,
+            node_padding,
             tabular,
             symmetrical,
             center_cell_min_size,
@@ -759,6 +777,11 @@ impl InsideLabelLayoutGrid {
 
     fn add_label(&mut self, row: ContainerArea, col: ContainerArea, label: DynLabel) {
         self.cells[row.index()][col.index()].add_label(label);
+    }
+
+    fn ensure_cell_min_width(&mut self, row: ContainerArea, col: ContainerArea, width: f64) {
+        let cell = &mut self.cells[row.index()][col.index()];
+        cell.minimum_content_area_size.width = cell.minimum_content_area_size.width.max(width);
     }
 
     fn min_column_widths(&self, row: Option<ContainerArea>) -> [f64; 3] {
@@ -825,7 +848,8 @@ impl InsideLabelLayoutGrid {
             if let Some(center_min_size) = self.center_cell_min_size {
                 (center_min_size.x, center_min_size.y)
             } else {
-                let center = &self.cells[ContainerArea::Center.index()][ContainerArea::Center.index()];
+                let center =
+                    &self.cells[ContainerArea::Center.index()][ContainerArea::Center.index()];
                 (center.min_width(), center.min_height())
             }
         } else {
@@ -849,10 +873,10 @@ impl InsideLabelLayoutGrid {
         };
 
         if min_width > 0.0 {
-            min_width += self.padding.left + self.padding.right;
+            min_width += self.node_label_padding.left + self.node_label_padding.right;
         }
         if min_height > 0.0 {
-            min_height += self.padding.top + self.padding.bottom;
+            min_height += self.node_label_padding.top + self.node_label_padding.bottom;
         }
 
         KVector::with_values(min_width, min_height)
@@ -860,17 +884,17 @@ impl InsideLabelLayoutGrid {
 
     fn apply_layout(&self, node_size: KVector) -> Rect {
         let grid_rect = Rect {
-            x: 0.0,
-            y: 0.0,
-            width: node_size.x,
-            height: node_size.y,
+            x: self.node_padding.left,
+            y: self.node_padding.top,
+            width: (node_size.x - self.node_padding.left - self.node_padding.right).max(0.0),
+            height: (node_size.y - self.node_padding.top - self.node_padding.bottom).max(0.0),
         };
         let row_heights = self.min_row_heights();
         let vertical_axis = layout_axis_three(
             grid_rect.y,
             grid_rect.height,
-            self.padding.top,
-            self.padding.bottom,
+            self.node_label_padding.top,
+            self.node_label_padding.bottom,
             row_heights,
             self.container_gap,
         );
@@ -879,13 +903,12 @@ impl InsideLabelLayoutGrid {
 
         for row in ContainerArea::values() {
             let row_index = row.index();
-            let col_widths =
-                tabular_widths.unwrap_or_else(|| self.min_column_widths(Some(row)));
+            let col_widths = tabular_widths.unwrap_or_else(|| self.min_column_widths(Some(row)));
             let horizontal_axis = layout_axis_three(
                 grid_rect.x,
                 grid_rect.width,
-                self.padding.left,
-                self.padding.right,
+                self.node_label_padding.left,
+                self.node_label_padding.right,
                 col_widths,
                 self.container_gap,
             );
@@ -901,12 +924,13 @@ impl InsideLabelLayoutGrid {
             }
         }
 
-        let center_widths = tabular_widths.unwrap_or_else(|| self.min_column_widths(Some(ContainerArea::Center)));
+        let center_widths =
+            tabular_widths.unwrap_or_else(|| self.min_column_widths(Some(ContainerArea::Center)));
         let center_horizontal_axis = layout_axis_three(
             grid_rect.x,
             grid_rect.width,
-            self.padding.left,
-            self.padding.right,
+            self.node_label_padding.left,
+            self.node_label_padding.right,
             center_widths,
             self.container_gap,
         );
@@ -1108,15 +1132,14 @@ fn has_effectively_fixed_size_constraints(size_constraints: &EnumSet<SizeConstra
         || (size_constraints.len() == 1 && size_constraints.contains(&SizeConstraint::PortLabels))
 }
 
-fn configured_minimum_size<N, T>(
-    node: &N,
-    size_options: &EnumSet<SizeOptions>,
-) -> KVector
+fn configured_minimum_size<N, T>(node: &N, size_options: &EnumSet<SizeOptions>) -> KVector
 where
     T: 'static,
     N: GraphElementAdapter<T>,
 {
-    let mut minimum_size = node.get_property(CoreOptions::NODE_SIZE_MINIMUM).unwrap_or_default();
+    let mut minimum_size = node
+        .get_property(CoreOptions::NODE_SIZE_MINIMUM)
+        .unwrap_or_default();
     if size_options.contains(&SizeOptions::DefaultMinimumSize) {
         if minimum_size.x <= 0.0 {
             minimum_size.x = ElkUtil::DEFAULT_MIN_WIDTH;
@@ -1259,17 +1282,18 @@ impl NodeLabelAndSizeCalculator {
         );
 
         for label in node.get_labels() {
-            let effective_placement =
-                if label.has_property(CoreOptions::NODE_LABELS_PLACEMENT) {
-                    label
-                        .get_property(CoreOptions::NODE_LABELS_PLACEMENT)
-                        .unwrap_or_else(|| default_label_placement.clone())
-                } else {
-                    default_label_placement.clone()
-                };
+            let effective_placement = if label.has_property(CoreOptions::NODE_LABELS_PLACEMENT) {
+                label
+                    .get_property(CoreOptions::NODE_LABELS_PLACEMENT)
+                    .unwrap_or_else(|| default_label_placement.clone())
+            } else {
+                default_label_placement.clone()
+            };
             let dyn_label = DynLabel::new::<N::Label, N::LabelAdapter>(label);
 
-            if let Some(label_location) = node_label_location_info_for_placement(&effective_placement) {
+            if let Some(label_location) =
+                node_label_location_info_for_placement(&effective_placement)
+            {
                 if label_location.inside {
                     inside_layout.add_label(label_location.row, label_location.col, dyn_label);
                 } else if let Some(side) = label_location.outside_side {
@@ -1287,11 +1311,23 @@ impl NodeLabelAndSizeCalculator {
             }
         }
 
-        let minimum_size_accounts_for_padding = size_constraints.contains(&SizeConstraint::MinimumSize)
+        let port_labels_placement = node
+            .get_property(CoreOptions::PORT_LABELS_PLACEMENT)
+            .unwrap_or_default();
+        Self::setup_node_padding_for_ports_with_offset(
+            &mut inside_layout,
+            node,
+            &port_labels_placement,
+            &size_options,
+        );
+        let minimum_size_accounts_for_padding = size_constraints
+            .contains(&SizeConstraint::MinimumSize)
             && size_options.contains(&SizeOptions::MinimumSizeAccountsForPadding);
         let include_node_labels = size_constraints.contains(&SizeConstraint::NodeLabels);
         let outside_overhang = size_options.contains(&SizeOptions::OutsideNodeLabelsOverhang);
-        let topdown_layout = node.get_property(CoreOptions::TOPDOWN_LAYOUT).unwrap_or(false);
+        let topdown_layout = node
+            .get_property(CoreOptions::TOPDOWN_LAYOUT)
+            .unwrap_or(false);
         let initial_node_size = node.get_size();
         let mut target_node_size = initial_node_size;
 
@@ -1321,7 +1357,9 @@ impl NodeLabelAndSizeCalculator {
                 height_requested = true;
             }
 
-            if size_constraints.contains(&SizeConstraint::MinimumSize) && !minimum_size_accounts_for_padding {
+            if size_constraints.contains(&SizeConstraint::MinimumSize)
+                && !minimum_size_accounts_for_padding
+            {
                 let minimum_size = configured_minimum_size(node, &size_options);
                 required_width = required_width.max(minimum_size.x);
                 required_height = required_height.max(minimum_size.y);
@@ -1341,21 +1379,21 @@ impl NodeLabelAndSizeCalculator {
                 required_height = required_height.max(initial_node_size.y);
             }
 
-        let node_size_fixed_graph_size = node
-            .get_graph()
-            .and_then(|graph| graph.get_property(CoreOptions::NODE_SIZE_FIXED_GRAPH_SIZE))
-            .unwrap_or(false);
+            let node_size_fixed_graph_size = node
+                .get_graph()
+                .and_then(|graph| graph.get_property(CoreOptions::NODE_SIZE_FIXED_GRAPH_SIZE))
+                .unwrap_or(false);
 
-        target_node_size.x = if node_size_fixed_graph_size {
-            initial_node_size.x.max(required_width)
-        } else {
-            required_width
-        };
-        target_node_size.y = if node_size_fixed_graph_size {
-            initial_node_size.y.max(required_height)
-        } else {
-            required_height
-        };
+            target_node_size.x = if node_size_fixed_graph_size {
+                initial_node_size.x.max(required_width)
+            } else {
+                required_width
+            };
+            target_node_size.y = if node_size_fixed_graph_size {
+                initial_node_size.y.max(required_height)
+            } else {
+                required_height
+            };
             node.set_size(target_node_size);
         }
 
@@ -1395,6 +1433,232 @@ impl NodeLabelAndSizeCalculator {
             computed_padding.bottom =
                 (final_node_size.y - (center_cell_rect.y + center_cell_rect.height)).max(0.0);
             node.set_padding(computed_padding);
+        }
+    }
+
+    fn setup_node_padding_for_ports_with_offset<N, T>(
+        inside_layout: &mut InsideLabelLayoutGrid,
+        node: &N,
+        port_labels_placement: &EnumSet<PortLabelPlacement>,
+        size_options: &EnumSet<SizeOptions>,
+    ) where
+        T: 'static,
+        N: NodeAdapter<T>,
+        N::Graph: GraphElementAdapter<T>,
+        N::Label: 'static,
+        N::LabelAdapter: 'static,
+    {
+        let node_cell_padding = &mut inside_layout.node_padding;
+        let node_label_cell_padding = &mut inside_layout.node_label_padding;
+        let symmetrical = !size_options.contains(&SizeOptions::Asymmetrical);
+
+        for port in node.get_ports() {
+            let port_border_offset = port
+                .get_property(CoreOptions::PORT_BORDER_OFFSET)
+                .unwrap_or(0.0);
+            if std::env::var("DEBUG_NODE_LABEL_PADDING").is_ok() {
+                eprintln!(
+                    "[NODE_PADDING_DEBUG] node={} port={} side={:?} border_offset={:.3}",
+                    node.get_volatile_id(),
+                    port.get_volatile_id(),
+                    port.get_side(),
+                    port_border_offset
+                );
+            }
+            if port_border_offset < 0.0 {
+                let extension = -port_border_offset;
+                match port.get_side() {
+                    PortSide::North => {
+                        node_cell_padding.top = node_cell_padding.top.max(extension);
+                    }
+                    PortSide::South => {
+                        node_cell_padding.bottom = node_cell_padding.bottom.max(extension);
+                    }
+                    PortSide::East => {
+                        node_cell_padding.right = node_cell_padding.right.max(extension);
+                    }
+                    PortSide::West | PortSide::Undefined => {
+                        node_cell_padding.left = node_cell_padding.left.max(extension);
+                    }
+                }
+            }
+
+            if !PortLabelPlacement::is_fixed(port_labels_placement) {
+                continue;
+            }
+
+            let mut min_x = 0.0;
+            let mut min_y = 0.0;
+            let mut max_x = 0.0;
+            let mut max_y = 0.0;
+            let mut has_label = false;
+
+            for label in port.get_labels() {
+                let pos = label.get_position();
+                let size = label.get_size();
+                let x1 = pos.x;
+                let y1 = pos.y;
+                let x2 = pos.x + size.x;
+                let y2 = pos.y + size.y;
+
+                if !has_label {
+                    min_x = x1;
+                    min_y = y1;
+                    max_x = x2;
+                    max_y = y2;
+                    has_label = true;
+                } else {
+                    min_x = min_x.min(x1);
+                    min_y = min_y.min(y1);
+                    max_x = max_x.max(x2);
+                    max_y = max_y.max(y2);
+                }
+            }
+
+            if !has_label {
+                continue;
+            }
+
+            let port_size = port.get_size();
+            let inside_part = ElkUtil::compute_inside_part(
+                &KVector::with_values(min_x, min_y),
+                &KVector::with_values(max_x - min_x, max_y - min_y),
+                &port_size,
+                port_border_offset,
+                port.get_side(),
+            );
+
+            if std::env::var("DEBUG_NODE_LABEL_PADDING").is_ok() {
+                eprintln!(
+                    "[NODE_PADDING_DEBUG] node={} port={} inside_part={:.3} port_size=({}, {}) label_bbox_min=({}, {}) label_bbox_size=({}, {})",
+                    node.get_volatile_id(),
+                    port.get_volatile_id(),
+                    inside_part,
+                    port_size.x,
+                    port_size.y,
+                    min_x,
+                    min_y,
+                    max_x - min_x,
+                    max_y - min_y
+                );
+            }
+
+            match port.get_side() {
+                PortSide::North => {
+                    let inside_part_is_bigger = inside_part > node_label_cell_padding.top;
+                    node_label_cell_padding.top = node_label_cell_padding.top.max(inside_part);
+                    if symmetrical && inside_part_is_bigger {
+                        node_label_cell_padding.top = node_label_cell_padding
+                            .top
+                            .max(node_label_cell_padding.bottom);
+                        node_label_cell_padding.bottom =
+                            node_label_cell_padding.top + port_border_offset;
+                    }
+                }
+                PortSide::South => {
+                    let inside_part_is_bigger = inside_part > node_label_cell_padding.bottom;
+                    node_label_cell_padding.bottom =
+                        node_label_cell_padding.bottom.max(inside_part);
+                    if symmetrical && inside_part_is_bigger {
+                        node_label_cell_padding.bottom = node_label_cell_padding
+                            .bottom
+                            .max(node_label_cell_padding.top);
+                        node_label_cell_padding.top =
+                            node_label_cell_padding.bottom + port_border_offset;
+                    }
+                }
+                PortSide::East => {
+                    let inside_part_is_bigger = inside_part > node_label_cell_padding.right;
+                    node_label_cell_padding.right = node_label_cell_padding.right.max(inside_part);
+                    if symmetrical && inside_part_is_bigger {
+                        node_label_cell_padding.right = node_label_cell_padding
+                            .right
+                            .max(node_label_cell_padding.left);
+                        node_label_cell_padding.left =
+                            node_label_cell_padding.right + port_border_offset;
+                    }
+                }
+                PortSide::West | PortSide::Undefined => {
+                    let inside_part_is_bigger = inside_part > node_label_cell_padding.left;
+                    node_label_cell_padding.left = node_label_cell_padding.left.max(inside_part);
+                    if symmetrical && inside_part_is_bigger {
+                        node_label_cell_padding.left = node_label_cell_padding
+                            .left
+                            .max(node_label_cell_padding.right);
+                        node_label_cell_padding.right =
+                            node_label_cell_padding.left + port_border_offset;
+                    }
+                }
+            }
+        }
+
+        if std::env::var("DEBUG_NODE_LABEL_PADDING").is_ok() {
+            eprintln!(
+                "[NODE_PADDING_DEBUG] node={} after_setup node_cell_padding={:?} node_label_cell_padding={:?}",
+                node.get_volatile_id(),
+                inside_layout.node_padding,
+                inside_layout.node_label_padding
+            );
+        }
+    }
+
+    fn setup_inside_port_label_cell_minimums<N, T>(
+        inside_layout: &mut InsideLabelLayoutGrid,
+        node: &N,
+        port_labels_placement: &EnumSet<PortLabelPlacement>,
+    ) where
+        T: 'static,
+        N: NodeAdapter<T>,
+        N::Graph: GraphElementAdapter<T>,
+        N::Label: 'static,
+        N::LabelAdapter: 'static,
+    {
+        if !port_labels_placement.contains(&PortLabelPlacement::Inside) {
+            return;
+        }
+
+        let label_spacing = node
+            .get_property(CoreOptions::SPACING_LABEL_PORT_HORIZONTAL)
+            .unwrap_or(0.0);
+        let mut east_width = 0.0_f64;
+        let mut west_width = 0.0_f64;
+
+        for port in node.get_ports() {
+            let max_label_width = port
+                .get_labels()
+                .iter()
+                .map(|label| label.get_size().x)
+                .fold(0.0_f64, f64::max);
+
+            if max_label_width <= 0.0 {
+                continue;
+            }
+
+            match port.get_side() {
+                PortSide::East => {
+                    east_width = east_width.max(max_label_width);
+                }
+                PortSide::West | PortSide::Undefined => {
+                    west_width = west_width.max(max_label_width);
+                }
+                _ => {}
+            }
+        }
+
+        if east_width > 0.0 {
+            inside_layout.ensure_cell_min_width(
+                ContainerArea::Center,
+                ContainerArea::End,
+                east_width + label_spacing,
+            );
+        }
+
+        if west_width > 0.0 {
+            inside_layout.ensure_cell_min_width(
+                ContainerArea::Center,
+                ContainerArea::Begin,
+                west_width + label_spacing,
+            );
         }
     }
 

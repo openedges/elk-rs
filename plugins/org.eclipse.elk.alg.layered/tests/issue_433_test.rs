@@ -23,7 +23,12 @@ fn issue_433_self_loop_label_is_inside_graph_bounds() {
         .iter()
         .flat_map(|edge| {
             let mut edge_mut = edge.borrow_mut();
-            edge_mut.element().labels().iter().cloned().collect::<Vec<_>>()
+            edge_mut
+                .element()
+                .labels()
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>()
         })
         .next()
         .expect("self-loop label should exist");

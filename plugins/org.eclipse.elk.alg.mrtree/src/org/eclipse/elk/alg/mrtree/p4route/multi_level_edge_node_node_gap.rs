@@ -152,7 +152,8 @@ impl MultiLevelEdgeNodeNodeGap {
                     else {
                         continue;
                     };
-                    let Some((pos_two, _size_two, _level_min, _level_max)) = node_data(neighbor_two)
+                    let Some((pos_two, _size_two, _level_min, _level_max)) =
+                        node_data(neighbor_two)
                     else {
                         continue;
                     };
@@ -236,7 +237,11 @@ fn edge_target_pos(edge: &TEdgeRef) -> KVector {
     edge.lock()
         .ok()
         .and_then(|guard| guard.target())
-        .and_then(|node| node.lock().ok().map(|node_guard| *node_guard.position_ref()))
+        .and_then(|node| {
+            node.lock()
+                .ok()
+                .map(|node_guard| *node_guard.position_ref())
+        })
         .unwrap_or_default()
 }
 
@@ -244,7 +249,11 @@ fn node_data(node: &TNodeRef) -> Option<(KVector, KVector, f64, f64)> {
     let mut guard = node.lock().ok()?;
     let pos = *guard.position_ref();
     let size = *guard.size_ref();
-    let level_min = guard.get_property(InternalProperties::LEVELMIN).unwrap_or(0.0);
-    let level_max = guard.get_property(InternalProperties::LEVELMAX).unwrap_or(0.0);
+    let level_min = guard
+        .get_property(InternalProperties::LEVELMIN)
+        .unwrap_or(0.0);
+    let level_max = guard
+        .get_property(InternalProperties::LEVELMAX)
+        .unwrap_or(0.0);
     Some((pos, size, level_min, level_max))
 }

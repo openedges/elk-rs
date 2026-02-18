@@ -9,13 +9,19 @@ pub type SelfLoopEdgeRef = Arc<Mutex<SelfLoopEdge>>;
 
 pub struct SelfLoopEdge {
     l_edge: LEdgeRef,
-    sl_hyper_loop: Option<Weak<Mutex<crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfHyperLoop>>>,
+    sl_hyper_loop: Option<
+        Weak<Mutex<crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfHyperLoop>>,
+    >,
     sl_source: SelfLoopPortRef,
     sl_target: SelfLoopPortRef,
 }
 
 impl SelfLoopEdge {
-    pub fn new(l_edge: &LEdgeRef, sl_source: &SelfLoopPortRef, sl_target: &SelfLoopPortRef) -> SelfLoopEdgeRef {
+    pub fn new(
+        l_edge: &LEdgeRef,
+        sl_source: &SelfLoopPortRef,
+        sl_target: &SelfLoopPortRef,
+    ) -> SelfLoopEdgeRef {
         let edge_ref = Arc::new(Mutex::new(SelfLoopEdge {
             l_edge: l_edge.clone(),
             sl_hyper_loop: None,

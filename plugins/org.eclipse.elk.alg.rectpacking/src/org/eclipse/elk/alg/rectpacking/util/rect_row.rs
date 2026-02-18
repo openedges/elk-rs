@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use super::{BlockRef, BlockStackRef, BlockStack};
+use super::{BlockRef, BlockStack, BlockStackRef};
 
 #[derive(Clone)]
 pub struct RectRow {
@@ -40,7 +40,12 @@ impl RectRow {
                 // Defer update if an unrelated mutable borrow is active.
                 return;
             };
-            total_stack_width += child_width + if index > 0 { self.node_node_spacing } else { 0.0 };
+            total_stack_width += child_width
+                + if index > 0 {
+                    self.node_node_spacing
+                } else {
+                    0.0
+                };
             new_max_height = new_max_height.max(child_height);
         }
         if new_max_height == f64::NEG_INFINITY {
@@ -64,7 +69,11 @@ impl RectRow {
             let new_y = stack_mut.y();
             stack_mut.set_location(new_x, new_y);
             drop(stack_mut);
-            BlockStack::expand(stack, additional_width_per_stack, additional_height_for_stack);
+            BlockStack::expand(
+                stack,
+                additional_width_per_stack,
+                additional_height_for_stack,
+            );
         }
         self.width = width;
         self.height += additional_height;
@@ -76,7 +85,11 @@ impl RectRow {
         for block in &self.children {
             let block_x = block.borrow().x();
             if (block_x - current_x).abs() > f64::EPSILON {
-                let stack = Rc::new(RefCell::new(BlockStack::new(block_x, self.y, self.node_node_spacing)));
+                let stack = Rc::new(RefCell::new(BlockStack::new(
+                    block_x,
+                    self.y,
+                    self.node_node_spacing,
+                )));
                 BlockStack::add_block(&stack, block.clone());
                 self.stacks.push(stack);
                 current_x = block_x;
@@ -102,15 +115,24 @@ impl RectRow {
         let block_height = block.borrow().height();
         let block_width = block.borrow().width();
         self.height = self.height.max(block_height);
-        self.width += block_width + if self.children.is_empty() { 0.0 } else { self.node_node_spacing };
+        self.width += block_width
+            + if self.children.is_empty() {
+                0.0
+            } else {
+                self.node_node_spacing
+            };
         self.children.push(block);
     }
 
     pub fn remove_block(&mut self, block: &BlockRef) {
-        self.children
-            .retain(|child| !Rc::ptr_eq(child, block));
+        self.children.retain(|child| !Rc::ptr_eq(child, block));
         let block_width = block.borrow().width();
-        self.width -= block_width + if self.children.is_empty() { 0.0 } else { self.node_node_spacing };
+        self.width -= block_width
+            + if self.children.is_empty() {
+                0.0
+            } else {
+                self.node_node_spacing
+            };
 
         let mut new_max_height = f64::MIN;
         for child in &self.children {

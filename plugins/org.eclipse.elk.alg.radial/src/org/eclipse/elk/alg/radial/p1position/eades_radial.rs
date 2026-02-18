@@ -35,7 +35,17 @@ impl EadesRadial {
         if let Some(optimizer) = optimizer {
             for i in 0..CIRCLE_DEGREES {
                 let offset = f64::from(i) * DEGREE_TO_RAD;
-                Self::position_nodes(root, root, radius, sorter, annulus, 0.0, 0.0, 2.0 * PI, offset);
+                Self::position_nodes(
+                    root,
+                    root,
+                    radius,
+                    sorter,
+                    annulus,
+                    0.0,
+                    0.0,
+                    2.0 * PI,
+                    offset,
+                );
                 let translated_value = optimizer.evaluate(root);
                 if translated_value < optimal_value {
                     optimal_offset = offset;
@@ -43,7 +53,17 @@ impl EadesRadial {
                 }
             }
         }
-        Self::position_nodes(root, root, radius, sorter, annulus, 0.0, 0.0, 2.0 * PI, optimal_offset);
+        Self::position_nodes(
+            root,
+            root,
+            radius,
+            sorter,
+            annulus,
+            0.0,
+            0.0,
+            2.0 * PI,
+            optimal_offset,
+        );
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -116,7 +136,9 @@ impl ILayoutPhase<RadialLayoutPhases, ElkNodeRef> for EadesRadial {
         }
 
         let root = RadialUtil::root_from_graph(graph);
-        let Some(root) = root else { return; };
+        let Some(root) = root else {
+            return;
+        };
 
         let radius = {
             let mut graph_mut = graph.borrow_mut();
@@ -165,7 +187,13 @@ impl ILayoutPhase<RadialLayoutPhases, ElkNodeRef> for EadesRadial {
         .unwrap_or_default()
         .create();
 
-        Self::translate(&root, radius, &mut sorter, annulus.as_ref(), optimizer.as_deref());
+        Self::translate(
+            &root,
+            radius,
+            &mut sorter,
+            annulus.as_ref(),
+            optimizer.as_deref(),
+        );
 
         if progress_monitor.is_logging_enabled() {
             progress_monitor.log_graph(graph, "After");

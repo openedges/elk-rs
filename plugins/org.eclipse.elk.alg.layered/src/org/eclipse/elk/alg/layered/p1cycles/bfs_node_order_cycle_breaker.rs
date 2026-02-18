@@ -70,28 +70,32 @@ impl BfsNodeOrderCycleBreaker {
             .map(|node_guard| node_guard.outgoing_edges())
             .unwrap_or_default();
 
-        let mut model_order_map: BTreeMap<i32, Vec<crate::org::eclipse::elk::alg::layered::graph::LEdgeRef>> =
-            BTreeMap::new();
+        let mut model_order_map: BTreeMap<
+            i32,
+            Vec<crate::org::eclipse::elk::alg::layered::graph::LEdgeRef>,
+        > = BTreeMap::new();
         for edge in outgoing_edges {
             let target_node = edge
                 .lock()
                 .ok()
                 .and_then(|edge_guard| edge_guard.target())
-                .and_then(|target| target.lock().ok().and_then(|target_guard| target_guard.node()));
+                .and_then(|target| {
+                    target
+                        .lock()
+                        .ok()
+                        .and_then(|target_guard| target_guard.node())
+                });
             let Some(target_node) = target_node else {
                 continue;
             };
 
-            let has_model_order = target_node
-                .lock()
-                .ok()
-                .is_some_and(|mut node_guard| {
-                    node_guard
-                        .shape()
-                        .graph_element()
-                        .properties()
-                        .has_property(InternalProperties::MODEL_ORDER)
-                });
+            let has_model_order = target_node.lock().ok().is_some_and(|mut node_guard| {
+                node_guard
+                    .shape()
+                    .graph_element()
+                    .properties()
+                    .has_property(InternalProperties::MODEL_ORDER)
+            });
 
             if !has_model_order {
                 let key = i32::MAX - model_order_map.len() as i32;
@@ -119,11 +123,16 @@ impl BfsNodeOrderCycleBreaker {
                 target_node
                     .lock()
                     .ok()
-                    .and_then(|mut node_guard| node_guard.get_property(InternalProperties::MODEL_ORDER))
+                    .and_then(|mut node_guard| {
+                        node_guard.get_property(InternalProperties::MODEL_ORDER)
+                    })
                     .unwrap_or(0)
             };
 
-            model_order_map.entry(target_model_order).or_default().push(edge);
+            model_order_map
+                .entry(target_model_order)
+                .or_default()
+                .push(edge);
         }
 
         for edges in model_order_map.values() {
@@ -143,7 +152,12 @@ impl BfsNodeOrderCycleBreaker {
                 .lock()
                 .ok()
                 .and_then(|edge_guard| edge_guard.target())
-                .and_then(|target| target.lock().ok().and_then(|target_guard| target_guard.node()));
+                .and_then(|target| {
+                    target
+                        .lock()
+                        .ok()
+                        .and_then(|target_guard| target_guard.node())
+                });
             let Some(target_node) = target_node else {
                 continue;
             };

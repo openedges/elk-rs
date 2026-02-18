@@ -38,13 +38,10 @@ fn test_correct_order() {
     let label_a = Arc::new(Mutex::new(LLabel::with_text("a")));
     let label_b = Arc::new(Mutex::new(LLabel::with_text("b")));
 
-    label_dummy
-        .lock()
-        .expect("label dummy lock")
-        .set_property(
-            InternalProperties::REPRESENTED_LABELS,
-            Some(vec![label_c, label_a, label_b]),
-        );
+    label_dummy.lock().expect("label dummy lock").set_property(
+        InternalProperties::REPRESENTED_LABELS,
+        Some(vec![label_c, label_a, label_b]),
+    );
 
     let mut sorter = EndLabelSorter;
     let mut monitor = NullElkProgressMonitor;
@@ -59,5 +56,8 @@ fn test_correct_order() {
         .map(|label| label.lock().expect("label lock").text().to_owned())
         .collect::<Vec<_>>();
 
-    assert_eq!(ordered, vec!["a".to_owned(), "b".to_owned(), "c".to_owned()]);
+    assert_eq!(
+        ordered,
+        vec!["a".to_owned(), "b".to_owned(), "c".to_owned()]
+    );
 }

@@ -1,8 +1,8 @@
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::compaction::options::PolyominoOptions;
-use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::polyomino::PolyominoCompactor;
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::polyomino::structures::{
     PolyominoLike, Polyominoes,
 };
+use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::polyomino::PolyominoCompactor;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 
@@ -36,10 +36,10 @@ impl DisCoPolyominoCompactor {
         }
 
         let four = 4.0;
-        let numerator =
-            (four * self.upper_bound * num_of_comps * prod_term - four * prod_term + sum_term * sum_term)
-                .sqrt()
-                + sum_term;
+        let numerator = (four * self.upper_bound * num_of_comps * prod_term - four * prod_term
+            + sum_term * sum_term)
+            .sqrt()
+            + sum_term;
         let denominator = 2.0 * (self.upper_bound * num_of_comps - 1.0);
         if denominator == 0.0 {
             return numerator;
@@ -64,7 +64,7 @@ impl DisCoPolyominoCompactor {
         mut polys: Vec<DCPolyomino>,
         aspect_ratio: f64,
         fill: bool,
-    ) -> (Vec<DCPolyomino>, org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::polyomino::structures::PlanarGrid) {
+    ) -> (Vec<DCPolyomino>, org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::polyomino::structures::PlanarGrid){
         for (id, poly) in polys.iter_mut().enumerate() {
             poly.set_id(id as i32);
         }
@@ -98,7 +98,8 @@ impl DisCoPolyominoCompactor {
             let absolute_int_x = poly.get_x() - *grid_crop.first();
             let absolute_int_y = poly.get_y() - *grid_crop.second();
 
-            let mut absolute_position = KVector::with_values(absolute_int_x as f64, absolute_int_y as f64);
+            let mut absolute_position =
+                KVector::with_values(absolute_int_x as f64, absolute_int_y as f64);
             absolute_position.scale_values(poly.get_cell_size_x(), poly.get_cell_size_y());
             absolute_position.add(&poly.get_offset());
 

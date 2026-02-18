@@ -1,10 +1,12 @@
 use std::sync::Arc;
 
+use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
-use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LEdge, LEdgeRef, LGraph, LNode, LNodeRef, LPortRef};
+use crate::org::eclipse::elk::alg::layered::graph::{
+    LEdge, LEdgeRef, LGraph, LNode, LNodeRef, LPortRef,
+};
 use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions};
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 
@@ -82,7 +84,10 @@ impl ILayoutProcessor<LGraph> for CommentPreprocessor {
 
             if qualifies {
                 if let (Some(edge), Some(opposite_port)) = (edge, opposite_port) {
-                    let real_node = opposite_port.lock().ok().and_then(|port_guard| port_guard.node());
+                    let real_node = opposite_port
+                        .lock()
+                        .ok()
+                        .and_then(|port_guard| port_guard.node());
                     if let Some(real_node) = real_node {
                         process_box(&node, &edge, &opposite_port, &real_node);
                         layered_graph.layerless_nodes_mut().remove(index);
@@ -170,7 +175,10 @@ fn reverse_oddly_connected_edges(comment_node: &LNodeRef) {
         }
     }
 
-    let layered_graph = comment_node.lock().ok().and_then(|node_guard| node_guard.graph());
+    let layered_graph = comment_node
+        .lock()
+        .ok()
+        .and_then(|node_guard| node_guard.graph());
     if let Some(layered_graph) = layered_graph {
         for edge in reversed_edges {
             LEdge::reverse(&edge, &layered_graph, true);
@@ -178,7 +186,12 @@ fn reverse_oddly_connected_edges(comment_node: &LNodeRef) {
     }
 }
 
-fn process_box(box_node: &LNodeRef, edge: &LEdgeRef, opposite_port: &LPortRef, real_node: &LNodeRef) {
+fn process_box(
+    box_node: &LNodeRef,
+    edge: &LEdgeRef,
+    opposite_port: &LPortRef,
+    real_node: &LNodeRef,
+) {
     let (only_top, only_bottom, top_first) = choose_comment_side(real_node);
 
     if let Ok(mut real_node_guard) = real_node.lock() {
@@ -233,7 +246,10 @@ fn process_box(box_node: &LNodeRef, edge: &LEdgeRef, opposite_port: &LPortRef, r
     }
 
     if let Ok(mut box_guard) = box_node.lock() {
-        box_guard.set_property(InternalProperties::COMMENT_CONN_PORT, Some(opposite_port.clone()));
+        box_guard.set_property(
+            InternalProperties::COMMENT_CONN_PORT,
+            Some(opposite_port.clone()),
+        );
     }
 
     let edge_targets_opposite = edge
@@ -272,27 +288,28 @@ fn process_box(box_node: &LNodeRef, edge: &LEdgeRef, opposite_port: &LPortRef, r
 }
 
 fn choose_comment_side(real_node: &LNodeRef) -> (bool, bool, bool) {
-    let (port_constraints, ports, labels, node_height) = if let Ok(mut real_node_guard) = real_node.lock() {
-        (
-            if real_node_guard
-                .shape()
-                .graph_element()
-                .properties()
-                .has_property(LayeredOptions::PORT_CONSTRAINTS)
-            {
-                real_node_guard
-                    .get_property(LayeredOptions::PORT_CONSTRAINTS)
-                    .unwrap_or(PortConstraints::Undefined)
-            } else {
-                PortConstraints::Undefined
-            },
-            real_node_guard.ports().clone(),
-            real_node_guard.labels().clone(),
-            real_node_guard.shape().size_ref().y,
-        )
-    } else {
-        return (false, false, true);
-    };
+    let (port_constraints, ports, labels, node_height) =
+        if let Ok(mut real_node_guard) = real_node.lock() {
+            (
+                if real_node_guard
+                    .shape()
+                    .graph_element()
+                    .properties()
+                    .has_property(LayeredOptions::PORT_CONSTRAINTS)
+                {
+                    real_node_guard
+                        .get_property(LayeredOptions::PORT_CONSTRAINTS)
+                        .unwrap_or(PortConstraints::Undefined)
+                } else {
+                    PortConstraints::Undefined
+                },
+                real_node_guard.ports().clone(),
+                real_node_guard.labels().clone(),
+                real_node_guard.shape().size_ref().y,
+            )
+        } else {
+            return (false, false, true);
+        };
 
     let mut only_top = false;
     let mut only_bottom = false;
@@ -306,12 +323,11 @@ fn choose_comment_side(real_node: &LNodeRef) -> (bool, bool, bool) {
                 continue;
             };
             for connected in connected_ports {
-                let connected_node = connected.lock().ok().and_then(|port_guard| port_guard.node());
-                if connected_node
-                    .as_ref()
-                    .map(is_comment_box)
-                    .unwrap_or(false)
-                {
+                let connected_node = connected
+                    .lock()
+                    .ok()
+                    .and_then(|port_guard| port_guard.node());
+                if connected_node.as_ref().map(is_comment_box).unwrap_or(false) {
                     continue;
                 }
                 if side == PortSide::North {
@@ -366,7 +382,10 @@ fn remove_hierarchical_port_dummy_node(opposite_port: &LPortRef) {
         return;
     };
 
-    let layer = dummy.lock().ok().and_then(|dummy_guard| dummy_guard.layer());
+    let layer = dummy
+        .lock()
+        .ok()
+        .and_then(|dummy_guard| dummy_guard.layer());
     let Some(layer) = layer else {
         return;
     };
@@ -381,7 +400,11 @@ fn remove_hierarchical_port_dummy_node(opposite_port: &LPortRef) {
         return;
     }
 
-    if let Some(graph) = layer.lock().ok().and_then(|layer_guard| layer_guard.graph()) {
+    if let Some(graph) = layer
+        .lock()
+        .ok()
+        .and_then(|layer_guard| layer_guard.graph())
+    {
         if let Ok(mut graph_guard) = graph.lock() {
             graph_guard
                 .layers_mut()

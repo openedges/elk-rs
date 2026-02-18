@@ -75,7 +75,8 @@ impl ILayoutPhase<SPOrEPhases, Graph> for MinSTPhase {
 
         let cost_function = GraphCostFunction::new(graph);
 
-        let tree = NaiveMinST::create_spanning_tree(edges, &root, &cost_function, debug_output.as_deref());
+        let tree =
+            NaiveMinST::create_spanning_tree(edges, &root, &cost_function, debug_output.as_deref());
         self.convert_tree(&tree, graph);
 
         progress_monitor.done();

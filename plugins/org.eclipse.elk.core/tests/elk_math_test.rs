@@ -189,7 +189,8 @@ fn test_approximate_spline() {
     let kvector3 = KVector::with_values(30.0, 30.0);
     let kvector4 = KVector::with_values(50.0, 50.0);
 
-    let vectors = ElkMath::approximate_bezier_segment(20, &[kvector1, kvector2, kvector3, kvector4]);
+    let vectors =
+        ElkMath::approximate_bezier_segment(20, &[kvector1, kvector2, kvector3, kvector4]);
     let control_points = KVectorChain::from_vectors(&vectors);
     let result = ElkMath::approximate_bezier_spline(&control_points);
     let last = result.get(result.size() - 1);
@@ -200,7 +201,8 @@ fn test_approximate_spline() {
     let kvector2 = KVector::with_values(70.0, 10.0);
     let kvector3 = KVector::with_values(80.0, 10.0);
     let kvector4 = KVector::with_values(100.0, 10.0);
-    let vectors = ElkMath::approximate_bezier_segment(20, &[kvector1, kvector2, kvector3, kvector4]);
+    let vectors =
+        ElkMath::approximate_bezier_segment(20, &[kvector1, kvector2, kvector3, kvector4]);
     let control_points = KVectorChain::from_vectors(&vectors);
     let result = ElkMath::approximate_bezier_spline(&control_points);
     for kv in result.iter() {
@@ -216,19 +218,23 @@ fn test_distance_from_spline() {
     let kvector4 = KVector::with_values(50.0, 50.0);
 
     let mut needle = kvector4;
-    let result = ElkMath::distance_from_bezier_segment(kvector1, kvector2, kvector3, kvector4, needle);
+    let result =
+        ElkMath::distance_from_bezier_segment(kvector1, kvector2, kvector3, kvector4, needle);
     assert!((result - 0.0).abs() < 0.01);
 
     needle = kvector3;
-    let result = ElkMath::distance_from_bezier_segment(kvector1, kvector2, kvector3, kvector4, needle);
+    let result =
+        ElkMath::distance_from_bezier_segment(kvector1, kvector2, kvector3, kvector4, needle);
     assert!((result - 0.0).abs() < 0.01);
 
     needle = kvector2;
-    let result = ElkMath::distance_from_bezier_segment(kvector1, kvector2, kvector3, kvector4, needle);
+    let result =
+        ElkMath::distance_from_bezier_segment(kvector1, kvector2, kvector3, kvector4, needle);
     assert!((result - 0.0).abs() < 0.01);
 
     needle = kvector1;
-    let result = ElkMath::distance_from_bezier_segment(kvector1, kvector2, kvector3, kvector4, needle);
+    let result =
+        ElkMath::distance_from_bezier_segment(kvector1, kvector2, kvector3, kvector4, needle);
     assert!((result - 0.0).abs() < 0.01);
 }
 

@@ -71,9 +71,7 @@ impl ComponentsProcessor {
 
             for node in graph.nodes() {
                 if let Ok(mut node_guard) = node.lock() {
-                    priority += node_guard
-                        .get_property(ForceOptions::PRIORITY)
-                        .unwrap_or(0);
+                    priority += node_guard.get_property(ForceOptions::PRIORITY).unwrap_or(0);
                     let pos = node_guard.position_ref();
                     let size = node_guard.size_ref();
                     min_x = min_x.min(pos.x - size.x / 2.0);
@@ -136,9 +134,7 @@ impl ComponentsProcessor {
             };
             let area1 = size1.x * size1.y;
             let area2 = size2.x * size2.y;
-            area1
-                .partial_cmp(&area2)
-                .unwrap_or(Ordering::Equal)
+            area1.partial_cmp(&area2).unwrap_or(Ordering::Equal)
         });
 
         let mut result = FGraph::new();
@@ -195,9 +191,15 @@ impl ComponentsProcessor {
         for edge in graph.edges() {
             let (source_id, target_id) = {
                 let edge_guard = edge.lock().ok();
-                let Some(edge_guard) = edge_guard else { continue };
-                let source_id = edge_guard.source().and_then(|node| node.lock().ok().map(|n| n.id()));
-                let target_id = edge_guard.target().and_then(|node| node.lock().ok().map(|n| n.id()));
+                let Some(edge_guard) = edge_guard else {
+                    continue;
+                };
+                let source_id = edge_guard
+                    .source()
+                    .and_then(|node| node.lock().ok().map(|n| n.id()));
+                let target_id = edge_guard
+                    .target()
+                    .and_then(|node| node.lock().ok().map(|n| n.id()));
                 match (source_id, target_id) {
                     (Some(source_id), Some(target_id)) => (source_id, target_id),
                     _ => continue,
@@ -232,7 +234,9 @@ impl ComponentsProcessor {
         for edge in &incidence[node_id] {
             let (source, target, labels) = {
                 let edge_guard = edge.lock().ok();
-                let Some(edge_guard) = edge_guard else { continue };
+                let Some(edge_guard) = edge_guard else {
+                    continue;
+                };
                 let source = edge_guard.source();
                 let target = edge_guard.target();
                 let labels: Vec<FLabelRef> = edge_guard.labels().to_vec();
@@ -240,8 +244,14 @@ impl ComponentsProcessor {
             };
 
             if let Some(last) = last {
-                let last_is_source = source.as_ref().map(|n| Arc::ptr_eq(n, last)).unwrap_or(false);
-                let last_is_target = target.as_ref().map(|n| Arc::ptr_eq(n, last)).unwrap_or(false);
+                let last_is_source = source
+                    .as_ref()
+                    .map(|n| Arc::ptr_eq(n, last))
+                    .unwrap_or(false);
+                let last_is_target = target
+                    .as_ref()
+                    .map(|n| Arc::ptr_eq(n, last))
+                    .unwrap_or(false);
                 if last_is_source || last_is_target {
                     continue;
                 }

@@ -3,11 +3,11 @@ use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::{
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutAlgorithmResolver;
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::recursive_graph_layout_engine::RecursiveGraphLayoutEngine;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{ElkUtil, NullElkProgressMonitor};
-use org_eclipse_elk_core::org::eclipse::elk::core::LayoutConfigurator;
 use org_eclipse_elk_core::org::eclipse::elk::core::IGraphLayoutEngine;
-use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
+use org_eclipse_elk_core::org::eclipse::elk::core::LayoutConfigurator;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkConnectableShapeRef, ElkNodeRef};
 
@@ -16,7 +16,11 @@ fn issue_562_inside_self_loop_options_do_not_crash() {
     init_layered_options();
 
     let graph = ElkGraphUtil::create_graph();
-    set_node_property(&graph, CoreOptions::ALGORITHM, LayeredOptions::ALGORITHM_ID.to_string());
+    set_node_property(
+        &graph,
+        CoreOptions::ALGORITHM,
+        LayeredOptions::ALGORITHM_ID.to_string(),
+    );
 
     let node = ElkGraphUtil::create_node(Some(graph.clone()));
     let port1 = ElkGraphUtil::create_port(Some(node.clone()));

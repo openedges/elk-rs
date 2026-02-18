@@ -48,7 +48,10 @@ fn make_element(kind: ElementKind) -> ElkGraphElementRef {
     }
 }
 
-fn with_node_properties_mut<R>(node: &ElkNodeRef, f: impl FnOnce(&mut MapPropertyHolder) -> R) -> R {
+fn with_node_properties_mut<R>(
+    node: &ElkNodeRef,
+    f: impl FnOnce(&mut MapPropertyHolder) -> R,
+) -> R {
     let mut node_mut = node.borrow_mut();
     let props = node_mut
         .connectable()
@@ -136,7 +139,12 @@ fn layout_option_prefixes() {
                 .map(|data| data.id() == expected.id())
                 .unwrap_or(false)
         });
-        assert!(contains, "Expected option '{}' for prefix '{}'.", expected.id(), case.prefix);
+        assert!(
+            contains,
+            "Expected option '{}' for prefix '{}'.",
+            expected.id(),
+            case.prefix
+        );
     }
 }
 
@@ -146,8 +154,10 @@ fn layout_option_parent_nodes() {
     let root = ElkGraphUtil::create_graph();
     let child = ElkGraphUtil::create_node(Some(root.clone()));
 
-    let root_props =
-        LayoutDataContentAssist::get_layout_option_proposals(&ElkGraphElementRef::Node(root), CoreOptions::ALGORITHM.id());
+    let root_props = LayoutDataContentAssist::get_layout_option_proposals(
+        &ElkGraphElementRef::Node(root),
+        CoreOptions::ALGORITHM.id(),
+    );
     let root_contains = root_props.iter().any(|p| {
         p.data
             .as_ref()
@@ -175,7 +185,10 @@ fn layout_option_algorithm_specific_known() {
     let root = ElkGraphUtil::create_graph();
     ElkGraphUtil::create_node(Some(root.clone()));
     with_node_properties_mut(&root, |props| {
-        props.set_property(CoreOptions::ALGORITHM, Some(BoxLayouterOptions::ALGORITHM_ID.to_string()));
+        props.set_property(
+            CoreOptions::ALGORITHM,
+            Some(BoxLayouterOptions::ALGORITHM_ID.to_string()),
+        );
     });
 
     let proposals = LayoutDataContentAssist::get_layout_option_proposals(
@@ -197,7 +210,10 @@ fn layout_option_algorithm_specific_unknown() {
     let root = ElkGraphUtil::create_graph();
     ElkGraphUtil::create_node(Some(root.clone()));
     with_node_properties_mut(&root, |props| {
-        props.set_property(CoreOptions::ALGORITHM, Some(FixedLayouterOptions::ALGORITHM_ID.to_string()));
+        props.set_property(
+            CoreOptions::ALGORITHM,
+            Some(FixedLayouterOptions::ALGORITHM_ID.to_string()),
+        );
     });
 
     let proposals = LayoutDataContentAssist::get_layout_option_proposals(

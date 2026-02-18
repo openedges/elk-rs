@@ -10,8 +10,8 @@ use org_eclipse_elk_core::org::eclipse::elk::core::data::{
     LayoutOptionTarget, LayoutOptionType, LayoutOptionVisibility,
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::math::ElkPadding;
-use org_eclipse_elk_core::org::eclipse::elk::core::options::{Direction, EdgeRouting};
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::{Direction, EdgeRouting};
 use org_eclipse_elk_core::org::eclipse::elk::core::util::ExclusiveBounds;
 
 use org_eclipse_elk_alg_graphviz_dot::org::eclipse::elk::alg::graphviz::dot::transform::{
@@ -276,91 +276,263 @@ fn register_supports(registry: &mut dyn LayoutMetaDataRegistry) {
 
     // Dot
     let dot = DotOptions::ALGORITHM_ID;
-    registry.add_option_support(dot, CoreOptions::PADDING.id(), arc_any(ElkPadding::with_any(10.0)));
+    registry.add_option_support(
+        dot,
+        CoreOptions::PADDING.id(),
+        arc_any(ElkPadding::with_any(10.0)),
+    );
     registry.add_option_support(dot, CoreOptions::DIRECTION.id(), arc_any(Direction::Down));
     registry.add_option_support(dot, CoreOptions::SPACING_NODE_NODE.id(), arc_any(20.0_f64));
     registry.add_option_support(dot, CoreOptions::SPACING_EDGE_LABEL.id(), None);
     registry.add_option_support(dot, CoreOptions::NODE_SIZE_CONSTRAINTS.id(), None);
     registry.add_option_support(dot, CoreOptions::NODE_SIZE_OPTIONS.id(), None);
-    registry.add_option_support(dot, CoreOptions::EDGE_ROUTING.id(), arc_any(EdgeRouting::Splines));
+    registry.add_option_support(
+        dot,
+        CoreOptions::EDGE_ROUTING.id(),
+        arc_any(EdgeRouting::Splines),
+    );
     registry.add_option_support(dot, CoreOptions::DEBUG_MODE.id(), None);
     registry.add_option_support(dot, CoreOptions::HIERARCHY_HANDLING.id(), None);
-    registry.add_option_support(dot, GraphvizOptions::ITERATIONS_FACTOR.id(), arc_any(1.0_f64));
-    registry.add_option_support(dot, GraphvizOptions::CONCENTRATE.id(), property_default_any(GraphvizOptions::CONCENTRATE));
-    registry.add_option_support(dot, GraphvizOptions::LABEL_DISTANCE.id(), property_default_any(GraphvizOptions::LABEL_DISTANCE));
-    registry.add_option_support(dot, GraphvizOptions::LABEL_ANGLE.id(), property_default_any(GraphvizOptions::LABEL_ANGLE));
-    registry.add_option_support(dot, GraphvizOptions::LAYER_SPACING_FACTOR.id(), property_default_any(GraphvizOptions::LAYER_SPACING_FACTOR));
-    registry.add_option_support(dot, GraphvizOptions::ADAPT_PORT_POSITIONS.id(), property_default_any(GraphvizOptions::ADAPT_PORT_POSITIONS));
+    registry.add_option_support(
+        dot,
+        GraphvizOptions::ITERATIONS_FACTOR.id(),
+        arc_any(1.0_f64),
+    );
+    registry.add_option_support(
+        dot,
+        GraphvizOptions::CONCENTRATE.id(),
+        property_default_any(GraphvizOptions::CONCENTRATE),
+    );
+    registry.add_option_support(
+        dot,
+        GraphvizOptions::LABEL_DISTANCE.id(),
+        property_default_any(GraphvizOptions::LABEL_DISTANCE),
+    );
+    registry.add_option_support(
+        dot,
+        GraphvizOptions::LABEL_ANGLE.id(),
+        property_default_any(GraphvizOptions::LABEL_ANGLE),
+    );
+    registry.add_option_support(
+        dot,
+        GraphvizOptions::LAYER_SPACING_FACTOR.id(),
+        property_default_any(GraphvizOptions::LAYER_SPACING_FACTOR),
+    );
+    registry.add_option_support(
+        dot,
+        GraphvizOptions::ADAPT_PORT_POSITIONS.id(),
+        property_default_any(GraphvizOptions::ADAPT_PORT_POSITIONS),
+    );
 
     // Neato
     let neato = NeatoOptions::ALGORITHM_ID;
-    registry.add_option_support(neato, CoreOptions::PADDING.id(), arc_any(ElkPadding::with_any(10.0)));
-    registry.add_option_support(neato, CoreOptions::SPACING_NODE_NODE.id(), arc_any(40.0_f64));
+    registry.add_option_support(
+        neato,
+        CoreOptions::PADDING.id(),
+        arc_any(ElkPadding::with_any(10.0)),
+    );
+    registry.add_option_support(
+        neato,
+        CoreOptions::SPACING_NODE_NODE.id(),
+        arc_any(40.0_f64),
+    );
     registry.add_option_support(neato, CoreOptions::SPACING_EDGE_LABEL.id(), None);
     registry.add_option_support(neato, CoreOptions::NODE_SIZE_CONSTRAINTS.id(), None);
     registry.add_option_support(neato, CoreOptions::NODE_SIZE_OPTIONS.id(), None);
     registry.add_option_support(neato, CoreOptions::RANDOM_SEED.id(), arc_any(1_i32));
     registry.add_option_support(neato, CoreOptions::INTERACTIVE.id(), None);
-    registry.add_option_support(neato, CoreOptions::EDGE_ROUTING.id(), arc_any(EdgeRouting::Splines));
+    registry.add_option_support(
+        neato,
+        CoreOptions::EDGE_ROUTING.id(),
+        arc_any(EdgeRouting::Splines),
+    );
     registry.add_option_support(neato, CoreOptions::DEBUG_MODE.id(), None);
-    registry.add_option_support(neato, CoreOptions::SEPARATE_CONNECTED_COMPONENTS.id(), arc_any(false));
-    registry.add_option_support(neato, GraphvizOptions::CONCENTRATE.id(), property_default_any(GraphvizOptions::CONCENTRATE));
+    registry.add_option_support(
+        neato,
+        CoreOptions::SEPARATE_CONNECTED_COMPONENTS.id(),
+        arc_any(false),
+    );
+    registry.add_option_support(
+        neato,
+        GraphvizOptions::CONCENTRATE.id(),
+        property_default_any(GraphvizOptions::CONCENTRATE),
+    );
     registry.add_option_support(neato, GraphvizOptions::EPSILON.id(), arc_any(0.0001_f64));
-    registry.add_option_support(neato, GraphvizOptions::LABEL_DISTANCE.id(), property_default_any(GraphvizOptions::LABEL_DISTANCE));
-    registry.add_option_support(neato, GraphvizOptions::LABEL_ANGLE.id(), property_default_any(GraphvizOptions::LABEL_ANGLE));
+    registry.add_option_support(
+        neato,
+        GraphvizOptions::LABEL_DISTANCE.id(),
+        property_default_any(GraphvizOptions::LABEL_DISTANCE),
+    );
+    registry.add_option_support(
+        neato,
+        GraphvizOptions::LABEL_ANGLE.id(),
+        property_default_any(GraphvizOptions::LABEL_ANGLE),
+    );
     registry.add_option_support(neato, GraphvizOptions::MAXITER.id(), arc_any(200_i32));
-    registry.add_option_support(neato, GraphvizOptions::NEATO_MODEL.id(), property_default_any(GraphvizOptions::NEATO_MODEL));
-    registry.add_option_support(neato, GraphvizOptions::OVERLAP_MODE.id(), property_default_any(GraphvizOptions::OVERLAP_MODE));
-    registry.add_option_support(neato, GraphvizOptions::ADAPT_PORT_POSITIONS.id(), property_default_any(GraphvizOptions::ADAPT_PORT_POSITIONS));
+    registry.add_option_support(
+        neato,
+        GraphvizOptions::NEATO_MODEL.id(),
+        property_default_any(GraphvizOptions::NEATO_MODEL),
+    );
+    registry.add_option_support(
+        neato,
+        GraphvizOptions::OVERLAP_MODE.id(),
+        property_default_any(GraphvizOptions::OVERLAP_MODE),
+    );
+    registry.add_option_support(
+        neato,
+        GraphvizOptions::ADAPT_PORT_POSITIONS.id(),
+        property_default_any(GraphvizOptions::ADAPT_PORT_POSITIONS),
+    );
 
     // FDP
     let fdp = FdpOptions::ALGORITHM_ID;
-    registry.add_option_support(fdp, CoreOptions::PADDING.id(), arc_any(ElkPadding::with_any(10.0)));
+    registry.add_option_support(
+        fdp,
+        CoreOptions::PADDING.id(),
+        arc_any(ElkPadding::with_any(10.0)),
+    );
     registry.add_option_support(fdp, CoreOptions::SPACING_NODE_NODE.id(), arc_any(40.0_f64));
     registry.add_option_support(fdp, CoreOptions::SPACING_EDGE_LABEL.id(), None);
     registry.add_option_support(fdp, CoreOptions::NODE_SIZE_CONSTRAINTS.id(), None);
     registry.add_option_support(fdp, CoreOptions::NODE_SIZE_OPTIONS.id(), None);
     registry.add_option_support(fdp, CoreOptions::INTERACTIVE.id(), None);
-    registry.add_option_support(fdp, CoreOptions::EDGE_ROUTING.id(), arc_any(EdgeRouting::Splines));
+    registry.add_option_support(
+        fdp,
+        CoreOptions::EDGE_ROUTING.id(),
+        arc_any(EdgeRouting::Splines),
+    );
     registry.add_option_support(fdp, CoreOptions::DEBUG_MODE.id(), None);
-    registry.add_option_support(fdp, CoreOptions::SEPARATE_CONNECTED_COMPONENTS.id(), arc_any(false));
-    registry.add_option_support(fdp, GraphvizOptions::CONCENTRATE.id(), property_default_any(GraphvizOptions::CONCENTRATE));
-    registry.add_option_support(fdp, GraphvizOptions::LABEL_DISTANCE.id(), property_default_any(GraphvizOptions::LABEL_DISTANCE));
-    registry.add_option_support(fdp, GraphvizOptions::LABEL_ANGLE.id(), property_default_any(GraphvizOptions::LABEL_ANGLE));
+    registry.add_option_support(
+        fdp,
+        CoreOptions::SEPARATE_CONNECTED_COMPONENTS.id(),
+        arc_any(false),
+    );
+    registry.add_option_support(
+        fdp,
+        GraphvizOptions::CONCENTRATE.id(),
+        property_default_any(GraphvizOptions::CONCENTRATE),
+    );
+    registry.add_option_support(
+        fdp,
+        GraphvizOptions::LABEL_DISTANCE.id(),
+        property_default_any(GraphvizOptions::LABEL_DISTANCE),
+    );
+    registry.add_option_support(
+        fdp,
+        GraphvizOptions::LABEL_ANGLE.id(),
+        property_default_any(GraphvizOptions::LABEL_ANGLE),
+    );
     registry.add_option_support(fdp, GraphvizOptions::MAXITER.id(), arc_any(600_i32));
-    registry.add_option_support(fdp, GraphvizOptions::OVERLAP_MODE.id(), property_default_any(GraphvizOptions::OVERLAP_MODE));
-    registry.add_option_support(fdp, GraphvizOptions::ADAPT_PORT_POSITIONS.id(), property_default_any(GraphvizOptions::ADAPT_PORT_POSITIONS));
+    registry.add_option_support(
+        fdp,
+        GraphvizOptions::OVERLAP_MODE.id(),
+        property_default_any(GraphvizOptions::OVERLAP_MODE),
+    );
+    registry.add_option_support(
+        fdp,
+        GraphvizOptions::ADAPT_PORT_POSITIONS.id(),
+        property_default_any(GraphvizOptions::ADAPT_PORT_POSITIONS),
+    );
 
     // Twopi
     let twopi = TwopiOptions::ALGORITHM_ID;
-    registry.add_option_support(twopi, CoreOptions::PADDING.id(), arc_any(ElkPadding::with_any(10.0)));
-    registry.add_option_support(twopi, CoreOptions::SPACING_NODE_NODE.id(), arc_any(60.0_f64));
+    registry.add_option_support(
+        twopi,
+        CoreOptions::PADDING.id(),
+        arc_any(ElkPadding::with_any(10.0)),
+    );
+    registry.add_option_support(
+        twopi,
+        CoreOptions::SPACING_NODE_NODE.id(),
+        arc_any(60.0_f64),
+    );
     registry.add_option_support(twopi, CoreOptions::SPACING_EDGE_LABEL.id(), None);
     registry.add_option_support(twopi, CoreOptions::NODE_SIZE_CONSTRAINTS.id(), None);
     registry.add_option_support(twopi, CoreOptions::NODE_SIZE_OPTIONS.id(), None);
-    registry.add_option_support(twopi, CoreOptions::EDGE_ROUTING.id(), arc_any(EdgeRouting::Splines));
+    registry.add_option_support(
+        twopi,
+        CoreOptions::EDGE_ROUTING.id(),
+        arc_any(EdgeRouting::Splines),
+    );
     registry.add_option_support(twopi, CoreOptions::DEBUG_MODE.id(), None);
-    registry.add_option_support(twopi, GraphvizOptions::CONCENTRATE.id(), property_default_any(GraphvizOptions::CONCENTRATE));
-    registry.add_option_support(twopi, GraphvizOptions::LABEL_DISTANCE.id(), property_default_any(GraphvizOptions::LABEL_DISTANCE));
-    registry.add_option_support(twopi, GraphvizOptions::LABEL_ANGLE.id(), property_default_any(GraphvizOptions::LABEL_ANGLE));
-    registry.add_option_support(twopi, GraphvizOptions::OVERLAP_MODE.id(), property_default_any(GraphvizOptions::OVERLAP_MODE));
-    registry.add_option_support(twopi, GraphvizOptions::ADAPT_PORT_POSITIONS.id(), property_default_any(GraphvizOptions::ADAPT_PORT_POSITIONS));
+    registry.add_option_support(
+        twopi,
+        GraphvizOptions::CONCENTRATE.id(),
+        property_default_any(GraphvizOptions::CONCENTRATE),
+    );
+    registry.add_option_support(
+        twopi,
+        GraphvizOptions::LABEL_DISTANCE.id(),
+        property_default_any(GraphvizOptions::LABEL_DISTANCE),
+    );
+    registry.add_option_support(
+        twopi,
+        GraphvizOptions::LABEL_ANGLE.id(),
+        property_default_any(GraphvizOptions::LABEL_ANGLE),
+    );
+    registry.add_option_support(
+        twopi,
+        GraphvizOptions::OVERLAP_MODE.id(),
+        property_default_any(GraphvizOptions::OVERLAP_MODE),
+    );
+    registry.add_option_support(
+        twopi,
+        GraphvizOptions::ADAPT_PORT_POSITIONS.id(),
+        property_default_any(GraphvizOptions::ADAPT_PORT_POSITIONS),
+    );
 
     // Circo
     let circo = CircoOptions::ALGORITHM_ID;
-    registry.add_option_support(circo, CoreOptions::PADDING.id(), arc_any(ElkPadding::with_any(10.0)));
-    registry.add_option_support(circo, CoreOptions::SPACING_NODE_NODE.id(), arc_any(40.0_f64));
+    registry.add_option_support(
+        circo,
+        CoreOptions::PADDING.id(),
+        arc_any(ElkPadding::with_any(10.0)),
+    );
+    registry.add_option_support(
+        circo,
+        CoreOptions::SPACING_NODE_NODE.id(),
+        arc_any(40.0_f64),
+    );
     registry.add_option_support(circo, CoreOptions::SPACING_EDGE_LABEL.id(), None);
     registry.add_option_support(circo, CoreOptions::NODE_SIZE_CONSTRAINTS.id(), None);
     registry.add_option_support(circo, CoreOptions::NODE_SIZE_OPTIONS.id(), None);
-    registry.add_option_support(circo, CoreOptions::EDGE_ROUTING.id(), arc_any(EdgeRouting::Splines));
+    registry.add_option_support(
+        circo,
+        CoreOptions::EDGE_ROUTING.id(),
+        arc_any(EdgeRouting::Splines),
+    );
     registry.add_option_support(circo, CoreOptions::DEBUG_MODE.id(), None);
-    registry.add_option_support(circo, CoreOptions::SEPARATE_CONNECTED_COMPONENTS.id(), arc_any(false));
-    registry.add_option_support(circo, GraphvizOptions::CONCENTRATE.id(), property_default_any(GraphvizOptions::CONCENTRATE));
-    registry.add_option_support(circo, GraphvizOptions::LABEL_DISTANCE.id(), property_default_any(GraphvizOptions::LABEL_DISTANCE));
-    registry.add_option_support(circo, GraphvizOptions::LABEL_ANGLE.id(), property_default_any(GraphvizOptions::LABEL_ANGLE));
-    registry.add_option_support(circo, GraphvizOptions::OVERLAP_MODE.id(), property_default_any(GraphvizOptions::OVERLAP_MODE));
-    registry.add_option_support(circo, GraphvizOptions::ADAPT_PORT_POSITIONS.id(), property_default_any(GraphvizOptions::ADAPT_PORT_POSITIONS));
+    registry.add_option_support(
+        circo,
+        CoreOptions::SEPARATE_CONNECTED_COMPONENTS.id(),
+        arc_any(false),
+    );
+    registry.add_option_support(
+        circo,
+        GraphvizOptions::CONCENTRATE.id(),
+        property_default_any(GraphvizOptions::CONCENTRATE),
+    );
+    registry.add_option_support(
+        circo,
+        GraphvizOptions::LABEL_DISTANCE.id(),
+        property_default_any(GraphvizOptions::LABEL_DISTANCE),
+    );
+    registry.add_option_support(
+        circo,
+        GraphvizOptions::LABEL_ANGLE.id(),
+        property_default_any(GraphvizOptions::LABEL_ANGLE),
+    );
+    registry.add_option_support(
+        circo,
+        GraphvizOptions::OVERLAP_MODE.id(),
+        property_default_any(GraphvizOptions::OVERLAP_MODE),
+    );
+    registry.add_option_support(
+        circo,
+        GraphvizOptions::ADAPT_PORT_POSITIONS.id(),
+        property_default_any(GraphvizOptions::ADAPT_PORT_POSITIONS),
+    );
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -412,13 +584,7 @@ fn property_default_any<T: Clone + Send + Sync + 'static>(
 fn init_reflect() {
     static INIT: OnceLock<()> = OnceLock::new();
     INIT.get_or_init(|| {
-        ElkReflect::register(
-            Some(|| NeatoModel::Shortpath),
-            Some(|v: &NeatoModel| *v),
-        );
-        ElkReflect::register(
-            Some(|| OverlapMode::Prism),
-            Some(|v: &OverlapMode| *v),
-        );
+        ElkReflect::register(Some(|| NeatoModel::Shortpath), Some(|v: &NeatoModel| *v));
+        ElkReflect::register(Some(|| OverlapMode::Prism), Some(|v: &OverlapMode| *v));
     });
 }

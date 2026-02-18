@@ -41,7 +41,11 @@ impl Default for LayeredLayoutProvider {
 
 fn apply_layered_algorithm_defaults(graph: &ElkNodeRef) {
     let mut graph_mut = graph.borrow_mut();
-    let props = graph_mut.connectable().shape().graph_element().properties_mut();
+    let props = graph_mut
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut();
     if !props.has_property_id(LayeredOptions::EDGE_ROUTING.id()) {
         props.set_property(LayeredOptions::EDGE_ROUTING, Some(EdgeRouting::Orthogonal));
     }
@@ -55,7 +59,11 @@ fn apply_layered_algorithm_defaults(graph: &ElkNodeRef) {
 }
 
 impl IGraphLayoutEngine for LayeredLayoutProvider {
-    fn layout(&mut self, layout_graph: &ElkNodeRef, progress_monitor: &mut dyn IElkProgressMonitor) {
+    fn layout(
+        &mut self,
+        layout_graph: &ElkNodeRef,
+        progress_monitor: &mut dyn IElkProgressMonitor,
+    ) {
         apply_layered_algorithm_defaults(layout_graph);
 
         let mut transformer = ElkGraphTransformer::new();
@@ -63,7 +71,12 @@ impl IGraphLayoutEngine for LayeredLayoutProvider {
 
         let hierarchy_handling = {
             let mut graph_mut = layout_graph.borrow_mut();
-            let mut props = graph_mut.connectable().shape().graph_element().properties().clone();
+            let mut props = graph_mut
+                .connectable()
+                .shape()
+                .graph_element()
+                .properties()
+                .clone();
             props
                 .get_property(LayeredOptions::HIERARCHY_HANDLING)
                 .unwrap_or(HierarchyHandling::Inherit)
@@ -90,7 +103,12 @@ impl AbstractLayoutProvider for LayeredLayoutProvider {
 }
 
 impl IWhiteBoxTestable for LayeredLayoutProvider {
-    fn set_test_controller(&mut self, controller: Option<*mut org_eclipse_elk_core::org::eclipse::elk::core::testing::TestController>) {
+    fn set_test_controller(
+        &mut self,
+        controller: Option<
+            *mut org_eclipse_elk_core::org::eclipse::elk::core::testing::TestController,
+        >,
+    ) {
         self.elk_layered.set_test_controller(controller);
     }
 }

@@ -3,7 +3,9 @@ mod issue_support;
 
 use std::path::PathBuf;
 
-use elkt_test_loader::{find_edge_by_identifier, find_node_by_identifier, load_layered_graph_from_elkt};
+use elkt_test_loader::{
+    find_edge_by_identifier, find_node_by_identifier, load_layered_graph_from_elkt,
+};
 use issue_support::{init_layered_options, run_recursive_layout};
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::LayeredOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
@@ -157,8 +159,7 @@ fn ordering_realworld_ca_conway_junction_points_match_java() {
     }
 
     let path = resource.to_string_lossy();
-    let graph =
-        load_layered_graph_from_elkt(path.as_ref()).expect("ca_conway_Conway should load");
+    let graph = load_layered_graph_from_elkt(path.as_ref()).expect("ca_conway_Conway should load");
     run_recursive_layout(&graph);
 
     let e33 = find_edge_by_identifier(&graph, "P57", "P19").expect("E33 edge should exist");

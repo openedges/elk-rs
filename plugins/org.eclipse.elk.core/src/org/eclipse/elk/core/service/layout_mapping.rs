@@ -2,10 +2,8 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use org_eclipse_elk_graph::org::eclipse::elk::graph::{
-    ElkGraphElementRef, ElkNodeRef,
-};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::MapPropertyHolder;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkGraphElementRef, ElkNodeRef};
 
 #[derive(Clone)]
 pub struct LayoutMapping {
@@ -45,9 +43,7 @@ impl LayoutMapping {
     }
 
     pub fn diagram_for(&self, element: &ElkGraphElementRef) -> Option<Rc<dyn Any>> {
-        self.element_to_diagram
-            .get(&element_key(element))
-            .cloned()
+        self.element_to_diagram.get(&element_key(element)).cloned()
     }
 
     pub fn element_for(&self, diagram: &Rc<dyn Any>) -> Option<ElkGraphElementRef> {

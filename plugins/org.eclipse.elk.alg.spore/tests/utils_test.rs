@@ -123,13 +123,19 @@ fn distance_test() {
 
     let n1 = Node::new(r1.get_center(), ElkRectangle::from_other(&r1));
     for (vec, should_collide) in vectors {
-        let mut n2 = Node::new(rectangles[12].get_center(), ElkRectangle::from_other(&rectangles[12]));
+        let mut n2 = Node::new(
+            rectangles[12].get_center(),
+            ElkRectangle::from_other(&rectangles[12]),
+        );
         let distance = n1.distance(&n2, &vec);
         if should_collide {
             let mut translation = vec;
             translation.scale_to_length(distance);
             n2.translate(&translation);
-            assert!(fuzzy_eq(ElkMath::shortest_distance(&n1.rect, &n2.rect), 0.0));
+            assert!(fuzzy_eq(
+                ElkMath::shortest_distance(&n1.rect, &n2.rect),
+                0.0
+            ));
         } else {
             assert!(distance.is_infinite());
         }

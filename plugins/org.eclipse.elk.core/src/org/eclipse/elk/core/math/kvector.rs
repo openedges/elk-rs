@@ -21,7 +21,10 @@ impl KVector {
     }
 
     pub fn from_vector(other: &KVector) -> Self {
-        KVector { x: other.x, y: other.y }
+        KVector {
+            x: other.x,
+            y: other.y,
+        }
     }
 
     pub fn from_points(start: &KVector, end: &KVector) -> Self {
@@ -193,9 +196,7 @@ impl KVector {
 
     pub fn bound(&mut self, lowx: f64, lowy: f64, highx: f64, highy: f64) -> &mut Self {
         if highx < lowx || highy < lowy {
-            panic!(
-                "The highx must be bigger then lowx and the highy must be bigger then lowy"
-            );
+            panic!("The highx must be bigger then lowx and the highy must be bigger then lowy");
         }
         if self.x < lowx {
             self.x = lowx;
@@ -240,14 +241,10 @@ impl KVector {
             );
         }
         let x: f64 = tokens[0].trim().parse().unwrap_or_else(|_| {
-            panic!(
-                "The given string contains parts that cannot be parsed as numbers."
-            )
+            panic!("The given string contains parts that cannot be parsed as numbers.")
         });
         let y: f64 = tokens[1].trim().parse().unwrap_or_else(|_| {
-            panic!(
-                "The given string contains parts that cannot be parsed as numbers."
-            )
+            panic!("The given string contains parts that cannot be parsed as numbers.")
         });
         self.x = x;
         self.y = y;

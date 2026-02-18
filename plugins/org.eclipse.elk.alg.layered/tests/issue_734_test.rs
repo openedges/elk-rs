@@ -45,7 +45,12 @@ fn compute_node_x_span(graph: &ElkNodeRef) -> (f64, f64) {
 }
 
 fn compute_edge_x_span(graph: &ElkNodeRef) -> (f64, f64) {
-    let edges: Vec<ElkEdgeRef> = graph.borrow_mut().contained_edges().iter().cloned().collect();
+    let edges: Vec<ElkEdgeRef> = graph
+        .borrow_mut()
+        .contained_edges()
+        .iter()
+        .cloned()
+        .collect();
 
     let mut min_x = f64::INFINITY;
     let mut max_x = f64::NEG_INFINITY;

@@ -54,7 +54,8 @@ impl NorthSouthEdgeNeighbouringNodeCrossingsCounter {
     fn set_port_ids_on(&mut self, node: &LNodeRef, side: PortSide) {
         let ports = in_north_south_east_west_order(node, side);
         for (port_id, port) in ports.into_iter().enumerate() {
-            self.port_positions.insert(port_ptr_id(&port), port_id as i32);
+            self.port_positions
+                .insert(port_ptr_id(&port), port_id as i32);
         }
     }
 
@@ -82,23 +83,39 @@ impl NorthSouthEdgeNeighbouringNodeCrossingsCounter {
             let closer_east_ports = ports_on_side(closer_to_normal, PortSide::East);
             self.upper_lower_crossings = closer_east_ports
                 .first()
-                .and_then(|port| port.lock().ok().map(|port_guard| port_guard.degree() as i32))
+                .and_then(|port| {
+                    port.lock()
+                        .ok()
+                        .map(|port_guard| port_guard.degree() as i32)
+                })
                 .unwrap_or(0);
             let further_west_ports = ports_on_side(further_from_normal, PortSide::West);
             self.lower_upper_crossings = further_west_ports
                 .first()
-                .and_then(|port| port.lock().ok().map(|port_guard| port_guard.degree() as i32))
+                .and_then(|port| {
+                    port.lock()
+                        .ok()
+                        .map(|port_guard| port_guard.degree() as i32)
+                })
                 .unwrap_or(0);
         } else {
             let closer_west_ports = ports_on_side(closer_to_normal, PortSide::West);
             self.upper_lower_crossings = closer_west_ports
                 .first()
-                .and_then(|port| port.lock().ok().map(|port_guard| port_guard.degree() as i32))
+                .and_then(|port| {
+                    port.lock()
+                        .ok()
+                        .map(|port_guard| port_guard.degree() as i32)
+                })
                 .unwrap_or(0);
             let further_east_ports = ports_on_side(further_from_normal, PortSide::East);
             self.lower_upper_crossings = further_east_ports
                 .first()
-                .and_then(|port| port.lock().ok().map(|port_guard| port_guard.degree() as i32))
+                .and_then(|port| {
+                    port.lock()
+                        .ok()
+                        .map(|port_guard| port_guard.degree() as i32)
+                })
                 .unwrap_or(0);
         }
     }
@@ -129,12 +146,16 @@ impl NorthSouthEdgeNeighbouringNodeCrossingsCounter {
         lower_node: &LNodeRef,
     ) {
         if self.is_normal(upper_node) && self.is_long_edge_dummy(lower_node) {
-            self.upper_lower_crossings = self.number_of_north_south_edges(upper_node, PortSide::South);
-            self.lower_upper_crossings = self.number_of_north_south_edges(upper_node, PortSide::North);
+            self.upper_lower_crossings =
+                self.number_of_north_south_edges(upper_node, PortSide::South);
+            self.lower_upper_crossings =
+                self.number_of_north_south_edges(upper_node, PortSide::North);
         }
         if self.is_normal(lower_node) && self.is_long_edge_dummy(upper_node) {
-            self.upper_lower_crossings = self.number_of_north_south_edges(lower_node, PortSide::North);
-            self.lower_upper_crossings = self.number_of_north_south_edges(lower_node, PortSide::South);
+            self.upper_lower_crossings =
+                self.number_of_north_south_edges(lower_node, PortSide::North);
+            self.lower_upper_crossings =
+                self.number_of_north_south_edges(lower_node, PortSide::South);
         }
     }
 

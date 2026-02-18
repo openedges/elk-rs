@@ -33,13 +33,17 @@ fn graph_with_layers(count: usize) -> (LGraphRef, Vec<LayerRef>) {
             LayeredOptions::CONSIDER_MODEL_ORDER_LONG_EDGE_STRATEGY,
             Some(LongEdgeOrderingStrategy::Equal),
         );
-        graph_guard.set_property(LayeredOptions::CONSIDER_MODEL_ORDER_PORT_MODEL_ORDER, Some(false));
+        graph_guard.set_property(
+            LayeredOptions::CONSIDER_MODEL_ORDER_PORT_MODEL_ORDER,
+            Some(false),
+        );
     }
     (graph, layers)
 }
 
 fn init_layered_metadata() {
-    LayoutMetaDataService::get_instance().register_layout_meta_data_provider(&LayeredMetaDataProvider);
+    LayoutMetaDataService::get_instance()
+        .register_layout_meta_data_provider(&LayeredMetaDataProvider);
 }
 
 fn add_node(graph: &LGraphRef, layer: &LayerRef, model_order: i32) -> LNodeRef {
@@ -143,7 +147,10 @@ fn assert_port_order(edge_orders: [i32; 3], constraints: PortConstraints) {
     run_sorter_direct(&graph);
 
     let sorted_ports = source.lock().expect("source lock").ports().clone();
-    if matches!(constraints, PortConstraints::FixedOrder | PortConstraints::FixedPos) {
+    if matches!(
+        constraints,
+        PortConstraints::FixedOrder | PortConstraints::FixedPos
+    ) {
         assert!(Arc::ptr_eq(&sorted_ports[0], &ports[0]));
         assert!(Arc::ptr_eq(&sorted_ports[1], &ports[1]));
         assert!(Arc::ptr_eq(&sorted_ports[2], &ports[2]));
@@ -153,9 +160,11 @@ fn assert_port_order(edge_orders: [i32; 3], constraints: PortConstraints) {
             port.lock()
                 .ok()
                 .and_then(|port_guard| port_guard.outgoing_edges().first().cloned())
-                .and_then(|edge| edge.lock().ok().and_then(|mut edge_guard| {
-                    edge_guard.get_property(InternalProperties::MODEL_ORDER)
-                }))
+                .and_then(|edge| {
+                    edge.lock().ok().and_then(|mut edge_guard| {
+                        edge_guard.get_property(InternalProperties::MODEL_ORDER)
+                    })
+                })
                 .unwrap_or(i32::MAX)
         });
         assert!(Arc::ptr_eq(&sorted_ports[0], &expected[0]));

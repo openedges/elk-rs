@@ -1,7 +1,9 @@
 mod elkt_test_loader;
 mod issue_support;
 
-use elkt_test_loader::{find_edge_by_identifier, find_port_by_identifier, load_layered_graph_from_elkt};
+use elkt_test_loader::{
+    find_edge_by_identifier, find_port_by_identifier, load_layered_graph_from_elkt,
+};
 use issue_support::{init_layered_options, run_layout};
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::ElkUtil;
@@ -40,7 +42,12 @@ fn issue_447_edges_connect_to_port_anchors() {
     let mut checked_edges = 0usize;
     for (edge, source_port, target_port) in edge_infos {
         let containing_node = edge.borrow().containing_node();
-        let sections = edge.borrow_mut().sections().iter().cloned().collect::<Vec<_>>();
+        let sections = edge
+            .borrow_mut()
+            .sections()
+            .iter()
+            .cloned()
+            .collect::<Vec<_>>();
 
         assert!(
             !sections.is_empty(),

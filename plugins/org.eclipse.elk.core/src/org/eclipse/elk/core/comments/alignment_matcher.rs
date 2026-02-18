@@ -31,10 +31,7 @@ impl<C, T> AlignmentMatcher<C, T> {
         self
     }
 
-    pub fn with_bounds_provider(
-        &mut self,
-        provider: Rc<dyn IBoundsProvider<C, T>>,
-    ) -> &mut Self {
+    pub fn with_bounds_provider(&mut self, provider: Rc<dyn IBoundsProvider<C, T>>) -> &mut Self {
         self.bounds_provider = Some(provider);
         self
     }
@@ -43,7 +40,8 @@ impl<C, T> AlignmentMatcher<C, T> {
         &mut self,
         normalization_function: NormalizationFunction,
     ) -> &mut Self {
-        self.config.with_normalization_function(normalization_function);
+        self.config
+            .with_normalization_function(normalization_function);
         self
     }
 

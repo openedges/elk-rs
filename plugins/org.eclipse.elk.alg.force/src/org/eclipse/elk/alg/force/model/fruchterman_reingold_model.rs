@@ -1,7 +1,9 @@
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 
 use crate::org::eclipse::elk::alg::force::graph::{FGraph, FParticleRef};
-use crate::org::eclipse::elk::alg::force::model::abstract_force_model::{AbstractForceModel, ForceModel};
+use crate::org::eclipse::elk::alg::force::model::abstract_force_model::{
+    AbstractForceModel, ForceModel,
+};
 use crate::org::eclipse::elk::alg::force::options::ForceOptions;
 
 const SPACING_FACTOR: f64 = 0.01;
@@ -85,7 +87,9 @@ impl ForceModel for FruchtermanReingoldModel {
         let displacement = forcee.with_particle_ref(|p| *p.position_ref());
         let forcer_pos = forcer.with_particle_ref(|p| *p.position_ref());
         let (mut displacement, forcer_pos) = match (displacement, forcer_pos) {
-            (Some(displacement), Some(forcer_pos)) => (KVector::from_vector(&displacement), forcer_pos),
+            (Some(displacement), Some(forcer_pos)) => {
+                (KVector::from_vector(&displacement), forcer_pos)
+            }
             _ => return None,
         };
         displacement.sub(&forcer_pos);

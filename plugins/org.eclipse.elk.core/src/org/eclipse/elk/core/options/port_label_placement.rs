@@ -68,5 +68,8 @@ impl EnumSetType for PortLabelPlacement {
 }
 
 fn count_members(set: &EnumSet<PortLabelPlacement>, candidates: &[PortLabelPlacement]) -> usize {
-    candidates.iter().filter(|entry| set.contains(entry)).count()
+    candidates
+        .iter()
+        .filter(|entry| set.contains(entry))
+        .count()
 }

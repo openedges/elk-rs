@@ -39,11 +39,14 @@ impl StressOptions {
     pub const ITERATION_LIMIT: &'static LazyLock<Property<i32>> = &ITERATION_LIMIT_PROPERTY;
 
     pub const INTERACTIVE: &'static LazyLock<Property<bool>> = CoreOptions::INTERACTIVE;
-    pub const EDGE_LABELS_INLINE: &'static LazyLock<Property<bool>> = CoreOptions::EDGE_LABELS_INLINE;
-    pub const OMIT_NODE_MICRO_LAYOUT: &'static LazyLock<Property<bool>> = CoreOptions::OMIT_NODE_MICRO_LAYOUT;
+    pub const EDGE_LABELS_INLINE: &'static LazyLock<Property<bool>> =
+        CoreOptions::EDGE_LABELS_INLINE;
+    pub const OMIT_NODE_MICRO_LAYOUT: &'static LazyLock<Property<bool>> =
+        CoreOptions::OMIT_NODE_MICRO_LAYOUT;
     pub const NODE_SIZE_CONSTRAINTS: &'static LazyLock<Property<EnumSet<SizeConstraint>>> =
         CoreOptions::NODE_SIZE_CONSTRAINTS;
-    pub const NODE_SIZE_MINIMUM: &'static LazyLock<Property<KVector>> = CoreOptions::NODE_SIZE_MINIMUM;
+    pub const NODE_SIZE_MINIMUM: &'static LazyLock<Property<KVector>> =
+        CoreOptions::NODE_SIZE_MINIMUM;
     pub const NODE_SIZE_OPTIONS: &'static LazyLock<Property<EnumSet<SizeOptions>>> =
         CoreOptions::NODE_SIZE_OPTIONS;
     pub const NODE_LABELS_PLACEMENT: &'static LazyLock<Property<EnumSet<NodeLabelPlacement>>> =

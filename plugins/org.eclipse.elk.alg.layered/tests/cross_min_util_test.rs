@@ -2,7 +2,10 @@ use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::{LGraph
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::p3order::counting::in_north_south_east_west_order;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 
-fn add_port(node: &org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LNodeRef, side: PortSide) -> org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LPortRef {
+fn add_port(
+    node: &org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LNodeRef,
+    side: PortSide,
+) -> org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LPortRef {
     let port = LPort::new();
     if let Ok(mut port_guard) = port.lock() {
         port_guard.set_side(side);

@@ -76,7 +76,11 @@ fn register_supports(registry: &mut dyn LayoutMetaDataRegistry) {
     let algo = TopdownpackingOptions::ALGORITHM_ID;
     registry.add_option_support(algo, CoreOptions::PADDING.id(), None);
     registry.add_option_support(algo, CoreOptions::SPACING_NODE_NODE.id(), None);
-    registry.add_option_support(algo, CoreOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH.id(), None);
+    registry.add_option_support(
+        algo,
+        CoreOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH.id(),
+        None,
+    );
     registry.add_option_support(
         algo,
         CoreOptions::TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO.id(),

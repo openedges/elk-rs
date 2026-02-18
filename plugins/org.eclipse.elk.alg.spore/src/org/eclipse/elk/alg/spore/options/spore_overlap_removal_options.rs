@@ -14,8 +14,9 @@ impl SporeOverlapRemovalOptions {
 
     pub const UNDERLYING_LAYOUT_ALGORITHM: &'static LazyLock<Property<String>> =
         SporeCommonOptions::UNDERLYING_LAYOUT_ALGORITHM;
-    pub const STRUCTURE_EXTRACTION_STRATEGY: &'static LazyLock<Property<StructureExtractionStrategy>> =
-        SporeCommonOptions::STRUCTURE_EXTRACTION_STRATEGY;
+    pub const STRUCTURE_EXTRACTION_STRATEGY: &'static LazyLock<
+        Property<StructureExtractionStrategy>,
+    > = SporeCommonOptions::STRUCTURE_EXTRACTION_STRATEGY;
     pub const OVERLAP_REMOVAL_MAX_ITERATIONS: &'static LazyLock<Property<i32>> =
         SporeCommonOptions::OVERLAP_REMOVAL_MAX_ITERATIONS;
     pub const OVERLAP_REMOVAL_RUN_SCANLINE: &'static LazyLock<Property<bool>> =

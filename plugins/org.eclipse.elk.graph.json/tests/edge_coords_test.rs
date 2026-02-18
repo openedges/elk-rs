@@ -5,7 +5,9 @@ use serde_json::Value;
 
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::plain_java_initialization::initialize_plain_java_layout;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{BasicProgressMonitor, Maybe};
-use org_eclipse_elk_core::org::eclipse::elk::core::{IGraphLayoutEngine, RecursiveGraphLayoutEngine};
+use org_eclipse_elk_core::org::eclipse::elk::core::{
+    IGraphLayoutEngine, RecursiveGraphLayoutEngine,
+};
 use org_eclipse_elk_graph_json::org::eclipse::elk::graph::json::ElkGraphJson;
 
 const GRAPH: &str = r#"    {

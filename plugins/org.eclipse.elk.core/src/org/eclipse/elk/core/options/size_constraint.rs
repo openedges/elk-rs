@@ -37,4 +37,3 @@ impl EnumSetType for SizeConstraint {
         &VARIANTS
     }
 }
-

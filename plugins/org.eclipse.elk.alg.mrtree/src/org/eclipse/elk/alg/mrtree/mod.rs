@@ -4,6 +4,7 @@ pub mod components_processor;
 pub mod elk_graph_importer;
 pub mod graph;
 pub mod i_graph_importer;
+pub mod interactive_mrtree_graph_visitor;
 pub mod intermediate;
 pub mod mrtree;
 pub mod options;
@@ -14,11 +15,12 @@ pub mod p4route;
 pub mod tree_layout_phases;
 pub mod tree_layout_provider;
 pub mod tree_util;
-pub mod interactive_mrtree_graph_visitor;
 
 pub use components_processor::ComponentsProcessor;
 pub use elk_graph_importer::ElkGraphImporter;
-pub use graph::{TEdge, TEdgeRef, TGraph, TGraphRef, TLabel, TLabelRef, TNode, TNodeRef, TShape, TShapeRef};
+pub use graph::{
+    TEdge, TEdgeRef, TGraph, TGraphRef, TLabel, TLabelRef, TNode, TNodeRef, TShape, TShapeRef,
+};
 pub use i_graph_importer::IGraphImporter;
 pub use intermediate::IntermediateProcessorStrategy;
 pub use mrtree::MrTree;

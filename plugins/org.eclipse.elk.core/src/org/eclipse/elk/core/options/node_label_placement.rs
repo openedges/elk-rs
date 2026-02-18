@@ -127,10 +127,7 @@ impl NodeLabelPlacement {
     }
 
     pub fn is_valid(placement: &EnumSet<NodeLabelPlacement>) -> bool {
-        let inside_outside = [
-            NodeLabelPlacement::Inside,
-            NodeLabelPlacement::Outside,
-        ];
+        let inside_outside = [NodeLabelPlacement::Inside, NodeLabelPlacement::Outside];
         if count_members(placement, &inside_outside) > 1 {
             return false;
         }

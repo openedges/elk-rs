@@ -58,7 +58,9 @@ impl ILayoutPhase<TreeLayoutPhases, TGraphRef> for NodePlacer {
                 .find(|node| {
                     node.lock()
                         .ok()
-                        .and_then(|mut node_guard| node_guard.get_property(InternalProperties::ROOT))
+                        .and_then(|mut node_guard| {
+                            node_guard.get_property(InternalProperties::ROOT)
+                        })
                         .unwrap_or(false)
                 })
                 .cloned();
@@ -99,11 +101,19 @@ impl ILayoutPhase<TreeLayoutPhases, TGraphRef> for NodePlacer {
             .before(TreeLayoutPhases::P2NodeOrdering)
             .add(std::sync::Arc::new(IntermediateProcessorStrategy::RootProc))
             .before(TreeLayoutPhases::P3NodePlacement)
-            .add(std::sync::Arc::new(IntermediateProcessorStrategy::LevelHeight))
-            .add(std::sync::Arc::new(IntermediateProcessorStrategy::NeighborsProc))
+            .add(std::sync::Arc::new(
+                IntermediateProcessorStrategy::LevelHeight,
+            ))
+            .add(std::sync::Arc::new(
+                IntermediateProcessorStrategy::NeighborsProc,
+            ))
             .before(TreeLayoutPhases::P4EdgeRouting)
-            .add(std::sync::Arc::new(IntermediateProcessorStrategy::DirectionProc))
-            .add(std::sync::Arc::new(IntermediateProcessorStrategy::NodePositionProc));
+            .add(std::sync::Arc::new(
+                IntermediateProcessorStrategy::DirectionProc,
+            ))
+            .add(std::sync::Arc::new(
+                IntermediateProcessorStrategy::NodePositionProc,
+            ));
         Some(config)
     }
 }
@@ -240,12 +250,16 @@ impl NodePlacer {
                 right_mod_sum += ancestor_leftmost
                     .lock()
                     .ok()
-                    .and_then(|mut node_guard| node_guard.get_property(InternalProperties::MODIFIER))
+                    .and_then(|mut node_guard| {
+                        node_guard.get_property(InternalProperties::MODIFIER)
+                    })
                     .unwrap_or(0.0);
                 left_mod_sum += ancestor_neighbor
                     .lock()
                     .ok()
-                    .and_then(|mut node_guard| node_guard.get_property(InternalProperties::MODIFIER))
+                    .and_then(|mut node_guard| {
+                        node_guard.get_property(InternalProperties::MODIFIER)
+                    })
                     .unwrap_or(0.0);
             }
 
@@ -261,7 +275,8 @@ impl NodePlacer {
                 .unwrap_or(0.0);
             let mean = self.mean_node_width(leftmost.as_ref().unwrap(), neighbor.as_ref().unwrap());
             let mut move_distance = neighbor_prelim + left_mod_sum + self.spacing + mean
-                - leftmost_prelim - right_mod_sum;
+                - leftmost_prelim
+                - right_mod_sum;
 
             if move_distance > 0.0 {
                 let mut left_sibling = node.clone();
@@ -376,13 +391,7 @@ impl NodePlacer {
         width
     }
 
-    fn second_walk(
-        &self,
-        node: &TNodeRef,
-        y_coor: f64,
-        mod_sum: f64,
-        seen: &mut HashSet<usize>,
-    ) {
+    fn second_walk(&self, node: &TNodeRef, y_coor: f64, mod_sum: f64, seen: &mut HashSet<usize>) {
         let node_key = std::sync::Arc::as_ptr(node) as usize;
         if !seen.insert(node_key) {
             return;
@@ -405,9 +414,15 @@ impl NodePlacer {
                 if let Some(first_child) = node_guard.children_copy().first().cloned() {
                     self.second_walk(
                         &first_child,
-                        y_coor + node_guard.get_property(InternalProperties::LEVELHEIGHT).unwrap_or(0.0)
+                        y_coor
+                            + node_guard
+                                .get_property(InternalProperties::LEVELHEIGHT)
+                                .unwrap_or(0.0)
                             + self.spacing,
-                        mod_sum + node_guard.get_property(InternalProperties::MODIFIER).unwrap_or(0.0),
+                        mod_sum
+                            + node_guard
+                                .get_property(InternalProperties::MODIFIER)
+                                .unwrap_or(0.0),
                         seen,
                     );
                 }

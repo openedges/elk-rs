@@ -23,15 +23,12 @@ impl ILayoutProcessor<LGraph> for SelfLoopPostProcessor {
             .collect();
 
         for lnode in nodes {
-            let has_self_loop_holder = lnode
-                .lock()
-                .ok()
-                .is_some_and(|mut node_guard| {
-                    node_guard.node_type() == NodeType::Normal
-                        && node_guard
-                            .get_property(InternalProperties::SELF_LOOP_HOLDER)
-                            .is_some()
-                });
+            let has_self_loop_holder = lnode.lock().ok().is_some_and(|mut node_guard| {
+                node_guard.node_type() == NodeType::Normal
+                    && node_guard
+                        .get_property(InternalProperties::SELF_LOOP_HOLDER)
+                        .is_some()
+            });
             if !has_self_loop_holder {
                 continue;
             }

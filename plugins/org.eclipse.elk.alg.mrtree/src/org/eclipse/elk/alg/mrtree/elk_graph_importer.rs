@@ -4,10 +4,10 @@ use std::rc::Rc;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::{ElkPadding, KVector, KVectorChain};
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::ElkUtil;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{
     ElkEdgeRef, ElkEdgeSection, ElkGraphElementRef, ElkNodeRef,
 };
-use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 
 use crate::org::eclipse::elk::alg::mrtree::graph::{TEdge, TGraph, TGraphRef, TNode};
 use crate::org::eclipse::elk::alg::mrtree::i_graph_importer::IGraphImporter;
@@ -70,8 +70,10 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
             let mut root = elkgraph.borrow_mut();
             root.children().iter().cloned().collect()
         };
-        let mut elem_map: HashMap<OriginId, crate::org::eclipse::elk::alg::mrtree::graph::TNodeRef> =
-            HashMap::new();
+        let mut elem_map: HashMap<
+            OriginId,
+            crate::org::eclipse::elk::alg::mrtree::graph::TNodeRef,
+        > = HashMap::new();
 
         for (index, elknode) in children.iter().enumerate() {
             let label = {
@@ -136,7 +138,10 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
         for elknode in &children {
             for elkedge in ElkGraphUtil::all_outgoing_edges(elknode) {
                 let edge_guard = elkedge.borrow();
-                if edge_guard.is_hierarchical() || edge_guard.is_selfloop() || edge_guard.is_hyperedge() {
+                if edge_guard.is_hierarchical()
+                    || edge_guard.is_selfloop()
+                    || edge_guard.is_hyperedge()
+                {
                     continue;
                 }
                 let origin_id = Self::origin_id(&ElkGraphElementRef::Edge(elkedge.clone()));
@@ -149,11 +154,12 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
                 let target_node = {
                     let edge_borrow = elkedge.borrow();
                     let target_shape = edge_borrow.targets_ro().get(0);
-                    target_shape
-                        .and_then(|shape| ElkGraphUtil::connectable_shape_to_node(&shape))
+                    target_shape.and_then(|shape| ElkGraphUtil::connectable_shape_to_node(&shape))
                 };
 
-                let Some(target_node) = target_node else { continue };
+                let Some(target_node) = target_node else {
+                    continue;
+                };
                 let target_origin = Self::origin_id(&ElkGraphElementRef::Node(target_node.clone()));
 
                 let source = elem_map.get(&source_node).cloned();
@@ -194,10 +200,18 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
             .lock()
             .ok()
             .and_then(|mut g| g.get_property(InternalProperties::ORIGIN));
-        let Some(Origin::ElkNode(root_id)) = origin else { return };
-        let Some(elkgraph) = self.node_map.get(&root_id) else { return };
+        let Some(Origin::ElkNode(root_id)) = origin else {
+            return;
+        };
+        let Some(elkgraph) = self.node_map.get(&root_id) else {
+            return;
+        };
 
-        let nodes = tgraph.lock().ok().map(|g| g.nodes().clone()).unwrap_or_default();
+        let nodes = tgraph
+            .lock()
+            .ok()
+            .map(|g| g.nodes().clone())
+            .unwrap_or_default();
         let mut min_x = f64::MAX;
         let mut min_y = f64::MAX;
         let mut max_x = f64::MIN;
@@ -230,13 +244,20 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
                 .lock()
                 .ok()
                 .and_then(|mut guard| guard.get_property(InternalProperties::ORIGIN));
-            let Some(Origin::ElkNode(node_id)) = origin else { continue };
-            let Some(elk_node) = self.node_map.get(&node_id) else { continue };
+            let Some(Origin::ElkNode(node_id)) = origin else {
+                continue;
+            };
+            let Some(elk_node) = self.node_map.get(&node_id) else {
+                continue;
+            };
             if let Ok(node_guard) = node.lock() {
                 let pos = node_guard.position_ref();
                 let props = node_guard.properties().clone();
                 let mut elk_node_mut = elk_node.borrow_mut();
-                elk_node_mut.connectable().shape().set_location(pos.x, pos.y);
+                elk_node_mut
+                    .connectable()
+                    .shape()
+                    .set_location(pos.x, pos.y);
                 elk_node_mut
                     .connectable()
                     .shape()
@@ -246,19 +267,29 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
             }
         }
 
-        let edges = tgraph.lock().ok().map(|g| g.edges().clone()).unwrap_or_default();
+        let edges = tgraph
+            .lock()
+            .ok()
+            .map(|g| g.edges().clone())
+            .unwrap_or_default();
         for edge in edges {
             let origin = edge
                 .lock()
                 .ok()
                 .and_then(|mut guard| guard.get_property(InternalProperties::ORIGIN));
-            let Some(Origin::ElkEdge(edge_id)) = origin else { continue };
-            let Some(elk_edge) = self.edge_map.get(&edge_id) else { continue };
+            let Some(Origin::ElkEdge(edge_id)) = origin else {
+                continue;
+            };
+            let Some(elk_edge) = self.edge_map.get(&edge_id) else {
+                continue;
+            };
             let mut bend_points = edge
                 .lock()
                 .ok()
                 .map(|guard| guard.bend_points_ref().clone());
-            let Some(mut bend_points_value) = bend_points.take() else { continue };
+            let Some(mut bend_points_value) = bend_points.take() else {
+                continue;
+            };
 
             if bend_points_value.size() < 2 {
                 let endpoints = edge.lock().ok().and_then(|guard| {
@@ -276,7 +307,9 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
                     })?;
                     Some((source_center, target_center))
                 });
-                let Some((source_center, target_center)) = endpoints else { continue };
+                let Some((source_center, target_center)) = endpoints else {
+                    continue;
+                };
                 bend_points_value = KVectorChain::new();
                 bend_points_value.add_vector(source_center);
                 bend_points_value.add_vector(target_center);
@@ -320,12 +353,18 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
             .shape()
             .graph_element()
             .properties_mut()
-            .set_property(CoreOptions::CHILD_AREA_WIDTH, Some(width - padding_horizontal));
+            .set_property(
+                CoreOptions::CHILD_AREA_WIDTH,
+                Some(width - padding_horizontal),
+            );
         root_mut
             .connectable()
             .shape()
             .graph_element()
             .properties_mut()
-            .set_property(CoreOptions::CHILD_AREA_HEIGHT, Some(height - padding_vertical));
+            .set_property(
+                CoreOptions::CHILD_AREA_HEIGHT,
+                Some(height - padding_vertical),
+            );
     }
 }

@@ -163,10 +163,8 @@ pub(crate) fn gather_labels(port: &LPortRef) -> Option<Vec<LLabelRef>> {
                 .and_then(|mut port_guard| port_guard.get_property(InternalProperties::ORIGIN));
             let matches_origin = matches!(origin, Some(Origin::LPort(origin_port)) if Arc::ptr_eq(&origin_port, port));
             if matches_origin {
-                max_edge_thickness = max_edge_thickness.max(gather_labels_from_port(
-                    &dummy_port,
-                    &mut labels,
-                ));
+                max_edge_thickness =
+                    max_edge_thickness.max(gather_labels_from_port(&dummy_port, &mut labels));
             }
         }
     }
@@ -233,7 +231,8 @@ fn gather_labels_from_port(port: &LPortRef, target_list: &mut Vec<LLabelRef>) ->
                         .get_property(InternalProperties::END_LABEL_EDGE)
                         .is_none()
                     {
-                        label_guard.set_property(InternalProperties::END_LABEL_EDGE, Some(edge.clone()));
+                        label_guard
+                            .set_property(InternalProperties::END_LABEL_EDGE, Some(edge.clone()));
                     }
                 }
                 target_list.push(label);

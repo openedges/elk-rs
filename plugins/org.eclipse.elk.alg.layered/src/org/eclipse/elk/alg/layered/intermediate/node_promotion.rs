@@ -112,7 +112,6 @@ fn model_order_node_promotion(graph: &mut LGraph, left_to_right: bool) {
         return;
     }
 
-
     let mut something_changed;
     loop {
         something_changed = false;
@@ -232,8 +231,9 @@ fn model_order_node_promotion(graph: &mut LGraph, left_to_right: bool) {
                         first_incoming_source_node(&node)
                     };
                     if let Some(connected_node) = connected_node {
-                        let connected_layer =
-                            layer_map.key_of(&connected_node).unwrap_or(current_layer_id);
+                        let connected_layer = layer_map
+                            .key_of(&connected_node)
+                            .unwrap_or(current_layer_id);
                         let node_layer = layer_map.key_of(&node).unwrap_or(current_layer_id);
                         let layer_distance = if left_to_right {
                             connected_layer - node_layer
@@ -249,7 +249,9 @@ fn model_order_node_promotion(graph: &mut LGraph, left_to_right: bool) {
                 if model_order_allows_promotion || promote_through_dummy_layer {
                     let mut queue = VecDeque::new();
                     let mut queued = HashSet::new();
-                    for promoted in promote_node_by_model_order(&node, left_to_right, &mut layer_map) {
+                    for promoted in
+                        promote_node_by_model_order(&node, left_to_right, &mut layer_map)
+                    {
                         let key = node_key(&promoted);
                         if queued.insert(key) {
                             queue.push_back(promoted);
@@ -258,9 +260,11 @@ fn model_order_node_promotion(graph: &mut LGraph, left_to_right: bool) {
 
                     while let Some(node_to_promote) = queue.pop_front() {
                         queued.remove(&node_key(&node_to_promote));
-                        for promoted in
-                            promote_node_by_model_order(&node_to_promote, left_to_right, &mut layer_map)
-                        {
+                        for promoted in promote_node_by_model_order(
+                            &node_to_promote,
+                            left_to_right,
+                            &mut layer_map,
+                        ) {
                             let key = node_key(&promoted);
                             if queued.insert(key) {
                                 queue.push_back(promoted);
@@ -294,7 +298,11 @@ fn promote_node_by_model_order(
     let Some(old_layer) = layer_map.key_of(node) else {
         return Vec::new();
     };
-    let new_layer = if left_to_right { old_layer + 1 } else { old_layer - 1 };
+    let new_layer = if left_to_right {
+        old_layer + 1
+    } else {
+        old_layer - 1
+    };
     layer_map.put(new_layer, node);
 
     let mut nodes_to_promote = Vec::new();
@@ -340,9 +348,12 @@ fn promote_node_by_model_order(
 
 fn apply_model_order_layers(graph: &mut LGraph, layer_map: &LayerNodeMap) {
     let existing_layers = graph.layers().clone();
-    let graph_ref = existing_layers
-        .first()
-        .and_then(|layer| layer.lock().ok().and_then(|layer_guard| layer_guard.graph()));
+    let graph_ref = existing_layers.first().and_then(|layer| {
+        layer
+            .lock()
+            .ok()
+            .and_then(|layer_guard| layer_guard.graph())
+    });
 
     let mut layer_refs_by_key: BTreeMap<i32, _> = BTreeMap::new();
     for (idx, layer_ref) in existing_layers.iter().enumerate() {

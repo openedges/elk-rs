@@ -14,9 +14,16 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkConnectableShapeRef, El
 fn node_placement_strategies_run() {
     LayoutMetaDataService::get_instance();
 
-    for strategy in [NodePlacementStrategy::NetworkSimplex, NodePlacementStrategy::BrandesKoepf] {
+    for strategy in [
+        NodePlacementStrategy::NetworkSimplex,
+        NodePlacementStrategy::BrandesKoepf,
+    ] {
         let root = build_test_graph();
-        set_node_property(&root, CoreOptions::ALGORITHM, "org.eclipse.elk.layered".to_string());
+        set_node_property(
+            &root,
+            CoreOptions::ALGORITHM,
+            "org.eclipse.elk.layered".to_string(),
+        );
         set_node_property(&root, LayeredOptions::NODE_PLACEMENT_STRATEGY, strategy);
 
         let mut engine = RecursiveGraphLayoutEngine::new();
@@ -30,8 +37,16 @@ fn network_simplex_layering_runs() {
     LayoutMetaDataService::get_instance();
 
     let root = build_test_graph();
-    set_node_property(&root, CoreOptions::ALGORITHM, "org.eclipse.elk.layered".to_string());
-    set_node_property(&root, LayeredOptions::LAYERING_STRATEGY, LayeringStrategy::NetworkSimplex);
+    set_node_property(
+        &root,
+        CoreOptions::ALGORITHM,
+        "org.eclipse.elk.layered".to_string(),
+    );
+    set_node_property(
+        &root,
+        LayeredOptions::LAYERING_STRATEGY,
+        LayeringStrategy::NetworkSimplex,
+    );
 
     let mut engine = RecursiveGraphLayoutEngine::new();
     let mut monitor = NullElkProgressMonitor;
@@ -72,10 +87,7 @@ fn build_test_graph() -> ElkNodeRef {
 
 fn set_dimensions(node: &ElkNodeRef, width: f64, height: f64) {
     let mut node_mut = node.borrow_mut();
-    node_mut
-        .connectable()
-        .shape()
-        .set_dimensions(width, height);
+    node_mut.connectable().shape().set_dimensions(width, height);
 }
 
 fn set_node_property<T: Clone + Send + Sync + 'static>(

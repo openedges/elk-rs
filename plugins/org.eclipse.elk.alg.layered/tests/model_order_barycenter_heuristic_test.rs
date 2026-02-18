@@ -31,7 +31,8 @@ fn test_model_order_respected() {
     let mut model_order = -1;
     for node in &node_order[1] {
         if let Ok(mut node_guard) = node.lock() {
-            if let Some(new_model_order) = node_guard.get_property(InternalProperties::MODEL_ORDER) {
+            if let Some(new_model_order) = node_guard.get_property(InternalProperties::MODEL_ORDER)
+            {
                 assert!(
                     new_model_order > model_order,
                     "model order regression: node has {}, previous was {}",
@@ -49,7 +50,10 @@ fn init_layered_options() {
     INIT.get_or_init(|| {
         let service = LayoutMetaDataService::get_instance();
         service.register_layout_meta_data_provider(&LayeredMetaDataProvider);
-        ElkReflect::register(Some(|| LayerConstraint::None), Some(|value: &LayerConstraint| *value));
+        ElkReflect::register(
+            Some(|| LayerConstraint::None),
+            Some(|value: &LayerConstraint| *value),
+        );
     });
 }
 
@@ -108,7 +112,10 @@ fn add_node_to_layer(graph: &LGraphRef, layer: &LayerRef, model_order: Option<i3
     node
 }
 
-fn add_port_on_side(node: &LNodeRef, side: PortSide) -> org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LPortRef {
+fn add_port_on_side(
+    node: &LNodeRef,
+    side: PortSide,
+) -> org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LPortRef {
     let port = LPort::new();
     if let Ok(mut port_guard) = port.lock() {
         port_guard.set_side(side);

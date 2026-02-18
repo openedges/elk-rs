@@ -34,7 +34,10 @@ fn add_layered_node(graph: &LGraphRef, layer: &LayerRef, partition: i32) -> LNod
     node
 }
 
-fn add_partition_dummy_port(node: &LNodeRef, side: org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide) -> LPortRef {
+fn add_partition_dummy_port(
+    node: &LNodeRef,
+    side: org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide,
+) -> LPortRef {
     let port = LPort::new();
     {
         let mut port_guard = port.lock().expect("port lock");
@@ -121,10 +124,9 @@ fn test_partition_order() {
     for layer in graph.lock().expect("graph lock").layers().iter() {
         let mut current_partition = -1;
         for node in layer.lock().expect("layer lock").nodes().iter() {
-            let node_partition = node
-                .lock()
-                .ok()
-                .and_then(|mut node_guard| node_guard.get_property(CoreOptions::PARTITIONING_PARTITION));
+            let node_partition = node.lock().ok().and_then(|mut node_guard| {
+                node_guard.get_property(CoreOptions::PARTITIONING_PARTITION)
+            });
             if let Some(node_partition) = node_partition {
                 if current_partition == -1 {
                     current_partition = node_partition;

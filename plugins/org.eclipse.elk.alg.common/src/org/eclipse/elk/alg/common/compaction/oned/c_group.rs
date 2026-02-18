@@ -45,7 +45,11 @@ impl CGroup {
         }
         {
             let mut group_mut = group.borrow_mut();
-            if !group_mut.c_nodes.iter().any(|candidate| Rc::ptr_eq(candidate, node)) {
+            if !group_mut
+                .c_nodes
+                .iter()
+                .any(|candidate| Rc::ptr_eq(candidate, node))
+            {
                 group_mut.c_nodes.push(node.clone());
             }
             if group_mut.reference.is_none() {
@@ -59,7 +63,9 @@ impl CGroup {
         let removed = {
             let mut group_mut = group.borrow_mut();
             let original_len = group_mut.c_nodes.len();
-            group_mut.c_nodes.retain(|candidate| !Rc::ptr_eq(candidate, node));
+            group_mut
+                .c_nodes
+                .retain(|candidate| !Rc::ptr_eq(candidate, node));
             original_len != group_mut.c_nodes.len()
         };
         if removed {

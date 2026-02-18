@@ -329,7 +329,12 @@ impl IElkProgressMonitor for BasicProgressMonitor {
         }
         self.task_name = Some(name.to_string());
         self.total_work = total_work;
-        self.do_begin(name, total_work, self.parent_monitor.is_none(), self.max_levels);
+        self.do_begin(
+            name,
+            total_work,
+            self.parent_monitor.is_none(),
+            self.max_levels,
+        );
         if self.record_execution_time {
             self.start_time = Some(Instant::now());
         }

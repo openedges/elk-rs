@@ -31,9 +31,10 @@ impl LayoutAlgorithmResolver {
         &self,
         node: &ElkNodeRef,
     ) -> Result<(), UnsupportedConfigurationException> {
-        let algorithm_id = with_node_properties_mut(node, |props| props.get_property(CoreOptions::ALGORITHM))
-            .map(|value| value.trim().to_string())
-            .filter(|value| !value.is_empty());
+        let algorithm_id =
+            with_node_properties_mut(node, |props| props.get_property(CoreOptions::ALGORITHM))
+                .map(|value| value.trim().to_string())
+                .filter(|value| !value.is_empty());
 
         if let Some(id) = algorithm_id.as_deref() {
             if self.resolve_and_set_algorithm(id, node) {
@@ -67,8 +68,8 @@ impl LayoutAlgorithmResolver {
     }
 
     fn resolve_and_set_algorithm(&self, algorithm_id: &str, node: &ElkNodeRef) -> bool {
-        let algorithm_data = LayoutMetaDataService::get_instance()
-            .get_algorithm_data_by_suffix(algorithm_id);
+        let algorithm_data =
+            LayoutMetaDataService::get_instance().get_algorithm_data_by_suffix(algorithm_id);
 
         if let Some(data) = algorithm_data {
             with_node_properties_mut(node, |props| {
@@ -90,8 +91,9 @@ impl LayoutAlgorithmResolver {
                 .graph_element()
                 .properties_mut();
             let has_resolved = props.has_property(CoreOptions::RESOLVED_ALGORITHM);
-            let inside_self_loops =
-                props.get_property(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE).unwrap_or(false);
+            let inside_self_loops = props
+                .get_property(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE)
+                .unwrap_or(false);
             (has_resolved, has_children, inside_self_loops)
         };
 
@@ -124,7 +126,10 @@ impl IGraphElementVisitor for LayoutAlgorithmResolver {
     }
 }
 
-fn with_node_properties_mut<R>(node: &ElkNodeRef, f: impl FnOnce(&mut MapPropertyHolder) -> R) -> R {
+fn with_node_properties_mut<R>(
+    node: &ElkNodeRef,
+    f: impl FnOnce(&mut MapPropertyHolder) -> R,
+) -> R {
     let mut node_mut = node.borrow_mut();
     let props = node_mut
         .connectable()

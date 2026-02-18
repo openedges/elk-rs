@@ -33,14 +33,14 @@ impl Default for TreeLayoutProvider {
 }
 
 impl IGraphLayoutEngine for TreeLayoutProvider {
-    fn layout(&mut self, layout_graph: &ElkNodeRef, progress_monitor: &mut dyn IElkProgressMonitor) {
+    fn layout(
+        &mut self,
+        layout_graph: &ElkNodeRef,
+        progress_monitor: &mut dyn IElkProgressMonitor,
+    ) {
         let omit_micro = {
             let mut root = layout_graph.borrow_mut();
-            let props = root
-                .connectable()
-                .shape()
-                .graph_element()
-                .properties_mut();
+            let props = root.connectable().shape().graph_element().properties_mut();
             props
                 .get_property(MrTreeOptions::OMIT_NODE_MICRO_LAYOUT)
                 .unwrap_or(false)
@@ -62,8 +62,7 @@ impl IGraphLayoutEngine for TreeLayoutProvider {
         let components = self.components_processor.split(&tgraph);
         pm.done();
 
-        let comp_work =
-            (1.0 - self.default_work * 4.0) / (components.len().max(1) as f32);
+        let comp_work = (1.0 - self.default_work * 4.0) / (components.len().max(1) as f32);
         for comp in &components {
             self.mr_tree
                 .do_layout(comp, Some(progress_monitor.sub_task(comp_work).as_mut()));

@@ -3,7 +3,9 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::Po
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LEdge, LGraph, LPort};
-use crate::org::eclipse::elk::alg::layered::intermediate::loops::{SelfLoopHolder, SelfLoopHolderRef};
+use crate::org::eclipse::elk::alg::layered::intermediate::loops::{
+    SelfLoopHolder, SelfLoopHolderRef,
+};
 use crate::org::eclipse::elk::alg::layered::options::{
     GraphProperties, InternalProperties, LayeredOptions,
 };
@@ -33,7 +35,11 @@ impl ILayoutProcessor<LGraph> for SelfLoopPreProcessor {
             if SelfLoopHolder::needs_self_loop_processing(&lnode) {
                 let sl_holder = SelfLoopHolder::install(&lnode);
 
-                set_hyper_loop_label_properties(&sl_holder, label_label_spacing, layout_dir_horizontal);
+                set_hyper_loop_label_properties(
+                    &sl_holder,
+                    label_label_spacing,
+                    layout_dir_horizontal,
+                );
 
                 hide_self_loops(&sl_holder);
                 hide_ports(&sl_holder);
@@ -57,7 +63,9 @@ fn set_hyper_loop_label_properties(holder: &SelfLoopHolderRef, spacing: f64, hor
     }
 }
 
-fn hide_self_loops(holder: &crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfLoopHolderRef) {
+fn hide_self_loops(
+    holder: &crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfLoopHolderRef,
+) {
     let edges = holder
         .lock()
         .ok()
@@ -70,7 +78,9 @@ fn hide_self_loops(holder: &crate::org::eclipse::elk::alg::layered::intermediate
     }
 }
 
-fn hide_ports(holder: &crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfLoopHolderRef) {
+fn hide_ports(
+    holder: &crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfLoopHolderRef,
+) {
     let node = holder
         .lock()
         .ok()
@@ -112,7 +122,12 @@ fn hide_ports(holder: &crate::org::eclipse::elk::alg::layered::intermediate::loo
         let (had_only_self_loops, l_port) = sl_port
             .lock()
             .ok()
-            .map(|port_guard| (port_guard.had_only_self_loops(), port_guard.l_port().clone()))
+            .map(|port_guard| {
+                (
+                    port_guard.had_only_self_loops(),
+                    port_guard.l_port().clone(),
+                )
+            })
             .unwrap_or_else(|| panic!("self loop port lock poisoned"));
 
         if !had_only_self_loops {
@@ -128,12 +143,10 @@ fn hide_ports(holder: &crate::org::eclipse::elk::alg::layered::intermediate::loo
             holder_guard.set_ports_hidden(true);
         }
 
-        debug_assert!(
-            l_port
-                .lock()
-                .ok()
-                .and_then(|mut port_guard| port_guard.get_property(InternalProperties::PORT_DUMMY))
-                .is_none()
-        );
+        debug_assert!(l_port
+            .lock()
+            .ok()
+            .and_then(|mut port_guard| port_guard.get_property(InternalProperties::PORT_DUMMY))
+            .is_none());
     }
 }

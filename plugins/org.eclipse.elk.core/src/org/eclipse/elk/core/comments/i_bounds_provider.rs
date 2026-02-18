@@ -9,11 +9,14 @@ pub trait IBoundsProvider<C: 'static, T: 'static> {
     fn bounds_for_comment(&self, comment: &C) -> Option<ElkRectangle>;
     fn bounds_for_target(&self, target: &T) -> Option<ElkRectangle>;
 
-    fn preprocess(&self, _data_provider: &dyn super::i_data_provider::IDataProvider<C, T>, _include_hierarchy: bool) {
+    fn preprocess(
+        &self,
+        _data_provider: &dyn super::i_data_provider::IDataProvider<C, T>,
+        _include_hierarchy: bool,
+    ) {
     }
 
-    fn cleanup(&self) {
-    }
+    fn cleanup(&self) {}
 
     fn cached(self: Rc<Self>) -> Rc<dyn IBoundsProvider<C, T>>
     where

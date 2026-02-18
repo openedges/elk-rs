@@ -22,5 +22,8 @@ fn issue_444_self_loop_layout_does_not_panic() {
         .iter()
         .map(|edge| edge.borrow_mut().sections().len())
         .sum::<usize>();
-    assert!(edge_sections > 0, "self-loop edge should produce at least one section");
+    assert!(
+        edge_sections > 0,
+        "self-loop edge should produce at least one section"
+    );
 }

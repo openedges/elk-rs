@@ -31,7 +31,11 @@ fn issue_701_test_inside_labels() {
     let labels = collect_port_label_cases(&reference_node);
     let placement = port_label_placement(&reference_node);
 
-    assert_eq!(labels.len(), 4, "inside case should have four labeled ports");
+    assert_eq!(
+        labels.len(),
+        4,
+        "inside case should have four labeled ports"
+    );
     assert_no_label_overlaps(&labels, "inside");
     assert!(
         placement.contains(&PortLabelPlacement::Inside),
@@ -53,7 +57,11 @@ fn issue_701_test_outside_labels() {
     let labels = collect_port_label_cases(&reference_node);
     let placement = port_label_placement(&reference_node);
 
-    assert_eq!(labels.len(), 4, "outside case should have four labeled ports");
+    assert_eq!(
+        labels.len(),
+        4,
+        "outside case should have four labeled ports"
+    );
     assert_no_label_overlaps(&labels, "outside");
     assert!(
         placement.contains(&PortLabelPlacement::Outside),
@@ -107,7 +115,11 @@ fn issue_701_test_fixed_inside_labels() {
     let labels = collect_port_label_cases(&reference_node);
     let placement = port_label_placement(&reference_node);
 
-    assert_eq!(labels.len(), 4, "fixed-inside case should have four labeled ports");
+    assert_eq!(
+        labels.len(),
+        4,
+        "fixed-inside case should have four labeled ports"
+    );
     assert_no_label_overlaps(&labels, "fixed_inside");
     assert!(
         PortLabelPlacement::is_fixed(&placement),
@@ -131,7 +143,11 @@ fn issue_701_test_fixed_outside_labels() {
     let labels = collect_port_label_cases(&reference_node);
     let placement = port_label_placement(&reference_node);
 
-    assert_eq!(labels.len(), 4, "fixed-outside case should have four labeled ports");
+    assert_eq!(
+        labels.len(),
+        4,
+        "fixed-outside case should have four labeled ports"
+    );
     assert_no_label_overlaps(&labels, "fixed_outside");
     assert!(
         PortLabelPlacement::is_fixed(&placement),
@@ -155,7 +171,11 @@ fn issue_701_test_fixed_mix_inside_and_outside_labels() {
     let labels = collect_port_label_cases(&reference_node);
     let placement = port_label_placement(&reference_node);
 
-    assert_eq!(labels.len(), 4, "fixed-mix case should have four labeled ports");
+    assert_eq!(
+        labels.len(),
+        4,
+        "fixed-mix case should have four labeled ports"
+    );
     assert_no_label_overlaps(&labels, "fixed_mix");
     assert!(
         PortLabelPlacement::is_fixed(&placement),
@@ -284,7 +304,11 @@ fn assert_no_label_overlaps(labels: &[PortLabelCase], context: &str) {
     }
 }
 
-fn assert_labels_aligned_with_port_side(node: &ElkNodeRef, labels: &[PortLabelCase], context: &str) {
+fn assert_labels_aligned_with_port_side(
+    node: &ElkNodeRef,
+    labels: &[PortLabelCase],
+    context: &str,
+) {
     let node_bounds = node_absolute_bounds(node);
     let node_mid_x = node_bounds.0 + node_bounds.2 / 2.0;
     let node_mid_y = node_bounds.1 + node_bounds.3 / 2.0;
@@ -317,13 +341,9 @@ fn is_label_outside_for_side(
 ) -> bool {
     match side {
         PortSide::West => label_bounds.0 + label_bounds.2 <= node_bounds.0 + COORDINATE_FUZZINESS,
-        PortSide::East => {
-            label_bounds.0 >= node_bounds.0 + node_bounds.2 - COORDINATE_FUZZINESS
-        }
+        PortSide::East => label_bounds.0 >= node_bounds.0 + node_bounds.2 - COORDINATE_FUZZINESS,
         PortSide::North => label_bounds.1 + label_bounds.3 <= node_bounds.1 + COORDINATE_FUZZINESS,
-        PortSide::South => {
-            label_bounds.1 >= node_bounds.1 + node_bounds.3 - COORDINATE_FUZZINESS
-        }
+        PortSide::South => label_bounds.1 >= node_bounds.1 + node_bounds.3 - COORDINATE_FUZZINESS,
         _ => false,
     }
 }
@@ -343,11 +363,7 @@ fn count_outside_labels(node_bounds: (f64, f64, f64, f64), labels: &[PortLabelCa
     labels
         .iter()
         .filter(|entry| {
-            is_label_outside_for_side(
-                node_bounds,
-                label_absolute_bounds(&entry.label),
-                entry.side,
-            )
+            is_label_outside_for_side(node_bounds, label_absolute_bounds(&entry.label), entry.side)
         })
         .count()
 }

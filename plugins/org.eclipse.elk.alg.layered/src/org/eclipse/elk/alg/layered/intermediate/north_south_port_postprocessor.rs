@@ -4,9 +4,11 @@ use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector_chain::KVectorC
 use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_routing::EdgeRouting;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LEdge, LGraph, LGraphUtil, LNode, LPortRef, NodeType};
-use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions};
+use crate::org::eclipse::elk::alg::layered::graph::{
+    LEdge, LGraph, LGraphUtil, LNode, LPortRef, NodeType,
+};
 use crate::org::eclipse::elk::alg::layered::options::internal_properties::Origin;
+use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions};
 
 pub struct NorthSouthPortPostprocessor;
 

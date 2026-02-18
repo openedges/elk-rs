@@ -74,7 +74,9 @@ impl NeighborhoodInformation {
                     let skip = edge
                         .lock()
                         .ok()
-                        .map(|edge_guard| edge_guard.is_self_loop() || edge_guard.is_in_layer_edge())
+                        .map(|edge_guard| {
+                            edge_guard.is_self_loop() || edge_guard.is_in_layer_edge()
+                        })
                         .unwrap_or(false);
                     if skip {
                         continue;
@@ -95,7 +97,9 @@ impl NeighborhoodInformation {
                             .lock()
                             .ok()
                             .and_then(|edge_guard| edge_guard.target())
-                            .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                            .and_then(|port| {
+                                port.lock().ok().and_then(|port_guard| port_guard.node())
+                            });
                         if let Some(target_node) = target_node {
                             let target_id = node_id(&target_node);
                             if target_id < ni.node_count {
@@ -118,7 +122,9 @@ impl NeighborhoodInformation {
                     let skip = edge
                         .lock()
                         .ok()
-                        .map(|edge_guard| edge_guard.is_self_loop() || edge_guard.is_in_layer_edge())
+                        .map(|edge_guard| {
+                            edge_guard.is_self_loop() || edge_guard.is_in_layer_edge()
+                        })
                         .unwrap_or(false);
                     if skip {
                         continue;
@@ -139,7 +145,9 @@ impl NeighborhoodInformation {
                             .lock()
                             .ok()
                             .and_then(|edge_guard| edge_guard.source())
-                            .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                            .and_then(|port| {
+                                port.lock().ok().and_then(|port_guard| port_guard.node())
+                            });
                         if let Some(source_node) = source_node {
                             let source_id = node_id(&source_node);
                             if source_id < ni.node_count {

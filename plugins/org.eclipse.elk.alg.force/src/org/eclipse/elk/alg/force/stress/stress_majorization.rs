@@ -83,9 +83,15 @@ impl StressMajorization {
         for edge in graph.edges() {
             let (source_id, target_id) = {
                 let edge_guard = edge.lock().ok();
-                let Some(edge_guard) = edge_guard else { continue };
-                let source_id = edge_guard.source().and_then(|node| node.lock().ok().map(|n| n.id()));
-                let target_id = edge_guard.target().and_then(|node| node.lock().ok().map(|n| n.id()));
+                let Some(edge_guard) = edge_guard else {
+                    continue;
+                };
+                let source_id = edge_guard
+                    .source()
+                    .and_then(|node| node.lock().ok().map(|n| n.id()));
+                let target_id = edge_guard
+                    .target()
+                    .and_then(|node| node.lock().ok().map(|n| n.id()));
                 match (source_id, target_id) {
                     (Some(source_id), Some(target_id)) => (source_id, target_id),
                     _ => continue,
@@ -193,12 +199,22 @@ impl StressMajorization {
             for edge in &connected_edges[position] {
                 let (other_id, edge_len) = {
                     let edge_guard = edge.lock().ok();
-                    let Some(mut edge_guard) = edge_guard else { continue };
-                    let source_id = edge_guard.source().and_then(|node| node.lock().ok().map(|n| n.id()));
-                    let target_id = edge_guard.target().and_then(|node| node.lock().ok().map(|n| n.id()));
+                    let Some(mut edge_guard) = edge_guard else {
+                        continue;
+                    };
+                    let source_id = edge_guard
+                        .source()
+                        .and_then(|node| node.lock().ok().map(|n| n.id()));
+                    let target_id = edge_guard
+                        .target()
+                        .and_then(|node| node.lock().ok().map(|n| n.id()));
                     let Some(source_id) = source_id else { continue };
                     let Some(target_id) = target_id else { continue };
-                    let other_id = if source_id == position { target_id } else { source_id };
+                    let other_id = if source_id == position {
+                        target_id
+                    } else {
+                        source_id
+                    };
                     let edge_len = if edge_guard.has_property(StressOptions::DESIRED_EDGE_LENGTH) {
                         edge_guard
                             .get_property(StressOptions::DESIRED_EDGE_LENGTH)
@@ -225,7 +241,9 @@ impl StressMajorization {
     }
 
     fn done(&self, count: i32, prev_stress: f64, cur_stress: f64) -> bool {
-        prev_stress == 0.0 || ((prev_stress - cur_stress) / prev_stress) < self.epsilon || count >= self.iteration_limit
+        prev_stress == 0.0
+            || ((prev_stress - cur_stress) / prev_stress) < self.epsilon
+            || count >= self.iteration_limit
     }
 
     fn compute_stress(&self, graph: &FGraph) -> f64 {
@@ -251,7 +269,9 @@ impl StressMajorization {
         let mut x_disp = 0.0;
         let mut y_disp = 0.0;
 
-        let Some(node_guard) = node.lock().ok() else { return KVector::new() };
+        let Some(node_guard) = node.lock().ok() else {
+            return KVector::new();
+        };
         let u_id = node_guard.id();
         let u_pos = *node_guard.position_ref();
 
@@ -269,13 +289,11 @@ impl StressMajorization {
 
             let euc_dist = u_pos.distance(&v_pos);
             if euc_dist > 0.0 && self.dim != Dimension::Y {
-                x_disp += wij
-                    * (v_pos.x + self.apsp[u_id][v_id] * (u_pos.x - v_pos.x) / euc_dist);
+                x_disp += wij * (v_pos.x + self.apsp[u_id][v_id] * (u_pos.x - v_pos.x) / euc_dist);
             }
 
             if euc_dist > 0.0 && self.dim != Dimension::X {
-                y_disp += wij
-                    * (v_pos.y + self.apsp[u_id][v_id] * (u_pos.y - v_pos.y) / euc_dist);
+                y_disp += wij * (v_pos.y + self.apsp[u_id][v_id] * (u_pos.y - v_pos.y) / euc_dist);
             }
         }
 

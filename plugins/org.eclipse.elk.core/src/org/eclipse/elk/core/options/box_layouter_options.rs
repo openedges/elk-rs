@@ -7,7 +7,9 @@ use crate::org::eclipse::elk::core::data::{
     LayoutOptionType,
 };
 use crate::org::eclipse::elk::core::math::{ElkPadding, KVector};
-use crate::org::eclipse::elk::core::options::{CoreOptions, PackingMode, SizeConstraint, SizeOptions};
+use crate::org::eclipse::elk::core::options::{
+    CoreOptions, PackingMode, SizeConstraint, SizeOptions,
+};
 use crate::org::eclipse::elk::core::util::EnumSet;
 
 pub struct BoxLayouterOptions;
@@ -25,7 +27,8 @@ impl BoxLayouterOptions {
     pub const NODE_SIZE_OPTIONS: &'static LazyLock<Property<EnumSet<SizeOptions>>> =
         CoreOptions::NODE_SIZE_OPTIONS;
     pub const ASPECT_RATIO: &'static LazyLock<Property<f64>> = CoreOptions::ASPECT_RATIO;
-    pub const NODE_SIZE_MINIMUM: &'static LazyLock<Property<KVector>> = CoreOptions::NODE_SIZE_MINIMUM;
+    pub const NODE_SIZE_MINIMUM: &'static LazyLock<Property<KVector>> =
+        CoreOptions::NODE_SIZE_MINIMUM;
     pub const BOX_PACKING_MODE: &'static LazyLock<Property<PackingMode>> =
         CoreOptions::BOX_PACKING_MODE;
 }

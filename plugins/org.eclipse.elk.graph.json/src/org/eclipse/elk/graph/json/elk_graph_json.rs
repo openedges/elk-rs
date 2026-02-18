@@ -7,7 +7,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::Maybe;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 
 use super::json_exporter::JsonExporter;
-use super::json_import_exception::{JsonImportError, JsonImportException, JsonIOException};
+use super::json_import_exception::{JsonIOException, JsonImportError, JsonImportException};
 use super::json_importer::JsonImporter;
 
 pub struct ElkGraphJson;

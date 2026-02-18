@@ -13,7 +13,10 @@ pub struct NodeRelativePortDistributor {
 impl NodeRelativePortDistributor {
     pub fn new(num_layers: usize) -> Self {
         NodeRelativePortDistributor {
-            inner: AbstractBarycenterPortDistributor::new(num_layers, PortRankStrategy::NodeRelative),
+            inner: AbstractBarycenterPortDistributor::new(
+                num_layers,
+                PortRankStrategy::NodeRelative,
+            ),
         }
     }
 
@@ -43,8 +46,14 @@ impl IInitializable for NodeRelativePortDistributor {
         self.inner.init_at_layer_level(layer_index, node_order);
     }
 
-    fn init_at_node_level(&mut self, layer_index: usize, node_index: usize, node_order: &[Vec<LNodeRef>]) {
-        self.inner.init_at_node_level(layer_index, node_index, node_order);
+    fn init_at_node_level(
+        &mut self,
+        layer_index: usize,
+        node_index: usize,
+        node_order: &[Vec<LNodeRef>],
+    ) {
+        self.inner
+            .init_at_node_level(layer_index, node_index, node_order);
     }
 
     fn init_at_port_level(

@@ -8,11 +8,15 @@ use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector_chain::KVectorC
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, IElkProgressMonitor};
 
-use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LGraph, LGraphUtil, LNodeRef, NodeType};
+use crate::org::eclipse::elk::alg::layered::graph::{
+    LEdgeRef, LGraph, LGraphUtil, LNodeRef, NodeType,
+};
 use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorStrategy;
-use crate::org::eclipse::elk::alg::layered::options::{GraphProperties, InternalProperties, LayeredOptions};
-use crate::org::eclipse::elk::alg::layered::LayeredPhases;
 use crate::org::eclipse::elk::alg::layered::options::internal_properties::Origin;
+use crate::org::eclipse::elk::alg::layered::options::{
+    GraphProperties, InternalProperties, LayeredOptions,
+};
+use crate::org::eclipse::elk::alg::layered::LayeredPhases;
 
 static BASELINE_PROCESSOR_CONFIGURATION: LazyLock<
     LayoutProcessorConfiguration<LayeredPhases, LGraph>,
@@ -55,7 +59,9 @@ static SELF_LOOP_PROCESSING_ADDITIONS: LazyLock<
             Arc::new(IntermediateProcessorStrategy::SelfLoopPostprocessor),
         )
         .before(LayeredPhases::P4NodePlacement)
-        .add(Arc::new(IntermediateProcessorStrategy::SelfLoopPortRestorer))
+        .add(Arc::new(
+            IntermediateProcessorStrategy::SelfLoopPortRestorer,
+        ))
         .add(Arc::new(IntermediateProcessorStrategy::SelfLoopRouter));
     config
 });
@@ -133,7 +139,12 @@ impl PolylineEdgeRouter {
             .lock()
             .ok()
             .and_then(|node_guard| node_guard.layer())
-            .and_then(|layer| layer.lock().ok().map(|layer_guard| layer_guard.size_ref().x))
+            .and_then(|layer| {
+                layer
+                    .lock()
+                    .ok()
+                    .map(|layer_guard| layer_guard.size_ref().x)
+            })
             .map(|size_x| layer_left_x_pos + size_x)
             .unwrap_or(layer_left_x_pos);
 
@@ -144,7 +155,10 @@ impl PolylineEdgeRouter {
             .unwrap_or_default();
 
         for port in ports {
-            let Some(mut absolute_port_anchor) = port.lock().ok().and_then(|port_guard| port_guard.absolute_anchor())
+            let Some(mut absolute_port_anchor) = port
+                .lock()
+                .ok()
+                .and_then(|port_guard| port_guard.absolute_anchor())
             else {
                 continue;
             };
@@ -160,7 +174,9 @@ impl PolylineEdgeRouter {
                     .ok()
                     .and_then(|mut port_guard| port_guard.get_property(InternalProperties::ORIGIN));
                 if let Some(Origin::LPort(origin_port)) = origin_port {
-                    if let Some(origin_anchor) = origin_port.lock().ok().and_then(|p| p.absolute_anchor()) {
+                    if let Some(origin_anchor) =
+                        origin_port.lock().ok().and_then(|p| p.absolute_anchor())
+                    {
                         absolute_port_anchor.x = origin_anchor.x;
                         if let Ok(mut node_guard) = node.lock() {
                             node_guard.shape().position().x = absolute_port_anchor.x;
@@ -256,7 +272,12 @@ impl PolylineEdgeRouter {
                 .ok()
                 .and_then(|port_guard| port_guard.node())
                 .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.layer()))
-                .and_then(|layer| layer.lock().ok().map(|layer_guard| layer_guard.size_ref().x))
+                .and_then(|layer| {
+                    layer
+                        .lock()
+                        .ok()
+                        .map(|layer_guard| layer_guard.size_ref().x)
+                })
                 .unwrap_or(0.0);
             KVector::with_values(layer_x_pos + layer_width + edge_spacing, mid_y)
         } else {
@@ -264,11 +285,16 @@ impl PolylineEdgeRouter {
         };
 
         if let Ok(mut edge_guard) = edge.lock() {
-            edge_guard.bend_points().add_first_values(bend_point.x, bend_point.y);
+            edge_guard
+                .bend_points()
+                .add_first_values(bend_point.x, bend_point.y);
         }
     }
 
-    fn calculate_west_in_layer_edge_y_diff(&self, layer: &crate::org::eclipse::elk::alg::layered::graph::LayerRef) -> f64 {
+    fn calculate_west_in_layer_edge_y_diff(
+        &self,
+        layer: &crate::org::eclipse::elk::alg::layered::graph::LayerRef,
+    ) -> f64 {
         let nodes = layer
             .lock()
             .ok()
@@ -293,7 +319,12 @@ impl PolylineEdgeRouter {
                     .lock()
                     .ok()
                     .and_then(|port_guard| port_guard.node())
-                    .and_then(|node_ref| node_ref.lock().ok().and_then(|node_guard| node_guard.layer()));
+                    .and_then(|node_ref| {
+                        node_ref
+                            .lock()
+                            .ok()
+                            .and_then(|node_guard| node_guard.layer())
+                    });
                 if target_layer
                     .as_ref()
                     .map(|target_layer| Arc::ptr_eq(target_layer, layer))
@@ -484,13 +515,22 @@ impl ILayoutPhase<LayeredPhases, LGraph> for PolylineEdgeRouter {
                         .lock()
                         .ok()
                         .and_then(|port_guard| port_guard.node())
-                        .and_then(|node_ref| node_ref.lock().ok().and_then(|node_guard| node_guard.layer()));
+                        .and_then(|node_ref| {
+                            node_ref
+                                .lock()
+                                .ok()
+                                .and_then(|node_guard| node_guard.layer())
+                        });
 
                     if target_layer
                         .as_ref()
                         .map(|target_layer| Arc::ptr_eq(target_layer, layer))
                         .unwrap_or(false)
-                        && !edge.lock().ok().map(|edge_guard| edge_guard.is_self_loop()).unwrap_or(false)
+                        && !edge
+                            .lock()
+                            .ok()
+                            .map(|edge_guard| edge_guard.is_self_loop())
+                            .unwrap_or(false)
                     {
                         let y_diff = (source_pos - target_pos).abs();
                         self.process_in_layer_edge(
@@ -567,7 +607,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for PolylineEdgeRouter {
             .get_property_ref(InternalProperties::GRAPH_PROPERTIES)
             .unwrap_or_else(EnumSet::none_of);
 
-        let mut configuration = LayoutProcessorConfiguration::create_from(&BASELINE_PROCESSOR_CONFIGURATION);
+        let mut configuration =
+            LayoutProcessorConfiguration::create_from(&BASELINE_PROCESSOR_CONFIGURATION);
 
         if graph_properties.contains(&GraphProperties::NorthSouthPorts) {
             configuration.add_all(&NORTH_SOUTH_PORT_PROCESSING_ADDITIONS);

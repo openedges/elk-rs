@@ -74,8 +74,14 @@ fn randomize_first_layer_can_keep_or_swap_order() {
         }
     }
 
-    assert!(saw_original, "randomized first-layer ordering never kept input order");
-    assert!(saw_switched, "randomized first-layer ordering never produced a swapped order");
+    assert!(
+        saw_original,
+        "randomized first-layer ordering never kept input order"
+    );
+    assert!(
+        saw_switched,
+        "randomized first-layer ordering never produced a swapped order"
+    );
 }
 
 #[test]
@@ -253,7 +259,9 @@ fn add_node_to_layer(graph: &LGraphRef, layer: &LayerRef) -> LNodeRef {
 }
 
 fn add_nodes_to_layer(graph: &LGraphRef, layer: &LayerRef, count: usize) -> Vec<LNodeRef> {
-    (0..count).map(|_| add_node_to_layer(graph, layer)).collect()
+    (0..count)
+        .map(|_| add_node_to_layer(graph, layer))
+        .collect()
 }
 
 fn add_port_on_side(node: &LNodeRef, side: PortSide) -> LPortRef {
@@ -314,13 +322,23 @@ fn add_north_south_edge(
         .lock()
         .ok()
         .and_then(|node_guard| node_guard.layer())
-        .and_then(|layer| layer.lock().ok().and_then(|layer_guard| layer_guard.index()))
+        .and_then(|layer| {
+            layer
+                .lock()
+                .ok()
+                .and_then(|layer_guard| layer_guard.index())
+        })
         .unwrap_or(0);
     let other_layer_index = node_with_east_west_ports
         .lock()
         .ok()
         .and_then(|node_guard| node_guard.layer())
-        .and_then(|layer| layer.lock().ok().and_then(|layer_guard| layer_guard.index()))
+        .and_then(|layer| {
+            layer
+                .lock()
+                .ok()
+                .and_then(|layer_guard| layer_guard.index())
+        })
         .unwrap_or(0);
 
     let normal_node_east_of_ns = other_layer_index < ns_layer_index;
@@ -385,14 +403,20 @@ fn add_north_south_edge(
                 .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
                 .unwrap_or_default();
             constraints.push(node_with_ns_ports.clone());
-            dummy_guard.set_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS, Some(constraints));
+            dummy_guard.set_property(
+                InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS,
+                Some(constraints),
+            );
         }
     } else if let Ok(mut node_guard) = node_with_ns_ports.lock() {
         let mut constraints = node_guard
             .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
             .unwrap_or_default();
         constraints.push(north_south_dummy.clone());
-        node_guard.set_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS, Some(constraints));
+        node_guard.set_property(
+            InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS,
+            Some(constraints),
+        );
     }
 
     if let Some(graph) = node_with_ns_ports

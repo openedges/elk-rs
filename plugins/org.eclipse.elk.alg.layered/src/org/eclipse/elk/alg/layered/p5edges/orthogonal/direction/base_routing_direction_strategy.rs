@@ -37,18 +37,19 @@ impl BaseRoutingDirectionStrategy {
             return;
         }
 
-        let point_inside_edge_segment = p > segment.start_coordinate() && p < segment.end_coordinate();
+        let point_inside_edge_segment =
+            p > segment.start_coordinate() && p < segment.end_coordinate();
         let mut point_at_segment_boundary = false;
 
         let incoming = segment.incoming_connection_coordinates();
         let outgoing = segment.outgoing_connection_coordinates();
         if !incoming.is_empty() && !outgoing.is_empty() {
-            point_at_segment_boundary |=
-                (p - incoming[0]).abs() < OrthogonalRoutingGenerator::TOLERANCE
-                    && (p - outgoing[0]).abs() < OrthogonalRoutingGenerator::TOLERANCE;
-            point_at_segment_boundary |=
-                (p - incoming[incoming.len() - 1]).abs() < OrthogonalRoutingGenerator::TOLERANCE
-                    && (p - outgoing[outgoing.len() - 1]).abs() < OrthogonalRoutingGenerator::TOLERANCE;
+            point_at_segment_boundary |= (p - incoming[0]).abs()
+                < OrthogonalRoutingGenerator::TOLERANCE
+                && (p - outgoing[0]).abs() < OrthogonalRoutingGenerator::TOLERANCE;
+            point_at_segment_boundary |= (p - incoming[incoming.len() - 1]).abs()
+                < OrthogonalRoutingGenerator::TOLERANCE
+                && (p - outgoing[outgoing.len() - 1]).abs() < OrthogonalRoutingGenerator::TOLERANCE;
         }
 
         if point_inside_edge_segment || point_at_segment_boundary {
@@ -83,7 +84,9 @@ pub enum RoutingDirectionStrategy {
 impl RoutingDirectionStrategy {
     pub fn for_routing_direction(direction: RoutingDirection) -> Self {
         match direction {
-            RoutingDirection::WestToEast => RoutingDirectionStrategy::WestToEast(WestToEastRoutingStrategy::new()),
+            RoutingDirection::WestToEast => {
+                RoutingDirectionStrategy::WestToEast(WestToEastRoutingStrategy::new())
+            }
             RoutingDirection::NorthToSouth => {
                 RoutingDirectionStrategy::NorthToSouth(NorthToSouthRoutingStrategy::new())
             }
@@ -103,9 +106,15 @@ impl RoutingDirectionStrategy {
 
     pub fn get_port_position_on_hyper_node(&self, port: &LPortRef) -> f64 {
         match self {
-            RoutingDirectionStrategy::WestToEast(strategy) => strategy.get_port_position_on_hyper_node(port),
-            RoutingDirectionStrategy::NorthToSouth(strategy) => strategy.get_port_position_on_hyper_node(port),
-            RoutingDirectionStrategy::SouthToNorth(strategy) => strategy.get_port_position_on_hyper_node(port),
+            RoutingDirectionStrategy::WestToEast(strategy) => {
+                strategy.get_port_position_on_hyper_node(port)
+            }
+            RoutingDirectionStrategy::NorthToSouth(strategy) => {
+                strategy.get_port_position_on_hyper_node(port)
+            }
+            RoutingDirectionStrategy::SouthToNorth(strategy) => {
+                strategy.get_port_position_on_hyper_node(port)
+            }
         }
     }
 
@@ -146,9 +155,15 @@ impl RoutingDirectionStrategy {
 
     pub fn clear_created_junction_points(&mut self) {
         match self {
-            RoutingDirectionStrategy::WestToEast(strategy) => strategy.clear_created_junction_points(),
-            RoutingDirectionStrategy::NorthToSouth(strategy) => strategy.clear_created_junction_points(),
-            RoutingDirectionStrategy::SouthToNorth(strategy) => strategy.clear_created_junction_points(),
+            RoutingDirectionStrategy::WestToEast(strategy) => {
+                strategy.clear_created_junction_points()
+            }
+            RoutingDirectionStrategy::NorthToSouth(strategy) => {
+                strategy.clear_created_junction_points()
+            }
+            RoutingDirectionStrategy::SouthToNorth(strategy) => {
+                strategy.clear_created_junction_points()
+            }
         }
     }
 }

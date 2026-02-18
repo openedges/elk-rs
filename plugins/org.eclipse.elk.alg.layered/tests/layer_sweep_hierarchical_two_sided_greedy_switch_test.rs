@@ -131,7 +131,10 @@ fn add_external_port_dummy_node_to_layer(layer: &LayerRef, port: &LPortRef) -> L
         .unwrap_or(PortSide::Undefined);
     if let Ok(mut node_guard) = node.lock() {
         node_guard.set_node_type(NodeType::ExternalPort);
-        node_guard.set_property(InternalProperties::ORIGIN, Some(Origin::LPort(port.clone())));
+        node_guard.set_property(
+            InternalProperties::ORIGIN,
+            Some(Origin::LPort(port.clone())),
+        );
         node_guard.set_property(InternalProperties::EXT_PORT_SIDE, Some(port_side));
     }
     if let Ok(mut port_guard) = port.lock() {
@@ -164,7 +167,10 @@ fn add_external_port_dummies_to_layer(layer: &LayerRef, ports: &[LPortRef]) -> V
         } else {
             ports.len() - 1 - i
         };
-        nodes.push(add_external_port_dummy_node_to_layer(layer, &ports[port_index]));
+        nodes.push(add_external_port_dummy_node_to_layer(
+            layer,
+            &ports[port_index],
+        ));
     }
     nodes
 }
@@ -188,7 +194,8 @@ fn run_two_sided_crossmin(graph: &LGraphRef) {
 }
 
 fn node_index(nodes: &[LNodeRef], needle: &LNodeRef) -> usize {
-    nodes.iter()
+    nodes
+        .iter()
         .position(|node| Arc::ptr_eq(node, needle))
         .expect("node should exist in layer")
 }
@@ -291,7 +298,8 @@ fn two_sided_greedy_switch_removes_cross_in_single_nested_graph() {
         .clone();
 
     let left_delta = node_index(&left_nodes, &l0) as isize - node_index(&left_nodes, &l1) as isize;
-    let right_delta = node_index(&right_nodes, &r1) as isize - node_index(&right_nodes, &r0) as isize;
+    let right_delta =
+        node_index(&right_nodes, &r1) as isize - node_index(&right_nodes, &r0) as isize;
     assert!(
         left_delta.signum() == right_delta.signum(),
         "expected nested crossing (l0->r1, l1->r0) to be removed"
@@ -344,7 +352,10 @@ fn given_cross_in_first_level_compound_node_using_two_sided_greedy_switch_leaves
     let left_layer = make_layer(&graph);
     let right_layer = make_layer(&graph);
     let left_outer_node = add_node(&graph, &left_layer);
-    let right_nodes = [add_node(&graph, &right_layer), add_node(&graph, &right_layer)];
+    let right_nodes = [
+        add_node(&graph, &right_layer),
+        add_node(&graph, &right_layer),
+    ];
     let left_outer_ports = add_ports_on_side(&left_outer_node, 2, PortSide::East);
     add_east_west_edge_from_port(&left_outer_ports[0], &right_nodes[0]);
     add_east_west_edge_from_port(&left_outer_ports[1], &right_nodes[1]);
@@ -361,10 +372,8 @@ fn given_cross_in_first_level_compound_node_using_two_sided_greedy_switch_leaves
         add_node(&left_inner_graph, &left_inner_right_layer),
         add_node(&left_inner_graph, &left_inner_right_layer),
     ];
-    let left_inner_dummy_nodes = add_external_port_dummies_to_layer(
-        &left_inner_dummy_layer,
-        &left_outer_ports,
-    );
+    let left_inner_dummy_nodes =
+        add_external_port_dummies_to_layer(&left_inner_dummy_layer, &left_outer_ports);
     add_east_west_edge(&left_inner_nodes_right[0], &left_inner_dummy_nodes[0]);
     add_east_west_edge(&left_inner_nodes_right[1], &left_inner_dummy_nodes[1]);
     add_east_west_edge(&left_inner_nodes_left[0], &left_inner_nodes_right[1]);

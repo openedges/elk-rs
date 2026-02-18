@@ -103,11 +103,15 @@ fn debug_out(svg: &mut SVGImage, root: &Tree<Node>, current: Option<&Tree<Node>>
     svg.clear_group("e");
     svg.clear_group("o");
     draw_tree(root, svg);
-    svg.g("n")
-        .add_rect(&root.node.rect, "fill=\"blue\" stroke=\"none\" opacity=\"0.2\"");
+    svg.g("n").add_rect(
+        &root.node.rect,
+        "fill=\"blue\" stroke=\"none\" opacity=\"0.2\"",
+    );
     if let Some(current) = current {
-        svg.g("o")
-            .add_rect(&current.node.rect, "fill=\"red\" stroke=\"none\" opacity=\"0.2\"");
+        svg.g("o").add_rect(
+            &current.node.rect,
+            "fill=\"red\" stroke=\"none\" opacity=\"0.2\"",
+        );
     }
     svg.isave();
 }

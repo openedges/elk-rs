@@ -16,11 +16,8 @@ where
 pub struct Scanline;
 
 impl Scanline {
-    pub fn execute<T, H, C>(
-        points: impl IntoIterator<Item = T>,
-        comparator: C,
-        handler: &mut H,
-    ) where
+    pub fn execute<T, H, C>(points: impl IntoIterator<Item = T>, comparator: C, handler: &mut H)
+    where
         H: EventHandler<T>,
         C: Fn(&T, &T) -> Ordering,
     {

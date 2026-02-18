@@ -19,7 +19,10 @@ fn init_metadata() {
     LayoutMetaDataService::get_instance();
 }
 
-fn with_node_properties_mut<R>(node: &ElkNodeRef, f: impl FnOnce(&mut MapPropertyHolder) -> R) -> R {
+fn with_node_properties_mut<R>(
+    node: &ElkNodeRef,
+    f: impl FnOnce(&mut MapPropertyHolder) -> R,
+) -> R {
     let mut node_mut = node.borrow_mut();
     let props = node_mut
         .connectable()

@@ -7,12 +7,16 @@ use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::intermediate::
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::{
     LayeredMetaDataProvider, LayeredOptions,
 };
-use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
+use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::NullElkProgressMonitor;
 
-fn add_node(graph: &Arc<std::sync::Mutex<LGraph>>, layer: &Arc<std::sync::Mutex<Layer>>, node_type: NodeType) -> Arc<std::sync::Mutex<LNode>> {
+fn add_node(
+    graph: &Arc<std::sync::Mutex<LGraph>>,
+    layer: &Arc<std::sync::Mutex<Layer>>,
+    node_type: NodeType,
+) -> Arc<std::sync::Mutex<LNode>> {
     let node = LNode::new(graph);
     {
         let mut node_guard = node.lock().expect("node lock");
@@ -32,7 +36,10 @@ fn add_port(node: &Arc<std::sync::Mutex<LNode>>, side: PortSide) -> Arc<std::syn
     port
 }
 
-fn connect(source: &Arc<std::sync::Mutex<LPort>>, target: &Arc<std::sync::Mutex<LPort>>) -> Arc<std::sync::Mutex<LEdge>> {
+fn connect(
+    source: &Arc<std::sync::Mutex<LPort>>,
+    target: &Arc<std::sync::Mutex<LPort>>,
+) -> Arc<std::sync::Mutex<LEdge>> {
     let edge = LEdge::new();
     LEdge::set_source(&edge, Some(source.clone()));
     LEdge::set_target(&edge, Some(target.clone()));
@@ -90,11 +97,15 @@ fn moves_label_dummy_to_median_layer() {
     let layer1_nodes = layer1.lock().expect("layer1 lock").nodes().clone();
 
     assert!(
-        layer0_nodes.iter().any(|node| Arc::ptr_eq(node, &long_edge1)),
+        layer0_nodes
+            .iter()
+            .any(|node| Arc::ptr_eq(node, &long_edge1)),
         "long edge dummy should swap into leftmost layer"
     );
     assert!(
-        layer1_nodes.iter().any(|node| Arc::ptr_eq(node, &label_dummy)),
+        layer1_nodes
+            .iter()
+            .any(|node| Arc::ptr_eq(node, &label_dummy)),
         "label dummy should move to median layer"
     );
 }

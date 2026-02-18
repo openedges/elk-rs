@@ -6,7 +6,9 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::pair::Pair;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LNodeRef, LPortRef, NodeType};
 use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, Origin};
-use crate::org::eclipse::elk::alg::layered::p3order::counting::{in_north_south_east_west_order, BinaryIndexedTree};
+use crate::org::eclipse::elk::alg::layered::p3order::counting::{
+    in_north_south_east_west_order, BinaryIndexedTree,
+};
 
 pub struct CrossingsCounter {
     port_positions: Vec<i32>,
@@ -35,11 +37,7 @@ impl CrossingsCounter {
         self.count_crossings_on_ports(&ports)
     }
 
-    pub fn count_in_layer_crossings_on_side(
-        &mut self,
-        nodes: &[LNodeRef],
-        side: PortSide,
-    ) -> i32 {
+    pub fn count_in_layer_crossings_on_side(&mut self, nodes: &[LNodeRef], side: PortSide) -> i32 {
         let ports = self.init_port_positions_for_in_layer_crossings(nodes, side);
         self.count_in_layer_crossings_on_ports(&ports)
     }
@@ -72,7 +70,8 @@ impl CrossingsCounter {
         lower_node: &LNodeRef,
         side: PortSide,
     ) -> Pair<i32, i32> {
-        let mut ports = self.connected_in_layer_ports_sorted_by_position(upper_node, lower_node, side);
+        let mut ports =
+            self.connected_in_layer_ports_sorted_by_position(upper_node, lower_node, side);
         let upper_lower_crossings = self.count_in_layer_crossings_on_ports(&ports);
         self.switch_nodes(upper_node, lower_node, side);
         self.index_tree.clear();
@@ -83,11 +82,7 @@ impl CrossingsCounter {
         Pair::of(upper_lower_crossings, lower_upper_crossings)
     }
 
-    pub fn init_for_counting_between(
-        &mut self,
-        left_layer: &[LNodeRef],
-        right_layer: &[LNodeRef],
-    ) {
+    pub fn init_for_counting_between(&mut self, left_layer: &[LNodeRef], right_layer: &[LNodeRef]) {
         let ports = self.init_port_positions_counter_clockwise(left_layer, right_layer);
         self.index_tree = BinaryIndexedTree::new(ports.len());
     }
@@ -144,7 +139,12 @@ impl CrossingsCounter {
         for node in [upper_node, lower_node] {
             for port in in_north_south_east_west_order(node, side) {
                 for edge in connected_edges(&port) {
-                    if edge.lock().ok().map(|edge_guard| edge_guard.is_self_loop()).unwrap_or(false) {
+                    if edge
+                        .lock()
+                        .ok()
+                        .map(|edge_guard| edge_guard.is_self_loop())
+                        .unwrap_or(false)
+                    {
                         continue;
                     }
                     if seen.insert(port_ptr_id(&port)) {
@@ -247,10 +247,9 @@ impl CrossingsCounter {
 
             match node_type {
                 NodeType::Normal => {
-                    let dummy = port
-                        .lock()
-                        .ok()
-                        .and_then(|mut port_guard| port_guard.get_property(InternalProperties::PORT_DUMMY));
+                    let dummy = port.lock().ok().and_then(|mut port_guard| {
+                        port_guard.get_property(InternalProperties::PORT_DUMMY)
+                    });
                     if let Some(dummy) = dummy {
                         let dummy_ports = dummy
                             .lock()
@@ -272,10 +271,12 @@ impl CrossingsCounter {
                         .lock()
                         .ok()
                         .and_then(|port_guard| port_guard.node())
-                        .and_then(|node| node.lock().ok().map(|node_guard| node_guard.ports().clone()))
-                        .and_then(|ports| {
-                            ports.into_iter().find(|p| !Arc::ptr_eq(p, port))
-                        });
+                        .and_then(|node| {
+                            node.lock()
+                                .ok()
+                                .map(|node_guard| node_guard.ports().clone())
+                        })
+                        .and_then(|ports| ports.into_iter().find(|p| !Arc::ptr_eq(p, port)));
                     if let Some(other_port) = other_port {
                         let degree = other_port
                             .lock()
@@ -289,7 +290,9 @@ impl CrossingsCounter {
                     let origin_port = port
                         .lock()
                         .ok()
-                        .and_then(|mut port_guard| port_guard.get_property(InternalProperties::ORIGIN))
+                        .and_then(|mut port_guard| {
+                            port_guard.get_property(InternalProperties::ORIGIN)
+                        })
                         .and_then(|origin| match origin {
                             Origin::LPort(port) => Some(port),
                             _ => None,
@@ -337,8 +340,16 @@ impl CrossingsCounter {
         if get_cardinalities {
             self.node_cardinalities = vec![0; nodes.len()];
         }
-        let mut i = if top_down { 0 } else { nodes.len() as isize - 1 };
-        while if top_down { i < nodes.len() as isize } else { i >= 0 } {
+        let mut i = if top_down {
+            0
+        } else {
+            nodes.len() as isize - 1
+        };
+        while if top_down {
+            i < nodes.len() as isize
+        } else {
+            i >= 0
+        } {
             let node = nodes[i as usize].clone();
             let node_ports = self.get_ports(&node, side, top_down);
             if get_cardinalities {
@@ -383,13 +394,18 @@ impl CrossingsCounter {
 
         for current in nodes {
             if is_layout_unit_changed(last_layout_unit.as_ref(), current) {
-                index = empty_stack(&mut stack, &mut ports, STACK_SIDE, index, &mut self.port_positions);
+                index = empty_stack(
+                    &mut stack,
+                    &mut ports,
+                    STACK_SIDE,
+                    index,
+                    &mut self.port_positions,
+                );
             }
             if node_has_property(current, InternalProperties::IN_LAYER_LAYOUT_UNIT) {
-                last_layout_unit = current
-                    .lock()
-                    .ok()
-                    .and_then(|mut node_guard| node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT));
+                last_layout_unit = current.lock().ok().and_then(|mut node_guard| {
+                    node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
+                });
             }
 
             let node_type = current
@@ -399,15 +415,23 @@ impl CrossingsCounter {
                 .unwrap_or(NodeType::Normal);
             match node_type {
                 NodeType::Normal => {
-                    for port in get_north_south_ports_with_incident_edges(current, PortSide::North) {
+                    for port in get_north_south_ports_with_incident_edges(current, PortSide::North)
+                    {
                         set_port_position(&mut self.port_positions, &port, index);
                         index += 1;
                         ports.push(port);
                     }
 
-                    index = empty_stack(&mut stack, &mut ports, STACK_SIDE, index, &mut self.port_positions);
+                    index = empty_stack(
+                        &mut stack,
+                        &mut ports,
+                        STACK_SIDE,
+                        index,
+                        &mut self.port_positions,
+                    );
 
-                    for port in get_north_south_ports_with_incident_edges(current, PortSide::South) {
+                    for port in get_north_south_ports_with_incident_edges(current, PortSide::South)
+                    {
                         set_port_position(&mut self.port_positions, &port, index);
                         index += 1;
                         ports.push(port);
@@ -457,7 +481,13 @@ impl CrossingsCounter {
             }
         }
 
-        empty_stack(&mut stack, &mut ports, STACK_SIDE, index, &mut self.port_positions);
+        empty_stack(
+            &mut stack,
+            &mut ports,
+            STACK_SIDE,
+            index,
+            &mut self.port_positions,
+        );
 
         ports
     }
@@ -535,10 +565,7 @@ fn is_in_layer(edge: &LEdgeRef) -> bool {
 }
 
 fn other_end_of(edge: &LEdgeRef, from_port: &LPortRef) -> LPortRef {
-    let source = edge
-        .lock()
-        .ok()
-        .and_then(|edge_guard| edge_guard.source());
+    let source = edge.lock().ok().and_then(|edge_guard| edge_guard.source());
     if let Some(source) = source {
         if Arc::ptr_eq(&source, from_port) {
             return edge
@@ -555,14 +582,8 @@ fn other_end_of(edge: &LEdgeRef, from_port: &LPortRef) -> LPortRef {
 }
 
 fn is_port_self_loop(edge: &LEdgeRef) -> bool {
-    let source = edge
-        .lock()
-        .ok()
-        .and_then(|edge_guard| edge_guard.source());
-    let target = edge
-        .lock()
-        .ok()
-        .and_then(|edge_guard| edge_guard.target());
+    let source = edge.lock().ok().and_then(|edge_guard| edge_guard.source());
+    let target = edge.lock().ok().and_then(|edge_guard| edge_guard.target());
     if let (Some(source), Some(target)) = (source, target) {
         Arc::ptr_eq(&source, &target)
     } else {
@@ -574,25 +595,35 @@ fn port_ptr_id(port: &LPortRef) -> usize {
     Arc::as_ptr(port) as usize
 }
 
-fn node_has_property(node: &LNodeRef, property: &org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property<LNodeRef>) -> bool {
+fn node_has_property(
+    node: &LNodeRef,
+    property: &org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property<LNodeRef>,
+) -> bool {
     node.lock()
         .ok()
-        .map(|mut node_guard| node_guard.shape().graph_element().properties().has_property(property))
+        .map(|mut node_guard| {
+            node_guard
+                .shape()
+                .graph_element()
+                .properties()
+                .has_property(property)
+        })
         .unwrap_or(false)
 }
 
 fn is_layout_unit_changed(last_unit: Option<&LNodeRef>, node: &LNodeRef) -> bool {
-    let Some(last_unit) = last_unit else { return false };
+    let Some(last_unit) = last_unit else {
+        return false;
+    };
     if Arc::ptr_eq(last_unit, node) {
         return false;
     }
     if !node_has_property(node, InternalProperties::IN_LAYER_LAYOUT_UNIT) {
         return false;
     }
-    let unit = node
-        .lock()
-        .ok()
-        .and_then(|mut node_guard| node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT));
+    let unit = node.lock().ok().and_then(|mut node_guard| {
+        node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
+    });
     match unit {
         Some(unit) => !Arc::ptr_eq(&unit, last_unit),
         None => false,
@@ -618,7 +649,13 @@ fn port_has_property(
 ) -> bool {
     port.lock()
         .ok()
-        .map(|mut port_guard| port_guard.shape().graph_element().properties().has_property(property))
+        .map(|mut port_guard| {
+            port_guard
+                .shape()
+                .graph_element()
+                .properties()
+                .has_property(property)
+        })
         .unwrap_or(false)
 }
 

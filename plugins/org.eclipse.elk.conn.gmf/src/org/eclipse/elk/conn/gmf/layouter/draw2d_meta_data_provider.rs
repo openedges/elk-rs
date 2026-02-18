@@ -28,8 +28,8 @@ fn register_algorithm(registry: &mut dyn LayoutMetaDataRegistry) {
     let factory = AlgorithmFactory::new(|| Box::new(Draw2DLayoutProvider::new()));
     let pool = InstancePool::new(Box::new(factory));
 
-    let mut data = LayoutAlgorithmData::new(Draw2DOptions::ALGORITHM_ID)
-        .with_provider_pool(Arc::new(pool));
+    let mut data =
+        LayoutAlgorithmData::new(Draw2DOptions::ALGORITHM_ID).with_provider_pool(Arc::new(pool));
     data.set_name("Draw2D Layout")
         .set_description(
             "'Directed Graph Layout' provided by the Draw2D framework. This is the same algorithm that is used by the standard layout button of GMF diagrams.",

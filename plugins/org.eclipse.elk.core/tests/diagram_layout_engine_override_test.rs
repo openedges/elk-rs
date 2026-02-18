@@ -28,7 +28,9 @@ impl ILayoutConfigurationStore for SimpleStore {
         vec![CoreOptions::PRIORITY.id().to_string()]
     }
 
-    fn option_targets(&self) -> Vec<org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutOptionTarget> {
+    fn option_targets(
+        &self,
+    ) -> Vec<org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutOptionTarget> {
         vec![org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutOptionTarget::Parents]
     }
 
@@ -82,7 +84,8 @@ fn override_order_applies_config_before_params() {
         },
     })));
 
-    let mut params = org_eclipse_elk_core::org::eclipse::elk::core::service::DiagramLayoutParameters::new();
+    let mut params =
+        org_eclipse_elk_core::org::eclipse::elk::core::service::DiagramLayoutParameters::new();
     params
         .add_layout_run()
         .configure_class(org_eclipse_elk_core::org::eclipse::elk::core::layout_configurator::LayoutConfiguratorClass::GraphElement)
@@ -113,7 +116,8 @@ fn override_false_applies_params_before_config() {
         },
     })));
 
-    let mut params = org_eclipse_elk_core::org::eclipse::elk::core::service::DiagramLayoutParameters::new();
+    let mut params =
+        org_eclipse_elk_core::org::eclipse::elk::core::service::DiagramLayoutParameters::new();
     params.set_override_diagram_config(false);
     params
         .add_layout_run()

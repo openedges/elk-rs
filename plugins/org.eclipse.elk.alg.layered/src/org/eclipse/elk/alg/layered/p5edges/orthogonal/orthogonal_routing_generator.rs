@@ -31,7 +31,11 @@ impl OrthogonalRoutingGenerator {
     const CONFLICT_PENALTY: i32 = 1;
     const CROSSING_PENALTY: i32 = 16;
 
-    pub fn new(direction: RoutingDirection, edge_spacing: f64, debug_prefix: impl Into<Option<String>>) -> Self {
+    pub fn new(
+        direction: RoutingDirection,
+        edge_spacing: f64,
+        debug_prefix: impl Into<Option<String>>,
+    ) -> Self {
         let debug_prefix = debug_prefix.into();
         OrthogonalRoutingGenerator {
             routing_direction: direction,
@@ -69,8 +73,8 @@ impl OrthogonalRoutingGenerator {
         );
         self.trace_segments("initial", &edge_segments);
 
-        self.critical_conflict_threshold =
-            Self::CRITICAL_CONFLICT_THRESHOLD_FACTOR * self.minimum_horizontal_segment_distance(&edge_segments);
+        self.critical_conflict_threshold = Self::CRITICAL_CONFLICT_THRESHOLD_FACTOR
+            * self.minimum_horizontal_segment_distance(&edge_segments);
 
         let mut critical_dependency_count = 0;
         for i in 0..edge_segments.len() {
@@ -99,12 +103,17 @@ impl OrthogonalRoutingGenerator {
         let mut rank_count = -1;
         for segment in &edge_segments {
             let segment_guard = segment.borrow();
-            if (segment_guard.start_coordinate() - segment_guard.end_coordinate()).abs() < Self::TOLERANCE {
+            if (segment_guard.start_coordinate() - segment_guard.end_coordinate()).abs()
+                < Self::TOLERANCE
+            {
                 continue;
             }
             rank_count = rank_count.max(segment_guard.routing_slot());
-            self.routing_strategy
-                .calculate_bend_points(&segment_guard, start_pos, self.edge_spacing);
+            self.routing_strategy.calculate_bend_points(
+                &segment_guard,
+                start_pos,
+                self.edge_spacing,
+            );
         }
 
         self.routing_strategy.clear_created_junction_points();
@@ -133,7 +142,11 @@ impl OrthogonalRoutingGenerator {
                     if let Ok(port_guard) = port.lock() {
                         let node_name = port_guard
                             .node()
-                            .and_then(|node| node.lock().ok().map(|mut node_guard| node_guard.designation()))
+                            .and_then(|node| {
+                                node.lock()
+                                    .ok()
+                                    .map(|mut node_guard| node_guard.designation())
+                            })
                             .unwrap_or_else(|| "?".to_string());
                         let anchor = port_guard.absolute_anchor().map(|a| a.y).unwrap_or(0.0);
                         format!("{}:{:?}@{:.1}", node_name, port_guard.side(), anchor)
@@ -170,7 +183,9 @@ impl OrthogonalRoutingGenerator {
                 let ports = node
                     .lock()
                     .ok()
-                    .map(|node_guard| node_guard.ports_by_type_and_side(PortType::Output, port_side))
+                    .map(|node_guard| {
+                        node_guard.ports_by_type_and_side(PortType::Output, port_side)
+                    })
                     .unwrap_or_default();
                 for port in ports {
                     let key = port_key(&port);
@@ -223,8 +238,8 @@ impl OrthogonalRoutingGenerator {
         let conflicts1 = self.count_conflicts(&he1_outgoing, &he2_incoming);
         let conflicts2 = self.count_conflicts(&he2_outgoing, &he1_incoming);
 
-        let critical_conflicts_detected =
-            conflicts1 == Self::CRITICAL_CONFLICTS_DETECTED || conflicts2 == Self::CRITICAL_CONFLICTS_DETECTED;
+        let critical_conflicts_detected = conflicts1 == Self::CRITICAL_CONFLICTS_DETECTED
+            || conflicts2 == Self::CRITICAL_CONFLICTS_DETECTED;
         let mut critical_dependency_count = 0;
 
         if critical_conflicts_detected {
@@ -237,20 +252,28 @@ impl OrthogonalRoutingGenerator {
                 critical_dependency_count += 1;
             }
         } else {
-            let crossings1 =
-                Self::count_crossings(&he1_outgoing, he2_start, he2_end)
-                    + Self::count_crossings(&he2_incoming, he1_start, he1_end);
-            let crossings2 =
-                Self::count_crossings(&he2_outgoing, he1_start, he1_end)
-                    + Self::count_crossings(&he1_incoming, he2_start, he2_end);
+            let crossings1 = Self::count_crossings(&he1_outgoing, he2_start, he2_end)
+                + Self::count_crossings(&he2_incoming, he1_start, he1_end);
+            let crossings2 = Self::count_crossings(&he2_outgoing, he1_start, he1_end)
+                + Self::count_crossings(&he1_incoming, he2_start, he2_end);
 
-            let dep_value1 = Self::CONFLICT_PENALTY * conflicts1 + Self::CROSSING_PENALTY * crossings1;
-            let dep_value2 = Self::CONFLICT_PENALTY * conflicts2 + Self::CROSSING_PENALTY * crossings2;
+            let dep_value1 =
+                Self::CONFLICT_PENALTY * conflicts1 + Self::CROSSING_PENALTY * crossings1;
+            let dep_value2 =
+                Self::CONFLICT_PENALTY * conflicts2 + Self::CROSSING_PENALTY * crossings2;
 
             if dep_value1 < dep_value2 {
-                HyperEdgeSegmentDependency::create_and_add_regular(he1, he2, dep_value2 - dep_value1);
+                HyperEdgeSegmentDependency::create_and_add_regular(
+                    he1,
+                    he2,
+                    dep_value2 - dep_value1,
+                );
             } else if dep_value1 > dep_value2 {
-                HyperEdgeSegmentDependency::create_and_add_regular(he2, he1, dep_value1 - dep_value2);
+                HyperEdgeSegmentDependency::create_and_add_regular(
+                    he2,
+                    he1,
+                    dep_value1 - dep_value2,
+                );
             } else if dep_value1 > 0 && dep_value2 > 0 {
                 HyperEdgeSegmentDependency::create_and_add_regular(he1, he2, 0);
                 HyperEdgeSegmentDependency::create_and_add_regular(he2, he1, 0);
@@ -271,12 +294,13 @@ impl OrthogonalRoutingGenerator {
             let mut pos2 = posis2[j];
             let mut has_more = true;
             while has_more {
-
                 if pos1 > pos2 - self.critical_conflict_threshold
                     && pos1 < pos2 + self.critical_conflict_threshold
                 {
                     return Self::CRITICAL_CONFLICTS_DETECTED;
-                } else if pos1 > pos2 - self.conflict_threshold && pos1 < pos2 + self.conflict_threshold {
+                } else if pos1 > pos2 - self.conflict_threshold
+                    && pos1 < pos2 + self.conflict_threshold
+                {
                     conflicts += 1;
                 }
 
@@ -312,8 +336,18 @@ impl OrthogonalRoutingGenerator {
         let mut outgoing: Vec<f64> = Vec::new();
         for segment in edge_segments {
             let segment_guard = segment.borrow();
-            incoming.extend(segment_guard.incoming_connection_coordinates().iter().cloned());
-            outgoing.extend(segment_guard.outgoing_connection_coordinates().iter().cloned());
+            incoming.extend(
+                segment_guard
+                    .incoming_connection_coordinates()
+                    .iter()
+                    .cloned(),
+            );
+            outgoing.extend(
+                segment_guard
+                    .outgoing_connection_coordinates()
+                    .iter()
+                    .cloned(),
+            );
         }
 
         let min_incoming = Self::minimum_difference(&incoming);
@@ -349,7 +383,11 @@ impl OrthogonalRoutingGenerator {
         min_difference
     }
 
-    fn break_critical_cycles(&mut self, edge_segments: &mut Vec<HyperEdgeSegmentRef>, random: &mut Random) {
+    fn break_critical_cycles(
+        &mut self,
+        edge_segments: &mut Vec<HyperEdgeSegmentRef>,
+        random: &mut Random,
+    ) {
         let cycle_dependencies = HyperEdgeCycleDetector::detect_cycles(edge_segments, true, random);
         HyperEdgeSegmentSplitter::split_segments(
             self,
@@ -360,7 +398,8 @@ impl OrthogonalRoutingGenerator {
     }
 
     pub fn break_non_critical_cycles(edge_segments: &[HyperEdgeSegmentRef], random: &mut Random) {
-        let cycle_dependencies = HyperEdgeCycleDetector::detect_cycles(edge_segments, false, random);
+        let cycle_dependencies =
+            HyperEdgeCycleDetector::detect_cycles(edge_segments, false, random);
         for dep in cycle_dependencies {
             if dep.borrow().weight() == 0 {
                 HyperEdgeSegmentDependency::remove(&dep);
@@ -384,7 +423,12 @@ impl OrthogonalRoutingGenerator {
             if in_weight == 0 {
                 sources.push(segment.clone());
             }
-            if out_weight == 0 && segment.borrow().incoming_connection_coordinates().is_empty() {
+            if out_weight == 0
+                && segment
+                    .borrow()
+                    .incoming_connection_coordinates()
+                    .is_empty()
+            {
                 rightward_targets.push(segment.clone());
             }
         }
@@ -458,6 +502,9 @@ mod tests {
     fn minimum_difference_handles_nan_like_java() {
         let values = vec![1.0, f64::NAN, 3.0, f64::NAN];
         let result = OrthogonalRoutingGenerator::minimum_difference(&values);
-        assert!(result.is_nan(), "expected NaN minimum difference when NaN is present");
+        assert!(
+            result.is_nan(),
+            "expected NaN minimum difference when NaN is present"
+        );
     }
 }

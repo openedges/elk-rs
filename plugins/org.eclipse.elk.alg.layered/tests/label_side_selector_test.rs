@@ -34,7 +34,10 @@ fn add_port(node: &LNodeRef) -> LPortRef {
     port
 }
 
-fn connect(source: &LPortRef, target: &LPortRef) -> org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LEdgeRef {
+fn connect(
+    source: &LPortRef,
+    target: &LPortRef,
+) -> org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LEdgeRef {
     let edge = LEdge::new();
     LEdge::set_source(&edge, Some(source.clone()));
     LEdge::set_target(&edge, Some(target.clone()));
@@ -44,13 +47,10 @@ fn connect(source: &LPortRef, target: &LPortRef) -> org_eclipse_elk_alg_layered:
 #[test]
 fn test_removed_nodes() {
     let (graph, layer) = graph_with_single_layer();
-    graph
-        .lock()
-        .expect("graph lock")
-        .set_property(
-            LayeredOptions::EDGE_LABELS_SIDE_SELECTION,
-            Some(EdgeLabelSideSelection::AlwaysUp),
-        );
+    graph.lock().expect("graph lock").set_property(
+        LayeredOptions::EDGE_LABELS_SIDE_SELECTION,
+        Some(EdgeLabelSideSelection::AlwaysUp),
+    );
 
     let source = add_node(&graph, &layer);
     let target = add_node(&graph, &layer);

@@ -64,10 +64,7 @@ impl<C: 'static, T: 'static> NodeReferenceMatcher<C, T> {
         self
     }
 
-    pub fn with_bounds_provider(
-        &mut self,
-        provider: Rc<dyn IBoundsProvider<C, T>>,
-    ) -> &mut Self {
+    pub fn with_bounds_provider(&mut self, provider: Rc<dyn IBoundsProvider<C, T>>) -> &mut Self {
         self.bounds_provider = Some(provider);
         self
     }
@@ -77,11 +74,7 @@ impl<C: 'static, T: 'static> NodeReferenceMatcher<C, T> {
         C: Clone,
         T: Clone,
     {
-        self.found_attachments
-            .borrow()
-            .values()
-            .cloned()
-            .collect()
+        self.found_attachments.borrow().values().cloned().collect()
     }
 
     fn check_configuration(&self) {
@@ -92,9 +85,7 @@ impl<C: 'static, T: 'static> NodeReferenceMatcher<C, T> {
             panic!("A node name function is required.");
         }
         if self.max_distance >= 0.0 && self.bounds_provider.is_none() {
-            panic!(
-                "A bounds provider must be installed if a maximum attachment distance is set."
-            );
+            panic!("A bounds provider must be installed if a maximum attachment distance is set.");
         }
     }
 
@@ -127,7 +118,9 @@ impl<C: 'static, T: 'static> NodeReferenceMatcher<C, T> {
             for target_pattern_pair in &target_patterns {
                 let matches = match &target_pattern_pair.second {
                     TargetPattern::Strict(name) => strict_match(&comment_text_pair.second, name),
-                    TargetPattern::Fuzzy(segments) => fuzzy_match(&comment_text_pair.second, segments),
+                    TargetPattern::Fuzzy(segments) => {
+                        fuzzy_match(&comment_text_pair.second, segments)
+                    }
                 };
                 if matches {
                     if found_target.is_none() {
@@ -142,10 +135,9 @@ impl<C: 'static, T: 'static> NodeReferenceMatcher<C, T> {
             if let Some(target) = found_target {
                 if self.max_distance < 0.0 {
                     let key = comment_text_pair.first.cache_key();
-                    self.found_attachments.borrow_mut().insert(
-                        key,
-                        Pair::of(comment_text_pair.first, target),
-                    );
+                    self.found_attachments
+                        .borrow_mut()
+                        .insert(key, Pair::of(comment_text_pair.first, target));
                 } else if let Some(provider) = self.bounds_provider.as_ref() {
                     let comment_bounds = provider.bounds_for_comment(&comment_text_pair.first);
                     let target_bounds = provider.bounds_for_target(&target);
@@ -154,10 +146,9 @@ impl<C: 'static, T: 'static> NodeReferenceMatcher<C, T> {
                     {
                         if distance(&comment_bounds, &target_bounds) <= self.max_distance {
                             let key = comment_text_pair.first.cache_key();
-                            self.found_attachments.borrow_mut().insert(
-                                key,
-                                Pair::of(comment_text_pair.first, target),
-                            );
+                            self.found_attachments
+                                .borrow_mut()
+                                .insert(key, Pair::of(comment_text_pair.first, target));
                         }
                     }
                 }

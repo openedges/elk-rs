@@ -10,11 +10,14 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::{
 use crate::org::eclipse::elk::core::data::LayoutAlgorithmData;
 use crate::org::eclipse::elk::core::options::CoreOptions;
 use crate::org::eclipse::elk::core::util::{ElkUtil, IGraphElementVisitor};
-use crate::org::eclipse::elk::core::validation::{GraphIssue, IValidatingGraphElementVisitor, Severity};
+use crate::org::eclipse::elk::core::validation::{
+    GraphIssue, IValidatingGraphElementVisitor, Severity,
+};
 
 pub struct GraphValidator {
     issues: Vec<GraphIssue>,
-    algorithm_specific_validators: HashMap<LayoutAlgorithmData, Box<dyn IValidatingGraphElementVisitor>>,
+    algorithm_specific_validators:
+        HashMap<LayoutAlgorithmData, Box<dyn IValidatingGraphElementVisitor>>,
     validator_issue_counts: HashMap<LayoutAlgorithmData, usize>,
 }
 
@@ -59,7 +62,9 @@ impl GraphValidator {
         let sections: Vec<_> = {
             let mut edge_mut = edge.borrow_mut();
             let list = edge_mut.sections();
-            (0..list.len()).filter_map(|index| list.get(index)).collect()
+            (0..list.len())
+                .filter_map(|index| list.get(index))
+                .collect()
         };
 
         for section in sections {
@@ -189,7 +194,9 @@ impl IGraphElementVisitor for GraphValidator {
 }
 
 fn get_resolved_algorithm(node: &ElkNodeRef) -> Option<LayoutAlgorithmData> {
-    with_node_properties_mut(node, |props| props.get_property(CoreOptions::RESOLVED_ALGORITHM))
+    with_node_properties_mut(node, |props| {
+        props.get_property(CoreOptions::RESOLVED_ALGORITHM)
+    })
 }
 
 fn edge_has_shape(edge: &ElkEdgeRef, shape: &ElkConnectableShapeRef, is_source: bool) -> bool {
@@ -213,7 +220,10 @@ fn connectable_shape_kind(shape: &ElkConnectableShapeRef) -> &'static str {
     }
 }
 
-fn with_node_properties_mut<R>(node: &ElkNodeRef, f: impl FnOnce(&mut MapPropertyHolder) -> R) -> R {
+fn with_node_properties_mut<R>(
+    node: &ElkNodeRef,
+    f: impl FnOnce(&mut MapPropertyHolder) -> R,
+) -> R {
     let mut node_mut = node.borrow_mut();
     let props = node_mut
         .connectable()

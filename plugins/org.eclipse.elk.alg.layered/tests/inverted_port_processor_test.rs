@@ -90,10 +90,7 @@ fn inverted_port_processor_inserts_dummy_for_inverted_ports() {
         .target()
         .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
         .expect("west dummy node");
-    let west_dummy_type = west_dummy
-        .lock()
-        .expect("west dummy lock")
-        .node_type();
+    let west_dummy_type = west_dummy.lock().expect("west dummy lock").node_type();
     let west_dummy_layer = west_dummy
         .lock()
         .expect("west dummy lock")
@@ -115,10 +112,7 @@ fn inverted_port_processor_inserts_dummy_for_inverted_ports() {
         .source()
         .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
         .expect("east dummy node");
-    let east_dummy_type = east_dummy
-        .lock()
-        .expect("east dummy lock")
-        .node_type();
+    let east_dummy_type = east_dummy.lock().expect("east dummy lock").node_type();
     let east_dummy_layer = east_dummy
         .lock()
         .expect("east dummy lock")
@@ -141,5 +135,8 @@ fn inverted_port_processor_ignores_self_loop() {
 
     let nodes = layer.lock().expect("layer lock").nodes().clone();
     assert_eq!(nodes.len(), 1);
-    assert_eq!(nodes[0].lock().expect("node lock").node_type(), NodeType::Normal);
+    assert_eq!(
+        nodes[0].lock().expect("node lock").node_type(),
+        NodeType::Normal
+    );
 }

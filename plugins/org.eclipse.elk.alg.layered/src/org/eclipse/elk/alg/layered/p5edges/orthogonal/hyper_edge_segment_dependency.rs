@@ -45,7 +45,8 @@ impl HyperEdgeSegmentDependency {
         source: &HyperEdgeSegmentRef,
         target: &HyperEdgeSegmentRef,
     ) -> HyperEdgeSegmentDependencyRef {
-        let dep = HyperEdgeSegmentDependency::new(DependencyType::Critical, CRITICAL_DEPENDENCY_WEIGHT);
+        let dep =
+            HyperEdgeSegmentDependency::new(DependencyType::Critical, CRITICAL_DEPENDENCY_WEIGHT);
         HyperEdgeSegmentDependency::set_source(&dep, Some(source.clone()));
         HyperEdgeSegmentDependency::set_target(&dep, Some(target.clone()));
         dep
@@ -84,9 +85,7 @@ impl HyperEdgeSegmentDependency {
     fn set_source(dep: &HyperEdgeSegmentDependencyRef, new_source: Option<HyperEdgeSegmentRef>) {
         let old_source = dep.borrow().source();
         if let Some(old_source) = old_source {
-            old_source
-                .borrow_mut()
-                .remove_outgoing_dependency(dep);
+            old_source.borrow_mut().remove_outgoing_dependency(dep);
         }
 
         {
@@ -102,9 +101,7 @@ impl HyperEdgeSegmentDependency {
     fn set_target(dep: &HyperEdgeSegmentDependencyRef, new_target: Option<HyperEdgeSegmentRef>) {
         let old_target = dep.borrow().target();
         if let Some(old_target) = old_target {
-            old_target
-                .borrow_mut()
-                .remove_incoming_dependency(dep);
+            old_target.borrow_mut().remove_incoming_dependency(dep);
         }
 
         {

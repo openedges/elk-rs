@@ -15,10 +15,8 @@ pub enum Origin {
     ElkLabel(OriginId),
 }
 
-pub static ORIGIN_PROPERTY: LazyLock<Property<Origin>> =
-    LazyLock::new(|| Property::new("origin"));
-pub static RANDOM_PROPERTY: LazyLock<Property<Random>> =
-    LazyLock::new(|| Property::new("random"));
+pub static ORIGIN_PROPERTY: LazyLock<Property<Origin>> = LazyLock::new(|| Property::new("origin"));
+pub static RANDOM_PROPERTY: LazyLock<Property<Random>> = LazyLock::new(|| Property::new("random"));
 pub static DEPTH_PROPERTY: LazyLock<Property<i32>> =
     LazyLock::new(|| Property::with_default("DEPTH", 0));
 pub static FAN_PROPERTY: LazyLock<Property<i32>> =
@@ -86,12 +84,14 @@ impl InternalProperties {
     pub const DESCENDANTS: &'static LazyLock<Property<i32>> = &DESCENDANTS_PROPERTY;
     pub const ROOT: &'static LazyLock<Property<bool>> = &ROOT_PROPERTY;
     pub const LEFTNEIGHBOR: &'static LazyLock<Property<Option<TNodeRef>>> = &LEFTNEIGHBOR_PROPERTY;
-    pub const RIGHTNEIGHBOR: &'static LazyLock<Property<Option<TNodeRef>>> = &RIGHTNEIGHBOR_PROPERTY;
+    pub const RIGHTNEIGHBOR: &'static LazyLock<Property<Option<TNodeRef>>> =
+        &RIGHTNEIGHBOR_PROPERTY;
     pub const LEFTSIBLING: &'static LazyLock<Property<Option<TNodeRef>>> = &LEFTSIBLING_PROPERTY;
     pub const RIGHTSIBLING: &'static LazyLock<Property<Option<TNodeRef>>> = &RIGHTSIBLING_PROPERTY;
     pub const DUMMY: &'static LazyLock<Property<bool>> = &DUMMY_PROPERTY;
     pub const LEVEL: &'static LazyLock<Property<i32>> = &LEVEL_PROPERTY;
-    pub const REMOVABLE_EDGES: &'static LazyLock<Property<Vec<TEdgeRef>>> = &REMOVABLE_EDGES_PROPERTY;
+    pub const REMOVABLE_EDGES: &'static LazyLock<Property<Vec<TEdgeRef>>> =
+        &REMOVABLE_EDGES_PROPERTY;
     pub const XCOOR: &'static LazyLock<Property<i32>> = &XCOOR_PROPERTY;
     pub const YCOOR: &'static LazyLock<Property<i32>> = &YCOOR_PROPERTY;
     pub const LEVELHEIGHT: &'static LazyLock<Property<f64>> = &LEVELHEIGHT_PROPERTY;

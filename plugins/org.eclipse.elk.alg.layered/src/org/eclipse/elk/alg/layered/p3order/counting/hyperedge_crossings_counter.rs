@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 
@@ -13,7 +13,11 @@ pub struct HyperedgeCrossingsCounter {
 static TRACE_HYPER_CALLS: AtomicUsize = AtomicUsize::new(0);
 
 impl HyperedgeCrossingsCounter {
-    pub fn new(_in_layer_edge_count: &[i32], _has_north_south_ports: &[bool], port_positions: Vec<i32>) -> Self {
+    pub fn new(
+        _in_layer_edge_count: &[i32],
+        _has_north_south_ports: &[bool],
+        port_positions: Vec<i32>,
+    ) -> Self {
         HyperedgeCrossingsCounter { port_positions }
     }
 
@@ -118,45 +122,41 @@ impl HyperedgeCrossingsCounter {
                         .ok()
                         .map(|port_guard| port_guard.side())
                         .unwrap_or(PortSide::Undefined);
-                        if side == PortSide::North {
-                            set_port_position(&mut self.port_positions, port, target_count);
-                            if let Some(call_idx) = trace_call {
-                                if call_idx < 64 {
-                                    let port_name = port
-                                        .lock()
-                                        .ok()
-                                        .map(|mut port_guard| port_guard.to_string())
-                                        .unwrap_or_else(|| "<poisoned-port>".to_owned());
-                                    eprintln!(
-                                        "rust-hyper: call={} target_pos {} <- {}",
-                                        call_idx, target_count, port_name
-                                    );
-                                }
+                    if side == PortSide::North {
+                        set_port_position(&mut self.port_positions, port, target_count);
+                        if let Some(call_idx) = trace_call {
+                            if call_idx < 64 {
+                                let port_name = port
+                                    .lock()
+                                    .ok()
+                                    .map(|mut port_guard| port_guard.to_string())
+                                    .unwrap_or_else(|| "<poisoned-port>".to_owned());
+                                eprintln!(
+                                    "rust-hyper: call={} target_pos {} <- {}",
+                                    call_idx, target_count, port_name
+                                );
                             }
-                            target_count += 1;
-                        } else {
-                            let assigned = target_count + north_input_ports + other_input_ports;
-                            set_port_position(
-                                &mut self.port_positions,
-                                port,
-                                assigned,
-                            );
-                            if let Some(call_idx) = trace_call {
-                                if call_idx < 64 {
-                                    let port_name = port
-                                        .lock()
-                                        .ok()
-                                        .map(|mut port_guard| port_guard.to_string())
-                                        .unwrap_or_else(|| "<poisoned-port>".to_owned());
-                                    eprintln!(
-                                        "rust-hyper: call={} target_pos {} <- {}",
-                                        call_idx, assigned, port_name
-                                    );
-                                }
-                            }
-                            other_input_ports += 1;
                         }
+                        target_count += 1;
+                    } else {
+                        let assigned = target_count + north_input_ports + other_input_ports;
+                        set_port_position(&mut self.port_positions, port, assigned);
+                        if let Some(call_idx) = trace_call {
+                            if call_idx < 64 {
+                                let port_name = port
+                                    .lock()
+                                    .ok()
+                                    .map(|mut port_guard| port_guard.to_string())
+                                    .unwrap_or_else(|| "<poisoned-port>".to_owned());
+                                eprintln!(
+                                    "rust-hyper: call={} target_pos {} <- {}",
+                                    call_idx, assigned, port_name
+                                );
+                            }
+                        }
+                        other_input_ports += 1;
                     }
+                }
             }
             target_count += other_input_ports;
         }
@@ -178,11 +178,10 @@ impl HyperedgeCrossingsCounter {
                     .map(|port_guard| port_guard.outgoing_edges().clone())
                     .unwrap_or_default();
                 for edge in outgoing {
-                    let target_port = edge
-                        .lock()
-                        .ok()
-                        .and_then(|edge_guard| edge_guard.target());
-                    let Some(target_port) = target_port else { continue };
+                    let target_port = edge.lock().ok().and_then(|edge_guard| edge_guard.target());
+                    let Some(target_port) = target_port else {
+                        continue;
+                    };
                     if edge_is_in_layer(&edge) {
                         continue;
                     }
@@ -467,7 +466,12 @@ struct HyperedgeCorner {
 }
 
 impl HyperedgeCorner {
-    fn new(hyperedge: Hyperedge, position: i32, opposite_position: i32, corner_type: CornerType) -> Self {
+    fn new(
+        hyperedge: Hyperedge,
+        position: i32,
+        opposite_position: i32,
+        corner_type: CornerType,
+    ) -> Self {
         HyperedgeCorner {
             hyperedge,
             position,
@@ -480,7 +484,11 @@ impl HyperedgeCorner {
         self.position
             .cmp(&other.position)
             .then_with(|| self.opposite_position.cmp(&other.opposite_position))
-            .then_with(|| self.hyperedge.identity_hash.cmp(&other.hyperedge.identity_hash))
+            .then_with(|| {
+                self.hyperedge
+                    .identity_hash
+                    .cmp(&other.hyperedge.identity_hash)
+            })
             .then_with(|| match (self.corner_type, other.corner_type) {
                 (CornerType::Upper, CornerType::Lower) => std::cmp::Ordering::Less,
                 (CornerType::Lower, CornerType::Upper) => std::cmp::Ordering::Greater,

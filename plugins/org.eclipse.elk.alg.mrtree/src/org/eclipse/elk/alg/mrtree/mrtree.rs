@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::AlgorithmAssembler;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::SharedProcessor;
-use org_eclipse_elk_core::org::eclipse::elk::core::util::{BasicProgressMonitor, IElkProgressMonitor};
+use org_eclipse_elk_core::org::eclipse::elk::core::util::{
+    BasicProgressMonitor, IElkProgressMonitor,
+};
 
 use crate::org::eclipse::elk::alg::mrtree::graph::TGraphRef;
 use crate::org::eclipse::elk::alg::mrtree::options::MrTreeOptions;
@@ -57,10 +59,22 @@ impl MrTree {
     fn update_modules(&mut self, graph: &TGraphRef) {
         self.algorithm_assembler.reset();
         self.algorithm_assembler
-            .set_phase(TreeLayoutPhases::P1Treeification, Arc::new(TreeLayoutPhases::P1Treeification))
-            .set_phase(TreeLayoutPhases::P2NodeOrdering, Arc::new(TreeLayoutPhases::P2NodeOrdering))
-            .set_phase(TreeLayoutPhases::P3NodePlacement, Arc::new(TreeLayoutPhases::P3NodePlacement))
-            .set_phase(TreeLayoutPhases::P4EdgeRouting, Arc::new(TreeLayoutPhases::P4EdgeRouting));
+            .set_phase(
+                TreeLayoutPhases::P1Treeification,
+                Arc::new(TreeLayoutPhases::P1Treeification),
+            )
+            .set_phase(
+                TreeLayoutPhases::P2NodeOrdering,
+                Arc::new(TreeLayoutPhases::P2NodeOrdering),
+            )
+            .set_phase(
+                TreeLayoutPhases::P3NodePlacement,
+                Arc::new(TreeLayoutPhases::P3NodePlacement),
+            )
+            .set_phase(
+                TreeLayoutPhases::P4EdgeRouting,
+                Arc::new(TreeLayoutPhases::P4EdgeRouting),
+            );
 
         self.algorithm = self.algorithm_assembler.build(graph);
     }

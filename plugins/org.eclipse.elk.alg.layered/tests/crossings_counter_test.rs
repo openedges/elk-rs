@@ -1,9 +1,11 @@
-use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::{LGraph, LNode, LPort, Layer};
-use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::p3order::counting::CrossingsCounter;
+use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LEdge;
+use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::{
+    LGraph, LNode, LPort, Layer,
+};
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::LayeredOptions;
+use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::p3order::counting::CrossingsCounter;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
-use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LEdge;
 
 fn add_node(
     graph: &org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LGraphRef,
@@ -152,7 +154,10 @@ fn count_crossings_between_layers_simple() {
     let right_nodes = right_layer.lock().expect("layer lock").nodes().clone();
 
     let mut counter = CrossingsCounter::new(Vec::new());
-    assert_eq!(counter.count_crossings_between_layers(&left_nodes, &right_nodes), 1);
+    assert_eq!(
+        counter.count_crossings_between_layers(&left_nodes, &right_nodes),
+        1
+    );
 }
 
 #[test]
@@ -232,7 +237,10 @@ fn count_crossings_between_layers_parallel_edges() {
     let right_nodes = right_layer.lock().expect("layer lock").nodes().clone();
 
     let mut counter = CrossingsCounter::new(Vec::new());
-    assert_eq!(counter.count_crossings_between_layers(&left_nodes, &right_nodes), 1);
+    assert_eq!(
+        counter.count_crossings_between_layers(&left_nodes, &right_nodes),
+        1
+    );
 }
 
 #[test]
@@ -267,7 +275,10 @@ fn count_crossings_between_layers_cross_with_middle_edge() {
     let right_nodes = right_layer.lock().expect("layer lock").nodes().clone();
 
     let mut counter = CrossingsCounter::new(Vec::new());
-    assert_eq!(counter.count_crossings_between_layers(&left_nodes, &right_nodes), 3);
+    assert_eq!(
+        counter.count_crossings_between_layers(&left_nodes, &right_nodes),
+        3
+    );
 }
 
 #[test]
@@ -307,7 +318,10 @@ fn count_crossings_between_layers_ignore_self_loops() {
     let right_nodes = right_layer.lock().expect("layer lock").nodes().clone();
 
     let mut counter = CrossingsCounter::new(Vec::new());
-    assert_eq!(counter.count_crossings_between_layers(&left_nodes, &right_nodes), 1);
+    assert_eq!(
+        counter.count_crossings_between_layers(&left_nodes, &right_nodes),
+        1
+    );
 }
 
 #[test]
@@ -343,7 +357,10 @@ fn count_crossings_between_layers_into_same_port() {
     let right_nodes = right_layer.lock().expect("layer lock").nodes().clone();
 
     let mut counter = CrossingsCounter::new(Vec::new());
-    assert_eq!(counter.count_crossings_between_layers(&left_nodes, &right_nodes), 2);
+    assert_eq!(
+        counter.count_crossings_between_layers(&left_nodes, &right_nodes),
+        2
+    );
 }
 
 #[test]
@@ -382,7 +399,10 @@ fn count_crossings_between_layers_cross_formed_multiple_edges_between_same_nodes
     let right_nodes = right_layer.lock().expect("layer lock").nodes().clone();
 
     let mut counter = CrossingsCounter::new(Vec::new());
-    assert_eq!(counter.count_crossings_between_layers(&left_nodes, &right_nodes), 4);
+    assert_eq!(
+        counter.count_crossings_between_layers(&left_nodes, &right_nodes),
+        4
+    );
 }
 
 #[test]
@@ -485,7 +505,8 @@ fn count_crossings_between_ports_two_edges_into_same_port() {
 
     let mut counter = CrossingsCounter::new(Vec::new());
     counter.init_for_counting_between(&left_order, &right_order);
-    let pair = counter.count_crossings_between_ports_in_both_orders(&bottom_left_port, &top_left_port);
+    let pair =
+        counter.count_crossings_between_ports_in_both_orders(&bottom_left_port, &top_left_port);
     assert_eq!(pair.first, 2);
 }
 
@@ -523,7 +544,10 @@ fn count_crossings_between_layers_fixed_port_order() {
     let right_nodes = right_layer.lock().expect("layer lock").nodes().clone();
 
     let mut counter = CrossingsCounter::new(Vec::new());
-    assert_eq!(counter.count_crossings_between_layers(&left_nodes, &right_nodes), 0);
+    assert_eq!(
+        counter.count_crossings_between_layers(&left_nodes, &right_nodes),
+        0
+    );
 }
 
 #[test]
@@ -568,7 +592,10 @@ fn count_crossings_between_layers_more_complex_three_layer_graph() {
     let middle_nodes = middle_layer.lock().expect("layer lock").nodes().clone();
 
     let mut counter = CrossingsCounter::new(Vec::new());
-    assert_eq!(counter.count_crossings_between_layers(&left_nodes, &middle_nodes), 3);
+    assert_eq!(
+        counter.count_crossings_between_layers(&left_nodes, &middle_nodes),
+        3
+    );
 }
 
 #[test]

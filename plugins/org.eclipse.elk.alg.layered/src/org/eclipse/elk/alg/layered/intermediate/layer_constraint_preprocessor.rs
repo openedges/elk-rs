@@ -6,7 +6,9 @@ use org_eclipse_elk_core::org::eclipse::elk::core::unsupported_configuration::Un
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LGraph, LNodeRef, NodeType};
-use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayerConstraint, LayeredOptions};
+use crate::org::eclipse::elk::alg::layered::options::{
+    InternalProperties, LayerConstraint, LayeredOptions,
+};
 
 pub struct LayerConstraintPreprocessor;
 
@@ -88,7 +90,11 @@ fn hide_edge(
         );
     }
 
-    if let Some(opposite_node) = opposite_port.lock().ok().and_then(|port_guard| port_guard.node()) {
+    if let Some(opposite_node) = opposite_port
+        .lock()
+        .ok()
+        .and_then(|port_guard| port_guard.node())
+    {
         update_opposite_node_layer_constraints(hidden_node, &opposite_node, hidden_connections);
     }
 }

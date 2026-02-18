@@ -5,7 +5,9 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::{
     CoreOptions, Direction, PortConstraints, PortSide, SizeConstraint,
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::util::BasicProgressMonitor;
-use org_eclipse_elk_core::org::eclipse::elk::core::{IGraphLayoutEngine, RecursiveGraphLayoutEngine};
+use org_eclipse_elk_core::org::eclipse::elk::core::{
+    IGraphLayoutEngine, RecursiveGraphLayoutEngine,
+};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{
     ElkConnectableShapeRef, ElkGraphElementRef, ElkNode, ElkNodeRef, ElkPortRef,
@@ -40,7 +42,11 @@ fn plain_layout_test() {
     for node in all_nodes(&graph) {
         let has_children = !node.borrow_mut().children().is_empty();
         if has_children {
-            set_node_property(&node, CoreOptions::ALGORITHM, LayeredOptions::ALGORITHM_ID.to_string());
+            set_node_property(
+                &node,
+                CoreOptions::ALGORITHM,
+                LayeredOptions::ALGORITHM_ID.to_string(),
+            );
         }
     }
 
@@ -52,16 +58,10 @@ fn create_simple_graph() -> ElkNodeRef {
     let graph = ElkGraphUtil::create_graph();
 
     let child1 = ElkGraphUtil::create_node(Some(graph.clone()));
-    ElkGraphUtil::create_label_with_text(
-        "node1",
-        Some(ElkGraphElementRef::Node(child1.clone())),
-    );
+    ElkGraphUtil::create_label_with_text("node1", Some(ElkGraphElementRef::Node(child1.clone())));
 
     let child2 = ElkGraphUtil::create_node(Some(graph.clone()));
-    ElkGraphUtil::create_label_with_text(
-        "node2",
-        Some(ElkGraphElementRef::Node(child2.clone())),
-    );
+    ElkGraphUtil::create_label_with_text("node2", Some(ElkGraphElementRef::Node(child2.clone())));
 
     let port1 = ElkGraphUtil::create_port(Some(child1.clone()));
     let port2 = ElkGraphUtil::create_port(Some(child2.clone()));
@@ -78,17 +78,11 @@ fn create_hierarchical_graph() -> ElkNodeRef {
 
     let child1 = create_simple_graph();
     ElkNode::set_parent(&child1, Some(parent.clone()));
-    ElkGraphUtil::create_label_with_text(
-        "child1",
-        Some(ElkGraphElementRef::Node(child1.clone())),
-    );
+    ElkGraphUtil::create_label_with_text("child1", Some(ElkGraphElementRef::Node(child1.clone())));
 
     let child2 = create_simple_graph();
     ElkNode::set_parent(&child2, Some(parent.clone()));
-    ElkGraphUtil::create_label_with_text(
-        "child2",
-        Some(ElkGraphElementRef::Node(child2.clone())),
-    );
+    ElkGraphUtil::create_label_with_text("child2", Some(ElkGraphElementRef::Node(child2.clone())));
 
     parent
 }
@@ -97,7 +91,12 @@ fn all_nodes(root: &ElkNodeRef) -> Vec<ElkNodeRef> {
     let mut nodes = vec![root.clone()];
     let mut index = 0usize;
     while index < nodes.len() {
-        let children: Vec<ElkNodeRef> = nodes[index].borrow_mut().children().iter().cloned().collect();
+        let children: Vec<ElkNodeRef> = nodes[index]
+            .borrow_mut()
+            .children()
+            .iter()
+            .cloned()
+            .collect();
         nodes.extend(children);
         index += 1;
     }
@@ -110,8 +109,16 @@ fn add_layered_options(graph: &ElkNodeRef) {
     let children: Vec<ElkNodeRef> = graph.borrow_mut().children().iter().cloned().collect();
     for child in children {
         set_node_dimensions(&child, 30.0, 30.0);
-        set_node_property(&child, CoreOptions::NODE_SIZE_CONSTRAINTS, SizeConstraint::fixed());
-        set_node_property(&child, CoreOptions::PORT_CONSTRAINTS, PortConstraints::FixedPos);
+        set_node_property(
+            &child,
+            CoreOptions::NODE_SIZE_CONSTRAINTS,
+            SizeConstraint::fixed(),
+        );
+        set_node_property(
+            &child,
+            CoreOptions::PORT_CONSTRAINTS,
+            PortConstraints::FixedPos,
+        );
 
         let ports: Vec<ElkPortRef> = child.borrow_mut().ports().iter().cloned().collect();
         let count = ports.len() as f64;
@@ -128,14 +135,15 @@ fn add_layered_options(graph: &ElkNodeRef) {
         for (idx, port) in ports.into_iter().enumerate() {
             let y = ((idx + 1) as f64) * 30.0 / (count + 1.0);
             let x = if is_node1 { 30.0 } else { 0.0 };
-            port.borrow_mut()
-                .connectable()
-                .shape()
-                .set_location(x, y);
+            port.borrow_mut().connectable().shape().set_location(x, y);
             set_port_property(
                 &port,
                 CoreOptions::PORT_SIDE,
-                if is_node1 { PortSide::East } else { PortSide::West },
+                if is_node1 {
+                    PortSide::East
+                } else {
+                    PortSide::West
+                },
             );
         }
     }

@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 
-use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 
 use crate::org::eclipse::elk::alg::vertiflex::internal_properties::InternalProperties;
 

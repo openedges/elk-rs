@@ -1,4 +1,6 @@
-use org_eclipse_elk_core::org::eclipse::elk::core::math::{elk_rectangle::ElkRectangle, kvector::KVector};
+use org_eclipse_elk_core::org::eclipse::elk::core::math::{
+    elk_rectangle::ElkRectangle, kvector::KVector,
+};
 
 use super::DCDirection;
 
@@ -10,7 +12,12 @@ pub struct DCExtension {
 }
 
 impl DCExtension {
-    pub fn new(parent_bounds: &ElkRectangle, direction: DCDirection, middle_pos: &KVector, width: f64) -> Self {
+    pub fn new(
+        parent_bounds: &ElkRectangle,
+        direction: DCDirection,
+        middle_pos: &KVector,
+        width: f64,
+    ) -> Self {
         let mut offset = KVector::with_values(-parent_bounds.x, -parent_bounds.y);
         offset.add(middle_pos);
         let half_width = width / 2.0;

@@ -39,10 +39,18 @@ fn assign_port_ids(holder: &SelfLoopHolderRef) {
         .lock()
         .ok()
         .map(|holder_guard| holder_guard.l_node().clone())
-        .and_then(|node| node.lock().ok().map(|node_guard| node_guard.ports().clone()))
+        .and_then(|node| {
+            node.lock()
+                .ok()
+                .map(|node_guard| node_guard.ports().clone())
+        })
         .unwrap_or_default();
 
-    let mut ordered_ports: Vec<(i32, usize, crate::org::eclipse::elk::alg::layered::graph::LPortRef)> = ports
+    let mut ordered_ports: Vec<(
+        i32,
+        usize,
+        crate::org::eclipse::elk::alg::layered::graph::LPortRef,
+    )> = ports
         .into_iter()
         .enumerate()
         .map(|(original_order, port)| {
@@ -54,7 +62,8 @@ fn assign_port_ids(holder: &SelfLoopHolderRef) {
             (explicit_index, original_order, port)
         })
         .collect();
-    ordered_ports.sort_by_key(|(explicit_index, original_order, _)| (*explicit_index, *original_order));
+    ordered_ports
+        .sort_by_key(|(explicit_index, original_order, _)| (*explicit_index, *original_order));
 
     for (index, (_, _, port)) in ordered_ports.into_iter().enumerate() {
         if let Ok(mut port_guard) = port.lock() {
@@ -196,6 +205,27 @@ fn determine_two_side_opposing_route(
     let option2_penalty =
         compute_edge_penalty(holder, port_penalties, &option2_left, &option2_right);
 
+    // Java parity for north/south-only opposing loops without east/west external pressure:
+    // route via EAST by default.
+    if is_north_south_pair(&sides)
+        && !has_connected_port_on_side(holder, PortSide::East)
+        && !has_connected_port_on_side(holder, PortSide::West)
+    {
+        let option1_uses_east = route_contains_side(
+            sl_port_side(&option1_left),
+            sl_port_side(&option1_right),
+            PortSide::East,
+        );
+        if option1_uses_east {
+            sl_loop.set_leftmost_port(Some(option1_left));
+            sl_loop.set_rightmost_port(Some(option1_right));
+        } else {
+            sl_loop.set_leftmost_port(Some(option2_left));
+            sl_loop.set_rightmost_port(Some(option2_right));
+        }
+        return;
+    }
+
     if option1_penalty < option2_penalty {
         sl_loop.set_leftmost_port(Some(option1_left));
         sl_loop.set_rightmost_port(Some(option1_right));
@@ -228,6 +258,51 @@ fn opposing_tie_break_rank(side: PortSide) -> i32 {
         PortSide::East => 3,
         PortSide::Undefined => 4,
     }
+}
+
+fn is_north_south_pair(sides: &[PortSide]) -> bool {
+    sides.len() == 2
+        && sides.contains(&PortSide::North)
+        && sides.contains(&PortSide::South)
+}
+
+fn route_contains_side(left_side: PortSide, right_side: PortSide, side: PortSide) -> bool {
+    if left_side == PortSide::Undefined || right_side == PortSide::Undefined {
+        return false;
+    }
+    let mut current = left_side;
+    for _ in 0..4 {
+        if current == side {
+            return true;
+        }
+        if current == right_side {
+            break;
+        }
+        current = current.right();
+    }
+    false
+}
+
+fn has_connected_port_on_side(holder: &SelfLoopHolderRef, side: PortSide) -> bool {
+    holder
+        .lock()
+        .ok()
+        .and_then(|holder_guard| {
+            holder_guard
+                .l_node()
+                .lock()
+                .ok()
+                .map(|node_guard| node_guard.ports().clone())
+        })
+        .unwrap_or_default()
+        .into_iter()
+        .any(|port| {
+            port.lock().ok().is_some_and(|port_guard| {
+                port_guard.side() == side
+                    && (!port_guard.incoming_edges().is_empty()
+                        || !port_guard.outgoing_edges().is_empty())
+            })
+        })
 }
 
 fn determine_three_side_route(
@@ -273,7 +348,10 @@ fn determine_four_side_route(
         return;
     }
 
-    let mut worst_left_port = sorted_ports.last().cloned().unwrap_or_else(|| sorted_ports[0].clone());
+    let mut worst_left_port = sorted_ports
+        .last()
+        .cloned()
+        .unwrap_or_else(|| sorted_ports[0].clone());
     let mut worst_right_port = sorted_ports[0].clone();
     let mut worst_penalty =
         compute_edge_penalty(holder, port_penalties, &worst_left_port, &worst_right_port);
@@ -340,24 +418,18 @@ fn lowest_port_on_side(
     sl_loop: &crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfHyperLoop,
     side: PortSide,
 ) -> Option<SelfLoopPortRef> {
-    sl_loop
-        .ports_on_side(side)
-        .into_iter()
-        .min_by_key(
-            crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfHyperLoop::port_id,
-        )
+    sl_loop.ports_on_side(side).into_iter().min_by_key(
+        crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfHyperLoop::port_id,
+    )
 }
 
 fn highest_port_on_side(
     sl_loop: &crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfHyperLoop,
     side: PortSide,
 ) -> Option<SelfLoopPortRef> {
-    sl_loop
-        .ports_on_side(side)
-        .into_iter()
-        .max_by_key(
-            crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfHyperLoop::port_id,
-        )
+    sl_loop.ports_on_side(side).into_iter().max_by_key(
+        crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfHyperLoop::port_id,
+    )
 }
 
 fn loop_sides(
@@ -377,25 +449,60 @@ fn compute_port_penalties(holder: &SelfLoopHolderRef) -> Vec<i32> {
     let ports = holder
         .lock()
         .ok()
-        .and_then(|holder_guard| holder_guard.l_node().lock().ok().map(|node_guard| node_guard.ports().clone()))
+        .and_then(|holder_guard| {
+            holder_guard
+                .l_node()
+                .lock()
+                .ok()
+                .map(|node_guard| node_guard.ports().clone())
+        })
         .unwrap_or_default();
+
+    let mut by_id: Vec<(usize, i32)> = Vec::with_capacity(ports.len());
+    let mut fallback_penalties = vec![0; ports.len()];
+    let mut fallback_sum = 0;
+
+    for (index, port) in ports.iter().enumerate() {
+        let (port_id, penalty) = port
+            .lock()
+            .ok()
+            .map(|mut port_guard| {
+                let penalty =
+                    if port_guard.incoming_edges().is_empty() && port_guard.outgoing_edges().is_empty() {
+                        UNCONNECTED_PORT_PENALTY
+                    } else {
+                        CONNECTED_PORT_PENALTY
+                    };
+                (port_guard.shape().graph_element().id, penalty)
+            })
+            .unwrap_or((-1, CONNECTED_PORT_PENALTY));
+
+        fallback_sum += penalty;
+        fallback_penalties[index] = fallback_sum;
+
+        if port_id >= 0 && (port_id as usize) < ports.len() {
+            by_id.push((port_id as usize, penalty));
+        }
+    }
+
+    if by_id.len() != ports.len() {
+        return fallback_penalties;
+    }
+
+    by_id.sort_by_key(|(id, _)| *id);
+    if by_id
+        .iter()
+        .enumerate()
+        .any(|(expected_id, (actual_id, _))| expected_id != *actual_id)
+    {
+        return fallback_penalties;
+    }
 
     let mut penalties = vec![0; ports.len()];
     let mut penalty_sum = 0;
-    for (index, port) in ports.iter().enumerate() {
-        let penalty = port
-            .lock()
-            .ok()
-            .map(|port_guard| {
-                if port_guard.incoming_edges().is_empty() && port_guard.outgoing_edges().is_empty() {
-                    UNCONNECTED_PORT_PENALTY
-                } else {
-                    CONNECTED_PORT_PENALTY
-                }
-            })
-            .unwrap_or(CONNECTED_PORT_PENALTY);
+    for (id, penalty) in by_id {
         penalty_sum += penalty;
-        penalties[index] = penalty_sum;
+        penalties[id] = penalty_sum;
     }
     penalties
 }
@@ -409,16 +516,26 @@ fn compute_edge_penalty(
     let port_count = holder
         .lock()
         .ok()
-        .and_then(|holder_guard| holder_guard.l_node().lock().ok().map(|node_guard| node_guard.ports().len()))
+        .and_then(|holder_guard| {
+            holder_guard
+                .l_node()
+                .lock()
+                .ok()
+                .map(|node_guard| node_guard.ports().len())
+        })
         .unwrap_or_default();
     if port_count == 0 || port_penalties.is_empty() {
         return 0;
     }
 
     let leftmost_port_id =
-        crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfHyperLoop::port_id(leftmost_port);
+        crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfHyperLoop::port_id(
+            leftmost_port,
+        );
     let rightmost_port_id =
-        crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfHyperLoop::port_id(rightmost_port);
+        crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfHyperLoop::port_id(
+            rightmost_port,
+        );
     if leftmost_port_id < 0 || rightmost_port_id < 0 {
         return 0;
     }
@@ -445,6 +562,12 @@ fn sl_port_side(sl_port: &SelfLoopPortRef) -> PortSide {
     sl_port
         .lock()
         .ok()
-        .and_then(|port_guard| port_guard.l_port().lock().ok().map(|l_port_guard| l_port_guard.side()))
+        .and_then(|port_guard| {
+            port_guard
+                .l_port()
+                .lock()
+                .ok()
+                .map(|l_port_guard| l_port_guard.side())
+        })
         .unwrap_or(PortSide::Undefined)
 }

@@ -64,7 +64,9 @@ fn add_node_to_layer(graph: &LGraphRef, layer: &LayerRef) -> LNodeRef {
 }
 
 fn add_nodes_to_layer(graph: &LGraphRef, layer: &LayerRef, count: usize) -> Vec<LNodeRef> {
-    (0..count).map(|_| add_node_to_layer(graph, layer)).collect()
+    (0..count)
+        .map(|_| add_node_to_layer(graph, layer))
+        .collect()
 }
 
 fn add_port_on_side(node: &LNodeRef, side: PortSide) -> LPortRef {
@@ -78,7 +80,10 @@ fn add_port_on_side(node: &LNodeRef, side: PortSide) -> LPortRef {
             .get_property(LayeredOptions::PORT_CONSTRAINTS)
             .unwrap_or(PortConstraints::Undefined);
         if !constraints.is_side_fixed() {
-            node_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::FixedSide));
+            node_guard.set_property(
+                LayeredOptions::PORT_CONSTRAINTS,
+                Some(PortConstraints::FixedSide),
+            );
         }
     }
     port
@@ -163,7 +168,11 @@ fn set_node_type_long_edge(node: &LNodeRef) {
 }
 
 fn nested_graph(node: &LNodeRef) -> LGraphRef {
-    if let Some(nested_graph) = node.lock().ok().and_then(|node_guard| node_guard.nested_graph()) {
+    if let Some(nested_graph) = node
+        .lock()
+        .ok()
+        .and_then(|node_guard| node_guard.nested_graph())
+    {
         return nested_graph;
     }
 
@@ -184,13 +193,24 @@ fn nested_graph(node: &LNodeRef) -> LGraphRef {
 }
 
 fn add_external_port_dummy_node_to_layer(layer: &LayerRef, port: &LPortRef) -> LNodeRef {
-    let graph = layer.lock().ok().and_then(|layer_guard| layer_guard.graph()).expect("layer graph");
+    let graph = layer
+        .lock()
+        .ok()
+        .and_then(|layer_guard| layer_guard.graph())
+        .expect("layer graph");
     let node = add_node_to_layer(&graph, layer);
-    let port_side = port.lock().ok().map(|port_guard| port_guard.side()).unwrap_or(PortSide::Undefined);
+    let port_side = port
+        .lock()
+        .ok()
+        .map(|port_guard| port_guard.side())
+        .unwrap_or(PortSide::Undefined);
 
     if let Ok(mut node_guard) = node.lock() {
         node_guard.set_node_type(NodeType::ExternalPort);
-        node_guard.set_property(InternalProperties::ORIGIN, Some(Origin::LPort(port.clone())));
+        node_guard.set_property(
+            InternalProperties::ORIGIN,
+            Some(Origin::LPort(port.clone())),
+        );
         node_guard.set_property(InternalProperties::EXT_PORT_SIDE, Some(port_side));
     }
 
@@ -221,8 +241,15 @@ fn add_external_port_dummies_to_layer(layer: &LayerRef, ports: &[LPortRef]) -> V
         .unwrap_or(PortSide::Undefined);
     let mut nodes = Vec::with_capacity(ports.len());
     for i in 0..ports.len() {
-        let port_index = if side == PortSide::East { i } else { ports.len() - 1 - i };
-        nodes.push(add_external_port_dummy_node_to_layer(layer, &ports[port_index]));
+        let port_index = if side == PortSide::East {
+            i
+        } else {
+            ports.len() - 1 - i
+        };
+        nodes.push(add_external_port_dummy_node_to_layer(
+            layer,
+            &ports[port_index],
+        ));
     }
     nodes
 }
@@ -238,13 +265,23 @@ fn add_north_south_edge(
         .lock()
         .ok()
         .and_then(|node_guard| node_guard.layer())
-        .and_then(|layer| layer.lock().ok().and_then(|layer_guard| layer_guard.index()))
+        .and_then(|layer| {
+            layer
+                .lock()
+                .ok()
+                .and_then(|layer_guard| layer_guard.index())
+        })
         .unwrap_or(0);
     let other_layer_index = node_with_east_west_ports
         .lock()
         .ok()
         .and_then(|node_guard| node_guard.layer())
-        .and_then(|layer| layer.lock().ok().and_then(|layer_guard| layer_guard.index()))
+        .and_then(|layer| {
+            layer
+                .lock()
+                .ok()
+                .and_then(|layer_guard| layer_guard.index())
+        })
         .unwrap_or(0);
     let normal_node_east_of_ns = other_layer_index < ns_layer_index;
     let direction = if normal_node_east_of_ns {
@@ -264,17 +301,29 @@ fn add_north_south_edge(
     }
 
     if let Ok(mut dummy_guard) = north_south_dummy.lock() {
-        dummy_guard.set_property(InternalProperties::IN_LAYER_LAYOUT_UNIT, Some(node_with_ns_ports.clone()));
-        dummy_guard.set_property(InternalProperties::ORIGIN, Some(Origin::LNode(node_with_ns_ports.clone())));
+        dummy_guard.set_property(
+            InternalProperties::IN_LAYER_LAYOUT_UNIT,
+            Some(node_with_ns_ports.clone()),
+        );
+        dummy_guard.set_property(
+            InternalProperties::ORIGIN,
+            Some(Origin::LNode(node_with_ns_ports.clone())),
+        );
         dummy_guard.set_node_type(NodeType::NorthSouthPort);
     }
 
     let origin_port = add_port_on_side(node_with_ns_ports, side);
     if let Ok(mut dummy_port_guard) = dummy_node_port.lock() {
-        dummy_port_guard.set_property(InternalProperties::ORIGIN, Some(Origin::LPort(origin_port.clone())));
+        dummy_port_guard.set_property(
+            InternalProperties::ORIGIN,
+            Some(Origin::LPort(origin_port.clone())),
+        );
     }
     if let Ok(mut origin_port_guard) = origin_port.lock() {
-        origin_port_guard.set_property(InternalProperties::PORT_DUMMY, Some(north_south_dummy.clone()));
+        origin_port_guard.set_property(
+            InternalProperties::PORT_DUMMY,
+            Some(north_south_dummy.clone()),
+        );
     }
 
     let mut bary_assoc = vec![north_south_dummy.clone()];
@@ -296,17 +345,27 @@ fn add_north_south_edge(
                 .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
                 .unwrap_or_default();
             constraints.push(node_with_ns_ports.clone());
-            dummy_guard.set_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS, Some(constraints));
+            dummy_guard.set_property(
+                InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS,
+                Some(constraints),
+            );
         }
     } else if let Ok(mut node_guard) = node_with_ns_ports.lock() {
         let mut constraints = node_guard
             .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
             .unwrap_or_default();
         constraints.push(north_south_dummy.clone());
-        node_guard.set_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS, Some(constraints));
+        node_guard.set_property(
+            InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS,
+            Some(constraints),
+        );
     }
 
-    if let Some(graph) = node_with_ns_ports.lock().ok().and_then(|node_guard| node_guard.graph()) {
+    if let Some(graph) = node_with_ns_ports
+        .lock()
+        .ok()
+        .and_then(|node_guard| node_guard.graph())
+    {
         if let Ok(mut graph_guard) = graph.lock() {
             let mut props = graph_guard
                 .get_property(InternalProperties::GRAPH_PROPERTIES)
@@ -400,7 +459,12 @@ fn get_decider_with_parent(
         .lock()
         .ok()
         .and_then(|node_guard| node_guard.layer())
-        .and_then(|layer| layer.lock().ok().and_then(|layer_guard| layer_guard.index()))
+        .and_then(|layer| {
+            layer
+                .lock()
+                .ok()
+                .and_then(|layer_guard| layer_guard.index())
+        })
         .unwrap_or(0);
     let right_most_layer = free_layer_index + 1 == node_order.len();
     let parent_context = ParentCrossingContext::new(
@@ -423,17 +487,18 @@ fn get_decider_with_parent(
     (decider, node_order)
 }
 
-fn switch_nodes(node_order: &mut [Vec<LNodeRef>], free_layer_index: usize, upper: usize, lower: usize) {
+fn switch_nodes(
+    node_order: &mut [Vec<LNodeRef>],
+    free_layer_index: usize,
+    upper: usize,
+    lower: usize,
+) {
     if let Some(layer) = node_order.get_mut(free_layer_index) {
         layer.swap(upper, lower);
     }
 }
 
-fn node_at(
-    node_order: &[Vec<LNodeRef>],
-    layer_index: usize,
-    node_index: usize,
-) -> &LNodeRef {
+fn node_at(node_order: &[Vec<LNodeRef>], layer_index: usize, node_index: usize) -> &LNodeRef {
     &node_order[layer_index][node_index]
 }
 
@@ -593,8 +658,20 @@ fn graph_three_layer_north_south_crossing() -> LGraphRef {
 
     set_fixed_order_constraint(&middle_nodes[0]);
     set_fixed_order_constraint(&right_node);
-    add_north_south_edge(PortSide::South, &middle_nodes[0], &middle_nodes[2], &right_node, false);
-    add_north_south_edge(PortSide::South, &middle_nodes[0], &middle_nodes[1], &right_node, false);
+    add_north_south_edge(
+        PortSide::South,
+        &middle_nodes[0],
+        &middle_nodes[2],
+        &right_node,
+        false,
+    );
+    add_north_south_edge(
+        PortSide::South,
+        &middle_nodes[0],
+        &middle_nodes[1],
+        &right_node,
+        false,
+    );
     east_west_edge_from_to(&left_node, &middle_nodes[0]);
     graph
 }
@@ -608,8 +685,20 @@ fn graph_where_layout_unit_prevents_switch() -> LGraphRef {
 
     set_fixed_order_constraint(&left_nodes[0]);
     set_fixed_order_constraint(&left_nodes[3]);
-    add_north_south_edge(PortSide::South, &left_nodes[0], &left_nodes[1], &right_nodes[1], false);
-    add_north_south_edge(PortSide::North, &left_nodes[3], &left_nodes[2], &right_nodes[0], false);
+    add_north_south_edge(
+        PortSide::South,
+        &left_nodes[0],
+        &left_nodes[1],
+        &right_nodes[1],
+        false,
+    );
+    add_north_south_edge(
+        PortSide::North,
+        &left_nodes[3],
+        &left_nodes[2],
+        &right_nodes[0],
+        false,
+    );
     graph
 }
 
@@ -641,7 +730,13 @@ fn graph_northern_north_south_dummy_edge_crossing() -> LGraphRef {
     east_west_edge_from_to(&left_node, &middle_nodes[1]);
     east_west_edge_from_to(&middle_nodes[1], &right_nodes[1]);
     set_as_long_edge_dummy(&middle_nodes[1]);
-    add_north_south_edge(PortSide::North, &middle_nodes[2], &middle_nodes[0], &right_nodes[0], true);
+    add_north_south_edge(
+        PortSide::North,
+        &middle_nodes[2],
+        &middle_nodes[0],
+        &right_nodes[0],
+        true,
+    );
     graph
 }
 
@@ -657,7 +752,13 @@ fn graph_southern_north_south_dummy_edge_crossing() -> LGraphRef {
     east_west_edge_from_to(&left_node, &middle_nodes[1]);
     east_west_edge_from_to(&middle_nodes[1], &right_nodes[0]);
     set_as_long_edge_dummy(&middle_nodes[1]);
-    add_north_south_edge(PortSide::South, &middle_nodes[0], &middle_nodes[2], &right_nodes[1], true);
+    add_north_south_edge(
+        PortSide::South,
+        &middle_nodes[0],
+        &middle_nodes[2],
+        &right_nodes[1],
+        true,
+    );
     graph
 }
 
@@ -668,7 +769,13 @@ fn graph_layout_unit_prevents_switch_with_node_with_northern_edges() -> LGraphRe
     let left_nodes = add_nodes_to_layer(&graph, &left_layer, 3);
     let right_nodes = add_nodes_to_layer(&graph, &right_layer, 3);
 
-    add_north_south_edge(PortSide::North, &left_nodes[1], &left_nodes[0], &right_nodes[0], false);
+    add_north_south_edge(
+        PortSide::North,
+        &left_nodes[1],
+        &left_nodes[0],
+        &right_nodes[0],
+        false,
+    );
     east_west_edge_from_to(&left_nodes[1], &right_nodes[2]);
     east_west_edge_from_to(&left_nodes[2], &right_nodes[1]);
     graph
@@ -683,7 +790,13 @@ fn graph_layout_unit_prevents_switch_with_node_with_southern_edges() -> LGraphRe
 
     east_west_edge_from_to(&left_nodes[0], &right_nodes[1]);
     east_west_edge_from_to(&left_nodes[1], &right_nodes[0]);
-    add_north_south_edge(PortSide::South, &left_nodes[1], &left_nodes[2], &right_nodes[2], false);
+    add_north_south_edge(
+        PortSide::South,
+        &left_nodes[1],
+        &left_nodes[2],
+        &right_nodes[2],
+        false,
+    );
     graph
 }
 
@@ -701,7 +814,13 @@ fn graph_layout_unit_does_not_prevent_switch_with_long_edge_dummy() -> LGraphRef
     east_west_edge_from_to(&middle_nodes[0], &right_nodes[1]);
     east_west_edge_from_to(&middle_nodes[1], &right_nodes[0]);
     east_west_edge_from_to(&middle_nodes[1], &right_nodes[0]);
-    add_north_south_edge(PortSide::South, &middle_nodes[1], &middle_nodes[2], &right_nodes[2], false);
+    add_north_south_edge(
+        PortSide::South,
+        &middle_nodes[1],
+        &middle_nodes[2],
+        &right_nodes[2],
+        false,
+    );
     graph
 }
 
@@ -718,17 +837,15 @@ fn for_each_greedy_type<F: FnMut(CrossMinType)>(mut f: F) {
 fn cross_formed() {
     for_each_greedy_type(|greedy_type| {
         let graph = graph_cross_formed();
-        let (mut decider, node_order) = get_decider(&graph, greedy_type, 1, CrossingCountSide::West);
-        assert!(decider.does_switch_reduce_crossings(
-            node_at(&node_order, 1, 0),
-            node_at(&node_order, 1, 1)
-        ));
+        let (mut decider, node_order) =
+            get_decider(&graph, greedy_type, 1, CrossingCountSide::West);
+        assert!(decider
+            .does_switch_reduce_crossings(node_at(&node_order, 1, 0), node_at(&node_order, 1, 1)));
 
-        let (mut decider, node_order) = get_decider(&graph, greedy_type, 0, CrossingCountSide::East);
-        assert!(decider.does_switch_reduce_crossings(
-            node_at(&node_order, 0, 0),
-            node_at(&node_order, 0, 1)
-        ));
+        let (mut decider, node_order) =
+            get_decider(&graph, greedy_type, 0, CrossingCountSide::East);
+        assert!(decider
+            .does_switch_reduce_crossings(node_at(&node_order, 0, 0), node_at(&node_order, 0, 1)));
     });
 }
 
@@ -736,17 +853,15 @@ fn cross_formed() {
 fn one_node() {
     for_each_greedy_type(|greedy_type| {
         let graph = graph_one_node();
-        let (mut decider, node_order) = get_decider(&graph, greedy_type, 0, CrossingCountSide::West);
-        assert!(!decider.does_switch_reduce_crossings(
-            node_at(&node_order, 0, 0),
-            node_at(&node_order, 0, 0)
-        ));
+        let (mut decider, node_order) =
+            get_decider(&graph, greedy_type, 0, CrossingCountSide::West);
+        assert!(!decider
+            .does_switch_reduce_crossings(node_at(&node_order, 0, 0), node_at(&node_order, 0, 0)));
 
-        let (mut decider, node_order) = get_decider(&graph, greedy_type, 0, CrossingCountSide::East);
-        assert!(!decider.does_switch_reduce_crossings(
-            node_at(&node_order, 0, 0),
-            node_at(&node_order, 0, 0)
-        ));
+        let (mut decider, node_order) =
+            get_decider(&graph, greedy_type, 0, CrossingCountSide::East);
+        assert!(!decider
+            .does_switch_reduce_crossings(node_at(&node_order, 0, 0), node_at(&node_order, 0, 0)));
     });
 }
 
@@ -755,17 +870,15 @@ fn in_layer_switchable() {
     for_each_greedy_type(|greedy_type| {
         let graph = graph_in_layer_edges();
 
-        let (mut decider, node_order) = get_decider(&graph, greedy_type, 1, CrossingCountSide::West);
-        assert!(decider.does_switch_reduce_crossings(
-            node_at(&node_order, 1, 0),
-            node_at(&node_order, 1, 1)
-        ));
+        let (mut decider, node_order) =
+            get_decider(&graph, greedy_type, 1, CrossingCountSide::West);
+        assert!(decider
+            .does_switch_reduce_crossings(node_at(&node_order, 1, 0), node_at(&node_order, 1, 1)));
 
-        let (mut decider, node_order) = get_decider(&graph, greedy_type, 1, CrossingCountSide::East);
-        assert!(decider.does_switch_reduce_crossings(
-            node_at(&node_order, 1, 0),
-            node_at(&node_order, 1, 1)
-        ));
+        let (mut decider, node_order) =
+            get_decider(&graph, greedy_type, 1, CrossingCountSide::East);
+        assert!(decider
+            .does_switch_reduce_crossings(node_at(&node_order, 1, 0), node_at(&node_order, 1, 1)));
     });
 }
 
@@ -773,17 +886,15 @@ fn in_layer_switchable() {
 fn multiple_edges_between_same_nodes() {
     for_each_greedy_type(|greedy_type| {
         let graph = graph_multiple_edges_between_same_nodes();
-        let (mut decider, node_order) = get_decider(&graph, greedy_type, 1, CrossingCountSide::West);
-        assert!(decider.does_switch_reduce_crossings(
-            node_at(&node_order, 1, 0),
-            node_at(&node_order, 1, 1)
-        ));
+        let (mut decider, node_order) =
+            get_decider(&graph, greedy_type, 1, CrossingCountSide::West);
+        assert!(decider
+            .does_switch_reduce_crossings(node_at(&node_order, 1, 0), node_at(&node_order, 1, 1)));
 
-        let (mut decider, node_order) = get_decider(&graph, greedy_type, 0, CrossingCountSide::East);
-        assert!(decider.does_switch_reduce_crossings(
-            node_at(&node_order, 0, 0),
-            node_at(&node_order, 0, 1)
-        ));
+        let (mut decider, node_order) =
+            get_decider(&graph, greedy_type, 0, CrossingCountSide::East);
+        assert!(decider
+            .does_switch_reduce_crossings(node_at(&node_order, 0, 0), node_at(&node_order, 0, 1)));
     });
 }
 
@@ -791,17 +902,15 @@ fn multiple_edges_between_same_nodes() {
 fn self_loops() {
     for_each_greedy_type(|greedy_type| {
         let graph = graph_cross_with_many_self_loops();
-        let (mut decider, node_order) = get_decider(&graph, greedy_type, 1, CrossingCountSide::West);
-        assert!(decider.does_switch_reduce_crossings(
-            node_at(&node_order, 1, 0),
-            node_at(&node_order, 1, 1)
-        ));
+        let (mut decider, node_order) =
+            get_decider(&graph, greedy_type, 1, CrossingCountSide::West);
+        assert!(decider
+            .does_switch_reduce_crossings(node_at(&node_order, 1, 0), node_at(&node_order, 1, 1)));
 
-        let (mut decider, node_order) = get_decider(&graph, greedy_type, 0, CrossingCountSide::East);
-        assert!(decider.does_switch_reduce_crossings(
-            node_at(&node_order, 0, 0),
-            node_at(&node_order, 0, 1)
-        ));
+        let (mut decider, node_order) =
+            get_decider(&graph, greedy_type, 0, CrossingCountSide::East);
+        assert!(decider
+            .does_switch_reduce_crossings(node_at(&node_order, 0, 0), node_at(&node_order, 0, 1)));
     });
 }
 
@@ -809,11 +918,10 @@ fn self_loops() {
 fn north_south_port_crossing() {
     for_each_greedy_type(|greedy_type| {
         let graph = graph_three_layer_north_south_crossing();
-        let (mut decider, node_order) = get_decider(&graph, greedy_type, 1, CrossingCountSide::West);
-        let result = decider.does_switch_reduce_crossings(
-            node_at(&node_order, 1, 1),
-            node_at(&node_order, 1, 2),
-        );
+        let (mut decider, node_order) =
+            get_decider(&graph, greedy_type, 1, CrossingCountSide::West);
+        let result = decider
+            .does_switch_reduce_crossings(node_at(&node_order, 1, 1), node_at(&node_order, 1, 2));
         if greedy_type == CrossMinType::OneSidedGreedySwitch {
             assert!(result);
         } else {
@@ -826,37 +934,29 @@ fn north_south_port_crossing() {
 fn more_complex() {
     for_each_greedy_type(|greedy_type| {
         let graph = graph_more_complex_three_layer();
-        let (mut decider, node_order) = get_decider(&graph, greedy_type, 1, CrossingCountSide::West);
-        assert!(!decider.does_switch_reduce_crossings(
-            node_at(&node_order, 1, 0),
-            node_at(&node_order, 1, 1)
-        ));
+        let (mut decider, node_order) =
+            get_decider(&graph, greedy_type, 1, CrossingCountSide::West);
+        assert!(!decider
+            .does_switch_reduce_crossings(node_at(&node_order, 1, 0), node_at(&node_order, 1, 1)));
 
-        let (mut decider, node_order) = get_decider(&graph, greedy_type, 2, CrossingCountSide::West);
-        assert!(decider.does_switch_reduce_crossings(
-            node_at(&node_order, 2, 0),
-            node_at(&node_order, 2, 1)
-        ));
-        assert!(!decider.does_switch_reduce_crossings(
-            node_at(&node_order, 2, 1),
-            node_at(&node_order, 2, 2)
-        ));
+        let (mut decider, node_order) =
+            get_decider(&graph, greedy_type, 2, CrossingCountSide::West);
+        assert!(decider
+            .does_switch_reduce_crossings(node_at(&node_order, 2, 0), node_at(&node_order, 2, 1)));
+        assert!(!decider
+            .does_switch_reduce_crossings(node_at(&node_order, 2, 1), node_at(&node_order, 2, 2)));
 
-        let (mut decider, node_order) = get_decider(&graph, greedy_type, 1, CrossingCountSide::East);
-        assert!(!decider.does_switch_reduce_crossings(
-            node_at(&node_order, 1, 0),
-            node_at(&node_order, 1, 1)
-        ));
+        let (mut decider, node_order) =
+            get_decider(&graph, greedy_type, 1, CrossingCountSide::East);
+        assert!(!decider
+            .does_switch_reduce_crossings(node_at(&node_order, 1, 0), node_at(&node_order, 1, 1)));
 
-        let (mut decider, node_order) = get_decider(&graph, greedy_type, 0, CrossingCountSide::East);
-        assert!(!decider.does_switch_reduce_crossings(
-            node_at(&node_order, 0, 0),
-            node_at(&node_order, 0, 1)
-        ));
-        assert!(decider.does_switch_reduce_crossings(
-            node_at(&node_order, 0, 1),
-            node_at(&node_order, 0, 2)
-        ));
+        let (mut decider, node_order) =
+            get_decider(&graph, greedy_type, 0, CrossingCountSide::East);
+        assert!(!decider
+            .does_switch_reduce_crossings(node_at(&node_order, 0, 0), node_at(&node_order, 0, 1)));
+        assert!(decider
+            .does_switch_reduce_crossings(node_at(&node_order, 0, 1), node_at(&node_order, 0, 2)));
     });
 }
 
@@ -864,11 +964,10 @@ fn more_complex() {
 fn switch_only_true_for_one_sided() {
     for_each_greedy_type(|greedy_type| {
         let graph = graph_switch_only_one_sided();
-        let (mut decider, node_order) = get_decider(&graph, greedy_type, 1, CrossingCountSide::West);
-        let result = decider.does_switch_reduce_crossings(
-            node_at(&node_order, 1, 0),
-            node_at(&node_order, 1, 1),
-        );
+        let (mut decider, node_order) =
+            get_decider(&graph, greedy_type, 1, CrossingCountSide::West);
+        let result = decider
+            .does_switch_reduce_crossings(node_at(&node_order, 1, 0), node_at(&node_order, 1, 1));
         if greedy_type == CrossMinType::OneSidedGreedySwitch {
             assert!(result);
         } else {
@@ -881,11 +980,10 @@ fn switch_only_true_for_one_sided() {
 fn switch_only_true_for_one_sided_eastern_side() {
     for_each_greedy_type(|greedy_type| {
         let graph = graph_switch_only_east_one_sided();
-        let (mut decider, node_order) = get_decider(&graph, greedy_type, 1, CrossingCountSide::East);
-        let result = decider.does_switch_reduce_crossings(
-            node_at(&node_order, 1, 0),
-            node_at(&node_order, 1, 1),
-        );
+        let (mut decider, node_order) =
+            get_decider(&graph, greedy_type, 1, CrossingCountSide::East);
+        let result = decider
+            .does_switch_reduce_crossings(node_at(&node_order, 1, 0), node_at(&node_order, 1, 1));
         if greedy_type == CrossMinType::OneSidedGreedySwitch {
             assert!(result);
         } else {
@@ -898,11 +996,10 @@ fn switch_only_true_for_one_sided_eastern_side() {
 fn constraints_prevent_switch() {
     for_each_greedy_type(|greedy_type| {
         let graph = graph_cross_formed_with_constraints_in_second_layer();
-        let (mut decider, node_order) = get_decider(&graph, greedy_type, 1, CrossingCountSide::West);
-        assert!(!decider.does_switch_reduce_crossings(
-            node_at(&node_order, 1, 0),
-            node_at(&node_order, 1, 1)
-        ));
+        let (mut decider, node_order) =
+            get_decider(&graph, greedy_type, 1, CrossingCountSide::West);
+        assert!(!decider
+            .does_switch_reduce_crossings(node_at(&node_order, 1, 0), node_at(&node_order, 1, 1)));
     });
 }
 
@@ -910,11 +1007,10 @@ fn constraints_prevent_switch() {
 fn in_layer_unit_constraints_prevent_switch() {
     for_each_greedy_type(|greedy_type| {
         let graph = graph_where_layout_unit_prevents_switch();
-        let (mut decider, node_order) = get_decider(&graph, greedy_type, 0, CrossingCountSide::West);
-        assert!(!decider.does_switch_reduce_crossings(
-            node_at(&node_order, 0, 1),
-            node_at(&node_order, 0, 2)
-        ));
+        let (mut decider, node_order) =
+            get_decider(&graph, greedy_type, 0, CrossingCountSide::West);
+        assert!(!decider
+            .does_switch_reduce_crossings(node_at(&node_order, 0, 1), node_at(&node_order, 0, 2)));
     });
 }
 
@@ -922,26 +1018,22 @@ fn in_layer_unit_constraints_prevent_switch() {
 fn switch_and_recount() {
     for_each_greedy_type(|greedy_type| {
         let graph = graph_cross_formed();
-        let (mut decider, node_order) = get_decider(&graph, greedy_type, 1, CrossingCountSide::West);
-        assert!(decider.does_switch_reduce_crossings(
-            node_at(&node_order, 1, 0),
-            node_at(&node_order, 1, 1)
-        ));
+        let (mut decider, node_order) =
+            get_decider(&graph, greedy_type, 1, CrossingCountSide::West);
+        assert!(decider
+            .does_switch_reduce_crossings(node_at(&node_order, 1, 0), node_at(&node_order, 1, 1)));
 
-        let (mut decider, mut node_order) = get_decider(&graph, greedy_type, 0, CrossingCountSide::East);
-        assert!(decider.does_switch_reduce_crossings(
-            node_at(&node_order, 0, 0),
-            node_at(&node_order, 0, 1)
-        ));
+        let (mut decider, mut node_order) =
+            get_decider(&graph, greedy_type, 0, CrossingCountSide::East);
+        assert!(decider
+            .does_switch_reduce_crossings(node_at(&node_order, 0, 0), node_at(&node_order, 0, 1)));
 
         let upper = node_at(&node_order, 0, 0).clone();
         let lower = node_at(&node_order, 0, 1).clone();
         switch_nodes(&mut node_order, 0, 0, 1);
         decider.notify_of_switch(&upper, &lower);
-        assert!(!decider.does_switch_reduce_crossings(
-            node_at(&node_order, 0, 0),
-            node_at(&node_order, 0, 1)
-        ));
+        assert!(!decider
+            .does_switch_reduce_crossings(node_at(&node_order, 0, 0), node_at(&node_order, 0, 1)));
     });
 }
 
@@ -964,70 +1056,47 @@ fn switch_and_recount_counter_bug() {
         east_west_edge_from_port(&left_top_port, &right_nodes[1]);
         east_west_edge_from_port(&left_top_port, &right_nodes[3]);
 
-        let (mut decider, mut node_order) = get_decider(&graph, greedy_type, 1, CrossingCountSide::West);
-        assert!(decider.does_switch_reduce_crossings(
-            node_at(&node_order, 1, 0),
-            node_at(&node_order, 1, 1)
-        ));
-        assert!(!decider.does_switch_reduce_crossings(
-            node_at(&node_order, 1, 1),
-            node_at(&node_order, 1, 2)
-        ));
-        assert!(decider.does_switch_reduce_crossings(
-            node_at(&node_order, 1, 2),
-            node_at(&node_order, 1, 3)
-        ));
+        let (mut decider, mut node_order) =
+            get_decider(&graph, greedy_type, 1, CrossingCountSide::West);
+        assert!(decider
+            .does_switch_reduce_crossings(node_at(&node_order, 1, 0), node_at(&node_order, 1, 1)));
+        assert!(!decider
+            .does_switch_reduce_crossings(node_at(&node_order, 1, 1), node_at(&node_order, 1, 2)));
+        assert!(decider
+            .does_switch_reduce_crossings(node_at(&node_order, 1, 2), node_at(&node_order, 1, 3)));
 
         let upper = node_at(&node_order, 1, 0).clone();
         let lower = node_at(&node_order, 1, 1).clone();
         decider.notify_of_switch(&upper, &lower);
         switch_nodes(&mut node_order, 1, 0, 1);
-        assert!(!decider.does_switch_reduce_crossings(
-            node_at(&node_order, 1, 0),
-            node_at(&node_order, 1, 1)
-        ));
-        assert!(!decider.does_switch_reduce_crossings(
-            node_at(&node_order, 1, 1),
-            node_at(&node_order, 1, 2)
-        ));
-        assert!(decider.does_switch_reduce_crossings(
-            node_at(&node_order, 1, 2),
-            node_at(&node_order, 1, 3)
-        ));
+        assert!(!decider
+            .does_switch_reduce_crossings(node_at(&node_order, 1, 0), node_at(&node_order, 1, 1)));
+        assert!(!decider
+            .does_switch_reduce_crossings(node_at(&node_order, 1, 1), node_at(&node_order, 1, 2)));
+        assert!(decider
+            .does_switch_reduce_crossings(node_at(&node_order, 1, 2), node_at(&node_order, 1, 3)));
 
         let upper = node_at(&node_order, 1, 2).clone();
         let lower = node_at(&node_order, 1, 3).clone();
         decider.notify_of_switch(&upper, &lower);
         switch_nodes(&mut node_order, 1, 2, 3);
-        assert!(!decider.does_switch_reduce_crossings(
-            node_at(&node_order, 1, 0),
-            node_at(&node_order, 1, 1)
-        ));
-        assert!(decider.does_switch_reduce_crossings(
-            node_at(&node_order, 1, 1),
-            node_at(&node_order, 1, 2)
-        ));
-        assert!(!decider.does_switch_reduce_crossings(
-            node_at(&node_order, 1, 2),
-            node_at(&node_order, 1, 3)
-        ));
+        assert!(!decider
+            .does_switch_reduce_crossings(node_at(&node_order, 1, 0), node_at(&node_order, 1, 1)));
+        assert!(decider
+            .does_switch_reduce_crossings(node_at(&node_order, 1, 1), node_at(&node_order, 1, 2)));
+        assert!(!decider
+            .does_switch_reduce_crossings(node_at(&node_order, 1, 2), node_at(&node_order, 1, 3)));
 
         let upper = node_at(&node_order, 1, 1).clone();
         let lower = node_at(&node_order, 1, 2).clone();
         decider.notify_of_switch(&upper, &lower);
         switch_nodes(&mut node_order, 1, 1, 2);
-        assert!(!decider.does_switch_reduce_crossings(
-            node_at(&node_order, 1, 0),
-            node_at(&node_order, 1, 1)
-        ));
-        assert!(!decider.does_switch_reduce_crossings(
-            node_at(&node_order, 1, 1),
-            node_at(&node_order, 1, 2)
-        ));
-        assert!(!decider.does_switch_reduce_crossings(
-            node_at(&node_order, 1, 2),
-            node_at(&node_order, 1, 3)
-        ));
+        assert!(!decider
+            .does_switch_reduce_crossings(node_at(&node_order, 1, 0), node_at(&node_order, 1, 1)));
+        assert!(!decider
+            .does_switch_reduce_crossings(node_at(&node_order, 1, 1), node_at(&node_order, 1, 2)));
+        assert!(!decider
+            .does_switch_reduce_crossings(node_at(&node_order, 1, 2), node_at(&node_order, 1, 3)));
     });
 }
 
@@ -1035,7 +1104,8 @@ fn switch_and_recount_counter_bug() {
 fn switch_and_recount_reduced_counter_bug() {
     for_each_greedy_type(|greedy_type| {
         let graph = graph_switched_problem();
-        let (mut decider, node_order) = get_decider(&graph, greedy_type, 1, CrossingCountSide::West);
+        let (mut decider, node_order) =
+            get_decider(&graph, greedy_type, 1, CrossingCountSide::West);
         let len = node_order[1].len();
         for i in 0..len - 1 {
             assert!(
@@ -1055,11 +1125,10 @@ fn switch_and_recount_reduced_counter_bug() {
 fn should_switch_with_long_edge_dummies() {
     for_each_greedy_type(|greedy_type| {
         let graph = graph_northern_north_south_dummy_edge_crossing();
-        let (mut decider, node_order) = get_decider(&graph, greedy_type, 1, CrossingCountSide::West);
-        assert!(decider.does_switch_reduce_crossings(
-            node_at(&node_order, 1, 1),
-            node_at(&node_order, 1, 2)
-        ));
+        let (mut decider, node_order) =
+            get_decider(&graph, greedy_type, 1, CrossingCountSide::West);
+        assert!(decider
+            .does_switch_reduce_crossings(node_at(&node_order, 1, 1), node_at(&node_order, 1, 2)));
         if greedy_type == CrossMinType::OneSidedGreedySwitch {
             assert!(decider.does_switch_reduce_crossings(
                 node_at(&node_order, 1, 0),
@@ -1068,11 +1137,10 @@ fn should_switch_with_long_edge_dummies() {
         }
 
         let graph = graph_southern_north_south_dummy_edge_crossing();
-        let (mut decider, node_order) = get_decider(&graph, greedy_type, 1, CrossingCountSide::West);
-        assert!(decider.does_switch_reduce_crossings(
-            node_at(&node_order, 1, 0),
-            node_at(&node_order, 1, 1)
-        ));
+        let (mut decider, node_order) =
+            get_decider(&graph, greedy_type, 1, CrossingCountSide::West);
+        assert!(decider
+            .does_switch_reduce_crossings(node_at(&node_order, 1, 0), node_at(&node_order, 1, 1)));
         if greedy_type == CrossMinType::OneSidedGreedySwitch {
             assert!(decider.does_switch_reduce_crossings(
                 node_at(&node_order, 1, 1),
@@ -1086,11 +1154,10 @@ fn should_switch_with_long_edge_dummies() {
 fn layout_unit_constraint_prevents_switch_with_node_with_northern_ports() {
     for_each_greedy_type(|greedy_type| {
         let graph = graph_layout_unit_prevents_switch_with_node_with_northern_edges();
-        let (mut decider, node_order) = get_decider(&graph, greedy_type, 0, CrossingCountSide::East);
-        assert!(!decider.does_switch_reduce_crossings(
-            node_at(&node_order, 0, 1),
-            node_at(&node_order, 0, 2)
-        ));
+        let (mut decider, node_order) =
+            get_decider(&graph, greedy_type, 0, CrossingCountSide::East);
+        assert!(!decider
+            .does_switch_reduce_crossings(node_at(&node_order, 0, 1), node_at(&node_order, 0, 2)));
     });
 }
 
@@ -1098,11 +1165,10 @@ fn layout_unit_constraint_prevents_switch_with_node_with_northern_ports() {
 fn layout_unit_constraint_prevents_switch_with_node_with_southern_ports() {
     for_each_greedy_type(|greedy_type| {
         let graph = graph_layout_unit_prevents_switch_with_node_with_southern_edges();
-        let (mut decider, node_order) = get_decider(&graph, greedy_type, 0, CrossingCountSide::East);
-        assert!(!decider.does_switch_reduce_crossings(
-            node_at(&node_order, 0, 0),
-            node_at(&node_order, 0, 1)
-        ));
+        let (mut decider, node_order) =
+            get_decider(&graph, greedy_type, 0, CrossingCountSide::East);
+        assert!(!decider
+            .does_switch_reduce_crossings(node_at(&node_order, 0, 0), node_at(&node_order, 0, 1)));
     });
 }
 
@@ -1110,11 +1176,10 @@ fn layout_unit_constraint_prevents_switch_with_node_with_southern_ports() {
 fn layout_unit_constraint_does_not_prevent_switch_with_long_edge_dummy() {
     for_each_greedy_type(|greedy_type| {
         let graph = graph_layout_unit_does_not_prevent_switch_with_long_edge_dummy();
-        let (mut decider, node_order) = get_decider(&graph, greedy_type, 1, CrossingCountSide::East);
-        assert!(decider.does_switch_reduce_crossings(
-            node_at(&node_order, 1, 0),
-            node_at(&node_order, 1, 1)
-        ));
+        let (mut decider, node_order) =
+            get_decider(&graph, greedy_type, 1, CrossingCountSide::East);
+        assert!(decider
+            .does_switch_reduce_crossings(node_at(&node_order, 1, 0), node_at(&node_order, 1, 1)));
     });
 }
 

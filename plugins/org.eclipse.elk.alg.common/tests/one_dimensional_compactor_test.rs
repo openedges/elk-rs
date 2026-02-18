@@ -47,7 +47,10 @@ fn test_left_compaction() {
     let right = node(&graph, 30.0, 0.0, 20.0, 20.0);
 
     let mut compactor = compacter(&graph);
-    compactor.change_direction(Direction::Left).compact().finish();
+    compactor
+        .change_direction(Direction::Left)
+        .compact()
+        .finish();
 
     assert_close(left.borrow().hitbox.x, 0.0);
     assert_close(right.borrow().hitbox.x, 20.0);
@@ -61,7 +64,10 @@ fn test_left_compaction_equal_y_coordinate() {
 
     let mut compactor = compacter(&graph);
     compactor.set_constraint_algorithm(Box::new(ScanlineConstraintCalculator));
-    compactor.change_direction(Direction::Left).compact().finish();
+    compactor
+        .change_direction(Direction::Left)
+        .compact()
+        .finish();
 
     assert_close(top.borrow().hitbox.x, 0.0);
     assert_close(bottom.borrow().hitbox.x, 0.0);
@@ -108,7 +114,10 @@ fn test_right_compaction() {
     let right = node(&graph, 30.0, 0.0, 20.0, 20.0);
 
     let mut compactor = compacter(&graph);
-    compactor.change_direction(Direction::Right).compact().finish();
+    compactor
+        .change_direction(Direction::Right)
+        .compact()
+        .finish();
 
     assert_close(left.borrow().hitbox.x, 10.0);
     assert_close(right.borrow().hitbox.x, 30.0);
@@ -134,7 +143,10 @@ fn test_down_compaction() {
     let lower = node(&graph, 0.0, 30.0, 20.0, 20.0);
 
     let mut compactor = compacter(&graph);
-    compactor.change_direction(Direction::Down).compact().finish();
+    compactor
+        .change_direction(Direction::Down)
+        .compact()
+        .finish();
 
     assert_close(upper.borrow().hitbox.y, 10.0);
     assert_close(lower.borrow().hitbox.y, 30.0);
@@ -150,7 +162,10 @@ fn test_left_group_compaction() {
     CGroup::create(&graph, &[upper_right.clone(), lower_right.clone()]);
 
     let mut compactor = compacter(&graph);
-    compactor.change_direction(Direction::Left).compact().finish();
+    compactor
+        .change_direction(Direction::Left)
+        .compact()
+        .finish();
 
     assert_close(left.borrow().hitbox.x, 0.0);
     assert_close(upper_right.borrow().hitbox.x, 20.0);
@@ -167,7 +182,10 @@ fn test_right_group_compaction() {
     CGroup::create(&graph, &[left.clone(), lower_right.clone()]);
 
     let mut compactor = compacter(&graph);
-    compactor.change_direction(Direction::Right).compact().finish();
+    compactor
+        .change_direction(Direction::Right)
+        .compact()
+        .finish();
 
     assert_close(left.borrow().hitbox.x, 20.0);
     assert_close(upper_right.borrow().hitbox.x, 40.0);
@@ -201,7 +219,10 @@ fn test_down_group_compaction() {
     CGroup::create(&graph, &[upper_left.clone(), right.clone()]);
 
     let mut compactor = compacter(&graph);
-    compactor.change_direction(Direction::Down).compact().finish();
+    compactor
+        .change_direction(Direction::Down)
+        .compact()
+        .finish();
 
     assert_close(upper_left.borrow().hitbox.y, 20.0);
     assert_close(lower_left.borrow().hitbox.y, 40.0);

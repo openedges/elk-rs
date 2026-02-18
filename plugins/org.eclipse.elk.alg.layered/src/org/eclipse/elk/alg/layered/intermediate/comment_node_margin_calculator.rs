@@ -2,7 +2,9 @@ use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILay
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LNodeRef};
-use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions, Spacings};
+use crate::org::eclipse::elk::alg::layered::options::{
+    InternalProperties, LayeredOptions, Spacings,
+};
 
 pub struct CommentNodeMarginCalculator;
 

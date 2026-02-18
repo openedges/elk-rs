@@ -21,7 +21,15 @@ fn graph_with_layers(count: usize) -> (LGraphRef, Vec<LayerRef>) {
     (graph, layers)
 }
 
-fn add_node(graph: &LGraphRef, layer: &LayerRef, y: f64, w: f64, h: f64, margin_top: f64, margin_bottom: f64) -> LNodeRef {
+fn add_node(
+    graph: &LGraphRef,
+    layer: &LayerRef,
+    y: f64,
+    w: f64,
+    h: f64,
+    margin_top: f64,
+    margin_bottom: f64,
+) -> LNodeRef {
     let node = LNode::new(graph);
     {
         let mut node_guard = node.lock().expect("node lock");

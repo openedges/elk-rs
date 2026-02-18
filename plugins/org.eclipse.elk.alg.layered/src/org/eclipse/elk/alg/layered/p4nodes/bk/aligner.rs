@@ -4,8 +4,11 @@ use crate::org::eclipse::elk::alg::layered::graph::NodeType;
 
 use super::aligned_layout::{BKAlignedLayout, HDirection, VDirection};
 use super::neighborhood_information::NeighborhoodInformation;
-use super::util::{edge_between, edge_key, node_id, node_margin_bottom, node_margin_top, node_size_y, node_type, port_offset_y};
 use super::util::get_blocks;
+use super::util::{
+    edge_between, edge_key, node_id, node_margin_bottom, node_margin_top, node_size_y, node_type,
+    port_offset_y,
+};
 
 pub struct BKAligner;
 
@@ -35,7 +38,9 @@ impl BKAligner {
             }
         }
 
-        let hdir = bal.hdir.expect("BK aligner requires a horizontal direction");
+        let hdir = bal
+            .hdir
+            .expect("BK aligner requires a horizontal direction");
         let vdir = bal.vdir.expect("BK aligner requires a vertical direction");
 
         let mut layers = bal.layers.clone();
@@ -101,7 +106,8 @@ impl BKAligner {
                             if neighbor_id >= bal.align.len() {
                                 continue;
                             }
-                            let neighbor_index = *ni.node_index.get(neighbor_id).unwrap_or(&0) as isize;
+                            let neighbor_index =
+                                *ni.node_index.get(neighbor_id).unwrap_or(&0) as isize;
                             let edge_marked = marked_edges.contains(&edge_key(edge));
                             if trace_align {
                                 let neighbor_name = neighbor
@@ -140,7 +146,8 @@ impl BKAligner {
                             if neighbor_id >= bal.align.len() {
                                 continue;
                             }
-                            let neighbor_index = *ni.node_index.get(neighbor_id).unwrap_or(&0) as isize;
+                            let neighbor_index =
+                                *ni.node_index.get(neighbor_id).unwrap_or(&0) as isize;
                             let edge_marked = marked_edges.contains(&edge_key(edge));
                             if trace_align {
                                 let neighbor_name = neighbor
@@ -177,7 +184,9 @@ impl BKAligner {
 
     pub fn inside_block_shift(&self, bal: &mut BKAlignedLayout) {
         let blocks = get_blocks(bal);
-        let hdir = bal.hdir.expect("BK aligner requires a horizontal direction");
+        let hdir = bal
+            .hdir
+            .expect("BK aligner requires a horizontal direction");
         let trace_inner = std::env::var_os("ELK_TRACE_BK_INNER").is_some();
 
         for (root_id, _block) in blocks {
@@ -285,8 +294,8 @@ impl BKAligner {
 
                 let next_node = &bal.nodes_by_id[next];
                 space_above = space_above.max(node_margin_top(next_node) - next_inner_shift);
-                space_below =
-                    space_below.max(next_inner_shift + node_size_y(next_node) + node_margin_bottom(next_node));
+                space_below = space_below
+                    .max(next_inner_shift + node_size_y(next_node) + node_margin_bottom(next_node));
 
                 current = next;
                 steps += 1;

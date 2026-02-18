@@ -38,13 +38,16 @@ impl AnnulusWedgeCompaction {
         current_radius_nodes: &[ElkNodeRef],
     ) {
         let current_radius_nodes = current_radius_nodes.to_vec();
-        let mut is_overlapping =
-            self.overlapping(predecessors, radial_predecessor, radial_successor, &current_radius_nodes);
+        let mut is_overlapping = self.overlapping(
+            predecessors,
+            radial_predecessor,
+            radial_successor,
+            &current_radius_nodes,
+        );
         let mut was_contracted = false;
 
         while !is_overlapping {
-            self.base
-                .contract_layer(root, &current_radius_nodes, true);
+            self.base.contract_layer(root, &current_radius_nodes, true);
             was_contracted = true;
             is_overlapping = self.overlapping(
                 predecessors,
@@ -55,8 +58,7 @@ impl AnnulusWedgeCompaction {
         }
 
         if was_contracted {
-            self.base
-                .contract_layer(root, &current_radius_nodes, false);
+            self.base.contract_layer(root, &current_radius_nodes, false);
         }
 
         let mut next_level_nodes = RadialUtil::get_next_level_nodes(&current_radius_nodes);
@@ -86,12 +88,16 @@ impl AnnulusWedgeCompaction {
             sorter.sort(&mut layer_nodes);
         }
 
-        let Some(first_node) = layer_nodes.first() else { return false; };
+        let Some(first_node) = layer_nodes.first() else {
+            return false;
+        };
         if self.contour_overlap(left_parent, first_node, false) {
             return true;
         }
 
-        let Some(last_node) = layer_nodes.last() else { return false; };
+        let Some(last_node) = layer_nodes.last() else {
+            return false;
+        };
         if self.contour_overlap(right_parent, last_node, true) {
             return true;
         }
@@ -110,7 +116,12 @@ impl AnnulusWedgeCompaction {
         false
     }
 
-    fn contour_overlap(&self, neighbour_wedge_parent: &ElkNodeRef, node: &ElkNodeRef, left: bool) -> bool {
+    fn contour_overlap(
+        &self,
+        neighbour_wedge_parent: &ElkNodeRef,
+        node: &ElkNodeRef,
+        left: bool,
+    ) -> bool {
         let key = node_key(neighbour_wedge_parent);
         let contour = if left {
             self.left_contour.get(&key)
@@ -131,14 +142,20 @@ impl AnnulusWedgeCompaction {
         for node in nodes {
             let key = node_key(node);
             self.left_contour.entry(key).or_default().push(node.clone());
-            self.right_contour.entry(key).or_default().push(node.clone());
+            self.right_contour
+                .entry(key)
+                .or_default()
+                .push(node.clone());
 
             let mut successors = RadialUtil::get_successors(node);
             if !successors.is_empty() {
                 if let Some(sorter) = self.sorter.as_mut() {
                     sorter.sort(&mut successors);
                 }
-                self.left_contour.entry(key).or_default().push(successors[0].clone());
+                self.left_contour
+                    .entry(key)
+                    .or_default()
+                    .push(successors[0].clone());
                 self.right_contour
                     .entry(key)
                     .or_default()
@@ -166,7 +183,9 @@ impl AnnulusWedgeCompaction {
 impl IRadialCompactor for AnnulusWedgeCompaction {
     fn compact(&mut self, graph: &ElkNodeRef) {
         let root = RadialUtil::root_from_graph(graph);
-        let Some(root) = root else { return; };
+        let Some(root) = root else {
+            return;
+        };
 
         self.sorter = {
             let mut graph_mut = graph.borrow_mut();

@@ -59,10 +59,7 @@ where
         self
     }
 
-    pub fn with_bounds_provider(
-        &mut self,
-        provider: Rc<dyn IBoundsProvider<C, T>>,
-    ) -> &mut Self {
+    pub fn with_bounds_provider(&mut self, provider: Rc<dyn IBoundsProvider<C, T>>) -> &mut Self {
         self.bounds_provider = Some(provider);
         self
     }
@@ -110,7 +107,11 @@ where
 
         self.cleanup();
 
-        self.edgeify_found_attachments(data_provider, &explicit_attachments, &heuristic_attachments);
+        self.edgeify_found_attachments(
+            data_provider,
+            &explicit_attachments,
+            &heuristic_attachments,
+        );
     }
 
     fn preprocess(&self, data_provider: &dyn IDataProvider<C, T>) {
@@ -157,11 +158,7 @@ where
             .all(|filter| filter.eligible_for_attachment(comment))
     }
 
-    fn find_match(
-        &self,
-        data_provider: &dyn IDataProvider<C, T>,
-        comment: &C,
-    ) -> Option<T> {
+    fn find_match(&self, data_provider: &dyn IDataProvider<C, T>, comment: &C) -> Option<T> {
         if self.matchers.is_empty() {
             return None;
         }
@@ -175,7 +172,10 @@ where
         for candidate in candidates {
             let mut values: HashMap<std::any::TypeId, f64> = HashMap::new();
             for matcher in &self.matchers {
-                values.insert(matcher.matcher_id(), matcher.normalized(comment, &candidate));
+                values.insert(
+                    matcher.matcher_id(),
+                    matcher.normalized(comment, &candidate),
+                );
             }
             results.push(NormalizedHeuristics {
                 target: candidate,

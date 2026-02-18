@@ -25,13 +25,7 @@ fn graph_with_one_node() -> (LGraphRef, LayerRef, LNodeRef) {
     (graph, layer, node)
 }
 
-fn add_port(
-    node: &LNodeRef,
-    side: PortSide,
-    index: Option<i32>,
-    x: f64,
-    y: f64,
-) -> LPortRef {
+fn add_port(node: &LNodeRef, side: PortSide, index: Option<i32>, x: f64, y: f64) -> LPortRef {
     let port = LPort::new();
     {
         let mut port_guard = port.lock().expect("port lock");
@@ -61,10 +55,7 @@ fn run_sorter_via_strategy(graph: &LGraphRef) {
 }
 
 fn current_ports(node: &LNodeRef) -> Vec<LPortRef> {
-    node.lock()
-        .expect("node lock")
-        .ports()
-        .clone()
+    node.lock().expect("node lock").ports().clone()
 }
 
 #[test]
@@ -138,7 +129,10 @@ fn port_list_sorter_skips_nodes_with_free_constraints() {
     let (graph, _, node) = graph_with_one_node();
     {
         let mut node_guard = node.lock().expect("node lock");
-        node_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::Free));
+        node_guard.set_property(
+            LayeredOptions::PORT_CONSTRAINTS,
+            Some(PortConstraints::Free),
+        );
     }
 
     let p1 = add_port(&node, PortSide::West, Some(2), 0.0, 10.0);

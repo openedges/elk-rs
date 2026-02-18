@@ -2,8 +2,8 @@ use org_eclipse_elk_core::org::eclipse::elk::core::abstract_layout_provider::Abs
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
 use org_eclipse_elk_core::org::eclipse::elk::core::graph_layout_engine::IGraphLayoutEngine;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
-use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 
 use crate::org::eclipse::elk::alg::disco::disco_polyomino_compactor::DisCoPolyominoCompactor;
 use crate::org::eclipse::elk::alg::disco::i_compactor::ICompactor;
@@ -25,7 +25,11 @@ impl Default for DisCoLayoutProvider {
 }
 
 impl IGraphLayoutEngine for DisCoLayoutProvider {
-    fn layout(&mut self, layout_graph: &ElkNodeRef, progress_monitor: &mut dyn IElkProgressMonitor) {
+    fn layout(
+        &mut self,
+        layout_graph: &ElkNodeRef,
+        progress_monitor: &mut dyn IElkProgressMonitor,
+    ) {
         progress_monitor.begin("Connected Components Compaction", 1.0);
 
         let component_spacing =
@@ -35,9 +39,10 @@ impl IGraphLayoutEngine for DisCoLayoutProvider {
             layout_graph,
             DisCoOptions::COMPONENT_COMPACTION_COMPONENT_LAYOUT_ALGORITHM,
         ) {
-            if let Some(requested) =
-                property(layout_graph, DisCoOptions::COMPONENT_COMPACTION_COMPONENT_LAYOUT_ALGORITHM)
-            {
+            if let Some(requested) = property(
+                layout_graph,
+                DisCoOptions::COMPONENT_COMPACTION_COMPONENT_LAYOUT_ALGORITHM,
+            ) {
                 if !requested.trim().is_empty() {
                     let service = LayoutMetaDataService::get_instance();
                     if let Some(algorithm_data) = service.get_algorithm_data_by_suffix(&requested) {
@@ -64,8 +69,9 @@ impl IGraphLayoutEngine for DisCoLayoutProvider {
                 CompactionStrategy::Polyomino => {
                     let mut compactor = DisCoPolyominoCompactor::new();
                     compactor.compact(graph);
-                    if let Some(polys) =
-                        graph.properties_mut().get_property(DisCoOptions::DEBUG_DISCO_POLYS)
+                    if let Some(polys) = graph
+                        .properties_mut()
+                        .get_property(DisCoOptions::DEBUG_DISCO_POLYS)
                     {
                         set_property(layout_graph, DisCoOptions::DEBUG_DISCO_POLYS, polys);
                     }
@@ -95,7 +101,10 @@ fn property<T: Clone + Send + Sync + 'static>(
         .get_property(property)
 }
 
-fn has_property<T: Clone + Send + Sync + 'static>(graph: &ElkNodeRef, property: &'static Property<T>) -> bool {
+fn has_property<T: Clone + Send + Sync + 'static>(
+    graph: &ElkNodeRef,
+    property: &'static Property<T>,
+) -> bool {
     let mut graph_mut = graph.borrow_mut();
     graph_mut
         .connectable()

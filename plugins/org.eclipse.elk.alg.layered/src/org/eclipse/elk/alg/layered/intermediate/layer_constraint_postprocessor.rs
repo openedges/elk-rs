@@ -2,8 +2,12 @@ use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILay
 use org_eclipse_elk_core::org::eclipse::elk::core::unsupported_configuration::UnsupportedConfigurationException;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LEdge, LGraph, LGraphRef, LNode, LNodeRef, Layer, LayerRef, NodeType};
-use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayerConstraint, LayeredOptions};
+use crate::org::eclipse::elk::alg::layered::graph::{
+    LEdge, LGraph, LGraphRef, LNode, LNodeRef, Layer, LayerRef, NodeType,
+};
+use crate::org::eclipse::elk::alg::layered::options::{
+    InternalProperties, LayerConstraint, LayeredOptions,
+};
 
 pub struct LayerConstraintPostprocessor;
 
@@ -60,7 +64,11 @@ impl ILayoutProcessor<LGraph> for LayerConstraintPostprocessor {
             let first_separate_layer = Layer::new(&graph_ref);
             let last_separate_layer = Layer::new(&graph_ref);
 
-            restore_hidden_nodes(hidden_nodes.unwrap_or_default(), &first_separate_layer, &last_separate_layer);
+            restore_hidden_nodes(
+                hidden_nodes.unwrap_or_default(),
+                &first_separate_layer,
+                &last_separate_layer,
+            );
 
             if !first_separate_layer
                 .lock()
@@ -86,7 +94,11 @@ impl ILayoutProcessor<LGraph> for LayerConstraintPostprocessor {
 
 fn graph_ref_for(layered_graph: &LGraph) -> LGraphRef {
     if let Some(layer) = layered_graph.layers().first() {
-        if let Some(graph_ref) = layer.lock().ok().and_then(|layer_guard| layer_guard.graph()) {
+        if let Some(graph_ref) = layer
+            .lock()
+            .ok()
+            .and_then(|layer_guard| layer_guard.graph())
+        {
             return graph_ref;
         }
     }
@@ -123,7 +135,9 @@ fn move_first_and_last_nodes(
                     LNode::set_layer(&node, Some(last_layer.clone()));
                     move_labels_to_label_layer(&node, false, last_label_layer);
                 }
-                LayerConstraint::None | LayerConstraint::FirstSeparate | LayerConstraint::LastSeparate => {}
+                LayerConstraint::None
+                | LayerConstraint::FirstSeparate
+                | LayerConstraint::LastSeparate => {}
             }
         }
     }
@@ -176,7 +190,11 @@ fn move_labels_to_label_layer(node: &LNodeRef, incoming: bool, label_layer: &Lay
     }
 }
 
-fn restore_hidden_nodes(hidden_nodes: Vec<LNodeRef>, first_separate_layer: &LayerRef, last_separate_layer: &LayerRef) {
+fn restore_hidden_nodes(
+    hidden_nodes: Vec<LNodeRef>,
+    first_separate_layer: &LayerRef,
+    last_separate_layer: &LayerRef,
+) {
     for hidden_node in hidden_nodes {
         match layer_constraint_of(&hidden_node) {
             LayerConstraint::FirstSeparate => {
@@ -213,12 +231,9 @@ fn restore_hidden_nodes(hidden_nodes: Vec<LNodeRef>, first_separate_layer: &Laye
                 .ok()
                 .and_then(|edge_guard| edge_guard.target())
                 .is_none();
-            let opposite = hidden_edge
-                .lock()
-                .ok()
-                .and_then(|mut edge_guard| {
-                    edge_guard.get_property(InternalProperties::ORIGINAL_OPPOSITE_PORT)
-                });
+            let opposite = hidden_edge.lock().ok().and_then(|mut edge_guard| {
+                edge_guard.get_property(InternalProperties::ORIGINAL_OPPOSITE_PORT)
+            });
             let Some(opposite) = opposite else {
                 continue;
             };

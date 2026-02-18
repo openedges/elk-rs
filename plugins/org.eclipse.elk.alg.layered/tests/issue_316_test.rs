@@ -1,7 +1,9 @@
 mod elkt_test_loader;
 mod issue_support;
 
-use elkt_test_loader::{find_node_by_identifier, find_port_by_identifier, load_layered_graph_from_elkt};
+use elkt_test_loader::{
+    find_node_by_identifier, find_port_by_identifier, load_layered_graph_from_elkt,
+};
 use issue_support::{init_layered_options, run_recursive_layout};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkNodeRef, ElkPortRef};
 
@@ -111,7 +113,12 @@ fn assert_hierarchical_labels_inside_node(node: &ElkNodeRef) {
         let mut node_mut = node.borrow_mut();
         let has_children = !node_mut.children().is_empty();
         let shape = node_mut.connectable().shape();
-        let labels = shape.graph_element().labels().iter().cloned().collect::<Vec<_>>();
+        let labels = shape
+            .graph_element()
+            .labels()
+            .iter()
+            .cloned()
+            .collect::<Vec<_>>();
         (has_children, shape.width(), shape.height(), labels)
     };
 

@@ -26,7 +26,8 @@ impl IGraphElementVisitor for DeprecatedLayoutOptionReplacer {
         });
         if has_next_to_port {
             let mut placement = with_properties_mut(element, |props| {
-                props.get_property(CoreOptions::PORT_LABELS_PLACEMENT)
+                props
+                    .get_property(CoreOptions::PORT_LABELS_PLACEMENT)
                     .unwrap_or_else(PortLabelPlacement::outside)
             });
             placement.insert(PortLabelPlacement::NextToPortIfPossible);
@@ -44,11 +45,15 @@ impl IGraphElementVisitor for DeprecatedLayoutOptionReplacer {
             if size_options_value.contains(&SizeOptions::SpaceEfficientPortLabels) {
                 size_options_value.remove(&SizeOptions::SpaceEfficientPortLabels);
                 with_properties_mut(element, |props| {
-                    props.set_property(CoreOptions::NODE_SIZE_OPTIONS, Some(size_options_value.clone()));
+                    props.set_property(
+                        CoreOptions::NODE_SIZE_OPTIONS,
+                        Some(size_options_value.clone()),
+                    );
                 });
 
                 let mut placement = with_properties_mut(element, |props| {
-                    props.get_property(CoreOptions::PORT_LABELS_PLACEMENT)
+                    props
+                        .get_property(CoreOptions::PORT_LABELS_PLACEMENT)
                         .unwrap_or_else(PortLabelPlacement::outside)
                 });
                 placement.insert(PortLabelPlacement::SpaceEfficient);

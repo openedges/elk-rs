@@ -76,7 +76,10 @@ impl GridElkNode {
         node.children().iter().cloned().collect()
     }
 
-    pub fn get_property<T: Clone + Send + Sync + 'static>(&self, property: &Property<T>) -> Option<T> {
+    pub fn get_property<T: Clone + Send + Sync + 'static>(
+        &self,
+        property: &Property<T>,
+    ) -> Option<T> {
         let mut node = self.node.borrow_mut();
         node.connectable()
             .shape()

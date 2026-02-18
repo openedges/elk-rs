@@ -1,7 +1,9 @@
 mod elkt_test_loader;
 mod issue_support;
 
-use elkt_test_loader::{find_node_by_identifier, find_port_by_identifier, load_layered_graph_from_elkt};
+use elkt_test_loader::{
+    find_node_by_identifier, find_port_by_identifier, load_layered_graph_from_elkt,
+};
 use issue_support::{init_layered_options, run_layout};
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::PortLabelPlacement;
@@ -61,8 +63,18 @@ fn run_next_to_port_case(resource: &str) {
         "resource {resource} should exercise both next-to-port outcomes"
     );
 
-    assert_port_label_position(&external_port, external_should_be_next, resource, "p_external");
-    assert_port_label_position(&internal_port, internal_should_be_next, resource, "p_internal");
+    assert_port_label_position(
+        &external_port,
+        external_should_be_next,
+        resource,
+        "p_external",
+    );
+    assert_port_label_position(
+        &internal_port,
+        internal_should_be_next,
+        resource,
+        "p_internal",
+    );
 }
 
 fn assert_port_label_position(

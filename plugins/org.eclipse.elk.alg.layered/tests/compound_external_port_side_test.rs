@@ -51,7 +51,11 @@ fn compound_external_port_preserves_side_and_position() {
         (shape.x(), side)
     };
 
-    assert_eq!(port_side, PortSide::East, "external port side should stay EAST");
+    assert_eq!(
+        port_side,
+        PortSide::East,
+        "external port side should stay EAST"
+    );
     assert!(
         port_x >= node_width - 1e-6,
         "expected EAST port on or beyond node width, got x={port_x} width={node_width}"

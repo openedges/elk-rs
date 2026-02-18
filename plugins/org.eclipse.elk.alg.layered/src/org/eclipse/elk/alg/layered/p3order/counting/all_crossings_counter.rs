@@ -1,11 +1,13 @@
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LNodeRef, LPortRef, NodeType};
-use crate::org::eclipse::elk::alg::layered::p3order::counting::{CrossingsCounter, HyperedgeCrossingsCounter};
 use crate::org::eclipse::elk::alg::layered::p3order::counting::i_initializable::IInitializable;
+use crate::org::eclipse::elk::alg::layered::p3order::counting::{
+    CrossingsCounter, HyperedgeCrossingsCounter,
+};
 
 pub struct AllCrossingsCounter {
     crossing_counter: CrossingsCounter,
@@ -43,10 +45,9 @@ impl AllCrossingsCounter {
             false
         };
 
-        let west = self.crossing_counter.count_in_layer_crossings_on_side(
-            &current_order[0],
-            PortSide::West,
-        );
+        let west = self
+            .crossing_counter
+            .count_in_layer_crossings_on_side(&current_order[0], PortSide::West);
         let east = self.crossing_counter.count_in_layer_crossings_on_side(
             &current_order[current_order.len() - 1],
             PortSide::East,
@@ -167,7 +168,12 @@ fn node_names(layer: &[LNodeRef]) -> String {
 }
 
 impl IInitializable for AllCrossingsCounter {
-    fn init_at_node_level(&mut self, layer_index: usize, node_index: usize, node_order: &[Vec<LNodeRef>]) {
+    fn init_at_node_level(
+        &mut self,
+        layer_index: usize,
+        node_index: usize,
+        node_order: &[Vec<LNodeRef>],
+    ) {
         let node = &node_order[layer_index][node_index];
         let node_type = node
             .lock()
@@ -181,12 +187,20 @@ impl IInitializable for AllCrossingsCounter {
         }
     }
 
-    fn init_at_port_level(&mut self, layer_index: usize, node_index: usize, port_index: usize, node_order: &[Vec<LNodeRef>]) {
+    fn init_at_port_level(
+        &mut self,
+        layer_index: usize,
+        node_index: usize,
+        port_index: usize,
+        node_order: &[Vec<LNodeRef>],
+    ) {
         let port = node_order[layer_index][node_index]
             .lock()
             .ok()
             .and_then(|node_guard| node_guard.ports().get(port_index).cloned());
-        let Some(port) = port else { return; };
+        let Some(port) = port else {
+            return;
+        };
         set_port_id(&port, self.n_ports);
         self.n_ports += 1;
 
@@ -226,11 +240,10 @@ impl IInitializable for AllCrossingsCounter {
             .lock()
             .ok()
             .and_then(|node_guard| node_guard.ports().get(port_index).cloned());
-        let Some(port) = port else { return; };
-        let source = edge
-            .lock()
-            .ok()
-            .and_then(|edge_guard| edge_guard.source());
+        let Some(port) = port else {
+            return;
+        };
+        let source = edge.lock().ok().and_then(|edge_guard| edge_guard.source());
         if let Some(source) = source {
             if Arc::ptr_eq(&source, &port) {
                 let source_layer = source

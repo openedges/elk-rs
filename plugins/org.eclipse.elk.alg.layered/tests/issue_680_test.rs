@@ -35,7 +35,9 @@ fn issue_680_nested_ports_with_border_offsets_keep_expected_positions() {
     );
 }
 
-fn node_bounds(node: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef) -> (f64, f64, f64, f64) {
+fn node_bounds(
+    node: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef,
+) -> (f64, f64, f64, f64) {
     let mut node_mut = node.borrow_mut();
     let shape = node_mut.connectable().shape();
     (shape.x(), shape.y(), shape.width(), shape.height())

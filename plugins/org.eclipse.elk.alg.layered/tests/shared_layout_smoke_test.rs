@@ -1,6 +1,8 @@
 mod issue_support;
 
-use issue_support::{init_layered_options, run_recursive_layout, set_node_property, set_port_property};
+use issue_support::{
+    init_layered_options, run_recursive_layout, set_node_property, set_port_property,
+};
 
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::layered_layout_provider::LayeredLayoutProvider;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::LayeredOptions;
@@ -12,7 +14,9 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::size_constraint::Siz
 use org_eclipse_elk_core::org::eclipse::elk::core::util::BasicProgressMonitor;
 use org_eclipse_elk_core::org::eclipse::elk::core::IGraphLayoutEngine;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
-use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkConnectableShapeRef, ElkNodeRef, ElkPortRef};
+use org_eclipse_elk_graph::org::eclipse::elk::graph::{
+    ElkConnectableShapeRef, ElkNodeRef, ElkPortRef,
+};
 
 #[test]
 fn plain_layout_recursive_hierarchical_smoke() {
@@ -115,7 +119,11 @@ fn configure_direct_layout_node(node: &ElkNodeRef) {
         LayeredOptions::NODE_SIZE_CONSTRAINTS,
         SizeConstraint::fixed(),
     );
-    set_node_property(node, LayeredOptions::PORT_CONSTRAINTS, PortConstraints::FixedPos);
+    set_node_property(
+        node,
+        LayeredOptions::PORT_CONSTRAINTS,
+        PortConstraints::FixedPos,
+    );
 }
 
 fn configure_port(port: &ElkPortRef, side: PortSide, x: f64, y: f64) {
@@ -139,7 +147,12 @@ fn all_nodes(root: &ElkNodeRef) -> Vec<ElkNodeRef> {
     let mut nodes = vec![root.clone()];
     let mut index = 0usize;
     while index < nodes.len() {
-        let children: Vec<ElkNodeRef> = nodes[index].borrow_mut().children().iter().cloned().collect();
+        let children: Vec<ElkNodeRef> = nodes[index]
+            .borrow_mut()
+            .children()
+            .iter()
+            .cloned()
+            .collect();
         nodes.extend(children);
         index += 1;
     }

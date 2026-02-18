@@ -25,7 +25,9 @@ fn individual_spacings_serializes_object_values() {
     assert!(serialized.contains("[top=5,left=8,bottom=7,right=6]"));
 
     let mut parsed = IndividualSpacings::new();
-    parsed.parse(&serialized).expect("parse individual spacings");
+    parsed
+        .parse(&serialized)
+        .expect("parse individual spacings");
 
     let parsed_padding = parsed
         .properties_mut()

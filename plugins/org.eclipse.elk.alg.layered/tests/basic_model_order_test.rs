@@ -18,9 +18,16 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkConnectableShapeRef, El
 fn model_order_layering_runs() {
     init_layered_options();
 
-    for strategy in [LayeringStrategy::BfModelOrder, LayeringStrategy::DfModelOrder] {
+    for strategy in [
+        LayeringStrategy::BfModelOrder,
+        LayeringStrategy::DfModelOrder,
+    ] {
         let root = build_test_graph();
-        set_node_property(&root, CoreOptions::ALGORITHM, "org.eclipse.elk.layered".to_string());
+        set_node_property(
+            &root,
+            CoreOptions::ALGORITHM,
+            "org.eclipse.elk.layered".to_string(),
+        );
         set_node_property(
             &root,
             LayeredOptions::CYCLE_BREAKING_STRATEGY,
@@ -114,10 +121,7 @@ fn assert_layering_invariants(
 
 fn set_dimensions(node: &ElkNodeRef, width: f64, height: f64) {
     let mut node_mut = node.borrow_mut();
-    node_mut
-        .connectable()
-        .shape()
-        .set_dimensions(width, height);
+    node_mut.connectable().shape().set_dimensions(width, height);
 }
 
 fn set_node_property<T: Clone + Send + Sync + 'static>(

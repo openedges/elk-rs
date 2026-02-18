@@ -48,7 +48,9 @@ fn add_node_to_layer(graph: &LGraphRef, layer: &LayerRef) -> LNodeRef {
 }
 
 fn add_nodes_to_layer(graph: &LGraphRef, layer: &LayerRef, count: usize) -> Vec<LNodeRef> {
-    (0..count).map(|_| add_node_to_layer(graph, layer)).collect()
+    (0..count)
+        .map(|_| add_node_to_layer(graph, layer))
+        .collect()
 }
 
 fn add_port_on_side(node: &LNodeRef, side: PortSide) -> LPortRef {
@@ -62,7 +64,10 @@ fn add_port_on_side(node: &LNodeRef, side: PortSide) -> LPortRef {
             .get_property(LayeredOptions::PORT_CONSTRAINTS)
             .unwrap_or(PortConstraints::Undefined);
         if !constraints.is_side_fixed() {
-            node_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::FixedSide));
+            node_guard.set_property(
+                LayeredOptions::PORT_CONSTRAINTS,
+                Some(PortConstraints::FixedSide),
+            );
         }
     }
     port
@@ -127,13 +132,23 @@ fn add_north_south_edge(
         .lock()
         .ok()
         .and_then(|node_guard| node_guard.layer())
-        .and_then(|layer| layer.lock().ok().and_then(|layer_guard| layer_guard.index()))
+        .and_then(|layer| {
+            layer
+                .lock()
+                .ok()
+                .and_then(|layer_guard| layer_guard.index())
+        })
         .unwrap_or(0);
     let other_layer_index = node_with_east_west_ports
         .lock()
         .ok()
         .and_then(|node_guard| node_guard.layer())
-        .and_then(|layer| layer.lock().ok().and_then(|layer_guard| layer_guard.index()))
+        .and_then(|layer| {
+            layer
+                .lock()
+                .ok()
+                .and_then(|layer_guard| layer_guard.index())
+        })
         .unwrap_or(0);
     let normal_node_east_of_ns = other_layer_index < ns_layer_index;
     let direction = if normal_node_east_of_ns {
@@ -153,17 +168,29 @@ fn add_north_south_edge(
     }
 
     if let Ok(mut dummy_guard) = north_south_dummy.lock() {
-        dummy_guard.set_property(InternalProperties::IN_LAYER_LAYOUT_UNIT, Some(node_with_ns_ports.clone()));
-        dummy_guard.set_property(InternalProperties::ORIGIN, Some(Origin::LNode(node_with_ns_ports.clone())));
+        dummy_guard.set_property(
+            InternalProperties::IN_LAYER_LAYOUT_UNIT,
+            Some(node_with_ns_ports.clone()),
+        );
+        dummy_guard.set_property(
+            InternalProperties::ORIGIN,
+            Some(Origin::LNode(node_with_ns_ports.clone())),
+        );
         dummy_guard.set_node_type(NodeType::NorthSouthPort);
     }
 
     let origin_port = add_port_on_side(node_with_ns_ports, side);
     if let Ok(mut dummy_port_guard) = dummy_node_port.lock() {
-        dummy_port_guard.set_property(InternalProperties::ORIGIN, Some(Origin::LPort(origin_port.clone())));
+        dummy_port_guard.set_property(
+            InternalProperties::ORIGIN,
+            Some(Origin::LPort(origin_port.clone())),
+        );
     }
     if let Ok(mut origin_port_guard) = origin_port.lock() {
-        origin_port_guard.set_property(InternalProperties::PORT_DUMMY, Some(north_south_dummy.clone()));
+        origin_port_guard.set_property(
+            InternalProperties::PORT_DUMMY,
+            Some(north_south_dummy.clone()),
+        );
     }
 
     let mut bary_assoc = vec![north_south_dummy.clone()];
@@ -185,17 +212,27 @@ fn add_north_south_edge(
                 .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
                 .unwrap_or_default();
             constraints.push(node_with_ns_ports.clone());
-            dummy_guard.set_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS, Some(constraints));
+            dummy_guard.set_property(
+                InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS,
+                Some(constraints),
+            );
         }
     } else if let Ok(mut node_guard) = node_with_ns_ports.lock() {
         let mut constraints = node_guard
             .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
             .unwrap_or_default();
         constraints.push(north_south_dummy.clone());
-        node_guard.set_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS, Some(constraints));
+        node_guard.set_property(
+            InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS,
+            Some(constraints),
+        );
     }
 
-    if let Some(graph) = node_with_ns_ports.lock().ok().and_then(|node_guard| node_guard.graph()) {
+    if let Some(graph) = node_with_ns_ports
+        .lock()
+        .ok()
+        .and_then(|node_guard| node_guard.graph())
+    {
         if let Ok(mut graph_guard) = graph.lock() {
             let mut props = graph_guard
                 .get_property(InternalProperties::GRAPH_PROPERTIES)
@@ -219,7 +256,10 @@ fn layer_nodes(graph: &LGraphRef, layer_index: usize) -> Vec<LNodeRef> {
 fn count_crossings(layer: &[LNodeRef], upper_index: usize, lower_index: usize) -> (i32, i32) {
     let mut counter = NorthSouthEdgeNeighbouringNodeCrossingsCounter::new(layer);
     counter.count_crossings(&layer[upper_index], &layer[lower_index]);
-    (counter.upper_lower_crossings(), counter.lower_upper_crossings())
+    (
+        counter.upper_lower_crossings(),
+        counter.lower_upper_crossings(),
+    )
 }
 
 fn graph_cross_formed() -> LGraphRef {
@@ -240,8 +280,20 @@ fn graph_north_south_downward_crossing() -> LGraphRef {
     let left_nodes = add_nodes_to_layer(&graph, &left_layer, 3);
     let right_nodes = add_nodes_to_layer(&graph, &right_layer, 2);
 
-    add_north_south_edge(PortSide::South, &left_nodes[0], &left_nodes[2], &right_nodes[1], false);
-    add_north_south_edge(PortSide::South, &left_nodes[0], &left_nodes[1], &right_nodes[0], false);
+    add_north_south_edge(
+        PortSide::South,
+        &left_nodes[0],
+        &left_nodes[2],
+        &right_nodes[1],
+        false,
+    );
+    add_north_south_edge(
+        PortSide::South,
+        &left_nodes[0],
+        &left_nodes[1],
+        &right_nodes[0],
+        false,
+    );
     set_fixed_order_constraint(&left_nodes[0]);
     graph
 }
@@ -253,8 +305,20 @@ fn graph_north_south_upward_crossing() -> LGraphRef {
     let left_nodes = add_nodes_to_layer(&graph, &left_layer, 3);
     let right_nodes = add_nodes_to_layer(&graph, &right_layer, 2);
 
-    add_north_south_edge(PortSide::North, &left_nodes[2], &left_nodes[1], &right_nodes[1], false);
-    add_north_south_edge(PortSide::North, &left_nodes[2], &left_nodes[0], &right_nodes[0], false);
+    add_north_south_edge(
+        PortSide::North,
+        &left_nodes[2],
+        &left_nodes[1],
+        &right_nodes[1],
+        false,
+    );
+    add_north_south_edge(
+        PortSide::North,
+        &left_nodes[2],
+        &left_nodes[0],
+        &right_nodes[0],
+        false,
+    );
     set_fixed_order_constraint(&left_nodes[2]);
     graph
 }
@@ -272,7 +336,13 @@ fn graph_southern_north_south_dummy_edge_crossing() -> LGraphRef {
     east_west_edge_from_to(&middle_nodes[1], &right_nodes[0]);
     set_as_long_edge_dummy(&middle_nodes[1]);
 
-    add_north_south_edge(PortSide::South, &middle_nodes[0], &middle_nodes[2], &right_nodes[1], true);
+    add_north_south_edge(
+        PortSide::South,
+        &middle_nodes[0],
+        &middle_nodes[2],
+        &right_nodes[1],
+        true,
+    );
     graph
 }
 
@@ -289,7 +359,13 @@ fn graph_northern_north_south_dummy_edge_crossing() -> LGraphRef {
     east_west_edge_from_to(&middle_nodes[1], &right_nodes[1]);
     set_as_long_edge_dummy(&middle_nodes[1]);
 
-    add_north_south_edge(PortSide::North, &middle_nodes[2], &middle_nodes[0], &right_nodes[0], true);
+    add_north_south_edge(
+        PortSide::North,
+        &middle_nodes[2],
+        &middle_nodes[0],
+        &right_nodes[0],
+        true,
+    );
     graph
 }
 
@@ -303,8 +379,20 @@ fn graph_southern_north_south_edges_from_east_and_west_no_crossings() -> LGraphR
     let right_node = add_node_to_layer(&graph, &right_layer);
 
     set_fixed_order_constraint(&middle_nodes[0]);
-    add_north_south_edge(PortSide::South, &middle_nodes[0], &middle_nodes[1], &right_node, false);
-    add_north_south_edge(PortSide::South, &middle_nodes[0], &middle_nodes[2], &left_node, true);
+    add_north_south_edge(
+        PortSide::South,
+        &middle_nodes[0],
+        &middle_nodes[1],
+        &right_node,
+        false,
+    );
+    add_north_south_edge(
+        PortSide::South,
+        &middle_nodes[0],
+        &middle_nodes[2],
+        &left_node,
+        true,
+    );
     graph
 }
 
@@ -318,8 +406,20 @@ fn graph_northern_north_south_edges_from_east_and_west_no_crossings() -> LGraphR
     let right_node = add_node_to_layer(&graph, &right_layer);
 
     set_fixed_order_constraint(&middle_nodes[2]);
-    add_north_south_edge(PortSide::North, &middle_nodes[2], &middle_nodes[0], &left_node, true);
-    add_north_south_edge(PortSide::North, &middle_nodes[2], &middle_nodes[1], &right_node, false);
+    add_north_south_edge(
+        PortSide::North,
+        &middle_nodes[2],
+        &middle_nodes[0],
+        &left_node,
+        true,
+    );
+    add_north_south_edge(
+        PortSide::North,
+        &middle_nodes[2],
+        &middle_nodes[1],
+        &right_node,
+        false,
+    );
     graph
 }
 
@@ -333,8 +433,20 @@ fn graph_northern_north_south_edges_from_east_and_west_no_crossings_upper_edge_e
     let right_node = add_node_to_layer(&graph, &right_layer);
 
     set_fixed_order_constraint(&middle_nodes[2]);
-    add_north_south_edge(PortSide::North, &middle_nodes[2], &middle_nodes[1], &left_node, true);
-    add_north_south_edge(PortSide::North, &middle_nodes[2], &middle_nodes[0], &right_node, false);
+    add_north_south_edge(
+        PortSide::North,
+        &middle_nodes[2],
+        &middle_nodes[1],
+        &left_node,
+        true,
+    );
+    add_north_south_edge(
+        PortSide::North,
+        &middle_nodes[2],
+        &middle_nodes[0],
+        &right_node,
+        false,
+    );
     graph
 }
 
@@ -346,8 +458,20 @@ fn graph_southern_north_south_edges_both_to_east() -> LGraphRef {
     let right_nodes = add_nodes_to_layer(&graph, &right_layer, 2);
 
     set_fixed_order_constraint(&middle_nodes[0]);
-    add_north_south_edge(PortSide::South, &middle_nodes[0], &middle_nodes[1], &right_nodes[0], false);
-    add_north_south_edge(PortSide::South, &middle_nodes[0], &middle_nodes[2], &right_nodes[1], false);
+    add_north_south_edge(
+        PortSide::South,
+        &middle_nodes[0],
+        &middle_nodes[1],
+        &right_nodes[0],
+        false,
+    );
+    add_north_south_edge(
+        PortSide::South,
+        &middle_nodes[0],
+        &middle_nodes[2],
+        &right_nodes[1],
+        false,
+    );
     graph
 }
 
@@ -361,8 +485,20 @@ fn graph_where_layout_unit_prevents_switch() -> LGraphRef {
     set_fixed_order_constraint(&left_nodes[0]);
     set_fixed_order_constraint(&left_nodes[3]);
 
-    add_north_south_edge(PortSide::South, &left_nodes[0], &left_nodes[1], &right_nodes[1], false);
-    add_north_south_edge(PortSide::North, &left_nodes[3], &left_nodes[2], &right_nodes[0], false);
+    add_north_south_edge(
+        PortSide::South,
+        &left_nodes[0],
+        &left_nodes[1],
+        &right_nodes[1],
+        false,
+    );
+    add_north_south_edge(
+        PortSide::North,
+        &left_nodes[3],
+        &left_nodes[2],
+        &right_nodes[0],
+        false,
+    );
     graph
 }
 
@@ -376,8 +512,20 @@ fn graph_north_south_edges_from_east_and_west_and_cross() -> LGraphRef {
     let right_node = add_node_to_layer(&graph, &right_layer);
 
     set_fixed_order_constraint(&middle_nodes[0]);
-    add_north_south_edge(PortSide::South, &middle_nodes[0], &middle_nodes[1], &left_node, true);
-    add_north_south_edge(PortSide::South, &middle_nodes[0], &middle_nodes[2], &right_node, false);
+    add_north_south_edge(
+        PortSide::South,
+        &middle_nodes[0],
+        &middle_nodes[1],
+        &left_node,
+        true,
+    );
+    add_north_south_edge(
+        PortSide::South,
+        &middle_nodes[0],
+        &middle_nodes[2],
+        &right_node,
+        false,
+    );
     graph
 }
 
@@ -394,7 +542,13 @@ fn graph_south_port_on_normal_node_below_long_edge_dummy() -> LGraphRef {
     east_west_edge_from_to(&middle_nodes[0], &right_nodes[0]);
     set_node_type_long_edge(&middle_nodes[0]);
 
-    add_north_south_edge(PortSide::South, &middle_nodes[1], &middle_nodes[2], &right_nodes[1], false);
+    add_north_south_edge(
+        PortSide::South,
+        &middle_nodes[1],
+        &middle_nodes[2],
+        &right_nodes[1],
+        false,
+    );
     graph
 }
 
@@ -411,7 +565,13 @@ fn graph_north_port_on_normal_node_above_long_edge_dummy() -> LGraphRef {
     east_west_edge_from_to(&middle_nodes[2], &right_nodes[1]);
     set_node_type_long_edge(&middle_nodes[2]);
 
-    add_north_south_edge(PortSide::North, &middle_nodes[1], &middle_nodes[0], &right_nodes[0], false);
+    add_north_south_edge(
+        PortSide::North,
+        &middle_nodes[1],
+        &middle_nodes[0],
+        &right_nodes[0],
+        false,
+    );
     graph
 }
 
@@ -423,8 +583,20 @@ fn graph_north_south_southern_two_western_edges() -> LGraphRef {
     let middle_nodes = add_nodes_to_layer(&graph, &middle_layer, 3);
 
     set_fixed_order_constraint(&middle_nodes[0]);
-    add_north_south_edge(PortSide::South, &middle_nodes[0], &middle_nodes[1], &left_nodes[0], true);
-    add_north_south_edge(PortSide::South, &middle_nodes[0], &middle_nodes[2], &left_nodes[1], true);
+    add_north_south_edge(
+        PortSide::South,
+        &middle_nodes[0],
+        &middle_nodes[1],
+        &left_nodes[0],
+        true,
+    );
+    add_north_south_edge(
+        PortSide::South,
+        &middle_nodes[0],
+        &middle_nodes[2],
+        &left_nodes[1],
+        true,
+    );
     graph
 }
 
@@ -438,8 +610,20 @@ fn graph_north_south_southern_western_port_to_east_and_eastern_port_to_west() ->
     let right_node = add_node_to_layer(&graph, &right_layer);
 
     set_fixed_order_constraint(&middle_nodes[0]);
-    add_north_south_edge(PortSide::South, &middle_nodes[0], &middle_nodes[2], &left_node, true);
-    add_north_south_edge(PortSide::South, &middle_nodes[0], &middle_nodes[1], &right_node, false);
+    add_north_south_edge(
+        PortSide::South,
+        &middle_nodes[0],
+        &middle_nodes[2],
+        &left_node,
+        true,
+    );
+    add_north_south_edge(
+        PortSide::South,
+        &middle_nodes[0],
+        &middle_nodes[1],
+        &right_node,
+        false,
+    );
     graph
 }
 
@@ -451,8 +635,20 @@ fn graph_north_south_northern_western_edges() -> LGraphRef {
     let middle_nodes = add_nodes_to_layer(&graph, &middle_layer, 3);
 
     set_fixed_order_constraint(&middle_nodes[2]);
-    add_north_south_edge(PortSide::North, &middle_nodes[2], &middle_nodes[1], &left_nodes[1], true);
-    add_north_south_edge(PortSide::North, &middle_nodes[2], &middle_nodes[0], &left_nodes[0], true);
+    add_north_south_edge(
+        PortSide::North,
+        &middle_nodes[2],
+        &middle_nodes[1],
+        &left_nodes[1],
+        true,
+    );
+    add_north_south_edge(
+        PortSide::North,
+        &middle_nodes[2],
+        &middle_nodes[0],
+        &left_nodes[0],
+        true,
+    );
     graph
 }
 
@@ -466,8 +662,20 @@ fn graph_north_south_northern_eastern_port_to_west_western_port_to_east() -> LGr
     let right_node = add_node_to_layer(&graph, &right_layer);
 
     set_fixed_order_constraint(&middle_nodes[2]);
-    add_north_south_edge(PortSide::North, &middle_nodes[2], &middle_nodes[1], &right_node, false);
-    add_north_south_edge(PortSide::North, &middle_nodes[2], &middle_nodes[0], &left_node, true);
+    add_north_south_edge(
+        PortSide::North,
+        &middle_nodes[2],
+        &middle_nodes[1],
+        &right_node,
+        false,
+    );
+    add_north_south_edge(
+        PortSide::North,
+        &middle_nodes[2],
+        &middle_nodes[0],
+        &left_node,
+        true,
+    );
     graph
 }
 
@@ -488,10 +696,34 @@ fn graph_multiple_north_south_and_long_edge_dummies_on_both_sides() -> LGraphRef
     set_as_long_edge_dummy(&middle_nodes[2]);
     set_as_long_edge_dummy(&middle_nodes[4]);
 
-    add_north_south_edge(PortSide::North, &middle_nodes[3], &middle_nodes[0], &right_nodes[0], false);
-    add_north_south_edge(PortSide::North, &middle_nodes[3], &middle_nodes[1], &right_nodes[1], false);
-    add_north_south_edge(PortSide::South, &middle_nodes[3], &middle_nodes[5], &right_nodes[4], false);
-    add_north_south_edge(PortSide::South, &middle_nodes[3], &middle_nodes[6], &right_nodes[5], false);
+    add_north_south_edge(
+        PortSide::North,
+        &middle_nodes[3],
+        &middle_nodes[0],
+        &right_nodes[0],
+        false,
+    );
+    add_north_south_edge(
+        PortSide::North,
+        &middle_nodes[3],
+        &middle_nodes[1],
+        &right_nodes[1],
+        false,
+    );
+    add_north_south_edge(
+        PortSide::South,
+        &middle_nodes[3],
+        &middle_nodes[5],
+        &right_nodes[4],
+        false,
+    );
+    add_north_south_edge(
+        PortSide::South,
+        &middle_nodes[3],
+        &middle_nodes[6],
+        &right_nodes[5],
+        false,
+    );
     graph
 }
 
@@ -832,8 +1064,20 @@ fn given_polyline_routing_when_more_than_one_edge_into_ns_node_counts_these_too(
 
     set_fixed_order_constraint(&middle_nodes[2]);
 
-    add_north_south_edge(PortSide::North, &middle_nodes[2], &middle_nodes[1], &right_nodes[0], false);
-    add_north_south_edge(PortSide::North, &middle_nodes[2], &middle_nodes[0], &left_node, true);
+    add_north_south_edge(
+        PortSide::North,
+        &middle_nodes[2],
+        &middle_nodes[1],
+        &right_nodes[0],
+        false,
+    );
+    add_north_south_edge(
+        PortSide::North,
+        &middle_nodes[2],
+        &middle_nodes[0],
+        &left_node,
+        true,
+    );
 
     let middle_node_port = middle_nodes[1]
         .lock()
@@ -865,7 +1109,13 @@ fn given_multiple_edges_in_one_ns_node_counts_crossings() {
 
     set_fixed_order_constraint(&middle_nodes[2]);
 
-    add_north_south_edge(PortSide::North, &middle_nodes[2], &middle_nodes[1], &left_node, true);
+    add_north_south_edge(
+        PortSide::North,
+        &middle_nodes[2],
+        &middle_nodes[1],
+        &left_node,
+        true,
+    );
 
     let normal_node_port = add_port_on_side(&right_nodes[1], PortSide::West);
     let dummy_node_port = add_port_on_side(&middle_nodes[1], PortSide::East);
@@ -879,7 +1129,13 @@ fn given_multiple_edges_in_one_ns_node_counts_crossings() {
         dummy_port_guard.set_property(InternalProperties::ORIGIN, Some(Origin::LPort(origin_port)));
     }
 
-    add_north_south_edge(PortSide::North, &middle_nodes[2], &middle_nodes[0], &right_nodes[0], false);
+    add_north_south_edge(
+        PortSide::North,
+        &middle_nodes[2],
+        &middle_nodes[0],
+        &right_nodes[0],
+        false,
+    );
 
     let layer = layer_nodes(&graph, 1);
     let (upper_lower, lower_upper) = count_crossings(&layer, 0, 1);
@@ -900,7 +1156,13 @@ fn edges_in_both_directions() {
 
     set_fixed_order_constraint(&middle_nodes[2]);
 
-    add_north_south_edge(PortSide::North, &middle_nodes[2], &middle_nodes[1], &left_nodes[1], true);
+    add_north_south_edge(
+        PortSide::North,
+        &middle_nodes[2],
+        &middle_nodes[1],
+        &left_nodes[1],
+        true,
+    );
 
     let normal_node_port = add_port_on_side(&right_nodes[1], PortSide::West);
     let dummy_node_port = add_port_on_side(&middle_nodes[1], PortSide::East);
@@ -914,7 +1176,13 @@ fn edges_in_both_directions() {
         dummy_port_guard.set_property(InternalProperties::ORIGIN, Some(Origin::LPort(origin_port)));
     }
 
-    add_north_south_edge(PortSide::North, &middle_nodes[2], &middle_nodes[0], &left_nodes[0], true);
+    add_north_south_edge(
+        PortSide::North,
+        &middle_nodes[2],
+        &middle_nodes[0],
+        &left_nodes[0],
+        true,
+    );
 
     let normal_node_port = add_port_on_side(&right_nodes[0], PortSide::West);
     let dummy_node_port = add_port_on_side(&middle_nodes[0], PortSide::East);
@@ -947,7 +1215,13 @@ fn multiple_edges_in_both_directions_ns_node() {
 
     set_fixed_order_constraint(&middle_nodes[2]);
 
-    add_north_south_edge(PortSide::North, &middle_nodes[2], &middle_nodes[1], &left_nodes[1], true);
+    add_north_south_edge(
+        PortSide::North,
+        &middle_nodes[2],
+        &middle_nodes[1],
+        &left_nodes[1],
+        true,
+    );
 
     let normal_node_port = add_port_on_side(&right_nodes[1], PortSide::West);
     let dummy_node_port = add_port_on_side(&middle_nodes[1], PortSide::East);
@@ -962,7 +1236,13 @@ fn multiple_edges_in_both_directions_ns_node() {
         dummy_port_guard.set_property(InternalProperties::ORIGIN, Some(Origin::LPort(origin_port)));
     }
 
-    add_north_south_edge(PortSide::North, &middle_nodes[2], &middle_nodes[0], &right_nodes[0], false);
+    add_north_south_edge(
+        PortSide::North,
+        &middle_nodes[2],
+        &middle_nodes[0],
+        &right_nodes[0],
+        false,
+    );
 
     let normal_node_port = add_port_on_side(&right_nodes[0], PortSide::East);
     let dummy_node_port = add_port_on_side(&middle_nodes[0], PortSide::West);

@@ -1,8 +1,8 @@
 use std::cmp::Ordering;
 
 use crate::org::eclipse::elk::alg::common::compaction::{Scanline, ScanlineEventHandler};
-use crate::org::eclipse::elk::alg::common::spore::internal_properties::InternalProperties;
 use crate::org::eclipse::elk::alg::common::spore::i_overlap_handler::IOverlapHandler;
+use crate::org::eclipse::elk::alg::common::spore::internal_properties::InternalProperties;
 use crate::org::eclipse::elk::alg::common::spore::node::Node;
 use crate::org::eclipse::elk::alg::common::utils::SVGImage;
 
@@ -14,7 +14,10 @@ pub struct ScanlineOverlapCheck<H: IOverlapHandler> {
 impl<H: IOverlapHandler> ScanlineOverlapCheck<H> {
     pub fn new(overlap_handler: H, mut svg: SVGImage) -> Self {
         svg.add_groups(&["n", "o", "e"]);
-        ScanlineOverlapCheck { overlap_handler, svg }
+        ScanlineOverlapCheck {
+            overlap_handler,
+            svg,
+        }
     }
 
     pub fn sweep(&mut self, nodes: &[Node]) {
@@ -24,11 +27,18 @@ impl<H: IOverlapHandler> ScanlineOverlapCheck<H> {
 
         let mut points: Vec<Timestamp> = Vec::new();
         for (idx, node) in nodes.iter().enumerate() {
-            points.push(Timestamp { index: idx, low: true });
-            points.push(Timestamp { index: idx, low: false });
-            self.svg
-                .g("n")
-                .add_rect(&node.rect, "stroke=\"black\" stroke-width=\"1\" fill=\"none\"");
+            points.push(Timestamp {
+                index: idx,
+                low: true,
+            });
+            points.push(Timestamp {
+                index: idx,
+                low: false,
+            });
+            self.svg.g("n").add_rect(
+                &node.rect,
+                "stroke=\"black\" stroke-width=\"1\" fill=\"none\"",
+            );
         }
 
         self.svg.isave();
@@ -47,7 +57,9 @@ struct Timestamp {
     low: bool,
 }
 
-fn overlaps_scanline_comparator(nodes: &[Node]) -> impl Fn(&Timestamp, &Timestamp) -> Ordering + '_ {
+fn overlaps_scanline_comparator(
+    nodes: &[Node],
+) -> impl Fn(&Timestamp, &Timestamp) -> Ordering + '_ {
     move |p1: &Timestamp, p2: &Timestamp| {
         let mut y1 = nodes[p1.index].rect.y;
         if !p1.low {

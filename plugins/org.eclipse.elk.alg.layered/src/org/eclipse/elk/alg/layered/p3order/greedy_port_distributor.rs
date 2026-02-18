@@ -26,7 +26,12 @@ impl GreedyPortDistributor {
             .expect("crossings counter not initialized")
     }
 
-    fn initialize(&mut self, node_order: &[Vec<LNodeRef>], current_index: usize, is_forward_sweep: bool) {
+    fn initialize(
+        &mut self,
+        node_order: &[Vec<LNodeRef>],
+        current_index: usize,
+        is_forward_sweep: bool,
+    ) {
         if is_forward_sweep && current_index > 0 {
             self.init_for_layers(&node_order[current_index - 1], &node_order[current_index]);
         } else if !is_forward_sweep && current_index + 1 < node_order.len() {
@@ -64,7 +69,9 @@ impl GreedyPortDistributor {
             let port_constraints = node
                 .lock()
                 .ok()
-                .and_then(|mut node_guard| node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS))
+                .and_then(|mut node_guard| {
+                    node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
+                })
                 .unwrap_or(PortConstraints::Undefined);
             if port_constraints.is_order_fixed() {
                 continue;
@@ -87,7 +94,11 @@ impl GreedyPortDistributor {
                     .and_then(|graph| graph.lock().ok())
                     .map(|graph_guard| graph_guard.to_node_array())
                     .map(|inner_graph| {
-                        let free_layer_index = if is_forward_sweep { 0 } else { inner_graph.len() - 1 };
+                        let free_layer_index = if is_forward_sweep {
+                            0
+                        } else {
+                            inner_graph.len() - 1
+                        };
                         BetweenLayerEdgeTwoNodeCrossingsCounter::new(inner_graph, free_layer_index)
                     })
             } else {
@@ -258,7 +269,12 @@ impl ISweepPortDistributor for GreedyPortDistributor {
 }
 
 impl IInitializable for GreedyPortDistributor {
-    fn init_at_node_level(&mut self, layer_index: usize, node_index: usize, node_order: &[Vec<LNodeRef>]) {
+    fn init_at_node_level(
+        &mut self,
+        layer_index: usize,
+        node_index: usize,
+        node_order: &[Vec<LNodeRef>],
+    ) {
         let node = &node_order[layer_index][node_index];
         if let Ok(mut node_guard) = node.lock() {
             node_guard.shape().graph_element().id = node_index as i32;

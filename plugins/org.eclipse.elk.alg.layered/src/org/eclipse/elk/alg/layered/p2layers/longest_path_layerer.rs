@@ -5,7 +5,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutP
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
-use crate::org::eclipse::elk::alg::layered::graph::{Layer, LGraph, LGraphRef, LNodeRef};
+use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LGraphRef, LNodeRef, Layer};
 use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorStrategy;
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
 
@@ -78,7 +78,13 @@ impl LongestPathLayerer {
         max_height
     }
 
-    fn put_node(&mut self, node: &LNodeRef, height: i32, graph: &mut LGraph, graph_ref: &LGraphRef) {
+    fn put_node(
+        &mut self,
+        node: &LNodeRef,
+        height: i32,
+        graph: &mut LGraph,
+        graph_ref: &LGraphRef,
+    ) {
         let height = height.max(1) as usize;
         let current_layers = graph.layers().len();
         for _ in current_layers..height {

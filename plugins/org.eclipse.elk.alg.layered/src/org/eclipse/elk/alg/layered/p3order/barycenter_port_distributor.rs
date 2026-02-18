@@ -1,9 +1,9 @@
 use crate::org::eclipse::elk::alg::layered::graph::LNodeRef;
 use crate::org::eclipse::elk::alg::layered::options::PortType;
 use crate::org::eclipse::elk::alg::layered::p3order::abstract_barycenter_port_distributor::AbstractBarycenterPortDistributor;
+use crate::org::eclipse::elk::alg::layered::p3order::counting::IInitializable;
 use crate::org::eclipse::elk::alg::layered::p3order::layer_total_port_distributor::LayerTotalPortDistributor;
 use crate::org::eclipse::elk::alg::layered::p3order::node_relative_port_distributor::NodeRelativePortDistributor;
-use crate::org::eclipse::elk::alg::layered::p3order::counting::IInitializable;
 
 pub trait BarycenterPortDistributor: IInitializable + Send {
     fn calculate_port_ranks(&mut self, layer: &[LNodeRef], port_type: PortType);

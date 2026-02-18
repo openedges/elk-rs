@@ -22,7 +22,11 @@ impl Default for Draw2DLayoutProvider {
 }
 
 impl IGraphLayoutEngine for Draw2DLayoutProvider {
-    fn layout(&mut self, layout_graph: &ElkNodeRef, progress_monitor: &mut dyn IElkProgressMonitor) {
+    fn layout(
+        &mut self,
+        layout_graph: &ElkNodeRef,
+        progress_monitor: &mut dyn IElkProgressMonitor,
+    ) {
         // Draw2D is not ported yet; keep API parity with a deterministic fallback provider.
         self.fallback.layout(layout_graph, progress_monitor);
     }

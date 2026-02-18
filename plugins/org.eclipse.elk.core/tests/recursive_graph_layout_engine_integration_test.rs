@@ -24,7 +24,9 @@ fn non_target_test_controller_does_not_install() {
 }
 
 #[test]
-#[should_panic(expected = "Test controllers can only be installed on white-box testable layout algorithms")]
+#[should_panic(
+    expected = "Test controllers can only be installed on white-box testable layout algorithms"
+)]
 fn target_test_controller_attempts_install() {
     LayoutMetaDataService::get_instance();
 
@@ -65,10 +67,7 @@ fn include_children_inherits_hierarchy_handling_for_descendants() {
     );
 
     let children = child_nodes(&root);
-    let child = children
-        .first()
-        .expect("Expected a child node")
-        .clone();
+    let child = children.first().expect("Expected a child node").clone();
     let grandchild = ElkGraphUtil::create_node(Some(child.clone()));
     set_dimensions(&grandchild, 8.0, 8.0);
 
@@ -93,11 +92,12 @@ fn include_children_switching_algorithm_forces_separate_children() {
     );
 
     let children = child_nodes(&root);
-    let child = children
-        .first()
-        .expect("Expected a child node")
-        .clone();
-    set_node_property(&child, CoreOptions::ALGORITHM, "org.eclipse.elk.box".to_string());
+    let child = children.first().expect("Expected a child node").clone();
+    set_node_property(
+        &child,
+        CoreOptions::ALGORITHM,
+        "org.eclipse.elk.box".to_string(),
+    );
     let grandchild = ElkGraphUtil::create_node(Some(child.clone()));
     set_dimensions(&grandchild, 8.0, 8.0);
 
@@ -116,10 +116,7 @@ fn hierarchy_handling_inherit_defaults_to_separate_children() {
 
     let root = create_graph("org.eclipse.elk.layered");
     let children = child_nodes(&root);
-    let child = children
-        .first()
-        .expect("Expected a child node")
-        .clone();
+    let child = children.first().expect("Expected a child node").clone();
     let grandchild = ElkGraphUtil::create_node(Some(child.clone()));
     set_dimensions(&grandchild, 8.0, 8.0);
 
@@ -148,10 +145,7 @@ fn include_children_nested_algorithm_switch_forces_separate_children() {
     );
 
     let children = child_nodes(&root);
-    let child = children
-        .first()
-        .expect("Expected a child node")
-        .clone();
+    let child = children.first().expect("Expected a child node").clone();
     let grandchild = ElkGraphUtil::create_node(Some(child.clone()));
     set_dimensions(&grandchild, 8.0, 8.0);
     set_node_property(
@@ -174,17 +168,20 @@ fn include_children_nested_algorithm_switch_forces_separate_children() {
 }
 
 #[test]
-#[should_panic(expected = "Test controllers can only be installed on white-box testable layout algorithms")]
+#[should_panic(
+    expected = "Test controllers can only be installed on white-box testable layout algorithms"
+)]
 fn target_test_controller_attempts_install_on_target_descendant() {
     LayoutMetaDataService::get_instance();
 
     let root = create_graph("org.eclipse.elk.box");
     let children = child_nodes(&root);
-    let child = children
-        .first()
-        .expect("Expected a child node")
-        .clone();
-    set_node_property(&child, CoreOptions::ALGORITHM, "org.eclipse.elk.layered".to_string());
+    let child = children.first().expect("Expected a child node").clone();
+    set_node_property(
+        &child,
+        CoreOptions::ALGORITHM,
+        "org.eclipse.elk.layered".to_string(),
+    );
     let grandchild = ElkGraphUtil::create_node(Some(child.clone()));
     set_dimensions(&grandchild, 8.0, 8.0);
 

@@ -146,7 +146,11 @@ fn right_special_order(p1: &Point, p2: &Point) -> Ordering {
         if p1.quadrant == p2.quadrant
             || Quadrant::is_both_left_or_both_right(p1.quadrant, p2.quadrant)
         {
-            let val = if p1.quadrant.is_left() { Ordering::Greater } else { Ordering::Less };
+            let val = if p1.quadrant.is_left() {
+                Ordering::Greater
+            } else {
+                Ordering::Less
+            };
             if p1.convex && !p2.convex {
                 return val;
             } else if !p1.convex && p2.convex {
@@ -194,7 +198,8 @@ impl ScanlineEventHandler<Point> for MaximalElementsEventHandler {
             cmp = cmp.reverse();
         }
         if cmp == Ordering::Greater {
-            self.points.push(Point::with_quadrant(point.x, point.y, self.quadrant));
+            self.points
+                .push(Point::with_quadrant(point.x, point.y, self.quadrant));
             self.maximal_y = point.y;
         }
     }

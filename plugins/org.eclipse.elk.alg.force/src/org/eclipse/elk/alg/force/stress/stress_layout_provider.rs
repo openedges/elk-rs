@@ -32,12 +32,21 @@ impl Default for StressLayoutProvider {
 }
 
 impl IGraphLayoutEngine for StressLayoutProvider {
-    fn layout(&mut self, layout_graph: &ElkNodeRef, progress_monitor: &mut dyn IElkProgressMonitor) {
+    fn layout(
+        &mut self,
+        layout_graph: &ElkNodeRef,
+        progress_monitor: &mut dyn IElkProgressMonitor,
+    ) {
         progress_monitor.begin("ELK Stress", 1.0);
 
         let interactive = {
             let mut root = layout_graph.borrow_mut();
-            let mut props = root.connectable().shape().graph_element().properties().clone();
+            let mut props = root
+                .connectable()
+                .shape()
+                .graph_element()
+                .properties()
+                .clone();
             props
                 .get_property(StressOptions::INTERACTIVE)
                 .unwrap_or(false)
@@ -49,7 +58,12 @@ impl IGraphLayoutEngine for StressLayoutProvider {
         } else {
             let omit_micro = {
                 let mut root = layout_graph.borrow_mut();
-                let mut props = root.connectable().shape().graph_element().properties().clone();
+                let mut props = root
+                    .connectable()
+                    .shape()
+                    .graph_element()
+                    .properties()
+                    .clone();
                 props
                     .get_property(StressOptions::OMIT_NODE_MICRO_LAYOUT)
                     .unwrap_or(false)

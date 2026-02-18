@@ -5,7 +5,9 @@ use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILay
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LEdge, LGraph, LNode, LNodeRef, LPortRef, NodeType};
+use crate::org::eclipse::elk::alg::layered::graph::{
+    LEdge, LGraph, LNode, LNodeRef, LPortRef, NodeType,
+};
 use crate::org::eclipse::elk::alg::layered::options::InternalProperties;
 
 pub struct HyperedgeDummyMerger;
@@ -81,12 +83,16 @@ fn check_merge_allowed(
     let curr_has_label_dummies = curr_node
         .lock()
         .ok()
-        .and_then(|mut node_guard| node_guard.get_property(InternalProperties::LONG_EDGE_HAS_LABEL_DUMMIES))
+        .and_then(|mut node_guard| {
+            node_guard.get_property(InternalProperties::LONG_EDGE_HAS_LABEL_DUMMIES)
+        })
         .unwrap_or(false);
     let last_has_label_dummies = last_node
         .lock()
         .ok()
-        .and_then(|mut node_guard| node_guard.get_property(InternalProperties::LONG_EDGE_HAS_LABEL_DUMMIES))
+        .and_then(|mut node_guard| {
+            node_guard.get_property(InternalProperties::LONG_EDGE_HAS_LABEL_DUMMIES)
+        })
         .unwrap_or(false);
 
     let curr_source = curr_node
@@ -144,20 +150,22 @@ fn check_merge_allowed(
     let curr_before_label_dummy = curr_node
         .lock()
         .ok()
-        .and_then(|mut node_guard| node_guard.get_property(InternalProperties::LONG_EDGE_BEFORE_LABEL_DUMMY))
+        .and_then(|mut node_guard| {
+            node_guard.get_property(InternalProperties::LONG_EDGE_BEFORE_LABEL_DUMMY)
+        })
         .unwrap_or(false);
     let last_before_label_dummy = last_node
         .lock()
         .ok()
-        .and_then(|mut node_guard| node_guard.get_property(InternalProperties::LONG_EDGE_BEFORE_LABEL_DUMMY))
+        .and_then(|mut node_guard| {
+            node_guard.get_property(InternalProperties::LONG_EDGE_BEFORE_LABEL_DUMMY)
+        })
         .unwrap_or(false);
 
-    let eligible_for_source_merging =
-        (!curr_has_label_dummies || curr_before_label_dummy)
-            && (!last_has_label_dummies || last_before_label_dummy);
-    let eligible_for_target_merging =
-        (!curr_has_label_dummies || !curr_before_label_dummy)
-            && (!last_has_label_dummies || !last_before_label_dummy);
+    let eligible_for_source_merging = (!curr_has_label_dummies || curr_before_label_dummy)
+        && (!last_has_label_dummies || last_before_label_dummy);
+    let eligible_for_target_merging = (!curr_has_label_dummies || !curr_before_label_dummy)
+        && (!last_has_label_dummies || !last_before_label_dummy);
 
     MergeState {
         allow_merge: (same_source && eligible_for_source_merging)
@@ -263,7 +271,11 @@ fn identify_hyperedges(layered_graph: &LGraph) -> HashMap<usize, i32> {
     component_ids
 }
 
-fn mark_hyperedge_component(start: &LPortRef, component_id: i32, component_ids: &mut HashMap<usize, i32>) {
+fn mark_hyperedge_component(
+    start: &LPortRef,
+    component_id: i32,
+    component_ids: &mut HashMap<usize, i32>,
+) {
     let mut stack: Vec<LPortRef> = vec![start.clone()];
     while let Some(port) = stack.pop() {
         let key = port_key(&port);

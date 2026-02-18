@@ -6,7 +6,8 @@ use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase_factory::
 use crate::org::eclipse::elk::alg::layered::graph::LGraph;
 use crate::org::eclipse::elk::alg::layered::p1cycles::{
     BfsNodeOrderCycleBreaker, DepthFirstCycleBreaker, DfsNodeOrderCycleBreaker, GreedyCycleBreaker,
-    InteractiveCycleBreaker, ModelOrderCycleBreaker, ScConnectivityCycleBreaker, SccNodeTypeCycleBreaker,
+    InteractiveCycleBreaker, ModelOrderCycleBreaker, ScConnectivityCycleBreaker,
+    SccNodeTypeCycleBreaker,
 };
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
 

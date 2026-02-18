@@ -45,7 +45,9 @@ fn add_node_to_layer(graph: &LGraphRef, layer: &LayerRef) -> LNodeRef {
 }
 
 fn add_nodes_to_layer(graph: &LGraphRef, layer: &LayerRef, count: usize) -> Vec<LNodeRef> {
-    (0..count).map(|_| add_node_to_layer(graph, layer)).collect()
+    (0..count)
+        .map(|_| add_node_to_layer(graph, layer))
+        .collect()
 }
 
 fn add_port_on_side(node: &LNodeRef, side: PortSide) -> LPortRef {
@@ -169,16 +171,12 @@ impl InLayerCrossingHarness {
     fn count_crossings(&mut self, upper_index: usize, lower_index: usize) {
         let upper = self.node_order[upper_index].clone();
         let lower = self.node_order[lower_index].clone();
-        let left = self.left_counter.count_in_layer_crossings_between_nodes_in_both_orders(
-            &upper,
-            &lower,
-            PortSide::West,
-        );
-        let right = self.right_counter.count_in_layer_crossings_between_nodes_in_both_orders(
-            &upper,
-            &lower,
-            PortSide::East,
-        );
+        let left = self
+            .left_counter
+            .count_in_layer_crossings_between_nodes_in_both_orders(&upper, &lower, PortSide::West);
+        let right = self
+            .right_counter
+            .count_in_layer_crossings_between_nodes_in_both_orders(&upper, &lower, PortSide::East);
         self.upper_lower = left.first + right.first;
         self.lower_upper = left.second + right.second;
     }
@@ -186,8 +184,10 @@ impl InLayerCrossingHarness {
     fn switch_order(&mut self, index_one: usize, index_two: usize) {
         let upper = self.node_order[index_one].clone();
         let lower = self.node_order[index_two].clone();
-        self.left_counter.switch_nodes(&upper, &lower, PortSide::West);
-        self.right_counter.switch_nodes(&upper, &lower, PortSide::East);
+        self.left_counter
+            .switch_nodes(&upper, &lower, PortSide::West);
+        self.right_counter
+            .switch_nodes(&upper, &lower, PortSide::East);
         self.node_order.swap(index_one, index_two);
     }
 }
@@ -424,7 +424,8 @@ fn graph_fixed_port_order_two_in_layer_edges_cross_each_other() -> LGraphRef {
     graph
 }
 
-fn graph_multiple_in_between_layer_edges_into_node_with_no_fixed_port_order_cause_crossings() -> LGraphRef {
+fn graph_multiple_in_between_layer_edges_into_node_with_no_fixed_port_order_cause_crossings(
+) -> LGraphRef {
     let graph = new_graph();
     let left_layer = make_layer(&graph);
     let left_nodes = add_nodes_to_layer(&graph, &left_layer, 2);
@@ -615,7 +616,8 @@ fn more_than_one_edge_into_a_port() {
 
 #[test]
 fn in_between_layer_edges_into_node_with_no_fixed_port_order_cause_crossings() {
-    let graph = graph_multiple_in_between_layer_edges_into_node_with_no_fixed_port_order_cause_crossings();
+    let graph =
+        graph_multiple_in_between_layer_edges_into_node_with_no_fixed_port_order_cause_crossings();
     let mut harness = InLayerCrossingHarness::new(&graph, 1);
     harness.count_crossings(0, 1);
     assert_eq!(harness.upper_lower, 2);

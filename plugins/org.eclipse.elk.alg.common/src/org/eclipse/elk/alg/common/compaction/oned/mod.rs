@@ -18,5 +18,5 @@ pub use i_compaction_algorithm::ICompactionAlgorithm;
 pub use i_constraint_calculation_algorithm::IConstraintCalculationAlgorithm;
 pub use i_lock_function::ILockFunction;
 pub use i_spacings_handler::{DefaultSpacingsHandler, ISpacingsHandler};
-pub use quadratic_constraint_calculation::QuadraticConstraintCalculation;
 pub use one_dimensional_compactor::OneDimensionalCompactor;
+pub use quadratic_constraint_calculation::QuadraticConstraintCalculation;

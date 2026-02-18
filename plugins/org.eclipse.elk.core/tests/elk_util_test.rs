@@ -36,10 +36,7 @@ fn create_content_alignment_test_graph(
 
 fn get_child(parent: &ElkNodeRef, index: usize) -> ElkNodeRef {
     let mut parent_mut = parent.borrow_mut();
-    parent_mut
-        .children()
-        .get(index)
-        .expect("child not found")
+    parent_mut.children().get(index).expect("child not found")
 }
 
 fn get_location(node: &ElkNodeRef) -> (f64, f64) {
@@ -56,7 +53,11 @@ fn assert_translation(
     let parent = create_content_alignment_test_graph(alignment);
     let node = get_child(&parent, 0);
     let inner = get_child(&node, 0);
-    ElkUtil::translate((&node, &KVector::with_values(120.0, 120.0), &KVector::with_values(100.0, 100.0)));
+    ElkUtil::translate((
+        &node,
+        &KVector::with_values(120.0, 120.0),
+        &KVector::with_values(100.0, 100.0),
+    ));
     let (x, y) = get_location(&inner);
     assert!((x - expected_x).abs() <= 1.0);
     assert!((y - expected_y).abs() <= 1.0);
@@ -149,8 +150,8 @@ fn absolute_position_test() {
         .expect("child position");
     assert_eq!(child_pos, KVector::with_values(15.0, 27.0));
 
-    let port_pos = ElkUtil::absolute_position(&ElkGraphElementRef::Port(port.clone()))
-        .expect("port position");
+    let port_pos =
+        ElkUtil::absolute_position(&ElkGraphElementRef::Port(port.clone())).expect("port position");
     assert_eq!(port_pos, KVector::with_values(17.0, 30.0));
 
     let label_pos = ElkUtil::absolute_position(&ElkGraphElementRef::Label(label.clone()))
@@ -231,13 +232,8 @@ fn compute_inside_part_test() {
     let label_pos = KVector::with_values(0.0, 5.0);
     let label_size = KVector::with_values(10.0, 10.0);
     let port_size = KVector::with_values(10.0, 10.0);
-    let inside = ElkUtil::compute_inside_part(
-        &label_pos,
-        &label_size,
-        &port_size,
-        0.0,
-        PortSide::North,
-    );
+    let inside =
+        ElkUtil::compute_inside_part(&label_pos, &label_size, &port_size, 0.0, PortSide::North);
     assert_eq!(inside, 5.0);
 }
 

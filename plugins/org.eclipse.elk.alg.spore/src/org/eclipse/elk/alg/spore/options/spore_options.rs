@@ -5,7 +5,10 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::ElkPadding;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 
-use super::{CompactionStrategy, RootSelection, SpanningTreeCostFunction, StructureExtractionStrategy, TreeConstructionStrategy};
+use super::{
+    CompactionStrategy, RootSelection, SpanningTreeCostFunction, StructureExtractionStrategy,
+    TreeConstructionStrategy,
+};
 
 pub static UNDERLYING_LAYOUT_ALGORITHM_PROPERTY: LazyLock<Property<String>> =
     LazyLock::new(|| Property::new("org.eclipse.elk.underlyingLayoutAlgorithm"));
@@ -18,21 +21,23 @@ pub static STRUCTURE_EXTRACTION_STRATEGY_PROPERTY: LazyLock<Property<StructureEx
         )
     });
 
-pub static PROCESSING_ORDER_TREE_CONSTRUCTION_PROPERTY: LazyLock<Property<TreeConstructionStrategy>> =
-    LazyLock::new(|| {
-        Property::with_default(
-            "org.eclipse.elk.processingOrder.treeConstruction",
-            TreeConstructionStrategy::MinimumSpanningTree,
-        )
-    });
+pub static PROCESSING_ORDER_TREE_CONSTRUCTION_PROPERTY: LazyLock<
+    Property<TreeConstructionStrategy>,
+> = LazyLock::new(|| {
+    Property::with_default(
+        "org.eclipse.elk.processingOrder.treeConstruction",
+        TreeConstructionStrategy::MinimumSpanningTree,
+    )
+});
 
-pub static PROCESSING_ORDER_SPANNING_TREE_COST_FUNCTION_PROPERTY:
-    LazyLock<Property<SpanningTreeCostFunction>> = LazyLock::new(|| {
-        Property::with_default(
-            "org.eclipse.elk.processingOrder.spanningTreeCostFunction",
-            SpanningTreeCostFunction::CircleUnderlap,
-        )
-    });
+pub static PROCESSING_ORDER_SPANNING_TREE_COST_FUNCTION_PROPERTY: LazyLock<
+    Property<SpanningTreeCostFunction>,
+> = LazyLock::new(|| {
+    Property::with_default(
+        "org.eclipse.elk.processingOrder.spanningTreeCostFunction",
+        SpanningTreeCostFunction::CircleUnderlap,
+    )
+});
 
 pub static PROCESSING_ORDER_PREFERRED_ROOT_PROPERTY: LazyLock<Property<String>> =
     LazyLock::new(|| Property::new("org.eclipse.elk.processingOrder.preferredRoot"));
@@ -67,13 +72,15 @@ pub struct SporeCommonOptions;
 impl SporeCommonOptions {
     pub const UNDERLYING_LAYOUT_ALGORITHM: &'static LazyLock<Property<String>> =
         &UNDERLYING_LAYOUT_ALGORITHM_PROPERTY;
-    pub const STRUCTURE_EXTRACTION_STRATEGY: &'static LazyLock<Property<StructureExtractionStrategy>> =
-        &STRUCTURE_EXTRACTION_STRATEGY_PROPERTY;
-    pub const PROCESSING_ORDER_TREE_CONSTRUCTION: &'static LazyLock<Property<TreeConstructionStrategy>> =
-        &PROCESSING_ORDER_TREE_CONSTRUCTION_PROPERTY;
-    pub const PROCESSING_ORDER_SPANNING_TREE_COST_FUNCTION:
-        &'static LazyLock<Property<SpanningTreeCostFunction>> =
-        &PROCESSING_ORDER_SPANNING_TREE_COST_FUNCTION_PROPERTY;
+    pub const STRUCTURE_EXTRACTION_STRATEGY: &'static LazyLock<
+        Property<StructureExtractionStrategy>,
+    > = &STRUCTURE_EXTRACTION_STRATEGY_PROPERTY;
+    pub const PROCESSING_ORDER_TREE_CONSTRUCTION: &'static LazyLock<
+        Property<TreeConstructionStrategy>,
+    > = &PROCESSING_ORDER_TREE_CONSTRUCTION_PROPERTY;
+    pub const PROCESSING_ORDER_SPANNING_TREE_COST_FUNCTION: &'static LazyLock<
+        Property<SpanningTreeCostFunction>,
+    > = &PROCESSING_ORDER_SPANNING_TREE_COST_FUNCTION_PROPERTY;
     pub const PROCESSING_ORDER_PREFERRED_ROOT: &'static LazyLock<Property<String>> =
         &PROCESSING_ORDER_PREFERRED_ROOT_PROPERTY;
     pub const PROCESSING_ORDER_ROOT_SELECTION: &'static LazyLock<Property<RootSelection>> =

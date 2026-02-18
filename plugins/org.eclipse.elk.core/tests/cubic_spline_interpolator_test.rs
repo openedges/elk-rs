@@ -1,6 +1,4 @@
-use org_eclipse_elk_core::org::eclipse::elk::core::math::{
-    CubicSplineInterpolator, KVector,
-};
+use org_eclipse_elk_core::org::eclipse::elk::core::math::{CubicSplineInterpolator, KVector};
 
 #[test]
 fn calculate_closed_bezier_spline_test() {

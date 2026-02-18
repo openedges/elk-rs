@@ -69,7 +69,9 @@ fn add_node_to_layer(graph: &LGraphRef, layer: &LayerRef) -> LNodeRef {
 }
 
 fn add_nodes_to_layer(graph: &LGraphRef, layer: &LayerRef, count: usize) -> Vec<LNodeRef> {
-    (0..count).map(|_| add_node_to_layer(graph, layer)).collect()
+    (0..count)
+        .map(|_| add_node_to_layer(graph, layer))
+        .collect()
 }
 
 fn add_port_on_side(node: &LNodeRef, side: PortSide) -> LPortRef {
@@ -83,7 +85,10 @@ fn add_port_on_side(node: &LNodeRef, side: PortSide) -> LPortRef {
             .get_property(LayeredOptions::PORT_CONSTRAINTS)
             .unwrap_or(PortConstraints::Undefined);
         if !constraints.is_side_fixed() {
-            node_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::FixedSide));
+            node_guard.set_property(
+                LayeredOptions::PORT_CONSTRAINTS,
+                Some(PortConstraints::FixedSide),
+            );
         }
     }
     port
@@ -161,13 +166,23 @@ fn add_north_south_edge(
         .lock()
         .ok()
         .and_then(|node_guard| node_guard.layer())
-        .and_then(|layer| layer.lock().ok().and_then(|layer_guard| layer_guard.index()))
+        .and_then(|layer| {
+            layer
+                .lock()
+                .ok()
+                .and_then(|layer_guard| layer_guard.index())
+        })
         .unwrap_or(0);
     let other_layer_index = node_with_east_west_ports
         .lock()
         .ok()
         .and_then(|node_guard| node_guard.layer())
-        .and_then(|layer| layer.lock().ok().and_then(|layer_guard| layer_guard.index()))
+        .and_then(|layer| {
+            layer
+                .lock()
+                .ok()
+                .and_then(|layer_guard| layer_guard.index())
+        })
         .unwrap_or(0);
     let normal_node_east_of_ns = other_layer_index < ns_layer_index;
     let direction = if normal_node_east_of_ns {
@@ -187,17 +202,29 @@ fn add_north_south_edge(
     }
 
     if let Ok(mut dummy_guard) = north_south_dummy.lock() {
-        dummy_guard.set_property(InternalProperties::IN_LAYER_LAYOUT_UNIT, Some(node_with_ns_ports.clone()));
-        dummy_guard.set_property(InternalProperties::ORIGIN, Some(Origin::LNode(node_with_ns_ports.clone())));
+        dummy_guard.set_property(
+            InternalProperties::IN_LAYER_LAYOUT_UNIT,
+            Some(node_with_ns_ports.clone()),
+        );
+        dummy_guard.set_property(
+            InternalProperties::ORIGIN,
+            Some(Origin::LNode(node_with_ns_ports.clone())),
+        );
         dummy_guard.set_node_type(NodeType::NorthSouthPort);
     }
 
     let origin_port = add_port_on_side(node_with_ns_ports, side);
     if let Ok(mut dummy_port_guard) = dummy_node_port.lock() {
-        dummy_port_guard.set_property(InternalProperties::ORIGIN, Some(Origin::LPort(origin_port.clone())));
+        dummy_port_guard.set_property(
+            InternalProperties::ORIGIN,
+            Some(Origin::LPort(origin_port.clone())),
+        );
     }
     if let Ok(mut origin_port_guard) = origin_port.lock() {
-        origin_port_guard.set_property(InternalProperties::PORT_DUMMY, Some(north_south_dummy.clone()));
+        origin_port_guard.set_property(
+            InternalProperties::PORT_DUMMY,
+            Some(north_south_dummy.clone()),
+        );
     }
 
     if let Ok(mut node_guard) = node_with_ns_ports.lock() {
@@ -221,17 +248,27 @@ fn add_north_south_edge(
                 .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
                 .unwrap_or_default();
             constraints.push(node_with_ns_ports.clone());
-            dummy_guard.set_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS, Some(constraints));
+            dummy_guard.set_property(
+                InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS,
+                Some(constraints),
+            );
         }
     } else if let Ok(mut node_guard) = node_with_ns_ports.lock() {
         let mut constraints = node_guard
             .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
             .unwrap_or_default();
         constraints.push(north_south_dummy.clone());
-        node_guard.set_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS, Some(constraints));
+        node_guard.set_property(
+            InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS,
+            Some(constraints),
+        );
     }
 
-    if let Some(graph) = node_with_ns_ports.lock().ok().and_then(|node_guard| node_guard.graph()) {
+    if let Some(graph) = node_with_ns_ports
+        .lock()
+        .ok()
+        .and_then(|node_guard| node_guard.graph())
+    {
         if let Ok(mut graph_guard) = graph.lock() {
             let mut props = graph_guard
                 .get_property(InternalProperties::GRAPH_PROPERTIES)
@@ -519,10 +556,16 @@ fn graph_nodes_in_different_layout_units_prevent_switch() -> LGraphRef {
     );
 
     if let Ok(mut node_guard) = right_nodes[1].lock() {
-        node_guard.set_property(InternalProperties::IN_LAYER_LAYOUT_UNIT, Some(right_nodes[2].clone()));
+        node_guard.set_property(
+            InternalProperties::IN_LAYER_LAYOUT_UNIT,
+            Some(right_nodes[2].clone()),
+        );
     }
     if let Ok(mut node_guard) = right_nodes[2].lock() {
-        node_guard.set_property(InternalProperties::IN_LAYER_LAYOUT_UNIT, Some(right_nodes[2].clone()));
+        node_guard.set_property(
+            InternalProperties::IN_LAYER_LAYOUT_UNIT,
+            Some(right_nodes[2].clone()),
+        );
     }
 
     set_up_ids(&graph);

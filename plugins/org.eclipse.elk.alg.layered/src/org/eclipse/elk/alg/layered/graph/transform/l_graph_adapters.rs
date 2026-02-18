@@ -290,14 +290,8 @@ impl NodeAdapter<LNodeRef> for LNodeAdapter {
                 .unwrap_or(PortConstraints::Undefined);
             if constraints.is_order_fixed() {
                 node.ports_mut().sort_by(|a, b| {
-                    let side_a = a
-                        .lock()
-                        .map(|p| p.side())
-                        .unwrap_or(PortSide::Undefined);
-                    let side_b = b
-                        .lock()
-                        .map(|p| p.side())
-                        .unwrap_or(PortSide::Undefined);
+                    let side_a = a.lock().map(|p| p.side()).unwrap_or(PortSide::Undefined);
+                    let side_b = b.lock().map(|p| p.side()).unwrap_or(PortSide::Undefined);
                     let side_cmp = (side_a as i32).cmp(&(side_b as i32));
                     if side_cmp != Ordering::Equal {
                         return side_cmp;
@@ -319,23 +313,47 @@ impl NodeAdapter<LNodeRef> for LNodeAdapter {
                     // Position tiebreak
                     match side_a {
                         PortSide::North => {
-                            let x_a = a.lock().map(|mut p| p.shape().position_ref().x).unwrap_or(0.0);
-                            let x_b = b.lock().map(|mut p| p.shape().position_ref().x).unwrap_or(0.0);
+                            let x_a = a
+                                .lock()
+                                .map(|mut p| p.shape().position_ref().x)
+                                .unwrap_or(0.0);
+                            let x_b = b
+                                .lock()
+                                .map(|mut p| p.shape().position_ref().x)
+                                .unwrap_or(0.0);
                             x_a.partial_cmp(&x_b).unwrap_or(Ordering::Equal)
                         }
                         PortSide::East => {
-                            let y_a = a.lock().map(|mut p| p.shape().position_ref().y).unwrap_or(0.0);
-                            let y_b = b.lock().map(|mut p| p.shape().position_ref().y).unwrap_or(0.0);
+                            let y_a = a
+                                .lock()
+                                .map(|mut p| p.shape().position_ref().y)
+                                .unwrap_or(0.0);
+                            let y_b = b
+                                .lock()
+                                .map(|mut p| p.shape().position_ref().y)
+                                .unwrap_or(0.0);
                             y_a.partial_cmp(&y_b).unwrap_or(Ordering::Equal)
                         }
                         PortSide::South => {
-                            let x_a = a.lock().map(|mut p| p.shape().position_ref().x).unwrap_or(0.0);
-                            let x_b = b.lock().map(|mut p| p.shape().position_ref().x).unwrap_or(0.0);
+                            let x_a = a
+                                .lock()
+                                .map(|mut p| p.shape().position_ref().x)
+                                .unwrap_or(0.0);
+                            let x_b = b
+                                .lock()
+                                .map(|mut p| p.shape().position_ref().x)
+                                .unwrap_or(0.0);
                             x_b.partial_cmp(&x_a).unwrap_or(Ordering::Equal)
                         }
                         PortSide::West => {
-                            let y_a = a.lock().map(|mut p| p.shape().position_ref().y).unwrap_or(0.0);
-                            let y_b = b.lock().map(|mut p| p.shape().position_ref().y).unwrap_or(0.0);
+                            let y_a = a
+                                .lock()
+                                .map(|mut p| p.shape().position_ref().y)
+                                .unwrap_or(0.0);
+                            let y_b = b
+                                .lock()
+                                .map(|mut p| p.shape().position_ref().y)
+                                .unwrap_or(0.0);
                             y_b.partial_cmp(&y_a).unwrap_or(Ordering::Equal)
                         }
                         _ => Ordering::Equal,
@@ -766,7 +784,11 @@ impl GraphElementAdapter<LLabelRef> for LLabelAdapter {
 
     fn has_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> bool {
         if let Ok(mut label) = self.label.lock() {
-            label.shape().graph_element().properties().has_property(prop)
+            label
+                .shape()
+                .graph_element()
+                .properties()
+                .has_property(prop)
         } else {
             false
         }

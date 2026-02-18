@@ -19,7 +19,10 @@ impl CrossingMatrixFiller {
         direction: CrossingCountSide,
     ) -> Self {
         let one_sided = greedy_switch_type == CrossMinType::OneSidedGreedySwitch;
-        let free_layer_len = graph.get(free_layer_index).map(|layer| layer.len()).unwrap_or(0);
+        let free_layer_len = graph
+            .get(free_layer_index)
+            .map(|layer| layer.len())
+            .unwrap_or(0);
         let is_crossing_matrix_filled = vec![vec![false; free_layer_len]; free_layer_len];
         let crossing_matrix = vec![vec![0; free_layer_len]; free_layer_len];
 
@@ -73,10 +76,12 @@ impl CrossingMatrixFiller {
         if upper_id >= self.crossing_matrix.len() || lower_id >= self.crossing_matrix.len() {
             return;
         }
-        self.crossing_matrix[upper_id][lower_id] =
-            self.in_between_layer_crossing_counter.upper_lower_crossings();
-        self.crossing_matrix[lower_id][upper_id] =
-            self.in_between_layer_crossing_counter.lower_upper_crossings();
+        self.crossing_matrix[upper_id][lower_id] = self
+            .in_between_layer_crossing_counter
+            .upper_lower_crossings();
+        self.crossing_matrix[lower_id][upper_id] = self
+            .in_between_layer_crossing_counter
+            .lower_upper_crossings();
     }
 }
 

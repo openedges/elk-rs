@@ -1,10 +1,10 @@
+use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
-use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LEdge, LGraph, LNodeRef, LPortRef};
-use crate::org::eclipse::elk::alg::layered::options::LayeredOptions;
 use crate::org::eclipse::elk::alg::layered::options::InternalProperties;
+use crate::org::eclipse::elk::alg::layered::options::LayeredOptions;
 
 pub struct CommentPostprocessor;
 
@@ -93,18 +93,19 @@ fn process_node(
     bottom_boxes: Option<&[LNodeRef]>,
     graph_comment_spacing: f64,
 ) {
-    let (node_x, node_y, node_w, node_h, margin_top, margin_bottom) = if let Ok(mut node_guard) = node.lock() {
-        (
-            node_guard.shape().position_ref().x,
-            node_guard.shape().position_ref().y,
-            node_guard.shape().size_ref().x,
-            node_guard.shape().size_ref().y,
-            node_guard.margin().top,
-            node_guard.margin().bottom,
-        )
-    } else {
-        return;
-    };
+    let (node_x, node_y, node_w, node_h, margin_top, margin_bottom) =
+        if let Ok(mut node_guard) = node.lock() {
+            (
+                node_guard.shape().position_ref().x,
+                node_guard.shape().position_ref().y,
+                node_guard.shape().size_ref().x,
+                node_guard.shape().size_ref().y,
+                node_guard.margin().top,
+                node_guard.margin().bottom,
+            )
+        } else {
+            return;
+        };
 
     let comment_comment_spacing = spacing_comment_comment(node, graph_comment_spacing);
 
@@ -170,7 +171,8 @@ fn process_node(
     }
 
     if let Some(bottom_boxes) = bottom_boxes {
-        let mut boxes_width = comment_comment_spacing * (bottom_boxes.len().saturating_sub(1) as f64);
+        let mut boxes_width =
+            comment_comment_spacing * (bottom_boxes.len().saturating_sub(1) as f64);
         let mut max_height: f64 = 0.0;
         for box_node in bottom_boxes {
             if let Ok(mut box_guard) = box_node.lock() {

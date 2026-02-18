@@ -16,8 +16,16 @@ fn network_simplex_layering_invariants() {
     init_layered_options();
 
     let root = build_test_graph();
-    set_node_property(&root, CoreOptions::ALGORITHM, "org.eclipse.elk.layered".to_string());
-    set_node_property(&root, LayeredOptions::LAYERING_STRATEGY, LayeringStrategy::NetworkSimplex);
+    set_node_property(
+        &root,
+        CoreOptions::ALGORITHM,
+        "org.eclipse.elk.layered".to_string(),
+    );
+    set_node_property(
+        &root,
+        LayeredOptions::LAYERING_STRATEGY,
+        LayeringStrategy::NetworkSimplex,
+    );
 
     let lgraph = import_lgraph(&root);
     let mut layered = ElkLayered::new();
@@ -31,8 +39,16 @@ fn bk_node_placement_orders_nodes() {
     init_layered_options();
 
     let root = build_test_graph();
-    set_node_property(&root, CoreOptions::ALGORITHM, "org.eclipse.elk.layered".to_string());
-    set_node_property(&root, LayeredOptions::NODE_PLACEMENT_STRATEGY, NodePlacementStrategy::BrandesKoepf);
+    set_node_property(
+        &root,
+        CoreOptions::ALGORITHM,
+        "org.eclipse.elk.layered".to_string(),
+    );
+    set_node_property(
+        &root,
+        LayeredOptions::NODE_PLACEMENT_STRATEGY,
+        NodePlacementStrategy::BrandesKoepf,
+    );
     set_node_property(
         &root,
         LayeredOptions::NODE_PLACEMENT_BK_EDGE_STRAIGHTENING,
@@ -56,7 +72,11 @@ fn network_simplex_node_placement_orders_nodes() {
     init_layered_options();
 
     let root = build_test_graph();
-    set_node_property(&root, CoreOptions::ALGORITHM, "org.eclipse.elk.layered".to_string());
+    set_node_property(
+        &root,
+        CoreOptions::ALGORITHM,
+        "org.eclipse.elk.layered".to_string(),
+    );
     set_node_property(
         &root,
         LayeredOptions::NODE_PLACEMENT_STRATEGY,
@@ -75,7 +95,11 @@ fn simple_node_placement_orders_nodes() {
     init_layered_options();
 
     let root = build_test_graph();
-    set_node_property(&root, CoreOptions::ALGORITHM, "org.eclipse.elk.layered".to_string());
+    set_node_property(
+        &root,
+        CoreOptions::ALGORITHM,
+        "org.eclipse.elk.layered".to_string(),
+    );
     set_node_property(
         &root,
         LayeredOptions::NODE_PLACEMENT_STRATEGY,
@@ -94,7 +118,11 @@ fn linear_segments_node_placement_orders_nodes() {
     init_layered_options();
 
     let root = build_test_graph();
-    set_node_property(&root, CoreOptions::ALGORITHM, "org.eclipse.elk.layered".to_string());
+    set_node_property(
+        &root,
+        CoreOptions::ALGORITHM,
+        "org.eclipse.elk.layered".to_string(),
+    );
     set_node_property(
         &root,
         LayeredOptions::NODE_PLACEMENT_STRATEGY,
@@ -145,7 +173,9 @@ fn init_layered_options() {
     service.register_layout_meta_data_provider(&LayeredMetaDataProvider);
 }
 
-fn import_lgraph(root: &ElkNodeRef) -> org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LGraphRef {
+fn import_lgraph(
+    root: &ElkNodeRef,
+) -> org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LGraphRef {
     let mut origin_store = OriginStore::new();
     let mut importer = ElkGraphImporter::new(&mut origin_store);
     importer.import_graph(root)
@@ -192,11 +222,7 @@ fn assert_layering_invariants(
 fn assert_layer_node_positions_increasing(
     lgraph: &org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LGraphRef,
 ) {
-    let layers = lgraph
-        .lock()
-        .expect("lgraph lock")
-        .layers()
-        .clone();
+    let layers = lgraph.lock().expect("lgraph lock").layers().clone();
 
     for layer in layers {
         let nodes = layer.lock().expect("layer lock").nodes().clone();
@@ -214,7 +240,9 @@ fn assert_layer_node_positions_increasing(
     }
 }
 
-fn layer_index(layer: &org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LayerRef) -> usize {
+fn layer_index(
+    layer: &org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LayerRef,
+) -> usize {
     layer
         .lock()
         .ok()
@@ -224,10 +252,7 @@ fn layer_index(layer: &org_eclipse_elk_alg_layered::org::eclipse::elk::alg::laye
 
 fn set_dimensions(node: &ElkNodeRef, width: f64, height: f64) {
     let mut node_mut = node.borrow_mut();
-    node_mut
-        .connectable()
-        .shape()
-        .set_dimensions(width, height);
+    node_mut.connectable().shape().set_dimensions(width, height);
 }
 
 fn set_node_property<T: Clone + Send + Sync + 'static>(

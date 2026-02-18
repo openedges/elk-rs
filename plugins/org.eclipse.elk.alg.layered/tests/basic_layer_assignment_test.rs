@@ -166,7 +166,11 @@ fn run_layerer_for_strategy(
 ) -> org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LGraphRef {
     init_layered_options();
     let (root, nodes) = build_test_graph();
-    set_node_property(&root, CoreOptions::ALGORITHM, "org.eclipse.elk.layered".to_string());
+    set_node_property(
+        &root,
+        CoreOptions::ALGORITHM,
+        "org.eclipse.elk.layered".to_string(),
+    );
     set_node_property(&root, LayeredOptions::LAYERING_STRATEGY, strategy);
 
     if strategy == LayeringStrategy::Interactive {
@@ -232,9 +236,7 @@ fn assert_no_empty_layers(strategy: LayeringStrategy) {
     }
 }
 
-fn assert_edges_point_towards_next_layers(
-    strategy: LayeringStrategy,
-) {
+fn assert_edges_point_towards_next_layers(strategy: LayeringStrategy) {
     let lgraph = run_layerer_for_strategy(strategy);
     let graph_guard = lgraph.lock().expect("lgraph lock");
     let layers = graph_guard.layers().clone();
@@ -276,10 +278,7 @@ fn layer_index(
 
 fn set_dimensions(node: &ElkNodeRef, width: f64, height: f64) {
     let mut node_mut = node.borrow_mut();
-    node_mut
-        .connectable()
-        .shape()
-        .set_dimensions(width, height);
+    node_mut.connectable().shape().set_dimensions(width, height);
 }
 
 fn set_node_property<T: Clone + Send + Sync + 'static>(

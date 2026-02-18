@@ -1,6 +1,8 @@
 mod issue_support;
 
-use issue_support::{create_edge, create_graph, create_node, init_layered_options, run_layout, set_node_property};
+use issue_support::{
+    create_edge, create_graph, create_node, init_layered_options, run_layout, set_node_property,
+};
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::{
     ConstraintCalculationStrategy, GraphCompactionStrategy, LayeredOptions,
 };

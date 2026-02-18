@@ -18,7 +18,8 @@ fn add_layerless_node(graph: &LGraphRef, constraint: LayerConstraint) -> LNodeRe
             .expect("node lock")
             .set_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT, Some(constraint));
     }
-    graph.lock()
+    graph
+        .lock()
         .expect("graph lock")
         .layerless_nodes_mut()
         .push(node.clone());
@@ -39,7 +40,8 @@ fn connect(source: &LPortRef, target: &LPortRef) -> LEdgeRef {
 }
 
 fn run_processor(graph: &LGraphRef) {
-    LayoutMetaDataService::get_instance().register_layout_meta_data_provider(&LayeredMetaDataProvider);
+    LayoutMetaDataService::get_instance()
+        .register_layout_meta_data_provider(&LayeredMetaDataProvider);
     let mut processor = EdgeAndLayerConstraintEdgeReverser;
     let mut monitor = NullElkProgressMonitor;
     let mut graph_guard = graph.lock().expect("graph lock");
@@ -63,12 +65,11 @@ fn reverser_makes_first_node_outgoing_only() {
     assert!(incoming.is_empty());
     assert_eq!(outgoing.len(), 1);
     assert!(Arc::ptr_eq(&outgoing[0], &edge));
-    assert!(
-        edge.lock()
-            .expect("edge lock")
-            .get_property(InternalProperties::REVERSED)
-            .unwrap_or(false)
-    );
+    assert!(edge
+        .lock()
+        .expect("edge lock")
+        .get_property(InternalProperties::REVERSED)
+        .unwrap_or(false));
 }
 
 #[test]
@@ -88,12 +89,11 @@ fn reverser_makes_last_node_incoming_only() {
     assert!(outgoing.is_empty());
     assert_eq!(incoming.len(), 1);
     assert!(Arc::ptr_eq(&incoming[0], &edge));
-    assert!(
-        edge.lock()
-            .expect("edge lock")
-            .get_property(InternalProperties::REVERSED)
-            .unwrap_or(false)
-    );
+    assert!(edge
+        .lock()
+        .expect("edge lock")
+        .get_property(InternalProperties::REVERSED)
+        .unwrap_or(false));
 }
 
 #[test]
@@ -113,11 +113,9 @@ fn reverser_keeps_first_separate_to_first_edge_direction() {
     assert_eq!(incoming.len(), 1);
     assert!(outgoing.is_empty());
     assert!(Arc::ptr_eq(&incoming[0], &edge));
-    assert!(
-        !edge
-            .lock()
-            .expect("edge lock")
-            .get_property(InternalProperties::REVERSED)
-            .unwrap_or(false)
-    );
+    assert!(!edge
+        .lock()
+        .expect("edge lock")
+        .get_property(InternalProperties::REVERSED)
+        .unwrap_or(false));
 }

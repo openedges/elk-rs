@@ -6,17 +6,17 @@ pub struct Utils;
 
 impl Utils {
     pub fn overlap(r1: &ElkRectangle, r2: &ElkRectangle) -> f64 {
-        let horizontal_overlap = (r1.x - (r2.x + r2.width)).abs()
+        let horizontal_overlap = (r1.x - (r2.x + r2.width))
+            .abs()
             .min((r1.x + r1.width - r2.x).abs());
-        let vertical_overlap = (r1.y - (r2.y + r2.height)).abs()
+        let vertical_overlap = (r1.y - (r2.y + r2.height))
+            .abs()
             .min((r1.y + r1.height - r2.y).abs());
-        let horizontal_center_distance =
-            ((r1.x + r1.width / 2.0) - (r2.x + r2.width / 2.0)).abs();
+        let horizontal_center_distance = ((r1.x + r1.width / 2.0) - (r2.x + r2.width / 2.0)).abs();
         if horizontal_center_distance > r1.width / 2.0 + r2.width / 2.0 {
             return 1.0;
         }
-        let vertical_center_distance =
-            ((r1.y + r1.height / 2.0) - (r2.y + r2.height / 2.0)).abs();
+        let vertical_center_distance = ((r1.y + r1.height / 2.0) - (r2.y + r2.height / 2.0)).abs();
         if vertical_center_distance > r1.height / 2.0 + r2.height / 2.0 {
             return 1.0;
         }

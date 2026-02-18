@@ -53,7 +53,10 @@ fn graph_validator_custom_validation() {
             .shape()
             .graph_element()
             .properties_mut()
-            .set_property(CoreOptions::ALGORITHM, Some("test.foo.algorithm".to_string()));
+            .set_property(
+                CoreOptions::ALGORITHM,
+                Some("test.foo.algorithm".to_string()),
+            );
     }
 
     let mut resolver = LayoutAlgorithmResolver::new();
@@ -175,9 +178,8 @@ struct FooProvider;
 
 impl ILayoutMetaDataProvider for FooProvider {
     fn apply(&self, registry: &mut dyn LayoutMetaDataRegistry) {
-        let factory: Arc<
-            dyn Fn() -> Box<dyn IValidatingGraphElementVisitor> + Send + Sync,
-        > = Arc::new(|| Box::new(FooValidator::new()));
+        let factory: Arc<dyn Fn() -> Box<dyn IValidatingGraphElementVisitor> + Send + Sync> =
+            Arc::new(|| Box::new(FooValidator::new()));
         let mut data = LayoutAlgorithmData::new("test.foo.algorithm");
         data.set_validator_factory(Some(factory));
         registry.register_algorithm(data);
@@ -199,11 +201,7 @@ impl IGraphElementVisitor for FooValidator {
         let is_match = match element {
             ElkGraphElementRef::Node(node) => {
                 let mut node_mut = node.borrow_mut();
-                let identifier = node_mut
-                    .connectable()
-                    .shape()
-                    .graph_element()
-                    .identifier();
+                let identifier = node_mut.connectable().shape().graph_element().identifier();
                 matches!(identifier, Some("foo"))
             }
             _ => false,

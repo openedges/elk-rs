@@ -36,7 +36,11 @@ fn test_decrease_approximated_width() {
     set_dimensions(&n3, 30.0, 30.0);
     set_dimensions(&n4, 40.0, 10.0);
 
-    set_node_property(&parent, RectPackingOptions::PACKING_STRATEGY, PackingStrategy::None);
+    set_node_property(
+        &parent,
+        RectPackingOptions::PACKING_STRATEGY,
+        PackingStrategy::None,
+    );
     run_layout(&parent);
     assert_close(node_width(&parent), 60.0, "width with approximation only");
 

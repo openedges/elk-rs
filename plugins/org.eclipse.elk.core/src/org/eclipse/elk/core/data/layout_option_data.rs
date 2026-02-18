@@ -210,7 +210,9 @@ impl LayoutOptionData {
     pub fn choices(&self) -> Vec<String> {
         match self.option_type {
             LayoutOptionType::Boolean => vec!["false".to_string(), "true".to_string()],
-            LayoutOptionType::Enum | LayoutOptionType::EnumSet => self.choices.clone().unwrap_or_default(),
+            LayoutOptionType::Enum | LayoutOptionType::EnumSet => {
+                self.choices.clone().unwrap_or_default()
+            }
             _ => Vec::new(),
         }
     }
@@ -248,7 +250,9 @@ impl ILayoutMetaData for LayoutOptionData {
 
 impl std::fmt::Debug for LayoutOptionData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("LayoutOptionData").field("id", &self.id).finish()
+        f.debug_struct("LayoutOptionData")
+            .field("id", &self.id)
+            .finish()
     }
 }
 
@@ -368,10 +372,7 @@ impl LayoutOptionDataBuilder {
         self
     }
 
-    pub fn parser(
-        mut self,
-        parser: ParseFn,
-    ) -> Self {
+    pub fn parser(mut self, parser: ParseFn) -> Self {
         self.parser = Some(parser);
         self
     }

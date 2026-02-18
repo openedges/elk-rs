@@ -41,7 +41,9 @@ impl ILayoutPhase<RectPackingLayoutPhases, ElkNodeRef> for TargetWidthWidthAppro
                 .properties_mut()
                 .set_property(InternalProperties::TARGET_WIDTH, Some(target_width));
         } else {
-            panic!("A target width has to be set if the TargetWidthWidthApproximator should be used.");
+            panic!(
+                "A target width has to be set if the TargetWidthWidthApproximator should be used."
+            );
         }
         progress_monitor.done();
     }

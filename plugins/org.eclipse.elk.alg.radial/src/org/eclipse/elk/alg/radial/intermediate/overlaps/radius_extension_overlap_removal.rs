@@ -81,9 +81,15 @@ impl RadiusExtensionOverlapRemoval {
 }
 
 impl IOverlapRemoval for RadiusExtensionOverlapRemoval {
-    fn remove_overlaps(&mut self, graph: &ElkNodeRef, progress_monitor: &mut dyn IElkProgressMonitor) {
+    fn remove_overlaps(
+        &mut self,
+        graph: &ElkNodeRef,
+        progress_monitor: &mut dyn IElkProgressMonitor,
+    ) {
         let root = RadialUtil::root_from_graph(graph);
-        let Some(root) = root else { return; };
+        let Some(root) = root else {
+            return;
+        };
         self.sorter = {
             let mut graph_mut = graph.borrow_mut();
             graph_mut

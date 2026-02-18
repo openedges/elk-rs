@@ -140,9 +140,7 @@ impl<T: Clone + Send + Sync + 'static> Property<T> {
 
 impl<T: Clone + Send + Sync + 'static> fmt::Debug for Property<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Property")
-            .field("id", &self.id)
-            .finish()
+        f.debug_struct("Property").field("id", &self.id).finish()
     }
 }
 
@@ -185,8 +183,10 @@ impl MapPropertyHolder {
     ) -> &mut Self {
         match value {
             Some(value) => {
-                self.property_map
-                    .insert(property.id().to_owned(), PropertyValue::Resolved(Arc::new(value)));
+                self.property_map.insert(
+                    property.id().to_owned(),
+                    PropertyValue::Resolved(Arc::new(value)),
+                );
             }
             None => {
                 self.property_map.remove(property.id());
@@ -235,10 +235,8 @@ impl MapPropertyHolder {
                 PropertyValue::Proxy(proxy) => {
                     if let Some(resolved) = proxy.resolve_value(property.id()) {
                         let typed = resolved.clone().downcast::<T>().ok()?;
-                        self.property_map.insert(
-                            property.id().to_owned(),
-                            PropertyValue::Resolved(resolved),
-                        );
+                        self.property_map
+                            .insert(property.id().to_owned(), PropertyValue::Resolved(resolved));
                         return Some((*typed).clone());
                     }
                 }
@@ -328,7 +326,11 @@ impl<T: Ord + Clone + Send + Sync + 'static> PropertyHolderComparator<T> {
         }
     }
 
-    pub fn compare(&self, holder1: &mut MapPropertyHolder, holder2: &mut MapPropertyHolder) -> std::cmp::Ordering {
+    pub fn compare(
+        &self,
+        holder1: &mut MapPropertyHolder,
+        holder2: &mut MapPropertyHolder,
+    ) -> std::cmp::Ordering {
         let p1 = holder1.get_property(&self.property);
         let p2 = holder2.get_property(&self.property);
         match (p1, p2) {

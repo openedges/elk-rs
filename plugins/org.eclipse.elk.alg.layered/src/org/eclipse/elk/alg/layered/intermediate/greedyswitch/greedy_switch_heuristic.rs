@@ -67,12 +67,8 @@ impl GreedySwitchHeuristic {
         } else {
             CrossingCountSide::East
         };
-        let crossing_matrix_filler = CrossingMatrixFiller::new(
-            self.greedy_switch_type,
-            order,
-            free_layer_index,
-            side,
-        );
+        let crossing_matrix_filler =
+            CrossingMatrixFiller::new(self.greedy_switch_type, order, free_layer_index, side);
         let one_sided = self.greedy_switch_type == CrossMinType::OneSidedGreedySwitch;
         let free_layer = &order[free_layer_index];
         let free_layer_first_is_external_port = free_layer
@@ -151,8 +147,13 @@ impl GreedySwitchHeuristic {
         let length = order.get(layer_index).map(|layer| layer.len()).unwrap_or(0);
         for upper_node_index in 0..length.saturating_sub(1) {
             let lower_node_index = upper_node_index + 1;
-            continue_switching |=
-                self.switch_if_improves(order, layer_index, upper_node_index, lower_node_index, switch_decider);
+            continue_switching |= self.switch_if_improves(
+                order,
+                layer_index,
+                upper_node_index,
+                lower_node_index,
+                switch_decider,
+            );
         }
         continue_switching
     }
@@ -179,7 +180,13 @@ impl GreedySwitchHeuristic {
         };
 
         if switch_decider.does_switch_reduce_crossings(&upper_node, &lower_node) {
-            self.exchange_nodes(order, layer_index, upper_node_index, lower_node_index, switch_decider);
+            self.exchange_nodes(
+                order,
+                layer_index,
+                upper_node_index,
+                lower_node_index,
+                switch_decider,
+            );
             return true;
         }
         false
@@ -284,5 +291,10 @@ fn layer_index_of(node: &LNodeRef) -> Option<usize> {
     node.lock()
         .ok()
         .and_then(|node_guard| node_guard.layer())
-        .and_then(|layer| layer.lock().ok().map(|mut layer_guard| layer_guard.graph_element().id as usize))
+        .and_then(|layer| {
+            layer
+                .lock()
+                .ok()
+                .map(|mut layer_guard| layer_guard.graph_element().id as usize)
+        })
 }

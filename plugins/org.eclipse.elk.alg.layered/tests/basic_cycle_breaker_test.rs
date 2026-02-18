@@ -34,12 +34,18 @@ fn greedy_cycle_breaker_handles_dense_cycle_graph() {
 
 #[test]
 fn depth_first_cycle_breaker_handles_dense_cycle_graph() {
-    run_cycle_breaker_test(CycleBreakingStrategy::DepthFirst, build_dense_cyclic_graph());
+    run_cycle_breaker_test(
+        CycleBreakingStrategy::DepthFirst,
+        build_dense_cyclic_graph(),
+    );
 }
 
 #[test]
 fn greedy_model_order_cycle_breaker_produces_acyclic_graph() {
-    run_cycle_breaker_test(CycleBreakingStrategy::GreedyModelOrder, build_cyclic_graph());
+    run_cycle_breaker_test(
+        CycleBreakingStrategy::GreedyModelOrder,
+        build_cyclic_graph(),
+    );
 }
 
 #[test]
@@ -69,27 +75,42 @@ fn scc_node_type_cycle_breaker_produces_acyclic_graph() {
 
 #[test]
 fn model_order_cycle_breaker_handles_dense_cycle_graph() {
-    run_cycle_breaker_test(CycleBreakingStrategy::ModelOrder, build_dense_cyclic_graph());
+    run_cycle_breaker_test(
+        CycleBreakingStrategy::ModelOrder,
+        build_dense_cyclic_graph(),
+    );
 }
 
 #[test]
 fn bfs_node_order_cycle_breaker_handles_dense_cycle_graph() {
-    run_cycle_breaker_test(CycleBreakingStrategy::BfsNodeOrder, build_dense_cyclic_graph());
+    run_cycle_breaker_test(
+        CycleBreakingStrategy::BfsNodeOrder,
+        build_dense_cyclic_graph(),
+    );
 }
 
 #[test]
 fn dfs_node_order_cycle_breaker_handles_dense_cycle_graph() {
-    run_cycle_breaker_test(CycleBreakingStrategy::DfsNodeOrder, build_dense_cyclic_graph());
+    run_cycle_breaker_test(
+        CycleBreakingStrategy::DfsNodeOrder,
+        build_dense_cyclic_graph(),
+    );
 }
 
 #[test]
 fn scc_connectivity_cycle_breaker_handles_dense_cycle_graph() {
-    run_cycle_breaker_test(CycleBreakingStrategy::SccConnectivity, build_dense_cyclic_graph());
+    run_cycle_breaker_test(
+        CycleBreakingStrategy::SccConnectivity,
+        build_dense_cyclic_graph(),
+    );
 }
 
 #[test]
 fn scc_node_type_cycle_breaker_handles_dense_cycle_graph() {
-    run_cycle_breaker_test(CycleBreakingStrategy::SccNodeType, build_dense_cyclic_graph());
+    run_cycle_breaker_test(
+        CycleBreakingStrategy::SccNodeType,
+        build_dense_cyclic_graph(),
+    );
 }
 
 fn run_cycle_breaker_test(strategy: CycleBreakingStrategy, root: ElkNodeRef) {
@@ -307,10 +328,7 @@ fn node_id(
 
 fn set_dimensions(node: &ElkNodeRef, width: f64, height: f64) {
     let mut node_mut = node.borrow_mut();
-    node_mut
-        .connectable()
-        .shape()
-        .set_dimensions(width, height);
+    node_mut.connectable().shape().set_dimensions(width, height);
 }
 
 fn set_node_property<T: Clone + Send + Sync + 'static>(

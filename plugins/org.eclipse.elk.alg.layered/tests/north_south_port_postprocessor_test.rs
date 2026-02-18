@@ -14,7 +14,8 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::NullElkProgressMonitor;
 
 fn init_layered_metadata() {
-    LayoutMetaDataService::get_instance().register_layout_meta_data_provider(&LayeredMetaDataProvider);
+    LayoutMetaDataService::get_instance()
+        .register_layout_meta_data_provider(&LayeredMetaDataProvider);
 }
 
 fn graph_with_single_layer() -> (LGraphRef, std::sync::Arc<std::sync::Mutex<Layer>>) {
@@ -56,13 +57,10 @@ fn north_south_postprocessor_removes_all_north_south_dummy_nodes() {
     let (graph, layer) = graph_with_single_layer();
 
     let owner = add_node(&graph, &layer);
-    owner
-        .lock()
-        .expect("owner lock")
-        .set_property(
-            LayeredOptions::PORT_CONSTRAINTS,
-            Some(PortConstraints::FixedSide),
-        );
+    owner.lock().expect("owner lock").set_property(
+        LayeredOptions::PORT_CONSTRAINTS,
+        Some(PortConstraints::FixedSide),
+    );
 
     let north = add_port(&owner, PortSide::North);
     let south = add_port(&owner, PortSide::South);

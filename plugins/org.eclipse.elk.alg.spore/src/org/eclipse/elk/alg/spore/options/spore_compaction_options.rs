@@ -5,7 +5,10 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::ElkPadding;
 
 use super::spore_options::SporeCommonOptions;
-use super::{CompactionStrategy, RootSelection, SpanningTreeCostFunction, StructureExtractionStrategy, TreeConstructionStrategy};
+use super::{
+    CompactionStrategy, RootSelection, SpanningTreeCostFunction, StructureExtractionStrategy,
+    TreeConstructionStrategy,
+};
 
 pub struct SporeCompactionOptions;
 
@@ -14,13 +17,15 @@ impl SporeCompactionOptions {
 
     pub const UNDERLYING_LAYOUT_ALGORITHM: &'static LazyLock<Property<String>> =
         SporeCommonOptions::UNDERLYING_LAYOUT_ALGORITHM;
-    pub const STRUCTURE_EXTRACTION_STRATEGY: &'static LazyLock<Property<StructureExtractionStrategy>> =
-        SporeCommonOptions::STRUCTURE_EXTRACTION_STRATEGY;
-    pub const PROCESSING_ORDER_TREE_CONSTRUCTION: &'static LazyLock<Property<TreeConstructionStrategy>> =
-        SporeCommonOptions::PROCESSING_ORDER_TREE_CONSTRUCTION;
-    pub const PROCESSING_ORDER_SPANNING_TREE_COST_FUNCTION:
-        &'static LazyLock<Property<SpanningTreeCostFunction>> =
-        SporeCommonOptions::PROCESSING_ORDER_SPANNING_TREE_COST_FUNCTION;
+    pub const STRUCTURE_EXTRACTION_STRATEGY: &'static LazyLock<
+        Property<StructureExtractionStrategy>,
+    > = SporeCommonOptions::STRUCTURE_EXTRACTION_STRATEGY;
+    pub const PROCESSING_ORDER_TREE_CONSTRUCTION: &'static LazyLock<
+        Property<TreeConstructionStrategy>,
+    > = SporeCommonOptions::PROCESSING_ORDER_TREE_CONSTRUCTION;
+    pub const PROCESSING_ORDER_SPANNING_TREE_COST_FUNCTION: &'static LazyLock<
+        Property<SpanningTreeCostFunction>,
+    > = SporeCommonOptions::PROCESSING_ORDER_SPANNING_TREE_COST_FUNCTION;
     pub const PROCESSING_ORDER_PREFERRED_ROOT: &'static LazyLock<Property<String>> =
         SporeCommonOptions::PROCESSING_ORDER_PREFERRED_ROOT;
     pub const PROCESSING_ORDER_ROOT_SELECTION: &'static LazyLock<Property<RootSelection>> =

@@ -14,9 +14,11 @@ use org_eclipse_elk_alg_rectpacking::org::eclipse::elk::alg::rectpacking::option
 };
 use org_eclipse_elk_alg_rectpacking::org::eclipse::elk::alg::rectpacking::RectPackingLayoutProvider;
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
-use org_eclipse_elk_core::org::eclipse::elk::core::IGraphLayoutEngine;
 use org_eclipse_elk_core::org::eclipse::elk::core::recursive_graph_layout_engine::RecursiveGraphLayoutEngine;
-use org_eclipse_elk_core::org::eclipse::elk::core::util::{AlgorithmFactory, InstancePool, NullElkProgressMonitor};
+use org_eclipse_elk_core::org::eclipse::elk::core::util::{
+    AlgorithmFactory, InstancePool, NullElkProgressMonitor,
+};
+use org_eclipse_elk_core::org::eclipse::elk::core::IGraphLayoutEngine;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 
 #[test]
@@ -63,11 +65,15 @@ fn init_live_examples_layout() {
 
         let rect_factory = AlgorithmFactory::new(|| Box::new(RectPackingLayoutProvider::new()));
         let rect_pool = InstancePool::new(Box::new(rect_factory));
-        service.override_algorithm_provider_pool(RectPackingOptions::ALGORITHM_ID, Arc::new(rect_pool));
+        service.override_algorithm_provider_pool(
+            RectPackingOptions::ALGORITHM_ID,
+            Arc::new(rect_pool),
+        );
 
         let stress_factory = AlgorithmFactory::new(|| Box::new(StressLayoutProvider::new()));
         let stress_pool = InstancePool::new(Box::new(stress_factory));
-        service.override_algorithm_provider_pool(StressOptions::ALGORITHM_ID, Arc::new(stress_pool));
+        service
+            .override_algorithm_provider_pool(StressOptions::ALGORITHM_ID, Arc::new(stress_pool));
     });
 }
 
@@ -82,7 +88,10 @@ fn collect_elkt_files(dir: &Path, files: &mut Vec<PathBuf>) {
         .unwrap_or_else(|err| panic!("failed to read directory '{}': {err}", dir.display()));
     for entry in entries {
         let entry = entry.unwrap_or_else(|err| {
-            panic!("failed to read directory entry in '{}': {err}", dir.display())
+            panic!(
+                "failed to read directory entry in '{}': {err}",
+                dir.display()
+            )
         });
         let path = entry.path();
         if path.is_dir() {

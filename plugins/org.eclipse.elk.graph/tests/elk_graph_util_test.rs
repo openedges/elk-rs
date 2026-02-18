@@ -1,13 +1,14 @@
 use std::rc::Rc;
 
-use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkConnectableShapeRef;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkConnectableShapeRef;
 
 #[test]
 fn test_connectable_shape_to_node() {
     let node = ElkGraphUtil::create_node(None);
-    let result = ElkGraphUtil::connectable_shape_to_node(&ElkConnectableShapeRef::Node(node.clone()))
-        .expect("node");
+    let result =
+        ElkGraphUtil::connectable_shape_to_node(&ElkConnectableShapeRef::Node(node.clone()))
+            .expect("node");
     assert!(Rc::ptr_eq(&node, &result));
 
     let port = ElkGraphUtil::create_port(Some(node.clone()));
@@ -24,8 +25,9 @@ fn test_connectable_shape_to_port() {
 
     let parent = ElkGraphUtil::create_node(None);
     let port = ElkGraphUtil::create_port(Some(parent));
-    let result = ElkGraphUtil::connectable_shape_to_port(&ElkConnectableShapeRef::Port(port.clone()))
-        .expect("port");
+    let result =
+        ElkGraphUtil::connectable_shape_to_port(&ElkConnectableShapeRef::Port(port.clone()))
+            .expect("port");
     assert!(Rc::ptr_eq(&port, &result));
 }
 
@@ -62,72 +64,72 @@ fn test_find_best_edge_containment() {
         Some(ElkConnectableShapeRef::Node(node1.clone())),
         Some(ElkConnectableShapeRef::Node(node2.clone())),
     );
-    let containment = ElkGraphUtil::find_best_edge_containment(&same_level_edge)
-        .expect("containment");
+    let containment =
+        ElkGraphUtil::find_best_edge_containment(&same_level_edge).expect("containment");
     assert!(Rc::ptr_eq(&graph1, &containment));
 
     let self_loop_edge = create_edge_without_containment(
         Some(ElkConnectableShapeRef::Node(node1.clone())),
         Some(ElkConnectableShapeRef::Node(node1.clone())),
     );
-    let containment = ElkGraphUtil::find_best_edge_containment(&self_loop_edge)
-        .expect("containment");
+    let containment =
+        ElkGraphUtil::find_best_edge_containment(&self_loop_edge).expect("containment");
     assert!(Rc::ptr_eq(&graph1, &containment));
 
     let down_level_edge = create_edge_without_containment(
         Some(ElkConnectableShapeRef::Node(node1.clone())),
         Some(ElkConnectableShapeRef::Node(node3_1.clone())),
     );
-    let containment = ElkGraphUtil::find_best_edge_containment(&down_level_edge)
-        .expect("containment");
+    let containment =
+        ElkGraphUtil::find_best_edge_containment(&down_level_edge).expect("containment");
     assert!(Rc::ptr_eq(&graph1, &containment));
 
     let up_level_edge = create_edge_without_containment(
         Some(ElkConnectableShapeRef::Node(node3_1.clone())),
         Some(ElkConnectableShapeRef::Node(node2.clone())),
     );
-    let containment = ElkGraphUtil::find_best_edge_containment(&up_level_edge)
-        .expect("containment");
+    let containment =
+        ElkGraphUtil::find_best_edge_containment(&up_level_edge).expect("containment");
     assert!(Rc::ptr_eq(&graph1, &containment));
 
     let to_child_edge = create_edge_without_containment(
         Some(ElkConnectableShapeRef::Node(node3.clone())),
         Some(ElkConnectableShapeRef::Node(node3_1.clone())),
     );
-    let containment = ElkGraphUtil::find_best_edge_containment(&to_child_edge)
-        .expect("containment");
+    let containment =
+        ElkGraphUtil::find_best_edge_containment(&to_child_edge).expect("containment");
     assert!(Rc::ptr_eq(&node3, &containment));
 
     let to_parent_edge = create_edge_without_containment(
         Some(ElkConnectableShapeRef::Node(node3_1.clone())),
         Some(ElkConnectableShapeRef::Node(node3.clone())),
     );
-    let containment = ElkGraphUtil::find_best_edge_containment(&to_parent_edge)
-        .expect("containment");
+    let containment =
+        ElkGraphUtil::find_best_edge_containment(&to_parent_edge).expect("containment");
     assert!(Rc::ptr_eq(&node3, &containment));
 
     let to_grand_child_edge = create_edge_without_containment(
         Some(ElkConnectableShapeRef::Node(node3.clone())),
         Some(ElkConnectableShapeRef::Node(node3_1_1.clone())),
     );
-    let containment = ElkGraphUtil::find_best_edge_containment(&to_grand_child_edge)
-        .expect("containment");
+    let containment =
+        ElkGraphUtil::find_best_edge_containment(&to_grand_child_edge).expect("containment");
     assert!(Rc::ptr_eq(&node3, &containment));
 
     let to_grand_parent_edge = create_edge_without_containment(
         Some(ElkConnectableShapeRef::Node(node3_1_1.clone())),
         Some(ElkConnectableShapeRef::Node(node3.clone())),
     );
-    let containment = ElkGraphUtil::find_best_edge_containment(&to_grand_parent_edge)
-        .expect("containment");
+    let containment =
+        ElkGraphUtil::find_best_edge_containment(&to_grand_parent_edge).expect("containment");
     assert!(Rc::ptr_eq(&node3, &containment));
 
     let cross_hierarchy_edge = create_edge_without_containment(
         Some(ElkConnectableShapeRef::Node(node3_1.clone())),
         Some(ElkConnectableShapeRef::Node(node4_1.clone())),
     );
-    let containment = ElkGraphUtil::find_best_edge_containment(&cross_hierarchy_edge)
-        .expect("containment");
+    let containment =
+        ElkGraphUtil::find_best_edge_containment(&cross_hierarchy_edge).expect("containment");
     assert!(Rc::ptr_eq(&graph1, &containment));
 
     let cross_graph_edge = create_edge_without_containment(
@@ -136,20 +138,16 @@ fn test_find_best_edge_containment() {
     );
     assert!(ElkGraphUtil::find_best_edge_containment(&cross_graph_edge).is_none());
 
-    let source_missing_edge = create_edge_without_containment(
-        None,
-        Some(ElkConnectableShapeRef::Node(node2.clone())),
-    );
-    let containment = ElkGraphUtil::find_best_edge_containment(&source_missing_edge)
-        .expect("containment");
+    let source_missing_edge =
+        create_edge_without_containment(None, Some(ElkConnectableShapeRef::Node(node2.clone())));
+    let containment =
+        ElkGraphUtil::find_best_edge_containment(&source_missing_edge).expect("containment");
     assert!(Rc::ptr_eq(&graph1, &containment));
 
-    let target_missing_edge = create_edge_without_containment(
-        Some(ElkConnectableShapeRef::Node(node2)),
-        None,
-    );
-    let containment = ElkGraphUtil::find_best_edge_containment(&target_missing_edge)
-        .expect("containment");
+    let target_missing_edge =
+        create_edge_without_containment(Some(ElkConnectableShapeRef::Node(node2)), None);
+    let containment =
+        ElkGraphUtil::find_best_edge_containment(&target_missing_edge).expect("containment");
     assert!(Rc::ptr_eq(&graph1, &containment));
 }
 

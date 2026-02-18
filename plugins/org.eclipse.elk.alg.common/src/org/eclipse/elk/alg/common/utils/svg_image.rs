@@ -126,7 +126,12 @@ impl SVGImage {
 
     pub fn add_circle(&mut self, x: f64, y: f64) {
         if self.debug {
-            self.add_circle_with_attrs(x, y, 5.0, "stroke=\"black\" stroke-width=\"1\" fill=\"none\"");
+            self.add_circle_with_attrs(
+                x,
+                y,
+                5.0,
+                "stroke=\"black\" stroke-width=\"1\" fill=\"none\"",
+            );
         }
     }
 
@@ -248,9 +253,7 @@ impl SVGImage {
             let _ = writeln!(
                 out,
                 "<g transform=\"scale({})\" id=\"{}\">\n{}</g>",
-                scale,
-                key,
-                value
+                scale, key, value
             );
         }
         let _ = writeln!(out, "</svg>");

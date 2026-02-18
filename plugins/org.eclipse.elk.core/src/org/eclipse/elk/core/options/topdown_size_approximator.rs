@@ -208,11 +208,7 @@ fn fixed_integer_ratio_boxes_size(original_graph: &ElkNodeRef) -> KVector {
                     .unwrap_or(20.0)
             })
         })
-        .unwrap_or_else(|| {
-            CoreOptions::SPACING_NODE_NODE
-                .get_default()
-                .unwrap_or(20.0)
-        });
+        .unwrap_or_else(|| CoreOptions::SPACING_NODE_NODE.get_default().unwrap_or(20.0));
 
     let mut result = KVector::with_values(base_width, base_height);
     result.scale(multiplier);
@@ -336,10 +332,19 @@ fn node_dimensions(node: &ElkNodeRef) -> (f64, f64) {
 fn copy_node_properties(source: &ElkNodeRef, target: &ElkNodeRef) {
     let source_props = {
         let mut source_mut = source.borrow_mut();
-        source_mut.connectable().shape().graph_element().properties_mut().clone()
+        source_mut
+            .connectable()
+            .shape()
+            .graph_element()
+            .properties_mut()
+            .clone()
     };
     let mut target_mut = target.borrow_mut();
-    *target_mut.connectable().shape().graph_element().properties_mut() = source_props;
+    *target_mut
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut() = source_props;
 }
 
 fn copy_edge_properties(source: &ElkEdgeRef, target: &ElkEdgeRef) {
@@ -351,17 +356,17 @@ fn copy_edge_properties(source: &ElkEdgeRef, target: &ElkEdgeRef) {
     *target_mut.element().properties_mut() = source_props;
 }
 
-fn find_new_node(
-    mapping: &[(ElkNodeRef, ElkNodeRef)],
-    node: &ElkNodeRef,
-) -> Option<ElkNodeRef> {
+fn find_new_node(mapping: &[(ElkNodeRef, ElkNodeRef)], node: &ElkNodeRef) -> Option<ElkNodeRef> {
     mapping
         .iter()
         .find(|(old, _)| Rc::ptr_eq(old, node))
         .map(|(_, new)| new.clone())
 }
 
-fn with_node_properties_mut<R>(node: &ElkNodeRef, f: impl FnOnce(&mut MapPropertyHolder) -> R) -> R {
+fn with_node_properties_mut<R>(
+    node: &ElkNodeRef,
+    f: impl FnOnce(&mut MapPropertyHolder) -> R,
+) -> R {
     let mut node_mut = node.borrow_mut();
     let props = node_mut
         .connectable()

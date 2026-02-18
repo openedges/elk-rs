@@ -5,7 +5,9 @@ use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutP
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
-use crate::org::eclipse::elk::alg::layered::graph::{Layer, LayerRef, LGraph, LNode, LNodeRef, NodeType};
+use crate::org::eclipse::elk::alg::layered::graph::{
+    LGraph, LNode, LNodeRef, Layer, LayerRef, NodeType,
+};
 use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorStrategy;
 use crate::org::eclipse::elk::alg::layered::options::LayeredOptions;
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;

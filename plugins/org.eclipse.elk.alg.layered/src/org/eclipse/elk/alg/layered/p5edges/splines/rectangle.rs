@@ -78,7 +78,9 @@ impl Rectangle {
         I: IntoIterator<Item = &'a KVector>,
     {
         let mut iter = vectors.into_iter();
-        let first = iter.next().unwrap_or_else(|| panic!("The list of vectors may not be empty."));
+        let first = iter
+            .next()
+            .unwrap_or_else(|| panic!("The list of vectors may not be empty."));
         let mut rect = Rectangle::from_vector(first);
         for vector in iter {
             rect.union_vector(vector);

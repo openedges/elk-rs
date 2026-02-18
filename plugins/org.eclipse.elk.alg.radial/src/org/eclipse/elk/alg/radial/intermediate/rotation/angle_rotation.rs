@@ -38,7 +38,11 @@ impl IRadialRotator for AngleRotation {
             if let Some(root) = RadialUtil::root_from_graph(graph) {
                 let outgoing_edges = {
                     let mut root_mut = root.borrow_mut();
-                    root_mut.connectable().outgoing_edges().iter().collect::<Vec<_>>()
+                    root_mut
+                        .connectable()
+                        .outgoing_edges()
+                        .iter()
+                        .collect::<Vec<_>>()
                 };
                 if !outgoing_edges.is_empty() {
                     let last_edge = outgoing_edges.last().unwrap().clone();

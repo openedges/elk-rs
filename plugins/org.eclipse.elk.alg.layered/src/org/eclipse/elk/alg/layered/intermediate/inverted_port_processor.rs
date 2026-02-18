@@ -8,7 +8,9 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 use crate::org::eclipse::elk::alg::layered::graph::{
     LEdge, LEdgeRef, LGraph, LNode, LPort, LPortRef, LayerRef, NodeType,
 };
-use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions, Origin, PortType};
+use crate::org::eclipse::elk::alg::layered::options::{
+    InternalProperties, LayeredOptions, Origin, PortType,
+};
 
 pub struct InvertedPortProcessor;
 
@@ -98,7 +100,10 @@ fn create_east_port_side_dummy(layer: &LayerRef, east_port: &LPortRef, edge: &LE
         .ok()
         .and_then(|edge_guard| edge_guard.source())
         .and_then(|source| source.lock().ok().and_then(|port_guard| port_guard.node()));
-    let target_node = east_port.lock().ok().and_then(|port_guard| port_guard.node());
+    let target_node = east_port
+        .lock()
+        .ok()
+        .and_then(|port_guard| port_guard.node());
     if source_node
         .as_ref()
         .zip(target_node.as_ref())
@@ -129,7 +134,10 @@ fn create_east_port_side_dummy(layer: &LayerRef, east_port: &LPortRef, edge: &LE
 }
 
 fn create_west_port_side_dummy(layer: &LayerRef, west_port: &LPortRef, edge: &LEdgeRef) {
-    let source_node = west_port.lock().ok().and_then(|port_guard| port_guard.node());
+    let source_node = west_port
+        .lock()
+        .ok()
+        .and_then(|port_guard| port_guard.node());
     let target_node = edge
         .lock()
         .ok()
@@ -165,7 +173,10 @@ fn create_west_port_side_dummy(layer: &LayerRef, west_port: &LPortRef, edge: &LE
     move_head_labels(edge, &dummy_edge);
 }
 
-fn create_dummy_node(layer: &LayerRef, origin_edge: &LEdgeRef) -> std::sync::Arc<std::sync::Mutex<LNode>> {
+fn create_dummy_node(
+    layer: &LayerRef,
+    origin_edge: &LEdgeRef,
+) -> std::sync::Arc<std::sync::Mutex<LNode>> {
     let graph = layer
         .lock()
         .ok()
@@ -174,7 +185,10 @@ fn create_dummy_node(layer: &LayerRef, origin_edge: &LEdgeRef) -> std::sync::Arc
     let dummy = LNode::new(&graph);
     if let Ok(mut dummy_guard) = dummy.lock() {
         dummy_guard.set_node_type(NodeType::LongEdge);
-        dummy_guard.set_property(InternalProperties::ORIGIN, Some(Origin::LEdge(origin_edge.clone())));
+        dummy_guard.set_property(
+            InternalProperties::ORIGIN,
+            Some(Origin::LEdge(origin_edge.clone())),
+        );
         dummy_guard.set_property(
             LayeredOptions::PORT_CONSTRAINTS,
             Some(PortConstraints::FixedPos),

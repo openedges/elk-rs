@@ -3,7 +3,9 @@ use std::rc::Rc;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::Random;
 
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::hyper_edge_segment::HyperEdgeSegmentRef;
-use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::hyper_edge_segment_dependency::{DependencyType, HyperEdgeSegmentDependencyRef};
+use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::hyper_edge_segment_dependency::{
+    DependencyType, HyperEdgeSegmentDependencyRef,
+};
 
 pub struct HyperEdgeCycleDetector;
 
@@ -18,7 +20,13 @@ impl HyperEdgeCycleDetector {
         let mut sinks: Vec<HyperEdgeSegmentRef> = Vec::new();
 
         Self::initialize(segments, &mut sources, &mut sinks, critical_only);
-        Self::compute_linear_ordering_marks(segments, &mut sources, &mut sinks, critical_only, random);
+        Self::compute_linear_ordering_marks(
+            segments,
+            &mut sources,
+            &mut sinks,
+            critical_only,
+            random,
+        );
 
         for source in segments {
             let outgoing = source.borrow().outgoing_segment_dependencies().clone();
@@ -181,7 +189,8 @@ impl HyperEdgeCycleDetector {
                         let new_in_weight = target.borrow().in_weight() - dep_guard.weight();
                         target.borrow_mut().set_in_weight(new_in_weight);
                         if dep_guard.dependency_type() == DependencyType::Critical {
-                            let new_weight = target.borrow().critical_in_weight() - dep_guard.weight();
+                            let new_weight =
+                                target.borrow().critical_in_weight() - dep_guard.weight();
                             target.borrow_mut().set_critical_in_weight(new_weight);
                         }
                         if new_in_weight <= 0 && target.borrow().out_weight() > 0 {
@@ -201,7 +210,8 @@ impl HyperEdgeCycleDetector {
                         let new_out_weight = source.borrow().out_weight() - dep_guard.weight();
                         source.borrow_mut().set_out_weight(new_out_weight);
                         if dep_guard.dependency_type() == DependencyType::Critical {
-                            let new_weight = source.borrow().critical_out_weight() - dep_guard.weight();
+                            let new_weight =
+                                source.borrow().critical_out_weight() - dep_guard.weight();
                             source.borrow_mut().set_critical_out_weight(new_weight);
                         }
                         if new_out_weight <= 0 && source.borrow().in_weight() > 0 {

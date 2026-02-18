@@ -30,11 +30,22 @@ fn init_mrtree_options() {
 fn graph_size_calculation_test() {
     init_mrtree_options();
 
-    for (node_width, node_height, padding_left, padding_right, padding_top, padding_bottom, node_node_spacing) in
-        CASES
+    for (
+        node_width,
+        node_height,
+        padding_left,
+        padding_right,
+        padding_top,
+        padding_bottom,
+        node_node_spacing,
+    ) in CASES
     {
         let graph = ElkGraphUtil::create_graph();
-        set_node_property(&graph, CoreOptions::ALGORITHM, MrTreeOptions::ALGORITHM_ID.to_string());
+        set_node_property(
+            &graph,
+            CoreOptions::ALGORITHM,
+            MrTreeOptions::ALGORITHM_ID.to_string(),
+        );
         set_node_property(
             &graph,
             CoreOptions::PADDING,
@@ -74,7 +85,11 @@ fn components_graph_size_calculation_test() {
 
     for (node_width, node_height, _, _, _, _, _) in CASES {
         let graph = ElkGraphUtil::create_graph();
-        set_node_property(&graph, CoreOptions::ALGORITHM, MrTreeOptions::ALGORITHM_ID.to_string());
+        set_node_property(
+            &graph,
+            CoreOptions::ALGORITHM,
+            MrTreeOptions::ALGORITHM_ID.to_string(),
+        );
         set_node_property(&graph, CoreOptions::PADDING, ElkPadding::with_any(0.0));
         set_node_property(&graph, CoreOptions::SPACING_NODE_NODE, 0.0_f64);
         // Force horizontal component packing to keep the expectation stable.
@@ -86,7 +101,11 @@ fn components_graph_size_calculation_test() {
         run_recursive_layout(&graph);
 
         let (graph_width, graph_height) = node_dimensions(&graph);
-        assert_close(graph_width, node_width + node_width, "components graph width");
+        assert_close(
+            graph_width,
+            node_width + node_width,
+            "components graph width",
+        );
         assert_close(graph_height, node_height, "components graph height");
     }
 }

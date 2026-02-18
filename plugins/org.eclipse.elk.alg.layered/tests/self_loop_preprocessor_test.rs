@@ -132,7 +132,11 @@ impl TestGraph {
             }
         }
 
-        let ports = self_loop_node.lock().expect("self loop node lock").ports().clone();
+        let ports = self_loop_node
+            .lock()
+            .expect("self loop node lock")
+            .ports()
+            .clone();
         assert_eq!(8, ports.len());
 
         let _ = edge(&ports[0], &ports[1]);

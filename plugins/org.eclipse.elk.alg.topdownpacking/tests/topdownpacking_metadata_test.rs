@@ -25,7 +25,10 @@ fn arrangement_strategy_defaults() {
         .default_value()
         .and_then(|value| value.downcast::<NodeArrangementStrategy>().ok())
         .expect("default value");
-    assert_eq!(*default, NodeArrangementStrategy::LeftRightTopDownNodePlacer);
+    assert_eq!(
+        *default,
+        NodeArrangementStrategy::LeftRightTopDownNodePlacer
+    );
 }
 
 #[test]

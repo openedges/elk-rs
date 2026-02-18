@@ -33,14 +33,23 @@ pub static TREE_LEVEL_PROPERTY: LazyLock<Property<i32>> =
 pub static POSITION_CONSTRAINT_PROPERTY: LazyLock<Property<i32>> =
     LazyLock::new(|| Property::with_default("org.eclipse.elk.mrtree.positionConstraint", -1));
 
-pub static WEIGHTING_PROPERTY: LazyLock<Property<OrderWeighting>> =
-    LazyLock::new(|| Property::with_default("org.eclipse.elk.mrtree.weighting", OrderWeighting::ModelOrder));
+pub static WEIGHTING_PROPERTY: LazyLock<Property<OrderWeighting>> = LazyLock::new(|| {
+    Property::with_default(
+        "org.eclipse.elk.mrtree.weighting",
+        OrderWeighting::ModelOrder,
+    )
+});
 
-pub static EDGE_ROUTING_MODE_PROPERTY: LazyLock<Property<EdgeRoutingMode>> =
-    LazyLock::new(|| Property::with_default("org.eclipse.elk.mrtree.edgeRoutingMode", EdgeRoutingMode::AvoidOverlap));
+pub static EDGE_ROUTING_MODE_PROPERTY: LazyLock<Property<EdgeRoutingMode>> = LazyLock::new(|| {
+    Property::with_default(
+        "org.eclipse.elk.mrtree.edgeRoutingMode",
+        EdgeRoutingMode::AvoidOverlap,
+    )
+});
 
-pub static SEARCH_ORDER_PROPERTY: LazyLock<Property<TreeifyingOrder>> =
-    LazyLock::new(|| Property::with_default("org.eclipse.elk.mrtree.searchOrder", TreeifyingOrder::Dfs));
+pub static SEARCH_ORDER_PROPERTY: LazyLock<Property<TreeifyingOrder>> = LazyLock::new(|| {
+    Property::with_default("org.eclipse.elk.mrtree.searchOrder", TreeifyingOrder::Dfs)
+});
 
 impl MrTreeOptions {
     pub const ALGORITHM_ID: &'static str = "org.eclipse.elk.mrtree";
@@ -69,12 +78,14 @@ impl MrTreeOptions {
     pub const DEBUG_MODE: &'static LazyLock<Property<bool>> = CoreOptions::DEBUG_MODE;
     pub const DIRECTION: &'static LazyLock<Property<Direction>> = CoreOptions::DIRECTION;
     pub const INTERACTIVE: &'static LazyLock<Property<bool>> = CoreOptions::INTERACTIVE;
-    pub const INTERACTIVE_LAYOUT: &'static LazyLock<Property<bool>> = CoreOptions::INTERACTIVE_LAYOUT;
+    pub const INTERACTIVE_LAYOUT: &'static LazyLock<Property<bool>> =
+        CoreOptions::INTERACTIVE_LAYOUT;
     pub const NODE_SIZE_CONSTRAINTS: &'static LazyLock<Property<EnumSet<SizeConstraint>>> =
         CoreOptions::NODE_SIZE_CONSTRAINTS;
     pub const NODE_SIZE_FIXED_GRAPH_SIZE: &'static LazyLock<Property<bool>> =
         CoreOptions::NODE_SIZE_FIXED_GRAPH_SIZE;
-    pub const NODE_SIZE_MINIMUM: &'static LazyLock<Property<KVector>> = CoreOptions::NODE_SIZE_MINIMUM;
+    pub const NODE_SIZE_MINIMUM: &'static LazyLock<Property<KVector>> =
+        CoreOptions::NODE_SIZE_MINIMUM;
     pub const NODE_SIZE_OPTIONS: &'static LazyLock<Property<EnumSet<SizeOptions>>> =
         CoreOptions::NODE_SIZE_OPTIONS;
     pub const NODE_LABELS_PLACEMENT: &'static LazyLock<Property<EnumSet<NodeLabelPlacement>>> =
@@ -84,7 +95,8 @@ impl MrTreeOptions {
     pub const OMIT_NODE_MICRO_LAYOUT: &'static LazyLock<Property<bool>> =
         CoreOptions::OMIT_NODE_MICRO_LAYOUT;
     pub const TOPDOWN_LAYOUT: &'static LazyLock<Property<bool>> = CoreOptions::TOPDOWN_LAYOUT;
-    pub const TOPDOWN_SCALE_FACTOR: &'static LazyLock<Property<f64>> = CoreOptions::TOPDOWN_SCALE_FACTOR;
+    pub const TOPDOWN_SCALE_FACTOR: &'static LazyLock<Property<f64>> =
+        CoreOptions::TOPDOWN_SCALE_FACTOR;
     pub const TOPDOWN_HIERARCHICAL_NODE_WIDTH: &'static LazyLock<Property<f64>> =
         CoreOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH;
     pub const TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO: &'static LazyLock<Property<f64>> =

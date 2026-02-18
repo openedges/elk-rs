@@ -85,26 +85,20 @@ impl GreedyCycleBreaker {
             let mut model_order_calculator = GroupModelOrderCalculator::new();
 
             for node in nodes {
-                let has_model_order = node
-                    .lock()
-                    .ok()
-                    .is_some_and(|mut node_guard| {
-                        node_guard
-                            .shape()
-                            .graph_element()
-                            .properties()
-                            .has_property(InternalProperties::MODEL_ORDER)
-                    });
+                let has_model_order = node.lock().ok().is_some_and(|mut node_guard| {
+                    node_guard
+                        .shape()
+                        .graph_element()
+                        .properties()
+                        .has_property(InternalProperties::MODEL_ORDER)
+                });
                 if !has_model_order {
                     continue;
                 }
 
                 let model_order = if enforce_group_model_order {
-                    model_order_calculator.compute_constraint_group_model_order(
-                        node,
-                        big_offset,
-                        offset,
-                    )
+                    model_order_calculator
+                        .compute_constraint_group_model_order(node, big_offset, offset)
                 } else {
                     model_order_calculator.compute_constraint_model_order(node, offset)
                 };
@@ -228,7 +222,11 @@ impl GreedyCycleBreaker {
                         && target_index < self.mark.len()
                         && self.mark[node_idx] > self.mark[target_index]
                     {
-                        crate::org::eclipse::elk::alg::layered::graph::LEdge::reverse(&edge, &dummy_graph, true);
+                        crate::org::eclipse::elk::alg::layered::graph::LEdge::reverse(
+                            &edge,
+                            &dummy_graph,
+                            true,
+                        );
                         graph.set_property(InternalProperties::CYCLIC, Some(true));
                     }
                 }
@@ -270,7 +268,10 @@ impl ILayoutPhase<LayeredPhases, LGraph> for GreedyCycleBreaker {
 
             for port in ports {
                 let (incoming, outgoing) = match port.lock() {
-                    Ok(port_guard) => (port_guard.incoming_edges().clone(), port_guard.outgoing_edges().clone()),
+                    Ok(port_guard) => (
+                        port_guard.incoming_edges().clone(),
+                        port_guard.outgoing_edges().clone(),
+                    ),
                     Err(_) => (Vec::new(), Vec::new()),
                 };
 
@@ -280,13 +281,18 @@ impl ILayoutPhase<LayeredPhases, LGraph> for GreedyCycleBreaker {
                         .ok()
                         .and_then(|edge_guard| edge_guard.source())
                         .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
-                    if source_node.as_ref().is_some_and(|source| Arc::ptr_eq(source, node)) {
+                    if source_node
+                        .as_ref()
+                        .is_some_and(|source| Arc::ptr_eq(source, node))
+                    {
                         continue;
                     }
                     let priority = edge
                         .lock()
                         .ok()
-                        .and_then(|mut edge_guard| edge_guard.get_property(LayeredOptions::PRIORITY_DIRECTION))
+                        .and_then(|mut edge_guard| {
+                            edge_guard.get_property(LayeredOptions::PRIORITY_DIRECTION)
+                        })
                         .unwrap_or(0);
                     self.indeg[index] += if priority > 0 { priority + 1 } else { 1 };
                 }
@@ -297,13 +303,18 @@ impl ILayoutPhase<LayeredPhases, LGraph> for GreedyCycleBreaker {
                         .ok()
                         .and_then(|edge_guard| edge_guard.target())
                         .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
-                    if target_node.as_ref().is_some_and(|target| Arc::ptr_eq(target, node)) {
+                    if target_node
+                        .as_ref()
+                        .is_some_and(|target| Arc::ptr_eq(target, node))
+                    {
                         continue;
                     }
                     let priority = edge
                         .lock()
                         .ok()
-                        .and_then(|mut edge_guard| edge_guard.get_property(LayeredOptions::PRIORITY_DIRECTION))
+                        .and_then(|mut edge_guard| {
+                            edge_guard.get_property(LayeredOptions::PRIORITY_DIRECTION)
+                        })
                         .unwrap_or(0);
                     self.outdeg[index] += if priority > 0 { priority + 1 } else { 1 };
                 }
@@ -359,7 +370,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for GreedyCycleBreaker {
                     }
                 }
 
-                if let Some(max_node) = self.choose_node_with_max_outflow(layered_graph, &max_nodes) {
+                if let Some(max_node) = self.choose_node_with_max_outflow(layered_graph, &max_nodes)
+                {
                     let index = node_index(&max_node);
                     if index < self.mark.len() {
                         self.mark[index] = next_left;

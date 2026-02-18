@@ -1,20 +1,20 @@
 use std::collections::VecDeque;
 
-use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::{GraphFeature, MapPropertyHolder};
+use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::{
+    GraphFeature, MapPropertyHolder,
+};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkEdgeRef, ElkLabelRef, ElkNodeRef};
 
+use crate::org::eclipse::elk::core::data::{DeprecatedLayoutOptionReplacer, LayoutAlgorithmData};
 use crate::org::eclipse::elk::core::data::{LayoutAlgorithmResolver, LayoutMetaDataService};
-use crate::org::eclipse::elk::core::data::{
-    DeprecatedLayoutOptionReplacer, LayoutAlgorithmData,
-};
 use crate::org::eclipse::elk::core::graph_layout_engine::IGraphLayoutEngine;
 use crate::org::eclipse::elk::core::math::{ElkPadding, KVector};
 use crate::org::eclipse::elk::core::options::{
     ContentAlignment, CoreOptions, HierarchyHandling, TopdownNodeTypes,
 };
-use crate::org::eclipse::elk::core::unsupported_configuration::UnsupportedConfigurationException;
 use crate::org::eclipse::elk::core::testing::TestController;
+use crate::org::eclipse::elk::core::unsupported_configuration::UnsupportedConfigurationException;
 use crate::org::eclipse::elk::core::util::{ElkUtil, IElkProgressMonitor};
 use crate::org::eclipse::elk::core::validation::{GraphValidator, LayoutOptionValidator};
 
@@ -90,7 +90,9 @@ impl RecursiveGraphLayoutEngine {
                 || algorithm_data.supports_feature(GraphFeature::Clusters));
 
         let topdown_layout = with_node_properties_mut(layout_node, |props| {
-            props.get_property(CoreOptions::TOPDOWN_LAYOUT).unwrap_or(false)
+            props
+                .get_property(CoreOptions::TOPDOWN_LAYOUT)
+                .unwrap_or(false)
         });
         if include_children && topdown_layout {
             let message = "Topdown layout cannot be used together with hierarchy handling.";
@@ -452,10 +454,9 @@ impl RecursiveGraphLayoutEngine {
 
             if scale_factor < scale_factor_x {
                 if content_alignment.contains(&ContentAlignment::HCenter) {
-                    alignment_shift_x =
-                        (child_area_available_width / 2.0
-                            - (child_area_desired_width * scale_factor) / 2.0)
-                            / scale_factor;
+                    alignment_shift_x = (child_area_available_width / 2.0
+                        - (child_area_desired_width * scale_factor) / 2.0)
+                        / scale_factor;
                 } else if content_alignment.contains(&ContentAlignment::HRight) {
                     alignment_shift_x = (child_area_available_width
                         - child_area_desired_width * scale_factor)
@@ -465,10 +466,9 @@ impl RecursiveGraphLayoutEngine {
 
             if scale_factor < scale_factor_y {
                 if content_alignment.contains(&ContentAlignment::VCenter) {
-                    alignment_shift_y =
-                        (child_area_available_height / 2.0
-                            - (child_area_desired_height * scale_factor) / 2.0)
-                            / scale_factor;
+                    alignment_shift_y = (child_area_available_height / 2.0
+                        - (child_area_desired_height * scale_factor) / 2.0)
+                        / scale_factor;
                 } else if content_alignment.contains(&ContentAlignment::VBottom) {
                     alignment_shift_y = (child_area_available_height
                         - child_area_desired_height * scale_factor)
@@ -732,10 +732,14 @@ impl RecursiveGraphLayoutEngine {
         ElkUtil::apply_visitors(layout_graph, &mut [&mut deprecated_replacer]);
 
         let validate_graph = with_node_properties_mut(layout_graph, |props| {
-            props.get_property(CoreOptions::VALIDATE_GRAPH).unwrap_or(false)
+            props
+                .get_property(CoreOptions::VALIDATE_GRAPH)
+                .unwrap_or(false)
         });
         let validate_options = with_node_properties_mut(layout_graph, |props| {
-            props.get_property(CoreOptions::VALIDATE_OPTIONS).unwrap_or(false)
+            props
+                .get_property(CoreOptions::VALIDATE_OPTIONS)
+                .unwrap_or(false)
         });
 
         let mut resolver = LayoutAlgorithmResolver::new();
@@ -775,14 +779,19 @@ impl RecursiveGraphLayoutEngine {
 }
 
 impl IGraphLayoutEngine for RecursiveGraphLayoutEngine {
-    fn layout(&mut self, layout_graph: &ElkNodeRef, progress_monitor: &mut dyn IElkProgressMonitor) {
+    fn layout(
+        &mut self,
+        layout_graph: &ElkNodeRef,
+        progress_monitor: &mut dyn IElkProgressMonitor,
+    ) {
         self.layout_internal(layout_graph, None, progress_monitor);
     }
 }
 
 struct TestControllerGuard {
     controller: *mut TestController,
-    provider: *mut dyn crate::org::eclipse::elk::core::abstract_layout_provider::AbstractLayoutProvider,
+    provider:
+        *mut dyn crate::org::eclipse::elk::core::abstract_layout_provider::AbstractLayoutProvider,
 }
 
 impl Drop for TestControllerGuard {
@@ -794,10 +803,15 @@ impl Drop for TestControllerGuard {
 }
 
 fn get_resolved_algorithm(node: &ElkNodeRef) -> Option<LayoutAlgorithmData> {
-    with_node_properties_mut(node, |props| props.get_property(CoreOptions::RESOLVED_ALGORITHM))
+    with_node_properties_mut(node, |props| {
+        props.get_property(CoreOptions::RESOLVED_ALGORITHM)
+    })
 }
 
-fn with_node_properties_mut<R>(node: &ElkNodeRef, f: impl FnOnce(&mut MapPropertyHolder) -> R) -> R {
+fn with_node_properties_mut<R>(
+    node: &ElkNodeRef,
+    f: impl FnOnce(&mut MapPropertyHolder) -> R,
+) -> R {
     let mut node_mut = node.borrow_mut();
     let props = node_mut
         .connectable()
@@ -807,7 +821,10 @@ fn with_node_properties_mut<R>(node: &ElkNodeRef, f: impl FnOnce(&mut MapPropert
     f(props)
 }
 
-fn with_edge_properties_mut<R>(edge: &ElkEdgeRef, f: impl FnOnce(&mut MapPropertyHolder) -> R) -> R {
+fn with_edge_properties_mut<R>(
+    edge: &ElkEdgeRef,
+    f: impl FnOnce(&mut MapPropertyHolder) -> R,
+) -> R {
     let mut edge_mut = edge.borrow_mut();
     let props = edge_mut.element().properties_mut();
     f(props)

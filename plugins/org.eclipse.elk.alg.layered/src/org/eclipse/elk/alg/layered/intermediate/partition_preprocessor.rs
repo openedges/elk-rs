@@ -59,7 +59,11 @@ fn node_partition(node: &LNodeRef) -> Option<i32> {
         .and_then(|mut node_guard| node_guard.get_property(CoreOptions::PARTITIONING_PARTITION))
 }
 
-fn must_be_reversed(edge: &LEdgeRef, source_partition: i32, partitioned_nodes: &[LNodeRef]) -> bool {
+fn must_be_reversed(
+    edge: &LEdgeRef,
+    source_partition: i32,
+    partitioned_nodes: &[LNodeRef],
+) -> bool {
     let target_node = edge
         .lock()
         .ok()
@@ -125,7 +129,10 @@ fn must_be_reversed(edge: &LEdgeRef, source_partition: i32, partitioned_nodes: &
                 continue;
             };
 
-            if visited.iter().any(|visited_node| Arc::ptr_eq(visited_node, &target)) {
+            if visited
+                .iter()
+                .any(|visited_node| Arc::ptr_eq(visited_node, &target))
+            {
                 continue;
             }
 
@@ -152,8 +159,7 @@ fn reverse_edge(edge: &LEdgeRef) {
 
     if let Ok(mut edge_guard) = edge.lock() {
         let mut priority = PARTITION_CONSTRAINT_EDGE_PRIORITY;
-        if let Some(existing_priority) =
-            edge_guard.get_property(LayeredOptions::PRIORITY_DIRECTION)
+        if let Some(existing_priority) = edge_guard.get_property(LayeredOptions::PRIORITY_DIRECTION)
         {
             priority += existing_priority;
         }

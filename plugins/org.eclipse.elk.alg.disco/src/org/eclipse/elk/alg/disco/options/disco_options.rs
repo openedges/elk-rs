@@ -20,7 +20,9 @@ pub static COMPONENT_COMPACTION_STRATEGY_PROPERTY: LazyLock<Property<CompactionS
     });
 
 pub static COMPONENT_COMPACTION_COMPONENT_LAYOUT_ALGORITHM_PROPERTY: LazyLock<Property<String>> =
-    LazyLock::new(|| Property::new("org.eclipse.elk.disco.componentCompaction.componentLayoutAlgorithm"));
+    LazyLock::new(|| {
+        Property::new("org.eclipse.elk.disco.componentCompaction.componentLayoutAlgorithm")
+    });
 
 pub static DEBUG_DISCO_GRAPH_PROPERTY: LazyLock<Property<DCGraph>> =
     LazyLock::new(|| Property::new("org.eclipse.elk.disco.debug.discoGraph"));

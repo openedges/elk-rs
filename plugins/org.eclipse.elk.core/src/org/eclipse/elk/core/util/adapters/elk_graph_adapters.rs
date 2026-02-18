@@ -4,16 +4,18 @@ use std::cmp::Ordering;
 use std::rc::{Rc, Weak};
 use std::sync::LazyLock;
 
+use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::{MapPropertyHolder, Property};
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{
     ElkConnectableShapeRef, ElkEdgeRef, ElkLabelRef, ElkNodeRef, ElkPortRef, ElkShape,
 };
-use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::{MapPropertyHolder, Property};
-use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 
 use crate::org::eclipse::elk::core::math::{ElkMargin, ElkPadding, KVector};
 use crate::org::eclipse::elk::core::options::{CoreOptions, LabelSide, PortConstraints, PortSide};
 
-use super::{EdgeAdapter, GraphAdapter, GraphElementAdapter, LabelAdapter, NodeAdapter, PortAdapter};
+use super::{
+    EdgeAdapter, GraphAdapter, GraphElementAdapter, LabelAdapter, NodeAdapter, PortAdapter,
+};
 
 static OFFSET_PROXY: LazyLock<Property<f64>> =
     LazyLock::new(|| Property::from_property(CoreOptions::PORT_BORDER_OFFSET, 0.0));
@@ -245,22 +247,42 @@ fn with_label_shape_mut<R>(label: &ElkLabelRef, f: impl FnOnce(&mut ElkShape) ->
     f(label_mut.shape())
 }
 
-fn with_node_properties_mut<R>(node: &ElkNodeRef, f: impl FnOnce(&mut MapPropertyHolder) -> R) -> R {
+fn with_node_properties_mut<R>(
+    node: &ElkNodeRef,
+    f: impl FnOnce(&mut MapPropertyHolder) -> R,
+) -> R {
     let mut node_mut = node.borrow_mut();
-    f(node_mut.connectable().shape().graph_element().properties_mut())
+    f(node_mut
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut())
 }
 
-fn with_port_properties_mut<R>(port: &ElkPortRef, f: impl FnOnce(&mut MapPropertyHolder) -> R) -> R {
+fn with_port_properties_mut<R>(
+    port: &ElkPortRef,
+    f: impl FnOnce(&mut MapPropertyHolder) -> R,
+) -> R {
     let mut port_mut = port.borrow_mut();
-    f(port_mut.connectable().shape().graph_element().properties_mut())
+    f(port_mut
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut())
 }
 
-fn with_label_properties_mut<R>(label: &ElkLabelRef, f: impl FnOnce(&mut MapPropertyHolder) -> R) -> R {
+fn with_label_properties_mut<R>(
+    label: &ElkLabelRef,
+    f: impl FnOnce(&mut MapPropertyHolder) -> R,
+) -> R {
     let mut label_mut = label.borrow_mut();
     f(label_mut.shape().graph_element().properties_mut())
 }
 
-fn with_edge_properties_mut<R>(edge: &ElkEdgeRef, f: impl FnOnce(&mut MapPropertyHolder) -> R) -> R {
+fn with_edge_properties_mut<R>(
+    edge: &ElkEdgeRef,
+    f: impl FnOnce(&mut MapPropertyHolder) -> R,
+) -> R {
     let mut edge_mut = edge.borrow_mut();
     f(edge_mut.element().properties_mut())
 }
@@ -283,7 +305,9 @@ fn get_property_with_offset<P: Clone + Send + Sync + 'static>(
 
 impl GraphElementAdapter<ElkNodeRef> for ElkGraphAdapter {
     fn get_size(&self) -> KVector {
-        with_node_shape_mut(&self.inner.element, |shape| KVector::with_values(shape.width(), shape.height()))
+        with_node_shape_mut(&self.inner.element, |shape| {
+            KVector::with_values(shape.width(), shape.height())
+        })
     }
 
     fn set_size(&self, size: KVector) {
@@ -294,7 +318,9 @@ impl GraphElementAdapter<ElkNodeRef> for ElkGraphAdapter {
     }
 
     fn get_position(&self) -> KVector {
-        with_node_shape_mut(&self.inner.element, |shape| KVector::with_values(shape.x(), shape.y()))
+        with_node_shape_mut(&self.inner.element, |shape| {
+            KVector::with_values(shape.x(), shape.y())
+        })
     }
 
     fn set_position(&self, pos: KVector) {
@@ -305,7 +331,9 @@ impl GraphElementAdapter<ElkNodeRef> for ElkGraphAdapter {
     }
 
     fn get_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> Option<P> {
-        with_node_properties_mut(&self.inner.element, |props| get_property_with_offset(props, prop))
+        with_node_properties_mut(&self.inner.element, |props| {
+            get_property_with_offset(props, prop)
+        })
     }
 
     fn has_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> bool {
@@ -344,7 +372,9 @@ impl GraphAdapter<ElkNodeRef> for ElkGraphAdapter {
 
 impl GraphElementAdapter<ElkNodeRef> for ElkNodeAdapter {
     fn get_size(&self) -> KVector {
-        with_node_shape_mut(&self.inner.element, |shape| KVector::with_values(shape.width(), shape.height()))
+        with_node_shape_mut(&self.inner.element, |shape| {
+            KVector::with_values(shape.width(), shape.height())
+        })
     }
 
     fn set_size(&self, size: KVector) {
@@ -355,7 +385,9 @@ impl GraphElementAdapter<ElkNodeRef> for ElkNodeAdapter {
     }
 
     fn get_position(&self) -> KVector {
-        with_node_shape_mut(&self.inner.element, |shape| KVector::with_values(shape.x(), shape.y()))
+        with_node_shape_mut(&self.inner.element, |shape| {
+            KVector::with_values(shape.x(), shape.y())
+        })
     }
 
     fn set_position(&self, pos: KVector) {
@@ -366,7 +398,9 @@ impl GraphElementAdapter<ElkNodeRef> for ElkNodeAdapter {
     }
 
     fn get_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> Option<P> {
-        with_node_properties_mut(&self.inner.element, |props| get_property_with_offset(props, prop))
+        with_node_properties_mut(&self.inner.element, |props| {
+            get_property_with_offset(props, prop)
+        })
     }
 
     fn has_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> bool {
@@ -527,7 +561,8 @@ impl NodeAdapter<ElkNodeRef> for ElkNodeAdapter {
             !node_mut.children().is_empty()
         };
         let inside_self_loops = with_node_properties_mut(&self.inner.element, |props| {
-            props.get_property(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE)
+            props
+                .get_property(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE)
                 .unwrap_or(false)
         });
         has_children || inside_self_loops
@@ -564,7 +599,9 @@ impl NodeAdapter<ElkNodeRef> for ElkNodeAdapter {
 
 impl GraphElementAdapter<ElkPortRef> for ElkPortAdapter {
     fn get_size(&self) -> KVector {
-        with_port_shape_mut(&self.inner.element, |shape| KVector::with_values(shape.width(), shape.height()))
+        with_port_shape_mut(&self.inner.element, |shape| {
+            KVector::with_values(shape.width(), shape.height())
+        })
     }
 
     fn set_size(&self, size: KVector) {
@@ -575,7 +612,9 @@ impl GraphElementAdapter<ElkPortRef> for ElkPortAdapter {
     }
 
     fn get_position(&self) -> KVector {
-        with_port_shape_mut(&self.inner.element, |shape| KVector::with_values(shape.x(), shape.y()))
+        with_port_shape_mut(&self.inner.element, |shape| {
+            KVector::with_values(shape.x(), shape.y())
+        })
     }
 
     fn set_position(&self, pos: KVector) {
@@ -586,7 +625,9 @@ impl GraphElementAdapter<ElkPortRef> for ElkPortAdapter {
     }
 
     fn get_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> Option<P> {
-        with_port_properties_mut(&self.inner.element, |props| get_property_with_offset(props, prop))
+        with_port_properties_mut(&self.inner.element, |props| {
+            get_property_with_offset(props, prop)
+        })
     }
 
     fn has_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> bool {
@@ -734,7 +775,9 @@ impl PortAdapter<ElkPortRef> for ElkPortAdapter {
 
 impl GraphElementAdapter<ElkLabelRef> for ElkLabelAdapter {
     fn get_size(&self) -> KVector {
-        with_label_shape_mut(&self.inner.element, |shape| KVector::with_values(shape.width(), shape.height()))
+        with_label_shape_mut(&self.inner.element, |shape| {
+            KVector::with_values(shape.width(), shape.height())
+        })
     }
 
     fn set_size(&self, size: KVector) {
@@ -745,7 +788,9 @@ impl GraphElementAdapter<ElkLabelRef> for ElkLabelAdapter {
     }
 
     fn get_position(&self) -> KVector {
-        with_label_shape_mut(&self.inner.element, |shape| KVector::with_values(shape.x(), shape.y()))
+        with_label_shape_mut(&self.inner.element, |shape| {
+            KVector::with_values(shape.x(), shape.y())
+        })
     }
 
     fn set_position(&self, pos: KVector) {
@@ -756,7 +801,9 @@ impl GraphElementAdapter<ElkLabelRef> for ElkLabelAdapter {
     }
 
     fn get_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> Option<P> {
-        with_label_properties_mut(&self.inner.element, |props| get_property_with_offset(props, prop))
+        with_label_properties_mut(&self.inner.element, |props| {
+            get_property_with_offset(props, prop)
+        })
     }
 
     fn has_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> bool {
@@ -825,8 +872,10 @@ impl PortComparator {
             return ordinal_difference.cmp(&0);
         }
 
-        let index1 = with_port_properties_mut(port1, |props| props.get_property(CoreOptions::PORT_INDEX));
-        let index2 = with_port_properties_mut(port2, |props| props.get_property(CoreOptions::PORT_INDEX));
+        let index1 =
+            with_port_properties_mut(port1, |props| props.get_property(CoreOptions::PORT_INDEX));
+        let index2 =
+            with_port_properties_mut(port2, |props| props.get_property(CoreOptions::PORT_INDEX));
         if let (Some(index1), Some(index2)) = (index1, index2) {
             let index_difference = index1 - index2;
             if index_difference != 0 {

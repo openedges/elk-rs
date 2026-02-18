@@ -23,7 +23,11 @@ impl Default for BottomRowEqualWhitespaceEliminator {
 }
 
 impl ILayoutPhase<TopdownPackingPhases, GridElkNode> for BottomRowEqualWhitespaceEliminator {
-    fn process(&mut self, layout_graph: &mut GridElkNode, progress_monitor: &mut dyn IElkProgressMonitor) {
+    fn process(
+        &mut self,
+        layout_graph: &mut GridElkNode,
+        progress_monitor: &mut dyn IElkProgressMonitor,
+    ) {
         progress_monitor.begin("Whitespace elimination", 1.0);
         progress_monitor.log(&format!(
             "Whitespace elimination began for node {}",

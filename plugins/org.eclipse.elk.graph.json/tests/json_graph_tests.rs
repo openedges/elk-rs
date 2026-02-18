@@ -3,8 +3,12 @@ use std::rc::Rc;
 
 use serde_json::Value;
 
-use org_eclipse_elk_core::org::eclipse::elk::core::math::{ElkMargin, ElkPadding, KVector, KVectorChain};
-use org_eclipse_elk_core::org::eclipse::elk::core::options::{CoreOptions, Direction, EdgeLabelPlacement};
+use org_eclipse_elk_core::org::eclipse::elk::core::math::{
+    ElkMargin, ElkPadding, KVector, KVectorChain,
+};
+use org_eclipse_elk_core::org::eclipse::elk::core::options::{
+    CoreOptions, Direction, EdgeLabelPlacement,
+};
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{
     BasicProgressMonitor, IndividualSpacings, Maybe,
 };
@@ -91,7 +95,6 @@ fn accept_sloppy_json_when_lenient() {
     assert_eq!(node_identifier(&children[0]).as_deref(), Some("c"));
     assert_eq!(node_identifier(&children[1]).as_deref(), Some("c1"));
 }
-
 
 #[test]
 fn extended_edge_import() {
@@ -208,11 +211,7 @@ fn edge_label_placement_option_parses_enum() {
     let label = labels.first().unwrap();
     let placement = {
         let mut label_mut = label.borrow_mut();
-        let mut props = label_mut
-            .shape()
-            .graph_element()
-            .properties()
-            .clone();
+        let mut props = label_mut.shape().graph_element().properties().clone();
         props.get_property(CoreOptions::EDGE_LABELS_PLACEMENT)
     };
     assert_eq!(placement, Some(EdgeLabelPlacement::Tail));
@@ -231,7 +230,10 @@ fn import_layout_options() {
 
     let root = ElkGraphJson::for_graph(graph).to_elk().unwrap();
     assert!(node_has_property(&root, CoreOptions::DIRECTION));
-    assert_eq!(node_property(&root, CoreOptions::DIRECTION), Some(Direction::Down));
+    assert_eq!(
+        node_property(&root, CoreOptions::DIRECTION),
+        Some(Direction::Down)
+    );
 }
 
 #[test]
@@ -247,7 +249,10 @@ fn import_properties_legacy() {
 
     let root = ElkGraphJson::for_graph(graph).to_elk().unwrap();
     assert!(node_has_property(&root, CoreOptions::DIRECTION));
-    assert_eq!(node_property(&root, CoreOptions::DIRECTION), Some(Direction::Down));
+    assert_eq!(
+        node_property(&root, CoreOptions::DIRECTION),
+        Some(Direction::Down)
+    );
 }
 
 #[test]
@@ -266,7 +271,10 @@ fn layout_options_have_priority() {
 
     let root = ElkGraphJson::for_graph(graph).to_elk().unwrap();
     assert!(node_has_property(&root, CoreOptions::DIRECTION));
-    assert_eq!(node_property(&root, CoreOptions::DIRECTION), Some(Direction::Up));
+    assert_eq!(
+        node_property(&root, CoreOptions::DIRECTION),
+        Some(Direction::Up)
+    );
 }
 
 #[test]
@@ -276,10 +284,8 @@ fn export_layout_options() {
 
     let json = ElkGraphJson::for_elk(graph).to_json();
     let actual: Value = serde_json::from_str(&json).unwrap();
-    let expected: Value = serde_json::from_str(
-        r#"{"id":"n0","layoutOptions":{"elk.direction":"UP"}}"#,
-    )
-    .unwrap();
+    let expected: Value =
+        serde_json::from_str(r#"{"id":"n0","layoutOptions":{"elk.direction":"UP"}}"#).unwrap();
 
     assert_eq!(expected, actual);
 }
@@ -327,7 +333,11 @@ fn export_layout_options_kvector_and_chain() {
     set_node_identifier(&node1, "n1");
     set_node_identifier(&node2, "n2");
 
-    set_node_property(&node1, CoreOptions::POSITION, KVector::with_values(3.0, 4.0));
+    set_node_property(
+        &node1,
+        CoreOptions::POSITION,
+        KVector::with_values(3.0, 4.0),
+    );
 
     let edge = ElkGraphUtil::create_simple_edge(
         ElkConnectableShapeRef::Node(node1),
@@ -408,10 +418,15 @@ fn export_layout_options_port_and_label_position() {
     let graph = ElkGraphUtil::create_graph();
     let node = ElkGraphUtil::create_node(Some(graph.clone()));
     let port = ElkGraphUtil::create_port(Some(node.clone()));
-    let label = ElkGraphUtil::create_label_with_text("L1", Some(ElkGraphElementRef::Node(node.clone())));
+    let label =
+        ElkGraphUtil::create_label_with_text("L1", Some(ElkGraphElementRef::Node(node.clone())));
 
     set_port_property(&port, CoreOptions::POSITION, KVector::with_values(7.0, 8.0));
-    set_label_property(&label, CoreOptions::POSITION, KVector::with_values(9.0, 10.0));
+    set_label_property(
+        &label,
+        CoreOptions::POSITION,
+        KVector::with_values(9.0, 10.0),
+    );
 
     let json = ElkGraphJson::for_elk(graph).to_json();
     let value: Value = serde_json::from_str(&json).unwrap();
@@ -537,7 +552,10 @@ fn export_junction_points() {
 
     let json = ElkGraphJson::for_elk(graph).omit_layout(false).to_json();
     let value: Value = serde_json::from_str(&json).unwrap();
-    let edge_obj = value["edges"].as_array().and_then(|edges| edges.first()).expect("edge");
+    let edge_obj = value["edges"]
+        .as_array()
+        .and_then(|edges| edges.first())
+        .expect("edge");
     let points = edge_obj["junctionPoints"]
         .as_array()
         .expect("junctionPoints");
@@ -621,8 +639,8 @@ fn import_individual_spacings_with_ports_surrounding() {
     let root = ElkGraphJson::for_graph(graph).to_elk().unwrap();
     let child = find_node(&node_children(&root), "n1");
 
-    let mut individual = node_property(&child, CoreOptions::SPACING_INDIVIDUAL)
-        .expect("individual spacings");
+    let mut individual =
+        node_property(&child, CoreOptions::SPACING_INDIVIDUAL).expect("individual spacings");
     let margin = individual
         .properties_mut()
         .get_property(CoreOptions::SPACING_PORTS_SURROUNDING)
@@ -657,9 +675,10 @@ fn export_individual_spacings_with_padding() {
     let graph = ElkGraphUtil::create_graph();
 
     let mut individual = IndividualSpacings::new();
-    individual
-        .properties_mut()
-        .set_property(CoreOptions::NODE_LABELS_PADDING, Some(ElkPadding::with_values(1.0, 2.0, 3.0, 4.0)));
+    individual.properties_mut().set_property(
+        CoreOptions::NODE_LABELS_PADDING,
+        Some(ElkPadding::with_values(1.0, 2.0, 3.0, 4.0)),
+    );
     set_node_property(&graph, CoreOptions::SPACING_INDIVIDUAL, individual);
 
     let json = ElkGraphJson::for_elk(graph)
@@ -676,9 +695,10 @@ fn export_individual_spacings_with_ports_surrounding() {
     let graph = ElkGraphUtil::create_graph();
 
     let mut individual = IndividualSpacings::new();
-    individual
-        .properties_mut()
-        .set_property(CoreOptions::SPACING_PORTS_SURROUNDING, Some(ElkMargin::with_values(2.0, 4.0, 6.0, 8.0)));
+    individual.properties_mut().set_property(
+        CoreOptions::SPACING_PORTS_SURROUNDING,
+        Some(ElkMargin::with_values(2.0, 4.0, 6.0, 8.0)),
+    );
     set_node_property(&graph, CoreOptions::SPACING_INDIVIDUAL, individual);
 
     let json = ElkGraphJson::for_elk(graph)
@@ -886,11 +906,7 @@ fn transfer_layout_fail_when_graph_changes() {
 
     let _ = ElkGraphUtil::create_node(Some(root.clone()));
 
-    match importer
-        .get_mut()
-        .expect("importer")
-        .transfer_layout(&root)
-    {
+    match importer.get_mut().expect("importer").transfer_layout(&root) {
         Err(_) => {}
         Ok(_) => panic!("expected transfer layout error"),
     }
@@ -1052,14 +1068,18 @@ fn transfer_layout_shape_coords_root() {
     let parent_obj = root_value["children"]
         .as_array()
         .and_then(|children| {
-            children.iter().find(|child| child.get("id").and_then(|id| id.as_str()) == Some("parent"))
+            children
+                .iter()
+                .find(|child| child.get("id").and_then(|id| id.as_str()) == Some("parent"))
         })
         .and_then(|child| child.as_object())
         .expect("parent");
     let child_obj = parent_obj["children"]
         .as_array()
         .and_then(|children| {
-            children.iter().find(|child| child.get("id").and_then(|id| id.as_str()) == Some("child"))
+            children
+                .iter()
+                .find(|child| child.get("id").and_then(|id| id.as_str()) == Some("child"))
         })
         .and_then(|child| child.as_object())
         .expect("child");
@@ -1120,7 +1140,9 @@ fn transfer_layout_edge_coords_root() {
     let edge_obj = root_value["edges"]
         .as_array()
         .and_then(|edges| {
-            edges.iter().find(|edge| edge.get("id").and_then(|id| id.as_str()) == Some("e1"))
+            edges
+                .iter()
+                .find(|edge| edge.get("id").and_then(|id| id.as_str()) == Some("e1"))
         })
         .and_then(|edge| edge.as_object())
         .expect("edge");
@@ -1190,14 +1212,18 @@ fn transfer_layout_edge_coords_parent() {
     let a_obj = root_value["children"]
         .as_array()
         .and_then(|children| {
-            children.iter().find(|child| child.get("id").and_then(|id| id.as_str()) == Some("a"))
+            children
+                .iter()
+                .find(|child| child.get("id").and_then(|id| id.as_str()) == Some("a"))
         })
         .and_then(|child| child.as_object())
         .expect("a");
     let edge_obj = a_obj["edges"]
         .as_array()
         .and_then(|edges| {
-            edges.iter().find(|edge| edge.get("id").and_then(|id| id.as_str()) == Some("e1"))
+            edges
+                .iter()
+                .find(|edge| edge.get("id").and_then(|id| id.as_str()) == Some("e1"))
         })
         .and_then(|edge| edge.as_object())
         .expect("edge");
@@ -1239,12 +1265,16 @@ fn node_edges(node: &ElkNodeRef) -> Vec<ElkEdgeRef> {
     node_mut.contained_edges().iter().cloned().collect()
 }
 
-fn node_ports(node: &ElkNodeRef) -> Vec<org_eclipse_elk_graph::org::eclipse::elk::graph::ElkPortRef> {
+fn node_ports(
+    node: &ElkNodeRef,
+) -> Vec<org_eclipse_elk_graph::org::eclipse::elk::graph::ElkPortRef> {
     let mut node_mut = node.borrow_mut();
     node_mut.ports().iter().cloned().collect()
 }
 
-fn node_labels(node: &ElkNodeRef) -> Vec<org_eclipse_elk_graph::org::eclipse::elk::graph::ElkLabelRef> {
+fn node_labels(
+    node: &ElkNodeRef,
+) -> Vec<org_eclipse_elk_graph::org::eclipse::elk::graph::ElkLabelRef> {
     let mut node_mut = node.borrow_mut();
     node_mut
         .connectable()
@@ -1318,10 +1348,7 @@ fn edge_property<T: Clone + Send + Sync + 'static>(
     property: &Property<T>,
 ) -> Option<T> {
     let mut edge_ref = edge.borrow_mut();
-    edge_ref
-        .element()
-        .properties_mut()
-        .get_property(property)
+    edge_ref.element().properties_mut().get_property(property)
 }
 
 fn port_property<T: Clone + Send + Sync + 'static>(

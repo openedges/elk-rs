@@ -1,4 +1,6 @@
-use org_eclipse_elk_core::org::eclipse::elk::core::math::{elk_rectangle::ElkRectangle, kvector::KVector};
+use org_eclipse_elk_core::org::eclipse::elk::core::math::{
+    elk_rectangle::ElkRectangle, kvector::KVector,
+};
 
 use super::{DCElementRef, DCExtension};
 
@@ -99,7 +101,14 @@ impl DCComponent {
             max_y = max_y.max(elem_bounds.y + elem_bounds.height);
 
             for ext in elem_guard.get_extensions() {
-                update_bounds_with_extension(ext, &elem_bounds, &mut min_x, &mut max_x, &mut min_y, &mut max_y);
+                update_bounds_with_extension(
+                    ext,
+                    &elem_bounds,
+                    &mut min_x,
+                    &mut max_x,
+                    &mut min_y,
+                    &mut max_y,
+                );
             }
         }
 

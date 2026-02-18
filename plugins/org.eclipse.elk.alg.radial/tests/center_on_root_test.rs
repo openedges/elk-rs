@@ -1,11 +1,11 @@
-use org_eclipse_elk_alg_radial::org::eclipse::elk::alg::radial::RadialLayoutProvider;
 use org_eclipse_elk_alg_radial::org::eclipse::elk::alg::radial::options::{
     RadialMetaDataProvider, RadialOptions,
 };
+use org_eclipse_elk_alg_radial::org::eclipse::elk::alg::radial::RadialLayoutProvider;
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
-use org_eclipse_elk_core::org::eclipse::elk::core::IGraphLayoutEngine;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::BasicProgressMonitor;
+use org_eclipse_elk_core::org::eclipse::elk::core::IGraphLayoutEngine;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkConnectableShapeRef, ElkNodeRef};
@@ -41,7 +41,11 @@ fn test_simple_centering() {
     set_dimensions(&n2, 30.0, 30.0);
     set_dimensions(&n3, 30.0, 30.0);
 
-    set_node_property(&parent, CoreOptions::ALGORITHM, RadialOptions::ALGORITHM_ID.to_string());
+    set_node_property(
+        &parent,
+        CoreOptions::ALGORITHM,
+        RadialOptions::ALGORITHM_ID.to_string(),
+    );
     set_node_property(&parent, RadialOptions::CENTER_ON_ROOT, true);
 
     let mut layout_provider = RadialLayoutProvider::new();
@@ -97,7 +101,11 @@ fn test_larger_graph_centering() {
         set_dimensions(node, 30.0, 30.0);
     }
 
-    set_node_property(&parent, CoreOptions::ALGORITHM, RadialOptions::ALGORITHM_ID.to_string());
+    set_node_property(
+        &parent,
+        CoreOptions::ALGORITHM,
+        RadialOptions::ALGORITHM_ID.to_string(),
+    );
     set_node_property(&parent, RadialOptions::CENTER_ON_ROOT, true);
 
     let mut layout_provider = RadialLayoutProvider::new();

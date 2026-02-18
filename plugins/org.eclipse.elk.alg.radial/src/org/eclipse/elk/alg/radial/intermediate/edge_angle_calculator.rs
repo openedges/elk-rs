@@ -12,18 +12,26 @@ pub struct EdgeAngleCalculator;
 impl ILayoutProcessor<ElkNodeRef> for EdgeAngleCalculator {
     fn process(&mut self, graph: &mut ElkNodeRef, _progress_monitor: &mut dyn IElkProgressMonitor) {
         let root = RadialUtil::root_from_graph(graph);
-        let Some(root) = root else { return; };
+        let Some(root) = root else {
+            return;
+        };
 
         let outgoing_edges = {
             let mut root_mut = root.borrow_mut();
-            root_mut.connectable().outgoing_edges().iter().collect::<Vec<_>>()
+            root_mut
+                .connectable()
+                .outgoing_edges()
+                .iter()
+                .collect::<Vec<_>>()
         };
         for edge in outgoing_edges {
             let section = {
                 let mut edge_borrow = edge.borrow_mut();
                 edge_borrow.sections().get(0)
             };
-            let Some(section) = section else { continue; };
+            let Some(section) = section else {
+                continue;
+            };
             let (start, end) = {
                 let section_borrow = section.borrow();
                 (
@@ -38,7 +46,9 @@ impl ILayoutProcessor<ElkNodeRef> for EdgeAngleCalculator {
                 let edge_borrow = edge.borrow();
                 edge_borrow.targets_ro().get(0)
             };
-            let Some(target_shape) = target_shape else { continue; };
+            let Some(target_shape) = target_shape else {
+                continue;
+            };
             match target_shape {
                 ElkConnectableShapeRef::Node(node) => {
                     let mut node_mut = node.borrow_mut();

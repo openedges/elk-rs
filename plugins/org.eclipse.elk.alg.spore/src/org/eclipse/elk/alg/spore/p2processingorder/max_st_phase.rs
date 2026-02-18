@@ -5,7 +5,9 @@ use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configu
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{ElkUtil, IElkProgressMonitor};
 
 use crate::org::eclipse::elk::alg::spore::graph::Graph;
-use crate::org::eclipse::elk::alg::spore::p2processingorder::cost_function::{GraphCostFunction, InvertedCostFunction};
+use crate::org::eclipse::elk::alg::spore::p2processingorder::cost_function::{
+    GraphCostFunction, InvertedCostFunction,
+};
 use crate::org::eclipse::elk::alg::spore::p2processingorder::min_st_phase::MinSTPhase;
 use crate::org::eclipse::elk::alg::spore::spore_phases::SPOrEPhases;
 
@@ -56,7 +58,8 @@ impl ILayoutPhase<SPOrEPhases, Graph> for MaxSTPhase {
         let cost_function = GraphCostFunction::new(graph);
         let inverted = InvertedCostFunction::new(cost_function);
 
-        let tree = NaiveMinST::create_spanning_tree(edges, &root, &inverted, debug_output.as_deref());
+        let tree =
+            NaiveMinST::create_spanning_tree(edges, &root, &inverted, debug_output.as_deref());
         self.converter.convert_tree(&tree, graph);
 
         progress_monitor.done();

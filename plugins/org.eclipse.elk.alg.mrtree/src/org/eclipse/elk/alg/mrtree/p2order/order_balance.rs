@@ -25,7 +25,9 @@ impl ILayoutPhase<TreeLayoutPhases, TGraphRef> for OrderBalance {
             .before(TreeLayoutPhases::P2NodeOrdering)
             .add(std::sync::Arc::new(IntermediateProcessorStrategy::RootProc))
             .add(std::sync::Arc::new(IntermediateProcessorStrategy::FanProc))
-            .add(std::sync::Arc::new(IntermediateProcessorStrategy::NeighborsProc));
+            .add(std::sync::Arc::new(
+                IntermediateProcessorStrategy::NeighborsProc,
+            ));
         Some(config)
     }
 }

@@ -2,15 +2,19 @@ use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-use org_eclipse_elk_core::org::eclipse::elk::core::math::{kvector::KVector, kvector_chain::KVectorChain};
+use org_eclipse_elk_core::org::eclipse::elk::core::math::{
+    kvector::KVector, kvector_chain::KVectorChain,
+};
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::ElkUtil;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{
     ElkEdgeRef, ElkGraphElementRef, ElkGraphFactory, ElkNodeRef, ElkPortRef,
 };
-use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 
-use crate::org::eclipse::elk::alg::disco::graph::{DCElement, DCElementRef, DCExtension, DCGraph, DCDirection};
+use crate::org::eclipse::elk::alg::disco::graph::{
+    DCDirection, DCElement, DCElementRef, DCExtension, DCGraph,
+};
 use crate::org::eclipse::elk::alg::disco::options::DisCoOptions;
 use crate::org::eclipse::elk::alg::disco::transform::ElkGraphComponentsProcessor;
 use crate::org::eclipse::elk::alg::disco::transform::IGraphTransformer;
@@ -110,7 +114,11 @@ impl ElkGraphTransformer {
         element_ref
     }
 
-    fn import_elk_edge(&mut self, edge: &ElkEdgeRef, new_component: &mut Vec<DCElementRef>) -> DCElementRef {
+    fn import_elk_edge(
+        &mut self,
+        edge: &ElkEdgeRef,
+        new_component: &mut Vec<DCElementRef>,
+    ) -> DCElementRef {
         let edge_section = first_edge_section(edge, false, false);
         let points = ElkUtil::create_vector_chain(&edge_section).to_array();
         let thickness = get_edge_thickness(edge);
@@ -125,13 +133,20 @@ impl ElkGraphTransformer {
             let mut shape_guard = shape.lock().expect("dc element lock");
             shape_guard.copy_properties(&props);
         }
-        self.element_mapping
-            .insert(edge_id(edge), (ElkGraphElementRef::Edge(edge.clone()), shape.clone()));
+        self.element_mapping.insert(
+            edge_id(edge),
+            (ElkGraphElementRef::Edge(edge.clone()), shape.clone()),
+        );
         new_component.push(shape.clone());
 
         let labels = {
             let mut edge_mut = edge.borrow_mut();
-            edge_mut.element().labels().iter().cloned().collect::<Vec<_>>()
+            edge_mut
+                .element()
+                .labels()
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>()
         };
         for label in labels {
             let component_label =
@@ -214,12 +229,19 @@ impl ElkGraphTransformer {
             self.incoming_extensions
                 .insert(edge_id(edge), (edge.clone(), extension.clone()));
         }
-        self.element_mapping
-            .insert(edge_id(edge), (ElkGraphElementRef::Edge(edge.clone()), shape.clone()));
+        self.element_mapping.insert(
+            edge_id(edge),
+            (ElkGraphElementRef::Edge(edge.clone()), shape.clone()),
+        );
 
         let labels = {
             let mut edge_mut = edge.borrow_mut();
-            edge_mut.element().labels().iter().cloned().collect::<Vec<_>>()
+            edge_mut
+                .element()
+                .labels()
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>()
         };
         for label in labels {
             let component_label =
@@ -300,12 +322,8 @@ impl IGraphTransformer<ElkNodeRef> for ElkGraphTransformer {
             let mut edges: Vec<ElkEdgeRef> = Vec::new();
 
             for node in component {
-                let component_node = self.import_elk_shape(
-                    ElkGraphElementRef::Node(node.clone()),
-                    true,
-                    0.0,
-                    0.0,
-                );
+                let component_node =
+                    self.import_elk_shape(ElkGraphElementRef::Node(node.clone()), true, 0.0, 0.0);
                 sub_result.push(component_node.clone());
 
                 let (node_x, node_y) = {
@@ -330,8 +348,12 @@ impl IGraphTransformer<ElkNodeRef> for ElkGraphTransformer {
                         .collect::<Vec<_>>()
                 };
                 for label in labels {
-                    let component_label =
-                        self.import_elk_shape(ElkGraphElementRef::Label(label), false, node_x, node_y);
+                    let component_label = self.import_elk_shape(
+                        ElkGraphElementRef::Label(label),
+                        false,
+                        node_x,
+                        node_y,
+                    );
                     sub_result.push(component_label);
                 }
 
@@ -340,8 +362,12 @@ impl IGraphTransformer<ElkNodeRef> for ElkGraphTransformer {
                     node_mut.ports().iter().cloned().collect::<Vec<_>>()
                 };
                 for port in ports {
-                    let component_port =
-                        self.import_elk_shape(ElkGraphElementRef::Port(port.clone()), false, node_x, node_y);
+                    let component_port = self.import_elk_shape(
+                        ElkGraphElementRef::Port(port.clone()),
+                        false,
+                        node_x,
+                        node_y,
+                    );
                     sub_result.push(component_port);
 
                     let (port_x, port_y) = {
@@ -396,7 +422,9 @@ impl IGraphTransformer<ElkNodeRef> for ElkGraphTransformer {
         transformed_graph.copy_properties(&props);
 
         self.transformed_graph = Some(transformed_graph);
-        self.transformed_graph.as_mut().expect("missing transformed graph")
+        self.transformed_graph
+            .as_mut()
+            .expect("missing transformed graph")
     }
 
     fn apply_layout(&mut self) {
@@ -536,7 +564,6 @@ impl IGraphTransformer<ElkNodeRef> for ElkGraphTransformer {
                 }
             }
         }
-
     }
 }
 
@@ -550,7 +577,11 @@ fn adjust_related_port(port: &ElkPortRef, edge_point: &KVector, dir: DCDirection
     }
 }
 
-fn adjust_first_segment(source: &ElkNodeRef, chain: &KVectorChain, dir: DCDirection) -> KVectorChain {
+fn adjust_first_segment(
+    source: &ElkNodeRef,
+    chain: &KVectorChain,
+    dir: DCDirection,
+) -> KVectorChain {
     let mut points = chain.to_array();
     if points.is_empty() {
         return KVectorChain::new();
@@ -592,11 +623,13 @@ fn get_contour(edge_points: &[KVector], thickness: f64) -> KVectorChain {
         current = successor;
         successor = *next_point;
 
-        let orth_points = get_orthogonal_points(current.x, current.y, predecessor.x, predecessor.y, radius);
+        let orth_points =
+            get_orthogonal_points(current.x, current.y, predecessor.x, predecessor.y, radius);
         ccw_points.push(orth_points[1]);
         cw_points.push(orth_points[0]);
 
-        let orth_points = get_orthogonal_points(current.x, current.y, successor.x, successor.y, radius);
+        let orth_points =
+            get_orthogonal_points(current.x, current.y, successor.x, successor.y, radius);
         ccw_points.push(orth_points[0]);
         cw_points.push(orth_points[1]);
     }
@@ -653,7 +686,13 @@ fn get_contour(edge_points: &[KVector], thickness: f64) -> KVectorChain {
     ccw_merged
 }
 
-fn get_orthogonal_points(cur_x: f64, cur_y: f64, nxt_x: f64, nxt_y: f64, radius: f64) -> Vec<KVector> {
+fn get_orthogonal_points(
+    cur_x: f64,
+    cur_y: f64,
+    nxt_x: f64,
+    nxt_y: f64,
+    radius: f64,
+) -> Vec<KVector> {
     let dif_x = nxt_x - cur_x;
     let dif_y = nxt_y - cur_y;
 
@@ -666,7 +705,10 @@ fn get_orthogonal_points(cur_x: f64, cur_y: f64, nxt_x: f64, nxt_y: f64, radius:
     let x_cw = radius * orth_angle_cw.sin() + cur_x;
     let y_cw = radius * orth_angle_cw.cos() + cur_y;
 
-    vec![KVector::with_values(x_ccw, y_ccw), KVector::with_values(x_cw, y_cw)]
+    vec![
+        KVector::with_values(x_ccw, y_ccw),
+        KVector::with_values(x_cw, y_cw),
+    ]
 }
 
 fn compute_intersection(p1: &KVector, p2: &KVector, p3: &KVector, p4: &KVector) -> KVector {
@@ -716,7 +758,11 @@ fn nearest_side(point: &KVector, node: &ElkNodeRef) -> DCDirection {
     result
 }
 
-fn first_edge_section(edge: &ElkEdgeRef, reset_section: bool, remove_other_sections: bool) -> org_eclipse_elk_graph::org::eclipse::elk::graph::ElkEdgeSectionRef {
+fn first_edge_section(
+    edge: &ElkEdgeRef,
+    reset_section: bool,
+    remove_other_sections: bool,
+) -> org_eclipse_elk_graph::org::eclipse::elk::graph::ElkEdgeSectionRef {
     let mut edge_mut = edge.borrow_mut();
     let sections = edge_mut.sections();
     if sections.is_empty() {
@@ -753,14 +799,12 @@ fn get_edge_thickness(edge: &ElkEdgeRef) -> f64 {
 
 fn get_source_node(edge: &ElkEdgeRef) -> ElkNodeRef {
     let (source, _target) = edge_endpoints(edge);
-    ElkGraphUtil::connectable_shape_to_node(&source)
-        .expect("Passed edge is not 'simple'.")
+    ElkGraphUtil::connectable_shape_to_node(&source).expect("Passed edge is not 'simple'.")
 }
 
 fn get_target_node(edge: &ElkEdgeRef) -> ElkNodeRef {
     let (_source, target) = edge_endpoints(edge);
-    ElkGraphUtil::connectable_shape_to_node(&target)
-        .expect("Passed edge is not 'simple'.")
+    ElkGraphUtil::connectable_shape_to_node(&target).expect("Passed edge is not 'simple'.")
 }
 
 fn get_source_port(edge: &ElkEdgeRef) -> Option<ElkPortRef> {
@@ -783,8 +827,16 @@ fn edge_endpoints(
     if edge_borrow.sources_ro().len() != 1 || edge_borrow.targets_ro().len() != 1 {
         panic!("Passed edge is not 'simple'.");
     }
-    let source = edge_borrow.sources_ro().get(0).expect("missing source").clone();
-    let target = edge_borrow.targets_ro().get(0).expect("missing target").clone();
+    let source = edge_borrow
+        .sources_ro()
+        .get(0)
+        .expect("missing source")
+        .clone();
+    let target = edge_borrow
+        .targets_ro()
+        .get(0)
+        .expect("missing target")
+        .clone();
     (source, target)
 }
 

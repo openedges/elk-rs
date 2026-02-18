@@ -57,7 +57,8 @@ impl RectangleStripOverlapRemover {
 
     pub fn add_rectangle(&mut self, rectangle: &mut ElkRectangle) {
         let transformed = self.import_rectangle(rectangle);
-        self.rectangle_nodes.push(RectangleNode::new(rectangle, transformed));
+        self.rectangle_nodes
+            .push(RectangleNode::new(rectangle, transformed));
     }
 
     pub fn horizontal_gap(&self) -> f64 {
@@ -200,7 +201,6 @@ impl RectangleNode {
     pub fn overlapping_nodes(&self) -> &Vec<usize> {
         &self.overlapping_nodes
     }
-
 }
 
 #[derive(Clone, Copy, Debug)]

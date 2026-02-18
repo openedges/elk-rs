@@ -1,6 +1,6 @@
+pub mod calculate_graph_size;
 pub mod compaction;
 pub mod edge_angle_calculator;
-pub mod calculate_graph_size;
 pub mod intermediate_processor_strategy;
 pub mod optimization;
 pub mod overlaps;

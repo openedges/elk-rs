@@ -156,16 +156,14 @@ where
         self.labels.push(label);
 
         if self.horizontal_layout_mode {
-            self.minimum_content_area_size.x =
-                self.minimum_content_area_size.x.max(label_size.x);
+            self.minimum_content_area_size.x = self.minimum_content_area_size.x.max(label_size.x);
             self.minimum_content_area_size.y += label_size.y;
             if self.labels.len() > 1 {
                 self.minimum_content_area_size.y += self.gap;
             }
         } else {
             self.minimum_content_area_size.x += label_size.x;
-            self.minimum_content_area_size.y =
-                self.minimum_content_area_size.y.max(label_size.y);
+            self.minimum_content_area_size.y = self.minimum_content_area_size.y.max(label_size.y);
             if self.labels.len() > 1 {
                 self.minimum_content_area_size.x += self.gap;
             }
@@ -213,9 +211,8 @@ where
                     label_pos.x = cell_rect.x + padding.left;
                 }
                 HorizontalLabelAlignment::Center => {
-                    label_pos.x = cell_rect.x
-                        + padding.left
-                        + (cell_rect.width - label_size.x) / 2.0;
+                    label_pos.x =
+                        cell_rect.x + padding.left + (cell_rect.width - label_size.x) / 2.0;
                 }
                 HorizontalLabelAlignment::Right => {
                     label_pos.x = cell_rect.x + cell_rect.width - padding.right - label_size.x;
@@ -249,9 +246,8 @@ where
                     label_pos.y = cell_rect.y + padding.top;
                 }
                 VerticalLabelAlignment::Center => {
-                    label_pos.y = cell_rect.y
-                        + padding.top
-                        + (cell_rect.height - label_size.y) / 2.0;
+                    label_pos.y =
+                        cell_rect.y + padding.top + (cell_rect.height - label_size.y) / 2.0;
                 }
                 VerticalLabelAlignment::Bottom => {
                     label_pos.y = cell_rect.y + cell_rect.height - padding.bottom - label_size.y;

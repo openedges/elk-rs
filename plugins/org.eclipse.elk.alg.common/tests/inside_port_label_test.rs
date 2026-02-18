@@ -4,12 +4,14 @@ mod elkt_test_loader;
 use elkt_test_loader::load_layered_graph_from_elkt;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::layered_layout_provider::LayeredLayoutProvider;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::plain_java_initialization::initialize_plain_java_layout;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{BasicProgressMonitor, ElkUtil};
 use org_eclipse_elk_core::org::eclipse::elk::core::IGraphLayoutEngine;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{
     ElkGraphElementRef, ElkLabelRef, ElkNodeRef, ElkPortRef,
 };
 use std::collections::VecDeque;
+use std::env;
 use std::path::PathBuf;
 
 const OVERLAP_EPSILON: f64 = 0.5;
@@ -159,6 +161,45 @@ fn assert_no_overlaps(labels: &[ElkLabelRef]) {
     }
 }
 
+fn maybe_debug_labels(node: &ElkNodeRef) {
+    let debug = env::var("INSIDE_DEBUG_PRINT").is_ok();
+    if !debug {
+        return;
+    }
+
+    let (width, height, node_padding, node_labels): (
+        f64,
+        f64,
+        Vec<(f64, f64, f64, f64)>,
+        Vec<ElkLabelRef>,
+    ) = {
+        let mut node_mut = node.borrow_mut();
+        let shape = node_mut.connectable().shape();
+        let size = (shape.width(), shape.height());
+        let labels: Vec<_> = shape.graph_element().labels().iter().cloned().collect();
+        let padding = shape
+            .graph_element()
+            .properties_mut()
+            .get_property(CoreOptions::PADDING)
+            .unwrap_or_default();
+        (
+            size.0,
+            size.1,
+            vec![(padding.left, padding.top, padding.right, padding.bottom)],
+            labels,
+        )
+    };
+
+    println!(
+        "node size=({:.2}, {:.2}) padding={:?}",
+        width, height, node_padding
+    );
+
+    for label in &node_labels {
+        println!("  {:?}", label_debug(label));
+    }
+}
+
 fn label_debug(label: &ElkLabelRef) -> (String, (f64, f64, f64, f64)) {
     let text = label.borrow().text().to_string();
     let bounds = absolute_label_bounds(label);
@@ -178,6 +219,37 @@ fn test_no_label_overlaps() {
     apply_default_port_configuration(&graph);
     ensure_label_sizes(&graph);
     run_layout(&graph);
+    if env::var("INSIDE_DEBUG_PRINT").is_ok() {
+        let nodes: Vec<_> = {
+            let mut graph_mut = graph.borrow_mut();
+            graph_mut.children().iter().cloned().collect()
+        };
+        for node in &nodes {
+            maybe_debug_labels(node);
+            let port_labels: Vec<ElkLabelRef> = {
+                let mut node_mut = node.borrow_mut();
+                let ports = node_mut.ports().iter().cloned().collect::<Vec<_>>();
+                let mut result = Vec::new();
+                for port in ports {
+                    let mut port_mut = port.borrow_mut();
+                    result.extend(
+                        port_mut
+                            .connectable()
+                            .shape()
+                            .graph_element()
+                            .labels()
+                            .iter()
+                            .cloned(),
+                    );
+                }
+                result
+            };
+            println!("  port labels count={}", port_labels.len());
+            for label in port_labels {
+                println!("    port label {:?}", label_debug(&label));
+            }
+        }
+    }
 
     let children: Vec<ElkNodeRef> = graph.borrow_mut().children().iter().cloned().collect();
     for node in children {

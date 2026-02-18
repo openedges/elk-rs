@@ -5,7 +5,9 @@ use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutP
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
-use crate::org::eclipse::elk::alg::layered::graph::{Layer, LayerRef, LGraph, LGraphRef, LNode, LNodeRef, NodeType};
+use crate::org::eclipse::elk::alg::layered::graph::{
+    LGraph, LGraphRef, LNode, LNodeRef, Layer, LayerRef, NodeType,
+};
 use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorStrategy;
 use crate::org::eclipse::elk::alg::layered::options::InternalProperties;
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
@@ -83,7 +85,9 @@ impl DepthFirstModelOrderLayerer {
                         directly_connected = layer
                             .lock()
                             .ok()
-                            .map(|mut layer_guard| layer_guard.graph_element().id == self.current_layer_id)
+                            .map(|mut layer_guard| {
+                                layer_guard.graph_element().id == self.current_layer_id
+                            })
                             .unwrap_or(false);
                     }
                 }
@@ -99,13 +103,19 @@ impl DepthFirstModelOrderLayerer {
                             .lock()
                             .ok()
                             .and_then(|edge_guard| edge_guard.source())
-                            .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
-                            .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.layer()))
+                            .and_then(|port| {
+                                port.lock().ok().and_then(|port_guard| port_guard.node())
+                            })
+                            .and_then(|node| {
+                                node.lock().ok().and_then(|node_guard| node_guard.layer())
+                            })
                         {
                             connected_via_label_dummy = layer
                                 .lock()
                                 .ok()
-                                .map(|mut layer_guard| layer_guard.graph_element().id == self.current_layer_id)
+                                .map(|mut layer_guard| {
+                                    layer_guard.graph_element().id == self.current_layer_id
+                                })
                                 .unwrap_or(false);
                         }
                     }
@@ -126,7 +136,9 @@ impl DepthFirstModelOrderLayerer {
                             .lock()
                             .ok()
                             .and_then(|edge_guard| edge_guard.source())
-                            .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
+                            .and_then(|port| {
+                                port.lock().ok().and_then(|port_guard| port_guard.node())
+                            })
                         {
                             connected_via_label_dummy =
                                 node_id(&label_source) == self.current_layer_id;
@@ -349,7 +361,9 @@ impl ILayoutPhase<LayeredPhases, LGraph> for DepthFirstModelOrderLayerer {
                                 .lock()
                                 .ok()
                                 .and_then(|edge_guard| edge_guard.source())
-                                .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                                .and_then(|port| {
+                                    port.lock().ok().and_then(|port_guard| port_guard.node())
+                                });
                             let Some(source_node) = source_node else {
                                 continue;
                             };
@@ -404,9 +418,12 @@ impl ILayoutPhase<LayeredPhases, LGraph> for DepthFirstModelOrderLayerer {
         }
 
         graph.layerless_nodes_mut().clear();
-        graph
-            .layers_mut()
-            .retain(|layer| !layer.lock().map(|layer_guard| layer_guard.nodes().is_empty()).unwrap_or(false));
+        graph.layers_mut().retain(|layer| {
+            !layer
+                .lock()
+                .map(|layer_guard| layer_guard.nodes().is_empty())
+                .unwrap_or(false)
+        });
         for (index, layer) in graph.layers().iter().enumerate() {
             if let Ok(mut layer_guard) = layer.lock() {
                 layer_guard.graph_element().id = index as i32;

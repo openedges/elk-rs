@@ -102,17 +102,18 @@ fn handle_inner_nodes(_layered_graph: &mut LGraph, remaining_nodes: &[LNodeRef])
 
         let mut all_ports_reversed = true;
         for port in ports {
-            let (side, net_flow, outgoing_edges, incoming_edges) = if let Ok(port_guard) = port.lock() {
-                (
-                    port_guard.side(),
-                    port_guard.net_flow(),
-                    port_guard.outgoing_edges().clone(),
-                    port_guard.incoming_edges().clone(),
-                )
-            } else {
-                all_ports_reversed = false;
-                break;
-            };
+            let (side, net_flow, outgoing_edges, incoming_edges) =
+                if let Ok(port_guard) = port.lock() {
+                    (
+                        port_guard.side(),
+                        port_guard.net_flow(),
+                        port_guard.outgoing_edges().clone(),
+                        port_guard.incoming_edges().clone(),
+                    )
+                } else {
+                    all_ports_reversed = false;
+                    break;
+                };
 
             let looks_reversed = (side == PortSide::East && net_flow > 0)
                 || (side == PortSide::West && net_flow < 0);
@@ -166,7 +167,11 @@ fn handle_inner_nodes(_layered_graph: &mut LGraph, remaining_nodes: &[LNodeRef])
     }
 }
 
-fn reverse_edges(node: &LNodeRef, node_layer_constraint: LayerConstraint, target_port_type: PortType) {
+fn reverse_edges(
+    node: &LNodeRef,
+    node_layer_constraint: LayerConstraint,
+    target_port_type: PortType,
+) {
     let graph_ref = node
         .lock()
         .ok()
@@ -298,7 +303,9 @@ fn layer_constraint_of(node: &LNodeRef) -> LayerConstraint {
 
 fn edge_constraint_for(layer_constraint: LayerConstraint) -> Option<EdgeConstraint> {
     match layer_constraint {
-        LayerConstraint::First | LayerConstraint::FirstSeparate => Some(EdgeConstraint::OutgoingOnly),
+        LayerConstraint::First | LayerConstraint::FirstSeparate => {
+            Some(EdgeConstraint::OutgoingOnly)
+        }
         LayerConstraint::Last | LayerConstraint::LastSeparate => Some(EdgeConstraint::IncomingOnly),
         LayerConstraint::None => None,
     }

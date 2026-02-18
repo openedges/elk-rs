@@ -32,10 +32,7 @@ impl<C, T> DistanceMatcher<C, T> {
         self
     }
 
-    pub fn with_bounds_provider(
-        &mut self,
-        provider: Rc<dyn IBoundsProvider<C, T>>,
-    ) -> &mut Self {
+    pub fn with_bounds_provider(&mut self, provider: Rc<dyn IBoundsProvider<C, T>>) -> &mut Self {
         self.bounds_provider = Some(provider);
         self
     }
@@ -44,7 +41,8 @@ impl<C, T> DistanceMatcher<C, T> {
         &mut self,
         normalization_function: NormalizationFunction,
     ) -> &mut Self {
-        self.config.with_normalization_function(normalization_function);
+        self.config
+            .with_normalization_function(normalization_function);
         self
     }
 
@@ -111,9 +109,7 @@ pub fn distance(bounds1: &ElkRectangle, bounds2: &ElkRectangle) -> f64 {
         bounds1.y + bounds1.height,
     );
 
-    if (top_left_outcode & TOP_LEFT) == TOP_LEFT
-        && (bottom_right_outcode & TOP_LEFT) == TOP_LEFT
-    {
+    if (top_left_outcode & TOP_LEFT) == TOP_LEFT && (bottom_right_outcode & TOP_LEFT) == TOP_LEFT {
         return distance_points(
             bounds1.x + bounds1.width,
             bounds1.y + bounds1.height,
@@ -153,8 +149,7 @@ pub fn distance(bounds1: &ElkRectangle, bounds2: &ElkRectangle) -> f64 {
         return bounds1.x - bounds2.x - bounds2.width;
     } else if (top_left_outcode & OUT_TOP) != 0 && (bottom_right_outcode & OUT_TOP) != 0 {
         return bounds2.y - bounds1.y + bounds1.height;
-    } else if (top_left_outcode & OUT_BOTTOM) != 0 && (bottom_right_outcode & OUT_BOTTOM) != 0
-    {
+    } else if (top_left_outcode & OUT_BOTTOM) != 0 && (bottom_right_outcode & OUT_BOTTOM) != 0 {
         return bounds1.y - bounds2.y - bounds2.height;
     }
 

@@ -2,8 +2,8 @@ mod elkt_test_loader;
 mod issue_support;
 
 use elkt_test_loader::{
-    find_edge_by_identifier, find_label_by_identifier, find_node_by_identifier, find_port_by_identifier,
-    load_graph_from_elkt, load_layered_graph_from_elkt,
+    find_edge_by_identifier, find_label_by_identifier, find_node_by_identifier,
+    find_port_by_identifier, load_graph_from_elkt, load_layered_graph_from_elkt,
 };
 use issue_support::{init_layered_options, run_layout};
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::LayeredOptions;
@@ -246,7 +246,8 @@ fn load_hyperedge_and_nested_port_label_blocks() {
     );
     let graph = load_layered_graph_from_elkt(&path).expect("hyperedge ELKT should load");
 
-    let edge = find_edge_by_identifier(&graph, "b", "d").expect("hyperedge should match b->d lookup");
+    let edge =
+        find_edge_by_identifier(&graph, "b", "d").expect("hyperedge should match b->d lookup");
     let (source_count, target_count, start_x, start_y, end_x, end_y, bend_count) = {
         let mut edge_mut = edge.borrow_mut();
         let source_count = edge_mut.sources().len();
@@ -320,8 +321,10 @@ fn load_section_links_and_label_identifiers() {
     );
     let graph = load_layered_graph_from_elkt(&path).expect("section/link ELKT should load");
 
-    let parent_label = find_label_by_identifier(&graph, "l_parent").expect("parent label should exist");
-    let child_label = find_label_by_identifier(&graph, "l_child").expect("child label should exist");
+    let parent_label =
+        find_label_by_identifier(&graph, "l_parent").expect("parent label should exist");
+    let child_label =
+        find_label_by_identifier(&graph, "l_child").expect("child label should exist");
     let (parent_text, parent_w, parent_h) = {
         let mut label_mut = parent_label.borrow_mut();
         let text = label_mut.text().to_string();
@@ -339,8 +342,8 @@ fn load_section_links_and_label_identifiers() {
     assert_eq!(child_text, "child");
     assert_eq!((child_w, child_h), (7.0, 3.0));
 
-    let edge =
-        find_edge_by_identifier(&graph, "p_source", "p_target").expect("edge with sections should exist");
+    let edge = find_edge_by_identifier(&graph, "p_source", "p_target")
+        .expect("edge with sections should exist");
     let (section_count, s0_target_count, s1_incoming_count, s0_outgoing_shape, s1_incoming_shape) = {
         let mut edge_mut = edge.borrow_mut();
         let sections: Vec<_> = edge_mut.sections().iter().cloned().collect();
@@ -361,44 +364,54 @@ fn load_section_links_and_label_identifiers() {
 
         let s0_target_count = s0.borrow().outgoing_sections().len();
         let s1_incoming_count = s1.borrow().incoming_sections().len();
-        let s0_outgoing_shape = s0.borrow().outgoing_shape().expect("s0 outgoing shape should exist");
-        let s1_incoming_shape = s1.borrow().incoming_shape().expect("s1 incoming shape should exist");
+        let s0_outgoing_shape = s0
+            .borrow()
+            .outgoing_shape()
+            .expect("s0 outgoing shape should exist");
+        let s1_incoming_shape = s1
+            .borrow()
+            .incoming_shape()
+            .expect("s1 incoming shape should exist");
 
         let s0_outgoing_shape = match s0_outgoing_shape {
-            org_eclipse_elk_graph::org::eclipse::elk::graph::ElkConnectableShapeRef::Node(node) => node
-                .borrow_mut()
-                .connectable()
-                .shape()
-                .graph_element()
-                .identifier()
-                .map(ToString::to_string)
-                .unwrap_or_default(),
-            org_eclipse_elk_graph::org::eclipse::elk::graph::ElkConnectableShapeRef::Port(port) => port
-                .borrow_mut()
-                .connectable()
-                .shape()
-                .graph_element()
-                .identifier()
-                .map(ToString::to_string)
-                .unwrap_or_default(),
+            org_eclipse_elk_graph::org::eclipse::elk::graph::ElkConnectableShapeRef::Node(node) => {
+                node.borrow_mut()
+                    .connectable()
+                    .shape()
+                    .graph_element()
+                    .identifier()
+                    .map(ToString::to_string)
+                    .unwrap_or_default()
+            }
+            org_eclipse_elk_graph::org::eclipse::elk::graph::ElkConnectableShapeRef::Port(port) => {
+                port.borrow_mut()
+                    .connectable()
+                    .shape()
+                    .graph_element()
+                    .identifier()
+                    .map(ToString::to_string)
+                    .unwrap_or_default()
+            }
         };
         let s1_incoming_shape = match s1_incoming_shape {
-            org_eclipse_elk_graph::org::eclipse::elk::graph::ElkConnectableShapeRef::Node(node) => node
-                .borrow_mut()
-                .connectable()
-                .shape()
-                .graph_element()
-                .identifier()
-                .map(ToString::to_string)
-                .unwrap_or_default(),
-            org_eclipse_elk_graph::org::eclipse::elk::graph::ElkConnectableShapeRef::Port(port) => port
-                .borrow_mut()
-                .connectable()
-                .shape()
-                .graph_element()
-                .identifier()
-                .map(ToString::to_string)
-                .unwrap_or_default(),
+            org_eclipse_elk_graph::org::eclipse::elk::graph::ElkConnectableShapeRef::Node(node) => {
+                node.borrow_mut()
+                    .connectable()
+                    .shape()
+                    .graph_element()
+                    .identifier()
+                    .map(ToString::to_string)
+                    .unwrap_or_default()
+            }
+            org_eclipse_elk_graph::org::eclipse::elk::graph::ElkConnectableShapeRef::Port(port) => {
+                port.borrow_mut()
+                    .connectable()
+                    .shape()
+                    .graph_element()
+                    .identifier()
+                    .map(ToString::to_string)
+                    .unwrap_or_default()
+            }
         };
 
         (
@@ -428,14 +441,17 @@ fn load_quoted_label_and_section_identifiers_with_escaped_text() {
     );
     let graph = load_layered_graph_from_elkt(&path).expect("quoted identifier ELKT should load");
 
-    let parent_label = find_label_by_identifier(&graph, "l parent").expect("parent label should exist");
-    let child_label = find_label_by_identifier(&graph, "l child").expect("child label should exist");
+    let parent_label =
+        find_label_by_identifier(&graph, "l parent").expect("parent label should exist");
+    let child_label =
+        find_label_by_identifier(&graph, "l child").expect("child label should exist");
     let parent_text = parent_label.borrow_mut().text().to_string();
     let child_text = child_label.borrow_mut().text().to_string();
     assert_eq!(parent_text, "parent label");
     assert_eq!(child_text, "child \"quoted\" text");
 
-    let edge = find_edge_by_identifier(&graph, "p0", "p1").expect("edge with quoted sections should exist");
+    let edge = find_edge_by_identifier(&graph, "p0", "p1")
+        .expect("edge with quoted sections should exist");
     let (section_count, s0_outgoing_ids, s1_incoming_ids) = {
         let mut edge_mut = edge.borrow_mut();
         let sections: Vec<_> = edge_mut.sections().iter().cloned().collect();
@@ -478,10 +494,13 @@ fn load_quoted_node_port_edge_identifiers() {
         "{}/tests/resources/issues/elkt_parser_quoted_node_port_edge.elkt",
         env!("CARGO_MANIFEST_DIR")
     );
-    let graph = load_layered_graph_from_elkt(&path).expect("quoted node/port/edge ELKT should load");
+    let graph =
+        load_layered_graph_from_elkt(&path).expect("quoted node/port/edge ELKT should load");
 
-    let node_a = find_node_by_identifier(&graph, "node a").expect("quoted node identifier should parse");
-    let node_b = find_node_by_identifier(&graph, "node b").expect("second quoted node should parse");
+    let node_a =
+        find_node_by_identifier(&graph, "node a").expect("quoted node identifier should parse");
+    let node_b =
+        find_node_by_identifier(&graph, "node b").expect("second quoted node should parse");
     assert_eq!(
         node_a
             .borrow_mut()
@@ -501,9 +520,10 @@ fn load_quoted_node_port_edge_identifiers() {
         Some("node b")
     );
 
-    let source_port =
-        find_port_by_identifier(&graph, "port, out").expect("quoted port id with comma should parse");
-    let target_port = find_port_by_identifier(&graph, "port in").expect("quoted port id should parse");
+    let source_port = find_port_by_identifier(&graph, "port, out")
+        .expect("quoted port id with comma should parse");
+    let target_port =
+        find_port_by_identifier(&graph, "port in").expect("quoted port id should parse");
     let source_side = source_port
         .borrow_mut()
         .connectable()
@@ -555,10 +575,11 @@ fn load_quoted_property_and_parent_of_references() {
         "{}/tests/resources/issues/elkt_parser_quoted_property_parent_refs.elkt",
         env!("CARGO_MANIFEST_DIR")
     );
-    let graph =
-        load_layered_graph_from_elkt(&path).expect("quoted parent/of and property references should load");
+    let graph = load_layered_graph_from_elkt(&path)
+        .expect("quoted parent/of and property references should load");
 
-    let root = find_node_by_identifier(&graph, "root parent").expect("root parent node should exist");
+    let root =
+        find_node_by_identifier(&graph, "root parent").expect("root parent node should exist");
     let child_ids = root
         .borrow_mut()
         .children()
@@ -587,7 +608,8 @@ fn load_quoted_property_and_parent_of_references() {
         .expect("quoted nodeProperty reference should apply");
     assert_eq!(child_spacing, 42.0);
 
-    let source_port = find_port_by_identifier(&graph, "port out").expect("source port should exist");
+    let source_port =
+        find_port_by_identifier(&graph, "port out").expect("source port should exist");
     let target_port = find_port_by_identifier(&graph, "port in").expect("target port should exist");
 
     let (source_side, source_anchor) = {
@@ -633,7 +655,8 @@ fn load_quoted_property_and_parent_of_references() {
         .collect::<Vec<_>>();
     assert!(child_port_ids.iter().any(|id| id == "port out"));
 
-    let target_node = find_node_by_identifier(&graph, "target node").expect("target node should exist");
+    let target_node =
+        find_node_by_identifier(&graph, "target node").expect("target node should exist");
     let target_port_ids = target_node
         .borrow_mut()
         .ports()
@@ -670,12 +693,18 @@ fn load_quoted_section_and_edge_point_references_with_aliases() {
         "{}/tests/resources/issues/elkt_parser_quoted_section_edge_refs.elkt",
         env!("CARGO_MANIFEST_DIR")
     );
-    let graph =
-        load_layered_graph_from_elkt(&path).expect("quoted section/edgePoint references should load");
+    let graph = load_layered_graph_from_elkt(&path)
+        .expect("quoted section/edgePoint references should load");
 
     let section_edge = find_edge_by_identifier(&graph, "p out", "p in")
         .expect("section edge should resolve by quoted port references");
-    let (section_count, sec_a_target_ids, sec_b_source_ids, sec_a_outgoing_shape, sec_b_incoming_shape) = {
+    let (
+        section_count,
+        sec_a_target_ids,
+        sec_b_source_ids,
+        sec_a_outgoing_shape,
+        sec_b_incoming_shape,
+    ) = {
         let mut edge_mut = section_edge.borrow_mut();
         let sections: Vec<_> = edge_mut.sections().iter().cloned().collect();
 
@@ -706,40 +735,44 @@ fn load_quoted_section_and_edge_point_references_with_aliases() {
             .collect::<Vec<_>>();
 
         let sec_a_outgoing_shape = sec_a.borrow().outgoing_shape().map(|shape| match shape {
-            org_eclipse_elk_graph::org::eclipse::elk::graph::ElkConnectableShapeRef::Node(node) => node
-                .borrow_mut()
-                .connectable()
-                .shape()
-                .graph_element()
-                .identifier()
-                .map(ToString::to_string)
-                .unwrap_or_default(),
-            org_eclipse_elk_graph::org::eclipse::elk::graph::ElkConnectableShapeRef::Port(port) => port
-                .borrow_mut()
-                .connectable()
-                .shape()
-                .graph_element()
-                .identifier()
-                .map(ToString::to_string)
-                .unwrap_or_default(),
+            org_eclipse_elk_graph::org::eclipse::elk::graph::ElkConnectableShapeRef::Node(node) => {
+                node.borrow_mut()
+                    .connectable()
+                    .shape()
+                    .graph_element()
+                    .identifier()
+                    .map(ToString::to_string)
+                    .unwrap_or_default()
+            }
+            org_eclipse_elk_graph::org::eclipse::elk::graph::ElkConnectableShapeRef::Port(port) => {
+                port.borrow_mut()
+                    .connectable()
+                    .shape()
+                    .graph_element()
+                    .identifier()
+                    .map(ToString::to_string)
+                    .unwrap_or_default()
+            }
         });
         let sec_b_incoming_shape = sec_b.borrow().incoming_shape().map(|shape| match shape {
-            org_eclipse_elk_graph::org::eclipse::elk::graph::ElkConnectableShapeRef::Node(node) => node
-                .borrow_mut()
-                .connectable()
-                .shape()
-                .graph_element()
-                .identifier()
-                .map(ToString::to_string)
-                .unwrap_or_default(),
-            org_eclipse_elk_graph::org::eclipse::elk::graph::ElkConnectableShapeRef::Port(port) => port
-                .borrow_mut()
-                .connectable()
-                .shape()
-                .graph_element()
-                .identifier()
-                .map(ToString::to_string)
-                .unwrap_or_default(),
+            org_eclipse_elk_graph::org::eclipse::elk::graph::ElkConnectableShapeRef::Node(node) => {
+                node.borrow_mut()
+                    .connectable()
+                    .shape()
+                    .graph_element()
+                    .identifier()
+                    .map(ToString::to_string)
+                    .unwrap_or_default()
+            }
+            org_eclipse_elk_graph::org::eclipse::elk::graph::ElkConnectableShapeRef::Port(port) => {
+                port.borrow_mut()
+                    .connectable()
+                    .shape()
+                    .graph_element()
+                    .identifier()
+                    .map(ToString::to_string)
+                    .unwrap_or_default()
+            }
         });
 
         (
@@ -791,7 +824,10 @@ fn fail_when_section_link_target_is_missing() {
     let err = load_layered_graph_from_elkt(&path)
         .err()
         .expect("missing section target should fail");
-    assert!(err.contains("line 10:"), "expected line context in error: {err}");
+    assert!(
+        err.contains("line 10:"),
+        "expected line context in error: {err}"
+    );
     assert!(
         err.contains("section s0 -> s_missing"),
         "expected source line snippet in error: {err}"
@@ -810,7 +846,10 @@ fn fail_on_duplicate_label_identifier() {
     let err = load_layered_graph_from_elkt(&path)
         .err()
         .expect("duplicate label identifier should fail");
-    assert!(err.contains("line 4:"), "expected line context in error: {err}");
+    assert!(
+        err.contains("line 4:"),
+        "expected line context in error: {err}"
+    );
     assert!(
         err.contains("label l_dup: \"child\""),
         "expected source line snippet in error: {err}"
@@ -868,9 +907,9 @@ fn load_section_chain_and_aliases() {
 
         let to_ids =
             |refs: Vec<org_eclipse_elk_graph::org::eclipse::elk::graph::ElkEdgeSectionRef>| {
-            refs.into_iter()
-                .filter_map(|section| section.borrow().identifier().map(ToString::to_string))
-                .collect::<Vec<_>>()
+                refs.into_iter()
+                    .filter_map(|section| section.borrow().identifier().map(ToString::to_string))
+                    .collect::<Vec<_>>()
             };
 
         let s0_outgoing = to_ids(s0.borrow().outgoing_sections().clone());
@@ -879,7 +918,14 @@ fn load_section_chain_and_aliases() {
         let s2_outgoing = to_ids(s2.borrow().outgoing_sections().clone());
         let s3_outgoing = to_ids(s3.borrow().outgoing_sections().clone());
 
-        (s0_geometry, s0_outgoing, s0_incoming, s1_outgoing, s2_outgoing, s3_outgoing)
+        (
+            s0_geometry,
+            s0_outgoing,
+            s0_incoming,
+            s1_outgoing,
+            s2_outgoing,
+            s3_outgoing,
+        )
     };
 
     assert_eq!(s0_geometry, (10.0, 10.0, 40.0, 20.0, 2));
@@ -934,8 +980,8 @@ fn load_edge_layout_and_edge_section_aliases() {
         .expect("nodeProperty spacingNodeNode alias should be parsed");
     assert_eq!(node_spacing, 21.0);
 
-    let layout_edge =
-        find_edge_by_identifier(&graph, "p_layout_source", "p_layout_target").expect("layout edge exists");
+    let layout_edge = find_edge_by_identifier(&graph, "p_layout_source", "p_layout_target")
+        .expect("layout edge exists");
     let (layout_start_x, layout_start_y, layout_end_x, layout_end_y, layout_bends) = {
         let section = layout_edge
             .borrow_mut()
@@ -1037,8 +1083,8 @@ fn load_layout_parentheses_and_trailing_section_links() {
     assert_eq!((end_x, end_y), (80.0, 16.0));
     assert_eq!(bend_count, 2);
 
-    let edge_trailing =
-        find_edge_by_identifier(&graph, "p2", "p3").expect("edge with trailing section links should exist");
+    let edge_trailing = find_edge_by_identifier(&graph, "p2", "p3")
+        .expect("edge with trailing section links should exist");
     let (section_count, s1_targets) = {
         let mut edge_mut = edge_trailing.borrow_mut();
         let sections: Vec<_> = edge_mut.sections().iter().cloned().collect();
@@ -1114,7 +1160,11 @@ fn load_colon_and_equals_key_value_variants() {
             let shape = port_mut.connectable().shape();
             (shape.x(), shape.y())
         };
-        let props = port_mut.connectable().shape().graph_element().properties_mut();
+        let props = port_mut
+            .connectable()
+            .shape()
+            .graph_element()
+            .properties_mut();
         (
             props
                 .get_property(LayeredOptions::PORT_SIDE)
@@ -1229,7 +1279,11 @@ fn load_qualified_option_ids_and_apply_properties() {
     let port = find_port_by_identifier(&graph, "p_q1").expect("p_q1 should exist");
     let (port_side, port_border_offset, port_anchor) = {
         let mut port_mut = port.borrow_mut();
-        let props = port_mut.connectable().shape().graph_element().properties_mut();
+        let props = port_mut
+            .connectable()
+            .shape()
+            .graph_element()
+            .properties_mut();
         (
             props
                 .get_property(LayeredOptions::PORT_SIDE)
@@ -1316,7 +1370,10 @@ fn fail_on_unknown_edge_reference_in_edge_section() {
     let err = load_layered_graph_from_elkt(&path)
         .err()
         .expect("unknown edge in edgeSection should fail");
-    assert!(err.contains("line 2:"), "expected line context in error: {err}");
+    assert!(
+        err.contains("line 2:"),
+        "expected line context in error: {err}"
+    );
     assert!(
         err.contains("edgeSection references unknown edge 'e_missing'"),
         "expected unknown-edge message: {err}"
@@ -1334,7 +1391,10 @@ fn fail_on_label_declaration_without_parent_context() {
     let err = load_layered_graph_from_elkt(&path)
         .err()
         .expect("label declaration without parent context should fail");
-    assert!(err.contains("line 1:"), "expected line context in error: {err}");
+    assert!(
+        err.contains("line 1:"),
+        "expected line context in error: {err}"
+    );
     assert!(
         err.contains("label declaration must be inside node/port/edge/label block"),
         "expected parent-context message: {err}"
@@ -1352,7 +1412,10 @@ fn fail_when_section_shape_reference_is_missing() {
     let err = load_layered_graph_from_elkt(&path)
         .err()
         .expect("missing section shape reference should fail");
-    assert!(err.contains("line 10:"), "expected line context in error: {err}");
+    assert!(
+        err.contains("line 10:"),
+        "expected line context in error: {err}"
+    );
     assert!(
         err.contains("outgoingShape:p_missing"),
         "expected source line snippet in error: {err}"
@@ -1371,7 +1434,10 @@ fn fail_when_section_link_target_is_empty() {
     let err = load_layered_graph_from_elkt(&path)
         .err()
         .expect("empty section link target should fail");
-    assert!(err.contains("line 5:"), "expected line context in error: {err}");
+    assert!(
+        err.contains("line 5:"),
+        "expected line context in error: {err}"
+    );
     assert!(
         err.contains("section s0 -> [ outgoing:n0 incoming:n1 start:0,0 end:10,0 ]"),
         "expected source line snippet in error: {err}"

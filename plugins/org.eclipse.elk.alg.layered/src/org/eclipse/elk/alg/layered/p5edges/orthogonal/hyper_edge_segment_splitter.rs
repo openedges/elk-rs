@@ -1,7 +1,9 @@
 use std::cmp::Ordering;
 use std::rc::Rc;
 
-use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::hyper_edge_segment::{HyperEdgeSegment, HyperEdgeSegmentRef};
+use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::hyper_edge_segment::{
+    HyperEdgeSegment, HyperEdgeSegmentRef,
+};
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::hyper_edge_segment_dependency::HyperEdgeSegmentDependency;
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::hyper_edge_segment_dependency::HyperEdgeSegmentDependencyRef;
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::orthogonal_routing_generator::OrthogonalRoutingGenerator;
@@ -25,9 +27,7 @@ impl HyperEdgeSegmentSplitter {
         segments_to_split.sort_by(|a, b| {
             let len_a = a.borrow().length();
             let len_b = b.borrow().length();
-            len_a
-                .partial_cmp(&len_b)
-                .unwrap_or(Ordering::Equal)
+            len_a.partial_cmp(&len_b).unwrap_or(Ordering::Equal)
         });
 
         for segment in segments_to_split {
@@ -48,8 +48,18 @@ impl HyperEdgeSegmentSplitter {
         let mut coordinates: Vec<f64> = Vec::new();
         for segment in segments {
             let segment_guard = segment.borrow();
-            coordinates.extend(segment_guard.incoming_connection_coordinates().iter().cloned());
-            coordinates.extend(segment_guard.outgoing_connection_coordinates().iter().cloned());
+            coordinates.extend(
+                segment_guard
+                    .incoming_connection_coordinates()
+                    .iter()
+                    .cloned(),
+            );
+            coordinates.extend(
+                segment_guard
+                    .outgoing_connection_coordinates()
+                    .iter()
+                    .cloned(),
+            );
         }
         coordinates.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
@@ -73,9 +83,13 @@ impl HyperEdgeSegmentSplitter {
             let dep_guard = dep.borrow();
             let source = dep_guard.source();
             let target = dep_guard.target();
-            let (Some(source), Some(target)) = (source, target) else { continue };
+            let (Some(source), Some(target)) = (source, target) else {
+                continue;
+            };
 
-            if contains_segment(&segments_to_split, &source) || contains_segment(&segments_to_split, &target) {
+            if contains_segment(&segments_to_split, &source)
+                || contains_segment(&segments_to_split, &target)
+            {
                 continue;
             }
 
@@ -103,8 +117,11 @@ impl HyperEdgeSegmentSplitter {
         free_areas: &mut Vec<FreeArea>,
         critical_conflict_threshold: f64,
     ) {
-        let split_position =
-            Self::compute_position_to_split_and_update_free_areas(segment, free_areas, critical_conflict_threshold);
+        let split_position = Self::compute_position_to_split_and_update_free_areas(
+            segment,
+            free_areas,
+            critical_conflict_threshold,
+        );
         let new_segment = HyperEdgeSegment::split_at(segment, split_position);
         segments.push(new_segment);
         Self::update_dependencies(routing_generator, segment, segments);
@@ -117,7 +134,9 @@ impl HyperEdgeSegmentSplitter {
     ) {
         let split_causing = segment.borrow().split_by();
         let split_partner = segment.borrow().split_partner();
-        let (Some(split_causing), Some(split_partner)) = (split_causing, split_partner) else { return };
+        let (Some(split_causing), Some(split_partner)) = (split_causing, split_partner) else {
+            return;
+        };
 
         HyperEdgeSegmentDependency::create_and_add_critical(segment, &split_causing);
         HyperEdgeSegmentDependency::create_and_add_critical(&split_causing, &split_partner);
@@ -143,7 +162,10 @@ impl HyperEdgeSegmentSplitter {
 
         let (segment_start, segment_end) = {
             let segment_guard = segment.borrow();
-            (segment_guard.start_coordinate(), segment_guard.end_coordinate())
+            (
+                segment_guard.start_coordinate(),
+                segment_guard.end_coordinate(),
+            )
         };
 
         for (idx, area) in free_areas.iter().enumerate() {
@@ -159,7 +181,8 @@ impl HyperEdgeSegmentSplitter {
 
         let mut split_position = center_values(segment_start, segment_end);
         if let (Some(first_index), Some(last_index)) = (first_possible, last_possible) {
-            let best_index = Self::choose_best_area_index(segment, free_areas, first_index, last_index);
+            let best_index =
+                Self::choose_best_area_index(segment, free_areas, first_index, last_index);
             split_position = center_area(&free_areas[best_index]);
             Self::use_area(free_areas, best_index, critical_conflict_threshold);
         }
@@ -181,7 +204,8 @@ impl HyperEdgeSegmentSplitter {
             let split_partner = split_segments.second().clone();
 
             let mut best_area = &free_areas[best_area_index];
-            let mut best_rating = Self::rate_area(segment, &split_segment, &split_partner, best_area);
+            let mut best_rating =
+                Self::rate_area(segment, &split_segment, &split_partner, best_area);
 
             for (i, curr_area) in free_areas
                 .iter()
@@ -189,7 +213,8 @@ impl HyperEdgeSegmentSplitter {
                 .take(to_index + 1)
                 .skip(from_index + 1)
             {
-                let curr_rating = Self::rate_area(segment, &split_segment, &split_partner, curr_area);
+                let curr_rating =
+                    Self::rate_area(segment, &split_segment, &split_partner, curr_area);
                 if is_better(curr_area, &curr_rating, best_area, &best_rating) {
                     best_area = curr_area;
                     best_rating = curr_rating;
@@ -212,12 +237,16 @@ impl HyperEdgeSegmentSplitter {
         {
             let mut split = split_segment.borrow_mut();
             split.outgoing_connection_coordinates_mut().clear();
-            split.outgoing_connection_coordinates_mut().push(area_center);
+            split
+                .outgoing_connection_coordinates_mut()
+                .push(area_center);
         }
         {
             let mut partner = split_partner.borrow_mut();
             partner.incoming_connection_coordinates_mut().clear();
-            partner.incoming_connection_coordinates_mut().push(area_center);
+            partner
+                .incoming_connection_coordinates_mut()
+                .push(area_center);
         }
 
         let mut rating = AreaRating::new(0, 0);
@@ -268,7 +297,10 @@ impl HyperEdgeSegmentSplitter {
         }
     }
 
-    fn count_crossings_for_single_ordering(left: &HyperEdgeSegmentRef, right: &HyperEdgeSegmentRef) -> i32 {
+    fn count_crossings_for_single_ordering(
+        left: &HyperEdgeSegmentRef,
+        right: &HyperEdgeSegmentRef,
+    ) -> i32 {
         OrthogonalRoutingGenerator::count_crossings(
             left.borrow().outgoing_connection_coordinates(),
             right.borrow().start_coordinate(),
@@ -293,13 +325,19 @@ impl HyperEdgeSegmentSplitter {
 
             let new_end1 = old_area_center - critical_conflict_threshold;
             if old_area.start_position <= new_end1 {
-                free_areas.insert(insert_index, FreeArea::new(old_area.start_position, new_end1));
+                free_areas.insert(
+                    insert_index,
+                    FreeArea::new(old_area.start_position, new_end1),
+                );
                 insert_index += 1;
             }
 
             let new_start2 = old_area_center + critical_conflict_threshold;
             if new_start2 <= old_area.end_position {
-                free_areas.insert(insert_index, FreeArea::new(new_start2, old_area.end_position));
+                free_areas.insert(
+                    insert_index,
+                    FreeArea::new(new_start2, old_area.end_position),
+                );
             }
         }
     }
@@ -346,7 +384,12 @@ fn center_values(p1: f64, p2: f64) -> f64 {
     (p1 + p2) / 2.0
 }
 
-fn is_better(curr_area: &FreeArea, curr_rating: &AreaRating, best_area: &FreeArea, best_rating: &AreaRating) -> bool {
+fn is_better(
+    curr_area: &FreeArea,
+    curr_rating: &AreaRating,
+    best_area: &FreeArea,
+    best_rating: &AreaRating,
+) -> bool {
     if curr_rating.crossings < best_rating.crossings {
         return true;
     }

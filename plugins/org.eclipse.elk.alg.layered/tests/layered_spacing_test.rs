@@ -5,16 +5,21 @@ use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::{
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
 use org_eclipse_elk_core::org::eclipse::elk::core::graph_layout_engine::IGraphLayoutEngine;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
-use org_eclipse_elk_core::org::eclipse::elk::core::options::Direction;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_routing::EdgeRouting;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::Direction;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::BasicProgressMonitor;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
-use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkConnectableShapeRef, ElkEdgeRef, ElkNodeRef};
+use org_eclipse_elk_graph::org::eclipse::elk::graph::{
+    ElkConnectableShapeRef, ElkEdgeRef, ElkNodeRef,
+};
 
 const EPSILON: f64 = 1.0e-4;
 
-fn factor_for(builder: &org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::layered_spacings::LayeredSpacingsBuilder, property: &Property<f64>) -> f64 {
+fn factor_for(
+    builder: &org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::layered_spacings::LayeredSpacingsBuilder,
+    property: &Property<f64>,
+) -> f64 {
     builder
         .factors()
         .iter()
@@ -38,10 +43,7 @@ fn create_simple_graph() -> ElkNodeRef {
 
 fn set_dimensions(node: &ElkNodeRef, width: f64, height: f64) {
     let mut node_mut = node.borrow_mut();
-    node_mut
-        .connectable()
-        .shape()
-        .set_dimensions(width, height);
+    node_mut.connectable().shape().set_dimensions(width, height);
 }
 
 fn node_pos(node: &ElkNodeRef) -> (f64, f64) {
@@ -89,7 +91,9 @@ fn init_layered_options() {
 fn layered_spacing_factors_match_defaults() {
     init_layered_options();
     let builder = LayeredSpacings::with_base_value(33.0);
-    let base_default = LayeredOptions::SPACING_NODE_NODE.get_default().unwrap_or(0.0);
+    let base_default = LayeredOptions::SPACING_NODE_NODE
+        .get_default()
+        .unwrap_or(0.0);
 
     let options: [&'static std::sync::LazyLock<Property<f64>>; 12] = [
         LayeredOptions::SPACING_EDGE_EDGE,
@@ -188,7 +192,9 @@ fn spacing_overrides_default_for_layered_property() {
     init_layered_options();
     let graph = create_simple_graph();
     let value = graph_property_f64(&graph, LayeredOptions::SPACING_EDGE_NODE);
-    let expected = LayeredOptions::SPACING_EDGE_NODE.get_default().unwrap_or(0.0);
+    let expected = LayeredOptions::SPACING_EDGE_NODE
+        .get_default()
+        .unwrap_or(0.0);
     assert!((value - expected).abs() <= EPSILON);
 }
 
@@ -196,9 +202,10 @@ fn spacing_overrides_default_for_layered_property() {
 fn spacing_overrides_default_for_inheriting_property() {
     init_layered_options();
     let graph = create_simple_graph();
-    let default = LayeredOptions::SPACING_EDGE_NODE.get_default().unwrap_or(0.0);
-    let custom_property =
-        Property::from_property(LayeredOptions::SPACING_EDGE_NODE, default + 3.0);
+    let default = LayeredOptions::SPACING_EDGE_NODE
+        .get_default()
+        .unwrap_or(0.0);
+    let custom_property = Property::from_property(LayeredOptions::SPACING_EDGE_NODE, default + 3.0);
     let value = graph_property_f64(&graph, &custom_property);
     assert!((value - (default + 3.0)).abs() <= EPSILON);
 }
@@ -218,7 +225,10 @@ fn spacing_defaults_after_configuration() {
         builder.apply_to_properties(props);
     }
 
-    assert!(graph_has_property(&graph, LayeredOptions::SPACING_EDGE_NODE));
+    assert!(graph_has_property(
+        &graph,
+        LayeredOptions::SPACING_EDGE_NODE
+    ));
 
     let factor = factor_for(&builder, LayeredOptions::SPACING_EDGE_NODE);
     let expected = 35.0 * factor;

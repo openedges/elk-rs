@@ -8,11 +8,7 @@ fn layout_option_proxy_resolves_value() {
     LayoutMetaDataService::get_instance();
 
     let mut holder = MapPropertyHolder::new();
-    LayoutOptionProxy::set_proxy_value(
-        &mut holder,
-        CoreOptions::SPACING_NODE_NODE.id(),
-        "42",
-    );
+    LayoutOptionProxy::set_proxy_value(&mut holder, CoreOptions::SPACING_NODE_NODE.id(), "42");
 
     let value = holder
         .get_property(CoreOptions::SPACING_NODE_NODE)

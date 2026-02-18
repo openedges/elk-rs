@@ -1,11 +1,17 @@
 use std::any::Any;
 use std::cmp::Ordering;
 
-use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::{MapPropertyHolder, PropertyValue};
+use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::{
+    MapPropertyHolder, PropertyValue,
+};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkGraphElementRef;
 
-use crate::org::eclipse::elk::core::data::{LayoutMetaDataService, LayoutOptionData, LayoutOptionType};
-use crate::org::eclipse::elk::core::util::exclusive_bounds::{ExclusiveLowerBound, ExclusiveUpperBound};
+use crate::org::eclipse::elk::core::data::{
+    LayoutMetaDataService, LayoutOptionData, LayoutOptionType,
+};
+use crate::org::eclipse::elk::core::util::exclusive_bounds::{
+    ExclusiveLowerBound, ExclusiveUpperBound,
+};
 use crate::org::eclipse::elk::core::util::IGraphElementVisitor;
 use crate::org::eclipse::elk::core::validation::{GraphIssue, Severity};
 
@@ -109,7 +115,8 @@ impl IGraphElementVisitor for LayoutOptionValidator {
                     continue;
                 };
 
-                let option_data = LayoutMetaDataService::get_instance().get_option_data(&property_id);
+                let option_data =
+                    LayoutMetaDataService::get_instance().get_option_data(&property_id);
                 let Some(option_data) = option_data else {
                     continue;
                 };
@@ -132,10 +139,12 @@ fn is_valid_type(option_data: &LayoutOptionData, value: &dyn Any) -> bool {
         LayoutOptionType::Boolean => value.is::<bool>(),
         LayoutOptionType::Int => value.is::<i32>(),
         LayoutOptionType::Double => value.is::<f64>(),
-        LayoutOptionType::Enum | LayoutOptionType::EnumSet | LayoutOptionType::Object => option_data
-            .value_type_id()
-            .map(|type_id| value.type_id() == type_id)
-            .unwrap_or(true),
+        LayoutOptionType::Enum | LayoutOptionType::EnumSet | LayoutOptionType::Object => {
+            option_data
+                .value_type_id()
+                .map(|type_id| value.type_id() == type_id)
+                .unwrap_or(true)
+        }
         LayoutOptionType::Undefined => true,
     }
 }

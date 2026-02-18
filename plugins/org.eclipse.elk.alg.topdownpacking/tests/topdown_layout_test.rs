@@ -47,7 +47,11 @@ fn test_two_level_layout_horizontal_scaling() {
     init_topdown_layout();
     let graph = ElkGraphUtil::create_graph();
     set_node_property(&graph, CoreOptions::TOPDOWN_LAYOUT, true);
-    set_node_property(&graph, CoreOptions::TOPDOWN_NODE_TYPE, TopdownNodeTypes::RootNode);
+    set_node_property(
+        &graph,
+        CoreOptions::TOPDOWN_NODE_TYPE,
+        TopdownNodeTypes::RootNode,
+    );
 
     let toplevel = ElkGraphUtil::create_node(Some(graph.clone()));
     configure_toplevel_for_scaling(&toplevel, 20.0, 0.4, 1.0);
@@ -66,7 +70,11 @@ fn test_two_level_layout_vertical_scaling() {
     init_topdown_layout();
     let graph = ElkGraphUtil::create_graph();
     set_node_property(&graph, CoreOptions::TOPDOWN_LAYOUT, true);
-    set_node_property(&graph, CoreOptions::TOPDOWN_NODE_TYPE, TopdownNodeTypes::RootNode);
+    set_node_property(
+        &graph,
+        CoreOptions::TOPDOWN_NODE_TYPE,
+        TopdownNodeTypes::RootNode,
+    );
 
     let toplevel = ElkGraphUtil::create_node(Some(graph.clone()));
     configure_toplevel_for_scaling(&toplevel, 40.0, 1.33333, 1.0);
@@ -85,7 +93,11 @@ fn test_scale_cap() {
     init_topdown_layout();
     let graph = ElkGraphUtil::create_graph();
     set_node_property(&graph, CoreOptions::TOPDOWN_LAYOUT, true);
-    set_node_property(&graph, CoreOptions::TOPDOWN_NODE_TYPE, TopdownNodeTypes::RootNode);
+    set_node_property(
+        &graph,
+        CoreOptions::TOPDOWN_NODE_TYPE,
+        TopdownNodeTypes::RootNode,
+    );
 
     let toplevel = ElkGraphUtil::create_node(Some(graph.clone()));
     configure_toplevel_for_scaling(&toplevel, 300.0, 1.0, 100.0);
@@ -104,7 +116,11 @@ fn test_scale_cap_bounded() {
     init_topdown_layout();
     let graph = ElkGraphUtil::create_graph();
     set_node_property(&graph, CoreOptions::TOPDOWN_LAYOUT, true);
-    set_node_property(&graph, CoreOptions::TOPDOWN_NODE_TYPE, TopdownNodeTypes::RootNode);
+    set_node_property(
+        &graph,
+        CoreOptions::TOPDOWN_NODE_TYPE,
+        TopdownNodeTypes::RootNode,
+    );
 
     let toplevel = ElkGraphUtil::create_node(Some(graph.clone()));
     configure_toplevel_for_scaling(&toplevel, 300.0, 1.0, 3.0);
@@ -123,7 +139,11 @@ fn test_child_dimension_calculation() {
     init_topdown_layout();
     let graph = ElkGraphUtil::create_graph();
     set_node_property(&graph, CoreOptions::TOPDOWN_LAYOUT, true);
-    set_node_property(&graph, CoreOptions::TOPDOWN_NODE_TYPE, TopdownNodeTypes::RootNode);
+    set_node_property(
+        &graph,
+        CoreOptions::TOPDOWN_NODE_TYPE,
+        TopdownNodeTypes::RootNode,
+    );
 
     let toplevel = ElkGraphUtil::create_node(Some(graph.clone()));
     set_node_property(&toplevel, CoreOptions::TOPDOWN_LAYOUT, true);
@@ -159,7 +179,11 @@ fn test_child_dimension_calculation() {
         TopdownNodeTypes::HierarchicalNode,
     );
     set_node_property(&child, CoreOptions::NODE_SIZE_FIXED_GRAPH_SIZE, true);
-    set_node_property(&child, CoreOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH, 20.0_f64);
+    set_node_property(
+        &child,
+        CoreOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH,
+        20.0_f64,
+    );
     set_node_property(
         &child,
         CoreOptions::TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO,
@@ -170,8 +194,16 @@ fn test_child_dimension_calculation() {
     run_recursive_layout(&graph);
 
     let (width, height) = node_dimensions(&toplevel);
-    assert_close(width, 20.0 + padding.left + padding.right, "child dimension width");
-    assert_close(height, 20.0 + padding.top + padding.bottom, "child dimension height");
+    assert_close(
+        width,
+        20.0 + padding.left + padding.right,
+        "child dimension width",
+    );
+    assert_close(
+        height,
+        20.0 + padding.top + padding.bottom,
+        "child dimension height",
+    );
 }
 
 fn configure_toplevel_for_scaling(
@@ -188,7 +220,11 @@ fn configure_toplevel_for_scaling(
     );
     set_node_property(node, CoreOptions::NODE_SIZE_FIXED_GRAPH_SIZE, true);
     set_node_property(node, CoreOptions::TOPDOWN_SCALE_CAP, scale_cap);
-    set_node_property(node, CoreOptions::ALGORITHM, "org.eclipse.elk.fixed".to_string());
+    set_node_property(
+        node,
+        CoreOptions::ALGORITHM,
+        "org.eclipse.elk.fixed".to_string(),
+    );
     set_node_property(node, CoreOptions::PADDING, ElkPadding::new());
     set_node_property(node, CoreOptions::SPACING_NODE_NODE, 0.0_f64);
     set_node_property(node, CoreOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH, width);
@@ -199,13 +235,7 @@ fn configure_toplevel_for_scaling(
     );
 }
 
-fn add_fixed_child(
-    parent: &ElkNodeRef,
-    x: f64,
-    y: f64,
-    width: f64,
-    height: f64,
-) -> ElkNodeRef {
+fn add_fixed_child(parent: &ElkNodeRef, x: f64, y: f64, width: f64, height: f64) -> ElkNodeRef {
     let child = ElkGraphUtil::create_node(Some(parent.clone()));
     set_node_property(&child, CoreOptions::TOPDOWN_LAYOUT, true);
     set_node_property(

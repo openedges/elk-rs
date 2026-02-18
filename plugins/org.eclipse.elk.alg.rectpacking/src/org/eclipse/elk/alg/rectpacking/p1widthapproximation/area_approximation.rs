@@ -6,9 +6,7 @@ use crate::org::eclipse::elk::alg::rectpacking::p1widthapproximation::calculatio
 use crate::org::eclipse::elk::alg::rectpacking::p1widthapproximation::{
     AreaFilter, AspectRatioFilter, BestCandidateFilter, ScaleMeasureFilter,
 };
-use crate::org::eclipse::elk::alg::rectpacking::util::{
-    DrawingData, DrawingDataDescriptor,
-};
+use crate::org::eclipse::elk::alg::rectpacking::util::{DrawingData, DrawingDataDescriptor};
 
 pub struct AreaApproximation {
     aspect_ratio: f64,
@@ -88,7 +86,8 @@ impl AreaApproximation {
                 node_node_spacing,
             );
 
-            let best_opt = self.find_best_candidate(opt1, opt2, opt3, opt4, &to_place, &last_placed, padding);
+            let best_opt =
+                self.find_best_candidate(opt1, opt2, opt3, opt4, &to_place, &last_placed, padding);
 
             {
                 let mut to_place_mut = to_place.borrow_mut();
@@ -148,10 +147,7 @@ impl AreaApproximation {
         if candidates.len() == 2 {
             return self.check_special_cases(&candidates[0], &candidates[1], last_placed, to_place);
         }
-        candidates
-            .into_iter()
-            .next()
-            .expect("candidate exists")
+        candidates.into_iter().next().expect("candidate exists")
     }
 
     fn check_special_cases(
@@ -212,13 +208,12 @@ impl AreaApproximation {
                 drawing2.clone()
             };
         } else if first_opt_lpr_or_lpb && second_opt_lpr_or_lpb {
-            let (lpr_opt, lpb_opt) = if first_opt
-                == DrawingDataDescriptor::CandidatePositionLastPlacedRight
-            {
-                (drawing1, drawing2)
-            } else {
-                (drawing2, drawing1)
-            };
+            let (lpr_opt, lpb_opt) =
+                if first_opt == DrawingDataDescriptor::CandidatePositionLastPlacedRight {
+                    (drawing1, drawing2)
+                } else {
+                    (drawing2, drawing1)
+                };
             let area_lpr = Calculations::calculate_area_lpr(last_placed, to_place, lpr_opt);
             let area_lpb = Calculations::calculate_area_lpb(last_placed, to_place, lpb_opt);
             if area_lpr <= area_lpb {
@@ -267,7 +262,12 @@ impl AreaApproximation {
                 let last_x = last_placed.borrow_mut().connectable().shape().x();
                 x = last_x + last_width + node_node_spacing;
                 if self.lp_shift {
-                    y = Calculations::calculate_y_for_lpr(x, placed_rects, last_placed, node_node_spacing);
+                    y = Calculations::calculate_y_for_lpr(
+                        x,
+                        placed_rects,
+                        last_placed,
+                        node_node_spacing,
+                    );
                 } else {
                     y = last_placed.borrow_mut().connectable().shape().y();
                 }
@@ -279,7 +279,12 @@ impl AreaApproximation {
                 let last_y = last_placed.borrow_mut().connectable().shape().y();
                 y = last_y + last_height + node_node_spacing;
                 if self.lp_shift {
-                    x = Calculations::calculate_x_for_lpb(y, placed_rects, last_placed, node_node_spacing);
+                    x = Calculations::calculate_x_for_lpb(
+                        y,
+                        placed_rects,
+                        last_placed,
+                        node_node_spacing,
+                    );
                 } else {
                     x = last_placed.borrow_mut().connectable().shape().x();
                 }

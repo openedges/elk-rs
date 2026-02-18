@@ -93,8 +93,12 @@ impl ElkConnectableShapeRef {
 
     pub fn downgrade(&self) -> ElkConnectableShapeWeak {
         match self {
-            ElkConnectableShapeRef::Node(node) => ElkConnectableShapeWeak::Node(Rc::downgrade(node)),
-            ElkConnectableShapeRef::Port(port) => ElkConnectableShapeWeak::Port(Rc::downgrade(port)),
+            ElkConnectableShapeRef::Node(node) => {
+                ElkConnectableShapeWeak::Node(Rc::downgrade(node))
+            }
+            ElkConnectableShapeRef::Port(port) => {
+                ElkConnectableShapeWeak::Port(Rc::downgrade(port))
+            }
         }
     }
 }
@@ -154,11 +158,7 @@ impl LabelList {
     }
 
     fn remove_internal(&mut self, label: &ElkLabelRef) {
-        if let Some(index) = self
-            .items
-            .iter()
-            .position(|item| Rc::ptr_eq(item, label))
-        {
+        if let Some(index) = self.items.iter().position(|item| Rc::ptr_eq(item, label)) {
             self.items.remove(index);
         }
     }
@@ -220,11 +220,7 @@ impl NodeChildList {
     }
 
     fn remove_internal(&mut self, child: &ElkNodeRef) {
-        if let Some(index) = self
-            .items
-            .iter()
-            .position(|item| Rc::ptr_eq(item, child))
-        {
+        if let Some(index) = self.items.iter().position(|item| Rc::ptr_eq(item, child)) {
             self.items.remove(index);
         }
     }
@@ -295,11 +291,7 @@ impl NodePortList {
     }
 
     fn remove_internal(&mut self, port: &ElkPortRef) {
-        if let Some(index) = self
-            .items
-            .iter()
-            .position(|item| Rc::ptr_eq(item, port))
-        {
+        if let Some(index) = self.items.iter().position(|item| Rc::ptr_eq(item, port)) {
             self.items.remove(index);
         }
     }
@@ -361,7 +353,10 @@ impl NodeEdgeList {
                 self.add_internal(edge);
                 return;
             }
-            current_node.borrow_mut().contained_edges.remove_internal(&edge);
+            current_node
+                .borrow_mut()
+                .contained_edges
+                .remove_internal(&edge);
         }
         {
             let mut edge_mut = edge.borrow_mut();
@@ -377,11 +372,7 @@ impl NodeEdgeList {
     }
 
     fn remove_internal(&mut self, edge: &ElkEdgeRef) {
-        if let Some(index) = self
-            .items
-            .iter()
-            .position(|item| Rc::ptr_eq(item, edge))
-        {
+        if let Some(index) = self.items.iter().position(|item| Rc::ptr_eq(item, edge)) {
             self.items.remove(index);
         }
     }
@@ -474,20 +465,24 @@ impl EdgeEndpointList {
         if let Some(edge) = self.owner.upgrade() {
             match self.kind {
                 EdgeEndpointKind::Source => match shape {
-                    ElkConnectableShapeRef::Node(ref node) => {
-                        node.borrow_mut().connectable.remove_outgoing_internal(&edge)
-                    }
-                    ElkConnectableShapeRef::Port(ref port) => {
-                        port.borrow_mut().connectable.remove_outgoing_internal(&edge)
-                    }
+                    ElkConnectableShapeRef::Node(ref node) => node
+                        .borrow_mut()
+                        .connectable
+                        .remove_outgoing_internal(&edge),
+                    ElkConnectableShapeRef::Port(ref port) => port
+                        .borrow_mut()
+                        .connectable
+                        .remove_outgoing_internal(&edge),
                 },
                 EdgeEndpointKind::Target => match shape {
-                    ElkConnectableShapeRef::Node(ref node) => {
-                        node.borrow_mut().connectable.remove_incoming_internal(&edge)
-                    }
-                    ElkConnectableShapeRef::Port(ref port) => {
-                        port.borrow_mut().connectable.remove_incoming_internal(&edge)
-                    }
+                    ElkConnectableShapeRef::Node(ref node) => node
+                        .borrow_mut()
+                        .connectable
+                        .remove_incoming_internal(&edge),
+                    ElkConnectableShapeRef::Port(ref port) => port
+                        .borrow_mut()
+                        .connectable
+                        .remove_incoming_internal(&edge),
                 },
             }
         }
@@ -605,7 +600,10 @@ impl EdgeSectionList {
                 self.add_internal(section);
                 return;
             }
-            current_parent.borrow_mut().sections.remove_internal(&section);
+            current_parent
+                .borrow_mut()
+                .sections
+                .remove_internal(&section);
         }
         {
             let mut section_mut = section.borrow_mut();
@@ -621,11 +619,7 @@ impl EdgeSectionList {
     }
 
     fn remove_internal(&mut self, section: &ElkEdgeSectionRef) {
-        if let Some(index) = self
-            .items
-            .iter()
-            .position(|item| Rc::ptr_eq(item, section))
-        {
+        if let Some(index) = self.items.iter().position(|item| Rc::ptr_eq(item, section)) {
             self.items.remove(index);
         }
     }
@@ -847,10 +841,7 @@ impl ElkNode {
         }
 
         if let Some(current_parent) = current_parent {
-            current_parent
-                .borrow_mut()
-                .children
-                .remove_internal(node);
+            current_parent.borrow_mut().children.remove_internal(node);
         }
 
         {
@@ -1011,27 +1002,45 @@ impl ElkEdge {
 
     pub fn add_source(edge: &ElkEdgeRef, shape: ElkConnectableShapeRef) {
         let mut edge_mut = edge.borrow_mut();
-        if edge_mut.sources.items.iter().any(|item| item.ptr_eq(&shape)) {
+        if edge_mut
+            .sources
+            .items
+            .iter()
+            .any(|item| item.ptr_eq(&shape))
+        {
             return;
         }
         edge_mut.sources.add_internal(shape.clone());
         drop(edge_mut);
         match shape {
-            ElkConnectableShapeRef::Node(node) => node.borrow_mut().connectable.add_outgoing_internal(edge),
-            ElkConnectableShapeRef::Port(port) => port.borrow_mut().connectable.add_outgoing_internal(edge),
+            ElkConnectableShapeRef::Node(node) => {
+                node.borrow_mut().connectable.add_outgoing_internal(edge)
+            }
+            ElkConnectableShapeRef::Port(port) => {
+                port.borrow_mut().connectable.add_outgoing_internal(edge)
+            }
         }
     }
 
     pub fn add_target(edge: &ElkEdgeRef, shape: ElkConnectableShapeRef) {
         let mut edge_mut = edge.borrow_mut();
-        if edge_mut.targets.items.iter().any(|item| item.ptr_eq(&shape)) {
+        if edge_mut
+            .targets
+            .items
+            .iter()
+            .any(|item| item.ptr_eq(&shape))
+        {
             return;
         }
         edge_mut.targets.add_internal(shape.clone());
         drop(edge_mut);
         match shape {
-            ElkConnectableShapeRef::Node(node) => node.borrow_mut().connectable.add_incoming_internal(edge),
-            ElkConnectableShapeRef::Port(port) => port.borrow_mut().connectable.add_incoming_internal(edge),
+            ElkConnectableShapeRef::Node(node) => {
+                node.borrow_mut().connectable.add_incoming_internal(edge)
+            }
+            ElkConnectableShapeRef::Port(port) => {
+                port.borrow_mut().connectable.add_incoming_internal(edge)
+            }
         }
     }
 
@@ -1041,8 +1050,12 @@ impl ElkEdge {
             edge_mut.sources.remove_internal(shape);
         }
         match shape {
-            ElkConnectableShapeRef::Node(node) => node.borrow_mut().connectable.remove_outgoing_internal(edge),
-            ElkConnectableShapeRef::Port(port) => port.borrow_mut().connectable.remove_outgoing_internal(edge),
+            ElkConnectableShapeRef::Node(node) => {
+                node.borrow_mut().connectable.remove_outgoing_internal(edge)
+            }
+            ElkConnectableShapeRef::Port(port) => {
+                port.borrow_mut().connectable.remove_outgoing_internal(edge)
+            }
         }
     }
 
@@ -1052,8 +1065,12 @@ impl ElkEdge {
             edge_mut.targets.remove_internal(shape);
         }
         match shape {
-            ElkConnectableShapeRef::Node(node) => node.borrow_mut().connectable.remove_incoming_internal(edge),
-            ElkConnectableShapeRef::Port(port) => port.borrow_mut().connectable.remove_incoming_internal(edge),
+            ElkConnectableShapeRef::Node(node) => {
+                node.borrow_mut().connectable.remove_incoming_internal(edge)
+            }
+            ElkConnectableShapeRef::Port(port) => {
+                port.borrow_mut().connectable.remove_incoming_internal(edge)
+            }
         }
     }
 
@@ -1074,10 +1091,13 @@ impl ElkEdge {
             Some(shape) => shape,
             None => return false,
         };
-        let first_node = match crate::org::eclipse::elk::graph::util::ElkGraphUtil::connectable_shape_to_node(first) {
-            Some(node) => node,
-            None => return false,
-        };
+        let first_node =
+            match crate::org::eclipse::elk::graph::util::ElkGraphUtil::connectable_shape_to_node(
+                first,
+            ) {
+                Some(node) => node,
+                None => return false,
+            };
         iter.all(|shape| {
             crate::org::eclipse::elk::graph::util::ElkGraphUtil::connectable_shape_to_node(shape)
                 .map(|node| Rc::ptr_eq(&node, &first_node))
@@ -1091,10 +1111,13 @@ impl ElkEdge {
         }
         let mut parent: Option<ElkNodeRef> = None;
         for shape in self.sources.iter().chain(self.targets.iter()) {
-            let node = match crate::org::eclipse::elk::graph::util::ElkGraphUtil::connectable_shape_to_node(shape) {
-                Some(node) => node,
-                None => return true,
-            };
+            let node =
+                match crate::org::eclipse::elk::graph::util::ElkGraphUtil::connectable_shape_to_node(
+                    shape,
+                ) {
+                    Some(node) => node,
+                    None => return true,
+                };
             let node_parent = node.borrow().parent();
             match (&parent, &node_parent) {
                 (None, _) => parent = node_parent,
@@ -1368,9 +1391,21 @@ fn same_graph_element(a: &ElkGraphElementRef, b: &ElkGraphElementRef) -> bool {
 
 fn add_label_to_parent(parent: &ElkGraphElementRef, label: ElkLabelRef) {
     match parent {
-        ElkGraphElementRef::Node(node) => node.borrow_mut().connectable.shape.graph_element().labels().add_internal(label),
+        ElkGraphElementRef::Node(node) => node
+            .borrow_mut()
+            .connectable
+            .shape
+            .graph_element()
+            .labels()
+            .add_internal(label),
         ElkGraphElementRef::Edge(edge) => edge.borrow_mut().element.labels().add_internal(label),
-        ElkGraphElementRef::Port(port) => port.borrow_mut().connectable.shape.graph_element().labels().add_internal(label),
+        ElkGraphElementRef::Port(port) => port
+            .borrow_mut()
+            .connectable
+            .shape
+            .graph_element()
+            .labels()
+            .add_internal(label),
         ElkGraphElementRef::Label(label_parent) => label_parent
             .borrow_mut()
             .shape

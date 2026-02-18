@@ -18,7 +18,8 @@ fn add_layerless_node(graph: &LGraphRef, constraint: LayerConstraint) -> LNodeRe
             .expect("node lock")
             .set_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT, Some(constraint));
     }
-    graph.lock()
+    graph
+        .lock()
         .expect("graph lock")
         .layerless_nodes_mut()
         .push(node.clone());
@@ -39,7 +40,8 @@ fn connect(source: &LPortRef, target: &LPortRef) -> LEdgeRef {
 }
 
 fn run_processor(graph: &LGraphRef) {
-    LayoutMetaDataService::get_instance().register_layout_meta_data_provider(&LayeredMetaDataProvider);
+    LayoutMetaDataService::get_instance()
+        .register_layout_meta_data_provider(&LayeredMetaDataProvider);
     let mut processor = LayerConstraintPreprocessor;
     let mut monitor = NullElkProgressMonitor;
     let mut graph_guard = graph.lock().expect("graph lock");
@@ -71,12 +73,11 @@ fn layer_constraint_preprocessor_hides_first_separate_and_remembers_opposite_por
     assert!(Arc::ptr_eq(&hidden_nodes[0], &hidden));
 
     assert!(edge.lock().expect("edge lock").target().is_none());
-    assert!(
-        edge.lock()
-            .expect("edge lock")
-            .get_property(InternalProperties::ORIGINAL_OPPOSITE_PORT)
-            .is_some_and(|port| Arc::ptr_eq(&port, &opposite_port))
-    );
+    assert!(edge
+        .lock()
+        .expect("edge lock")
+        .get_property(InternalProperties::ORIGINAL_OPPOSITE_PORT)
+        .is_some_and(|port| Arc::ptr_eq(&port, &opposite_port)));
 
     let assigned = opposite
         .lock()

@@ -60,7 +60,12 @@ impl GroupModelOrderCalculator {
         self.last_separate_nodes = 0;
     }
 
-    fn constraint_base_model_order(&mut self, node: &LNodeRef, separate_offset: i32, offset: i32) -> i32 {
+    fn constraint_base_model_order(
+        &mut self,
+        node: &LNodeRef,
+        separate_offset: i32,
+        offset: i32,
+    ) -> i32 {
         let constraint = node
             .lock()
             .ok()

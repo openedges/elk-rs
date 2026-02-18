@@ -5,9 +5,13 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::Random;
 
 use crate::org::eclipse::elk::alg::layered::graph::LPortRef;
-use crate::org::eclipse::elk::alg::layered::intermediate::loops::{SelfHyperLoopRef, SelfLoopHolderRef};
+use crate::org::eclipse::elk::alg::layered::intermediate::loops::{
+    SelfHyperLoopRef, SelfLoopHolderRef,
+};
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::direction::routing_direction::RoutingDirection;
-use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::hyper_edge_segment::{HyperEdgeSegment, HyperEdgeSegmentRef};
+use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::hyper_edge_segment::{
+    HyperEdgeSegment, HyperEdgeSegmentRef,
+};
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::hyper_edge_segment_dependency::HyperEdgeSegmentDependency;
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::orthogonal_routing_generator::OrthogonalRoutingGenerator;
 
@@ -58,7 +62,9 @@ fn reset_routing_slots(holder: &SelfLoopHolderRef) {
     }
 }
 
-fn compute_label_crossing_matrix(holder: &SelfLoopHolderRef) -> (LabelCrossingMatrix, LabelIdByLoop) {
+fn compute_label_crossing_matrix(
+    holder: &SelfLoopHolderRef,
+) -> (LabelCrossingMatrix, LabelIdByLoop) {
     let loops = holder
         .lock()
         .ok()
@@ -189,7 +195,12 @@ fn compute_loop_activity(holder: &SelfLoopHolderRef, loops: &[SelfHyperLoopRef])
         let (Some(leftmost_port), Some(rightmost_port)) = sl_loop
             .lock()
             .ok()
-            .map(|sl_loop_guard| (sl_loop_guard.leftmost_port(), sl_loop_guard.rightmost_port()))
+            .map(|sl_loop_guard| {
+                (
+                    sl_loop_guard.leftmost_port(),
+                    sl_loop_guard.rightmost_port(),
+                )
+            })
             .unwrap_or((None, None))
         else {
             activity.insert(loop_key(sl_loop), loop_activity);
@@ -197,9 +208,13 @@ fn compute_loop_activity(holder: &SelfLoopHolderRef, loops: &[SelfHyperLoopRef])
         };
 
         let leftmost_port_id =
-            crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfHyperLoop::port_id(&leftmost_port);
+            crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfHyperLoop::port_id(
+                &leftmost_port,
+            );
         let rightmost_port_id =
-            crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfHyperLoop::port_id(&rightmost_port);
+            crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfHyperLoop::port_id(
+                &rightmost_port,
+            );
 
         if port_count > 0 && leftmost_port_id >= 0 && rightmost_port_id >= 0 {
             let mut port_idx = leftmost_port_id as usize;
@@ -267,7 +282,8 @@ fn count_crossings(
     sl_lower_loop: &SelfHyperLoopRef,
     sl_loop_activity_over_ports: &LoopActivity,
 ) -> i32 {
-    let Some(lower_loop_activity) = sl_loop_activity_over_ports.get(&loop_key(sl_lower_loop)) else {
+    let Some(lower_loop_activity) = sl_loop_activity_over_ports.get(&loop_key(sl_lower_loop))
+    else {
         return 0;
     };
 
@@ -280,7 +296,9 @@ fn count_crossings(
     let mut crossings = 0i32;
     for sl_port in sl_upper_ports {
         let port_id =
-            crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfHyperLoop::port_id(&sl_port);
+            crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfHyperLoop::port_id(
+                &sl_port,
+            );
         if port_id >= 0
             && (port_id as usize) < lower_loop_activity.len()
             && lower_loop_activity[port_id as usize]
@@ -358,7 +376,10 @@ fn assign_raw_routing_slots_to_segments(hyper_edge_segments: &[HyperEdgeSegmentR
     }
 }
 
-fn assign_raw_routing_slots_to_loops(holder: &SelfLoopHolderRef, sl_loop_to_segment_map: &SegmentMap) {
+fn assign_raw_routing_slots_to_loops(
+    holder: &SelfLoopHolderRef,
+    sl_loop_to_segment_map: &SegmentMap,
+) {
     let loops = holder
         .lock()
         .ok()
@@ -518,9 +539,8 @@ fn shift_towards_node_on_side(
 
         if let Some(&our_label_idx) = label_id_by_loop.get(&loop_key) {
             let mut slots_with_label_conflicts = HashSet::new();
-            for (other_label_idx, crosses) in label_crossing_matrix[our_label_idx]
-                .iter()
-                .enumerate()
+            for (other_label_idx, crosses) in
+                label_crossing_matrix[our_label_idx].iter().enumerate()
             {
                 if *crosses {
                     let assigned_slot = slot_assigned_to_label[other_label_idx];
@@ -565,12 +585,11 @@ fn min_max_port_id_on_side(ports: &[LPortRef], side: PortSide) -> (Option<usize>
     let mut max_idx: Option<usize> = None;
 
     for l_port in ports {
-        let Some((port_side, port_id)) = l_port.lock().ok().map(|mut port_guard| {
-            (
-                port_guard.side(),
-                port_guard.shape().graph_element().id,
-            )
-        }) else {
+        let Some((port_side, port_id)) = l_port
+            .lock()
+            .ok()
+            .map(|mut port_guard| (port_guard.side(), port_guard.shape().graph_element().id))
+        else {
             continue;
         };
         if port_side != side || port_id < 0 {
@@ -595,7 +614,12 @@ fn update_holder_routing_slot_count(holder: &SelfLoopHolderRef) {
     let mut routing_slot_count = vec![0; 5];
     for sl_loop in loops {
         if let Ok(sl_loop_guard) = sl_loop.lock() {
-            for side in [PortSide::North, PortSide::East, PortSide::South, PortSide::West] {
+            for side in [
+                PortSide::North,
+                PortSide::East,
+                PortSide::South,
+                PortSide::West,
+            ] {
                 let slot = sl_loop_guard.routing_slot(side).max(0);
                 let side_idx = side_index(side);
                 routing_slot_count[side_idx] = routing_slot_count[side_idx].max(slot + 1);

@@ -5,7 +5,9 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::Po
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LNodeRef, LPortRef};
-use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions, PortType};
+use crate::org::eclipse::elk::alg::layered::options::{
+    InternalProperties, LayeredOptions, PortType,
+};
 use crate::org::eclipse::elk::alg::layered::p3order::counting::IInitializable;
 use crate::org::eclipse::elk::alg::layered::p3order::i_sweep_port_distributor::ISweepPortDistributor;
 
@@ -242,7 +244,13 @@ impl AbstractBarycenterPortDistributor {
         }
     }
 
-    fn distribute_ports(&mut self, node: &LNodeRef, side: PortSide, layer_index: usize, layer_size: usize) {
+    fn distribute_ports(
+        &mut self,
+        node: &LNodeRef,
+        side: PortSide,
+        layer_index: usize,
+        layer_size: usize,
+    ) {
         let timing = std::env::var_os("ELK_TRACE_CROSSMIN_TIMING").is_some();
         let (node_id, constraints, ports_snapshot) = if let Ok(mut node_guard) = node.lock() {
             (
@@ -271,7 +279,10 @@ impl AbstractBarycenterPortDistributor {
 
         if constraints.is_order_fixed() {
             if timing {
-                eprintln!("crossmin: distribute_ports node={} fixed-order skip", node_id);
+                eprintln!(
+                    "crossmin: distribute_ports node={} fixed-order skip",
+                    node_id
+                );
             }
             return;
         }
@@ -351,14 +362,14 @@ impl AbstractBarycenterPortDistributor {
             let mut sum = 0.0;
 
             if north_south_port {
-                let dummy = port
-                    .lock()
-                    .ok()
-                    .and_then(|mut port_guard| port_guard.get_property(InternalProperties::PORT_DUMMY));
+                let dummy = port.lock().ok().and_then(|mut port_guard| {
+                    port_guard.get_property(InternalProperties::PORT_DUMMY)
+                });
                 let Some(dummy) = dummy else {
                     continue;
                 };
-                let contribution = self.deal_with_north_south_ports(absurdly_large_float, port, &dummy);
+                let contribution =
+                    self.deal_with_north_south_ports(absurdly_large_float, port, &dummy);
                 sum += contribution;
                 if timing {
                     eprintln!(
@@ -369,11 +380,11 @@ impl AbstractBarycenterPortDistributor {
             } else {
                 let outgoing_edges = connected_outgoing_edges(port);
                 for edge in outgoing_edges {
-                    let connected_port = edge
-                        .lock()
-                        .ok()
-                        .and_then(|edge_guard| edge_guard.target());
-                    let Some(connected_port) = connected_port else { continue };
+                    let connected_port =
+                        edge.lock().ok().and_then(|edge_guard| edge_guard.target());
+                    let Some(connected_port) = connected_port else {
+                        continue;
+                    };
                     if port_same_layer(&connected_port, node) {
                         self.in_layer_ports.push(port.clone());
                         continue 'port_iteration;
@@ -384,11 +395,11 @@ impl AbstractBarycenterPortDistributor {
                 }
                 let incoming_edges = connected_incoming_edges(port);
                 for edge in incoming_edges {
-                    let connected_port = edge
-                        .lock()
-                        .ok()
-                        .and_then(|edge_guard| edge_guard.source());
-                    let Some(connected_port) = connected_port else { continue };
+                    let connected_port =
+                        edge.lock().ok().and_then(|edge_guard| edge_guard.source());
+                    let Some(connected_port) = connected_port else {
+                        continue;
+                    };
                     let same_layer = port_same_layer(&connected_port, node);
                     if same_layer {
                         self.in_layer_ports.push(port.clone());
@@ -440,18 +451,18 @@ impl AbstractBarycenterPortDistributor {
             let mut in_layer_connections = 0.0;
             let connected = connected_ports(port);
             for connected_port in connected {
-                    if port_same_layer(&connected_port, node) {
-                        if port_owner_is(&connected_port, node) {
-                            sum += node_index_in_layer;
-                        } else {
-                            sum += self
-                                .position_of_node_port_owner_in_layer(&connected_port, layer_index)
-                                as f64
-                                + 1.0;
-                        }
-                        in_layer_connections += 1.0;
+                if port_same_layer(&connected_port, node) {
+                    if port_owner_is(&connected_port, node) {
+                        sum += node_index_in_layer;
+                    } else {
+                        sum += self
+                            .position_of_node_port_owner_in_layer(&connected_port, layer_index)
+                            as f64
+                            + 1.0;
                     }
+                    in_layer_connections += 1.0;
                 }
+            }
             if in_layer_connections == 0.0 {
                 continue;
             }
@@ -467,18 +478,19 @@ impl AbstractBarycenterPortDistributor {
                 if barycenter < node_index_in_layer {
                     self.port_barycenter[pid] = f32t(self.min_barycenter - barycenter);
                 } else {
-                    self.port_barycenter[pid] = f32t(self.max_barycenter + (layer_size - barycenter));
+                    self.port_barycenter[pid] =
+                        f32t(self.max_barycenter + (layer_size - barycenter));
                 }
             } else if side == PortSide::West {
                 if barycenter < node_index_in_layer {
                     self.port_barycenter[pid] = f32t(self.max_barycenter + barycenter);
                 } else {
-                    self.port_barycenter[pid] = f32t(self.min_barycenter - (layer_size - barycenter));
+                    self.port_barycenter[pid] =
+                        f32t(self.min_barycenter - (layer_size - barycenter));
                 }
             }
         }
     }
-
 
     fn deal_with_north_south_ports(
         &self,
@@ -564,7 +576,7 @@ impl AbstractBarycenterPortDistributor {
                     );
                 }
                 if has_incoming {
-                input = true;
+                    input = true;
                 }
             }
         }
@@ -740,8 +752,16 @@ impl AbstractBarycenterPortDistributor {
             let ord = if side1 != side2 {
                 side1.cmp(&side2)
             } else {
-                let bary1 = self.port_barycenter.get(port_id(port1)).copied().unwrap_or(0.0);
-                let bary2 = self.port_barycenter.get(port_id(port2)).copied().unwrap_or(0.0);
+                let bary1 = self
+                    .port_barycenter
+                    .get(port_id(port1))
+                    .copied()
+                    .unwrap_or(0.0);
+                let bary2 = self
+                    .port_barycenter
+                    .get(port_id(port2))
+                    .copied()
+                    .unwrap_or(0.0);
                 if bary1 == 0.0 && bary2 == 0.0 {
                     Ordering::Equal
                 } else if bary1 == 0.0 {
@@ -771,7 +791,12 @@ impl AbstractBarycenterPortDistributor {
         node.lock()
             .ok()
             .and_then(|node_guard| node_guard.layer())
-            .and_then(|layer| layer.lock().ok().map(|layer_guard| layer_guard.nodes().len()))
+            .and_then(|layer| {
+                layer
+                    .lock()
+                    .ok()
+                    .map(|layer_guard| layer_guard.nodes().len())
+            })
             .unwrap_or(0)
     }
 
@@ -806,7 +831,11 @@ impl ISweepPortDistributor for AbstractBarycenterPortDistributor {
                 current_index + 1
             };
             let fixed_layer = &node_order[fixed_layer_index];
-            let start = if timing { Some(std::time::Instant::now()) } else { None };
+            let start = if timing {
+                Some(std::time::Instant::now())
+            } else {
+                None
+            };
             self.calculate_port_ranks(fixed_layer, self.port_type_for(is_forward_sweep));
             if let Some(start) = start {
                 eprintln!(
@@ -817,7 +846,11 @@ impl ISweepPortDistributor for AbstractBarycenterPortDistributor {
             }
             let free_layer_size = free_layer.len();
             for node in free_layer {
-                let start = if timing { Some(std::time::Instant::now()) } else { None };
+                let start = if timing {
+                    Some(std::time::Instant::now())
+                } else {
+                    None
+                };
                 self.distribute_ports(node, side, current_index, free_layer_size);
                 if let Some(start) = start {
                     let node_id = node
@@ -834,7 +867,11 @@ impl ISweepPortDistributor for AbstractBarycenterPortDistributor {
                 }
             }
 
-            let start = if timing { Some(std::time::Instant::now()) } else { None };
+            let start = if timing {
+                Some(std::time::Instant::now())
+            } else {
+                None
+            };
             self.calculate_port_ranks(free_layer, self.port_type_for(!is_forward_sweep));
             if let Some(start) = start {
                 eprintln!(
@@ -846,8 +883,17 @@ impl ISweepPortDistributor for AbstractBarycenterPortDistributor {
             let fixed_layer_size = fixed_layer.len();
             for node in fixed_layer {
                 if !self.has_nested_graph(node) {
-                    let start = if timing { Some(std::time::Instant::now()) } else { None };
-                    self.distribute_ports(node, side.opposed(), fixed_layer_index, fixed_layer_size);
+                    let start = if timing {
+                        Some(std::time::Instant::now())
+                    } else {
+                        None
+                    };
+                    self.distribute_ports(
+                        node,
+                        side.opposed(),
+                        fixed_layer_index,
+                        fixed_layer_size,
+                    );
                     if let Some(start) = start {
                         let node_id = node
                             .lock()
@@ -866,7 +912,11 @@ impl ISweepPortDistributor for AbstractBarycenterPortDistributor {
         } else {
             let free_layer_size = free_layer.len();
             for node in free_layer {
-                let start = if timing { Some(std::time::Instant::now()) } else { None };
+                let start = if timing {
+                    Some(std::time::Instant::now())
+                } else {
+                    None
+                };
                 self.distribute_ports(node, side, current_index, free_layer_size);
                 if let Some(start) = start {
                     let node_id = node
@@ -905,7 +955,12 @@ impl IInitializable for AbstractBarycenterPortDistributor {
         self.node_positions[layer_index] = vec![0; node_order[layer_index].len()];
     }
 
-    fn init_at_node_level(&mut self, layer_index: usize, node_index: usize, node_order: &[Vec<LNodeRef>]) {
+    fn init_at_node_level(
+        &mut self,
+        layer_index: usize,
+        node_index: usize,
+        node_order: &[Vec<LNodeRef>],
+    ) {
         let node = &node_order[layer_index][node_index];
         set_node_id(node, node_index);
         if let Some(layer_positions) = self.node_positions.get_mut(layer_index) {
@@ -997,14 +1052,18 @@ fn port_same_layer(port: &LPortRef, node: &LNodeRef) -> bool {
     }
 }
 
-fn connected_outgoing_edges(port: &LPortRef) -> Vec<crate::org::eclipse::elk::alg::layered::graph::LEdgeRef> {
+fn connected_outgoing_edges(
+    port: &LPortRef,
+) -> Vec<crate::org::eclipse::elk::alg::layered::graph::LEdgeRef> {
     port.lock()
         .ok()
         .map(|port_guard| port_guard.outgoing_edges().clone())
         .unwrap_or_default()
 }
 
-fn connected_incoming_edges(port: &LPortRef) -> Vec<crate::org::eclipse::elk::alg::layered::graph::LEdgeRef> {
+fn connected_incoming_edges(
+    port: &LPortRef,
+) -> Vec<crate::org::eclipse::elk::alg::layered::graph::LEdgeRef> {
     port.lock()
         .ok()
         .map(|port_guard| port_guard.incoming_edges().clone())
@@ -1021,7 +1080,11 @@ fn connected_ports(port: &LPortRef) -> Vec<LPortRef> {
 fn ports_by_side(ports: &[LPortRef], side: PortSide) -> Vec<LPortRef> {
     ports
         .iter()
-        .filter(|port| port.lock().map(|port_guard| port_guard.side() == side).unwrap_or(false))
+        .filter(|port| {
+            port.lock()
+                .map(|port_guard| port_guard.side() == side)
+                .unwrap_or(false)
+        })
         .cloned()
         .collect()
 }

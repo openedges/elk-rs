@@ -5,10 +5,14 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_label_placement
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 
-use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions, PortType};
+use crate::org::eclipse::elk::alg::layered::options::{
+    InternalProperties, LayeredOptions, PortType,
+};
 
-use super::{remove_arc, LEdgeRef, LGraphElement, LGraphRef, LLabelRef, LNodeRef, LPortRef, LPortWeak};
-use super::{LGraphUtil};
+use super::LGraphUtil;
+use super::{
+    remove_arc, LEdgeRef, LGraphElement, LGraphRef, LLabelRef, LNodeRef, LPortRef, LPortWeak,
+};
 
 pub struct LEdge {
     element: LGraphElement,
@@ -140,8 +144,16 @@ impl LEdge {
         let source = self.source();
         let target = self.target();
         if let (Some(source), Some(target)) = (source, target) {
-            let source_layer = source.lock().ok().and_then(|port| port.node()).and_then(|node| node.lock().ok().and_then(|node| node.layer()));
-            let target_layer = target.lock().ok().and_then(|port| port.node()).and_then(|node| node.lock().ok().and_then(|node| node.layer()));
+            let source_layer = source
+                .lock()
+                .ok()
+                .and_then(|port| port.node())
+                .and_then(|node| node.lock().ok().and_then(|node| node.layer()));
+            let target_layer = target
+                .lock()
+                .ok()
+                .and_then(|port| port.node())
+                .and_then(|node| node.lock().ok().and_then(|node| node.layer()));
             if let (Some(source_layer), Some(target_layer)) = (source_layer, target_layer) {
                 return Arc::ptr_eq(&source_layer, &target_layer);
             }
@@ -164,8 +176,12 @@ impl LEdge {
     }
 
     pub fn other_node(&self, node: &LNodeRef) -> LNodeRef {
-        let source = self.source().and_then(|port| port.lock().ok().and_then(|port| port.node()));
-        let target = self.target().and_then(|port| port.lock().ok().and_then(|port| port.node()));
+        let source = self
+            .source()
+            .and_then(|port| port.lock().ok().and_then(|port| port.node()));
+        let target = self
+            .target()
+            .and_then(|port| port.lock().ok().and_then(|port| port.node()));
         if let Some(ref source) = source {
             if Arc::ptr_eq(source, node) {
                 return target.clone().expect("target missing");

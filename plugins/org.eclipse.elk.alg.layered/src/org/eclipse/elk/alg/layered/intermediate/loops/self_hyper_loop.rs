@@ -28,8 +28,10 @@ impl SelfLoopType {
         match port_sides.len() {
             1 => Some(SelfLoopType::OneSide),
             2 => {
-                let east_west = port_sides.contains(&PortSide::East) && port_sides.contains(&PortSide::West);
-                let north_south = port_sides.contains(&PortSide::North) && port_sides.contains(&PortSide::South);
+                let east_west =
+                    port_sides.contains(&PortSide::East) && port_sides.contains(&PortSide::West);
+                let north_south =
+                    port_sides.contains(&PortSide::North) && port_sides.contains(&PortSide::South);
                 if east_west || north_south {
                     Some(SelfLoopType::TwoSidesOpposing)
                 } else {
@@ -177,7 +179,10 @@ impl SelfHyperLoop {
     }
 
     pub fn ports_on_side(&self, side: PortSide) -> Vec<SelfLoopPortRef> {
-        self.sl_ports_by_side.get(&side).cloned().unwrap_or_default()
+        self.sl_ports_by_side
+            .get(&side)
+            .cloned()
+            .unwrap_or_default()
     }
 
     pub fn leftmost_port(&self) -> Option<SelfLoopPortRef> {
@@ -241,7 +246,13 @@ fn sl_port_side(sl_port: &SelfLoopPortRef) -> PortSide {
     sl_port
         .lock()
         .ok()
-        .and_then(|port_guard| port_guard.l_port().lock().ok().map(|l_port_guard| l_port_guard.side()))
+        .and_then(|port_guard| {
+            port_guard
+                .l_port()
+                .lock()
+                .ok()
+                .map(|l_port_guard| l_port_guard.side())
+        })
         .unwrap_or(PortSide::Undefined)
 }
 

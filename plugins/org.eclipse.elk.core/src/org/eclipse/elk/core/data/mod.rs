@@ -5,14 +5,14 @@ use std::sync::{Arc, Mutex, OnceLock};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::GraphFeature;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkReflect;
 
+pub mod deprecated_layout_option_replacer;
 mod i_layout_meta_data;
 mod i_layout_meta_data_provider;
 mod layout_algorithm_data;
+pub mod layout_algorithm_resolver;
 mod layout_category_data;
 mod layout_data_content_assist;
 mod layout_option_data;
-pub mod deprecated_layout_option_replacer;
-pub mod layout_algorithm_resolver;
 
 pub use deprecated_layout_option_replacer::DeprecatedLayoutOptionReplacer;
 pub use i_layout_meta_data::ILayoutMetaData;
@@ -38,8 +38,11 @@ use crate::org::eclipse::elk::core::util::{
     InstancePool, LinkedHashSet, RandomLayoutProvider,
 };
 
-type LayoutProviderPool =
-    Arc<InstancePool<Box<dyn crate::org::eclipse::elk::core::abstract_layout_provider::AbstractLayoutProvider>>>;
+type LayoutProviderPool = Arc<
+    InstancePool<
+        Box<dyn crate::org::eclipse::elk::core::abstract_layout_provider::AbstractLayoutProvider>,
+    >,
+>;
 
 pub struct LayoutMetaDataService {
     storage: Mutex<LayoutMetaDataStorage>,
@@ -77,8 +80,12 @@ impl LayoutMetaDataService {
                 storage: Mutex::new(LayoutMetaDataStorage::new()),
             };
             service.register_core_algorithms();
-            service.register_layout_meta_data_provider(&crate::org::eclipse::elk::core::options::CoreOptions);
-            service.register_layout_meta_data_provider(&crate::org::eclipse::elk::core::options::BoxLayouterOptions);
+            service.register_layout_meta_data_provider(
+                &crate::org::eclipse::elk::core::options::CoreOptions,
+            );
+            service.register_layout_meta_data_provider(
+                &crate::org::eclipse::elk::core::options::BoxLayouterOptions,
+            );
             service.register_layout_meta_data_provider(
                 &crate::org::eclipse::elk::core::labels::LabelManagementOptions,
             );
@@ -104,11 +111,7 @@ impl LayoutMetaDataService {
         self.register_layout_meta_data_providers(&[provider]);
     }
 
-    pub fn override_algorithm_provider_pool(
-        &self,
-        algorithm_id: &str,
-        pool: LayoutProviderPool,
-    ) {
+    pub fn override_algorithm_provider_pool(&self, algorithm_id: &str, pool: LayoutProviderPool) {
         let mut storage = self.storage.lock().unwrap();
         if let Some(algorithm_data) = storage.algorithms.get_mut(algorithm_id) {
             algorithm_data.set_provider_pool(Some(pool));
@@ -117,7 +120,9 @@ impl LayoutMetaDataService {
 
     fn register_layout_algorithm(&self, algorithm: LayoutAlgorithmData) {
         let mut storage = self.storage.lock().unwrap();
-        storage.algorithms.insert(algorithm.id().to_string(), algorithm);
+        storage
+            .algorithms
+            .insert(algorithm.id().to_string(), algorithm);
     }
 
     fn register_layout_option(&self, option: LayoutOptionData) {
@@ -267,13 +272,15 @@ impl LayoutMetaDataService {
         target_type: LayoutOptionTarget,
     ) -> Vec<LayoutOptionData> {
         let storage = self.storage.lock().unwrap();
-        let algorithm_option_id = crate::org::eclipse::elk::core::options::CoreOptions::ALGORITHM.id();
+        let algorithm_option_id =
+            crate::org::eclipse::elk::core::options::CoreOptions::ALGORITHM.id();
 
         storage
             .options
             .values()
             .filter(|option_data| {
-                algorithm_data.knows_option(option_data.id()) || option_data.id() == algorithm_option_id
+                algorithm_data.knows_option(option_data.id())
+                    || option_data.id() == algorithm_option_id
             })
             .filter(|option_data| option_data.targets().contains(&target_type))
             .cloned()
@@ -292,12 +299,16 @@ impl LayoutMetaDataService {
 
     pub fn init_elk_reflect() {
         ElkReflect::register(Some(KVector::new), Some(|v: &KVector| *v));
-        ElkReflect::register(Some(KVectorChain::new), Some(|vc: &KVectorChain| vc.clone()));
+        ElkReflect::register(
+            Some(KVectorChain::new),
+            Some(|vc: &KVectorChain| vc.clone()),
+        );
         ElkReflect::register(Some(ElkMargin::new), Some(|m: &ElkMargin| m.clone()));
         ElkReflect::register(Some(ElkPadding::new), Some(|p: &ElkPadding| p.clone()));
-        ElkReflect::register(Some(IndividualSpacings::new), Some(|s: &IndividualSpacings| {
-            IndividualSpacings::from_other(s)
-        }));
+        ElkReflect::register(
+            Some(IndividualSpacings::new),
+            Some(|s: &IndividualSpacings| IndividualSpacings::from_other(s)),
+        );
 
         ElkReflect::register(Some(|| 0_i32), Some(|v: &i32| *v));
         ElkReflect::register(Some(|| 0_f32), Some(|v: &f32| *v));
@@ -321,26 +332,44 @@ impl LayoutMetaDataService {
         ElkReflect::register(Some(|| EdgeCoords::Inherit), Some(|v: &EdgeCoords| *v));
         ElkReflect::register(Some(|| ShapeCoords::Inherit), Some(|v: &ShapeCoords| *v));
         ElkReflect::register(Some(|| EdgeType::None), Some(|v: &EdgeType| *v));
-        ElkReflect::register(Some(|| PortConstraints::Undefined), Some(|v: &PortConstraints| *v));
-        ElkReflect::register(Some(|| EdgeLabelPlacement::Center), Some(|v: &EdgeLabelPlacement| *v));
+        ElkReflect::register(
+            Some(|| PortConstraints::Undefined),
+            Some(|v: &PortConstraints| *v),
+        );
+        ElkReflect::register(
+            Some(|| EdgeLabelPlacement::Center),
+            Some(|v: &EdgeLabelPlacement| *v),
+        );
         ElkReflect::register(
             Some(|| TopdownNodeTypes::ParallelNode),
             Some(|v: &TopdownNodeTypes| *v),
         );
         ElkReflect::register(Some(|| PackingMode::Simple), Some(|v: &PackingMode| *v));
 
-        ElkReflect::register(Some(Vec::<KVector>::new), Some(|v: &Vec<KVector>| v.clone()));
-        ElkReflect::register(Some(LinkedList::<KVector>::new), Some(|v: &LinkedList<KVector>| {
-            v.clone()
-        }));
-        ElkReflect::register(Some(HashSet::<KVector>::new), Some(|v: &HashSet<KVector>| v.clone()));
-        ElkReflect::register(Some(LinkedHashSet::<KVector>::new), Some(|v: &LinkedHashSet<KVector>| {
-            v.clone()
-        }));
-        ElkReflect::register(Some(BTreeSet::<i32>::new), Some(|v: &BTreeSet<i32>| v.clone()));
-        ElkReflect::register(Some(EnumSet::<SizeConstraint>::none_of), Some(|v: &EnumSet<SizeConstraint>| {
-            v.clone()
-        }));
+        ElkReflect::register(
+            Some(Vec::<KVector>::new),
+            Some(|v: &Vec<KVector>| v.clone()),
+        );
+        ElkReflect::register(
+            Some(LinkedList::<KVector>::new),
+            Some(|v: &LinkedList<KVector>| v.clone()),
+        );
+        ElkReflect::register(
+            Some(HashSet::<KVector>::new),
+            Some(|v: &HashSet<KVector>| v.clone()),
+        );
+        ElkReflect::register(
+            Some(LinkedHashSet::<KVector>::new),
+            Some(|v: &LinkedHashSet<KVector>| v.clone()),
+        );
+        ElkReflect::register(
+            Some(BTreeSet::<i32>::new),
+            Some(|v: &BTreeSet<i32>| v.clone()),
+        );
+        ElkReflect::register(
+            Some(EnumSet::<SizeConstraint>::none_of),
+            Some(|v: &EnumSet<SizeConstraint>| v.clone()),
+        );
         ElkReflect::register(
             Some(EnumSet::<ContentAlignment>::none_of),
             Some(|v: &EnumSet<ContentAlignment>| v.clone()),
@@ -361,7 +390,10 @@ impl LayoutMetaDataService {
 
     fn register_core_algorithms(&self) {
         let storage = self.storage.lock().unwrap();
-        if storage.algorithms.contains_key(FixedLayouterOptions::ALGORITHM_ID) {
+        if storage
+            .algorithms
+            .contains_key(FixedLayouterOptions::ALGORITHM_ID)
+        {
             return;
         }
         drop(storage);
@@ -407,10 +439,8 @@ impl LayoutMetaDataService {
             CoreOptions::PADDING.id(),
             arc_any(ElkPadding::with_any(15.0)),
         );
-        random_data.add_known_option_default(
-            CoreOptions::SPACING_NODE_NODE.id(),
-            arc_any(15.0_f64),
-        );
+        random_data
+            .add_known_option_default(CoreOptions::SPACING_NODE_NODE.id(), arc_any(15.0_f64));
         random_data.add_known_option_default(CoreOptions::RANDOM_SEED.id(), arc_any(0_i32));
         random_data.add_known_option_default(CoreOptions::ASPECT_RATIO.id(), arc_any(1.6_f64));
         self.register_layout_algorithm(random_data);
@@ -421,7 +451,9 @@ impl LayoutMetaDataService {
             .with_provider_pool(Arc::new(box_pool));
         box_data
             .set_name("ELK Box")
-            .set_description("Algorithm for packing of unconnected boxes, i.e. graphs without edges.")
+            .set_description(
+                "Algorithm for packing of unconnected boxes, i.e. graphs without edges.",
+            )
             .set_bundle_name(Some("ELK"))
             .set_defining_bundle_id(Some("org.eclipse.elk.core"))
             .set_preview_image_path(Some("images/box_layout.png"));
@@ -429,10 +461,7 @@ impl LayoutMetaDataService {
             CoreOptions::PADDING.id(),
             arc_any(ElkPadding::with_any(15.0)),
         );
-        box_data.add_known_option_default(
-            CoreOptions::SPACING_NODE_NODE.id(),
-            arc_any(15.0_f64),
-        );
+        box_data.add_known_option_default(CoreOptions::SPACING_NODE_NODE.id(), arc_any(15.0_f64));
         box_data.add_known_option_default(CoreOptions::PRIORITY.id(), arc_any(0_i32));
         box_data.add_known_option_default(CoreOptions::EXPAND_NODES.id(), None);
         box_data.add_known_option_default(CoreOptions::NODE_SIZE_CONSTRAINTS.id(), None);
@@ -471,7 +500,8 @@ impl LayoutMetaDataService {
         layered_data.add_known_option_default(CoreOptions::SPACING_EDGE_LABEL.id(), None);
         layered_data.add_known_option_default(CoreOptions::SPACING_EDGE_NODE.id(), None);
         layered_data.add_known_option_default(CoreOptions::SPACING_LABEL_LABEL.id(), None);
-        layered_data.add_known_option_default(CoreOptions::SPACING_LABEL_PORT_HORIZONTAL.id(), None);
+        layered_data
+            .add_known_option_default(CoreOptions::SPACING_LABEL_PORT_HORIZONTAL.id(), None);
         layered_data.add_known_option_default(CoreOptions::SPACING_LABEL_PORT_VERTICAL.id(), None);
         layered_data.add_known_option_default(CoreOptions::SPACING_LABEL_NODE.id(), None);
         layered_data.add_known_option_default(CoreOptions::SPACING_NODE_NODE.id(), None);
@@ -489,7 +519,8 @@ impl LayoutMetaDataService {
         );
         layered_data.add_known_option_default(CoreOptions::TOPDOWN_LAYOUT.id(), None);
         layered_data.add_known_option_default(CoreOptions::TOPDOWN_SCALE_FACTOR.id(), None);
-        layered_data.add_known_option_default(CoreOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH.id(), None);
+        layered_data
+            .add_known_option_default(CoreOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH.id(), None);
         layered_data.add_known_option_default(
             CoreOptions::TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO.id(),
             None,
@@ -506,7 +537,8 @@ impl LayoutMetaDataService {
             CoreOptions::EDGE_ROUTING.id(),
             arc_any(EdgeRouting::Orthogonal),
         );
-        layered_data.add_known_option_default(CoreOptions::PORT_BORDER_OFFSET.id(), arc_any(0.0_f64));
+        layered_data
+            .add_known_option_default(CoreOptions::PORT_BORDER_OFFSET.id(), arc_any(0.0_f64));
         layered_data.add_known_option_default(CoreOptions::RANDOM_SEED.id(), arc_any(1_i32));
         layered_data.add_known_option_default(CoreOptions::ASPECT_RATIO.id(), arc_any(1.6_f64));
         layered_data.add_known_option_default(CoreOptions::NO_LAYOUT.id(), None);
@@ -542,7 +574,11 @@ impl<'a> Registry<'a> {
             };
 
             if let Some(category) = category {
-                if !category.layouters().iter().any(|existing| existing == &algorithm) {
+                if !category
+                    .layouters()
+                    .iter()
+                    .any(|existing| existing == &algorithm)
+                {
                     category.layouters_mut().push(algorithm.clone());
                 }
             }
@@ -620,7 +656,9 @@ struct Triple {
     value: Option<Arc<dyn Any + Send + Sync>>,
 }
 
-fn retrieve_backup_category(storage: &mut LayoutMetaDataStorage) -> Option<&mut LayoutCategoryData> {
+fn retrieve_backup_category(
+    storage: &mut LayoutMetaDataStorage,
+) -> Option<&mut LayoutCategoryData> {
     if !storage.categories.contains_key("") {
         let other_category = LayoutCategoryData::builder().id("").name("Other").create();
         storage.categories.insert("".to_string(), other_category);

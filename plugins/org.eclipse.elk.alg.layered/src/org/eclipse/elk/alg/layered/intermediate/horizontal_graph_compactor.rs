@@ -22,7 +22,11 @@ use crate::org::eclipse::elk::alg::layered::options::{
 pub struct HorizontalGraphCompactor;
 
 impl ILayoutProcessor<LGraph> for HorizontalGraphCompactor {
-    fn process(&mut self, layered_graph: &mut LGraph, progress_monitor: &mut dyn IElkProgressMonitor) {
+    fn process(
+        &mut self,
+        layered_graph: &mut LGraph,
+        progress_monitor: &mut dyn IElkProgressMonitor,
+    ) {
         let strategy = layered_graph
             .get_property(LayeredOptions::COMPACTION_POST_COMPACTION_STRATEGY)
             .unwrap_or(GraphCompactionStrategy::None);
@@ -96,15 +100,13 @@ struct CompactionContext {
 impl CompactionContext {
     fn new(graph: &LGraph) -> Self {
         let has_edges = graph.layers().iter().any(|layer| {
-            layer
-                .lock()
-                .ok()
-                .is_some_and(|layer| {
-                    layer
-                        .nodes()
-                        .iter()
-                        .any(|node| node.lock().ok().is_some_and(|node| !node.connected_edges().is_empty()))
+            layer.lock().ok().is_some_and(|layer| {
+                layer.nodes().iter().any(|node| {
+                    node.lock()
+                        .ok()
+                        .is_some_and(|node| !node.connected_edges().is_empty())
                 })
+            })
         });
 
         let mut directions = vec![Direction::Left, Direction::Right];
@@ -138,25 +140,26 @@ impl CompactionContext {
                 continue;
             }
 
-            let (hitbox, incoming_count, outgoing_count, node_type) = if let Ok(mut node_guard) = node.lock() {
-                let margin = node_guard.margin().clone();
-                let shape = node_guard.shape();
-                let pos = *shape.position_ref();
-                let size = *shape.size_ref();
-                (
-                    ElkRectangle::with_values(
-                        pos.x - margin.left,
-                        pos.y - margin.top,
-                        size.x + margin.left + margin.right,
-                        size.y + margin.top + margin.bottom,
-                    ),
-                    node_guard.incoming_edges().len(),
-                    node_guard.outgoing_edges().len(),
-                    node_guard.node_type(),
-                )
-            } else {
-                continue;
-            };
+            let (hitbox, incoming_count, outgoing_count, node_type) =
+                if let Ok(mut node_guard) = node.lock() {
+                    let margin = node_guard.margin().clone();
+                    let shape = node_guard.shape();
+                    let pos = *shape.position_ref();
+                    let size = *shape.size_ref();
+                    (
+                        ElkRectangle::with_values(
+                            pos.x - margin.left,
+                            pos.y - margin.top,
+                            size.x + margin.left + margin.right,
+                            size.y + margin.top + margin.bottom,
+                        ),
+                        node_guard.incoming_edges().len(),
+                        node_guard.outgoing_edges().len(),
+                        node_guard.node_type(),
+                    )
+                } else {
+                    continue;
+                };
 
             let c_node = CNode::create(&self.c_graph, hitbox);
             CGroup::create(&self.c_graph, std::slice::from_ref(&c_node));
@@ -249,7 +252,8 @@ impl CompactionContext {
         spacings: Option<Spacings>,
     ) {
         let mut compactor = OneDimensionalCompactor::new(self.c_graph.clone());
-        let spacing_handler = SpecialSpacingsHandler::new(&self.cnode_origin, &self.segments, spacings);
+        let spacing_handler =
+            SpecialSpacingsHandler::new(&self.cnode_origin, &self.segments, spacings);
         compactor.set_spacings_handler(Box::new(spacing_handler));
 
         match constraint_strategy {
@@ -333,7 +337,8 @@ impl CompactionContext {
                 .lock()
                 .ok()
                 .map(|mut anchor| *anchor.shape().position_ref());
-            if let (Some(anchor_position), Ok(mut comment)) = (anchor_position, item.comment.lock()) {
+            if let (Some(anchor_position), Ok(mut comment)) = (anchor_position, item.comment.lock())
+            {
                 comment.shape().position().x = anchor_position.x + item.offset.x;
                 comment.shape().position().y = anchor_position.y + item.offset.y;
             }
@@ -376,10 +381,7 @@ impl CompactionContext {
 
     fn apply_self_loop_label_offsets(&self) {
         for (node_key, c_node) in &self.node_to_cnode {
-            let Some(CNodeOrigin::Node(node)) = self
-                .cnode_origin
-                .get(&rc_key(c_node))
-            else {
+            let Some(CNodeOrigin::Node(node)) = self.cnode_origin.get(&rc_key(c_node)) else {
                 continue;
             };
             if arc_key(node) != *node_key {
@@ -399,7 +401,10 @@ impl CompactionContext {
                 .map(|node_guard| node_guard.outgoing_edges())
                 .unwrap_or_default();
             for edge in outgoing {
-                let is_self_loop = edge.lock().ok().is_some_and(|edge_guard| edge_guard.is_self_loop());
+                let is_self_loop = edge
+                    .lock()
+                    .ok()
+                    .is_some_and(|edge_guard| edge_guard.is_self_loop());
                 if !is_self_loop {
                     continue;
                 }
@@ -461,15 +466,13 @@ impl CompactionContext {
                         node_guard.shape().position().x = top_left.x;
                     }
                     PortSide::East => {
-                        node_guard.shape().position().x =
-                            bottom_right.x - (size.x + margin.right);
+                        node_guard.shape().position().x = bottom_right.x - (size.x + margin.right);
                     }
                     PortSide::North => {
                         node_guard.shape().position().y = top_left.y;
                     }
                     PortSide::South => {
-                        node_guard.shape().position().y =
-                            bottom_right.y - (size.y + margin.bottom);
+                        node_guard.shape().position().y = bottom_right.y - (size.y + margin.bottom);
                     }
                     PortSide::Undefined => {}
                 }
@@ -501,10 +504,7 @@ impl CompactionContext {
                         .source()
                         .and_then(|source| source.lock().ok().map(|port| port.side()))
                         .unwrap_or(PortSide::Undefined);
-                    (
-                        source_side,
-                        edge_guard.bend_points_ref().to_array(),
-                    )
+                    (source_side, edge_guard.bend_points_ref().to_array())
                 } else {
                     continue;
                 };
@@ -688,7 +688,10 @@ impl CompactionContext {
             return false;
         };
 
-        let comment_pos = node.lock().ok().map(|mut node_guard| *node_guard.shape().position_ref());
+        let comment_pos = node
+            .lock()
+            .ok()
+            .map(|mut node_guard| *node_guard.shape().position_ref());
         let other_pos = other
             .lock()
             .ok()
@@ -697,7 +700,10 @@ impl CompactionContext {
             self.comment_offsets.push(CommentOffset {
                 comment: node.clone(),
                 anchor: other,
-                offset: KVector::with_values(comment_pos.x - other_pos.x, comment_pos.y - other_pos.y),
+                offset: KVector::with_values(
+                    comment_pos.x - other_pos.x,
+                    comment_pos.y - other_pos.y,
+                ),
             });
             true
         } else {
@@ -841,7 +847,8 @@ fn fuzzy_cmp(left: f64, right: f64) -> std::cmp::Ordering {
     if compare_fuzzy::eq(left, right) {
         std::cmp::Ordering::Equal
     } else {
-        left.partial_cmp(&right).unwrap_or(std::cmp::Ordering::Equal)
+        left.partial_cmp(&right)
+            .unwrap_or(std::cmp::Ordering::Equal)
     }
 }
 

@@ -39,13 +39,13 @@ impl JsonAdapter {
                         return Ok(JsonId::Int(id as i64));
                     }
                 }
-                Err(JsonImportError::from(JsonImportException::new(
-                    format!("Id must be a string or an integer: '{value}'."),
-                )))
+                Err(JsonImportError::from(JsonImportException::new(format!(
+                    "Id must be a string or an integer: '{value}'."
+                ))))
             }
-            _ => Err(JsonImportError::from(JsonImportException::new(
-                format!("Id must be a string or an integer: '{value}'."),
-            ))),
+            _ => Err(JsonImportError::from(JsonImportException::new(format!(
+                "Id must be a string or an integer: '{value}'."
+            )))),
         }
     }
 
@@ -75,10 +75,7 @@ impl JsonAdapter {
         }
     }
 
-    pub fn opt_double(
-        obj: &Map<String, Value>,
-        key: &str,
-    ) -> Result<Option<f64>, JsonImportError> {
+    pub fn opt_double(obj: &Map<String, Value>, key: &str) -> Result<Option<f64>, JsonImportError> {
         match obj.get(key) {
             Some(value) => match value {
                 Value::Number(number) => number
@@ -89,10 +86,9 @@ impl JsonAdapter {
                         ))
                     })
                     .map(Some),
-                Value::String(text) => text
-                    .parse::<f64>()
-                    .map(Some)
-                    .map_err(|_| JsonImportError::from(JsonImportException::new("Invalid number value."))),
+                Value::String(text) => text.parse::<f64>().map(Some).map_err(|_| {
+                    JsonImportError::from(JsonImportException::new("Invalid number value."))
+                }),
                 Value::Null => Ok(None),
                 _ => Err(JsonImportError::from(JsonImportException::new(
                     "Invalid number value.".to_string(),
@@ -102,10 +98,7 @@ impl JsonAdapter {
         }
     }
 
-    pub fn opt_json_array<'a>(
-        obj: &'a Map<String, Value>,
-        key: &str,
-    ) -> Option<&'a Vec<Value>> {
+    pub fn opt_json_array<'a>(obj: &'a Map<String, Value>, key: &str) -> Option<&'a Vec<Value>> {
         obj.get(key)?.as_array()
     }
 
@@ -116,10 +109,7 @@ impl JsonAdapter {
         obj.get(key)?.as_object()
     }
 
-    pub fn opt_json_object_in_array(
-        arr: &[Value],
-        index: usize,
-    ) -> Option<&Map<String, Value>> {
+    pub fn opt_json_object_in_array(arr: &[Value], index: usize) -> Option<&Map<String, Value>> {
         arr.get(index)?.as_object()
     }
 

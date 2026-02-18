@@ -21,5 +21,8 @@ fn issue_548_inside_self_loop_case_does_not_panic() {
         .contained_edges()
         .iter()
         .all(|edge| !edge.borrow_mut().sections().is_empty());
-    assert!(all_edges_have_sections, "expected routed sections for self-loop edges");
+    assert!(
+        all_edges_have_sections,
+        "expected routed sections for self-loop edges"
+    );
 }

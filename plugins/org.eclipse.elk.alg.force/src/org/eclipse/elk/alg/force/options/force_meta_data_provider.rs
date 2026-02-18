@@ -119,8 +119,16 @@ fn register_supports(registry: &mut dyn LayoutMetaDataRegistry) {
     registry.add_option_support(algo, CoreOptions::SPACING_EDGE_LABEL.id(), arc_any(5.0_f64));
     registry.add_option_support(algo, CoreOptions::ASPECT_RATIO.id(), arc_any(1.6_f64));
     registry.add_option_support(algo, CoreOptions::RANDOM_SEED.id(), arc_any(1_i32));
-    registry.add_option_support(algo, CoreOptions::SEPARATE_CONNECTED_COMPONENTS.id(), arc_any(true));
-    registry.add_option_support(algo, CoreOptions::PADDING.id(), arc_any(ElkPadding::with_any(50.0)));
+    registry.add_option_support(
+        algo,
+        CoreOptions::SEPARATE_CONNECTED_COMPONENTS.id(),
+        arc_any(true),
+    );
+    registry.add_option_support(
+        algo,
+        CoreOptions::PADDING.id(),
+        arc_any(ElkPadding::with_any(50.0)),
+    );
     registry.add_option_support(algo, CoreOptions::INTERACTIVE.id(), None);
     registry.add_option_support(algo, CoreOptions::PORT_CONSTRAINTS.id(), None);
     registry.add_option_support(algo, CoreOptions::EDGE_LABELS_INLINE.id(), arc_any(false));
@@ -137,8 +145,16 @@ fn register_supports(registry: &mut dyn LayoutMetaDataRegistry) {
     registry.add_option_support(algo, ForceOptions::REPULSIVE_POWER.id(), None);
     registry.add_option_support(algo, CoreOptions::TOPDOWN_LAYOUT.id(), None);
     registry.add_option_support(algo, CoreOptions::TOPDOWN_SCALE_FACTOR.id(), None);
-    registry.add_option_support(algo, CoreOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH.id(), None);
-    registry.add_option_support(algo, CoreOptions::TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO.id(), None);
+    registry.add_option_support(
+        algo,
+        CoreOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH.id(),
+        None,
+    );
+    registry.add_option_support(
+        algo,
+        CoreOptions::TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO.id(),
+        None,
+    );
     registry.add_option_support(
         algo,
         CoreOptions::TOPDOWN_NODE_TYPE.id(),
@@ -191,6 +207,9 @@ fn property_default_any<T: Clone + Send + Sync + 'static>(
 fn init_reflect() {
     static INIT: OnceLock<()> = OnceLock::new();
     INIT.get_or_init(|| {
-        ElkReflect::register(Some(|| ForceModelStrategy::FruchtermanReingold), Some(|v: &ForceModelStrategy| *v));
+        ElkReflect::register(
+            Some(|| ForceModelStrategy::FruchtermanReingold),
+            Some(|v: &ForceModelStrategy| *v),
+        );
     });
 }

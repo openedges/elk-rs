@@ -43,7 +43,12 @@ fn issue_143_and_318_horizontal_segments_keep_vertical_distance() {
 }
 
 fn gather_horizontal_segments(graph: &ElkNodeRef) -> Vec<(usize, f64, f64, f64)> {
-    let edges: Vec<ElkEdgeRef> = graph.borrow_mut().contained_edges().iter().cloned().collect();
+    let edges: Vec<ElkEdgeRef> = graph
+        .borrow_mut()
+        .contained_edges()
+        .iter()
+        .cloned()
+        .collect();
     let mut segments = Vec::new();
 
     for (edge_index, edge) in edges.into_iter().enumerate() {

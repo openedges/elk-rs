@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 use std::panic::panic_any;
 
-use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LGraphRef, LGraphUtil, LNodeRef};
 use crate::org::eclipse::elk::alg::layered::graph::l_node::NodeType;
+use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LGraphRef, LGraphUtil, LNodeRef};
 use crate::org::eclipse::elk::alg::layered::options::LayeredOptions;
 
 /// Container for spacing values configured in core or layered options.
@@ -21,7 +21,10 @@ impl Spacings {
     pub fn new(graph: &LGraphRef) -> Self {
         let mut spacings = Spacings {
             graph: graph.clone(),
-            node_type_spacing_options_horizontal: vec![vec![None; NodeType::COUNT]; NodeType::COUNT],
+            node_type_spacing_options_horizontal: vec![
+                vec![None; NodeType::COUNT];
+                NodeType::COUNT
+            ],
             node_type_spacing_options_vertical: vec![vec![None; NodeType::COUNT]; NodeType::COUNT],
             graph_property_values: HashMap::new(),
         };

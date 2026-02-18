@@ -3,10 +3,10 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LGraph, NodeType as LNodeType};
+use crate::org::eclipse::elk::alg::layered::options::InternalProperties;
 use crate::org::eclipse::elk::alg::layered::options::{
     GraphProperties, InLayerConstraint, LayerConstraint, LayeredOptions,
 };
-use crate::org::eclipse::elk::alg::layered::options::InternalProperties;
 
 /// Interactive layout processor that assigns reasonable positions to external port dummy nodes.
 ///
@@ -113,7 +113,9 @@ impl ILayoutProcessor<LGraph> for InteractiveExternalPortPositioner {
 
 impl InteractiveExternalPortPositioner {
     /// Find Y coordinate for WEST ports by looking at target nodes
-    fn find_y_from_targets(node_ref: &crate::org::eclipse::elk::alg::layered::graph::LNodeRef) -> Option<f64> {
+    fn find_y_from_targets(
+        node_ref: &crate::org::eclipse::elk::alg::layered::graph::LNodeRef,
+    ) -> Option<f64> {
         if let Ok(node) = node_ref.lock() {
             for edge_ref in node.outgoing_edges() {
                 if let Ok(edge) = edge_ref.lock() {
@@ -135,7 +137,9 @@ impl InteractiveExternalPortPositioner {
     }
 
     /// Find Y coordinate for EAST ports by looking at source nodes
-    fn find_y_from_sources(node_ref: &crate::org::eclipse::elk::alg::layered::graph::LNodeRef) -> Option<f64> {
+    fn find_y_from_sources(
+        node_ref: &crate::org::eclipse::elk::alg::layered::graph::LNodeRef,
+    ) -> Option<f64> {
         if let Ok(node) = node_ref.lock() {
             for edge_ref in node.incoming_edges() {
                 if let Ok(edge) = edge_ref.lock() {
@@ -157,7 +161,9 @@ impl InteractiveExternalPortPositioner {
     }
 
     /// Find X coordinate for NORTH/SOUTH ports
-    fn find_north_south_x(node_ref: &crate::org::eclipse::elk::alg::layered::graph::LNodeRef) -> Option<f64> {
+    fn find_north_south_x(
+        node_ref: &crate::org::eclipse::elk::alg::layered::graph::LNodeRef,
+    ) -> Option<f64> {
         if let Ok(node) = node_ref.lock() {
             let ports = node.ports();
             if ports.is_empty() {
@@ -180,8 +186,9 @@ impl InteractiveExternalPortPositioner {
                                     if let Some(target_node_ref) = tp.node() {
                                         if let Ok(mut target_node) = target_node_ref.lock() {
                                             let pos = *target_node.shape().position();
-                                            let margins =
-                                                target_node.get_property(CoreOptions::MARGINS).unwrap_or_default();
+                                            let margins = target_node
+                                                .get_property(CoreOptions::MARGINS)
+                                                .unwrap_or_default();
                                             min = min.min(pos.x - margins.left);
                                         }
                                     }
@@ -205,8 +212,9 @@ impl InteractiveExternalPortPositioner {
                                         if let Ok(mut source_node) = source_node_ref.lock() {
                                             let pos = *source_node.shape().position();
                                             let size = *source_node.shape().size();
-                                            let margins =
-                                                source_node.get_property(CoreOptions::MARGINS).unwrap_or_default();
+                                            let margins = source_node
+                                                .get_property(CoreOptions::MARGINS)
+                                                .unwrap_or_default();
                                             max = max.max(pos.x + size.x + margins.right);
                                         }
                                     }

@@ -3,7 +3,9 @@ use std::sync::LazyLock;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
-use org_eclipse_elk_core::org::eclipse::elk::core::options::{Direction, EdgeRouting, PortConstraints, PortSide};
+use org_eclipse_elk_core::org::eclipse::elk::core::options::{
+    Direction, EdgeRouting, PortConstraints, PortSide,
+};
 
 pub struct LibavoidOptions;
 
@@ -108,9 +110,8 @@ pub static ENABLE_HYPEREDGES_FROM_COMMON_SOURCE_PROPERTY: LazyLock<Property<bool
 pub static IS_CLUSTER_PROPERTY: LazyLock<Property<bool>> =
     LazyLock::new(|| Property::with_default("org.eclipse.elk.alg.libavoid.isCluster", false));
 
-pub static PROCESS_TIMEOUT_PROPERTY: LazyLock<Property<i32>> = LazyLock::new(|| {
-    Property::with_default("org.eclipse.elk.alg.libavoid.processTimeout", 10000)
-});
+pub static PROCESS_TIMEOUT_PROPERTY: LazyLock<Property<i32>> =
+    LazyLock::new(|| Property::with_default("org.eclipse.elk.alg.libavoid.processTimeout", 10000));
 
 impl LibavoidOptions {
     pub const ALGORITHM_ID: &'static str = "org.eclipse.elk.alg.libavoid";
@@ -141,9 +142,9 @@ impl LibavoidOptions {
         &NUDGE_ORTHOGONAL_TOUCHING_COLINEAR_SEGMENTS_PROPERTY;
     pub const PERFORM_UNIFYING_NUDGING_PREPROCESSING_STEP: &'static LazyLock<Property<bool>> =
         &PERFORM_UNIFYING_NUDGING_PREPROCESSING_STEP_PROPERTY;
-    pub const IMPROVE_HYPEREDGE_ROUTES_MOVING_ADDING_AND_DELETING_JUNCTIONS:
-        &'static LazyLock<Property<bool>> =
-        &IMPROVE_HYPEREDGE_ROUTES_MOVING_ADDING_AND_DELETING_JUNCTIONS_PROPERTY;
+    pub const IMPROVE_HYPEREDGE_ROUTES_MOVING_ADDING_AND_DELETING_JUNCTIONS: &'static LazyLock<
+        Property<bool>,
+    > = &IMPROVE_HYPEREDGE_ROUTES_MOVING_ADDING_AND_DELETING_JUNCTIONS_PROPERTY;
     pub const NUDGE_SHARED_PATHS_WITH_COMMON_END_POINT: &'static LazyLock<Property<bool>> =
         &NUDGE_SHARED_PATHS_WITH_COMMON_END_POINT_PROPERTY;
     pub const ENABLE_HYPEREDGES_FROM_COMMON_SOURCE: &'static LazyLock<Property<bool>> =

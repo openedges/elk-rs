@@ -6,7 +6,7 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::{MapPropertyHol
 use crate::org::eclipse::elk::alg::mrtree::options::internal_properties::InternalProperties;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 
-use super::{TEdgeRef, TGraphRef, TGraphElement, TShape};
+use super::{TEdgeRef, TGraphElement, TGraphRef, TShape};
 
 pub type TNodeRef = Arc<Mutex<TNode>>;
 
@@ -125,14 +125,22 @@ impl TNode {
     }
 
     pub fn add_outgoing(&mut self, edge: TEdgeRef) {
-        if self.outgoing_edges.iter().any(|candidate| Arc::ptr_eq(candidate, &edge)) {
+        if self
+            .outgoing_edges
+            .iter()
+            .any(|candidate| Arc::ptr_eq(candidate, &edge))
+        {
             return;
         }
         self.outgoing_edges.push(edge);
     }
 
     pub fn add_incoming(&mut self, edge: TEdgeRef) {
-        if self.incoming_edges.iter().any(|candidate| Arc::ptr_eq(candidate, &edge)) {
+        if self
+            .incoming_edges
+            .iter()
+            .any(|candidate| Arc::ptr_eq(candidate, &edge))
+        {
             return;
         }
         self.incoming_edges.push(edge);

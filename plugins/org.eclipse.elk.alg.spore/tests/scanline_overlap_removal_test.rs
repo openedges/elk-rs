@@ -4,22 +4,25 @@ use std::sync::{Arc, Mutex};
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::spore::scanline_overlap_check::ScanlineOverlapCheck;
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::t_edge::TEdge;
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::utils::SVGImage;
-use org_eclipse_elk_core::org::eclipse::elk::core::math::ElkRectangle;
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
 use org_eclipse_elk_core::org::eclipse::elk::core::graph_layout_engine::IGraphLayoutEngine;
+use org_eclipse_elk_core::org::eclipse::elk::core::math::ElkRectangle;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::BasicProgressMonitor;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 
 use org_eclipse_elk_alg_spore::org::eclipse::elk::alg::spore::elk_graph_importer::ElkGraphImporter;
 use org_eclipse_elk_alg_spore::org::eclipse::elk::alg::spore::i_graph_importer::IGraphImporter;
+use org_eclipse_elk_alg_spore::org::eclipse::elk::alg::spore::options::{
+    SporeMetaDataProvider, SporeOverlapRemovalOptions,
+};
 use org_eclipse_elk_alg_spore::org::eclipse::elk::alg::spore::overlap_removal_layout_provider::OverlapRemovalLayoutProvider;
-use org_eclipse_elk_alg_spore::org::eclipse::elk::alg::spore::options::{SporeMetaDataProvider, SporeOverlapRemovalOptions};
 
 #[test]
 fn scanline_overlap_removal_test() {
     LayoutMetaDataService::get_instance();
-    LayoutMetaDataService::get_instance().register_layout_meta_data_provider(&SporeMetaDataProvider);
+    LayoutMetaDataService::get_instance()
+        .register_layout_meta_data_provider(&SporeMetaDataProvider);
     let graph_with_scanline = build_graph(true);
 
     let mut importer = ElkGraphImporter::new();
@@ -66,7 +69,10 @@ fn build_graph(run_scanline: bool) -> ElkNodeRef {
         .shape()
         .graph_element()
         .properties_mut()
-        .set_property(SporeOverlapRemovalOptions::OVERLAP_REMOVAL_RUN_SCANLINE, Some(run_scanline));
+        .set_property(
+            SporeOverlapRemovalOptions::OVERLAP_REMOVAL_RUN_SCANLINE,
+            Some(run_scanline),
+        );
 
     graph
 }
@@ -92,7 +98,10 @@ fn has_overlaps(graph: &ElkNodeRef) -> bool {
             let r1 = node_rect(&nodes[i]);
             let r2 = node_rect(&nodes[j]);
             if ElkRectangle::from_other(&r1).intersects(&r2) {
-                let dist = org_eclipse_elk_core::org::eclipse::elk::core::math::ElkMath::shortest_distance(&r1, &r2);
+                let dist =
+                    org_eclipse_elk_core::org::eclipse::elk::core::math::ElkMath::shortest_distance(
+                        &r1, &r2,
+                    );
                 if dist < 0.0 {
                     return true;
                 }

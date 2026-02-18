@@ -41,7 +41,10 @@ fn issue_905_edge_label_order_and_alignment_are_stable() {
         (center_x_b, center_y_b),
         (head_x_b, head_y_b),
     ] {
-        assert!(x.is_finite() && y.is_finite(), "edge label has non-finite coordinates");
+        assert!(
+            x.is_finite() && y.is_finite(),
+            "edge label has non-finite coordinates"
+        );
     }
 
     assert!(
@@ -69,7 +72,13 @@ fn load_issue_905_graph() -> (ElkNodeRef, ElkLabelRef, ElkLabelRef, ElkLabelRef)
     let graph = load_layered_graph_from_elkt(&path).expect("issue_905 resource should load");
     let edge = find_edge_by_identifier(&graph, "source", "target").expect("main edge should exist");
 
-    let labels: Vec<_> = edge.borrow_mut().element().labels().iter().cloned().collect();
+    let labels: Vec<_> = edge
+        .borrow_mut()
+        .element()
+        .labels()
+        .iter()
+        .cloned()
+        .collect();
     let mut tail = None;
     let mut center = None;
     let mut head = None;

@@ -93,8 +93,12 @@ impl FLabel {
         let (src, tgt) = {
             let edge_guard = edge.lock().ok();
             let Some(edge_guard) = edge_guard else { return };
-            let source = edge_guard.source().and_then(|node| node.lock().ok().map(|n| *n.position_ref()));
-            let target = edge_guard.target().and_then(|node| node.lock().ok().map(|n| *n.position_ref()));
+            let source = edge_guard
+                .source()
+                .and_then(|node| node.lock().ok().map(|n| *n.position_ref()));
+            let target = edge_guard
+                .target()
+                .and_then(|node| node.lock().ok().map(|n| *n.position_ref()));
             match (source, target) {
                 (Some(source), Some(target)) => (source, target),
                 _ => return,

@@ -5,7 +5,6 @@ use std::rc::Rc;
 use crate::org::eclipse::elk::core::abstract_layout_provider::AbstractLayoutProvider;
 use crate::org::eclipse::elk::core::data::LayoutAlgorithmData;
 
-
 pub trait ILayoutExecutionListener {
     fn layout_processor_ready(&self, processor: &dyn Any, graph: &dyn Any, is_root: bool);
     fn layout_processor_finished(&self, processor: &dyn Any, graph: &dyn Any, is_root: bool);
@@ -39,12 +38,16 @@ impl TestController {
         layout_provider: &mut dyn AbstractLayoutProvider,
     ) -> Result<(), String> {
         if self.installed.get() {
-            return Err("Test controller may be installed on only one layout provider at a time".to_string());
+            return Err(
+                "Test controller may be installed on only one layout provider at a time"
+                    .to_string(),
+            );
         }
 
         let Some(testable) = layout_provider.as_white_box_testable() else {
             return Err(
-                "Test controllers can only be installed on white-box testable layout algorithms".to_string(),
+                "Test controllers can only be installed on white-box testable layout algorithms"
+                    .to_string(),
             );
         };
 
@@ -61,23 +64,13 @@ impl TestController {
         self.installed.set(false);
     }
 
-    pub fn notify_processor_ready(
-        &self,
-        graph: &dyn Any,
-        processor: &dyn Any,
-        is_root: bool,
-    ) {
+    pub fn notify_processor_ready(&self, graph: &dyn Any, processor: &dyn Any, is_root: bool) {
         for listener in self.listeners.borrow().iter() {
             listener.layout_processor_ready(processor, graph, is_root);
         }
     }
 
-    pub fn notify_processor_finished(
-        &self,
-        graph: &dyn Any,
-        processor: &dyn Any,
-        is_root: bool,
-    ) {
+    pub fn notify_processor_finished(&self, graph: &dyn Any, processor: &dyn Any, is_root: bool) {
         for listener in self.listeners.borrow().iter() {
             listener.layout_processor_finished(processor, graph, is_root);
         }

@@ -9,8 +9,8 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 use crate::org::eclipse::elk::alg::rectpacking::options::{InternalProperties, RectPackingOptions};
 use crate::org::eclipse::elk::alg::rectpacking::p2packing::InitialPlacement;
 use crate::org::eclipse::elk::alg::rectpacking::rect_packing_layout_phases::RectPackingLayoutPhases;
-use crate::org::eclipse::elk::alg::rectpacking::util::{BlockStack, DrawingUtil};
 use crate::org::eclipse::elk::alg::rectpacking::util::rows_storage;
+use crate::org::eclipse::elk::alg::rectpacking::util::{BlockStack, DrawingUtil};
 
 pub struct SimplePlacement;
 
@@ -118,9 +118,15 @@ impl ILayoutPhase<RectPackingLayoutPhases, ElkNodeRef> for SimplePlacement {
             .shape()
             .graph_element()
             .properties_mut();
-        props.set_property(InternalProperties::ADDITIONAL_HEIGHT, Some(additional_height));
+        props.set_property(
+            InternalProperties::ADDITIONAL_HEIGHT,
+            Some(additional_height),
+        );
         props.set_property(InternalProperties::DRAWING_WIDTH, Some(width));
-        props.set_property(InternalProperties::DRAWING_HEIGHT, Some(height + additional_height));
+        props.set_property(
+            InternalProperties::DRAWING_HEIGHT,
+            Some(height + additional_height),
+        );
         let rows_key = rows_storage::store_rows(graph, rows);
         props.set_property(InternalProperties::ROWS, Some(rows_key));
 

@@ -8,7 +8,9 @@ use crate::org::eclipse::elk::alg::layered::options::{
 use super::aligned_layout::{BKAlignedLayout, HDirection, VDirection};
 use super::i_compactor::ICompactor;
 use super::neighborhood_information::NeighborhoodInformation;
-use super::threshold_strategy::{NullThresholdStrategy, SimpleThresholdStrategy, ThresholdStrategy};
+use super::threshold_strategy::{
+    NullThresholdStrategy, SimpleThresholdStrategy, ThresholdStrategy,
+};
 use super::util::{node_id, node_margin_bottom, node_margin_top, node_size_y};
 
 pub struct BKCompactor {
@@ -58,7 +60,9 @@ impl BKCompactor {
             return;
         }
 
-        let vdir = bal.vdir.expect("BK compactor requires a vertical direction");
+        let vdir = bal
+            .vdir
+            .expect("BK compactor requires a vertical direction");
 
         let mut is_initial_assignment = true;
         bal.y[root_id] = Some(0.0);
@@ -81,7 +85,12 @@ impl BKCompactor {
                 .ok()
                 .and_then(|node_guard| node_guard.layer());
             let layer_nodes = layer
-                .and_then(|layer| layer.lock().ok().map(|layer_guard| layer_guard.nodes().clone()))
+                .and_then(|layer| {
+                    layer
+                        .lock()
+                        .ok()
+                        .map(|layer_guard| layer_guard.nodes().clone())
+                })
                 .unwrap_or_default();
             let current_index = *ni.node_index.get(current).unwrap_or(&0);
             let layer_size = layer_nodes.len();
@@ -101,7 +110,9 @@ impl BKCompactor {
 
                 self.place_block(neighbor_root, bal, ni);
 
-                thresh = self.threshold_strategy.calculate_threshold(bal, thresh, root_id, current);
+                thresh = self
+                    .threshold_strategy
+                    .calculate_threshold(bal, thresh, root_id, current);
 
                 if bal.sink[root_id] == root_id {
                     bal.sink[root_id] = bal.sink[neighbor_root];
@@ -198,8 +209,7 @@ impl BKCompactor {
                             + node_size_y(&current_node)
                             + node_margin_bottom(&current_node)
                             + self.spacing_node_node
-                            - (bal.y[neighbor_root].unwrap_or(0.0)
-                                + bal.inner_shift[neighbor_id]
+                            - (bal.y[neighbor_root].unwrap_or(0.0) + bal.inner_shift[neighbor_id]
                                 - node_margin_top(&neighbor));
                         self.add_class_edge(sink_id, neighbor_sink_id, required_space);
                         if trace_place_block {
@@ -225,7 +235,9 @@ impl BKCompactor {
                     }
                 }
             } else {
-                thresh = self.threshold_strategy.calculate_threshold(bal, thresh, root_id, current);
+                thresh = self
+                    .threshold_strategy
+                    .calculate_threshold(bal, thresh, root_id, current);
             }
 
             current = bal.align[current];
@@ -249,11 +261,13 @@ impl BKCompactor {
     }
 
     fn add_class_edge(&mut self, source_id: usize, target_id: usize, separation: f64) {
-        if let std::collections::btree_map::Entry::Vacant(entry) = self.sink_nodes.entry(source_id) {
+        if let std::collections::btree_map::Entry::Vacant(entry) = self.sink_nodes.entry(source_id)
+        {
             entry.insert(ClassNode::new(source_id));
             self.sink_order.push(source_id);
         }
-        if let std::collections::btree_map::Entry::Vacant(entry) = self.sink_nodes.entry(target_id) {
+        if let std::collections::btree_map::Entry::Vacant(entry) = self.sink_nodes.entry(target_id)
+        {
             entry.insert(ClassNode::new(target_id));
             self.sink_order.push(target_id);
         }
@@ -288,12 +302,19 @@ impl BKCompactor {
         }
         let mut sinks: VecDeque<usize> = queue_order
             .into_iter()
-            .filter(|id| self.sink_nodes.get(id).is_some_and(|node| node.indegree == 0))
+            .filter(|id| {
+                self.sink_nodes
+                    .get(id)
+                    .is_some_and(|node| node.indegree == 0)
+            })
             .collect();
 
         while let Some(node_id) = sinks.pop_front() {
             let class_shift = {
-                let node = self.sink_nodes.get_mut(&node_id).expect("class node missing");
+                let node = self
+                    .sink_nodes
+                    .get_mut(&node_id)
+                    .expect("class node missing");
                 if node.class_shift.is_none() {
                     node.class_shift = Some(0.0);
                 }
@@ -334,7 +355,12 @@ impl BKCompactor {
         }
     }
 
-    fn apply_final_coordinates(&self, bal: &mut BKAlignedLayout, vdir: VDirection, nodes: &[LNodeRef]) {
+    fn apply_final_coordinates(
+        &self,
+        bal: &mut BKAlignedLayout,
+        vdir: VDirection,
+        nodes: &[LNodeRef],
+    ) {
         for node in nodes {
             let node_idx = node_id(node);
             let root_id = bal.root[node_idx];
@@ -355,8 +381,12 @@ impl BKCompactor {
 
 impl ICompactor for BKCompactor {
     fn horizontal_compaction(&mut self, bal: &mut BKAlignedLayout, ni: &NeighborhoodInformation) {
-        let vdir = bal.vdir.expect("BK compactor requires a vertical direction");
-        let hdir = bal.hdir.expect("BK compactor requires a horizontal direction");
+        let vdir = bal
+            .vdir
+            .expect("BK compactor requires a vertical direction");
+        let hdir = bal
+            .hdir
+            .expect("BK compactor requires a horizontal direction");
 
         for layer in &bal.layers {
             let nodes = layer

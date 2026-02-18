@@ -20,11 +20,7 @@ impl LayoutOptionProxy {
         }
     }
 
-    pub fn set_proxy_value(
-        property_holder: &mut MapPropertyHolder,
-        key: &str,
-        value: &str,
-    ) {
+    pub fn set_proxy_value(property_holder: &mut MapPropertyHolder, key: &str, value: &str) {
         let proxy = LayoutOptionProxy::new(value);
         property_holder.set_property_proxy(key.to_string(), Arc::new(proxy));
     }

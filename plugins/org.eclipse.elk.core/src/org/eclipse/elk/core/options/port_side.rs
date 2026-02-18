@@ -111,10 +111,11 @@ pub static SIDES_NORTH_SOUTH_WEST: LazyLock<EnumSet<PortSide>> =
     LazyLock::new(|| EnumSet::of(&[PortSide::North, PortSide::South, PortSide::West]));
 pub static SIDES_NORTH_EAST_SOUTH: LazyLock<EnumSet<PortSide>> =
     LazyLock::new(|| EnumSet::of(&[PortSide::North, PortSide::East, PortSide::South]));
-pub static SIDES_NORTH_EAST_SOUTH_WEST: LazyLock<EnumSet<PortSide>> =
-    LazyLock::new(|| EnumSet::of(&[
+pub static SIDES_NORTH_EAST_SOUTH_WEST: LazyLock<EnumSet<PortSide>> = LazyLock::new(|| {
+    EnumSet::of(&[
         PortSide::North,
         PortSide::East,
         PortSide::South,
         PortSide::West,
-    ]));
+    ])
+});

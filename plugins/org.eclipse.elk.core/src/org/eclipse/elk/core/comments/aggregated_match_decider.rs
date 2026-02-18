@@ -44,10 +44,7 @@ impl<T: 'static> AggregatedMatchDecider<T> {
         if values.is_empty() {
             panic!("Aggregator requires at least one value.");
         }
-        values
-            .iter()
-            .cloned()
-            .fold(f64::NEG_INFINITY, f64::max)
+        values.iter().cloned().fold(f64::NEG_INFINITY, f64::max)
     }
 
     pub fn min(values: &[f64]) -> f64 {

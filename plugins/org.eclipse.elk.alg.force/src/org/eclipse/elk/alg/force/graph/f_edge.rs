@@ -1,7 +1,9 @@
 use std::fmt;
 use std::sync::{Arc, Mutex, Weak};
 
-use org_eclipse_elk_core::org::eclipse::elk::core::math::{elk_math::ElkMath, kvector::KVector, kvector_chain::KVectorChain};
+use org_eclipse_elk_core::org::eclipse::elk::core::math::{
+    elk_math::ElkMath, kvector::KVector, kvector_chain::KVectorChain,
+};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::{MapPropertyHolder, Property};
 
 use super::{FBendpointRef, FLabelRef, FNodeRef};
@@ -184,7 +186,9 @@ impl fmt::Display for FEdge {
             .target()
             .and_then(|node| node.lock().ok().map(|node_guard| node_guard.to_string()));
         match (source_label, target_label) {
-            (Some(source_label), Some(target_label)) => write!(f, "{}->{}", source_label, target_label),
+            (Some(source_label), Some(target_label)) => {
+                write!(f, "{}->{}", source_label, target_label)
+            }
             _ => write!(f, "e_{:p}", self),
         }
     }

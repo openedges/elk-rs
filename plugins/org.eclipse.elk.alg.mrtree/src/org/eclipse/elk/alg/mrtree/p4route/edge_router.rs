@@ -9,7 +9,9 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::{IElkProgressMonitor, P
 
 use crate::org::eclipse::elk::alg::mrtree::graph::{TEdgeRef, TGraphRef, TNodeRef};
 use crate::org::eclipse::elk::alg::mrtree::intermediate::IntermediateProcessorStrategy;
-use crate::org::eclipse::elk::alg::mrtree::options::{EdgeRoutingMode, InternalProperties, MrTreeOptions};
+use crate::org::eclipse::elk::alg::mrtree::options::{
+    EdgeRoutingMode, InternalProperties, MrTreeOptions,
+};
 use crate::org::eclipse::elk::alg::mrtree::p4route::MultiLevelEdgeNodeNodeGap;
 use crate::org::eclipse::elk::alg::mrtree::tree_layout_phases::TreeLayoutPhases;
 use crate::org::eclipse::elk::alg::mrtree::tree_util::TreeUtil;
@@ -46,7 +48,11 @@ impl ILayoutPhase<TreeLayoutPhases, TGraphRef> for EdgeRouter {
             EdgeRoutingMode::MiddleToMiddle => self.middle_to_middle(graph),
             EdgeRoutingMode::AvoidOverlap => {
                 self.avoid_overlap(graph);
-                let edges = graph.lock().ok().map(|g| g.edges().clone()).unwrap_or_default();
+                let edges = graph
+                    .lock()
+                    .ok()
+                    .map(|g| g.edges().clone())
+                    .unwrap_or_default();
                 for edge in edges {
                     if edge
                         .lock()
@@ -80,7 +86,11 @@ impl ILayoutPhase<TreeLayoutPhases, TGraphRef> for EdgeRouter {
 
 impl EdgeRouter {
     fn middle_to_middle(&self, graph: &TGraphRef) {
-        let edges = graph.lock().ok().map(|g| g.edges().clone()).unwrap_or_default();
+        let edges = graph
+            .lock()
+            .ok()
+            .map(|g| g.edges().clone())
+            .unwrap_or_default();
         for edge in edges {
             self.middle_to_middle_edge_route(&edge);
         }
@@ -94,13 +104,19 @@ impl EdgeRouter {
             };
             (edge_guard.source(), edge_guard.target())
         };
-        let (Some(source), Some(target)) = (source, target) else { return };
+        let (Some(source), Some(target)) = (source, target) else {
+            return;
+        };
 
         let (source_point, target_point, source_size, target_size) = {
             let source_guard = source.lock().ok();
             let target_guard = target.lock().ok();
-            let Some(source_guard) = source_guard else { return };
-            let Some(target_guard) = target_guard else { return };
+            let Some(source_guard) = source_guard else {
+                return;
+            };
+            let Some(target_guard) = target_guard else {
+                return;
+            };
             let source_pos = source_guard.position_ref();
             let source_size = *source_guard.size_ref();
             let target_pos = target_guard.position_ref();
@@ -184,17 +200,20 @@ impl EdgeRouter {
         let mut side_two_edges = 0;
         let mut node_gaps: HashMap<u64, MultiLevelEdgeNodeNodeGap> = HashMap::new();
 
-        let nodes = graph.lock().ok().map(|g| g.nodes().clone()).unwrap_or_default();
-        let max_level = nodes
-            .iter()
-            .map(node_level)
-            .max()
-            .unwrap_or(0)
-            + 1;
+        let nodes = graph
+            .lock()
+            .ok()
+            .map(|g| g.nodes().clone())
+            .unwrap_or_default();
+        let max_level = nodes.iter().map(node_level).max().unwrap_or(0) + 1;
         let mut outs_per_level = vec![0_i32; max_level.max(0) as usize];
         let mut ins_per_level = vec![0_i32; max_level.max(0) as usize];
 
-        let edges = graph.lock().ok().map(|g| g.edges().clone()).unwrap_or_default();
+        let edges = graph
+            .lock()
+            .ok()
+            .map(|g| g.edges().clone())
+            .unwrap_or_default();
         let mut seen: HashSet<usize> = HashSet::new();
         for edge in edges
             .into_iter()
@@ -204,7 +223,9 @@ impl EdgeRouter {
                 Some(guard) => (guard.source(), guard.target()),
                 None => (None, None),
             };
-            let (Some(source), Some(target)) = (source, target) else { continue };
+            let (Some(source), Some(target)) = (source, target) else {
+                continue;
+            };
 
             let source_level = node_level(&source);
             let target_level = node_level(&target);
@@ -245,7 +266,12 @@ impl EdgeRouter {
                         } else {
                             source_pos.x * (1.0 - interpolation) + target_pos.x * interpolation
                         };
-                        if (if direction.is_horizontal() { pos.y } else { pos.x }) > projection {
+                        if (if direction.is_horizontal() {
+                            pos.y
+                        } else {
+                            pos.x
+                        }) > projection
+                        {
                             break;
                         }
                         index += 1;
@@ -268,10 +294,16 @@ impl EdgeRouter {
                         let first_node = next_level_nodes.first().unwrap();
                         let last_pos = node_pos(last_node);
                         let last_size = node_size(last_node);
-                        let last = KVector::with_values(last_pos.x + last_size.x, last_pos.y + last_size.y);
+                        let last = KVector::with_values(
+                            last_pos.x + last_size.x,
+                            last_pos.y + last_size.y,
+                        );
                         let first_pos = node_pos(first_node);
                         let first_size = node_size(first_node);
-                        let first = KVector::with_values(first_pos.x + first_size.x, first_pos.y + first_size.y);
+                        let first = KVector::with_values(
+                            first_pos.x + first_size.x,
+                            first_pos.y + first_size.y,
+                        );
 
                         if direction.is_horizontal() {
                             if index >= next_level_nodes.len().saturating_sub(1)
@@ -307,7 +339,10 @@ impl EdgeRouter {
                         }
                         None => (None, None),
                     };
-                    let (Some(first_index), Some(second_index)) = (first_index, second_index) else { continue };
+                    let (Some(first_index), Some(second_index)) = (first_index, second_index)
+                    else {
+                        continue;
+                    };
 
                     let key = TreeUtil::get_unique_long(cur_level, index as i32);
                     let neighbor_one = if index == 0 {
@@ -461,11 +496,17 @@ impl EdgeRouter {
                 let level_min = node_level_min(&source);
                 bends.add_values(level_min - node_bendpoint_padding, bend_tmp);
                 bends.add_values(
-                    target_pos.x + target_size.x + node_bendpoint_padding + edge_end_texture_padding,
+                    target_pos.x
+                        + target_size.x
+                        + node_bendpoint_padding
+                        + edge_end_texture_padding,
                     bend_tmp,
                 );
                 bends.add_values(
-                    target_pos.x + target_size.x + node_bendpoint_padding + edge_end_texture_padding,
+                    target_pos.x
+                        + target_size.x
+                        + node_bendpoint_padding
+                        + edge_end_texture_padding,
                     target_pos.y + target_size.y / 2.0,
                 );
                 bends.add_values(
@@ -474,7 +515,10 @@ impl EdgeRouter {
                 );
             } else if direction == Direction::Right {
                 let level_max = node_level_max(&source);
-                bends.add_values(level_max + node_bendpoint_padding, source_pos.y + source_size.y / 2.0);
+                bends.add_values(
+                    level_max + node_bendpoint_padding,
+                    source_pos.y + source_size.y / 2.0,
+                );
                 bends.add_values(
                     source_pos.x + source_size.x + node_bendpoint_padding,
                     bend_tmp,
@@ -493,11 +537,17 @@ impl EdgeRouter {
                 bends.add_values(bend_tmp, level_min - node_bendpoint_padding);
                 bends.add_values(
                     bend_tmp,
-                    target_pos.y + target_size.y + node_bendpoint_padding + edge_end_texture_padding,
+                    target_pos.y
+                        + target_size.y
+                        + node_bendpoint_padding
+                        + edge_end_texture_padding,
                 );
                 bends.add_values(
                     target_pos.x + target_size.x / 2.0,
-                    target_pos.y + target_size.y + node_bendpoint_padding + edge_end_texture_padding,
+                    target_pos.y
+                        + target_size.y
+                        + node_bendpoint_padding
+                        + edge_end_texture_padding,
                 );
                 bends.add_values(
                     target_pos.x + target_size.x / 2.0,
@@ -506,8 +556,8 @@ impl EdgeRouter {
             } else {
                 if !bends.is_empty() {
                     let mut last = bends.get_last();
-                    last.y = node_level_max(&source)
-                        + node_bendpoint_padding * *in_outs.second() as f64;
+                    last.y =
+                        node_level_max(&source) + node_bendpoint_padding * *in_outs.second() as f64;
                     bends.set(bends.len() - 1, last);
                 }
                 bends.add_values(
@@ -516,7 +566,8 @@ impl EdgeRouter {
                 );
                 bends.add_values(
                     bend_tmp,
-                    target_pos.y - node_bendpoint_padding * *in_outs.first() as f64
+                    target_pos.y
+                        - node_bendpoint_padding * *in_outs.first() as f64
                         - edge_end_texture_padding,
                 );
             }
@@ -531,7 +582,11 @@ impl EdgeRouter {
         direction: Direction,
         node_bendpoint_padding: f64,
     ) {
-        let nodes = graph.lock().ok().map(|g| g.nodes().clone()).unwrap_or_default();
+        let nodes = graph
+            .lock()
+            .ok()
+            .map(|g| g.nodes().clone())
+            .unwrap_or_default();
         for node in nodes {
             if is_super_root(&node) {
                 continue;
@@ -559,7 +614,9 @@ impl EdgeRouter {
                 let skip = node
                     .lock()
                     .ok()
-                    .and_then(|mut guard| guard.get_property(InternalProperties::COMPACT_LEVEL_ASCENSION))
+                    .and_then(|mut guard| {
+                        guard.get_property(InternalProperties::COMPACT_LEVEL_ASCENSION)
+                    })
                     .unwrap_or(false);
                 if skip && !TreeUtil::is_cycle_inducing(edge, graph) {
                     continue;
@@ -580,10 +637,7 @@ impl EdgeRouter {
                     if direction == Direction::Left {
                         let y = pos.y + size.y * interpolation;
                         let level_end = level_min;
-                        bends.add_first_values(
-                            level_end.min(pos.x - node_bendpoint_padding),
-                            y,
-                        );
+                        bends.add_first_values(level_end.min(pos.x - node_bendpoint_padding), y);
                         bends.add_first_values(pos.x, y);
                     } else if direction == Direction::Right {
                         let y = pos.y + size.y * interpolation;
@@ -613,7 +667,11 @@ impl EdgeRouter {
         node_bendpoint_padding: f64,
         edge_end_texture_padding: f64,
     ) {
-        let nodes = graph.lock().ok().map(|g| g.nodes().clone()).unwrap_or_default();
+        let nodes = graph
+            .lock()
+            .ok()
+            .map(|g| g.nodes().clone())
+            .unwrap_or_default();
         for node in nodes {
             if is_super_root(&node) {
                 continue;
@@ -663,21 +721,27 @@ impl EdgeRouter {
                             let last = bends.get_last();
                             let next_x = pos.x + size.x / 2.0;
                             let next_y = pos.y + size.y / 2.0;
-                            let denom = (last.x - next_x).abs() / Self::STEEP_END_EDGE_SAMPLE_HEIGHT;
+                            let denom =
+                                (last.x - next_x).abs() / Self::STEEP_END_EDGE_SAMPLE_HEIGHT;
                             if edge_end_texture_padding > 0.0
                                 && (last.y - next_y).abs() / denom
                                     > Self::STEEP_END_EDGE_THRESHOLD_DISTANCE
                             {
                                 if next_y > last.y {
                                     bends.add_values(
-                                        pos.x + size.x + edge_end_texture_padding / Self::STEEP_END_EDGE_RATIO,
+                                        pos.x
+                                            + size.x
+                                            + edge_end_texture_padding / Self::STEEP_END_EDGE_RATIO,
                                         pos.y + size.y * interpolation
                                             - edge_end_texture_padding / 2.0,
                                     );
                                 } else {
                                     bends.add_values(
-                                        pos.x + size.x + edge_end_texture_padding / Self::STEEP_END_EDGE_RATIO,
-                                        pos.y + size.y * interpolation
+                                        pos.x
+                                            + size.x
+                                            + edge_end_texture_padding / Self::STEEP_END_EDGE_RATIO,
+                                        pos.y
+                                            + size.y * interpolation
                                             + edge_end_texture_padding / 2.0,
                                     );
                                 }
@@ -694,21 +758,25 @@ impl EdgeRouter {
                             let last = bends.get_last();
                             let next_x = pos.x + size.x / 2.0;
                             let next_y = pos.y + size.y / 2.0;
-                            let denom = (last.x - next_x).abs() / Self::STEEP_END_EDGE_SAMPLE_HEIGHT;
+                            let denom =
+                                (last.x - next_x).abs() / Self::STEEP_END_EDGE_SAMPLE_HEIGHT;
                             if edge_end_texture_padding > 0.0
                                 && (last.y - next_y).abs() / denom
                                     > Self::STEEP_END_EDGE_THRESHOLD_DISTANCE
                             {
                                 if next_y > last.y {
                                     bends.add_values(
-                                        pos.x - edge_end_texture_padding / Self::STEEP_END_EDGE_RATIO,
+                                        pos.x
+                                            - edge_end_texture_padding / Self::STEEP_END_EDGE_RATIO,
                                         pos.y + size.y * interpolation
                                             - edge_end_texture_padding / 2.0,
                                     );
                                 } else {
                                     bends.add_values(
-                                        pos.x - edge_end_texture_padding / Self::STEEP_END_EDGE_RATIO,
-                                        pos.y + size.y * interpolation
+                                        pos.x
+                                            - edge_end_texture_padding / Self::STEEP_END_EDGE_RATIO,
+                                        pos.y
+                                            + size.y * interpolation
                                             + edge_end_texture_padding / 2.0,
                                     );
                                 }
@@ -725,20 +793,28 @@ impl EdgeRouter {
                             let last = bends.get_last();
                             let next_x = pos.x + size.x / 2.0;
                             let next_y = pos.y + size.y / 2.0;
-                            let denom = (last.y - next_y).abs() / Self::STEEP_END_EDGE_SAMPLE_HEIGHT;
+                            let denom =
+                                (last.y - next_y).abs() / Self::STEEP_END_EDGE_SAMPLE_HEIGHT;
                             if edge_end_texture_padding > 0.0
                                 && (last.x - next_x).abs() / denom
                                     > Self::STEEP_END_EDGE_THRESHOLD_DISTANCE
                             {
                                 if next_x > last.x {
                                     bends.add_values(
-                                        pos.x + size.x * interpolation - edge_end_texture_padding / 2.0,
-                                        pos.y + edge_end_texture_padding / Self::STEEP_END_EDGE_RATIO + size.y,
+                                        pos.x + size.x * interpolation
+                                            - edge_end_texture_padding / 2.0,
+                                        pos.y
+                                            + edge_end_texture_padding / Self::STEEP_END_EDGE_RATIO
+                                            + size.y,
                                     );
                                 } else {
                                     bends.add_values(
-                                        pos.x + size.x * interpolation + edge_end_texture_padding / 2.0,
-                                        pos.y + edge_end_texture_padding / Self::STEEP_END_EDGE_RATIO + size.y,
+                                        pos.x
+                                            + size.x * interpolation
+                                            + edge_end_texture_padding / 2.0,
+                                        pos.y
+                                            + edge_end_texture_padding / Self::STEEP_END_EDGE_RATIO
+                                            + size.y,
                                     );
                                 }
                             }
@@ -747,7 +823,8 @@ impl EdgeRouter {
                     } else {
                         if is_cycle_inducing {
                             if !bends.is_empty() {
-                                bends.add_values(pos.x + size.x * interpolation, bends.get_last().y);
+                                bends
+                                    .add_values(pos.x + size.x * interpolation, bends.get_last().y);
                             }
                         } else if pos.y - edge_end_texture_padding > level_min {
                             bends.add_values(
@@ -758,20 +835,26 @@ impl EdgeRouter {
                             let last = bends.get_last();
                             let next_x = pos.x + size.x / 2.0;
                             let next_y = pos.y + size.y / 2.0;
-                            let denom = (last.y - next_y).abs() / Self::STEEP_END_EDGE_SAMPLE_HEIGHT;
+                            let denom =
+                                (last.y - next_y).abs() / Self::STEEP_END_EDGE_SAMPLE_HEIGHT;
                             if edge_end_texture_padding > 0.0
                                 && (last.x - next_x).abs() / denom
                                     > Self::STEEP_END_EDGE_THRESHOLD_DISTANCE
                             {
                                 if next_x > last.x {
                                     bends.add_values(
-                                        pos.x + size.x * interpolation - edge_end_texture_padding / 2.0,
-                                        pos.y - edge_end_texture_padding / Self::STEEP_END_EDGE_RATIO,
+                                        pos.x + size.x * interpolation
+                                            - edge_end_texture_padding / 2.0,
+                                        pos.y
+                                            - edge_end_texture_padding / Self::STEEP_END_EDGE_RATIO,
                                     );
                                 } else {
                                     bends.add_values(
-                                        pos.x + size.x * interpolation + edge_end_texture_padding / 2.0,
-                                        pos.y - edge_end_texture_padding / Self::STEEP_END_EDGE_RATIO,
+                                        pos.x
+                                            + size.x * interpolation
+                                            + edge_end_texture_padding / 2.0,
+                                        pos.y
+                                            - edge_end_texture_padding / Self::STEEP_END_EDGE_RATIO,
                                     );
                                 }
                             }
@@ -849,7 +932,11 @@ fn graph_bounds(graph: &TGraphRef) -> (f64, f64, f64, f64) {
 }
 
 fn average_center(graph: &TGraphRef, horizontal: bool) -> f64 {
-    let nodes = graph.lock().ok().map(|g| g.nodes().clone()).unwrap_or_default();
+    let nodes = graph
+        .lock()
+        .ok()
+        .map(|g| g.nodes().clone())
+        .unwrap_or_default();
     if nodes.is_empty() {
         return 0.0;
     }
@@ -867,7 +954,11 @@ fn average_center(graph: &TGraphRef, horizontal: bool) -> f64 {
 }
 
 fn max_node_extent(graph: &TGraphRef, horizontal: bool, padding: f64) -> f64 {
-    let nodes = graph.lock().ok().map(|g| g.nodes().clone()).unwrap_or_default();
+    let nodes = graph
+        .lock()
+        .ok()
+        .map(|g| g.nodes().clone())
+        .unwrap_or_default();
     let mut max_val = f64::MIN;
     for node in nodes {
         let pos = node_pos(&node);
@@ -881,11 +972,19 @@ fn max_node_extent(graph: &TGraphRef, horizontal: bool, padding: f64) -> f64 {
             max_val = val;
         }
     }
-    if max_val == f64::MIN { 0.0 } else { max_val }
+    if max_val == f64::MIN {
+        0.0
+    } else {
+        max_val
+    }
 }
 
 fn min_node_extent(graph: &TGraphRef, horizontal: bool, padding: f64) -> f64 {
-    let nodes = graph.lock().ok().map(|g| g.nodes().clone()).unwrap_or_default();
+    let nodes = graph
+        .lock()
+        .ok()
+        .map(|g| g.nodes().clone())
+        .unwrap_or_default();
     let mut min_val = f64::MAX;
     for node in nodes {
         let pos = node_pos(&node);
@@ -898,5 +997,9 @@ fn min_node_extent(graph: &TGraphRef, horizontal: bool, padding: f64) -> f64 {
             min_val = val;
         }
     }
-    if min_val == f64::MAX { 0.0 } else { min_val }
+    if min_val == f64::MAX {
+        0.0
+    } else {
+        min_val
+    }
 }

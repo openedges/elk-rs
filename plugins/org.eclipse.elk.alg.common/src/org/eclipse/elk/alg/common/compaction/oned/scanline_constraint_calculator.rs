@@ -33,13 +33,9 @@ impl ScanlineConstraintCalculator {
         }
 
         let mut handler = ConstraintsScanlineHandler::new(nodes.len());
-        Scanline::execute(
-            points,
-            timestamp_cmp,
-            &mut |timestamp: &Timestamp| {
-                handler.handle(timestamp, compactor);
-            },
-        );
+        Scanline::execute(points, timestamp_cmp, &mut |timestamp: &Timestamp| {
+            handler.handle(timestamp, compactor);
+        });
     }
 }
 
@@ -139,7 +135,8 @@ impl ConstraintsScanlineHandler {
             }
         }
 
-        self.intervals.retain(|candidate| !Rc::ptr_eq(candidate, node));
+        self.intervals
+            .retain(|candidate| !Rc::ptr_eq(candidate, node));
 
         if let Some(floor) = self.floor(node) {
             if overlap(node, &floor) {

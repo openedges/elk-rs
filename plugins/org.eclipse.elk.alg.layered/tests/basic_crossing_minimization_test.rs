@@ -167,7 +167,10 @@ fn record_layer_assignment(graph: &LGraphRef) -> HashMap<usize, HashSet<usize>> 
                 .ok()
                 .map(|layer_guard| layer_guard.nodes().clone())
                 .unwrap_or_default();
-            let node_keys = nodes.iter().map(|node| Arc::as_ptr(node) as usize).collect();
+            let node_keys = nodes
+                .iter()
+                .map(|node| Arc::as_ptr(node) as usize)
+                .collect();
             assignment.insert(layer_key, node_keys);
         }
     }

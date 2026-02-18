@@ -8,11 +8,11 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LMargin, LPortRef, NodeType};
-use crate::org::eclipse::elk::alg::layered::intermediate::loops::{
-    Alignment, PolylineSelfLoopRouter, SelfHyperLoopRef, SelfLoopEdgeRef, SelfLoopHolderRef,
-};
 use crate::org::eclipse::elk::alg::layered::intermediate::loops::routing::{
     LabelPlacer, RoutingDirector, RoutingSlotAssigner,
+};
+use crate::org::eclipse::elk::alg::layered::intermediate::loops::{
+    Alignment, PolylineSelfLoopRouter, SelfHyperLoopRef, SelfLoopEdgeRef, SelfLoopHolderRef,
 };
 use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions};
 use crate::org::eclipse::elk::alg::layered::p5edges::splines::{NubSpline, SplinesMath};
@@ -36,7 +36,9 @@ impl ILayoutProcessor<LGraph> for SelfLoopRouter {
             .get_property(LayeredOptions::EDGE_ROUTING)
             .unwrap_or(EdgeRouting::Orthogonal);
         let label_manager = graph.get_property(LabelManagementOptions::LABEL_MANAGER);
-        let mut random = graph.get_property(InternalProperties::RANDOM).unwrap_or_default();
+        let mut random = graph
+            .get_property(InternalProperties::RANDOM)
+            .unwrap_or_default();
         let edge_edge_distance = graph
             .get_property(LayeredOptions::SPACING_EDGE_EDGE)
             .unwrap_or(10.0);
@@ -157,8 +159,29 @@ fn route_node(
                 .map(|port_guard| port_guard.l_port().clone())
                 .unwrap_or_else(|| panic!("self loop target lock poisoned"));
 
-            let source_point = route_point_for_port(&source_port, &routing_slot_positions, sl_loop, node_size);
-            let target_point = route_point_for_port(&target_port, &routing_slot_positions, sl_loop, node_size);
+            let inside_self_loop_yo = l_edge
+                .lock()
+                .ok()
+                .and_then(|mut edge_guard| edge_guard.get_property(CoreOptions::INSIDE_SELF_LOOPS_YO))
+                .unwrap_or(false);
+            if std::env::var_os("ELK_TRACE_INSIDE_YO").is_some() {
+                let edge_key = std::sync::Arc::as_ptr(&l_edge) as usize;
+                eprintln!(
+                    "[self-loop-router] edge={} inside_self_loop_yo={}",
+                    edge_key, inside_self_loop_yo
+                );
+            }
+            if inside_self_loop_yo {
+                if let Ok(mut edge_guard) = l_edge.lock() {
+                    edge_guard.bend_points().clear();
+                }
+                continue;
+            }
+
+            let source_point =
+                route_point_for_port(&source_port, &routing_slot_positions, sl_loop, node_size);
+            let target_point =
+                route_point_for_port(&target_port, &routing_slot_positions, sl_loop, node_size);
             let (Some(source_point), Some(target_point)) = (source_point, target_point) else {
                 continue;
             };
@@ -173,7 +196,11 @@ fn route_node(
                 &routing_slot_positions,
             );
             let clockwise = compute_edge_routing_direction(
-                sl_loop, &source_port, &target_port, source_point.side, target_point.side,
+                sl_loop,
+                &source_port,
+                &target_port,
+                source_point.side,
+                target_point.side,
             );
             let path = modify_bend_points(
                 edge_routing,
@@ -219,7 +246,12 @@ fn compute_routing_slot_positions(
     node_self_loop_distance: f64,
 ) -> Vec<Vec<f64>> {
     let mut positions = vec![Vec::new(); 5];
-    for side in [PortSide::North, PortSide::East, PortSide::South, PortSide::West] {
+    for side in [
+        PortSide::North,
+        PortSide::East,
+        PortSide::South,
+        PortSide::West,
+    ] {
         let count = routing_slot_count
             .get(side_index(side))
             .copied()
@@ -231,7 +263,12 @@ fn compute_routing_slot_positions(
     initialize_max_label_height(&mut positions, hyper_loops, PortSide::North);
     initialize_max_label_height(&mut positions, hyper_loops, PortSide::South);
 
-    for side in [PortSide::North, PortSide::East, PortSide::South, PortSide::West] {
+    for side in [
+        PortSide::North,
+        PortSide::East,
+        PortSide::South,
+        PortSide::West,
+    ] {
         let side_positions = &mut positions[side_index(side)];
         let mut curr_pos = baseline_position(side, node_size, node_margin, node_self_loop_distance);
         let factor = if side == PortSide::North || side == PortSide::West {
@@ -268,7 +305,10 @@ fn initialize_max_label_height(
                 if labels.side() != side {
                     return None;
                 }
-                Some((loop_guard.routing_slot(side).max(0) as usize, labels.size().y))
+                Some((
+                    loop_guard.routing_slot(side).max(0) as usize,
+                    labels.size().y,
+                ))
             })
             .unwrap_or((usize::MAX, 0.0));
         if slot == usize::MAX {
@@ -309,7 +349,13 @@ fn compute_orthogonal_bend_points(
     push_point(&mut points, source.outer_anchor);
 
     if source.side != target.side {
-        let clockwise = compute_edge_routing_direction(sl_loop, source_port, target_port, source.side, target.side);
+        let clockwise = compute_edge_routing_direction(
+            sl_loop,
+            source_port,
+            target_port,
+            source.side,
+            target.side,
+        );
         let mut curr_side = source.side;
         while curr_side != target.side {
             let next_side = if clockwise {
@@ -397,7 +443,11 @@ fn modify_bend_points(
                     spline_points.add_vector(mid);
 
                     first_bp = second_bp;
-                    curr_side = if clockwise { curr_side.right() } else { curr_side.left() };
+                    curr_side = if clockwise {
+                        curr_side.right()
+                    } else {
+                        curr_side.left()
+                    };
                 }
 
                 spline_points.add_vector(bend_points.last().unwrap().clone());
@@ -531,7 +581,9 @@ fn place_loop_labels(
             label
                 .lock()
                 .ok()
-                .and_then(|mut label_guard| label_guard.get_property(LayeredOptions::EDGE_LABELS_INLINE))
+                .and_then(|mut label_guard| {
+                    label_guard.get_property(LayeredOptions::EDGE_LABELS_INLINE)
+                })
                 .unwrap_or(false)
         });
 
@@ -547,7 +599,11 @@ fn place_loop_labels(
 
     let lane_position = slot_position(side, slot, routing_slot_positions).unwrap_or_default();
     let local = local_position(node_size, label_size, alignment, align_ref);
-    let label_distance = if inline_labels { 0.0 } else { edge_label_distance };
+    let label_distance = if inline_labels {
+        0.0
+    } else {
+        edge_label_distance
+    };
 
     let mut relative = KVector::new();
     match side {
@@ -575,10 +631,8 @@ fn place_loop_labels(
             *labels.position_mut() = relative;
             labels.apply_placement(KVector::new());
             let local_top_left = relative;
-            let local_bottom_right = KVector::with_values(
-                relative.x + labels.size().x,
-                relative.y + labels.size().y,
-            );
+            let local_bottom_right =
+                KVector::with_values(relative.x + labels.size().x, relative.y + labels.size().y);
             update_margins_with_point(node_size, margins, &local_top_left);
             update_margins_with_point(node_size, margins, &local_bottom_right);
         }
@@ -598,7 +652,10 @@ fn route_point_for_port(
             (pos.x, pos.y)
         };
         let anchor = *port_guard.anchor_ref();
-        (side, KVector::with_values(pos_x + anchor.x, pos_y + anchor.y))
+        (
+            side,
+            KVector::with_values(pos_x + anchor.x, pos_y + anchor.y),
+        )
     })?;
 
     if side == PortSide::Undefined {

@@ -1,4 +1,7 @@
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 
 use org_eclipse_elk_core::org::eclipse::elk::core::service::util::{
     IMonitoredOperation, MonitoredOperation, OperationStatus,

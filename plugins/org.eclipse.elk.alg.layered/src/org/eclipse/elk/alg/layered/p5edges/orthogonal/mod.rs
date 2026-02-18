@@ -7,6 +7,8 @@ pub mod orthogonal_routing_generator;
 
 pub use hyper_edge_cycle_detector::HyperEdgeCycleDetector;
 pub use hyper_edge_segment::{HyperEdgeSegment, HyperEdgeSegmentRef};
-pub use hyper_edge_segment_dependency::{HyperEdgeSegmentDependency, HyperEdgeSegmentDependencyRef};
+pub use hyper_edge_segment_dependency::{
+    HyperEdgeSegmentDependency, HyperEdgeSegmentDependencyRef,
+};
 pub use hyper_edge_segment_splitter::HyperEdgeSegmentSplitter;
 pub use orthogonal_routing_generator::OrthogonalRoutingGenerator;

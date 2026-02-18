@@ -53,6 +53,7 @@ struct Config {
     rust_layout_dir: PathBuf,
     pretty_print: bool,
     stop_on_error: bool,
+    progress_log: Option<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -72,7 +73,8 @@ fn print_usage() {
     --output-manifest <path> \\
     --rust-layout-dir <path> \\
     [--pretty-print <true|false>] \\
-    [--stop-on-error <true|false>]"
+    [--stop-on-error <true|false>] \\
+    [--progress-log <path>]"
     );
 }
 
@@ -96,6 +98,7 @@ fn parse_args() -> Result<Config, String> {
     let mut rust_layout_dir: Option<PathBuf> = None;
     let mut pretty_print = false;
     let mut stop_on_error = false;
+    let mut progress_log: Option<PathBuf> = None;
 
     let mut index = 1usize;
     while index < args.len() {
@@ -136,6 +139,13 @@ fn parse_args() -> Result<Config, String> {
                     .ok_or_else(|| "missing value for --stop-on-error".to_string())?;
                 stop_on_error = parse_bool_flag(value, "--stop-on-error")?;
             }
+            "--progress-log" => {
+                index += 1;
+                let value = args
+                    .get(index)
+                    .ok_or_else(|| "missing value for --progress-log".to_string())?;
+                progress_log = Some(PathBuf::from(value));
+            }
             _ => {
                 return Err(format!("unknown argument: {flag}"));
             }
@@ -153,6 +163,7 @@ fn parse_args() -> Result<Config, String> {
         rust_layout_dir,
         pretty_print,
         stop_on_error,
+        progress_log,
     })
 }
 
@@ -301,10 +312,18 @@ fn run_layout_case(
     random_seed_override: Option<i32>,
 ) -> Result<(), String> {
     let result = panic::catch_unwind(AssertUnwindSafe(|| -> Result<(), String> {
-        let input_text = fs::read_to_string(input_json_path)
-            .map_err(|err| format!("failed to read input json {}: {err}", input_json_path.display()))?;
-        let input_value: Value = serde_json::from_str(&input_text)
-            .map_err(|err| format!("failed to parse input json {}: {err}", input_json_path.display()))?;
+        let input_text = fs::read_to_string(input_json_path).map_err(|err| {
+            format!(
+                "failed to read input json {}: {err}",
+                input_json_path.display()
+            )
+        })?;
+        let input_value: Value = serde_json::from_str(&input_text).map_err(|err| {
+            format!(
+                "failed to parse input json {}: {err}",
+                input_json_path.display()
+            )
+        })?;
 
         let shared = Rc::new(RefCell::new(input_value));
         let mut importer_slot: Maybe<JsonImporter> = Maybe::default();
@@ -367,7 +386,10 @@ fn run_layout_case(
 
     match result {
         Ok(inner) => inner,
-        Err(payload) => Err(format!("panic during layout: {}", panic_payload_to_string(payload.as_ref()))),
+        Err(payload) => Err(format!(
+            "panic during layout: {}",
+            panic_payload_to_string(payload.as_ref())
+        )),
     }
 }
 
@@ -427,9 +449,7 @@ fn parse_random_seed_override() -> Result<Option<i32>, String> {
     }
 
     let seed = trimmed.parse::<i32>().map_err(|err| {
-        format!(
-            "invalid MODEL_PARITY_RANDOM_SEED value `{trimmed}` (expected integer): {err}"
-        )
+        format!("invalid MODEL_PARITY_RANDOM_SEED value `{trimmed}` (expected integer): {err}")
     })?;
     Ok(Some(seed))
 }
@@ -462,13 +482,20 @@ fn run_layout_case_with_timeout(
 ) -> Result<(), String> {
     let (tx, rx) = mpsc::channel();
     let _handle = thread::spawn(move || {
-        let result = run_layout_case(&input_json_path, &output_json_path, pretty_print, random_seed_override);
+        let result = run_layout_case(
+            &input_json_path,
+            &output_json_path,
+            pretty_print,
+            random_seed_override,
+        );
         let _ = tx.send(result);
     });
     match rx.recv_timeout(timeout) {
         Ok(result) => result,
         Err(mpsc::RecvTimeoutError::Timeout) => Err("timeout".to_string()),
-        Err(mpsc::RecvTimeoutError::Disconnected) => Err("layout thread disconnected unexpectedly".to_string()),
+        Err(mpsc::RecvTimeoutError::Disconnected) => {
+            Err("layout thread disconnected unexpectedly".to_string())
+        }
     }
 }
 
@@ -503,9 +530,39 @@ fn run(config: Config) -> Result<(), String> {
             config.output_manifest.display()
         )
     })?;
-    let mut writer = BufWriter::new(manifest_file);
-    writeln!(writer, "{HEADER_RUST}")
+    let mut manifest_writer = BufWriter::new(manifest_file);
+    writeln!(manifest_writer, "{HEADER_RUST}")
         .map_err(|err| format!("failed to write output manifest header: {err}"))?;
+
+    let mut progress_writer = match config.progress_log.as_ref() {
+        Some(progress_path) => {
+            if let Some(parent) = progress_path.parent() {
+                fs::create_dir_all(parent).map_err(|err| {
+                    format!(
+                        "failed to create progress log directory {}: {err}",
+                        parent.display()
+                    )
+                })?;
+            }
+            let file = File::create(progress_path).map_err(|err| {
+                format!(
+                    "failed to create progress log {}: {err}",
+                    progress_path.display()
+                )
+            })?;
+            let mut writer = BufWriter::new(file);
+            writeln!(
+                writer,
+                "event\tindex\ttotal\tmodel_rel_path\tstatus\telapsed_ms\tnote"
+            )
+            .map_err(|err| format!("failed to write progress log header: {err}"))?;
+            writer
+                .flush()
+                .map_err(|err| format!("failed to flush progress log header: {err}"))?;
+            Some(writer)
+        }
+        None => None,
+    };
 
     let mut total = 0usize;
     let mut ok = 0usize;
@@ -516,6 +573,19 @@ fn run(config: Config) -> Result<(), String> {
     for row in java_rows {
         total += 1;
         let model_start = Instant::now();
+
+        eprintln!("[{total}/{total_count}] start {}", row.model_rel_path);
+        if let Some(progress_writer) = progress_writer.as_mut() {
+            writeln!(
+                progress_writer,
+                "start\t{total}\t{total_count}\t{}\t-\t0\t-",
+                sanitize_tsv(&row.model_rel_path),
+            )
+            .map_err(|err| format!("failed to write progress log start event: {err}"))?;
+            progress_writer
+                .flush()
+                .map_err(|err| format!("failed to flush progress log start event: {err}"))?;
+        }
 
         let (rust_layout_json, rust_status, rust_error) = if row.java_status != "ok" {
             skipped += 1;
@@ -544,7 +614,11 @@ fn run(config: Config) -> Result<(), String> {
                 Err(err) if err == "timeout" => {
                     timeouts += 1;
                     errors += 1;
-                    (rust_layout_json, "timeout".to_string(), format!("exceeded {timeout_secs} seconds"))
+                    (
+                        rust_layout_json,
+                        "timeout".to_string(),
+                        format!("exceeded {timeout_secs} seconds"),
+                    )
                 }
                 Err(err) => {
                     errors += 1;
@@ -554,10 +628,13 @@ fn run(config: Config) -> Result<(), String> {
         };
 
         let elapsed_ms = model_start.elapsed().as_millis();
-        eprintln!("[{total}/{total_count}] {rust_status} {} ({elapsed_ms} ms)", row.model_rel_path);
+        eprintln!(
+            "[{total}/{total_count}] {rust_status} {} ({elapsed_ms} ms)",
+            row.model_rel_path
+        );
 
         writeln!(
-            writer,
+            manifest_writer,
             "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
             sanitize_tsv(&row.model_rel_path),
             sanitize_tsv(&row.input_json),
@@ -571,9 +648,28 @@ fn run(config: Config) -> Result<(), String> {
         .map_err(|err| format!("failed to write output manifest row: {err}"))?;
 
         // Flush after each row so partial results survive if the process is killed
-        writer
+        manifest_writer
             .flush()
             .map_err(|err| format!("failed to flush output manifest: {err}"))?;
+
+        if let Some(progress_writer) = progress_writer.as_mut() {
+            let note = if rust_error.is_empty() {
+                "-".to_string()
+            } else {
+                sanitize_tsv(&rust_error)
+            };
+            writeln!(
+                progress_writer,
+                "end\t{total}\t{total_count}\t{}\t{}\t{elapsed_ms}\t{}",
+                sanitize_tsv(&row.model_rel_path),
+                sanitize_tsv(&rust_status),
+                note,
+            )
+            .map_err(|err| format!("failed to write progress log end event: {err}"))?;
+            progress_writer
+                .flush()
+                .map_err(|err| format!("failed to flush progress log end event: {err}"))?;
+        }
 
         if config.stop_on_error && rust_status == "error" {
             return Err(format!(

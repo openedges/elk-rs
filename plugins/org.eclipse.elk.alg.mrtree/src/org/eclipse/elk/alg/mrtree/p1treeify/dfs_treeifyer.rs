@@ -6,7 +6,9 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
 use crate::org::eclipse::elk::alg::mrtree::graph::{TEdgeRef, TGraphRef, TNodeRef};
 use crate::org::eclipse::elk::alg::mrtree::intermediate::IntermediateProcessorStrategy;
-use crate::org::eclipse::elk::alg::mrtree::options::{InternalProperties, MrTreeOptions, TreeifyingOrder};
+use crate::org::eclipse::elk::alg::mrtree::options::{
+    InternalProperties, MrTreeOptions, TreeifyingOrder,
+};
 use crate::org::eclipse::elk::alg::mrtree::tree_layout_phases::TreeLayoutPhases;
 
 #[derive(Default)]
@@ -122,10 +124,16 @@ impl DFSTreeifyer {
             *slot = 1;
         }
 
-        let outgoing = node.lock().ok().map(|n| n.outgoing_edges().clone()).unwrap_or_default();
+        let outgoing = node
+            .lock()
+            .ok()
+            .map(|n| n.outgoing_edges().clone())
+            .unwrap_or_default();
         for edge in outgoing {
             let target = edge.lock().ok().and_then(|e| e.target());
-            let Some(target) = target else { continue; };
+            let Some(target) = target else {
+                continue;
+            };
             let target_id = target.lock().ok().map(|n| n.id()).unwrap_or(0) as usize;
             let visited = *self.visited.get(target_id).unwrap_or(&0);
             if visited == 1 {
@@ -157,7 +165,9 @@ impl DFSTreeifyer {
                 .unwrap_or_default();
             for edge in outgoing {
                 let target = edge.lock().ok().and_then(|e| e.target());
-                let Some(target) = target else { continue; };
+                let Some(target) = target else {
+                    continue;
+                };
                 let target_id = target.lock().ok().map(|n| n.id()).unwrap_or(0) as usize;
                 let visited = *self.visited.get(target_id).unwrap_or(&0);
                 if visited == 1 {

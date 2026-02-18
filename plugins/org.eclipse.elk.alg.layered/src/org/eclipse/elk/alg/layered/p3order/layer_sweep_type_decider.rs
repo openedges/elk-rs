@@ -1,6 +1,8 @@
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LGraphRef, LNodeRef, LPortRef, NodeType};
+use crate::org::eclipse::elk::alg::layered::graph::{
+    LEdgeRef, LGraphRef, LNodeRef, LPortRef, NodeType,
+};
 use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions, Origin};
 use crate::org::eclipse::elk::alg::layered::p3order::counting::IInitializable;
 
@@ -49,13 +51,18 @@ impl LayerSweepTypeDecider {
             .lock()
             .ok()
             .and_then(|mut graph_guard| {
-                graph_guard.get_property(LayeredOptions::CROSSING_MINIMIZATION_HIERARCHICAL_SWEEPINESS)
+                graph_guard
+                    .get_property(LayeredOptions::CROSSING_MINIMIZATION_HIERARCHICAL_SWEEPINESS)
             })
             .unwrap_or(0.0);
         self.use_bottom_up_with_boundary(node_order, boundary)
     }
 
-    pub fn use_bottom_up_with_boundary(&mut self, node_order: &[Vec<LNodeRef>], boundary: f64) -> bool {
+    pub fn use_bottom_up_with_boundary(
+        &mut self,
+        node_order: &[Vec<LNodeRef>],
+        boundary: f64,
+    ) -> bool {
         if self.bottom_up_forced(boundary)
             || self.root_node()
             || self.fixed_port_order()
@@ -115,11 +122,9 @@ impl LayerSweepTypeDecider {
                     north_south_ports.extend(node_guard.port_side_view(PortSide::South));
                 }
                 for port in north_south_ports {
-                    if let Some(ns_dummy) = port
-                        .lock()
-                        .ok()
-                        .and_then(|mut port_guard| port_guard.get_property(InternalProperties::PORT_DUMMY))
-                    {
+                    if let Some(ns_dummy) = port.lock().ok().and_then(|mut port_guard| {
+                        port_guard.get_property(InternalProperties::PORT_DUMMY)
+                    }) {
                         paths_to_random += current_info.random_influence;
                         paths_to_hierarchical += current_info.hierarchical_influence;
                         self.transfer_info_to(&current_info, &ns_dummy);
@@ -155,7 +160,9 @@ impl LayerSweepTypeDecider {
     }
 
     fn fixed_port_order(&self) -> bool {
-        let Some(parent) = self.parent.as_ref() else { return false; };
+        let Some(parent) = self.parent.as_ref() else {
+            return false;
+        };
         parent
             .lock()
             .ok()
@@ -177,7 +184,9 @@ impl LayerSweepTypeDecider {
     }
 
     fn fewer_than_two_in_out_edges(&self) -> bool {
-        let Some(parent) = self.parent.as_ref() else { return true; };
+        let Some(parent) = self.parent.as_ref() else {
+            return true;
+        };
         let east = parent
             .lock()
             .ok()
@@ -266,7 +275,11 @@ impl LayerSweepTypeDecider {
 impl IInitializable for LayerSweepTypeDecider {
     fn init_at_layer_level(&mut self, layer_index: usize, node_order: &[Vec<LNodeRef>]) {
         if let Some(first_node) = node_order.get(layer_index).and_then(|layer| layer.first()) {
-            if let Some(layer) = first_node.lock().ok().and_then(|node_guard| node_guard.layer()) {
+            if let Some(layer) = first_node
+                .lock()
+                .ok()
+                .and_then(|node_guard| node_guard.layer())
+            {
                 if let Ok(mut layer_guard) = layer.lock() {
                     layer_guard.graph_element().id = layer_index as i32;
                 }
@@ -280,8 +293,16 @@ impl IInitializable for LayerSweepTypeDecider {
         }
     }
 
-    fn init_at_node_level(&mut self, layer_index: usize, node_index: usize, node_order: &[Vec<LNodeRef>]) {
-        let Some(node) = node_order.get(layer_index).and_then(|layer| layer.get(node_index)) else {
+    fn init_at_node_level(
+        &mut self,
+        layer_index: usize,
+        node_index: usize,
+        node_order: &[Vec<LNodeRef>],
+    ) {
+        let Some(node) = node_order
+            .get(layer_index)
+            .and_then(|layer| layer.get(node_index))
+        else {
             return;
         };
         if let Ok(mut node_guard) = node.lock() {
@@ -318,7 +339,12 @@ fn layer_id(node: &LNodeRef) -> Option<usize> {
     node.lock()
         .ok()
         .and_then(|node_guard| node_guard.layer())
-        .and_then(|layer| layer.lock().ok().map(|mut layer_guard| layer_guard.graph_element().id as usize))
+        .and_then(|layer| {
+            layer
+                .lock()
+                .ok()
+                .map(|mut layer_guard| layer_guard.graph_element().id as usize)
+        })
 }
 
 fn node_id(node: &LNodeRef) -> Option<usize> {

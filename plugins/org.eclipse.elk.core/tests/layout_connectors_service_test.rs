@@ -1,10 +1,10 @@
 use std::any::Any;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicI32, AtomicUsize, Ordering};
+use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::service::{
-    DiagramLayoutEngine, IDiagramLayoutConnector, ILayoutConfigurationStoreProvider, ILayoutSetup,
-    ILayoutListener, LayoutConnectorsService, LayoutMapping,
+    DiagramLayoutEngine, IDiagramLayoutConnector, ILayoutConfigurationStoreProvider,
+    ILayoutListener, ILayoutSetup, LayoutConnectorsService, LayoutMapping,
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::util::NullElkProgressMonitor;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::MapPropertyHolder;

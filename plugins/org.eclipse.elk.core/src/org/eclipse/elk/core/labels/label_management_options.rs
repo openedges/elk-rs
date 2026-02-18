@@ -22,10 +22,7 @@ impl LabelManagementOptions {
 
 impl ILayoutMetaDataProvider for LabelManagementOptions {
     fn apply(&self, registry: &mut dyn LayoutMetaDataRegistry) {
-        let targets = HashSet::from([
-            LayoutOptionTarget::Parents,
-            LayoutOptionTarget::Labels,
-        ]);
+        let targets = HashSet::from([LayoutOptionTarget::Parents, LayoutOptionTarget::Labels]);
         let option = LayoutOptionData::builder()
             .id(Self::LABEL_MANAGER.id())
             .option_type(LayoutOptionType::Object)

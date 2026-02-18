@@ -145,7 +145,10 @@ impl GraphIdentifierGenerator {
                 set_node_identifier(node, Some("G1".to_string()));
             }
         } else {
-            self.set_identifier_if_missing(&ElkGraphElementRef::Node(node.clone()), ElementType::Node);
+            self.set_identifier_if_missing(
+                &ElkGraphElementRef::Node(node.clone()),
+                ElementType::Node,
+            );
         }
 
         let contents = node_contents(node);
@@ -171,7 +174,10 @@ impl GraphIdentifierGenerator {
     }
 
     fn generate_label(&mut self, label: &ElkLabelRef) {
-        self.set_identifier_if_missing(&ElkGraphElementRef::Label(label.clone()), ElementType::Label);
+        self.set_identifier_if_missing(
+            &ElkGraphElementRef::Label(label.clone()),
+            ElementType::Label,
+        );
         for child in label_labels(label) {
             self.generate_label(&child);
         }
@@ -188,7 +194,11 @@ impl GraphIdentifierGenerator {
         }
     }
 
-    fn set_identifier_if_missing(&mut self, element: &ElkGraphElementRef, element_type: ElementType) {
+    fn set_identifier_if_missing(
+        &mut self,
+        element: &ElkGraphElementRef,
+        element_type: ElementType,
+    ) {
         let identifier = element_identifier(element);
         if is_missing_identifier(identifier.as_deref()) {
             let new_identifier = self.next_identifier(element_type);
@@ -241,7 +251,8 @@ impl GraphIdentifierGenerator {
                 }
                 Some(mut identifier) => {
                     while known_ids.contains(&identifier) {
-                        identifier = format!("{}_g{}", identifier, self.four_digit_padded_random_number());
+                        identifier =
+                            format!("{}_g{}", identifier, self.four_digit_padded_random_number());
                     }
                     if element_identifier(&element).as_deref() != Some(identifier.as_str()) {
                         set_element_identifier(&element, Some(identifier.clone()));
@@ -269,9 +280,7 @@ impl GraphIdentifierGenerator {
                 seed
             }
         };
-        let next = state
-            .wrapping_mul(6364136223846793005_u64)
-            .wrapping_add(1);
+        let next = state.wrapping_mul(6364136223846793005_u64).wrapping_add(1);
         self.rng_state = Some(next);
         (next >> 32) as u32
     }
@@ -468,9 +477,7 @@ fn validate_identifier(identifier: Option<&str>) -> Option<String> {
     let mut valid = true;
     let mut chars: Vec<char> = Vec::with_capacity(identifier.len());
     for (index, ch) in identifier.chars().enumerate() {
-        let allowed = ch.is_ascii_alphabetic()
-            || ch == '_'
-            || (index > 0 && ch.is_ascii_digit());
+        let allowed = ch.is_ascii_alphabetic() || ch == '_' || (index > 0 && ch.is_ascii_digit());
         if allowed {
             chars.push(ch);
         } else {
@@ -487,7 +494,9 @@ fn validate_identifier(identifier: Option<&str>) -> Option<String> {
 }
 
 fn is_missing_identifier(identifier: Option<&str>) -> bool {
-    identifier.map(|value| value.trim().is_empty()).unwrap_or(true)
+    identifier
+        .map(|value| value.trim().is_empty())
+        .unwrap_or(true)
 }
 
 fn collect_graph_elements(

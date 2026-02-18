@@ -26,7 +26,11 @@ impl Default for LeftRightTopDownNodePlacer {
 }
 
 impl ILayoutPhase<TopdownPackingPhases, GridElkNode> for LeftRightTopDownNodePlacer {
-    fn process(&mut self, layout_graph: &mut GridElkNode, progress_monitor: &mut dyn IElkProgressMonitor) {
+    fn process(
+        &mut self,
+        layout_graph: &mut GridElkNode,
+        progress_monitor: &mut dyn IElkProgressMonitor,
+    ) {
         progress_monitor.begin("Node placement", 1.0);
         progress_monitor.log(&format!(
             "Node placement began for node {}",
@@ -90,7 +94,12 @@ impl ILayoutPhase<TopdownPackingPhases, GridElkNode> for LeftRightTopDownNodePla
 
             progress_monitor.log_graph(
                 layout_graph.node(),
-                &format!("{} placed in ({}|{})", node_identifier(&node), current_col, current_row),
+                &format!(
+                    "{} placed in ({}|{})",
+                    node_identifier(&node),
+                    current_col,
+                    current_row
+                ),
             );
 
             curr_x += node_width(&node) + node_node_spacing;
@@ -177,7 +186,8 @@ impl INodeArranger for LeftRightTopDownNodePlacer {
             cols - 1
         };
 
-        let required_height = rows as f64 * hierarchical_node_width / hierarchical_node_aspect_ratio
+        let required_height = rows as f64 * hierarchical_node_width
+            / hierarchical_node_aspect_ratio
             + padding.top
             + padding.bottom
             + (rows - 1) as f64 * node_node_spacing;

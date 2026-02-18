@@ -44,12 +44,18 @@ impl ILayoutPhase<RectPackingLayoutPhases, ElkNodeRef> for EqualWhitespaceElimin
 
         if let Some(rows_key) = rows_key {
             if let Some(rows) = rows_storage::take_rows(rows_key) {
-                let drawing_width = property(graph, InternalProperties::DRAWING_WIDTH).unwrap_or(0.0);
+                let drawing_width =
+                    property(graph, InternalProperties::DRAWING_WIDTH).unwrap_or(0.0);
                 let additional_height =
                     property(graph, InternalProperties::ADDITIONAL_HEIGHT).unwrap_or(0.0);
                 let node_node_spacing =
                     property(graph, RectPackingOptions::SPACING_NODE_NODE).unwrap_or(0.0);
-                RectangleExpansion::expand(&rows, drawing_width, additional_height, node_node_spacing);
+                RectangleExpansion::expand(
+                    &rows,
+                    drawing_width,
+                    additional_height,
+                    node_node_spacing,
+                );
             } else {
                 panic!(
                     "{}",
@@ -74,7 +80,12 @@ impl ILayoutPhase<RectPackingLayoutPhases, ElkNodeRef> for EqualWhitespaceElimin
 }
 
 impl ILayoutPhase<RectPackingLayoutPhases, ElkNodeRef> for NoopWhitespaceEliminator {
-    fn process(&mut self, _graph: &mut ElkNodeRef, _progress_monitor: &mut dyn IElkProgressMonitor) {}
+    fn process(
+        &mut self,
+        _graph: &mut ElkNodeRef,
+        _progress_monitor: &mut dyn IElkProgressMonitor,
+    ) {
+    }
 
     fn get_layout_processor_configuration(
         &self,

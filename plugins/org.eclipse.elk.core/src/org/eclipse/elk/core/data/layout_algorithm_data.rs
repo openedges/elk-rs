@@ -10,8 +10,7 @@ use crate::org::eclipse::elk::core::data::ILayoutMetaData;
 use crate::org::eclipse::elk::core::util::InstancePool;
 use crate::org::eclipse::elk::core::validation::IValidatingGraphElementVisitor;
 
-pub type ValidatorFactory =
-    Arc<dyn Fn() -> Box<dyn IValidatingGraphElementVisitor> + Send + Sync>;
+pub type ValidatorFactory = Arc<dyn Fn() -> Box<dyn IValidatingGraphElementVisitor> + Send + Sync>;
 
 #[derive(Clone)]
 pub struct LayoutAlgorithmData {

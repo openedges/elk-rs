@@ -16,8 +16,8 @@ fn issue_541_end_label_sorting_case_does_not_panic() {
 
     run_layout(&graph);
 
-    let edge =
-        find_edge_by_identifier(&graph, "left", "right").expect("main edge left->right should exist");
+    let edge = find_edge_by_identifier(&graph, "left", "right")
+        .expect("main edge left->right should exist");
     let label_count = edge.borrow_mut().element().labels().len();
     assert_eq!(label_count, 2, "main edge should keep two labels");
 

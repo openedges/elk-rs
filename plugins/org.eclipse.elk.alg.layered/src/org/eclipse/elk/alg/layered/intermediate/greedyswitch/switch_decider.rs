@@ -52,9 +52,11 @@ impl SwitchDecider {
         count_crossings_caused_by_port_switch: bool,
     ) -> Self {
         let mut left_in_layer_counter = CrossingsCounter::new(port_positions.to_vec());
-        left_in_layer_counter.init_port_positions_for_in_layer_crossings(free_layer, PortSide::West);
+        left_in_layer_counter
+            .init_port_positions_for_in_layer_crossings(free_layer, PortSide::West);
         let mut right_in_layer_counter = CrossingsCounter::new(port_positions.to_vec());
-        right_in_layer_counter.init_port_positions_for_in_layer_crossings(free_layer, PortSide::East);
+        right_in_layer_counter
+            .init_port_positions_for_in_layer_crossings(free_layer, PortSide::East);
         let north_south_counter = NorthSouthEdgeNeighbouringNodeCrossingsCounter::new(free_layer);
 
         let parent_cross_counter = if count_crossings_caused_by_port_switch {
@@ -127,24 +129,32 @@ impl SwitchDecider {
             return false;
         }
 
-        let left_in_layer = self.left_in_layer_counter.count_in_layer_crossings_between_nodes_in_both_orders(
-            upper_node,
-            lower_node,
-            PortSide::West,
-        );
-        let right_in_layer = self.right_in_layer_counter.count_in_layer_crossings_between_nodes_in_both_orders(
-            upper_node,
-            lower_node,
-            PortSide::East,
-        );
+        let left_in_layer = self
+            .left_in_layer_counter
+            .count_in_layer_crossings_between_nodes_in_both_orders(
+                upper_node,
+                lower_node,
+                PortSide::West,
+            );
+        let right_in_layer = self
+            .right_in_layer_counter
+            .count_in_layer_crossings_between_nodes_in_both_orders(
+                upper_node,
+                lower_node,
+                PortSide::East,
+            );
         self.north_south_counter
             .count_crossings(upper_node, lower_node);
 
-        let upper_lower_crossings = self.crossing_matrix_filler.crossing_matrix_entry(upper_node, lower_node)
+        let upper_lower_crossings = self
+            .crossing_matrix_filler
+            .crossing_matrix_entry(upper_node, lower_node)
             + *left_in_layer.first()
             + *right_in_layer.first()
             + self.north_south_counter.upper_lower_crossings();
-        let lower_upper_crossings = self.crossing_matrix_filler.crossing_matrix_entry(lower_node, upper_node)
+        let lower_upper_crossings = self
+            .crossing_matrix_filler
+            .crossing_matrix_entry(lower_node, upper_node)
             + *left_in_layer.second()
             + *right_in_layer.second()
             + self.north_south_counter.lower_upper_crossings();
@@ -157,8 +167,8 @@ impl SwitchDecider {
                 (origin_port_of(upper_node), origin_port_of(lower_node))
             {
                 if let Some(counter) = self.parent_cross_counter.as_mut() {
-                    let crossing_numbers =
-                        counter.count_crossings_between_ports_in_both_orders(&upper_port, &lower_port);
+                    let crossing_numbers = counter
+                        .count_crossings_between_ports_in_both_orders(&upper_port, &lower_port);
                     upper_lower_crossings += *crossing_numbers.first();
                     lower_upper_crossings += *crossing_numbers.second();
                 }
@@ -178,7 +188,9 @@ impl SwitchDecider {
         let constraints = upper_node
             .lock()
             .ok()
-            .and_then(|mut node_guard| node_guard.get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS))
+            .and_then(|mut node_guard| {
+                node_guard.get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
+            })
             .unwrap_or_default();
         !constraints.is_empty()
             && constraints
@@ -197,16 +209,15 @@ impl SwitchDecider {
             .ok()
             .map(|node_guard| node_guard.node_type())
             .unwrap_or(NodeType::Normal);
-        let neither_long_edge = upper_type != NodeType::LongEdge && lower_type != NodeType::LongEdge;
+        let neither_long_edge =
+            upper_type != NodeType::LongEdge && lower_type != NodeType::LongEdge;
 
-        let upper_layout_unit = upper_node
-            .lock()
-            .ok()
-            .and_then(|mut node_guard| node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT));
-        let lower_layout_unit = lower_node
-            .lock()
-            .ok()
-            .and_then(|mut node_guard| node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT));
+        let upper_layout_unit = upper_node.lock().ok().and_then(|mut node_guard| {
+            node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
+        });
+        let lower_layout_unit = lower_node.lock().ok().and_then(|mut node_guard| {
+            node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
+        });
 
         let are_in_different_layout_units = match (&upper_layout_unit, &lower_layout_unit) {
             (Some(upper), Some(lower)) => !std::sync::Arc::ptr_eq(upper, lower),
@@ -214,9 +225,9 @@ impl SwitchDecider {
             _ => true,
         };
 
-        let nodes_have_layout_units =
-            self.part_of_multi_node_layout_unit(upper_node, upper_layout_unit.as_ref())
-                || self.part_of_multi_node_layout_unit(lower_node, lower_layout_unit.as_ref());
+        let nodes_have_layout_units = self
+            .part_of_multi_node_layout_unit(upper_node, upper_layout_unit.as_ref())
+            || self.part_of_multi_node_layout_unit(lower_node, lower_layout_unit.as_ref());
 
         let upper_has_northern_edges = self.has_edges_on_side(upper_node, PortSide::North);
         let lower_has_southern_edges = self.has_edges_on_side(lower_node, PortSide::South);
@@ -225,9 +236,9 @@ impl SwitchDecider {
             || self.has_edges_on_side(upper_node, PortSide::South)
             || self.has_edges_on_side(lower_node, PortSide::North);
 
-        let has_layout_unit_constraint =
-            (nodes_have_layout_units && are_in_different_layout_units) || upper_has_northern_edges
-                || lower_has_southern_edges;
+        let has_layout_unit_constraint = (nodes_have_layout_units && are_in_different_layout_units)
+            || upper_has_northern_edges
+            || lower_has_southern_edges;
 
         neither_long_edge && has_layout_unit_constraint
     }

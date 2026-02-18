@@ -128,7 +128,6 @@ impl FNode {
         }
         depth
     }
-
 }
 
 impl fmt::Display for FNode {

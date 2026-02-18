@@ -60,7 +60,10 @@ fn port_side_processor_assigns_sides_and_fixes_constraints() {
 
     {
         let mut node_guard = node.lock().expect("node lock");
-        node_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::Free));
+        node_guard.set_property(
+            LayeredOptions::PORT_CONSTRAINTS,
+            Some(PortConstraints::Free),
+        );
     }
 
     let out_port = add_port(&node, PortSide::Undefined);
@@ -112,7 +115,10 @@ fn port_side_processor_prefers_port_dummy_external_side() {
     let node = add_node(&graph, &layer);
     {
         let mut node_guard = node.lock().expect("node lock");
-        node_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::Free));
+        node_guard.set_property(
+            LayeredOptions::PORT_CONSTRAINTS,
+            Some(PortConstraints::Free),
+        );
     }
 
     let dummy = add_node(&graph, &layer);

@@ -85,7 +85,8 @@ fn get_min_underlap(
 
     for c in &tree.children {
         if !std::ptr::eq(c, child) {
-            min_underlap = min_underlap.min(get_min_underlap(c, child, min_underlap, compaction_vector));
+            min_underlap =
+                min_underlap.min(get_min_underlap(c, child, min_underlap, compaction_vector));
         }
     }
 
@@ -102,8 +103,11 @@ fn min_underlap_with_subtree(
     for child in &tree.children {
         let c = &child.node;
         if root.touches(c) {
-            if (fuzzy_compare(c.rect.x, root.rect.x + root.rect.width, InternalProperties::FUZZINESS)
-                == 0
+            if (fuzzy_compare(
+                c.rect.x,
+                root.rect.x + root.rect.width,
+                InternalProperties::FUZZINESS,
+            ) == 0
                 && compaction_vector.x < 0.0)
                 || (fuzzy_compare(
                     c.rect.x + c.rect.width,
@@ -152,8 +156,12 @@ fn translate_subtree(tree: &mut Tree<Node>, compaction_vector: &KVector) {
 fn draw_tree(tree: &Tree<Node>, svg: &mut SVGImage, mark: Option<&Tree<Node>>) {
     svg.g("rects")
         .add_rect(&tree.node.rect, "fill=\"none\" stroke=\"black\"");
-    svg.g("centers")
-        .add_circle_with_attrs(tree.node.vertex.x, tree.node.vertex.y, 6.0, "fill=\"black\"");
+    svg.g("centers").add_circle_with_attrs(
+        tree.node.vertex.x,
+        tree.node.vertex.y,
+        6.0,
+        "fill=\"black\"",
+    );
     for child in &tree.children {
         if mark.is_some_and(|m| std::ptr::eq(m, child)) {
             svg.g("edges").add_line_with_attrs(

@@ -1,8 +1,8 @@
+use org_eclipse_elk_core::org::eclipse::elk::core::options::CoreOptions;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::ElkUtil;
 use org_eclipse_elk_core::org::eclipse::elk::core::{
     LayoutConfigurator, LayoutConfiguratorClass, NO_OVERWRITE,
 };
-use org_eclipse_elk_core::org::eclipse::elk::core::options::CoreOptions;
-use org_eclipse_elk_core::org::eclipse::elk::core::util::ElkUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::MapPropertyHolder;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
@@ -140,7 +140,13 @@ impl Graph {
     }
 }
 
-fn set_node_property(node: &ElkNodeRef, property: &'static std::sync::LazyLock<org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property<f64>>, value: f64) {
+fn set_node_property(
+    node: &ElkNodeRef,
+    property: &'static std::sync::LazyLock<
+        org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property<f64>,
+    >,
+    value: f64,
+) {
     with_node_properties_mut(node, |props| {
         props.set_property(property, Some(value));
     });
@@ -148,12 +154,17 @@ fn set_node_property(node: &ElkNodeRef, property: &'static std::sync::LazyLock<o
 
 fn get_node_property(
     node: &ElkNodeRef,
-    property: &'static std::sync::LazyLock<org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property<f64>>,
+    property: &'static std::sync::LazyLock<
+        org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property<f64>,
+    >,
 ) -> Option<f64> {
     with_node_properties_mut(node, |props| props.get_property(property))
 }
 
-fn with_node_properties_mut<R>(node: &ElkNodeRef, f: impl FnOnce(&mut MapPropertyHolder) -> R) -> R {
+fn with_node_properties_mut<R>(
+    node: &ElkNodeRef,
+    f: impl FnOnce(&mut MapPropertyHolder) -> R,
+) -> R {
     let mut node_mut = node.borrow_mut();
     let props = node_mut
         .connectable()

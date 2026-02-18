@@ -3,10 +3,12 @@ use std::collections::{HashMap, HashSet};
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::spore::Node;
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::t_edge::TEdge;
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::tree::Tree;
-use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::{MapPropertyHolder, Property};
 use org_eclipse_elk_core::org::eclipse::elk::core::math::KVector;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::{MapPropertyHolder, Property};
 
-use crate::org::eclipse::elk::alg::spore::options::{CompactionStrategy, SpanningTreeCostFunction, TreeConstructionStrategy};
+use crate::org::eclipse::elk::alg::spore::options::{
+    CompactionStrategy, SpanningTreeCostFunction, TreeConstructionStrategy,
+};
 
 pub struct Graph {
     properties: MapPropertyHolder,

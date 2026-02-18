@@ -67,16 +67,22 @@ impl Quadrant {
     }
 
     pub fn is_both_left_or_both_right(q1: Quadrant, q2: Quadrant) -> bool {
-        matches!((q1, q2), (Quadrant::Q1, Quadrant::Q4)
-            | (Quadrant::Q4, Quadrant::Q1)
-            | (Quadrant::Q3, Quadrant::Q2)
-            | (Quadrant::Q2, Quadrant::Q3))
+        matches!(
+            (q1, q2),
+            (Quadrant::Q1, Quadrant::Q4)
+                | (Quadrant::Q4, Quadrant::Q1)
+                | (Quadrant::Q3, Quadrant::Q2)
+                | (Quadrant::Q2, Quadrant::Q3)
+        )
     }
 
     pub fn is_one_left_one_right(q1: Quadrant, q2: Quadrant) -> bool {
-        matches!((q1, q2), (Quadrant::Q1, Quadrant::Q2)
-            | (Quadrant::Q1, Quadrant::Q3)
-            | (Quadrant::Q4, Quadrant::Q3)
-            | (Quadrant::Q4, Quadrant::Q2))
+        matches!(
+            (q1, q2),
+            (Quadrant::Q1, Quadrant::Q2)
+                | (Quadrant::Q1, Quadrant::Q3)
+                | (Quadrant::Q4, Quadrant::Q3)
+                | (Quadrant::Q4, Quadrant::Q2)
+        )
     }
 }

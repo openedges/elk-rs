@@ -1,5 +1,6 @@
-pub mod profile_fill;
 pub mod polyomino_compactor;
+pub mod profile_fill;
+pub mod structures;
 pub mod successor;
 pub mod successor_combination;
 pub mod successor_jitter;
@@ -7,10 +8,10 @@ pub mod successor_line_by_line;
 pub mod successor_manhattan;
 pub mod successor_max_norm_winding_in_math_pos_sense;
 pub mod successor_quadrants_generic;
-pub mod structures;
 
-pub use profile_fill::ProfileFill;
 pub use polyomino_compactor::PolyominoCompactor;
+pub use profile_fill::ProfileFill;
+pub use structures::*;
 pub use successor::SuccessorFunction;
 pub use successor_combination::SuccessorCombination;
 pub use successor_jitter::SuccessorJitter;
@@ -18,4 +19,3 @@ pub use successor_line_by_line::SuccessorLineByLine;
 pub use successor_manhattan::SuccessorManhattan;
 pub use successor_max_norm_winding_in_math_pos_sense::SuccessorMaxNormWindingInMathPosSense;
 pub use successor_quadrants_generic::SuccessorQuadrantsGeneric;
-pub use structures::*;

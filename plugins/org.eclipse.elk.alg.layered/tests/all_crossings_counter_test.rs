@@ -85,13 +85,23 @@ fn add_north_south_edge(
         .lock()
         .ok()
         .and_then(|node_guard| node_guard.layer())
-        .and_then(|layer| layer.lock().ok().and_then(|layer_guard| layer_guard.index()))
+        .and_then(|layer| {
+            layer
+                .lock()
+                .ok()
+                .and_then(|layer_guard| layer_guard.index())
+        })
         .unwrap_or(0);
     let other_layer_index = node_with_east_west_ports
         .lock()
         .ok()
         .and_then(|node_guard| node_guard.layer())
-        .and_then(|layer| layer.lock().ok().and_then(|layer_guard| layer_guard.index()))
+        .and_then(|layer| {
+            layer
+                .lock()
+                .ok()
+                .and_then(|layer_guard| layer_guard.index())
+        })
         .unwrap_or(0);
 
     let normal_node_east_of_ns = other_layer_index < ns_layer_index;
@@ -447,8 +457,20 @@ fn graph_with_north_south_crossing(
         set_as_long_edge_dummy(&middle_nodes[2]);
     }
 
-    add_north_south_edge(side, &middle_nodes[3], &middle_nodes[0], &right_nodes[0], false);
-    add_north_south_edge(side, &middle_nodes[3], &middle_nodes[1], &right_nodes[1], false);
+    add_north_south_edge(
+        side,
+        &middle_nodes[3],
+        &middle_nodes[0],
+        &right_nodes[0],
+        false,
+    );
+    add_north_south_edge(
+        side,
+        &middle_nodes[3],
+        &middle_nodes[1],
+        &right_nodes[1],
+        false,
+    );
 
     assign_ids(&graph);
     graph

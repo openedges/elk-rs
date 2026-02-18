@@ -1,11 +1,11 @@
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutPhase;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkEdgeRef;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkEdgeSectionRef;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkGraphFactory;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
-use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 
 use crate::org::eclipse::elk::alg::vertiflex::vertiflex_layout_phases::VertiFlexLayoutPhases;
 use crate::org::eclipse::elk::alg::vertiflex::vertiflex_util::VertiFlexUtil;
@@ -19,8 +19,12 @@ impl StraightEdgeRouter {
 
     fn route_edges(node: &ElkNodeRef) {
         for edge in ElkGraphUtil::all_outgoing_edges(node) {
-            let Some(target) = edge_target_node(&edge) else { continue; };
-            let Some(section) = ensure_single_section(&edge) else { continue; };
+            let Some(target) = edge_target_node(&edge) else {
+                continue;
+            };
+            let Some(section) = ensure_single_section(&edge) else {
+                continue;
+            };
 
             let start_x = node_x(node) + node_width(node) / 2.0;
             let start_y = node_y(node) + node_height(node);

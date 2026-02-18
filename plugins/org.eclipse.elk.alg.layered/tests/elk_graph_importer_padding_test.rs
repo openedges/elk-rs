@@ -32,12 +32,10 @@ fn importer_adds_inside_node_label_padding_to_graph_padding() {
             Some(ElkPadding::with_values(1.0, 2.0, 3.0, 4.0)),
         );
     let mut spacing_overrides = IndividualSpacings::new();
-    spacing_overrides
-        .properties_mut()
-        .set_property(
-            CoreOptions::NODE_LABELS_PADDING,
-            Some(ElkPadding::with_values(2.0, 3.0, 4.0, 5.0)),
-        );
+    spacing_overrides.properties_mut().set_property(
+        CoreOptions::NODE_LABELS_PADDING,
+        Some(ElkPadding::with_values(2.0, 3.0, 4.0, 5.0)),
+    );
     spacing_overrides
         .properties_mut()
         .set_property(CoreOptions::SPACING_LABEL_LABEL, Some(1.0));

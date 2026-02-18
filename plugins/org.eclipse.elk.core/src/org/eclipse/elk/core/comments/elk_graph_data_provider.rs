@@ -1,9 +1,7 @@
 use std::rc::Rc;
 
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
-use org_eclipse_elk_graph::org::eclipse::elk::graph::{
-    ElkConnectableShapeRef, ElkNodeRef,
-};
+use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkConnectableShapeRef, ElkNodeRef};
 
 use crate::org::eclipse::elk::core::comments::i_data_provider::IDataProvider;
 use crate::org::eclipse::elk::core::options::CoreOptions;
@@ -38,7 +36,10 @@ impl IDataProvider<ElkNodeRef, ElkNodeRef> for ElkGraphDataProvider {
         children
             .into_iter()
             .filter(|node| node.borrow().is_hierarchical())
-            .map(|node| Rc::new(ElkGraphDataProvider::new(node)) as Rc<dyn IDataProvider<ElkNodeRef, ElkNodeRef>>)
+            .map(|node| {
+                Rc::new(ElkGraphDataProvider::new(node))
+                    as Rc<dyn IDataProvider<ElkNodeRef, ElkNodeRef>>
+            })
             .collect()
     }
 
@@ -52,7 +53,9 @@ impl IDataProvider<ElkNodeRef, ElkNodeRef> for ElkGraphDataProvider {
 
 fn is_comment(node: &ElkNodeRef) -> bool {
     with_node_properties_mut(node, |props| {
-        props.get_property(CoreOptions::COMMENT_BOX).unwrap_or(false)
+        props
+            .get_property(CoreOptions::COMMENT_BOX)
+            .unwrap_or(false)
     })
 }
 
@@ -61,7 +64,10 @@ fn node_children(node: &ElkNodeRef) -> Vec<ElkNodeRef> {
     node_mut.children().iter().cloned().collect()
 }
 
-fn with_node_properties_mut<R>(node: &ElkNodeRef, f: impl FnOnce(&mut MapPropertyHolder) -> R) -> R {
+fn with_node_properties_mut<R>(
+    node: &ElkNodeRef,
+    f: impl FnOnce(&mut MapPropertyHolder) -> R,
+) -> R {
     let mut node_mut = node.borrow_mut();
     let props = node_mut
         .connectable()

@@ -34,10 +34,7 @@ const MIN_EXTERNAL_PTOLEMY_PARSE_COVERAGE: f64 = 0.35;
 
 fn set_dimensions(node: &ElkNodeRef, width: f64, height: f64) {
     let mut node_mut = node.borrow_mut();
-    node_mut
-        .connectable()
-        .shape()
-        .set_dimensions(width, height);
+    node_mut.connectable().shape().set_dimensions(width, height);
 }
 
 fn set_node_property<T: Clone + Send + Sync + 'static>(
@@ -141,15 +138,27 @@ fn assert_layering_invariants(
                 let reversed = edge
                     .lock()
                     .ok()
-                    .and_then(|mut edge_guard| edge_guard.get_property(InternalProperties::REVERSED))
+                    .and_then(|mut edge_guard| {
+                        edge_guard.get_property(InternalProperties::REVERSED)
+                    })
                     .unwrap_or(false);
                 let target_layer_index = edge
                     .lock()
                     .ok()
                     .and_then(|edge_guard| edge_guard.target())
                     .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
-                    .and_then(|target_node| target_node.lock().ok().and_then(|node_guard| node_guard.layer()))
-                    .and_then(|layer_ref| layer_ref.lock().ok().and_then(|layer_guard| layer_guard.index()))
+                    .and_then(|target_node| {
+                        target_node
+                            .lock()
+                            .ok()
+                            .and_then(|node_guard| node_guard.layer())
+                    })
+                    .and_then(|layer_ref| {
+                        layer_ref
+                            .lock()
+                            .ok()
+                            .and_then(|layer_guard| layer_guard.index())
+                    })
                     .unwrap_or(source_layer_index);
                 if !reversed {
                     assert!(
@@ -169,7 +178,11 @@ fn apply_layout_with_promotion(
     configure_model_order: bool,
     check_forward_edges: bool,
 ) {
-    set_node_property(root, CoreOptions::ALGORITHM, LayeredOptions::ALGORITHM_ID.to_string());
+    set_node_property(
+        root,
+        CoreOptions::ALGORITHM,
+        LayeredOptions::ALGORITHM_ID.to_string(),
+    );
     set_node_property(
         root,
         LayeredOptions::LAYERING_NODE_PROMOTION_STRATEGY,
@@ -244,12 +257,7 @@ fn collect_external_ptolemy_resources() -> (Vec<PathBuf>, usize, usize) {
         if !root.exists() {
             continue;
         }
-        collect_files_recursively(
-            &root,
-            &mut elk_text_files,
-            &mut elkt_count,
-            &mut elkg_count,
-        );
+        collect_files_recursively(&root, &mut elk_text_files, &mut elkt_count, &mut elkg_count);
     }
 
     elk_text_files.sort();
@@ -259,7 +267,10 @@ fn collect_external_ptolemy_resources() -> (Vec<PathBuf>, usize, usize) {
 
 fn ptolemy_model_key(path: &Path) -> String {
     let parent = path.parent().and_then(|value| value.to_str()).unwrap_or("");
-    let stem = path.file_stem().and_then(|value| value.to_str()).unwrap_or("");
+    let stem = path
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or("");
     format!("{parent}/{stem}")
 }
 

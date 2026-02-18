@@ -1,6 +1,6 @@
 use std::collections::{BTreeSet, HashSet};
-use std::sync::{Arc, Mutex};
 use std::hash::Hash;
+use std::sync::{Arc, Mutex};
 
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::{MapPropertyHolder, Property};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkGraphElementRef, ElkNodeRef};
@@ -10,50 +10,52 @@ use crate::org::eclipse::elk::core::options::CoreOptions;
 use crate::org::eclipse::elk::core::util::adapters::{GraphElementAdapter, NodeAdapter};
 use crate::org::eclipse::elk::core::validation::GraphIssue;
 
-pub mod elk_util;
-pub mod adapters;
 pub mod abstract_random_list_accessor;
-pub mod exclusive_bounds;
-pub mod elk_spacings;
-pub mod property_constants_delegator;
-pub mod progress_monitor;
-pub mod fixed_layout_provider;
-pub mod box_layout_provider;
-pub mod random_layout_provider;
-pub mod instance_pool;
+pub mod adapters;
 pub mod algorithm_factory;
-pub mod pair;
+pub mod box_layout_provider;
 pub mod default_factory;
-pub mod maybe;
-pub mod triple;
-pub mod quadruple;
-pub mod wrapped_exception;
-pub mod selection;
+pub mod elk_spacings;
+pub mod elk_util;
+pub mod exclusive_bounds;
+pub mod fixed_layout_provider;
+pub mod instance_pool;
 pub mod internal;
+pub mod maybe;
+pub mod pair;
 pub mod persistence;
+pub mod progress_monitor;
+pub mod property_constants_delegator;
+pub mod quadruple;
+pub mod random_layout_provider;
+pub mod selection;
+pub mod triple;
+pub mod wrapped_exception;
 
-pub use elk_util::ElkUtil;
 pub use abstract_random_list_accessor::AbstractRandomListAccessor;
-pub use exclusive_bounds::ExclusiveBounds;
+pub use algorithm_factory::AlgorithmFactory;
+pub use box_layout_provider::BoxLayoutProvider;
+pub use default_factory::DefaultFactory;
 pub use elk_spacings::ElkSpacings;
-pub use property_constants_delegator::PropertyConstantsDelegator;
+pub use elk_util::ElkUtil;
+pub use exclusive_bounds::ExclusiveBounds;
+pub use fixed_layout_provider::FixedLayoutProvider;
+pub use instance_pool::{IFactory, InstancePool};
+pub use maybe::Maybe;
+pub use pair::{FirstComparator, Pair, SecondComparator};
+pub use persistence::{
+    ElkGraphResource, ElkGraphResourceFactory, ElkGraphXMIHelper, ElkGraphXMISave,
+};
 pub use progress_monitor::{
     BasicProgressMonitor, IElkCancelIndicator, IElkProgressMonitor, LoggedGraph, LoggedGraphType,
     NullElkProgressMonitor,
 };
-pub use fixed_layout_provider::FixedLayoutProvider;
-pub use box_layout_provider::BoxLayoutProvider;
-pub use random_layout_provider::RandomLayoutProvider;
-pub use instance_pool::{IFactory, InstancePool};
-pub use algorithm_factory::AlgorithmFactory;
-pub use pair::{FirstComparator, Pair, SecondComparator};
-pub use default_factory::DefaultFactory;
-pub use maybe::Maybe;
-pub use triple::Triple;
+pub use property_constants_delegator::PropertyConstantsDelegator;
 pub use quadruple::Quadruple;
-pub use wrapped_exception::WrappedException;
+pub use random_layout_provider::RandomLayoutProvider;
 pub use selection::{DefaultSelectionIterator, SelectionIterator};
-pub use persistence::{ElkGraphResource, ElkGraphResourceFactory, ElkGraphXMIHelper, ElkGraphXMISave};
+pub use triple::Triple;
+pub use wrapped_exception::WrappedException;
 
 pub trait IDataObject: Clone + Send + Sync + 'static {}
 
@@ -171,7 +173,10 @@ impl Random {
 
     fn next(&mut self, bits: u32) -> u32 {
         let mut state = self.state.lock().expect("random lock poisoned");
-        *state = (state.wrapping_mul(Self::MULTIPLIER).wrapping_add(Self::ADDEND)) & Self::MASK;
+        *state = (state
+            .wrapping_mul(Self::MULTIPLIER)
+            .wrapping_add(Self::ADDEND))
+            & Self::MASK;
         (*state >> (48 - bits)) as u32
     }
 
@@ -189,7 +194,10 @@ impl Random {
 
     pub fn set_mock_double_sequence(&mut self, start: f64, step: f64) {
         if let Ok(mut sequence) = self.mock_double_sequence.lock() {
-            *sequence = Some(MockDoubleSequence { current: start, step });
+            *sequence = Some(MockDoubleSequence {
+                current: start,
+                step,
+            });
         }
     }
 
@@ -485,14 +493,25 @@ fn any_value_to_string(value: &std::sync::Arc<dyn std::any::Any + Send + Sync>) 
     if let Some(value) = value.downcast_ref::<crate::org::eclipse::elk::core::math::KVector>() {
         return Some(format!("({},{})", value.x, value.y));
     }
-    if let Some(value) = value.downcast_ref::<crate::org::eclipse::elk::core::math::KVectorChain>() {
+    if let Some(value) = value.downcast_ref::<crate::org::eclipse::elk::core::math::KVectorChain>()
+    {
         return Some(value.to_string());
     }
     if let Some(value) = value.downcast_ref::<crate::org::eclipse::elk::core::math::ElkPadding>() {
-        return Some(spacing_to_string(value.top, value.left, value.bottom, value.right));
+        return Some(spacing_to_string(
+            value.top,
+            value.left,
+            value.bottom,
+            value.right,
+        ));
     }
     if let Some(value) = value.downcast_ref::<crate::org::eclipse::elk::core::math::ElkMargin>() {
-        return Some(spacing_to_string(value.top, value.left, value.bottom, value.right));
+        return Some(spacing_to_string(
+            value.top,
+            value.left,
+            value.bottom,
+            value.right,
+        ));
     }
     None
 }
@@ -501,7 +520,10 @@ fn spacing_to_string(top: f64, left: f64, bottom: f64, right: f64) -> String {
     format!("[top={top},left={left},bottom={bottom},right={right}]")
 }
 
-fn with_node_properties_mut<R>(node: &ElkNodeRef, f: impl FnOnce(&mut MapPropertyHolder) -> R) -> R {
+fn with_node_properties_mut<R>(
+    node: &ElkNodeRef,
+    f: impl FnOnce(&mut MapPropertyHolder) -> R,
+) -> R {
     let mut node_mut = node.borrow_mut();
     let props = node_mut
         .connectable()

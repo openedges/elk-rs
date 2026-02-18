@@ -8,7 +8,9 @@ use crate::org::eclipse::elk::alg::layered::graph::{
     LEdgeRef, LGraphRef, LNodeRef, LPortRef, NodeRefKey,
 };
 use crate::org::eclipse::elk::alg::layered::intermediate::CMGroupModelOrderCalculator;
-use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions, OrderingStrategy};
+use crate::org::eclipse::elk::alg::layered::options::{
+    InternalProperties, LayeredOptions, OrderingStrategy,
+};
 
 #[derive(Clone)]
 struct PortRefKey(LPortRef);
@@ -64,16 +66,32 @@ impl ModelOrderPortComparator {
         let p2_key = PortRefKey(p2.clone());
         self.ensure_sets(&p1_key);
         self.ensure_sets(&p2_key);
-        if self.bigger_than.get(&p1_key).is_some_and(|set| set.contains(&p2_key)) {
+        if self
+            .bigger_than
+            .get(&p1_key)
+            .is_some_and(|set| set.contains(&p2_key))
+        {
             return 1;
         }
-        if self.bigger_than.get(&p2_key).is_some_and(|set| set.contains(&p1_key)) {
+        if self
+            .bigger_than
+            .get(&p2_key)
+            .is_some_and(|set| set.contains(&p1_key))
+        {
             return -1;
         }
-        if self.smaller_than.get(&p1_key).is_some_and(|set| set.contains(&p2_key)) {
+        if self
+            .smaller_than
+            .get(&p1_key)
+            .is_some_and(|set| set.contains(&p2_key))
+        {
             return -1;
         }
-        if self.smaller_than.get(&p2_key).is_some_and(|set| set.contains(&p1_key)) {
+        if self
+            .smaller_than
+            .get(&p2_key)
+            .is_some_and(|set| set.contains(&p1_key))
+        {
             return 1;
         }
 
@@ -110,8 +128,14 @@ impl ModelOrderPortComparator {
                 .ok()
                 .and_then(|edge_guard| edge_guard.source());
             if let (Some(p1_source_port), Some(p2_source_port)) = (p1_source_port, p2_source_port) {
-                let p1_node = p1_source_port.lock().ok().and_then(|port_guard| port_guard.node());
-                let p2_node = p2_source_port.lock().ok().and_then(|port_guard| port_guard.node());
+                let p1_node = p1_source_port
+                    .lock()
+                    .ok()
+                    .and_then(|port_guard| port_guard.node());
+                let p2_node = p2_source_port
+                    .lock()
+                    .ok()
+                    .and_then(|port_guard| port_guard.node());
                 if let (Some(p1_node), Some(p2_node)) = (p1_node, p2_node) {
                     if std::sync::Arc::ptr_eq(&p1_node, &p2_node) {
                         let ports = p1_node
@@ -132,16 +156,24 @@ impl ModelOrderPortComparator {
 
                     let p1_node_type = node_type(&p1_node);
                     let p2_node_type = node_type(&p2_node);
-                    if p1_node_type == crate::org::eclipse::elk::alg::layered::graph::NodeType::LongEdge
-                        && p2_node_type == crate::org::eclipse::elk::alg::layered::graph::NodeType::LongEdge
+                    if p1_node_type
+                        == crate::org::eclipse::elk::alg::layered::graph::NodeType::LongEdge
+                        && p2_node_type
+                            == crate::org::eclipse::elk::alg::layered::graph::NodeType::LongEdge
                         && layer_id(&p1_node) == layer_id(&p2_node)
-                        && layer_id(&p1_node) == layer_id(&port_node(p1).unwrap_or_else(|| p1_node.clone()))
+                        && layer_id(&p1_node)
+                            == layer_id(&port_node(p1).unwrap_or_else(|| p1_node.clone()))
                     {
                         let reference_layer = p1_node
                             .lock()
                             .ok()
                             .and_then(|node_guard| node_guard.layer())
-                            .and_then(|layer| layer.lock().ok().map(|layer_guard| layer_guard.nodes().clone()))
+                            .and_then(|layer| {
+                                layer
+                                    .lock()
+                                    .ok()
+                                    .map(|layer_guard| layer_guard.nodes().clone())
+                            })
                             .unwrap_or_else(|| self.previous_layer.clone());
                         let in_previous =
                             self.check_reference_layer(&reference_layer, &p1_node, &p2_node);
@@ -193,17 +225,17 @@ impl ModelOrderPortComparator {
             if matches!(side1, PortSide::West | PortSide::South) {
                 reverse_order = -reverse_order;
             }
-            let p1_target_node = p1
-                .lock()
-                .ok()
-                .and_then(|mut port_guard| port_guard.get_property(InternalProperties::LONG_EDGE_TARGET_NODE));
-            let p2_target_node = p2
-                .lock()
-                .ok()
-                .and_then(|mut port_guard| port_guard.get_property(InternalProperties::LONG_EDGE_TARGET_NODE));
+            let p1_target_node = p1.lock().ok().and_then(|mut port_guard| {
+                port_guard.get_property(InternalProperties::LONG_EDGE_TARGET_NODE)
+            });
+            let p2_target_node = p2.lock().ok().and_then(|mut port_guard| {
+                port_guard.get_property(InternalProperties::LONG_EDGE_TARGET_NODE)
+            });
 
             if self.strategy == OrderingStrategy::PreferNodes {
-                if let (Some(p1_target_node), Some(p2_target_node)) = (&p1_target_node, &p2_target_node) {
+                if let (Some(p1_target_node), Some(p2_target_node)) =
+                    (&p1_target_node, &p2_target_node)
+                {
                     if has_model_order(p1_target_node) && has_model_order(p2_target_node) {
                         let max_nodes = match self.graph.try_lock() {
                             Ok(mut graph_guard) => graph_guard
@@ -211,23 +243,27 @@ impl ModelOrderPortComparator {
                                 .unwrap_or(0),
                             Err(_) => {
                                 if std::env::var_os("ELK_TRACE_CROSSMIN").is_some() {
-                                    eprintln!("port_compare: graph lock busy, using default max_nodes");
+                                    eprintln!(
+                                        "port_compare: graph lock busy, using default max_nodes"
+                                    );
                                 }
                                 0
                             }
                         };
-                        let p1_order = CMGroupModelOrderCalculator::calculate_model_order_or_group_model_order(
-                            p1_target_node,
-                            p2_target_node,
-                            &self.graph,
-                            max_nodes,
-                        );
-                        let p2_order = CMGroupModelOrderCalculator::calculate_model_order_or_group_model_order(
-                            p2_target_node,
-                            p1_target_node,
-                            &self.graph,
-                            max_nodes,
-                        );
+                        let p1_order =
+                            CMGroupModelOrderCalculator::calculate_model_order_or_group_model_order(
+                                p1_target_node,
+                                p2_target_node,
+                                &self.graph,
+                                max_nodes,
+                            );
+                        let p2_order =
+                            CMGroupModelOrderCalculator::calculate_model_order_or_group_model_order(
+                                p2_target_node,
+                                p1_target_node,
+                                &self.graph,
+                                max_nodes,
+                            );
                         if p1_order > p2_order {
                             self.update_bigger_and_smaller(p1, p2, reverse_order);
                             return reverse_order;
@@ -252,10 +288,19 @@ impl ModelOrderPortComparator {
                 }
             }
 
-            let mut p1_order = edge_model_order(&outgoing1[0], &self.graph, outgoing1.len() + incoming1.len());
-            let mut p2_order = edge_model_order(&outgoing2[0], &self.graph, outgoing2.len() + incoming2.len());
+            let mut p1_order = edge_model_order(
+                &outgoing1[0],
+                &self.graph,
+                outgoing1.len() + incoming1.len(),
+            );
+            let mut p2_order = edge_model_order(
+                &outgoing2[0],
+                &self.graph,
+                outgoing2.len() + incoming2.len(),
+            );
 
-            if let (Some(p1_target_node), Some(p2_target_node)) = (&p1_target_node, &p2_target_node) {
+            if let (Some(p1_target_node), Some(p2_target_node)) = (&p1_target_node, &p2_target_node)
+            {
                 if std::sync::Arc::ptr_eq(p1_target_node, p2_target_node) {
                     if p1_order > p2_order {
                         self.update_bigger_and_smaller(p1, p2, reverse_order);
@@ -333,7 +378,12 @@ impl ModelOrderPortComparator {
         0
     }
 
-    fn update_bigger_and_smaller(&mut self, bigger_ori: &LPortRef, smaller_ori: &LPortRef, reverse_order: i32) {
+    fn update_bigger_and_smaller(
+        &mut self,
+        bigger_ori: &LPortRef,
+        smaller_ori: &LPortRef,
+        reverse_order: i32,
+    ) {
         let (bigger, smaller) = if reverse_order < 0 {
             (smaller_ori, bigger_ori)
         } else {
@@ -344,8 +394,16 @@ impl ModelOrderPortComparator {
         self.ensure_sets(&bigger_key);
         self.ensure_sets(&smaller_key);
 
-        let smaller_bigger = self.bigger_than.get(&smaller_key).cloned().unwrap_or_default();
-        let bigger_smaller = self.smaller_than.get(&bigger_key).cloned().unwrap_or_default();
+        let smaller_bigger = self
+            .bigger_than
+            .get(&smaller_key)
+            .cloned()
+            .unwrap_or_default();
+        let bigger_smaller = self
+            .smaller_than
+            .get(&bigger_key)
+            .cloned()
+            .unwrap_or_default();
 
         self.bigger_than
             .entry(bigger_key.clone())
@@ -392,7 +450,12 @@ impl ModelOrderPortComparator {
         self.smaller_than.entry(key.clone()).or_default();
     }
 
-    fn check_reference_layer(&self, layer: &[LNodeRef], p1_node: &LNodeRef, p2_node: &LNodeRef) -> i32 {
+    fn check_reference_layer(
+        &self,
+        layer: &[LNodeRef],
+        p1_node: &LNodeRef,
+        p2_node: &LNodeRef,
+    ) -> i32 {
         for node in layer {
             if std::sync::Arc::ptr_eq(node, p1_node) {
                 return -1;
@@ -440,7 +503,12 @@ fn layer_id(node: &LNodeRef) -> usize {
     node.lock()
         .ok()
         .and_then(|node_guard| node_guard.layer())
-        .and_then(|layer| layer.lock().ok().map(|mut layer_guard| layer_guard.graph_element().id as usize))
+        .and_then(|layer| {
+            layer
+                .lock()
+                .ok()
+                .map(|mut layer_guard| layer_guard.graph_element().id as usize)
+        })
         .unwrap_or(0)
 }
 
@@ -463,14 +531,18 @@ fn port_model_order(port: &LPortRef, graph: &LGraphRef, offset: i32) -> i32 {
         .lock()
         .ok()
         .and_then(|mut port_guard| port_guard.get_property(InternalProperties::MODEL_ORDER));
-    let Some(order) = order else { return -1; };
+    let Some(order) = order else {
+        return -1;
+    };
     let enforce_group_model_order = graph
         .try_lock()
         .ok()
         .and_then(|mut graph_guard| {
             graph_guard.get_property(LayeredOptions::GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY)
         })
-        .unwrap_or(crate::org::eclipse::elk::alg::layered::options::GroupOrderStrategy::OnlyWithinGroup)
+        .unwrap_or(
+            crate::org::eclipse::elk::alg::layered::options::GroupOrderStrategy::OnlyWithinGroup,
+        )
         == crate::org::eclipse::elk::alg::layered::options::GroupOrderStrategy::Enforced;
     if enforce_group_model_order {
         let enforced_orders = graph
@@ -499,14 +571,18 @@ fn edge_model_order(edge: &LEdgeRef, graph: &LGraphRef, offset: usize) -> i32 {
         .lock()
         .ok()
         .and_then(|mut edge_guard| edge_guard.get_property(InternalProperties::MODEL_ORDER));
-    let Some(order) = order else { return 0; };
+    let Some(order) = order else {
+        return 0;
+    };
     let enforce_group_model_order = graph
         .try_lock()
         .ok()
         .and_then(|mut graph_guard| {
             graph_guard.get_property(LayeredOptions::GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY)
         })
-        .unwrap_or(crate::org::eclipse::elk::alg::layered::options::GroupOrderStrategy::OnlyWithinGroup)
+        .unwrap_or(
+            crate::org::eclipse::elk::alg::layered::options::GroupOrderStrategy::OnlyWithinGroup,
+        )
         == crate::org::eclipse::elk::alg::layered::options::GroupOrderStrategy::Enforced;
     if enforce_group_model_order {
         let enforced_orders = graph

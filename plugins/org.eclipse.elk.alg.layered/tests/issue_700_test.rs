@@ -25,7 +25,12 @@ fn issue_700_edges_are_routed_with_non_zero_section_coordinates() {
     assert!(!edges.is_empty(), "graph should contain at least one edge");
 
     for edge in edges {
-        let sections = edge.borrow_mut().sections().iter().cloned().collect::<Vec<_>>();
+        let sections = edge
+            .borrow_mut()
+            .sections()
+            .iter()
+            .cloned()
+            .collect::<Vec<_>>();
         assert_eq!(sections.len(), 1, "edge should have exactly one section");
 
         let section = sections[0].borrow();

@@ -43,7 +43,8 @@ fn add_port(node: &LNodeRef) -> LPortRef {
 }
 
 fn run_processor(graph: &LGraphRef) {
-    LayoutMetaDataService::get_instance().register_layout_meta_data_provider(&LayeredMetaDataProvider);
+    LayoutMetaDataService::get_instance()
+        .register_layout_meta_data_provider(&LayeredMetaDataProvider);
     let mut processor = LayerConstraintPostprocessor;
     let mut monitor = NullElkProgressMonitor;
     let mut graph_guard = graph.lock().expect("graph lock");
@@ -84,13 +85,10 @@ fn layer_constraint_postprocessor_restores_hidden_nodes_and_detached_edges() {
     let opposite = add_node(&graph, &main_layer, LayerConstraint::None);
 
     let hidden = LNode::new(&graph);
-    hidden
-        .lock()
-        .expect("hidden node lock")
-        .set_property(
-            LayeredOptions::LAYERING_LAYER_CONSTRAINT,
-            Some(LayerConstraint::FirstSeparate),
-        );
+    hidden.lock().expect("hidden node lock").set_property(
+        LayeredOptions::LAYERING_LAYER_CONSTRAINT,
+        Some(LayerConstraint::FirstSeparate),
+    );
 
     let hidden_port = add_port(&hidden);
     let opposite_port = add_port(&opposite);
@@ -98,12 +96,10 @@ fn layer_constraint_postprocessor_restores_hidden_nodes_and_detached_edges() {
     LEdge::set_source(&edge, Some(hidden_port));
     LEdge::set_target(&edge, Some(opposite_port.clone()));
     LEdge::set_target(&edge, None);
-    edge.lock()
-        .expect("edge lock")
-        .set_property(
-            InternalProperties::ORIGINAL_OPPOSITE_PORT,
-            Some(opposite_port.clone()),
-        );
+    edge.lock().expect("edge lock").set_property(
+        InternalProperties::ORIGINAL_OPPOSITE_PORT,
+        Some(opposite_port.clone()),
+    );
 
     graph
         .lock()
@@ -114,7 +110,11 @@ fn layer_constraint_postprocessor_restores_hidden_nodes_and_detached_edges() {
 
     let layers_after = graph.lock().expect("graph lock").layers().clone();
     let first_layer = layers_after.first().cloned().expect("first layer");
-    let nodes_in_first = first_layer.lock().expect("first layer lock").nodes().clone();
+    let nodes_in_first = first_layer
+        .lock()
+        .expect("first layer lock")
+        .nodes()
+        .clone();
     assert!(nodes_in_first.iter().any(|node| Arc::ptr_eq(node, &hidden)));
 
     let target = edge.lock().expect("edge lock").target().expect("target");

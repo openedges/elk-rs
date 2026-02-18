@@ -28,7 +28,9 @@ impl ILayoutProcessor<TGraphRef> for LevelHeightProcessor {
                 .find(|node| {
                     node.lock()
                         .ok()
-                        .and_then(|mut node_guard| node_guard.get_property(InternalProperties::ROOT))
+                        .and_then(|mut node_guard| {
+                            node_guard.get_property(InternalProperties::ROOT)
+                        })
                         .unwrap_or(false)
                 })
                 .cloned();

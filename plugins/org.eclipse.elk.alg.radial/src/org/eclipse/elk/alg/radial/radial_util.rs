@@ -5,8 +5,8 @@ use std::rc::Rc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::math::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
-use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkConnectableShapeRef, ElkNodeRef};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkConnectableShapeRef, ElkNodeRef};
 
 use crate::org::eclipse::elk::alg::radial::internal_properties::InternalProperties;
 
@@ -39,7 +39,9 @@ impl RadialUtil {
                 let edge_borrow = outgoing_edge.borrow();
                 edge_borrow.targets_ro().get(0)
             };
-            let Some(target_shape) = target_shape else { continue; };
+            let Some(target_shape) = target_shape else {
+                continue;
+            };
             let Some(target) = ElkGraphUtil::connectable_shape_to_node(&target_shape) else {
                 continue;
             };
@@ -74,7 +76,9 @@ impl RadialUtil {
                 let edge_borrow = outgoing_edge.borrow();
                 edge_borrow.targets_ro().get(0)
             };
-            let Some(target_shape) = target_shape else { continue; };
+            let Some(target_shape) = target_shape else {
+                continue;
+            };
             let Some(target) = ElkGraphUtil::connectable_shape_to_node(&target_shape) else {
                 continue;
             };
@@ -136,10 +140,7 @@ impl RadialUtil {
         if successors.is_empty() {
             1.0
         } else {
-            successors
-                .iter()
-                .map(Self::get_number_of_leaves)
-                .sum()
+            successors.iter().map(Self::get_number_of_leaves).sum()
         }
     }
 

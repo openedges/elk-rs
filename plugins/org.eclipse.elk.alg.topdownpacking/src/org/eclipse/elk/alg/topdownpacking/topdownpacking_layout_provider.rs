@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::abstract_layout_provider::AbstractLayoutProvider;
-use org_eclipse_elk_core::org::eclipse::elk::core::alg::algorithm_assembler::{AlgorithmAssembler, SharedProcessor};
+use org_eclipse_elk_core::org::eclipse::elk::core::alg::algorithm_assembler::{
+    AlgorithmAssembler, SharedProcessor,
+};
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase_factory::ILayoutPhaseFactory;
 use org_eclipse_elk_core::org::eclipse::elk::core::graph_layout_engine::IGraphLayoutEngine;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::KVector;
@@ -34,14 +36,10 @@ impl TopdownpackingLayoutProvider {
 
         let node_factory: Arc<dyn ILayoutPhaseFactory<TopdownPackingPhases, GridElkNode>> =
             Arc::new(node_arrangement);
-        let whitespace_factory: Arc<
-            dyn ILayoutPhaseFactory<TopdownPackingPhases, GridElkNode>,
-        > = Arc::new(whitespace_elimination);
+        let whitespace_factory: Arc<dyn ILayoutPhaseFactory<TopdownPackingPhases, GridElkNode>> =
+            Arc::new(whitespace_elimination);
 
-        algorithm_assembler.set_phase(
-            TopdownPackingPhases::P1NodeArrangement,
-            node_factory,
-        );
+        algorithm_assembler.set_phase(TopdownPackingPhases::P1NodeArrangement, node_factory);
         algorithm_assembler.set_phase(
             TopdownPackingPhases::P2WhitespaceElimination,
             whitespace_factory,

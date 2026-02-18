@@ -79,7 +79,12 @@ impl ScConnectivityCycleBreaker {
                         .lock()
                         .ok()
                         .and_then(|edge_guard| edge_guard.source())
-                        .and_then(|source| source.lock().ok().and_then(|source_guard| source_guard.node()));
+                        .and_then(|source| {
+                            source
+                                .lock()
+                                .ok()
+                                .and_then(|source_guard| source_guard.node())
+                        });
                     let Some(source_node) = source_node else {
                         continue;
                     };
@@ -98,7 +103,12 @@ impl ScConnectivityCycleBreaker {
                         .lock()
                         .ok()
                         .and_then(|edge_guard| edge_guard.target())
-                        .and_then(|target| target.lock().ok().and_then(|target_guard| target_guard.node()));
+                        .and_then(|target| {
+                            target
+                                .lock()
+                                .ok()
+                                .and_then(|target_guard| target_guard.node())
+                        });
                     let Some(target_node) = target_node else {
                         continue;
                     };

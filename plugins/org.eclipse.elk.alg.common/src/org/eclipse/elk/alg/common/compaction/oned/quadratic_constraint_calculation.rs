@@ -46,10 +46,8 @@ impl IConstraintCalculationAlgorithm for QuadraticConstraintCalculation {
                 let to_the_right = n2.hitbox.x > n1.hitbox.x
                     || (compare_fuzzy::eq(n1.hitbox.x, n2.hitbox.x)
                         && n1.hitbox.width < n2.hitbox.width);
-                let overlap_low = compare_fuzzy::gt(
-                    n2.hitbox.y + n2.hitbox.height + spacing,
-                    n1.hitbox.y,
-                );
+                let overlap_low =
+                    compare_fuzzy::gt(n2.hitbox.y + n2.hitbox.height + spacing, n1.hitbox.y);
                 let overlap_high =
                     compare_fuzzy::lt(n2.hitbox.y, n1.hitbox.y + n1.hitbox.height + spacing);
                 drop(n1);

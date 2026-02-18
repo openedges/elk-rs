@@ -101,7 +101,10 @@ impl ILayoutPhase<RectPackingLayoutPhases, ElkNodeRef> for GreedyWidthApproximat
                 .shape()
                 .graph_element()
                 .properties_mut()
-                .set_property(InternalProperties::TARGET_WIDTH, Some(drawing.drawing_width()));
+                .set_property(
+                    InternalProperties::TARGET_WIDTH,
+                    Some(drawing.drawing_width()),
+                );
         }
 
         progress_monitor.done();

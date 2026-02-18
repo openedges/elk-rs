@@ -74,7 +74,9 @@ impl<'a> Tarjan<'a> {
                 Ok(guard) => guard,
                 Err(_) => continue,
             };
-            let id = guard.get_property(InternalProperties::TARJAN_ID).unwrap_or(-1);
+            let id = guard
+                .get_property(InternalProperties::TARJAN_ID)
+                .unwrap_or(-1);
             drop(guard);
             if id == -1 {
                 self.strongly_connected(&node);

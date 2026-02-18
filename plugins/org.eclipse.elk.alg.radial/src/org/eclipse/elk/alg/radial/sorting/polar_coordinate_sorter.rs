@@ -26,8 +26,7 @@ impl PolarCoordinateSorter {
     fn node_arc(node: &ElkNodeRef) -> f64 {
         let mut node_mut = node.borrow_mut();
         let shape = node_mut.connectable().shape();
-        let mut arc = (shape.y() + shape.height() / 2.0)
-            .atan2(shape.x() + shape.width() / 2.0);
+        let mut arc = (shape.y() + shape.height() / 2.0).atan2(shape.x() + shape.width() / 2.0);
         if arc < 0.0 {
             arc += 2.0 * PI;
         }

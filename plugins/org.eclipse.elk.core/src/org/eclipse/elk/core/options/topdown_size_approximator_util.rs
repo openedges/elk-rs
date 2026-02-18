@@ -1,5 +1,5 @@
-use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::MapPropertyHolder;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 
 use crate::org::eclipse::elk::core::options::CoreOptions;
 
@@ -77,7 +77,10 @@ impl TopdownSizeApproximatorUtil {
     }
 }
 
-fn with_node_properties_mut<R>(node: &ElkNodeRef, f: impl FnOnce(&mut MapPropertyHolder) -> R) -> R {
+fn with_node_properties_mut<R>(
+    node: &ElkNodeRef,
+    f: impl FnOnce(&mut MapPropertyHolder) -> R,
+) -> R {
     let mut node_mut = node.borrow_mut();
     let props = node_mut
         .connectable()

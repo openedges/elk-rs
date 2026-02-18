@@ -90,7 +90,11 @@ fn same_side(graph: &LGraph, label_side: LabelSide, edge_label_spacing: f64) {
 }
 
 /// Configures all labels to be placed according to their edge's direction.
-fn based_on_direction(graph: &LGraph, side_for_rightward_edges: LabelSide, edge_label_spacing: f64) {
+fn based_on_direction(
+    graph: &LGraph,
+    side_for_rightward_edges: LabelSide,
+    edge_label_spacing: f64,
+) {
     let layers = graph.layers().clone();
     for layer in layers {
         let nodes = layer
@@ -304,11 +308,7 @@ fn apply_for_dummy_node_run_with_simple_loops(
     }
 
     // Assign label sides to whatever dummy nodes are left
-    apply_label_sides_to_label_dummy_run(
-        &mut label_dummy_run,
-        default_side,
-        edge_label_spacing,
-    );
+    apply_label_sides_to_label_dummy_run(&mut label_dummy_run, default_side, edge_label_spacing);
 }
 
 /// Returns either the long edge source or target node of the given dummy node.
@@ -355,16 +355,16 @@ fn smart_for_regular_node(node: &LNodeRef, default_side: LabelSide) {
     let mut current_port_side: Option<PortSide> = None;
 
     for port in &ports {
-        let port_side = port.lock().ok().map(|pg| pg.side()).unwrap_or(PortSide::Undefined);
+        let port_side = port
+            .lock()
+            .ok()
+            .map(|pg| pg.side())
+            .unwrap_or(PortSide::Undefined);
 
         if Some(port_side) != current_port_side {
             if !end_label_queue.is_empty() {
                 if let Some(cps) = current_port_side {
-                    smart_for_regular_node_port_end_labels(
-                        &mut end_label_queue,
-                        cps,
-                        default_side,
-                    );
+                    smart_for_regular_node_port_end_labels(&mut end_label_queue, cps, default_side);
                 }
             }
             end_label_queue.clear();

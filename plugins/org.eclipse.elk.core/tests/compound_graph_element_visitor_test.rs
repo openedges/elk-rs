@@ -10,7 +10,10 @@ struct CountingVisitor {
 }
 
 impl IGraphElementVisitor for CountingVisitor {
-    fn visit(&mut self, _element: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkGraphElementRef) {
+    fn visit(
+        &mut self,
+        _element: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkGraphElementRef,
+    ) {
         *self.counter.borrow_mut() += 1;
     }
 }
@@ -30,10 +33,8 @@ fn compound_visitor_applies_in_order() {
         counter: counter_b.clone(),
     };
 
-    let mut compound = CompoundGraphElementVisitor::new(vec![
-        Box::new(visitor_a),
-        Box::new(visitor_b),
-    ]);
+    let mut compound =
+        CompoundGraphElementVisitor::new(vec![Box::new(visitor_a), Box::new(visitor_b)]);
 
     let mut visitors: Vec<&mut dyn IGraphElementVisitor> = vec![&mut compound];
     ElkUtil::apply_visitors(&root, &mut visitors);

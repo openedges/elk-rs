@@ -83,10 +83,7 @@ fn build_graph(
         let node = ElkGraphUtil::create_node(Some(root.clone()));
         {
             let mut node_mut = node.borrow_mut();
-            node_mut
-                .connectable()
-                .shape()
-                .set_dimensions(30.0, 20.0);
+            node_mut.connectable().shape().set_dimensions(30.0, 20.0);
         }
         nodes.push(node);
     }
@@ -104,11 +101,7 @@ fn build_graph(
     root
 }
 
-fn run_layout(
-    root: &ElkNodeRef,
-    iterations: usize,
-    warmup: usize,
-) -> (u128, f64) {
+fn run_layout(root: &ElkNodeRef, iterations: usize, warmup: usize) -> (u128, f64) {
     let mut engine = RecursiveGraphLayoutEngine::new();
     for _ in 0..warmup {
         let mut monitor = NullElkProgressMonitor;

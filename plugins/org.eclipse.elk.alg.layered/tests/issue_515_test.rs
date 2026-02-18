@@ -1,7 +1,9 @@
 mod elkt_test_loader;
 mod issue_support;
 
-use elkt_test_loader::{find_edge_by_identifier, find_node_by_identifier, load_layered_graph_from_elkt};
+use elkt_test_loader::{
+    find_edge_by_identifier, find_node_by_identifier, load_layered_graph_from_elkt,
+};
 use issue_support::{init_layered_options, run_layout};
 use org_eclipse_elk_core::org::eclipse::elk::core::math::{ElkMath, ElkRectangle};
 use org_eclipse_elk_core::org::eclipse::elk::core::util::ElkUtil;
@@ -31,7 +33,12 @@ fn issue_515_edge_segments_do_not_cross_unrelated_nodes() {
 }
 
 fn assert_edge_avoids_non_endpoint_nodes(edge: &ElkEdgeRef, excluded: &[ElkNodeRef]) {
-    let sections = edge.borrow_mut().sections().iter().cloned().collect::<Vec<_>>();
+    let sections = edge
+        .borrow_mut()
+        .sections()
+        .iter()
+        .cloned()
+        .collect::<Vec<_>>();
     let node_boxes = excluded.iter().map(node_rect).collect::<Vec<_>>();
 
     for section in sections {

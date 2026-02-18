@@ -1,9 +1,11 @@
 mod issue_support;
 
-use issue_support::{create_graph, create_node, init_layered_options, run_layout, set_node_property};
+use issue_support::{
+    create_graph, create_node, init_layered_options, run_layout, set_node_property,
+};
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
-use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkConnectableShapeRef;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkConnectableShapeRef;
 
 #[test]
 fn test_partition_order() {

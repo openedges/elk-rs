@@ -6,19 +6,21 @@ use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::spore::scanline_
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::t_edge::TEdge;
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::utils::SVGImage;
 use org_eclipse_elk_core::org::eclipse::elk::core::abstract_layout_provider::AbstractLayoutProvider;
-use org_eclipse_elk_core::org::eclipse::elk::core::alg::algorithm_assembler::{AlgorithmAssembler, SharedProcessor};
+use org_eclipse_elk_core::org::eclipse::elk::core::alg::algorithm_assembler::{
+    AlgorithmAssembler, SharedProcessor,
+};
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
 use org_eclipse_elk_core::org::eclipse::elk::core::graph_layout_engine::IGraphLayoutEngine;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{ElkUtil, IElkProgressMonitor};
-use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 
 use crate::org::eclipse::elk::alg::spore::elk_graph_importer::ElkGraphImporter;
 use crate::org::eclipse::elk::alg::spore::graph::Graph;
 use crate::org::eclipse::elk::alg::spore::i_graph_importer::IGraphImporter;
 use crate::org::eclipse::elk::alg::spore::options::{
-    OverlapRemovalStrategy, RootSelection, SporeCompactionOptions, SporeOverlapRemovalOptions,
-    SpanningTreeCostFunction, StructureExtractionStrategy, TreeConstructionStrategy,
+    OverlapRemovalStrategy, RootSelection, SpanningTreeCostFunction, SporeCompactionOptions,
+    SporeOverlapRemovalOptions, StructureExtractionStrategy, TreeConstructionStrategy,
 };
 use crate::org::eclipse::elk::alg::spore::spore_phases::SPOrEPhases;
 
@@ -43,11 +45,19 @@ impl Default for OverlapRemovalLayoutProvider {
 }
 
 impl IGraphLayoutEngine for OverlapRemovalLayoutProvider {
-    fn layout(&mut self, layout_graph: &ElkNodeRef, progress_monitor: &mut dyn IElkProgressMonitor) {
-        if has_property(layout_graph, SporeOverlapRemovalOptions::UNDERLYING_LAYOUT_ALGORITHM) {
-            if let Some(requested) =
-                property(layout_graph, SporeOverlapRemovalOptions::UNDERLYING_LAYOUT_ALGORITHM)
-            {
+    fn layout(
+        &mut self,
+        layout_graph: &ElkNodeRef,
+        progress_monitor: &mut dyn IElkProgressMonitor,
+    ) {
+        if has_property(
+            layout_graph,
+            SporeOverlapRemovalOptions::UNDERLYING_LAYOUT_ALGORITHM,
+        ) {
+            if let Some(requested) = property(
+                layout_graph,
+                SporeOverlapRemovalOptions::UNDERLYING_LAYOUT_ALGORITHM,
+            ) {
                 if !requested.trim().is_empty() {
                     let service = LayoutMetaDataService::get_instance();
                     if let Some(algorithm_data) = service.get_algorithm_data_by_suffix(&requested) {
@@ -78,13 +88,18 @@ impl IGraphLayoutEngine for OverlapRemovalLayoutProvider {
             TreeConstructionStrategy::MinimumSpanningTree,
         );
 
-        let max_iterations = property(layout_graph, SporeOverlapRemovalOptions::OVERLAP_REMOVAL_MAX_ITERATIONS)
-            .unwrap_or(0)
-            .max(0) as usize;
+        let max_iterations = property(
+            layout_graph,
+            SporeOverlapRemovalOptions::OVERLAP_REMOVAL_MAX_ITERATIONS,
+        )
+        .unwrap_or(0)
+        .max(0) as usize;
 
         progress_monitor.begin("Overlap removal", 1.0);
 
-        let debug_output = if property(layout_graph, SporeOverlapRemovalOptions::DEBUG_MODE).unwrap_or(false) {
+        let debug_output = if property(layout_graph, SporeOverlapRemovalOptions::DEBUG_MODE)
+            .unwrap_or(false)
+        {
             ElkUtil::debug_folder_path(&["spore"]).map(|path| format!("{}45scanlineOverlaps", path))
         } else {
             None
@@ -98,7 +113,12 @@ impl IGraphLayoutEngine for OverlapRemovalLayoutProvider {
         let mut iteration = 0usize;
 
         while iteration < max_iterations && overlaps_existed {
-            if property(layout_graph, SporeOverlapRemovalOptions::OVERLAP_REMOVAL_RUN_SCANLINE).unwrap_or(true) {
+            if property(
+                layout_graph,
+                SporeOverlapRemovalOptions::OVERLAP_REMOVAL_RUN_SCANLINE,
+            )
+            .unwrap_or(true)
+            {
                 if let Ok(mut guard) = overlap_edges.lock() {
                     guard.clear();
                 }
@@ -129,8 +149,14 @@ impl IGraphLayoutEngine for OverlapRemovalLayoutProvider {
                     SPOrEPhases::P1Structure,
                     Arc::new(StructureExtractionStrategy::DelaunayTriangulation),
                 )
-                .set_phase(SPOrEPhases::P2ProcessingOrder, Arc::new(graph.tree_construction_strategy))
-                .set_phase(SPOrEPhases::P3Execution, Arc::new(OverlapRemovalStrategy::GrowTree));
+                .set_phase(
+                    SPOrEPhases::P2ProcessingOrder,
+                    Arc::new(graph.tree_construction_strategy),
+                )
+                .set_phase(
+                    SPOrEPhases::P3Execution,
+                    Arc::new(OverlapRemovalStrategy::GrowTree),
+                );
 
             self.algorithm = self.algorithm_assembler.build(&graph);
             let step = if self.algorithm.is_empty() {

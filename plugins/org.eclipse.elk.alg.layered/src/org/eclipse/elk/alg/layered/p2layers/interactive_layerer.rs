@@ -5,7 +5,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutP
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
-use crate::org::eclipse::elk::alg::layered::graph::{Layer, LGraph, LGraphRef, LNode, LNodeRef};
+use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LGraphRef, LNode, LNodeRef, Layer};
 use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorStrategy;
 use crate::org::eclipse::elk::alg::layered::options::PortType;
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
@@ -108,8 +108,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveLayerer {
         for node in &nodes {
             if node_id(node) == 0 {
                 let mut pending = VecDeque::from(check_node(node, graph, &graph_ref));
-                let mut pending_set: HashSet<usize> =
-                    pending.iter().map(node_ptr_id).collect();
+                let mut pending_set: HashSet<usize> = pending.iter().map(node_ptr_id).collect();
                 while let Some(node_to_check) = pending.pop_front() {
                     let node_key = node_ptr_id(&node_to_check);
                     pending_set.remove(&node_key);
@@ -125,9 +124,12 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveLayerer {
             }
         }
 
-        graph
-            .layers_mut()
-            .retain(|layer| !layer.lock().map(|layer_guard| layer_guard.nodes().is_empty()).unwrap_or(false));
+        graph.layers_mut().retain(|layer| {
+            !layer
+                .lock()
+                .map(|layer_guard| layer_guard.nodes().is_empty())
+                .unwrap_or(false)
+        });
 
         graph.layerless_nodes_mut().clear();
         monitor.done();
@@ -193,10 +195,18 @@ fn check_node(node: &LNodeRef, graph: &mut LGraph, graph_ref: &LGraphRef) -> Vec
             if Arc::ptr_eq(node, &target_node) {
                 continue;
             }
-            let layer2 = target_node.lock().ok().and_then(|node_guard| node_guard.layer());
+            let layer2 = target_node
+                .lock()
+                .ok()
+                .and_then(|node_guard| node_guard.layer());
             let layer2_id = layer2
                 .as_ref()
-                .and_then(|layer| layer.lock().ok().map(|mut layer_guard| layer_guard.graph_element().id))
+                .and_then(|layer| {
+                    layer
+                        .lock()
+                        .ok()
+                        .map(|mut layer_guard| layer_guard.graph_element().id)
+                })
                 .unwrap_or(-1);
             if layer2_id <= layer1_id {
                 let new_index = (layer1_id + 1).max(0) as usize;

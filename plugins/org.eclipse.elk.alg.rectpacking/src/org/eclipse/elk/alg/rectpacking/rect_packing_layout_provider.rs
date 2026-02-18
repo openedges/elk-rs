@@ -2,14 +2,18 @@ use std::sync::Arc;
 
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::NodeMicroLayout;
 use org_eclipse_elk_core::org::eclipse::elk::core::abstract_layout_provider::AbstractLayoutProvider;
-use org_eclipse_elk_core::org::eclipse::elk::core::alg::algorithm_assembler::{AlgorithmAssembler, SharedProcessor};
+use org_eclipse_elk_core::org::eclipse::elk::core::alg::algorithm_assembler::{
+    AlgorithmAssembler, SharedProcessor,
+};
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase_factory::ILayoutPhaseFactory;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
 use org_eclipse_elk_core::org::eclipse::elk::core::graph_layout_engine::IGraphLayoutEngine;
+use org_eclipse_elk_core::org::eclipse::elk::core::math::ElkPadding;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
-use org_eclipse_elk_core::org::eclipse::elk::core::math::ElkPadding;
-use org_eclipse_elk_core::org::eclipse::elk::core::util::{BasicProgressMonitor, BoxLayoutProvider, ElkUtil, IElkProgressMonitor};
+use org_eclipse_elk_core::org::eclipse::elk::core::util::{
+    BasicProgressMonitor, BoxLayoutProvider, ElkUtil, IElkProgressMonitor,
+};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 
 use crate::org::eclipse::elk::alg::rectpacking::intermediate::IntermediateProcessorStrategy;
@@ -23,17 +27,25 @@ impl RectPackingLayoutProvider {
         RectPackingLayoutProvider
     }
 
-    fn assemble_algorithm(&mut self, layout_graph: &ElkNodeRef) -> Vec<SharedProcessor<ElkNodeRef>> {
+    fn assemble_algorithm(
+        &mut self,
+        layout_graph: &ElkNodeRef,
+    ) -> Vec<SharedProcessor<ElkNodeRef>> {
         let mut algorithm_assembler: AlgorithmAssembler<RectPackingLayoutPhases, ElkNodeRef> =
             AlgorithmAssembler::create();
 
-        let width_strategy = property(layout_graph, RectPackingOptions::WIDTH_APPROXIMATION_STRATEGY)
-            .unwrap_or_default();
-        let packing_strategy = property(layout_graph, RectPackingOptions::PACKING_STRATEGY)
-            .unwrap_or_default();
-        let whitespace_strategy =
-            property(layout_graph, RectPackingOptions::WHITE_SPACE_ELIMINATION_STRATEGY)
-                .unwrap_or_default();
+        let width_strategy = property(
+            layout_graph,
+            RectPackingOptions::WIDTH_APPROXIMATION_STRATEGY,
+        )
+        .unwrap_or_default();
+        let packing_strategy =
+            property(layout_graph, RectPackingOptions::PACKING_STRATEGY).unwrap_or_default();
+        let whitespace_strategy = property(
+            layout_graph,
+            RectPackingOptions::WHITE_SPACE_ELIMINATION_STRATEGY,
+        )
+        .unwrap_or_default();
 
         let width_factory: Arc<dyn ILayoutPhaseFactory<RectPackingLayoutPhases, ElkNodeRef>> =
             Arc::new(width_strategy);
@@ -44,7 +56,10 @@ impl RectPackingLayoutProvider {
 
         algorithm_assembler.set_phase(RectPackingLayoutPhases::P1WidthApproximation, width_factory);
         algorithm_assembler.set_phase(RectPackingLayoutPhases::P2Packing, packing_factory);
-        algorithm_assembler.set_phase(RectPackingLayoutPhases::P3WhitespaceElimination, whitespace_factory);
+        algorithm_assembler.set_phase(
+            RectPackingLayoutPhases::P3WhitespaceElimination,
+            whitespace_factory,
+        );
 
         let config = self.get_phase_independent_layout_processor_configuration(layout_graph);
         algorithm_assembler.add_processor_configuration(&config);
@@ -92,7 +107,11 @@ impl Default for RectPackingLayoutProvider {
 }
 
 impl IGraphLayoutEngine for RectPackingLayoutProvider {
-    fn layout(&mut self, layout_graph: &ElkNodeRef, progress_monitor: &mut dyn IElkProgressMonitor) {
+    fn layout(
+        &mut self,
+        layout_graph: &ElkNodeRef,
+        progress_monitor: &mut dyn IElkProgressMonitor,
+    ) {
         progress_monitor.begin("Rectangle Packing", 1.0);
 
         apply_algorithm_defaults(layout_graph);
@@ -100,7 +119,8 @@ impl IGraphLayoutEngine for RectPackingLayoutProvider {
         let padding = property(layout_graph, RectPackingOptions::PADDING).unwrap_or_default();
         let fixed_graph_size =
             property(layout_graph, RectPackingOptions::NODE_SIZE_FIXED_GRAPH_SIZE).unwrap_or(false);
-        let node_node_spacing = property(layout_graph, RectPackingOptions::SPACING_NODE_NODE).unwrap_or(0.0);
+        let node_node_spacing =
+            property(layout_graph, RectPackingOptions::SPACING_NODE_NODE).unwrap_or(0.0);
         let try_box = property(layout_graph, RectPackingOptions::TRYBOX).unwrap_or(false);
 
         let rectangles = {
@@ -163,7 +183,8 @@ impl IGraphLayoutEngine for RectPackingLayoutProvider {
                 return;
             }
             if progress_monitor.is_logging_enabled() {
-                progress_monitor.log_graph(layout_graph, &format!("{}-Before processor", slot_index));
+                progress_monitor
+                    .log_graph(layout_graph, &format!("{}-Before processor", slot_index));
             }
             let mut sub = progress_monitor.sub_task(monitor_progress);
             let mut processor_guard = processor.lock().expect("processor lock");
@@ -183,8 +204,10 @@ impl IGraphLayoutEngine for RectPackingLayoutProvider {
             real_height = real_height.max(y + height);
         }
 
-        let drawing_width = property(layout_graph, InternalProperties::DRAWING_WIDTH).unwrap_or(real_width);
-        let drawing_height = property(layout_graph, InternalProperties::DRAWING_HEIGHT).unwrap_or(real_height);
+        let drawing_width =
+            property(layout_graph, InternalProperties::DRAWING_WIDTH).unwrap_or(real_width);
+        let drawing_height =
+            property(layout_graph, InternalProperties::DRAWING_HEIGHT).unwrap_or(real_height);
 
         ElkUtil::translate((
             layout_graph,
@@ -235,7 +258,10 @@ fn apply_algorithm_defaults(graph: &ElkNodeRef) {
     }
 }
 
-fn apply_padding(rectangles: &[ElkNodeRef], padding: &org_eclipse_elk_core::org::eclipse::elk::core::math::ElkPadding) {
+fn apply_padding(
+    rectangles: &[ElkNodeRef],
+    padding: &org_eclipse_elk_core::org::eclipse::elk::core::math::ElkPadding,
+) {
     for rect in rectangles {
         let (x, y) = {
             let mut rect_mut = rect.borrow_mut();

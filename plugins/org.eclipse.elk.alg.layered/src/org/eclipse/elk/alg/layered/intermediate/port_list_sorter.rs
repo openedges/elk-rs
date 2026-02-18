@@ -6,7 +6,9 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LPortRef};
-use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions, PortSortingStrategy};
+use crate::org::eclipse::elk::alg::layered::options::{
+    InternalProperties, LayeredOptions, PortSortingStrategy,
+};
 
 pub struct PortListSorter;
 
@@ -36,7 +38,9 @@ impl ILayoutProcessor<LGraph> for PortListSorter {
                 let constraints = node
                     .lock()
                     .ok()
-                    .and_then(|mut node_guard| node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS))
+                    .and_then(|mut node_guard| {
+                        node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
+                    })
                     .unwrap_or(PortConstraints::Undefined);
 
                 if let Ok(mut node_guard) = node.lock() {
@@ -49,10 +53,7 @@ impl ILayoutProcessor<LGraph> for PortListSorter {
                         reverse_west_and_south_side(node_guard.ports_mut());
 
                         if sorting_strategy == PortSortingStrategy::PortDegree {
-                            stable_sort_by(
-                                node_guard.ports_mut(),
-                                compare_port_degree_east_west,
-                            );
+                            stable_sort_by(node_guard.ports_mut(), compare_port_degree_east_west);
                         }
                     }
                     node_guard.cache_port_sides();

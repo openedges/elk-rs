@@ -1,6 +1,6 @@
 use crate::org::eclipse::elk::core::graph_layout_engine::IGraphLayoutEngine;
-use crate::org::eclipse::elk::core::topdown_layout_provider::ITopdownLayoutProvider;
 use crate::org::eclipse::elk::core::testing::IWhiteBoxTestable;
+use crate::org::eclipse::elk::core::topdown_layout_provider::ITopdownLayoutProvider;
 
 pub trait AbstractLayoutProvider: IGraphLayoutEngine + Send {
     fn initialize(&mut self, _parameter: &str) {}

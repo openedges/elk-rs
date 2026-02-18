@@ -24,4 +24,3 @@ pub trait ISplineInterpolator {
         tangent_scale: bool,
     ) -> BezierSpline;
 }
-

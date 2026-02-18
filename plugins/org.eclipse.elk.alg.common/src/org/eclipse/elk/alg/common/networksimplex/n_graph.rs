@@ -1,6 +1,6 @@
-use std::collections::VecDeque;
 use super::n_edge::NEdge;
 use super::n_node::{NNode, NNodeRef};
+use std::collections::VecDeque;
 
 #[derive(Default)]
 pub struct NGraph {
@@ -111,7 +111,9 @@ impl NGraph {
             };
             for edge in outgoing {
                 let target = edge.lock().ok().map(|edge_guard| edge_guard.target.clone());
-                let Some(target) = target else { continue; };
+                let Some(target) = target else {
+                    continue;
+                };
                 let target_idx = node_index(&target);
                 layer[target_idx] = layer[target_idx].max(layer[node_idx] + 1);
                 if incident[target_idx] > 0 {

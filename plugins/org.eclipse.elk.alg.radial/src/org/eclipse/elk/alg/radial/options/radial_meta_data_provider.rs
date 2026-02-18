@@ -12,7 +12,8 @@ use org_eclipse_elk_core::org::eclipse::elk::core::data::{
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 
 use crate::org::eclipse::elk::alg::radial::options::{
-    AnnulusWedgeCriteria, CompactionStrategy, RadialOptions, RadialTranslationStrategy, SortingStrategy,
+    AnnulusWedgeCriteria, CompactionStrategy, RadialOptions, RadialTranslationStrategy,
+    SortingStrategy,
 };
 
 pub struct RadialMetaDataProvider;

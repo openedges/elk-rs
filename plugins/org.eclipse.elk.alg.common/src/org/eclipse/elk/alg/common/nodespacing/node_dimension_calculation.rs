@@ -2,17 +2,19 @@ use std::any::Any;
 use std::cmp::Ordering;
 use std::sync::LazyLock;
 
+use org_eclipse_elk_core::org::eclipse::elk::core::math::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::{
     CoreOptions, Direction, NodeLabelPlacement, PortLabelPlacement, PortSide, SizeConstraint,
 };
-use org_eclipse_elk_core::org::eclipse::elk::core::math::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::adapters::{
     ElkGraphAdapter, ElkLabelAdapter, ElkNodeAdapter, ElkPortAdapter, GraphAdapter,
     GraphElementAdapter, NodeAdapter, PortAdapter,
 };
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
-use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkConnectableShapeRef, ElkEdgeRef, ElkNodeRef, ElkPortRef};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::{
+    ElkConnectableShapeRef, ElkEdgeRef, ElkNodeRef, ElkPortRef,
+};
 use std::rc::Rc;
 
 use super::node_label_and_size_calculator::NodeLabelAndSizeCalculator;
@@ -111,7 +113,8 @@ impl NodeDimensionCalculation {
             let next_to_port_if_possible =
                 placement.contains(&PortLabelPlacement::NextToPortIfPossible);
             let always_same_side = placement.contains(&PortLabelPlacement::AlwaysSameSide);
-            let always_other_same_side = placement.contains(&PortLabelPlacement::AlwaysOtherSameSide);
+            let always_other_same_side =
+                placement.contains(&PortLabelPlacement::AlwaysOtherSameSide);
             let space_efficient = placement.contains(&PortLabelPlacement::SpaceEfficient);
             let label_gap_horizontal = node
                 .get_property(CoreOptions::SPACING_LABEL_PORT_HORIZONTAL)
@@ -160,11 +163,14 @@ impl NodeDimensionCalculation {
                 side_indices[side_idx] += 1;
 
                 // Java's NodeContext.comparePortContexts reverses WEST/SOUTH ports in TreeMultimap
-                let effective_index = if port.get_side() == PortSide::West || port.get_side() == PortSide::South {
-                    per_side_count.saturating_sub(1).saturating_sub(per_side_index)
-                } else {
-                    per_side_index
-                };
+                let effective_index =
+                    if port.get_side() == PortSide::South || port.get_side() == PortSide::West {
+                        per_side_count
+                            .saturating_sub(1)
+                            .saturating_sub(per_side_index)
+                    } else {
+                        per_side_index
+                    };
 
                 let relation = Self::label_placement_relation(
                     effective_index,
@@ -175,12 +181,18 @@ impl NodeDimensionCalculation {
                     always_same_side,
                     always_other_same_side,
                     space_efficient,
-                    Self::should_label_be_placed_next_to_port(port, &node, inside_label_placement),
+                    Self::should_label_be_placed_next_to_port(
+                        port,
+                        &node,
+                        inside_label_placement,
+                        next_to_port_if_possible,
+                    ),
                 );
 
                 let port_size = port.get_size();
-                let port_border_offset =
-                    port.get_property(CoreOptions::PORT_BORDER_OFFSET).unwrap_or(0.0);
+                let port_border_offset = port
+                    .get_property(CoreOptions::PORT_BORDER_OFFSET)
+                    .unwrap_or(0.0);
                 let label_border_offset = Self::port_label_border_offset_for_port_side(
                     &node,
                     port.get_side(),
@@ -190,22 +202,28 @@ impl NodeDimensionCalculation {
                 let labels = port.get_labels();
                 let label_count = labels.len();
                 let total_label_height: f64 = if label_count > 1
-                    && matches!(port.get_side(), PortSide::East | PortSide::West | PortSide::Undefined)
-                {
+                    && matches!(
+                        port.get_side(),
+                        PortSide::East | PortSide::West | PortSide::Undefined
+                    ) {
                     labels.iter().map(|l| l.get_size().y).sum()
                 } else {
                     0.0
                 };
                 let mut y_cursor = if label_count > 1
-                    && matches!(port.get_side(), PortSide::East | PortSide::West | PortSide::Undefined)
-                {
+                    && matches!(
+                        port.get_side(),
+                        PortSide::East | PortSide::West | PortSide::Undefined
+                    ) {
                     if inside_label_placement {
                         (port_size.y - total_label_height) / 2.0
                     } else {
                         match relation {
                             LabelPlacementRelation::BelowOrRight => port_size.y + 1.0,
                             LabelPlacementRelation::AboveOrLeft => -total_label_height - 1.0,
-                            LabelPlacementRelation::Centered => (port_size.y - total_label_height) / 2.0,
+                            LabelPlacementRelation::Centered => {
+                                (port_size.y - total_label_height) / 2.0
+                            }
                         }
                     }
                 } else {
@@ -319,13 +337,14 @@ impl NodeDimensionCalculation {
             }
 
             if constrained_placement {
-                let stack_constrained_inside = inside_label_placement
-                    && (always_same_side || always_other_same_side);
+                let stack_constrained_inside =
+                    inside_label_placement && (always_same_side || always_other_same_side);
                 if stack_label_overlaps || stack_constrained_inside {
                     let north_positive = inside_label_placement;
                     let south_positive = !inside_label_placement;
-                    let clamp_x = inside_label_placement
-                        .then_some(Self::inside_horizontal_label_clamp_bounds(&node, node_width));
+                    let clamp_x = inside_label_placement.then_some(
+                        Self::inside_horizontal_label_clamp_bounds(&node, node_width),
+                    );
 
                     // Java uses a strip overlap remover with side-dependent start coordinates.
                     // This simplified variant keeps the same directional stacking behavior.
@@ -416,7 +435,8 @@ impl NodeDimensionCalculation {
             let next_to_port_if_possible =
                 placement.contains(&PortLabelPlacement::NextToPortIfPossible);
             let always_same_side = placement.contains(&PortLabelPlacement::AlwaysSameSide);
-            let always_other_same_side = placement.contains(&PortLabelPlacement::AlwaysOtherSameSide);
+            let always_other_same_side =
+                placement.contains(&PortLabelPlacement::AlwaysOtherSameSide);
             let space_efficient = placement.contains(&PortLabelPlacement::SpaceEfficient);
             let label_gap_horizontal = node
                 .get_property(CoreOptions::SPACING_LABEL_PORT_HORIZONTAL)
@@ -433,9 +453,7 @@ impl NodeDimensionCalculation {
             let node_label_bounds = Self::inside_node_label_bounds_generic(&node);
 
             let ports = node.get_ports();
-            let node_is_compound = node
-                .get_property(&COMPOUND_NODE_PROPERTY)
-                .unwrap_or(false);
+            let node_is_compound = node.get_property(&COMPOUND_NODE_PROPERTY).unwrap_or(false);
             let any_incident_edges = ports.iter().any(|port| {
                 !port.get_incoming_edges().is_empty()
                     || !port.get_outgoing_edges().is_empty()
@@ -471,11 +489,14 @@ impl NodeDimensionCalculation {
                 side_indices[side_idx] += 1;
 
                 // Java's NodeContext.comparePortContexts reverses WEST/SOUTH ports in TreeMultimap
-                let effective_index = if port.get_side() == PortSide::West || port.get_side() == PortSide::South {
-                    per_side_count.saturating_sub(1).saturating_sub(per_side_index)
-                } else {
-                    per_side_index
-                };
+                let effective_index =
+                    if port.get_side() == PortSide::South || port.get_side() == PortSide::West {
+                        per_side_count
+                            .saturating_sub(1)
+                            .saturating_sub(per_side_index)
+                    } else {
+                        per_side_index
+                    };
 
                 let relation = Self::label_placement_relation(
                     effective_index,
@@ -486,12 +507,18 @@ impl NodeDimensionCalculation {
                     always_same_side,
                     always_other_same_side,
                     space_efficient,
-                    Self::should_label_be_placed_next_to_port_generic(port, inside_label_placement),
+                    Self::should_label_be_placed_next_to_port_generic(
+                        port,
+                        node_is_compound,
+                        inside_label_placement,
+                        next_to_port_if_possible,
+                    ),
                 );
 
                 let port_size = port.get_size();
-                let port_border_offset =
-                    port.get_property(CoreOptions::PORT_BORDER_OFFSET).unwrap_or(0.0);
+                let port_border_offset = port
+                    .get_property(CoreOptions::PORT_BORDER_OFFSET)
+                    .unwrap_or(0.0);
                 let label_border_offset = {
                     let padding = node.get_padding();
                     match port.get_side() {
@@ -504,23 +531,29 @@ impl NodeDimensionCalculation {
                 let labels = port.get_labels();
                 let label_count = labels.len();
                 let total_label_height: f64 = if label_count > 1
-                    && matches!(port.get_side(), PortSide::East | PortSide::West | PortSide::Undefined)
-                {
+                    && matches!(
+                        port.get_side(),
+                        PortSide::East | PortSide::West | PortSide::Undefined
+                    ) {
                     labels.iter().map(|l| l.get_size().y).sum()
                 } else {
                     0.0
                 };
 
                 let mut y_cursor = if label_count > 1
-                    && matches!(port.get_side(), PortSide::East | PortSide::West | PortSide::Undefined)
-                {
+                    && matches!(
+                        port.get_side(),
+                        PortSide::East | PortSide::West | PortSide::Undefined
+                    ) {
                     if inside_label_placement {
                         (port_size.y - total_label_height) / 2.0
                     } else {
                         match relation {
                             LabelPlacementRelation::BelowOrRight => port_size.y + 1.0,
                             LabelPlacementRelation::AboveOrLeft => -total_label_height - 1.0,
-                            LabelPlacementRelation::Centered => (port_size.y - total_label_height) / 2.0,
+                            LabelPlacementRelation::Centered => {
+                                (port_size.y - total_label_height) / 2.0
+                            }
                         }
                     }
                 } else {
@@ -635,8 +668,8 @@ impl NodeDimensionCalculation {
             }
 
             if constrained_placement {
-                let stack_constrained_inside = inside_label_placement
-                    && (always_same_side || always_other_same_side);
+                let stack_constrained_inside =
+                    inside_label_placement && (always_same_side || always_other_same_side);
                 if stack_label_overlaps || stack_constrained_inside {
                     let north_positive = inside_label_placement;
                     let south_positive = !inside_label_placement;
@@ -723,13 +756,12 @@ impl NodeDimensionCalculation {
             let next_to_port_if_possible =
                 placement.contains(&PortLabelPlacement::NextToPortIfPossible);
             let always_same_side = placement.contains(&PortLabelPlacement::AlwaysSameSide);
-            let always_other_same_side = placement.contains(&PortLabelPlacement::AlwaysOtherSameSide);
+            let always_other_same_side =
+                placement.contains(&PortLabelPlacement::AlwaysOtherSameSide);
             let space_efficient = placement.contains(&PortLabelPlacement::SpaceEfficient);
 
             let ports = node.get_ports();
-            let node_is_compound = node
-                .get_property(&COMPOUND_NODE_PROPERTY)
-                .unwrap_or(false);
+            let node_is_compound = node.get_property(&COMPOUND_NODE_PROPERTY).unwrap_or(false);
             let any_incident_edges = ports.iter().any(|port| {
                 !port.get_incoming_edges().is_empty()
                     || !port.get_outgoing_edges().is_empty()
@@ -785,11 +817,14 @@ impl NodeDimensionCalculation {
                 side_indices[side_idx] += 1;
 
                 // Java's NodeContext.comparePortContexts reverses WEST/SOUTH ports in TreeMultimap
-                let effective_index = if port.get_side() == PortSide::West || port.get_side() == PortSide::South {
-                    per_side_count.saturating_sub(1).saturating_sub(per_side_index)
-                } else {
-                    per_side_index
-                };
+                let effective_index =
+                    if port.get_side() == PortSide::South || port.get_side() == PortSide::West {
+                        per_side_count
+                            .saturating_sub(1)
+                            .saturating_sub(per_side_index)
+                    } else {
+                        per_side_index
+                    };
 
                 let relation = Self::label_placement_relation(
                     effective_index,
@@ -800,12 +835,18 @@ impl NodeDimensionCalculation {
                     always_same_side,
                     always_other_same_side,
                     space_efficient,
-                    Self::should_label_be_placed_next_to_port_generic(port, inside_label_placement),
+                    Self::should_label_be_placed_next_to_port_generic(
+                        port,
+                        node_is_compound,
+                        inside_label_placement,
+                        next_to_port_if_possible,
+                    ),
                 );
 
                 let port_size = port.get_size();
-                let port_border_offset =
-                    port.get_property(CoreOptions::PORT_BORDER_OFFSET).unwrap_or(0.0);
+                let port_border_offset = port
+                    .get_property(CoreOptions::PORT_BORDER_OFFSET)
+                    .unwrap_or(0.0);
                 let label_border_offset = {
                     let padding = node.get_padding();
                     match port.get_side() {
@@ -819,23 +860,29 @@ impl NodeDimensionCalculation {
                 let label_count = labels.len();
                 // For EAST/WEST stacking: compute total label height for centering
                 let total_label_height: f64 = if label_count > 1
-                    && matches!(port.get_side(), PortSide::East | PortSide::West | PortSide::Undefined)
-                {
+                    && matches!(
+                        port.get_side(),
+                        PortSide::East | PortSide::West | PortSide::Undefined
+                    ) {
                     labels.iter().map(|l| l.get_size().y).sum()
                 } else {
                     0.0
                 };
 
                 let mut y_cursor = if label_count > 1
-                    && matches!(port.get_side(), PortSide::East | PortSide::West | PortSide::Undefined)
-                {
+                    && matches!(
+                        port.get_side(),
+                        PortSide::East | PortSide::West | PortSide::Undefined
+                    ) {
                     if inside_label_placement {
                         (port_size.y - total_label_height) / 2.0
                     } else {
                         match relation {
                             LabelPlacementRelation::BelowOrRight => port_size.y + 1.0,
                             LabelPlacementRelation::AboveOrLeft => -total_label_height - 1.0,
-                            LabelPlacementRelation::Centered => (port_size.y - total_label_height) / 2.0,
+                            LabelPlacementRelation::Centered => {
+                                (port_size.y - total_label_height) / 2.0
+                            }
                         }
                     }
                 } else {
@@ -952,8 +999,8 @@ impl NodeDimensionCalculation {
 
             // Apply stacking to north/south labels (generic version using stored indices)
             if constrained_placement {
-                let stack_constrained_inside = inside_label_placement
-                    && (always_same_side || always_other_same_side);
+                let stack_constrained_inside =
+                    inside_label_placement && (always_same_side || always_other_same_side);
                 if stack_label_overlaps || stack_constrained_inside {
                     let north_positive = inside_label_placement;
                     let south_positive = !inside_label_placement;
@@ -1051,9 +1098,11 @@ impl NodeDimensionCalculation {
         port: &ElkPortAdapter,
         parent: &ElkNodeAdapter,
         inside_label_placement: bool,
+        next_to_port_if_possible: bool,
     ) -> bool {
         let parent_node = parent.element();
         let port_node = port.element();
+        let parent_is_compound = parent.element().borrow().is_hierarchical();
         let mut edges_to_insides = false;
         let mut edges_to_somewhere_else = false;
         let mut found_incident_edge = false;
@@ -1096,7 +1145,7 @@ impl NodeDimensionCalculation {
         }
 
         if !found_incident_edge {
-            found_incident_edge = Self::classify_incident_edges_from_containment(
+            Self::classify_incident_edges_from_containment(
                 &port_node,
                 &parent_node,
                 &mut edges_to_insides,
@@ -1104,12 +1153,15 @@ impl NodeDimensionCalculation {
             );
         }
 
-        if !found_incident_edge {
-            return true;
+        if inside_label_placement {
+            if parent_is_compound {
+                next_to_port_if_possible && !edges_to_insides
+            } else {
+                true
+            }
+        } else {
+            next_to_port_if_possible && !edges_to_somewhere_else
         }
-
-        (inside_label_placement && !edges_to_insides)
-            || (!inside_label_placement && !edges_to_somewhere_else)
     }
 
     fn classify_endpoint_against_parent(
@@ -1178,7 +1230,9 @@ impl NodeDimensionCalculation {
 
     fn should_label_be_placed_next_to_port_generic<T, P>(
         port: &P,
+        parent_is_compound: bool,
         inside_label_placement: bool,
+        next_to_port_if_possible: bool,
     ) -> bool
     where
         P: PortAdapter<T>,
@@ -1186,13 +1240,14 @@ impl NodeDimensionCalculation {
         let has_incident_edge =
             !port.get_incoming_edges().is_empty() || !port.get_outgoing_edges().is_empty();
         let has_inside_connections = port.has_compound_connections();
-        if !has_incident_edge && !has_inside_connections {
-            return true;
-        }
         if inside_label_placement {
-            !has_inside_connections
+            if parent_is_compound {
+                next_to_port_if_possible && !has_inside_connections
+            } else {
+                true
+            }
         } else {
-            has_inside_connections
+            next_to_port_if_possible && !has_incident_edge
         }
     }
 
@@ -1208,7 +1263,11 @@ impl NodeDimensionCalculation {
         space_efficient: bool,
         should_place_next_to_port: bool,
     ) -> LabelPlacementRelation {
-        let labels_next_to_port = next_to_port_if_possible && should_place_next_to_port;
+        let labels_next_to_port = if inside_label_placement {
+            should_place_next_to_port
+        } else {
+            next_to_port_if_possible && should_place_next_to_port
+        };
 
         if labels_next_to_port {
             LabelPlacementRelation::Centered
@@ -1964,7 +2023,6 @@ impl NodeDimensionCalculation {
             Some(baseline - gap_y)
         }
     }
-
 }
 
 #[derive(Clone, Copy)]

@@ -6,7 +6,9 @@ use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutP
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
-use crate::org::eclipse::elk::alg::layered::graph::{Layer, LayerRef, LEdgeRef, LGraph, LGraphRef, LNode, LNodeRef};
+use crate::org::eclipse::elk::alg::layered::graph::{
+    LEdgeRef, LGraph, LGraphRef, LNode, LNodeRef, Layer, LayerRef,
+};
 use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorStrategy;
 use crate::org::eclipse::elk::alg::layered::options::LayeredOptions;
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
@@ -124,8 +126,16 @@ impl CoffmanGrahamLayerer {
     fn compare_nodes_in_topo(&self, u: &LNodeRef, v: &LNodeRef) -> Ordering {
         let uid = node_id(u);
         let vid = node_id(v);
-        let in_list_u: &[i32] = self.in_topo.get(uid).map(|list| list.as_slice()).unwrap_or(&[]);
-        let in_list_v: &[i32] = self.in_topo.get(vid).map(|list| list.as_slice()).unwrap_or(&[]);
+        let in_list_u: &[i32] = self
+            .in_topo
+            .get(uid)
+            .map(|list| list.as_slice())
+            .unwrap_or(&[]);
+        let in_list_v: &[i32] = self
+            .in_topo
+            .get(vid)
+            .map(|list| list.as_slice())
+            .unwrap_or(&[]);
         let mut i = in_list_u.len();
         let mut j = in_list_v.len();
         while i > 0 && j > 0 {

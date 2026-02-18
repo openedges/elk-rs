@@ -39,12 +39,32 @@ fn issue_405_2_axis_based_port_and_label_positions_match_across_directions() {
             find_node_by_identifier(&graph, "reference").expect("reference node should exist");
         let (port_axis, label_axis) = collect_axis_signatures(&reference_node);
 
-        assert_eq!(port_axis.len(), 4, "expected four ports for {:?}", direction);
-        assert_eq!(label_axis.len(), 4, "expected one label per port for {:?}", direction);
+        assert_eq!(
+            port_axis.len(),
+            4,
+            "expected four ports for {:?}",
+            direction
+        );
+        assert_eq!(
+            label_axis.len(),
+            4,
+            "expected one label per port for {:?}",
+            direction
+        );
 
-        if let (Some(ref_port_axis), Some(ref_label_axis)) = (&baseline_port_axis, &baseline_label_axis) {
-            assert_eq!(ref_port_axis, &port_axis, "port axis mismatch for {:?}", direction);
-            assert_eq!(ref_label_axis, &label_axis, "label axis mismatch for {:?}", direction);
+        if let (Some(ref_port_axis), Some(ref_label_axis)) =
+            (&baseline_port_axis, &baseline_label_axis)
+        {
+            assert_eq!(
+                ref_port_axis, &port_axis,
+                "port axis mismatch for {:?}",
+                direction
+            );
+            assert_eq!(
+                ref_label_axis, &label_axis,
+                "label axis mismatch for {:?}",
+                direction
+            );
         } else {
             baseline_port_axis = Some(port_axis);
             baseline_label_axis = Some(label_axis);
@@ -75,7 +95,10 @@ fn collect_axis_signatures(node: &ElkNodeRef) -> (AxisSignatureList, AxisSignatu
         for label in labels {
             let mut label_mut = label.borrow_mut();
             let label_shape = label_mut.shape();
-            label_axis.push((side, quantize(axis_value(side, label_shape.x(), label_shape.y()))));
+            label_axis.push((
+                side,
+                quantize(axis_value(side, label_shape.x(), label_shape.y())),
+            ));
         }
     }
 

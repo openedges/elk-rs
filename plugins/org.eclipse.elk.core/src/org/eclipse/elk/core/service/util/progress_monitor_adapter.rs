@@ -55,7 +55,11 @@ impl IElkProgressMonitor for ProgressMonitorAdapter {
         let started = self.inner.begin(name, total_work);
         if started && self.should_report() {
             if self.top_instance {
-                let total = if total_work <= 0.0 { -1 } else { total_work as i32 };
+                let total = if total_work <= 0.0 {
+                    -1
+                } else {
+                    total_work as i32
+                };
                 self.progress_monitor.begin_task(name, total);
             } else {
                 self.progress_monitor.sub_task(name);
@@ -126,7 +130,12 @@ impl IElkProgressMonitor for ProgressMonitorAdapter {
         self.inner.log_graph(graph, tag);
     }
 
-    fn log_graph_typed(&mut self, graph: &dyn std::any::Any, tag: &str, graph_type: LoggedGraphType) {
+    fn log_graph_typed(
+        &mut self,
+        graph: &dyn std::any::Any,
+        tag: &str,
+        graph_type: LoggedGraphType,
+    ) {
         self.inner.log_graph_typed(graph, tag, graph_type);
     }
 

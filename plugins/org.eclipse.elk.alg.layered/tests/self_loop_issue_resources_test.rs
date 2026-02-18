@@ -29,8 +29,9 @@ fn self_loop_resource_paths() -> Vec<String> {
 }
 
 fn collect_external_self_loop_ticket_resources() -> Vec<PathBuf> {
-    let mut roots = vec![PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../external/elk-models/tickets/layered")];
+    let mut roots =
+        vec![PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../external/elk-models/tickets/layered")];
     if let Ok(path) = env::var("ELK_LAYERED_TICKETS_DIR") {
         roots.push(PathBuf::from(path));
     }
@@ -98,27 +99,8 @@ fn collect_self_loop_ticket_files(root: &Path, resources: &mut Vec<PathBuf>) {
 
 fn is_self_loop_ticket_resource(file_name: &str) -> bool {
     const SELF_LOOP_TICKET_PREFIXES: [&str; 21] = [
-        "079_",
-        "128_",
-        "273_",
-        "288_",
-        "297_",
-        "298_",
-        "302_",
-        "352_",
-        "360_",
-        "368_",
-        "403_",
-        "404_",
-        "416_",
-        "418_",
-        "419_",
-        "425_",
-        "433_",
-        "444_",
-        "463_",
-        "548_",
-        "552_",
+        "079_", "128_", "273_", "288_", "297_", "298_", "302_", "352_", "360_", "368_", "403_",
+        "404_", "416_", "418_", "419_", "425_", "433_", "444_", "463_", "548_", "552_",
     ];
     SELF_LOOP_TICKET_PREFIXES
         .iter()
@@ -132,7 +114,12 @@ fn collect_all_edges(graph: &ElkNodeRef) -> Vec<ElkEdgeRef> {
     queue.push_back(graph.clone());
 
     while let Some(node) = queue.pop_front() {
-        let contained_edges: Vec<_> = node.borrow_mut().contained_edges().iter().cloned().collect();
+        let contained_edges: Vec<_> = node
+            .borrow_mut()
+            .contained_edges()
+            .iter()
+            .cloned()
+            .collect();
         for edge in contained_edges {
             let ptr = Rc::as_ptr(&edge) as usize;
             if seen.insert(ptr) {
@@ -177,7 +164,10 @@ fn is_self_loop_edge(edge: &ElkEdgeRef) -> bool {
 }
 
 fn assert_finite(value: f64, context: &str) {
-    assert!(value.is_finite(), "non-finite geometry value in {context}: {value}");
+    assert!(
+        value.is_finite(),
+        "non-finite geometry value in {context}: {value}"
+    );
 }
 
 fn assert_self_loop_geometry(edge: &ElkEdgeRef, resource: &str) {

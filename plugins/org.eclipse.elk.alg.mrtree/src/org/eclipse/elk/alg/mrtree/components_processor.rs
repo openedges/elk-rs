@@ -39,7 +39,11 @@ impl ComponentsProcessor {
 
         let mut id_to_index: HashMap<i32, usize> = HashMap::new();
         for (idx, node) in nodes.iter().enumerate() {
-            let id = node.lock().ok().map(|guard| guard.id()).unwrap_or(idx as i32);
+            let id = node
+                .lock()
+                .ok()
+                .map(|guard| guard.id())
+                .unwrap_or(idx as i32);
             id_to_index.insert(id, idx);
         }
 
@@ -49,7 +53,9 @@ impl ComponentsProcessor {
                 Some(guard) => (guard.source(), guard.target()),
                 None => (None, None),
             };
-            let (Some(source), Some(target)) = (source, target) else { continue };
+            let (Some(source), Some(target)) = (source, target) else {
+                continue;
+            };
             let source_id = source.lock().ok().map(|guard| guard.id());
             let target_id = target.lock().ok().map(|guard| guard.id());
             if let (Some(source_id), Some(target_id)) = (source_id, target_id) {
@@ -103,7 +109,9 @@ impl ComponentsProcessor {
                     Some(guard) => (guard.source(), guard.target()),
                     None => (None, None),
                 };
-                let (Some(source), Some(target)) = (source, target) else { continue };
+                let (Some(source), Some(target)) = (source, target) else {
+                    continue;
+                };
                 let source_key = Arc::as_ptr(&source) as usize;
                 let target_key = Arc::as_ptr(&target) as usize;
                 if comp_node_keys.contains(&source_key) && comp_node_keys.contains(&target_key) {
@@ -148,7 +156,11 @@ impl ComponentsProcessor {
         }
 
         for graph in components {
-            let nodes = graph.lock().ok().map(|g| g.nodes().clone()).unwrap_or_default();
+            let nodes = graph
+                .lock()
+                .ok()
+                .map(|g| g.nodes().clone())
+                .unwrap_or_default();
             let mut priority = 0;
             let mut minx = f64::MAX;
             let mut miny = f64::MAX;
@@ -299,7 +311,13 @@ impl ComponentsProcessor {
         self.move_graph(&TGraph::new(), graph, offset_x, offset_y);
     }
 
-    fn move_graph(&self, dest_graph: &TGraphRef, source_graph: &TGraphRef, offsetx: f64, offsety: f64) {
+    fn move_graph(
+        &self,
+        dest_graph: &TGraphRef,
+        source_graph: &TGraphRef,
+        offsetx: f64,
+        offsety: f64,
+    ) {
         let (nodes, edges, source_min) = {
             let mut source_guard = match source_graph.lock() {
                 Ok(guard) => guard,

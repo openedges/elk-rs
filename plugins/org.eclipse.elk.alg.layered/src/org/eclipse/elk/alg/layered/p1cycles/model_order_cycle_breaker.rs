@@ -85,7 +85,10 @@ impl ILayoutPhase<LayeredPhases, LGraph> for ModelOrderCycleBreaker {
                         .ok()
                         .and_then(|edge_guard| edge_guard.target())
                         .and_then(|target_port| {
-                            target_port.lock().ok().and_then(|target_guard| target_guard.node())
+                            target_port
+                                .lock()
+                                .ok()
+                                .and_then(|target_guard| target_guard.node())
                         });
                     let Some(target) = target else {
                         continue;

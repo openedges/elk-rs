@@ -11,7 +11,11 @@ pub struct TreeUtil;
 
 impl TreeUtil {
     pub fn get_root(graph: &TGraphRef) -> Option<TNodeRef> {
-        let nodes = graph.lock().ok().map(|g| g.nodes().clone()).unwrap_or_default();
+        let nodes = graph
+            .lock()
+            .ok()
+            .map(|g| g.nodes().clone())
+            .unwrap_or_default();
         nodes.into_iter().find(|node| {
             node.lock()
                 .ok()
@@ -25,12 +29,7 @@ impl TreeUtil {
         if children.is_empty() {
             1
         } else {
-            children
-                .iter()
-                .map(Self::depth)
-                .max()
-                .unwrap_or(0)
-                + 1
+            children.iter().map(Self::depth).max().unwrap_or(0) + 1
         }
     }
 
@@ -65,12 +64,12 @@ impl TreeUtil {
     }
 
     pub fn get_all_incoming_edges(node: &TNodeRef, graph: &TGraphRef) -> Vec<TEdgeRef> {
-        let node_id = node
+        let node_id = node.lock().ok().map(|guard| guard.id()).unwrap_or(-1);
+        let edges = graph
             .lock()
             .ok()
-            .map(|guard| guard.id())
-            .unwrap_or(-1);
-        let edges = graph.lock().ok().map(|g| g.edges().clone()).unwrap_or_default();
+            .map(|g| g.edges().clone())
+            .unwrap_or_default();
         let mut seen: HashSet<usize> = HashSet::new();
         let mut result = Vec::new();
         for edge in edges {
@@ -78,7 +77,9 @@ impl TreeUtil {
                 Some(guard) => (guard.source(), guard.target()),
                 None => (None, None),
             };
-            let (Some(source), Some(target)) = (source, target) else { continue };
+            let (Some(source), Some(target)) = (source, target) else {
+                continue;
+            };
             let target_id = target.lock().ok().map(|guard| guard.id()).unwrap_or(-1);
             if target_id != node_id {
                 continue;
@@ -136,12 +137,12 @@ impl TreeUtil {
     }
 
     pub fn get_all_outgoing_edges(node: &TNodeRef, graph: &TGraphRef) -> Vec<TEdgeRef> {
-        let node_id = node
+        let node_id = node.lock().ok().map(|guard| guard.id()).unwrap_or(-1);
+        let edges = graph
             .lock()
             .ok()
-            .map(|guard| guard.id())
-            .unwrap_or(-1);
-        let edges = graph.lock().ok().map(|g| g.edges().clone()).unwrap_or_default();
+            .map(|g| g.edges().clone())
+            .unwrap_or_default();
         let mut seen: HashSet<usize> = HashSet::new();
         let mut result = Vec::new();
         for edge in edges {
@@ -149,12 +150,17 @@ impl TreeUtil {
                 Some(guard) => (guard.source(), guard.target()),
                 None => (None, None),
             };
-            let (Some(source), Some(target)) = (source, target) else { continue };
+            let (Some(source), Some(target)) = (source, target) else {
+                continue;
+            };
             let source_id = source.lock().ok().map(|guard| guard.id()).unwrap_or(-1);
             if source_id != node_id {
                 continue;
             }
-            let source_label = source.lock().ok().and_then(|guard| guard.label().map(|l| l.to_string()));
+            let source_label = source
+                .lock()
+                .ok()
+                .and_then(|guard| guard.label().map(|l| l.to_string()));
             if let Some(label) = source_label {
                 if label == "SUPER_ROOT" {
                     continue;
@@ -335,7 +341,8 @@ impl TreeUtil {
                 .unwrap_or_default();
             (source_pos, target_pos)
         };
-        let edge_vec = KVector::with_values(target_pos.x - source_pos.x, target_pos.y - source_pos.y);
+        let edge_vec =
+            KVector::with_values(target_pos.x - source_pos.x, target_pos.y - source_pos.y);
         dir_vec.dot_product(&edge_vec) <= 0.0
     }
 

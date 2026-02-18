@@ -12,7 +12,8 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::NullElkProgressMonitor;
 
 fn init_layered_metadata() {
-    LayoutMetaDataService::get_instance().register_layout_meta_data_provider(&LayeredMetaDataProvider);
+    LayoutMetaDataService::get_instance()
+        .register_layout_meta_data_provider(&LayeredMetaDataProvider);
 }
 
 fn graph_with_single_layer() -> (LGraphRef, std::sync::Arc<std::sync::Mutex<Layer>>) {
@@ -54,13 +55,10 @@ fn north_south_preprocessor_isolates_north_south_ports() {
     let (graph, layer) = graph_with_single_layer();
 
     let owner = add_node(&graph, &layer);
-    owner
-        .lock()
-        .expect("owner lock")
-        .set_property(
-            LayeredOptions::PORT_CONSTRAINTS,
-            Some(PortConstraints::FixedSide),
-        );
+    owner.lock().expect("owner lock").set_property(
+        LayeredOptions::PORT_CONSTRAINTS,
+        Some(PortConstraints::FixedSide),
+    );
 
     let north = add_port(&owner, PortSide::North);
     let south = add_port(&owner, PortSide::South);
@@ -75,11 +73,7 @@ fn north_south_preprocessor_isolates_north_south_ports() {
     let mut monitor = NullElkProgressMonitor;
     processor.process(&mut graph.lock().expect("graph lock"), &mut monitor);
 
-    let owner_ports = owner
-        .lock()
-        .expect("owner lock")
-        .ports()
-        .clone();
+    let owner_ports = owner.lock().expect("owner lock").ports().clone();
     for port in owner_ports {
         let (side, connected) = port
             .lock()
@@ -101,13 +95,10 @@ fn north_south_preprocessor_sets_layout_unit_for_fixed_side_node_without_north_s
     let (graph, layer) = graph_with_single_layer();
 
     let owner = add_node(&graph, &layer);
-    owner
-        .lock()
-        .expect("owner lock")
-        .set_property(
-            LayeredOptions::PORT_CONSTRAINTS,
-            Some(PortConstraints::FixedSide),
-        );
+    owner.lock().expect("owner lock").set_property(
+        LayeredOptions::PORT_CONSTRAINTS,
+        Some(PortConstraints::FixedSide),
+    );
     add_port(&owner, PortSide::East);
     add_port(&owner, PortSide::West);
 

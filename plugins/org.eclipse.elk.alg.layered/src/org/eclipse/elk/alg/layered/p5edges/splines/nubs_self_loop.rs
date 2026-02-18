@@ -36,7 +36,11 @@ impl NubsSelfLoop {
         self.first_label_position = position;
     }
 
-    pub fn create_side_self_loop(source: &LPortRef, target: &LPortRef, length: f64) -> NubsSelfLoop {
+    pub fn create_side_self_loop(
+        source: &LPortRef,
+        target: &LPortRef,
+        length: f64,
+    ) -> NubsSelfLoop {
         let source_pos = port_position(source);
         let target_pos = port_position(target);
 

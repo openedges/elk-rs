@@ -41,7 +41,8 @@ impl ICostFunction for GraphCostFunction {
                 edge.u.distance(&root).min(edge.v.distance(&root))
             }
             SpanningTreeCostFunction::CircleUnderlap => {
-                let (Some(n1), Some(n2)) = (self.nodes.get(&edge.u), self.nodes.get(&edge.v)) else {
+                let (Some(n1), Some(n2)) = (self.nodes.get(&edge.u), self.nodes.get(&edge.v))
+                else {
                     return edge.u.distance(&edge.v);
                 };
                 edge.u.distance(&edge.v)
@@ -49,13 +50,15 @@ impl ICostFunction for GraphCostFunction {
                     - edge.v.distance(&n2.rect.get_position())
             }
             SpanningTreeCostFunction::RectangleUnderlap => {
-                let (Some(n1), Some(n2)) = (self.nodes.get(&edge.u), self.nodes.get(&edge.v)) else {
+                let (Some(n1), Some(n2)) = (self.nodes.get(&edge.u), self.nodes.get(&edge.v))
+                else {
                     return edge.u.distance(&edge.v);
                 };
                 n1.underlap(n2)
             }
             SpanningTreeCostFunction::InvertedOverlap => {
-                let (Some(n1), Some(n2)) = (self.nodes.get(&edge.u), self.nodes.get(&edge.v)) else {
+                let (Some(n1), Some(n2)) = (self.nodes.get(&edge.u), self.nodes.get(&edge.v))
+                else {
                     return edge.u.distance(&edge.v);
                 };
                 let dist = ElkMath::shortest_distance(&n1.rect, &n2.rect);

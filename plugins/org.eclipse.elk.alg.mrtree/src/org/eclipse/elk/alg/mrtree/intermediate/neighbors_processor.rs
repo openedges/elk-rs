@@ -27,7 +27,9 @@ impl ILayoutProcessor<TGraphRef> for NeighborsProcessor {
                 .find(|node| {
                     node.lock()
                         .ok()
-                        .and_then(|mut node_guard| node_guard.get_property(InternalProperties::ROOT))
+                        .and_then(|mut node_guard| {
+                            node_guard.get_property(InternalProperties::ROOT)
+                        })
                         .unwrap_or(false)
                 })
                 .cloned();
@@ -37,7 +39,11 @@ impl ILayoutProcessor<TGraphRef> for NeighborsProcessor {
         self.number_of_nodes = if nodes.is_empty() { 1 } else { nodes.len() };
 
         if let Some(root) = root {
-            let children = root.lock().ok().map(|node| node.children()).unwrap_or_default();
+            let children = root
+                .lock()
+                .ok()
+                .map(|node| node.children())
+                .unwrap_or_default();
             self.set_neighbors(&children, progress_monitor);
         }
 
@@ -46,12 +52,17 @@ impl ILayoutProcessor<TGraphRef> for NeighborsProcessor {
 }
 
 impl NeighborsProcessor {
-    fn set_neighbors(&self, current_level: &[TNodeRef], progress_monitor: &mut dyn IElkProgressMonitor) {
+    fn set_neighbors(
+        &self,
+        current_level: &[TNodeRef],
+        progress_monitor: &mut dyn IElkProgressMonitor,
+    ) {
         if current_level.is_empty() {
             return;
         }
 
-        let mut sub_task = progress_monitor.sub_task(current_level.len() as f32 / self.number_of_nodes as f32);
+        let mut sub_task =
+            progress_monitor.sub_task(current_level.len() as f32 / self.number_of_nodes as f32);
         sub_task.begin("Set neighbors in level", 1.0);
 
         let mut next_level: Vec<TNodeRef> = Vec::new();

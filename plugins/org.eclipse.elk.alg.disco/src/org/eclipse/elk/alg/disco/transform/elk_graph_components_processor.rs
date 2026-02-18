@@ -1,10 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
-use org_eclipse_elk_graph::org::eclipse::elk::graph::{
-    ElkEdgeRef, ElkNodeRef, ElkPortRef,
-};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkEdgeRef, ElkNodeRef, ElkPortRef};
 
 pub struct ElkGraphComponentsProcessor;
 
@@ -43,7 +41,11 @@ fn compute_incidences(nodes: &[ElkNodeRef]) -> HashMap<usize, Vec<ElkNodeRef>> {
         let incoming_edges = ElkGraphUtil::all_incoming_edges(node);
         for edge in &incoming_edges {
             if same_hierarchy_level(edge) {
-                add_adjacent(&mut adjacent_nodes, &mut adjacent_ids, get_source_node(edge));
+                add_adjacent(
+                    &mut adjacent_nodes,
+                    &mut adjacent_ids,
+                    get_source_node(edge),
+                );
             }
         }
 
@@ -72,7 +74,11 @@ fn compute_incidences(nodes: &[ElkNodeRef]) -> HashMap<usize, Vec<ElkNodeRef>> {
         let outgoing_edges = ElkGraphUtil::all_outgoing_edges(node);
         for edge in &outgoing_edges {
             if same_hierarchy_level(edge) {
-                add_adjacent(&mut adjacent_nodes, &mut adjacent_ids, get_target_node(edge));
+                add_adjacent(
+                    &mut adjacent_nodes,
+                    &mut adjacent_ids,
+                    get_target_node(edge),
+                );
             }
         }
 
@@ -133,7 +139,11 @@ fn get_inner_neighbors_of_port(port: &ElkPortRef) -> Vec<ElkNodeRef> {
         if !inwards {
             continue;
         }
-        let neighbor = if Rc::ptr_eq(&source, &port_parent) { target } else { source };
+        let neighbor = if Rc::ptr_eq(&source, &port_parent) {
+            target
+        } else {
+            source
+        };
         add_adjacent(&mut result, &mut seen, neighbor);
     }
 
@@ -159,11 +169,7 @@ fn dfs(
     }
 }
 
-fn add_adjacent(
-    nodes: &mut Vec<ElkNodeRef>,
-    ids: &mut HashSet<usize>,
-    node: ElkNodeRef,
-) {
+fn add_adjacent(nodes: &mut Vec<ElkNodeRef>, ids: &mut HashSet<usize>, node: ElkNodeRef) {
     let id = node_id(&node);
     if ids.insert(id) {
         nodes.push(node);
@@ -185,14 +191,12 @@ fn same_hierarchy_level(edge: &ElkEdgeRef) -> bool {
 fn get_source_node(edge: &ElkEdgeRef) -> ElkNodeRef {
     let (source, target) = edge_endpoints(edge);
     let _ = target;
-    ElkGraphUtil::connectable_shape_to_node(&source)
-        .expect("Passed edge is not 'simple'.")
+    ElkGraphUtil::connectable_shape_to_node(&source).expect("Passed edge is not 'simple'.")
 }
 
 fn get_target_node(edge: &ElkEdgeRef) -> ElkNodeRef {
     let (_source, target) = edge_endpoints(edge);
-    ElkGraphUtil::connectable_shape_to_node(&target)
-        .expect("Passed edge is not 'simple'.")
+    ElkGraphUtil::connectable_shape_to_node(&target).expect("Passed edge is not 'simple'.")
 }
 
 fn get_source_port(edge: &ElkEdgeRef) -> Option<ElkPortRef> {
@@ -215,8 +219,16 @@ fn edge_endpoints(
     if edge_borrow.sources_ro().len() != 1 || edge_borrow.targets_ro().len() != 1 {
         panic!("Passed edge is not 'simple'.");
     }
-    let source = edge_borrow.sources_ro().get(0).expect("missing source").clone();
-    let target = edge_borrow.targets_ro().get(0).expect("missing target").clone();
+    let source = edge_borrow
+        .sources_ro()
+        .get(0)
+        .expect("missing source")
+        .clone();
+    let target = edge_borrow
+        .targets_ro()
+        .get(0)
+        .expect("missing target")
+        .clone();
     (source, target)
 }
 

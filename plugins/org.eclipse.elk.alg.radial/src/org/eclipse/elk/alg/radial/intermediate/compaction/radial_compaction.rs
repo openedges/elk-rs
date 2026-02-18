@@ -78,7 +78,9 @@ impl RadialCompaction {
 impl IRadialCompactor for RadialCompaction {
     fn compact(&mut self, graph: &ElkNodeRef) {
         let root = RadialUtil::root_from_graph(graph);
-        let Some(root) = root else { return; };
+        let Some(root) = root else {
+            return;
+        };
 
         self.sorter = {
             let mut graph_mut = graph.borrow_mut();

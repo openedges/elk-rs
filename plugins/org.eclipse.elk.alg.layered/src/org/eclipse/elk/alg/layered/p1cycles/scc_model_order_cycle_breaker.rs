@@ -24,13 +24,16 @@ static INTERMEDIATE_PROCESSING_CONFIGURATION: LazyLock<
     config
 });
 
-pub(crate) fn layout_processor_configuration() -> LayoutProcessorConfiguration<LayeredPhases, LGraph> {
+pub(crate) fn layout_processor_configuration() -> LayoutProcessorConfiguration<LayeredPhases, LGraph>
+{
     LayoutProcessorConfiguration::create_from(&INTERMEDIATE_PROCESSING_CONFIGURATION)
 }
 
 #[allow(clippy::mutable_key_type)]
-pub(crate) fn process_scc_model_order_cycle_breaking<F>(layered_graph: &mut LGraph, mut find_nodes: F)
-where
+pub(crate) fn process_scc_model_order_cycle_breaking<F>(
+    layered_graph: &mut LGraph,
+    mut find_nodes: F,
+) where
     F: FnMut(
         &mut LGraph,
         &[Vec<LNodeRef>],
@@ -125,7 +128,9 @@ pub(crate) fn node_group_model_order_id(node: &LNodeRef) -> i32 {
 }
 
 pub(crate) fn contains_node(component: &[LNodeRef], node: &LNodeRef) -> bool {
-    component.iter().any(|candidate| Arc::ptr_eq(candidate, node))
+    component
+        .iter()
+        .any(|candidate| Arc::ptr_eq(candidate, node))
 }
 
 fn increment_source_layer_id(edge: &crate::org::eclipse::elk::alg::layered::graph::LEdgeRef) {
@@ -133,7 +138,12 @@ fn increment_source_layer_id(edge: &crate::org::eclipse::elk::alg::layered::grap
         .lock()
         .ok()
         .and_then(|edge_guard| edge_guard.source())
-        .and_then(|source_port| source_port.lock().ok().and_then(|source_guard| source_guard.node()));
+        .and_then(|source_port| {
+            source_port
+                .lock()
+                .ok()
+                .and_then(|source_guard| source_guard.node())
+        });
     let Some(source_node) = source_node else {
         return;
     };

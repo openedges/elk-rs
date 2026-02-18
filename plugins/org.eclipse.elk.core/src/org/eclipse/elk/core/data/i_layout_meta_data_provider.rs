@@ -1,7 +1,9 @@
-use std::sync::Arc;
 use std::any::Any;
+use std::sync::Arc;
 
-use crate::org::eclipse::elk::core::data::{LayoutAlgorithmData, LayoutCategoryData, LayoutOptionData};
+use crate::org::eclipse::elk::core::data::{
+    LayoutAlgorithmData, LayoutCategoryData, LayoutOptionData,
+};
 
 pub trait ILayoutMetaDataProvider {
     fn apply(&self, registry: &mut dyn LayoutMetaDataRegistry);

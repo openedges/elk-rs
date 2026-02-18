@@ -72,9 +72,15 @@ impl ILayoutPhase<RectPackingLayoutPhases, ElkNodeRef> for NoPlacement {
             .shape()
             .graph_element()
             .properties_mut();
-        props.set_property(InternalProperties::ADDITIONAL_HEIGHT, Some(additional_height));
+        props.set_property(
+            InternalProperties::ADDITIONAL_HEIGHT,
+            Some(additional_height),
+        );
         props.set_property(InternalProperties::DRAWING_WIDTH, Some(width));
-        props.set_property(InternalProperties::DRAWING_HEIGHT, Some(height + additional_height));
+        props.set_property(
+            InternalProperties::DRAWING_HEIGHT,
+            Some(height + additional_height),
+        );
         progress_monitor.done();
     }
 

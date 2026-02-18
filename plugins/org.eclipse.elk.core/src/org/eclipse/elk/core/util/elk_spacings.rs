@@ -75,14 +75,13 @@ pub struct ElkCoreSpacingsBuilder {
 }
 
 impl ElkCoreSpacingsBuilder {
-    pub const BASE_SPACING_OPTION: &'static LazyLock<Property<f64>> = CoreOptions::SPACING_NODE_NODE;
+    pub const BASE_SPACING_OPTION: &'static LazyLock<Property<f64>> =
+        CoreOptions::SPACING_NODE_NODE;
     const DOUBLE_EQ_EPSILON: f64 = 10e-5;
 
     fn new(base_spacing: f64) -> Self {
         let base_option: &Property<f64> = Self::BASE_SPACING_OPTION;
-        let base_default = base_option
-            .get_default()
-            .unwrap_or(0.0);
+        let base_default = base_option.get_default().unwrap_or(0.0);
         if fuzzy_equals(base_default, 0.0, Self::DOUBLE_EQ_EPSILON) {
             panic!("Base spacing default value must be different from 0.0.");
         }
@@ -203,9 +202,7 @@ impl ElkCoreSpacingsBuilder {
     }
 
     pub fn build(&self) -> SpacingConfigurator {
-        let base_default = Self::BASE_SPACING_OPTION
-            .get_default()
-            .unwrap_or(0.0);
+        let base_default = Self::BASE_SPACING_OPTION.get_default().unwrap_or(0.0);
         let no_op = !self.overwrite
             && fuzzy_equals(self.base_spacing, base_default, Self::DOUBLE_EQ_EPSILON);
         SpacingConfigurator {

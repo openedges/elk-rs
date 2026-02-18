@@ -18,7 +18,10 @@ use super::ForceModelStrategy;
 pub struct ForceOptions;
 
 pub static MODEL_PROPERTY: LazyLock<Property<ForceModelStrategy>> = LazyLock::new(|| {
-    Property::with_default("org.eclipse.elk.force.model", ForceModelStrategy::FruchtermanReingold)
+    Property::with_default(
+        "org.eclipse.elk.force.model",
+        ForceModelStrategy::FruchtermanReingold,
+    )
 });
 
 pub static ITERATIONS_PROPERTY: LazyLock<Property<i32>> =
@@ -44,16 +47,20 @@ impl ForceOptions {
 
     pub const PRIORITY: &'static LazyLock<Property<i32>> = CoreOptions::PRIORITY;
     pub const SPACING_NODE_NODE: &'static LazyLock<Property<f64>> = CoreOptions::SPACING_NODE_NODE;
-    pub const SPACING_EDGE_LABEL: &'static LazyLock<Property<f64>> = CoreOptions::SPACING_EDGE_LABEL;
+    pub const SPACING_EDGE_LABEL: &'static LazyLock<Property<f64>> =
+        CoreOptions::SPACING_EDGE_LABEL;
     pub const ASPECT_RATIO: &'static LazyLock<Property<f64>> = CoreOptions::ASPECT_RATIO;
     pub const RANDOM_SEED: &'static LazyLock<Property<i32>> = CoreOptions::RANDOM_SEED;
     pub const SEPARATE_CONNECTED_COMPONENTS: &'static LazyLock<Property<bool>> =
         CoreOptions::SEPARATE_CONNECTED_COMPONENTS;
     pub const PADDING: &'static LazyLock<Property<ElkPadding>> = CoreOptions::PADDING;
     pub const INTERACTIVE: &'static LazyLock<Property<bool>> = CoreOptions::INTERACTIVE;
-    pub const PORT_CONSTRAINTS: &'static LazyLock<Property<PortConstraints>> = CoreOptions::PORT_CONSTRAINTS;
-    pub const EDGE_LABELS_INLINE: &'static LazyLock<Property<bool>> = CoreOptions::EDGE_LABELS_INLINE;
-    pub const OMIT_NODE_MICRO_LAYOUT: &'static LazyLock<Property<bool>> = CoreOptions::OMIT_NODE_MICRO_LAYOUT;
+    pub const PORT_CONSTRAINTS: &'static LazyLock<Property<PortConstraints>> =
+        CoreOptions::PORT_CONSTRAINTS;
+    pub const EDGE_LABELS_INLINE: &'static LazyLock<Property<bool>> =
+        CoreOptions::EDGE_LABELS_INLINE;
+    pub const OMIT_NODE_MICRO_LAYOUT: &'static LazyLock<Property<bool>> =
+        CoreOptions::OMIT_NODE_MICRO_LAYOUT;
     pub const NODE_SIZE_FIXED_GRAPH_SIZE: &'static LazyLock<Property<bool>> =
         CoreOptions::NODE_SIZE_FIXED_GRAPH_SIZE;
     pub const NODE_SIZE_OPTIONS: &'static LazyLock<Property<EnumSet<SizeOptions>>> =
@@ -65,12 +72,14 @@ impl ForceOptions {
     pub const PORT_LABELS_PLACEMENT: &'static LazyLock<Property<EnumSet<PortLabelPlacement>>> =
         CoreOptions::PORT_LABELS_PLACEMENT;
     pub const TOPDOWN_LAYOUT: &'static LazyLock<Property<bool>> = CoreOptions::TOPDOWN_LAYOUT;
-    pub const TOPDOWN_SCALE_FACTOR: &'static LazyLock<Property<f64>> = CoreOptions::TOPDOWN_SCALE_FACTOR;
+    pub const TOPDOWN_SCALE_FACTOR: &'static LazyLock<Property<f64>> =
+        CoreOptions::TOPDOWN_SCALE_FACTOR;
     pub const TOPDOWN_HIERARCHICAL_NODE_WIDTH: &'static LazyLock<Property<f64>> =
         CoreOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH;
     pub const TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO: &'static LazyLock<Property<f64>> =
         CoreOptions::TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO;
     pub const TOPDOWN_NODE_TYPE: &'static LazyLock<Property<TopdownNodeTypes>> =
         CoreOptions::TOPDOWN_NODE_TYPE;
-    pub const NODE_SIZE_MINIMUM: &'static LazyLock<Property<KVector>> = CoreOptions::NODE_SIZE_MINIMUM;
+    pub const NODE_SIZE_MINIMUM: &'static LazyLock<Property<KVector>> =
+        CoreOptions::NODE_SIZE_MINIMUM;
 }

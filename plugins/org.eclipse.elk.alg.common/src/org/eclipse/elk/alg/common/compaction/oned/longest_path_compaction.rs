@@ -80,7 +80,9 @@ impl ICompactionAlgorithm for LongestPathCompaction {
                             .spacings_handler
                             .get_horizontal_spacing(node, &inc_node)
                     } else {
-                        compactor.spacings_handler.get_vertical_spacing(node, &inc_node)
+                        compactor
+                            .spacings_handler
+                            .get_vertical_spacing(node, &inc_node)
                     };
 
                     let inc_group = inc_node.borrow().group();
@@ -90,9 +92,9 @@ impl ICompactionAlgorithm for LongestPathCompaction {
                     let inc_offset_x = inc_node.borrow().c_group_offset.x;
                     {
                         let mut inc_group_mut = inc_group.borrow_mut();
-                        inc_group_mut.start_pos = inc_group_mut.start_pos.max(
-                            node_start_pos + node_width + spacing - inc_offset_x,
-                        );
+                        inc_group_mut.start_pos = inc_group_mut
+                            .start_pos
+                            .max(node_start_pos + node_width + spacing - inc_offset_x);
                     }
 
                     if compactor.is_locked_node(&inc_node, compactor.direction) {

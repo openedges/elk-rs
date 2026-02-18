@@ -32,12 +32,20 @@ impl RelativeXPlacer {
         let changed_outline1 = OutlineNode::new(
             outline1.relative_x(),
             MINIMAL_Y,
-            Some(OutlineNode::new(0.0, outline1.absolute_y(), outline1.next_cloned())),
+            Some(OutlineNode::new(
+                0.0,
+                outline1.absolute_y(),
+                outline1.next_cloned(),
+            )),
         );
         let changed_outline2 = OutlineNode::new(
             outline2.relative_x(),
             MINIMAL_Y,
-            Some(OutlineNode::new(0.0, outline2.absolute_y(), outline2.next_cloned())),
+            Some(OutlineNode::new(
+                0.0,
+                outline2.absolute_y(),
+                outline2.next_cloned(),
+            )),
         );
 
         let mut dist = changed_outline1.relative_x() - changed_outline2.relative_x();
@@ -55,9 +63,8 @@ impl RelativeXPlacer {
             if o2_next.absolute_y() > o1_node.absolute_y() {
                 let delta_x = o2_next.relative_x();
                 let delta_y = o2_next.absolute_y() - o2_node.absolute_y();
-                let newdist = x1
-                    - x2
-                    - ((o1_node.absolute_y() - o2_node.absolute_y()) * delta_x) / delta_y;
+                let newdist =
+                    x1 - x2 - ((o1_node.absolute_y() - o2_node.absolute_y()) * delta_x) / delta_y;
                 if newdist > dist {
                     dist = newdist;
                 }
@@ -149,12 +156,12 @@ impl RelativeXPlacer {
         }
 
         if !self.consider_node_model_order {
-            let mut better_move_root =
-                (node_x(&children[0]) + node_x(children.last().unwrap())
-                    + node_width(children.last().unwrap())
-                    - node_width(graph))
-                    / 2.0
-                    - node_x(graph);
+            let mut better_move_root = (node_x(&children[0])
+                + node_x(children.last().unwrap())
+                + node_width(children.last().unwrap())
+                - node_width(graph))
+                / 2.0
+                - node_x(graph);
             let mut new_move_root;
 
             if better_move_root < move_root {
@@ -170,8 +177,7 @@ impl RelativeXPlacer {
                             if outline.absolute_y() >= max_depth {
                                 break;
                             }
-                            new_move_root = pos_x
-                                - node_width(graph) / 2.0
+                            new_move_root = pos_x - node_width(graph) / 2.0
                                 + (pos_x - right_outline_x)
                                     * ((node_y(graph) + node_height(graph)) - max_depth)
                                     / (max_depth - outline.absolute_y());
@@ -202,8 +208,7 @@ impl RelativeXPlacer {
                             if outline.absolute_y() >= max_depth {
                                 break;
                             }
-                            new_move_root = pos_x
-                                - node_width(graph) / 2.0
+                            new_move_root = pos_x - node_width(graph) / 2.0
                                 + (pos_x - left_outline_x)
                                     * ((node_y(graph) + node_height(graph)) - max_depth)
                                     / (max_depth - outline.absolute_y());
@@ -228,25 +233,42 @@ impl RelativeXPlacer {
 
         let mut graph_left_outline =
             node_get_property(graph, InternalProperties::LEFT_OUTLINE).expect("left outline");
-        let left_child_outline =
-            node_get_property(&children[0], InternalProperties::LEFT_OUTLINE).expect("left outline");
+        let left_child_outline = node_get_property(&children[0], InternalProperties::LEFT_OUTLINE)
+            .expect("left outline");
 
-        let new_x = node_x(&children[0]) + left_child_outline.relative_x() - graph_left_outline.relative_x();
-        let new_outline = OutlineNode::new(new_x, left_child_outline.absolute_y(), left_child_outline.next_cloned());
+        let new_x = node_x(&children[0]) + left_child_outline.relative_x()
+            - graph_left_outline.relative_x();
+        let new_outline = OutlineNode::new(
+            new_x,
+            left_child_outline.absolute_y(),
+            left_child_outline.next_cloned(),
+        );
         set_outline_third_next(&mut graph_left_outline, new_outline);
-        node_set_property(graph, InternalProperties::LEFT_OUTLINE, Some(graph_left_outline));
+        node_set_property(
+            graph,
+            InternalProperties::LEFT_OUTLINE,
+            Some(graph_left_outline),
+        );
 
         let mut graph_right_outline =
             node_get_property(graph, InternalProperties::RIGHT_OUTLINE).expect("right outline");
-        let right_child_outline = node_get_property(children.last().unwrap(), InternalProperties::RIGHT_OUTLINE)
-            .expect("right outline");
+        let right_child_outline =
+            node_get_property(children.last().unwrap(), InternalProperties::RIGHT_OUTLINE)
+                .expect("right outline");
 
-        let new_x = node_x(children.last().unwrap())
-            + right_child_outline.relative_x()
+        let new_x = node_x(children.last().unwrap()) + right_child_outline.relative_x()
             - graph_right_outline.relative_x();
-        let new_outline = OutlineNode::new(new_x, right_child_outline.absolute_y(), right_child_outline.next_cloned());
+        let new_outline = OutlineNode::new(
+            new_x,
+            right_child_outline.absolute_y(),
+            right_child_outline.next_cloned(),
+        );
         set_outline_third_next(&mut graph_right_outline, new_outline);
-        node_set_property(graph, InternalProperties::RIGHT_OUTLINE, Some(graph_right_outline));
+        node_set_property(
+            graph,
+            InternalProperties::RIGHT_OUTLINE,
+            Some(graph_right_outline),
+        );
 
         let mut outline_max_depth =
             node_get_property(graph, InternalProperties::OUTLINE_MAX_DEPTH).unwrap_or(0.0);
@@ -261,7 +283,11 @@ impl RelativeXPlacer {
             min_x = min_x.min(node_x(child) + child_min_x);
             max_x = max_x.max(node_x(child) + child_max_x);
         }
-        node_set_property(graph, InternalProperties::OUTLINE_MAX_DEPTH, Some(outline_max_depth));
+        node_set_property(
+            graph,
+            InternalProperties::OUTLINE_MAX_DEPTH,
+            Some(outline_max_depth),
+        );
         node_set_property(graph, InternalProperties::MIN_X, Some(min_x));
         node_set_property(graph, InternalProperties::MAX_X, Some(max_x));
         node_set_property(graph, InternalProperties::MAX_Y, Some(outline_max_depth));
@@ -297,11 +323,14 @@ impl RelativeXPlacer {
 
         for child in &children {
             node_set_x(child, node_x(child) - move_root);
-            let bend_height =
-                node_get_property(child, InternalProperties::LEFT_OUTLINE)
-                    .expect("left outline")
-                    .absolute_y();
-            node_set_property(child, InternalProperties::EDGE_BEND_HEIGHT, Some(bend_height));
+            let bend_height = node_get_property(child, InternalProperties::LEFT_OUTLINE)
+                .expect("left outline")
+                .absolute_y();
+            node_set_property(
+                child,
+                InternalProperties::EDGE_BEND_HEIGHT,
+                Some(bend_height),
+            );
         }
 
         let children_size = children.len();
@@ -324,7 +353,11 @@ impl RelativeXPlacer {
             let child_height =
                 node_get_property(child, InternalProperties::EDGE_BEND_HEIGHT).unwrap_or(0.0);
             if global_bend_height < child_height {
-                node_set_property(child, InternalProperties::EDGE_BEND_HEIGHT, Some(global_bend_height));
+                node_set_property(
+                    child,
+                    InternalProperties::EDGE_BEND_HEIGHT,
+                    Some(global_bend_height),
+                );
             } else {
                 global_bend_height = child_height;
             }
@@ -345,43 +378,70 @@ impl RelativeXPlacer {
         if i < children_size {
             for a in (0..=i).rev() {
                 let child_height =
-                    node_get_property(&children[a], InternalProperties::EDGE_BEND_HEIGHT).unwrap_or(0.0);
+                    node_get_property(&children[a], InternalProperties::EDGE_BEND_HEIGHT)
+                        .unwrap_or(0.0);
                 if global_bend_height < child_height {
-                    node_set_property(&children[a], InternalProperties::EDGE_BEND_HEIGHT, Some(global_bend_height));
+                    node_set_property(
+                        &children[a],
+                        InternalProperties::EDGE_BEND_HEIGHT,
+                        Some(global_bend_height),
+                    );
                 } else {
                     global_bend_height = child_height;
                 }
             }
         }
 
-        let left_child_outline =
-            node_get_property(&children[0], InternalProperties::LEFT_OUTLINE).expect("left outline");
+        let left_child_outline = node_get_property(&children[0], InternalProperties::LEFT_OUTLINE)
+            .expect("left outline");
         let mut graph_left_outline =
             node_get_property(graph, InternalProperties::LEFT_OUTLINE).expect("left outline");
-        let new_x = node_x(&children[0]) + left_child_outline.relative_x() - graph_left_outline.relative_x();
-        let new_outline_part = OutlineNode::new(0.0, left_child_outline.absolute_y(), left_child_outline.next_cloned());
+        let new_x = node_x(&children[0]) + left_child_outline.relative_x()
+            - graph_left_outline.relative_x();
+        let new_outline_part = OutlineNode::new(
+            0.0,
+            left_child_outline.absolute_y(),
+            left_child_outline.next_cloned(),
+        );
         let new_outline = OutlineNode::new(
             new_x,
             node_get_property(&children[0], InternalProperties::EDGE_BEND_HEIGHT).unwrap_or(0.0),
             Some(new_outline_part),
         );
         set_outline_third_next(&mut graph_left_outline, new_outline);
-        node_set_property(graph, InternalProperties::LEFT_OUTLINE, Some(graph_left_outline));
+        node_set_property(
+            graph,
+            InternalProperties::LEFT_OUTLINE,
+            Some(graph_left_outline),
+        );
 
-        let right_child_outline = node_get_property(children.last().unwrap(), InternalProperties::RIGHT_OUTLINE)
-            .expect("right outline");
+        let right_child_outline =
+            node_get_property(children.last().unwrap(), InternalProperties::RIGHT_OUTLINE)
+                .expect("right outline");
         let mut graph_right_outline =
             node_get_property(graph, InternalProperties::RIGHT_OUTLINE).expect("right outline");
         let new_x = node_x(children.last().unwrap()) + right_child_outline.relative_x()
             - graph_right_outline.relative_x();
-        let new_outline_part = OutlineNode::new(0.0, right_child_outline.absolute_y(), right_child_outline.next_cloned());
+        let new_outline_part = OutlineNode::new(
+            0.0,
+            right_child_outline.absolute_y(),
+            right_child_outline.next_cloned(),
+        );
         let new_outline = OutlineNode::new(
             new_x,
-            node_get_property(children.last().unwrap(), InternalProperties::EDGE_BEND_HEIGHT).unwrap_or(0.0),
+            node_get_property(
+                children.last().unwrap(),
+                InternalProperties::EDGE_BEND_HEIGHT,
+            )
+            .unwrap_or(0.0),
             Some(new_outline_part),
         );
         set_outline_third_next(&mut graph_right_outline, new_outline);
-        node_set_property(graph, InternalProperties::RIGHT_OUTLINE, Some(graph_right_outline));
+        node_set_property(
+            graph,
+            InternalProperties::RIGHT_OUTLINE,
+            Some(graph_right_outline),
+        );
 
         let mut outline_max_depth =
             node_get_property(graph, InternalProperties::OUTLINE_MAX_DEPTH).unwrap_or(0.0);
@@ -396,7 +456,11 @@ impl RelativeXPlacer {
             min_x = min_x.min(node_x(child) + child_min_x);
             max_x = max_x.max(node_x(child) + child_max_x);
         }
-        node_set_property(graph, InternalProperties::OUTLINE_MAX_DEPTH, Some(outline_max_depth));
+        node_set_property(
+            graph,
+            InternalProperties::OUTLINE_MAX_DEPTH,
+            Some(outline_max_depth),
+        );
         node_set_property(graph, InternalProperties::MIN_X, Some(min_x));
         node_set_property(graph, InternalProperties::MAX_X, Some(max_x));
         node_set_property(graph, InternalProperties::MAX_Y, Some(outline_max_depth));
@@ -491,11 +555,7 @@ impl RelativeXPlacer {
         }
     }
 
-    fn split_group(
-        &self,
-        group: &[ElkNodeRef],
-        width_left_right: &mut Pair<f64, f64>,
-    ) -> usize {
+    fn split_group(&self, group: &[ElkNodeRef], width_left_right: &mut Pair<f64, f64>) -> usize {
         if group.len() == 1 {
             return 0;
         }
@@ -519,7 +579,11 @@ impl RelativeXPlacer {
         let exceed = new_left_width - desired_left;
         let under = desired_left - (new_left_width - node_width(&group[i.saturating_sub(1)]));
 
-        let result_index = if exceed > under { i } else { i.saturating_sub(1) };
+        let result_index = if exceed > under {
+            i
+        } else {
+            i.saturating_sub(1)
+        };
 
         width_left_right.set_first(width_left + exceed);
         let mut new_right_width = 0.0;
@@ -532,8 +596,7 @@ impl RelativeXPlacer {
     }
 
     fn make_simple_outlines(&self, graph: &ElkNodeRef) {
-        let margins = node_get_property(graph, CoreOptions::MARGINS)
-            .unwrap_or_default();
+        let margins = node_get_property(graph, CoreOptions::MARGINS).unwrap_or_default();
 
         let end_part = OutlineNode::new(
             0.0,
@@ -576,14 +639,26 @@ impl RelativeXPlacer {
         );
 
         node_set_property(graph, InternalProperties::LEFT_OUTLINE, Some(left_outline));
-        node_set_property(graph, InternalProperties::RIGHT_OUTLINE, Some(right_outline));
-        node_set_property(graph, InternalProperties::MIN_X, Some(node_x(graph) - margins.left));
+        node_set_property(
+            graph,
+            InternalProperties::RIGHT_OUTLINE,
+            Some(right_outline),
+        );
+        node_set_property(
+            graph,
+            InternalProperties::MIN_X,
+            Some(node_x(graph) - margins.left),
+        );
         node_set_property(
             graph,
             InternalProperties::MAX_X,
             Some(node_x(graph) + margins.right + node_width(graph)),
         );
-        node_set_property(graph, InternalProperties::MIN_Y, Some(node_y(graph) - margins.top));
+        node_set_property(
+            graph,
+            InternalProperties::MIN_Y,
+            Some(node_y(graph) - margins.top),
+        );
         node_set_property(
             graph,
             InternalProperties::MAX_Y,
@@ -596,7 +671,11 @@ impl RelativeXPlacer {
             .and_then(|node| node.next())
             .map(|node| node.absolute_y())
             .unwrap_or(0.0);
-        node_set_property(graph, InternalProperties::OUTLINE_MAX_DEPTH, Some(outline_max_depth));
+        node_set_property(
+            graph,
+            InternalProperties::OUTLINE_MAX_DEPTH,
+            Some(outline_max_depth),
+        );
     }
 
     fn bundle_children(&self, left_subtree: &ElkNodeRef, a: &ElkNodeRef, b: &ElkNodeRef) {
@@ -608,16 +687,18 @@ impl RelativeXPlacer {
 
         let left_max_depth =
             node_get_property(left_subtree, InternalProperties::OUTLINE_MAX_DEPTH).unwrap_or(0.0);
-        let b_max_depth = node_get_property(b, InternalProperties::OUTLINE_MAX_DEPTH).unwrap_or(0.0);
+        let b_max_depth =
+            node_get_property(b, InternalProperties::OUTLINE_MAX_DEPTH).unwrap_or(0.0);
         if left_max_depth < b_max_depth {
-            let mut left_outline = node_get_property(left_subtree, InternalProperties::LEFT_OUTLINE)
-                .expect("left outline");
+            let mut left_outline =
+                node_get_property(left_subtree, InternalProperties::LEFT_OUTLINE)
+                    .expect("left outline");
             let (l_abs_x, last_l_abs_y) =
                 outline_abs_x_and_last_y(&left_outline, node_x(left_subtree));
 
             let mut b_iterator = {
-                let b_left = node_get_property(b, InternalProperties::LEFT_OUTLINE)
-                    .expect("left outline");
+                let b_left =
+                    node_get_property(b, InternalProperties::LEFT_OUTLINE).expect("left outline");
                 OutlineNode::new(b_left.relative_x(), MINIMAL_Y, b_left.next_cloned())
             };
             let mut r_abs_x = b_iterator.relative_x() + node_x(b);
@@ -657,16 +738,18 @@ impl RelativeXPlacer {
             );
         }
 
-        let b_max_depth = node_get_property(b, InternalProperties::OUTLINE_MAX_DEPTH).unwrap_or(0.0);
-        let a_max_depth = node_get_property(a, InternalProperties::OUTLINE_MAX_DEPTH).unwrap_or(0.0);
+        let b_max_depth =
+            node_get_property(b, InternalProperties::OUTLINE_MAX_DEPTH).unwrap_or(0.0);
+        let a_max_depth =
+            node_get_property(a, InternalProperties::OUTLINE_MAX_DEPTH).unwrap_or(0.0);
         if b_max_depth < a_max_depth {
-            let mut right_outline = node_get_property(b, InternalProperties::RIGHT_OUTLINE)
-                .expect("right outline");
+            let mut right_outline =
+                node_get_property(b, InternalProperties::RIGHT_OUTLINE).expect("right outline");
             let (r_abs_x, last_b_abs_y) = outline_abs_x_and_last_y(&right_outline, node_x(b));
 
             let mut a_iterator = {
-                let a_right = node_get_property(a, InternalProperties::RIGHT_OUTLINE)
-                    .expect("right outline");
+                let a_right =
+                    node_get_property(a, InternalProperties::RIGHT_OUTLINE).expect("right outline");
                 OutlineNode::new(a_right.relative_x(), MINIMAL_Y, a_right.next_cloned())
             };
             let mut a_abs_x = a_iterator.relative_x() + node_x(a);
@@ -695,11 +778,7 @@ impl RelativeXPlacer {
             last_b.set_next(Some(OutlineNode::new(new_x, last_b_abs_y, Some(new_next))));
 
             node_set_property(b, InternalProperties::RIGHT_OUTLINE, Some(right_outline));
-            node_set_property(
-                b,
-                InternalProperties::OUTLINE_MAX_DEPTH,
-                Some(a_max_depth),
-            );
+            node_set_property(b, InternalProperties::OUTLINE_MAX_DEPTH, Some(a_max_depth));
         }
     }
 }
@@ -714,7 +793,8 @@ impl ILayoutPhase<VertiFlexLayoutPhases, ElkNodeRef> for RelativeXPlacer {
     fn process(&mut self, graph: &mut ElkNodeRef, progress_monitor: &mut dyn IElkProgressMonitor) {
         progress_monitor.begin("XPlacer", 1.0);
 
-        self.spacing_node_node = node_get_property(graph, CoreOptions::SPACING_NODE_NODE).unwrap_or(0.0);
+        self.spacing_node_node =
+            node_get_property(graph, CoreOptions::SPACING_NODE_NODE).unwrap_or(0.0);
         self.consider_node_model_order =
             node_get_property(graph, VertiFlexOptions::CONSIDER_NODE_MODEL_ORDER).unwrap_or(true);
 
@@ -798,7 +878,9 @@ fn node_set_x(node: &ElkNodeRef, value: f64) {
     node_mut.connectable().shape().set_x(value);
 }
 
-fn edge_target_node(edge: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkEdgeRef) -> Option<ElkNodeRef> {
+fn edge_target_node(
+    edge: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkEdgeRef,
+) -> Option<ElkNodeRef> {
     let edge_borrow = edge.borrow();
     let target = edge_borrow.targets_ro().get(0)?;
     drop(edge_borrow);
@@ -806,9 +888,15 @@ fn edge_target_node(edge: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkE
 }
 
 fn set_outline_third_next(outline: &mut OutlineNode, next: OutlineNode) {
-    let Some(level1) = outline.next_mut() else { return; };
-    let Some(level2) = level1.next_mut() else { return; };
-    let Some(level3) = level2.next_mut() else { return; };
+    let Some(level1) = outline.next_mut() else {
+        return;
+    };
+    let Some(level2) = level1.next_mut() else {
+        return;
+    };
+    let Some(level3) = level2.next_mut() else {
+        return;
+    };
     level3.set_next(Some(next));
 }
 

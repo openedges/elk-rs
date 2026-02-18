@@ -3,15 +3,15 @@ use std::sync::{Arc, Mutex};
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::{
     LEdge, LEdgeRef, LGraph, LGraphRef, LLabel, LNode, LNodeRef, LPort, LPortRef, Layer,
 };
+use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::intermediate::loops::SelfLoopType;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::intermediate::{
     SelfLoopPortRestorer, SelfLoopPostProcessor, SelfLoopPreProcessor, SelfLoopRouter,
 };
-use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::intermediate::loops::SelfLoopType;
+use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::internal_properties::Origin;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::{
     InternalProperties, LayeredMetaDataProvider, LayeredOptions, SelfLoopDistributionStrategy,
     SelfLoopOrderingStrategy,
 };
-use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::internal_properties::Origin;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_routing::EdgeRouting;
@@ -83,7 +83,10 @@ fn build_self_loop_graph() -> (LGraphRef, LNodeRef, Vec<LEdgeRef>) {
         node_guard.shape().size().y = 50.0;
         node_guard.shape().position().x = 15.0;
         node_guard.shape().position().y = 20.0;
-        node_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::Free));
+        node_guard.set_property(
+            LayeredOptions::PORT_CONSTRAINTS,
+            Some(PortConstraints::Free),
+        );
         node_guard.set_property(LayeredOptions::EDGE_ROUTING, Some(EdgeRouting::Orthogonal));
     }
     graph
@@ -111,7 +114,10 @@ fn build_parallel_north_self_loop_graph() -> (LGraphRef, LNodeRef, Vec<LEdgeRef>
         node_guard.shape().size().y = 60.0;
         node_guard.shape().position().x = 10.0;
         node_guard.shape().position().y = 30.0;
-        node_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::Free));
+        node_guard.set_property(
+            LayeredOptions::PORT_CONSTRAINTS,
+            Some(PortConstraints::Free),
+        );
         node_guard.set_property(LayeredOptions::EDGE_ROUTING, Some(EdgeRouting::Orthogonal));
     }
     graph
@@ -139,7 +145,8 @@ fn build_parallel_north_self_loop_graph_with_labels() -> (LGraphRef, LNodeRef, V
     (graph, node, edges)
 }
 
-fn build_parallel_north_self_loop_graph_with_labels_and_sequenced_ordering() -> (LGraphRef, LNodeRef, Vec<LEdgeRef>) {
+fn build_parallel_north_self_loop_graph_with_labels_and_sequenced_ordering(
+) -> (LGraphRef, LNodeRef, Vec<LEdgeRef>) {
     let graph = LGraph::new();
     let node = LNode::new(&graph);
     {
@@ -148,7 +155,10 @@ fn build_parallel_north_self_loop_graph_with_labels_and_sequenced_ordering() -> 
         node_guard.shape().size().y = 60.0;
         node_guard.shape().position().x = 10.0;
         node_guard.shape().position().y = 30.0;
-        node_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::Free));
+        node_guard.set_property(
+            LayeredOptions::PORT_CONSTRAINTS,
+            Some(PortConstraints::Free),
+        );
         node_guard.set_property(LayeredOptions::EDGE_ROUTING, Some(EdgeRouting::Orthogonal));
         node_guard.set_property(
             LayeredOptions::EDGE_ROUTING_SELF_LOOP_ORDERING,
@@ -184,7 +194,10 @@ fn build_north_south_self_loop_graph_with_label(inline: bool) -> (LGraphRef, LNo
         node_guard.shape().position().x = 10.0;
         node_guard.shape().position().y = 20.0;
         // Keep original north/south side assignment so the loop remains two-sided-opposing.
-        node_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::FixedOrder));
+        node_guard.set_property(
+            LayeredOptions::PORT_CONSTRAINTS,
+            Some(PortConstraints::FixedOrder),
+        );
         node_guard.set_property(LayeredOptions::EDGE_ROUTING, Some(EdgeRouting::Orthogonal));
     }
     graph
@@ -200,6 +213,7 @@ fn build_north_south_self_loop_graph_with_label(inline: bool) -> (LGraphRef, LNo
     (graph, node, edge)
 }
 
+
 fn build_east_west_self_loop_graph() -> (LGraphRef, LNodeRef, LEdgeRef) {
     let graph = LGraph::new();
     let node = LNode::new(&graph);
@@ -209,7 +223,10 @@ fn build_east_west_self_loop_graph() -> (LGraphRef, LNodeRef, LEdgeRef) {
         node_guard.shape().size().y = 60.0;
         node_guard.shape().position().x = 10.0;
         node_guard.shape().position().y = 20.0;
-        node_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::FixedOrder));
+        node_guard.set_property(
+            LayeredOptions::PORT_CONSTRAINTS,
+            Some(PortConstraints::FixedOrder),
+        );
         node_guard.set_property(LayeredOptions::EDGE_ROUTING, Some(EdgeRouting::Orthogonal));
     }
     graph
@@ -236,7 +253,10 @@ fn build_opposing_self_loop_with_side_penalty(
         node_guard.shape().size().y = 60.0;
         node_guard.shape().position().x = 10.0;
         node_guard.shape().position().y = 20.0;
-        node_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::FixedOrder));
+        node_guard.set_property(
+            LayeredOptions::PORT_CONSTRAINTS,
+            Some(PortConstraints::FixedOrder),
+        );
         node_guard.set_property(LayeredOptions::EDGE_ROUTING, Some(EdgeRouting::Orthogonal));
     }
     graph
@@ -258,7 +278,10 @@ fn build_opposing_self_loop_with_side_penalty(
         external_guard.shape().size().y = 20.0;
         external_guard.shape().position().x = 140.0;
         external_guard.shape().position().y = 20.0;
-        external_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::FixedOrder));
+        external_guard.set_property(
+            LayeredOptions::PORT_CONSTRAINTS,
+            Some(PortConstraints::FixedOrder),
+        );
     }
     graph
         .lock()
@@ -278,14 +301,8 @@ fn build_opposing_self_loop_with_side_penalty(
     (graph, node, self_loop)
 }
 
-fn build_north_west_corner_mixed_graph() -> (
-    LGraphRef,
-    LNodeRef,
-    LPortRef,
-    LPortRef,
-    LPortRef,
-    LPortRef,
-) {
+fn build_north_west_corner_mixed_graph(
+) -> (LGraphRef, LNodeRef, LPortRef, LPortRef, LPortRef, LPortRef) {
     let graph = LGraph::new();
     let node = LNode::new(&graph);
     {
@@ -294,7 +311,10 @@ fn build_north_west_corner_mixed_graph() -> (
         node_guard.shape().size().y = 60.0;
         node_guard.shape().position().x = 15.0;
         node_guard.shape().position().y = 20.0;
-        node_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::FixedSide));
+        node_guard.set_property(
+            LayeredOptions::PORT_CONSTRAINTS,
+            Some(PortConstraints::FixedSide),
+        );
         node_guard.set_property(
             InternalProperties::ORIGINAL_PORT_CONSTRAINTS,
             Some(PortConstraints::FixedSide),
@@ -321,7 +341,10 @@ fn build_north_west_corner_mixed_graph() -> (
         ext_guard.shape().size().y = 20.0;
         ext_guard.shape().position().x = 130.0;
         ext_guard.shape().position().y = 20.0;
-        ext_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::FixedOrder));
+        ext_guard.set_property(
+            LayeredOptions::PORT_CONSTRAINTS,
+            Some(PortConstraints::FixedOrder),
+        );
     }
     graph
         .lock()
@@ -371,7 +394,10 @@ fn build_equally_distribution_graph_with_unique_loop_sizes(
         node_guard.shape().size().y = 70.0;
         node_guard.shape().position().x = 15.0;
         node_guard.shape().position().y = 20.0;
-        node_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::Free));
+        node_guard.set_property(
+            LayeredOptions::PORT_CONSTRAINTS,
+            Some(PortConstraints::Free),
+        );
         node_guard.set_property(
             LayeredOptions::EDGE_ROUTING_SELF_LOOP_DISTRIBUTION,
             Some(SelfLoopDistributionStrategy::Equally),
@@ -402,7 +428,10 @@ fn build_south_middle_with_east_dummy_graph() -> (LGraphRef, LNodeRef, LPortRef,
         node_guard.shape().size().y = 70.0;
         node_guard.shape().position().x = 15.0;
         node_guard.shape().position().y = 20.0;
-        node_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::FixedSide));
+        node_guard.set_property(
+            LayeredOptions::PORT_CONSTRAINTS,
+            Some(PortConstraints::FixedSide),
+        );
         node_guard.set_property(
             InternalProperties::ORIGINAL_PORT_CONSTRAINTS,
             Some(PortConstraints::FixedSide),
@@ -457,7 +486,10 @@ fn build_north_middle_with_west_dummy_graph() -> (LGraphRef, LNodeRef, LPortRef,
         node_guard.shape().size().y = 70.0;
         node_guard.shape().position().x = 15.0;
         node_guard.shape().position().y = 20.0;
-        node_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::FixedSide));
+        node_guard.set_property(
+            LayeredOptions::PORT_CONSTRAINTS,
+            Some(PortConstraints::FixedSide),
+        );
         node_guard.set_property(
             InternalProperties::ORIGINAL_PORT_CONSTRAINTS,
             Some(PortConstraints::FixedSide),
@@ -512,7 +544,10 @@ fn build_corner_and_dummy_combined_graph() -> CornerDummyCombinedGraph {
         node_guard.shape().size().y = 90.0;
         node_guard.shape().position().x = 15.0;
         node_guard.shape().position().y = 20.0;
-        node_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::FixedSide));
+        node_guard.set_property(
+            LayeredOptions::PORT_CONSTRAINTS,
+            Some(PortConstraints::FixedSide),
+        );
         node_guard.set_property(
             InternalProperties::ORIGINAL_PORT_CONSTRAINTS,
             Some(PortConstraints::FixedSide),
@@ -613,7 +648,10 @@ fn self_loop_router_keeps_duplicate_bend_points_for_same_port() {
         node_guard.shape().size().y = 40.0;
         node_guard.shape().position().x = 10.0;
         node_guard.shape().position().y = 20.0;
-        node_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::Free));
+        node_guard.set_property(
+            LayeredOptions::PORT_CONSTRAINTS,
+            Some(PortConstraints::Free),
+        );
         node_guard.set_property(LayeredOptions::EDGE_ROUTING, Some(EdgeRouting::Orthogonal));
     }
     graph
@@ -630,7 +668,8 @@ fn self_loop_router_keeps_duplicate_bend_points_for_same_port() {
 
     let layer = Layer::new(&graph);
     {
-        graph.lock()
+        graph
+            .lock()
             .expect("graph lock")
             .layers_mut()
             .push(layer.clone());
@@ -649,12 +688,12 @@ fn self_loop_router_keeps_duplicate_bend_points_for_same_port() {
     let mut post = SelfLoopPostProcessor;
     run_processor(&mut post, &graph);
 
-    let bends = edge
-        .lock()
-        .expect("edge lock")
-        .bend_points_ref()
-        .to_array();
-    assert_eq!(bends.len(), 2, "duplicate outer bend points should be preserved");
+    let bends = edge.lock().expect("edge lock").bend_points_ref().to_array();
+    assert_eq!(
+        bends.len(),
+        2,
+        "duplicate outer bend points should be preserved"
+    );
     assert!(
         (bends[0].x - bends[1].x).abs() < 1e-9 && (bends[0].y - bends[1].y).abs() < 1e-9,
         "expected identical bend points, got {bends:?}"
@@ -671,7 +710,8 @@ fn self_loop_router_creates_outside_bend_points_for_hidden_loops() {
 
     let layer = Layer::new(&graph);
     {
-        graph.lock()
+        graph
+            .lock()
             .expect("graph lock")
             .layers_mut()
             .push(layer.clone());
@@ -712,16 +752,16 @@ fn self_loop_router_creates_outside_bend_points_for_hidden_loops() {
             "self-loop edges need bend points after routing"
         );
 
-        let has_outside_point = edge_guard
-            .bend_points_ref()
-            .iter()
-            .any(|point| {
-                point.x < node_x
-                    || point.x > node_x + node_w
-                    || point.y < node_y
-                    || point.y > node_y + node_h
-            });
-        assert!(has_outside_point, "self-loop route should leave node bounds");
+        let has_outside_point = edge_guard.bend_points_ref().iter().any(|point| {
+            point.x < node_x
+                || point.x > node_x + node_w
+                || point.y < node_y
+                || point.y > node_y + node_h
+        });
+        assert!(
+            has_outside_point,
+            "self-loop route should leave node bounds"
+        );
     }
 }
 
@@ -735,7 +775,8 @@ fn self_loop_router_assigns_separate_slots_for_parallel_north_loops() {
 
     let layer = Layer::new(&graph);
     {
-        graph.lock()
+        graph
+            .lock()
             .expect("graph lock")
             .layers_mut()
             .push(layer.clone());
@@ -754,12 +795,7 @@ fn self_loop_router_assigns_separate_slots_for_parallel_north_loops() {
     let mut post = SelfLoopPostProcessor;
     run_processor(&mut post, &graph);
 
-    let node_y = node
-        .lock()
-        .expect("node lock")
-        .shape()
-        .position_ref()
-        .y;
+    let node_y = node.lock().expect("node lock").shape().position_ref().y;
     for edge in edges {
         let edge_guard = edge.lock().expect("edge lock");
         assert!(
@@ -785,7 +821,8 @@ fn self_loop_router_places_labels_above_parallel_north_loops() {
 
     let layer = Layer::new(&graph);
     {
-        graph.lock()
+        graph
+            .lock()
             .expect("graph lock")
             .layers_mut()
             .push(layer.clone());
@@ -831,9 +868,15 @@ fn self_loop_router_places_labels_above_parallel_north_loops() {
             )
         };
 
-        assert!(x.is_finite() && y.is_finite(), "label position must be finite");
+        assert!(
+            x.is_finite() && y.is_finite(),
+            "label position must be finite"
+        );
         assert!(w > 0.0 && h > 0.0, "label size must be positive");
-        assert!(y + h < node_y, "north self-loop labels should be above node");
+        assert!(
+            y + h < node_y,
+            "north self-loop labels should be above node"
+        );
         assert!(
             x >= node_x - 1e-6 && x + w <= node_x + node_width + 1e-6,
             "centered north labels should stay within node width"
@@ -852,14 +895,16 @@ fn self_loop_router_places_labels_above_parallel_north_loops() {
 #[test]
 fn self_loop_router_sequences_one_sided_north_labels_left_and_right() {
     init_layered_metadata();
-    let (graph, node, edges) = build_parallel_north_self_loop_graph_with_labels_and_sequenced_ordering();
+    let (graph, node, edges) =
+        build_parallel_north_self_loop_graph_with_labels_and_sequenced_ordering();
 
     let mut pre = SelfLoopPreProcessor;
     run_processor(&mut pre, &graph);
 
     let layer = Layer::new(&graph);
     {
-        graph.lock()
+        graph
+            .lock()
             .expect("graph lock")
             .layers_mut()
             .push(layer.clone());
@@ -908,7 +953,10 @@ fn self_loop_router_sequences_one_sided_north_labels_left_and_right() {
                 label_guard.shape().size_ref().y,
             )
         };
-        assert!(y + h < node_y, "north self-loop labels should be above node");
+        assert!(
+            y + h < node_y,
+            "north self-loop labels should be above node"
+        );
         label_centers.push(x + w / 2.0);
     }
 
@@ -929,7 +977,8 @@ fn self_loop_router_expands_node_margin_for_self_loop_labels() {
 
     let layer = Layer::new(&graph);
     {
-        graph.lock()
+        graph
+            .lock()
             .expect("graph lock")
             .layers_mut()
             .push(layer.clone());
@@ -988,12 +1037,20 @@ fn self_loop_router_offsets_corner_for_inline_label_clearance() {
         label
             .lock()
             .ok()
-            .and_then(|mut label_guard| label_guard.get_property(LayeredOptions::EDGE_LABELS_INLINE))
+            .and_then(|mut label_guard| {
+                label_guard.get_property(LayeredOptions::EDGE_LABELS_INLINE)
+            })
             .unwrap_or(false)
     };
-    assert!(inline_flag_before, "inline label flag must be set before routing");
+    assert!(
+        inline_flag_before,
+        "inline label flag must be set before routing"
+    );
 
-    for (graph, node) in [(&regular_graph, &regular_node), (&inline_graph, &inline_node)] {
+    for (graph, node) in [
+        (&regular_graph, &regular_node),
+        (&inline_graph, &inline_node),
+    ] {
         let mut pre = SelfLoopPreProcessor;
         run_processor(&mut pre, graph);
 
@@ -1029,14 +1086,11 @@ fn self_loop_router_offsets_corner_for_inline_label_clearance() {
                 .and_then(|holder_guard| holder_guard.sl_hyper_loops().first().cloned())
         })
         .and_then(|sl_loop| {
-            sl_loop
-                .lock()
-                .ok()
-                .and_then(|sl_loop_guard| {
-                    sl_loop_guard
-                        .sl_labels()
-                        .map(|labels| (sl_loop_guard.self_loop_type(), labels.side()))
-                })
+            sl_loop.lock().ok().and_then(|sl_loop_guard| {
+                sl_loop_guard
+                    .sl_labels()
+                    .map(|labels| (sl_loop_guard.self_loop_type(), labels.side()))
+            })
         })
         .unwrap_or((None, PortSide::Undefined));
 
@@ -1253,6 +1307,7 @@ fn self_loop_router_prefers_north_route_on_east_west_tie() {
     );
 }
 
+
 #[test]
 fn self_loop_port_restorer_keeps_north_west_corner_clockwise_order() {
     init_layered_metadata();
@@ -1376,7 +1431,8 @@ fn self_loop_port_restorer_equally_distribution_assigns_corner_by_net_flow() {
 #[test]
 fn self_loop_port_restorer_places_east_connected_south_before_middle_hidden_south() {
     init_layered_metadata();
-    let (graph, node, visible_south, hidden_south_ports) = build_south_middle_with_east_dummy_graph();
+    let (graph, node, visible_south, hidden_south_ports) =
+        build_south_middle_with_east_dummy_graph();
 
     let mut pre = SelfLoopPreProcessor;
     run_processor(&mut pre, &graph);
@@ -1421,7 +1477,8 @@ fn self_loop_port_restorer_places_east_connected_south_before_middle_hidden_sout
 #[test]
 fn self_loop_port_restorer_places_west_connected_north_before_middle_hidden_north() {
     init_layered_metadata();
-    let (graph, node, visible_north, hidden_north_ports) = build_north_middle_with_west_dummy_graph();
+    let (graph, node, visible_north, hidden_north_ports) =
+        build_north_middle_with_west_dummy_graph();
 
     let mut pre = SelfLoopPreProcessor;
     run_processor(&mut pre, &graph);

@@ -122,7 +122,10 @@ fn test_removed_nodes() {
         .labels()
         .iter()
         .any(|label| Arc::ptr_eq(label, &represented_label));
-    assert!(has_label, "represented labels must be moved back to the origin edge");
+    assert!(
+        has_label,
+        "represented labels must be moved back to the origin edge"
+    );
 
     let target_after_join = surviving_edge
         .lock()
@@ -140,7 +143,10 @@ fn test_removed_nodes() {
         .shape()
         .position_ref()
         .y;
-    assert!(label_y > 20.0, "label position must be updated from dummy placement");
+    assert!(
+        label_y > 20.0,
+        "label position must be updated from dummy placement"
+    );
 }
 
 #[test]

@@ -1,7 +1,9 @@
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_spacings::ElkCoreSpacingsBuilder;
-use org_eclipse_elk_core::org::eclipse::elk::core::util::{ElkSpacings, ElkUtil, IGraphElementVisitor};
+use org_eclipse_elk_core::org::eclipse::elk::core::util::{
+    ElkSpacings, ElkUtil, IGraphElementVisitor,
+};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{
@@ -262,10 +264,7 @@ fn set_node_property(node: &ElkNodeRef, option: &Property<f64>, value: f64) {
 
 fn set_dimensions(node: &ElkNodeRef, width: f64, height: f64) {
     let mut node_mut = node.borrow_mut();
-    node_mut
-        .connectable()
-        .shape()
-        .set_dimensions(width, height);
+    node_mut.connectable().shape().set_dimensions(width, height);
 }
 
 fn find_factor(builder: &ElkCoreSpacingsBuilder, option: &Property<f64>) -> Option<f64> {

@@ -31,7 +31,12 @@ fn assert_node_labels_centered(node: &org_eclipse_elk_graph::org::eclipse::elk::
         let shape = node_mut.connectable().shape();
         (
             shape.width(),
-            shape.graph_element().labels().iter().cloned().collect::<Vec<_>>(),
+            shape
+                .graph_element()
+                .labels()
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>(),
         )
     };
 

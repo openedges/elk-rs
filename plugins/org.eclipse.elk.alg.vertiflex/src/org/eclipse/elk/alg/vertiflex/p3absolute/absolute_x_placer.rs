@@ -85,7 +85,9 @@ fn outgoing_children(node: &ElkNodeRef) -> Vec<ElkNodeRef> {
     children
 }
 
-fn edge_target_node(edge: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkEdgeRef) -> Option<ElkNodeRef> {
+fn edge_target_node(
+    edge: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkEdgeRef,
+) -> Option<ElkNodeRef> {
     let edge_borrow = edge.borrow();
     let target = edge_borrow.targets_ro().get(0)?;
     drop(edge_borrow);

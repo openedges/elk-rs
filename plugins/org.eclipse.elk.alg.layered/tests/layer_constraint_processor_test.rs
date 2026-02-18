@@ -14,7 +14,8 @@ use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::NullElkProgressMonitor;
 
 fn init_layered_metadata() {
-    LayoutMetaDataService::get_instance().register_layout_meta_data_provider(&LayeredMetaDataProvider);
+    LayoutMetaDataService::get_instance()
+        .register_layout_meta_data_provider(&LayeredMetaDataProvider);
 }
 
 fn new_graph_with_layers(count: usize) -> (LGraphRef, Vec<LayerRef>) {
@@ -67,9 +68,7 @@ fn layer_constraint_processor_hides_first_separate_nodes() {
         .get_property(InternalProperties::HIDDEN_NODES)
         .unwrap_or_default();
     assert!(
-        hidden_nodes
-            .iter()
-            .any(|node| Arc::ptr_eq(node, &hidden)),
+        hidden_nodes.iter().any(|node| Arc::ptr_eq(node, &hidden)),
         "first-separate node must be moved to hidden node list"
     );
 }

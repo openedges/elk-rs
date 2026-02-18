@@ -91,12 +91,12 @@ impl MedianHeuristic {
                     .lock()
                     .ok()
                     .map(|edge_guard| {
-                        let source_node = edge_guard
-                            .source()
-                            .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
-                        let target_node = edge_guard
-                            .target()
-                            .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                        let source_node = edge_guard.source().and_then(|port| {
+                            port.lock().ok().and_then(|port_guard| port_guard.node())
+                        });
+                        let target_node = edge_guard.target().and_then(|port| {
+                            port.lock().ok().and_then(|port_guard| port_guard.node())
+                        });
                         (source_node, target_node)
                     })
                     .unwrap_or((None, None));
@@ -144,7 +144,9 @@ impl ICrossingMinimizationHeuristic for MedianHeuristic {
         } else {
             order.len().saturating_sub(1)
         };
-        let Some(layer) = order.get(first_index) else { return false; };
+        let Some(layer) = order.get(first_index) else {
+            return false;
+        };
         let mut first_layer = layer.to_vec();
         for node in &first_layer {
             let weight = self.random.next_double();
@@ -212,5 +214,10 @@ fn layer_id(node: &LNodeRef) -> Option<usize> {
     node.lock()
         .ok()
         .and_then(|node_guard| node_guard.layer())
-        .and_then(|layer| layer.lock().ok().map(|mut layer_guard| layer_guard.graph_element().id as usize))
+        .and_then(|layer| {
+            layer
+                .lock()
+                .ok()
+                .map(|mut layer_guard| layer_guard.graph_element().id as usize)
+        })
 }

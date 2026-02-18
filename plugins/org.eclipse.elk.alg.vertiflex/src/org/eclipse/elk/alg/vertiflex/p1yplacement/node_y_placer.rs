@@ -6,9 +6,9 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 
+use crate::org::eclipse::elk::alg::vertiflex::options::VertiFlexOptions;
 use crate::org::eclipse::elk::alg::vertiflex::vertiflex_layout_phases::VertiFlexLayoutPhases;
 use crate::org::eclipse::elk::alg::vertiflex::vertiflex_util::VertiFlexUtil;
-use crate::org::eclipse::elk::alg::vertiflex::options::VertiFlexOptions;
 
 pub struct NodeYPlacer {
     layer_distance: f64,
@@ -44,7 +44,8 @@ impl NodeYPlacer {
             .unwrap_or_default()
             .bottom;
 
-        let new_min_height = min_height + self.layer_distance + height + margins_bottom.max(self.node_node_spacing);
+        let new_min_height =
+            min_height + self.layer_distance + height + margins_bottom.max(self.node_node_spacing);
         for edge in ElkGraphUtil::all_outgoing_edges(node) {
             if let Some(child) = edge_target_node(&edge) {
                 self.set_y_levels(&child, new_min_height);
@@ -63,8 +64,10 @@ impl ILayoutPhase<VertiFlexLayoutPhases, ElkNodeRef> for NodeYPlacer {
     fn process(&mut self, graph: &mut ElkNodeRef, progress_monitor: &mut dyn IElkProgressMonitor) {
         progress_monitor.begin("YPlacer", 1.0);
 
-        self.layer_distance = node_get_property(graph, VertiFlexOptions::LAYER_DISTANCE).unwrap_or(0.0);
-        self.node_node_spacing = node_get_property(graph, CoreOptions::SPACING_NODE_NODE).unwrap_or(0.0);
+        self.layer_distance =
+            node_get_property(graph, VertiFlexOptions::LAYER_DISTANCE).unwrap_or(0.0);
+        self.node_node_spacing =
+            node_get_property(graph, CoreOptions::SPACING_NODE_NODE).unwrap_or(0.0);
 
         let has_children = {
             let mut graph_mut = graph.borrow_mut();
@@ -113,9 +116,13 @@ fn node_has_property<T: Clone + Send + Sync + 'static>(
     props.has_property(property)
 }
 
-fn edge_target_node(edge: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkEdgeRef) -> Option<ElkNodeRef> {
+fn edge_target_node(
+    edge: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkEdgeRef,
+) -> Option<ElkNodeRef> {
     let edge_borrow = edge.borrow();
     let target = edge_borrow.targets_ro().get(0)?;
     drop(edge_borrow);
-    org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil::connectable_shape_to_node(&target)
+    org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil::connectable_shape_to_node(
+        &target,
+    )
 }

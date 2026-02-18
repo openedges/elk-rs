@@ -4,7 +4,9 @@ use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 
-use super::{index_of_arc, remove_arc, LEdgeRef, LLabelRef, LMargin, LNodeRef, LNodeWeak, LPortRef, LShape};
+use super::{
+    index_of_arc, remove_arc, LEdgeRef, LLabelRef, LMargin, LNodeRef, LNodeWeak, LPortRef, LShape,
+};
 
 pub struct LPort {
     self_ref: Weak<Mutex<LPort>>,
@@ -241,7 +243,9 @@ impl LPort {
         if let Some(id) = self.shape.graph_element().get_designation() {
             return id;
         }
-        self.index().map(|idx| idx.to_string()).unwrap_or_else(|| "-1".to_owned())
+        self.index()
+            .map(|idx| idx.to_string())
+            .unwrap_or_else(|| "-1".to_owned())
     }
 
     #[allow(clippy::inherent_to_string)]
@@ -263,7 +267,11 @@ impl LPort {
             if let Some(edge) = self.incoming_edges.first() {
                 if let Ok(edge_guard) = edge.lock() {
                     if let Some(source) = edge_guard.source() {
-                        if self_ref.as_ref().map(|self_ref| !Arc::ptr_eq(&source, self_ref)).unwrap_or(true) {
+                        if self_ref
+                            .as_ref()
+                            .map(|self_ref| !Arc::ptr_eq(&source, self_ref))
+                            .unwrap_or(true)
+                        {
                             if let Ok(mut source_guard) = source.lock() {
                                 result.push_str(" << ");
                                 result.push_str(&source_guard.designation());
@@ -285,7 +293,11 @@ impl LPort {
             if let Some(edge) = self.outgoing_edges.first() {
                 if let Ok(edge_guard) = edge.lock() {
                     if let Some(target) = edge_guard.target() {
-                        if self_ref.as_ref().map(|self_ref| !Arc::ptr_eq(&target, self_ref)).unwrap_or(true) {
+                        if self_ref
+                            .as_ref()
+                            .map(|self_ref| !Arc::ptr_eq(&target, self_ref))
+                            .unwrap_or(true)
+                        {
                             if let Ok(mut target_guard) = target.lock() {
                                 result.push_str(" >> ");
                                 result.push_str(&target_guard.designation());

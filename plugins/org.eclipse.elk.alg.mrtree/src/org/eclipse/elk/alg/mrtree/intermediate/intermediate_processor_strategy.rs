@@ -60,7 +60,9 @@ impl ILayoutProcessorFactory<TGraphRef> for IntermediateProcessorStrategy {
             IntermediateProcessorStrategy::NodePositionProc => {
                 Box::new(NodePositionProcessor::default())
             }
-            IntermediateProcessorStrategy::CompactionProc => Box::new(CompactionProcessor::default()),
+            IntermediateProcessorStrategy::CompactionProc => {
+                Box::new(CompactionProcessor::default())
+            }
             IntermediateProcessorStrategy::LevelCoords => Box::new(LevelCoordinatesProcessor),
             IntermediateProcessorStrategy::GraphBoundsProc => Box::new(GraphBoundsProcessor),
             IntermediateProcessorStrategy::DetreeifyingProc => Box::new(Untreeifyer),

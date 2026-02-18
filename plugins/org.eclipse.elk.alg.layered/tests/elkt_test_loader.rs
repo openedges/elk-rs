@@ -107,7 +107,10 @@ pub fn load_layered_graph_from_elk_text(path: &str) -> Result<ElkNodeRef, String
     load_graph_from_elkt(path, Some(LayeredOptions::ALGORITHM_ID))
 }
 
-pub fn load_graph_from_elkt(path: &str, default_algorithm: Option<&str>) -> Result<ElkNodeRef, String> {
+pub fn load_graph_from_elkt(
+    path: &str,
+    default_algorithm: Option<&str>,
+) -> Result<ElkNodeRef, String> {
     let content = fs::read_to_string(path)
         .map_err(|err| format!("failed to read ELKT file {path}: {err}"))?;
 
@@ -119,7 +122,8 @@ pub fn load_graph_from_elkt(path: &str, default_algorithm: Option<&str>) -> Resu
     let mut nodes: HashMap<String, ElkNodeRef> = HashMap::new();
     let mut ports: HashMap<String, ElkPortRef> = HashMap::new();
     let mut edges: HashMap<String, ElkEdgeRef> = HashMap::new();
-    let mut edge_sections_by_edge: HashMap<String, HashMap<String, ElkEdgeSectionRef>> = HashMap::new();
+    let mut edge_sections_by_edge: HashMap<String, HashMap<String, ElkEdgeSectionRef>> =
+        HashMap::new();
     let mut pending_section_links: Vec<PendingSectionLink> = Vec::new();
     let mut label_identifiers: HashSet<String> = HashSet::new();
     let mut anonymous_edge_counter: usize = 0;
@@ -460,7 +464,9 @@ pub fn load_graph_from_elkt(path: &str, default_algorithm: Option<&str>) -> Resu
                     ));
                 };
 
-                let section_map = edge_sections_by_edge.entry(edge_id.to_string()).or_default();
+                let section_map = edge_sections_by_edge
+                    .entry(edge_id.to_string())
+                    .or_default();
                 let section =
                     get_or_create_edge_section_for_identifier(edge, section_map, &section_decl.id);
                 apply_edge_section_to(
@@ -557,7 +563,11 @@ pub fn load_graph_from_elkt(path: &str, default_algorithm: Option<&str>) -> Resu
                     .or_else(|| parse_inline_field_value(line, "edgeLabelPlacement"))
                 {
                     if let Some(placement) = parse_edge_label_placement(value.as_str()) {
-                        set_label_property(&label, LayeredOptions::EDGE_LABELS_PLACEMENT, placement);
+                        set_label_property(
+                            &label,
+                            LayeredOptions::EDGE_LABELS_PLACEMENT,
+                            placement,
+                        );
                     }
                 }
                 handled = true;
@@ -573,7 +583,9 @@ pub fn load_graph_from_elkt(path: &str, default_algorithm: Option<&str>) -> Resu
         if !handled && starts_with_statement(line, "nodeLabel") {
             if let Some((node_id, text, size)) = parse_node_label_declaration(line) {
                 let parent = current_node_context(&block_stack);
-                let Some(node) = find_node_by_identifier_reference(&nodes, node_id.as_str(), parent) else {
+                let Some(node) =
+                    find_node_by_identifier_reference(&nodes, node_id.as_str(), parent)
+                else {
                     return Err(line_context_error(
                         line_number,
                         line_text.as_str(),
@@ -629,44 +641,45 @@ pub fn load_graph_from_elkt(path: &str, default_algorithm: Option<&str>) -> Resu
 
         if !handled && starts_with_statement(line, "label") {
             if let Some(label_decl) = parse_label_declaration(line) {
-                let (parent, parent_scope) = if let Some(label) = current_label_context(&block_stack) {
-                    (
-                        Some(ElkGraphElementRef::Label(label.clone())),
-                        Some(format!("label:{:p}", std::rc::Rc::as_ptr(&label))),
-                    )
-                } else if let Some(port_id) = current_port_context(&block_stack) {
-                    ports
-                        .get(port_id)
-                        .map(|port| {
-                            (
-                                ElkGraphElementRef::Port(port.clone()),
-                                format!("port:{:p}", std::rc::Rc::as_ptr(port)),
-                            )
-                        })
-                        .map_or((None, None), |(parent, scope)| (Some(parent), Some(scope)))
-                } else if let Some(edge_id) = current_edge_context(&block_stack) {
-                    edges
-                        .get(edge_id)
-                        .map(|edge| {
-                            (
-                                ElkGraphElementRef::Edge(edge.clone()),
-                                format!("edge:{:p}", std::rc::Rc::as_ptr(edge)),
-                            )
-                        })
-                        .map_or((None, None), |(parent, scope)| (Some(parent), Some(scope)))
-                } else if let Some(node_id) = current_node_context(&block_stack) {
-                    nodes
-                        .get(node_id)
-                        .map(|node| {
-                            (
-                                ElkGraphElementRef::Node(node.clone()),
-                                format!("node:{:p}", std::rc::Rc::as_ptr(node)),
-                            )
-                        })
-                        .map_or((None, None), |(parent, scope)| (Some(parent), Some(scope)))
-                } else {
-                    (None, None)
-                };
+                let (parent, parent_scope) =
+                    if let Some(label) = current_label_context(&block_stack) {
+                        (
+                            Some(ElkGraphElementRef::Label(label.clone())),
+                            Some(format!("label:{:p}", std::rc::Rc::as_ptr(&label))),
+                        )
+                    } else if let Some(port_id) = current_port_context(&block_stack) {
+                        ports
+                            .get(port_id)
+                            .map(|port| {
+                                (
+                                    ElkGraphElementRef::Port(port.clone()),
+                                    format!("port:{:p}", std::rc::Rc::as_ptr(port)),
+                                )
+                            })
+                            .map_or((None, None), |(parent, scope)| (Some(parent), Some(scope)))
+                    } else if let Some(edge_id) = current_edge_context(&block_stack) {
+                        edges
+                            .get(edge_id)
+                            .map(|edge| {
+                                (
+                                    ElkGraphElementRef::Edge(edge.clone()),
+                                    format!("edge:{:p}", std::rc::Rc::as_ptr(edge)),
+                                )
+                            })
+                            .map_or((None, None), |(parent, scope)| (Some(parent), Some(scope)))
+                    } else if let Some(node_id) = current_node_context(&block_stack) {
+                        nodes
+                            .get(node_id)
+                            .map(|node| {
+                                (
+                                    ElkGraphElementRef::Node(node.clone()),
+                                    format!("node:{:p}", std::rc::Rc::as_ptr(node)),
+                                )
+                            })
+                            .map_or((None, None), |(parent, scope)| (Some(parent), Some(scope)))
+                    } else {
+                        (None, None)
+                    };
 
                 let Some(parent) = parent else {
                     return Err(line_context_error(
@@ -683,9 +696,7 @@ pub fn load_graph_from_elkt(path: &str, default_algorithm: Option<&str>) -> Resu
                         parent_scope.as_deref().unwrap_or("unknown"),
                         identifier.as_str(),
                     )
-                        .map_err(|err| {
-                            line_context_error(line_number, line_text.as_str(), err)
-                        })?;
+                    .map_err(|err| line_context_error(line_number, line_text.as_str(), err))?;
                     label
                         .borrow_mut()
                         .shape()
@@ -766,7 +777,11 @@ fn pop_block_contexts(stack: &mut Vec<BlockContext>, count: usize) {
     }
 }
 
-fn apply_block_open(stack: &mut Vec<BlockContext>, trailing_closes: &mut usize, context: BlockContext) {
+fn apply_block_open(
+    stack: &mut Vec<BlockContext>,
+    trailing_closes: &mut usize,
+    context: BlockContext,
+) {
     if *trailing_closes > 0 {
         *trailing_closes -= 1;
     } else {
@@ -811,7 +826,11 @@ fn starts_with_statement(line: &str, keyword: &str) -> bool {
 fn apply_graph_property_line(graph: &ElkNodeRef, line: &str) -> bool {
     if let Some(value) = parse_key_value(line, "algorithm") {
         if value.eq_ignore_ascii_case("layered") {
-            set_node_property(graph, CoreOptions::ALGORITHM, LayeredOptions::ALGORITHM_ID.to_string());
+            set_node_property(
+                graph,
+                CoreOptions::ALGORITHM,
+                LayeredOptions::ALGORITHM_ID.to_string(),
+            );
         }
         return true;
     }
@@ -980,9 +999,7 @@ fn apply_edge_block_line(edge: &ElkEdgeRef, line: &str) -> bool {
     false
 }
 
-fn parse_edge_layout_line(
-    line: &str,
-) -> Option<EdgeSectionGeometry> {
+fn parse_edge_layout_line(line: &str) -> Option<EdgeSectionGeometry> {
     if !line.starts_with("layout") {
         return None;
     }
@@ -990,19 +1007,42 @@ fn parse_edge_layout_line(
     let source_point = parse_named_value_any(
         line,
         &["start", "source", "sourcePoint"],
-        &["end", "target", "targetPoint", "bends", "bend", "bendPoint", "bendPoints"],
+        &[
+            "end",
+            "target",
+            "targetPoint",
+            "bends",
+            "bend",
+            "bendPoint",
+            "bendPoints",
+        ],
     )
     .and_then(parse_point_pair);
     let target_point = parse_named_value_any(
         line,
         &["end", "target", "targetPoint"],
-        &["start", "source", "sourcePoint", "bends", "bend", "bendPoint", "bendPoints"],
+        &[
+            "start",
+            "source",
+            "sourcePoint",
+            "bends",
+            "bend",
+            "bendPoint",
+            "bendPoints",
+        ],
     )
     .and_then(parse_point_pair);
     let bend_points = parse_named_value_any(
         line,
         &["bends", "bend", "bendPoint", "bendPoints"],
-        &["start", "source", "sourcePoint", "end", "target", "targetPoint"],
+        &[
+            "start",
+            "source",
+            "sourcePoint",
+            "end",
+            "target",
+            "targetPoint",
+        ],
     )
     .map(parse_point_pairs);
 
@@ -1357,7 +1397,13 @@ fn apply_edge_property(edge: &ElkEdgeRef, property_name: &str, property_value: &
             apply_edge_section(edge, None, parse_point_pair(property_value), None, false);
         }
         "bendpoints" => {
-            apply_edge_section(edge, None, None, Some(parse_point_pairs(property_value)), true);
+            apply_edge_section(
+                edge,
+                None,
+                None,
+                Some(parse_point_pairs(property_value)),
+                true,
+            );
         }
         _ => {}
     }
@@ -1371,7 +1417,13 @@ fn apply_edge_section(
     replace_bends: bool,
 ) {
     let section = ensure_primary_edge_section(edge);
-    apply_edge_section_to(&section, source_point, target_point, bend_points, replace_bends);
+    apply_edge_section_to(
+        &section,
+        source_point,
+        target_point,
+        bend_points,
+        replace_bends,
+    );
 }
 
 fn apply_edge_section_to(
@@ -1405,7 +1457,9 @@ fn apply_edge_section_to(
     }
 }
 
-fn ensure_primary_edge_section(edge: &ElkEdgeRef) -> org_eclipse_elk_graph::org::eclipse::elk::graph::ElkEdgeSectionRef {
+fn ensure_primary_edge_section(
+    edge: &ElkEdgeRef,
+) -> org_eclipse_elk_graph::org::eclipse::elk::graph::ElkEdgeSectionRef {
     if let Some(section) = edge.borrow_mut().sections().get(0) {
         return section;
     }
@@ -1987,7 +2041,9 @@ fn find_key_marker(line: &str, key: &str) -> Option<(usize, usize)> {
 
         let previous = line[..marker_start].chars().next_back();
         let starts_at_boundary = previous
-            .map(|prev| prev.is_ascii_whitespace() || matches!(prev, '[' | '{' | '(' | ',' | '|' | ';'))
+            .map(|prev| {
+                prev.is_ascii_whitespace() || matches!(prev, '[' | '{' | '(' | ',' | '|' | ';')
+            })
             .unwrap_or(true);
         if !starts_at_boundary {
             continue;
@@ -2058,19 +2114,42 @@ fn parse_edge_section_declaration(line: &str) -> Option<EdgePointDeclaration> {
     let source_point = parse_named_value_any(
         remaining,
         &["sourcePoint", "source", "start"],
-        &["targetPoint", "target", "end", "bendPoints", "bendPoint", "bend", "bends"],
+        &[
+            "targetPoint",
+            "target",
+            "end",
+            "bendPoints",
+            "bendPoint",
+            "bend",
+            "bends",
+        ],
     )
     .and_then(parse_point_pair);
     let target_point = parse_named_value_any(
         remaining,
         &["targetPoint", "target", "end"],
-        &["sourcePoint", "source", "start", "bendPoints", "bendPoint", "bend", "bends"],
+        &[
+            "sourcePoint",
+            "source",
+            "start",
+            "bendPoints",
+            "bendPoint",
+            "bend",
+            "bends",
+        ],
     )
     .and_then(parse_point_pair);
     let bend_points = parse_named_value_any(
         remaining,
         &["bendPoints", "bendPoint", "bend", "bends"],
-        &["sourcePoint", "source", "start", "targetPoint", "target", "end"],
+        &[
+            "sourcePoint",
+            "source",
+            "start",
+            "targetPoint",
+            "target",
+            "end",
+        ],
     )
     .map(parse_point_pairs);
 
@@ -2088,42 +2167,84 @@ fn parse_edge_point_declaration(line: &str) -> Option<EdgePointDeclaration> {
     let source_point = parse_named_value(
         remaining,
         "source",
-        &["target", "bend", "sourcePoint", "targetPoint", "bendPoint", "bendPoints"],
+        &[
+            "target",
+            "bend",
+            "sourcePoint",
+            "targetPoint",
+            "bendPoint",
+            "bendPoints",
+        ],
     )
     .and_then(parse_point_pair)
     .or_else(|| {
         parse_named_value(
             remaining,
             "sourcePoint",
-            &["target", "bend", "source", "targetPoint", "bendPoint", "bendPoints"],
+            &[
+                "target",
+                "bend",
+                "source",
+                "targetPoint",
+                "bendPoint",
+                "bendPoints",
+            ],
         )
         .and_then(parse_point_pair)
     });
     let target_point = parse_named_value(
         remaining,
         "target",
-        &["source", "bend", "sourcePoint", "targetPoint", "bendPoint", "bendPoints"],
+        &[
+            "source",
+            "bend",
+            "sourcePoint",
+            "targetPoint",
+            "bendPoint",
+            "bendPoints",
+        ],
     )
     .and_then(parse_point_pair)
     .or_else(|| {
         parse_named_value(
             remaining,
             "targetPoint",
-            &["source", "bend", "sourcePoint", "target", "bendPoint", "bendPoints"],
+            &[
+                "source",
+                "bend",
+                "sourcePoint",
+                "target",
+                "bendPoint",
+                "bendPoints",
+            ],
         )
         .and_then(parse_point_pair)
     });
     let bend_points = parse_named_value(
         remaining,
         "bend",
-        &["source", "target", "sourcePoint", "targetPoint", "bendPoint", "bendPoints"],
+        &[
+            "source",
+            "target",
+            "sourcePoint",
+            "targetPoint",
+            "bendPoint",
+            "bendPoints",
+        ],
     )
     .map(parse_point_pairs)
     .or_else(|| {
         parse_named_value(
             remaining,
             "bendPoint",
-            &["source", "target", "sourcePoint", "targetPoint", "bend", "bendPoints"],
+            &[
+                "source",
+                "target",
+                "sourcePoint",
+                "targetPoint",
+                "bend",
+                "bendPoints",
+            ],
         )
         .map(parse_point_pairs)
     })
@@ -2131,7 +2252,14 @@ fn parse_edge_point_declaration(line: &str) -> Option<EdgePointDeclaration> {
         parse_named_value(
             remaining,
             "bendPoints",
-            &["source", "target", "sourcePoint", "targetPoint", "bend", "bendPoint"],
+            &[
+                "source",
+                "target",
+                "sourcePoint",
+                "targetPoint",
+                "bend",
+                "bendPoint",
+            ],
         )
         .map(parse_point_pairs)
     });
@@ -2284,11 +2412,7 @@ fn parse_section_declaration(line: &str) -> Option<SectionDeclaration> {
     })
 }
 
-fn parse_named_value_any<'a>(
-    line: &'a str,
-    keys: &[&str],
-    next_keys: &[&str],
-) -> Option<&'a str> {
+fn parse_named_value_any<'a>(line: &'a str, keys: &[&str], next_keys: &[&str]) -> Option<&'a str> {
     for key in keys {
         if let Some(value) = parse_named_value(line, key, next_keys) {
             return Some(value);
@@ -2374,10 +2498,7 @@ fn split_section_outgoing_and_layout(input: &str) -> (String, String) {
 }
 
 fn parse_section_link_steps(raw_links: &str) -> SectionLinkParseResult {
-    let raw_steps = raw_links
-        .split("->")
-        .map(str::trim)
-        .collect::<Vec<_>>();
+    let raw_steps = raw_links.split("->").map(str::trim).collect::<Vec<_>>();
 
     let mut has_empty_target = raw_steps.is_empty() || raw_steps.iter().any(|step| step.is_empty());
     let parsed_steps = raw_steps
@@ -2392,10 +2513,7 @@ fn parse_section_link_steps(raw_links: &str) -> SectionLinkParseResult {
         .into_iter()
         .filter(|ids| !ids.is_empty())
         .collect::<Vec<_>>();
-    let first_targets = link_steps
-        .first()
-        .cloned()
-        .unwrap_or_default();
+    let first_targets = link_steps.first().cloned().unwrap_or_default();
 
     let mut additional_outgoing_links = Vec::new();
     for pair in link_steps.windows(2) {
@@ -2464,10 +2582,7 @@ fn extract_layout_body(layout_part: &str) -> &str {
     }
 }
 
-fn parse_entity_property<'a>(
-    line: &'a str,
-    prefix: &str,
-) -> Option<(String, &'a str, &'a str)> {
+fn parse_entity_property<'a>(line: &'a str, prefix: &str) -> Option<(String, &'a str, &'a str)> {
     if !starts_with_statement(line, prefix) {
         return None;
     }
@@ -2504,11 +2619,7 @@ fn parse_port_declaration(line: &str) -> Option<PortDeclaration> {
 
     let rest = line.trim_start_matches("port").trim();
     let has_block = rest.contains('{');
-    let declaration = rest
-        .split(['{', '['])
-        .next()
-        .map(str::trim)
-        .unwrap_or(rest);
+    let declaration = rest.split(['{', '[']).next().map(str::trim).unwrap_or(rest);
     let tokens = split_tokens_outside_quotes(declaration);
     let port_id = tokens.first()?.clone();
     let node_id = parse_inline_field_value(declaration, "of")
@@ -2530,11 +2641,7 @@ fn parse_node_declaration(line: &str) -> Option<NodeDeclaration> {
 
     let rest = line.trim_start_matches("node").trim();
     let has_block = rest.contains('{');
-    let declaration = rest
-        .split(['{', '['])
-        .next()
-        .map(str::trim)
-        .unwrap_or(rest);
+    let declaration = rest.split(['{', '[']).next().map(str::trim).unwrap_or(rest);
     let tokens = split_tokens_outside_quotes(declaration);
     let id = tokens.first()?.clone();
 
@@ -2663,11 +2770,15 @@ fn parse_label_declaration(line: &str) -> Option<GenericLabelDeclaration> {
     let declaration = rest.split('{').next().map(str::trim).unwrap_or(rest);
     let (identifier, declaration_without_identifier) = parse_label_identifier_prefix(declaration);
 
-    let text = parse_label_text(declaration_without_identifier).unwrap_or_else(|| "label".to_string());
+    let text =
+        parse_label_text(declaration_without_identifier).unwrap_or_else(|| "label".to_string());
     let size = parse_size(declaration_without_identifier);
-    let edge_label_placement = parse_inline_field_value(declaration_without_identifier, "placement")
-        .or_else(|| parse_inline_field_value(declaration_without_identifier, "edgeLabelPlacement"))
-        .and_then(|value| parse_edge_label_placement(value.as_str()));
+    let edge_label_placement =
+        parse_inline_field_value(declaration_without_identifier, "placement")
+            .or_else(|| {
+                parse_inline_field_value(declaration_without_identifier, "edgeLabelPlacement")
+            })
+            .and_then(|value| parse_edge_label_placement(value.as_str()));
 
     Some(GenericLabelDeclaration {
         identifier,
@@ -2689,7 +2800,8 @@ fn parse_label_identifier_prefix(declaration: &str) -> (Option<String>, &str) {
     if prefix.is_empty() {
         return (None, trimmed);
     }
-    if !prefix.starts_with('"') && !prefix.starts_with('\'') && prefix.contains(char::is_whitespace) {
+    if !prefix.starts_with('"') && !prefix.starts_with('\'') && prefix.contains(char::is_whitespace)
+    {
         return (None, trimmed);
     }
     let text_key = split_key_value_once(suffix)
@@ -2727,12 +2839,7 @@ pub fn find_node_by_identifier(graph: &ElkNodeRef, identifier: &str) -> Option<E
     while let Some(node) = queue.pop_front() {
         let matches = {
             let mut node_mut = node.borrow_mut();
-            node_mut
-                .connectable()
-                .shape()
-                .graph_element()
-                .identifier()
-                == Some(identifier)
+            node_mut.connectable().shape().graph_element().identifier() == Some(identifier)
         };
         if matches {
             return Some(node);
@@ -2754,7 +2861,12 @@ pub fn find_edge_by_identifier(
     queue.push_back(graph.clone());
 
     while let Some(node) = queue.pop_front() {
-        let edges: Vec<_> = node.borrow_mut().contained_edges().iter().cloned().collect();
+        let edges: Vec<_> = node
+            .borrow_mut()
+            .contained_edges()
+            .iter()
+            .cloned()
+            .collect();
         for edge in edges {
             let mut edge_mut = edge.borrow_mut();
             let sources = edge_mut
@@ -2789,12 +2901,7 @@ pub fn find_port_by_identifier(graph: &ElkNodeRef, identifier: &str) -> Option<E
         for port in node.borrow_mut().ports().iter() {
             let matches = {
                 let mut port_mut = port.borrow_mut();
-                port_mut
-                    .connectable()
-                    .shape()
-                    .graph_element()
-                    .identifier()
-                    == Some(identifier)
+                port_mut.connectable().shape().graph_element().identifier() == Some(identifier)
             };
             if matches {
                 return Some(port.clone());
@@ -2842,9 +2949,20 @@ pub fn find_label_by_identifier(graph: &ElkNodeRef, identifier: &str) -> Option<
             }
         }
 
-        let edges: Vec<_> = node.borrow_mut().contained_edges().iter().cloned().collect();
+        let edges: Vec<_> = node
+            .borrow_mut()
+            .contained_edges()
+            .iter()
+            .cloned()
+            .collect();
         for edge in edges {
-            let edge_labels: Vec<_> = edge.borrow_mut().element().labels().iter().cloned().collect();
+            let edge_labels: Vec<_> = edge
+                .borrow_mut()
+                .element()
+                .labels()
+                .iter()
+                .cloned()
+                .collect();
             if let Some(label) = find_label_in_tree(&edge_labels, identifier) {
                 return Some(label);
             }

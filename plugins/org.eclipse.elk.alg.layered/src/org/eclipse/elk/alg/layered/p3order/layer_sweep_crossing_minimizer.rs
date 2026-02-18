@@ -10,20 +10,23 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::Po
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{IElkProgressMonitor, Random};
 
-use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LGraphRef, LNodeRef, LPortRef, NodeType};
-use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkReflect;
-use crate::org::eclipse::elk::alg::layered::intermediate::sort_by_input_model_processor::SortByInputModelProcessor;
-use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorStrategy;
+use crate::org::eclipse::elk::alg::layered::graph::{
+    LGraph, LGraphRef, LNodeRef, LPortRef, NodeType,
+};
 use crate::org::eclipse::elk::alg::layered::intermediate::preserveorder::{
     ModelOrderNodeComparator, ModelOrderPortComparator,
 };
+use crate::org::eclipse::elk::alg::layered::intermediate::sort_by_input_model_processor::SortByInputModelProcessor;
+use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorStrategy;
 use crate::org::eclipse::elk::alg::layered::options::{
-    GroupOrderStrategy, InternalProperties, LayeredOptions, LongEdgeOrderingStrategy, OrderingStrategy,
+    GroupOrderStrategy, InternalProperties, LayeredOptions, LongEdgeOrderingStrategy,
+    OrderingStrategy,
 };
 use crate::org::eclipse::elk::alg::layered::p3order::{
     in_north_south_east_west_order, GraphInfoHolder, SweepCopy,
 };
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkReflect;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum CrossMinType {
@@ -86,13 +89,20 @@ impl LayerSweepCrossingMinimizer {
 
             match method {
                 MinimizingMethod::NoCounter => self.minimize_crossings_no_counter(index),
-                MinimizingMethod::CompareRandomized => self.compare_different_randomized_layouts(index),
+                MinimizingMethod::CompareRandomized => {
+                    self.compare_different_randomized_layouts(index)
+                }
                 MinimizingMethod::WithCounter => {
                     let _ = self.minimize_crossings_with_counter(index);
                 }
             }
 
-            if self.graph_info_holders.get(index).map(|g| g.has_parent()).unwrap_or(false) {
+            if self
+                .graph_info_holders
+                .get(index)
+                .map(|g| g.has_parent())
+                .unwrap_or(false)
+            {
                 self.set_port_order_on_parent_graph(index);
             }
         }
@@ -192,7 +202,10 @@ impl LayerSweepCrossingMinimizer {
 
         let initial_crossings = self.count_current_number_of_crossings(index) as f64;
         if trace {
-            eprintln!("crossmin: with_counter initial_crossings={}", initial_crossings);
+            eprintln!(
+                "crossmin: with_counter initial_crossings={}",
+                initial_crossings
+            );
         }
         let try_initial = self
             .graph_info_holders
@@ -238,7 +251,10 @@ impl LayerSweepCrossingMinimizer {
 
         let mut crossings_in_graph = self.count_current_number_of_crossings(index);
         if trace {
-            eprintln!("crossmin: with_counter crossings_in_graph={}", crossings_in_graph);
+            eprintln!(
+                "crossmin: with_counter crossings_in_graph={}",
+                crossings_in_graph
+            );
         }
         let mut old_number_of_crossings;
         loop {
@@ -372,12 +388,16 @@ impl LayerSweepCrossingMinimizer {
                     let has_i = layer[i]
                         .lock()
                         .ok()
-                        .and_then(|mut node_guard| node_guard.get_property(InternalProperties::MODEL_ORDER))
+                        .and_then(|mut node_guard| {
+                            node_guard.get_property(InternalProperties::MODEL_ORDER)
+                        })
                         .is_some();
                     let has_j = layer[j]
                         .lock()
                         .ok()
-                        .and_then(|mut node_guard| node_guard.get_property(InternalProperties::MODEL_ORDER))
+                        .and_then(|mut node_guard| {
+                            node_guard.get_property(InternalProperties::MODEL_ORDER)
+                        })
                         .is_some();
                     if has_i && has_j && comp.compare(&layer[i], &layer[j]) > 0 {
                         wrong_model_order += 1;
@@ -409,7 +429,8 @@ impl LayerSweepCrossingMinimizer {
                     .ok()
                     .map(|node_guard| node_guard.ports().clone())
                     .unwrap_or_default();
-                let long_edge_targets = SortByInputModelProcessor::long_edge_target_node_preprocessing(node);
+                let long_edge_targets =
+                    SortByInputModelProcessor::long_edge_target_node_preprocessing(node);
                 let mut comp = ModelOrderPortComparator::new(
                     graph.clone(),
                     prev_layer.clone(),
@@ -434,7 +455,11 @@ impl LayerSweepCrossingMinimizer {
 
     fn count_current_number_of_crossings(&mut self, start_index: usize) -> i32 {
         let trace = std::env::var_os("ELK_TRACE_CROSSMIN_TIMING").is_some();
-        let start = if trace { Some(std::time::Instant::now()) } else { None };
+        let start = if trace {
+            Some(std::time::Instant::now())
+        } else {
+            None
+        };
         let mut total_crossings = 0;
         let mut stack = VecDeque::new();
         stack.push_back(start_index);
@@ -465,12 +490,25 @@ impl LayerSweepCrossingMinimizer {
 
     fn count_current_number_of_crossings_node_port_order(&mut self, start_index: usize) -> f64 {
         let trace = std::env::var_os("ELK_TRACE_CROSSMIN_TIMING").is_some();
-        let start = if trace { Some(std::time::Instant::now()) } else { None };
+        let start = if trace {
+            Some(std::time::Instant::now())
+        } else {
+            None
+        };
         let mut total_crossings = 0.0;
         let mut stack = VecDeque::new();
         stack.push_back(start_index);
         while let Some(index) = stack.pop_back() {
-            let (graph_ref, order, model_order_strategy, group_strategy, port_model_order, node_influence, port_influence, crossings) = {
+            let (
+                graph_ref,
+                order,
+                model_order_strategy,
+                group_strategy,
+                port_model_order,
+                node_influence,
+                port_influence,
+                crossings,
+            ) = {
                 let graph_data = &mut self.graph_info_holders[index];
                 let graph_ref = graph_data.l_graph().clone();
                 let order = graph_data.current_node_order().clone();
@@ -542,12 +580,14 @@ impl LayerSweepCrossingMinimizer {
                     first_sweep
                 );
             }
-            let start = if timing { Some(std::time::Instant::now()) } else { None };
-            let improved = graph_data.port_distributor().distribute_ports_while_sweeping(
-                &order,
-                first_index(forward, length),
-                forward,
-            );
+            let start = if timing {
+                Some(std::time::Instant::now())
+            } else {
+                None
+            };
+            let improved = graph_data
+                .port_distributor()
+                .distribute_ports_while_sweeping(&order, first_index(forward, length), forward);
             if let Some(start) = start {
                 eprintln!(
                     "crossmin: distribute_ports layer={} done in {} ms",
@@ -566,8 +606,14 @@ impl LayerSweepCrossingMinimizer {
                 format_layer_nodes(&order[first])
             );
         }
-        let first_layer = self.graph_info_holders[index].current_node_order()[first_index(forward, length)].clone();
-        let start = if timing { Some(std::time::Instant::now()) } else { None };
+        let first_layer = self.graph_info_holders[index].current_node_order()
+            [first_index(forward, length)]
+        .clone();
+        let start = if timing {
+            Some(std::time::Instant::now())
+        } else {
+            None
+        };
         improved |= self.sweep_in_hierarchical_nodes(&first_layer, forward, first_sweep);
         if let Some(start) = start {
             eprintln!(
@@ -596,7 +642,8 @@ impl LayerSweepCrossingMinimizer {
                         i_usize, forward, allow_first_sweep
                     );
                 }
-                improved |= graph_data.minimize_crossings_on_layer(i_usize, forward, allow_first_sweep);
+                improved |=
+                    graph_data.minimize_crossings_on_layer(i_usize, forward, allow_first_sweep);
                 let order = graph_data.current_node_order().clone();
                 if trace {
                     eprintln!(
@@ -604,7 +651,11 @@ impl LayerSweepCrossingMinimizer {
                         i_usize, forward, first_sweep
                     );
                 }
-                let start = if timing { Some(std::time::Instant::now()) } else { None };
+                let start = if timing {
+                    Some(std::time::Instant::now())
+                } else {
+                    None
+                };
                 let distributed = graph_data
                     .port_distributor()
                     .distribute_ports_while_sweeping(&order, i_usize, forward);
@@ -626,7 +677,11 @@ impl LayerSweepCrossingMinimizer {
                 );
             }
             let layer = self.graph_info_holders[index].current_node_order()[i_usize].clone();
-            let start = if timing { Some(std::time::Instant::now()) } else { None };
+            let start = if timing {
+                Some(std::time::Instant::now())
+            } else {
+                None
+            };
             improved |= self.sweep_in_hierarchical_nodes(&layer, forward, first_sweep);
             if let Some(start) = start {
                 eprintln!(
@@ -682,8 +737,7 @@ impl LayerSweepCrossingMinimizer {
             let order = self.graph_info_holders[nested_index].current_node_order();
             first_index(is_forward_sweep, order.len())
         };
-        let first_node = self.graph_info_holders[nested_index]
-            .current_node_order()[start_index]
+        let first_node = self.graph_info_holders[nested_index].current_node_order()[start_index]
             .first()
             .cloned();
 
@@ -698,7 +752,8 @@ impl LayerSweepCrossingMinimizer {
                         side_opposed_sweep_direction(is_forward_sweep),
                     )
                 };
-                self.graph_info_holders[nested_index].current_node_order_mut()[start_index] = sorted;
+                self.graph_info_holders[nested_index].current_node_order_mut()[start_index] =
+                    sorted;
             } else {
                 self.prepare_cross_minimizer(nested_index);
                 let graph_data = &mut self.graph_info_holders[nested_index];
@@ -706,7 +761,8 @@ impl LayerSweepCrossingMinimizer {
             }
         }
 
-        let improved = self.sweep_reducing_crossings(nested_index, is_forward_sweep, is_first_sweep);
+        let improved =
+            self.sweep_reducing_crossings(nested_index, is_forward_sweep, is_first_sweep);
         if let Some(parent) = self.graph_info_holders[nested_index].parent() {
             sort_ports_by_dummy_positions_in_last_layer(
                 self.graph_info_holders[nested_index].current_node_order(),
@@ -720,12 +776,16 @@ impl LayerSweepCrossingMinimizer {
 
     fn set_port_order_on_parent_graph(&mut self, index: usize) {
         let has_external_ports = self.graph_info_holders[index].has_external_ports();
-        let best_sweep = self.graph_info_holders[index].best_sweep().map(|s| s.nodes());
+        let best_sweep = self.graph_info_holders[index]
+            .best_sweep()
+            .map(|s| s.nodes());
         if !has_external_ports || best_sweep.is_none() {
             return;
         }
         let best_sweep = best_sweep.unwrap();
-        let Some(parent) = self.graph_info_holders[index].parent() else { return; };
+        let Some(parent) = self.graph_info_holders[index].parent() else {
+            return;
+        };
 
         sort_ports_by_dummy_positions_in_last_layer(best_sweep, &parent, true);
         sort_ports_by_dummy_positions_in_last_layer(best_sweep, &parent, false);
@@ -738,18 +798,28 @@ impl LayerSweepCrossingMinimizer {
     }
 
     fn save_all_node_orders_of_changed_graphs(&mut self) {
-        let indices: Vec<usize> = self.graphs_whose_node_order_changed.iter().copied().collect();
+        let indices: Vec<usize> = self
+            .graphs_whose_node_order_changed
+            .iter()
+            .copied()
+            .collect();
         for index in indices {
             let sweep = self.graph_info_holders[index]
                 .currently_best_node_and_port_order()
                 .cloned()
-                .unwrap_or_else(|| SweepCopy::new(self.graph_info_holders[index].current_node_order()));
+                .unwrap_or_else(|| {
+                    SweepCopy::new(self.graph_info_holders[index].current_node_order())
+                });
             self.graph_info_holders[index].set_best_node_and_port_order(sweep);
         }
     }
 
     fn set_currently_best_node_orders(&mut self) {
-        let indices: Vec<usize> = self.graphs_whose_node_order_changed.iter().copied().collect();
+        let indices: Vec<usize> = self
+            .graphs_whose_node_order_changed
+            .iter()
+            .copied()
+            .collect();
         for index in indices {
             let sweep = SweepCopy::new(self.graph_info_holders[index].current_node_order());
             self.graph_info_holders[index].set_currently_best_node_and_port_order(sweep);
@@ -763,7 +833,10 @@ impl LayerSweepCrossingMinimizer {
         }
     }
 
-    fn parent_snapshot_for(&self, index: usize) -> Option<(Vec<Vec<LNodeRef>>, Vec<i32>, LNodeRef)> {
+    fn parent_snapshot_for(
+        &self,
+        index: usize,
+    ) -> Option<(Vec<Vec<LNodeRef>>, Vec<i32>, LNodeRef)> {
         let parent_index = self.graph_info_holders.get(index)?.parent_graph_index()?;
         let parent = self.graph_info_holders.get(parent_index)?;
         let parent_node = self.graph_info_holders.get(index)?.parent()?;
@@ -811,8 +884,8 @@ impl LayerSweepCrossingMinimizer {
         if let Some(heuristic) = graph_data
             .cross_minimizer()
             .as_any_mut()
-            .downcast_mut::<crate::org::eclipse::elk::alg::layered::p3order::MedianHeuristic>()
-        {
+            .downcast_mut::<crate::org::eclipse::elk::alg::layered::p3order::MedianHeuristic>(
+        ) {
             heuristic.set_random_seed(seed);
             return Some(());
         }
@@ -914,20 +987,22 @@ impl LayerSweepCrossingMinimizer {
                 graph_guard.graph_element().id = index as i32;
             }
             let mut g_data = if Arc::ptr_eq(&graph, root_graph) {
-                GraphInfoHolder::new_with_graph(graph.clone(), root_graph_guard, self.cross_min_type)
+                GraphInfoHolder::new_with_graph(
+                    graph.clone(),
+                    root_graph_guard,
+                    self.cross_min_type,
+                )
             } else {
                 GraphInfoHolder::new(graph.clone(), self.cross_min_type)
             };
             if std::env::var_os("ELK_TRACE_CROSSMIN_STATS").is_some() {
                 Self::log_graph_stats(index, &g_data);
             }
-            let parent_index = g_data
-                .parent_graph_ref()
-                .and_then(|parent_graph| {
-                    self.graph_info_holders
-                        .iter()
-                        .position(|holder| Arc::ptr_eq(holder.l_graph(), parent_graph))
-                });
+            let parent_index = g_data.parent_graph_ref().and_then(|parent_graph| {
+                self.graph_info_holders
+                    .iter()
+                    .position(|holder| Arc::ptr_eq(holder.l_graph(), parent_graph))
+            });
             g_data.set_parent_graph_index(parent_index);
             if trace {
                 eprintln!(
@@ -997,10 +1072,7 @@ impl LayerSweepCrossingMinimizer {
         for graph_data in &self.graph_info_holders {
             if let Some(best_sweep) = graph_data.best_sweep() {
                 if Arc::ptr_eq(graph_data.l_graph(), root_graph) {
-                    best_sweep.transfer_node_and_port_orders_to_graph_guard(
-                        root_graph_guard,
-                        true,
-                    );
+                    best_sweep.transfer_node_and_port_orders_to_graph_guard(root_graph_guard, true);
                 } else {
                     best_sweep.transfer_node_and_port_orders_to_graph(graph_data.l_graph(), true);
                 }
@@ -1048,10 +1120,13 @@ impl ILayoutPhase<LayeredPhases, LGraph> for LayerSweepCrossingMinimizer {
         }
 
         let empty_graph = graph.layers().is_empty()
-            || graph
-                .layers()
-                .iter()
-                .all(|layer| layer.lock().ok().map(|layer_guard| layer_guard.nodes().is_empty()).unwrap_or(true));
+            || graph.layers().iter().all(|layer| {
+                layer
+                    .lock()
+                    .ok()
+                    .map(|layer_guard| layer_guard.nodes().is_empty())
+                    .unwrap_or(true)
+            });
         if trace {
             eprintln!("crossmin: empty_graph={}", empty_graph);
         }
@@ -1154,7 +1229,11 @@ fn first_free(is_forward: bool, length: usize) -> usize {
 }
 
 fn next(is_forward: bool) -> isize {
-    if is_forward { 1 } else { -1 }
+    if is_forward {
+        1
+    } else {
+        -1
+    }
 }
 
 fn is_not_end(length: usize, index: isize, is_forward: bool) -> bool {
@@ -1166,7 +1245,11 @@ fn is_not_end(length: usize, index: isize, is_forward: bool) -> bool {
 }
 
 fn side_opposed_sweep_direction(is_forward: bool) -> PortSide {
-    if is_forward { PortSide::West } else { PortSide::East }
+    if is_forward {
+        PortSide::West
+    } else {
+        PortSide::East
+    }
 }
 
 fn is_external_port_dummy(node: &LNodeRef) -> bool {
@@ -1200,7 +1283,11 @@ fn dummy_node_for(port: &LPortRef) -> Option<LNodeRef> {
 }
 
 fn is_on_end_of_sweep_side(port: &LPortRef, on_right_most_layer: bool) -> bool {
-    let side = port.lock().ok().map(|port_guard| port_guard.side()).unwrap_or(PortSide::Undefined);
+    let side = port
+        .lock()
+        .ok()
+        .map(|port_guard| port_guard.side())
+        .unwrap_or(PortSide::Undefined);
     if on_right_most_layer {
         side == PortSide::East
     } else {
@@ -1227,7 +1314,9 @@ fn sort_ports_by_dummy_positions_in_last_layer(
         let ports = parent_guard.ports_mut();
         for i in 0..ports.len() {
             let port = ports.get(i).cloned();
-            let Some(port) = port else { continue; };
+            let Some(port) = port else {
+                continue;
+            };
             if is_on_end_of_sweep_side(&port, on_right_most_layer) && is_hierarchical(&port) {
                 if let Some(origin) = origin_port(&last_layer[j]) {
                     ports[i] = origin;

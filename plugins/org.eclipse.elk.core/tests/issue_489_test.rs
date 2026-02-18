@@ -16,13 +16,21 @@ fn issue_489_padding_and_min_size() {
     LayoutMetaDataService::get_instance();
 
     let root = ElkGraphUtil::create_graph();
-    set_node_property(&root, CoreOptions::ALGORITHM, "org.eclipse.elk.box".to_string());
+    set_node_property(
+        &root,
+        CoreOptions::ALGORITHM,
+        "org.eclipse.elk.box".to_string(),
+    );
 
     let node1 = ElkGraphUtil::create_node(Some(root.clone()));
     let node2 = ElkGraphUtil::create_node(Some(root.clone()));
 
     for node in [&node1, &node2] {
-        set_node_property(node, CoreOptions::ALGORITHM, "org.eclipse.elk.box".to_string());
+        set_node_property(
+            node,
+            CoreOptions::ALGORITHM,
+            "org.eclipse.elk.box".to_string(),
+        );
         set_node_property(
             node,
             BoxLayouterOptions::PADDING,
@@ -57,10 +65,7 @@ fn issue_489_padding_and_min_size() {
 
 fn set_dimensions(node: &ElkNodeRef, width: f64, height: f64) {
     let mut node_mut = node.borrow_mut();
-    node_mut
-        .connectable()
-        .shape()
-        .set_dimensions(width, height);
+    node_mut.connectable().shape().set_dimensions(width, height);
 }
 
 fn node_dimensions(node: &ElkNodeRef) -> (f64, f64) {

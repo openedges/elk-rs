@@ -50,7 +50,10 @@ pub static EXPAND_NODES_PROPERTY: LazyLock<Property<bool>> =
 
 pub static HIERARCHY_HANDLING_PROPERTY: LazyLock<Property<HierarchyHandling>> =
     LazyLock::new(|| {
-        Property::with_default("org.eclipse.elk.hierarchyHandling", HierarchyHandling::Inherit)
+        Property::with_default(
+            "org.eclipse.elk.hierarchyHandling",
+            HierarchyHandling::Inherit,
+        )
     });
 
 pub static PADDING_PROPERTY: LazyLock<Property<ElkPadding>> =
@@ -65,14 +68,17 @@ pub static INTERACTIVE_LAYOUT_PROPERTY: LazyLock<Property<bool>> =
 pub static OMIT_NODE_MICRO_LAYOUT_PROPERTY: LazyLock<Property<bool>> =
     LazyLock::new(|| Property::with_default("org.eclipse.elk.omitNodeMicroLayout", false));
 
-pub static BOX_PACKING_MODE_PROPERTY: LazyLock<Property<PackingMode>> =
-    LazyLock::new(|| Property::with_default("org.eclipse.elk.box.packingMode", PackingMode::Simple));
+pub static BOX_PACKING_MODE_PROPERTY: LazyLock<Property<PackingMode>> = LazyLock::new(|| {
+    Property::with_default("org.eclipse.elk.box.packingMode", PackingMode::Simple)
+});
 
-pub static JSON_SHAPE_COORDS_PROPERTY: LazyLock<Property<ShapeCoords>> =
-    LazyLock::new(|| Property::with_default("org.eclipse.elk.json.shapeCoords", ShapeCoords::Inherit));
+pub static JSON_SHAPE_COORDS_PROPERTY: LazyLock<Property<ShapeCoords>> = LazyLock::new(|| {
+    Property::with_default("org.eclipse.elk.json.shapeCoords", ShapeCoords::Inherit)
+});
 
-pub static JSON_EDGE_COORDS_PROPERTY: LazyLock<Property<EdgeCoords>> =
-    LazyLock::new(|| Property::with_default("org.eclipse.elk.json.edgeCoords", EdgeCoords::Inherit));
+pub static JSON_EDGE_COORDS_PROPERTY: LazyLock<Property<EdgeCoords>> = LazyLock::new(|| {
+    Property::with_default("org.eclipse.elk.json.edgeCoords", EdgeCoords::Inherit)
+});
 
 pub static SPACING_COMMENT_COMMENT_PROPERTY: LazyLock<Property<f64>> =
     LazyLock::new(|| Property::with_default("org.eclipse.elk.spacing.commentComment", 10.0));
@@ -118,10 +124,7 @@ pub static SPACING_INDIVIDUAL_PROPERTY: LazyLock<Property<IndividualSpacings>> =
 
 pub static SPACING_PORTS_SURROUNDING_PROPERTY: LazyLock<Property<ElkMargin>> =
     LazyLock::new(|| {
-        Property::with_default(
-            "org.eclipse.elk.spacing.portsSurrounding",
-            ElkMargin::new(),
-        )
+        Property::with_default("org.eclipse.elk.spacing.portsSurrounding", ElkMargin::new())
     });
 
 pub static PARTITIONING_PARTITION_PROPERTY: LazyLock<Property<i32>> =
@@ -130,8 +133,12 @@ pub static PARTITIONING_PARTITION_PROPERTY: LazyLock<Property<i32>> =
 pub static PARTITIONING_ACTIVATE_PROPERTY: LazyLock<Property<bool>> =
     LazyLock::new(|| Property::with_default("org.eclipse.elk.partitioning.activate", false));
 
-pub static NODE_LABELS_PADDING_PROPERTY: LazyLock<Property<ElkPadding>> =
-    LazyLock::new(|| Property::with_default("org.eclipse.elk.nodeLabels.padding", ElkPadding::with_any(5.0)));
+pub static NODE_LABELS_PADDING_PROPERTY: LazyLock<Property<ElkPadding>> = LazyLock::new(|| {
+    Property::with_default(
+        "org.eclipse.elk.nodeLabels.padding",
+        ElkPadding::with_any(5.0),
+    )
+});
 
 pub static NODE_LABELS_PLACEMENT_PROPERTY: LazyLock<Property<EnumSet<NodeLabelPlacement>>> =
     LazyLock::new(|| {
@@ -143,7 +150,10 @@ pub static NODE_LABELS_PLACEMENT_PROPERTY: LazyLock<Property<EnumSet<NodeLabelPl
 
 pub static PORT_ALIGNMENT_DEFAULT_PROPERTY: LazyLock<Property<PortAlignment>> =
     LazyLock::new(|| {
-        Property::with_default("org.eclipse.elk.portAlignment.default", PortAlignment::Distributed)
+        Property::with_default(
+            "org.eclipse.elk.portAlignment.default",
+            PortAlignment::Distributed,
+        )
     });
 
 pub static PORT_ALIGNMENT_NORTH_PROPERTY: LazyLock<Property<PortAlignment>> =
@@ -158,8 +168,12 @@ pub static PORT_ALIGNMENT_WEST_PROPERTY: LazyLock<Property<PortAlignment>> =
 pub static PORT_ALIGNMENT_EAST_PROPERTY: LazyLock<Property<PortAlignment>> =
     LazyLock::new(|| Property::new("org.eclipse.elk.portAlignment.east"));
 
-pub static PORT_CONSTRAINTS_PROPERTY: LazyLock<Property<PortConstraints>> =
-    LazyLock::new(|| Property::with_default("org.eclipse.elk.portConstraints", PortConstraints::Undefined));
+pub static PORT_CONSTRAINTS_PROPERTY: LazyLock<Property<PortConstraints>> = LazyLock::new(|| {
+    Property::with_default(
+        "org.eclipse.elk.portConstraints",
+        PortConstraints::Undefined,
+    )
+});
 
 pub static POSITION_PROPERTY: LazyLock<Property<KVector>> =
     LazyLock::new(|| Property::new("org.eclipse.elk.position"));
@@ -174,7 +188,9 @@ pub static SEPARATE_CONNECTED_COMPONENTS_PROPERTY: LazyLock<Property<bool>> =
     LazyLock::new(|| Property::new("org.eclipse.elk.separateConnectedComponents"));
 
 pub static NODE_SIZE_CONSTRAINTS_PROPERTY: LazyLock<Property<EnumSet<SizeConstraint>>> =
-    LazyLock::new(|| Property::with_default("org.eclipse.elk.nodeSize.constraints", EnumSet::none_of()));
+    LazyLock::new(|| {
+        Property::with_default("org.eclipse.elk.nodeSize.constraints", EnumSet::none_of())
+    });
 
 pub static NODE_SIZE_OPTIONS_PROPERTY: LazyLock<Property<EnumSet<SizeOptions>>> =
     LazyLock::new(|| {
@@ -197,7 +213,12 @@ pub static COMMENT_BOX_PROPERTY: LazyLock<Property<bool>> =
     LazyLock::new(|| Property::with_default("org.eclipse.elk.commentBox", false));
 
 pub static EDGE_LABELS_PLACEMENT_PROPERTY: LazyLock<Property<EdgeLabelPlacement>> =
-    LazyLock::new(|| Property::with_default("org.eclipse.elk.edgeLabels.placement", EdgeLabelPlacement::Center));
+    LazyLock::new(|| {
+        Property::with_default(
+            "org.eclipse.elk.edgeLabels.placement",
+            EdgeLabelPlacement::Center,
+        )
+    });
 
 pub static EDGE_LABELS_INLINE_PROPERTY: LazyLock<Property<bool>> =
     LazyLock::new(|| Property::with_default("org.eclipse.elk.edgeLabels.inline", false));
@@ -245,10 +266,7 @@ pub static PORT_LABELS_PLACEMENT_PROPERTY: LazyLock<Property<EnumSet<PortLabelPl
 
 pub static PORT_LABELS_NEXT_TO_PORT_IF_POSSIBLE_PROPERTY: LazyLock<Property<bool>> =
     LazyLock::new(|| {
-        Property::with_default(
-            "org.eclipse.elk.portLabels.nextToPortIfPossible",
-            false,
-        )
+        Property::with_default("org.eclipse.elk.portLabels.nextToPortIfPossible", false)
     });
 
 pub static PORT_LABELS_TREAT_AS_GROUP_PROPERTY: LazyLock<Property<bool>> =
@@ -280,18 +298,18 @@ pub static TOPDOWN_SIZE_CATEGORIES_HIERARCHICAL_NODE_WEIGHT_PROPERTY: LazyLock<P
 pub static TOPDOWN_SCALE_FACTOR_PROPERTY: LazyLock<Property<f64>> =
     LazyLock::new(|| Property::with_default("org.eclipse.elk.topdown.scaleFactor", 1.0));
 
-pub static TOPDOWN_SIZE_APPROXIMATOR_PROPERTY: LazyLock<Property<Arc<dyn ITopdownSizeApproximator>>> =
-    LazyLock::new(|| Property::new("org.eclipse.elk.topdown.sizeApproximator"));
+pub static TOPDOWN_SIZE_APPROXIMATOR_PROPERTY: LazyLock<
+    Property<Arc<dyn ITopdownSizeApproximator>>,
+> = LazyLock::new(|| Property::new("org.eclipse.elk.topdown.sizeApproximator"));
 
 pub static TOPDOWN_HIERARCHICAL_NODE_WIDTH_PROPERTY: LazyLock<Property<f64>> =
-    LazyLock::new(|| Property::with_default("org.eclipse.elk.topdown.hierarchicalNodeWidth", 150.0));
+    LazyLock::new(|| {
+        Property::with_default("org.eclipse.elk.topdown.hierarchicalNodeWidth", 150.0)
+    });
 
 pub static TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO_PROPERTY: LazyLock<Property<f64>> =
     LazyLock::new(|| {
-        Property::with_default(
-            "org.eclipse.elk.topdown.hierarchicalNodeAspectRatio",
-            1.414,
-        )
+        Property::with_default("org.eclipse.elk.topdown.hierarchicalNodeAspectRatio", 1.414)
     });
 
 pub static TOPDOWN_NODE_TYPE_PROPERTY: LazyLock<Property<TopdownNodeTypes>> =
@@ -374,13 +392,10 @@ impl CoreOptions {
     pub const SPACING_COMPONENT_COMPONENT: &'static LazyLock<Property<f64>> =
         &SPACING_COMPONENT_COMPONENT_PROPERTY;
     pub const SPACING_EDGE_EDGE: &'static LazyLock<Property<f64>> = &SPACING_EDGE_EDGE_PROPERTY;
-    pub const SPACING_EDGE_LABEL: &'static LazyLock<Property<f64>> =
-        &SPACING_EDGE_LABEL_PROPERTY;
+    pub const SPACING_EDGE_LABEL: &'static LazyLock<Property<f64>> = &SPACING_EDGE_LABEL_PROPERTY;
     pub const SPACING_EDGE_NODE: &'static LazyLock<Property<f64>> = &SPACING_EDGE_NODE_PROPERTY;
-    pub const SPACING_LABEL_LABEL: &'static LazyLock<Property<f64>> =
-        &SPACING_LABEL_LABEL_PROPERTY;
-    pub const SPACING_LABEL_NODE: &'static LazyLock<Property<f64>> =
-        &SPACING_LABEL_NODE_PROPERTY;
+    pub const SPACING_LABEL_LABEL: &'static LazyLock<Property<f64>> = &SPACING_LABEL_LABEL_PROPERTY;
+    pub const SPACING_LABEL_NODE: &'static LazyLock<Property<f64>> = &SPACING_LABEL_NODE_PROPERTY;
     pub const SPACING_LABEL_PORT_HORIZONTAL: &'static LazyLock<Property<f64>> =
         &SPACING_LABEL_PORT_HORIZONTAL_PROPERTY;
     pub const SPACING_LABEL_PORT_VERTICAL: &'static LazyLock<Property<f64>> =
@@ -422,8 +437,7 @@ impl CoreOptions {
         &NODE_SIZE_CONSTRAINTS_PROPERTY;
     pub const NODE_SIZE_OPTIONS: &'static LazyLock<Property<EnumSet<SizeOptions>>> =
         &NODE_SIZE_OPTIONS_PROPERTY;
-    pub const NODE_SIZE_MINIMUM: &'static LazyLock<Property<KVector>> =
-        &NODE_SIZE_MINIMUM_PROPERTY;
+    pub const NODE_SIZE_MINIMUM: &'static LazyLock<Property<KVector>> = &NODE_SIZE_MINIMUM_PROPERTY;
     pub const NODE_SIZE_FIXED_GRAPH_SIZE: &'static LazyLock<Property<bool>> =
         &NODE_SIZE_FIXED_GRAPH_SIZE_PROPERTY;
     pub const JUNCTION_POINTS: &'static LazyLock<Property<KVectorChain>> =
@@ -431,8 +445,7 @@ impl CoreOptions {
     pub const COMMENT_BOX: &'static LazyLock<Property<bool>> = &COMMENT_BOX_PROPERTY;
     pub const EDGE_LABELS_PLACEMENT: &'static LazyLock<Property<EdgeLabelPlacement>> =
         &EDGE_LABELS_PLACEMENT_PROPERTY;
-    pub const EDGE_LABELS_INLINE: &'static LazyLock<Property<bool>> =
-        &EDGE_LABELS_INLINE_PROPERTY;
+    pub const EDGE_LABELS_INLINE: &'static LazyLock<Property<bool>> = &EDGE_LABELS_INLINE_PROPERTY;
     pub const FONT_NAME: &'static LazyLock<Property<String>> = &FONT_NAME_PROPERTY;
     pub const FONT_SIZE: &'static LazyLock<Property<i32>> = &FONT_SIZE_PROPERTY;
     pub const HYPERNODE: &'static LazyLock<Property<bool>> = &HYPERNODE_PROPERTY;
@@ -445,8 +458,7 @@ impl CoreOptions {
     pub const PORT_ANCHOR: &'static LazyLock<Property<KVector>> = &PORT_ANCHOR_PROPERTY;
     pub const PORT_INDEX: &'static LazyLock<Property<i32>> = &PORT_INDEX_PROPERTY;
     pub const PORT_SIDE: &'static LazyLock<Property<PortSide>> = &PORT_SIDE_PROPERTY;
-    pub const PORT_BORDER_OFFSET: &'static LazyLock<Property<f64>> =
-        &PORT_BORDER_OFFSET_PROPERTY;
+    pub const PORT_BORDER_OFFSET: &'static LazyLock<Property<f64>> = &PORT_BORDER_OFFSET_PROPERTY;
     pub const PORT_LABELS_PLACEMENT: &'static LazyLock<Property<EnumSet<PortLabelPlacement>>> =
         &PORT_LABELS_PLACEMENT_PROPERTY;
     pub const PORT_LABELS_NEXT_TO_PORT_IF_POSSIBLE: &'static LazyLock<Property<bool>> =
@@ -463,8 +475,9 @@ impl CoreOptions {
         &TOPDOWN_SIZE_CATEGORIES_HIERARCHICAL_NODE_WEIGHT_PROPERTY;
     pub const TOPDOWN_SCALE_FACTOR: &'static LazyLock<Property<f64>> =
         &TOPDOWN_SCALE_FACTOR_PROPERTY;
-    pub const TOPDOWN_SIZE_APPROXIMATOR: &'static LazyLock<Property<Arc<dyn ITopdownSizeApproximator>>> =
-        &TOPDOWN_SIZE_APPROXIMATOR_PROPERTY;
+    pub const TOPDOWN_SIZE_APPROXIMATOR: &'static LazyLock<
+        Property<Arc<dyn ITopdownSizeApproximator>>,
+    > = &TOPDOWN_SIZE_APPROXIMATOR_PROPERTY;
     pub const TOPDOWN_HIERARCHICAL_NODE_WIDTH: &'static LazyLock<Property<f64>> =
         &TOPDOWN_HIERARCHICAL_NODE_WIDTH_PROPERTY;
     pub const TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO: &'static LazyLock<Property<f64>> =
@@ -474,7 +487,8 @@ impl CoreOptions {
     pub const TOPDOWN_SCALE_CAP: &'static LazyLock<Property<f64>> = &TOPDOWN_SCALE_CAP_PROPERTY;
     pub const INSIDE_SELF_LOOPS_ACTIVATE: &'static LazyLock<Property<bool>> =
         &INSIDE_SELF_LOOPS_ACTIVATE_PROPERTY;
-    pub const INSIDE_SELF_LOOPS_YO: &'static LazyLock<Property<bool>> = &INSIDE_SELF_LOOPS_YO_PROPERTY;
+    pub const INSIDE_SELF_LOOPS_YO: &'static LazyLock<Property<bool>> =
+        &INSIDE_SELF_LOOPS_YO_PROPERTY;
     pub const EDGE_THICKNESS: &'static LazyLock<Property<f64>> = &EDGE_THICKNESS_PROPERTY;
     pub const EDGE_TYPE: &'static LazyLock<Property<EdgeType>> = &EDGE_TYPE_PROPERTY;
     pub const ANIMATE: &'static LazyLock<Property<bool>> = &ANIMATE_PROPERTY;

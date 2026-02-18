@@ -57,7 +57,11 @@ impl InteractiveCrossingMinimizer {
             .and_then(|mut node_guard| {
                 node_guard.get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
             })
-            .map(|constraints| constraints.iter().any(|candidate| Arc::ptr_eq(candidate, successor)))
+            .map(|constraints| {
+                constraints
+                    .iter()
+                    .any(|candidate| Arc::ptr_eq(candidate, successor))
+            })
             .unwrap_or(false)
     }
 
@@ -154,26 +158,30 @@ impl InteractiveCrossingMinimizer {
             bend_points = KVectorChain::reverse(&bend_points);
         }
 
-        let source = node
-            .lock()
-            .ok()
-            .and_then(|mut node_guard| node_guard.get_property(InternalProperties::LONG_EDGE_SOURCE));
-        if let Some(source_point) =
-            source.and_then(|source_port| source_port.lock().ok().and_then(|source_guard| source_guard.absolute_anchor()))
-        {
+        let source = node.lock().ok().and_then(|mut node_guard| {
+            node_guard.get_property(InternalProperties::LONG_EDGE_SOURCE)
+        });
+        if let Some(source_point) = source.and_then(|source_port| {
+            source_port
+                .lock()
+                .ok()
+                .and_then(|source_guard| source_guard.absolute_anchor())
+        }) {
             if horiz_pos <= source_point.x {
                 return Some(source_point.y);
             }
             bend_points.insert(0, source_point);
         }
 
-        let target = node
-            .lock()
-            .ok()
-            .and_then(|mut node_guard| node_guard.get_property(InternalProperties::LONG_EDGE_TARGET));
-        if let Some(target_point) =
-            target.and_then(|target_port| target_port.lock().ok().and_then(|target_guard| target_guard.absolute_anchor()))
-        {
+        let target = node.lock().ok().and_then(|mut node_guard| {
+            node_guard.get_property(InternalProperties::LONG_EDGE_TARGET)
+        });
+        if let Some(target_point) = target.and_then(|target_port| {
+            target_port
+                .lock()
+                .ok()
+                .and_then(|target_guard| target_guard.absolute_anchor())
+        }) {
             if target_point.x <= horiz_pos {
                 return Some(target_point.y);
             }
@@ -211,7 +219,9 @@ impl InteractiveCrossingMinimizer {
         let origin_port = dummy_port
             .lock()
             .ok()
-            .and_then(|mut dummy_port_guard| dummy_port_guard.get_property(InternalProperties::ORIGIN))
+            .and_then(|mut dummy_port_guard| {
+                dummy_port_guard.get_property(InternalProperties::ORIGIN)
+            })
             .and_then(|origin| match origin {
                 Origin::LPort(port) => Some(port),
                 _ => None,
@@ -226,15 +236,12 @@ impl InteractiveCrossingMinimizer {
             .lock()
             .ok()
             .and_then(|origin_port_guard| origin_port_guard.node())?;
-        let (node_y, node_height) = origin_node
-            .lock()
-            .ok()
-            .map(|mut origin_node_guard| {
-                (
-                    origin_node_guard.shape().position_ref().y,
-                    origin_node_guard.shape().size_ref().y,
-                )
-            })?;
+        let (node_y, node_height) = origin_node.lock().ok().map(|mut origin_node_guard| {
+            (
+                origin_node_guard.shape().position_ref().y,
+                origin_node_guard.shape().size_ref().y,
+            )
+        })?;
 
         match side {
             PortSide::North => Some(node_y),
@@ -282,8 +289,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveCrossingMinimizer {
             for node in &layer_nodes {
                 if let Ok(mut node_guard) = node.lock() {
                     if node_guard.shape().position_ref().x > 0.0 {
-                        horiz_pos +=
-                            node_guard.shape().position_ref().x + node_guard.shape().size_ref().x / 2.0;
+                        horiz_pos += node_guard.shape().position_ref().x
+                            + node_guard.shape().size_ref().x / 2.0;
                         positioned_nodes += 1;
                     }
                     for port in node_guard.ports() {
@@ -329,9 +336,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveCrossingMinimizer {
         &self,
         graph: &LGraph,
     ) -> Option<LayoutProcessorConfiguration<LayeredPhases, LGraph>> {
-        let mut configuration = LayoutProcessorConfiguration::create_from(
-            &INTERMEDIATE_PROCESSING_CONFIGURATION,
-        );
+        let mut configuration =
+            LayoutProcessorConfiguration::create_from(&INTERMEDIATE_PROCESSING_CONFIGURATION);
         let graph_properties = graph
             .get_property_ref(InternalProperties::GRAPH_PROPERTIES)
             .unwrap_or_default();

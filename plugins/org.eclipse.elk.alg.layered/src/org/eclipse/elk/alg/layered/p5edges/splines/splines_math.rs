@@ -26,7 +26,12 @@ impl SplinesMath {
         Self::intersect(pt1, &pt1_dir, pt2, &pt2_dir)
     }
 
-    pub fn intersect(pt1: &KVector, pt2: &KVector, pt3: &KVector, pt4: &KVector) -> Option<KVector> {
+    pub fn intersect(
+        pt1: &KVector,
+        pt2: &KVector,
+        pt3: &KVector,
+        pt4: &KVector,
+    ) -> Option<KVector> {
         let x1 = pt1.x;
         let y1 = pt1.y;
         let x2 = pt2.x;

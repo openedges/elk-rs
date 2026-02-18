@@ -27,7 +27,11 @@ impl BlockRow {
     pub fn add_rectangle(&mut self, rect: &ElkNodeRef) -> bool {
         {
             let mut rect_mut = rect.borrow_mut();
-            let offset = if self.rects.is_empty() { 0.0 } else { self.node_node_spacing };
+            let offset = if self.rects.is_empty() {
+                0.0
+            } else {
+                self.node_node_spacing
+            };
             rect_mut
                 .connectable()
                 .shape()
@@ -41,8 +45,7 @@ impl BlockRow {
     }
 
     pub fn remove_rectangle(&mut self, rect: &ElkNodeRef, update: bool) {
-        self.rects
-            .retain(|item| !std::rc::Rc::ptr_eq(item, rect));
+        self.rects.retain(|item| !std::rc::Rc::ptr_eq(item, rect));
         if update {
             self.update_row();
         }

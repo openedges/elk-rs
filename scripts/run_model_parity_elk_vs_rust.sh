@@ -38,6 +38,7 @@ MODEL_PARITY_MAX_DIFFS_PER_MODEL=${MODEL_PARITY_MAX_DIFFS_PER_MODEL:-20}
 MODEL_PARITY_STRICT=${MODEL_PARITY_STRICT:-false}
 MODEL_PARITY_RANDOM_SEED=${MODEL_PARITY_RANDOM_SEED:-1}
 MODEL_PARITY_SKIP_JAVA_EXPORT=${MODEL_PARITY_SKIP_JAVA_EXPORT:-false}
+MODEL_PARITY_PROGRESS_LOG=${MODEL_PARITY_PROGRESS_LOG:-$OUTPUT_ROOT/rust_runner_progress.tsv}
 JAVA_PARITY_EXCLUDE_FILE=${JAVA_PARITY_EXCLUDE_FILE:-}
 
 if [ -z "$JAVA_PARITY_EXCLUDE_FILE" ] && [ -f "$OUTPUT_ROOT/java_exclude.txt" ]; then
@@ -65,7 +66,8 @@ MODEL_PARITY_RANDOM_SEED="$MODEL_PARITY_RANDOM_SEED" \
   --output-manifest "$RUST_MANIFEST" \
   --rust-layout-dir "$RUST_LAYOUT_DIR" \
   --pretty-print "$MODEL_PARITY_PRETTY_PRINT" \
-  --stop-on-error "$MODEL_PARITY_STOP_ON_ERROR"
+  --stop-on-error "$MODEL_PARITY_STOP_ON_ERROR" \
+  --progress-log "$MODEL_PARITY_PROGRESS_LOG"
 
 STRICT_FLAG=
 if [ "$MODEL_PARITY_STRICT" = "true" ]; then
@@ -84,6 +86,7 @@ echo "model parity completed:"
 echo "  report : $REPORT_FILE"
 echo "  details: $DETAILS_FILE"
 echo "  rust manifest: $RUST_MANIFEST"
+echo "  progress log: $MODEL_PARITY_PROGRESS_LOG"
 
 # Print report summary (match/drift/error/timeout counts)
 if [ -f "$REPORT_FILE" ]; then

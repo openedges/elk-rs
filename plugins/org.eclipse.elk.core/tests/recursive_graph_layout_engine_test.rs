@@ -1,9 +1,9 @@
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::CoreOptions;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::BasicProgressMonitor;
 use org_eclipse_elk_core::org::eclipse::elk::core::{
     IGraphLayoutEngine, RecursiveGraphLayoutEngine,
 };
-use org_eclipse_elk_core::org::eclipse::elk::core::util::BasicProgressMonitor;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
@@ -47,11 +47,7 @@ fn test_resolved_graph() {
 #[should_panic]
 fn test_unknown_algorithm_id() {
     let graph = TestGraph::new();
-    set_node_property(
-        &graph.root,
-        CoreOptions::ALGORITHM,
-        "foo.Bar".to_string(),
-    );
+    set_node_property(&graph.root, CoreOptions::ALGORITHM, "foo.Bar".to_string());
 
     let mut engine = RecursiveGraphLayoutEngine::new();
     let mut monitor = BasicProgressMonitor::new();
@@ -85,16 +81,17 @@ impl TestGraph {
         let n2 = ElkGraphUtil::create_node(Some(root.clone()));
         set_dimensions(&n1, 10.0, 10.0);
         set_dimensions(&n2, 10.0, 10.0);
-        TestGraph { root, _n1: n1, _n2: n2 }
+        TestGraph {
+            root,
+            _n1: n1,
+            _n2: n2,
+        }
     }
 }
 
 fn set_dimensions(node: &ElkNodeRef, width: f64, height: f64) {
     let mut node_mut = node.borrow_mut();
-    node_mut
-        .connectable()
-        .shape()
-        .set_dimensions(width, height);
+    node_mut.connectable().shape().set_dimensions(width, height);
 }
 
 fn node_dimensions(node: &ElkNodeRef) -> (f64, f64) {

@@ -116,7 +116,11 @@ fn configure_issue_871_base_options(graph: &ElkNodeRef, enable_feedback_edges: b
     );
     set_node_property(graph, CoreOptions::PADDING, ElkPadding::with_any(0.0));
     set_node_property(graph, CoreOptions::SPACING_NODE_NODE, 10.0);
-    set_node_property(graph, LayeredOptions::SPACING_NODE_NODE_BETWEEN_LAYERS, 20.0);
+    set_node_property(
+        graph,
+        LayeredOptions::SPACING_NODE_NODE_BETWEEN_LAYERS,
+        20.0,
+    );
 
     if enable_feedback_edges {
         set_node_property(graph, LayeredOptions::FEEDBACK_EDGES, true);

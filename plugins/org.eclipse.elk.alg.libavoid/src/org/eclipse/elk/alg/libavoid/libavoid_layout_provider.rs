@@ -36,8 +36,8 @@ impl LibavoidLayoutProvider {
             };
 
             for port in ports {
-                let side = port_get_property(&port, CoreOptions::PORT_SIDE)
-                    .unwrap_or(PortSide::Undefined);
+                let side =
+                    port_get_property(&port, CoreOptions::PORT_SIDE).unwrap_or(PortSide::Undefined);
                 if side == PortSide::Undefined {
                     let calculated = ElkUtil::calc_port_side(&port, direction);
                     port_set_property(&port, CoreOptions::PORT_SIDE, Some(calculated));

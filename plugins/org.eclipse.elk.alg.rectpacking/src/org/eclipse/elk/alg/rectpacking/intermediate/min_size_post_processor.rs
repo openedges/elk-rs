@@ -35,7 +35,10 @@ impl ILayoutProcessor<ElkNodeRef> for MinSizePostProcessor {
             .shape()
             .graph_element()
             .properties_mut()
-            .set_property(InternalProperties::TARGET_WIDTH, Some(target_width.max(min_width)));
+            .set_property(
+                InternalProperties::TARGET_WIDTH,
+                Some(target_width.max(min_width)),
+            );
         progress_monitor.done();
     }
 }

@@ -33,16 +33,23 @@ fn test_empty_graph() {
 fn test_two_nodes() {
     init_topdownpacking_options();
     let graph = create_graph(2);
-    let hierarchical_width = get_graph_property(&graph, TopdownpackingOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH);
-    let hierarchical_aspect_ratio =
-        get_graph_property(&graph, TopdownpackingOptions::TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO);
+    let hierarchical_width = get_graph_property(
+        &graph,
+        TopdownpackingOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH,
+    );
+    let hierarchical_aspect_ratio = get_graph_property(
+        &graph,
+        TopdownpackingOptions::TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO,
+    );
     let padding: ElkPadding = get_graph_property(&graph, TopdownpackingOptions::PADDING);
     let node_node_spacing = get_graph_property(&graph, TopdownpackingOptions::SPACING_NODE_NODE);
 
     let mut provider = TopdownpackingLayoutProvider::new();
     let predicted_size = provider.get_predicted_graph_size(&graph);
-    let expected_width = padding.left + 2.0 * hierarchical_width + node_node_spacing + padding.right;
-    let expected_height = padding.top + hierarchical_width / hierarchical_aspect_ratio + padding.bottom;
+    let expected_width =
+        padding.left + 2.0 * hierarchical_width + node_node_spacing + padding.right;
+    let expected_height =
+        padding.top + hierarchical_width / hierarchical_aspect_ratio + padding.bottom;
 
     assert_close(predicted_size.x, expected_width, "predicted width");
     assert_close(predicted_size.y, expected_height, "predicted height");
@@ -75,17 +82,25 @@ fn test_two_nodes() {
 fn test_three_nodes() {
     init_topdownpacking_options();
     let graph = create_graph(3);
-    let hierarchical_width = get_graph_property(&graph, TopdownpackingOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH);
-    let hierarchical_aspect_ratio =
-        get_graph_property(&graph, TopdownpackingOptions::TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO);
+    let hierarchical_width = get_graph_property(
+        &graph,
+        TopdownpackingOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH,
+    );
+    let hierarchical_aspect_ratio = get_graph_property(
+        &graph,
+        TopdownpackingOptions::TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO,
+    );
     let padding: ElkPadding = get_graph_property(&graph, TopdownpackingOptions::PADDING);
     let node_node_spacing = get_graph_property(&graph, TopdownpackingOptions::SPACING_NODE_NODE);
 
     let mut provider = TopdownpackingLayoutProvider::new();
     let predicted_size = provider.get_predicted_graph_size(&graph);
-    let expected_width = padding.left + 2.0 * hierarchical_width + node_node_spacing + padding.right;
-    let expected_height =
-        padding.top + 2.0 * (hierarchical_width / hierarchical_aspect_ratio) + node_node_spacing + padding.bottom;
+    let expected_width =
+        padding.left + 2.0 * hierarchical_width + node_node_spacing + padding.right;
+    let expected_height = padding.top
+        + 2.0 * (hierarchical_width / hierarchical_aspect_ratio)
+        + node_node_spacing
+        + padding.bottom;
 
     assert_close(predicted_size.x, expected_width, "predicted width");
     assert_close(predicted_size.y, expected_height, "predicted height");
@@ -128,17 +143,25 @@ fn test_three_nodes() {
 fn test_five_nodes() {
     init_topdownpacking_options();
     let graph = create_graph(5);
-    let hierarchical_width = get_graph_property(&graph, TopdownpackingOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH);
-    let hierarchical_aspect_ratio =
-        get_graph_property(&graph, TopdownpackingOptions::TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO);
+    let hierarchical_width = get_graph_property(
+        &graph,
+        TopdownpackingOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH,
+    );
+    let hierarchical_aspect_ratio = get_graph_property(
+        &graph,
+        TopdownpackingOptions::TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO,
+    );
     let padding: ElkPadding = get_graph_property(&graph, TopdownpackingOptions::PADDING);
     let node_node_spacing = get_graph_property(&graph, TopdownpackingOptions::SPACING_NODE_NODE);
 
     let mut provider = TopdownpackingLayoutProvider::new();
     let predicted_size = provider.get_predicted_graph_size(&graph);
-    let expected_width = padding.left + 3.0 * hierarchical_width + 2.0 * node_node_spacing + padding.right;
-    let expected_height =
-        padding.top + 2.0 * (hierarchical_width / hierarchical_aspect_ratio) + node_node_spacing + padding.bottom;
+    let expected_width =
+        padding.left + 3.0 * hierarchical_width + 2.0 * node_node_spacing + padding.right;
+    let expected_height = padding.top
+        + 2.0 * (hierarchical_width / hierarchical_aspect_ratio)
+        + node_node_spacing
+        + padding.bottom;
 
     assert_close(predicted_size.x, expected_width, "predicted width");
     assert_close(predicted_size.y, expected_height, "predicted height");
@@ -180,10 +203,7 @@ fn create_graph(number_of_nodes: usize) -> ElkNodeRef {
 
 fn child_at(graph: &ElkNodeRef, index: usize) -> ElkNodeRef {
     let mut graph_mut = graph.borrow_mut();
-    graph_mut
-        .children()
-        .get(index)
-        .expect("child must exist")
+    graph_mut.children().get(index).expect("child must exist")
 }
 
 fn assert_shape(
@@ -199,7 +219,11 @@ fn assert_shape(
     assert_close(shape.x(), expected_x, &format!("{context} x"));
     assert_close(shape.y(), expected_y, &format!("{context} y"));
     assert_close(shape.width(), expected_width, &format!("{context} width"));
-    assert_close(shape.height(), expected_height, &format!("{context} height"));
+    assert_close(
+        shape.height(),
+        expected_height,
+        &format!("{context} height"),
+    );
 }
 
 fn assert_close(actual: f64, expected: f64, context: &str) {

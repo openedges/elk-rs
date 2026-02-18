@@ -4,58 +4,60 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkReflect;
 
 use super::{
-    CenterEdgeLabelPlacementStrategy, ConstraintCalculationStrategy, CuttingStrategy,
-    CycleBreakingStrategy, CrossingMinimizationStrategy, DirectionCongruency,
-    EdgeLabelSideSelection, EdgeStraighteningStrategy, FixedAlignment, GraphCompactionStrategy,
-    GreedySwitchType, GroupOrderStrategy, InteractiveReferencePoint, LayerConstraint,
-    LayerUnzippingStrategy, LayeringStrategy, LongEdgeOrderingStrategy, NodeFlexibility,
-    NodePlacementStrategy, NodePromotionStrategy, OrderingStrategy, PortSortingStrategy,
-    SelfLoopDistributionStrategy, SelfLoopOrderingStrategy, SplineRoutingMode, ValidifyStrategy,
-    WrappingStrategy,
+    CenterEdgeLabelPlacementStrategy, ConstraintCalculationStrategy, CrossingMinimizationStrategy,
+    CuttingStrategy, CycleBreakingStrategy, DirectionCongruency, EdgeLabelSideSelection,
+    EdgeStraighteningStrategy, FixedAlignment, GraphCompactionStrategy, GreedySwitchType,
+    GroupOrderStrategy, InteractiveReferencePoint, LayerConstraint, LayerUnzippingStrategy,
+    LayeringStrategy, LongEdgeOrderingStrategy, NodeFlexibility, NodePlacementStrategy,
+    NodePromotionStrategy, OrderingStrategy, PortSortingStrategy, SelfLoopDistributionStrategy,
+    SelfLoopOrderingStrategy, SplineRoutingMode, ValidifyStrategy, WrappingStrategy,
 };
 use crate::org::eclipse::elk::alg::layered::components::ComponentOrderingStrategy;
+use org_eclipse_elk_core::org::eclipse::elk::core::math::elk_margin::ElkMargin;
+use org_eclipse_elk_core::org::eclipse::elk::core::math::elk_padding::ElkPadding;
+use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
+use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector_chain::KVectorChain;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::alignment::Alignment;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::direction::Direction;
-use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_routing::EdgeRouting;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_label_placement::EdgeLabelPlacement;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_routing::EdgeRouting;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::hierarchy_handling::HierarchyHandling;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::node_label_placement::NodeLabelPlacement;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::size_constraint::SizeConstraint;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::topdown_node_types::TopdownNodeTypes;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::EnumSet;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IndividualSpacings;
-use org_eclipse_elk_core::org::eclipse::elk::core::math::elk_margin::ElkMargin;
-use org_eclipse_elk_core::org::eclipse::elk::core::math::elk_padding::ElkPadding;
-use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
-use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector_chain::KVectorChain;
-use org_eclipse_elk_core::org::eclipse::elk::core::options::node_label_placement::NodeLabelPlacement;
 
 pub struct LayeredOptions;
 
 pub static SPACING_BASE_VALUE_PROPERTY: LazyLock<Property<f64>> =
     LazyLock::new(|| Property::new("org.eclipse.elk.alg.layered.spacing.baseValue"));
 
-pub static SPACING_EDGE_NODE_BETWEEN_LAYERS_PROPERTY: LazyLock<Property<f64>> = LazyLock::new(|| {
-    Property::with_default(
-        "org.eclipse.elk.alg.layered.spacing.edgeNodeBetweenLayers",
-        10.0,
-    )
-});
+pub static SPACING_EDGE_NODE_BETWEEN_LAYERS_PROPERTY: LazyLock<Property<f64>> =
+    LazyLock::new(|| {
+        Property::with_default(
+            "org.eclipse.elk.alg.layered.spacing.edgeNodeBetweenLayers",
+            10.0,
+        )
+    });
 
-pub static SPACING_EDGE_EDGE_BETWEEN_LAYERS_PROPERTY: LazyLock<Property<f64>> = LazyLock::new(|| {
-    Property::with_default(
-        "org.eclipse.elk.alg.layered.spacing.edgeEdgeBetweenLayers",
-        10.0,
-    )
-});
+pub static SPACING_EDGE_EDGE_BETWEEN_LAYERS_PROPERTY: LazyLock<Property<f64>> =
+    LazyLock::new(|| {
+        Property::with_default(
+            "org.eclipse.elk.alg.layered.spacing.edgeEdgeBetweenLayers",
+            10.0,
+        )
+    });
 
-pub static SPACING_NODE_NODE_BETWEEN_LAYERS_PROPERTY: LazyLock<Property<f64>> = LazyLock::new(|| {
-    Property::with_default(
-        "org.eclipse.elk.alg.layered.spacing.nodeNodeBetweenLayers",
-        20.0,
-    )
-});
+pub static SPACING_NODE_NODE_BETWEEN_LAYERS_PROPERTY: LazyLock<Property<f64>> =
+    LazyLock::new(|| {
+        Property::with_default(
+            "org.eclipse.elk.alg.layered.spacing.nodeNodeBetweenLayers",
+            20.0,
+        )
+    });
 
 pub static PRIORITY_DIRECTION_PROPERTY: LazyLock<Property<i32>> =
     LazyLock::new(|| Property::with_default("org.eclipse.elk.alg.layered.priority.direction", 0));
@@ -67,54 +69,71 @@ pub static PRIORITY_STRAIGHTNESS_PROPERTY: LazyLock<Property<i32>> = LazyLock::n
     Property::with_default("org.eclipse.elk.alg.layered.priority.straightness", 0)
 });
 
-pub static WRAPPING_STRATEGY_PROPERTY: LazyLock<Property<WrappingStrategy>> =
-    LazyLock::new(|| Property::with_default("org.eclipse.elk.alg.layered.wrapping.strategy", WrappingStrategy::Off));
-
-pub static WRAPPING_ADDITIONAL_EDGE_SPACING_PROPERTY: LazyLock<Property<f64>> = LazyLock::new(|| {
+pub static WRAPPING_STRATEGY_PROPERTY: LazyLock<Property<WrappingStrategy>> = LazyLock::new(|| {
     Property::with_default(
-        "org.eclipse.elk.alg.layered.wrapping.additionalEdgeSpacing",
-        10.0,
+        "org.eclipse.elk.alg.layered.wrapping.strategy",
+        WrappingStrategy::Off,
     )
 });
+
+pub static WRAPPING_ADDITIONAL_EDGE_SPACING_PROPERTY: LazyLock<Property<f64>> =
+    LazyLock::new(|| {
+        Property::with_default(
+            "org.eclipse.elk.alg.layered.wrapping.additionalEdgeSpacing",
+            10.0,
+        )
+    });
 
 pub static WRAPPING_CORRECTION_FACTOR_PROPERTY: LazyLock<Property<f64>> = LazyLock::new(|| {
     Property::with_default("org.eclipse.elk.alg.layered.wrapping.correctionFactor", 1.0)
 });
 
-pub static WRAPPING_CUTTING_STRATEGY_PROPERTY: LazyLock<Property<CuttingStrategy>> = LazyLock::new(|| {
-    Property::with_default(
-        "org.eclipse.elk.alg.layered.wrapping.cutting.strategy",
-        CuttingStrategy::Msd,
-    )
-});
+pub static WRAPPING_CUTTING_STRATEGY_PROPERTY: LazyLock<Property<CuttingStrategy>> =
+    LazyLock::new(|| {
+        Property::with_default(
+            "org.eclipse.elk.alg.layered.wrapping.cutting.strategy",
+            CuttingStrategy::Msd,
+        )
+    });
 
 pub static WRAPPING_CUTTING_CUTS_PROPERTY: LazyLock<Property<Vec<i32>>> =
     LazyLock::new(|| Property::new("org.eclipse.elk.alg.layered.wrapping.cutting.cuts"));
 
 pub static WRAPPING_CUTTING_MSD_FREEDOM_PROPERTY: LazyLock<Property<i32>> = LazyLock::new(|| {
-    Property::with_default("org.eclipse.elk.alg.layered.wrapping.cutting.msd.freedom", 1)
-});
-
-pub static WRAPPING_VALIDIFY_STRATEGY_PROPERTY: LazyLock<Property<ValidifyStrategy>> = LazyLock::new(|| {
     Property::with_default(
-        "org.eclipse.elk.alg.layered.wrapping.validify.strategy",
-        ValidifyStrategy::Greedy,
+        "org.eclipse.elk.alg.layered.wrapping.cutting.msd.freedom",
+        1,
     )
 });
+
+pub static WRAPPING_VALIDIFY_STRATEGY_PROPERTY: LazyLock<Property<ValidifyStrategy>> =
+    LazyLock::new(|| {
+        Property::with_default(
+            "org.eclipse.elk.alg.layered.wrapping.validify.strategy",
+            ValidifyStrategy::Greedy,
+        )
+    });
 
 pub static WRAPPING_VALIDIFY_FORBIDDEN_INDICES_PROPERTY: LazyLock<Property<Vec<i32>>> =
-    LazyLock::new(|| Property::new("org.eclipse.elk.alg.layered.wrapping.validify.forbiddenIndices"));
+    LazyLock::new(|| {
+        Property::new("org.eclipse.elk.alg.layered.wrapping.validify.forbiddenIndices")
+    });
 
-pub static WRAPPING_MULTI_EDGE_IMPROVE_CUTS_PROPERTY: LazyLock<Property<bool>> = LazyLock::new(|| {
-    Property::with_default("org.eclipse.elk.alg.layered.wrapping.multiEdge.improveCuts", true)
-});
+pub static WRAPPING_MULTI_EDGE_IMPROVE_CUTS_PROPERTY: LazyLock<Property<bool>> =
+    LazyLock::new(|| {
+        Property::with_default(
+            "org.eclipse.elk.alg.layered.wrapping.multiEdge.improveCuts",
+            true,
+        )
+    });
 
-pub static WRAPPING_MULTI_EDGE_DISTANCE_PENALTY_PROPERTY: LazyLock<Property<f64>> = LazyLock::new(|| {
-    Property::with_default(
-        "org.eclipse.elk.alg.layered.wrapping.multiEdge.distancePenalty",
-        2.0,
-    )
-});
+pub static WRAPPING_MULTI_EDGE_DISTANCE_PENALTY_PROPERTY: LazyLock<Property<f64>> =
+    LazyLock::new(|| {
+        Property::with_default(
+            "org.eclipse.elk.alg.layered.wrapping.multiEdge.distancePenalty",
+            2.0,
+        )
+    });
 
 pub static WRAPPING_MULTI_EDGE_IMPROVE_WRAPPED_EDGES_PROPERTY: LazyLock<Property<bool>> =
     LazyLock::new(|| {
@@ -140,8 +159,9 @@ pub static LAYER_UNZIPPING_MINIMIZE_EDGE_LENGTH_PROPERTY: LazyLock<Property<bool
         )
     });
 
-pub static LAYER_UNZIPPING_LAYER_SPLIT_PROPERTY: LazyLock<Property<i32>> =
-    LazyLock::new(|| Property::with_default("org.eclipse.elk.alg.layered.layerUnzipping.layerSplit", 2));
+pub static LAYER_UNZIPPING_LAYER_SPLIT_PROPERTY: LazyLock<Property<i32>> = LazyLock::new(|| {
+    Property::with_default("org.eclipse.elk.alg.layered.layerUnzipping.layerSplit", 2)
+});
 
 pub static LAYER_UNZIPPING_RESET_ON_LONG_EDGES_PROPERTY: LazyLock<Property<bool>> =
     LazyLock::new(|| {
@@ -159,13 +179,12 @@ pub static CYCLE_BREAKING_STRATEGY_PROPERTY: LazyLock<Property<CycleBreakingStra
         )
     });
 
-pub static LAYERING_STRATEGY_PROPERTY: LazyLock<Property<LayeringStrategy>> =
-    LazyLock::new(|| {
-        Property::with_default(
-            "org.eclipse.elk.alg.layered.layering.strategy",
-            LayeringStrategy::NetworkSimplex,
-        )
-    });
+pub static LAYERING_STRATEGY_PROPERTY: LazyLock<Property<LayeringStrategy>> = LazyLock::new(|| {
+    Property::with_default(
+        "org.eclipse.elk.alg.layered.layering.strategy",
+        LayeringStrategy::NetworkSimplex,
+    )
+});
 
 pub static LAYERING_LAYER_CONSTRAINT_PROPERTY: LazyLock<Property<LayerConstraint>> =
     LazyLock::new(|| {
@@ -282,10 +301,14 @@ pub static CROSSING_MINIMIZATION_SEMI_INTERACTIVE_PROPERTY: LazyLock<Property<bo
     });
 
 pub static CROSSING_MINIMIZATION_IN_LAYER_PRED_OF_PROPERTY: LazyLock<Property<String>> =
-    LazyLock::new(|| Property::new("org.eclipse.elk.alg.layered.crossingMinimization.inLayerPredOf"));
+    LazyLock::new(|| {
+        Property::new("org.eclipse.elk.alg.layered.crossingMinimization.inLayerPredOf")
+    });
 
 pub static CROSSING_MINIMIZATION_IN_LAYER_SUCC_OF_PROPERTY: LazyLock<Property<String>> =
-    LazyLock::new(|| Property::new("org.eclipse.elk.alg.layered.crossingMinimization.inLayerSuccOf"));
+    LazyLock::new(|| {
+        Property::new("org.eclipse.elk.alg.layered.crossingMinimization.inLayerSuccOf")
+    });
 
 pub static CROSSING_MINIMIZATION_POSITION_CHOICE_CONSTRAINT_PROPERTY: LazyLock<Property<i32>> =
     LazyLock::new(|| {
@@ -392,17 +415,18 @@ pub static EDGE_ROUTING_SELF_LOOP_ORDERING_PROPERTY: LazyLock<Property<SelfLoopO
         )
     });
 
-pub static COMPACTION_POST_COMPACTION_STRATEGY_PROPERTY: LazyLock<Property<GraphCompactionStrategy>> =
-    LazyLock::new(|| {
-        ElkReflect::register(
-            Some(|| GraphCompactionStrategy::None),
-            Some(|v: &GraphCompactionStrategy| *v),
-        );
-        Property::with_default(
-            "org.eclipse.elk.alg.layered.compaction.postCompaction.strategy",
-            GraphCompactionStrategy::None,
-        )
-    });
+pub static COMPACTION_POST_COMPACTION_STRATEGY_PROPERTY: LazyLock<
+    Property<GraphCompactionStrategy>,
+> = LazyLock::new(|| {
+    ElkReflect::register(
+        Some(|| GraphCompactionStrategy::None),
+        Some(|v: &GraphCompactionStrategy| *v),
+    );
+    Property::with_default(
+        "org.eclipse.elk.alg.layered.compaction.postCompaction.strategy",
+        GraphCompactionStrategy::None,
+    )
+});
 
 pub static COMPACTION_POST_COMPACTION_CONSTRAINTS_PROPERTY: LazyLock<
     Property<ConstraintCalculationStrategy>,
@@ -425,29 +449,20 @@ pub static COMPACTION_CONNECTED_COMPONENTS_PROPERTY: LazyLock<Property<bool>> =
         )
     });
 
-pub static HIGH_DEGREE_NODES_TREATMENT_PROPERTY: LazyLock<Property<bool>> =
-    LazyLock::new(|| {
-        Property::with_default(
-            "org.eclipse.elk.alg.layered.highDegreeNodes.treatment",
-            false,
-        )
-    });
+pub static HIGH_DEGREE_NODES_TREATMENT_PROPERTY: LazyLock<Property<bool>> = LazyLock::new(|| {
+    Property::with_default(
+        "org.eclipse.elk.alg.layered.highDegreeNodes.treatment",
+        false,
+    )
+});
 
-pub static HIGH_DEGREE_NODES_THRESHOLD_PROPERTY: LazyLock<Property<i32>> =
-    LazyLock::new(|| {
-        Property::with_default(
-            "org.eclipse.elk.alg.layered.highDegreeNodes.threshold",
-            16,
-        )
-    });
+pub static HIGH_DEGREE_NODES_THRESHOLD_PROPERTY: LazyLock<Property<i32>> = LazyLock::new(|| {
+    Property::with_default("org.eclipse.elk.alg.layered.highDegreeNodes.threshold", 16)
+});
 
-pub static HIGH_DEGREE_NODES_TREE_HEIGHT_PROPERTY: LazyLock<Property<i32>> =
-    LazyLock::new(|| {
-        Property::with_default(
-            "org.eclipse.elk.alg.layered.highDegreeNodes.treeHeight",
-            5,
-        )
-    });
+pub static HIGH_DEGREE_NODES_TREE_HEIGHT_PROPERTY: LazyLock<Property<i32>> = LazyLock::new(|| {
+    Property::with_default("org.eclipse.elk.alg.layered.highDegreeNodes.treeHeight", 5)
+});
 
 pub static DIRECTION_CONGRUENCY_PROPERTY: LazyLock<Property<DirectionCongruency>> =
     LazyLock::new(|| {
@@ -460,10 +475,9 @@ pub static DIRECTION_CONGRUENCY_PROPERTY: LazyLock<Property<DirectionCongruency>
 pub static FEEDBACK_EDGES_PROPERTY: LazyLock<Property<bool>> =
     LazyLock::new(|| Property::with_default("org.eclipse.elk.alg.layered.feedbackEdges", false));
 
-pub static MERGE_HIERARCHY_EDGES_PROPERTY: LazyLock<Property<bool>> =
-    LazyLock::new(|| {
-        Property::with_default("org.eclipse.elk.alg.layered.mergeHierarchyEdges", true)
-    });
+pub static MERGE_HIERARCHY_EDGES_PROPERTY: LazyLock<Property<bool>> = LazyLock::new(|| {
+    Property::with_default("org.eclipse.elk.alg.layered.mergeHierarchyEdges", true)
+});
 
 pub static ALLOW_NON_FLOW_PORTS_TO_SWITCH_SIDES_PROPERTY: LazyLock<Property<bool>> =
     LazyLock::new(|| {
@@ -488,8 +502,9 @@ pub static PORT_SORTING_STRATEGY_PROPERTY: LazyLock<Property<PortSortingStrategy
 pub static THOROUGHNESS_PROPERTY: LazyLock<Property<i32>> =
     LazyLock::new(|| Property::with_default("org.eclipse.elk.alg.layered.thoroughness", 7));
 
-pub static UNNECESSARY_BENDPOINTS_PROPERTY: LazyLock<Property<bool>> =
-    LazyLock::new(|| Property::with_default("org.eclipse.elk.alg.layered.unnecessaryBendpoints", false));
+pub static UNNECESSARY_BENDPOINTS_PROPERTY: LazyLock<Property<bool>> = LazyLock::new(|| {
+    Property::with_default("org.eclipse.elk.alg.layered.unnecessaryBendpoints", false)
+});
 
 pub static GENERATE_POSITION_AND_LAYER_IDS_PROPERTY: LazyLock<Property<bool>> =
     LazyLock::new(|| {
@@ -563,13 +578,14 @@ pub static CONSIDER_MODEL_ORDER_COMPONENTS_PROPERTY: LazyLock<Property<Component
         )
     });
 
-pub static CONSIDER_MODEL_ORDER_LONG_EDGE_STRATEGY_PROPERTY: LazyLock<Property<LongEdgeOrderingStrategy>> =
-    LazyLock::new(|| {
-        Property::with_default(
-            "org.eclipse.elk.alg.layered.considerModelOrder.longEdgeStrategy",
-            LongEdgeOrderingStrategy::DummyNodeOver,
-        )
-    });
+pub static CONSIDER_MODEL_ORDER_LONG_EDGE_STRATEGY_PROPERTY: LazyLock<
+    Property<LongEdgeOrderingStrategy>,
+> = LazyLock::new(|| {
+    Property::with_default(
+        "org.eclipse.elk.alg.layered.considerModelOrder.longEdgeStrategy",
+        LongEdgeOrderingStrategy::DummyNodeOver,
+    )
+});
 
 pub static CONSIDER_MODEL_ORDER_CROSSING_COUNTER_NODE_INFLUENCE_PROPERTY: LazyLock<Property<f64>> =
     LazyLock::new(|| {
@@ -611,13 +627,14 @@ pub static GROUP_MODEL_ORDER_COMPONENT_GROUP_ID_PROPERTY: LazyLock<Property<i32>
         )
     });
 
-pub static GROUP_MODEL_ORDER_CB_GROUP_ORDER_STRATEGY_PROPERTY: LazyLock<Property<GroupOrderStrategy>> =
-    LazyLock::new(|| {
-        Property::with_default(
-            "org.eclipse.elk.alg.layered.considerModelOrder.groupModelOrder.cbGroupOrderStrategy",
-            GroupOrderStrategy::OnlyWithinGroup,
-        )
-    });
+pub static GROUP_MODEL_ORDER_CB_GROUP_ORDER_STRATEGY_PROPERTY: LazyLock<
+    Property<GroupOrderStrategy>,
+> = LazyLock::new(|| {
+    Property::with_default(
+        "org.eclipse.elk.alg.layered.considerModelOrder.groupModelOrder.cbGroupOrderStrategy",
+        GroupOrderStrategy::OnlyWithinGroup,
+    )
+});
 
 pub static GROUP_MODEL_ORDER_CB_PREFERRED_SOURCE_ID_PROPERTY: LazyLock<Property<i32>> =
     LazyLock::new(|| {
@@ -633,13 +650,14 @@ pub static GROUP_MODEL_ORDER_CB_PREFERRED_TARGET_ID_PROPERTY: LazyLock<Property<
         )
     });
 
-pub static GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY_PROPERTY: LazyLock<Property<GroupOrderStrategy>> =
-    LazyLock::new(|| {
-        Property::with_default(
-            "org.eclipse.elk.alg.layered.considerModelOrder.groupModelOrder.cmGroupOrderStrategy",
-            GroupOrderStrategy::OnlyWithinGroup,
-        )
-    });
+pub static GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY_PROPERTY: LazyLock<
+    Property<GroupOrderStrategy>,
+> = LazyLock::new(|| {
+    Property::with_default(
+        "org.eclipse.elk.alg.layered.considerModelOrder.groupModelOrder.cmGroupOrderStrategy",
+        GroupOrderStrategy::OnlyWithinGroup,
+    )
+});
 
 pub static GROUP_MODEL_ORDER_CM_ENFORCED_GROUP_ORDERS_PROPERTY: LazyLock<Property<Vec<i32>>> =
     LazyLock::new(|| {
@@ -689,7 +707,8 @@ impl LayeredOptions {
     pub const PRIORITY: &'static LazyLock<Property<i32>> = CoreOptions::PRIORITY;
     pub const PRIORITY_DIRECTION: &'static LazyLock<Property<i32>> = &PRIORITY_DIRECTION_PROPERTY;
     pub const PRIORITY_SHORTNESS: &'static LazyLock<Property<i32>> = &PRIORITY_SHORTNESS_PROPERTY;
-    pub const PRIORITY_STRAIGHTNESS: &'static LazyLock<Property<i32>> = &PRIORITY_STRAIGHTNESS_PROPERTY;
+    pub const PRIORITY_STRAIGHTNESS: &'static LazyLock<Property<i32>> =
+        &PRIORITY_STRAIGHTNESS_PROPERTY;
 
     pub const WRAPPING_STRATEGY: &'static LazyLock<Property<WrappingStrategy>> =
         &WRAPPING_STRATEGY_PROPERTY;
@@ -755,8 +774,9 @@ impl LayeredOptions {
     pub const CROSSING_MINIMIZATION_GREEDY_SWITCH_ACTIVATION_THRESHOLD: &'static LazyLock<
         Property<i32>,
     > = &CROSSING_MINIMIZATION_GREEDY_SWITCH_ACTIVATION_THRESHOLD_PROPERTY;
-    pub const CROSSING_MINIMIZATION_GREEDY_SWITCH_TYPE: &'static LazyLock<Property<GreedySwitchType>> =
-        &CROSSING_MINIMIZATION_GREEDY_SWITCH_TYPE_PROPERTY;
+    pub const CROSSING_MINIMIZATION_GREEDY_SWITCH_TYPE: &'static LazyLock<
+        Property<GreedySwitchType>,
+    > = &CROSSING_MINIMIZATION_GREEDY_SWITCH_TYPE_PROPERTY;
     pub const CROSSING_MINIMIZATION_GREEDY_SWITCH_HIERARCHICAL_TYPE: &'static LazyLock<
         Property<GreedySwitchType>,
     > = &CROSSING_MINIMIZATION_GREEDY_SWITCH_HIERARCHICAL_TYPE_PROPERTY;
@@ -780,8 +800,9 @@ impl LayeredOptions {
     > = &NODE_PLACEMENT_BK_EDGE_STRAIGHTENING_PROPERTY;
     pub const NODE_PLACEMENT_BK_FIXED_ALIGNMENT: &'static LazyLock<Property<FixedAlignment>> =
         &NODE_PLACEMENT_BK_FIXED_ALIGNMENT_PROPERTY;
-    pub const NODE_PLACEMENT_LINEAR_SEGMENTS_DEFLECTION_DAMPENING: &'static LazyLock<Property<f64>> =
-        &NODE_PLACEMENT_LINEAR_SEGMENTS_DEFLECTION_DAMPENING_PROPERTY;
+    pub const NODE_PLACEMENT_LINEAR_SEGMENTS_DEFLECTION_DAMPENING: &'static LazyLock<
+        Property<f64>,
+    > = &NODE_PLACEMENT_LINEAR_SEGMENTS_DEFLECTION_DAMPENING_PROPERTY;
     pub const NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY: &'static LazyLock<
         Property<NodeFlexibility>,
     > = &NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_PROPERTY;
@@ -802,8 +823,9 @@ impl LayeredOptions {
         Property<SelfLoopOrderingStrategy>,
     > = &EDGE_ROUTING_SELF_LOOP_ORDERING_PROPERTY;
 
-    pub const COMPACTION_POST_COMPACTION_STRATEGY: &'static LazyLock<Property<GraphCompactionStrategy>> =
-        &COMPACTION_POST_COMPACTION_STRATEGY_PROPERTY;
+    pub const COMPACTION_POST_COMPACTION_STRATEGY: &'static LazyLock<
+        Property<GraphCompactionStrategy>,
+    > = &COMPACTION_POST_COMPACTION_STRATEGY_PROPERTY;
     pub const COMPACTION_POST_COMPACTION_CONSTRAINTS: &'static LazyLock<
         Property<ConstraintCalculationStrategy>,
     > = &COMPACTION_POST_COMPACTION_CONSTRAINTS_PROPERTY;
@@ -839,7 +861,8 @@ impl LayeredOptions {
     > = &EDGE_LABELS_CENTER_LABEL_PLACEMENT_STRATEGY_PROPERTY;
     pub const EDGE_LABELS_PLACEMENT: &'static LazyLock<Property<EdgeLabelPlacement>> =
         CoreOptions::EDGE_LABELS_PLACEMENT;
-    pub const EDGE_LABELS_INLINE: &'static LazyLock<Property<bool>> = CoreOptions::EDGE_LABELS_INLINE;
+    pub const EDGE_LABELS_INLINE: &'static LazyLock<Property<bool>> =
+        CoreOptions::EDGE_LABELS_INLINE;
     pub const INTERACTIVE_REFERENCE_POINT: &'static LazyLock<Property<InteractiveReferencePoint>> =
         &INTERACTIVE_REFERENCE_POINT_PROPERTY;
     pub const ALIGNMENT: &'static LazyLock<Property<Alignment>> = CoreOptions::ALIGNMENT;
@@ -850,7 +873,8 @@ impl LayeredOptions {
     pub const HYPERNODE: &'static LazyLock<Property<bool>> = CoreOptions::HYPERNODE;
     pub const HIERARCHY_HANDLING: &'static LazyLock<Property<HierarchyHandling>> =
         CoreOptions::HIERARCHY_HANDLING;
-    pub const INTERACTIVE_LAYOUT: &'static LazyLock<Property<bool>> = CoreOptions::INTERACTIVE_LAYOUT;
+    pub const INTERACTIVE_LAYOUT: &'static LazyLock<Property<bool>> =
+        CoreOptions::INTERACTIVE_LAYOUT;
     pub const JUNCTION_POINTS: &'static LazyLock<Property<KVectorChain>> =
         CoreOptions::JUNCTION_POINTS;
     pub const NODE_LABELS_PADDING: &'static LazyLock<Property<ElkPadding>> =
@@ -869,7 +893,8 @@ impl LayeredOptions {
     pub const PORT_ANCHOR: &'static LazyLock<
         Property<org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector>,
     > = CoreOptions::PORT_ANCHOR;
-    pub const PORT_BORDER_OFFSET: &'static LazyLock<Property<f64>> = CoreOptions::PORT_BORDER_OFFSET;
+    pub const PORT_BORDER_OFFSET: &'static LazyLock<Property<f64>> =
+        CoreOptions::PORT_BORDER_OFFSET;
     pub const PORT_CONSTRAINTS: &'static LazyLock<Property<PortConstraints>> =
         CoreOptions::PORT_CONSTRAINTS;
     pub const PORT_INDEX: &'static LazyLock<Property<i32>> = CoreOptions::PORT_INDEX;
@@ -891,10 +916,12 @@ impl LayeredOptions {
     pub const CONSIDER_MODEL_ORDER_LONG_EDGE_STRATEGY: &'static LazyLock<
         Property<LongEdgeOrderingStrategy>,
     > = &CONSIDER_MODEL_ORDER_LONG_EDGE_STRATEGY_PROPERTY;
-    pub const CONSIDER_MODEL_ORDER_CROSSING_COUNTER_NODE_INFLUENCE: &'static LazyLock<Property<f64>> =
-        &CONSIDER_MODEL_ORDER_CROSSING_COUNTER_NODE_INFLUENCE_PROPERTY;
-    pub const CONSIDER_MODEL_ORDER_CROSSING_COUNTER_PORT_INFLUENCE: &'static LazyLock<Property<f64>> =
-        &CONSIDER_MODEL_ORDER_CROSSING_COUNTER_PORT_INFLUENCE_PROPERTY;
+    pub const CONSIDER_MODEL_ORDER_CROSSING_COUNTER_NODE_INFLUENCE: &'static LazyLock<
+        Property<f64>,
+    > = &CONSIDER_MODEL_ORDER_CROSSING_COUNTER_NODE_INFLUENCE_PROPERTY;
+    pub const CONSIDER_MODEL_ORDER_CROSSING_COUNTER_PORT_INFLUENCE: &'static LazyLock<
+        Property<f64>,
+    > = &CONSIDER_MODEL_ORDER_CROSSING_COUNTER_PORT_INFLUENCE_PROPERTY;
 
     pub const GROUP_MODEL_ORDER_CYCLE_BREAKING_ID: &'static LazyLock<Property<i32>> =
         &GROUP_MODEL_ORDER_CYCLE_BREAKING_ID_PROPERTY;
@@ -902,14 +929,16 @@ impl LayeredOptions {
         &GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID_PROPERTY;
     pub const GROUP_MODEL_ORDER_COMPONENT_GROUP_ID: &'static LazyLock<Property<i32>> =
         &GROUP_MODEL_ORDER_COMPONENT_GROUP_ID_PROPERTY;
-    pub const GROUP_MODEL_ORDER_CB_GROUP_ORDER_STRATEGY: &'static LazyLock<Property<GroupOrderStrategy>> =
-        &GROUP_MODEL_ORDER_CB_GROUP_ORDER_STRATEGY_PROPERTY;
+    pub const GROUP_MODEL_ORDER_CB_GROUP_ORDER_STRATEGY: &'static LazyLock<
+        Property<GroupOrderStrategy>,
+    > = &GROUP_MODEL_ORDER_CB_GROUP_ORDER_STRATEGY_PROPERTY;
     pub const GROUP_MODEL_ORDER_CB_PREFERRED_SOURCE_ID: &'static LazyLock<Property<i32>> =
         &GROUP_MODEL_ORDER_CB_PREFERRED_SOURCE_ID_PROPERTY;
     pub const GROUP_MODEL_ORDER_CB_PREFERRED_TARGET_ID: &'static LazyLock<Property<i32>> =
         &GROUP_MODEL_ORDER_CB_PREFERRED_TARGET_ID_PROPERTY;
-    pub const GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY: &'static LazyLock<Property<GroupOrderStrategy>> =
-        &GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY_PROPERTY;
+    pub const GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY: &'static LazyLock<
+        Property<GroupOrderStrategy>,
+    > = &GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY_PROPERTY;
     pub const GROUP_MODEL_ORDER_CM_ENFORCED_GROUP_ORDERS: &'static LazyLock<Property<Vec<i32>>> =
         &GROUP_MODEL_ORDER_CM_ENFORCED_GROUP_ORDERS_PROPERTY;
 }

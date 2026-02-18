@@ -111,7 +111,10 @@ impl Default for ElkRectangle {
 
 impl std::fmt::Display for ElkRectangle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Rect[x={},y={},w={},h={}]", self.x, self.y, self.width, self.height)
+        write!(
+            f,
+            "Rect[x={},y={},w={},h={}]",
+            self.x, self.y, self.width, self.height
+        )
     }
 }
-

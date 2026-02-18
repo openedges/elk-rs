@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
 
 use crate::org::eclipse::elk::graph::{
-    ElkConnectableShapeRef, ElkEdgeRef, ElkGraphElementRef, ElkGraphFactory, ElkLabelRef, ElkNodeRef,
-    ElkPortRef,
+    ElkConnectableShapeRef, ElkEdgeRef, ElkGraphElementRef, ElkGraphFactory, ElkLabelRef,
+    ElkNodeRef, ElkPortRef,
 };
 
 mod graph_identifier_generator;
@@ -118,7 +118,10 @@ impl ElkGraphUtil {
     pub fn create_edge(containing_node: Option<ElkNodeRef>) -> ElkEdgeRef {
         let edge = ElkGraphFactory::instance().create_elk_edge();
         if let Some(containing_node) = containing_node {
-            crate::org::eclipse::elk::graph::ElkEdge::set_containing_node(&edge, Some(containing_node));
+            crate::org::eclipse::elk::graph::ElkEdge::set_containing_node(
+                &edge,
+                Some(containing_node),
+            );
         }
         edge
     }
@@ -131,7 +134,10 @@ impl ElkGraphUtil {
         label
     }
 
-    pub fn create_label_with_text(text: impl Into<String>, parent: Option<ElkGraphElementRef>) -> ElkLabelRef {
+    pub fn create_label_with_text(
+        text: impl Into<String>,
+        parent: Option<ElkGraphElementRef>,
+    ) -> ElkLabelRef {
         let label = Self::create_label(parent);
         label.borrow_mut().set_text(text);
         label
@@ -299,7 +305,8 @@ impl ElkGraphUtil {
 
     pub fn all_incident_shapes(edge: &ElkEdgeRef) -> Vec<ElkConnectableShapeRef> {
         let edge_borrow = edge.borrow();
-        let mut shapes = Vec::with_capacity(edge_borrow.sources_ro().len() + edge_borrow.targets_ro().len());
+        let mut shapes =
+            Vec::with_capacity(edge_borrow.sources_ro().len() + edge_borrow.targets_ro().len());
         shapes.extend(edge_borrow.sources_ro().iter().cloned());
         shapes.extend(edge_borrow.targets_ro().iter().cloned());
         shapes

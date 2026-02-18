@@ -67,4 +67,3 @@ impl Default for ElkMargin {
 }
 
 impl IDataObject for ElkMargin {}
-

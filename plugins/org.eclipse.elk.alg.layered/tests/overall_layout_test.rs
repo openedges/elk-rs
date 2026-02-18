@@ -10,19 +10,16 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::SizeConstraint;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::BasicProgressMonitor;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
-use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkConnectableShapeRef, ElkEdgeRef, ElkNodeRef};
+use org_eclipse_elk_graph::org::eclipse::elk::graph::{
+    ElkConnectableShapeRef, ElkEdgeRef, ElkNodeRef,
+};
 
 const EPSILON: f64 = 1.0e-4;
 
 #[test]
 fn node_coordinates_positive() {
     let graph = layout_simple_graph();
-    let nodes: Vec<ElkNodeRef> = graph
-        .borrow_mut()
-        .children()
-        .iter()
-        .cloned()
-        .collect();
+    let nodes: Vec<ElkNodeRef> = graph.borrow_mut().children().iter().cloned().collect();
 
     for node in nodes {
         let mut node_mut = node.borrow_mut();
@@ -43,12 +40,7 @@ fn edge_coordinates_positive() {
         .collect();
 
     for edge in edges {
-        let sections: Vec<_> = edge
-            .borrow_mut()
-            .sections()
-            .iter()
-            .cloned()
-            .collect();
+        let sections: Vec<_> = edge.borrow_mut().sections().iter().cloned().collect();
         for section in sections {
             let section_ref = section.borrow();
             assert!(section_ref.start_x() > 0.0, "section start_x not positive");
@@ -79,12 +71,7 @@ fn edge_orthogonality() {
         .collect();
 
     for edge in edges {
-        let sections: Vec<_> = edge
-            .borrow_mut()
-            .sections()
-            .iter()
-            .cloned()
-            .collect();
+        let sections: Vec<_> = edge.borrow_mut().sections().iter().cloned().collect();
         for section in sections {
             let (start_x, start_y, end_x, end_y, bend_points) = {
                 let mut section_mut = section.borrow_mut();
@@ -136,11 +123,19 @@ fn create_simple_graph() -> ElkNodeRef {
 
     let node1 = ElkGraphUtil::create_node(Some(graph.clone()));
     set_dimensions(&node1, 30.0, 30.0);
-    set_node_property(&node1, LayeredOptions::NODE_SIZE_CONSTRAINTS, SizeConstraint::fixed());
+    set_node_property(
+        &node1,
+        LayeredOptions::NODE_SIZE_CONSTRAINTS,
+        SizeConstraint::fixed(),
+    );
 
     let node2 = ElkGraphUtil::create_node(Some(graph.clone()));
     set_dimensions(&node2, 30.0, 30.0);
-    set_node_property(&node2, LayeredOptions::NODE_SIZE_CONSTRAINTS, SizeConstraint::fixed());
+    set_node_property(
+        &node2,
+        LayeredOptions::NODE_SIZE_CONSTRAINTS,
+        SizeConstraint::fixed(),
+    );
 
     let _edge = ElkGraphUtil::create_simple_edge(
         ElkConnectableShapeRef::Node(node1),
@@ -157,10 +152,7 @@ fn init_layered_options() {
 
 fn set_dimensions(node: &ElkNodeRef, width: f64, height: f64) {
     let mut node_mut = node.borrow_mut();
-    node_mut
-        .connectable()
-        .shape()
-        .set_dimensions(width, height);
+    node_mut.connectable().shape().set_dimensions(width, height);
 }
 
 fn set_node_property<T: Clone + Send + Sync + 'static>(

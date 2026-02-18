@@ -25,20 +25,28 @@ impl FParticleRef {
 
     pub fn with_particle_mut<R>(&self, f: impl FnOnce(&mut FParticle) -> R) -> Option<R> {
         match self {
-            FParticleRef::Node(node) => node.lock().ok().map(|mut node_guard| f(node_guard.particle_mut())),
-            FParticleRef::Label(label) => {
-                label.lock().ok().map(|mut label_guard| f(label_guard.particle_mut()))
-            }
-            FParticleRef::Bend(bend) => bend.lock().ok().map(|mut bend_guard| f(bend_guard.particle_mut())),
+            FParticleRef::Node(node) => node
+                .lock()
+                .ok()
+                .map(|mut node_guard| f(node_guard.particle_mut())),
+            FParticleRef::Label(label) => label
+                .lock()
+                .ok()
+                .map(|mut label_guard| f(label_guard.particle_mut())),
+            FParticleRef::Bend(bend) => bend
+                .lock()
+                .ok()
+                .map(|mut bend_guard| f(bend_guard.particle_mut())),
         }
     }
 
     pub fn with_particle_ref<R>(&self, f: impl FnOnce(&FParticle) -> R) -> Option<R> {
         match self {
             FParticleRef::Node(node) => node.lock().ok().map(|node_guard| f(node_guard.particle())),
-            FParticleRef::Label(label) => {
-                label.lock().ok().map(|label_guard| f(label_guard.particle()))
-            }
+            FParticleRef::Label(label) => label
+                .lock()
+                .ok()
+                .map(|label_guard| f(label_guard.particle())),
             FParticleRef::Bend(bend) => bend.lock().ok().map(|bend_guard| f(bend_guard.particle())),
         }
     }
@@ -154,7 +162,9 @@ impl FGraph {
                     let node1_guard = node1.lock().ok();
                     let node2_guard = node2.lock().ok();
                     match (node1_guard, node2_guard) {
-                        (Some(node1_guard), Some(node2_guard)) => (node1_guard.id(), node2_guard.id()),
+                        (Some(node1_guard), Some(node2_guard)) => {
+                            (node1_guard.id(), node2_guard.id())
+                        }
                         _ => return 0,
                     }
                 };
@@ -185,9 +195,15 @@ impl FGraph {
         for edge in &self.edges {
             let (source_id, target_id, priority) = {
                 let edge_guard = edge.lock().ok();
-                let Some(mut edge_guard) = edge_guard else { continue };
-                let source_id = edge_guard.source().and_then(|node| node.lock().ok().map(|n| n.id()));
-                let target_id = edge_guard.target().and_then(|node| node.lock().ok().map(|n| n.id()));
+                let Some(mut edge_guard) = edge_guard else {
+                    continue;
+                };
+                let source_id = edge_guard
+                    .source()
+                    .and_then(|node| node.lock().ok().map(|n| n.id()));
+                let target_id = edge_guard
+                    .target()
+                    .and_then(|node| node.lock().ok().map(|n| n.id()));
                 let priority = edge_guard.get_property(ForceOptions::PRIORITY).unwrap_or(0);
                 match (source_id, target_id) {
                     (Some(source_id), Some(target_id)) => (source_id, target_id, priority),

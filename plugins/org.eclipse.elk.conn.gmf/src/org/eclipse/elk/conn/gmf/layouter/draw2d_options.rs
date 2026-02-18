@@ -1,7 +1,9 @@
 use std::sync::LazyLock;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::math::ElkPadding;
-use org_eclipse_elk_core::org::eclipse::elk::core::options::{CoreOptions, Direction, SizeConstraint};
+use org_eclipse_elk_core::org::eclipse::elk::core::options::{
+    CoreOptions, Direction, SizeConstraint,
+};
 use org_eclipse_elk_core::org::eclipse::elk::core::util::EnumSet;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 

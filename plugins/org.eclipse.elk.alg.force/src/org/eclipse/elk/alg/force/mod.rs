@@ -10,8 +10,13 @@ pub mod stress;
 pub use components_processor::ComponentsProcessor;
 pub use elk_graph_importer::ElkGraphImporter;
 pub use force_layout_provider::ForceLayoutProvider;
-pub use graph::{FBendpoint, FBendpointRef, FEdge, FEdgeRef, FGraph, FLabel, FLabelRef, FNode, FNodeRef};
+pub use graph::{
+    FBendpoint, FBendpointRef, FEdge, FEdgeRef, FGraph, FLabel, FLabelRef, FNode, FNodeRef,
+};
 pub use i_graph_importer::IGraphImporter;
 pub use model::{AbstractForceModel, EadesModel, FruchtermanReingoldModel};
-pub use options::{ForceMetaDataProvider, ForceModelStrategy, ForceOptions, InternalProperties, StressMetaDataProvider, StressOptions};
+pub use options::{
+    ForceMetaDataProvider, ForceModelStrategy, ForceOptions, InternalProperties,
+    StressMetaDataProvider, StressOptions,
+};
 pub use stress::{StressLayoutProvider, StressMajorization};

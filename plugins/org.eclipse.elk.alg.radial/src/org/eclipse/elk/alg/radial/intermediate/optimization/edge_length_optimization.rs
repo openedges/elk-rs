@@ -1,7 +1,7 @@
 use org_eclipse_elk_core::org::eclipse::elk::core::math::ElkMath;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::KVector;
-use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 
 use crate::org::eclipse::elk::alg::radial::intermediate::optimization::IEvaluation;
 
@@ -16,7 +16,9 @@ impl IEvaluation for EdgeLengthOptimization {
                 let edge_borrow = edge.borrow();
                 edge_borrow.targets_ro().get(0)
             };
-            let Some(target_shape) = target_shape else { continue; };
+            let Some(target_shape) = target_shape else {
+                continue;
+            };
             let Some(target) = ElkGraphUtil::connectable_shape_to_node(&target_shape) else {
                 continue;
             };

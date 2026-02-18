@@ -3,8 +3,8 @@ use std::any::Any;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::MapPropertyHolder;
 
 use crate::org::eclipse::elk::core::data::LayoutMetaDataService;
-use crate::org::eclipse::elk::core::layout_configurator::LayoutConfigurator;
 use crate::org::eclipse::elk::core::graph_layout_engine::IGraphLayoutEngine;
+use crate::org::eclipse::elk::core::layout_configurator::LayoutConfigurator;
 use crate::org::eclipse::elk::core::recursive_graph_layout_engine::RecursiveGraphLayoutEngine;
 use crate::org::eclipse::elk::core::service::{
     IDiagramLayoutConnector, LayoutConfigurationManager, LayoutConnectorsService, LayoutMapping,
@@ -30,7 +30,9 @@ impl DiagramLayoutEngine {
 
     pub fn set_configuration_provider(
         &mut self,
-        provider: Option<Box<dyn crate::org::eclipse::elk::core::service::ILayoutConfigurationStoreProvider>>,
+        provider: Option<
+            Box<dyn crate::org::eclipse::elk::core::service::ILayoutConfigurationStoreProvider>,
+        >,
     ) {
         self.config_manager.set_config_provider(provider);
     }
@@ -92,7 +94,9 @@ impl DiagramLayoutEngine {
     ) -> Option<LayoutMapping> {
         LayoutMetaDataService::get_instance();
         let connector = service.get_connector(workbench_part, diagram_part)?;
-        self.set_configuration_provider(service.get_configuration_provider(workbench_part, diagram_part));
+        self.set_configuration_provider(
+            service.get_configuration_provider(workbench_part, diagram_part),
+        );
 
         let mut params = params.unwrap_or_default();
         if params.configurators.is_empty() {
@@ -177,15 +181,18 @@ impl Parameters {
 
     pub fn add_layout_run(&mut self) -> &mut LayoutConfigurator {
         let mut configurator = LayoutConfigurator::new();
-        configurator.add_filter(crate::org::eclipse::elk::core::layout_configurator::OPTION_TARGET_FILTER.clone());
+        configurator.add_filter(
+            crate::org::eclipse::elk::core::layout_configurator::OPTION_TARGET_FILTER.clone(),
+        );
         self.configurators.push(configurator);
-        self.configurators
-            .last_mut()
-            .expect("just pushed")
+        self.configurators.last_mut().expect("just pushed")
     }
 }
 
-fn apply_configurator(layout_graph: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef, configurator: &mut LayoutConfigurator) {
+fn apply_configurator(
+    layout_graph: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef,
+    configurator: &mut LayoutConfigurator,
+) {
     let mut visitors: Vec<&mut dyn crate::org::eclipse::elk::core::util::IGraphElementVisitor> =
         vec![configurator];
     ElkUtil::apply_visitors(layout_graph, &mut visitors);

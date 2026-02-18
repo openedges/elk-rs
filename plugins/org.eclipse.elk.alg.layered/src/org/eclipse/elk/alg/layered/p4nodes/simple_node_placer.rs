@@ -9,15 +9,16 @@ use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorS
 use crate::org::eclipse::elk::alg::layered::options::InternalProperties;
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
 
-static HIERARCHY_PROCESSING_ADDITIONS: LazyLock<LayoutProcessorConfiguration<LayeredPhases, LGraph>> =
-    LazyLock::new(|| {
-        let mut config = LayoutProcessorConfiguration::create();
-        config.add_before(
-            LayeredPhases::P5EdgeRouting,
-            Arc::new(IntermediateProcessorStrategy::HierarchicalPortPositionProcessor),
-        );
-        config
-    });
+static HIERARCHY_PROCESSING_ADDITIONS: LazyLock<
+    LayoutProcessorConfiguration<LayeredPhases, LGraph>,
+> = LazyLock::new(|| {
+    let mut config = LayoutProcessorConfiguration::create();
+    config.add_before(
+        LayeredPhases::P5EdgeRouting,
+        Arc::new(IntermediateProcessorStrategy::HierarchicalPortPositionProcessor),
+    );
+    config
+});
 
 pub struct SimpleNodePlacer;
 

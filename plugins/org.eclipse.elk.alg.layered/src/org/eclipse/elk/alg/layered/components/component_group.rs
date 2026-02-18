@@ -42,22 +42,14 @@ const CONSTRAINT_EAST_WEST: [u8; 4] = [
     MASK_NORTH_EAST_SOUTH,
     MASK_NORTH_EAST_SOUTH_WEST,
 ];
-const CONSTRAINT_NORTH_WEST: [u8; 3] = [
-    MASK_NORTH_WEST,
-    MASK_NORTH_EAST_WEST,
-    MASK_NORTH_SOUTH_WEST,
-];
-const CONSTRAINT_NORTH_EAST: [u8; 3] = [
-    MASK_NORTH_EAST,
-    MASK_NORTH_EAST_WEST,
-    MASK_NORTH_EAST_SOUTH,
-];
-const CONSTRAINT_SOUTH_WEST: [u8; 3] = [
-    MASK_SOUTH_WEST,
-    MASK_EAST_SOUTH_WEST,
-    MASK_NORTH_SOUTH_WEST,
-];
-const CONSTRAINT_EAST_SOUTH: [u8; 3] = [MASK_EAST_SOUTH, MASK_EAST_SOUTH_WEST, MASK_NORTH_EAST_SOUTH];
+const CONSTRAINT_NORTH_WEST: [u8; 3] =
+    [MASK_NORTH_WEST, MASK_NORTH_EAST_WEST, MASK_NORTH_SOUTH_WEST];
+const CONSTRAINT_NORTH_EAST: [u8; 3] =
+    [MASK_NORTH_EAST, MASK_NORTH_EAST_WEST, MASK_NORTH_EAST_SOUTH];
+const CONSTRAINT_SOUTH_WEST: [u8; 3] =
+    [MASK_SOUTH_WEST, MASK_EAST_SOUTH_WEST, MASK_NORTH_SOUTH_WEST];
+const CONSTRAINT_EAST_SOUTH: [u8; 3] =
+    [MASK_EAST_SOUTH, MASK_EAST_SOUTH_WEST, MASK_NORTH_EAST_SOUTH];
 const CONSTRAINT_NORTH_EAST_WEST: [u8; 8] = [
     MASK_NORTH,
     MASK_NORTH_SOUTH,
@@ -248,7 +240,11 @@ impl ComponentGroup {
         }
 
         let candidate_mask = component_mask(&component);
-        if let Some((_, list)) = self.components.iter_mut().find(|(mask, _)| *mask == candidate_mask) {
+        if let Some((_, list)) = self
+            .components
+            .iter_mut()
+            .find(|(mask, _)| *mask == candidate_mask)
+        {
             list.push(component);
         } else {
             self.components.push((candidate_mask, vec![component]));
@@ -326,10 +322,15 @@ impl ModelOrderComponentGroup {
         }
 
         let candidate_mask = component_mask(&component);
-        if let Some((_, list)) = self.components.iter_mut().find(|(mask, _)| *mask == candidate_mask) {
+        if let Some((_, list)) = self
+            .components
+            .iter_mut()
+            .find(|(mask, _)| *mask == candidate_mask)
+        {
             list.push(component.clone());
         } else {
-            self.components.push((candidate_mask, vec![component.clone()]));
+            self.components
+                .push((candidate_mask, vec![component.clone()]));
         }
         self.component_order.push((candidate_mask, component));
         true

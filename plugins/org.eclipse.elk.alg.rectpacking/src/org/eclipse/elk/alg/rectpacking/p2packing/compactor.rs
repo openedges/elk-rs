@@ -25,7 +25,8 @@ impl ILayoutPhase<RectPackingLayoutPhases, ElkNodeRef> for Compactor {
     fn process(&mut self, graph: &mut ElkNodeRef, progress_monitor: &mut dyn IElkProgressMonitor) {
         progress_monitor.begin("Compaction", 1.0);
         let aspect_ratio = property(graph, RectPackingOptions::ASPECT_RATIO).unwrap_or(1.0);
-        let node_node_spacing = property(graph, RectPackingOptions::SPACING_NODE_NODE).unwrap_or(0.0);
+        let node_node_spacing =
+            property(graph, RectPackingOptions::SPACING_NODE_NODE).unwrap_or(0.0);
         let padding = property(graph, RectPackingOptions::PADDING).unwrap_or_default();
 
         let rectangles = {
@@ -74,8 +75,16 @@ impl ILayoutPhase<RectPackingLayoutPhases, ElkNodeRef> for Compactor {
             iterations -= 1;
         }
 
-        set_property(graph, InternalProperties::DRAWING_HEIGHT, drawing.drawing_height());
-        set_property(graph, InternalProperties::DRAWING_WIDTH, drawing.drawing_width());
+        set_property(
+            graph,
+            InternalProperties::DRAWING_HEIGHT,
+            drawing.drawing_height(),
+        );
+        set_property(
+            graph,
+            InternalProperties::DRAWING_WIDTH,
+            drawing.drawing_width(),
+        );
         progress_monitor.done();
     }
 
@@ -89,19 +98,39 @@ impl ILayoutPhase<RectPackingLayoutPhases, ElkNodeRef> for Compactor {
 
 impl Compactor {
     fn copy_row_width_change_values(graph: &ElkNodeRef, compaction: &RowFillingAndCompaction) {
-        set_property(graph, InternalProperties::MIN_ROW_INCREASE, compaction.potential_row_width_increase_min);
-        set_property(graph, InternalProperties::MAX_ROW_INCREASE, compaction.potential_row_width_increase_max);
-        set_property(graph, InternalProperties::MIN_ROW_DECREASE, compaction.potential_row_width_decrease_min);
-        set_property(graph, InternalProperties::MAX_ROW_DECREASE, compaction.potential_row_width_decrease_max);
+        set_property(
+            graph,
+            InternalProperties::MIN_ROW_INCREASE,
+            compaction.potential_row_width_increase_min,
+        );
+        set_property(
+            graph,
+            InternalProperties::MAX_ROW_INCREASE,
+            compaction.potential_row_width_increase_max,
+        );
+        set_property(
+            graph,
+            InternalProperties::MIN_ROW_DECREASE,
+            compaction.potential_row_width_decrease_min,
+        );
+        set_property(
+            graph,
+            InternalProperties::MAX_ROW_DECREASE,
+            compaction.potential_row_width_decrease_max,
+        );
     }
 
-    fn configure_second_iteration(layout_graph: &ElkNodeRef, clone: &ElkNodeRef, drawing: &crate::org::eclipse::elk::alg::rectpacking::util::DrawingData) {
+    fn configure_second_iteration(
+        layout_graph: &ElkNodeRef,
+        clone: &ElkNodeRef,
+        drawing: &crate::org::eclipse::elk::alg::rectpacking::util::DrawingData,
+    ) {
         let padding = property(layout_graph, RectPackingOptions::PADDING).unwrap_or_default();
         let aspect_ratio = property(layout_graph, RectPackingOptions::ASPECT_RATIO).unwrap_or(1.0);
-        let min_row_increase = property(layout_graph, InternalProperties::MIN_ROW_INCREASE)
-            .unwrap_or(f64::INFINITY);
-        let min_row_decrease = property(layout_graph, InternalProperties::MIN_ROW_DECREASE)
-            .unwrap_or(f64::INFINITY);
+        let min_row_increase =
+            property(layout_graph, InternalProperties::MIN_ROW_INCREASE).unwrap_or(f64::INFINITY);
+        let min_row_decrease =
+            property(layout_graph, InternalProperties::MIN_ROW_DECREASE).unwrap_or(f64::INFINITY);
         let target_width = property(layout_graph, InternalProperties::TARGET_WIDTH).unwrap_or(0.0);
         let min_width = property(layout_graph, InternalProperties::MIN_WIDTH).unwrap_or(0.0);
 
@@ -112,10 +141,7 @@ impl Compactor {
             graph_mut.children().len()
         };
 
-        if children_len > 1
-            && min_row_increase != f64::INFINITY
-            && drawing_ratio < aspect_ratio
-        {
+        if children_len > 1 && min_row_increase != f64::INFINITY && drawing_ratio < aspect_ratio {
             set_property(
                 clone,
                 InternalProperties::TARGET_WIDTH,
@@ -136,7 +162,10 @@ impl Compactor {
             let mut node_mut = node.borrow_mut();
             let shape = node_mut.connectable().shape();
             let properties = shape.graph_element().properties().clone();
-            let identifier = shape.graph_element().identifier().map(|value| value.to_string());
+            let identifier = shape
+                .graph_element()
+                .identifier()
+                .map(|value| value.to_string());
             let (width, height, x, y) = (shape.width(), shape.height(), shape.x(), shape.y());
 
             let mut clone_mut = clone.borrow_mut();
@@ -161,8 +190,16 @@ impl Compactor {
             let mut child_mut = child.borrow_mut();
             let child_shape = child_mut.connectable().shape();
             let properties = child_shape.graph_element().properties().clone();
-            let identifier = child_shape.graph_element().identifier().map(|value| value.to_string());
-            let (width, height, x, y) = (child_shape.width(), child_shape.height(), child_shape.x(), child_shape.y());
+            let identifier = child_shape
+                .graph_element()
+                .identifier()
+                .map(|value| value.to_string());
+            let (width, height, x, y) = (
+                child_shape.width(),
+                child_shape.height(),
+                child_shape.x(),
+                child_shape.y(),
+            );
             drop(child_mut);
 
             let mut new_child_mut = new_child.borrow_mut();

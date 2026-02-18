@@ -6,8 +6,8 @@ use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LNodeRef};
 use crate::org::eclipse::elk::alg::layered::options::LayeredOptions;
 use crate::org::eclipse::elk::alg::layered::p1cycles::group_model_order_calculator::GroupModelOrderCalculator;
 use crate::org::eclipse::elk::alg::layered::p1cycles::scc_model_order_cycle_breaker::{
-    constraint_model_order, contains_node, layout_processor_configuration, node_group_model_order_id,
-    process_scc_model_order_cycle_breaking,
+    constraint_model_order, contains_node, layout_processor_configuration,
+    node_group_model_order_id, process_scc_model_order_cycle_breaking,
 };
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
 
@@ -76,7 +76,12 @@ impl SccNodeTypeCycleBreaker {
                         .lock()
                         .ok()
                         .and_then(|edge_guard| edge_guard.source())
-                        .and_then(|source| source.lock().ok().and_then(|source_guard| source_guard.node()));
+                        .and_then(|source| {
+                            source
+                                .lock()
+                                .ok()
+                                .and_then(|source_guard| source_guard.node())
+                        });
                     let Some(source_node) = source_node else {
                         continue;
                     };
@@ -98,7 +103,12 @@ impl SccNodeTypeCycleBreaker {
                         .lock()
                         .ok()
                         .and_then(|edge_guard| edge_guard.source())
-                        .and_then(|source| source.lock().ok().and_then(|source_guard| source_guard.node()));
+                        .and_then(|source| {
+                            source
+                                .lock()
+                                .ok()
+                                .and_then(|source_guard| source_guard.node())
+                        });
                     let Some(source_node) = source_node else {
                         continue;
                     };
@@ -131,7 +141,12 @@ impl SccNodeTypeCycleBreaker {
                         .lock()
                         .ok()
                         .and_then(|edge_guard| edge_guard.source())
-                        .and_then(|source| source.lock().ok().and_then(|source_guard| source_guard.node()));
+                        .and_then(|source| {
+                            source
+                                .lock()
+                                .ok()
+                                .and_then(|source_guard| source_guard.node())
+                        });
                     let Some(source_node) = source_node else {
                         continue;
                     };
@@ -150,7 +165,12 @@ impl SccNodeTypeCycleBreaker {
                         .lock()
                         .ok()
                         .and_then(|edge_guard| edge_guard.target())
-                        .and_then(|target| target.lock().ok().and_then(|target_guard| target_guard.node()));
+                        .and_then(|target| {
+                            target
+                                .lock()
+                                .ok()
+                                .and_then(|target_guard| target_guard.node())
+                        });
                     let Some(target_node) = target_node else {
                         continue;
                     };

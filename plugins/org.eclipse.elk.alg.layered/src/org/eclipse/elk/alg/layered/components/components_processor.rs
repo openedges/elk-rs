@@ -9,8 +9,8 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::Po
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::{
     PortSide, SIDES_EAST, SIDES_EAST_SOUTH, SIDES_EAST_SOUTH_WEST, SIDES_EAST_WEST, SIDES_NONE,
     SIDES_NORTH, SIDES_NORTH_EAST, SIDES_NORTH_EAST_SOUTH, SIDES_NORTH_EAST_SOUTH_WEST,
-    SIDES_NORTH_EAST_WEST, SIDES_NORTH_SOUTH, SIDES_NORTH_SOUTH_WEST, SIDES_NORTH_WEST, SIDES_SOUTH,
-    SIDES_SOUTH_WEST, SIDES_WEST,
+    SIDES_NORTH_EAST_WEST, SIDES_NORTH_SOUTH, SIDES_NORTH_SOUTH_WEST, SIDES_NORTH_WEST,
+    SIDES_SOUTH, SIDES_SOUTH_WEST, SIDES_WEST,
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::util::EnumSet;
 
@@ -20,7 +20,9 @@ use crate::org::eclipse::elk::alg::layered::components::{
 use crate::org::eclipse::elk::alg::layered::graph::{
     LGraph, LGraphRef, LGraphUtil, LNode, LNodeRef, NodeType,
 };
-use crate::org::eclipse::elk::alg::layered::options::{GraphProperties, InternalProperties, LayeredOptions};
+use crate::org::eclipse::elk::alg::layered::options::{
+    GraphProperties, InternalProperties, LayeredOptions,
+};
 
 #[derive(Default)]
 pub struct ComponentsProcessor;
@@ -31,29 +33,36 @@ impl ComponentsProcessor {
     }
 
     pub fn split(&self, graph: &LGraphRef) -> Vec<LGraphRef> {
-        let (separate, ext_ports, ext_port_constraints, consider_model_order, nodes, graph_props, graph_padding) =
-            if let Ok(mut graph_guard) = graph.lock() {
-                (
-                    graph_guard
-                        .get_property(LayeredOptions::SEPARATE_CONNECTED_COMPONENTS)
-                        .unwrap_or(true),
-                    graph_guard
-                        .get_property(InternalProperties::GRAPH_PROPERTIES)
-                        .unwrap_or_else(EnumSet::none_of)
-                        .contains(&GraphProperties::ExternalPorts),
-                    graph_guard
-                        .get_property(LayeredOptions::PORT_CONSTRAINTS)
-                        .unwrap_or(PortConstraints::Undefined),
-                    graph_guard
-                        .get_property(LayeredOptions::CONSIDER_MODEL_ORDER_COMPONENTS)
-                        .unwrap_or(ComponentOrderingStrategy::None),
-                    graph_guard.layerless_nodes().clone(),
-                    graph_guard.graph_element().properties().clone(),
-                    graph_guard.padding_ref().clone(),
-                )
-            } else {
-                return vec![graph.clone()];
-            };
+        let (
+            separate,
+            ext_ports,
+            ext_port_constraints,
+            consider_model_order,
+            nodes,
+            graph_props,
+            graph_padding,
+        ) = if let Ok(mut graph_guard) = graph.lock() {
+            (
+                graph_guard
+                    .get_property(LayeredOptions::SEPARATE_CONNECTED_COMPONENTS)
+                    .unwrap_or(true),
+                graph_guard
+                    .get_property(InternalProperties::GRAPH_PROPERTIES)
+                    .unwrap_or_else(EnumSet::none_of)
+                    .contains(&GraphProperties::ExternalPorts),
+                graph_guard
+                    .get_property(LayeredOptions::PORT_CONSTRAINTS)
+                    .unwrap_or(PortConstraints::Undefined),
+                graph_guard
+                    .get_property(LayeredOptions::CONSIDER_MODEL_ORDER_COMPONENTS)
+                    .unwrap_or(ComponentOrderingStrategy::None),
+                graph_guard.layerless_nodes().clone(),
+                graph_guard.graph_element().properties().clone(),
+                graph_guard.padding_ref().clone(),
+            )
+        } else {
+            return vec![graph.clone()];
+        };
 
         let compatible_port_constraints = !ext_port_constraints.is_order_fixed();
         if !(separate && (compatible_port_constraints || !ext_ports)) {
@@ -70,7 +79,12 @@ impl ComponentsProcessor {
 
             let mut component_nodes: Vec<LNodeRef> = Vec::new();
             let mut ext_port_sides: EnumSet<PortSide> = EnumSet::none_of();
-            Self::dfs(node, &mut visited, &mut component_nodes, &mut ext_port_sides);
+            Self::dfs(
+                node,
+                &mut visited,
+                &mut component_nodes,
+                &mut ext_port_sides,
+            );
 
             if component_nodes.is_empty() {
                 continue;
@@ -88,10 +102,15 @@ impl ComponentsProcessor {
                     Some(ext_port_sides),
                 );
                 *component_guard.padding() = graph_padding.clone();
-                component_guard.set_property(LayeredOptions::NODE_SIZE_MINIMUM, None::<org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector>);
+                component_guard.set_property(
+                    LayeredOptions::NODE_SIZE_MINIMUM,
+                    None::<org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector>,
+                );
 
                 for component_node in &component_nodes {
-                    component_guard.layerless_nodes_mut().push(component_node.clone());
+                    component_guard
+                        .layerless_nodes_mut()
+                        .push(component_node.clone());
                     if let Ok(mut node_guard) = component_node.lock() {
                         node_guard.set_graph(&component_graph);
                     }
@@ -121,8 +140,12 @@ impl ComponentsProcessor {
                 }
                 move_graph(target, &source, 0.0, 0.0);
 
-                if let (Ok(mut target_guard), Ok(mut source_guard)) = (target.lock(), source.lock()) {
-                    target_guard.graph_element().properties_mut().copy_properties(source_guard.graph_element().properties());
+                if let (Ok(mut target_guard), Ok(mut source_guard)) = (target.lock(), source.lock())
+                {
+                    target_guard
+                        .graph_element()
+                        .properties_mut()
+                        .copy_properties(source_guard.graph_element().properties());
                     *target_guard.padding() = source_guard.padding_ref().clone();
                     target_guard.size().x = source_guard.size_ref().x;
                     target_guard.size().y = source_guard.size_ref().y;
@@ -140,7 +163,8 @@ impl ComponentsProcessor {
             return;
         }
 
-        let (consider_model_order, has_external_ports) = if let Ok(mut target_guard) = target.lock() {
+        let (consider_model_order, has_external_ports) = if let Ok(mut target_guard) = target.lock()
+        {
             (
                 target_guard
                     .get_property(LayeredOptions::CONSIDER_MODEL_ORDER_COMPONENTS)
@@ -162,7 +186,8 @@ impl ComponentsProcessor {
                 ComponentOrderingStrategy::GroupModelOrder => {
                     combine_component_group_model_order(components, target);
                 }
-                ComponentOrderingStrategy::None | ComponentOrderingStrategy::InsidePortSideGroups => {
+                ComponentOrderingStrategy::None
+                | ComponentOrderingStrategy::InsidePortSideGroups => {
                     combine_component_group(components, target);
                 }
             }
@@ -236,8 +261,12 @@ fn combine_simple_row(components: &[LGraphRef], target: &LGraphRef) {
     }
 
     if let Some(first_component) = ordered_components.first() {
-        if let (Ok(mut target_guard), Ok(mut first_guard)) = (target.lock(), first_component.lock()) {
-            target_guard.graph_element().properties_mut().copy_properties(first_guard.graph_element().properties());
+        if let (Ok(mut target_guard), Ok(mut first_guard)) = (target.lock(), first_component.lock())
+        {
+            target_guard
+                .graph_element()
+                .properties_mut()
+                .copy_properties(first_guard.graph_element().properties());
         }
     }
 
@@ -291,8 +320,12 @@ fn combine_component_group(components: &[LGraphRef], target: &LGraphRef) {
     }
 
     if let Some(first_component) = components.first() {
-        if let (Ok(mut target_guard), Ok(mut first_guard)) = (target.lock(), first_component.lock()) {
-            target_guard.graph_element().properties_mut().copy_properties(first_guard.graph_element().properties());
+        if let (Ok(mut target_guard), Ok(mut first_guard)) = (target.lock(), first_component.lock())
+        {
+            target_guard
+                .graph_element()
+                .properties_mut()
+                .copy_properties(first_guard.graph_element().properties());
         }
     }
 
@@ -341,8 +374,12 @@ fn combine_component_group_model_order(components: &[LGraphRef], target: &LGraph
     }
 
     if let Some(first_component) = components.first() {
-        if let (Ok(mut target_guard), Ok(mut first_guard)) = (target.lock(), first_component.lock()) {
-            target_guard.graph_element().properties_mut().copy_properties(first_guard.graph_element().properties());
+        if let (Ok(mut target_guard), Ok(mut first_guard)) = (target.lock(), first_component.lock())
+        {
+            target_guard
+                .graph_element()
+                .properties_mut()
+                .copy_properties(first_guard.graph_element().properties());
         }
     }
 
@@ -458,28 +495,25 @@ fn place_component_group<G: ComponentGroupLike>(group: &G, spacing: f64) -> KVec
     let size_s = place_components_horizontally(&group.get_components_for(&SIDES_SOUTH), spacing);
     let size_w = place_components_vertically(&group.get_components_for(&SIDES_WEST), spacing);
     let size_e = place_components_vertically(&group.get_components_for(&SIDES_EAST), spacing);
-    let size_nw = place_components_horizontally(&group.get_components_for(&SIDES_NORTH_WEST), spacing);
-    let size_ne = place_components_horizontally(&group.get_components_for(&SIDES_NORTH_EAST), spacing);
-    let size_sw = place_components_horizontally(&group.get_components_for(&SIDES_SOUTH_WEST), spacing);
-    let size_se = place_components_horizontally(&group.get_components_for(&SIDES_EAST_SOUTH), spacing);
+    let size_nw =
+        place_components_horizontally(&group.get_components_for(&SIDES_NORTH_WEST), spacing);
+    let size_ne =
+        place_components_horizontally(&group.get_components_for(&SIDES_NORTH_EAST), spacing);
+    let size_sw =
+        place_components_horizontally(&group.get_components_for(&SIDES_SOUTH_WEST), spacing);
+    let size_se =
+        place_components_horizontally(&group.get_components_for(&SIDES_EAST_SOUTH), spacing);
     let size_we = place_components_vertically(&group.get_components_for(&SIDES_EAST_WEST), spacing);
-    let size_ns = place_components_horizontally(&group.get_components_for(&SIDES_NORTH_SOUTH), spacing);
-    let size_nwe = place_components_horizontally(
-        &group.get_components_for(&SIDES_NORTH_EAST_WEST),
-        spacing,
-    );
-    let size_swe = place_components_horizontally(
-        &group.get_components_for(&SIDES_EAST_SOUTH_WEST),
-        spacing,
-    );
-    let size_wns = place_components_vertically(
-        &group.get_components_for(&SIDES_NORTH_SOUTH_WEST),
-        spacing,
-    );
-    let size_ens = place_components_vertically(
-        &group.get_components_for(&SIDES_NORTH_EAST_SOUTH),
-        spacing,
-    );
+    let size_ns =
+        place_components_horizontally(&group.get_components_for(&SIDES_NORTH_SOUTH), spacing);
+    let size_nwe =
+        place_components_horizontally(&group.get_components_for(&SIDES_NORTH_EAST_WEST), spacing);
+    let size_swe =
+        place_components_horizontally(&group.get_components_for(&SIDES_EAST_SOUTH_WEST), spacing);
+    let size_wns =
+        place_components_vertically(&group.get_components_for(&SIDES_NORTH_SOUTH_WEST), spacing);
+    let size_ens =
+        place_components_vertically(&group.get_components_for(&SIDES_NORTH_EAST_SOUTH), spacing);
     let size_nesw = place_components_horizontally(
         &group.get_components_for(&SIDES_NORTH_EAST_SOUTH_WEST),
         spacing,
@@ -670,8 +704,12 @@ fn combine_model_order_row(components: &[LGraphRef], target: &LGraphRef) {
     }
 
     if let Some(first_component) = components.first() {
-        if let (Ok(mut target_guard), Ok(mut first_guard)) = (target.lock(), first_component.lock()) {
-            target_guard.graph_element().properties_mut().copy_properties(first_guard.graph_element().properties());
+        if let (Ok(mut target_guard), Ok(mut first_guard)) = (target.lock(), first_component.lock())
+        {
+            target_guard
+                .graph_element()
+                .properties_mut()
+                .copy_properties(first_guard.graph_element().properties());
         }
     }
 
@@ -699,12 +737,7 @@ fn combine_model_order_row(components: &[LGraphRef], target: &LGraphRef) {
     }
     max_row_width = max_row_width.max(total_area.sqrt() * aspect_ratio);
 
-    place_components_in_rows_model_order(
-        components,
-        target,
-        max_row_width,
-        component_spacing,
-    );
+    place_components_in_rows_model_order(components, target, max_row_width, component_spacing);
 
     for component in components {
         move_graph(target, component, 0.0, 0.0);
@@ -725,19 +758,20 @@ fn place_components_in_rows_model_order(
     let mut start_x_of_row = 0.0f64;
 
     for component in components {
-        let (size_x, size_y, offset_x, offset_y, ext_ports) = if let Ok(mut component_guard) = component.lock() {
-            (
-                component_guard.size_ref().x,
-                component_guard.size_ref().y,
-                component_guard.offset_ref().x,
-                component_guard.offset_ref().y,
-                component_guard
-                    .get_property(InternalProperties::EXT_PORT_CONNECTIONS)
-                    .unwrap_or_else(EnumSet::none_of),
-            )
-        } else {
-            (0.0, 0.0, 0.0, 0.0, EnumSet::none_of())
-        };
+        let (size_x, size_y, offset_x, offset_y, ext_ports) =
+            if let Ok(mut component_guard) = component.lock() {
+                (
+                    component_guard.size_ref().x,
+                    component_guard.size_ref().y,
+                    component_guard.offset_ref().x,
+                    component_guard.offset_ref().y,
+                    component_guard
+                        .get_property(InternalProperties::EXT_PORT_CONNECTIONS)
+                        .unwrap_or_else(EnumSet::none_of),
+                )
+            } else {
+                (0.0, 0.0, 0.0, 0.0, EnumSet::none_of())
+            };
 
         let last_has_east = last_component
             .as_ref()
@@ -790,7 +824,9 @@ fn sort_components_by_priority(components: &mut [LGraphRef], target: &LGraphRef)
     let consider_model_order = target
         .lock()
         .ok()
-        .and_then(|mut target_guard| target_guard.get_property(LayeredOptions::CONSIDER_MODEL_ORDER_COMPONENTS))
+        .and_then(|mut target_guard| {
+            target_guard.get_property(LayeredOptions::CONSIDER_MODEL_ORDER_COMPONENTS)
+        })
         .unwrap_or(ComponentOrderingStrategy::None);
 
     if consider_model_order != ComponentOrderingStrategy::None {
@@ -803,9 +839,13 @@ fn sort_components_by_priority(components: &mut [LGraphRef], target: &LGraphRef)
                 (index, order, component)
             })
             .collect();
-        keyed.sort_by(|(left_index, left_order, _), (right_index, right_order, _)| {
-            left_order.cmp(right_order).then_with(|| left_index.cmp(right_index))
-        });
+        keyed.sort_by(
+            |(left_index, left_order, _), (right_index, right_order, _)| {
+                left_order
+                    .cmp(right_order)
+                    .then_with(|| left_index.cmp(right_index))
+            },
+        );
         for (slot, (_, _, component)) in components.iter_mut().zip(keyed) {
             *slot = component;
         }
@@ -821,12 +861,15 @@ fn sort_components_by_priority(components: &mut [LGraphRef], target: &LGraphRef)
             (index, priority, area, component)
         })
         .collect();
-    keyed.sort_by(|(left_index, left_priority, left_area, _), (right_index, right_priority, right_area, _)| {
-        right_priority
-            .cmp(left_priority)
-            .then_with(|| left_area.partial_cmp(right_area).unwrap_or(Ordering::Equal))
-            .then_with(|| left_index.cmp(right_index))
-    });
+    keyed.sort_by(
+        |(left_index, left_priority, left_area, _),
+         (right_index, right_priority, right_area, _)| {
+            right_priority
+                .cmp(left_priority)
+                .then_with(|| left_area.partial_cmp(right_area).unwrap_or(Ordering::Equal))
+                .then_with(|| left_index.cmp(right_index))
+        },
+    );
     for (slot, (_, _, _, component)) in components.iter_mut().zip(keyed) {
         *slot = component;
     }
@@ -993,7 +1036,9 @@ fn shift_node_and_outgoing_edges(node: &LNodeRef, offset_x: f64, offset_y: f64) 
         for edge in edges {
             if let Ok(mut edge_guard) = edge.lock() {
                 edge_guard.bend_points().offset(offset_x, offset_y);
-                if let Some(mut junction_points) = edge_guard.get_property(LayeredOptions::JUNCTION_POINTS) {
+                if let Some(mut junction_points) =
+                    edge_guard.get_property(LayeredOptions::JUNCTION_POINTS)
+                {
                     junction_points.offset(offset_x, offset_y);
                     edge_guard.set_property(LayeredOptions::JUNCTION_POINTS, Some(junction_points));
                 }

@@ -25,8 +25,15 @@ impl BezierSpline {
         }
     }
 
-    pub fn add_curve_points(&mut self, start: KVector, first: KVector, second: KVector, end: KVector) {
-        self.curves.push(BezierCurve::new(start, first, second, end));
+    pub fn add_curve_points(
+        &mut self,
+        start: KVector,
+        first: KVector,
+        second: KVector,
+        end: KVector,
+    ) {
+        self.curves
+            .push(BezierCurve::new(start, first, second, end));
     }
 
     pub fn get_start_point(&self) -> KVector {
@@ -112,7 +119,12 @@ pub struct BezierCurve {
 }
 
 impl BezierCurve {
-    pub fn new(start: KVector, first_control: KVector, second_control: KVector, end: KVector) -> Self {
+    pub fn new(
+        start: KVector,
+        first_control: KVector,
+        second_control: KVector,
+        end: KVector,
+    ) -> Self {
         BezierCurve {
             start,
             first_control,
@@ -122,11 +134,20 @@ impl BezierCurve {
     }
 
     pub fn as_vector_list(&self) -> Vec<KVector> {
-        vec![self.start, self.first_control, self.second_control, self.end]
+        vec![
+            self.start,
+            self.first_control,
+            self.second_control,
+            self.end,
+        ]
     }
 
     pub fn as_array(&self) -> [KVector; 4] {
-        [self.start, self.first_control, self.second_control, self.end]
+        [
+            self.start,
+            self.first_control,
+            self.second_control,
+            self.end,
+        ]
     }
 }
-

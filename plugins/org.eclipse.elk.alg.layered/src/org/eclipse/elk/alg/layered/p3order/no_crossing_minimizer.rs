@@ -51,9 +51,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for NoCrossingMinimizer {
         &self,
         _graph: &LGraph,
     ) -> Option<LayoutProcessorConfiguration<LayeredPhases, LGraph>> {
-        let mut config = LayoutProcessorConfiguration::create_from(
-            &INTERMEDIATE_PROCESSING_CONFIGURATION,
-        );
+        let mut config =
+            LayoutProcessorConfiguration::create_from(&INTERMEDIATE_PROCESSING_CONFIGURATION);
         config.add_before(
             LayeredPhases::P3NodeOrdering,
             Arc::new(IntermediateProcessorStrategy::PortListSorter),

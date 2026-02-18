@@ -4,7 +4,9 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
 use crate::org::eclipse::elk::alg::mrtree::graph::{TEdgeRef, TGraphRef, TNodeRef};
 use crate::org::eclipse::elk::alg::mrtree::intermediate::IntermediateProcessorStrategy;
-use crate::org::eclipse::elk::alg::mrtree::options::{InternalProperties, MrTreeOptions, OrderWeighting};
+use crate::org::eclipse::elk::alg::mrtree::options::{
+    InternalProperties, MrTreeOptions, OrderWeighting,
+};
 use crate::org::eclipse::elk::alg::mrtree::tree_layout_phases::TreeLayoutPhases;
 
 pub struct NodeOrderer {
@@ -45,7 +47,9 @@ impl ILayoutPhase<TreeLayoutPhases, TGraphRef> for NodeOrderer {
                 .find(|node| {
                     node.lock()
                         .ok()
-                        .and_then(|mut node_guard| node_guard.get_property(InternalProperties::ROOT))
+                        .and_then(|mut node_guard| {
+                            node_guard.get_property(InternalProperties::ROOT)
+                        })
                         .unwrap_or(false)
                 })
                 .cloned();
@@ -80,7 +84,9 @@ impl ILayoutPhase<TreeLayoutPhases, TGraphRef> for NodeOrderer {
             .before(TreeLayoutPhases::P2NodeOrdering)
             .add(std::sync::Arc::new(IntermediateProcessorStrategy::RootProc))
             .add(std::sync::Arc::new(IntermediateProcessorStrategy::FanProc))
-            .add(std::sync::Arc::new(IntermediateProcessorStrategy::LevelProc));
+            .add(std::sync::Arc::new(
+                IntermediateProcessorStrategy::LevelProc,
+            ));
         Some(config)
     }
 }
@@ -151,18 +157,25 @@ impl NodeOrderer {
                     .ok()
                     .map(|node_guard| node_guard.children_copy())
                     .unwrap_or_default();
-                self.order_level_fan_descendants(&mut children, progress_monitor.sub_task(1.0 / size as f32));
+                self.order_level_fan_descendants(
+                    &mut children,
+                    progress_monitor.sub_task(1.0 / size as f32),
+                );
 
                 children.sort_by(|a, b| {
                     let a_pos = a
                         .lock()
                         .ok()
-                        .and_then(|mut node_guard| node_guard.get_property(InternalProperties::POSITION))
+                        .and_then(|mut node_guard| {
+                            node_guard.get_property(InternalProperties::POSITION)
+                        })
                         .unwrap_or(0);
                     let b_pos = b
                         .lock()
                         .ok()
-                        .and_then(|mut node_guard| node_guard.get_property(InternalProperties::POSITION))
+                        .and_then(|mut node_guard| {
+                            node_guard.get_property(InternalProperties::POSITION)
+                        })
                         .unwrap_or(0);
                     b_pos.cmp(&a_pos)
                 });
@@ -223,7 +236,9 @@ impl NodeOrderer {
             let constraint = node
                 .lock()
                 .ok()
-                .and_then(|mut node_guard| node_guard.get_property(MrTreeOptions::POSITION_CONSTRAINT))
+                .and_then(|mut node_guard| {
+                    node_guard.get_property(MrTreeOptions::POSITION_CONSTRAINT)
+                })
                 .unwrap_or(-1);
             if constraint < 0 {
                 undefined_nodes.push(node.clone());
@@ -242,7 +257,9 @@ impl NodeOrderer {
             let target_pos = node
                 .lock()
                 .ok()
-                .and_then(|mut node_guard| node_guard.get_property(MrTreeOptions::POSITION_CONSTRAINT))
+                .and_then(|mut node_guard| {
+                    node_guard.get_property(MrTreeOptions::POSITION_CONSTRAINT)
+                })
                 .unwrap_or(-1);
             if target_pos >= 0
                 && target_pos < len as i32
@@ -261,7 +278,9 @@ impl NodeOrderer {
             let target_pos = node
                 .lock()
                 .ok()
-                .and_then(|mut node_guard| node_guard.get_property(MrTreeOptions::POSITION_CONSTRAINT))
+                .and_then(|mut node_guard| {
+                    node_guard.get_property(MrTreeOptions::POSITION_CONSTRAINT)
+                })
                 .unwrap_or(-1);
             let mut j = 0;
             loop {
@@ -291,12 +310,16 @@ impl NodeOrderer {
             let a_val = a
                 .lock()
                 .ok()
-                .and_then(|mut node_guard| node_guard.get_property(MrTreeOptions::POSITION_CONSTRAINT))
+                .and_then(|mut node_guard| {
+                    node_guard.get_property(MrTreeOptions::POSITION_CONSTRAINT)
+                })
                 .unwrap_or(0);
             let b_val = b
                 .lock()
                 .ok()
-                .and_then(|mut node_guard| node_guard.get_property(MrTreeOptions::POSITION_CONSTRAINT))
+                .and_then(|mut node_guard| {
+                    node_guard.get_property(MrTreeOptions::POSITION_CONSTRAINT)
+                })
                 .unwrap_or(0);
             b_val.cmp(&a_val)
         });
@@ -340,17 +363,24 @@ impl NodeOrderer {
                 .ok()
                 .map(|node_guard| node_guard.children_copy())
                 .unwrap_or_default();
-            self.order_level_constraint(&mut children, progress_monitor.sub_task(1.0 / size as f32));
+            self.order_level_constraint(
+                &mut children,
+                progress_monitor.sub_task(1.0 / size as f32),
+            );
             children.sort_by(|a, b| {
                 let a_pos = a
                     .lock()
                     .ok()
-                    .and_then(|mut node_guard| node_guard.get_property(InternalProperties::POSITION))
+                    .and_then(|mut node_guard| {
+                        node_guard.get_property(InternalProperties::POSITION)
+                    })
                     .unwrap_or(0);
                 let b_pos = b
                     .lock()
                     .ok()
-                    .and_then(|mut node_guard| node_guard.get_property(InternalProperties::POSITION))
+                    .and_then(|mut node_guard| {
+                        node_guard.get_property(InternalProperties::POSITION)
+                    })
                     .unwrap_or(0);
                 a_pos.cmp(&b_pos)
             });

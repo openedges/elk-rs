@@ -14,9 +14,9 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOp
 
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::compaction::options::PolyominoOptions;
 
+use crate::org::eclipse::elk::alg::disco::graph::DCGraph;
 use crate::org::eclipse::elk::alg::disco::options::{CompactionStrategy, DisCoOptions};
 use crate::org::eclipse::elk::alg::disco::structures::DCPolyomino;
-use crate::org::eclipse::elk::alg::disco::graph::DCGraph;
 
 pub struct DisCoMetaDataProvider;
 

@@ -16,7 +16,10 @@ impl CompactionStrategy {
             CompactionStrategy::RadialCompaction => Box::new(RadialCompaction::default()),
             CompactionStrategy::WedgeCompaction => Box::new(AnnulusWedgeCompaction::default()),
             CompactionStrategy::None => {
-                panic!("No implementation is available for the layout option {:?}", self)
+                panic!(
+                    "No implementation is available for the layout option {:?}",
+                    self
+                )
             }
         }
     }

@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutOptionTarget;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::service::{
@@ -7,6 +6,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::service::{
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::util::ElkUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
+use std::collections::HashMap;
 
 #[derive(Clone, Default)]
 struct TestStore {
@@ -67,9 +67,10 @@ fn layout_configuration_manager_resolves_values() {
         targets: vec![LayoutOptionTarget::Parents],
         ..Default::default()
     };
-    store
-        .values
-        .insert(CoreOptions::ALGORITHM.id().to_string(), "layered".to_string());
+    store.values.insert(
+        CoreOptions::ALGORITHM.id().to_string(),
+        "layered".to_string(),
+    );
     store.values.insert(
         CoreOptions::SPACING_NODE_NODE.id().to_string(),
         "42".to_string(),
@@ -79,9 +80,10 @@ fn layout_configuration_manager_resolves_values() {
     let algo = manager.get_algorithm(&store).expect("algorithm");
     assert_eq!(algo.id(), "org.eclipse.elk.layered");
 
-    let option_data = org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService::get_instance()
-        .get_option_data(CoreOptions::SPACING_NODE_NODE.id())
-        .expect("option data");
+    let option_data =
+        org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService::get_instance()
+            .get_option_data(CoreOptions::SPACING_NODE_NODE.id())
+            .expect("option data");
     let value = manager
         .get_option_value(&option_data, &store)
         .expect("value");
@@ -109,8 +111,9 @@ fn layout_configuration_manager_applies_configurator() {
     mapping.set_layout_graph(root.clone());
 
     let mut configurator = manager.create_configurator(&mapping);
-    let mut visitors: Vec<&mut dyn org_eclipse_elk_core::org::eclipse::elk::core::util::IGraphElementVisitor> =
-        vec![&mut configurator];
+    let mut visitors: Vec<
+        &mut dyn org_eclipse_elk_core::org::eclipse::elk::core::util::IGraphElementVisitor,
+    > = vec![&mut configurator];
     ElkUtil::apply_visitors(&root, &mut visitors);
 
     let value = root

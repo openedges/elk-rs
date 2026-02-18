@@ -2,11 +2,11 @@ use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector_chain::KVectorChain;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_label_placement::EdgeLabelPlacement;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
-use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 
 use crate::org::eclipse::elk::alg::layered::graph::{
     LEdge, LEdgeRef, LGraph, LNode, LNodeRef, LPort, LayerRef, NodeType,
@@ -48,7 +48,9 @@ impl ILayoutProcessor<LGraph> for LongEdgeSplitter {
                         .unwrap_or_default();
                     for edge in outgoing {
                         let target_layer_index = target_layer_index(&edge, &layers);
-                        if target_layer_index != layer_index && target_layer_index != layer_index + 1 {
+                        if target_layer_index != layer_index
+                            && target_layer_index != layer_index + 1
+                        {
                             trace_long_edge_split("before", layer_index, target_layer_index, &edge);
                             let dummy = create_dummy_node(&next_layer, &edge);
                             Self::split_edge(&edge, &dummy);
@@ -207,15 +209,22 @@ fn move_head_labels(old_edge: &LEdgeRef, new_edge: &LEdgeRef) {
                 .properties()
                 .has_property(InternalProperties::END_LABEL_EDGE)
             {
-                label_guard.set_property(InternalProperties::END_LABEL_EDGE, Some(old_edge.clone()));
+                label_guard
+                    .set_property(InternalProperties::END_LABEL_EDGE, Some(old_edge.clone()));
             }
         }
     }
 }
 
 fn set_dummy_node_properties(dummy_node: &LNodeRef, in_edge: &LEdgeRef, out_edge: &LEdgeRef) {
-    let in_edge_source = in_edge.lock().ok().and_then(|edge_guard| edge_guard.source());
-    let out_edge_target = out_edge.lock().ok().and_then(|edge_guard| edge_guard.target());
+    let in_edge_source = in_edge
+        .lock()
+        .ok()
+        .and_then(|edge_guard| edge_guard.source());
+    let out_edge_target = out_edge
+        .lock()
+        .ok()
+        .and_then(|edge_guard| edge_guard.target());
 
     let in_edge_source_node = in_edge_source
         .as_ref()
@@ -263,7 +272,8 @@ fn set_dummy_node_properties(dummy_node: &LNodeRef, in_edge: &LEdgeRef, out_edge
                     InternalProperties::LONG_EDGE_TARGET,
                     source_guard.get_property(InternalProperties::LONG_EDGE_TARGET),
                 );
-                dummy_guard.set_property(InternalProperties::LONG_EDGE_HAS_LABEL_DUMMIES, Some(true));
+                dummy_guard
+                    .set_property(InternalProperties::LONG_EDGE_HAS_LABEL_DUMMIES, Some(true));
             }
         }
     } else if out_target_type == Some(NodeType::Label) {
@@ -279,7 +289,8 @@ fn set_dummy_node_properties(dummy_node: &LNodeRef, in_edge: &LEdgeRef, out_edge
                     InternalProperties::LONG_EDGE_TARGET,
                     target_guard.get_property(InternalProperties::LONG_EDGE_TARGET),
                 );
-                dummy_guard.set_property(InternalProperties::LONG_EDGE_HAS_LABEL_DUMMIES, Some(true));
+                dummy_guard
+                    .set_property(InternalProperties::LONG_EDGE_HAS_LABEL_DUMMIES, Some(true));
             }
         }
     } else if let Ok(mut dummy_guard) = dummy_node.lock() {
@@ -289,7 +300,12 @@ fn set_dummy_node_properties(dummy_node: &LNodeRef, in_edge: &LEdgeRef, out_edge
 }
 
 #[cfg(debug_assertions)]
-fn trace_long_edge_split(phase: &str, layer_index: usize, target_layer_index: usize, edge: &LEdgeRef) {
+fn trace_long_edge_split(
+    phase: &str,
+    layer_index: usize,
+    target_layer_index: usize,
+    edge: &LEdgeRef,
+) {
     if std::env::var_os("ELK_TRACE_LONG_EDGE_SPLIT").is_none() {
         return;
     }

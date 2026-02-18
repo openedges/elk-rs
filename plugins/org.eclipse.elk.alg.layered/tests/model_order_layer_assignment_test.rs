@@ -1,11 +1,13 @@
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::layered_layout_provider::LayeredLayoutProvider;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::{
-    CycleBreakingStrategy, LayeredOptions, LayeringStrategy,
-    NodePromotionStrategy, OrderingStrategy,
+    CycleBreakingStrategy, LayeredOptions, LayeringStrategy, NodePromotionStrategy,
+    OrderingStrategy,
 };
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::plain_java_initialization::initialize_plain_java_layout;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::ElkPadding;
-use org_eclipse_elk_core::org::eclipse::elk::core::options::{core_options::CoreOptions, Direction};
+use org_eclipse_elk_core::org::eclipse::elk::core::options::{
+    core_options::CoreOptions, Direction,
+};
 use org_eclipse_elk_core::org::eclipse::elk::core::util::BasicProgressMonitor;
 use org_eclipse_elk_core::org::eclipse::elk::core::IGraphLayoutEngine;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
@@ -19,10 +21,7 @@ const ABSOLUTE_PARITY_EPSILON: f64 = 5.0;
 
 fn set_dimensions(node: &ElkNodeRef, width: f64, height: f64) {
     let mut node_mut = node.borrow_mut();
-    node_mut
-        .connectable()
-        .shape()
-        .set_dimensions(width, height);
+    node_mut.connectable().shape().set_dimensions(width, height);
 }
 
 fn set_node_property<T: Clone + Send + Sync + 'static>(
@@ -46,14 +45,15 @@ fn node_position(node: &ElkNodeRef) -> (f64, f64) {
 }
 
 fn add_node_label(node: &ElkNodeRef, text: &str) {
-    let _ = ElkGraphUtil::create_label_with_text(
-        text,
-        Some(ElkGraphElementRef::Node(node.clone())),
-    );
+    let _ =
+        ElkGraphUtil::create_label_with_text(text, Some(ElkGraphElementRef::Node(node.clone())));
 }
 
 fn assert_less(actual: f64, reference: f64, message: &str) {
-    assert!(actual < reference, "{message}: expected {actual} < {reference}");
+    assert!(
+        actual < reference,
+        "{message}: expected {actual} < {reference}"
+    );
 }
 
 fn assert_approx_eq(actual: f64, expected: f64, message: &str) {
@@ -71,18 +71,9 @@ fn assert_approx_eq_within(actual: f64, expected: f64, epsilon: f64, message: &s
 }
 
 fn normalized_points(points: &[(f64, f64)]) -> Vec<(f64, f64)> {
-    let min_x = points
-        .iter()
-        .map(|(x, _)| *x)
-        .fold(f64::INFINITY, f64::min);
-    let min_y = points
-        .iter()
-        .map(|(_, y)| *y)
-        .fold(f64::INFINITY, f64::min);
-    points
-        .iter()
-        .map(|(x, y)| (x - min_x, y - min_y))
-        .collect()
+    let min_x = points.iter().map(|(x, _)| *x).fold(f64::INFINITY, f64::min);
+    let min_y = points.iter().map(|(_, y)| *y).fold(f64::INFINITY, f64::min);
+    points.iter().map(|(x, y)| (x - min_x, y - min_y)).collect()
 }
 
 fn run_layout_for_graph(
@@ -90,8 +81,16 @@ fn run_layout_for_graph(
     promotion: NodePromotionStrategy,
     layering: LayeringStrategy,
 ) {
-    set_node_property(root, CoreOptions::ALGORITHM, LayeredOptions::ALGORITHM_ID.to_string());
-    set_node_property(root, LayeredOptions::LAYERING_NODE_PROMOTION_STRATEGY, promotion);
+    set_node_property(
+        root,
+        CoreOptions::ALGORITHM,
+        LayeredOptions::ALGORITHM_ID.to_string(),
+    );
+    set_node_property(
+        root,
+        LayeredOptions::LAYERING_NODE_PROMOTION_STRATEGY,
+        promotion,
+    );
     set_node_property(root, LayeredOptions::LAYERING_STRATEGY, layering);
     set_node_property(
         root,

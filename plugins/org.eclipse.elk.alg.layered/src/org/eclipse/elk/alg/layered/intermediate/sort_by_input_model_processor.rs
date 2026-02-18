@@ -6,8 +6,8 @@ use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILay
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LNodeRef, LPortRef, NodeRefKey, NodeType};
 use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LGraphRef};
+use crate::org::eclipse::elk::alg::layered::graph::{LNodeRef, LPortRef, NodeRefKey, NodeType};
 use crate::org::eclipse::elk::alg::layered::intermediate::preserveorder::{
     ModelOrderNodeComparator, ModelOrderPortComparator,
 };
@@ -50,7 +50,11 @@ impl ILayoutProcessor<LGraph> for SortByInputModelProcessor {
             let previous_layer_index = if layer_index == 0 { 0 } else { layer_index - 1 };
             let previous_layer_nodes = layers
                 .get(previous_layer_index)
-                .and_then(|prev| prev.lock().ok().map(|layer_guard| layer_guard.nodes().clone()))
+                .and_then(|prev| {
+                    prev.lock()
+                        .ok()
+                        .map(|layer_guard| layer_guard.nodes().clone())
+                })
                 .unwrap_or_default();
 
             let mut node_comparator = ModelOrderNodeComparator::new(
@@ -84,7 +88,10 @@ impl ILayoutProcessor<LGraph> for SortByInputModelProcessor {
                         node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
                     })
                     .unwrap_or(PortConstraints::Undefined);
-                if matches!(constraints, PortConstraints::FixedOrder | PortConstraints::FixedPos) {
+                if matches!(
+                    constraints,
+                    PortConstraints::FixedOrder | PortConstraints::FixedPos
+                ) {
                     continue;
                 }
 
@@ -199,7 +206,9 @@ impl SortByInputModelProcessor {
                     let reversed = edge
                         .lock()
                         .ok()
-                        .and_then(|mut edge_guard| edge_guard.get_property(InternalProperties::REVERSED))
+                        .and_then(|mut edge_guard| {
+                            edge_guard.get_property(InternalProperties::REVERSED)
+                        })
                         .unwrap_or(false);
                     if !reversed {
                         let order = edge
@@ -209,10 +218,8 @@ impl SortByInputModelProcessor {
                                 edge_guard.get_property(InternalProperties::MODEL_ORDER)
                             })
                             .unwrap_or(i32::MAX);
-                        target_node_model_order.insert(
-                            NodeRefKey(target_node.clone()),
-                            prev_order.min(order),
-                        );
+                        target_node_model_order
+                            .insert(NodeRefKey(target_node.clone()), prev_order.min(order));
                     }
                 }
             }
@@ -269,7 +276,9 @@ pub fn get_target_node(port: &LPortRef) -> Option<LNodeRef> {
 fn build_ordering_context_graph(graph: &mut LGraph) -> LGraphRef {
     let context = LGraph::new();
     if let Ok(mut context_guard) = context.lock() {
-        if let Some(max_model_order_nodes) = graph.get_property(InternalProperties::MAX_MODEL_ORDER_NODES) {
+        if let Some(max_model_order_nodes) =
+            graph.get_property(InternalProperties::MAX_MODEL_ORDER_NODES)
+        {
             context_guard.set_property(
                 InternalProperties::MAX_MODEL_ORDER_NODES,
                 Some(max_model_order_nodes),

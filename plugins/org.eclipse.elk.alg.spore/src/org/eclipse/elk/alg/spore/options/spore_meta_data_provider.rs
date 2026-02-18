@@ -189,29 +189,89 @@ fn register_supports(registry: &mut dyn LayoutMetaDataRegistry) {
     }
 
     let overlap = SporeOverlapRemovalOptions::ALGORITHM_ID;
-    registry.add_option_support(overlap, SporeOverlapRemovalOptions::UNDERLYING_LAYOUT_ALGORITHM.id(), None);
-    registry.add_option_support(overlap, CoreOptions::PADDING.id(), arc_any(ElkPadding::with_any(8.0)));
-    registry.add_option_support(overlap, CoreOptions::SPACING_NODE_NODE.id(), arc_any(8.0_f64));
-    registry.add_option_support(overlap, SporeOverlapRemovalOptions::STRUCTURE_EXTRACTION_STRATEGY.id(), None);
-    registry.add_option_support(overlap, SporeOverlapRemovalOptions::OVERLAP_REMOVAL_MAX_ITERATIONS.id(), None);
-    registry.add_option_support(overlap, SporeOverlapRemovalOptions::OVERLAP_REMOVAL_RUN_SCANLINE.id(), None);
+    registry.add_option_support(
+        overlap,
+        SporeOverlapRemovalOptions::UNDERLYING_LAYOUT_ALGORITHM.id(),
+        None,
+    );
+    registry.add_option_support(
+        overlap,
+        CoreOptions::PADDING.id(),
+        arc_any(ElkPadding::with_any(8.0)),
+    );
+    registry.add_option_support(
+        overlap,
+        CoreOptions::SPACING_NODE_NODE.id(),
+        arc_any(8.0_f64),
+    );
+    registry.add_option_support(
+        overlap,
+        SporeOverlapRemovalOptions::STRUCTURE_EXTRACTION_STRATEGY.id(),
+        None,
+    );
+    registry.add_option_support(
+        overlap,
+        SporeOverlapRemovalOptions::OVERLAP_REMOVAL_MAX_ITERATIONS.id(),
+        None,
+    );
+    registry.add_option_support(
+        overlap,
+        SporeOverlapRemovalOptions::OVERLAP_REMOVAL_RUN_SCANLINE.id(),
+        None,
+    );
     registry.add_option_support(overlap, CoreOptions::DEBUG_MODE.id(), arc_any(false));
 
     let compaction = SporeCompactionOptions::ALGORITHM_ID;
-    registry.add_option_support(compaction, SporeCompactionOptions::UNDERLYING_LAYOUT_ALGORITHM.id(), None);
-    registry.add_option_support(compaction, SporeCompactionOptions::PROCESSING_ORDER_TREE_CONSTRUCTION.id(), None);
+    registry.add_option_support(
+        compaction,
+        SporeCompactionOptions::UNDERLYING_LAYOUT_ALGORITHM.id(),
+        None,
+    );
+    registry.add_option_support(
+        compaction,
+        SporeCompactionOptions::PROCESSING_ORDER_TREE_CONSTRUCTION.id(),
+        None,
+    );
     registry.add_option_support(
         compaction,
         SporeCompactionOptions::PROCESSING_ORDER_SPANNING_TREE_COST_FUNCTION.id(),
         None,
     );
-    registry.add_option_support(compaction, SporeCompactionOptions::PROCESSING_ORDER_PREFERRED_ROOT.id(), None);
-    registry.add_option_support(compaction, SporeCompactionOptions::PROCESSING_ORDER_ROOT_SELECTION.id(), None);
-    registry.add_option_support(compaction, CoreOptions::PADDING.id(), arc_any(ElkPadding::with_any(8.0)));
-    registry.add_option_support(compaction, CoreOptions::SPACING_NODE_NODE.id(), arc_any(8.0_f64));
-    registry.add_option_support(compaction, SporeCompactionOptions::STRUCTURE_EXTRACTION_STRATEGY.id(), None);
-    registry.add_option_support(compaction, SporeCompactionOptions::COMPACTION_COMPACTION_STRATEGY.id(), None);
-    registry.add_option_support(compaction, SporeCompactionOptions::COMPACTION_ORTHOGONAL.id(), None);
+    registry.add_option_support(
+        compaction,
+        SporeCompactionOptions::PROCESSING_ORDER_PREFERRED_ROOT.id(),
+        None,
+    );
+    registry.add_option_support(
+        compaction,
+        SporeCompactionOptions::PROCESSING_ORDER_ROOT_SELECTION.id(),
+        None,
+    );
+    registry.add_option_support(
+        compaction,
+        CoreOptions::PADDING.id(),
+        arc_any(ElkPadding::with_any(8.0)),
+    );
+    registry.add_option_support(
+        compaction,
+        CoreOptions::SPACING_NODE_NODE.id(),
+        arc_any(8.0_f64),
+    );
+    registry.add_option_support(
+        compaction,
+        SporeCompactionOptions::STRUCTURE_EXTRACTION_STRATEGY.id(),
+        None,
+    );
+    registry.add_option_support(
+        compaction,
+        SporeCompactionOptions::COMPACTION_COMPACTION_STRATEGY.id(),
+        None,
+    );
+    registry.add_option_support(
+        compaction,
+        SporeCompactionOptions::COMPACTION_ORTHOGONAL.id(),
+        None,
+    );
     registry.add_option_support(compaction, CoreOptions::DEBUG_MODE.id(), arc_any(false));
 }
 

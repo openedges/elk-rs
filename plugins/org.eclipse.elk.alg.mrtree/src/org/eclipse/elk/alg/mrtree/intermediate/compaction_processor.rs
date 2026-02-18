@@ -6,7 +6,9 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::direction::Direction
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{IElkProgressMonitor, Pair, Triple};
 
 use crate::org::eclipse::elk::alg::mrtree::graph::{TGraphRef, TNodeRef};
-use crate::org::eclipse::elk::alg::mrtree::options::{EdgeRoutingMode, InternalProperties, MrTreeOptions};
+use crate::org::eclipse::elk::alg::mrtree::options::{
+    EdgeRoutingMode, InternalProperties, MrTreeOptions,
+};
 use crate::org::eclipse::elk::alg::mrtree::tree_util::TreeUtil;
 
 #[derive(Default)]
@@ -26,7 +28,9 @@ impl ILayoutProcessor<TGraphRef> for CompactionProcessor {
                     return;
                 }
             };
-            let enabled = graph_guard.get_property(MrTreeOptions::COMPACTION).unwrap_or(false);
+            let enabled = graph_guard
+                .get_property(MrTreeOptions::COMPACTION)
+                .unwrap_or(false);
             let direction = graph_guard
                 .get_property(MrTreeOptions::DIRECTION)
                 .unwrap_or(Direction::Undefined);
@@ -91,11 +95,7 @@ impl ILayoutProcessor<TGraphRef> for CompactionProcessor {
 
             let mut new_pos = 0.0;
             let mut new_pos_size = 0.0;
-            let size = node
-                .lock()
-                .ok()
-                .map(|n| *n.size_ref())
-                .unwrap_or_default();
+            let size = node.lock().ok().map(|n| *n.size_ref()).unwrap_or_default();
 
             if let Some(dep) = dependent.clone() {
                 let dep_pos = dep
@@ -103,11 +103,7 @@ impl ILayoutProcessor<TGraphRef> for CompactionProcessor {
                     .ok()
                     .map(|n| *n.position_ref())
                     .unwrap_or_default();
-                let dep_size = dep
-                    .lock()
-                    .ok()
-                    .map(|n| *n.size_ref())
-                    .unwrap_or_default();
+                let dep_size = dep.lock().ok().map(|n| *n.size_ref()).unwrap_or_default();
                 if let Some(parent) = parent.clone() {
                     let parent_pos = parent
                         .lock()
@@ -226,7 +222,10 @@ impl ILayoutProcessor<TGraphRef> for CompactionProcessor {
                             .get_property(MrTreeOptions::TREE_LEVEL)
                             .unwrap_or(0);
                         if index > 0 && current_level != index as i32 {
-                            node_guard.set_property(InternalProperties::COMPACT_LEVEL_ASCENSION, Some(true));
+                            node_guard.set_property(
+                                InternalProperties::COMPACT_LEVEL_ASCENSION,
+                                Some(true),
+                            );
                             node_guard.set_property(MrTreeOptions::TREE_LEVEL, Some(index as i32));
                         }
                     }
@@ -258,7 +257,9 @@ impl CompactionProcessor {
 
         for node in nodes {
             if let Ok(mut node_guard) = node.lock() {
-                let level = node_guard.get_property(MrTreeOptions::TREE_LEVEL).unwrap_or(0) as usize;
+                let level = node_guard
+                    .get_property(MrTreeOptions::TREE_LEVEL)
+                    .unwrap_or(0) as usize;
                 while level >= self.levels.len() {
                     self.levels.push(Pair::of(f64::MAX, -f64::MAX));
                 }
@@ -308,7 +309,9 @@ impl CompactionProcessor {
             .filter(|node| {
                 node.lock()
                     .ok()
-                    .and_then(|node_guard| node_guard.label().map(|label| label.contains("SUPER_ROOT")))
+                    .and_then(|node_guard| {
+                        node_guard.label().map(|label| label.contains("SUPER_ROOT"))
+                    })
                     .map(|contains| !contains)
                     .unwrap_or(true)
             })
@@ -382,10 +385,9 @@ impl CompactionProcessor {
     }
 
     fn get_lowest_dependent_node(&self, node: &TNodeRef, direction: Direction) -> Option<TNodeRef> {
-        let constraints = node
-            .lock()
-            .ok()
-            .and_then(|mut node_guard| node_guard.get_property(InternalProperties::COMPACT_CONSTRAINTS));
+        let constraints = node.lock().ok().and_then(|mut node_guard| {
+            node_guard.get_property(InternalProperties::COMPACT_CONSTRAINTS)
+        });
         let constraints = constraints.unwrap_or_default();
         if constraints.is_empty() {
             return None;
@@ -433,7 +435,9 @@ impl CompactionProcessor {
                     };
                     if (direction == Direction::Left || direction == Direction::Up)
                         && value < current_value
-                        || (direction == Direction::Right || direction == Direction::Down || direction == Direction::Undefined)
+                        || (direction == Direction::Right
+                            || direction == Direction::Down
+                            || direction == Direction::Undefined)
                             && value > current_value
                     {
                         Some(candidate)
@@ -474,7 +478,9 @@ fn insert_sorted(active: &mut Vec<TNodeRef>, node: &TNodeRef, direction: Directi
 }
 
 fn left_neighbor(active: &[TNodeRef], node: &TNodeRef) -> Option<TNodeRef> {
-    let index = active.iter().position(|n| std::sync::Arc::ptr_eq(n, node))?;
+    let index = active
+        .iter()
+        .position(|n| std::sync::Arc::ptr_eq(n, node))?;
     if index == 0 {
         None
     } else {
@@ -483,7 +489,9 @@ fn left_neighbor(active: &[TNodeRef], node: &TNodeRef) -> Option<TNodeRef> {
 }
 
 fn right_neighbor(active: &[TNodeRef], node: &TNodeRef) -> Option<TNodeRef> {
-    let index = active.iter().position(|n| std::sync::Arc::ptr_eq(n, node))?;
+    let index = active
+        .iter()
+        .position(|n| std::sync::Arc::ptr_eq(n, node))?;
     if index + 1 >= active.len() {
         None
     } else {
@@ -492,11 +500,11 @@ fn right_neighbor(active: &[TNodeRef], node: &TNodeRef) -> Option<TNodeRef> {
 }
 
 fn push_constraint(node: &TNodeRef, constraint: &TNodeRef) {
-        if let Ok(mut node_guard) = node.lock() {
-            let mut list = node_guard
-                .get_property(InternalProperties::COMPACT_CONSTRAINTS)
-                .unwrap_or_else(Vec::new);
-            list.push(constraint.clone());
-            node_guard.set_property(InternalProperties::COMPACT_CONSTRAINTS, Some(list));
-        }
+    if let Ok(mut node_guard) = node.lock() {
+        let mut list = node_guard
+            .get_property(InternalProperties::COMPACT_CONSTRAINTS)
+            .unwrap_or_else(Vec::new);
+        list.push(constraint.clone());
+        node_guard.set_property(InternalProperties::COMPACT_CONSTRAINTS, Some(list));
+    }
 }

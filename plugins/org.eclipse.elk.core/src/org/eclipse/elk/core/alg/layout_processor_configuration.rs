@@ -115,7 +115,8 @@ where
     }
 }
 
-impl<P, G> AbstractRandomListAccessor<Vec<ProcessorFactory<G>>> for LayoutProcessorConfiguration<P, G>
+impl<P, G> AbstractRandomListAccessor<Vec<ProcessorFactory<G>>>
+    for LayoutProcessorConfiguration<P, G>
 where
     P: EnumSetType,
 {

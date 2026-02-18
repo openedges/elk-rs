@@ -22,14 +22,20 @@ fn issue_502_compound_nodes_are_large_enough_for_children_and_routes() {
     assert_node_large_enough_for_content(&compound);
 }
 
-fn assert_node_large_enough_for_content(node: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef) {
+fn assert_node_large_enough_for_content(
+    node: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef,
+) {
     let (node_width, node_height, children, edges) = {
         let mut node_mut = node.borrow_mut();
         (
             node_mut.connectable().shape().width(),
             node_mut.connectable().shape().height(),
             node_mut.children().iter().cloned().collect::<Vec<_>>(),
-            node_mut.contained_edges().iter().cloned().collect::<Vec<_>>(),
+            node_mut
+                .contained_edges()
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>(),
         )
     };
 
@@ -43,7 +49,12 @@ fn assert_node_large_enough_for_content(node: &org_eclipse_elk_graph::org::eclip
     }
 
     for edge in edges {
-        let sections = edge.borrow_mut().sections().iter().cloned().collect::<Vec<_>>();
+        let sections = edge
+            .borrow_mut()
+            .sections()
+            .iter()
+            .cloned()
+            .collect::<Vec<_>>();
         for section in sections {
             let chain = ElkUtil::create_vector_chain(&section);
             for idx in 0..chain.size() {

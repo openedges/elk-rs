@@ -9,9 +9,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::adapters::{
     ElkGraphAdapters, GraphAdapter, GraphElementAdapter, LabelAdapter, NodeAdapter, PortAdapter,
 };
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
-use org_eclipse_elk_graph::org::eclipse::elk::graph::{
-    ElkConnectableShapeRef, ElkGraphElementRef,
-};
+use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkConnectableShapeRef, ElkGraphElementRef};
 
 #[test]
 fn elk_graph_adapter_lists_child_nodes() {
@@ -42,7 +40,10 @@ fn node_adapter_sorts_ports_when_fixed_order() {
             .shape()
             .graph_element()
             .properties_mut()
-            .set_property(CoreOptions::PORT_CONSTRAINTS, Some(PortConstraints::FixedOrder));
+            .set_property(
+                CoreOptions::PORT_CONSTRAINTS,
+                Some(PortConstraints::FixedOrder),
+            );
     }
 
     set_port_attrs(&p1, PortSide::West, 2);
@@ -68,10 +69,7 @@ fn node_adapter_lists_ports_and_labels() {
     let graph = ElkGraphUtil::create_graph();
     let node = ElkGraphUtil::create_node(Some(graph));
     ElkGraphUtil::create_port(Some(node.clone()));
-    ElkGraphUtil::create_label_with_text(
-        "L1",
-        Some(ElkGraphElementRef::Node(node.clone())),
-    );
+    ElkGraphUtil::create_label_with_text("L1", Some(ElkGraphElementRef::Node(node.clone())));
 
     let adapter = ElkGraphAdapters::adapt_single_node(node);
     assert_eq!(adapter.get_ports().len(), 1);
@@ -178,10 +176,7 @@ fn label_adapter_reads_text_and_side() {
     LayoutMetaDataService::get_instance();
     let graph = ElkGraphUtil::create_graph();
     let node = ElkGraphUtil::create_node(Some(graph));
-    ElkGraphUtil::create_label_with_text(
-        "Hello",
-        Some(ElkGraphElementRef::Node(node.clone())),
-    );
+    ElkGraphUtil::create_label_with_text("Hello", Some(ElkGraphElementRef::Node(node.clone())));
 
     let adapter = ElkGraphAdapters::adapt_single_node(node);
     let labels = adapter.get_labels();
@@ -209,7 +204,11 @@ fn node_adapter_compound_detection_respects_inside_self_loops() {
     assert!(adapter.is_compound_node());
 }
 
-fn set_port_attrs(port: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkPortRef, side: PortSide, index: i32) {
+fn set_port_attrs(
+    port: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkPortRef,
+    side: PortSide,
+    index: i32,
+) {
     let mut port_mut = port.borrow_mut();
     let props = port_mut
         .connectable()

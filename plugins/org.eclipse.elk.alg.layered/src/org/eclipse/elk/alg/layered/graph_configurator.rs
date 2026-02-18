@@ -20,28 +20,29 @@ use crate::org::eclipse::elk::alg::layered::LayeredPhases;
 
 const MIN_EDGE_SPACING: f64 = 2.0;
 
-static BASELINE_PROCESSING_CONFIGURATION: LazyLock<LayoutProcessorConfiguration<LayeredPhases, LGraph>> =
-    LazyLock::new(|| {
-        let mut config = LayoutProcessorConfiguration::create();
-        config
-            .add_before(
-                LayeredPhases::P4NodePlacement,
-                Arc::new(IntermediateProcessorStrategy::InnermostNodeMarginCalculator),
-            )
-            .add_before(
-                LayeredPhases::P4NodePlacement,
-                Arc::new(IntermediateProcessorStrategy::LabelAndNodeSizeProcessor),
-            )
-            .add_before(
-                LayeredPhases::P5EdgeRouting,
-                Arc::new(IntermediateProcessorStrategy::LayerSizeAndGraphHeightCalculator),
-            )
-            .add_after(
-                LayeredPhases::P5EdgeRouting,
-                Arc::new(IntermediateProcessorStrategy::EndLabelSorter),
-            );
-        config
-    });
+static BASELINE_PROCESSING_CONFIGURATION: LazyLock<
+    LayoutProcessorConfiguration<LayeredPhases, LGraph>,
+> = LazyLock::new(|| {
+    let mut config = LayoutProcessorConfiguration::create();
+    config
+        .add_before(
+            LayeredPhases::P4NodePlacement,
+            Arc::new(IntermediateProcessorStrategy::InnermostNodeMarginCalculator),
+        )
+        .add_before(
+            LayeredPhases::P4NodePlacement,
+            Arc::new(IntermediateProcessorStrategy::LabelAndNodeSizeProcessor),
+        )
+        .add_before(
+            LayeredPhases::P5EdgeRouting,
+            Arc::new(IntermediateProcessorStrategy::LayerSizeAndGraphHeightCalculator),
+        )
+        .add_after(
+            LayeredPhases::P5EdgeRouting,
+            Arc::new(IntermediateProcessorStrategy::EndLabelSorter),
+        );
+    config
+});
 
 static LABEL_MANAGEMENT_ADDITIONS: LazyLock<LayoutProcessorConfiguration<LayeredPhases, LGraph>> =
     LazyLock::new(|| {
@@ -104,26 +105,23 @@ impl GraphConfigurator {
             .unwrap_or(EdgeRouting::Undefined);
 
         self.algorithm_assembler.reset();
-        self.algorithm_assembler.set_phase(
-            LayeredPhases::P1CycleBreaking,
-            Arc::new(cycle_breaking),
-        );
+        self.algorithm_assembler
+            .set_phase(LayeredPhases::P1CycleBreaking, Arc::new(cycle_breaking));
         self.algorithm_assembler
             .set_phase(LayeredPhases::P2Layering, Arc::new(layering));
         self.algorithm_assembler.set_phase(
             LayeredPhases::P3NodeOrdering,
             Arc::new(crossing_minimization),
         );
-        self.algorithm_assembler.set_phase(
-            LayeredPhases::P4NodePlacement,
-            Arc::new(node_placement),
-        );
+        self.algorithm_assembler
+            .set_phase(LayeredPhases::P4NodePlacement, Arc::new(node_placement));
         self.algorithm_assembler.set_phase(
             LayeredPhases::P5EdgeRouting,
             EdgeRouterFactory::factory_for(edge_routing),
         );
 
-        let processor_config = self.get_phase_independent_layout_processor_configuration(&mut graph_guard);
+        let processor_config =
+            self.get_phase_independent_layout_processor_configuration(&mut graph_guard);
         self.algorithm_assembler
             .add_processor_configuration(&processor_config);
 
@@ -134,25 +132,28 @@ impl GraphConfigurator {
     fn configure_graph_properties(&mut self, graph: &LGraphRef) {
         let (edge_spacing, direction, random_seed, edge_routing, favor_straightness) =
             if let Ok(mut graph_guard) = graph.lock() {
-            (
-                graph_guard.get_property(LayeredOptions::SPACING_EDGE_EDGE).unwrap_or(0.0),
-                graph_guard.get_property(LayeredOptions::DIRECTION).unwrap_or(Direction::Undefined),
-                graph_guard.get_property(LayeredOptions::RANDOM_SEED).unwrap_or(1),
-                graph_guard
-                    .get_property(LayeredOptions::EDGE_ROUTING)
-                    .unwrap_or(EdgeRouting::Undefined),
-                graph_guard.get_property(LayeredOptions::NODE_PLACEMENT_FAVOR_STRAIGHT_EDGES),
-            )
-        } else {
-            return;
-        };
+                (
+                    graph_guard
+                        .get_property(LayeredOptions::SPACING_EDGE_EDGE)
+                        .unwrap_or(0.0),
+                    graph_guard
+                        .get_property(LayeredOptions::DIRECTION)
+                        .unwrap_or(Direction::Undefined),
+                    graph_guard
+                        .get_property(LayeredOptions::RANDOM_SEED)
+                        .unwrap_or(1),
+                    graph_guard
+                        .get_property(LayeredOptions::EDGE_ROUTING)
+                        .unwrap_or(EdgeRouting::Undefined),
+                    graph_guard.get_property(LayeredOptions::NODE_PLACEMENT_FAVOR_STRAIGHT_EDGES),
+                )
+            } else {
+                return;
+            };
 
         if edge_spacing < MIN_EDGE_SPACING {
             if let Ok(mut graph_guard) = graph.lock() {
-                graph_guard.set_property(
-                    LayeredOptions::SPACING_EDGE_EDGE,
-                    Some(MIN_EDGE_SPACING),
-                );
+                graph_guard.set_property(LayeredOptions::SPACING_EDGE_EDGE, Some(MIN_EDGE_SPACING));
             }
         }
 
@@ -377,7 +378,9 @@ impl GraphConfigurator {
         {
             let greedy_type = if Self::is_hierarchical_layout(graph) {
                 graph
-                    .get_property(LayeredOptions::CROSSING_MINIMIZATION_GREEDY_SWITCH_HIERARCHICAL_TYPE)
+                    .get_property(
+                        LayeredOptions::CROSSING_MINIMIZATION_GREEDY_SWITCH_HIERARCHICAL_TYPE,
+                    )
                     .unwrap_or(GreedySwitchType::Off)
             } else {
                 graph
@@ -389,10 +392,7 @@ impl GraphConfigurator {
             } else {
                 IntermediateProcessorStrategy::TwoSidedGreedySwitch
             };
-            configuration.add_before(
-                LayeredPhases::P4NodePlacement,
-                Arc::new(internal_strategy),
-            );
+            configuration.add_before(LayeredPhases::P4NodePlacement, Arc::new(internal_strategy));
         }
 
         if graph

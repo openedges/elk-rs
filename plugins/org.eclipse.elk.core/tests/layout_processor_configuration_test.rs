@@ -39,7 +39,10 @@ fn test_after() {
 fn test_add_before() {
     let mut config = LayoutProcessorConfiguration::create();
     config.before(TestPhases::Phase1);
-    config.add_before(TestPhases::Phase2, processor_factory(TestProcessors::Processor1));
+    config.add_before(
+        TestPhases::Phase2,
+        processor_factory(TestProcessors::Processor1),
+    );
 
     assert_eq!(0, config.processors_before(TestPhases::Phase1).len());
     assert_eq!(1, config.processors_after(TestPhases::Phase1).len());
@@ -52,7 +55,10 @@ fn test_add_before() {
 fn test_add_before_panics() {
     let mut config = LayoutProcessorConfiguration::create();
     config.before(TestPhases::Phase1);
-    config.add_before(TestPhases::Phase2, processor_factory(TestProcessors::Processor1));
+    config.add_before(
+        TestPhases::Phase2,
+        processor_factory(TestProcessors::Processor1),
+    );
     config.add(processor_factory(TestProcessors::Processor2));
 }
 
@@ -60,7 +66,10 @@ fn test_add_before_panics() {
 fn test_add_after() {
     let mut config = LayoutProcessorConfiguration::create();
     config.before(TestPhases::Phase1);
-    config.add_after(TestPhases::Phase1, processor_factory(TestProcessors::Processor1));
+    config.add_after(
+        TestPhases::Phase1,
+        processor_factory(TestProcessors::Processor1),
+    );
 
     assert_eq!(0, config.processors_before(TestPhases::Phase1).len());
     assert_eq!(1, config.processors_after(TestPhases::Phase1).len());
@@ -73,7 +82,10 @@ fn test_add_after() {
 fn test_add_after_panics() {
     let mut config = LayoutProcessorConfiguration::create();
     config.before(TestPhases::Phase1);
-    config.add_after(TestPhases::Phase1, processor_factory(TestProcessors::Processor1));
+    config.add_after(
+        TestPhases::Phase1,
+        processor_factory(TestProcessors::Processor1),
+    );
     config.add(processor_factory(TestProcessors::Processor2));
 }
 

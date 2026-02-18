@@ -31,7 +31,12 @@ impl BlockStack {
         }
         let mut stack = stack_ref.borrow_mut();
         stack.width = stack.width.max(block.borrow().width());
-        stack.height += block.borrow().height() + if stack.blocks.is_empty() { 0.0 } else { stack.node_node_spacing };
+        stack.height += block.borrow().height()
+            + if stack.blocks.is_empty() {
+                0.0
+            } else {
+                stack.node_node_spacing
+            };
         stack.blocks.push(block);
     }
 
@@ -40,7 +45,12 @@ impl BlockStack {
         let mut width: f64 = 0.0;
         for (index, block) in self.blocks.iter().enumerate() {
             width = width.max(block.borrow().width());
-            height += block.borrow().height() + if index > 0 { self.node_node_spacing } else { 0.0 };
+            height += block.borrow().height()
+                + if index > 0 {
+                    self.node_node_spacing
+                } else {
+                    0.0
+                };
         }
         self.height = height;
         self.width = width;

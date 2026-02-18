@@ -8,8 +8,8 @@ use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::{
     InternalProperties, LayeredMetaDataProvider, LayeredOptions, LongEdgeOrderingStrategy,
     OrderingStrategy,
 };
-use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
+use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::NullElkProgressMonitor;
@@ -33,7 +33,10 @@ fn graph_with_layers(count: usize) -> (LGraphRef, Vec<LayerRef>) {
             LayeredOptions::CONSIDER_MODEL_ORDER_LONG_EDGE_STRATEGY,
             Some(LongEdgeOrderingStrategy::Equal),
         );
-        graph_guard.set_property(LayeredOptions::CONSIDER_MODEL_ORDER_PORT_MODEL_ORDER, Some(false));
+        graph_guard.set_property(
+            LayeredOptions::CONSIDER_MODEL_ORDER_PORT_MODEL_ORDER,
+            Some(false),
+        );
     }
     (graph, layers)
 }
@@ -73,18 +76,11 @@ fn connect_with_model_order(source: &LPortRef, target: &LPortRef, model_order: i
 }
 
 fn layer_nodes(layer: &LayerRef) -> Vec<LNodeRef> {
-    layer
-        .lock()
-        .expect("layer lock")
-        .nodes()
-        .clone()
+    layer.lock().expect("layer lock").nodes().clone()
 }
 
 fn node_ports(node: &LNodeRef) -> Vec<LPortRef> {
-    node.lock()
-        .expect("node lock")
-        .ports()
-        .clone()
+    node.lock().expect("node lock").ports().clone()
 }
 
 fn run_sorter_direct(graph: &LGraphRef) {
@@ -120,7 +116,10 @@ fn sort_by_input_model_processor_sorts_ports_by_edge_model_order() {
     let source = add_node(&graph, &source_layer, 0);
     {
         let mut source_guard = source.lock().expect("source lock");
-        source_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::Free));
+        source_guard.set_property(
+            LayeredOptions::PORT_CONSTRAINTS,
+            Some(PortConstraints::Free),
+        );
     }
     let p_high = add_port(&source, PortSide::East);
     let p_low = add_port(&source, PortSide::East);

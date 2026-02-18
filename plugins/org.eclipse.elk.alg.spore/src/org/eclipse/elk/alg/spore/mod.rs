@@ -1,14 +1,14 @@
 pub mod elk_graph_importer;
-pub mod i_graph_importer;
-pub mod overlap_removal_layout_provider;
-pub mod shrink_tree;
-pub mod shrink_tree_layout_provider;
-pub mod spore_phases;
 pub mod graph;
+pub mod i_graph_importer;
 pub mod options;
+pub mod overlap_removal_layout_provider;
 pub mod p1structure;
 pub mod p2processingorder;
 pub mod p3execution;
+pub mod shrink_tree;
+pub mod shrink_tree_layout_provider;
+pub mod spore_phases;
 
 pub use elk_graph_importer::ElkGraphImporter;
 pub use i_graph_importer::IGraphImporter;

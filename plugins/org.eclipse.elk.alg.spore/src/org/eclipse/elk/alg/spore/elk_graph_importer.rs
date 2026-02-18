@@ -45,23 +45,38 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
         let adapter = ElkGraphAdapters::adapt(input_graph.clone());
         NodeDimensionCalculation::calculate_node_margins(&adapter);
 
-        let preferred_root_id = property(input_graph, SporeCompactionOptions::PROCESSING_ORDER_PREFERRED_ROOT);
-        let cost_function_id =
-            property(input_graph, SporeCompactionOptions::PROCESSING_ORDER_SPANNING_TREE_COST_FUNCTION)
-                .unwrap_or_default();
-        let tree_construction = property(input_graph, SporeCompactionOptions::PROCESSING_ORDER_TREE_CONSTRUCTION)
-            .unwrap_or_default();
-        let compaction_strategy =
-            property(input_graph, SporeCompactionOptions::COMPACTION_COMPACTION_STRATEGY).unwrap_or_default();
-        let root_selection = property(input_graph, SporeCompactionOptions::PROCESSING_ORDER_ROOT_SELECTION)
-            .unwrap_or_default();
-        self.spacing_node_node = property(input_graph, SporeCompactionOptions::SPACING_NODE_NODE).unwrap_or(0.0);
+        let preferred_root_id = property(
+            input_graph,
+            SporeCompactionOptions::PROCESSING_ORDER_PREFERRED_ROOT,
+        );
+        let cost_function_id = property(
+            input_graph,
+            SporeCompactionOptions::PROCESSING_ORDER_SPANNING_TREE_COST_FUNCTION,
+        )
+        .unwrap_or_default();
+        let tree_construction = property(
+            input_graph,
+            SporeCompactionOptions::PROCESSING_ORDER_TREE_CONSTRUCTION,
+        )
+        .unwrap_or_default();
+        let compaction_strategy = property(
+            input_graph,
+            SporeCompactionOptions::COMPACTION_COMPACTION_STRATEGY,
+        )
+        .unwrap_or_default();
+        let root_selection = property(
+            input_graph,
+            SporeCompactionOptions::PROCESSING_ORDER_ROOT_SELECTION,
+        )
+        .unwrap_or_default();
+        self.spacing_node_node =
+            property(input_graph, SporeCompactionOptions::SPACING_NODE_NODE).unwrap_or(0.0);
 
         let mut graph = Graph::new(cost_function_id, tree_construction, compaction_strategy);
         let debug_mode = property(input_graph, SporeCompactionOptions::DEBUG_MODE).unwrap_or(false);
         graph.set_property(InternalProperties::DEBUG_SVG, Some(debug_mode));
-        graph.orthogonal_compaction = property(input_graph, SporeCompactionOptions::COMPACTION_ORTHOGONAL)
-            .unwrap_or(false);
+        graph.orthogonal_compaction =
+            property(input_graph, SporeCompactionOptions::COMPACTION_ORTHOGONAL).unwrap_or(false);
 
         let children = {
             let mut graph_mut = input_graph.borrow_mut();
@@ -199,7 +214,8 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
             return;
         }
 
-        let padding = property(elk_graph, SporeCompactionOptions::PADDING).unwrap_or(ElkPadding::new());
+        let padding =
+            property(elk_graph, SporeCompactionOptions::PADDING).unwrap_or(ElkPadding::new());
         ElkUtil::resize_node_with(
             elk_graph,
             max_x - min_x + padding.left + padding.right,
@@ -211,7 +227,11 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
 
         let edges = {
             let mut graph_mut = elk_graph.borrow_mut();
-            graph_mut.contained_edges().iter().cloned().collect::<Vec<_>>()
+            graph_mut
+                .contained_edges()
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>()
         };
 
         for edge in edges {

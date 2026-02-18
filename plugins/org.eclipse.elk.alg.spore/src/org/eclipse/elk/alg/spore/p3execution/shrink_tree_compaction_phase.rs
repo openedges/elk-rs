@@ -39,7 +39,11 @@ impl ILayoutPhase<SPOrEPhases, Graph> for ShrinkTreeCompactionPhase {
         if debug {
             if let Some(path) = ElkUtil::debug_folder_path(&["spore"]) {
                 debug_out(tree, &format!("{}30Tree", path));
-                DepthFirstCompaction::compact(tree, graph.orthogonal_compaction, Some(&format!("{}60compaction", path)));
+                DepthFirstCompaction::compact(
+                    tree,
+                    graph.orthogonal_compaction,
+                    Some(&format!("{}60compaction", path)),
+                );
             } else {
                 DepthFirstCompaction::compact_without_debug(tree, graph.orthogonal_compaction);
             }
@@ -61,7 +65,12 @@ impl ILayoutPhase<SPOrEPhases, Graph> for ShrinkTreeCompactionPhase {
 fn debug_out(tree: &Tree<Node>, file_name: &str) {
     let mut svg = SVGImage::new(Some(file_name));
     svg.clear();
-    svg.add_circle_with_attrs(tree.node.vertex.x, tree.node.vertex.y, 10.0, "fill=\"lime\"");
+    svg.add_circle_with_attrs(
+        tree.node.vertex.x,
+        tree.node.vertex.y,
+        10.0,
+        "fill=\"lime\"",
+    );
     draw(tree, &mut svg);
     svg.save();
     svg.debug = false;

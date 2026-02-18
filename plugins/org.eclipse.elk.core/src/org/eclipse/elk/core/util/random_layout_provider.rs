@@ -22,7 +22,11 @@ impl RandomLayoutProvider {
 }
 
 impl IGraphLayoutEngine for RandomLayoutProvider {
-    fn layout(&mut self, layout_graph: &ElkNodeRef, progress_monitor: &mut dyn IElkProgressMonitor) {
+    fn layout(
+        &mut self,
+        layout_graph: &ElkNodeRef,
+        progress_monitor: &mut dyn IElkProgressMonitor,
+    ) {
         progress_monitor.begin("Random Layout", 1.0);
 
         let has_children = {
@@ -34,15 +38,22 @@ impl IGraphLayoutEngine for RandomLayoutProvider {
             return;
         }
 
-        let (random_seed, aspect_ratio, spacing, padding) = with_node_properties_mut(layout_graph, |props| {
-            let seed = props.get_property(RandomLayouterOptions::RANDOM_SEED).unwrap_or(0);
-            let aspect_ratio = props.get_property(RandomLayouterOptions::ASPECT_RATIO).unwrap_or(1.0);
-            let spacing = props.get_property(RandomLayouterOptions::SPACING_NODE_NODE).unwrap_or(0.0);
-            let padding = props
-                .get_property(RandomLayouterOptions::PADDING)
-                .unwrap_or_else(ElkPadding::new);
-            (seed, aspect_ratio, spacing, padding)
-        });
+        let (random_seed, aspect_ratio, spacing, padding) =
+            with_node_properties_mut(layout_graph, |props| {
+                let seed = props
+                    .get_property(RandomLayouterOptions::RANDOM_SEED)
+                    .unwrap_or(0);
+                let aspect_ratio = props
+                    .get_property(RandomLayouterOptions::ASPECT_RATIO)
+                    .unwrap_or(1.0);
+                let spacing = props
+                    .get_property(RandomLayouterOptions::SPACING_NODE_NODE)
+                    .unwrap_or(0.0);
+                let padding = props
+                    .get_property(RandomLayouterOptions::PADDING)
+                    .unwrap_or_else(ElkPadding::new);
+                (seed, aspect_ratio, spacing, padding)
+            });
 
         let seed = if random_seed != 0 {
             random_seed as u64
@@ -239,7 +250,9 @@ fn randomize_edge(edge: &ElkEdgeRef, random: &mut Random, draw_width: f64, draw_
     }
 }
 
-fn ensure_single_section(edge: &ElkEdgeRef) -> Option<org_eclipse_elk_graph::org::eclipse::elk::graph::ElkEdgeSectionRef> {
+fn ensure_single_section(
+    edge: &ElkEdgeRef,
+) -> Option<org_eclipse_elk_graph::org::eclipse::elk::graph::ElkEdgeSectionRef> {
     let mut edge_mut = edge.borrow_mut();
     let sections = edge_mut.sections();
     if sections.is_empty() {
@@ -299,7 +312,10 @@ fn set_node_location(node: &ElkNodeRef, x: f64, y: f64) {
     node_mut.connectable().shape().set_location(x, y);
 }
 
-fn with_node_properties_mut<R>(node: &ElkNodeRef, f: impl FnOnce(&mut MapPropertyHolder) -> R) -> R {
+fn with_node_properties_mut<R>(
+    node: &ElkNodeRef,
+    f: impl FnOnce(&mut MapPropertyHolder) -> R,
+) -> R {
     let mut node_mut = node.borrow_mut();
     let props = node_mut
         .connectable()

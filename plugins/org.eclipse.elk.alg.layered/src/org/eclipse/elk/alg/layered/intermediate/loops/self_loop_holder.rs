@@ -143,7 +143,9 @@ impl SelfLoopHolder {
 
         let sl_port = SelfLoopPort::new(l_port);
         if let Ok(mut holder_guard) = holder.lock() {
-            holder_guard.sl_ports.push((l_port.clone(), sl_port.clone()));
+            holder_guard
+                .sl_ports
+                .push((l_port.clone(), sl_port.clone()));
         }
         sl_port
     }
@@ -176,7 +178,12 @@ impl SelfLoopHolder {
                 let (source_port, target_port) = sl_edge
                     .lock()
                     .ok()
-                    .map(|edge_guard| (edge_guard.sl_source().clone(), edge_guard.sl_target().clone()))
+                    .map(|edge_guard| {
+                        (
+                            edge_guard.sl_source().clone(),
+                            edge_guard.sl_target().clone(),
+                        )
+                    })
                     .unwrap_or_else(|| panic!("self loop edge lock poisoned"));
 
                 let source_key = Arc::as_ptr(&source_port) as usize;

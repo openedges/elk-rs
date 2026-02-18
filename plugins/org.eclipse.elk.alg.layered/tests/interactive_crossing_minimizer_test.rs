@@ -43,10 +43,7 @@ fn run_interactive_crossing_minimization(graph: &LGraphRef) {
     LayoutMetaDataService::get_instance();
     let mut phase = CrossingMinimizationStrategy::Interactive.create_phase();
     let mut monitor = NullElkProgressMonitor;
-    phase.process(
-        &mut graph.lock().expect("graph lock"),
-        &mut monitor,
-    );
+    phase.process(&mut graph.lock().expect("graph lock"), &mut monitor);
 }
 
 #[test]
@@ -99,13 +96,10 @@ fn interactive_crossing_minimizer_respects_in_layer_successor_constraints_on_tie
     let node_b = add_node_to_layer(&graph, &layer, NodeType::Normal, 0.0, 0.0);
 
     {
-        node_a
-            .lock()
-            .expect("node_a lock")
-            .set_property(
-                InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS,
-                Some(vec![node_b.clone()]),
-            );
+        node_a.lock().expect("node_a lock").set_property(
+            InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS,
+            Some(vec![node_b.clone()]),
+        );
         let mut layer_guard = layer.lock().expect("layer lock");
         layer_guard.nodes_mut().clear();
         layer_guard.nodes_mut().push(node_b.clone());

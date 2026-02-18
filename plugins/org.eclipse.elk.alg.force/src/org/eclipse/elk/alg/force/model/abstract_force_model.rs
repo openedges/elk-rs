@@ -80,8 +80,8 @@ impl AbstractForceModel {
 
         graph.calc_adjacency();
 
-        let disp_bound = (graph.nodes().len() as f64 * DISP_BOUND_FACTOR)
-            + graph.edges().len() as f64;
+        let disp_bound =
+            (graph.nodes().len() as f64 * DISP_BOUND_FACTOR) + graph.edges().len() as f64;
         self.disp_bound = disp_bound.max(DISP_BOUND_FACTOR * DISP_BOUND_FACTOR);
 
         let interactive = graph
@@ -158,7 +158,9 @@ impl AbstractForceModel {
                             let source = edge_guard.source_point();
                             let target = edge_guard.target_point();
                             match (source, target) {
-                                (Some(source), Some(target)) => KVector::from_points(&source, &target),
+                                (Some(source), Some(target)) => {
+                                    KVector::from_points(&source, &target)
+                                }
                                 _ => return,
                             }
                         };
@@ -176,7 +178,9 @@ impl AbstractForceModel {
                             let source = edge_guard.source_point();
                             let target = edge_guard.target_point();
                             match (source, target) {
-                                (Some(source), Some(target)) => KVector::from_points(&source, &target),
+                                (Some(source), Some(target)) => {
+                                    KVector::from_points(&source, &target)
+                                }
                                 _ => return,
                             }
                         };

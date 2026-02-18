@@ -51,14 +51,13 @@ impl ILayoutProcessor<LGraph> for LabelDummyInserter {
                 let dummy_node = create_label_dummy(&graph, &edge, thickness);
                 new_dummy_nodes.push(dummy_node.clone());
 
-                let (represented_labels, dummy_size) =
-                    collect_center_labels_and_size(
-                        &edge,
-                        layout_direction,
-                        thickness,
-                        edge_label_spacing,
-                        label_label_spacing,
-                    );
+                let (represented_labels, dummy_size) = collect_center_labels_and_size(
+                    &edge,
+                    layout_direction,
+                    thickness,
+                    edge_label_spacing,
+                    label_label_spacing,
+                );
 
                 if let Ok(mut dummy_guard) = dummy_node.lock() {
                     let size = dummy_guard.shape().size();
@@ -93,9 +92,7 @@ fn label_is_center(label: &LLabelRef) -> bool {
     label
         .lock()
         .ok()
-        .and_then(|mut label_guard| {
-            label_guard.get_property(LayeredOptions::EDGE_LABELS_PLACEMENT)
-        })
+        .and_then(|mut label_guard| label_guard.get_property(LayeredOptions::EDGE_LABELS_PLACEMENT))
         .unwrap_or(EdgeLabelPlacement::Center)
         == EdgeLabelPlacement::Center
 }
@@ -127,7 +124,8 @@ fn retrieve_thickness(edge: &LEdgeRef) -> f64 {
     }
 }
 
-fn create_label_dummy(graph: &crate::org::eclipse::elk::alg::layered::graph::LGraphRef,
+fn create_label_dummy(
+    graph: &crate::org::eclipse::elk::alg::layered::graph::LGraphRef,
     edge: &LEdgeRef,
     thickness: f64,
 ) -> LNodeRef {

@@ -19,21 +19,23 @@ pub static NODE_ARRANGEMENT_STRATEGY_PROPERTY: LazyLock<Property<NodeArrangement
         )
     });
 
-pub static WHITESPACE_ELIMINATION_STRATEGY_PROPERTY: LazyLock<Property<WhitespaceEliminationStrategy>> =
-    LazyLock::new(|| {
-        Property::with_default(
-            "org.eclipse.elk.topdownpacking.whitespaceElimination.strategy",
-            WhitespaceEliminationStrategy::BottomRowEqualWhitespaceEliminator,
-        )
-    });
+pub static WHITESPACE_ELIMINATION_STRATEGY_PROPERTY: LazyLock<
+    Property<WhitespaceEliminationStrategy>,
+> = LazyLock::new(|| {
+    Property::with_default(
+        "org.eclipse.elk.topdownpacking.whitespaceElimination.strategy",
+        WhitespaceEliminationStrategy::BottomRowEqualWhitespaceEliminator,
+    )
+});
 
 impl TopdownpackingOptions {
     pub const ALGORITHM_ID: &'static str = "org.eclipse.elk.topdownpacking";
 
     pub const NODE_ARRANGEMENT_STRATEGY: &'static LazyLock<Property<NodeArrangementStrategy>> =
         &NODE_ARRANGEMENT_STRATEGY_PROPERTY;
-    pub const WHITESPACE_ELIMINATION_STRATEGY: &'static LazyLock<Property<WhitespaceEliminationStrategy>> =
-        &WHITESPACE_ELIMINATION_STRATEGY_PROPERTY;
+    pub const WHITESPACE_ELIMINATION_STRATEGY: &'static LazyLock<
+        Property<WhitespaceEliminationStrategy>,
+    > = &WHITESPACE_ELIMINATION_STRATEGY_PROPERTY;
 
     pub const PADDING: &'static LazyLock<Property<ElkPadding>> = CoreOptions::PADDING;
     pub const SPACING_NODE_NODE: &'static LazyLock<Property<f64>> = CoreOptions::SPACING_NODE_NODE;

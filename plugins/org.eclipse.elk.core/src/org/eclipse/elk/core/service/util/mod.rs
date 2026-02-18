@@ -1,11 +1,13 @@
 use crate::org::eclipse::elk::core::util::{ElkUtil, IGraphElementVisitor};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkGraphElementRef, ElkNodeRef};
 
-pub mod progress_monitor_adapter;
 pub mod monitored_operation;
+pub mod progress_monitor_adapter;
 
+pub use monitored_operation::{
+    CancelableProgressMonitor, IMonitoredOperation, MonitoredOperation, OperationStatus,
+};
 pub use progress_monitor_adapter::{IProgressMonitor, ProgressMonitorAdapter};
-pub use monitored_operation::{CancelableProgressMonitor, IMonitoredOperation, MonitoredOperation, OperationStatus};
 
 pub struct CompoundGraphElementVisitor {
     graph_visitors: Vec<Box<dyn IGraphElementVisitor>>,

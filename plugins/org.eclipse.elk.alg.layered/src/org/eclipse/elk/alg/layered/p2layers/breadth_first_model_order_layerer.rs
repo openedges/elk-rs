@@ -5,7 +5,9 @@ use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutP
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
-use crate::org::eclipse::elk::alg::layered::graph::{Layer, LayerRef, LGraph, LNode, LNodeRef, NodeType};
+use crate::org::eclipse::elk::alg::layered::graph::{
+    LGraph, LNode, LNodeRef, Layer, LayerRef, NodeType,
+};
 use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorStrategy;
 use crate::org::eclipse::elk::alg::layered::options::InternalProperties;
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
@@ -114,8 +116,10 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BreadthFirstModelOrderLayerer {
 
                 let mut connected = false;
                 if source_type == NodeType::Normal {
-                    if let Some(source_layer) =
-                        source_node.lock().ok().and_then(|node_guard| node_guard.layer())
+                    if let Some(source_layer) = source_node
+                        .lock()
+                        .ok()
+                        .and_then(|node_guard| node_guard.layer())
                     {
                         if Arc::ptr_eq(&source_layer, &current_layer) {
                             connected = true;
@@ -132,8 +136,12 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BreadthFirstModelOrderLayerer {
                             .lock()
                             .ok()
                             .and_then(|edge_guard| edge_guard.source())
-                            .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
-                            .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.layer()));
+                            .and_then(|port| {
+                                port.lock().ok().and_then(|port_guard| port_guard.node())
+                            })
+                            .and_then(|node| {
+                                node.lock().ok().and_then(|node_guard| node_guard.layer())
+                            });
                         if let Some(label_source_layer) = label_source_layer {
                             if Arc::ptr_eq(&label_source_layer, &current_layer) {
                                 connected = true;
@@ -186,9 +194,12 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BreadthFirstModelOrderLayerer {
         }
 
         graph.layerless_nodes_mut().clear();
-        graph
-            .layers_mut()
-            .retain(|layer| !layer.lock().map(|layer_guard| layer_guard.nodes().is_empty()).unwrap_or(false));
+        graph.layers_mut().retain(|layer| {
+            !layer
+                .lock()
+                .map(|layer_guard| layer_guard.nodes().is_empty())
+                .unwrap_or(false)
+        });
         for (index, layer) in graph.layers().iter().enumerate() {
             if let Ok(mut layer_guard) = layer.lock() {
                 layer_guard.graph_element().id = index as i32;

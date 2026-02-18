@@ -90,8 +90,10 @@ impl ILayoutProcessor<ElkNodeRef> for CalculateGraphSize {
                     let (root_x, root_y) = {
                         let shape = root_mut.connectable().shape();
                         (
-                            shape.x() + shape.width() / 2.0 + (margins.left + margins.right) / 2.0 - offset.x,
-                            shape.y() + shape.height() / 2.0 + (margins.top + margins.bottom) / 2.0 - offset.y,
+                            shape.x() + shape.width() / 2.0 + (margins.left + margins.right) / 2.0
+                                - offset.x,
+                            shape.y() + shape.height() / 2.0 + (margins.top + margins.bottom) / 2.0
+                                - offset.y,
                         )
                     };
                     (root_x, root_y)

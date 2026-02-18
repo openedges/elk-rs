@@ -60,7 +60,11 @@ impl TwoBitGrid {
     }
 
     fn inc_mod_ten(num: usize) -> usize {
-        if num > 8 { 0 } else { num + 1 }
+        if num > 8 {
+            0
+        } else {
+            num + 1
+        }
     }
 }
 

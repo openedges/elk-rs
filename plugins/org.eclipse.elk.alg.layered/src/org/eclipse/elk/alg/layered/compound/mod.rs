@@ -17,10 +17,10 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::MapPropertyHold
 use crate::org::eclipse::elk::alg::layered::graph::{
     LEdge, LEdgeRef, LGraph, LGraphRef, LGraphUtil, LLabel, LLabelRef, LNodeRef, LPortRef, NodeType,
 };
+use crate::org::eclipse::elk::alg::layered::options::internal_properties::{Origin, PortRefKey};
 use crate::org::eclipse::elk::alg::layered::options::{
     GraphProperties, InternalProperties, LayeredOptions, PortType,
 };
-use crate::org::eclipse::elk::alg::layered::options::internal_properties::{Origin, PortRefKey};
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::OrthogonalRoutingGenerator;
 
 #[derive(Clone)]
@@ -122,10 +122,7 @@ impl CrossHierarchyMap {
     }
 
     pub fn keys(&self) -> Vec<LEdgeRef> {
-        self.entries
-            .iter()
-            .map(|(edge, _)| edge.clone())
-            .collect()
+        self.entries.iter().map(|(edge, _)| edge.clone()).collect()
     }
 }
 
@@ -214,12 +211,7 @@ impl CompoundGraphPreprocessor {
         let mut cross_hierarchy_map = CrossHierarchyMap::default();
         let mut dummy_node_map: HashMap<PortRefKey, LNodeRef> = HashMap::new();
 
-        self.transform_hierarchy_edges(
-            graph,
-            None,
-            &mut cross_hierarchy_map,
-            &mut dummy_node_map,
-        );
+        self.transform_hierarchy_edges(graph, None, &mut cross_hierarchy_map, &mut dummy_node_map);
 
         if std::env::var("ELK_TRACE").is_ok() {
             for orig_edge in cross_hierarchy_map.keys() {
@@ -228,9 +220,7 @@ impl CompoundGraphPreprocessor {
                     .ok()
                     .map(|edge_guard| edge_guard.labels().len())
                     .unwrap_or(0);
-                eprintln!(
-                    "[compound-pre] cross edge labels={label_count}"
-                );
+                eprintln!("[compound-pre] cross edge labels={label_count}");
             }
         }
         self.move_labels_and_remove_original_edges(graph, &cross_hierarchy_map);
@@ -273,10 +263,7 @@ impl CompoundGraphPreprocessor {
                 .unwrap_or(PortSide::Undefined);
 
             if let Ok(mut port_guard) = external_port.lock() {
-                port_guard.set_property(
-                    InternalProperties::PORT_DUMMY,
-                    Some(dummy_node.clone()),
-                );
+                port_guard.set_property(InternalProperties::PORT_DUMMY, Some(dummy_node.clone()));
                 port_guard.set_property(InternalProperties::INSIDE_CONNECTIONS, Some(true));
                 port_guard.set_side(dummy_side);
             }
@@ -301,10 +288,7 @@ impl CompoundGraphPreprocessor {
                         .get_property(InternalProperties::GRAPH_PROPERTIES)
                         .unwrap_or_else(EnumSet::none_of);
                     props.insert(GraphProperties::NonFreePorts);
-                    graph_guard.set_property(
-                        InternalProperties::GRAPH_PROPERTIES,
-                        Some(props),
-                    );
+                    graph_guard.set_property(InternalProperties::GRAPH_PROPERTIES, Some(props));
                 }
             }
         }
@@ -365,16 +349,20 @@ impl CompoundGraphPreprocessor {
                                 node_guard.ports().clone(),
                             )
                         } else {
-                            (PortConstraints::Undefined, PortLabelPlacement::outside(), Vec::new())
+                            (
+                                PortConstraints::Undefined,
+                                PortLabelPlacement::outside(),
+                                Vec::new(),
+                            )
                         };
 
-                    let inside_port_labels = port_label_placement.contains(&PortLabelPlacement::Inside);
+                    let inside_port_labels =
+                        port_label_placement.contains(&PortLabelPlacement::Inside);
                     let direction = LGraphUtil::get_direction(&nested_graph);
 
                     for port in ports {
                         let port_key = PortRefKey(port.clone());
-                        let mut dummy_node =
-                            dummy_node_map.get(&port_key).cloned();
+                        let mut dummy_node = dummy_node_map.get(&port_key).cloned();
 
                         if dummy_node.is_none() {
                             let (port_side, port_size, port_net_flow) =
@@ -423,7 +411,9 @@ impl CompoundGraphPreprocessor {
                             .lock()
                             .ok()
                             .and_then(|node| node.ports().first().cloned());
-                        let Some(dummy_port) = dummy_port else { continue };
+                        let Some(dummy_port) = dummy_port else {
+                            continue;
+                        };
 
                         let labels = port
                             .lock()
@@ -437,15 +427,15 @@ impl CompoundGraphPreprocessor {
                                 .ok()
                                 .map(|mut port_guard| *port_guard.shape().size_ref())
                                 .unwrap_or_default();
-                            let (label_size, label_pos) =
-                                if let Ok(mut label_guard) = label.lock() {
-                                    (
-                                        *label_guard.shape().size_ref(),
-                                        *label_guard.shape().position_ref(),
-                                    )
-                                } else {
-                                    (KVector::new(), KVector::new())
-                                };
+                            let (label_size, label_pos) = if let Ok(mut label_guard) = label.lock()
+                            {
+                                (
+                                    *label_guard.shape().size_ref(),
+                                    *label_guard.shape().position_ref(),
+                                )
+                            } else {
+                                (KVector::new(), KVector::new())
+                            };
 
                             let dummy_label = Arc::new(std::sync::Mutex::new(LLabel::new()));
                             if let Ok(mut dummy_label_guard) = dummy_label.lock() {
@@ -555,9 +545,7 @@ impl CompoundGraphPreprocessor {
 
                         label_moves.push((label_ref.clone(), target_index));
                         if let Ok(mut label_guard) = label_ref.lock() {
-                            if std::env::var("ELK_TRACE").is_ok()
-                                && label_guard.text() == "e2"
-                            {
+                            if std::env::var("ELK_TRACE").is_ok() && label_guard.text() == "e2" {
                                 eprintln!(
                                     "[compound-pre] moving e2 label (segments={})",
                                     edge_segments.len()
@@ -646,10 +634,7 @@ impl CompoundGraphPreprocessor {
                         None => continue,
                     };
 
-                    let target_graph = target_node
-                        .lock()
-                        .ok()
-                        .and_then(|node| node.graph());
+                    let target_graph = target_node.lock().ok().and_then(|node| node.graph());
 
                     if let Some(target_graph) = target_graph {
                         if Arc::ptr_eq(&target_graph, graph) {
@@ -658,11 +643,7 @@ impl CompoundGraphPreprocessor {
                                 external_port,
                                 out_edge,
                                 &external_port.dummy_port,
-                                &out_edge
-                                    .lock()
-                                    .ok()
-                                    .and_then(|edge| edge.target())
-                                    .unwrap(),
+                                &out_edge.lock().ok().and_then(|edge| edge.target()).unwrap(),
                                 cross_hierarchy_map,
                             );
                         } else if parent_node
@@ -713,10 +694,7 @@ impl CompoundGraphPreprocessor {
                         None => continue,
                     };
 
-                    let source_graph = source_node
-                        .lock()
-                        .ok()
-                        .and_then(|node| node.graph());
+                    let source_graph = source_node.lock().ok().and_then(|node| node.graph());
 
                     if let Some(source_graph) = source_graph {
                         if Arc::ptr_eq(&source_graph, graph) {
@@ -724,11 +702,7 @@ impl CompoundGraphPreprocessor {
                                 graph,
                                 external_port,
                                 in_edge,
-                                &in_edge
-                                    .lock()
-                                    .ok()
-                                    .and_then(|edge| edge.source())
-                                    .unwrap(),
+                                &in_edge.lock().ok().and_then(|edge| edge.source()).unwrap(),
                                 &external_port.dummy_port,
                                 cross_hierarchy_map,
                             );
@@ -771,7 +745,9 @@ impl CompoundGraphPreprocessor {
                     .iter()
                     .any(|node| Arc::ptr_eq(node, &external_port.dummy_node))
                 {
-                    graph_guard.layerless_nodes_mut().push(external_port.dummy_node.clone());
+                    graph_guard
+                        .layerless_nodes_mut()
+                        .push(external_port.dummy_node.clone());
                 }
             }
 
@@ -812,7 +788,10 @@ impl CompoundGraphPreprocessor {
             .iter()
             .find(|port| {
                 !std::ptr::eq(*port, external_output_port)
-                    && port.orig_edges.iter().any(|edge| Arc::ptr_eq(edge, orig_edge))
+                    && port
+                        .orig_edges
+                        .iter()
+                        .any(|edge| Arc::ptr_eq(edge, orig_edge))
             })
             .expect("target external port missing");
 
@@ -867,11 +846,14 @@ impl CompoundGraphPreprocessor {
                     let (in_len, out_len) = port
                         .lock()
                         .ok()
-                        .map(|port_guard| (port_guard.incoming_edges().len(), port_guard.outgoing_edges().len()))
+                        .map(|port_guard| {
+                            (
+                                port_guard.incoming_edges().len(),
+                                port_guard.outgoing_edges().len(),
+                            )
+                        })
                         .unwrap_or((0, 0));
-                    eprintln!(
-                        "[compound-pre] port edges in={in_len} out={out_len}"
-                    );
+                    eprintln!("[compound-pre] port edges in={in_len} out={out_len}");
                 }
             }
 
@@ -897,11 +879,8 @@ impl CompoundGraphPreprocessor {
                     if !LGraphUtil::is_descendant(&target_node, parent_node) {
                         let default_port = current_external_output_index
                             .and_then(|idx| created_external_ports.get_mut(idx));
-                        let opposite_port = out_edge
-                            .lock()
-                            .ok()
-                            .and_then(|edge| edge.source())
-                            .unwrap();
+                        let opposite_port =
+                            out_edge.lock().ok().and_then(|edge| edge.source()).unwrap();
                         let new_port = self.introduce_hierarchical_edge_segment(
                             graph,
                             parent_node,
@@ -956,19 +935,14 @@ impl CompoundGraphPreprocessor {
                             .unwrap_or(false)
                     {
                         let is_desc = LGraphUtil::is_descendant(&source_node, parent_node);
-                        eprintln!(
-                            "[compound-pre] saw e2 incoming, source_descendant={is_desc}"
-                        );
+                        eprintln!("[compound-pre] saw e2 incoming, source_descendant={is_desc}");
                     }
 
                     if !LGraphUtil::is_descendant(&source_node, parent_node) {
                         let default_port = current_external_input_index
                             .and_then(|idx| created_external_ports.get_mut(idx));
-                        let opposite_port = in_edge
-                            .lock()
-                            .ok()
-                            .and_then(|edge| edge.target())
-                            .unwrap();
+                        let opposite_port =
+                            in_edge.lock().ok().and_then(|edge| edge.target()).unwrap();
                         let new_port = self.introduce_hierarchical_edge_segment(
                             graph,
                             parent_node,
@@ -998,7 +972,9 @@ impl CompoundGraphPreprocessor {
                     .iter()
                     .any(|node| Arc::ptr_eq(node, &external_port.dummy_node))
                 {
-                    graph_guard.layerless_nodes_mut().push(external_port.dummy_node.clone());
+                    graph_guard
+                        .layerless_nodes_mut()
+                        .push(external_port.dummy_node.clone());
                 }
             }
             if external_port.exported {
@@ -1014,11 +990,21 @@ impl CompoundGraphPreprocessor {
         cross_hierarchy_map: &mut CrossHierarchyMap,
         dummy_node_map: &mut HashMap<PortRefKey, LNodeRef>,
     ) {
+        let trace_inside = std::env::var_os("ELK_TRACE_INSIDE_YO").is_some();
         let inside_self_loops_active = node
             .lock()
             .ok()
-            .and_then(|mut node_guard| node_guard.get_property(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE))
+            .and_then(|mut node_guard| {
+                node_guard.get_property(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE)
+            })
             .unwrap_or(false);
+        if trace_inside {
+            let node_key = Arc::as_ptr(node) as usize;
+            eprintln!(
+                "[inside-self] node={} inside_self_loops_active={}",
+                node_key, inside_self_loops_active
+            );
+        }
         if !inside_self_loops_active {
             return;
         }
@@ -1049,6 +1035,13 @@ impl CompoundGraphPreprocessor {
                         (is_self_loop, inside_self_loop)
                     })
                     .unwrap_or((false, false));
+                if trace_inside {
+                    let edge_key = Arc::as_ptr(&out_edge) as usize;
+                    eprintln!(
+                        "[inside-self] edge={} is_self_loop={} inside_self_loop={}",
+                        edge_key, is_self_loop, inside_self_loop
+                    );
+                }
 
                 if !is_self_loop || !inside_self_loop {
                     continue;
@@ -1098,16 +1091,17 @@ impl CompoundGraphPreprocessor {
                     &out_edge,
                     CrossHierarchyEdge::new(dummy_edge, nested_graph.clone(), PortType::Output),
                 );
+                if trace_inside {
+                    let edge_key = Arc::as_ptr(&out_edge) as usize;
+                    eprintln!("[inside-self] edge={} promoted_to_inside_dummy", edge_key);
+                }
 
                 if let Ok(mut graph_guard) = nested_graph.lock() {
                     let mut props = graph_guard
                         .get_property(InternalProperties::GRAPH_PROPERTIES)
                         .unwrap_or_else(EnumSet::none_of);
                     props.insert(GraphProperties::ExternalPorts);
-                    graph_guard.set_property(
-                        InternalProperties::GRAPH_PROPERTIES,
-                        Some(props),
-                    );
+                    graph_guard.set_property(InternalProperties::GRAPH_PROPERTIES, Some(props));
                 }
             }
         }
@@ -1254,7 +1248,11 @@ impl CompoundGraphPreprocessor {
 
                 cross_hierarchy_map.put(
                     orig_edge,
-                    CrossHierarchyEdge::new(default_port.new_edge.clone(), graph.clone(), port_type),
+                    CrossHierarchyEdge::new(
+                        default_port.new_edge.clone(),
+                        graph.clone(),
+                        port_type,
+                    ),
                 );
                 if std::env::var("ELK_TRACE").is_ok()
                     && orig_edge
@@ -1302,8 +1300,14 @@ impl CompoundGraphPreprocessor {
             PortSide::Undefined
         };
 
-        let dummy_node =
-            self.create_external_port_dummy(graph, parent_node, port_type, port_side, orig_edge, dummy_node_map);
+        let dummy_node = self.create_external_port_dummy(
+            graph,
+            parent_node,
+            port_type,
+            port_side,
+            orig_edge,
+            dummy_node_map,
+        );
 
         let dummy_port = dummy_node
             .lock()
@@ -1358,10 +1362,7 @@ impl CompoundGraphPreprocessor {
                 })
                 .unwrap_or(false)
         {
-            eprintln!(
-                "[compound-pre] e2 added via new port_type={:?}",
-                port_type
-            );
+            eprintln!("[compound-pre] e2 added via new port_type={:?}", port_type);
         }
 
         Some(external_port)
@@ -1399,7 +1400,9 @@ impl CompoundGraphPreprocessor {
             let port_constraints = parent_node
                 .lock()
                 .ok()
-                .and_then(|mut node_guard| node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS))
+                .and_then(|mut node_guard| {
+                    node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
+                })
                 .unwrap_or(PortConstraints::Undefined);
             let net_flow = self.calculate_net_flow(&outside_port);
             let port_node_size = KVector::new();
@@ -1435,7 +1438,9 @@ impl CompoundGraphPreprocessor {
             let port_constraints = parent_node
                 .lock()
                 .ok()
-                .and_then(|mut node_guard| node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS))
+                .and_then(|mut node_guard| {
+                    node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
+                })
                 .unwrap_or(PortConstraints::Undefined);
             let net_flow = if port_type == PortType::Input { -1 } else { 1 };
             let port_node_size = KVector::new();
@@ -1499,7 +1504,9 @@ impl CompoundGraphPreprocessor {
         let inside_self_loops_enabled = node
             .lock()
             .ok()
-            .and_then(|mut node_guard| node_guard.get_property(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE))
+            .and_then(|mut node_guard| {
+                node_guard.get_property(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE)
+            })
             .unwrap_or(false);
 
         let mut output_port_vote = 0;
@@ -1528,7 +1535,8 @@ impl CompoundGraphPreprocessor {
                 })
                 .unwrap_or((false, false, None));
 
-            let is_inside_self_loop = is_self_loop && inside_self_loops_enabled && is_inside_self_loop;
+            let is_inside_self_loop =
+                is_self_loop && inside_self_loops_enabled && is_inside_self_loop;
 
             if is_self_loop && is_inside_self_loop {
                 input_port_vote += 1;
@@ -1577,7 +1585,8 @@ impl CompoundGraphPreprocessor {
                 })
                 .unwrap_or((false, false, None));
 
-            let is_inside_self_loop = is_self_loop && inside_self_loops_enabled && is_inside_self_loop;
+            let is_inside_self_loop =
+                is_self_loop && inside_self_loops_enabled && is_inside_self_loop;
 
             if is_self_loop && is_inside_self_loop {
                 output_port_vote += 1;
@@ -1620,7 +1629,10 @@ impl CompoundGraphPreprocessor {
         let direction = LGraphUtil::get_direction(&graph);
 
         let port = crate::org::eclipse::elk::alg::layered::graph::LPort::new();
-        crate::org::eclipse::elk::alg::layered::graph::LPort::set_node(&port, Some(parent_node.clone()));
+        crate::org::eclipse::elk::alg::layered::graph::LPort::set_node(
+            &port,
+            Some(parent_node.clone()),
+        );
 
         if let Ok(mut port_guard) = port.lock() {
             match port_type {
@@ -1639,10 +1651,7 @@ impl CompoundGraphPreprocessor {
                     dummy_guard.get_property(LayeredOptions::PORT_BORDER_OFFSET)
                 })
                 .unwrap_or(0.0);
-            port_guard.set_property(
-                LayeredOptions::PORT_BORDER_OFFSET,
-                Some(border_offset),
-            );
+            port_guard.set_property(LayeredOptions::PORT_BORDER_OFFSET, Some(border_offset));
         }
 
         port
@@ -1674,12 +1683,9 @@ impl CompoundGraphPostprocessor {
             })
             .unwrap_or(false);
 
-        let cross_hierarchy_map = graph
-            .lock()
-            .ok()
-            .and_then(|mut graph_guard| {
-                graph_guard.get_property(InternalProperties::CROSS_HIERARCHY_MAP)
-            });
+        let cross_hierarchy_map = graph.lock().ok().and_then(|mut graph_guard| {
+            graph_guard.get_property(InternalProperties::CROSS_HIERARCHY_MAP)
+        });
         let Some(cross_hierarchy_map) = cross_hierarchy_map else {
             monitor.done();
             return;
@@ -1724,12 +1730,8 @@ impl CompoundGraphPostprocessor {
                     })
                     .unwrap_or(false));
 
-            let source_port = cross_edges
-                .first()
-                .and_then(|edge| edge.actual_source());
-            let target_port = cross_edges
-                .last()
-                .and_then(|edge| edge.actual_target());
+            let source_port = cross_edges.first().and_then(|edge| edge.actual_source());
+            let target_port = cross_edges.last().and_then(|edge| edge.actual_target());
             if trace_edge {
                 eprintln!(
                     "[compound-post] e2: segments={} source_present={} target_present={}",
@@ -1759,10 +1761,7 @@ impl CompoundGraphPostprocessor {
                     .ok()
                     .and_then(|node| node.nested_graph())
             } else {
-                reference_node
-                    .lock()
-                    .ok()
-                    .and_then(|node| node.graph())
+                reference_node.lock().ok().and_then(|node| node.graph())
             };
             let Some(reference_graph) = reference_graph else {
                 continue;
@@ -1777,10 +1776,8 @@ impl CompoundGraphPostprocessor {
 
             if let Ok(mut edge_guard) = orig_edge.lock() {
                 if has_junction_points {
-                    edge_guard.set_property(
-                        LayeredOptions::JUNCTION_POINTS,
-                        Some(KVectorChain::new()),
-                    );
+                    edge_guard
+                        .set_property(LayeredOptions::JUNCTION_POINTS, Some(KVectorChain::new()));
                 } else {
                     edge_guard.set_property(LayeredOptions::JUNCTION_POINTS, None);
                 }
@@ -1931,7 +1928,11 @@ fn copy_junction_points(
     }
 }
 
-fn copy_labels_back(hierarchy_segment: &LEdgeRef, orig_edge: &LEdgeRef, reference_graph: &LGraphRef) {
+fn copy_labels_back(
+    hierarchy_segment: &LEdgeRef,
+    orig_edge: &LEdgeRef,
+    reference_graph: &LGraphRef,
+) {
     let segment_source_graph = hierarchy_segment
         .lock()
         .ok()
@@ -1986,10 +1987,7 @@ fn create_external_port_properties(graph: &LGraphRef) -> MapPropertyHolder {
         .and_then(|mut graph_guard| graph_guard.get_property(LayeredOptions::SPACING_EDGE_EDGE))
         .or_else(|| LayeredOptions::SPACING_EDGE_EDGE.get_default())
         .unwrap_or(0.0);
-    property_holder.set_property(
-        LayeredOptions::PORT_BORDER_OFFSET,
-        Some(spacing / 2.0),
-    );
+    property_holder.set_property(LayeredOptions::PORT_BORDER_OFFSET, Some(spacing / 2.0));
     property_holder
 }
 

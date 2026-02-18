@@ -59,7 +59,8 @@ fn issue_405_port_and_label_positions_match_across_directions() {
             );
         }
 
-        if let (Some(reference_ports), Some(reference_labels)) = (&baseline_ports, &baseline_labels) {
+        if let (Some(reference_ports), Some(reference_labels)) = (&baseline_ports, &baseline_labels)
+        {
             assert_positions_match(reference_ports, &port_positions, "port", direction);
             assert_positions_match(reference_labels, &label_positions, "port label", direction);
         } else {
@@ -93,7 +94,12 @@ fn collect_port_and_label_positions(node: &ElkNodeRef) -> (PositionList, Positio
     (port_positions, label_positions)
 }
 
-fn assert_positions_match(reference: &[(f64, f64)], current: &[(f64, f64)], kind: &str, direction: Direction) {
+fn assert_positions_match(
+    reference: &[(f64, f64)],
+    current: &[(f64, f64)],
+    kind: &str,
+    direction: Direction,
+) {
     assert_eq!(
         reference.len(),
         current.len(),

@@ -1,10 +1,12 @@
 use std::fmt;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LayerRef, LNodeRef, LPortRef};
+use crate::org::eclipse::elk::alg::layered::graph::{LNodeRef, LPortRef, LayerRef};
 use crate::org::eclipse::elk::alg::layered::options::Spacings;
 
 use super::neighborhood_information::NeighborhoodInformation;
-use super::util::{node_id, node_margin_bottom, node_margin_top, node_size_y, port_offset_y, port_node_id};
+use super::util::{
+    node_id, node_margin_bottom, node_margin_top, node_size_y, port_node_id, port_offset_y,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum VDirection {
@@ -112,12 +114,10 @@ impl BKAlignedLayout {
         let src_node_id = port_node_id(src);
         let tgt_node_id = port_node_id(tgt);
 
-        let src_pos = self.y[src_node_id].unwrap_or(0.0)
-            + self.inner_shift[src_node_id]
-            + port_offset_y(src);
-        let tgt_pos = self.y[tgt_node_id].unwrap_or(0.0)
-            + self.inner_shift[tgt_node_id]
-            + port_offset_y(tgt);
+        let src_pos =
+            self.y[src_node_id].unwrap_or(0.0) + self.inner_shift[src_node_id] + port_offset_y(src);
+        let tgt_pos =
+            self.y[tgt_node_id].unwrap_or(0.0) + self.inner_shift[tgt_node_id] + port_offset_y(tgt);
         tgt_pos - src_pos
     }
 
@@ -160,7 +160,9 @@ impl BKAlignedLayout {
             let min_y_current = self.min_y(current);
             if let Some(neighbor) = self.upper_neighbor(current, ni) {
                 let max_y_neighbor = self.max_y(node_id(&neighbor));
-                let spacing = self.spacings.get_vertical_spacing(&self.nodes_by_id[current], &neighbor);
+                let spacing = self
+                    .spacings
+                    .get_vertical_spacing(&self.nodes_by_id[current], &neighbor);
                 available_space = available_space.min(min_y_current - (max_y_neighbor + spacing));
             }
             if current == root {
@@ -198,7 +200,9 @@ impl BKAlignedLayout {
             let max_y_current = self.max_y(current);
             if let Some(neighbor) = self.lower_neighbor(current, ni) {
                 let min_y_neighbor = self.min_y(node_id(&neighbor));
-                let spacing = self.spacings.get_vertical_spacing(&self.nodes_by_id[current], &neighbor);
+                let spacing = self
+                    .spacings
+                    .get_vertical_spacing(&self.nodes_by_id[current], &neighbor);
                 available_space = available_space.min(min_y_neighbor - (max_y_current + spacing));
             }
             if current == root {
@@ -221,7 +225,8 @@ impl BKAlignedLayout {
 
     pub fn min_y(&self, node_id: usize) -> f64 {
         let root_id = self.root[node_id];
-        self.y[root_id].unwrap_or(0.0) + self.inner_shift[node_id] - node_margin_top(&self.nodes_by_id[node_id])
+        self.y[root_id].unwrap_or(0.0) + self.inner_shift[node_id]
+            - node_margin_top(&self.nodes_by_id[node_id])
     }
 
     pub fn max_y(&self, node_id: usize) -> f64 {

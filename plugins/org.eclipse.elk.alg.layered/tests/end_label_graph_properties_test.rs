@@ -28,7 +28,10 @@ fn graph_properties_include_end_labels() {
             .shape()
             .graph_element()
             .properties_mut()
-            .set_property(CoreOptions::EDGE_LABELS_PLACEMENT, Some(EdgeLabelPlacement::Tail));
+            .set_property(
+                CoreOptions::EDGE_LABELS_PLACEMENT,
+                Some(EdgeLabelPlacement::Tail),
+            );
     }
     LayoutMetaDataService::get_instance();
     let mut origin_store = OriginStore::new();

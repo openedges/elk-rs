@@ -49,11 +49,7 @@ fn label_and_node_size_processor_applies_port_offsets() {
     let mut layered = ElkLayered::new();
     layered.do_layout(&lgraph, None);
 
-    let layers = lgraph
-        .lock()
-        .expect("lgraph lock")
-        .layers()
-        .clone();
+    let layers = lgraph.lock().expect("lgraph lock").layers().clone();
     for layer in layers {
         let nodes = layer.lock().expect("layer lock").nodes().clone();
         for node in nodes {
@@ -76,19 +72,19 @@ fn label_and_node_size_processor_applies_port_offsets() {
                 };
 
                 match side {
-                PortSide::North => {
-                    assert_close(-port_h, pos_y, "north port does not touch border");
-                }
-                PortSide::South => {
-                    assert_close(node_h, pos_y, "south port does not touch border");
-                }
-                PortSide::East => {
-                    assert_close(node_w, pos_x, "east port does not touch border");
-                }
-                PortSide::West => {
-                    assert_close(-port_w, pos_x, "west port does not touch border");
-                }
-                _ => {}
+                    PortSide::North => {
+                        assert_close(-port_h, pos_y, "north port does not touch border");
+                    }
+                    PortSide::South => {
+                        assert_close(node_h, pos_y, "south port does not touch border");
+                    }
+                    PortSide::East => {
+                        assert_close(node_w, pos_x, "east port does not touch border");
+                    }
+                    PortSide::West => {
+                        assert_close(-port_w, pos_x, "west port does not touch border");
+                    }
+                    _ => {}
                 }
             }
         }
@@ -116,10 +112,7 @@ fn add_port(node: &ElkNodeRef, side: PortSide, x: f64, y: f64) -> ElkPortRef {
 
 fn set_node_size(node: &ElkNodeRef, width: f64, height: f64) {
     let mut node_mut = node.borrow_mut();
-    node_mut
-        .connectable()
-        .shape()
-        .set_dimensions(width, height);
+    node_mut.connectable().shape().set_dimensions(width, height);
 }
 
 fn set_node_property<T: Clone + Send + Sync + 'static>(

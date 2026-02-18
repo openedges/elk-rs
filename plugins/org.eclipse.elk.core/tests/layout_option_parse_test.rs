@@ -1,5 +1,7 @@
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
-use org_eclipse_elk_core::org::eclipse::elk::core::math::{ElkMargin, ElkPadding, KVector, KVectorChain};
+use org_eclipse_elk_core::org::eclipse::elk::core::math::{
+    ElkMargin, ElkPadding, KVector, KVectorChain,
+};
 use org_eclipse_elk_core::org::eclipse::elk::core::options::{
     ContentAlignment, CoreOptions, Direction, EdgeCoords, EdgeRouting, HierarchyHandling,
     NodeLabelPlacement, PortLabelPlacement, ShapeCoords,
@@ -13,9 +15,7 @@ fn parse_object_options_kvector_and_chain() {
     let position = service
         .get_option_data_by_suffix("position")
         .expect("position option");
-    let parsed = position
-        .parse_value("(1.5, 2.5)")
-        .expect("position parsed");
+    let parsed = position.parse_value("(1.5, 2.5)").expect("position parsed");
     let vector = parsed.downcast_ref::<KVector>().expect("KVector");
     assert_eq!(vector.x, 1.5);
     assert_eq!(vector.y, 2.5);
@@ -26,9 +26,7 @@ fn parse_object_options_kvector_and_chain() {
     let parsed = bend_points
         .parse_value("(1,2; 3,4)")
         .expect("bend points parsed");
-    let chain = parsed
-        .downcast_ref::<KVectorChain>()
-        .expect("KVectorChain");
+    let chain = parsed.downcast_ref::<KVectorChain>().expect("KVectorChain");
     assert_eq!(chain.len(), 2);
     assert_eq!(chain.get(0).x, 1.0);
     assert_eq!(chain.get(0).y, 2.0);
@@ -46,9 +44,7 @@ fn parse_object_options_padding_and_margin() {
     let parsed = padding_option
         .parse_value("[top=1,left=2,bottom=3,right=4]")
         .expect("padding parsed");
-    let padding = parsed
-        .downcast_ref::<ElkPadding>()
-        .expect("ElkPadding");
+    let padding = parsed.downcast_ref::<ElkPadding>().expect("ElkPadding");
     assert_eq!(padding.top, 1.0);
     assert_eq!(padding.right, 4.0);
     assert_eq!(padding.bottom, 3.0);
@@ -106,17 +102,13 @@ fn parse_enum_and_enumset_options() {
     let parsed = direction_option
         .parse_value("DOWN")
         .expect("direction parsed");
-    let direction = parsed
-        .downcast_ref::<Direction>()
-        .expect("Direction");
+    let direction = parsed.downcast_ref::<Direction>().expect("Direction");
     assert_eq!(*direction, Direction::Down);
 
     let parsed = direction_option
         .parse_value("3")
         .expect("direction ordinal parsed");
-    let direction = parsed
-        .downcast_ref::<Direction>()
-        .expect("Direction");
+    let direction = parsed.downcast_ref::<Direction>().expect("Direction");
     assert_eq!(*direction, Direction::Down);
 
     let placement_option = service
@@ -150,9 +142,7 @@ fn parse_enum_and_enumset_options() {
     let parsed = edge_routing_option
         .parse_value("ORTHOGONAL")
         .expect("edgeRouting parsed");
-    let edge_routing = parsed
-        .downcast_ref::<EdgeRouting>()
-        .expect("EdgeRouting");
+    let edge_routing = parsed.downcast_ref::<EdgeRouting>().expect("EdgeRouting");
     assert_eq!(*edge_routing, EdgeRouting::Orthogonal);
 
     let shape_coords_option = service
@@ -161,9 +151,7 @@ fn parse_enum_and_enumset_options() {
     let parsed = shape_coords_option
         .parse_value("ROOT")
         .expect("shapeCoords parsed");
-    let shape_coords = parsed
-        .downcast_ref::<ShapeCoords>()
-        .expect("ShapeCoords");
+    let shape_coords = parsed.downcast_ref::<ShapeCoords>().expect("ShapeCoords");
     assert_eq!(*shape_coords, ShapeCoords::Root);
 
     let edge_coords_option = service
@@ -172,9 +160,7 @@ fn parse_enum_and_enumset_options() {
     let parsed = edge_coords_option
         .parse_value("PARENT")
         .expect("edgeCoords parsed");
-    let edge_coords = parsed
-        .downcast_ref::<EdgeCoords>()
-        .expect("EdgeCoords");
+    let edge_coords = parsed.downcast_ref::<EdgeCoords>().expect("EdgeCoords");
     assert_eq!(*edge_coords, EdgeCoords::Parent);
 
     let hierarchy_option = service

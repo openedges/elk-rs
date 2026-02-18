@@ -6,11 +6,11 @@ use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::{
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::{
     GraphProperties, InternalProperties, LayeredOptions, Origin,
 };
-use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::plain_java_initialization::initialize_plain_java_layout;
+use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::p3order::counting::AllCrossingsCounter;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::p3order::{
     CrossMinType, LayerSweepCrossingMinimizer,
 };
-use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::p3order::counting::AllCrossingsCounter;
+use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::plain_java_initialization::initialize_plain_java_layout;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::ILayoutPhase;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_routing::EdgeRouting;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::hierarchy_handling::HierarchyHandling;
@@ -195,10 +195,7 @@ fn nested_graph(node: &LNodeRef) -> LGraphRef {
     }
     let nested = LGraph::new();
     let parent_random = {
-        let parent_graph = node
-            .lock()
-            .ok()
-            .and_then(|node_guard| node_guard.graph());
+        let parent_graph = node.lock().ok().and_then(|node_guard| node_guard.graph());
         if let Some(parent_graph) = parent_graph {
             if let Ok(mut graph_guard) = parent_graph.lock() {
                 graph_guard.get_property(InternalProperties::RANDOM)
@@ -265,7 +262,10 @@ fn add_external_port_dummy_node_to_layer(
 
     if let Ok(mut node_guard) = node.lock() {
         node_guard.set_node_type(NodeType::ExternalPort);
-        node_guard.set_property(InternalProperties::ORIGIN, Some(Origin::LPort(port.clone())));
+        node_guard.set_property(
+            InternalProperties::ORIGIN,
+            Some(Origin::LPort(port.clone())),
+        );
         node_guard.set_property(InternalProperties::EXT_PORT_SIDE, Some(port_side));
     }
     if let Ok(mut port_guard) = port.lock() {
@@ -302,7 +302,10 @@ fn add_external_port_dummies_to_layer(
         } else {
             ports.len() - 1 - i
         };
-        nodes.push(add_external_port_dummy_node_to_layer(layer, &ports[port_index]));
+        nodes.push(add_external_port_dummy_node_to_layer(
+            layer,
+            &ports[port_index],
+        ));
     }
     nodes
 }
@@ -362,7 +365,10 @@ fn set_hierarchical_sweepiness_on_all_graphs(graph: &LGraphRef, value: f64) {
                 .map(|layer_guard| layer_guard.nodes().clone())
                 .unwrap_or_default();
             for node in nodes {
-                if let Some(nested) = node.lock().ok().and_then(|node_guard| node_guard.nested_graph())
+                if let Some(nested) = node
+                    .lock()
+                    .ok()
+                    .and_then(|node_guard| node_guard.nested_graph())
                 {
                     graphs.push(nested);
                 }
@@ -372,7 +378,8 @@ fn set_hierarchical_sweepiness_on_all_graphs(graph: &LGraphRef, value: f64) {
 }
 
 fn node_index(nodes: &[LNodeRef], needle: &LNodeRef) -> usize {
-    nodes.iter()
+    nodes
+        .iter()
         .position(|node| Arc::ptr_eq(node, needle))
         .expect("node should exist in layer")
 }
@@ -428,7 +435,14 @@ fn simple_cross_graph_runs_and_keeps_layer_structure() {
 
     let graph_guard = graph.lock().expect("graph lock");
     assert_eq!(graph_guard.layers().len(), 2);
-    assert_eq!(graph_guard.layers()[0].lock().expect("layer lock").nodes().len(), 2);
+    assert_eq!(
+        graph_guard.layers()[0]
+            .lock()
+            .expect("layer lock")
+            .nodes()
+            .len(),
+        2
+    );
     let right_nodes = graph_guard.layers()[1]
         .lock()
         .expect("layer lock")
@@ -467,7 +481,8 @@ fn simple_cross_graph_one_sided_switch_reorders_right_layer() {
         .nodes()
         .clone();
     let left_delta = node_index(&left_nodes, &n1) as isize - node_index(&left_nodes, &n2) as isize;
-    let right_delta = node_index(&right_nodes, &n4) as isize - node_index(&right_nodes, &n3) as isize;
+    let right_delta =
+        node_index(&right_nodes, &n4) as isize - node_index(&right_nodes, &n3) as isize;
     assert!(
         left_delta.signum() == right_delta.signum(),
         "expected crossing to be removed for edges (n1->n4) and (n2->n3)"
@@ -509,7 +524,8 @@ fn assert_single_hierarchical_cross_removed(cross_min_type: CrossMinType) {
         .clone();
 
     let left_delta = node_index(&left_nodes, &l0) as isize - node_index(&left_nodes, &l1) as isize;
-    let right_delta = node_index(&right_nodes, &r1) as isize - node_index(&right_nodes, &r0) as isize;
+    let right_delta =
+        node_index(&right_nodes, &r1) as isize - node_index(&right_nodes, &r0) as isize;
     assert!(
         left_delta.signum() == right_delta.signum(),
         "expected hierarchical crossing to be removed for edges (l0->r1) and (l1->r0)"
@@ -550,9 +566,12 @@ fn assert_simple_hierarchical_cross_results_in_no_crossing(cross_min_type: Cross
         .clone();
     let right_dummy_nodes = clone_layer_nodes(&right_inner_layers[0]);
     let right_normal_nodes = clone_layer_nodes(&right_inner_layers[1]);
-    let expected_dummy_order_right = vec![right_dummy_nodes[1].clone(), right_dummy_nodes[0].clone()];
-    let expected_normal_order_right = vec![right_normal_nodes[1].clone(), right_normal_nodes[0].clone()];
-    let expected_port_order_right = vec![right_outer_ports[1].clone(), right_outer_ports[0].clone()];
+    let expected_dummy_order_right =
+        vec![right_dummy_nodes[1].clone(), right_dummy_nodes[0].clone()];
+    let expected_normal_order_right =
+        vec![right_normal_nodes[1].clone(), right_normal_nodes[0].clone()];
+    let expected_port_order_right =
+        vec![right_outer_ports[1].clone(), right_outer_ports[0].clone()];
 
     set_hierarchical_sweepiness_on_all_graphs(&graph, 0.1);
     run_crossmin(&graph, cross_min_type);
@@ -707,8 +726,10 @@ fn assert_backward_sweep_not_taken_still_corrects_port_order(
         .expect("middle bottom node lock")
         .ports()
         .clone();
-    let expected_port_order_bottom_middle =
-        vec![middle_bottom_ports[1].clone(), middle_bottom_ports[0].clone()];
+    let expected_port_order_bottom_middle = vec![
+        middle_bottom_ports[1].clone(),
+        middle_bottom_ports[0].clone(),
+    ];
 
     run_crossmin(&graph, cross_min_type);
     let actual_port_order_bottom_middle = middle_nodes[2]
@@ -756,7 +777,10 @@ fn assert_resolves_in_layer_port_order_crossings_after_switch(cross_min_type: Cr
     let left_layer = make_layer(&graph);
     let middle_layer = make_layer(&graph);
     let left_nodes = [add_node(&graph, &left_layer), add_node(&graph, &left_layer)];
-    let middle_nodes = [add_node(&graph, &middle_layer), add_node(&graph, &middle_layer)];
+    let middle_nodes = [
+        add_node(&graph, &middle_layer),
+        add_node(&graph, &middle_layer),
+    ];
 
     add_east_west_edge(&left_nodes[0], &middle_nodes[1]);
     add_in_layer_edge(&middle_nodes[1], &middle_nodes[0], PortSide::West);
@@ -767,7 +791,8 @@ fn assert_resolves_in_layer_port_order_crossings_after_switch(cross_min_type: Cr
         .ports()
         .clone();
     let expected_middle_node_order = vec![middle_nodes[1].clone(), middle_nodes[0].clone()];
-    let expected_port_order_middle_top = vec![middle_top_ports[1].clone(), middle_top_ports[0].clone()];
+    let expected_port_order_middle_top =
+        vec![middle_top_ports[1].clone(), middle_top_ports[0].clone()];
 
     run_crossmin(&graph, cross_min_type);
 
@@ -783,7 +808,10 @@ fn assert_resolves_in_layer_port_order_crossings_after_switch(cross_min_type: Cr
             "expected middle layer node order to switch"
         );
         assert!(
-            same_port_order(&actual_port_order_middle_top, &expected_port_order_middle_top),
+            same_port_order(
+                &actual_port_order_middle_top,
+                &expected_port_order_middle_top
+            ),
             "expected top middle node ports to be reordered"
         );
     }
@@ -851,14 +879,14 @@ fn assert_compound_graph_forward_sweep_case_removes_crossing(cross_min_type: Cro
 }
 
 #[test]
-fn given_compound_graph_where_order_is_only_corrected_on_forward_sweep_removes_crossing_barycenter(
-) {
+fn given_compound_graph_where_order_is_only_corrected_on_forward_sweep_removes_crossing_barycenter()
+{
     assert_compound_graph_forward_sweep_case_removes_crossing(CrossMinType::Barycenter);
 }
 
 #[test]
-fn given_compound_graph_where_order_is_only_corrected_on_forward_sweep_removes_crossing_one_sided(
-) {
+fn given_compound_graph_where_order_is_only_corrected_on_forward_sweep_removes_crossing_one_sided()
+{
     assert_compound_graph_forward_sweep_case_removes_crossing(CrossMinType::OneSidedGreedySwitch);
 }
 
@@ -937,7 +965,9 @@ fn given_simple_graph_should_not_be_reordered_randomly_on_backward_sweep_barycen
 
 #[test]
 fn given_simple_graph_should_not_be_reordered_randomly_on_backward_sweep_one_sided() {
-    assert_simple_graph_not_reordered_randomly_on_backward_sweep(CrossMinType::OneSidedGreedySwitch);
+    assert_simple_graph_not_reordered_randomly_on_backward_sweep(
+        CrossMinType::OneSidedGreedySwitch,
+    );
 }
 
 fn assert_graph_which_worsens_on_backward_takes_forward_result(cross_min_type: CrossMinType) {
@@ -982,11 +1012,15 @@ fn assert_cross_between_compound_and_non_compound_nodes_removed(cross_min_type: 
     let left_layer = make_layer(&graph);
     let right_layer = make_layer(&graph);
     let left_outer_node = add_node(&graph, &left_layer);
-    let right_nodes = [add_node(&graph, &right_layer), add_node(&graph, &right_layer)];
+    let right_nodes = [
+        add_node(&graph, &right_layer),
+        add_node(&graph, &right_layer),
+    ];
     let left_outer_ports = add_ports_on_side(&left_outer_node, 2, PortSide::East);
     add_east_west_edge_from_port(&left_outer_ports[0], &right_nodes[1]);
     add_east_west_edge_from_port(&left_outer_ports[1], &right_nodes[0]);
-    let _left_inner_graph = make_nested_two_node_graph_with_eastern_ports(&left_outer_node, &left_outer_ports);
+    let _left_inner_graph =
+        make_nested_two_node_graph_with_eastern_ports(&left_outer_node, &left_outer_ports);
 
     run_crossmin(&graph, cross_min_type);
 
@@ -1003,10 +1037,10 @@ fn assert_cross_between_compound_and_non_compound_nodes_removed(cross_min_type: 
             .expect("left outer node lock")
             .ports()
             .clone();
-        let left_delta =
-            port_index(&left_ports, &left_outer_ports[0]) as isize - port_index(&left_ports, &left_outer_ports[1]) as isize;
-        let right_delta =
-            node_index(&right_order, &right_nodes[1]) as isize - node_index(&right_order, &right_nodes[0]) as isize;
+        let left_delta = port_index(&left_ports, &left_outer_ports[0]) as isize
+            - port_index(&left_ports, &left_outer_ports[1]) as isize;
+        let right_delta = node_index(&right_order, &right_nodes[1]) as isize
+            - node_index(&right_order, &right_nodes[0]) as isize;
         assert!(
             left_delta.signum() == right_delta.signum(),
             "expected no parent crossing after one-sided sweep"
@@ -1021,7 +1055,9 @@ fn given_cross_between_compound_and_non_compound_nodes_should_remove_crossing_ba
 
 #[test]
 fn given_cross_between_compound_and_non_compound_nodes_should_remove_crossing_one_sided() {
-    assert_cross_between_compound_and_non_compound_nodes_removed(CrossMinType::OneSidedGreedySwitch);
+    assert_cross_between_compound_and_non_compound_nodes_removed(
+        CrossMinType::OneSidedGreedySwitch,
+    );
 }
 
 fn assert_cross_in_first_level_compound_node_removed(cross_min_type: CrossMinType) {
@@ -1036,7 +1072,10 @@ fn assert_cross_in_first_level_compound_node_removed(cross_min_type: CrossMinTyp
     let left_layer = make_layer(&graph);
     let right_layer = make_layer(&graph);
     let left_outer_node = add_node(&graph, &left_layer);
-    let right_nodes = [add_node(&graph, &right_layer), add_node(&graph, &right_layer)];
+    let right_nodes = [
+        add_node(&graph, &right_layer),
+        add_node(&graph, &right_layer),
+    ];
     let left_outer_ports = add_ports_on_side(&left_outer_node, 2, PortSide::East);
     add_east_west_edge_from_port(&left_outer_ports[0], &right_nodes[0]);
     add_east_west_edge_from_port(&left_outer_ports[1], &right_nodes[1]);
@@ -1075,10 +1114,10 @@ fn assert_cross_in_first_level_compound_node_removed(cross_min_type: CrossMinTyp
             .expect("left outer node lock")
             .ports()
             .clone();
-        let left_delta =
-            port_index(&left_ports, &left_outer_ports[0]) as isize - port_index(&left_ports, &left_outer_ports[1]) as isize;
-        let right_delta =
-            node_index(&right_order, &right_nodes[0]) as isize - node_index(&right_order, &right_nodes[1]) as isize;
+        let left_delta = port_index(&left_ports, &left_outer_ports[0]) as isize
+            - port_index(&left_ports, &left_outer_ports[1]) as isize;
+        let right_delta = node_index(&right_order, &right_nodes[0]) as isize
+            - node_index(&right_order, &right_nodes[1]) as isize;
         assert!(
             left_delta.signum() == right_delta.signum(),
             "expected no parent crossing after one-sided sweep"
@@ -1139,10 +1178,10 @@ fn assert_graph_with_normal_and_hierarchical_cross_removed(
         .ports()
         .clone();
     let right_order = clone_layer_nodes(&layers[1]);
-    let left_delta =
-        port_index(&left_ports, &outer_normal_port) as isize - port_index(&left_ports, &hierarch_port) as isize;
-    let right_delta =
-        node_index(&right_order, &right_bottom) as isize - node_index(&right_order, &right_top) as isize;
+    let left_delta = port_index(&left_ports, &outer_normal_port) as isize
+        - port_index(&left_ports, &hierarch_port) as isize;
+    let right_delta = node_index(&right_order, &right_bottom) as isize
+        - node_index(&right_order, &right_top) as isize;
     assert!(
         left_delta.signum() == right_delta.signum(),
         "expected parent crossing to be removed between normal and hierarchical edges"
@@ -1156,7 +1195,10 @@ fn given_graph_with_normal_edge_and_hierarchical_edge_crossing_should_remove_cro
 
 #[test]
 fn given_graph_with_normal_edge_and_hierarchical_edge_crossing_should_remove_crossing_one_sided() {
-    assert_graph_with_normal_and_hierarchical_cross_removed(CrossMinType::OneSidedGreedySwitch, false);
+    assert_graph_with_normal_and_hierarchical_cross_removed(
+        CrossMinType::OneSidedGreedySwitch,
+        false,
+    );
 }
 
 #[test]
@@ -1166,7 +1208,10 @@ fn given_graph_with_port_without_edge_should_remove_crossing_barycenter() {
 
 #[test]
 fn given_graph_with_port_without_edge_should_remove_crossing_one_sided() {
-    assert_graph_with_normal_and_hierarchical_cross_removed(CrossMinType::OneSidedGreedySwitch, true);
+    assert_graph_with_normal_and_hierarchical_cross_removed(
+        CrossMinType::OneSidedGreedySwitch,
+        true,
+    );
 }
 
 fn assert_cross_with_no_external_port_dummies_on_one_nested_graph_removed(
@@ -1211,14 +1256,16 @@ fn assert_cross_with_no_external_port_dummies_on_one_nested_graph_removed(
 }
 
 #[test]
-fn given_cross_with_no_external_port_dummies_on_one_nested_graph_should_remove_crossing_barycenter(
-) {
-    assert_cross_with_no_external_port_dummies_on_one_nested_graph_removed(CrossMinType::Barycenter);
+fn given_cross_with_no_external_port_dummies_on_one_nested_graph_should_remove_crossing_barycenter()
+{
+    assert_cross_with_no_external_port_dummies_on_one_nested_graph_removed(
+        CrossMinType::Barycenter,
+    );
 }
 
 #[test]
-fn given_cross_with_no_external_port_dummies_on_one_nested_graph_should_remove_crossing_one_sided(
-) {
+fn given_cross_with_no_external_port_dummies_on_one_nested_graph_should_remove_crossing_one_sided()
+{
     assert_cross_with_no_external_port_dummies_on_one_nested_graph_removed(
         CrossMinType::OneSidedGreedySwitch,
     );
@@ -1281,7 +1328,8 @@ fn assert_nested_graph_with_wrongly_sorted_dummy_nodes_sorted_and_resolves(
             same_port_order(&actual_right_port_order, &expected_right_port_order),
             "expected right outer ports to switch order"
         );
-        let expected_normal_order = vec![right_inner_nodes[1].clone(), right_inner_nodes[0].clone()];
+        let expected_normal_order =
+            vec![right_inner_nodes[1].clone(), right_inner_nodes[0].clone()];
         assert!(
             same_node_order(&actual_normal_order, &expected_normal_order),
             "expected normal nodes in nested graph to switch order"
@@ -1295,12 +1343,10 @@ fn assert_nested_graph_with_wrongly_sorted_dummy_nodes_sorted_and_resolves(
             after_parent_crossings
         );
 
-        let dummy_delta =
-            node_index(&actual_dummy_order, &right_inner_dummy_nodes[1]) as isize
-                - node_index(&actual_dummy_order, &right_inner_dummy_nodes[0]) as isize;
-        let normal_delta =
-            node_index(&actual_normal_order, &right_inner_nodes[0]) as isize
-                - node_index(&actual_normal_order, &right_inner_nodes[1]) as isize;
+        let dummy_delta = node_index(&actual_dummy_order, &right_inner_dummy_nodes[1]) as isize
+            - node_index(&actual_dummy_order, &right_inner_dummy_nodes[0]) as isize;
+        let normal_delta = node_index(&actual_normal_order, &right_inner_nodes[0]) as isize
+            - node_index(&actual_normal_order, &right_inner_nodes[1]) as isize;
         assert!(
             dummy_delta.signum() == normal_delta.signum(),
             "expected nested crossing between dummy and normal nodes to be removed"
@@ -1309,9 +1355,11 @@ fn assert_nested_graph_with_wrongly_sorted_dummy_nodes_sorted_and_resolves(
 }
 
 #[test]
-fn given_nested_graph_with_wrongly_sorted_dummy_nodes_should_sort_and_resolve_crossing_barycenter(
-) {
-    assert_nested_graph_with_wrongly_sorted_dummy_nodes_sorted_and_resolves(CrossMinType::Barycenter);
+fn given_nested_graph_with_wrongly_sorted_dummy_nodes_should_sort_and_resolve_crossing_barycenter()
+{
+    assert_nested_graph_with_wrongly_sorted_dummy_nodes_sorted_and_resolves(
+        CrossMinType::Barycenter,
+    );
 }
 
 #[test]

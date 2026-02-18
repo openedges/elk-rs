@@ -13,10 +13,12 @@ use org_eclipse_elk_core::org::eclipse::elk::core::math::ElkPadding;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::direction::Direction;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::topdown_node_types::TopdownNodeTypes;
-use org_eclipse_elk_core::org::eclipse::elk::core::util::{AlgorithmFactory, EnumSet, InstancePool};
+use org_eclipse_elk_core::org::eclipse::elk::core::util::{
+    AlgorithmFactory, EnumSet, InstancePool,
+};
 
-use crate::org::eclipse::elk::alg::mrtree::tree_layout_provider::TreeLayoutProvider;
 use super::{EdgeRoutingMode, GraphProperties, MrTreeOptions, OrderWeighting, TreeifyingOrder};
+use crate::org::eclipse::elk::alg::mrtree::tree_layout_provider::TreeLayoutProvider;
 
 pub struct MrTreeMetaDataProvider;
 
@@ -36,8 +38,8 @@ fn register_algorithm(registry: &mut dyn LayoutMetaDataRegistry) {
     let factory = AlgorithmFactory::new(|| Box::new(TreeLayoutProvider::new()));
     let pool = InstancePool::new(Box::new(factory));
 
-    let mut data = LayoutAlgorithmData::new(MrTreeOptions::ALGORITHM_ID)
-        .with_provider_pool(Arc::new(pool));
+    let mut data =
+        LayoutAlgorithmData::new(MrTreeOptions::ALGORITHM_ID).with_provider_pool(Arc::new(pool));
     data.set_name("ELK Mr. Tree")
         .set_description(concat!(
             "Tree-based algorithm provided by the Eclipse Layout Kernel. Computes a spanning tree of ",
@@ -179,7 +181,11 @@ fn register_supports(registry: &mut dyn LayoutMetaDataRegistry) {
     registry.add_option_support(algo, CoreOptions::PORT_LABELS_PLACEMENT.id(), None);
     registry.add_option_support(algo, CoreOptions::TOPDOWN_LAYOUT.id(), None);
     registry.add_option_support(algo, CoreOptions::TOPDOWN_SCALE_FACTOR.id(), None);
-    registry.add_option_support(algo, CoreOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH.id(), None);
+    registry.add_option_support(
+        algo,
+        CoreOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH.id(),
+        None,
+    );
     registry.add_option_support(
         algo,
         CoreOptions::TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO.id(),
@@ -244,9 +250,21 @@ fn property_default_any<T: Clone + Send + Sync + 'static>(
 fn init_reflect() {
     static INIT: OnceLock<()> = OnceLock::new();
     INIT.get_or_init(|| {
-        ElkReflect::register(Some(EnumSet::<GraphProperties>::none_of), Some(|v: &EnumSet<GraphProperties>| v.clone()));
-        ElkReflect::register(Some(|| OrderWeighting::ModelOrder), Some(|v: &OrderWeighting| *v));
-        ElkReflect::register(Some(|| TreeifyingOrder::Dfs), Some(|v: &TreeifyingOrder| *v));
-        ElkReflect::register(Some(|| EdgeRoutingMode::AvoidOverlap), Some(|v: &EdgeRoutingMode| *v));
+        ElkReflect::register(
+            Some(EnumSet::<GraphProperties>::none_of),
+            Some(|v: &EnumSet<GraphProperties>| v.clone()),
+        );
+        ElkReflect::register(
+            Some(|| OrderWeighting::ModelOrder),
+            Some(|v: &OrderWeighting| *v),
+        );
+        ElkReflect::register(
+            Some(|| TreeifyingOrder::Dfs),
+            Some(|v: &TreeifyingOrder| *v),
+        );
+        ElkReflect::register(
+            Some(|| EdgeRoutingMode::AvoidOverlap),
+            Some(|v: &EdgeRoutingMode| *v),
+        );
     });
 }

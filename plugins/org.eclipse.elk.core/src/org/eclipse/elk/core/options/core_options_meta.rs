@@ -10,10 +10,10 @@ use crate::org::eclipse::elk::core::data::{
 };
 use crate::org::eclipse::elk::core::math::{ElkMargin, ElkPadding, KVector, KVectorChain};
 use crate::org::eclipse::elk::core::options::{
-    Alignment, ContentAlignment, CoreOptions, Direction, EdgeCoords, EdgeLabelPlacement, EdgeRouting,
-    EdgeType, HierarchyHandling, NodeLabelPlacement, PackingMode, PortAlignment, PortConstraints,
-    PortLabelPlacement, PortSide, ShapeCoords, SizeConstraint, SizeOptions, TopdownNodeTypes,
-    TopdownSizeApproximator,
+    Alignment, ContentAlignment, CoreOptions, Direction, EdgeCoords, EdgeLabelPlacement,
+    EdgeRouting, EdgeType, HierarchyHandling, NodeLabelPlacement, PackingMode, PortAlignment,
+    PortConstraints, PortLabelPlacement, PortSide, ShapeCoords, SizeConstraint, SizeOptions,
+    TopdownNodeTypes, TopdownSizeApproximator,
 };
 use crate::org::eclipse::elk::core::util::{
     EnumSet, EnumSetType, ExclusiveBounds, IndividualSpacings,
@@ -104,7 +104,6 @@ impl OptionMeta {
         self.lower_bound = Some(bound);
         self
     }
-
 }
 
 macro_rules! apply_meta {
@@ -947,7 +946,8 @@ fn register_font_options(registry: &mut dyn LayoutMetaDataRegistry) {
         registry,
         CoreOptions::FONT_NAME,
         LayoutOptionType::String,
-        OptionMeta::hidden("Font Name", "Font name used for a label.", &TARGET_LABELS).group("font"),
+        OptionMeta::hidden("Font Name", "Font name used for a label.", &TARGET_LABELS)
+            .group("font"),
     );
     register_option(
         registry,
@@ -1543,9 +1543,7 @@ fn property_default_any<T: Clone + Send + Sync + 'static>(
         .map(|value| Arc::new(value) as Arc<dyn Any + Send + Sync>)
 }
 
-fn enum_parser<T: Copy + Send + Sync + fmt::Debug + 'static>(
-    variants: &'static [T],
-) -> ParserFn {
+fn enum_parser<T: Copy + Send + Sync + fmt::Debug + 'static>(variants: &'static [T]) -> ParserFn {
     Arc::new(move |value| {
         parse_enum_value(value, variants)
             .map(|parsed| Arc::new(parsed) as Arc<dyn Any + Send + Sync>)
@@ -1565,8 +1563,7 @@ fn object_parser<T: 'static>() -> Option<ParserFn> {
     let type_id = TypeId::of::<T>();
     if type_id == TypeId::of::<KVector>() {
         return Some(Arc::new(|value| {
-            parse_kvector_value(value)
-                .map(|parsed| Arc::new(parsed) as Arc<dyn Any + Send + Sync>)
+            parse_kvector_value(value).map(|parsed| Arc::new(parsed) as Arc<dyn Any + Send + Sync>)
         }));
     }
     if type_id == TypeId::of::<KVectorChain>() {
@@ -1705,7 +1702,8 @@ fn parse_enumset_value<T: EnumSetType + Copy + fmt::Debug>(
     }
 
     let mut set = EnumSet::none_of();
-    for token in trimmed.split(|ch: char| ch == '[' || ch == ']' || ch == ',' || ch.is_whitespace()) {
+    for token in trimmed.split(|ch: char| ch == '[' || ch == ']' || ch == ',' || ch.is_whitespace())
+    {
         if token.trim().is_empty() {
             continue;
         }
@@ -1755,8 +1753,7 @@ fn to_upper_snake(value: &str) -> String {
         let next = chars.peek().copied();
         if let Some(prev_ch) = prev {
             if ch.is_uppercase()
-                && (prev_ch.is_lowercase()
-                    || next.map(|n| n.is_lowercase()).unwrap_or(false))
+                && (prev_ch.is_lowercase() || next.map(|n| n.is_lowercase()).unwrap_or(false))
             {
                 out.push('_');
             }
@@ -1810,7 +1807,8 @@ fn hierarchy_variants() -> &'static [HierarchyHandling] {
 }
 
 fn shape_coords_variants() -> &'static [ShapeCoords] {
-    static VARIANTS: [ShapeCoords; 3] = [ShapeCoords::Inherit, ShapeCoords::Parent, ShapeCoords::Root];
+    static VARIANTS: [ShapeCoords; 3] =
+        [ShapeCoords::Inherit, ShapeCoords::Parent, ShapeCoords::Root];
     &VARIANTS
 }
 

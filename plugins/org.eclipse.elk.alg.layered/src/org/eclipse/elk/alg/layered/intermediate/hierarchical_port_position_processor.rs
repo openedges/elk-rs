@@ -58,7 +58,12 @@ fn fix_coordinates(layer: &LayerRef, layered_graph: &mut LGraph) {
                         .unwrap_or_default(),
                 )
             })
-            .unwrap_or((NodeType::Normal, PortSide::Undefined, 0.0, Default::default()));
+            .unwrap_or((
+                NodeType::Normal,
+                PortSide::Undefined,
+                0.0,
+                Default::default(),
+            ));
 
         if node_type != NodeType::ExternalPort {
             continue;
@@ -98,7 +103,10 @@ mod tests {
 
         if let Ok(mut graph_guard) = graph.lock() {
             graph_guard.layers_mut().push(layer.clone());
-            graph_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::FixedPos));
+            graph_guard.set_property(
+                LayeredOptions::PORT_CONSTRAINTS,
+                Some(PortConstraints::FixedPos),
+            );
             let size = graph_guard.size();
             size.x = 100.0;
             size.y = 100.0;

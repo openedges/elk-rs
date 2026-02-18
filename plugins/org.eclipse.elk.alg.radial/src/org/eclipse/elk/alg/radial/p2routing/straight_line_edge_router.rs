@@ -3,10 +3,10 @@ use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configu
 use org_eclipse_elk_core::org::eclipse::elk::core::math::ElkMath;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{
     ElkConnectableShapeRef, ElkEdgeRef, ElkEdgeSectionRef, ElkGraphFactory, ElkNodeRef,
 };
-use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 
 use crate::org::eclipse::elk::alg::radial::p2routing::IRadialEdgeRouter;
 use crate::org::eclipse::elk::alg::radial::radial_layout_phases::RadialLayoutPhases;
@@ -29,12 +29,16 @@ impl StraightLineEdgeRouter {
                 )
             };
 
-            let Some(source_shape) = source_shape else { continue; };
+            let Some(source_shape) = source_shape else {
+                continue;
+            };
             if matches!(source_shape, ElkConnectableShapeRef::Port(_)) {
                 continue;
             }
 
-            let Some(target_shape) = target_shape else { continue; };
+            let Some(target_shape) = target_shape else {
+                continue;
+            };
             let Some(target) = ElkGraphUtil::connectable_shape_to_node(&target_shape) else {
                 continue;
             };

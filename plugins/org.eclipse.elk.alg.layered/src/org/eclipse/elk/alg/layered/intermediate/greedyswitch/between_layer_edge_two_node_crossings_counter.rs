@@ -81,7 +81,8 @@ impl BetweenLayerEdgeTwoNodeCrossingsCounter {
             return;
         }
 
-        let (upper_adjacencies, lower_adjacencies) = get_two_mut(adjacencies, upper_index, lower_index);
+        let (upper_adjacencies, lower_adjacencies) =
+            get_two_mut(adjacencies, upper_index, lower_index);
         upper_adjacencies.reset();
         lower_adjacencies.reset();
         if upper_adjacencies.current_size() == 0 || lower_adjacencies.current_size() == 0 {
@@ -235,7 +236,8 @@ impl AdjacencyList {
         let Some(adjacent_port) = adjacent_port else {
             return;
         };
-        let Some(adjacent_position) = port_positions.get(&port_ptr_id(&adjacent_port)).copied() else {
+        let Some(adjacent_position) = port_positions.get(&port_ptr_id(&adjacent_port)).copied()
+        else {
             return;
         };
 
@@ -266,7 +268,8 @@ impl AdjacencyList {
             return 0;
         }
         let current = &self.adjacency_list[self.current_index];
-        self.current_size.saturating_sub(current.current_cardinality)
+        self.current_size
+            .saturating_sub(current.current_cardinality)
     }
 
     fn remove_first(&mut self) {

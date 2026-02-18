@@ -12,8 +12,8 @@ use org_eclipse_elk_core::org::eclipse::elk::core::data::{
 use org_eclipse_elk_core::org::eclipse::elk::core::math::ElkPadding;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 
-use crate::org::eclipse::elk::alg::vertiflex::EdgeRoutingStrategy;
 use crate::org::eclipse::elk::alg::vertiflex::options::VertiFlexOptions;
+use crate::org::eclipse::elk::alg::vertiflex::EdgeRoutingStrategy;
 
 pub struct VertiFlexMetaDataProvider;
 

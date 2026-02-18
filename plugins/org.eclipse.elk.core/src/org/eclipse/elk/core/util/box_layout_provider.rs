@@ -48,9 +48,13 @@ impl IGraphLayoutEngine for BoxLayoutProvider {
             });
 
         match packing_mode {
-            PackingMode::Simple => {
-                place_boxes(layout_node, obj_spacing, &padding, expand_nodes, interactive)
-            }
+            PackingMode::Simple => place_boxes(
+                layout_node,
+                obj_spacing,
+                &padding,
+                expand_nodes,
+                interactive,
+            ),
             _ => place_boxes_grouping(layout_node, obj_spacing, &padding, expand_nodes),
         }
 
@@ -99,10 +103,14 @@ fn sort_boxes(parent_node: &ElkNodeRef, interactive: bool) -> Vec<ElkNodeRef> {
 
     sorted_boxes.sort_by(|child1, child2| {
         let prio1 = with_node_properties_mut(child1, |props| {
-            props.get_property(BoxLayouterOptions::PRIORITY).unwrap_or(0)
+            props
+                .get_property(BoxLayouterOptions::PRIORITY)
+                .unwrap_or(0)
         });
         let prio2 = with_node_properties_mut(child2, |props| {
-            props.get_property(BoxLayouterOptions::PRIORITY).unwrap_or(0)
+            props
+                .get_property(BoxLayouterOptions::PRIORITY)
+                .unwrap_or(0)
         });
 
         if prio1 > prio2 {
@@ -126,9 +134,7 @@ fn sort_boxes(parent_node: &ElkNodeRef, interactive: bool) -> Vec<ElkNodeRef> {
 
         let size1 = node_area(child1);
         let size2 = node_area(child2);
-        size1
-            .partial_cmp(&size2)
-            .unwrap_or(Ordering::Equal)
+        size1.partial_cmp(&size2).unwrap_or(Ordering::Equal)
     });
 
     sorted_boxes
@@ -160,9 +166,7 @@ fn place_boxes_sorted(
     total_area += total_area.sqrt() * (padding.bottom + padding.top);
     total_area += total_area.sqrt() * padding.right;
 
-    max_row_width = max_row_width
-        .max((total_area * aspect_ratio).sqrt())
-        + padding.left;
+    max_row_width = max_row_width.max((total_area * aspect_ratio).sqrt()) + padding.left;
 
     let mut xpos = padding.left;
     let mut ypos = padding.top;
@@ -349,9 +353,7 @@ fn place_inner_boxes(
     let sd_influence = 1.0;
     total_area += (groups.len() as f64) * sd_influence * stddev;
 
-    max_row_width = max_row_width
-        .max((total_area * aspect_ratio).sqrt())
-        + padding.left;
+    max_row_width = max_row_width.max((total_area * aspect_ratio).sqrt()) + padding.left;
 
     let mut xpos = padding.left;
     let mut ypos = padding.top;
@@ -647,7 +649,11 @@ impl PartialOrd for GroupEntry {
 
 impl Ord for GroupEntry {
     fn cmp(&self, other: &Self) -> Ordering {
-        match self.area.partial_cmp(&other.area).unwrap_or(Ordering::Equal) {
+        match self
+            .area
+            .partial_cmp(&other.area)
+            .unwrap_or(Ordering::Equal)
+        {
             Ordering::Equal => self.seq.cmp(&other.seq),
             ord => ord,
         }
@@ -823,7 +829,10 @@ fn set_node_location(node: &ElkNodeRef, x: f64, y: f64) {
     node_mut.connectable().shape().set_location(x, y);
 }
 
-fn with_node_properties_mut<R>(node: &ElkNodeRef, f: impl FnOnce(&mut MapPropertyHolder) -> R) -> R {
+fn with_node_properties_mut<R>(
+    node: &ElkNodeRef,
+    f: impl FnOnce(&mut MapPropertyHolder) -> R,
+) -> R {
     let mut node_mut = node.borrow_mut();
     let props = node_mut
         .connectable()

@@ -18,7 +18,9 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::nodespacing::node_dimension_calculation::NodeDimensionCalculation;
 
 use crate::org::eclipse::elk::alg::layered::graph::transform::LGraphAdapters;
-use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LGraphUtil, LNodeRef, LPortRef, NodeType};
+use crate::org::eclipse::elk::alg::layered::graph::{
+    LGraph, LGraphUtil, LNodeRef, LPortRef, NodeType,
+};
 use crate::org::eclipse::elk::alg::layered::options::graph_properties::GraphProperties;
 use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions};
 
@@ -112,6 +114,13 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
             if *TRACE_NODE_SIZE {
                 eprintln!("label-node-size: step2 (port placement) done");
             }
+            if *TRACE_NODE_SIZE {
+                eprintln!("label-node-size: phase2b (inside port label restack) begin");
+            }
+            NodeDimensionCalculation::calculate_label_and_node_sizes(&adapter);
+            if *TRACE_NODE_SIZE {
+                eprintln!("label-node-size: phase2b (inside port label restack) done");
+            }
         } else if *TRACE_NODE_SIZE {
             eprintln!("label-node-size: step2 skipped (experiment)");
         }
@@ -129,7 +138,8 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
             let port_label_placement = graph
                 .get_property(CoreOptions::PORT_LABELS_PLACEMENT)
                 .unwrap_or_default();
-            let place_next_to_port = port_label_placement.contains(&PortLabelPlacement::NextToPortIfPossible);
+            let place_next_to_port =
+                port_label_placement.contains(&PortLabelPlacement::NextToPortIfPossible);
             let treat_as_group = graph
                 .get_property(CoreOptions::PORT_LABELS_TREAT_AS_GROUP)
                 .unwrap_or(true);
@@ -190,8 +200,15 @@ fn place_ports_on_node(
     graph_topdown_layout: bool,
     graph_node_size_fixed_graph_size: bool,
 ) {
-    let (node_type, mut node_size, port_constraints, inside_self_loops_active, size_constraints, topdown_layout, node_size_fixed_graph_size) =
-        match node.lock() {
+    let (
+        node_type,
+        mut node_size,
+        port_constraints,
+        inside_self_loops_active,
+        size_constraints,
+        topdown_layout,
+        node_size_fixed_graph_size,
+    ) = match node.lock() {
         Ok(mut node_guard) => {
             let topdown_layout = node_property_or_graph_default(
                 &mut node_guard,
@@ -259,7 +276,9 @@ fn place_ports_on_node(
         return;
     }
 
-    ensure_clockwise_port_order(node, port_constraints);
+    if std::env::var("ELK_DISABLE_CLOCKWISE_SIDE_ORDER").is_err() {
+        ensure_clockwise_port_order(node, port_constraints);
+    }
 
     let allow_shrink = !topdown_layout && !node_size_fixed_graph_size;
 
@@ -517,7 +536,12 @@ fn labels_bounds_for_port(port: &LPortRef) -> Option<ElkRectangle> {
         return None;
     }
 
-    Some(ElkRectangle::with_values(min_x, min_y, max_x - min_x, max_y - min_y))
+    Some(ElkRectangle::with_values(
+        min_x,
+        min_y,
+        max_x - min_x,
+        max_y - min_y,
+    ))
 }
 
 fn labels_next_to_port(
@@ -647,19 +671,18 @@ fn setup_vertical_port_margins(
                             ctx.margin.top = overhang;
                             ctx.margin.bottom = overhang;
                         } else {
-                            let first_label_height = ctx
-                                .port
-                                .lock()
-                                .ok()
-                                .and_then(|port_guard| {
-                                    port_guard.labels().first().and_then(|label| {
-                                        label
-                                            .lock()
-                                            .ok()
-                                            .map(|mut label_guard| label_guard.shape().size_ref().y)
+                            let first_label_height =
+                                ctx.port
+                                    .lock()
+                                    .ok()
+                                    .and_then(|port_guard| {
+                                        port_guard.labels().first().and_then(|label| {
+                                            label.lock().ok().map(|mut label_guard| {
+                                                label_guard.shape().size_ref().y
+                                            })
+                                        })
                                     })
-                                })
-                                .unwrap_or(0.0);
+                                    .unwrap_or(0.0);
                             let first_overhang = (first_label_height - port_height) / 2.0;
                             ctx.margin.top = first_overhang.max(0.0);
                             ctx.margin.bottom = label_height - first_overhang - port_height;
@@ -770,11 +793,7 @@ fn place_ports_on_side(
                 node_guard
                     .get_property(CoreOptions::PORT_LABELS_TREAT_AS_GROUP)
                     .unwrap_or(true),
-                property_with_graph_default(
-                    &mut node_guard,
-                    CoreOptions::SPACING_LABEL_LABEL,
-                    0.0,
-                ),
+                property_with_graph_default(&mut node_guard, CoreOptions::SPACING_LABEL_LABEL, 0.0),
                 property_with_graph_default(
                     &mut node_guard,
                     CoreOptions::SPACING_LABEL_PORT_HORIZONTAL,
@@ -838,10 +857,12 @@ fn place_ports_on_side(
         _ => ports.iter().collect(),
     };
 
-    let port_labels_next_to_port = port_label_placement.contains(&PortLabelPlacement::NextToPortIfPossible);
+    let port_labels_next_to_port =
+        port_label_placement.contains(&PortLabelPlacement::NextToPortIfPossible);
     let port_labels_outside = port_label_placement.contains(&PortLabelPlacement::Outside);
     let always_same_side = port_label_placement.contains(&PortLabelPlacement::AlwaysSameSide);
-    let always_other_same_side = port_label_placement.contains(&PortLabelPlacement::AlwaysOtherSameSide);
+    let always_other_same_side =
+        port_label_placement.contains(&PortLabelPlacement::AlwaysOtherSameSide);
     let space_efficient = port_label_placement.contains(&PortLabelPlacement::SpaceEfficient);
     let port_labels_fixed = PortLabelPlacement::is_fixed(&port_label_placement);
     let include_label_margins = size_constraints.contains(&SizeConstraint::PortLabels);
@@ -852,15 +873,15 @@ fn place_ports_on_side(
             let has_edges = port
                 .lock()
                 .map(|port_guard| {
-                    !(port_guard.incoming_edges().is_empty() && port_guard.outgoing_edges().is_empty())
+                    !(port_guard.incoming_edges().is_empty()
+                        && port_guard.outgoing_edges().is_empty())
                 })
                 .unwrap_or(false);
             let has_compound_connections = port
                 .lock()
                 .ok()
                 .and_then(|mut port_guard| {
-                    port_guard
-                        .get_property(InternalProperties::INSIDE_CONNECTIONS)
+                    port_guard.get_property(InternalProperties::INSIDE_CONNECTIONS)
                 })
                 .unwrap_or(false);
             let labels_next = labels_next_to_port(
@@ -941,7 +962,9 @@ fn place_ports_on_side(
         placement_size += 2.0 * port_spacing;
     }
 
-    if (alignment == PortAlignment::Distributed || alignment == PortAlignment::Justified) && count == 1 {
+    if (alignment == PortAlignment::Distributed || alignment == PortAlignment::Justified)
+        && count == 1
+    {
         if alignment == PortAlignment::Distributed {
             placement_size -= 2.0 * port_spacing;
         }
@@ -978,15 +1001,13 @@ fn place_ports_on_side(
                 current_pos += available_space - placement_size;
             }
             PortAlignment::Distributed => {
-                let additional =
-                    (available_space - placement_size) / (count as f64 + 1.0);
+                let additional = (available_space - placement_size) / (count as f64 + 1.0);
                 space_between_ports += additional.max(0.0);
                 current_pos += space_between_ports;
             }
             PortAlignment::Justified => {
                 if count > 1 {
-                    let additional =
-                        (available_space - placement_size) / (count as f64 - 1.0);
+                    let additional = (available_space - placement_size) / (count as f64 - 1.0);
                     space_between_ports += additional.max(0.0);
                 }
             }
@@ -1055,7 +1076,9 @@ fn ensure_clockwise_port_order(node: &LNodeRef, port_constraints: PortConstraint
                 edge.lock()
                     .ok()
                     .and_then(|mut edge_guard| {
-                        edge_guard.graph_element().get_property(InternalProperties::ORIGIN)
+                        edge_guard
+                            .graph_element()
+                            .get_property(InternalProperties::ORIGIN)
                     })
                     .is_none()
             });
@@ -1221,7 +1244,9 @@ fn enforce_port_driven_minimum_size(
         adjusted.y = adjusted.y.max(required_height);
     }
 
-    if (adjusted.x - node_size.x).abs() > f64::EPSILON || (adjusted.y - node_size.y).abs() > f64::EPSILON {
+    if (adjusted.x - node_size.x).abs() > f64::EPSILON
+        || (adjusted.y - node_size.y).abs() > f64::EPSILON
+    {
         if let Ok(mut node_guard) = node.lock() {
             node_guard.shape().size().x = adjusted.x;
             node_guard.shape().size().y = adjusted.y;
@@ -1236,26 +1261,38 @@ fn enforce_inside_port_label_minimum_size(
     node_size: org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector,
     allow_shrink: bool,
 ) -> org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector {
-    let (padding, label_gap_horizontal, label_gap_vertical, ports) = match node.lock() {
-        Ok(mut node_guard) => {
-            let placement = node_guard
-                .get_property(CoreOptions::PORT_LABELS_PLACEMENT)
-                .unwrap_or_default();
-            if !placement.contains(&PortLabelPlacement::Inside) {
-                return node_size;
+    let (padding, label_gap_horizontal, label_gap_vertical, ports, keep_current_size_on_shrink) =
+        match node.lock() {
+            Ok(mut node_guard) => {
+                let placement = node_guard
+                    .get_property(CoreOptions::PORT_LABELS_PLACEMENT)
+                    .unwrap_or_default();
+                if !placement.contains(&PortLabelPlacement::Inside) {
+                    return node_size;
+                }
+                let size_constraints = node_guard
+                    .get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)
+                    .unwrap_or_default();
+                let padding = node_guard.padding().clone();
+                let label_gap_horizontal = node_guard
+                    .get_property(CoreOptions::SPACING_LABEL_PORT_HORIZONTAL)
+                    .unwrap_or(1.0);
+                let label_gap_vertical = node_guard
+                    .get_property(CoreOptions::SPACING_LABEL_PORT_VERTICAL)
+                    .unwrap_or(1.0);
+                let ports = node_guard.ports().clone();
+                let keep_current_size_on_shrink =
+                    size_constraints.contains(&SizeConstraint::NodeLabels);
+                (
+                    padding,
+                    label_gap_horizontal,
+                    label_gap_vertical,
+                    ports,
+                    keep_current_size_on_shrink,
+                )
             }
-            let padding = node_guard.padding().clone();
-            let label_gap_horizontal = node_guard
-                .get_property(CoreOptions::SPACING_LABEL_PORT_HORIZONTAL)
-                .unwrap_or(1.0);
-            let label_gap_vertical = node_guard
-                .get_property(CoreOptions::SPACING_LABEL_PORT_VERTICAL)
-                .unwrap_or(1.0);
-            let ports = node_guard.ports().clone();
-            (padding, label_gap_horizontal, label_gap_vertical, ports)
-        }
-        Err(_) => return node_size,
-    };
+            Err(_) => return node_size,
+        };
 
     let mut max_west = 0.0_f64;
     let mut max_east = 0.0_f64;
@@ -1274,7 +1311,11 @@ fn enforce_inside_port_label_minimum_size(
 
     for port in ports {
         let (side, port_size, labels) = match port.lock() {
-            Ok(mut port_guard) => (port_guard.side(), *port_guard.shape().size_ref(), port_guard.labels().clone()),
+            Ok(mut port_guard) => (
+                port_guard.side(),
+                *port_guard.shape().size_ref(),
+                port_guard.labels().clone(),
+            ),
             Err(_) => continue,
         };
 
@@ -1324,29 +1365,36 @@ fn enforce_inside_port_label_minimum_size(
         return node_size;
     }
 
-    let required_width = padding.left + padding.right + 2.0 * label_gap_horizontal + max_west + max_east;
+    let required_width =
+        padding.left + padding.right + 2.0 * label_gap_horizontal + max_west + max_east;
     let north_south_height = 2.0 * label_gap_vertical + max_north + max_south;
     let west_required_height = if west_port_count > 0 {
-        let required_gap = (max_label_height_west + label_gap_vertical - max_port_height_west).max(0.0);
+        let required_gap =
+            (max_label_height_west + label_gap_vertical - max_port_height_west).max(0.0);
         west_port_total_height + (west_port_count as f64 + 1.0) * required_gap
     } else {
         0.0
     };
     let east_required_height = if east_port_count > 0 {
-        let required_gap = (max_label_height_east + label_gap_vertical - max_port_height_east).max(0.0);
+        let required_gap =
+            (max_label_height_east + label_gap_vertical - max_port_height_east).max(0.0);
         east_port_total_height + (east_port_count as f64 + 1.0) * required_gap
     } else {
         0.0
     };
     let required_height = padding.top
         + padding.bottom
-        + north_south_height.max(west_required_height).max(east_required_height);
-    // Phase 1 places labels in step 1. Shrinking afterwards can reintroduce overlaps
-    // when inside labels exist on both horizontal and vertical sides.
+        + north_south_height
+            .max(west_required_height)
+            .max(east_required_height);
+    // Avoid shrinking when labels were already sized by step 1 (inside node labels present).
+    // Phase 1 sizes nodes for node labels and port labels together; shrinking here can break those
+    // larger guarantees (for example when both large node labels and inside port labels coexist).
     let prevent_shrink_for_mixed_inside_sides = has_east_west_labels && has_north_south_labels;
+    let prevent_shrink = keep_current_size_on_shrink || prevent_shrink_for_mixed_inside_sides;
 
     let mut adjusted = node_size;
-    if allow_shrink && !prevent_shrink_for_mixed_inside_sides {
+    if allow_shrink && !prevent_shrink {
         if required_width > 0.0 {
             adjusted.x = required_width;
         }
@@ -1358,7 +1406,9 @@ fn enforce_inside_port_label_minimum_size(
         adjusted.y = adjusted.y.max(required_height);
     }
 
-    if (adjusted.x - node_size.x).abs() > f64::EPSILON || (adjusted.y - node_size.y).abs() > f64::EPSILON {
+    if (adjusted.x - node_size.x).abs() > f64::EPSILON
+        || (adjusted.y - node_size.y).abs() > f64::EPSILON
+    {
         if let Ok(mut node_guard) = node.lock() {
             node_guard.shape().size().x = adjusted.x;
             node_guard.shape().size().y = adjusted.y;
@@ -1402,7 +1452,10 @@ fn required_axis_length_for_side(
         + port_spacing.max(0.0) * (count as f64 - 1.0);
     match alignment {
         PortAlignment::Distributed => base + 2.0 * port_spacing.max(0.0),
-        PortAlignment::Justified | PortAlignment::Begin | PortAlignment::End | PortAlignment::Center => base,
+        PortAlignment::Justified
+        | PortAlignment::Begin
+        | PortAlignment::End
+        | PortAlignment::Center => base,
     }
 }
 
@@ -1544,26 +1597,32 @@ fn place_ports_fixed_ratio_on_side(node: &LNodeRef, side: PortSide, width: f64, 
 /// Places labels of an external port dummy node. Java: placeExternalPortDummyLabels()
 fn place_external_port_dummy_labels(
     dummy: &LNodeRef,
-    graph_port_label_placement: &org_eclipse_elk_core::org::eclipse::elk::core::util::EnumSet<PortLabelPlacement>,
+    graph_port_label_placement: &org_eclipse_elk_core::org::eclipse::elk::core::util::EnumSet<
+        PortLabelPlacement,
+    >,
     place_next_to_port_if_possible: bool,
     treat_as_group: bool,
 ) {
-    let (label_port_spacing_horizontal, label_port_spacing_vertical, label_label_spacing, dummy_size) =
-        match dummy.lock() {
-            Ok(mut guard) => (
-                guard
-                    .get_property(LayeredOptions::SPACING_LABEL_PORT_HORIZONTAL)
-                    .unwrap_or(0.0),
-                guard
-                    .get_property(LayeredOptions::SPACING_LABEL_PORT_VERTICAL)
-                    .unwrap_or(0.0),
-                guard
-                    .get_property(LayeredOptions::SPACING_LABEL_LABEL)
-                    .unwrap_or(0.0),
-                *guard.shape().size_ref(),
-            ),
-            Err(_) => return,
-        };
+    let (
+        label_port_spacing_horizontal,
+        label_port_spacing_vertical,
+        label_label_spacing,
+        dummy_size,
+    ) = match dummy.lock() {
+        Ok(mut guard) => (
+            guard
+                .get_property(LayeredOptions::SPACING_LABEL_PORT_HORIZONTAL)
+                .unwrap_or(0.0),
+            guard
+                .get_property(LayeredOptions::SPACING_LABEL_PORT_VERTICAL)
+                .unwrap_or(0.0),
+            guard
+                .get_property(LayeredOptions::SPACING_LABEL_LABEL)
+                .unwrap_or(0.0),
+            *guard.shape().size_ref(),
+        ),
+        Err(_) => return,
+    };
 
     // External port dummies have exactly one port
     let dummy_port = match dummy.lock() {

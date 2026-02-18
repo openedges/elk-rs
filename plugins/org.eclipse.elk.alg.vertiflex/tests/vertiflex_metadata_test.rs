@@ -2,7 +2,9 @@ use org_eclipse_elk_alg_vertiflex::org::eclipse::elk::alg::vertiflex::options::{
     VertiFlexMetaDataProvider, VertiFlexOptions,
 };
 use org_eclipse_elk_alg_vertiflex::org::eclipse::elk::alg::vertiflex::EdgeRoutingStrategy;
-use org_eclipse_elk_core::org::eclipse::elk::core::data::{LayoutMetaDataService, LayoutOptionTarget};
+use org_eclipse_elk_core::org::eclipse::elk::core::data::{
+    LayoutMetaDataService, LayoutOptionTarget,
+};
 
 fn init_vertiflex_options() {
     let service = LayoutMetaDataService::get_instance();

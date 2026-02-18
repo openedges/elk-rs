@@ -1,7 +1,9 @@
 use std::marker::PhantomData;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::math::{ElkMargin, ElkRectangle, KVector};
-use org_eclipse_elk_core::org::eclipse::elk::core::options::{CoreOptions, EdgeLabelPlacement, PortLabelPlacement};
+use org_eclipse_elk_core::org::eclipse::elk::core::options::{
+    CoreOptions, EdgeLabelPlacement, PortLabelPlacement,
+};
 use org_eclipse_elk_core::org::eclipse::elk::core::util::adapters::{
     EdgeAdapter, GraphAdapter, GraphElementAdapter, LabelAdapter, NodeAdapter, PortAdapter,
 };
@@ -74,12 +76,8 @@ where
     fn process_node_with_spacing(&mut self, node: &G::NodeAdapter, label_spacing: f64) {
         let node_pos = node.get_position();
         let node_size = node.get_size();
-        let mut bounding_box = ElkRectangle::with_values(
-            node_pos.x,
-            node_pos.y,
-            node_size.x,
-            node_size.y,
-        );
+        let mut bounding_box =
+            ElkRectangle::with_values(node_pos.x, node_pos.y, node_size.x, node_size.y);
         let mut element_box = ElkRectangle::new();
 
         if self.include_labels {
@@ -121,7 +119,8 @@ where
             }
 
             if self.include_edge_head_tail_labels {
-                let mut required_port_label_space = KVector::with_values(-label_spacing, -label_spacing);
+                let mut required_port_label_space =
+                    KVector::with_values(-label_spacing, -label_spacing);
                 if node
                     .get_property(CoreOptions::PORT_LABELS_PLACEMENT)
                     .map(|set| set.contains(&PortLabelPlacement::Outside))
@@ -162,7 +161,8 @@ where
 
         let mut margin = ElkMargin::from_other(&node.get_margin());
         margin.top = (node_pos.y - bounding_box.y).max(0.0);
-        margin.bottom = (bounding_box.y + bounding_box.height - (node_pos.y + node_size.y)).max(0.0);
+        margin.bottom =
+            (bounding_box.y + bounding_box.height - (node_pos.y + node_size.y)).max(0.0);
         margin.left = (node_pos.x - bounding_box.x).max(0.0);
         margin.right = (bounding_box.x + bounding_box.width - (node_pos.x + node_size.x)).max(0.0);
         node.set_margin(margin);

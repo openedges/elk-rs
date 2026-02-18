@@ -57,9 +57,11 @@ pub static NO_OVERWRITE: LazyLock<Arc<dyn IOptionFilter>> = LazyLock::new(|| {
 });
 
 pub static NO_OVERWRITE_HOLDER: LazyLock<Arc<dyn IPropertyHolderOptionFilter>> =
-    LazyLock::new(|| Arc::new(|holder: &MapPropertyHolder, property_id: &str| {
-        !holder.has_property_id(property_id)
-    }));
+    LazyLock::new(|| {
+        Arc::new(|holder: &MapPropertyHolder, property_id: &str| {
+            !holder.has_property_id(property_id)
+        })
+    });
 
 pub static OPTION_TARGET_FILTER: LazyLock<Arc<dyn IOptionFilter>> = LazyLock::new(|| {
     Arc::new(|element: &ElkGraphElementRef, property_id: &str| {
@@ -172,11 +174,7 @@ impl LayoutConfigurator {
         self.class_option_map.get(&element_class)
     }
 
-    fn apply_properties(
-        &self,
-        element: &ElkGraphElementRef,
-        properties: &MapPropertyHolder,
-    ) {
+    fn apply_properties(&self, element: &ElkGraphElementRef, properties: &MapPropertyHolder) {
         let entries: Vec<(String, PropertyValue)> = properties
             .get_all_properties()
             .iter()
@@ -207,7 +205,10 @@ impl LayoutConfigurator {
     fn find_class_options(&self, element: &ElkGraphElementRef) -> MapPropertyHolder {
         let mut combined = MapPropertyHolder::new();
 
-        if let Some(holder) = self.class_option_map.get(&LayoutConfiguratorClass::GraphElement) {
+        if let Some(holder) = self
+            .class_option_map
+            .get(&LayoutConfiguratorClass::GraphElement)
+        {
             combined.copy_properties(holder);
         }
 
@@ -225,8 +226,9 @@ impl LayoutConfigurator {
                 if let Some(holder) = self.class_option_map.get(&LayoutConfiguratorClass::Shape) {
                     combined.copy_properties(holder);
                 }
-                if let Some(holder) =
-                    self.class_option_map.get(&LayoutConfiguratorClass::ConnectableShape)
+                if let Some(holder) = self
+                    .class_option_map
+                    .get(&LayoutConfiguratorClass::ConnectableShape)
                 {
                     combined.copy_properties(holder);
                 }
@@ -239,8 +241,9 @@ impl LayoutConfigurator {
                 if let Some(holder) = self.class_option_map.get(&LayoutConfiguratorClass::Shape) {
                     combined.copy_properties(holder);
                 }
-                if let Some(holder) =
-                    self.class_option_map.get(&LayoutConfiguratorClass::ConnectableShape)
+                if let Some(holder) = self
+                    .class_option_map
+                    .get(&LayoutConfiguratorClass::ConnectableShape)
                 {
                     combined.copy_properties(holder);
                 }
@@ -272,7 +275,8 @@ impl LayoutConfigurator {
 
         self.clear_layout = other.clear_layout;
         self.option_filters.clear();
-        self.option_filters.extend(other.option_filters.iter().cloned());
+        self.option_filters
+            .extend(other.option_filters.iter().cloned());
         self
     }
 }

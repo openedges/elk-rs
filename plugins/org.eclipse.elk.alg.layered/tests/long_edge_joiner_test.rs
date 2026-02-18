@@ -28,7 +28,10 @@ fn add_node(graph: &LGraphRef, layer: &LayerRef) -> LNodeRef {
     node
 }
 
-fn add_port(node: &LNodeRef, side: PortSide) -> org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LPortRef {
+fn add_port(
+    node: &LNodeRef,
+    side: PortSide,
+) -> org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LPortRef {
     let port = LPort::new();
     port.lock().expect("port lock").set_side(side);
     LPort::set_node(&port, Some(node.clone()));

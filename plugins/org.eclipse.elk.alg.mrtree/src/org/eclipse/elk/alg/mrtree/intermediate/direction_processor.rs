@@ -39,8 +39,12 @@ impl ILayoutProcessor<TGraphRef> for DirectionProcessor {
 
             for node in nodes {
                 if let Ok(mut node_guard) = node.lock() {
-                    let mut x = node_guard.get_property(InternalProperties::XCOOR).unwrap_or(0);
-                    let mut y = node_guard.get_property(InternalProperties::YCOOR).unwrap_or(0);
+                    let mut x = node_guard
+                        .get_property(InternalProperties::XCOOR)
+                        .unwrap_or(0);
+                    let mut y = node_guard
+                        .get_property(InternalProperties::YCOOR)
+                        .unwrap_or(0);
                     match direction {
                         Direction::Up => {
                             y *= -1;

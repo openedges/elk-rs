@@ -17,8 +17,7 @@ const MAX_EXTERNAL_NODESPACING_SCAN: usize = 24;
 fn collect_external_core_nodespacing_resources() -> Vec<PathBuf> {
     let mut roots = vec![
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../external/elk-models/tickets/core"),
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../external/elk-models/tickets/layered"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../external/elk-models/tickets/layered"),
     ];
     if let Ok(path) = env::var("ELK_CORE_TICKETS_DIR") {
         roots.push(PathBuf::from(path));
@@ -87,8 +86,7 @@ fn collect_core_ticket_files(root: &Path, resources: &mut Vec<PathBuf>) {
 
 fn is_nodespacing_ticket_resource(file_name: &str) -> bool {
     const PREFIXES: [&str; 11] = [
-        "056_", "167_", "245_", "269_", "296_", "299_", "405_", "491_", "562_", "596_",
-        "701_",
+        "056_", "167_", "245_", "269_", "296_", "299_", "405_", "491_", "562_", "596_", "701_",
     ];
     PREFIXES.iter().any(|prefix| file_name.starts_with(prefix))
 }

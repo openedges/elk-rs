@@ -12,7 +12,9 @@ use crate::org::eclipse::elk::alg::force::graph::FGraph;
 use crate::org::eclipse::elk::alg::force::i_graph_importer::IGraphImporter;
 use crate::org::eclipse::elk::alg::force::model::abstract_force_model::ForceModel;
 use crate::org::eclipse::elk::alg::force::model::{EadesModel, FruchtermanReingoldModel};
-use crate::org::eclipse::elk::alg::force::options::{ForceModelStrategy, ForceOptions, InternalProperties};
+use crate::org::eclipse::elk::alg::force::options::{
+    ForceModelStrategy, ForceOptions, InternalProperties,
+};
 
 enum ForceModelKind {
     Eades(EadesModel),
@@ -77,12 +79,21 @@ impl Default for ForceLayoutProvider {
 }
 
 impl IGraphLayoutEngine for ForceLayoutProvider {
-    fn layout(&mut self, layout_graph: &ElkNodeRef, progress_monitor: &mut dyn IElkProgressMonitor) {
+    fn layout(
+        &mut self,
+        layout_graph: &ElkNodeRef,
+        progress_monitor: &mut dyn IElkProgressMonitor,
+    ) {
         progress_monitor.begin("ELK Force", 1.0);
 
         let omit_micro = {
             let mut root = layout_graph.borrow_mut();
-            let mut props = root.connectable().shape().graph_element().properties().clone();
+            let mut props = root
+                .connectable()
+                .shape()
+                .graph_element()
+                .properties()
+                .clone();
             props
                 .get_property(ForceOptions::OMIT_NODE_MICRO_LAYOUT)
                 .unwrap_or(false)

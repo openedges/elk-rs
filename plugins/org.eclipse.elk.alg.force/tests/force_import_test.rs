@@ -1,5 +1,5 @@
-use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 
 use org_eclipse_elk_alg_force::org::eclipse::elk::alg::force::{
     ComponentsProcessor, ElkGraphImporter, FGraph, ForceOptions, IGraphImporter,
@@ -41,7 +41,9 @@ fn create_elk_graph() -> org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNod
 fn create_simple_graph() -> FGraph {
     LayoutMetaDataService::get_instance();
     let mut importer = ElkGraphImporter::new();
-    importer.import_graph(&create_elk_graph()).expect("import graph")
+    importer
+        .import_graph(&create_elk_graph())
+        .expect("import graph")
 }
 
 fn create_two_components_graph() -> FGraph {

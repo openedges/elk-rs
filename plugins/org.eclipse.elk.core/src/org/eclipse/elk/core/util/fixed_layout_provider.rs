@@ -24,7 +24,11 @@ impl FixedLayoutProvider {
 }
 
 impl IGraphLayoutEngine for FixedLayoutProvider {
-    fn layout(&mut self, layout_graph: &ElkNodeRef, progress_monitor: &mut dyn IElkProgressMonitor) {
+    fn layout(
+        &mut self,
+        layout_graph: &ElkNodeRef,
+        progress_monitor: &mut dyn IElkProgressMonitor,
+    ) {
         progress_monitor.begin("Fixed Layout", 1.0);
 
         let edge_routing = with_node_properties_mut(layout_graph, |props| {
@@ -316,22 +320,42 @@ fn label_bounds(label: &ElkLabelRef) -> (f64, f64, f64, f64) {
     (shape.x(), shape.y(), shape.width(), shape.height())
 }
 
-fn with_node_properties_mut<R>(node: &ElkNodeRef, f: impl FnOnce(&mut MapPropertyHolder) -> R) -> R {
+fn with_node_properties_mut<R>(
+    node: &ElkNodeRef,
+    f: impl FnOnce(&mut MapPropertyHolder) -> R,
+) -> R {
     let mut node_mut = node.borrow_mut();
-    f(node_mut.connectable().shape().graph_element().properties_mut())
+    f(node_mut
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut())
 }
 
-fn with_port_properties_mut<R>(port: &ElkPortRef, f: impl FnOnce(&mut MapPropertyHolder) -> R) -> R {
+fn with_port_properties_mut<R>(
+    port: &ElkPortRef,
+    f: impl FnOnce(&mut MapPropertyHolder) -> R,
+) -> R {
     let mut port_mut = port.borrow_mut();
-    f(port_mut.connectable().shape().graph_element().properties_mut())
+    f(port_mut
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut())
 }
 
-fn with_label_properties_mut<R>(label: &ElkLabelRef, f: impl FnOnce(&mut MapPropertyHolder) -> R) -> R {
+fn with_label_properties_mut<R>(
+    label: &ElkLabelRef,
+    f: impl FnOnce(&mut MapPropertyHolder) -> R,
+) -> R {
     let mut label_mut = label.borrow_mut();
     f(label_mut.shape().graph_element().properties_mut())
 }
 
-fn with_edge_properties_mut<R>(edge: &ElkEdgeRef, f: impl FnOnce(&mut MapPropertyHolder) -> R) -> R {
+fn with_edge_properties_mut<R>(
+    edge: &ElkEdgeRef,
+    f: impl FnOnce(&mut MapPropertyHolder) -> R,
+) -> R {
     let mut edge_mut = edge.borrow_mut();
     f(edge_mut.element().properties_mut())
 }

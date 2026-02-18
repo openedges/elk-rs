@@ -9,7 +9,11 @@ use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, Layere
 pub struct SemiInteractiveCrossMinProcessor;
 
 impl ILayoutProcessor<LGraph> for SemiInteractiveCrossMinProcessor {
-    fn process(&mut self, layered_graph: &mut LGraph, progress_monitor: &mut dyn IElkProgressMonitor) {
+    fn process(
+        &mut self,
+        layered_graph: &mut LGraph,
+        progress_monitor: &mut dyn IElkProgressMonitor,
+    ) {
         progress_monitor.begin("Semi-Interactive Crossing Minimization Processor", 1.0);
 
         let mut added_constraints = false;
@@ -42,11 +46,8 @@ impl ILayoutProcessor<LGraph> for SemiInteractiveCrossMinProcessor {
                 }
             }
 
-            ordered_nodes.sort_by(|left, right| {
-                left.0
-                    .partial_cmp(&right.0)
-                    .unwrap_or(Ordering::Equal)
-            });
+            ordered_nodes
+                .sort_by(|left, right| left.0.partial_cmp(&right.0).unwrap_or(Ordering::Equal));
 
             for window in ordered_nodes.windows(2) {
                 let prev = &window[0].1;

@@ -14,7 +14,11 @@ impl PlanarGrid {
         let grid = TwoBitGrid::new(width, height);
         let x_center = ((width as i32) - 1) >> 1;
         let y_center = ((height as i32) - 1) >> 1;
-        PlanarGrid { grid, x_center, y_center }
+        PlanarGrid {
+            grid,
+            x_center,
+            y_center,
+        }
     }
 
     pub fn get_width(&self) -> usize {
@@ -109,14 +113,21 @@ impl PlanarGrid {
         self.in_bounds(xi as usize, yi as usize)
     }
 
-    pub fn intersects_with_center_based_grid(&self, other: &PlanarGrid, x_offset: i32, y_offset: i32) -> bool {
+    pub fn intersects_with_center_based_grid(
+        &self,
+        other: &PlanarGrid,
+        x_offset: i32,
+        y_offset: i32,
+    ) -> bool {
         for x in 0..other.get_width() {
             let x_translated = x as i32 - other.get_center_x() + x_offset;
             for y in 0..other.get_height() {
                 let y_translated = y as i32 - other.get_center_y() + y_offset;
                 if self.in_bounds_center_based(x_translated, y_translated)
-                    && ((!other.is_empty(x, y) && self.is_blocked_center_based(x_translated, y_translated))
-                        || (other.is_blocked(x, y) && !self.is_empty_center_based(x_translated, y_translated)))
+                    && ((!other.is_empty(x, y)
+                        && self.is_blocked_center_based(x_translated, y_translated))
+                        || (other.is_blocked(x, y)
+                            && !self.is_empty_center_based(x_translated, y_translated)))
                 {
                     return true;
                 }
@@ -142,38 +153,30 @@ impl PlanarGrid {
             let top_y = self.get_center_y() - other.get_center_y() + y_offset;
             let bottom_y = top_y + other.get_height() as i32;
             let intersects = match *ext.first() {
-                Direction::North => {
-                    self.weakly_intersects_area(
-                        left_x + *ext.second(),
-                        0,
-                        left_x + *ext.third(),
-                        top_y - 1,
-                    )
-                }
-                Direction::East => {
-                    self.weakly_intersects_area(
-                        right_x,
-                        top_y + *ext.second(),
-                        self.get_width() as i32 - 1,
-                        top_y + *ext.third(),
-                    )
-                }
-                Direction::South => {
-                    self.weakly_intersects_area(
-                        left_x + *ext.second(),
-                        bottom_y,
-                        left_x + *ext.third(),
-                        self.get_height() as i32 - 1,
-                    )
-                }
-                Direction::West => {
-                    self.weakly_intersects_area(
-                        0,
-                        top_y + *ext.second(),
-                        left_x - 1,
-                        top_y + *ext.third(),
-                    )
-                }
+                Direction::North => self.weakly_intersects_area(
+                    left_x + *ext.second(),
+                    0,
+                    left_x + *ext.third(),
+                    top_y - 1,
+                ),
+                Direction::East => self.weakly_intersects_area(
+                    right_x,
+                    top_y + *ext.second(),
+                    self.get_width() as i32 - 1,
+                    top_y + *ext.third(),
+                ),
+                Direction::South => self.weakly_intersects_area(
+                    left_x + *ext.second(),
+                    bottom_y,
+                    left_x + *ext.third(),
+                    self.get_height() as i32 - 1,
+                ),
+                Direction::West => self.weakly_intersects_area(
+                    0,
+                    top_y + *ext.second(),
+                    left_x - 1,
+                    top_y + *ext.third(),
+                ),
             };
             if intersects {
                 return true;

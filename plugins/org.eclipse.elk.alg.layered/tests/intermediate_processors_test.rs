@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::{
-    LEdge, LEdgeRef, LGraph, LGraphRef, LNode, LNodeRef, LPort, LPortRef, Layer, LayerRef,
-    NodeType,
+    LEdge, LEdgeRef, LGraph, LGraphRef, LNode, LNodeRef, LPort, LPortRef, Layer, LayerRef, NodeType,
 };
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::intermediate::{
     IntermediateProcessorStrategy, NorthSouthPortPostprocessor, NorthSouthPortPreprocessor,
@@ -10,9 +9,9 @@ use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::intermediate::
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::{
     InternalProperties, LayeredMetaDataProvider, LayeredOptions,
 };
-use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor_factory::ILayoutProcessorFactory;
+use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::NullElkProgressMonitor;
@@ -147,7 +146,12 @@ fn snapshot(graph: &LGraphRef) -> (usize, usize, usize, usize) {
     let first_layer_nodes = graph_guard
         .layers()
         .first()
-        .and_then(|layer| layer.lock().ok().map(|layer_guard| layer_guard.nodes().len()))
+        .and_then(|layer| {
+            layer
+                .lock()
+                .ok()
+                .map(|layer_guard| layer_guard.nodes().len())
+        })
         .unwrap_or(0);
     let layerless_count = graph_guard.layerless_nodes().len();
     let normal_nodes = graph_guard
@@ -167,7 +171,12 @@ fn snapshot(graph: &LGraphRef) -> (usize, usize, usize, usize) {
                 .count()
         })
         .sum();
-    (layer_count, first_layer_nodes, layerless_count, normal_nodes)
+    (
+        layer_count,
+        first_layer_nodes,
+        layerless_count,
+        normal_nodes,
+    )
 }
 
 fn run_strategy(strategy: IntermediateProcessorStrategy, graph: &LGraphRef) {
@@ -309,8 +318,14 @@ fn layer_constraint_processor_strategies_are_stable_on_simple_graph() {
     let _node = add_node(&graph, &layer, 0.0, 0.0);
     let before = snapshot(&graph);
 
-    run_strategy(IntermediateProcessorStrategy::LayerConstraintPreprocessor, &graph);
-    run_strategy(IntermediateProcessorStrategy::LayerConstraintPostprocessor, &graph);
+    run_strategy(
+        IntermediateProcessorStrategy::LayerConstraintPreprocessor,
+        &graph,
+    );
+    run_strategy(
+        IntermediateProcessorStrategy::LayerConstraintPostprocessor,
+        &graph,
+    );
     assert_eq!(snapshot(&graph), before);
 }
 

@@ -58,7 +58,10 @@ impl PropertyConstantsDelegator {
         }
     }
 
-    pub fn add_delegate<T: Clone + Send + Sync + 'static>(&mut self, delegate: Property<T>) -> &mut Self {
+    pub fn add_delegate<T: Clone + Send + Sync + 'static>(
+        &mut self,
+        delegate: Property<T>,
+    ) -> &mut Self {
         self.property_delegates
             .insert(delegate.id().to_string(), Box::new(delegate));
         self
@@ -101,7 +104,10 @@ impl PropertyConstantsDelegator {
         node: &ElkNodeRef,
         property: &'static Property<T>,
     ) -> Option<T> {
-        IndividualSpacings::get_individual_or_inherited(node, self.get_property_or_delegate(property))
+        IndividualSpacings::get_individual_or_inherited(
+            node,
+            self.get_property_or_delegate(property),
+        )
     }
 
     pub fn get_individual_or_inherited_property_adapter<T, N, U>(
@@ -115,7 +121,10 @@ impl PropertyConstantsDelegator {
         N: NodeAdapter<U>,
         N::Graph: GraphElementAdapter<U>,
     {
-        IndividualSpacings::get_individual_or_inherited_adapter(node, self.get_property_or_delegate(property))
+        IndividualSpacings::get_individual_or_inherited_adapter(
+            node,
+            self.get_property_or_delegate(property),
+        )
     }
 }
 
@@ -125,10 +134,14 @@ fn build_property_delegate(
 ) -> Option<Box<dyn Any + Send + Sync>> {
     let id = option_data.id();
     match option_data.option_type() {
-        LayoutOptionType::Boolean => Some(Box::new(property_with_default::<bool>(id, default_value))),
+        LayoutOptionType::Boolean => {
+            Some(Box::new(property_with_default::<bool>(id, default_value)))
+        }
         LayoutOptionType::Int => Some(Box::new(property_with_default::<i32>(id, default_value))),
         LayoutOptionType::Double => Some(Box::new(property_with_default::<f64>(id, default_value))),
-        LayoutOptionType::String => Some(Box::new(property_with_default::<String>(id, default_value))),
+        LayoutOptionType::String => {
+            Some(Box::new(property_with_default::<String>(id, default_value)))
+        }
         LayoutOptionType::Enum | LayoutOptionType::EnumSet | LayoutOptionType::Object => {
             let type_id = option_data.value_type_id()?;
             Some(match_type_id(id, type_id, default_value)?)
@@ -143,13 +156,22 @@ fn match_type_id(
     default_value: Option<std::sync::Arc<dyn Any + Send + Sync>>,
 ) -> Option<Box<dyn Any + Send + Sync>> {
     if type_id == TypeId::of::<Alignment>() {
-        return Some(Box::new(property_with_default::<Alignment>(id, default_value)));
+        return Some(Box::new(property_with_default::<Alignment>(
+            id,
+            default_value,
+        )));
     }
     if type_id == TypeId::of::<ContentAlignment>() {
-        return Some(Box::new(property_with_default::<ContentAlignment>(id, default_value)));
+        return Some(Box::new(property_with_default::<ContentAlignment>(
+            id,
+            default_value,
+        )));
     }
     if type_id == TypeId::of::<Direction>() {
-        return Some(Box::new(property_with_default::<Direction>(id, default_value)));
+        return Some(Box::new(property_with_default::<Direction>(
+            id,
+            default_value,
+        )));
     }
     if type_id == TypeId::of::<LayoutAlgorithmData>() {
         return Some(Box::new(property_with_default::<LayoutAlgorithmData>(
@@ -164,87 +186,162 @@ fn match_type_id(
         )));
     }
     if type_id == TypeId::of::<Arc<dyn ITopdownSizeApproximator>>() {
-        return Some(Box::new(
-            property_with_default::<Arc<dyn ITopdownSizeApproximator>>(id, default_value),
-        ));
+        return Some(Box::new(property_with_default::<
+            Arc<dyn ITopdownSizeApproximator>,
+        >(id, default_value)));
     }
     if type_id == TypeId::of::<EdgeCoords>() {
-        return Some(Box::new(property_with_default::<EdgeCoords>(id, default_value)));
+        return Some(Box::new(property_with_default::<EdgeCoords>(
+            id,
+            default_value,
+        )));
     }
     if type_id == TypeId::of::<EdgeLabelPlacement>() {
-        return Some(Box::new(property_with_default::<EdgeLabelPlacement>(id, default_value)));
+        return Some(Box::new(property_with_default::<EdgeLabelPlacement>(
+            id,
+            default_value,
+        )));
     }
     if type_id == TypeId::of::<EdgeRouting>() {
-        return Some(Box::new(property_with_default::<EdgeRouting>(id, default_value)));
+        return Some(Box::new(property_with_default::<EdgeRouting>(
+            id,
+            default_value,
+        )));
     }
     if type_id == TypeId::of::<EdgeType>() {
-        return Some(Box::new(property_with_default::<EdgeType>(id, default_value)));
+        return Some(Box::new(property_with_default::<EdgeType>(
+            id,
+            default_value,
+        )));
     }
     if type_id == TypeId::of::<HierarchyHandling>() {
-        return Some(Box::new(property_with_default::<HierarchyHandling>(id, default_value)));
+        return Some(Box::new(property_with_default::<HierarchyHandling>(
+            id,
+            default_value,
+        )));
     }
     if type_id == TypeId::of::<LabelSide>() {
-        return Some(Box::new(property_with_default::<LabelSide>(id, default_value)));
+        return Some(Box::new(property_with_default::<LabelSide>(
+            id,
+            default_value,
+        )));
     }
     if type_id == TypeId::of::<NodeLabelPlacement>() {
-        return Some(Box::new(property_with_default::<NodeLabelPlacement>(id, default_value)));
+        return Some(Box::new(property_with_default::<NodeLabelPlacement>(
+            id,
+            default_value,
+        )));
     }
     if type_id == TypeId::of::<PackingMode>() {
-        return Some(Box::new(property_with_default::<PackingMode>(id, default_value)));
+        return Some(Box::new(property_with_default::<PackingMode>(
+            id,
+            default_value,
+        )));
     }
     if type_id == TypeId::of::<PortAlignment>() {
-        return Some(Box::new(property_with_default::<PortAlignment>(id, default_value)));
+        return Some(Box::new(property_with_default::<PortAlignment>(
+            id,
+            default_value,
+        )));
     }
     if type_id == TypeId::of::<PortConstraints>() {
-        return Some(Box::new(property_with_default::<PortConstraints>(id, default_value)));
+        return Some(Box::new(property_with_default::<PortConstraints>(
+            id,
+            default_value,
+        )));
     }
     if type_id == TypeId::of::<PortLabelPlacement>() {
-        return Some(Box::new(property_with_default::<PortLabelPlacement>(id, default_value)));
+        return Some(Box::new(property_with_default::<PortLabelPlacement>(
+            id,
+            default_value,
+        )));
     }
     if type_id == TypeId::of::<PortSide>() {
-        return Some(Box::new(property_with_default::<PortSide>(id, default_value)));
+        return Some(Box::new(property_with_default::<PortSide>(
+            id,
+            default_value,
+        )));
     }
     if type_id == TypeId::of::<ShapeCoords>() {
-        return Some(Box::new(property_with_default::<ShapeCoords>(id, default_value)));
+        return Some(Box::new(property_with_default::<ShapeCoords>(
+            id,
+            default_value,
+        )));
     }
     if type_id == TypeId::of::<SizeConstraint>() {
-        return Some(Box::new(property_with_default::<SizeConstraint>(id, default_value)));
+        return Some(Box::new(property_with_default::<SizeConstraint>(
+            id,
+            default_value,
+        )));
     }
     if type_id == TypeId::of::<SizeOptions>() {
-        return Some(Box::new(property_with_default::<SizeOptions>(id, default_value)));
+        return Some(Box::new(property_with_default::<SizeOptions>(
+            id,
+            default_value,
+        )));
     }
     if type_id == TypeId::of::<TopdownNodeTypes>() {
-        return Some(Box::new(property_with_default::<TopdownNodeTypes>(id, default_value)));
+        return Some(Box::new(property_with_default::<TopdownNodeTypes>(
+            id,
+            default_value,
+        )));
     }
     if type_id == TypeId::of::<ElkMargin>() {
-        return Some(Box::new(property_with_default::<ElkMargin>(id, default_value)));
+        return Some(Box::new(property_with_default::<ElkMargin>(
+            id,
+            default_value,
+        )));
     }
     if type_id == TypeId::of::<ElkPadding>() {
-        return Some(Box::new(property_with_default::<ElkPadding>(id, default_value)));
+        return Some(Box::new(property_with_default::<ElkPadding>(
+            id,
+            default_value,
+        )));
     }
     if type_id == TypeId::of::<KVector>() {
-        return Some(Box::new(property_with_default::<KVector>(id, default_value)));
+        return Some(Box::new(property_with_default::<KVector>(
+            id,
+            default_value,
+        )));
     }
     if type_id == TypeId::of::<KVectorChain>() {
-        return Some(Box::new(property_with_default::<KVectorChain>(id, default_value)));
+        return Some(Box::new(property_with_default::<KVectorChain>(
+            id,
+            default_value,
+        )));
     }
     if type_id == TypeId::of::<IndividualSpacings>() {
-        return Some(Box::new(property_with_default::<IndividualSpacings>(id, default_value)));
+        return Some(Box::new(property_with_default::<IndividualSpacings>(
+            id,
+            default_value,
+        )));
     }
     if type_id == TypeId::of::<EnumSet<SizeConstraint>>() {
-        return Some(Box::new(property_with_default::<EnumSet<SizeConstraint>>(id, default_value)));
+        return Some(Box::new(property_with_default::<EnumSet<SizeConstraint>>(
+            id,
+            default_value,
+        )));
     }
     if type_id == TypeId::of::<EnumSet<ContentAlignment>>() {
-        return Some(Box::new(property_with_default::<EnumSet<ContentAlignment>>(id, default_value)));
+        return Some(Box::new(
+            property_with_default::<EnumSet<ContentAlignment>>(id, default_value),
+        ));
     }
     if type_id == TypeId::of::<EnumSet<SizeOptions>>() {
-        return Some(Box::new(property_with_default::<EnumSet<SizeOptions>>(id, default_value)));
+        return Some(Box::new(property_with_default::<EnumSet<SizeOptions>>(
+            id,
+            default_value,
+        )));
     }
     if type_id == TypeId::of::<EnumSet<NodeLabelPlacement>>() {
-        return Some(Box::new(property_with_default::<EnumSet<NodeLabelPlacement>>(id, default_value)));
+        return Some(Box::new(
+            property_with_default::<EnumSet<NodeLabelPlacement>>(id, default_value),
+        ));
     }
     if type_id == TypeId::of::<EnumSet<PortLabelPlacement>>() {
-        return Some(Box::new(property_with_default::<EnumSet<PortLabelPlacement>>(id, default_value)));
+        return Some(Box::new(
+            property_with_default::<EnumSet<PortLabelPlacement>>(id, default_value),
+        ));
     }
     None
 }

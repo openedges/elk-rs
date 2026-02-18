@@ -3,8 +3,8 @@ mod elkt_test_loader;
 
 use elkt_test_loader::{find_node_by_identifier, load_layered_graph_from_elkt};
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::layered_layout_provider::LayeredLayoutProvider;
-use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::plain_java_initialization::initialize_plain_java_layout;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::LayeredOptions;
+use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::plain_java_initialization::initialize_plain_java_layout;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::{
     SIDES_EAST_WEST, SIDES_NORTH_SOUTH, SIDES_SOUTH_WEST,
@@ -215,6 +215,60 @@ fn label_axis_position(port: &ElkPortRef) -> f64 {
 
 fn assert_below_or_right(port: ElkPortRef, context: &str) {
     let position = label_axis_position(&port);
+    if std::env::var("DEBUG_PORT_LABEL_VARIANTS").is_ok() {
+        let label_shape = {
+            let label_ref = label_for_port(&port);
+            let mut label_mut = label_ref.borrow_mut();
+            let label_shape = label_mut.shape();
+            (
+                label_shape.x(),
+                label_shape.y(),
+                label_shape.width(),
+                label_shape.height(),
+            )
+        };
+        let (label_x, label_y, label_w, label_h) = label_shape;
+
+        let port_shape = {
+            let mut port_mut = port.borrow_mut();
+            let port_shape = port_mut.connectable().shape();
+            (
+                port_shape.x(),
+                port_shape.y(),
+                port_shape.width(),
+                port_shape.height(),
+                port_mut
+                    .connectable()
+                    .shape()
+                    .graph_element()
+                    .identifier()
+                    .map(|id| id.to_string()),
+            )
+        };
+        let (port_x, port_y, port_w, port_h, port_id) = port_shape;
+
+        let parent_id = {
+            let mut port_mut = port.borrow_mut();
+            port_mut.parent().and_then(|parent| {
+                parent
+                    .borrow_mut()
+                    .connectable()
+                    .shape()
+                    .graph_element()
+                    .identifier()
+                    .map(|id| id.to_string())
+            })
+        };
+
+        let side = port_side(&port);
+        println!(
+            "[DEBUG][{context}] parent={:?} port={:?} side={side:?} label_pos=({}, {}) size=({label_w},{label_h}) port_pos=({port_x},{port_y}) size=({port_w},{port_h}) axis={position}",
+            parent_id,
+            port_id,
+            label_x,
+            label_y
+        );
+    }
     assert!(
         position > 0.0,
         "{context}: expected label position > 0, got {position}"
@@ -223,6 +277,60 @@ fn assert_below_or_right(port: ElkPortRef, context: &str) {
 
 fn assert_above_or_left(port: ElkPortRef, context: &str) {
     let position = label_axis_position(&port);
+    if std::env::var("DEBUG_PORT_LABEL_VARIANTS").is_ok() {
+        let label_shape = {
+            let label_ref = label_for_port(&port);
+            let mut label_mut = label_ref.borrow_mut();
+            let label_shape = label_mut.shape();
+            (
+                label_shape.x(),
+                label_shape.y(),
+                label_shape.width(),
+                label_shape.height(),
+            )
+        };
+        let (label_x, label_y, label_w, label_h) = label_shape;
+
+        let port_shape = {
+            let mut port_mut = port.borrow_mut();
+            let port_shape = port_mut.connectable().shape();
+            (
+                port_shape.x(),
+                port_shape.y(),
+                port_shape.width(),
+                port_shape.height(),
+                port_mut
+                    .connectable()
+                    .shape()
+                    .graph_element()
+                    .identifier()
+                    .map(|id| id.to_string()),
+            )
+        };
+        let (port_x, port_y, port_w, port_h, port_id) = port_shape;
+
+        let parent_id = {
+            let mut port_mut = port.borrow_mut();
+            port_mut.parent().and_then(|parent| {
+                parent
+                    .borrow_mut()
+                    .connectable()
+                    .shape()
+                    .graph_element()
+                    .identifier()
+                    .map(|id| id.to_string())
+            })
+        };
+
+        let side = port_side(&port);
+        println!(
+            "[DEBUG][{context}] parent={:?} port={:?} side={side:?} label_pos=({}, {}) size=({label_w},{label_h}) port_pos=({port_x},{port_y}) size=({port_w},{port_h}) axis={position}",
+            parent_id,
+            port_id,
+            label_x,
+            label_y
+        );
+    }
     assert!(
         position < 0.0,
         "{context}: expected label position < 0, got {position}"

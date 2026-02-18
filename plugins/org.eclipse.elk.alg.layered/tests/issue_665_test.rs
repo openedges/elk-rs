@@ -22,7 +22,10 @@ fn issue_665_hierarchical_graph_layout_does_not_fail_import() {
         (shape.width(), shape.height())
     };
     assert!(
-        graph_width.is_finite() && graph_height.is_finite() && graph_width >= 0.0 && graph_height >= 0.0,
+        graph_width.is_finite()
+            && graph_height.is_finite()
+            && graph_width >= 0.0
+            && graph_height >= 0.0,
         "invalid graph size after layout (w={graph_width}, h={graph_height})"
     );
 
@@ -38,6 +41,9 @@ fn issue_665_hierarchical_graph_layout_does_not_fail_import() {
     );
 
     for edge in edges {
-        assert!(edge.borrow().is_connected(), "edge lost connectivity after layout");
+        assert!(
+            edge.borrow().is_connected(),
+            "edge lost connectivity after layout"
+        );
     }
 }

@@ -1,8 +1,8 @@
 use std::rc::Rc;
 
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::{
-    NodeMicroLayout,
     nodespacing::{NodeDimensionCalculation, NodeLabelAndSizeCalculator, NodeMarginCalculator},
+    NodeMicroLayout,
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::{ElkMargin, ElkPadding};
@@ -10,8 +10,8 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::{
     CoreOptions, Direction, EdgeLabelPlacement, NodeLabelPlacement, PortConstraints,
     PortLabelPlacement, PortSide, SizeConstraint, SizeOptions,
 };
-use org_eclipse_elk_core::org::eclipse::elk::core::util::EnumSet;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::adapters::ElkGraphAdapters;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::EnumSet;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{
     ElkConnectableShapeRef, ElkEdgeRef, ElkGraphElementRef, ElkLabelRef, ElkNodeRef, ElkPortRef,
@@ -75,13 +75,19 @@ fn outside_north_label_x_positions(
         .shape()
         .graph_element()
         .properties_mut()
-        .set_property(CoreOptions::PORT_CONSTRAINTS, Some(PortConstraints::FixedOrder));
+        .set_property(
+            CoreOptions::PORT_CONSTRAINTS,
+            Some(PortConstraints::FixedOrder),
+        );
     node.borrow_mut()
         .connectable()
         .shape()
         .graph_element()
         .properties_mut()
-        .set_property(CoreOptions::PORT_LABELS_PLACEMENT, Some(EnumSet::of(placements)));
+        .set_property(
+            CoreOptions::PORT_LABELS_PLACEMENT,
+            Some(EnumSet::of(placements)),
+        );
 
     let mut ports = Vec::new();
     for index in 0..port_count {
@@ -136,7 +142,10 @@ fn constrained_outside_north_label_rectangles() -> Vec<(f64, f64, f64, f64)> {
         .shape()
         .graph_element()
         .properties_mut()
-        .set_property(CoreOptions::PORT_CONSTRAINTS, Some(PortConstraints::FixedOrder));
+        .set_property(
+            CoreOptions::PORT_CONSTRAINTS,
+            Some(PortConstraints::FixedOrder),
+        );
     node.borrow_mut()
         .connectable()
         .shape()
@@ -188,12 +197,7 @@ fn constrained_outside_north_label_rectangles() -> Vec<(f64, f64, f64, f64)> {
             let (port_x, port_y, label_ref) = {
                 let mut port_mut = port.borrow_mut();
                 let shape = port_mut.connectable().shape();
-                let labels: Vec<_> = shape
-                    .graph_element()
-                    .labels()
-                    .iter()
-                    .cloned()
-                    .collect();
+                let labels: Vec<_> = shape.graph_element().labels().iter().cloned().collect();
                 (
                     shape.x(),
                     shape.y(),
@@ -210,11 +214,17 @@ fn constrained_outside_north_label_rectangles() -> Vec<(f64, f64, f64, f64)> {
             )
         })
         .collect::<Vec<_>>();
-    rects.sort_by(|left, right| left.0.partial_cmp(&right.0).unwrap_or(std::cmp::Ordering::Equal));
+    rects.sort_by(|left, right| {
+        left.0
+            .partial_cmp(&right.0)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     rects
 }
 
-fn constrained_inside_horizontal_label_rectangles(port_side: PortSide) -> Vec<(f64, f64, f64, f64)> {
+fn constrained_inside_horizontal_label_rectangles(
+    port_side: PortSide,
+) -> Vec<(f64, f64, f64, f64)> {
     LayoutMetaDataService::get_instance();
     let graph = ElkGraphUtil::create_graph();
     let node = ElkGraphUtil::create_node(Some(graph.clone()));
@@ -224,7 +234,10 @@ fn constrained_inside_horizontal_label_rectangles(port_side: PortSide) -> Vec<(f
         .shape()
         .graph_element()
         .properties_mut()
-        .set_property(CoreOptions::PORT_CONSTRAINTS, Some(PortConstraints::FixedOrder));
+        .set_property(
+            CoreOptions::PORT_CONSTRAINTS,
+            Some(PortConstraints::FixedOrder),
+        );
     node.borrow_mut()
         .connectable()
         .shape()
@@ -278,12 +291,7 @@ fn constrained_inside_horizontal_label_rectangles(port_side: PortSide) -> Vec<(f
             let (port_x, port_y, label_ref) = {
                 let mut port_mut = port.borrow_mut();
                 let shape = port_mut.connectable().shape();
-                let labels: Vec<_> = shape
-                    .graph_element()
-                    .labels()
-                    .iter()
-                    .cloned()
-                    .collect();
+                let labels: Vec<_> = shape.graph_element().labels().iter().cloned().collect();
                 (
                     shape.x(),
                     shape.y(),
@@ -337,7 +345,10 @@ fn constrained_inside_custom_label_rectangles_with_options(
         .shape()
         .graph_element()
         .properties_mut()
-        .set_property(CoreOptions::PORT_CONSTRAINTS, Some(PortConstraints::FixedOrder));
+        .set_property(
+            CoreOptions::PORT_CONSTRAINTS,
+            Some(PortConstraints::FixedOrder),
+        );
     node.borrow_mut()
         .connectable()
         .shape()
@@ -415,12 +426,7 @@ fn constrained_inside_custom_label_rectangles_with_options(
             let (port_x, port_y, label_ref) = {
                 let mut port_mut = port.borrow_mut();
                 let shape = port_mut.connectable().shape();
-                let labels: Vec<_> = shape
-                    .graph_element()
-                    .labels()
-                    .iter()
-                    .cloned()
-                    .collect();
+                let labels: Vec<_> = shape.graph_element().labels().iter().cloned().collect();
                 (
                     shape.x(),
                     shape.y(),
@@ -442,7 +448,8 @@ fn constrained_inside_custom_label_rectangles_with_options(
 fn create_port_tail_label_setup() -> (ElkNodeRef, ElkNodeRef, ElkPortRef, ElkEdgeRef, ElkLabelRef) {
     LayoutMetaDataService::get_instance();
     let graph = ElkGraphUtil::create_graph();
-    graph.borrow_mut()
+    graph
+        .borrow_mut()
         .connectable()
         .shape()
         .graph_element()
@@ -611,7 +618,8 @@ fn node_margin_calculator_ignores_edge_end_labels_when_disabled() {
 fn node_margin_calculator_places_head_label_left_of_west_port() {
     LayoutMetaDataService::get_instance();
     let graph = ElkGraphUtil::create_graph();
-    graph.borrow_mut()
+    graph
+        .borrow_mut()
         .connectable()
         .shape()
         .graph_element()
@@ -657,6 +665,81 @@ fn node_margin_calculator_places_head_label_left_of_west_port() {
     approx_eq(margin.left, 12.0);
 }
 
+fn inside_west_port_label_y_with_node_compound(node_is_compound: bool) -> f64 {
+    LayoutMetaDataService::get_instance();
+    let graph = ElkGraphUtil::create_graph();
+    let node = ElkGraphUtil::create_node(Some(graph.clone()));
+    set_node_geometry(&node, 0.0, 0.0, 40.0, 20.0);
+
+    node.borrow_mut()
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(
+            CoreOptions::PORT_LABELS_PLACEMENT,
+            Some(EnumSet::of(&[PortLabelPlacement::Inside])),
+        );
+    node.borrow_mut()
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(CoreOptions::PADDING, Some(ElkPadding::with_any(0.0)));
+    if node_is_compound {
+        let child = ElkGraphUtil::create_node(Some(node.clone()));
+        set_node_geometry(&child, 2.0, 2.0, 10.0, 5.0);
+        assert!(node.borrow().is_hierarchical());
+    }
+
+    let port = ElkGraphUtil::create_port(Some(node.clone()));
+    set_port_geometry(&port, 10.0, 8.0, 8.0, 4.0);
+    port.borrow_mut()
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut()
+        .set_property(CoreOptions::PORT_SIDE, Some(PortSide::West));
+
+    let label = ElkGraphUtil::create_label(Some(ElkGraphElementRef::Port(port.clone())));
+    set_label_geometry(&label, 0.0, 0.0, 6.0, 2.0);
+
+    let target = ElkGraphUtil::create_node(Some(graph.clone()));
+    set_node_geometry(&target, 20.0, 0.0, 12.0, 12.0);
+    let _edge = ElkGraphUtil::create_simple_edge(
+        ElkConnectableShapeRef::Port(port.clone()),
+        ElkConnectableShapeRef::Node(target),
+    );
+
+    NodeMicroLayout::for_graph(graph).execute();
+
+    let labels: Vec<_> = {
+        let mut port_mut = port.borrow_mut();
+        port_mut
+            .connectable()
+            .shape()
+            .graph_element()
+            .labels()
+            .iter()
+            .cloned()
+            .collect()
+    };
+    assert_eq!(labels.len(), 1);
+    let mut label_mut = labels[0].borrow_mut();
+    label_mut.shape().y()
+}
+
+#[test]
+fn node_dimension_calculation_places_inside_non_compound_port_labels_next_to_port_by_default() {
+    approx_eq(inside_west_port_label_y_with_node_compound(false), 1.0);
+}
+
+#[test]
+fn node_dimension_calculation_places_inside_compound_port_labels_away_from_port_without_next_to_port_flag(
+) {
+    approx_eq(inside_west_port_label_y_with_node_compound(true), 5.0);
+}
+
 #[test]
 fn node_dimension_calculation_sorts_ports_by_side_and_index() {
     LayoutMetaDataService::get_instance();
@@ -667,7 +750,10 @@ fn node_dimension_calculation_sorts_ports_by_side_and_index() {
         .shape()
         .graph_element()
         .properties_mut()
-        .set_property(CoreOptions::PORT_CONSTRAINTS, Some(PortConstraints::FixedOrder));
+        .set_property(
+            CoreOptions::PORT_CONSTRAINTS,
+            Some(PortConstraints::FixedOrder),
+        );
 
     let p1 = ElkGraphUtil::create_port(Some(node.clone()));
     let p2 = ElkGraphUtil::create_port(Some(node.clone()));
@@ -770,7 +856,10 @@ fn node_micro_layout_executes_port_sort_and_margin_calculation() {
         .shape()
         .graph_element()
         .properties_mut()
-        .set_property(CoreOptions::PORT_CONSTRAINTS, Some(PortConstraints::FixedOrder));
+        .set_property(
+            CoreOptions::PORT_CONSTRAINTS,
+            Some(PortConstraints::FixedOrder),
+        );
 
     let p1 = ElkGraphUtil::create_port(Some(node.clone()));
     let p2 = ElkGraphUtil::create_port(Some(node.clone()));
@@ -885,7 +974,10 @@ fn node_micro_layout_places_inside_and_outside_node_labels_with_size_constraints
         .shape()
         .graph_element()
         .properties_mut()
-        .set_property(CoreOptions::NODE_LABELS_PADDING, Some(ElkPadding::with_any(2.0)));
+        .set_property(
+            CoreOptions::NODE_LABELS_PADDING,
+            Some(ElkPadding::with_any(2.0)),
+        );
 
     let inside_label = ElkGraphUtil::create_label(Some(ElkGraphElementRef::Node(node.clone())));
     set_label_geometry(&inside_label, 0.0, 0.0, 10.0, 4.0);
@@ -983,7 +1075,10 @@ fn node_micro_layout_honors_outside_node_label_overhang() {
         .shape()
         .graph_element()
         .properties_mut()
-        .set_property(CoreOptions::NODE_LABELS_PADDING, Some(ElkPadding::with_any(0.0)));
+        .set_property(
+            CoreOptions::NODE_LABELS_PADDING,
+            Some(ElkPadding::with_any(0.0)),
+        );
 
     let inside_label = ElkGraphUtil::create_label(Some(ElkGraphElementRef::Node(node.clone())));
     set_label_geometry(&inside_label, 0.0, 0.0, 10.0, 4.0);
@@ -1224,9 +1319,11 @@ fn inside_node_label_container_minimum_size_handles_tabular_and_center_only_mode
         .properties_mut()
         .set_property(
             CoreOptions::NODE_SIZE_MINIMUM,
-            Some(org_eclipse_elk_core::org::eclipse::elk::core::math::KVector::with_values(
-                40.0, 20.0,
-            )),
+            Some(
+                org_eclipse_elk_core::org::eclipse::elk::core::math::KVector::with_values(
+                    40.0, 20.0,
+                ),
+            ),
         );
     graph
         .borrow_mut()
@@ -1310,10 +1407,12 @@ fn should_label_be_placed_next_to_port(
         }
     }
 
-    (inside_label_placement && !edges_to_insides) || (!inside_label_placement && !edges_to_somewhere_else)
+    (inside_label_placement && !edges_to_insides)
+        || (!inside_label_placement && !edges_to_somewhere_else)
 }
 
-fn create_next_to_port_rule_graph() -> (ElkNodeRef, ElkNodeRef, ElkNodeRef, ElkNodeRef, ElkPortRef) {
+fn create_next_to_port_rule_graph() -> (ElkNodeRef, ElkNodeRef, ElkNodeRef, ElkNodeRef, ElkPortRef)
+{
     LayoutMetaDataService::get_instance();
     let graph = ElkGraphUtil::create_graph();
     let parent = ElkGraphUtil::create_node(Some(graph.clone()));
@@ -1370,7 +1469,10 @@ fn outside_two_ports_places_first_label_on_other_side() {
 #[test]
 fn outside_two_ports_with_always_same_side_disables_first_special_case() {
     let positions = outside_north_label_x_positions(
-        &[PortLabelPlacement::Outside, PortLabelPlacement::AlwaysSameSide],
+        &[
+            PortLabelPlacement::Outside,
+            PortLabelPlacement::AlwaysSameSide,
+        ],
         2,
     );
     approx_eq(positions[0], 9.0);
@@ -1380,7 +1482,10 @@ fn outside_two_ports_with_always_same_side_disables_first_special_case() {
 #[test]
 fn outside_three_ports_with_space_efficient_places_first_label_on_other_side() {
     let positions = outside_north_label_x_positions(
-        &[PortLabelPlacement::Outside, PortLabelPlacement::SpaceEfficient],
+        &[
+            PortLabelPlacement::Outside,
+            PortLabelPlacement::SpaceEfficient,
+        ],
         3,
     );
     approx_eq(positions[0], -7.0);
@@ -1408,7 +1513,9 @@ fn constrained_outside_north_port_labels_stack_without_overlap() {
         }
     }
 
-    let has_stacked_row = rects.iter().any(|(_, y, _, _)| (*y - rects[0].1).abs() > 1e-9);
+    let has_stacked_row = rects
+        .iter()
+        .any(|(_, y, _, _)| (*y - rects[0].1).abs() > 1e-9);
     assert!(
         has_stacked_row,
         "constrained placement should stack at least one label in a different y row, rects={rects:?}"
@@ -1421,7 +1528,10 @@ fn constrained_inside_north_port_labels_are_clamped_and_stacked() {
     assert_eq!(rects.len(), 3);
 
     for (x, y, w, h) in &rects {
-        assert!(*x >= -1e-9, "inside north label should stay inside left bound, rect={rects:?}");
+        assert!(
+            *x >= -1e-9,
+            "inside north label should stay inside left bound, rect={rects:?}"
+        );
         assert!(
             *x + *w <= 40.0 + 1e-9,
             "inside north label should stay inside right bound, rect={rects:?}"
@@ -1455,7 +1565,10 @@ fn constrained_inside_south_port_labels_are_clamped_and_stacked() {
     assert_eq!(rects.len(), 3);
 
     for (x, y, w, h) in &rects {
-        assert!(*x >= -1e-9, "inside south label should stay inside left bound, rect={rects:?}");
+        assert!(
+            *x >= -1e-9,
+            "inside south label should stay inside left bound, rect={rects:?}"
+        );
         assert!(
             *x + *w <= 40.0 + 1e-9,
             "inside south label should stay inside right bound, rect={rects:?}"

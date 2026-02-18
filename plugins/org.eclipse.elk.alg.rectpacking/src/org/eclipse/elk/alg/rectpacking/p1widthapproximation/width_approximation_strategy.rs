@@ -28,7 +28,9 @@ impl ILayoutPhaseFactory<RectPackingLayoutPhases, ElkNodeRef> for WidthApproxima
     fn create_phase(&self) -> Box<dyn ILayoutPhase<RectPackingLayoutPhases, ElkNodeRef>> {
         match self {
             WidthApproximationStrategy::Greedy => Box::new(GreedyWidthApproximator::new()),
-            WidthApproximationStrategy::TargetWidth => Box::new(TargetWidthWidthApproximator::new()),
+            WidthApproximationStrategy::TargetWidth => {
+                Box::new(TargetWidthWidthApproximator::new())
+            }
         }
     }
 

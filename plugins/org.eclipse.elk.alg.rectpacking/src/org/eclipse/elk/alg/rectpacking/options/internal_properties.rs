@@ -11,11 +11,12 @@ pub static DRAWING_HEIGHT_PROPERTY: LazyLock<Property<f64>> =
 pub static DRAWING_WIDTH_PROPERTY: LazyLock<Property<f64>> =
     LazyLock::new(|| Property::new("drawingWidth"));
 
-pub static MIN_HEIGHT_PROPERTY: LazyLock<Property<f64>> = LazyLock::new(|| Property::new("minHeight"));
-pub static MIN_WIDTH_PROPERTY: LazyLock<Property<f64>> = LazyLock::new(|| Property::new("minWidth"));
+pub static MIN_HEIGHT_PROPERTY: LazyLock<Property<f64>> =
+    LazyLock::new(|| Property::new("minHeight"));
+pub static MIN_WIDTH_PROPERTY: LazyLock<Property<f64>> =
+    LazyLock::new(|| Property::new("minWidth"));
 
-pub static ROWS_PROPERTY: LazyLock<Property<usize>> =
-    LazyLock::new(|| Property::new("rows"));
+pub static ROWS_PROPERTY: LazyLock<Property<usize>> = LazyLock::new(|| Property::new("rows"));
 
 pub static TARGET_WIDTH_PROPERTY: LazyLock<Property<f64>> =
     LazyLock::new(|| Property::new("targetWidth"));

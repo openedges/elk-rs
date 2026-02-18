@@ -141,7 +141,10 @@ impl ElkMath {
         }
     }
 
-    pub fn approximate_bezier_segment(result_size: usize, control_points: &[KVector]) -> Vec<KVector> {
+    pub fn approximate_bezier_segment(
+        result_size: usize,
+        control_points: &[KVector],
+    ) -> Vec<KVector> {
         if result_size == 0 || control_points.is_empty() {
             return Vec::new();
         }
@@ -195,7 +198,8 @@ impl ElkMath {
             } else if remaining_points == 2 {
                 let control1 = control_points.get(index);
                 let control2 = control_points.get(index + 1);
-                let segment = Self::approximate_bezier_segment_default(&[current_point, control1, control2]);
+                let segment =
+                    Self::approximate_bezier_segment_default(&[current_point, control1, control2]);
                 spline.add_all(&segment);
                 break;
             } else {
@@ -473,12 +477,11 @@ impl ElkMath {
     }
 
     pub fn distance(a1: &KVector, a2: &KVector, b1: &KVector, b2: &KVector, v: &KVector) -> f64 {
-        Self::trace_rays(a1, a2, b1, b2, v)
-            .min(Self::trace_rays(b1, b2, a1, a2, &{
-                let mut neg = *v;
-                neg.negate();
-                neg
-            }))
+        Self::trace_rays(a1, a2, b1, b2, v).min(Self::trace_rays(b1, b2, a1, a2, &{
+            let mut neg = *v;
+            neg.negate();
+            neg
+        }))
     }
 
     pub fn contains<A: ContainsArgs>(args: A) -> bool {

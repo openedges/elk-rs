@@ -68,9 +68,7 @@ impl NetworkSimplexLayerer {
             let idx = node_index(node);
             if idx < self.node_visited.len() && !self.node_visited[idx] {
                 self.connected_components_dfs(node);
-                if components.is_empty()
-                    || components[0].len() < self.component_nodes.len()
-                {
+                if components.is_empty() || components[0].len() < self.component_nodes.len() {
                     components.insert(0, self.component_nodes.clone());
                 } else {
                     components.push(self.component_nodes.clone());
@@ -100,10 +98,20 @@ impl NetworkSimplexLayerer {
                 Err(_) => Vec::new(),
             };
             for edge in edges {
-                let opposite_port = edge.lock().ok().map(|edge_guard| edge_guard.other_port(&port));
-                let Some(opposite_port) = opposite_port else { continue; };
-                let opposite_node = opposite_port.lock().ok().and_then(|port_guard| port_guard.node());
-                let Some(opposite_node) = opposite_node else { continue; };
+                let opposite_port = edge
+                    .lock()
+                    .ok()
+                    .map(|edge_guard| edge_guard.other_port(&port));
+                let Some(opposite_port) = opposite_port else {
+                    continue;
+                };
+                let opposite_node = opposite_port
+                    .lock()
+                    .ok()
+                    .and_then(|port_guard| port_guard.node());
+                let Some(opposite_node) = opposite_node else {
+                    continue;
+                };
                 self.connected_components_dfs(&opposite_node);
             }
         }
@@ -125,7 +133,10 @@ impl NetworkSimplexLayerer {
                 Err(_) => Vec::new(),
             };
             for edge in outgoing {
-                let is_self_loop = edge.lock().map(|edge_guard| edge_guard.is_self_loop()).unwrap_or(false);
+                let is_self_loop = edge
+                    .lock()
+                    .map(|edge_guard| edge_guard.is_self_loop())
+                    .unwrap_or(false);
                 if is_self_loop {
                     continue;
                 }
@@ -154,7 +165,9 @@ impl NetworkSimplexLayerer {
                 let priority = edge
                     .lock()
                     .ok()
-                    .and_then(|mut edge_guard| edge_guard.get_property(LayeredOptions::PRIORITY_SHORTNESS))
+                    .and_then(|mut edge_guard| {
+                        edge_guard.get_property(LayeredOptions::PRIORITY_SHORTNESS)
+                    })
                     .unwrap_or(1);
                 let weight = (priority.max(1)) as f64;
                 let origin: Arc<dyn std::any::Any + Send + Sync> = Arc::new(edge.clone());
@@ -195,8 +208,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for NetworkSimplexLayerer {
         let mut previous_layering_node_counts: Option<Vec<i32>> = None;
 
         for (idx, component) in connected_components.iter().enumerate() {
-            let iter_limit =
-                thoroughness * (component.len() as f64).sqrt().round().max(1.0) as i32;
+            let iter_limit = thoroughness * (component.len() as f64).sqrt().round().max(1.0) as i32;
             let mut graph = self.initialize_graph(component);
 
             let mut simplex = NetworkSimplex::for_graph(&mut graph);
@@ -212,8 +224,12 @@ impl ILayoutPhase<LayeredPhases, LGraph> for NetworkSimplexLayerer {
                     Ok(node_guard) => (node_guard.layer, node_guard.origin.clone()),
                     Err(_) => continue,
                 };
-                let Some(origin) = origin else { continue; };
-                let Some(l_node) = origin.as_ref().downcast_ref::<LNodeRef>() else { continue; };
+                let Some(origin) = origin else {
+                    continue;
+                };
+                let Some(l_node) = origin.as_ref().downcast_ref::<LNodeRef>() else {
+                    continue;
+                };
 
                 while layered_graph.layers().len() <= layer as usize {
                     let graph_ref = l_node

@@ -84,8 +84,8 @@ impl Calculations {
             let mut rect_mut = last_placed.borrow_mut();
             rect_mut.connectable().shape().y() + rect_mut.connectable().shape().height()
         };
-        let to_place_bottom_border = lpr_opt.next_y_coordinate()
-            + to_place.borrow_mut().connectable().shape().height();
+        let to_place_bottom_border =
+            lpr_opt.next_y_coordinate() + to_place.borrow_mut().connectable().shape().height();
         let max_y_lpr = last_placed_bottom_border.max(to_place_bottom_border);
         let last_placed_y = last_placed.borrow_mut().connectable().shape().y();
         let height_lpr = max_y_lpr - last_placed_y.min(lpr_opt.next_y_coordinate());
@@ -104,8 +104,8 @@ impl Calculations {
             let mut rect_mut = last_placed.borrow_mut();
             rect_mut.connectable().shape().x() + rect_mut.connectable().shape().width()
         };
-        let to_place_right_border = lpb_opt.next_x_coordinate()
-            + to_place.borrow_mut().connectable().shape().width();
+        let to_place_right_border =
+            lpb_opt.next_x_coordinate() + to_place.borrow_mut().connectable().shape().width();
         let max_x_lpb = last_placed_right_border.max(to_place_right_border);
         let last_placed_x = last_placed.borrow_mut().connectable().shape().x();
         let width_lpb = max_x_lpb - last_placed_x.min(lpb_opt.next_x_coordinate());
@@ -117,11 +117,19 @@ impl Calculations {
 
     fn vertical_order_constraint(placed_rect: &ElkNodeRef, x: f64, node_node_spacing: f64) -> bool {
         let mut rect_mut = placed_rect.borrow_mut();
-        x < rect_mut.connectable().shape().x() + rect_mut.connectable().shape().width() + node_node_spacing
+        x < rect_mut.connectable().shape().x()
+            + rect_mut.connectable().shape().width()
+            + node_node_spacing
     }
 
-    fn horizontal_order_constraint(placed_rect: &ElkNodeRef, y: f64, node_node_spacing: f64) -> bool {
+    fn horizontal_order_constraint(
+        placed_rect: &ElkNodeRef,
+        y: f64,
+        node_node_spacing: f64,
+    ) -> bool {
         let mut rect_mut = placed_rect.borrow_mut();
-        y < rect_mut.connectable().shape().y() + rect_mut.connectable().shape().height() + node_node_spacing
+        y < rect_mut.connectable().shape().y()
+            + rect_mut.connectable().shape().height()
+            + node_node_spacing
     }
 }

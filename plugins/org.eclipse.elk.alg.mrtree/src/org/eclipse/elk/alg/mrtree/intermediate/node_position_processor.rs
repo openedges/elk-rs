@@ -28,7 +28,9 @@ impl ILayoutProcessor<TGraphRef> for NodePositionProcessor {
                 .find(|node| {
                     node.lock()
                         .ok()
-                        .and_then(|mut node_guard| node_guard.get_property(InternalProperties::ROOT))
+                        .and_then(|mut node_guard| {
+                            node_guard.get_property(InternalProperties::ROOT)
+                        })
                         .unwrap_or(false)
                 })
                 .cloned();
@@ -39,8 +41,12 @@ impl ILayoutProcessor<TGraphRef> for NodePositionProcessor {
 
         if let Some(root) = root {
             if let Ok(mut root_guard) = root.lock() {
-                let x = root_guard.get_property(InternalProperties::XCOOR).unwrap_or(0) as f64;
-                let y = root_guard.get_property(InternalProperties::YCOOR).unwrap_or(0) as f64;
+                let x = root_guard
+                    .get_property(InternalProperties::XCOOR)
+                    .unwrap_or(0) as f64;
+                let y = root_guard
+                    .get_property(InternalProperties::YCOOR)
+                    .unwrap_or(0) as f64;
                 let pos = root_guard.position();
                 pos.x = x;
                 pos.y = y;
@@ -53,7 +59,8 @@ impl ILayoutProcessor<TGraphRef> for NodePositionProcessor {
                 .unwrap_or_default();
             let mut sub_tasks = 1.0f32;
             while !next_level.is_empty() {
-                next_level = self.set_coordinates(&next_level, progress_monitor.sub_task(sub_tasks));
+                next_level =
+                    self.set_coordinates(&next_level, progress_monitor.sub_task(sub_tasks));
                 sub_tasks = next_level.len() as f32 / self.number_of_nodes as f32;
             }
         }
@@ -96,8 +103,12 @@ impl NodePositionProcessor {
         for node in current_level {
             if let Ok(mut node_guard) = node.lock() {
                 next_level.extend(node_guard.children_copy());
-                let x = node_guard.get_property(InternalProperties::XCOOR).unwrap_or(0) as f64;
-                let y = node_guard.get_property(InternalProperties::YCOOR).unwrap_or(0) as f64;
+                let x = node_guard
+                    .get_property(InternalProperties::XCOOR)
+                    .unwrap_or(0) as f64;
+                let y = node_guard
+                    .get_property(InternalProperties::YCOOR)
+                    .unwrap_or(0) as f64;
                 let pos = node_guard.position();
                 pos.x = x;
                 pos.y = y;

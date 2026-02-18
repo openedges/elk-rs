@@ -18,8 +18,8 @@ fn issue_471_multiple_edge_labels_are_horizontally_centered() {
 
     run_layout(&graph);
 
-    let edge =
-        find_edge_by_identifier(&graph, "source", "target").expect("main edge source->target should exist");
+    let edge = find_edge_by_identifier(&graph, "source", "target")
+        .expect("main edge source->target should exist");
     let labels = edge
         .borrow_mut()
         .element()
@@ -40,7 +40,10 @@ fn issue_471_multiple_edge_labels_are_horizontally_centered() {
         max_width = max_width.max(shape.width());
         label_bounds.push((shape.x(), shape.width()));
         assert!(
-            shape.x().is_finite() && shape.y().is_finite() && shape.width() > 0.0 && shape.height() > 0.0,
+            shape.x().is_finite()
+                && shape.y().is_finite()
+                && shape.width() > 0.0
+                && shape.height() > 0.0,
             "label geometry is invalid: ({}, {}, {}, {})",
             shape.x(),
             shape.y(),

@@ -81,7 +81,10 @@ fn port_label_count_and_finite_geometry(graph: &ElkNodeRef, resource: &str) -> u
             let mut label_mut = label.borrow_mut();
             let shape = label_mut.shape();
             for value in [shape.x(), shape.y(), shape.width(), shape.height()] {
-                assert!(value.is_finite(), "non-finite label geometry in {resource}: {value}");
+                assert!(
+                    value.is_finite(),
+                    "non-finite label geometry in {resource}: {value}"
+                );
             }
             assert!(
                 shape.width() >= 0.0 && shape.height() >= 0.0,
@@ -165,7 +168,12 @@ fn external_port_label_variants_support_configurator_side_sweep_if_available() {
     }
     let path = path.to_string_lossy().into_owned();
 
-    for side in [PortSide::East, PortSide::West, PortSide::North, PortSide::South] {
+    for side in [
+        PortSide::East,
+        PortSide::West,
+        PortSide::North,
+        PortSide::South,
+    ] {
         let graph = load_layered_graph_from_elk_text(&path)
             .unwrap_or_else(|err| panic!("failed to load variants resource {path}: {err}"));
         apply_uniform_port_side(&graph, side);

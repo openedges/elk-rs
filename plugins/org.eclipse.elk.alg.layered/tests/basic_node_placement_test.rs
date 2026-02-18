@@ -23,7 +23,11 @@ fn node_placement_strategies_keep_nodes_ordered() {
 
     for strategy in base_strategies {
         let root = build_test_graph();
-        set_node_property(&root, CoreOptions::ALGORITHM, "org.eclipse.elk.layered".to_string());
+        set_node_property(
+            &root,
+            CoreOptions::ALGORITHM,
+            "org.eclipse.elk.layered".to_string(),
+        );
         set_node_property(
             &root,
             LayeredOptions::LAYERING_STRATEGY,
@@ -60,7 +64,11 @@ fn bk_node_placement_variants_keep_nodes_ordered() {
     for alignment in alignments {
         for straightening in straightenings {
             let root = build_test_graph();
-            set_node_property(&root, CoreOptions::ALGORITHM, "org.eclipse.elk.layered".to_string());
+            set_node_property(
+                &root,
+                CoreOptions::ALGORITHM,
+                "org.eclipse.elk.layered".to_string(),
+            );
             set_node_property(
                 &root,
                 LayeredOptions::LAYERING_STRATEGY,
@@ -139,11 +147,7 @@ fn import_lgraph(
 fn assert_layer_node_positions_increasing(
     lgraph: &org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LGraphRef,
 ) {
-    let layers = lgraph
-        .lock()
-        .expect("lgraph lock")
-        .layers()
-        .clone();
+    let layers = lgraph.lock().expect("lgraph lock").layers().clone();
 
     for layer in layers {
         let nodes = layer.lock().expect("layer lock").nodes().clone();
@@ -163,10 +167,7 @@ fn assert_layer_node_positions_increasing(
 
 fn set_dimensions(node: &ElkNodeRef, width: f64, height: f64) {
     let mut node_mut = node.borrow_mut();
-    node_mut
-        .connectable()
-        .shape()
-        .set_dimensions(width, height);
+    node_mut.connectable().shape().set_dimensions(width, height);
 }
 
 fn set_node_property<T: Clone + Send + Sync + 'static>(

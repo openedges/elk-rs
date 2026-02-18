@@ -6,15 +6,17 @@ use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::ElkUtil;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{
     ElkBendPoint, ElkEdgeRef, ElkEdgeSection, ElkGraphElementRef, ElkGraphFactory, ElkLabelRef,
     ElkNodeRef,
 };
-use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 
 use crate::org::eclipse::elk::alg::force::graph::{FEdge, FGraph, FLabel, FNode};
 use crate::org::eclipse::elk::alg::force::i_graph_importer::IGraphImporter;
-use crate::org::eclipse::elk::alg::force::options::{ForceOptions, InternalProperties, Origin, OriginId};
+use crate::org::eclipse::elk::alg::force::options::{
+    ForceOptions, InternalProperties, Origin, OriginId,
+};
 use org_eclipse_elk_core::org::eclipse::elk::core::UnsupportedGraphException;
 
 pub struct ElkGraphImporter {
@@ -41,7 +43,9 @@ impl ElkGraphImporter {
         }
     }
 
-    fn ensure_single_section(edge: &ElkEdgeRef) -> Option<org_eclipse_elk_graph::org::eclipse::elk::graph::ElkEdgeSectionRef> {
+    fn ensure_single_section(
+        edge: &ElkEdgeRef,
+    ) -> Option<org_eclipse_elk_graph::org::eclipse::elk::graph::ElkEdgeSectionRef> {
         let mut edge_mut = edge.borrow_mut();
         let sections = edge_mut.sections();
         if sections.is_empty() {
@@ -156,7 +160,10 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
                 }
 
                 let node_origin = Self::origin_id(&ElkGraphElementRef::Node(elknode.clone()));
-                node_guard.set_property(InternalProperties::ORIGIN, Some(Origin::ElkNode(node_origin)));
+                node_guard.set_property(
+                    InternalProperties::ORIGIN,
+                    Some(Origin::ElkNode(node_origin)),
+                );
                 self.node_map.insert(node_origin, elknode.clone());
                 elem_map.insert(node_origin, f_node.clone());
             }
@@ -215,8 +222,11 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
                     let target_shape = edge_borrow.targets_ro().get(0);
                     target_shape.and_then(|shape| ElkGraphUtil::connectable_shape_to_node(&shape))
                 };
-                let Some(target_node) = target_node else { continue };
-                let target_node_id = Self::origin_id(&ElkGraphElementRef::Node(target_node.clone()));
+                let Some(target_node) = target_node else {
+                    continue;
+                };
+                let target_node_id =
+                    Self::origin_id(&ElkGraphElementRef::Node(target_node.clone()));
 
                 let source = elem_map.get(&source_node_id).cloned();
                 let target = elem_map.get(&target_node_id).cloned();
@@ -230,7 +240,10 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
                             edge_mut.element().properties().clone()
                         };
                         edge_guard.properties_mut().copy_properties(&edge_props);
-                        edge_guard.set_property(InternalProperties::ORIGIN, Some(Origin::ElkEdge(origin_id)));
+                        edge_guard.set_property(
+                            InternalProperties::ORIGIN,
+                            Some(Origin::ElkEdge(origin_id)),
+                        );
                     }
                     FEdge::set_source(&f_edge, Some(source));
                     FEdge::set_target(&f_edge, Some(target));
@@ -254,7 +267,10 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
                             };
                             label_guard.properties_mut().copy_properties(&label_props);
                             let origin = Self::origin_id(&ElkGraphElementRef::Label(label.clone()));
-                            label_guard.set_property(InternalProperties::ORIGIN, Some(Origin::ElkLabel(origin)));
+                            label_guard.set_property(
+                                InternalProperties::ORIGIN,
+                                Some(Origin::ElkLabel(origin)),
+                            );
                             self.label_map.insert(origin, label.clone());
 
                             let (w, h) = {
@@ -280,8 +296,12 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
             let mut props = fgraph.properties().clone();
             props.get_property(InternalProperties::ORIGIN)
         };
-        let Some(Origin::ElkNode(root_id)) = origin else { return };
-        let Some(elkgraph) = self.node_map.get(&root_id) else { return };
+        let Some(Origin::ElkNode(root_id)) = origin else {
+            return;
+        };
+        let Some(elkgraph) = self.node_map.get(&root_id) else {
+            return;
+        };
 
         let mut min_x = f64::MAX;
         let mut min_y = f64::MAX;
@@ -326,8 +346,12 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
                 .lock()
                 .ok()
                 .and_then(|mut node_guard| node_guard.get_property(InternalProperties::ORIGIN));
-            let Some(Origin::ElkNode(node_id)) = origin else { continue };
-            let Some(elknode) = self.node_map.get(&node_id) else { continue };
+            let Some(Origin::ElkNode(node_id)) = origin else {
+                continue;
+            };
+            let Some(elknode) = self.node_map.get(&node_id) else {
+                continue;
+            };
 
             if let Ok(node_guard) = node.lock() {
                 let mut node_pos = KVector::from_vector(node_guard.position_ref());
@@ -349,10 +373,16 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
                 .lock()
                 .ok()
                 .and_then(|mut edge_guard| edge_guard.get_property(InternalProperties::ORIGIN));
-            let Some(Origin::ElkEdge(edge_id)) = origin else { continue };
-            let Some(elkedge) = self.edge_map.get(&edge_id) else { continue };
+            let Some(Origin::ElkEdge(edge_id)) = origin else {
+                continue;
+            };
+            let Some(elkedge) = self.edge_map.get(&edge_id) else {
+                continue;
+            };
 
-            let Some(section) = Self::ensure_single_section(elkedge) else { continue };
+            let Some(section) = Self::ensure_single_section(elkedge) else {
+                continue;
+            };
             let mut section_mut = section.borrow_mut();
 
             if let Ok(edge_guard) = edge.lock() {
@@ -383,8 +413,12 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
                 .lock()
                 .ok()
                 .and_then(|mut label_guard| label_guard.get_property(InternalProperties::ORIGIN));
-            let Some(Origin::ElkLabel(label_id)) = origin else { continue };
-            let Some(elklabel) = self.label_map.get(&label_id) else { continue };
+            let Some(Origin::ElkLabel(label_id)) = origin else {
+                continue;
+            };
+            let Some(elklabel) = self.label_map.get(&label_id) else {
+                continue;
+            };
 
             if let Ok(label_guard) = label.lock() {
                 let mut label_pos = KVector::from_vector(label_guard.position_ref());

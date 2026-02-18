@@ -6,7 +6,9 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::Random;
 
 use crate::org::eclipse::elk::alg::layered::graph::LNodeRef;
 use crate::org::eclipse::elk::alg::layered::intermediate::CMGroupModelOrderCalculator;
-use crate::org::eclipse::elk::alg::layered::options::{GroupOrderStrategy, InternalProperties, LayerConstraint, LayeredOptions};
+use crate::org::eclipse::elk::alg::layered::options::{
+    GroupOrderStrategy, InternalProperties, LayerConstraint, LayeredOptions,
+};
 use crate::org::eclipse::elk::alg::layered::p3order::barycenter_heuristic::BarycenterHeuristic;
 use crate::org::eclipse::elk::alg::layered::p3order::barycenter_port_distributor::BarycenterPortDistributor;
 use crate::org::eclipse::elk::alg::layered::p3order::counting::IInitializable;
@@ -150,26 +152,47 @@ impl ModelOrderBarycenterHeuristic {
         // biggerNodeBiggerThan.add(smaller)
         self.bigger_than.entry(big_id).or_default().insert(small_id);
         // smallerNodeSmallerThan.add(bigger)
-        self.smaller_than.entry(small_id).or_default().insert(big_id);
+        self.smaller_than
+            .entry(small_id)
+            .or_default()
+            .insert(big_id);
 
         // for (LNode verySmall : smallerNodeBiggerThan)
         for very_small in smaller_node_bigger_than.iter() {
             // biggerNodeBiggerThan.add(verySmall)
-            self.bigger_than.entry(big_id).or_default().insert(*very_small);
+            self.bigger_than
+                .entry(big_id)
+                .or_default()
+                .insert(*very_small);
             // smallerThan.get(verySmall).add(bigger)
-            self.smaller_than.entry(*very_small).or_default().insert(big_id);
+            self.smaller_than
+                .entry(*very_small)
+                .or_default()
+                .insert(big_id);
             // smallerThan.get(verySmall).addAll(biggerNodeSmallerThan)
-            self.smaller_than.entry(*very_small).or_default().extend(bigger_node_smaller_than.iter().copied());
+            self.smaller_than
+                .entry(*very_small)
+                .or_default()
+                .extend(bigger_node_smaller_than.iter().copied());
         }
 
         // for (LNode veryBig : biggerNodeSmallerThan)
         for very_big in bigger_node_smaller_than.iter() {
             // smallerNodeSmallerThan.add(veryBig)
-            self.smaller_than.entry(small_id).or_default().insert(*very_big);
+            self.smaller_than
+                .entry(small_id)
+                .or_default()
+                .insert(*very_big);
             // biggerThan.get(veryBig).add(smaller)
-            self.bigger_than.entry(*very_big).or_default().insert(small_id);
+            self.bigger_than
+                .entry(*very_big)
+                .or_default()
+                .insert(small_id);
             // biggerThan.get(veryBig).addAll(smallerNodeBiggerThan)
-            self.bigger_than.entry(*very_big).or_default().extend(smaller_node_bigger_than.iter().copied());
+            self.bigger_than
+                .entry(*very_big)
+                .or_default()
+                .extend(smaller_node_bigger_than.iter().copied());
         }
     }
 
@@ -177,16 +200,24 @@ impl ModelOrderBarycenterHeuristic {
         let constraint1 = n1
             .lock()
             .ok()
-            .and_then(|mut node_guard| node_guard.get_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT))
+            .and_then(|mut node_guard| {
+                node_guard.get_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT)
+            })
             .unwrap_or(LayerConstraint::None);
         let constraint2 = n2
             .lock()
             .ok()
-            .and_then(|mut node_guard| node_guard.get_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT))
+            .and_then(|mut node_guard| {
+                node_guard.get_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT)
+            })
             .unwrap_or(LayerConstraint::None);
-        if matches!(constraint1, LayerConstraint::FirstSeparate | LayerConstraint::LastSeparate)
-            || matches!(constraint2, LayerConstraint::FirstSeparate | LayerConstraint::LastSeparate)
-        {
+        if matches!(
+            constraint1,
+            LayerConstraint::FirstSeparate | LayerConstraint::LastSeparate
+        ) || matches!(
+            constraint2,
+            LayerConstraint::FirstSeparate | LayerConstraint::LastSeparate
+        ) {
             return 0;
         }
 
@@ -198,35 +229,35 @@ impl ModelOrderBarycenterHeuristic {
         let n1_has_model_order = n1
             .lock()
             .ok()
-            .map(|mut node_guard| node_guard.get_property(InternalProperties::MODEL_ORDER).is_some())
+            .map(|mut node_guard| {
+                node_guard
+                    .get_property(InternalProperties::MODEL_ORDER)
+                    .is_some()
+            })
             .unwrap_or(false);
         let n2_has_model_order = n2
             .lock()
             .ok()
-            .map(|mut node_guard| node_guard.get_property(InternalProperties::MODEL_ORDER).is_some())
+            .map(|mut node_guard| {
+                node_guard
+                    .get_property(InternalProperties::MODEL_ORDER)
+                    .is_some()
+            })
             .unwrap_or(false);
 
         if n1_has_model_order && n2_has_model_order {
-            let graph = n1
-                .lock()
-                .ok()
-                .and_then(|node_guard| node_guard.graph());
+            let graph = n1.lock().ok().and_then(|node_guard| node_guard.graph());
             if let Some(graph) = graph {
                 let max_nodes = self.max_model_order_nodes;
-                let value = CMGroupModelOrderCalculator::calculate_model_order_or_group_model_order(
-                    n1,
-                    n2,
-                    &graph,
-                    max_nodes,
-                )
-                .cmp(
-                    &CMGroupModelOrderCalculator::calculate_model_order_or_group_model_order(
-                        n2,
-                        n1,
-                        &graph,
-                        max_nodes,
-                    ),
-                );
+                let value =
+                    CMGroupModelOrderCalculator::calculate_model_order_or_group_model_order(
+                        n1, n2, &graph, max_nodes,
+                    )
+                    .cmp(
+                        &CMGroupModelOrderCalculator::calculate_model_order_or_group_model_order(
+                            n2, n1, &graph, max_nodes,
+                        ),
+                    );
                 let mut value = match value {
                     Ordering::Less => -1,
                     Ordering::Greater => 1,
@@ -238,14 +269,18 @@ impl ModelOrderBarycenterHeuristic {
                         .lock()
                         .ok()
                         .and_then(|mut node_guard| {
-                            node_guard.get_property(LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID)
+                            node_guard.get_property(
+                                LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID,
+                            )
                         })
                         .unwrap_or(0);
                     let n2_group = n2
                         .lock()
                         .ok()
                         .and_then(|mut node_guard| {
-                            node_guard.get_property(LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID)
+                            node_guard.get_property(
+                                LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID,
+                            )
                         })
                         .unwrap_or(0);
                     if n1_group != n2_group {
@@ -301,13 +336,20 @@ impl ICrossingMinimizationHeuristic for ModelOrderBarycenterHeuristic {
         forward_sweep: bool,
         is_first_sweep: bool,
     ) -> bool {
-        if !self.base.is_first_layer(order, free_layer_index, forward_sweep) {
+        if !self
+            .base
+            .is_first_layer(order, free_layer_index, forward_sweep)
+        {
             let fixed_layer_index = if forward_sweep {
                 free_layer_index.saturating_sub(1)
             } else {
                 free_layer_index + 1
             };
-            let port_type = if forward_sweep { crate::org::eclipse::elk::alg::layered::options::PortType::Output } else { crate::org::eclipse::elk::alg::layered::options::PortType::Input };
+            let port_type = if forward_sweep {
+                crate::org::eclipse::elk::alg::layered::options::PortType::Output
+            } else {
+                crate::org::eclipse::elk::alg::layered::options::PortType::Input
+            };
             if let Some(layer) = order.get(fixed_layer_index) {
                 self.base
                     .port_distributor
@@ -341,7 +383,9 @@ impl ICrossingMinimizationHeuristic for ModelOrderBarycenterHeuristic {
                         Ordering::Equal
                     }
                 });
-                self.base.constraint_resolver.process_constraints(&mut nodes);
+                self.base
+                    .constraint_resolver
+                    .process_constraints(&mut nodes);
             }
         }
 
@@ -367,7 +411,12 @@ impl IInitializable for ModelOrderBarycenterHeuristic {
         self.base.init_at_layer_level(layer_index, node_order);
     }
 
-    fn init_at_node_level(&mut self, layer_index: usize, node_index: usize, node_order: &[Vec<LNodeRef>]) {
+    fn init_at_node_level(
+        &mut self,
+        layer_index: usize,
+        node_index: usize,
+        node_order: &[Vec<LNodeRef>],
+    ) {
         self.base
             .init_at_node_level(layer_index, node_index, node_order);
     }

@@ -58,7 +58,10 @@ impl Layer {
 
     #[allow(clippy::inherent_to_string)]
     pub fn to_string(&mut self) -> String {
-        let index = self.index().map(|value| value.to_string()).unwrap_or_else(|| "-1".to_owned());
+        let index = self
+            .index()
+            .map(|value| value.to_string())
+            .unwrap_or_else(|| "-1".to_owned());
         let nodes = self
             .nodes
             .iter()

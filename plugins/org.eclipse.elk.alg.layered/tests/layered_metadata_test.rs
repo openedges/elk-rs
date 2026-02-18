@@ -2,8 +2,8 @@ use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::components::Co
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::{
     CenterEdgeLabelPlacementStrategy, ConstraintCalculationStrategy, CrossingMinimizationStrategy,
     CycleBreakingStrategy, EdgeLabelSideSelection, EdgeStraighteningStrategy,
-    GraphCompactionStrategy, GreedySwitchType, GroupOrderStrategy, LayeredMetaDataProvider,
-    LayeredOptions, LayerUnzippingStrategy, LayeringStrategy, LongEdgeOrderingStrategy,
+    GraphCompactionStrategy, GreedySwitchType, GroupOrderStrategy, LayerUnzippingStrategy,
+    LayeredMetaDataProvider, LayeredOptions, LayeringStrategy, LongEdgeOrderingStrategy,
     NodeFlexibility, NodePlacementStrategy, OrderingStrategy, WrappingStrategy,
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::data::{
@@ -177,7 +177,9 @@ fn node_placement_defaults() {
     assert_eq!(*default, EdgeStraighteningStrategy::ImproveStraightness);
 
     let flexibility = LayoutMetaDataService::get_instance()
-        .get_option_data(LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_DEFAULT.id())
+        .get_option_data(
+            LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_DEFAULT.id(),
+        )
         .expect("node flexibility default option");
     let default = flexibility
         .default_value()

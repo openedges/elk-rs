@@ -3,7 +3,9 @@ use std::collections::{BTreeSet, HashSet, LinkedList};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
-use org_eclipse_elk_core::org::eclipse::elk::core::math::{ElkMargin, ElkPadding, KVector, KVectorChain};
+use org_eclipse_elk_core::org::eclipse::elk::core::math::{
+    ElkMargin, ElkPadding, KVector, KVectorChain,
+};
 use org_eclipse_elk_core::org::eclipse::elk::core::options::{PortSide, SizeConstraint};
 use org_eclipse_elk_core::org::eclipse::elk::core::util::LinkedHashSet;
 

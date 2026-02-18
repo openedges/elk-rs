@@ -6,7 +6,9 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, IElkProgressM
 
 use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LGraphUtil};
 use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorStrategy;
-use crate::org::eclipse::elk::alg::layered::options::{GraphProperties, InternalProperties, LayeredOptions};
+use crate::org::eclipse::elk::alg::layered::options::{
+    GraphProperties, InternalProperties, LayeredOptions,
+};
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::direction::RoutingDirection;
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::OrthogonalRoutingGenerator;
 use crate::org::eclipse::elk::alg::layered::p5edges::polyline_edge_router::PolylineEdgeRouter;
@@ -14,129 +16,139 @@ use crate::org::eclipse::elk::alg::layered::LayeredPhases;
 
 use std::sync::LazyLock;
 
-static HYPEREDGE_PROCESSING_ADDITIONS: LazyLock<LayoutProcessorConfiguration<LayeredPhases, LGraph>> =
-    LazyLock::new(|| {
-        let mut config = LayoutProcessorConfiguration::create();
-        config.add_before(
-            LayeredPhases::P4NodePlacement,
-            Arc::new(IntermediateProcessorStrategy::HyperedgeDummyMerger),
-        );
-        config
-    });
+static HYPEREDGE_PROCESSING_ADDITIONS: LazyLock<
+    LayoutProcessorConfiguration<LayeredPhases, LGraph>,
+> = LazyLock::new(|| {
+    let mut config = LayoutProcessorConfiguration::create();
+    config.add_before(
+        LayeredPhases::P4NodePlacement,
+        Arc::new(IntermediateProcessorStrategy::HyperedgeDummyMerger),
+    );
+    config
+});
 
-static INVERTED_PORT_PROCESSING_ADDITIONS: LazyLock<LayoutProcessorConfiguration<LayeredPhases, LGraph>> =
-    LazyLock::new(|| {
-        let mut config = LayoutProcessorConfiguration::create();
-        config.add_before(
+static INVERTED_PORT_PROCESSING_ADDITIONS: LazyLock<
+    LayoutProcessorConfiguration<LayeredPhases, LGraph>,
+> = LazyLock::new(|| {
+    let mut config = LayoutProcessorConfiguration::create();
+    config.add_before(
+        LayeredPhases::P3NodeOrdering,
+        Arc::new(IntermediateProcessorStrategy::InvertedPortProcessor),
+    );
+    config
+});
+
+static NORTH_SOUTH_PORT_PROCESSING_ADDITIONS: LazyLock<
+    LayoutProcessorConfiguration<LayeredPhases, LGraph>,
+> = LazyLock::new(|| {
+    let mut config = LayoutProcessorConfiguration::create();
+    config
+        .add_before(
             LayeredPhases::P3NodeOrdering,
-            Arc::new(IntermediateProcessorStrategy::InvertedPortProcessor),
-        );
-        config
-    });
-
-static NORTH_SOUTH_PORT_PROCESSING_ADDITIONS: LazyLock<LayoutProcessorConfiguration<LayeredPhases, LGraph>> =
-    LazyLock::new(|| {
-        let mut config = LayoutProcessorConfiguration::create();
-        config
-            .add_before(
-                LayeredPhases::P3NodeOrdering,
-                Arc::new(IntermediateProcessorStrategy::NorthSouthPortPreprocessor),
-            )
-            .add_after(
-                LayeredPhases::P5EdgeRouting,
-                Arc::new(IntermediateProcessorStrategy::NorthSouthPortPostprocessor),
-            );
-        config
-    });
-
-static HIERARCHICAL_PORT_PROCESSING_ADDITIONS: LazyLock<LayoutProcessorConfiguration<LayeredPhases, LGraph>> =
-    LazyLock::new(|| {
-        let mut config = LayoutProcessorConfiguration::create();
-        config
-            .add_before(
-                LayeredPhases::P3NodeOrdering,
-                Arc::new(IntermediateProcessorStrategy::HierarchicalPortConstraintProcessor),
-            )
-            .add_before(
-                LayeredPhases::P4NodePlacement,
-                Arc::new(IntermediateProcessorStrategy::HierarchicalPortDummySizeProcessor),
-            )
-            .add_after(
-                LayeredPhases::P5EdgeRouting,
-                Arc::new(IntermediateProcessorStrategy::HierarchicalPortOrthogonalEdgeRouter),
-            );
-        config
-    });
-
-static SELF_LOOP_PROCESSING_ADDITIONS: LazyLock<LayoutProcessorConfiguration<LayeredPhases, LGraph>> =
-    LazyLock::new(|| {
-        let mut config = LayoutProcessorConfiguration::create();
-        config
-            .add_before(
-                LayeredPhases::P1CycleBreaking,
-                Arc::new(IntermediateProcessorStrategy::SelfLoopPreprocessor),
-            )
-            .add_after(
-                LayeredPhases::P5EdgeRouting,
-                Arc::new(IntermediateProcessorStrategy::SelfLoopPostprocessor),
-            )
-            .before(LayeredPhases::P4NodePlacement)
-            .add(Arc::new(IntermediateProcessorStrategy::SelfLoopPortRestorer))
-            .add(Arc::new(IntermediateProcessorStrategy::SelfLoopRouter));
-        config
-    });
-
-static HYPERNODE_PROCESSING_ADDITIONS: LazyLock<LayoutProcessorConfiguration<LayeredPhases, LGraph>> =
-    LazyLock::new(|| {
-        let mut config = LayoutProcessorConfiguration::create();
-        config.add_after(
+            Arc::new(IntermediateProcessorStrategy::NorthSouthPortPreprocessor),
+        )
+        .add_after(
             LayeredPhases::P5EdgeRouting,
-            Arc::new(IntermediateProcessorStrategy::HypernodeProcessor),
+            Arc::new(IntermediateProcessorStrategy::NorthSouthPortPostprocessor),
         );
-        config
-    });
+    config
+});
 
-static CENTER_EDGE_LABEL_PROCESSING_ADDITIONS: LazyLock<LayoutProcessorConfiguration<LayeredPhases, LGraph>> =
-    LazyLock::new(|| {
-        let mut config = LayoutProcessorConfiguration::create();
-        config
-            .add_before(
-                LayeredPhases::P2Layering,
-                Arc::new(IntermediateProcessorStrategy::LabelDummyInserter),
-            )
-            .add_before(
-                LayeredPhases::P4NodePlacement,
-                Arc::new(IntermediateProcessorStrategy::LabelDummySwitcher),
-            )
-            .add_before(
-                LayeredPhases::P4NodePlacement,
-                Arc::new(IntermediateProcessorStrategy::LabelSideSelector),
-            )
-            .add_after(
-                LayeredPhases::P5EdgeRouting,
-                Arc::new(IntermediateProcessorStrategy::LabelDummyRemover),
-            );
-        config
-    });
+static HIERARCHICAL_PORT_PROCESSING_ADDITIONS: LazyLock<
+    LayoutProcessorConfiguration<LayeredPhases, LGraph>,
+> = LazyLock::new(|| {
+    let mut config = LayoutProcessorConfiguration::create();
+    config
+        .add_before(
+            LayeredPhases::P3NodeOrdering,
+            Arc::new(IntermediateProcessorStrategy::HierarchicalPortConstraintProcessor),
+        )
+        .add_before(
+            LayeredPhases::P4NodePlacement,
+            Arc::new(IntermediateProcessorStrategy::HierarchicalPortDummySizeProcessor),
+        )
+        .add_after(
+            LayeredPhases::P5EdgeRouting,
+            Arc::new(IntermediateProcessorStrategy::HierarchicalPortOrthogonalEdgeRouter),
+        );
+    config
+});
 
-static END_EDGE_LABEL_PROCESSING_ADDITIONS: LazyLock<LayoutProcessorConfiguration<LayeredPhases, LGraph>> =
-    LazyLock::new(|| {
-        let mut config = LayoutProcessorConfiguration::create();
-        config
-            .add_before(
-                LayeredPhases::P4NodePlacement,
-                Arc::new(IntermediateProcessorStrategy::LabelSideSelector),
-            )
-            .add_before(
-                LayeredPhases::P4NodePlacement,
-                Arc::new(IntermediateProcessorStrategy::EndLabelPreprocessor),
-            )
-            .add_after(
-                LayeredPhases::P5EdgeRouting,
-                Arc::new(IntermediateProcessorStrategy::EndLabelPostprocessor),
-            );
-        config
-    });
+static SELF_LOOP_PROCESSING_ADDITIONS: LazyLock<
+    LayoutProcessorConfiguration<LayeredPhases, LGraph>,
+> = LazyLock::new(|| {
+    let mut config = LayoutProcessorConfiguration::create();
+    config
+        .add_before(
+            LayeredPhases::P1CycleBreaking,
+            Arc::new(IntermediateProcessorStrategy::SelfLoopPreprocessor),
+        )
+        .add_after(
+            LayeredPhases::P5EdgeRouting,
+            Arc::new(IntermediateProcessorStrategy::SelfLoopPostprocessor),
+        )
+        .before(LayeredPhases::P4NodePlacement)
+        .add(Arc::new(
+            IntermediateProcessorStrategy::SelfLoopPortRestorer,
+        ))
+        .add(Arc::new(IntermediateProcessorStrategy::SelfLoopRouter));
+    config
+});
+
+static HYPERNODE_PROCESSING_ADDITIONS: LazyLock<
+    LayoutProcessorConfiguration<LayeredPhases, LGraph>,
+> = LazyLock::new(|| {
+    let mut config = LayoutProcessorConfiguration::create();
+    config.add_after(
+        LayeredPhases::P5EdgeRouting,
+        Arc::new(IntermediateProcessorStrategy::HypernodeProcessor),
+    );
+    config
+});
+
+static CENTER_EDGE_LABEL_PROCESSING_ADDITIONS: LazyLock<
+    LayoutProcessorConfiguration<LayeredPhases, LGraph>,
+> = LazyLock::new(|| {
+    let mut config = LayoutProcessorConfiguration::create();
+    config
+        .add_before(
+            LayeredPhases::P2Layering,
+            Arc::new(IntermediateProcessorStrategy::LabelDummyInserter),
+        )
+        .add_before(
+            LayeredPhases::P4NodePlacement,
+            Arc::new(IntermediateProcessorStrategy::LabelDummySwitcher),
+        )
+        .add_before(
+            LayeredPhases::P4NodePlacement,
+            Arc::new(IntermediateProcessorStrategy::LabelSideSelector),
+        )
+        .add_after(
+            LayeredPhases::P5EdgeRouting,
+            Arc::new(IntermediateProcessorStrategy::LabelDummyRemover),
+        );
+    config
+});
+
+static END_EDGE_LABEL_PROCESSING_ADDITIONS: LazyLock<
+    LayoutProcessorConfiguration<LayeredPhases, LGraph>,
+> = LazyLock::new(|| {
+    let mut config = LayoutProcessorConfiguration::create();
+    config
+        .add_before(
+            LayeredPhases::P4NodePlacement,
+            Arc::new(IntermediateProcessorStrategy::LabelSideSelector),
+        )
+        .add_before(
+            LayeredPhases::P4NodePlacement,
+            Arc::new(IntermediateProcessorStrategy::EndLabelPreprocessor),
+        )
+        .add_after(
+            LayeredPhases::P5EdgeRouting,
+            Arc::new(IntermediateProcessorStrategy::EndLabelPostprocessor),
+        );
+    config
+});
 
 pub struct OrthogonalEdgeRouter;
 
@@ -166,8 +178,11 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
             .get_property(LayeredOptions::SPACING_EDGE_NODE_BETWEEN_LAYERS)
             .unwrap_or(0.0);
 
-        let mut routing_generator =
-            OrthogonalRoutingGenerator::new(RoutingDirection::WestToEast, edge_edge_spacing, Some("phase5".to_string()));
+        let mut routing_generator = OrthogonalRoutingGenerator::new(
+            RoutingDirection::WestToEast,
+            edge_edge_spacing,
+            Some("phase5".to_string()),
+        );
 
         let layers = layered_graph.layers().clone();
         // Java uses `float xpos` (f32). Truncate through f32 at each step for parity.
@@ -184,9 +199,12 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
                 None
             };
 
-            let right_layer_nodes = right_layer
-                .as_ref()
-                .and_then(|layer| layer.lock().ok().map(|layer_guard| layer_guard.nodes().clone()));
+            let right_layer_nodes = right_layer.as_ref().and_then(|layer| {
+                layer
+                    .lock()
+                    .ok()
+                    .map(|layer_guard| layer_guard.nodes().clone())
+            });
             let right_layer_index = if right_layer.is_some() {
                 layer_index as i32
             } else {
@@ -221,24 +239,41 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
 
             let is_left_layer_external = left_layer
                 .as_ref()
-                .and_then(|layer| layer.lock().ok().map(|layer_guard| layer_guard.nodes().clone()))
-                .map(|nodes| nodes.iter().all(PolylineEdgeRouter::is_external_west_or_east_port))
+                .and_then(|layer| {
+                    layer
+                        .lock()
+                        .ok()
+                        .map(|layer_guard| layer_guard.nodes().clone())
+                })
+                .map(|nodes| {
+                    nodes
+                        .iter()
+                        .all(PolylineEdgeRouter::is_external_west_or_east_port)
+                })
                 .unwrap_or(true);
             let is_right_layer_external = right_layer_nodes
                 .as_ref()
-                .map(|nodes| nodes.iter().all(PolylineEdgeRouter::is_external_west_or_east_port))
+                .map(|nodes| {
+                    nodes
+                        .iter()
+                        .all(PolylineEdgeRouter::is_external_west_or_east_port)
+                })
                 .unwrap_or(true);
 
             if slots_count > 0 {
                 // Java: float routingWidth — truncate through f32 at each step
-                let mut routing_width = ((slots_count as f32 - 1.0_f32) * edge_edge_spacing as f32) as f64;
+                let mut routing_width =
+                    ((slots_count as f32 - 1.0_f32) * edge_edge_spacing as f32) as f64;
                 if left_layer.is_some() {
                     routing_width = (routing_width as f32 + edge_node_spacing as f32) as f64;
                 }
                 if right_layer.is_some() {
                     routing_width = (routing_width as f32 + edge_node_spacing as f32) as f64;
                 }
-                if routing_width < node_node_spacing && !is_left_layer_external && !is_right_layer_external {
+                if routing_width < node_node_spacing
+                    && !is_left_layer_external
+                    && !is_right_layer_external
+                {
                     routing_width = node_node_spacing;
                 }
                 xpos = (xpos + routing_width) as f32 as f64;

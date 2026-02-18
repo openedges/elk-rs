@@ -18,9 +18,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::size_constraint::Siz
 use org_eclipse_elk_core::org::eclipse::elk::core::options::size_options::SizeOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::EnumSet;
 
-use crate::org::eclipse::elk::alg::rectpacking::options::{
-    OptimizationGoal, RectPackingOptions,
-};
+use crate::org::eclipse::elk::alg::rectpacking::options::{OptimizationGoal, RectPackingOptions};
 use crate::org::eclipse::elk::alg::rectpacking::p1widthapproximation::WidthApproximationStrategy;
 use crate::org::eclipse::elk::alg::rectpacking::p2packing::PackingStrategy;
 use crate::org::eclipse::elk::alg::rectpacking::p3whitespaceelimination::WhiteSpaceEliminationStrategy;

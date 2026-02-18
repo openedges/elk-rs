@@ -11,7 +11,9 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::size_constraint::SizeConstraint;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::size_options::SizeOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::testing::TestController;
-use org_eclipse_elk_core::org::eclipse::elk::core::util::{BasicProgressMonitor, ElkUtil, EnumSet, IElkProgressMonitor};
+use org_eclipse_elk_core::org::eclipse::elk::core::util::{
+    BasicProgressMonitor, ElkUtil, EnumSet, IElkProgressMonitor,
+};
 
 use crate::org::eclipse::elk::alg::layered::components::ComponentsProcessor;
 use crate::org::eclipse::elk::alg::layered::compound::{
@@ -77,7 +79,9 @@ fn trace_edge_wiring(graph: &LGraph, stage: &str) {
                         .lock()
                         .ok()
                         .and_then(|port_guard| port_guard.node())
-                        .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.layer()));
+                        .and_then(|node| {
+                            node.lock().ok().and_then(|node_guard| node_guard.layer())
+                        });
                     let Some(target_layer) = target_layer else {
                         continue;
                     };
@@ -161,10 +165,12 @@ fn trace_node_positions(graph: &LGraph, stage: &str) {
             let has_in_layer_unit = node_guard
                 .get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
                 .is_some();
-            let label_opt = node_guard
-                .labels()
-                .first()
-                .and_then(|label| label.lock().ok().map(|label_guard| label_guard.text().to_string()));
+            let label_opt = node_guard.labels().first().and_then(|label| {
+                label
+                    .lock()
+                    .ok()
+                    .map(|label_guard| label_guard.text().to_string())
+            });
             (
                 designation,
                 node_id,
@@ -241,11 +247,7 @@ impl ElkLayered {
         }
     }
 
-    pub fn do_layout(
-        &mut self,
-        lgraph: &LGraphRef,
-        monitor: Option<&mut dyn IElkProgressMonitor>,
-    ) {
+    pub fn do_layout(&mut self, lgraph: &LGraphRef, monitor: Option<&mut dyn IElkProgressMonitor>) {
         match monitor {
             Some(monitor) => self.do_layout_with_monitor(lgraph, monitor),
             None => {
@@ -271,7 +273,11 @@ impl ElkLayered {
         }
     }
 
-    fn do_layout_with_monitor(&mut self, lgraph: &LGraphRef, monitor: &mut dyn IElkProgressMonitor) {
+    fn do_layout_with_monitor(
+        &mut self,
+        lgraph: &LGraphRef,
+        monitor: &mut dyn IElkProgressMonitor,
+    ) {
         monitor.begin("Layered layout", 1.0);
 
         self.graph_configurator.prepare_graph_for_layout(lgraph);
@@ -312,7 +318,10 @@ impl ElkLayered {
         self.compound_graph_preprocessor
             .process_with_ref(lgraph, pre_monitor.as_mut());
         if let Ok(graph_guard) = lgraph.lock() {
-            self.notify_processor_finished_with_graph(&graph_guard, &self.compound_graph_preprocessor);
+            self.notify_processor_finished_with_graph(
+                &graph_guard,
+                &self.compound_graph_preprocessor,
+            );
         }
         trace_step("compound layout: preprocessor done");
 
@@ -324,12 +333,18 @@ impl ElkLayered {
         let mut post_monitor = monitor.sub_task(1.0);
         trace_step("compound layout: postprocessor start");
         if let Ok(graph_guard) = lgraph.lock() {
-            self.notify_processor_ready_with_graph(&graph_guard, &self.compound_graph_postprocessor);
+            self.notify_processor_ready_with_graph(
+                &graph_guard,
+                &self.compound_graph_postprocessor,
+            );
         }
         self.compound_graph_postprocessor
             .process_with_ref(lgraph, post_monitor.as_mut());
         if let Ok(graph_guard) = lgraph.lock() {
-            self.notify_processor_finished_with_graph(&graph_guard, &self.compound_graph_postprocessor);
+            self.notify_processor_finished_with_graph(
+                &graph_guard,
+                &self.compound_graph_postprocessor,
+            );
         }
         trace_step("compound layout: postprocessor done");
 
@@ -400,7 +415,10 @@ impl ElkLayered {
         state.step += 1;
     }
 
-    pub fn get_layout_test_configuration(&self, state: &TestExecutionState) -> Vec<SharedProcessor<LGraph>> {
+    pub fn get_layout_test_configuration(
+        &self,
+        state: &TestExecutionState,
+    ) -> Vec<SharedProcessor<LGraph>> {
         self.processors_for_state(state).unwrap_or_default()
     }
 
@@ -451,7 +469,11 @@ impl ElkLayered {
                 .map(|guard| guard.layerless_nodes().clone())
                 .unwrap_or_default();
             for node in nodes {
-                if let Some(nested) = node.lock().ok().and_then(|node_guard| node_guard.nested_graph()) {
+                if let Some(nested) = node
+                    .lock()
+                    .ok()
+                    .and_then(|node_guard| node_guard.nested_graph())
+                {
                     queue.push_back(nested);
                 }
             }
@@ -497,7 +519,6 @@ impl ElkLayered {
                 }
             }
         }
-
     }
 
     fn layout_test(&mut self, graphs: &[LGraphRef], processor: &SharedProcessor<LGraph>) {
@@ -511,10 +532,17 @@ impl ElkLayered {
         }
     }
 
-    fn processors_for_state(&self, state: &TestExecutionState) -> Option<Vec<SharedProcessor<LGraph>>> {
+    fn processors_for_state(
+        &self,
+        state: &TestExecutionState,
+    ) -> Option<Vec<SharedProcessor<LGraph>>> {
         let graph = state.graphs.first()?.clone();
         let mut graph_guard = graph.lock().ok()?;
-        Some(graph_guard.get_property(InternalProperties::PROCESSORS).unwrap_or_default())
+        Some(
+            graph_guard
+                .get_property(InternalProperties::PROCESSORS)
+                .unwrap_or_default(),
+        )
     }
 
     fn notify_processor_ready_with_graph(

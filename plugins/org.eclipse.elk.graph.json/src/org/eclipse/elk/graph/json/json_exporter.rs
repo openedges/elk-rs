@@ -3,13 +3,18 @@ use std::collections::{HashMap, HashSet};
 use serde_json::{Map, Value};
 
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
-use org_eclipse_elk_core::org::eclipse::elk::core::math::{ElkMargin, ElkPadding, KVector, KVectorChain};
-use org_eclipse_elk_core::org::eclipse::elk::core::options::{
-    Alignment, ContentAlignment, CoreOptions, Direction, EdgeCoords, EdgeLabelPlacement, EdgeRouting,
-    EdgeType, HierarchyHandling, LabelSide, NodeLabelPlacement, PortAlignment, PortConstraints,
-    PortLabelPlacement, PortSide, ShapeCoords, SizeConstraint, SizeOptions, TopdownNodeTypes,
+use org_eclipse_elk_core::org::eclipse::elk::core::math::{
+    ElkMargin, ElkPadding, KVector, KVectorChain,
 };
-use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, EnumSetType, IndividualSpacings};
+use org_eclipse_elk_core::org::eclipse::elk::core::options::{
+    Alignment, ContentAlignment, CoreOptions, Direction, EdgeCoords, EdgeLabelPlacement,
+    EdgeRouting, EdgeType, HierarchyHandling, LabelSide, NodeLabelPlacement, PortAlignment,
+    PortConstraints, PortLabelPlacement, PortSide, ShapeCoords, SizeConstraint, SizeOptions,
+    TopdownNodeTypes,
+};
+use org_eclipse_elk_core::org::eclipse::elk::core::util::{
+    EnumSet, EnumSetType, IndividualSpacings,
+};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::{
     MapPropertyHolder, Property, PropertyValue,
 };
@@ -217,8 +222,9 @@ impl JsonExporter {
         }
 
         if !self.omit_layout {
-            let junction_points =
-                with_edge_properties(edge, |props| get_property_value(props, CoreOptions::JUNCTION_POINTS));
+            let junction_points = with_edge_properties(edge, |props| {
+                get_property_value(props, CoreOptions::JUNCTION_POINTS)
+            });
             if let Some(jps) = junction_points {
                 if !jps.is_empty() {
                     let mut json_jps = Vec::new();
@@ -346,7 +352,8 @@ impl JsonExporter {
             } else {
                 key.to_string()
             };
-            let value_str = property_value_to_string(key, value).unwrap_or_else(|| "<value>".to_string());
+            let value_str =
+                property_value_to_string(key, value).unwrap_or_else(|| "<value>".to_string());
             json_props.insert(out_key, Value::String(value_str));
         }
 
@@ -355,7 +362,11 @@ impl JsonExporter {
         }
     }
 
-    fn transform_individual_spacings(&self, holder: &MapPropertyHolder, parent: &mut Map<String, Value>) {
+    fn transform_individual_spacings(
+        &self,
+        holder: &MapPropertyHolder,
+        parent: &mut Map<String, Value>,
+    ) {
         let Some(individual) = get_property_value(holder, CoreOptions::SPACING_INDIVIDUAL) else {
             return;
         };
@@ -372,7 +383,8 @@ impl JsonExporter {
             } else {
                 key.to_string()
             };
-            let value_str = property_value_to_string(key, value).unwrap_or_else(|| "<value>".to_string());
+            let value_str =
+                property_value_to_string(key, value).unwrap_or_else(|| "<value>".to_string());
             json_props.insert(out_key, Value::String(value_str));
         }
         if !json_props.is_empty() {
@@ -395,10 +407,16 @@ impl JsonExporter {
         }
 
         if !self.omit_zero_dim || shape.width() != 0.0 {
-            obj.insert("width".to_string(), Value::Number(f64_to_number(shape.width())));
+            obj.insert(
+                "width".to_string(),
+                Value::Number(f64_to_number(shape.width())),
+            );
         }
         if !self.omit_zero_dim || shape.height() != 0.0 {
-            obj.insert("height".to_string(), Value::Number(f64_to_number(shape.height())));
+            obj.insert(
+                "height".to_string(),
+                Value::Number(f64_to_number(shape.height())),
+            );
         }
     }
 
@@ -417,7 +435,8 @@ impl JsonExporter {
             });
         id = assert_unique(id, &mut self.node_ids_used, &mut self.unique_counter);
         self.node_id_map.insert(node_key(node), id.clone());
-        self.node_ptr_map.insert(node_key(node), pointer.to_string());
+        self.node_ptr_map
+            .insert(node_key(node), pointer.to_string());
         id
     }
 
@@ -465,7 +484,11 @@ impl JsonExporter {
                 self.edge_section_id_counter += 1;
                 format!("s{next}")
             });
-        id = assert_unique(id, &mut self.edge_section_ids_used, &mut self.unique_counter);
+        id = assert_unique(
+            id,
+            &mut self.edge_section_ids_used,
+            &mut self.unique_counter,
+        );
         self.edge_section_id_map
             .insert(edge_section_key(section), id.clone());
         id
@@ -483,7 +506,6 @@ impl JsonExporter {
             .get(&edge_section_key(section))
             .cloned()
     }
-
 }
 
 fn assert_unique(id: String, used: &mut HashSet<String>, unique_counter: &mut u64) -> String {
@@ -535,7 +557,10 @@ fn escape_pointer_segment(value: &str) -> String {
     value.replace('~', "~0").replace('/', "~1")
 }
 
-fn json_object_mut<'a>(root: &'a mut Value, pointer: &str) -> Result<&'a mut Map<String, Value>, ()> {
+fn json_object_mut<'a>(
+    root: &'a mut Value,
+    pointer: &str,
+) -> Result<&'a mut Map<String, Value>, ()> {
     let value = if pointer.is_empty() {
         root
     } else {
@@ -575,7 +600,11 @@ fn node_labels(node: &ElkNodeRef) -> Vec<ElkLabelRef> {
 }
 
 fn node_edges(node: &ElkNodeRef) -> Vec<ElkEdgeRef> {
-    node.borrow_mut().contained_edges().iter().cloned().collect()
+    node.borrow_mut()
+        .contained_edges()
+        .iter()
+        .cloned()
+        .collect()
 }
 
 fn port_labels(port: &ElkPortRef) -> Vec<ElkLabelRef> {
@@ -590,7 +619,12 @@ fn port_labels(port: &ElkPortRef) -> Vec<ElkLabelRef> {
 }
 
 fn edge_labels(edge: &ElkEdgeRef) -> Vec<ElkLabelRef> {
-    edge.borrow_mut().element().labels().iter().cloned().collect()
+    edge.borrow_mut()
+        .element()
+        .labels()
+        .iter()
+        .cloned()
+        .collect()
 }
 
 fn edge_sections(edge: &ElkEdgeRef) -> Vec<ElkEdgeSectionRef> {
@@ -601,21 +635,13 @@ fn edge_sections(edge: &ElkEdgeRef) -> Vec<ElkEdgeSectionRef> {
 
 fn with_node_properties<R>(node: &ElkNodeRef, f: impl FnOnce(&MapPropertyHolder) -> R) -> R {
     let mut node_mut = node.borrow_mut();
-    let props = node_mut
-        .connectable()
-        .shape()
-        .graph_element()
-        .properties();
+    let props = node_mut.connectable().shape().graph_element().properties();
     f(props)
 }
 
 fn with_port_properties<R>(port: &ElkPortRef, f: impl FnOnce(&MapPropertyHolder) -> R) -> R {
     let mut port_mut = port.borrow_mut();
-    let props = port_mut
-        .connectable()
-        .shape()
-        .graph_element()
-        .properties();
+    let props = port_mut.connectable().shape().graph_element().properties();
     f(props)
 }
 
@@ -625,7 +651,10 @@ fn with_edge_properties<R>(edge: &ElkEdgeRef, f: impl FnOnce(&MapPropertyHolder)
     f(props)
 }
 
-fn with_section_properties<R>(section: &ElkEdgeSectionRef, f: impl FnOnce(&MapPropertyHolder) -> R) -> R {
+fn with_section_properties<R>(
+    section: &ElkEdgeSectionRef,
+    f: impl FnOnce(&MapPropertyHolder) -> R,
+) -> R {
     let section_ref = section.borrow();
     f(section_ref.properties())
 }
@@ -680,10 +709,20 @@ fn any_value_to_string(value: &std::sync::Arc<dyn std::any::Any + Send + Sync>) 
         return Some(value.to_string());
     }
     if let Some(value) = value.downcast_ref::<ElkMargin>() {
-        return Some(spacing_to_string(value.top, value.left, value.bottom, value.right));
+        return Some(spacing_to_string(
+            value.top,
+            value.left,
+            value.bottom,
+            value.right,
+        ));
     }
     if let Some(value) = value.downcast_ref::<ElkPadding>() {
-        return Some(spacing_to_string(value.top, value.left, value.bottom, value.right));
+        return Some(spacing_to_string(
+            value.top,
+            value.left,
+            value.bottom,
+            value.right,
+        ));
     }
     if let Some(value) = value.downcast_ref::<Alignment>() {
         return Some(enum_to_string(value));

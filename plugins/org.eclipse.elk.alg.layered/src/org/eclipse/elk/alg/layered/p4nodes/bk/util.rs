@@ -72,8 +72,12 @@ pub(crate) fn edge_between(source: &LNodeRef, target: &LNodeRef) -> Option<LEdge
             .lock()
             .ok()
             .map(|edge_guard| {
-                let src = edge_guard.source().and_then(|port| port.lock().ok().and_then(|port| port.node()));
-                let tgt = edge_guard.target().and_then(|port| port.lock().ok().and_then(|port| port.node()));
+                let src = edge_guard
+                    .source()
+                    .and_then(|port| port.lock().ok().and_then(|port| port.node()));
+                let tgt = edge_guard
+                    .target()
+                    .and_then(|port| port.lock().ok().and_then(|port| port.node()));
                 (src, tgt)
             })
             .unwrap_or((None, None));

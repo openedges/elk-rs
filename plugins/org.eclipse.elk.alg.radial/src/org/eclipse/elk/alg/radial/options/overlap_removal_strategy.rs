@@ -11,7 +11,9 @@ pub enum OverlapRemovalStrategy {
 impl OverlapRemovalStrategy {
     pub fn create(&self) -> Box<dyn IOverlapRemoval> {
         match self {
-            OverlapRemovalStrategy::ExtentRadii => Box::new(RadiusExtensionOverlapRemoval::default()),
+            OverlapRemovalStrategy::ExtentRadii => {
+                Box::new(RadiusExtensionOverlapRemoval::default())
+            }
         }
     }
 }

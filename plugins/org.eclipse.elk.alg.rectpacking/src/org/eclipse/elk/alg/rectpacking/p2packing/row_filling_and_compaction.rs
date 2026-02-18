@@ -3,8 +3,10 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 
 use crate::org::eclipse::elk::alg::rectpacking::options::{InternalProperties, RectPackingOptions};
 use crate::org::eclipse::elk::alg::rectpacking::p2packing::{Compaction, InitialPlacement};
-use crate::org::eclipse::elk::alg::rectpacking::util::{DrawingData, DrawingDataDescriptor, DrawingUtil, RectRowRef};
 use crate::org::eclipse::elk::alg::rectpacking::util::rows_storage;
+use crate::org::eclipse::elk::alg::rectpacking::util::{
+    DrawingData, DrawingDataDescriptor, DrawingUtil, RectRowRef,
+};
 use org_eclipse_elk_core::org::eclipse::elk::core::math::ElkPadding;
 
 pub struct RowFillingAndCompaction {
@@ -89,9 +91,11 @@ impl RowFillingAndCompaction {
                 if row_idx + 1 < rows.len() {
                     let next_row = rows[row_idx + 1].clone();
                     let current_row_width = current_row.borrow().width();
-                    let next_row_first_block_width = next_row.borrow().get_first_block().borrow().width();
+                    let next_row_first_block_width =
+                        next_row.borrow().get_first_block().borrow().width();
                     let increase =
-                        current_row_width + self.node_node_spacing + next_row_first_block_width - target_width;
+                        current_row_width + self.node_node_spacing + next_row_first_block_width
+                            - target_width;
                     self.potential_row_width_increase_max =
                         increase.max(self.potential_row_width_decrease_max);
                     self.potential_row_width_increase_min =
@@ -101,7 +105,11 @@ impl RowFillingAndCompaction {
                     if !stacks.is_empty() {
                         let last_stack = stacks[stacks.len() - 1].clone();
                         let last_stack_width = last_stack.borrow().width();
-                        let spacing = if stacks.len() <= 1 { 0.0 } else { self.node_node_spacing };
+                        let spacing = if stacks.len() <= 1 {
+                            0.0
+                        } else {
+                            self.node_node_spacing
+                        };
                         let decrease_value = last_stack_width + spacing;
                         self.potential_row_width_decrease_max =
                             self.potential_row_width_decrease_max.max(decrease_value);
@@ -151,7 +159,11 @@ impl RowFillingAndCompaction {
         let height = size.y.max(min_height - (padding.top + padding.bottom));
         let additional_height = height - size.y;
 
-        set_property(layout_graph, InternalProperties::ADDITIONAL_HEIGHT, additional_height);
+        set_property(
+            layout_graph,
+            InternalProperties::ADDITIONAL_HEIGHT,
+            additional_height,
+        );
         let rows_key = rows_storage::store_rows(layout_graph, rows.clone());
         set_property(layout_graph, InternalProperties::ROWS, rows_key);
 
@@ -171,7 +183,12 @@ impl RowFillingAndCompaction {
             stack.borrow_mut().update_dimension();
             let stack_ref = stack.borrow();
             max_height = max_height.max(stack_ref.height());
-            max_width += stack_ref.width() + if index > 0 { self.node_node_spacing } else { 0.0 };
+            max_width += stack_ref.width()
+                + if index > 0 {
+                    self.node_node_spacing
+                } else {
+                    0.0
+                };
         }
         let mut row_mut = row.borrow_mut();
         row_mut.set_height(max_height);

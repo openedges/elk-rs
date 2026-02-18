@@ -43,12 +43,19 @@ impl InitialPlacement {
             let is_block_empty = current_block.borrow().children().is_empty();
             let potential_row_width = current_width
                 + rect_width
-                + if is_block_empty { 0.0 } else { node_node_spacing };
+                + if is_block_empty {
+                    0.0
+                } else {
+                    node_node_spacing
+                };
 
             if potential_row_width > bounding_width || in_new_row {
                 drawing_height += row.borrow().height() + node_node_spacing;
                 rows.push(row.clone());
-                row = Rc::new(RefCell::new(RectRow::new(drawing_height, node_node_spacing)));
+                row = Rc::new(RefCell::new(RectRow::new(
+                    drawing_height,
+                    node_node_spacing,
+                )));
                 current_block = Rc::new(RefCell::new(Block::new(
                     0.0,
                     row.borrow().y(),
@@ -68,7 +75,9 @@ impl InitialPlacement {
                         .shape()
                         .graph_element()
                         .properties_mut()
-                        .get_property(RectPackingOptions::PACKING_COMPACTION_ROW_HEIGHT_REEVALUATION)
+                        .get_property(
+                            RectPackingOptions::PACKING_COMPACTION_ROW_HEIGHT_REEVALUATION,
+                        )
                 })
                 .unwrap_or(false);
 
@@ -142,11 +151,7 @@ impl InitialPlacement {
         false
     }
 
-    pub fn is_similar_height(
-        block: &BlockRef,
-        rect: &ElkNodeRef,
-        _node_node_spacing: f64,
-    ) -> bool {
+    pub fn is_similar_height(block: &BlockRef, rect: &ElkNodeRef, _node_node_spacing: f64) -> bool {
         let rect_height = {
             let mut rect_mut = rect.borrow_mut();
             rect_mut.connectable().shape().height()

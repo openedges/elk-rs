@@ -1,5 +1,6 @@
 use crate::org::eclipse::elk::alg::radial::intermediate::optimization::{
-    CrossingMinimizationPosition, EdgeLengthOptimization, EdgeLengthPositionOptimization, IEvaluation,
+    CrossingMinimizationPosition, EdgeLengthOptimization, EdgeLengthPositionOptimization,
+    IEvaluation,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]

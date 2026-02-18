@@ -80,18 +80,18 @@ fn comment_postprocessor_reinserts_boxes_and_reconnects_edges() {
     let node_top_port_2 = LPort::new();
     let node_bottom_port = LPort::new();
     {
-        top_box_1
-            .lock()
-            .expect("top box 1 lock")
-            .set_property(InternalProperties::COMMENT_CONN_PORT, Some(node_top_port_1.clone()));
-        top_box_2
-            .lock()
-            .expect("top box 2 lock")
-            .set_property(InternalProperties::COMMENT_CONN_PORT, Some(node_top_port_2.clone()));
-        bottom_box
-            .lock()
-            .expect("bottom box lock")
-            .set_property(InternalProperties::COMMENT_CONN_PORT, Some(node_bottom_port.clone()));
+        top_box_1.lock().expect("top box 1 lock").set_property(
+            InternalProperties::COMMENT_CONN_PORT,
+            Some(node_top_port_1.clone()),
+        );
+        top_box_2.lock().expect("top box 2 lock").set_property(
+            InternalProperties::COMMENT_CONN_PORT,
+            Some(node_top_port_2.clone()),
+        );
+        bottom_box.lock().expect("bottom box lock").set_property(
+            InternalProperties::COMMENT_CONN_PORT,
+            Some(node_bottom_port.clone()),
+        );
     }
 
     let edge_top_1 = LEdge::new();
@@ -102,15 +102,14 @@ fn comment_postprocessor_reinserts_boxes_and_reconnects_edges() {
     LEdge::set_target(&edge_bottom, Some(bottom_port.clone()));
 
     {
-        node.lock()
-            .expect("node lock")
-            .set_property(
-                InternalProperties::TOP_COMMENTS,
-                Some(vec![top_box_1.clone(), top_box_2.clone()]),
-            );
-        node.lock()
-            .expect("node lock")
-            .set_property(InternalProperties::BOTTOM_COMMENTS, Some(vec![bottom_box.clone()]));
+        node.lock().expect("node lock").set_property(
+            InternalProperties::TOP_COMMENTS,
+            Some(vec![top_box_1.clone(), top_box_2.clone()]),
+        );
+        node.lock().expect("node lock").set_property(
+            InternalProperties::BOTTOM_COMMENTS,
+            Some(vec![bottom_box.clone()]),
+        );
     }
 
     run_processor(&graph);
@@ -143,49 +142,37 @@ fn comment_postprocessor_reinserts_boxes_and_reconnects_edges() {
     assert!((bottom_pos.x - 115.0).abs() < EPS);
     assert!((bottom_pos.y - 158.0).abs() < EPS);
 
-    assert!(
-        edge_top_1
-            .lock()
-            .expect("edge top 1 lock")
-            .target()
-            .is_some_and(|p| Arc::ptr_eq(&p, &node_top_port_1))
-    );
-    assert!(
-        edge_top_2
-            .lock()
-            .expect("edge top 2 lock")
-            .target()
-            .is_some_and(|p| Arc::ptr_eq(&p, &node_top_port_2))
-    );
-    assert!(
-        edge_bottom
-            .lock()
-            .expect("edge bottom lock")
-            .source()
-            .is_some_and(|p| Arc::ptr_eq(&p, &node_bottom_port))
-    );
+    assert!(edge_top_1
+        .lock()
+        .expect("edge top 1 lock")
+        .target()
+        .is_some_and(|p| Arc::ptr_eq(&p, &node_top_port_1)));
+    assert!(edge_top_2
+        .lock()
+        .expect("edge top 2 lock")
+        .target()
+        .is_some_and(|p| Arc::ptr_eq(&p, &node_top_port_2)));
+    assert!(edge_bottom
+        .lock()
+        .expect("edge bottom lock")
+        .source()
+        .is_some_and(|p| Arc::ptr_eq(&p, &node_bottom_port)));
 
-    assert!(
-        node_top_port_1
-            .lock()
-            .expect("node top port 1 lock")
-            .node()
-            .is_some_and(|n| Arc::ptr_eq(&n, &node))
-    );
-    assert!(
-        node_top_port_2
-            .lock()
-            .expect("node top port 2 lock")
-            .node()
-            .is_some_and(|n| Arc::ptr_eq(&n, &node))
-    );
-    assert!(
-        node_bottom_port
-            .lock()
-            .expect("node bottom port lock")
-            .node()
-            .is_some_and(|n| Arc::ptr_eq(&n, &node))
-    );
+    assert!(node_top_port_1
+        .lock()
+        .expect("node top port 1 lock")
+        .node()
+        .is_some_and(|n| Arc::ptr_eq(&n, &node)));
+    assert!(node_top_port_2
+        .lock()
+        .expect("node top port 2 lock")
+        .node()
+        .is_some_and(|n| Arc::ptr_eq(&n, &node)));
+    assert!(node_bottom_port
+        .lock()
+        .expect("node bottom port lock")
+        .node()
+        .is_some_and(|n| Arc::ptr_eq(&n, &node)));
 }
 
 #[test]

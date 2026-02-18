@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::NodeMicroLayout;
 use org_eclipse_elk_core::org::eclipse::elk::core::abstract_layout_provider::AbstractLayoutProvider;
-use org_eclipse_elk_core::org::eclipse::elk::core::alg::algorithm_assembler::{AlgorithmAssembler, SharedProcessor};
+use org_eclipse_elk_core::org::eclipse::elk::core::alg::algorithm_assembler::{
+    AlgorithmAssembler, SharedProcessor,
+};
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase_factory::ILayoutPhaseFactory;
 use org_eclipse_elk_core::org::eclipse::elk::core::graph_layout_engine::IGraphLayoutEngine;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
@@ -40,12 +42,11 @@ impl VertiFlexLayoutProvider {
         let absolute_factory: Arc<dyn ILayoutPhaseFactory<VertiFlexLayoutPhases, ElkNodeRef>> =
             Arc::new(AbsoluteXPlacerStrategy::AbsoluteXPlacing);
 
-        let routing_strategy = match node_get_property(graph, VertiFlexOptions::LAYOUT_STRATEGY)
-            .unwrap_or_default()
-        {
-            EdgeRoutingStrategy::Bend => EdgerouterStrategy::BendRouting,
-            EdgeRoutingStrategy::Straight => EdgerouterStrategy::DirectRouting,
-        };
+        let routing_strategy =
+            match node_get_property(graph, VertiFlexOptions::LAYOUT_STRATEGY).unwrap_or_default() {
+                EdgeRoutingStrategy::Bend => EdgerouterStrategy::BendRouting,
+                EdgeRoutingStrategy::Straight => EdgerouterStrategy::DirectRouting,
+            };
         let edge_factory: Arc<dyn ILayoutPhaseFactory<VertiFlexLayoutPhases, ElkNodeRef>> =
             Arc::new(routing_strategy);
 
@@ -80,12 +81,14 @@ impl VertiFlexLayoutProvider {
             root_height + node_height(root) + margins.bottom.max(node_node_spacing);
 
         for edge in ElkGraphUtil::all_outgoing_edges(root) {
-            let Some(child) = edge_target_node(&edge) else { continue; };
+            let Some(child) = edge_target_node(&edge) else {
+                continue;
+            };
             if node_has_property(&child, VertiFlexOptions::VERTICAL_CONSTRAINT) {
                 let child_constraint =
                     node_get_property(&child, VertiFlexOptions::VERTICAL_CONSTRAINT).unwrap_or(0.0);
-                let child_margin = node_get_property(&child, CoreOptions::MARGINS)
-                    .unwrap_or_default();
+                let child_margin =
+                    node_get_property(&child, CoreOptions::MARGINS).unwrap_or_default();
                 if new_min_constraint > child_constraint + child_margin.top {
                     let identifier = node_identifier(&child);
                     let message = format!(
@@ -98,14 +101,15 @@ impl VertiFlexLayoutProvider {
         }
 
         for edge in ElkGraphUtil::all_outgoing_edges(root) {
-            let Some(child) = edge_target_node(&edge) else { continue; };
+            let Some(child) = edge_target_node(&edge) else {
+                continue;
+            };
             Self::check_vertical_constraint_validity(&child, new_min_constraint, node_node_spacing);
         }
     }
 
     fn set_graph_size(&self, graph: &ElkNodeRef) {
-        let padding = node_get_property(graph, CoreOptions::PADDING)
-            .unwrap_or_default();
+        let padding = node_get_property(graph, CoreOptions::PADDING).unwrap_or_default();
 
         let children: Vec<ElkNodeRef> = {
             let mut graph_mut = graph.borrow_mut();
@@ -114,8 +118,7 @@ impl VertiFlexLayoutProvider {
         let mut max_x: f64 = 0.0;
         let mut max_y: f64 = 0.0;
         for node in children {
-            let margins = node_get_property(&node, CoreOptions::MARGINS)
-                .unwrap_or_default();
+            let margins = node_get_property(&node, CoreOptions::MARGINS).unwrap_or_default();
             let x = node_x(&node);
             let y = node_y(&node);
             let width = node_width(&node);
@@ -139,15 +142,19 @@ impl Default for VertiFlexLayoutProvider {
 }
 
 impl IGraphLayoutEngine for VertiFlexLayoutProvider {
-    fn layout(&mut self, layout_graph: &ElkNodeRef, progress_monitor: &mut dyn IElkProgressMonitor) {
+    fn layout(
+        &mut self,
+        layout_graph: &ElkNodeRef,
+        progress_monitor: &mut dyn IElkProgressMonitor,
+    ) {
         let algorithm = Self::assemble_algorithm(layout_graph);
         progress_monitor.begin("Tree layout", algorithm.len() as f32);
 
         let node_node_spacing =
             node_get_property(layout_graph, CoreOptions::SPACING_NODE_NODE).unwrap_or(0.0);
 
-        let omit_micro =
-            node_get_property(layout_graph, VertiFlexOptions::OMIT_NODE_MICRO_LAYOUT).unwrap_or(false);
+        let omit_micro = node_get_property(layout_graph, VertiFlexOptions::OMIT_NODE_MICRO_LAYOUT)
+            .unwrap_or(false);
         if !omit_micro {
             NodeMicroLayout::for_graph(layout_graph.clone()).execute();
         }
@@ -168,7 +175,9 @@ impl IGraphLayoutEngine for VertiFlexLayoutProvider {
             if number_of_parents > 1 {
                 panic!(
                     "{}",
-                    UnsupportedConfigurationException::new("The given graph is not an acyclic tree!")
+                    UnsupportedConfigurationException::new(
+                        "The given graph is not an acyclic tree!"
+                    )
                 );
             }
             let mut child_mut = child.borrow_mut();
@@ -262,7 +271,9 @@ fn node_height(node: &ElkNodeRef) -> f64 {
     node_mut.connectable().shape().height()
 }
 
-fn edge_target_node(edge: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkEdgeRef) -> Option<ElkNodeRef> {
+fn edge_target_node(
+    edge: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkEdgeRef,
+) -> Option<ElkNodeRef> {
     let edge_borrow = edge.borrow();
     let target = edge_borrow.targets_ro().get(0)?;
     drop(edge_borrow);

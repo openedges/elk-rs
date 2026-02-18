@@ -118,7 +118,10 @@ impl OneDimensionalCompactor {
         }
 
         if !self.c_graph.borrow().supports(dir) {
-            panic!("The direction {:?} is not supported by the CGraph instance.", dir);
+            panic!(
+                "The direction {:?} is not supported by the CGraph instance.",
+                dir
+            );
         }
 
         if dir == self.direction {
@@ -260,7 +263,9 @@ impl OneDimensionalCompactor {
                 let replace_reference = {
                     let group_ref = group.borrow().reference.clone();
                     match group_ref {
-                        Some(current_reference) => candidate_x < current_reference.borrow().hitbox.x,
+                        Some(current_reference) => {
+                            candidate_x < current_reference.borrow().hitbox.x
+                        }
                         None => true,
                     }
                 };
@@ -319,9 +324,15 @@ impl OneDimensionalCompactor {
         }
 
         let constraints = if self.direction.is_horizontal() {
-            self.c_graph.borrow().predefined_horizontal_constraints.clone()
+            self.c_graph
+                .borrow()
+                .predefined_horizontal_constraints
+                .clone()
         } else {
-            self.c_graph.borrow().predefined_vertical_constraints.clone()
+            self.c_graph
+                .borrow()
+                .predefined_vertical_constraints
+                .clone()
         };
         for (first, second) in &constraints {
             if matches!(self.direction, Direction::Left | Direction::Up) {

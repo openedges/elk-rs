@@ -3,7 +3,9 @@ use org_eclipse_elk_alg_rectpacking::org::eclipse::elk::alg::rectpacking::option
 };
 use org_eclipse_elk_alg_rectpacking::org::eclipse::elk::alg::rectpacking::p1widthapproximation::WidthApproximationStrategy;
 use org_eclipse_elk_alg_rectpacking::org::eclipse::elk::alg::rectpacking::p3whitespaceelimination::WhiteSpaceEliminationStrategy;
-use org_eclipse_elk_core::org::eclipse::elk::core::data::{LayoutMetaDataService, LayoutOptionTarget};
+use org_eclipse_elk_core::org::eclipse::elk::core::data::{
+    LayoutMetaDataService, LayoutOptionTarget,
+};
 
 fn init_rectpacking_options() {
     let service = LayoutMetaDataService::get_instance();

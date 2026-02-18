@@ -16,10 +16,9 @@ impl ILayoutProcessor<LGraph> for PartitionMidprocessor {
 
         let mut partition_to_nodes: BTreeMap<i32, Vec<LNodeRef>> = BTreeMap::new();
         for node in lgraph.layerless_nodes() {
-            let partition = node
-                .lock()
-                .ok()
-                .and_then(|mut node_guard| node_guard.get_property(CoreOptions::PARTITIONING_PARTITION));
+            let partition = node.lock().ok().and_then(|mut node_guard| {
+                node_guard.get_property(CoreOptions::PARTITIONING_PARTITION)
+            });
             if let Some(partition) = partition {
                 partition_to_nodes
                     .entry(partition)

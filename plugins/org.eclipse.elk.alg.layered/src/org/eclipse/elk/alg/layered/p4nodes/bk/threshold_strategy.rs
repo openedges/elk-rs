@@ -4,7 +4,7 @@ use crate::org::eclipse::elk::alg::layered::graph::LEdgeRef;
 
 use super::aligned_layout::{BKAlignedLayout, HDirection, VDirection};
 use super::neighborhood_information::NeighborhoodInformation;
-use super::util::{node_id, port_offset_y, port_node_id};
+use super::util::{node_id, port_node_id, port_offset_y};
 
 const THRESHOLD: f64 = f64::MAX;
 const EPSILON: f64 = 0.0001;
@@ -145,12 +145,7 @@ impl SimpleThresholdStrategy {
         pp
     }
 
-    fn get_bound(
-        &mut self,
-        bal: &mut BKAlignedLayout,
-        block_node: usize,
-        is_root: bool,
-    ) -> f64 {
+    fn get_bound(&mut self, bal: &mut BKAlignedLayout, block_node: usize, is_root: bool) -> f64 {
         let trace = std::env::var_os("ELK_TRACE_BK_THRESH").is_some();
         let invalid = match bal.vdir {
             Some(VDirection::Up) => f64::INFINITY,

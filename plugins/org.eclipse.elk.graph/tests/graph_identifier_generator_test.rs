@@ -1,4 +1,6 @@
-use org_eclipse_elk_graph::org::eclipse::elk::graph::util::{ElkGraphUtil, GraphIdentifierGenerator};
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::{
+    ElkGraphUtil, GraphIdentifierGenerator,
+};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{
     ElkConnectableShapeRef, ElkEdge, ElkEdgeSection, ElkGraphElementRef, ElkLabelRef, ElkNodeRef,
     ElkPortRef,
@@ -24,7 +26,9 @@ fn port_identifier(port: &ElkPortRef) -> Option<String> {
         .map(|id| id.to_string())
 }
 
-fn edge_identifier(edge: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkEdgeRef) -> Option<String> {
+fn edge_identifier(
+    edge: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkEdgeRef,
+) -> Option<String> {
     let mut edge_mut = edge.borrow_mut();
     edge_mut.element().identifier().map(|id| id.to_string())
 }
@@ -38,7 +42,9 @@ fn label_identifier(label: &ElkLabelRef) -> Option<String> {
         .map(|id| id.to_string())
 }
 
-fn edge_section_identifier(section: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkEdgeSectionRef) -> Option<String> {
+fn edge_section_identifier(
+    section: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkEdgeSectionRef,
+) -> Option<String> {
     section.borrow().identifier().map(|id| id.to_string())
 }
 
@@ -81,8 +87,13 @@ fn validates_identifier_characters() {
             .graph_element()
             .set_identifier(Some("a b".to_string()));
     }
-    section.borrow_mut().set_identifier(Some("1bad".to_string()));
-    ElkEdgeSection::set_parent(&section, Some(ElkGraphUtil::create_edge(Some(root.clone()))));
+    section
+        .borrow_mut()
+        .set_identifier(Some("1bad".to_string()));
+    ElkEdgeSection::set_parent(
+        &section,
+        Some(ElkGraphUtil::create_edge(Some(root.clone()))),
+    );
 
     let mut generator = GraphIdentifierGenerator::for_graph(root.clone());
     generator.assert_valid().execute();

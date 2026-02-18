@@ -111,9 +111,15 @@ fn process_node(holder: &SelfLoopHolderRef) {
     let original_constraints = holder
         .lock()
         .ok()
-        .and_then(|holder_guard| holder_guard.l_node().lock().ok().and_then(|mut node_guard| {
-            node_guard.get_property(InternalProperties::ORIGINAL_PORT_CONSTRAINTS)
-        }))
+        .and_then(|holder_guard| {
+            holder_guard
+                .l_node()
+                .lock()
+                .ok()
+                .and_then(|mut node_guard| {
+                    node_guard.get_property(InternalProperties::ORIGINAL_PORT_CONSTRAINTS)
+                })
+        })
         .unwrap_or(PortConstraints::Undefined);
 
     match original_constraints {
@@ -281,9 +287,15 @@ fn restore_ports(holder: &SelfLoopHolderRef) {
     let ordering = holder
         .lock()
         .ok()
-        .and_then(|holder_guard| holder_guard.l_node().lock().ok().and_then(|mut node_guard| {
-            node_guard.get_property(LayeredOptions::EDGE_ROUTING_SELF_LOOP_ORDERING)
-        }))
+        .and_then(|holder_guard| {
+            holder_guard
+                .l_node()
+                .lock()
+                .ok()
+                .and_then(|mut node_guard| {
+                    node_guard.get_property(LayeredOptions::EDGE_ROUTING_SELF_LOOP_ORDERING)
+                })
+        })
         .unwrap_or(SelfLoopOrderingStrategy::Stacked);
 
     process_one_side_loops(ordering, &mut loops_by_type, &mut target_areas);
@@ -513,7 +525,8 @@ fn process_three_side_loops(loops_by_type: &LoopsByType, target_areas: &mut Targ
     };
 
     for sl_loop in loops {
-        let Some([start_side, middle_side, end_side]) = determine_loop_constellation(sl_loop) else {
+        let Some([start_side, middle_side, end_side]) = determine_loop_constellation(sl_loop)
+        else {
             continue;
         };
         add_to_target_area_loop(
@@ -603,9 +616,7 @@ fn add_to_target_area_from_ports(
         .collect::<Vec<_>>();
     hidden_ports.reverse();
 
-    let target_area = target_areas
-        .entry((port_side, area))
-        .or_default();
+    let target_area = target_areas.entry((port_side, area)).or_default();
     if add_mode == AddMode::Prepend {
         target_area.splice(0..0, hidden_ports);
     } else {
@@ -701,7 +712,12 @@ fn restore_ports_to_node(holder: &SelfLoopHolderRef, target_areas: &TargetAreas)
     }
 }
 
-fn add_all(target_areas: &TargetAreas, side: PortSide, area: PortSideArea, l_node: &crate::org::eclipse::elk::alg::layered::graph::LNodeRef) {
+fn add_all(
+    target_areas: &TargetAreas,
+    side: PortSide,
+    area: PortSideArea,
+    l_node: &crate::org::eclipse::elk::alg::layered::graph::LNodeRef,
+) {
     let sl_ports = target_areas.get(&(side, area)).cloned().unwrap_or_default();
     for sl_port in sl_ports {
         let l_port = sl_port
@@ -709,7 +725,10 @@ fn add_all(target_areas: &TargetAreas, side: PortSide, area: PortSideArea, l_nod
             .ok()
             .map(|sl_port_guard| sl_port_guard.l_port().clone());
         if let Some(l_port) = l_port {
-            crate::org::eclipse::elk::alg::layered::graph::LPort::set_node(&l_port, Some(l_node.clone()));
+            crate::org::eclipse::elk::alg::layered::graph::LPort::set_node(
+                &l_port,
+                Some(l_node.clone()),
+            );
         }
     }
 }
@@ -762,10 +781,9 @@ fn north_south_port_connection_sides(l_port: &LPortRef) -> HashSet<PortSide> {
         .map(|dummy_guard| dummy_guard.ports().clone())
         .unwrap_or_default();
     for dummy_l_port in dummy_ports {
-        let origin = dummy_l_port
-            .lock()
-            .ok()
-            .and_then(|mut dummy_port_guard| dummy_port_guard.get_property(InternalProperties::ORIGIN));
+        let origin = dummy_l_port.lock().ok().and_then(|mut dummy_port_guard| {
+            dummy_port_guard.get_property(InternalProperties::ORIGIN)
+        });
         let Some(Origin::LPort(origin_port)) = origin else {
             continue;
         };
@@ -811,7 +829,13 @@ fn sl_port_side(sl_port: &SelfLoopPortRef) -> PortSide {
     sl_port
         .lock()
         .ok()
-        .and_then(|port_guard| port_guard.l_port().lock().ok().map(|l_port_guard| l_port_guard.side()))
+        .and_then(|port_guard| {
+            port_guard
+                .l_port()
+                .lock()
+                .ok()
+                .map(|l_port_guard| l_port_guard.side())
+        })
         .unwrap_or(PortSide::Undefined)
 }
 
@@ -819,7 +843,13 @@ fn sl_port_net_flow(sl_port: &SelfLoopPortRef) -> isize {
     sl_port
         .lock()
         .ok()
-        .and_then(|port_guard| port_guard.l_port().lock().ok().map(|l_port_guard| l_port_guard.net_flow()))
+        .and_then(|port_guard| {
+            port_guard
+                .l_port()
+                .lock()
+                .ok()
+                .map(|l_port_guard| l_port_guard.net_flow())
+        })
         .unwrap_or_default()
 }
 

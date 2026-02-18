@@ -6,11 +6,10 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::{
 };
 
 use crate::org::eclipse::elk::alg::layered::graph::transform::elk_graph_importer::ElkGraphImporter;
-use crate::org::eclipse::elk::alg::layered::graph::transform::elk_graph_layout_transferrer::
-    ElkGraphLayoutTransferrer;
+use crate::org::eclipse::elk::alg::layered::graph::transform::elk_graph_layout_transferrer::ElkGraphLayoutTransferrer;
 use crate::org::eclipse::elk::alg::layered::graph::transform::IGraphTransformer;
-use crate::org::eclipse::elk::alg::layered::options::internal_properties::OriginId;
 use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LGraphRef};
+use crate::org::eclipse::elk::alg::layered::options::internal_properties::OriginId;
 
 #[derive(Default)]
 pub struct OriginStore {

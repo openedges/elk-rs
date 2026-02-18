@@ -3,9 +3,7 @@
 use std::collections::VecDeque;
 
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::layered_layout_provider::LayeredLayoutProvider;
-use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::{
-    LayeredOptions,
-};
+use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::LayeredOptions;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::plain_java_initialization::initialize_plain_java_layout;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::recursive_graph_layout_engine::RecursiveGraphLayoutEngine;
@@ -24,7 +22,11 @@ pub fn init_layered_options() {
 
 pub fn create_graph() -> ElkNodeRef {
     let graph = ElkGraphUtil::create_graph();
-    set_node_property(&graph, CoreOptions::ALGORITHM, LayeredOptions::ALGORITHM_ID.to_string());
+    set_node_property(
+        &graph,
+        CoreOptions::ALGORITHM,
+        LayeredOptions::ALGORITHM_ID.to_string(),
+    );
     graph
 }
 
@@ -81,9 +83,9 @@ pub fn create_edge(source: ElkConnectableShapeRef, target: ElkConnectableShapeRe
 pub fn create_node_label(node: &ElkNodeRef, text: &str, width: f64, height: f64) -> ElkLabelRef {
     let label = ElkGraphUtil::create_label_with_text(
         text,
-        Some(org_eclipse_elk_graph::org::eclipse::elk::graph::ElkGraphElementRef::Node(
-            node.clone(),
-        )),
+        Some(
+            org_eclipse_elk_graph::org::eclipse::elk::graph::ElkGraphElementRef::Node(node.clone()),
+        ),
     );
     set_label_dimensions(&label, width, height);
     label
@@ -92,9 +94,9 @@ pub fn create_node_label(node: &ElkNodeRef, text: &str, width: f64, height: f64)
 pub fn create_edge_label(edge: &ElkEdgeRef, text: &str, width: f64, height: f64) -> ElkLabelRef {
     let label = ElkGraphUtil::create_label_with_text(
         text,
-        Some(org_eclipse_elk_graph::org::eclipse::elk::graph::ElkGraphElementRef::Edge(
-            edge.clone(),
-        )),
+        Some(
+            org_eclipse_elk_graph::org::eclipse::elk::graph::ElkGraphElementRef::Edge(edge.clone()),
+        ),
     );
     set_label_dimensions(&label, width, height);
     label
@@ -102,18 +104,12 @@ pub fn create_edge_label(edge: &ElkEdgeRef, text: &str, width: f64, height: f64)
 
 pub fn set_node_dimensions(node: &ElkNodeRef, width: f64, height: f64) {
     let mut node_mut = node.borrow_mut();
-    node_mut
-        .connectable()
-        .shape()
-        .set_dimensions(width, height);
+    node_mut.connectable().shape().set_dimensions(width, height);
 }
 
 pub fn set_port_dimensions(port: &ElkPortRef, width: f64, height: f64) {
     let mut port_mut = port.borrow_mut();
-    port_mut
-        .connectable()
-        .shape()
-        .set_dimensions(width, height);
+    port_mut.connectable().shape().set_dimensions(width, height);
 }
 
 pub fn set_label_dimensions(label: &ElkLabelRef, width: f64, height: f64) {

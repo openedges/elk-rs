@@ -28,7 +28,10 @@ fn add_node(graph: &LGraphRef, layer: &LayerRef) -> LNodeRef {
     node
 }
 
-fn add_port(node: &LNodeRef, side: PortSide) -> org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LPortRef {
+fn add_port(
+    node: &LNodeRef,
+    side: PortSide,
+) -> org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LPortRef {
     let port = LPort::new();
     port.lock().expect("port lock").set_side(side);
     LPort::set_node(&port, Some(node.clone()));
@@ -67,10 +70,7 @@ fn long_edge_splitter_makes_edges_connect_adjacent_layers() {
     for (i, layer) in layers.iter().enumerate() {
         let nodes = layer.lock().expect("layer lock").nodes().clone();
         for node in nodes {
-            let outgoing = node
-                .lock()
-                .expect("node lock")
-                .outgoing_edges();
+            let outgoing = node.lock().expect("node lock").outgoing_edges();
             for edge in outgoing {
                 let target_layer = edge
                     .lock()

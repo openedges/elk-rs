@@ -8,7 +8,9 @@ pub struct KVectorChain {
 
 impl KVectorChain {
     pub fn new() -> Self {
-        KVectorChain { vectors: Vec::new() }
+        KVectorChain {
+            vectors: Vec::new(),
+        }
     }
 
     pub fn from_collection(collection: &[KVector]) -> Self {

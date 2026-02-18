@@ -2,7 +2,9 @@ use std::rc::Rc;
 
 use crate::org::eclipse::elk::alg::rectpacking::options::RectPackingOptions;
 use crate::org::eclipse::elk::alg::rectpacking::p2packing::InitialPlacement;
-use crate::org::eclipse::elk::alg::rectpacking::util::{BlockRef, BlockStack, BlockStackRef, RectRowRef};
+use crate::org::eclipse::elk::alg::rectpacking::util::{
+    BlockRef, BlockStack, BlockStackRef, RectRowRef,
+};
 
 pub struct Compaction;
 
@@ -199,7 +201,9 @@ impl Compaction {
         let row_height = row.borrow().height();
         let block_height = block.borrow().height();
         let stack = block.borrow().stack();
-        let Some(stack) = stack else { return false; };
+        let Some(stack) = stack else {
+            return false;
+        };
         let previous_width = stack.borrow().width();
         if block_height < row_height {
             let target_width = stack.borrow().get_width_for_fixed_height(row_height);
@@ -271,10 +275,12 @@ impl Compaction {
         if next_block.borrow().min_width() + node_node_spacing > remaining_width {
             return false;
         }
-        let current_block_min_height =
-            block.borrow().y() - row.borrow().y() + block.borrow().height_for_target_width(remaining_width);
+        let current_block_min_height = block.borrow().y() - row.borrow().y()
+            + block.borrow().height_for_target_width(remaining_width);
         let next_block_min_height = next_block.borrow().height_for_target_width(remaining_width);
-        if current_block_min_height + node_node_spacing + next_block_min_height <= row.borrow().height() {
+        if current_block_min_height + node_node_spacing + next_block_min_height
+            <= row.borrow().height()
+        {
             let block_x = block.borrow().x();
             block.borrow_mut().place_rects_in(bounding_width - block_x);
             block.borrow_mut().set_fixed(true);
@@ -294,9 +300,7 @@ impl Compaction {
                 row.borrow_mut().add_block(next_block.clone());
                 next_block.borrow_mut().set_parent_row(row.clone());
                 if rows.len() > next_row_index {
-                    rows[next_row_index]
-                        .borrow_mut()
-                        .remove_block(next_block);
+                    rows[next_row_index].borrow_mut().remove_block(next_block);
                     if rows[next_row_index].borrow().children().is_empty() {
                         rows.remove(next_row_index);
                     }
@@ -328,10 +332,13 @@ impl Compaction {
             .borrow()
             .get_width_for_fixed_height(row.borrow().y() + row_height - stack.borrow().y());
         let next_block_min_height = next_block.borrow().min_height();
-        let should_row_height_be_reevaluated = next_block_min_height > row_height && row_height_reevaluation;
-        let mut target_width_of_next_block = bounding_width -
-            (stack.borrow().x() + current_block_min_width - node_node_spacing);
-        let next_block_height = next_block.borrow().height_for_target_width(target_width_of_next_block);
+        let should_row_height_be_reevaluated =
+            next_block_min_height > row_height && row_height_reevaluation;
+        let mut target_width_of_next_block =
+            bounding_width - (stack.borrow().x() + current_block_min_width - node_node_spacing);
+        let next_block_height = next_block
+            .borrow()
+            .height_for_target_width(target_width_of_next_block);
         if should_row_height_be_reevaluated && next_block_height > next_block_min_height {
             return false;
         }
@@ -362,7 +369,10 @@ impl Compaction {
             return false;
         }
 
-        if last_row_optimization || should_row_height_be_reevaluated || next_block_height <= row_height {
+        if last_row_optimization
+            || should_row_height_be_reevaluated
+            || next_block_height <= row_height
+        {
             if last_row_optimization && next_block_height > row_height {
                 block.borrow_mut().set_height(next_block_height);
                 let target_width = block.borrow().width_for_target_height(next_block_height);
@@ -382,9 +392,7 @@ impl Compaction {
             row.borrow_mut().add_block(next_block.clone());
 
             if rows.len() > next_row_index {
-                rows[next_row_index]
-                    .borrow_mut()
-                    .remove_block(next_block);
+                rows[next_row_index].borrow_mut().remove_block(next_block);
                 if rows[next_row_index].borrow().children().is_empty() {
                     rows.remove(next_row_index);
                 }

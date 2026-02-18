@@ -25,15 +25,24 @@ impl ToAspectratioNodeExpander {
         let mut width = property(graph, InternalProperties::DRAWING_WIDTH).unwrap_or(0.0);
         let mut height = property(graph, InternalProperties::DRAWING_HEIGHT).unwrap_or(0.0);
         let desired_aspect_ratio = property(graph, RectPackingOptions::ASPECT_RATIO).unwrap_or(1.0);
-        let mut additional_height = property(graph, InternalProperties::ADDITIONAL_HEIGHT).unwrap_or(0.0);
-        let aspect_ratio = if height.abs() > f64::EPSILON { width / height } else { 0.0 };
+        let mut additional_height =
+            property(graph, InternalProperties::ADDITIONAL_HEIGHT).unwrap_or(0.0);
+        let aspect_ratio = if height.abs() > f64::EPSILON {
+            width / height
+        } else {
+            0.0
+        };
         if aspect_ratio < desired_aspect_ratio {
             width = height * desired_aspect_ratio;
             set_property(graph, InternalProperties::DRAWING_WIDTH, width);
         } else {
             additional_height += (width / desired_aspect_ratio) - height;
             height += additional_height;
-            set_property(graph, InternalProperties::ADDITIONAL_HEIGHT, additional_height);
+            set_property(
+                graph,
+                InternalProperties::ADDITIONAL_HEIGHT,
+                additional_height,
+            );
             set_property(graph, InternalProperties::DRAWING_HEIGHT, height);
         }
         let mut eliminator = EqualWhitespaceEliminator::new();

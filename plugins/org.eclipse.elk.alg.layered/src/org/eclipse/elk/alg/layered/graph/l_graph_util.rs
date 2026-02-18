@@ -5,8 +5,8 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::alignment::Alignment
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::direction::Direction;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_label_placement::EdgeLabelPlacement;
-use org_eclipse_elk_core::org::eclipse::elk::core::options::port_label_placement::PortLabelPlacement;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::port_label_placement::PortLabelPlacement;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::size_constraint::SizeConstraint;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::EnumSet;
@@ -319,7 +319,9 @@ impl LGraphUtil {
         let mut props = layered_graph
             .lock()
             .ok()
-            .and_then(|mut graph_guard| graph_guard.get_property(InternalProperties::GRAPH_PROPERTIES))
+            .and_then(|mut graph_guard| {
+                graph_guard.get_property(InternalProperties::GRAPH_PROPERTIES)
+            })
             .unwrap_or_else(EnumSet::none_of);
 
         for node in nodes {
@@ -368,16 +370,16 @@ impl LGraphUtil {
             }
 
             for port in ports {
-                let (port_side, outgoing_edges, incident_edges) = if let Ok(port_guard) = port.lock()
-                {
-                    (
-                        port_guard.side(),
-                        port_guard.outgoing_edges().clone(),
-                        port_guard.incoming_edges().len() + port_guard.outgoing_edges().len(),
-                    )
-                } else {
-                    continue;
-                };
+                let (port_side, outgoing_edges, incident_edges) =
+                    if let Ok(port_guard) = port.lock() {
+                        (
+                            port_guard.side(),
+                            port_guard.outgoing_edges().clone(),
+                            port_guard.incoming_edges().len() + port_guard.outgoing_edges().len(),
+                        )
+                    } else {
+                        continue;
+                    };
 
                 if incident_edges > 1 {
                     props.insert(GraphProperties::Hyperedges);
@@ -655,7 +657,9 @@ impl LGraphUtil {
                         if candidate
                             .lock()
                             .ok()
-                            .and_then(|mut port| port.get_property(InternalProperties::INPUT_COLLECT))
+                            .and_then(|mut port| {
+                                port.get_property(InternalProperties::INPUT_COLLECT)
+                            })
                             .unwrap_or(false)
                         {
                             return candidate.clone();
@@ -674,7 +678,9 @@ impl LGraphUtil {
                         if candidate
                             .lock()
                             .ok()
-                            .and_then(|mut port| port.get_property(InternalProperties::OUTPUT_COLLECT))
+                            .and_then(|mut port| {
+                                port.get_property(InternalProperties::OUTPUT_COLLECT)
+                            })
                             .unwrap_or(false)
                         {
                             return candidate.clone();
@@ -836,10 +842,7 @@ impl LGraphUtil {
             .get_property(LayeredOptions::PORT_BORDER_OFFSET)
             .unwrap_or(0.0);
         if let Ok(mut dummy_guard) = dummy.lock() {
-            dummy_guard.set_property(
-                LayeredOptions::PORT_BORDER_OFFSET,
-                Some(port_border_offset),
-            );
+            dummy_guard.set_property(LayeredOptions::PORT_BORDER_OFFSET, Some(port_border_offset));
         }
 
         let dummy_port = LPort::new();
@@ -988,10 +991,8 @@ impl LGraphUtil {
             }
 
             if let Ok(mut dummy_guard) = dummy.lock() {
-                dummy_guard.set_property(
-                    InternalProperties::PORT_RATIO_OR_POSITION,
-                    Some(info_value),
-                );
+                dummy_guard
+                    .set_property(InternalProperties::PORT_RATIO_OR_POSITION, Some(info_value));
             }
         }
 
@@ -1011,42 +1012,41 @@ impl LGraphUtil {
         port_width: f64,
         port_height: f64,
     ) -> KVector {
-        let (mut port_pos, port_offset, _, ext_side) = if let Ok(mut dummy_guard) =
-            port_dummy.lock()
-        {
-            let pos = *dummy_guard.shape().position_ref();
-            let size = *dummy_guard.shape().size_ref();
-            let mut port_pos = KVector::from_vector(&pos);
-            port_pos.x += size.x / 2.0;
-            port_pos.y += size.y / 2.0;
-            (
-                port_pos,
-                dummy_guard
-                    .get_property(LayeredOptions::PORT_BORDER_OFFSET)
-                    .unwrap_or(0.0),
-                size,
-                dummy_guard
-                    .get_property(InternalProperties::EXT_PORT_SIDE)
-                    .unwrap_or(PortSide::Undefined),
-            )
-        } else {
-            return KVector::new();
-        };
+        let (mut port_pos, port_offset, _, ext_side) =
+            if let Ok(mut dummy_guard) = port_dummy.lock() {
+                let pos = *dummy_guard.shape().position_ref();
+                let size = *dummy_guard.shape().size_ref();
+                let mut port_pos = KVector::from_vector(&pos);
+                port_pos.x += size.x / 2.0;
+                port_pos.y += size.y / 2.0;
+                (
+                    port_pos,
+                    dummy_guard
+                        .get_property(LayeredOptions::PORT_BORDER_OFFSET)
+                        .unwrap_or(0.0),
+                    size,
+                    dummy_guard
+                        .get_property(InternalProperties::EXT_PORT_SIDE)
+                        .unwrap_or(PortSide::Undefined),
+                )
+            } else {
+                return KVector::new();
+            };
 
         let (graph_size, padding, graph_offset, next_to_port_if_possible) =
             if let Ok(graph_guard) = graph.lock() {
-            (
-                *graph_guard.size_ref(),
-                graph_guard.padding_ref().clone(),
-                *graph_guard.offset_ref(),
-                graph_guard
-                    .get_property_ref(CoreOptions::PORT_LABELS_PLACEMENT)
-                    .unwrap_or_else(PortLabelPlacement::outside)
-                    .contains(&PortLabelPlacement::NextToPortIfPossible),
-            )
-        } else {
-            return port_pos;
-        };
+                (
+                    *graph_guard.size_ref(),
+                    graph_guard.padding_ref().clone(),
+                    *graph_guard.offset_ref(),
+                    graph_guard
+                        .get_property_ref(CoreOptions::PORT_LABELS_PLACEMENT)
+                        .unwrap_or_else(PortLabelPlacement::outside)
+                        .contains(&PortLabelPlacement::NextToPortIfPossible),
+                )
+            } else {
+                return port_pos;
+            };
 
         match ext_side {
             PortSide::North => {

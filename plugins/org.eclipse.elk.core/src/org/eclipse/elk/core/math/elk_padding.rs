@@ -67,4 +67,3 @@ impl Default for ElkPadding {
 }
 
 impl IDataObject for ElkPadding {}
-

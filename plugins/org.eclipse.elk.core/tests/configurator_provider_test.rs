@@ -1,7 +1,5 @@
-use org_eclipse_elk_core::org::eclipse::elk::core::{
-    LayoutConfigurator, LayoutConfiguratorClass,
-};
 use org_eclipse_elk_core::org::eclipse::elk::core::util::ElkUtil;
+use org_eclipse_elk_core::org::eclipse::elk::core::{LayoutConfigurator, LayoutConfiguratorClass};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;

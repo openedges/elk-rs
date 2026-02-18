@@ -21,5 +21,8 @@ fn issue_463_self_loops_do_not_trigger_layout_exception() {
         .contained_edges()
         .iter()
         .all(|edge| !edge.borrow_mut().sections().is_empty());
-    assert!(all_edges_have_sections, "expected routed sections for all edges");
+    assert!(
+        all_edges_have_sections,
+        "expected routed sections for all edges"
+    );
 }

@@ -3,7 +3,9 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use org_eclipse_elk_core::org::eclipse::elk::core::options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{ElkUtil, IGraphElementVisitor};
-use org_eclipse_elk_core::org::eclipse::elk::core::validation::{GraphValidator, LayoutOptionValidator};
+use org_eclipse_elk_core::org::eclipse::elk::core::validation::{
+    GraphValidator, LayoutOptionValidator,
+};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkConnectableShapeRef, ElkNodeRef};
 

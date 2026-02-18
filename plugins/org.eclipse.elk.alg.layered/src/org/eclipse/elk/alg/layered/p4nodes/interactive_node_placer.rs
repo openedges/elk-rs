@@ -4,21 +4,22 @@ use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutP
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LNodeRef};
 use crate::org::eclipse::elk::alg::layered::graph::l_node::NodeType;
+use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LNodeRef};
 use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorStrategy;
 use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, Spacings};
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
 
-static HIERARCHY_PROCESSING_ADDITIONS: LazyLock<LayoutProcessorConfiguration<LayeredPhases, LGraph>> =
-    LazyLock::new(|| {
-        let mut config = LayoutProcessorConfiguration::create();
-        config.add_before(
-            LayeredPhases::P5EdgeRouting,
-            Arc::new(IntermediateProcessorStrategy::HierarchicalPortPositionProcessor),
-        );
-        config
-    });
+static HIERARCHY_PROCESSING_ADDITIONS: LazyLock<
+    LayoutProcessorConfiguration<LayeredPhases, LGraph>,
+> = LazyLock::new(|| {
+    let mut config = LayoutProcessorConfiguration::create();
+    config.add_before(
+        LayeredPhases::P5EdgeRouting,
+        Arc::new(IntermediateProcessorStrategy::HierarchicalPortPositionProcessor),
+    );
+    config
+});
 
 pub struct InteractiveNodePlacer;
 
@@ -78,7 +79,8 @@ fn place_nodes(nodes: &[LNodeRef], spacings: &Spacings) {
 
             let mut pos_y = node_guard.shape().position_ref().y;
             if node_type != NodeType::Normal {
-                let original = node_guard.get_property(InternalProperties::ORIGINAL_DUMMY_NODE_POSITION);
+                let original =
+                    node_guard.get_property(InternalProperties::ORIGINAL_DUMMY_NODE_POSITION);
                 if let Some(original) = original {
                     pos_y = original;
                 } else {

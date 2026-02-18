@@ -14,12 +14,13 @@ pub struct VertiFlexOptions;
 pub static VERTICAL_CONSTRAINT_PROPERTY: LazyLock<Property<f64>> =
     LazyLock::new(|| Property::new("org.eclipse.elk.vertiflex.verticalConstraint"));
 
-pub static LAYOUT_STRATEGY_PROPERTY: LazyLock<Property<EdgeRoutingStrategy>> = LazyLock::new(|| {
-    Property::with_default(
-        "org.eclipse.elk.vertiflex.layoutStrategy",
-        EdgeRoutingStrategy::Straight,
-    )
-});
+pub static LAYOUT_STRATEGY_PROPERTY: LazyLock<Property<EdgeRoutingStrategy>> =
+    LazyLock::new(|| {
+        Property::with_default(
+            "org.eclipse.elk.vertiflex.layoutStrategy",
+            EdgeRoutingStrategy::Straight,
+        )
+    });
 
 pub static LAYER_DISTANCE_PROPERTY: LazyLock<Property<f64>> =
     LazyLock::new(|| Property::with_default("org.eclipse.elk.vertiflex.layerDistance", 50.0));
@@ -31,8 +32,7 @@ pub static CONSIDER_NODE_MODEL_ORDER_PROPERTY: LazyLock<Property<bool>> = LazyLo
 impl VertiFlexOptions {
     pub const ALGORITHM_ID: &'static str = "org.eclipse.elk.vertiflex";
 
-    pub const VERTICAL_CONSTRAINT: &'static LazyLock<Property<f64>> =
-        &VERTICAL_CONSTRAINT_PROPERTY;
+    pub const VERTICAL_CONSTRAINT: &'static LazyLock<Property<f64>> = &VERTICAL_CONSTRAINT_PROPERTY;
     pub const LAYOUT_STRATEGY: &'static LazyLock<Property<EdgeRoutingStrategy>> =
         &LAYOUT_STRATEGY_PROPERTY;
     pub const LAYER_DISTANCE: &'static LazyLock<Property<f64>> = &LAYER_DISTANCE_PROPERTY;
@@ -44,7 +44,8 @@ impl VertiFlexOptions {
     pub const INTERACTIVE: &'static LazyLock<Property<bool>> = CoreOptions::INTERACTIVE;
     pub const PORT_CONSTRAINTS: &'static LazyLock<Property<PortConstraints>> =
         CoreOptions::PORT_CONSTRAINTS;
-    pub const EDGE_LABELS_INLINE: &'static LazyLock<Property<bool>> = CoreOptions::EDGE_LABELS_INLINE;
+    pub const EDGE_LABELS_INLINE: &'static LazyLock<Property<bool>> =
+        CoreOptions::EDGE_LABELS_INLINE;
     pub const OMIT_NODE_MICRO_LAYOUT: &'static LazyLock<Property<bool>> =
         CoreOptions::OMIT_NODE_MICRO_LAYOUT;
     pub const MARGINS: &'static LazyLock<Property<ElkMargin>> = CoreOptions::MARGINS;

@@ -28,7 +28,8 @@ impl ILayoutMetaDataProvider for StressMetaDataProvider {
 
 const TARGET_PARENTS: [LayoutOptionTarget; 1] = [LayoutOptionTarget::Parents];
 const TARGET_NODES: [LayoutOptionTarget; 1] = [LayoutOptionTarget::Nodes];
-const TARGET_PARENTS_EDGES: [LayoutOptionTarget; 2] = [LayoutOptionTarget::Parents, LayoutOptionTarget::Edges];
+const TARGET_PARENTS_EDGES: [LayoutOptionTarget; 2] =
+    [LayoutOptionTarget::Parents, LayoutOptionTarget::Edges];
 
 fn register_algorithm(registry: &mut dyn LayoutMetaDataRegistry) {
     let mut data = LayoutAlgorithmData::new(StressOptions::ALGORITHM_ID);

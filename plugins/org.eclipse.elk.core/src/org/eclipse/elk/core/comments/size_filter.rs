@@ -24,10 +24,7 @@ impl<C, T> SizeFilter<C, T> {
         self
     }
 
-    pub fn with_bounds_provider(
-        &mut self,
-        provider: Rc<dyn IBoundsProvider<C, T>>,
-    ) -> &mut Self {
+    pub fn with_bounds_provider(&mut self, provider: Rc<dyn IBoundsProvider<C, T>>) -> &mut Self {
         self.bounds_provider = Some(provider);
         self
     }

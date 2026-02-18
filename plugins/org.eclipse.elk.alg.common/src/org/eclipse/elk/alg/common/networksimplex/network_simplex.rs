@@ -189,7 +189,9 @@ impl<'a> NetworkSimplex<'a> {
             if iter >= max_iterations {
                 break;
             }
-            let Some(edge) = self.minimal_slack() else { break; };
+            let Some(edge) = self.minimal_slack() else {
+                break;
+            };
             let mut slack = edge_target_layer(&edge) - edge_source_layer(&edge) - edge_delta(&edge);
             if edge_target_tree_node(&edge) {
                 slack = -slack;
@@ -229,7 +231,9 @@ impl<'a> NetworkSimplex<'a> {
             };
             for edge in outgoing {
                 let target = edge.lock().ok().map(|edge_guard| edge_guard.target.clone());
-                let Some(target) = target else { continue; };
+                let Some(target) = target else {
+                    continue;
+                };
                 if let Ok(mut target_guard) = target.lock() {
                     target_guard.layer = target_guard.layer.max(node_layer + edge_delta(&edge));
                 }
@@ -293,7 +297,9 @@ impl<'a> NetworkSimplex<'a> {
                 *flag = true;
             }
             let opposite = edge.lock().ok().map(|edge_guard| edge_guard.other(node));
-            let Some(opposite) = opposite else { continue; };
+            let Some(opposite) = opposite else {
+                continue;
+            };
 
             if edge_is_tree_edge(&edge) {
                 node_count += self.tight_tree_dfs(&opposite);
@@ -355,7 +361,10 @@ impl<'a> NetworkSimplex<'a> {
             self.lowest_po_id[node_id] = lowest.min(self.post_order);
         }
         self.post_order += 1;
-        self.lowest_po_id.get(node_id).copied().unwrap_or(self.post_order)
+        self.lowest_po_id
+            .get(node_id)
+            .copied()
+            .unwrap_or(self.post_order)
     }
 
     fn is_in_head(&self, node: &NNodeRef, edge: &NEdgeRef) -> bool {
@@ -404,7 +413,9 @@ impl<'a> NetworkSimplex<'a> {
             loop {
                 let to_determine = {
                     let guard = node.lock().ok();
-                    let Some(guard) = guard else { break; };
+                    let Some(guard) = guard else {
+                        break;
+                    };
                     if guard.unknown_cutvalues.len() != 1 {
                         break;
                     }
@@ -429,14 +440,14 @@ impl<'a> NetworkSimplex<'a> {
                         continue;
                     }
                     if edge_is_tree_edge(&edge) {
-                        let same_direction = edge_source_is(&edge, &source)
-                            || edge_target_is(&edge, &target);
+                        let same_direction =
+                            edge_source_is(&edge, &source) || edge_target_is(&edge, &target);
                         if same_direction {
-                            self.cutvalue[edge_id] -= self.cutvalue[edge_internal_id(&edge)]
-                                - edge_weight(&edge);
+                            self.cutvalue[edge_id] -=
+                                self.cutvalue[edge_internal_id(&edge)] - edge_weight(&edge);
                         } else {
-                            self.cutvalue[edge_id] += self.cutvalue[edge_internal_id(&edge)]
-                                - edge_weight(&edge);
+                            self.cutvalue[edge_id] +=
+                                self.cutvalue[edge_internal_id(&edge)] - edge_weight(&edge);
                         }
                     } else if Arc::ptr_eq(&node, &source) {
                         if edge_source_is(&edge, &node) {
@@ -612,7 +623,10 @@ impl<'a> NetworkSimplex<'a> {
     fn remove_subtrees(&mut self) {
         let mut leafs: VecDeque<NNodeRef> = VecDeque::new();
         for node in &self.graph.nodes {
-            let edge_count = node.lock().map(|guard| guard.connected_edges().len()).unwrap_or(0);
+            let edge_count = node
+                .lock()
+                .map(|guard| guard.connected_edges().len())
+                .unwrap_or(0);
             if edge_count == 1 {
                 leafs.push_back(node.clone());
             }
@@ -633,43 +647,50 @@ impl<'a> NetworkSimplex<'a> {
                 Err(_) => false,
             };
             let other = edge.lock().ok().map(|edge_guard| edge_guard.other(&node));
-            let Some(other) = other else { continue; };
+            let Some(other) = other else {
+                continue;
+            };
             if is_out_edge {
                 remove_edge_from_node(&other, &edge, false);
             } else {
                 remove_edge_from_node(&other, &edge, true);
             }
-            let other_edges = other.lock().map(|guard| guard.connected_edges().len()).unwrap_or(0);
+            let other_edges = other
+                .lock()
+                .map(|guard| guard.connected_edges().len())
+                .unwrap_or(0);
             if other_edges == 1 {
                 leafs.push_back(other);
             }
             stack.push_back(Pair::of(node.clone(), edge));
-            self.graph.nodes.retain(|candidate| !Arc::ptr_eq(candidate, &node));
+            self.graph
+                .nodes
+                .retain(|candidate| !Arc::ptr_eq(candidate, &node));
         }
         self.subtree_nodes_stack = Some(stack);
     }
 
     fn reattach_subtrees(&mut self) {
-        let Some(stack) = self.subtree_nodes_stack.as_mut() else { return; };
+        let Some(stack) = self.subtree_nodes_stack.as_mut() else {
+            return;
+        };
         while let Some(pair) = stack.pop_back() {
             let node = pair.first;
             let edge = pair.second;
             let placed = edge.lock().ok().map(|edge_guard| edge_guard.other(&node));
-            let Some(placed) = placed else { continue; };
+            let Some(placed) = placed else {
+                continue;
+            };
 
             let node_is_target = edge_target_is(&edge, &node);
             if node_is_target {
                 add_edge_to_node(&placed, &edge, true);
-                if let (Ok(mut node_guard), Ok(placed_guard)) =
-                    (node.lock(), placed.lock())
-                {
+                if let (Ok(mut node_guard), Ok(placed_guard)) = (node.lock(), placed.lock()) {
                     node_guard.layer = placed_guard.layer + edge_delta(&edge);
                 }
             } else {
                 add_edge_to_node(&placed, &edge, false);
-                if let (Ok(mut node_guard), Ok(placed_guard)) =
-                    (node.lock(), placed.lock())
-                {
+                if let (Ok(mut node_guard), Ok(placed_guard)) = (node.lock(), placed.lock()) {
                     node_guard.layer = placed_guard.layer - edge_delta(&edge);
                 }
             }
@@ -714,11 +735,17 @@ fn edge_target(edge: &NEdgeRef) -> NNodeRef {
 }
 
 fn edge_source_layer(edge: &NEdgeRef) -> i32 {
-    edge_source(edge).lock().map(|guard| guard.layer).unwrap_or(0)
+    edge_source(edge)
+        .lock()
+        .map(|guard| guard.layer)
+        .unwrap_or(0)
 }
 
 fn edge_target_layer(edge: &NEdgeRef) -> i32 {
-    edge_target(edge).lock().map(|guard| guard.layer).unwrap_or(0)
+    edge_target(edge)
+        .lock()
+        .map(|guard| guard.layer)
+        .unwrap_or(0)
 }
 
 fn edge_source_tree_node(edge: &NEdgeRef) -> bool {

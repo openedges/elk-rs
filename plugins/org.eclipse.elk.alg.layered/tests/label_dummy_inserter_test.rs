@@ -102,5 +102,8 @@ fn inserts_label_dummy_and_moves_center_labels() {
     assert_eq!(dummy_size.y, 11.0);
 
     let edge_labels = edge.lock().expect("edge lock").labels().clone();
-    assert!(edge_labels.is_empty(), "center label must be removed from edge");
+    assert!(
+        edge_labels.is_empty(),
+        "center label must be removed from edge"
+    );
 }

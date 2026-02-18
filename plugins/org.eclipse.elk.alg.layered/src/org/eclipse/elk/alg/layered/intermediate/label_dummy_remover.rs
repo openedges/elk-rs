@@ -81,7 +81,14 @@ impl LabelDummyRemover {
         compaction_strategy: GraphCompactionStrategy,
         spacings: Option<&Spacings>,
     ) {
-        let (origin_edge, represented_labels, mut curr_label_pos, node_size, labels_below_edge, inline_labels) = {
+        let (
+            origin_edge,
+            represented_labels,
+            mut curr_label_pos,
+            node_size,
+            labels_below_edge,
+            inline_labels,
+        ) = {
             let mut node_guard = match node.lock() {
                 Ok(guard) => guard,
                 Err(_) => return,
@@ -112,9 +119,7 @@ impl LabelDummyRemover {
             }
 
             let node_size = KVector::from_vector(node_guard.shape().size_ref());
-            let inline_labels = represented_labels
-                .iter()
-                .all(Self::label_inline_property);
+            let inline_labels = represented_labels.iter().all(Self::label_inline_property);
 
             (
                 origin_edge,
@@ -189,12 +194,9 @@ impl LabelDummyRemover {
             return;
         };
 
-        let source_right = source_node
-            .lock()
-            .ok()
-            .map(|mut source_guard| {
-                source_guard.shape().position_ref().x + source_guard.shape().size_ref().x
-            });
+        let source_right = source_node.lock().ok().map(|mut source_guard| {
+            source_guard.shape().position_ref().x + source_guard.shape().size_ref().x
+        });
         let target_left = target_node
             .lock()
             .ok()
@@ -266,7 +268,8 @@ impl LabelDummyRemover {
                 let label_size_x = label_guard.shape().size_ref().x;
                 let label_size_y = label_guard.shape().size_ref().y;
 
-                label_guard.shape().position().x = label_pos.x + (label_space.x - label_size_x) / 2.0;
+                label_guard.shape().position().x =
+                    label_pos.x + (label_space.x - label_size_x) / 2.0;
                 label_guard.shape().position().y = label_pos.y;
 
                 label_pos.y += label_size_y + label_spacing;
@@ -282,9 +285,9 @@ impl LabelDummyRemover {
         left_aligned: bool,
         layout_direction: Direction,
     ) {
-        let inline = labels.iter().all(|label| {
-            Self::label_inline_property(label)
-        });
+        let inline = labels
+            .iter()
+            .all(|label| Self::label_inline_property(label));
 
         if layout_direction == Direction::Up {
             for label in labels.iter().rev() {
@@ -325,7 +328,8 @@ impl LabelDummyRemover {
 
             label_guard.shape().position().x = label_pos.x;
             if inline {
-                label_guard.shape().position().y = label_pos.y + (label_space.y - label_size_y) / 2.0;
+                label_guard.shape().position().y =
+                    label_pos.y + (label_space.y - label_size_y) / 2.0;
             } else if left_aligned {
                 label_guard.shape().position().y = label_pos.y;
             } else {

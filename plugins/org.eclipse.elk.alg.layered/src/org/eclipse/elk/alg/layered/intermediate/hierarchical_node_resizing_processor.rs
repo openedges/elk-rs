@@ -1,17 +1,21 @@
+use crate::org::eclipse::elk::alg::layered::graph::{
+    LGraph, LGraphUtil, LNode, LNodeRef, NodeType,
+};
+use crate::org::eclipse::elk::alg::layered::options::internal_properties::Origin;
+use crate::org::eclipse::elk::alg::layered::options::{
+    GraphProperties, InternalProperties, LayeredOptions,
+};
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::content_alignment::ContentAlignment;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
-use org_eclipse_elk_core::org::eclipse::elk::core::options::port_label_placement::PortLabelPlacement;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::port_label_placement::PortLabelPlacement;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::size_constraint::SizeConstraint;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::size_options::SizeOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_util::ElkUtil;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, IElkProgressMonitor};
-use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LGraphUtil, LNode, LNodeRef, NodeType};
-use crate::org::eclipse::elk::alg::layered::options::{GraphProperties, InternalProperties, LayeredOptions};
-use crate::org::eclipse::elk::alg::layered::options::internal_properties::Origin;
 
 fn trace_resize(message: &str) {
     if std::env::var("ELK_TRACE").is_ok() {
@@ -89,10 +93,7 @@ impl ILayoutProcessor<LGraph> for HierarchicalNodeResizingProcessor {
 fn graph_layout_to_node(node: &LNodeRef, lgraph: &mut LGraph) {
     let trace_external_ports = std::env::var("ELK_TRACE_EXTERNAL_PORTS").is_ok();
     let (graph_padding, graph_offset) = if trace_external_ports {
-        (
-            lgraph.padding_ref().clone(),
-            *lgraph.offset_ref(),
-        )
+        (lgraph.padding_ref().clone(), *lgraph.offset_ref())
     } else {
         (Default::default(), KVector::new())
     };
@@ -124,19 +125,22 @@ fn graph_layout_to_node(node: &LNodeRef, lgraph: &mut LGraph) {
             continue;
         };
 
-        let mut port_position = get_external_port_position_for_graph(
-            lgraph,
-            child_node,
-            port_size.x,
-            port_size.y,
-        );
+        let mut port_position =
+            get_external_port_position_for_graph(lgraph, child_node, port_size.x, port_size.y);
         // For pure self-loop sources on the east side, Java effectively keeps the dummy's y-origin
         // at the content top. Compensate the dummy y-shift here before writing back to the parent port.
         if ext_port_side == PortSide::East && is_pure_self_loop_port(&port_ref) {
             port_position.y -= dummy_pos_y;
         }
         if trace_external_ports {
-            let (dummy_pos, dummy_size, dummy_id, dummy_layer_id, dummy_margin_top, dummy_margin_bottom) = child_node
+            let (
+                dummy_pos,
+                dummy_size,
+                dummy_id,
+                dummy_layer_id,
+                dummy_margin_top,
+                dummy_margin_bottom,
+            ) = child_node
                 .lock()
                 .ok()
                 .map(|mut dummy_guard| {
@@ -170,7 +174,10 @@ fn graph_layout_to_node(node: &LNodeRef, lgraph: &mut LGraph) {
                                 label.lock().ok().map(|mut label_guard| {
                                     let pos = *label_guard.shape().position_ref();
                                     let size = *label_guard.shape().size_ref();
-                                    format!("({:.1},{:.1})[{:.1}x{:.1}]", pos.x, pos.y, size.x, size.y)
+                                    format!(
+                                        "({:.1},{:.1})[{:.1}x{:.1}]",
+                                        pos.x, pos.y, size.x, size.y
+                                    )
                                 })
                             })
                             .collect::<Vec<_>>()
@@ -216,6 +223,36 @@ fn graph_layout_to_node(node: &LNodeRef, lgraph: &mut LGraph) {
     // Setup the parent node
     trace_resize("setup parent node");
     let actual_graph_size = lgraph.actual_size();
+    if std::env::var("ELK_TRACE_HN").is_ok() {
+        if let Ok(mut node_guard) = node.lock() {
+            let size_constraints = node_guard
+                .get_property(LayeredOptions::NODE_SIZE_CONSTRAINTS)
+                .unwrap_or_else(EnumSet::none_of);
+            let min_size = node_guard
+                .get_property(LayeredOptions::NODE_SIZE_MINIMUM)
+                .unwrap_or_default();
+            let size_opts = node_guard
+                .shape()
+                .get_property(&CoreOptions::NODE_SIZE_OPTIONS)
+                .unwrap_or_else(EnumSet::none_of);
+            let lgraph_size = lgraph.size_ref().clone();
+            let padding = lgraph.padding_ref().clone();
+            eprintln!(
+                "[hnr] node={:?} actual_graph_size={:?} lgraph_size={:?} padding=({},{},{},{}) min_size=({},{}) constraints={:?} size_opts={:?}",
+                node_guard.shape().graph_element().id,
+                actual_graph_size,
+                lgraph_size,
+                padding.left,
+                padding.top,
+                padding.bottom,
+                padding.right,
+                min_size.x,
+                min_size.y,
+                size_constraints,
+                size_opts
+            );
+        }
+    }
     let has_external_ports = lgraph
         .get_property_ref(InternalProperties::GRAPH_PROPERTIES)
         .unwrap_or_else(EnumSet::none_of)
@@ -224,7 +261,10 @@ fn graph_layout_to_node(node: &LNodeRef, lgraph: &mut LGraph) {
     if let Ok(mut node_guard) = node.lock() {
         if has_external_ports {
             // Ports have positions assigned
-            node_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::FixedPos));
+            node_guard.set_property(
+                LayeredOptions::PORT_CONSTRAINTS,
+                Some(PortConstraints::FixedPos),
+            );
 
             // Add NON_FREE_PORTS to the parent graph's properties
             if let Some(parent_graph_ref) = node_guard.graph() {
@@ -233,10 +273,8 @@ fn graph_layout_to_node(node: &LNodeRef, lgraph: &mut LGraph) {
                         .get_property(InternalProperties::GRAPH_PROPERTIES)
                         .unwrap_or_else(EnumSet::none_of);
                     graph_props.insert(GraphProperties::NonFreePorts);
-                    parent_graph_guard.set_property(
-                        InternalProperties::GRAPH_PROPERTIES,
-                        Some(graph_props),
-                    );
+                    parent_graph_guard
+                        .set_property(InternalProperties::GRAPH_PROPERTIES, Some(graph_props));
                 }
             }
 
@@ -256,7 +294,10 @@ fn is_nested(graph: &LGraph) -> bool {
 
 fn is_pure_self_loop_port(port: &crate::org::eclipse::elk::alg::layered::graph::LPortRef) -> bool {
     let (incoming, outgoing) = match port.lock() {
-        Ok(port_guard) => (port_guard.incoming_edges().clone(), port_guard.outgoing_edges().clone()),
+        Ok(port_guard) => (
+            port_guard.incoming_edges().clone(),
+            port_guard.outgoing_edges().clone(),
+        ),
         Err(_) => return false,
     };
 
@@ -266,9 +307,11 @@ fn is_pure_self_loop_port(port: &crate::org::eclipse::elk::alg::layered::graph::
         return false;
     }
 
-    all_edges
-        .into_iter()
-        .all(|edge| edge.lock().ok().is_some_and(|edge_guard| edge_guard.is_self_loop()))
+    all_edges.into_iter().all(|edge| {
+        edge.lock()
+            .ok()
+            .is_some_and(|edge_guard| edge_guard.is_self_loop())
+    })
 }
 
 fn get_external_port_position_for_graph(
@@ -365,7 +408,6 @@ fn resize_graph(lgraph: &mut LGraph) {
     // into account anymore, but if it does, it needs to be cleared again
     let calculated_size = lgraph.actual_size();
     let mut adjusted_size = KVector::from_vector(&calculated_size);
-
 
     // calculate the new size
     if size_constraint.contains(&SizeConstraint::MinimumSize) {

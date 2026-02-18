@@ -48,10 +48,10 @@ impl PolylineSelfLoopRouter {
     }
 
     fn are_orthogonally_routed(previous: &KVector, corner: &KVector, next: &KVector) -> bool {
-        let vertical_horizontal =
-            (previous.x - corner.x).abs() <= Self::TOLERANCE && (corner.y - next.y).abs() <= Self::TOLERANCE;
-        let horizontal_vertical =
-            (previous.y - corner.y).abs() <= Self::TOLERANCE && (corner.x - next.x).abs() <= Self::TOLERANCE;
+        let vertical_horizontal = (previous.x - corner.x).abs() <= Self::TOLERANCE
+            && (corner.y - next.y).abs() <= Self::TOLERANCE;
+        let horizontal_vertical = (previous.y - corner.y).abs() <= Self::TOLERANCE
+            && (corner.x - next.x).abs() <= Self::TOLERANCE;
 
         vertical_horizontal || horizontal_vertical
     }

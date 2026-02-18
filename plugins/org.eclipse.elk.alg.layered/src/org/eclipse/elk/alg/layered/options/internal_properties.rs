@@ -12,15 +12,15 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkReflect;
 
 use crate::org::eclipse::elk::alg::layered::compound::CrossHierarchyMap;
+use crate::org::eclipse::elk::alg::layered::graph::transform::l_graph_adapters::LLabelAdapter;
 use crate::org::eclipse::elk::alg::layered::graph::{
-    LGraph, LEdgeRef, LGraphRef, LLabelRef, LNodeRef, LPortRef, NodeRefKey,
+    LEdgeRef, LGraph, LGraphRef, LLabelRef, LNodeRef, LPortRef, NodeRefKey,
 };
 use crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfLoopHolderRef;
-use crate::org::eclipse::elk::alg::layered::graph::transform::l_graph_adapters::LLabelAdapter;
-use crate::org::eclipse::elk::alg::layered::p5edges::splines::SplineSegmentRef;
 use crate::org::eclipse::elk::alg::layered::options::{
     EdgeConstraint, GraphProperties, InLayerConstraint, Spacings,
 };
+use crate::org::eclipse::elk::alg::layered::p5edges::splines::SplineSegmentRef;
 
 pub struct InternalProperties;
 
@@ -75,8 +75,7 @@ pub enum Origin {
 pub type EndLabelCell = Arc<Mutex<LabelCell<LLabelAdapter, LLabelRef>>>;
 pub type EndLabelMap = std::collections::HashMap<PortRefKey, EndLabelCell>;
 
-pub static ORIGIN_PROPERTY: LazyLock<Property<Origin>> =
-    LazyLock::new(|| Property::new("origin"));
+pub static ORIGIN_PROPERTY: LazyLock<Property<Origin>> = LazyLock::new(|| Property::new("origin"));
 
 pub static REPRESENTED_LABELS_PROPERTY: LazyLock<Property<Vec<LLabelRef>>> =
     LazyLock::new(|| Property::new("representedLabels"));
@@ -123,8 +122,7 @@ pub static ORIGINAL_LABEL_EDGE_PROPERTY: LazyLock<Property<LEdgeRef>> =
 pub static PROCESSORS_PROPERTY: LazyLock<Property<Vec<SharedProcessor<LGraph>>>> =
     LazyLock::new(|| Property::new("processors"));
 
-pub static RANDOM_PROPERTY: LazyLock<Property<Random>> =
-    LazyLock::new(|| Property::new("random"));
+pub static RANDOM_PROPERTY: LazyLock<Property<Random>> = LazyLock::new(|| Property::new("random"));
 
 pub static SPACINGS_PROPERTY: LazyLock<Property<Spacings>> =
     LazyLock::new(|| Property::new("spacings"));
@@ -166,9 +164,7 @@ pub static EXT_PORT_REPLACED_DUMMY_PROPERTY: LazyLock<Property<LNodeRef>> =
     LazyLock::new(|| Property::new("externalPortReplacedDummy"));
 
 pub static EXT_PORT_CONNECTIONS_PROPERTY: LazyLock<Property<EnumSet<PortSide>>> =
-    LazyLock::new(|| {
-        Property::with_default("externalPortConnections", EnumSet::none_of())
-    });
+    LazyLock::new(|| Property::with_default("externalPortConnections", EnumSet::none_of()));
 
 pub static PORT_RATIO_OR_POSITION_PROPERTY: LazyLock<Property<f64>> =
     LazyLock::new(|| Property::with_default("portRatioOrPosition", 0.0));
@@ -221,8 +217,9 @@ pub static LONG_EDGE_BEFORE_LABEL_DUMMY_PROPERTY: LazyLock<Property<bool>> =
 pub static LONG_EDGE_TARGET_NODE_PROPERTY: LazyLock<Property<LNodeRef>> =
     LazyLock::new(|| Property::new("longEdgeTargetNode"));
 
-pub static TARGET_NODE_MODEL_ORDER_PROPERTY: LazyLock<Property<std::collections::HashMap<NodeRefKey, i32>>> =
-    LazyLock::new(|| Property::new("targetNode.modelOrder"));
+pub static TARGET_NODE_MODEL_ORDER_PROPERTY: LazyLock<
+    Property<std::collections::HashMap<NodeRefKey, i32>>,
+> = LazyLock::new(|| Property::new("targetNode.modelOrder"));
 
 pub static FIRST_TRY_WITH_INITIAL_ORDER_PROPERTY: LazyLock<Property<bool>> =
     LazyLock::new(|| Property::with_default("firstTryWithInitialOrder", false));
@@ -253,11 +250,10 @@ pub static BOTTOM_COMMENTS_PROPERTY: LazyLock<Property<Vec<LNodeRef>>> =
 pub static COMMENT_CONN_PORT_PROPERTY: LazyLock<Property<LPortRef>> =
     LazyLock::new(|| Property::new("CommentConnectionPort"));
 
-pub static HIDDEN_NODES_PROPERTY: LazyLock<Property<Vec<LNodeRef>>> =
-    LazyLock::new(|| {
-        ElkReflect::register_default_clone::<Vec<LNodeRef>>();
-        Property::new("layerConstraints.hiddenNodes")
-    });
+pub static HIDDEN_NODES_PROPERTY: LazyLock<Property<Vec<LNodeRef>>> = LazyLock::new(|| {
+    ElkReflect::register_default_clone::<Vec<LNodeRef>>();
+    Property::new("layerConstraints.hiddenNodes")
+});
 
 pub static ORIGINAL_OPPOSITE_PORT_PROPERTY: LazyLock<Property<LPortRef>> =
     LazyLock::new(|| Property::new("layerConstraints.opposidePort"));
@@ -282,13 +278,13 @@ impl InternalProperties {
     pub const REPRESENTED_LABELS: &'static LazyLock<Property<Vec<LLabelRef>>> =
         &REPRESENTED_LABELS_PROPERTY;
     pub const END_LABELS: &'static LazyLock<Property<EndLabelMap>> = &END_LABELS_PROPERTY;
-    pub const END_LABEL_EDGE: &'static LazyLock<Property<LEdgeRef>> =
-        &END_LABEL_EDGE_PROPERTY;
+    pub const END_LABEL_EDGE: &'static LazyLock<Property<LEdgeRef>> = &END_LABEL_EDGE_PROPERTY;
     pub const REVERSED: &'static LazyLock<Property<bool>> = &REVERSED_PROPERTY;
     pub const INPUT_COLLECT: &'static LazyLock<Property<bool>> = &INPUT_COLLECT_PROPERTY;
     pub const OUTPUT_COLLECT: &'static LazyLock<Property<bool>> = &OUTPUT_COLLECT_PROPERTY;
     pub const INSIDE_CONNECTIONS: &'static LazyLock<Property<bool>> = &INSIDE_CONNECTIONS_PROPERTY;
-    pub const EDGE_CONSTRAINT: &'static LazyLock<Property<EdgeConstraint>> = &EDGE_CONSTRAINT_PROPERTY;
+    pub const EDGE_CONSTRAINT: &'static LazyLock<Property<EdgeConstraint>> =
+        &EDGE_CONSTRAINT_PROPERTY;
     pub const IN_LAYER_CONSTRAINT: &'static LazyLock<Property<InLayerConstraint>> =
         &IN_LAYER_CONSTRAINT_PROPERTY;
     pub const GRAPH_PROPERTIES: &'static LazyLock<Property<EnumSet<GraphProperties>>> =
@@ -333,8 +329,9 @@ impl InternalProperties {
         &IN_LAYER_LAYOUT_UNIT_PROPERTY;
     pub const IN_LAYER_SUCCESSOR_CONSTRAINTS: &'static LazyLock<Property<Vec<LNodeRef>>> =
         &IN_LAYER_SUCCESSOR_CONSTRAINTS_PROPERTY;
-    pub const IN_LAYER_SUCCESSOR_CONSTRAINTS_BETWEEN_NON_DUMMIES: &'static LazyLock<Property<bool>> =
-        &IN_LAYER_SUCCESSOR_CONSTRAINTS_BETWEEN_NON_DUMMIES_PROPERTY;
+    pub const IN_LAYER_SUCCESSOR_CONSTRAINTS_BETWEEN_NON_DUMMIES: &'static LazyLock<
+        Property<bool>,
+    > = &IN_LAYER_SUCCESSOR_CONSTRAINTS_BETWEEN_NON_DUMMIES_PROPERTY;
     pub const BARYCENTER_ASSOCIATES: &'static LazyLock<Property<Vec<LNodeRef>>> =
         &BARYCENTER_ASSOCIATES_PROPERTY;
     pub const MAX_MODEL_ORDER_NODES: &'static LazyLock<Property<i32>> =
@@ -350,8 +347,9 @@ impl InternalProperties {
         &LONG_EDGE_BEFORE_LABEL_DUMMY_PROPERTY;
     pub const LONG_EDGE_TARGET_NODE: &'static LazyLock<Property<LNodeRef>> =
         &LONG_EDGE_TARGET_NODE_PROPERTY;
-    pub const TARGET_NODE_MODEL_ORDER: &'static LazyLock<Property<std::collections::HashMap<NodeRefKey, i32>>> =
-        &TARGET_NODE_MODEL_ORDER_PROPERTY;
+    pub const TARGET_NODE_MODEL_ORDER: &'static LazyLock<
+        Property<std::collections::HashMap<NodeRefKey, i32>>,
+    > = &TARGET_NODE_MODEL_ORDER_PROPERTY;
     pub const FIRST_TRY_WITH_INITIAL_ORDER: &'static LazyLock<Property<bool>> =
         &FIRST_TRY_WITH_INITIAL_ORDER_PROPERTY;
     pub const SECOND_TRY_WITH_INITIAL_ORDER: &'static LazyLock<Property<bool>> =
@@ -364,14 +362,14 @@ impl InternalProperties {
     pub const TOP_COMMENTS: &'static LazyLock<Property<Vec<LNodeRef>>> = &TOP_COMMENTS_PROPERTY;
     pub const BOTTOM_COMMENTS: &'static LazyLock<Property<Vec<LNodeRef>>> =
         &BOTTOM_COMMENTS_PROPERTY;
-    pub const COMMENT_CONN_PORT: &'static LazyLock<Property<LPortRef>> = &COMMENT_CONN_PORT_PROPERTY;
+    pub const COMMENT_CONN_PORT: &'static LazyLock<Property<LPortRef>> =
+        &COMMENT_CONN_PORT_PROPERTY;
     pub const HIDDEN_NODES: &'static LazyLock<Property<Vec<LNodeRef>>> = &HIDDEN_NODES_PROPERTY;
     pub const ORIGINAL_OPPOSITE_PORT: &'static LazyLock<Property<LPortRef>> =
         &ORIGINAL_OPPOSITE_PORT_PROPERTY;
     pub const PARTITION_DUMMY: &'static LazyLock<Property<bool>> = &PARTITION_DUMMY_PROPERTY;
     pub const LABEL_SIDE: &'static LazyLock<Property<LabelSide>> = &LABEL_SIDE_PROPERTY;
-    pub const MAX_EDGE_THICKNESS: &'static LazyLock<Property<f64>> =
-        &MAX_EDGE_THICKNESS_PROPERTY;
+    pub const MAX_EDGE_THICKNESS: &'static LazyLock<Property<f64>> = &MAX_EDGE_THICKNESS_PROPERTY;
     pub const SELF_LOOP_HOLDER: &'static LazyLock<Property<SelfLoopHolderRef>> =
         &SELF_LOOP_HOLDER_PROPERTY;
     pub const COMPOUND_NODE: &'static LazyLock<Property<bool>> = &COMPOUND_NODE_PROPERTY;

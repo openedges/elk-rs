@@ -150,9 +150,12 @@ fn process_northern_and_southern_port_dummies(layered_graph: &mut LGraph) {
         return;
     }
 
-    let graph_ref = layers
-        .first()
-        .and_then(|layer| layer.lock().ok().and_then(|layer_guard| layer_guard.graph()));
+    let graph_ref = layers.first().and_then(|layer| {
+        layer
+            .lock()
+            .ok()
+            .and_then(|layer_guard| layer_guard.graph())
+    });
     let Some(graph_ref) = graph_ref else {
         return;
     };
@@ -316,7 +319,8 @@ fn is_northern_or_southern_dummy(node: &LNodeRef) -> bool {
         })
         .unwrap_or((NodeType::Normal, PortSide::Undefined));
 
-    node_type == NodeType::ExternalPort && (port_side == PortSide::North || port_side == PortSide::South)
+    node_type == NodeType::ExternalPort
+        && (port_side == PortSide::North || port_side == PortSide::South)
 }
 
 fn origin_port_key(node: &LNodeRef) -> Option<OriginId> {

@@ -15,7 +15,10 @@ impl UnsupportedGraphException {
         }
     }
 
-    pub fn with_cause(message: impl Into<String>, cause: impl Error + Send + Sync + 'static) -> Self {
+    pub fn with_cause(
+        message: impl Into<String>,
+        cause: impl Error + Send + Sync + 'static,
+    ) -> Self {
         UnsupportedGraphException {
             message: message.into(),
             cause: Some(Box::new(cause)),

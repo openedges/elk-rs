@@ -114,8 +114,7 @@ where
     }
 
     pub fn build(&mut self, graph: &G) -> Vec<SharedProcessor<G>> {
-        if self.fail_on_missing_phase && self.configured_phases.len() < self.phase_variants.len()
-        {
+        if self.fail_on_missing_phase && self.configured_phases.len() < self.phase_variants.len() {
             panic!(
                 "Expected {} phases to be configured; only found {}",
                 self.phase_variants.len(),
@@ -124,8 +123,7 @@ where
         }
 
         let variants = self.phase_variants.clone();
-        let mut phases: Vec<Option<PhaseHandle<P, G>>> =
-            Vec::with_capacity(variants.len());
+        let mut phases: Vec<Option<PhaseHandle<P, G>>> = Vec::with_capacity(variants.len());
         for phase in &variants {
             let index = self.phase_index(*phase);
             let factory = self.phases[index].clone();
@@ -186,10 +184,7 @@ where
         processors
     }
 
-    fn retrieve_phase(
-        &mut self,
-        factory: &PhaseFactory<P, G>,
-    ) -> PhaseHandle<P, G> {
+    fn retrieve_phase(&mut self, factory: &PhaseFactory<P, G>) -> PhaseHandle<P, G> {
         if !self.enable_caching {
             return Arc::new(Mutex::new(factory.create_phase()));
         }
@@ -207,10 +202,7 @@ where
         Arc::new(Mutex::new(factory.create_phase()))
     }
 
-    fn retrieve_processor(
-        &mut self,
-        factory: &ProcessorFactory<G>,
-    ) -> ProcessorHandle<G> {
+    fn retrieve_processor(&mut self, factory: &ProcessorFactory<G>) -> ProcessorHandle<G> {
         if !self.enable_caching {
             return Arc::new(Mutex::new(factory.create()));
         }
@@ -248,11 +240,19 @@ impl<G: 'static> ILayoutProcessor<G> for SharedProcessorAdapter<G> {
         if trace_processors {
             eprintln!("processor: {}", processor.type_name());
         }
-        let start = if trace_timing { Some(Instant::now()) } else { None };
+        let start = if trace_timing {
+            Some(Instant::now())
+        } else {
+            None
+        };
         processor.process(graph, progress_monitor);
         if let Some(start) = start {
             let elapsed_ms = start.elapsed().as_millis();
-            eprintln!("processor_done: {} ({} ms)", processor.type_name(), elapsed_ms);
+            eprintln!(
+                "processor_done: {} ({} ms)",
+                processor.type_name(),
+                elapsed_ms
+            );
         }
     }
 
@@ -280,7 +280,11 @@ where
         if trace_phases {
             eprintln!("phase: {}", phase.type_name());
         }
-        let start = if trace_timing { Some(Instant::now()) } else { None };
+        let start = if trace_timing {
+            Some(Instant::now())
+        } else {
+            None
+        };
         phase.process(graph, progress_monitor);
         if let Some(start) = start {
             let elapsed_ms = start.elapsed().as_millis();

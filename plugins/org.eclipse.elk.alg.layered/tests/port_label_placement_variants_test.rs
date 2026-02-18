@@ -1,7 +1,9 @@
 mod elkt_test_loader;
 mod issue_support;
 
-use elkt_test_loader::{find_node_by_identifier, find_port_by_identifier, load_layered_graph_from_elkt};
+use elkt_test_loader::{
+    find_node_by_identifier, find_port_by_identifier, load_layered_graph_from_elkt,
+};
 use issue_support::{init_layered_options, run_layout};
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::{PortLabelPlacement, PortSide};
@@ -77,7 +79,11 @@ fn test_inside_two_with_one_edge() {
 #[test]
 fn test_inside_two_with_one_edge_next_to_port() {
     let graph = load_variants_graph();
-    assert_node_has_placement(&graph, "inside_two_with_one_edge_next_to_port", PortLabelPlacement::Inside);
+    assert_node_has_placement(
+        &graph,
+        "inside_two_with_one_edge_next_to_port",
+        PortLabelPlacement::Inside,
+    );
     assert_centered(port(&graph, "i2en_p0"));
     let p1 = port(&graph, "i2en_p1");
     assert_has_incident_edge(&p1);
@@ -116,7 +122,11 @@ fn test_outside_two_default_for_west_north_south_splits_label_sides() {
         "outside_two_default_south",
     ] {
         let ports = ports_of_node(&graph, node_id);
-        assert_eq!(ports.len(), 2, "node {node_id} should contain exactly 2 ports");
+        assert_eq!(
+            ports.len(),
+            2,
+            "node {node_id} should contain exactly 2 ports"
+        );
         let p0 = label_axis_position(&ports[0]);
         let p1 = label_axis_position(&ports[1]);
         assert!(
@@ -136,7 +146,11 @@ fn test_inside_two_with_one_edge_next_to_port_for_west_north_south() {
     ] {
         assert_node_has_placement(&graph, node_id, PortLabelPlacement::Inside);
         let ports = ports_of_node(&graph, node_id);
-        assert_eq!(ports.len(), 2, "node {node_id} should contain exactly 2 ports");
+        assert_eq!(
+            ports.len(),
+            2,
+            "node {node_id} should contain exactly 2 ports"
+        );
         let first_connected = has_incident_edge(&ports[0]);
         if first_connected {
             assert_below_or_right(ports[0].clone());
@@ -157,7 +171,11 @@ fn test_outside_three_space_efficient_for_west_north_south_uses_both_sides() {
         "outside_three_space_efficient_south",
     ] {
         let ports = ports_of_node(&graph, node_id);
-        assert_eq!(ports.len(), 3, "node {node_id} should contain exactly 3 ports");
+        assert_eq!(
+            ports.len(),
+            3,
+            "node {node_id} should contain exactly 3 ports"
+        );
         let axis_positions: Vec<f64> = ports.iter().map(label_axis_position).collect();
         let has_positive = axis_positions.iter().any(|p| *p > 0.0);
         let has_negative = axis_positions.iter().any(|p| *p < 0.0);
@@ -179,7 +197,11 @@ fn test_inside_three_with_one_edge_next_to_port_for_west_north_south() {
     ] {
         assert_node_has_placement(&graph, node_id, PortLabelPlacement::Inside);
         let ports = ports_of_node(&graph, node_id);
-        assert_eq!(ports.len(), 3, "node {node_id} should contain exactly 3 ports");
+        assert_eq!(
+            ports.len(),
+            3,
+            "node {node_id} should contain exactly 3 ports"
+        );
         let connected_count = ports.iter().filter(|port| has_incident_edge(port)).count();
         assert_eq!(
             connected_count, 1,
@@ -201,7 +223,11 @@ fn test_inside_constrained_north_labels_do_not_overlap_and_stay_inside_bounds() 
     let node_id = "inside_constrained_north";
     let node_width = node_width(&graph, node_id);
     let ports = ports_of_node(&graph, node_id);
-    assert_eq!(ports.len(), 3, "node {node_id} should contain exactly 3 ports");
+    assert_eq!(
+        ports.len(),
+        3,
+        "node {node_id} should contain exactly 3 ports"
+    );
 
     assert_no_label_overlap_for_ports(&ports, node_id);
     for port in &ports {
@@ -219,7 +245,11 @@ fn test_inside_constrained_south_labels_do_not_overlap_and_stay_inside_bounds() 
     let node_id = "inside_constrained_south";
     let node_width = node_width(&graph, node_id);
     let ports = ports_of_node(&graph, node_id);
-    assert_eq!(ports.len(), 3, "node {node_id} should contain exactly 3 ports");
+    assert_eq!(
+        ports.len(),
+        3,
+        "node {node_id} should contain exactly 3 ports"
+    );
 
     assert_no_label_overlap_for_ports(&ports, node_id);
     for port in &ports {
@@ -379,12 +409,31 @@ fn assert_centered(port: ElkPortRef) {
 }
 
 fn assert_centered_or_inside_clamped(port: ElkPortRef) {
-    let (port_side, port_width, port_height, port_x, label_x, label_y, label_width, label_height, parent_width) = {
+    let (
+        port_side,
+        port_width,
+        port_height,
+        port_x,
+        label_x,
+        label_y,
+        label_width,
+        label_height,
+        parent_width,
+    ) = {
         let mut port_mut = port.borrow_mut();
         let parent_width_opt = port_mut
             .parent()
             .map(|parent| parent.borrow_mut().connectable().shape().width());
-        let (port_side, port_width, port_height, port_x, label_x, label_y, label_width, label_height) = {
+        let (
+            port_side,
+            port_width,
+            port_height,
+            port_x,
+            label_x,
+            label_y,
+            label_width,
+            label_height,
+        ) = {
             let shape = port_mut.connectable().shape();
             let port_width = shape.width();
             let port_height = shape.height();

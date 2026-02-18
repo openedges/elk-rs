@@ -52,7 +52,8 @@ impl Block {
 
     pub fn add_child(&mut self, rect: ElkNodeRef) {
         if self.rows.is_empty() {
-            self.rows.push(BlockRow::new(self.x, self.y, self.node_node_spacing));
+            self.rows
+                .push(BlockRow::new(self.x, self.y, self.node_node_spacing));
         }
         self.children.push(rect.clone());
         if let Some(last_row) = self.rows.last_mut() {
@@ -68,7 +69,8 @@ impl Block {
         } else {
             self.y
         };
-        self.rows.push(BlockRow::new(self.x, last_row_y, self.node_node_spacing));
+        self.rows
+            .push(BlockRow::new(self.x, last_row_y, self.node_node_spacing));
         if let Some(last_row) = self.rows.last_mut() {
             last_row.add_rectangle(&rect);
         }
@@ -76,8 +78,7 @@ impl Block {
     }
 
     pub fn remove_child(&mut self, rect: &ElkNodeRef) {
-        self.children
-            .retain(|child| !Rc::ptr_eq(child, rect));
+        self.children.retain(|child| !Rc::ptr_eq(child, rect));
         let mut row_index = None;
         for (index, row) in self.rows.iter_mut().enumerate() {
             if row.nodes().iter().any(|node| Rc::ptr_eq(node, rect)) {
@@ -119,20 +120,26 @@ impl Block {
             let mut rect_mut = rect.borrow_mut();
             rect_mut.connectable().shape().height()
         };
-        let last_row_width = self
-            .rows
-            .last()
-            .map(|row| row.width())
-            .unwrap_or(0.0);
+        let last_row_width = self.rows.last().map(|row| row.width()).unwrap_or(0.0);
 
         self.smallest_rect_width = self.smallest_rect_width.min(rect_width);
         self.width = self.width.max(last_row_width);
-        self.min_width = self
-            .min_width
-            .max(rect_width + if self.children.len() == 1 { 0.0 } else { self.node_node_spacing });
+        self.min_width = self.min_width.max(
+            rect_width
+                + if self.children.len() == 1 {
+                    0.0
+                } else {
+                    self.node_node_spacing
+                },
+        );
 
         self.smallest_rect_height = self.smallest_rect_height.min(rect_height);
-        self.max_height += rect_height + if self.children.len() == 1 { 0.0 } else { self.node_node_spacing };
+        self.max_height += rect_height
+            + if self.children.len() == 1 {
+                0.0
+            } else {
+                self.node_node_spacing
+            };
         self.min_height = self.min_height.max(rect_height);
         let mut total_height = if !self.rows.is_empty() {
             (self.rows.len() - 1) as f64 * self.node_node_spacing
@@ -145,8 +152,8 @@ impl Block {
         self.height = total_height;
         let child_count = self.children.len() as f64;
         if child_count > 0.0 {
-            self.average_height =
-                self.max_height / child_count - self.node_node_spacing * ((child_count - 1.0) / child_count);
+            self.average_height = self.max_height / child_count
+                - self.node_node_spacing * ((child_count - 1.0) / child_count);
         }
         self.notify_parent();
     }
@@ -198,7 +205,14 @@ impl Block {
         for rect in &self.children {
             let rect_width = rect.borrow_mut().connectable().shape().width();
             let rect_height = rect.borrow_mut().connectable().shape().height();
-            if current_x + rect_width + if index > 0 { self.node_node_spacing } else { 0.0 } > width
+            if current_x
+                + rect_width
+                + if index > 0 {
+                    self.node_node_spacing
+                } else {
+                    0.0
+                }
+                > width
                 && max_height_in_row > 0.0
             {
                 current_x = 0.0;
@@ -213,14 +227,24 @@ impl Block {
                 }
                 index = 0;
             }
-            width_in_row += rect_width + if index > 0 { self.node_node_spacing } else { 0.0 };
+            width_in_row += rect_width
+                + if index > 0 {
+                    self.node_node_spacing
+                } else {
+                    0.0
+                };
             max_height_in_row = max_height_in_row.max(rect_height);
             if place_rects {
                 if let Some(current_row) = rows.get_mut(row) {
                     current_row.add_rectangle(rect);
                 }
             }
-            current_x += rect_width + if index > 0 { self.node_node_spacing } else { 0.0 };
+            current_x += rect_width
+                + if index > 0 {
+                    self.node_node_spacing
+                } else {
+                    0.0
+                };
             index += 1;
         }
         current_width = current_width.max(width_in_row);
@@ -264,7 +288,12 @@ impl Block {
                 rows_to_delete.push(index);
             } else {
                 new_width = new_width.max(row.width());
-                new_height += row.height() + if index > 0 { self.node_node_spacing } else { 0.0 };
+                new_height += row.height()
+                    + if index > 0 {
+                        self.node_node_spacing
+                    } else {
+                        0.0
+                    };
             }
         }
         for index in rows_to_delete.into_iter().rev() {
@@ -289,8 +318,8 @@ impl Block {
         }
         let child_count = self.children.len() as f64;
         if child_count > 0.0 {
-            self.average_height =
-                self.max_height / child_count - self.node_node_spacing * ((child_count - 1.0) / child_count);
+            self.average_height = self.max_height / child_count
+                - self.node_node_spacing * ((child_count - 1.0) / child_count);
         }
         self.notify_parent();
     }

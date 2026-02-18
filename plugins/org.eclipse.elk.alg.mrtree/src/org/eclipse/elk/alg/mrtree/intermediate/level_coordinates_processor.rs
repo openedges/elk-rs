@@ -31,7 +31,9 @@ impl ILayoutProcessor<TGraphRef> for LevelCoordinatesProcessor {
 
         for node in &nodes {
             if let Ok(mut node_guard) = node.lock() {
-                let level = node_guard.get_property(MrTreeOptions::TREE_LEVEL).unwrap_or(0) as usize;
+                let level = node_guard
+                    .get_property(MrTreeOptions::TREE_LEVEL)
+                    .unwrap_or(0) as usize;
                 while level >= levels.len() {
                     levels.push((f64::MAX, -f64::MAX));
                 }
@@ -49,7 +51,9 @@ impl ILayoutProcessor<TGraphRef> for LevelCoordinatesProcessor {
 
         for node in &nodes {
             if let Ok(mut node_guard) = node.lock() {
-                let level = node_guard.get_property(MrTreeOptions::TREE_LEVEL).unwrap_or(0) as usize;
+                let level = node_guard
+                    .get_property(MrTreeOptions::TREE_LEVEL)
+                    .unwrap_or(0) as usize;
                 if level < levels.len() {
                     let (min_val, max_val) = levels[level];
                     node_guard.set_property(InternalProperties::LEVELMIN, Some(min_val));

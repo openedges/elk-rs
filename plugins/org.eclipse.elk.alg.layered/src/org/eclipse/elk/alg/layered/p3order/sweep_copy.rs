@@ -3,7 +3,9 @@ use std::sync::Arc;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LGraphRef, LNodeRef, LPortRef, LayerRef, NodeType};
+use crate::org::eclipse::elk::alg::layered::graph::{
+    LGraph, LGraphRef, LNodeRef, LPortRef, LayerRef, NodeType,
+};
 use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions, Origin};
 
 #[derive(Clone)]
@@ -135,10 +137,9 @@ fn deep_copy(node_order: &[Vec<LNodeRef>]) -> Vec<Vec<LNodeRef>> {
 }
 
 fn assert_correct_port_sides(dummy: &LNodeRef) -> Option<LNodeRef> {
-    let origin = dummy
-        .lock()
-        .ok()
-        .and_then(|mut node_guard| node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT));
+    let origin = dummy.lock().ok().and_then(|mut node_guard| {
+        node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
+    });
     let origin = origin?;
     let origin_constraints = origin
         .lock()
@@ -162,7 +163,9 @@ fn assert_correct_port_sides(dummy: &LNodeRef) -> Option<LNodeRef> {
             Origin::LPort(port) => Some(port),
             _ => None,
         });
-    let Some(dummy_origin_port) = dummy_origin_port else { return Some(origin); };
+    let Some(dummy_origin_port) = dummy_origin_port else {
+        return Some(origin);
+    };
 
     let origin_id = origin
         .lock()
@@ -216,13 +219,17 @@ fn sort_ports_combined(ports: &mut [LPortRef], constraints: PortConstraints) {
     ports.sort_by(|p1, p2| compare_ports(p1, p2, constraints));
 }
 
-fn compare_ports(
-    p1: &LPortRef,
-    p2: &LPortRef,
-    constraints: PortConstraints,
-) -> std::cmp::Ordering {
-    let side1 = p1.lock().ok().map(|port_guard| port_guard.side()).unwrap_or(PortSide::Undefined);
-    let side2 = p2.lock().ok().map(|port_guard| port_guard.side()).unwrap_or(PortSide::Undefined);
+fn compare_ports(p1: &LPortRef, p2: &LPortRef, constraints: PortConstraints) -> std::cmp::Ordering {
+    let side1 = p1
+        .lock()
+        .ok()
+        .map(|port_guard| port_guard.side())
+        .unwrap_or(PortSide::Undefined);
+    let side2 = p2
+        .lock()
+        .ok()
+        .map(|port_guard| port_guard.side())
+        .unwrap_or(PortSide::Undefined);
     let side_cmp = side1.cmp(&side2);
     if side_cmp != std::cmp::Ordering::Equal {
         return side_cmp;
@@ -259,10 +266,22 @@ fn compare_ports(
         .map(|mut port_guard| *port_guard.shape().position_ref())
         .unwrap_or_default();
     match side1 {
-        PortSide::North => pos1.x.partial_cmp(&pos2.x).unwrap_or(std::cmp::Ordering::Equal),
-        PortSide::East => pos1.y.partial_cmp(&pos2.y).unwrap_or(std::cmp::Ordering::Equal),
-        PortSide::South => pos2.x.partial_cmp(&pos1.x).unwrap_or(std::cmp::Ordering::Equal),
-        PortSide::West => pos2.y.partial_cmp(&pos1.y).unwrap_or(std::cmp::Ordering::Equal),
+        PortSide::North => pos1
+            .x
+            .partial_cmp(&pos2.x)
+            .unwrap_or(std::cmp::Ordering::Equal),
+        PortSide::East => pos1
+            .y
+            .partial_cmp(&pos2.y)
+            .unwrap_or(std::cmp::Ordering::Equal),
+        PortSide::South => pos2
+            .x
+            .partial_cmp(&pos1.x)
+            .unwrap_or(std::cmp::Ordering::Equal),
+        PortSide::West => pos2
+            .y
+            .partial_cmp(&pos1.y)
+            .unwrap_or(std::cmp::Ordering::Equal),
         PortSide::Undefined => std::cmp::Ordering::Equal,
     }
 }

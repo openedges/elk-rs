@@ -3,10 +3,10 @@ use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutPhase;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
-use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::pair::Pair;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
-use crate::org::eclipse::elk::alg::layered::graph::{Layer, LGraph, LNode, LNodeRef, NodeType};
+use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LNode, LNodeRef, Layer, NodeType};
 use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorStrategy;
 use crate::org::eclipse::elk::alg::layered::options::LayeredOptions;
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
@@ -45,7 +45,12 @@ impl MinWidthLayerer {
                 .map(|node_guard| node_guard.outgoing_edges())
                 .unwrap_or_default();
             for edge in outgoing {
-                if edge.lock().ok().map(|edge_guard| edge_guard.is_self_loop()).unwrap_or(false) {
+                if edge
+                    .lock()
+                    .ok()
+                    .map(|edge_guard| edge_guard.is_self_loop())
+                    .unwrap_or(false)
+                {
                     continue;
                 }
                 let target = edge
@@ -88,7 +93,11 @@ impl MinWidthLayerer {
         let mut going_out_from_this_layer = 0.0;
 
         while !unplaced_nodes.is_empty() {
-            let selected_index = select_node(&unplaced_nodes, node_successors, &already_placed_in_other_layers);
+            let selected_index = select_node(
+                &unplaced_nodes,
+                node_successors,
+                &already_placed_in_other_layers,
+            );
             let selected_node = selected_index.map(|index| unplaced_nodes.remove(index));
 
             if let Some(ref current_node) = selected_node {
@@ -122,7 +131,8 @@ impl MinWidthLayerer {
             if should_go_up {
                 layers.push(current_layer);
                 current_layer = Vec::new();
-                already_placed_in_other_layers.extend(already_placed_in_current_layer.iter().copied());
+                already_placed_in_other_layers
+                    .extend(already_placed_in_current_layer.iter().copied());
                 already_placed_in_current_layer.clear();
 
                 current_spanning_edges -= going_out_from_this_layer;
@@ -237,12 +247,15 @@ impl ILayoutPhase<LayeredPhases, LGraph> for MinWidthLayerer {
 
         for ubw in ubw_start..=ubw_end {
             for c in c_start..=c_end {
-                let result = self.compute_min_width_layering(ubw, c, &not_inserted, &node_successors);
+                let result =
+                    self.compute_min_width_layering(ubw, c, &not_inserted, &node_successors);
                 let new_width = result.first;
                 let layering = result.second;
 
                 let new_num_layers = layering.len() as i32;
-                if new_width < min_width || (new_width == min_width && new_num_layers < min_num_layers) {
+                if new_width < min_width
+                    || (new_width == min_width && new_num_layers < min_num_layers)
+                {
                     min_width = new_width;
                     min_num_layers = new_num_layers;
                     candidate_layering = Some(layering);
@@ -325,7 +338,12 @@ fn count_edges_except_self_loops(node: &LNodeRef, incoming: bool) -> i32 {
         .unwrap_or_default();
     let mut count = 0;
     for edge in edges {
-        if edge.lock().ok().map(|edge_guard| edge_guard.is_self_loop()).unwrap_or(false) {
+        if edge
+            .lock()
+            .ok()
+            .map(|edge_guard| edge_guard.is_self_loop())
+            .unwrap_or(false)
+        {
             continue;
         }
         count += 1;

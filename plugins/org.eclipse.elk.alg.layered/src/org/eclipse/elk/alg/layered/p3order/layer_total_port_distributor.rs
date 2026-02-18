@@ -43,8 +43,14 @@ impl IInitializable for LayerTotalPortDistributor {
         self.inner.init_at_layer_level(layer_index, node_order);
     }
 
-    fn init_at_node_level(&mut self, layer_index: usize, node_index: usize, node_order: &[Vec<LNodeRef>]) {
-        self.inner.init_at_node_level(layer_index, node_index, node_order);
+    fn init_at_node_level(
+        &mut self,
+        layer_index: usize,
+        node_index: usize,
+        node_order: &[Vec<LNodeRef>],
+    ) {
+        self.inner
+            .init_at_node_level(layer_index, node_index, node_order);
     }
 
     fn init_at_port_level(

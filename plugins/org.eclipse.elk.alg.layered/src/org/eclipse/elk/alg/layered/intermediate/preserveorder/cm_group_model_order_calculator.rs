@@ -1,5 +1,7 @@
 use crate::org::eclipse::elk::alg::layered::graph::{LGraphRef, LNodeRef};
-use crate::org::eclipse::elk::alg::layered::options::{GroupOrderStrategy, InternalProperties, LayeredOptions};
+use crate::org::eclipse::elk::alg::layered::options::{
+    GroupOrderStrategy, InternalProperties, LayeredOptions,
+};
 
 pub struct CMGroupModelOrderCalculator;
 
@@ -11,10 +13,12 @@ impl CMGroupModelOrderCalculator {
         offset: i32,
     ) -> i32 {
         let enforce_group_model_order = match parent.try_lock() {
-            Ok(mut graph_guard) => graph_guard
-                .get_property(LayeredOptions::GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY)
-                .unwrap_or(GroupOrderStrategy::OnlyWithinGroup)
-                == GroupOrderStrategy::Enforced,
+            Ok(mut graph_guard) => {
+                graph_guard
+                    .get_property(LayeredOptions::GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY)
+                    .unwrap_or(GroupOrderStrategy::OnlyWithinGroup)
+                    == GroupOrderStrategy::Enforced
+            }
             Err(_) => {
                 if std::env::var_os("ELK_TRACE_CROSSMIN").is_some() {
                     eprintln!("cm_group: graph lock busy, skipping group order");
@@ -48,17 +52,21 @@ impl CMGroupModelOrderCalculator {
                 .lock()
                 .ok()
                 .and_then(|mut node_guard| {
-                    node_guard.get_property(LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID)
+                    node_guard
+                        .get_property(LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID)
                 })
                 .unwrap_or(0);
             let other_group_id = other
                 .lock()
                 .ok()
                 .and_then(|mut node_guard| {
-                    node_guard.get_property(LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID)
+                    node_guard
+                        .get_property(LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID)
                 })
                 .unwrap_or(0);
-            if enforced_orders.contains(&element_group_id) && enforced_orders.contains(&other_group_id) {
+            if enforced_orders.contains(&element_group_id)
+                && enforced_orders.contains(&other_group_id)
+            {
                 return offset * element_group_id + element_model_order;
             }
         }

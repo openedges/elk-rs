@@ -12,22 +12,21 @@ use crate::org::eclipse::elk::alg::layered::intermediate::graph_transformer::{
 };
 use crate::org::eclipse::elk::alg::layered::intermediate::{
     CommentNodeMarginCalculator, CommentPostprocessor, CommentPreprocessor,
-    EdgeAndLayerConstraintEdgeReverser, InLayerConstraintProcessor, InvertedPortProcessor,
-    EndLabelSorter, EndLabelPreprocessor, EndLabelPostprocessor, LabelAndNodeSizeProcessor,
-    LabelDummyInserter, LabelDummyRemover, LabelDummySwitcher, LabelSideSelector,
-    LayerConstraintPostprocessor, LayerConstraintPreprocessor, InteractiveExternalPortPositioner,
-    LayerSizeAndGraphHeightCalculator, LongEdgeJoiner, LongEdgeSplitter, NorthSouthPortPostprocessor,
-    NorthSouthPortPreprocessor, NodePromotion, PartitionMidprocessor, PartitionPostprocessor, PartitionPreprocessor,
-    PortListSorter, PortSideProcessor, ReversedEdgeRestorer, SelfLoopPortRestorer,
-    SelfLoopPostProcessor, SelfLoopPreProcessor, SelfLoopRouter, SemiInteractiveCrossMinProcessor,
-    SortByInputModelProcessor, HyperedgeDummyMerger, HierarchicalNodeResizingProcessor, InnermostNodeMarginCalculator,
-    HierarchicalPortConstraintProcessor, HierarchicalPortDummySizeProcessor,
-    HierarchicalPortPositionProcessor, HierarchicalPortOrthogonalEdgeRouter,
-    HorizontalGraphCompactor,
+    EdgeAndLayerConstraintEdgeReverser, EndLabelPostprocessor, EndLabelPreprocessor,
+    EndLabelSorter, HierarchicalNodeResizingProcessor, HierarchicalPortConstraintProcessor,
+    HierarchicalPortDummySizeProcessor, HierarchicalPortOrthogonalEdgeRouter,
+    HierarchicalPortPositionProcessor, HorizontalGraphCompactor, HyperedgeDummyMerger,
+    InLayerConstraintProcessor, InnermostNodeMarginCalculator, InteractiveExternalPortPositioner,
+    InvertedPortProcessor, LabelAndNodeSizeProcessor, LabelDummyInserter, LabelDummyRemover,
+    LabelDummySwitcher, LabelSideSelector, LayerConstraintPostprocessor,
+    LayerConstraintPreprocessor, LayerSizeAndGraphHeightCalculator, LongEdgeJoiner,
+    LongEdgeSplitter, NodePromotion, NorthSouthPortPostprocessor, NorthSouthPortPreprocessor,
+    PartitionMidprocessor, PartitionPostprocessor, PartitionPreprocessor, PortListSorter,
+    PortSideProcessor, ReversedEdgeRestorer, SelfLoopPortRestorer, SelfLoopPostProcessor,
+    SelfLoopPreProcessor, SelfLoopRouter, SemiInteractiveCrossMinProcessor,
+    SortByInputModelProcessor,
 };
-use crate::org::eclipse::elk::alg::layered::p3order::{
-    CrossMinType, LayerSweepCrossingMinimizer,
-};
+use crate::org::eclipse::elk::alg::layered::p3order::{CrossMinType, LayerSweepCrossingMinimizer};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum IntermediateProcessorStrategy {
@@ -160,12 +159,12 @@ impl EnumSetType for IntermediateProcessorStrategy {
 impl ILayoutProcessorFactory<LGraph> for IntermediateProcessorStrategy {
     fn create(&self) -> Box<dyn ILayoutProcessor<LGraph>> {
         match self {
-            IntermediateProcessorStrategy::DirectionPostprocessor => Box::new(GraphTransformer::new(
-                GraphTransformerMode::ToInternalLtr,
-            )),
-            IntermediateProcessorStrategy::DirectionPreprocessor => Box::new(GraphTransformer::new(
-                GraphTransformerMode::ToInputDirection,
-            )),
+            IntermediateProcessorStrategy::DirectionPostprocessor => {
+                Box::new(GraphTransformer::new(GraphTransformerMode::ToInternalLtr))
+            }
+            IntermediateProcessorStrategy::DirectionPreprocessor => Box::new(
+                GraphTransformer::new(GraphTransformerMode::ToInputDirection),
+            ),
             IntermediateProcessorStrategy::NorthSouthPortPreprocessor => {
                 Box::new(NorthSouthPortPreprocessor)
             }
@@ -192,38 +191,28 @@ impl ILayoutProcessorFactory<LGraph> for IntermediateProcessorStrategy {
             IntermediateProcessorStrategy::LayerConstraintPostprocessor => {
                 Box::new(LayerConstraintPostprocessor)
             }
-            IntermediateProcessorStrategy::PartitionPreprocessor => {
-                Box::new(PartitionPreprocessor)
-            }
-            IntermediateProcessorStrategy::PartitionMidprocessor => {
-                Box::new(PartitionMidprocessor)
-            }
+            IntermediateProcessorStrategy::PartitionPreprocessor => Box::new(PartitionPreprocessor),
+            IntermediateProcessorStrategy::PartitionMidprocessor => Box::new(PartitionMidprocessor),
             IntermediateProcessorStrategy::PartitionPostprocessor => {
                 Box::new(PartitionPostprocessor)
             }
-            IntermediateProcessorStrategy::SelfLoopPreprocessor => {
-                Box::new(SelfLoopPreProcessor)
-            }
-            IntermediateProcessorStrategy::SelfLoopPortRestorer => {
-                Box::new(SelfLoopPortRestorer)
-            }
+            IntermediateProcessorStrategy::SelfLoopPreprocessor => Box::new(SelfLoopPreProcessor),
+            IntermediateProcessorStrategy::SelfLoopPortRestorer => Box::new(SelfLoopPortRestorer),
             IntermediateProcessorStrategy::InLayerConstraintProcessor => {
                 Box::new(InLayerConstraintProcessor)
             }
-            IntermediateProcessorStrategy::InvertedPortProcessor => {
-                Box::new(InvertedPortProcessor)
-            }
+            IntermediateProcessorStrategy::InvertedPortProcessor => Box::new(InvertedPortProcessor),
             IntermediateProcessorStrategy::PortSideProcessor => Box::new(PortSideProcessor),
             IntermediateProcessorStrategy::NodePromotion => Box::new(NodePromotion),
             IntermediateProcessorStrategy::SemiInteractiveCrossminProcessor => {
                 Box::new(SemiInteractiveCrossMinProcessor)
             }
-            IntermediateProcessorStrategy::OneSidedGreedySwitch => {
-                Box::new(LayerSweepAsProcessor::new(CrossMinType::OneSidedGreedySwitch))
-            }
-            IntermediateProcessorStrategy::TwoSidedGreedySwitch => {
-                Box::new(LayerSweepAsProcessor::new(CrossMinType::TwoSidedGreedySwitch))
-            }
+            IntermediateProcessorStrategy::OneSidedGreedySwitch => Box::new(
+                LayerSweepAsProcessor::new(CrossMinType::OneSidedGreedySwitch),
+            ),
+            IntermediateProcessorStrategy::TwoSidedGreedySwitch => Box::new(
+                LayerSweepAsProcessor::new(CrossMinType::TwoSidedGreedySwitch),
+            ),
             IntermediateProcessorStrategy::LongEdgeSplitter => Box::new(LongEdgeSplitter),
             IntermediateProcessorStrategy::LongEdgeJoiner => Box::new(LongEdgeJoiner),
             IntermediateProcessorStrategy::ReversedEdgeRestorer => Box::new(ReversedEdgeRestorer),
@@ -238,16 +227,16 @@ impl ILayoutProcessorFactory<LGraph> for IntermediateProcessorStrategy {
             }
             IntermediateProcessorStrategy::LabelSideSelector => Box::new(LabelSideSelector),
             IntermediateProcessorStrategy::HyperedgeDummyMerger => Box::new(HyperedgeDummyMerger),
-            IntermediateProcessorStrategy::LabelDummySwitcher => Box::new(LabelDummySwitcher::default()),
+            IntermediateProcessorStrategy::LabelDummySwitcher => {
+                Box::new(LabelDummySwitcher::default())
+            }
             IntermediateProcessorStrategy::LabelDummyRemover => Box::new(LabelDummyRemover),
             IntermediateProcessorStrategy::EndLabelSorter => Box::new(EndLabelSorter),
             IntermediateProcessorStrategy::EndLabelPreprocessor => Box::new(EndLabelPreprocessor),
             IntermediateProcessorStrategy::EndLabelPostprocessor => Box::new(EndLabelPostprocessor),
             IntermediateProcessorStrategy::CommentPostprocessor => Box::new(CommentPostprocessor),
             IntermediateProcessorStrategy::CommentPreprocessor => Box::new(CommentPreprocessor),
-            IntermediateProcessorStrategy::SelfLoopPostprocessor => {
-                Box::new(SelfLoopPostProcessor)
-            }
+            IntermediateProcessorStrategy::SelfLoopPostprocessor => Box::new(SelfLoopPostProcessor),
             IntermediateProcessorStrategy::SelfLoopRouter => Box::new(SelfLoopRouter),
             IntermediateProcessorStrategy::InteractiveExternalPortPositioner => {
                 Box::new(InteractiveExternalPortPositioner)

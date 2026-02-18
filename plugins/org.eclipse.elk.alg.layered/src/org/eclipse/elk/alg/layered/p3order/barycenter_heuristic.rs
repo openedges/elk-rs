@@ -65,15 +65,22 @@ impl BarycenterHeuristic {
             let mut last_value = -1.0;
             for index in 0..nodes.len() {
                 let node = &nodes[index];
-                let mut value = self.state_of(node).and_then(|state| state.lock().ok().and_then(|state_guard| state_guard.barycenter));
+                let mut value = self.state_of(node).and_then(|state| {
+                    state
+                        .lock()
+                        .ok()
+                        .and_then(|state_guard| state_guard.barycenter)
+                });
 
                 if value.is_none() {
                     let mut next_value = last_value + 1.0;
                     for next_node in nodes.iter().skip(index + 1) {
-                        if let Some(next_bary) = self
-                            .state_of(next_node)
-                            .and_then(|state| state.lock().ok().and_then(|state_guard| state_guard.barycenter))
-                        {
+                        if let Some(next_bary) = self.state_of(next_node).and_then(|state| {
+                            state
+                                .lock()
+                                .ok()
+                                .and_then(|state_guard| state_guard.barycenter)
+                        }) {
                             next_value = next_bary;
                             break;
                         }
@@ -96,10 +103,12 @@ impl BarycenterHeuristic {
         } else {
             let mut max_bary = 0.0;
             for node in nodes {
-                if let Some(bary) = self
-                    .state_of(node)
-                    .and_then(|state| state.lock().ok().and_then(|state_guard| state_guard.barycenter))
-                {
+                if let Some(bary) = self.state_of(node).and_then(|state| {
+                    state
+                        .lock()
+                        .ok()
+                        .and_then(|state_guard| state_guard.barycenter)
+                }) {
                     if bary > max_bary {
                         max_bary = bary;
                     }
@@ -108,9 +117,12 @@ impl BarycenterHeuristic {
 
             max_bary += 2.0;
             for node in nodes {
-                let bary = self
-                    .state_of(node)
-                    .and_then(|state| state.lock().ok().and_then(|state_guard| state_guard.barycenter));
+                let bary = self.state_of(node).and_then(|state| {
+                    state
+                        .lock()
+                        .ok()
+                        .and_then(|state_guard| state_guard.barycenter)
+                });
                 if bary.is_none() {
                     let value = self.random.next_float() * max_bary - 1.0;
                     if let Some(state) = self.state_of(node) {
@@ -179,7 +191,9 @@ impl BarycenterHeuristic {
                     .lock()
                     .ok()
                     .and_then(|port_guard| port_guard.node());
-                let Some(fixed_node) = fixed_node else { continue };
+                let Some(fixed_node) = fixed_node else {
+                    continue;
+                };
 
                 if same_layer(&fixed_node, node) {
                     if !Arc::ptr_eq(&fixed_node, node) {
@@ -205,10 +219,9 @@ impl BarycenterHeuristic {
             }
         }
 
-        let associates = node
-            .lock()
-            .ok()
-            .and_then(|mut node_guard| node_guard.get_property(InternalProperties::BARYCENTER_ASSOCIATES));
+        let associates = node.lock().ok().and_then(|mut node_guard| {
+            node_guard.get_property(InternalProperties::BARYCENTER_ASSOCIATES)
+        });
         if let Some(associates) = associates {
             for associate in associates {
                 if same_layer(&associate, node) {
@@ -232,7 +245,8 @@ impl BarycenterHeuristic {
                     let rand_f32 = self.random.next_float() as f32;
                     let perturbation = (rand_f32 * 0.07_f32 - 0.07_f32 / 2.0_f32) as f64;
                     state_guard.summed_weight += perturbation;
-                    state_guard.barycenter = Some(state_guard.summed_weight / state_guard.degree as f64);
+                    state_guard.barycenter =
+                        Some(state_guard.summed_weight / state_guard.degree as f64);
                 }
             }
         }
@@ -257,12 +271,18 @@ impl BarycenterHeuristic {
     }
 
     fn compare_barycenter(&self, left: &LNodeRef, right: &LNodeRef) -> Ordering {
-        let left_bary = self
-            .state_of(left)
-            .and_then(|state| state.lock().ok().and_then(|state_guard| state_guard.barycenter));
-        let right_bary = self
-            .state_of(right)
-            .and_then(|state| state.lock().ok().and_then(|state_guard| state_guard.barycenter));
+        let left_bary = self.state_of(left).and_then(|state| {
+            state
+                .lock()
+                .ok()
+                .and_then(|state_guard| state_guard.barycenter)
+        });
+        let right_bary = self.state_of(right).and_then(|state| {
+            state
+                .lock()
+                .ok()
+                .and_then(|state_guard| state_guard.barycenter)
+        });
 
         match (left_bary, right_bary) {
             (Some(left_bary), Some(right_bary)) => {
@@ -387,8 +407,17 @@ impl BarycenterHeuristic {
             .unwrap_or(false)
     }
 
-    pub(crate) fn is_first_layer(&self, node_order: &[Vec<LNodeRef>], current_index: usize, forward_sweep: bool) -> bool {
-        let start_index = if forward_sweep { 0 } else { node_order.len().saturating_sub(1) };
+    pub(crate) fn is_first_layer(
+        &self,
+        node_order: &[Vec<LNodeRef>],
+        current_index: usize,
+        forward_sweep: bool,
+    ) -> bool {
+        let start_index = if forward_sweep {
+            0
+        } else {
+            node_order.len().saturating_sub(1)
+        };
         current_index == start_index
     }
 }
@@ -399,7 +428,11 @@ impl ICrossingMinimizationHeuristic for BarycenterHeuristic {
     }
 
     fn set_first_layer_order(&mut self, order: &mut [Vec<LNodeRef>], forward_sweep: bool) -> bool {
-        let start_index = if forward_sweep { 0 } else { order.len().saturating_sub(1) };
+        let start_index = if forward_sweep {
+            0
+        } else {
+            order.len().saturating_sub(1)
+        };
         let mut nodes = order[start_index].clone();
         self.minimize_crossings_layer(&mut nodes, false, true, forward_sweep);
         order[start_index] = nodes;
@@ -419,7 +452,11 @@ impl ICrossingMinimizationHeuristic for BarycenterHeuristic {
             } else {
                 free_layer_index + 1
             };
-            let port_type = if forward_sweep { PortType::Output } else { PortType::Input };
+            let port_type = if forward_sweep {
+                PortType::Output
+            } else {
+                PortType::Input
+            };
             if let Some(layer) = order.get(fixed_layer_index) {
                 self.port_distributor.calculate_port_ranks(layer, port_type);
                 self.port_ranks = self.port_distributor.port_ranks();
@@ -462,7 +499,11 @@ impl IInitializable for BarycenterHeuristic {
         self.port_distributor
             .init_at_layer_level(layer_index, node_order);
         if let Some(first_node) = node_order[layer_index].first() {
-            if let Some(layer) = first_node.lock().ok().and_then(|node_guard| node_guard.layer()) {
+            if let Some(layer) = first_node
+                .lock()
+                .ok()
+                .and_then(|node_guard| node_guard.layer())
+            {
                 if let Ok(mut layer_guard) = layer.lock() {
                     layer_guard.graph_element().id = layer_index as i32;
                 }
@@ -470,7 +511,12 @@ impl IInitializable for BarycenterHeuristic {
         }
     }
 
-    fn init_at_node_level(&mut self, layer_index: usize, node_index: usize, node_order: &[Vec<LNodeRef>]) {
+    fn init_at_node_level(
+        &mut self,
+        layer_index: usize,
+        node_index: usize,
+        node_order: &[Vec<LNodeRef>],
+    ) {
         self.constraint_resolver
             .init_at_node_level(layer_index, node_index, node_order);
         self.port_distributor
@@ -484,8 +530,12 @@ impl IInitializable for BarycenterHeuristic {
         port_index: usize,
         node_order: &[Vec<LNodeRef>],
     ) {
-        self.constraint_resolver
-            .init_at_port_level(layer_index, node_index, port_index, node_order);
+        self.constraint_resolver.init_at_port_level(
+            layer_index,
+            node_index,
+            port_index,
+            node_order,
+        );
         self.port_distributor
             .init_at_port_level(layer_index, node_index, port_index, node_order);
     }
@@ -560,14 +610,8 @@ fn layer_index(node: &LNodeRef) -> usize {
 }
 
 fn same_layer(left: &LNodeRef, right: &LNodeRef) -> bool {
-    let left_layer = left
-        .lock()
-        .ok()
-        .and_then(|node_guard| node_guard.layer());
-    let right_layer = right
-        .lock()
-        .ok()
-        .and_then(|node_guard| node_guard.layer());
+    let left_layer = left.lock().ok().and_then(|node_guard| node_guard.layer());
+    let right_layer = right.lock().ok().and_then(|node_guard| node_guard.layer());
     match (left_layer, right_layer) {
         (Some(left_layer), Some(right_layer)) => Arc::ptr_eq(&left_layer, &right_layer),
         _ => false,

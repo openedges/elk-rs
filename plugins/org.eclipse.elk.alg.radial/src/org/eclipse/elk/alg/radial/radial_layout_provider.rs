@@ -3,7 +3,9 @@ use std::sync::Arc;
 
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::NodeMicroLayout;
 use org_eclipse_elk_core::org::eclipse::elk::core::abstract_layout_provider::AbstractLayoutProvider;
-use org_eclipse_elk_core::org::eclipse::elk::core::alg::algorithm_assembler::{AlgorithmAssembler, SharedProcessor};
+use org_eclipse_elk_core::org::eclipse::elk::core::alg::algorithm_assembler::{
+    AlgorithmAssembler, SharedProcessor,
+};
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase_factory::ILayoutPhaseFactory;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
 use org_eclipse_elk_core::org::eclipse::elk::core::graph_layout_engine::IGraphLayoutEngine;
@@ -12,8 +14,8 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 
-use crate::org::eclipse::elk::alg::radial::internal_properties::InternalProperties;
 use crate::org::eclipse::elk::alg::radial::intermediate::IntermediateProcessorStrategy;
+use crate::org::eclipse::elk::alg::radial::internal_properties::InternalProperties;
 use crate::org::eclipse::elk::alg::radial::options::{CompactionStrategy, RadialOptions};
 use crate::org::eclipse::elk::alg::radial::radial_layout_phases::RadialLayoutPhases;
 use crate::org::eclipse::elk::alg::radial::radial_util::RadialUtil;
@@ -25,7 +27,10 @@ impl RadialLayoutProvider {
         RadialLayoutProvider
     }
 
-    fn assemble_algorithm(&mut self, layout_graph: &ElkNodeRef) -> Vec<SharedProcessor<ElkNodeRef>> {
+    fn assemble_algorithm(
+        &mut self,
+        layout_graph: &ElkNodeRef,
+    ) -> Vec<SharedProcessor<ElkNodeRef>> {
         let mut algorithm_assembler: AlgorithmAssembler<RadialLayoutPhases, ElkNodeRef> =
             AlgorithmAssembler::create();
 
@@ -85,11 +90,16 @@ impl Default for RadialLayoutProvider {
 }
 
 impl IGraphLayoutEngine for RadialLayoutProvider {
-    fn layout(&mut self, layout_graph: &ElkNodeRef, progress_monitor: &mut dyn IElkProgressMonitor) {
+    fn layout(
+        &mut self,
+        layout_graph: &ElkNodeRef,
+        progress_monitor: &mut dyn IElkProgressMonitor,
+    ) {
         let algorithm = self.assemble_algorithm(layout_graph);
         progress_monitor.begin("Radial layout", algorithm.len() as f32);
 
-        if !node_get_property(layout_graph, RadialOptions::OMIT_NODE_MICRO_LAYOUT).unwrap_or(false) {
+        if !node_get_property(layout_graph, RadialOptions::OMIT_NODE_MICRO_LAYOUT).unwrap_or(false)
+        {
             NodeMicroLayout::for_graph(layout_graph.clone()).execute();
         }
 
@@ -103,7 +113,8 @@ impl IGraphLayoutEngine for RadialLayoutProvider {
         let root_id = Rc::as_ptr(&root) as usize;
         node_set_property(layout_graph, InternalProperties::ROOT_NODE, Some(root_id));
 
-        let mut layout_radius = node_get_property(layout_graph, RadialOptions::RADIUS).unwrap_or(0.0);
+        let mut layout_radius =
+            node_get_property(layout_graph, RadialOptions::RADIUS).unwrap_or(0.0);
         if layout_radius == 0.0 {
             layout_radius = RadialUtil::find_largest_node_in_graph(layout_graph);
         }

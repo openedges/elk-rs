@@ -1,7 +1,9 @@
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 
 use crate::org::eclipse::elk::alg::force::graph::{FGraph, FParticleRef};
-use crate::org::eclipse::elk::alg::force::model::abstract_force_model::{AbstractForceModel, ForceModel};
+use crate::org::eclipse::elk::alg::force::model::abstract_force_model::{
+    AbstractForceModel, ForceModel,
+};
 use crate::org::eclipse::elk::alg::force::options::ForceOptions;
 
 const ZERO_FACTOR: f64 = 100.0;
@@ -43,7 +45,9 @@ impl ForceModel for EadesModel {
 
     fn initialize_model(&mut self, graph: &mut FGraph) {
         self.max_iterations = graph.get_property(ForceOptions::ITERATIONS).unwrap_or(300);
-        self.spring_length = graph.get_property(ForceOptions::SPACING_NODE_NODE).unwrap_or(20.0);
+        self.spring_length = graph
+            .get_property(ForceOptions::SPACING_NODE_NODE)
+            .unwrap_or(20.0);
         self.repulsion_factor = graph.get_property(ForceOptions::REPULSION).unwrap_or(5.0);
     }
 
@@ -62,7 +66,9 @@ impl ForceModel for EadesModel {
         let displacement = forcee.with_particle_ref(|p| *p.position_ref());
         let forcer_pos = forcer.with_particle_ref(|p| *p.position_ref());
         let (mut displacement, forcer_pos) = match (displacement, forcer_pos) {
-            (Some(displacement), Some(forcer_pos)) => (KVector::from_vector(&displacement), forcer_pos),
+            (Some(displacement), Some(forcer_pos)) => {
+                (KVector::from_vector(&displacement), forcer_pos)
+            }
             _ => return None,
         };
         displacement.sub(&forcer_pos);

@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use org_eclipse_elk_core::org::eclipse::elk::core::data::{LayoutMetaDataService, LayoutOptionType};
+use org_eclipse_elk_core::org::eclipse::elk::core::data::{
+    LayoutMetaDataService, LayoutOptionType,
+};
 use org_eclipse_elk_core::org::eclipse::elk::core::math::ElkPadding;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::{
     CoreOptions, EdgeRouting, PackingMode, PortAlignment, TopdownNodeTypes,
@@ -33,7 +35,8 @@ fn layered_metadata_defaults_match_core() {
     let padding = expect_value::<ElkPadding>(algo.default_value_any(CoreOptions::PADDING.id()));
     assert_eq!(*padding, ElkPadding::with_any(12.0));
 
-    let routing = expect_value::<EdgeRouting>(algo.default_value_any(CoreOptions::EDGE_ROUTING.id()));
+    let routing =
+        expect_value::<EdgeRouting>(algo.default_value_any(CoreOptions::EDGE_ROUTING.id()));
     assert_eq!(*routing, EdgeRouting::Orthogonal);
 
     let border_offset =
@@ -49,8 +52,9 @@ fn layered_metadata_defaults_match_core() {
     let priority = expect_value::<i32>(algo.default_value_any(CoreOptions::PRIORITY.id()));
     assert_eq!(*priority, 0);
 
-    let separate =
-        expect_value::<bool>(algo.default_value_any(CoreOptions::SEPARATE_CONNECTED_COMPONENTS.id()));
+    let separate = expect_value::<bool>(
+        algo.default_value_any(CoreOptions::SEPARATE_CONNECTED_COMPONENTS.id()),
+    );
     assert!(*separate);
 
     let port_alignment = expect_value::<PortAlignment>(
@@ -58,8 +62,9 @@ fn layered_metadata_defaults_match_core() {
     );
     assert_eq!(*port_alignment, PortAlignment::Justified);
 
-    let node_type =
-        expect_value::<TopdownNodeTypes>(algo.default_value_any(CoreOptions::TOPDOWN_NODE_TYPE.id()));
+    let node_type = expect_value::<TopdownNodeTypes>(
+        algo.default_value_any(CoreOptions::TOPDOWN_NODE_TYPE.id()),
+    );
     assert_eq!(*node_type, TopdownNodeTypes::HierarchicalNode);
 
     assert!(algo.knows_option(CoreOptions::SPACING_NODE_NODE.id()));

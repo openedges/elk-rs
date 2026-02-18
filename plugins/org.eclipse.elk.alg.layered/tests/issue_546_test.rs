@@ -1,7 +1,9 @@
 mod elkt_test_loader;
 mod issue_support;
 
-use elkt_test_loader::{find_edge_by_identifier, find_port_by_identifier, load_layered_graph_from_elkt};
+use elkt_test_loader::{
+    find_edge_by_identifier, find_port_by_identifier, load_layered_graph_from_elkt,
+};
 use issue_support::{init_layered_options, run_layout};
 use org_eclipse_elk_core::org::eclipse::elk::core::util::ElkUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkGraphElementRef, ElkPortRef};

@@ -8,18 +8,21 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LNodeRef, LPortRef, NodeType};
 use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorStrategy;
-use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions, Spacings};
+use crate::org::eclipse::elk::alg::layered::options::{
+    InternalProperties, LayeredOptions, Spacings,
+};
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
 
-static HIERARCHY_PROCESSING_ADDITIONS: LazyLock<LayoutProcessorConfiguration<LayeredPhases, LGraph>> =
-    LazyLock::new(|| {
-        let mut config = LayoutProcessorConfiguration::create();
-        config.add_before(
-            LayeredPhases::P5EdgeRouting,
-            Arc::new(IntermediateProcessorStrategy::HierarchicalPortPositionProcessor),
-        );
-        config
-    });
+static HIERARCHY_PROCESSING_ADDITIONS: LazyLock<
+    LayoutProcessorConfiguration<LayeredPhases, LGraph>,
+> = LazyLock::new(|| {
+    let mut config = LayoutProcessorConfiguration::create();
+    config.add_before(
+        LayeredPhases::P5EdgeRouting,
+        Arc::new(IntermediateProcessorStrategy::HierarchicalPortPositionProcessor),
+    );
+    config
+});
 
 static INPUT_PRIO_PROPERTY: LazyLock<Property<i32>> =
     LazyLock::new(|| Property::new("linearSegments.inputPrio"));
@@ -347,7 +350,9 @@ impl LinearSegmentsNodePlacer {
                         .lock()
                         .ok()
                         .and_then(|port_guard| port_guard.node());
-                    let Some(target_node) = target_node else { continue; };
+                    let Some(target_node) = target_node else {
+                        continue;
+                    };
                     let target_type = target_node
                         .lock()
                         .ok()
@@ -522,7 +527,9 @@ impl LinearSegmentsNodePlacer {
                     i32::MIN
                 };
                 let output_prio = if outgoing {
-                    guard.get_property(&OUTPUT_PRIO_PROPERTY).unwrap_or(i32::MIN)
+                    guard
+                        .get_property(&OUTPUT_PRIO_PROPERTY)
+                        .unwrap_or(i32::MIN)
                 } else {
                     i32::MIN
                 };
@@ -544,21 +551,30 @@ impl LinearSegmentsNodePlacer {
                         .map(|port_guard| port_guard.outgoing_edges().clone())
                         .unwrap_or_default();
                     for edge in outgoing_edges {
-                        let other_port = edge.lock().ok().and_then(|edge_guard| edge_guard.target());
-                        let Some(other_port) = other_port else { continue; };
+                        let other_port =
+                            edge.lock().ok().and_then(|edge_guard| edge_guard.target());
+                        let Some(other_port) = other_port else {
+                            continue;
+                        };
                         let other_node = other_port
                             .lock()
                             .ok()
                             .and_then(|port_guard| port_guard.node());
-                        let Some(other_node) = other_node else { continue; };
+                        let Some(other_node) = other_node else {
+                            continue;
+                        };
                         let other_segment = node_id(&other_node).max(0) as usize;
                         if other_segment != segment_index {
                             let other_prio = other_node
                                 .lock()
                                 .ok()
                                 .map(|mut node_guard| {
-                                    let input = node_guard.get_property(&INPUT_PRIO_PROPERTY).unwrap_or(i32::MIN);
-                                    let output = node_guard.get_property(&OUTPUT_PRIO_PROPERTY).unwrap_or(i32::MIN);
+                                    let input = node_guard
+                                        .get_property(&INPUT_PRIO_PROPERTY)
+                                        .unwrap_or(i32::MIN);
+                                    let output = node_guard
+                                        .get_property(&OUTPUT_PRIO_PROPERTY)
+                                        .unwrap_or(i32::MIN);
                                     input.max(output)
                                 })
                                 .unwrap_or(i32::MIN);
@@ -570,7 +586,8 @@ impl LinearSegmentsNodePlacer {
                                 })
                                 .unwrap_or(0);
                             if prio >= min_prio && prio >= other_prio {
-                                node_deflection += port_position_y(&other_node, &other_port) - port_pos;
+                                node_deflection +=
+                                    port_position_y(&other_node, &other_port) - port_pos;
                                 edge_weight_sum += 1;
                             }
                         }
@@ -584,21 +601,30 @@ impl LinearSegmentsNodePlacer {
                         .map(|port_guard| port_guard.incoming_edges().clone())
                         .unwrap_or_default();
                     for edge in incoming_edges {
-                        let other_port = edge.lock().ok().and_then(|edge_guard| edge_guard.source());
-                        let Some(other_port) = other_port else { continue; };
+                        let other_port =
+                            edge.lock().ok().and_then(|edge_guard| edge_guard.source());
+                        let Some(other_port) = other_port else {
+                            continue;
+                        };
                         let other_node = other_port
                             .lock()
                             .ok()
                             .and_then(|port_guard| port_guard.node());
-                        let Some(other_node) = other_node else { continue; };
+                        let Some(other_node) = other_node else {
+                            continue;
+                        };
                         let other_segment = node_id(&other_node).max(0) as usize;
                         if other_segment != segment_index {
                             let other_prio = other_node
                                 .lock()
                                 .ok()
                                 .map(|mut node_guard| {
-                                    let input = node_guard.get_property(&INPUT_PRIO_PROPERTY).unwrap_or(i32::MIN);
-                                    let output = node_guard.get_property(&OUTPUT_PRIO_PROPERTY).unwrap_or(i32::MIN);
+                                    let input = node_guard
+                                        .get_property(&INPUT_PRIO_PROPERTY)
+                                        .unwrap_or(i32::MIN);
+                                    let output = node_guard
+                                        .get_property(&OUTPUT_PRIO_PROPERTY)
+                                        .unwrap_or(i32::MIN);
                                     input.max(output)
                                 })
                                 .unwrap_or(i32::MIN);
@@ -610,7 +636,8 @@ impl LinearSegmentsNodePlacer {
                                 })
                                 .unwrap_or(0);
                             if prio >= min_prio && prio >= other_prio {
-                                node_deflection += port_position_y(&other_node, &other_port) - port_pos;
+                                node_deflection +=
+                                    port_position_y(&other_node, &other_port) - port_pos;
                                 edge_weight_sum += 1;
                             }
                         }
@@ -663,12 +690,11 @@ impl LinearSegmentsNodePlacer {
                         + node_margin_bottom(&node1)
                         + self.linear_segments[region1].deflection
                         + spacing;
-                    let node2_extent = node_position_y(&node2)
-                        - node_margin_top(&node2)
+                    let node2_extent = node_position_y(&node2) - node_margin_top(&node2)
                         + self.linear_segments[region2].deflection;
                     if node1_extent > node2_extent + threshold {
-                        let weight_sum =
-                            self.linear_segments[region1].weight + self.linear_segments[region2].weight;
+                        let weight_sum = self.linear_segments[region1].weight
+                            + self.linear_segments[region2].weight;
                         if weight_sum > 0 {
                             let new_deflection = (self.linear_segments[region2].weight as f64
                                 * self.linear_segments[region2].deflection
@@ -707,7 +733,12 @@ impl LinearSegmentsNodePlacer {
                     .lock()
                     .ok()
                     .and_then(|node_guard| node_guard.layer())
-                    .and_then(|layer| layer.lock().ok().map(|layer_guard| layer_guard.nodes().clone()))
+                    .and_then(|layer| {
+                        layer
+                            .lock()
+                            .ok()
+                            .map(|layer_guard| layer_guard.nodes().clone())
+                    })
                     .unwrap_or_default();
 
                 let room_above = if index > 0 && index <= layer_nodes.len() {
@@ -757,12 +788,22 @@ impl LinearSegmentsNodePlacer {
                         .unwrap_or_default();
                     for edge in incoming {
                         let source = edge.lock().ok().and_then(|edge_guard| edge_guard.source());
-                        let Some(source) = source else { continue; };
-                        let other_node = source.lock().ok().and_then(|port_guard| port_guard.node());
-                        let Some(other_node) = other_node else { continue; };
+                        let Some(source) = source else {
+                            continue;
+                        };
+                        let other_node =
+                            source.lock().ok().and_then(|port_guard| port_guard.node());
+                        let Some(other_node) = other_node else {
+                            continue;
+                        };
                         let d = port_position_y(&other_node, &source) - pos;
                         if d.abs() < min_displacement.abs()
-                            && d.abs() < if d < 0.0 { min_room_above } else { min_room_below }
+                            && d.abs()
+                                < if d < 0.0 {
+                                    min_room_above
+                                } else {
+                                    min_room_below
+                                }
                         {
                             min_displacement = d;
                             found_place = true;
@@ -786,12 +827,22 @@ impl LinearSegmentsNodePlacer {
                         .unwrap_or_default();
                     for edge in outgoing {
                         let target = edge.lock().ok().and_then(|edge_guard| edge_guard.target());
-                        let Some(target) = target else { continue; };
-                        let other_node = target.lock().ok().and_then(|port_guard| port_guard.node());
-                        let Some(other_node) = other_node else { continue; };
+                        let Some(target) = target else {
+                            continue;
+                        };
+                        let other_node =
+                            target.lock().ok().and_then(|port_guard| port_guard.node());
+                        let Some(other_node) = other_node else {
+                            continue;
+                        };
                         let d = port_position_y(&other_node, &target) - pos;
                         if d.abs() < min_displacement.abs()
-                            && d.abs() < if d < 0.0 { min_room_above } else { min_room_below }
+                            && d.abs()
+                                < if d < 0.0 {
+                                    min_room_above
+                                } else {
+                                    min_room_below
+                                }
                         {
                             min_displacement = d;
                             found_place = true;
@@ -871,12 +922,20 @@ fn layer_index(node: &LNodeRef) -> usize {
     node.lock()
         .ok()
         .and_then(|node_guard| node_guard.layer())
-        .and_then(|layer| layer.lock().ok().map(|mut layer_guard| layer_guard.graph_element().id as usize))
+        .and_then(|layer| {
+            layer
+                .lock()
+                .ok()
+                .map(|mut layer_guard| layer_guard.graph_element().id as usize)
+        })
         .unwrap_or(0)
 }
 
 fn node_index(node: &LNodeRef) -> usize {
-    node.lock().ok().and_then(|node_guard| node_guard.index()).unwrap_or(0)
+    node.lock()
+        .ok()
+        .and_then(|node_guard| node_guard.index())
+        .unwrap_or(0)
 }
 
 fn node_position_y(node: &LNodeRef) -> f64 {
@@ -894,7 +953,10 @@ fn node_size_y(node: &LNodeRef) -> f64 {
 }
 
 fn node_margin_top(node: &LNodeRef) -> f64 {
-    node.lock().ok().map(|mut node_guard| node_guard.margin().top).unwrap_or(0.0)
+    node.lock()
+        .ok()
+        .map(|mut node_guard| node_guard.margin().top)
+        .unwrap_or(0.0)
 }
 
 fn node_margin_bottom(node: &LNodeRef) -> f64 {
@@ -909,7 +971,12 @@ fn port_position_y(node: &LNodeRef, port: &LPortRef) -> f64 {
     let (port_pos, anchor) = port
         .lock()
         .ok()
-        .map(|mut port_guard| (port_guard.shape().position_ref().y, port_guard.anchor_ref().y))
+        .map(|mut port_guard| {
+            (
+                port_guard.shape().position_ref().y,
+                port_guard.anchor_ref().y,
+            )
+        })
         .unwrap_or((0.0, 0.0));
     node_pos + port_pos + anchor
 }

@@ -77,7 +77,11 @@ impl SelfHyperLoopLabels {
 
     pub fn add_l_labels(&mut self, labels: &[LLabelRef]) {
         for label in labels {
-            if self.l_labels.iter().any(|existing| std::sync::Arc::ptr_eq(existing, label)) {
+            if self
+                .l_labels
+                .iter()
+                .any(|existing| std::sync::Arc::ptr_eq(existing, label))
+            {
                 continue;
             }
             self.l_labels.push(label.clone());

@@ -1,8 +1,12 @@
 use std::any::{Any, TypeId};
 use std::sync::Arc;
 
-use org_eclipse_elk_core::org::eclipse::elk::core::data::{LayoutMetaDataService, LayoutOptionType};
-use org_eclipse_elk_core::org::eclipse::elk::core::math::{ElkMargin, ElkPadding, KVector, KVectorChain};
+use org_eclipse_elk_core::org::eclipse::elk::core::data::{
+    LayoutMetaDataService, LayoutOptionType,
+};
+use org_eclipse_elk_core::org::eclipse::elk::core::math::{
+    ElkMargin, ElkPadding, KVector, KVectorChain,
+};
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IndividualSpacings;
 
 #[test]

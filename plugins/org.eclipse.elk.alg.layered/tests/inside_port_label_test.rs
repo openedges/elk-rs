@@ -2,10 +2,12 @@ mod elkt_test_loader;
 mod issue_support;
 
 use elkt_test_loader::load_layered_graph_from_elkt;
-use issue_support::run_layout;
 use issue_support::init_layered_options;
+use issue_support::run_layout;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::ElkUtil;
-use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkGraphElementRef, ElkLabelRef, ElkNodeRef, ElkPortRef};
+use org_eclipse_elk_graph::org::eclipse::elk::graph::{
+    ElkGraphElementRef, ElkLabelRef, ElkNodeRef, ElkPortRef,
+};
 
 const OVERLAP_EPSILON: f64 = 0.5;
 

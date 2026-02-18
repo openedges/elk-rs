@@ -2,7 +2,9 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use org_eclipse_elk_core::org::eclipse::elk::core::math::elk_rectangle::ElkRectangle;
-use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::{PortSide, SIDES_NORTH_SOUTH};
+use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::{
+    PortSide, SIDES_NORTH_SOUTH,
+};
 use org_eclipse_elk_core::org::eclipse::elk::core::util::pair::Pair;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LNodeRef, LPortRef};
@@ -113,8 +115,12 @@ impl SplineSegment {
             };
 
             match side {
-                SideToProcess::Left => Self::insert_unique_port(&mut segment.left_ports, &target_port),
-                SideToProcess::Right => Self::insert_unique_port(&mut segment.right_ports, &target_port),
+                SideToProcess::Left => {
+                    Self::insert_unique_port(&mut segment.left_ports, &target_port)
+                }
+                SideToProcess::Right => {
+                    Self::insert_unique_port(&mut segment.right_ports, &target_port)
+                }
             }
 
             let y_pos_target = Self::anchor_y(&target_port);
@@ -149,12 +155,20 @@ impl SplineSegment {
         };
         if let (Some(source_port), Some(target_port)) = (source_port, target_port) {
             match source_side {
-                SideToProcess::Left => Self::insert_unique_port(&mut segment.left_ports, &source_port),
-                SideToProcess::Right => Self::insert_unique_port(&mut segment.right_ports, &source_port),
+                SideToProcess::Left => {
+                    Self::insert_unique_port(&mut segment.left_ports, &source_port)
+                }
+                SideToProcess::Right => {
+                    Self::insert_unique_port(&mut segment.right_ports, &source_port)
+                }
             }
             match target_side {
-                SideToProcess::Left => Self::insert_unique_port(&mut segment.left_ports, &target_port),
-                SideToProcess::Right => Self::insert_unique_port(&mut segment.right_ports, &target_port),
+                SideToProcess::Left => {
+                    Self::insert_unique_port(&mut segment.left_ports, &target_port)
+                }
+                SideToProcess::Right => {
+                    Self::insert_unique_port(&mut segment.right_ports, &target_port)
+                }
             }
 
             segment.add_edge(edge);
@@ -292,16 +306,16 @@ impl SplineSegment {
 
         if source_y < target_y_min {
             self.center_control_point_y = ONE_HALF * (source_y + target_y_min);
-            self.hyper_edge_top_y_pos =
-                HYPEREDGE_POS_MID_RATE * self.center_control_point_y + HYPEREDGE_POS_OUTER_RATE * source_y;
-            self.hyper_edge_bottom_y_pos =
-                HYPEREDGE_POS_MID_RATE * self.center_control_point_y + HYPEREDGE_POS_OUTER_RATE * target_y_min;
+            self.hyper_edge_top_y_pos = HYPEREDGE_POS_MID_RATE * self.center_control_point_y
+                + HYPEREDGE_POS_OUTER_RATE * source_y;
+            self.hyper_edge_bottom_y_pos = HYPEREDGE_POS_MID_RATE * self.center_control_point_y
+                + HYPEREDGE_POS_OUTER_RATE * target_y_min;
         } else {
             self.center_control_point_y = ONE_HALF * (source_y + target_y_max);
-            self.hyper_edge_top_y_pos =
-                HYPEREDGE_POS_MID_RATE * self.center_control_point_y + HYPEREDGE_POS_OUTER_RATE * target_y_max;
-            self.hyper_edge_bottom_y_pos =
-                HYPEREDGE_POS_MID_RATE * self.center_control_point_y + HYPEREDGE_POS_OUTER_RATE * source_y;
+            self.hyper_edge_top_y_pos = HYPEREDGE_POS_MID_RATE * self.center_control_point_y
+                + HYPEREDGE_POS_OUTER_RATE * target_y_max;
+            self.hyper_edge_bottom_y_pos = HYPEREDGE_POS_MID_RATE * self.center_control_point_y
+                + HYPEREDGE_POS_OUTER_RATE * source_y;
         }
     }
 

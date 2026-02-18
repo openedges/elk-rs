@@ -9,7 +9,11 @@ pub struct Triple<F, S, T> {
 
 impl<F, S, T> Triple<F, S, T> {
     pub fn new(first: F, second: S, third: T) -> Self {
-        Triple { first, second, third }
+        Triple {
+            first,
+            second,
+            third,
+        }
     }
 
     pub fn first(&self) -> &F {

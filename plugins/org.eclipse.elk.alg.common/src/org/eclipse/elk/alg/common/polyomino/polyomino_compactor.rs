@@ -5,12 +5,10 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::Pair;
 use crate::org::eclipse::elk::alg::common::compaction::options::{
     HighLevelSortingCriterion, LowLevelSortingCriterion, PolyominoOptions, TraversalStrategy,
 };
-use crate::org::eclipse::elk::alg::common::polyomino::successor::{
-    SuccessorFunction,
-};
 use crate::org::eclipse::elk::alg::common::polyomino::structures::{
     Direction, PolyominoLike, Polyominoes,
 };
+use crate::org::eclipse::elk::alg::common::polyomino::successor::SuccessorFunction;
 use crate::org::eclipse::elk::alg::common::polyomino::{
     SuccessorCombination, SuccessorJitter, SuccessorLineByLine, SuccessorManhattan,
     SuccessorMaxNormWindingInMathPosSense, SuccessorQuadrantsGeneric,
@@ -62,14 +60,16 @@ impl PolyominoCompactor {
             TraversalStrategy::QuadrantsManhattan => {
                 Box::new(SuccessorQuadrantsGeneric::new(Box::new(SuccessorManhattan)))
             }
-            TraversalStrategy::QuadrantsLineByLine => {
-                Box::new(SuccessorQuadrantsGeneric::new(Box::new(SuccessorLineByLine)))
-            }
+            TraversalStrategy::QuadrantsLineByLine => Box::new(SuccessorQuadrantsGeneric::new(
+                Box::new(SuccessorLineByLine),
+            )),
             TraversalStrategy::QuadrantsJitter => {
                 Box::new(SuccessorQuadrantsGeneric::new(Box::new(SuccessorJitter)))
             }
             TraversalStrategy::CombineLineByLineManhattan => Box::new(SuccessorCombination::new(
-                Box::new(SuccessorQuadrantsGeneric::new(Box::new(SuccessorLineByLine))),
+                Box::new(SuccessorQuadrantsGeneric::new(Box::new(
+                    SuccessorLineByLine,
+                ))),
                 Box::new(SuccessorQuadrantsGeneric::new(Box::new(SuccessorManhattan))),
             )),
             TraversalStrategy::CombineJitterManhattan => Box::new(SuccessorCombination::new(

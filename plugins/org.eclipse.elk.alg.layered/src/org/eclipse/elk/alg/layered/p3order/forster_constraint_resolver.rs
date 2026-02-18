@@ -50,7 +50,11 @@ impl ForsterConstraintResolver {
         self.process_constraints_internal(nodes, false);
     }
 
-    fn process_constraints_internal(&mut self, nodes: &mut Vec<LNodeRef>, only_between_normal_nodes: bool) {
+    fn process_constraints_internal(
+        &mut self,
+        nodes: &mut Vec<LNodeRef>,
+        only_between_normal_nodes: bool,
+    ) {
         let mut groups: Vec<ConstraintGroupRef> = Vec::with_capacity(nodes.len());
         for node in nodes.iter() {
             let group = self.group_of(node);
@@ -102,7 +106,11 @@ impl ForsterConstraintResolver {
         }
     }
 
-    fn build_constraints_graph(&mut self, groups: &[ConstraintGroupRef], only_between_normal_nodes: bool) {
+    fn build_constraints_graph(
+        &mut self,
+        groups: &[ConstraintGroupRef],
+        only_between_normal_nodes: bool,
+    ) {
         let trace = std::env::var_os("ELK_TRACE_FORSTER_GROUPS").is_some()
             && groups.iter().any(group_contains_pump);
 
@@ -115,7 +123,11 @@ impl ForsterConstraintResolver {
 
         let mut last_non_dummy_node: Option<LNodeRef> = None;
         for group in groups.iter() {
-            let node = match group.lock().ok().map(|group_guard| group_guard.single_node().clone()) {
+            let node = match group
+                .lock()
+                .ok()
+                .map(|group_guard| group_guard.single_node().clone())
+            {
                 Some(node) => node,
                 None => continue,
             };
@@ -169,8 +181,16 @@ impl ForsterConstraintResolver {
                     if let Some(last_node) = last_non_dummy_node.clone() {
                         let last_unit_key = node_ptr_id(&last_node);
                         let current_unit_key = node_ptr_id(&node);
-                        let last_unit_nodes = self.layout_units.get(&last_unit_key).cloned().unwrap_or_default();
-                        let current_unit_nodes = self.layout_units.get(&current_unit_key).cloned().unwrap_or_default();
+                        let last_unit_nodes = self
+                            .layout_units
+                            .get(&last_unit_key)
+                            .cloned()
+                            .unwrap_or_default();
+                        let current_unit_nodes = self
+                            .layout_units
+                            .get(&current_unit_key)
+                            .cloned()
+                            .unwrap_or_default();
                         for last_unit_node in last_unit_nodes {
                             for current_unit_node in current_unit_nodes.iter() {
                                 let last_group = self.group_of(&last_unit_node);
@@ -228,7 +248,9 @@ impl ForsterConstraintResolver {
             index_map.insert(group_ptr_id(group), index);
             if let Ok(mut group_guard) = group.lock() {
                 group_guard.reset_incoming_constraints();
-                if group_guard.has_outgoing_constraints() && group_guard.incoming_constraints_count == 0 {
+                if group_guard.has_outgoing_constraints()
+                    && group_guard.incoming_constraints_count == 0
+                {
                     active_groups.push_back(group.clone());
                 }
             }
@@ -251,8 +273,12 @@ impl ForsterConstraintResolver {
                     let group_bary = self.group_barycenter(&group).unwrap_or(0.0);
                     // Java compares via .floatValue() (f32 truncation)
                     if (pred_bary as f32) == (group_bary as f32) {
-                        let pred_index = index_map.get(&group_ptr_id(&predecessor)).copied().unwrap_or(0);
-                        let group_index = index_map.get(&group_ptr_id(&group)).copied().unwrap_or(0);
+                        let pred_index = index_map
+                            .get(&group_ptr_id(&predecessor))
+                            .copied()
+                            .unwrap_or(0);
+                        let group_index =
+                            index_map.get(&group_ptr_id(&group)).copied().unwrap_or(0);
                         if pred_index > group_index {
                             return Some((predecessor, group));
                         }
@@ -271,7 +297,9 @@ impl ForsterConstraintResolver {
                 if let Ok(mut successor_guard) = successor.lock() {
                     let incoming_count = successor_guard.incoming_constraints_count;
                     let list_len = {
-                        let list = successor_guard.incoming_constraints.get_or_insert_with(Vec::new);
+                        let list = successor_guard
+                            .incoming_constraints
+                            .get_or_insert_with(Vec::new);
                         list.insert(0, group.clone());
                         list.len()
                     };
@@ -331,7 +359,11 @@ impl ForsterConstraintResolver {
         }
     }
 
-    fn merge_groups(&mut self, group1: &ConstraintGroupRef, group2: &ConstraintGroupRef) -> ConstraintGroupRef {
+    fn merge_groups(
+        &mut self,
+        group1: &ConstraintGroupRef,
+        group2: &ConstraintGroupRef,
+    ) -> ConstraintGroupRef {
         let (nodes1, sum1, deg1, outgoing1) = match group1.lock() {
             Ok(g1) => (
                 g1.nodes.clone(),
@@ -424,8 +456,12 @@ impl ForsterConstraintResolver {
             Some(group_guard) => group_guard.single_node().clone(),
             None => return None,
         };
-        self.state_of(&node)
-            .and_then(|state| state.lock().ok().and_then(|state_guard| state_guard.barycenter))
+        self.state_of(&node).and_then(|state| {
+            state
+                .lock()
+                .ok()
+                .and_then(|state_guard| state_guard.barycenter)
+        })
     }
 
     fn set_group_barycenter(&self, group: &ConstraintGroupRef, barycenter: Option<f64>) {
@@ -450,7 +486,8 @@ impl ForsterConstraintResolver {
             if node_index >= layer_groups.len() {
                 layer_groups.resize(node_index + 1, None);
             }
-            layer_groups[node_index] = Some(Arc::new(Mutex::new(ConstraintGroup::new(node.clone()))));
+            layer_groups[node_index] =
+                Some(Arc::new(Mutex::new(ConstraintGroup::new(node.clone()))));
         }
 
         if full_init {
@@ -458,13 +495,13 @@ impl ForsterConstraintResolver {
                 if node_index >= layer_states.len() {
                     layer_states.resize(node_index + 1, None);
                 }
-                layer_states[node_index] = Some(Arc::new(Mutex::new(BarycenterState::new(node.clone()))));
+                layer_states[node_index] =
+                    Some(Arc::new(Mutex::new(BarycenterState::new(node.clone()))));
             }
 
-            let layout_unit = node
-                .lock()
-                .ok()
-                .and_then(|mut node_guard| node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT));
+            let layout_unit = node.lock().ok().and_then(|mut node_guard| {
+                node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
+            });
             if let Some(layout_unit) = layout_unit {
                 let key = node_ptr_id(&layout_unit);
                 self.layout_units.entry(key).or_default().push(node.clone());
@@ -476,10 +513,12 @@ impl ForsterConstraintResolver {
 impl IInitializable for ForsterConstraintResolver {
     fn init_at_layer_level(&mut self, layer_index: usize, node_order: &[Vec<LNodeRef>]) {
         if layer_index >= self.barycenter_states.len() {
-            self.barycenter_states.resize_with(layer_index + 1, Vec::new);
+            self.barycenter_states
+                .resize_with(layer_index + 1, Vec::new);
         }
         if layer_index >= self.constraint_groups.len() {
-            self.constraint_groups.resize_with(layer_index + 1, Vec::new);
+            self.constraint_groups
+                .resize_with(layer_index + 1, Vec::new);
         }
 
         let layer_len = node_order[layer_index].len();
@@ -487,7 +526,11 @@ impl IInitializable for ForsterConstraintResolver {
         self.constraint_groups[layer_index] = vec![None; layer_len];
 
         if let Some(first_node) = node_order[layer_index].first() {
-            if let Some(layer) = first_node.lock().ok().and_then(|node_guard| node_guard.layer()) {
+            if let Some(layer) = first_node
+                .lock()
+                .ok()
+                .and_then(|node_guard| node_guard.layer())
+            {
                 if let Ok(mut layer_guard) = layer.lock() {
                     layer_guard.graph_element().id = layer_index as i32;
                 }
@@ -495,8 +538,16 @@ impl IInitializable for ForsterConstraintResolver {
         }
     }
 
-    fn init_at_node_level(&mut self, layer_index: usize, node_index: usize, node_order: &[Vec<LNodeRef>]) {
-        if let Some(node) = node_order.get(layer_index).and_then(|layer| layer.get(node_index)) {
+    fn init_at_node_level(
+        &mut self,
+        layer_index: usize,
+        node_index: usize,
+        node_order: &[Vec<LNodeRef>],
+    ) {
+        if let Some(node) = node_order
+            .get(layer_index)
+            .and_then(|layer| layer.get(node_index))
+        {
             if let Ok(mut node_guard) = node.lock() {
                 node_guard.shape().graph_element().id = node_index as i32;
             }
@@ -542,7 +593,9 @@ impl ConstraintGroup {
         if self.outgoing_constraints.is_none() {
             self.outgoing_constraints = Some(Vec::new());
         }
-        self.outgoing_constraints.as_mut().expect("outgoing constraints")
+        self.outgoing_constraints
+            .as_mut()
+            .expect("outgoing constraints")
     }
 
     fn reset_outgoing_constraints(&mut self) {
@@ -550,7 +603,10 @@ impl ConstraintGroup {
     }
 
     fn has_outgoing_constraints(&self) -> bool {
-        self.outgoing_constraints.as_ref().map(|list| !list.is_empty()).unwrap_or(false)
+        self.outgoing_constraints
+            .as_ref()
+            .map(|list| !list.is_empty())
+            .unwrap_or(false)
     }
 
     fn reset_incoming_constraints(&mut self) {
@@ -558,7 +614,10 @@ impl ConstraintGroup {
     }
 
     fn has_incoming_constraints(&self) -> bool {
-        self.incoming_constraints.as_ref().map(|list| !list.is_empty()).unwrap_or(false)
+        self.incoming_constraints
+            .as_ref()
+            .map(|list| !list.is_empty())
+            .unwrap_or(false)
     }
 
     fn single_node(&self) -> &LNodeRef {
@@ -571,7 +630,10 @@ fn contains_group(list: &[ConstraintGroupRef], target: &ConstraintGroupRef) -> b
 }
 
 fn remove_group(list: &mut Vec<ConstraintGroupRef>, target: &ConstraintGroupRef) -> bool {
-    if let Some(index) = list.iter().position(|candidate| Arc::ptr_eq(candidate, target)) {
+    if let Some(index) = list
+        .iter()
+        .position(|candidate| Arc::ptr_eq(candidate, target))
+    {
         list.remove(index);
         return true;
     }
@@ -614,7 +676,10 @@ fn group_contains_pump(group: &ConstraintGroupRef) -> bool {
     })
 }
 
-fn format_group_list(resolver: &ForsterConstraintResolver, groups: &[ConstraintGroupRef]) -> String {
+fn format_group_list(
+    resolver: &ForsterConstraintResolver,
+    groups: &[ConstraintGroupRef],
+) -> String {
     groups
         .iter()
         .map(|group| format_group(resolver, group))

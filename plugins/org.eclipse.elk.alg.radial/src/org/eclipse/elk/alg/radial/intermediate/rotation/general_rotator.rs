@@ -2,7 +2,9 @@ use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILay
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 
-use crate::org::eclipse::elk::alg::radial::intermediate::rotation::{AngleRotation, IRadialRotator};
+use crate::org::eclipse::elk::alg::radial::intermediate::rotation::{
+    AngleRotation, IRadialRotator,
+};
 
 #[derive(Default)]
 pub struct GeneralRotator;

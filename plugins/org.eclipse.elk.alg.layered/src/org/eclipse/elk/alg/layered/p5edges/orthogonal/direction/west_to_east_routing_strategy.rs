@@ -23,7 +23,11 @@ impl WestToEastRoutingStrategy {
         };
         let node_pos_y = port_guard
             .node()
-            .and_then(|node| node.lock().ok().map(|mut node_guard| node_guard.shape().position_ref().y))
+            .and_then(|node| {
+                node.lock()
+                    .ok()
+                    .map(|mut node_guard| node_guard.shape().position_ref().y)
+            })
             .unwrap_or(0.0);
         let port_pos_y = port_guard.shape().position_ref().y;
         let anchor_y = port_guard.anchor_ref().y;
@@ -38,7 +42,12 @@ impl WestToEastRoutingStrategy {
         PortSide::West
     }
 
-    pub fn calculate_bend_points(&mut self, segment: &HyperEdgeSegment, start_pos: f64, edge_spacing: f64) {
+    pub fn calculate_bend_points(
+        &mut self,
+        segment: &HyperEdgeSegment,
+        start_pos: f64,
+        edge_spacing: f64,
+    ) {
         if segment.is_dummy() {
             return;
         }
@@ -58,14 +67,15 @@ impl WestToEastRoutingStrategy {
                 .map(|port_guard| port_guard.outgoing_edges().clone())
                 .unwrap_or_default();
             for edge in outgoing_edges {
-                let is_self_loop = edge.lock().ok().map(|edge_guard| edge_guard.is_self_loop()).unwrap_or(false);
+                let is_self_loop = edge
+                    .lock()
+                    .ok()
+                    .map(|edge_guard| edge_guard.is_self_loop())
+                    .unwrap_or(false);
                 if is_self_loop {
                     continue;
                 }
-                let target = edge
-                    .lock()
-                    .ok()
-                    .and_then(|edge_guard| edge_guard.target());
+                let target = edge.lock().ok().and_then(|edge_guard| edge_guard.target());
                 let Some(target) = target else {
                     continue;
                 };

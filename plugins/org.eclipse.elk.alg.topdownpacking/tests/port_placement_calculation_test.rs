@@ -2,12 +2,12 @@ use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::plain_java_ini
 use org_eclipse_elk_alg_topdownpacking::org::eclipse::elk::alg::topdownpacking::options::TopdownpackingMetaDataProvider;
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutAlgorithmResolver;
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
-use org_eclipse_elk_core::org::eclipse::elk::core::IGraphLayoutEngine;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::size_constraint::SizeConstraint;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::topdown_node_types::TopdownNodeTypes;
 use org_eclipse_elk_core::org::eclipse::elk::core::recursive_graph_layout_engine::RecursiveGraphLayoutEngine;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{BasicProgressMonitor, ElkUtil, EnumSet};
+use org_eclipse_elk_core::org::eclipse::elk::core::IGraphLayoutEngine;
 use org_eclipse_elk_core::org::eclipse::elk::core::LayoutConfigurator;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
@@ -42,8 +42,16 @@ fn test_bottom_up() {
 
     run_layout(&graph);
 
-    assert_close((port_y(&port1) - port_y(&port2)).abs(), port_spacing, "port spacing 1");
-    assert_close((port_y(&port2) - port_y(&port3)).abs(), port_spacing, "port spacing 2");
+    assert_close(
+        (port_y(&port1) - port_y(&port2)).abs(),
+        port_spacing,
+        "port spacing 1",
+    );
+    assert_close(
+        (port_y(&port2) - port_y(&port3)).abs(),
+        port_spacing,
+        "port spacing 2",
+    );
 }
 
 #[test]
@@ -51,7 +59,11 @@ fn test_top_down() {
     init_topdown_layout();
     let graph = ElkGraphUtil::create_graph();
     set_node_property(&graph, CoreOptions::TOPDOWN_LAYOUT, true);
-    set_node_property(&graph, CoreOptions::TOPDOWN_NODE_TYPE, TopdownNodeTypes::RootNode);
+    set_node_property(
+        &graph,
+        CoreOptions::TOPDOWN_NODE_TYPE,
+        TopdownNodeTypes::RootNode,
+    );
 
     let port_spacing = 10.0;
     let fixed_node_height = 60.0;

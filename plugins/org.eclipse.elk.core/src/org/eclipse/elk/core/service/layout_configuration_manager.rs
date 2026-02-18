@@ -38,7 +38,10 @@ impl LayoutConfigurationManager {
         self.config_provider.is_some()
     }
 
-    pub fn get_algorithm(&self, config: &dyn ILayoutConfigurationStore) -> Option<LayoutAlgorithmData> {
+    pub fn get_algorithm(
+        &self,
+        config: &dyn ILayoutConfigurationStore,
+    ) -> Option<LayoutAlgorithmData> {
         let algorithm_id = config.get_option_value(CoreOptions::ALGORITHM.id());
         LayoutMetaDataService::get_instance().get_algorithm_data_by_suffix_or_default(
             algorithm_id.as_deref(),
@@ -56,10 +59,10 @@ impl LayoutConfigurationManager {
 
         if targets.contains(&LayoutOptionTarget::Parents) {
             if let Some(algo_data) = self.get_algorithm(config) {
-                option_data.extend(layout_data_service.get_option_data_for_algorithm(
-                    &algo_data,
-                    LayoutOptionTarget::Parents,
-                ));
+                option_data.extend(
+                    layout_data_service
+                        .get_option_data_for_algorithm(&algo_data, LayoutOptionTarget::Parents),
+                );
             }
         }
 
@@ -67,10 +70,9 @@ impl LayoutConfigurationManager {
             if let Some(algo_data) = self.get_algorithm(parent_config.as_ref()) {
                 for target in targets.iter().copied() {
                     if target != LayoutOptionTarget::Parents {
-                        option_data.extend(layout_data_service.get_option_data_for_algorithm(
-                            &algo_data,
-                            target,
-                        ));
+                        option_data.extend(
+                            layout_data_service.get_option_data_for_algorithm(&algo_data, target),
+                        );
                     }
                 }
             }

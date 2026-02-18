@@ -29,9 +29,7 @@ impl<F, S> Pair<F, S> {
         &self.second
     }
 
-    pub fn from_map<G: Clone, T: Clone>(
-        map: &std::collections::HashMap<G, T>,
-    ) -> Vec<Pair<G, T>> {
+    pub fn from_map<G: Clone, T: Clone>(map: &std::collections::HashMap<G, T>) -> Vec<Pair<G, T>> {
         map.iter()
             .map(|(key, value)| Pair::of(key.clone(), value.clone()))
             .collect()

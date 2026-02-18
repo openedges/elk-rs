@@ -102,12 +102,9 @@ fn set_label_geometry(label: &ElkLabelRef, x: f64, y: f64, width: f64, height: f
     label_mut.shape().set_dimensions(width, height);
 }
 
-fn add_label(
-    node: &ElkNodeRef,
-    text: &str,
-    placement: EnumSet<NodeLabelPlacement>,
-) -> ElkLabelRef {
-    let label = ElkGraphUtil::create_label_with_text(text, Some(ElkGraphElementRef::Node(node.clone())));
+fn add_label(node: &ElkNodeRef, text: &str, placement: EnumSet<NodeLabelPlacement>) -> ElkLabelRef {
+    let label =
+        ElkGraphUtil::create_label_with_text(text, Some(ElkGraphElementRef::Node(node.clone())));
     set_label_geometry(&label, 0.0, 0.0, 10.0, 10.0);
     label
         .borrow_mut()
@@ -165,7 +162,11 @@ fn configure_omit_micro_layout(
 ) -> bool {
     let omit_effective = omit_requested && !matches!(algorithm, Algorithm::Layered);
     let mut graph_mut = graph.borrow_mut();
-    let props = graph_mut.connectable().shape().graph_element().properties_mut();
+    let props = graph_mut
+        .connectable()
+        .shape()
+        .graph_element()
+        .properties_mut();
     props.set_property(CoreOptions::ALGORITHM, Some(algorithm.id().to_string()));
     if omit_effective {
         props.set_property(CoreOptions::OMIT_NODE_MICRO_LAYOUT, Some(true));
@@ -273,10 +274,7 @@ fn verify_label_positions(node: &ElkNodeRef, omit_micro_layout: bool, context: &
     let (node_width, node_height) = node_dimensions(node);
 
     let (a_x, a_y) = label_xy(&label_by_text(node, "A"));
-    assert!(
-        a_y > 0.0,
-        "{context} label A y expected > 0, got {a_y}"
-    );
+    assert!(a_y > 0.0, "{context} label A y expected > 0, got {a_y}");
     let _ = a_x;
 
     let (b_x, b_y) = label_xy(&label_by_text(node, "B"));
@@ -300,10 +298,7 @@ fn verify_label_positions(node: &ElkNodeRef, omit_micro_layout: bool, context: &
     );
 
     let (d_x, d_y) = label_xy(&label_by_text(node, "D"));
-    assert!(
-        d_x < 0.0,
-        "{context} label D x expected < 0, got {d_x}"
-    );
+    assert!(d_x < 0.0, "{context} label D x expected < 0, got {d_x}");
     assert!(
         d_y > before_center_threshold && d_y < after_center_threshold,
         "{context} label D y expected between {before_center_threshold} and {after_center_threshold}, got {d_y}"

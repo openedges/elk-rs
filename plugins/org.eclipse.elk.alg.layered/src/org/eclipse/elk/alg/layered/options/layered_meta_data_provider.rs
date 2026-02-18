@@ -10,19 +10,20 @@ use org_eclipse_elk_core::org::eclipse::elk::core::data::{
     ILayoutMetaDataProvider, LayoutMetaDataRegistry, LayoutOptionData, LayoutOptionTarget,
     LayoutOptionType, LayoutOptionVisibility,
 };
-use org_eclipse_elk_core::org::eclipse::elk::core::options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_routing::EdgeRouting;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_alignment::PortAlignment;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::topdown_node_types::TopdownNodeTypes;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::CoreOptions;
 
 use super::{
     CenterEdgeLabelPlacementStrategy, ConstraintCalculationStrategy, CrossingMinimizationStrategy,
     CuttingStrategy, CycleBreakingStrategy, DirectionCongruency, EdgeLabelSideSelection,
     EdgeStraighteningStrategy, FixedAlignment, GraphCompactionStrategy, GreedySwitchType,
-    GroupOrderStrategy, InLayerConstraint, InteractiveReferencePoint, LayerUnzippingStrategy, LayeredOptions,
-    LayerConstraint, LayeringStrategy, LongEdgeOrderingStrategy, NodeFlexibility, NodePlacementStrategy,
-    NodePromotionStrategy, OrderingStrategy, PortSortingStrategy, SelfLoopDistributionStrategy,
-    SelfLoopOrderingStrategy, SplineRoutingMode, ValidifyStrategy, WrappingStrategy,
+    GroupOrderStrategy, InLayerConstraint, InteractiveReferencePoint, LayerConstraint,
+    LayerUnzippingStrategy, LayeredOptions, LayeringStrategy, LongEdgeOrderingStrategy,
+    NodeFlexibility, NodePlacementStrategy, NodePromotionStrategy, OrderingStrategy,
+    PortSortingStrategy, SelfLoopDistributionStrategy, SelfLoopOrderingStrategy, SplineRoutingMode,
+    ValidifyStrategy, WrappingStrategy,
 };
 use crate::org::eclipse::elk::alg::layered::components::ComponentOrderingStrategy;
 
@@ -1304,61 +1305,239 @@ fn register_consider_model_order_options(registry: &mut dyn LayoutMetaDataRegist
 fn register_option_supports(registry: &mut dyn LayoutMetaDataRegistry) {
     let algo = LayeredOptions::ALGORITHM_ID;
     // BEGIN GENERATED OPTION SUPPORTS
-    registry.add_option_support(algo, LayeredOptions::SPACING_COMMENT_COMMENT.id(), property_default_any(LayeredOptions::SPACING_COMMENT_COMMENT));
-    registry.add_option_support(algo, LayeredOptions::SPACING_COMMENT_NODE.id(), property_default_any(LayeredOptions::SPACING_COMMENT_NODE));
-    registry.add_option_support(algo, LayeredOptions::SPACING_COMPONENT_COMPONENT.id(), property_default_any(LayeredOptions::SPACING_COMPONENT_COMPONENT));
-    registry.add_option_support(algo, LayeredOptions::SPACING_EDGE_EDGE.id(), property_default_any(LayeredOptions::SPACING_EDGE_EDGE));
-    registry.add_option_support(algo, LayeredOptions::SPACING_EDGE_LABEL.id(), property_default_any(LayeredOptions::SPACING_EDGE_LABEL));
-    registry.add_option_support(algo, LayeredOptions::SPACING_EDGE_NODE.id(), property_default_any(LayeredOptions::SPACING_EDGE_NODE));
-    registry.add_option_support(algo, LayeredOptions::SPACING_LABEL_LABEL.id(), property_default_any(LayeredOptions::SPACING_LABEL_LABEL));
-    registry.add_option_support(algo, LayeredOptions::SPACING_LABEL_PORT_HORIZONTAL.id(), property_default_any(LayeredOptions::SPACING_LABEL_PORT_HORIZONTAL));
-    registry.add_option_support(algo, LayeredOptions::SPACING_LABEL_PORT_VERTICAL.id(), property_default_any(LayeredOptions::SPACING_LABEL_PORT_VERTICAL));
-    registry.add_option_support(algo, LayeredOptions::SPACING_LABEL_NODE.id(), property_default_any(LayeredOptions::SPACING_LABEL_NODE));
-    registry.add_option_support(algo, LayeredOptions::SPACING_NODE_NODE.id(), property_default_any(LayeredOptions::SPACING_NODE_NODE));
-    registry.add_option_support(algo, LayeredOptions::SPACING_NODE_SELF_LOOP.id(), property_default_any(LayeredOptions::SPACING_NODE_SELF_LOOP));
-    registry.add_option_support(algo, LayeredOptions::SPACING_PORT_PORT.id(), property_default_any(LayeredOptions::SPACING_PORT_PORT));
-    registry.add_option_support(algo, LayeredOptions::SPACING_INDIVIDUAL.id(), property_default_any(LayeredOptions::SPACING_INDIVIDUAL));
-    registry.add_option_support(algo, LayeredOptions::SPACING_BASE_VALUE.id(), property_default_any(LayeredOptions::SPACING_BASE_VALUE));
-    registry.add_option_support(algo, LayeredOptions::SPACING_EDGE_EDGE_BETWEEN_LAYERS.id(), property_default_any(LayeredOptions::SPACING_EDGE_EDGE_BETWEEN_LAYERS));
-    registry.add_option_support(algo, LayeredOptions::SPACING_EDGE_NODE_BETWEEN_LAYERS.id(), property_default_any(LayeredOptions::SPACING_EDGE_NODE_BETWEEN_LAYERS));
-    registry.add_option_support(algo, LayeredOptions::SPACING_NODE_NODE_BETWEEN_LAYERS.id(), property_default_any(LayeredOptions::SPACING_NODE_NODE_BETWEEN_LAYERS));
     registry.add_option_support(
         algo,
-        LayeredOptions::PRIORITY.id(),
-        explicit_default_any(0),
+        LayeredOptions::SPACING_COMMENT_COMMENT.id(),
+        property_default_any(LayeredOptions::SPACING_COMMENT_COMMENT),
     );
-    registry.add_option_support(algo, LayeredOptions::PRIORITY_DIRECTION.id(), property_default_any(LayeredOptions::PRIORITY_DIRECTION));
-    registry.add_option_support(algo, LayeredOptions::PRIORITY_SHORTNESS.id(), property_default_any(LayeredOptions::PRIORITY_SHORTNESS));
-    registry.add_option_support(algo, LayeredOptions::PRIORITY_STRAIGHTNESS.id(), property_default_any(LayeredOptions::PRIORITY_STRAIGHTNESS));
-    registry.add_option_support(algo, LayeredOptions::WRAPPING_STRATEGY.id(), property_default_any(LayeredOptions::WRAPPING_STRATEGY));
-    registry.add_option_support(algo, LayeredOptions::WRAPPING_ADDITIONAL_EDGE_SPACING.id(), property_default_any(LayeredOptions::WRAPPING_ADDITIONAL_EDGE_SPACING));
-    registry.add_option_support(algo, LayeredOptions::WRAPPING_CORRECTION_FACTOR.id(), property_default_any(LayeredOptions::WRAPPING_CORRECTION_FACTOR));
-    registry.add_option_support(algo, LayeredOptions::WRAPPING_CUTTING_STRATEGY.id(), property_default_any(LayeredOptions::WRAPPING_CUTTING_STRATEGY));
-    registry.add_option_support(algo, LayeredOptions::WRAPPING_CUTTING_CUTS.id(), property_default_any(LayeredOptions::WRAPPING_CUTTING_CUTS));
-    registry.add_option_support(algo, LayeredOptions::WRAPPING_CUTTING_MSD_FREEDOM.id(), property_default_any(LayeredOptions::WRAPPING_CUTTING_MSD_FREEDOM));
-    registry.add_option_support(algo, LayeredOptions::WRAPPING_VALIDIFY_STRATEGY.id(), property_default_any(LayeredOptions::WRAPPING_VALIDIFY_STRATEGY));
-    registry.add_option_support(algo, LayeredOptions::WRAPPING_VALIDIFY_FORBIDDEN_INDICES.id(), property_default_any(LayeredOptions::WRAPPING_VALIDIFY_FORBIDDEN_INDICES));
-    registry.add_option_support(algo, LayeredOptions::WRAPPING_MULTI_EDGE_IMPROVE_CUTS.id(), property_default_any(LayeredOptions::WRAPPING_MULTI_EDGE_IMPROVE_CUTS));
-    registry.add_option_support(algo, LayeredOptions::WRAPPING_MULTI_EDGE_DISTANCE_PENALTY.id(), property_default_any(LayeredOptions::WRAPPING_MULTI_EDGE_DISTANCE_PENALTY));
-    registry.add_option_support(algo, LayeredOptions::WRAPPING_MULTI_EDGE_IMPROVE_WRAPPED_EDGES.id(), property_default_any(LayeredOptions::WRAPPING_MULTI_EDGE_IMPROVE_WRAPPED_EDGES));
-    registry.add_option_support(algo, LayeredOptions::LAYER_UNZIPPING_STRATEGY.id(), property_default_any(LayeredOptions::LAYER_UNZIPPING_STRATEGY));
-    registry.add_option_support(algo, LayeredOptions::LAYER_UNZIPPING_MINIMIZE_EDGE_LENGTH.id(), property_default_any(LayeredOptions::LAYER_UNZIPPING_MINIMIZE_EDGE_LENGTH));
-    registry.add_option_support(algo, LayeredOptions::LAYER_UNZIPPING_LAYER_SPLIT.id(), property_default_any(LayeredOptions::LAYER_UNZIPPING_LAYER_SPLIT));
-    registry.add_option_support(algo, LayeredOptions::LAYER_UNZIPPING_RESET_ON_LONG_EDGES.id(), property_default_any(LayeredOptions::LAYER_UNZIPPING_RESET_ON_LONG_EDGES));
-    registry.add_option_support(algo, LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY.id(), property_default_any(LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY));
-    registry.add_option_support(algo, LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_DEFAULT.id(), property_default_any(LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_DEFAULT));
-    registry.add_option_support(algo, LayeredOptions::EDGE_ROUTING_SPLINES_MODE.id(), property_default_any(LayeredOptions::EDGE_ROUTING_SPLINES_MODE));
-    registry.add_option_support(algo, LayeredOptions::EDGE_ROUTING_SPLINES_SLOPPY_LAYER_SPACING_FACTOR.id(), property_default_any(LayeredOptions::EDGE_ROUTING_SPLINES_SLOPPY_LAYER_SPACING_FACTOR));
-    registry.add_option_support(algo, CoreOptions::TOPDOWN_LAYOUT.id(), property_default_any(CoreOptions::TOPDOWN_LAYOUT));
-    registry.add_option_support(algo, CoreOptions::TOPDOWN_SCALE_FACTOR.id(), property_default_any(CoreOptions::TOPDOWN_SCALE_FACTOR));
-    registry.add_option_support(algo, CoreOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH.id(), property_default_any(CoreOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH));
-    registry.add_option_support(algo, CoreOptions::TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO.id(), property_default_any(CoreOptions::TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO));
+    registry.add_option_support(
+        algo,
+        LayeredOptions::SPACING_COMMENT_NODE.id(),
+        property_default_any(LayeredOptions::SPACING_COMMENT_NODE),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::SPACING_COMPONENT_COMPONENT.id(),
+        property_default_any(LayeredOptions::SPACING_COMPONENT_COMPONENT),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::SPACING_EDGE_EDGE.id(),
+        property_default_any(LayeredOptions::SPACING_EDGE_EDGE),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::SPACING_EDGE_LABEL.id(),
+        property_default_any(LayeredOptions::SPACING_EDGE_LABEL),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::SPACING_EDGE_NODE.id(),
+        property_default_any(LayeredOptions::SPACING_EDGE_NODE),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::SPACING_LABEL_LABEL.id(),
+        property_default_any(LayeredOptions::SPACING_LABEL_LABEL),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::SPACING_LABEL_PORT_HORIZONTAL.id(),
+        property_default_any(LayeredOptions::SPACING_LABEL_PORT_HORIZONTAL),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::SPACING_LABEL_PORT_VERTICAL.id(),
+        property_default_any(LayeredOptions::SPACING_LABEL_PORT_VERTICAL),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::SPACING_LABEL_NODE.id(),
+        property_default_any(LayeredOptions::SPACING_LABEL_NODE),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::SPACING_NODE_NODE.id(),
+        property_default_any(LayeredOptions::SPACING_NODE_NODE),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::SPACING_NODE_SELF_LOOP.id(),
+        property_default_any(LayeredOptions::SPACING_NODE_SELF_LOOP),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::SPACING_PORT_PORT.id(),
+        property_default_any(LayeredOptions::SPACING_PORT_PORT),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::SPACING_INDIVIDUAL.id(),
+        property_default_any(LayeredOptions::SPACING_INDIVIDUAL),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::SPACING_BASE_VALUE.id(),
+        property_default_any(LayeredOptions::SPACING_BASE_VALUE),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::SPACING_EDGE_EDGE_BETWEEN_LAYERS.id(),
+        property_default_any(LayeredOptions::SPACING_EDGE_EDGE_BETWEEN_LAYERS),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::SPACING_EDGE_NODE_BETWEEN_LAYERS.id(),
+        property_default_any(LayeredOptions::SPACING_EDGE_NODE_BETWEEN_LAYERS),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::SPACING_NODE_NODE_BETWEEN_LAYERS.id(),
+        property_default_any(LayeredOptions::SPACING_NODE_NODE_BETWEEN_LAYERS),
+    );
+    registry.add_option_support(algo, LayeredOptions::PRIORITY.id(), explicit_default_any(0));
+    registry.add_option_support(
+        algo,
+        LayeredOptions::PRIORITY_DIRECTION.id(),
+        property_default_any(LayeredOptions::PRIORITY_DIRECTION),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::PRIORITY_SHORTNESS.id(),
+        property_default_any(LayeredOptions::PRIORITY_SHORTNESS),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::PRIORITY_STRAIGHTNESS.id(),
+        property_default_any(LayeredOptions::PRIORITY_STRAIGHTNESS),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::WRAPPING_STRATEGY.id(),
+        property_default_any(LayeredOptions::WRAPPING_STRATEGY),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::WRAPPING_ADDITIONAL_EDGE_SPACING.id(),
+        property_default_any(LayeredOptions::WRAPPING_ADDITIONAL_EDGE_SPACING),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::WRAPPING_CORRECTION_FACTOR.id(),
+        property_default_any(LayeredOptions::WRAPPING_CORRECTION_FACTOR),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::WRAPPING_CUTTING_STRATEGY.id(),
+        property_default_any(LayeredOptions::WRAPPING_CUTTING_STRATEGY),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::WRAPPING_CUTTING_CUTS.id(),
+        property_default_any(LayeredOptions::WRAPPING_CUTTING_CUTS),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::WRAPPING_CUTTING_MSD_FREEDOM.id(),
+        property_default_any(LayeredOptions::WRAPPING_CUTTING_MSD_FREEDOM),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::WRAPPING_VALIDIFY_STRATEGY.id(),
+        property_default_any(LayeredOptions::WRAPPING_VALIDIFY_STRATEGY),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::WRAPPING_VALIDIFY_FORBIDDEN_INDICES.id(),
+        property_default_any(LayeredOptions::WRAPPING_VALIDIFY_FORBIDDEN_INDICES),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::WRAPPING_MULTI_EDGE_IMPROVE_CUTS.id(),
+        property_default_any(LayeredOptions::WRAPPING_MULTI_EDGE_IMPROVE_CUTS),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::WRAPPING_MULTI_EDGE_DISTANCE_PENALTY.id(),
+        property_default_any(LayeredOptions::WRAPPING_MULTI_EDGE_DISTANCE_PENALTY),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::WRAPPING_MULTI_EDGE_IMPROVE_WRAPPED_EDGES.id(),
+        property_default_any(LayeredOptions::WRAPPING_MULTI_EDGE_IMPROVE_WRAPPED_EDGES),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::LAYER_UNZIPPING_STRATEGY.id(),
+        property_default_any(LayeredOptions::LAYER_UNZIPPING_STRATEGY),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::LAYER_UNZIPPING_MINIMIZE_EDGE_LENGTH.id(),
+        property_default_any(LayeredOptions::LAYER_UNZIPPING_MINIMIZE_EDGE_LENGTH),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::LAYER_UNZIPPING_LAYER_SPLIT.id(),
+        property_default_any(LayeredOptions::LAYER_UNZIPPING_LAYER_SPLIT),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::LAYER_UNZIPPING_RESET_ON_LONG_EDGES.id(),
+        property_default_any(LayeredOptions::LAYER_UNZIPPING_RESET_ON_LONG_EDGES),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY.id(),
+        property_default_any(LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_DEFAULT.id(),
+        property_default_any(
+            LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_DEFAULT,
+        ),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::EDGE_ROUTING_SPLINES_MODE.id(),
+        property_default_any(LayeredOptions::EDGE_ROUTING_SPLINES_MODE),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::EDGE_ROUTING_SPLINES_SLOPPY_LAYER_SPACING_FACTOR.id(),
+        property_default_any(LayeredOptions::EDGE_ROUTING_SPLINES_SLOPPY_LAYER_SPACING_FACTOR),
+    );
+    registry.add_option_support(
+        algo,
+        CoreOptions::TOPDOWN_LAYOUT.id(),
+        property_default_any(CoreOptions::TOPDOWN_LAYOUT),
+    );
+    registry.add_option_support(
+        algo,
+        CoreOptions::TOPDOWN_SCALE_FACTOR.id(),
+        property_default_any(CoreOptions::TOPDOWN_SCALE_FACTOR),
+    );
+    registry.add_option_support(
+        algo,
+        CoreOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH.id(),
+        property_default_any(CoreOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH),
+    );
+    registry.add_option_support(
+        algo,
+        CoreOptions::TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO.id(),
+        property_default_any(CoreOptions::TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO),
+    );
     registry.add_option_support(
         algo,
         LayeredOptions::TOPDOWN_NODE_TYPE.id(),
         explicit_default_any(TopdownNodeTypes::HierarchicalNode),
     );
-    registry.add_option_support(algo, CoreOptions::PADDING.id(), property_default_any(CoreOptions::PADDING));
+    registry.add_option_support(
+        algo,
+        CoreOptions::PADDING.id(),
+        property_default_any(CoreOptions::PADDING),
+    );
     registry.add_option_support(
         algo,
         LayeredOptions::EDGE_ROUTING.id(),
@@ -1379,115 +1558,515 @@ fn register_option_supports(registry: &mut dyn LayoutMetaDataRegistry) {
         LayeredOptions::ASPECT_RATIO.id(),
         explicit_default_any(1.6),
     );
-    registry.add_option_support(algo, CoreOptions::NO_LAYOUT.id(), property_default_any(CoreOptions::NO_LAYOUT));
-    registry.add_option_support(algo, LayeredOptions::PORT_CONSTRAINTS.id(), property_default_any(LayeredOptions::PORT_CONSTRAINTS));
-    registry.add_option_support(algo, LayeredOptions::PORT_SIDE.id(), property_default_any(LayeredOptions::PORT_SIDE));
-    registry.add_option_support(algo, CoreOptions::DEBUG_MODE.id(), property_default_any(CoreOptions::DEBUG_MODE));
-    registry.add_option_support(algo, LayeredOptions::ALIGNMENT.id(), property_default_any(LayeredOptions::ALIGNMENT));
-    registry.add_option_support(algo, LayeredOptions::HIERARCHY_HANDLING.id(), property_default_any(LayeredOptions::HIERARCHY_HANDLING));
+    registry.add_option_support(
+        algo,
+        CoreOptions::NO_LAYOUT.id(),
+        property_default_any(CoreOptions::NO_LAYOUT),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::PORT_CONSTRAINTS.id(),
+        property_default_any(LayeredOptions::PORT_CONSTRAINTS),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::PORT_SIDE.id(),
+        property_default_any(LayeredOptions::PORT_SIDE),
+    );
+    registry.add_option_support(
+        algo,
+        CoreOptions::DEBUG_MODE.id(),
+        property_default_any(CoreOptions::DEBUG_MODE),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::ALIGNMENT.id(),
+        property_default_any(LayeredOptions::ALIGNMENT),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::HIERARCHY_HANDLING.id(),
+        property_default_any(LayeredOptions::HIERARCHY_HANDLING),
+    );
     registry.add_option_support(
         algo,
         LayeredOptions::SEPARATE_CONNECTED_COMPONENTS.id(),
         explicit_default_any(true),
     );
-    registry.add_option_support(algo, CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE.id(), property_default_any(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE));
-    registry.add_option_support(algo, CoreOptions::INSIDE_SELF_LOOPS_YO.id(), property_default_any(CoreOptions::INSIDE_SELF_LOOPS_YO));
-    registry.add_option_support(algo, LayeredOptions::NODE_SIZE_CONSTRAINTS.id(), property_default_any(LayeredOptions::NODE_SIZE_CONSTRAINTS));
-    registry.add_option_support(algo, CoreOptions::NODE_SIZE_OPTIONS.id(), property_default_any(CoreOptions::NODE_SIZE_OPTIONS));
-    registry.add_option_support(algo, CoreOptions::NODE_SIZE_FIXED_GRAPH_SIZE.id(), property_default_any(CoreOptions::NODE_SIZE_FIXED_GRAPH_SIZE));
-    registry.add_option_support(algo, LayeredOptions::DIRECTION.id(), property_default_any(LayeredOptions::DIRECTION));
-    registry.add_option_support(algo, LayeredOptions::NODE_LABELS_PLACEMENT.id(), property_default_any(LayeredOptions::NODE_LABELS_PLACEMENT));
-    registry.add_option_support(algo, LayeredOptions::NODE_LABELS_PADDING.id(), property_default_any(LayeredOptions::NODE_LABELS_PADDING));
-    registry.add_option_support(algo, CoreOptions::PORT_LABELS_PLACEMENT.id(), property_default_any(CoreOptions::PORT_LABELS_PLACEMENT));
-    registry.add_option_support(algo, CoreOptions::PORT_LABELS_NEXT_TO_PORT_IF_POSSIBLE.id(), property_default_any(CoreOptions::PORT_LABELS_NEXT_TO_PORT_IF_POSSIBLE));
-    registry.add_option_support(algo, CoreOptions::PORT_LABELS_TREAT_AS_GROUP.id(), property_default_any(CoreOptions::PORT_LABELS_TREAT_AS_GROUP));
+    registry.add_option_support(
+        algo,
+        CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE.id(),
+        property_default_any(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE),
+    );
+    registry.add_option_support(
+        algo,
+        CoreOptions::INSIDE_SELF_LOOPS_YO.id(),
+        property_default_any(CoreOptions::INSIDE_SELF_LOOPS_YO),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::NODE_SIZE_CONSTRAINTS.id(),
+        property_default_any(LayeredOptions::NODE_SIZE_CONSTRAINTS),
+    );
+    registry.add_option_support(
+        algo,
+        CoreOptions::NODE_SIZE_OPTIONS.id(),
+        property_default_any(CoreOptions::NODE_SIZE_OPTIONS),
+    );
+    registry.add_option_support(
+        algo,
+        CoreOptions::NODE_SIZE_FIXED_GRAPH_SIZE.id(),
+        property_default_any(CoreOptions::NODE_SIZE_FIXED_GRAPH_SIZE),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::DIRECTION.id(),
+        property_default_any(LayeredOptions::DIRECTION),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::NODE_LABELS_PLACEMENT.id(),
+        property_default_any(LayeredOptions::NODE_LABELS_PLACEMENT),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::NODE_LABELS_PADDING.id(),
+        property_default_any(LayeredOptions::NODE_LABELS_PADDING),
+    );
+    registry.add_option_support(
+        algo,
+        CoreOptions::PORT_LABELS_PLACEMENT.id(),
+        property_default_any(CoreOptions::PORT_LABELS_PLACEMENT),
+    );
+    registry.add_option_support(
+        algo,
+        CoreOptions::PORT_LABELS_NEXT_TO_PORT_IF_POSSIBLE.id(),
+        property_default_any(CoreOptions::PORT_LABELS_NEXT_TO_PORT_IF_POSSIBLE),
+    );
+    registry.add_option_support(
+        algo,
+        CoreOptions::PORT_LABELS_TREAT_AS_GROUP.id(),
+        property_default_any(CoreOptions::PORT_LABELS_TREAT_AS_GROUP),
+    );
     registry.add_option_support(
         algo,
         CoreOptions::PORT_ALIGNMENT_DEFAULT.id(),
         explicit_default_any(PortAlignment::Justified),
     );
-    registry.add_option_support(algo, CoreOptions::PORT_ALIGNMENT_NORTH.id(), property_default_any(CoreOptions::PORT_ALIGNMENT_NORTH));
-    registry.add_option_support(algo, CoreOptions::PORT_ALIGNMENT_SOUTH.id(), property_default_any(CoreOptions::PORT_ALIGNMENT_SOUTH));
-    registry.add_option_support(algo, CoreOptions::PORT_ALIGNMENT_WEST.id(), property_default_any(CoreOptions::PORT_ALIGNMENT_WEST));
-    registry.add_option_support(algo, CoreOptions::PORT_ALIGNMENT_EAST.id(), property_default_any(CoreOptions::PORT_ALIGNMENT_EAST));
-    registry.add_option_support(algo, LayeredOptions::UNNECESSARY_BENDPOINTS.id(), property_default_any(LayeredOptions::UNNECESSARY_BENDPOINTS));
-    registry.add_option_support(algo, LayeredOptions::LAYERING_STRATEGY.id(), property_default_any(LayeredOptions::LAYERING_STRATEGY));
-    registry.add_option_support(algo, LayeredOptions::LAYERING_NODE_PROMOTION_STRATEGY.id(), property_default_any(LayeredOptions::LAYERING_NODE_PROMOTION_STRATEGY));
-    registry.add_option_support(algo, LayeredOptions::THOROUGHNESS.id(), property_default_any(LayeredOptions::THOROUGHNESS));
-    registry.add_option_support(algo, LayeredOptions::LAYERING_LAYER_CONSTRAINT.id(), property_default_any(LayeredOptions::LAYERING_LAYER_CONSTRAINT));
-    registry.add_option_support(algo, LayeredOptions::CYCLE_BREAKING_STRATEGY.id(), property_default_any(LayeredOptions::CYCLE_BREAKING_STRATEGY));
-    registry.add_option_support(algo, LayeredOptions::CROSSING_MINIMIZATION_STRATEGY.id(), property_default_any(LayeredOptions::CROSSING_MINIMIZATION_STRATEGY));
-    registry.add_option_support(algo, LayeredOptions::CROSSING_MINIMIZATION_FORCE_NODE_MODEL_ORDER.id(), property_default_any(LayeredOptions::CROSSING_MINIMIZATION_FORCE_NODE_MODEL_ORDER));
-    registry.add_option_support(algo, LayeredOptions::CROSSING_MINIMIZATION_GREEDY_SWITCH_ACTIVATION_THRESHOLD.id(), property_default_any(LayeredOptions::CROSSING_MINIMIZATION_GREEDY_SWITCH_ACTIVATION_THRESHOLD));
-    registry.add_option_support(algo, LayeredOptions::CROSSING_MINIMIZATION_GREEDY_SWITCH_TYPE.id(), property_default_any(LayeredOptions::CROSSING_MINIMIZATION_GREEDY_SWITCH_TYPE));
-    registry.add_option_support(algo, LayeredOptions::CROSSING_MINIMIZATION_GREEDY_SWITCH_HIERARCHICAL_TYPE.id(), property_default_any(LayeredOptions::CROSSING_MINIMIZATION_GREEDY_SWITCH_HIERARCHICAL_TYPE));
-    registry.add_option_support(algo, LayeredOptions::CROSSING_MINIMIZATION_SEMI_INTERACTIVE.id(), property_default_any(LayeredOptions::CROSSING_MINIMIZATION_SEMI_INTERACTIVE));
-    registry.add_option_support(algo, LayeredOptions::MERGE_EDGES.id(), property_default_any(LayeredOptions::MERGE_EDGES));
-    registry.add_option_support(algo, LayeredOptions::MERGE_HIERARCHY_EDGES.id(), property_default_any(LayeredOptions::MERGE_HIERARCHY_EDGES));
-    registry.add_option_support(algo, LayeredOptions::INTERACTIVE_REFERENCE_POINT.id(), property_default_any(LayeredOptions::INTERACTIVE_REFERENCE_POINT));
-    registry.add_option_support(algo, LayeredOptions::NODE_PLACEMENT_STRATEGY.id(), property_default_any(LayeredOptions::NODE_PLACEMENT_STRATEGY));
-    registry.add_option_support(algo, LayeredOptions::NODE_PLACEMENT_BK_FIXED_ALIGNMENT.id(), property_default_any(LayeredOptions::NODE_PLACEMENT_BK_FIXED_ALIGNMENT));
-    registry.add_option_support(algo, LayeredOptions::FEEDBACK_EDGES.id(), property_default_any(LayeredOptions::FEEDBACK_EDGES));
-    registry.add_option_support(algo, LayeredOptions::NODE_PLACEMENT_LINEAR_SEGMENTS_DEFLECTION_DAMPENING.id(), property_default_any(LayeredOptions::NODE_PLACEMENT_LINEAR_SEGMENTS_DEFLECTION_DAMPENING));
-    registry.add_option_support(algo, LayeredOptions::EDGE_ROUTING_SELF_LOOP_DISTRIBUTION.id(), property_default_any(LayeredOptions::EDGE_ROUTING_SELF_LOOP_DISTRIBUTION));
-    registry.add_option_support(algo, LayeredOptions::EDGE_ROUTING_SELF_LOOP_ORDERING.id(), property_default_any(LayeredOptions::EDGE_ROUTING_SELF_LOOP_ORDERING));
-    registry.add_option_support(algo, CoreOptions::CONTENT_ALIGNMENT.id(), property_default_any(CoreOptions::CONTENT_ALIGNMENT));
-    registry.add_option_support(algo, LayeredOptions::NODE_PLACEMENT_BK_EDGE_STRAIGHTENING.id(), property_default_any(LayeredOptions::NODE_PLACEMENT_BK_EDGE_STRAIGHTENING));
-    registry.add_option_support(algo, LayeredOptions::COMPACTION_POST_COMPACTION_STRATEGY.id(), property_default_any(LayeredOptions::COMPACTION_POST_COMPACTION_STRATEGY));
-    registry.add_option_support(algo, LayeredOptions::COMPACTION_POST_COMPACTION_CONSTRAINTS.id(), property_default_any(LayeredOptions::COMPACTION_POST_COMPACTION_CONSTRAINTS));
-    registry.add_option_support(algo, LayeredOptions::COMPACTION_CONNECTED_COMPONENTS.id(), property_default_any(LayeredOptions::COMPACTION_CONNECTED_COMPONENTS));
-    registry.add_option_support(algo, LayeredOptions::HIGH_DEGREE_NODES_TREATMENT.id(), property_default_any(LayeredOptions::HIGH_DEGREE_NODES_TREATMENT));
-    registry.add_option_support(algo, LayeredOptions::HIGH_DEGREE_NODES_THRESHOLD.id(), property_default_any(LayeredOptions::HIGH_DEGREE_NODES_THRESHOLD));
-    registry.add_option_support(algo, LayeredOptions::HIGH_DEGREE_NODES_TREE_HEIGHT.id(), property_default_any(LayeredOptions::HIGH_DEGREE_NODES_TREE_HEIGHT));
-    registry.add_option_support(algo, LayeredOptions::NODE_SIZE_MINIMUM.id(), property_default_any(LayeredOptions::NODE_SIZE_MINIMUM));
-    registry.add_option_support(algo, LayeredOptions::JUNCTION_POINTS.id(), property_default_any(LayeredOptions::JUNCTION_POINTS));
-    registry.add_option_support(algo, CoreOptions::EDGE_THICKNESS.id(), property_default_any(CoreOptions::EDGE_THICKNESS));
-    registry.add_option_support(algo, LayeredOptions::EDGE_LABELS_PLACEMENT.id(), property_default_any(LayeredOptions::EDGE_LABELS_PLACEMENT));
-    registry.add_option_support(algo, LayeredOptions::EDGE_LABELS_INLINE.id(), property_default_any(LayeredOptions::EDGE_LABELS_INLINE));
-    registry.add_option_support(algo, LayeredOptions::CROSSING_MINIMIZATION_HIERARCHICAL_SWEEPINESS.id(), property_default_any(LayeredOptions::CROSSING_MINIMIZATION_HIERARCHICAL_SWEEPINESS));
-    registry.add_option_support(algo, LayeredOptions::PORT_INDEX.id(), property_default_any(LayeredOptions::PORT_INDEX));
-    registry.add_option_support(algo, LayeredOptions::COMMENT_BOX.id(), property_default_any(LayeredOptions::COMMENT_BOX));
-    registry.add_option_support(algo, LayeredOptions::HYPERNODE.id(), property_default_any(LayeredOptions::HYPERNODE));
-    registry.add_option_support(algo, LayeredOptions::PORT_ANCHOR.id(), property_default_any(LayeredOptions::PORT_ANCHOR));
-    registry.add_option_support(algo, CoreOptions::PARTITIONING_ACTIVATE.id(), property_default_any(CoreOptions::PARTITIONING_ACTIVATE));
-    registry.add_option_support(algo, CoreOptions::PARTITIONING_PARTITION.id(), property_default_any(CoreOptions::PARTITIONING_PARTITION));
-    registry.add_option_support(algo, LayeredOptions::LAYERING_MIN_WIDTH_UPPER_BOUND_ON_WIDTH.id(), property_default_any(LayeredOptions::LAYERING_MIN_WIDTH_UPPER_BOUND_ON_WIDTH));
-    registry.add_option_support(algo, LayeredOptions::LAYERING_MIN_WIDTH_UPPER_LAYER_ESTIMATION_SCALING_FACTOR.id(), property_default_any(LayeredOptions::LAYERING_MIN_WIDTH_UPPER_LAYER_ESTIMATION_SCALING_FACTOR));
-    registry.add_option_support(algo, LayeredOptions::POSITION.id(), property_default_any(LayeredOptions::POSITION));
-    registry.add_option_support(algo, LayeredOptions::ALLOW_NON_FLOW_PORTS_TO_SWITCH_SIDES.id(), property_default_any(LayeredOptions::ALLOW_NON_FLOW_PORTS_TO_SWITCH_SIDES));
-    registry.add_option_support(algo, LayeredOptions::LAYERING_NODE_PROMOTION_MAX_ITERATIONS.id(), property_default_any(LayeredOptions::LAYERING_NODE_PROMOTION_MAX_ITERATIONS));
-    registry.add_option_support(algo, LayeredOptions::EDGE_LABELS_SIDE_SELECTION.id(), property_default_any(LayeredOptions::EDGE_LABELS_SIDE_SELECTION));
-    registry.add_option_support(algo, LayeredOptions::EDGE_LABELS_CENTER_LABEL_PLACEMENT_STRATEGY.id(), property_default_any(LayeredOptions::EDGE_LABELS_CENTER_LABEL_PLACEMENT_STRATEGY));
-    registry.add_option_support(algo, CoreOptions::MARGINS.id(), property_default_any(CoreOptions::MARGINS));
-    registry.add_option_support(algo, LayeredOptions::LAYERING_COFFMAN_GRAHAM_LAYER_BOUND.id(), property_default_any(LayeredOptions::LAYERING_COFFMAN_GRAHAM_LAYER_BOUND));
-    registry.add_option_support(algo, LayeredOptions::NODE_PLACEMENT_FAVOR_STRAIGHT_EDGES.id(), property_default_any(LayeredOptions::NODE_PLACEMENT_FAVOR_STRAIGHT_EDGES));
-    registry.add_option_support(algo, LayeredOptions::SPACING_PORTS_SURROUNDING.id(), property_default_any(LayeredOptions::SPACING_PORTS_SURROUNDING));
-    registry.add_option_support(algo, LayeredOptions::DIRECTION_CONGRUENCY.id(), property_default_any(LayeredOptions::DIRECTION_CONGRUENCY));
-    registry.add_option_support(algo, LayeredOptions::PORT_SORTING_STRATEGY.id(), property_default_any(LayeredOptions::PORT_SORTING_STRATEGY));
-    registry.add_option_support(algo, LayeredOptions::EDGE_ROUTING_POLYLINE_SLOPED_EDGE_ZONE_WIDTH.id(), property_default_any(LayeredOptions::EDGE_ROUTING_POLYLINE_SLOPED_EDGE_ZONE_WIDTH));
-    registry.add_option_support(algo, LayeredOptions::CROSSING_MINIMIZATION_IN_LAYER_PRED_OF.id(), property_default_any(LayeredOptions::CROSSING_MINIMIZATION_IN_LAYER_PRED_OF));
-    registry.add_option_support(algo, LayeredOptions::CROSSING_MINIMIZATION_IN_LAYER_SUCC_OF.id(), property_default_any(LayeredOptions::CROSSING_MINIMIZATION_IN_LAYER_SUCC_OF));
-    registry.add_option_support(algo, LayeredOptions::LAYERING_LAYER_CHOICE_CONSTRAINT.id(), property_default_any(LayeredOptions::LAYERING_LAYER_CHOICE_CONSTRAINT));
-    registry.add_option_support(algo, LayeredOptions::CROSSING_MINIMIZATION_POSITION_CHOICE_CONSTRAINT.id(), property_default_any(LayeredOptions::CROSSING_MINIMIZATION_POSITION_CHOICE_CONSTRAINT));
-    registry.add_option_support(algo, LayeredOptions::INTERACTIVE_LAYOUT.id(), property_default_any(LayeredOptions::INTERACTIVE_LAYOUT));
-    registry.add_option_support(algo, LayeredOptions::LAYERING_LAYER_ID.id(), property_default_any(LayeredOptions::LAYERING_LAYER_ID));
-    registry.add_option_support(algo, LayeredOptions::CROSSING_MINIMIZATION_POSITION_ID.id(), property_default_any(LayeredOptions::CROSSING_MINIMIZATION_POSITION_ID));
-    registry.add_option_support(algo, LayeredOptions::CONSIDER_MODEL_ORDER_STRATEGY.id(), property_default_any(LayeredOptions::CONSIDER_MODEL_ORDER_STRATEGY));
-    registry.add_option_support(algo, LayeredOptions::CONSIDER_MODEL_ORDER_LONG_EDGE_STRATEGY.id(), property_default_any(LayeredOptions::CONSIDER_MODEL_ORDER_LONG_EDGE_STRATEGY));
-    registry.add_option_support(algo, LayeredOptions::CONSIDER_MODEL_ORDER_CROSSING_COUNTER_NODE_INFLUENCE.id(), property_default_any(LayeredOptions::CONSIDER_MODEL_ORDER_CROSSING_COUNTER_NODE_INFLUENCE));
-    registry.add_option_support(algo, LayeredOptions::CONSIDER_MODEL_ORDER_CROSSING_COUNTER_PORT_INFLUENCE.id(), property_default_any(LayeredOptions::CONSIDER_MODEL_ORDER_CROSSING_COUNTER_PORT_INFLUENCE));
-    registry.add_option_support(algo, LayeredOptions::CONSIDER_MODEL_ORDER_NO_MODEL_ORDER.id(), property_default_any(LayeredOptions::CONSIDER_MODEL_ORDER_NO_MODEL_ORDER));
-    registry.add_option_support(algo, LayeredOptions::CONSIDER_MODEL_ORDER_COMPONENTS.id(), property_default_any(LayeredOptions::CONSIDER_MODEL_ORDER_COMPONENTS));
-    registry.add_option_support(algo, LayeredOptions::CONSIDER_MODEL_ORDER_PORT_MODEL_ORDER.id(), property_default_any(LayeredOptions::CONSIDER_MODEL_ORDER_PORT_MODEL_ORDER));
-    registry.add_option_support(algo, LayeredOptions::GROUP_MODEL_ORDER_CYCLE_BREAKING_ID.id(), property_default_any(LayeredOptions::GROUP_MODEL_ORDER_CYCLE_BREAKING_ID));
-    registry.add_option_support(algo, LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID.id(), property_default_any(LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID));
-    registry.add_option_support(algo, LayeredOptions::GROUP_MODEL_ORDER_COMPONENT_GROUP_ID.id(), property_default_any(LayeredOptions::GROUP_MODEL_ORDER_COMPONENT_GROUP_ID));
-    registry.add_option_support(algo, LayeredOptions::GROUP_MODEL_ORDER_CB_GROUP_ORDER_STRATEGY.id(), property_default_any(LayeredOptions::GROUP_MODEL_ORDER_CB_GROUP_ORDER_STRATEGY));
-    registry.add_option_support(algo, LayeredOptions::GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY.id(), property_default_any(LayeredOptions::GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY));
-    registry.add_option_support(algo, LayeredOptions::GROUP_MODEL_ORDER_CM_ENFORCED_GROUP_ORDERS.id(), property_default_any(LayeredOptions::GROUP_MODEL_ORDER_CM_ENFORCED_GROUP_ORDERS));
-    registry.add_option_support(algo, LayeredOptions::GROUP_MODEL_ORDER_CB_PREFERRED_SOURCE_ID.id(), property_default_any(LayeredOptions::GROUP_MODEL_ORDER_CB_PREFERRED_SOURCE_ID));
-    registry.add_option_support(algo, LayeredOptions::GROUP_MODEL_ORDER_CB_PREFERRED_TARGET_ID.id(), property_default_any(LayeredOptions::GROUP_MODEL_ORDER_CB_PREFERRED_TARGET_ID));
-    registry.add_option_support(algo, LayeredOptions::GENERATE_POSITION_AND_LAYER_IDS.id(), property_default_any(LayeredOptions::GENERATE_POSITION_AND_LAYER_IDS));
+    registry.add_option_support(
+        algo,
+        CoreOptions::PORT_ALIGNMENT_NORTH.id(),
+        property_default_any(CoreOptions::PORT_ALIGNMENT_NORTH),
+    );
+    registry.add_option_support(
+        algo,
+        CoreOptions::PORT_ALIGNMENT_SOUTH.id(),
+        property_default_any(CoreOptions::PORT_ALIGNMENT_SOUTH),
+    );
+    registry.add_option_support(
+        algo,
+        CoreOptions::PORT_ALIGNMENT_WEST.id(),
+        property_default_any(CoreOptions::PORT_ALIGNMENT_WEST),
+    );
+    registry.add_option_support(
+        algo,
+        CoreOptions::PORT_ALIGNMENT_EAST.id(),
+        property_default_any(CoreOptions::PORT_ALIGNMENT_EAST),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::UNNECESSARY_BENDPOINTS.id(),
+        property_default_any(LayeredOptions::UNNECESSARY_BENDPOINTS),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::LAYERING_STRATEGY.id(),
+        property_default_any(LayeredOptions::LAYERING_STRATEGY),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::LAYERING_NODE_PROMOTION_STRATEGY.id(),
+        property_default_any(LayeredOptions::LAYERING_NODE_PROMOTION_STRATEGY),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::THOROUGHNESS.id(),
+        property_default_any(LayeredOptions::THOROUGHNESS),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::LAYERING_LAYER_CONSTRAINT.id(),
+        property_default_any(LayeredOptions::LAYERING_LAYER_CONSTRAINT),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::CYCLE_BREAKING_STRATEGY.id(),
+        property_default_any(LayeredOptions::CYCLE_BREAKING_STRATEGY),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::CROSSING_MINIMIZATION_STRATEGY.id(),
+        property_default_any(LayeredOptions::CROSSING_MINIMIZATION_STRATEGY),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::CROSSING_MINIMIZATION_FORCE_NODE_MODEL_ORDER.id(),
+        property_default_any(LayeredOptions::CROSSING_MINIMIZATION_FORCE_NODE_MODEL_ORDER),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::CROSSING_MINIMIZATION_GREEDY_SWITCH_ACTIVATION_THRESHOLD.id(),
+        property_default_any(
+            LayeredOptions::CROSSING_MINIMIZATION_GREEDY_SWITCH_ACTIVATION_THRESHOLD,
+        ),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::CROSSING_MINIMIZATION_GREEDY_SWITCH_TYPE.id(),
+        property_default_any(LayeredOptions::CROSSING_MINIMIZATION_GREEDY_SWITCH_TYPE),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::CROSSING_MINIMIZATION_GREEDY_SWITCH_HIERARCHICAL_TYPE.id(),
+        property_default_any(LayeredOptions::CROSSING_MINIMIZATION_GREEDY_SWITCH_HIERARCHICAL_TYPE),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::CROSSING_MINIMIZATION_SEMI_INTERACTIVE.id(),
+        property_default_any(LayeredOptions::CROSSING_MINIMIZATION_SEMI_INTERACTIVE),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::MERGE_EDGES.id(),
+        property_default_any(LayeredOptions::MERGE_EDGES),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::MERGE_HIERARCHY_EDGES.id(),
+        property_default_any(LayeredOptions::MERGE_HIERARCHY_EDGES),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::INTERACTIVE_REFERENCE_POINT.id(),
+        property_default_any(LayeredOptions::INTERACTIVE_REFERENCE_POINT),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::NODE_PLACEMENT_STRATEGY.id(),
+        property_default_any(LayeredOptions::NODE_PLACEMENT_STRATEGY),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::NODE_PLACEMENT_BK_FIXED_ALIGNMENT.id(),
+        property_default_any(LayeredOptions::NODE_PLACEMENT_BK_FIXED_ALIGNMENT),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::FEEDBACK_EDGES.id(),
+        property_default_any(LayeredOptions::FEEDBACK_EDGES),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::NODE_PLACEMENT_LINEAR_SEGMENTS_DEFLECTION_DAMPENING.id(),
+        property_default_any(LayeredOptions::NODE_PLACEMENT_LINEAR_SEGMENTS_DEFLECTION_DAMPENING),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::EDGE_ROUTING_SELF_LOOP_DISTRIBUTION.id(),
+        property_default_any(LayeredOptions::EDGE_ROUTING_SELF_LOOP_DISTRIBUTION),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::EDGE_ROUTING_SELF_LOOP_ORDERING.id(),
+        property_default_any(LayeredOptions::EDGE_ROUTING_SELF_LOOP_ORDERING),
+    );
+    registry.add_option_support(
+        algo,
+        CoreOptions::CONTENT_ALIGNMENT.id(),
+        property_default_any(CoreOptions::CONTENT_ALIGNMENT),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::NODE_PLACEMENT_BK_EDGE_STRAIGHTENING.id(),
+        property_default_any(LayeredOptions::NODE_PLACEMENT_BK_EDGE_STRAIGHTENING),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::COMPACTION_POST_COMPACTION_STRATEGY.id(),
+        property_default_any(LayeredOptions::COMPACTION_POST_COMPACTION_STRATEGY),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::COMPACTION_POST_COMPACTION_CONSTRAINTS.id(),
+        property_default_any(LayeredOptions::COMPACTION_POST_COMPACTION_CONSTRAINTS),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::COMPACTION_CONNECTED_COMPONENTS.id(),
+        property_default_any(LayeredOptions::COMPACTION_CONNECTED_COMPONENTS),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::HIGH_DEGREE_NODES_TREATMENT.id(),
+        property_default_any(LayeredOptions::HIGH_DEGREE_NODES_TREATMENT),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::HIGH_DEGREE_NODES_THRESHOLD.id(),
+        property_default_any(LayeredOptions::HIGH_DEGREE_NODES_THRESHOLD),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::HIGH_DEGREE_NODES_TREE_HEIGHT.id(),
+        property_default_any(LayeredOptions::HIGH_DEGREE_NODES_TREE_HEIGHT),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::NODE_SIZE_MINIMUM.id(),
+        property_default_any(LayeredOptions::NODE_SIZE_MINIMUM),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::JUNCTION_POINTS.id(),
+        property_default_any(LayeredOptions::JUNCTION_POINTS),
+    );
+    registry.add_option_support(
+        algo,
+        CoreOptions::EDGE_THICKNESS.id(),
+        property_default_any(CoreOptions::EDGE_THICKNESS),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::EDGE_LABELS_PLACEMENT.id(),
+        property_default_any(LayeredOptions::EDGE_LABELS_PLACEMENT),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::EDGE_LABELS_INLINE.id(),
+        property_default_any(LayeredOptions::EDGE_LABELS_INLINE),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::CROSSING_MINIMIZATION_HIERARCHICAL_SWEEPINESS.id(),
+        property_default_any(LayeredOptions::CROSSING_MINIMIZATION_HIERARCHICAL_SWEEPINESS),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::PORT_INDEX.id(),
+        property_default_any(LayeredOptions::PORT_INDEX),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::COMMENT_BOX.id(),
+        property_default_any(LayeredOptions::COMMENT_BOX),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::HYPERNODE.id(),
+        property_default_any(LayeredOptions::HYPERNODE),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::PORT_ANCHOR.id(),
+        property_default_any(LayeredOptions::PORT_ANCHOR),
+    );
+    registry.add_option_support(
+        algo,
+        CoreOptions::PARTITIONING_ACTIVATE.id(),
+        property_default_any(CoreOptions::PARTITIONING_ACTIVATE),
+    );
+    registry.add_option_support(
+        algo,
+        CoreOptions::PARTITIONING_PARTITION.id(),
+        property_default_any(CoreOptions::PARTITIONING_PARTITION),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::LAYERING_MIN_WIDTH_UPPER_BOUND_ON_WIDTH.id(),
+        property_default_any(LayeredOptions::LAYERING_MIN_WIDTH_UPPER_BOUND_ON_WIDTH),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::LAYERING_MIN_WIDTH_UPPER_LAYER_ESTIMATION_SCALING_FACTOR.id(),
+        property_default_any(
+            LayeredOptions::LAYERING_MIN_WIDTH_UPPER_LAYER_ESTIMATION_SCALING_FACTOR,
+        ),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::POSITION.id(),
+        property_default_any(LayeredOptions::POSITION),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::ALLOW_NON_FLOW_PORTS_TO_SWITCH_SIDES.id(),
+        property_default_any(LayeredOptions::ALLOW_NON_FLOW_PORTS_TO_SWITCH_SIDES),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::LAYERING_NODE_PROMOTION_MAX_ITERATIONS.id(),
+        property_default_any(LayeredOptions::LAYERING_NODE_PROMOTION_MAX_ITERATIONS),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::EDGE_LABELS_SIDE_SELECTION.id(),
+        property_default_any(LayeredOptions::EDGE_LABELS_SIDE_SELECTION),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::EDGE_LABELS_CENTER_LABEL_PLACEMENT_STRATEGY.id(),
+        property_default_any(LayeredOptions::EDGE_LABELS_CENTER_LABEL_PLACEMENT_STRATEGY),
+    );
+    registry.add_option_support(
+        algo,
+        CoreOptions::MARGINS.id(),
+        property_default_any(CoreOptions::MARGINS),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::LAYERING_COFFMAN_GRAHAM_LAYER_BOUND.id(),
+        property_default_any(LayeredOptions::LAYERING_COFFMAN_GRAHAM_LAYER_BOUND),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::NODE_PLACEMENT_FAVOR_STRAIGHT_EDGES.id(),
+        property_default_any(LayeredOptions::NODE_PLACEMENT_FAVOR_STRAIGHT_EDGES),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::SPACING_PORTS_SURROUNDING.id(),
+        property_default_any(LayeredOptions::SPACING_PORTS_SURROUNDING),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::DIRECTION_CONGRUENCY.id(),
+        property_default_any(LayeredOptions::DIRECTION_CONGRUENCY),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::PORT_SORTING_STRATEGY.id(),
+        property_default_any(LayeredOptions::PORT_SORTING_STRATEGY),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::EDGE_ROUTING_POLYLINE_SLOPED_EDGE_ZONE_WIDTH.id(),
+        property_default_any(LayeredOptions::EDGE_ROUTING_POLYLINE_SLOPED_EDGE_ZONE_WIDTH),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::CROSSING_MINIMIZATION_IN_LAYER_PRED_OF.id(),
+        property_default_any(LayeredOptions::CROSSING_MINIMIZATION_IN_LAYER_PRED_OF),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::CROSSING_MINIMIZATION_IN_LAYER_SUCC_OF.id(),
+        property_default_any(LayeredOptions::CROSSING_MINIMIZATION_IN_LAYER_SUCC_OF),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::LAYERING_LAYER_CHOICE_CONSTRAINT.id(),
+        property_default_any(LayeredOptions::LAYERING_LAYER_CHOICE_CONSTRAINT),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::CROSSING_MINIMIZATION_POSITION_CHOICE_CONSTRAINT.id(),
+        property_default_any(LayeredOptions::CROSSING_MINIMIZATION_POSITION_CHOICE_CONSTRAINT),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::INTERACTIVE_LAYOUT.id(),
+        property_default_any(LayeredOptions::INTERACTIVE_LAYOUT),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::LAYERING_LAYER_ID.id(),
+        property_default_any(LayeredOptions::LAYERING_LAYER_ID),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::CROSSING_MINIMIZATION_POSITION_ID.id(),
+        property_default_any(LayeredOptions::CROSSING_MINIMIZATION_POSITION_ID),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::CONSIDER_MODEL_ORDER_STRATEGY.id(),
+        property_default_any(LayeredOptions::CONSIDER_MODEL_ORDER_STRATEGY),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::CONSIDER_MODEL_ORDER_LONG_EDGE_STRATEGY.id(),
+        property_default_any(LayeredOptions::CONSIDER_MODEL_ORDER_LONG_EDGE_STRATEGY),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::CONSIDER_MODEL_ORDER_CROSSING_COUNTER_NODE_INFLUENCE.id(),
+        property_default_any(LayeredOptions::CONSIDER_MODEL_ORDER_CROSSING_COUNTER_NODE_INFLUENCE),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::CONSIDER_MODEL_ORDER_CROSSING_COUNTER_PORT_INFLUENCE.id(),
+        property_default_any(LayeredOptions::CONSIDER_MODEL_ORDER_CROSSING_COUNTER_PORT_INFLUENCE),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::CONSIDER_MODEL_ORDER_NO_MODEL_ORDER.id(),
+        property_default_any(LayeredOptions::CONSIDER_MODEL_ORDER_NO_MODEL_ORDER),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::CONSIDER_MODEL_ORDER_COMPONENTS.id(),
+        property_default_any(LayeredOptions::CONSIDER_MODEL_ORDER_COMPONENTS),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::CONSIDER_MODEL_ORDER_PORT_MODEL_ORDER.id(),
+        property_default_any(LayeredOptions::CONSIDER_MODEL_ORDER_PORT_MODEL_ORDER),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::GROUP_MODEL_ORDER_CYCLE_BREAKING_ID.id(),
+        property_default_any(LayeredOptions::GROUP_MODEL_ORDER_CYCLE_BREAKING_ID),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID.id(),
+        property_default_any(LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::GROUP_MODEL_ORDER_COMPONENT_GROUP_ID.id(),
+        property_default_any(LayeredOptions::GROUP_MODEL_ORDER_COMPONENT_GROUP_ID),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::GROUP_MODEL_ORDER_CB_GROUP_ORDER_STRATEGY.id(),
+        property_default_any(LayeredOptions::GROUP_MODEL_ORDER_CB_GROUP_ORDER_STRATEGY),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY.id(),
+        property_default_any(LayeredOptions::GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::GROUP_MODEL_ORDER_CM_ENFORCED_GROUP_ORDERS.id(),
+        property_default_any(LayeredOptions::GROUP_MODEL_ORDER_CM_ENFORCED_GROUP_ORDERS),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::GROUP_MODEL_ORDER_CB_PREFERRED_SOURCE_ID.id(),
+        property_default_any(LayeredOptions::GROUP_MODEL_ORDER_CB_PREFERRED_SOURCE_ID),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::GROUP_MODEL_ORDER_CB_PREFERRED_TARGET_ID.id(),
+        property_default_any(LayeredOptions::GROUP_MODEL_ORDER_CB_PREFERRED_TARGET_ID),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::GENERATE_POSITION_AND_LAYER_IDS.id(),
+        property_default_any(LayeredOptions::GENERATE_POSITION_AND_LAYER_IDS),
+    );
     // END GENERATED OPTION SUPPORTS
 }
 
@@ -1826,8 +2405,7 @@ fn to_upper_snake(value: &str) -> String {
         let next = chars.peek().copied();
         if let Some(prev_ch) = prev {
             if ch.is_uppercase()
-                && (prev_ch.is_lowercase()
-                    || next.map(|n| n.is_lowercase()).unwrap_or(false))
+                && (prev_ch.is_lowercase() || next.map(|n| n.is_lowercase()).unwrap_or(false))
             {
                 out.push('_');
             }
@@ -1865,10 +2443,22 @@ fn init_reflect() {
     static INIT: OnceLock<()> = OnceLock::new();
     INIT.get_or_init(|| {
         ElkReflect::register(Some(Vec::<i32>::new), Some(|v: &Vec<i32>| v.clone()));
-        ElkReflect::register(Some(|| WrappingStrategy::Off), Some(|v: &WrappingStrategy| *v));
-        ElkReflect::register(Some(|| CuttingStrategy::Msd), Some(|v: &CuttingStrategy| *v));
-        ElkReflect::register(Some(|| ValidifyStrategy::Greedy), Some(|v: &ValidifyStrategy| *v));
-        ElkReflect::register(Some(|| OrderingStrategy::None), Some(|v: &OrderingStrategy| *v));
+        ElkReflect::register(
+            Some(|| WrappingStrategy::Off),
+            Some(|v: &WrappingStrategy| *v),
+        );
+        ElkReflect::register(
+            Some(|| CuttingStrategy::Msd),
+            Some(|v: &CuttingStrategy| *v),
+        );
+        ElkReflect::register(
+            Some(|| ValidifyStrategy::Greedy),
+            Some(|v: &ValidifyStrategy| *v),
+        );
+        ElkReflect::register(
+            Some(|| OrderingStrategy::None),
+            Some(|v: &OrderingStrategy| *v),
+        );
         ElkReflect::register(
             Some(|| ComponentOrderingStrategy::None),
             Some(|v: &ComponentOrderingStrategy| *v),
@@ -1933,10 +2523,7 @@ fn init_reflect() {
             Some(|| EdgeStraighteningStrategy::ImproveStraightness),
             Some(|v: &EdgeStraighteningStrategy| *v),
         );
-        ElkReflect::register(
-            Some(|| FixedAlignment::None),
-            Some(|v: &FixedAlignment| *v),
-        );
+        ElkReflect::register(Some(|| FixedAlignment::None), Some(|v: &FixedAlignment| *v));
         ElkReflect::register(
             Some(|| NodeFlexibility::None),
             Some(|v: &NodeFlexibility| *v),

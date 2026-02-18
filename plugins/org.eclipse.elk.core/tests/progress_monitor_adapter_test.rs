@@ -44,7 +44,9 @@ impl IProgressMonitor for TestMonitor {
 #[test]
 fn progress_monitor_adapter_reports_work() {
     let state = Arc::new(Mutex::new(TestMonitorState::default()));
-    let monitor = TestMonitor { state: state.clone() };
+    let monitor = TestMonitor {
+        state: state.clone(),
+    };
     let mut adapter = ProgressMonitorAdapter::new(Arc::new(monitor));
 
     assert!(adapter.begin("task", 5.0));
@@ -61,7 +63,9 @@ fn progress_monitor_adapter_reports_work() {
 #[test]
 fn progress_monitor_adapter_subtask_reports_sub_task() {
     let state = Arc::new(Mutex::new(TestMonitorState::default()));
-    let monitor = TestMonitor { state: state.clone() };
+    let monitor = TestMonitor {
+        state: state.clone(),
+    };
     let mut adapter = ProgressMonitorAdapter::new(Arc::new(monitor));
 
     adapter.begin("parent", 1.0);

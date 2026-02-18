@@ -337,10 +337,7 @@ impl GraphTransformer {
                     for jp in junction_points.iter_mut() {
                         mirror_vector_x(jp, offset);
                     }
-                    edge_guard.set_property(
-                        LayeredOptions::JUNCTION_POINTS,
-                        Some(junction_points),
-                    );
+                    edge_guard.set_property(LayeredOptions::JUNCTION_POINTS, Some(junction_points));
                 }
             }
 
@@ -375,10 +372,7 @@ impl GraphTransformer {
                     for jp in junction_points.iter_mut() {
                         mirror_vector_y(jp, offset);
                     }
-                    edge_guard.set_property(
-                        LayeredOptions::JUNCTION_POINTS,
-                        Some(junction_points),
-                    );
+                    edge_guard.set_property(LayeredOptions::JUNCTION_POINTS, Some(junction_points));
                 }
             }
 
@@ -513,10 +507,7 @@ impl GraphTransformer {
                     for jp in junction_points.iter_mut() {
                         transpose_vector(jp);
                     }
-                    edge_guard.set_property(
-                        LayeredOptions::JUNCTION_POINTS,
-                        Some(junction_points),
-                    );
+                    edge_guard.set_property(LayeredOptions::JUNCTION_POINTS, Some(junction_points));
                 }
             }
 
@@ -551,8 +542,10 @@ impl GraphTransformer {
     fn mirror_external_port_side_x(&self, node: &LNodeRef) {
         if let Ok(mut node_guard) = node.lock() {
             if let Some(side) = node_guard.get_property(InternalProperties::EXT_PORT_SIDE) {
-                node_guard
-                    .set_property(InternalProperties::EXT_PORT_SIDE, Some(get_mirrored_port_side_x(side)));
+                node_guard.set_property(
+                    InternalProperties::EXT_PORT_SIDE,
+                    Some(get_mirrored_port_side_x(side)),
+                );
             }
         }
     }
@@ -560,8 +553,10 @@ impl GraphTransformer {
     fn mirror_external_port_side_y(&self, node: &LNodeRef) {
         if let Ok(mut node_guard) = node.lock() {
             if let Some(side) = node_guard.get_property(InternalProperties::EXT_PORT_SIDE) {
-                node_guard
-                    .set_property(InternalProperties::EXT_PORT_SIDE, Some(get_mirrored_port_side_y(side)));
+                node_guard.set_property(
+                    InternalProperties::EXT_PORT_SIDE,
+                    Some(get_mirrored_port_side_y(side)),
+                );
             }
         }
     }
@@ -655,7 +650,10 @@ impl GraphTransformer {
         }
     }
 
-    fn transpose_properties(&self, node: &mut crate::org::eclipse::elk::alg::layered::graph::LNode) {
+    fn transpose_properties(
+        &self,
+        node: &mut crate::org::eclipse::elk::alg::layered::graph::LNode,
+    ) {
         let min_size = node
             .get_property(LayeredOptions::NODE_SIZE_MINIMUM)
             .unwrap_or_default();
@@ -802,7 +800,9 @@ impl ILayoutProcessor<LGraph> for GraphTransformer {
             .unwrap_or(DirectionCongruency::ReadingDirection);
         let direction = layered_graph
             .get_property(LayeredOptions::DIRECTION)
-            .unwrap_or(org_eclipse_elk_core::org::eclipse::elk::core::options::direction::Direction::Right);
+            .unwrap_or(
+                org_eclipse_elk_core::org::eclipse::elk::core::options::direction::Direction::Right,
+            );
 
         if congruency == DirectionCongruency::ReadingDirection {
             match direction {

@@ -3,17 +3,17 @@ use std::env;
 use std::path::MAIN_SEPARATOR;
 use std::rc::Rc;
 
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{
     ElkBendPointRef, ElkConnectableShapeRef, ElkEdgeRef, ElkEdgeSectionRef, ElkGraphElementRef,
     ElkGraphFactory, ElkLabelRef, ElkNodeRef, ElkPortRef,
 };
-use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 
 use crate::org::eclipse::elk::core::data::LayoutMetaDataService;
 use crate::org::eclipse::elk::core::math::{ElkMargin, ElkRectangle, KVector, KVectorChain};
 use crate::org::eclipse::elk::core::options::{
-    ContentAlignment, CoreOptions, Direction, EdgeLabelPlacement, NodeLabelPlacement, PortConstraints,
-    PortSide, SizeConstraint, SizeOptions,
+    ContentAlignment, CoreOptions, Direction, EdgeLabelPlacement, NodeLabelPlacement,
+    PortConstraints, PortSide, SizeConstraint, SizeOptions,
 };
 use crate::org::eclipse::elk::core::util::{EnumSet, IGraphElementVisitor};
 use crate::org::eclipse::elk::core::validation::{GraphIssue, GraphValidationException, Severity};
@@ -224,7 +224,9 @@ impl ElkUtil {
             new_height = min_east.max(min_west);
         }
 
-        Some(Self::resize_node_with(node, new_width, new_height, true, true))
+        Some(Self::resize_node_with(
+            node, new_width, new_height, true, true,
+        ))
     }
 
     pub fn resize_node_with(
@@ -390,7 +392,10 @@ impl ElkUtil {
                 .shape()
                 .graph_element()
                 .properties_mut()
-                .set_property(CoreOptions::NODE_SIZE_CONSTRAINTS, Some(SizeConstraint::fixed()));
+                .set_property(
+                    CoreOptions::NODE_SIZE_CONSTRAINTS,
+                    Some(SizeConstraint::fixed()),
+                );
         }
 
         KVector::with_values(width_ratio, height_ratio)
@@ -467,7 +472,10 @@ impl ElkUtil {
         {
             let mut node_mut = node.borrow_mut();
             let shape = node_mut.connectable().shape();
-            shape.set_dimensions(shape.width() * scaling_factor, shape.height() * scaling_factor);
+            shape.set_dimensions(
+                shape.width() * scaling_factor,
+                shape.height() * scaling_factor,
+            );
         }
 
         let node_labels: Vec<ElkLabelRef> = {
@@ -959,7 +967,8 @@ impl ElkUtil {
         let mut offset_map: HashMap<usize, KVector> = HashMap::new();
         let mut all_connected_sections: Vec<ElkEdgeSectionRef> = Vec::new();
 
-        let incident_edges = ElkGraphUtil::all_incident_edges_for_shape(&ElkConnectableShapeRef::Port(port.clone()));
+        let incident_edges =
+            ElkGraphUtil::all_incident_edges_for_shape(&ElkConnectableShapeRef::Port(port.clone()));
         for other_edge in incident_edges {
             let other_section_count = {
                 let mut other_edge_mut = other_edge.borrow_mut();
@@ -986,9 +995,7 @@ impl ElkUtil {
             points_map
                 .entry(key)
                 .or_insert_with(|| Self::get_points(&other_section));
-            let other_points = points_map
-                .get(&key)
-                .expect("other section points missing");
+            let other_points = points_map.get(&key).expect("other section points missing");
 
             let offset = if reverse {
                 let mut offset = KVector::from_vector(&section_points[section_points.len() - 1]);
@@ -1023,9 +1030,7 @@ impl ElkUtil {
                 while idx < all_connected_sections.len() {
                     let other_section = &all_connected_sections[idx];
                     let key = Self::section_key(other_section);
-                    let other_points = points_map
-                        .get(&key)
-                        .expect("other section points missing");
+                    let other_points = points_map.get(&key).expect("other section points missing");
                     if other_points.len() <= i {
                         all_connected_sections.remove(idx);
                         continue;
@@ -1270,13 +1275,10 @@ impl ElkUtil {
         };
         if !has_placement {
             let mut edge_mut = edge.borrow_mut();
-            edge_mut
-                .element()
-                .properties_mut()
-                .set_property(
-                    CoreOptions::EDGE_LABELS_PLACEMENT,
-                    Some(EdgeLabelPlacement::Center),
-                );
+            edge_mut.element().properties_mut().set_property(
+                CoreOptions::EDGE_LABELS_PLACEMENT,
+                Some(EdgeLabelPlacement::Center),
+            );
         }
     }
 
@@ -1317,10 +1319,7 @@ impl ElkUtil {
         }
     }
 
-    pub fn apply_visitors(
-        graph: &ElkNodeRef,
-        visitors: &mut [&mut dyn IGraphElementVisitor],
-    ) {
+    pub fn apply_visitors(graph: &ElkNodeRef, visitors: &mut [&mut dyn IGraphElementVisitor]) {
         let root = ElkGraphElementRef::Node(graph.clone());
         Self::apply_visitors_to_element(&root, visitors);
     }
@@ -1340,7 +1339,10 @@ impl ElkUtil {
             }
         }
 
-        if all_issues.iter().any(|issue| issue.severity() == Severity::Error) {
+        if all_issues
+            .iter()
+            .any(|issue| issue.severity() == Severity::Error)
+        {
             let mut message = String::new();
             for issue in &all_issues {
                 if !message.is_empty() {
@@ -1506,14 +1508,8 @@ impl ElkUtil {
 
     fn element_container(element: &ElkGraphElementRef) -> Option<ElkGraphElementRef> {
         match element {
-            ElkGraphElementRef::Node(node) => node
-                .borrow()
-                .parent()
-                .map(ElkGraphElementRef::Node),
-            ElkGraphElementRef::Port(port) => port
-                .borrow()
-                .parent()
-                .map(ElkGraphElementRef::Node),
+            ElkGraphElementRef::Node(node) => node.borrow().parent().map(ElkGraphElementRef::Node),
+            ElkGraphElementRef::Port(port) => port.borrow().parent().map(ElkGraphElementRef::Node),
             ElkGraphElementRef::Edge(edge) => edge
                 .borrow()
                 .containing_node()
@@ -1581,8 +1577,7 @@ impl ElkUtil {
     }
 
     pub fn debug_folder_path(subfolders: &[&str]) -> Option<String> {
-        let user_home = env::var_os("HOME")
-            .or_else(|| env::var_os("USERPROFILE"))?;
+        let user_home = env::var_os("HOME").or_else(|| env::var_os("USERPROFILE"))?;
         let mut path = user_home.to_string_lossy().to_string();
 
         if !path.ends_with(MAIN_SEPARATOR) {

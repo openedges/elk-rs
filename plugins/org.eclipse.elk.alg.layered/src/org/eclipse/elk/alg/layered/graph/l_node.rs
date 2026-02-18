@@ -7,7 +7,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::pair::Pair;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 
 use crate::org::eclipse::elk::alg::layered::options::{
-    InternalProperties, InteractiveReferencePoint, LayeredOptions, PortType,
+    InteractiveReferencePoint, InternalProperties, LayeredOptions, PortType,
 };
 
 use super::{
@@ -150,7 +150,10 @@ impl LNode {
 
     pub fn set_layer_at_index(node: &LNodeRef, index: usize, layer: Option<LayerRef>) {
         if let Some(layer_ref) = &layer {
-            let size = layer_ref.lock().map(|layer| layer.nodes().len()).unwrap_or(0);
+            let size = layer_ref
+                .lock()
+                .map(|layer| layer.nodes().len())
+                .unwrap_or(0);
             if index > size {
                 panic!("index must be >= 0 and <= layer node count");
             }
@@ -183,7 +186,8 @@ impl LNode {
         if let Some(graph) = self.graph.as_ref().and_then(|graph| graph.upgrade()) {
             return Some(graph);
         }
-        self.layer().and_then(|layer| layer.lock().ok().and_then(|layer| layer.graph()))
+        self.layer()
+            .and_then(|layer| layer.lock().ok().and_then(|layer| layer.graph()))
     }
 
     pub fn set_graph(&mut self, graph: &LGraphRef) {
@@ -214,13 +218,21 @@ impl LNode {
             PortType::Input => self
                 .ports
                 .iter()
-                .filter(|port| port.lock().map(|port| !port.incoming_edges().is_empty()).unwrap_or(false))
+                .filter(|port| {
+                    port.lock()
+                        .map(|port| !port.incoming_edges().is_empty())
+                        .unwrap_or(false)
+                })
                 .cloned()
                 .collect(),
             PortType::Output => self
                 .ports
                 .iter()
-                .filter(|port| port.lock().map(|port| !port.outgoing_edges().is_empty()).unwrap_or(false))
+                .filter(|port| {
+                    port.lock()
+                        .map(|port| !port.outgoing_edges().is_empty())
+                        .unwrap_or(false)
+                })
                 .cloned()
                 .collect(),
             PortType::Undefined => Vec::new(),
@@ -240,7 +252,11 @@ impl LNode {
             self.find_port_indices();
         }
         if self.port_sides_cached {
-            if let Some(indices) = self.port_side_indices.as_ref().and_then(|map| map.get(&side)) {
+            if let Some(indices) = self
+                .port_side_indices
+                .as_ref()
+                .and_then(|map| map.get(&side))
+            {
                 let slice = &self.ports[indices.first..indices.second];
                 let matches = slice.iter().all(|port| {
                     port.lock()
@@ -369,9 +385,14 @@ impl LNode {
             InteractiveReferencePoint::Center => {
                 let pos = self.shape.position_ref();
                 let size = self.shape.size_ref();
-                Some(KVector::with_values(pos.x + size.x / 2.0, pos.y + size.y / 2.0))
+                Some(KVector::with_values(
+                    pos.x + size.x / 2.0,
+                    pos.y + size.y / 2.0,
+                ))
             }
-            InteractiveReferencePoint::TopLeft => Some(KVector::from_vector(self.shape.position_ref())),
+            InteractiveReferencePoint::TopLeft => {
+                Some(KVector::from_vector(self.shape.position_ref()))
+            }
         }
     }
 
@@ -391,7 +412,10 @@ impl LNode {
         let mut current_side = PortSide::North;
         let mut current_index = 0usize;
         for port in &self.ports {
-            let side = port.lock().map(|port| port.side()).unwrap_or(PortSide::Undefined);
+            let side = port
+                .lock()
+                .map(|port| port.side())
+                .unwrap_or(PortSide::Undefined);
             if side != current_side {
                 if first_index != current_index {
                     indices.insert(current_side, Pair::of(first_index, current_index));
@@ -433,7 +457,9 @@ impl LNode {
             return id;
         }
 
-        self.index().map(|idx| idx.to_string()).unwrap_or_else(|| "-1".to_owned())
+        self.index()
+            .map(|idx| idx.to_string())
+            .unwrap_or_else(|| "-1".to_owned())
     }
 
     pub fn is_inline_edge_label(&mut self) -> bool {

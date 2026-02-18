@@ -135,7 +135,10 @@ impl ILayoutPhase<TestPhases, TestGraph> for TestPhaseImpl {
         _graph: &TestGraph,
     ) -> Option<LayoutProcessorConfiguration<TestPhases, TestGraph>> {
         let mut config = LayoutProcessorConfiguration::create();
-        config.add_before(self.phase, processor_factory(TestProcessors::from_phase(self.phase)));
+        config.add_before(
+            self.phase,
+            processor_factory(TestProcessors::from_phase(self.phase)),
+        );
         Some(config)
     }
 }
@@ -177,9 +180,7 @@ impl fmt::Display for TestProcessors {
 impl ILayoutProcessorFactory<TestGraph> for TestProcessors {
     fn create(&self) -> Box<dyn ILayoutProcessor<TestGraph>> {
         PROCESSOR_CREATE_COUNTS[self.ordinal()].fetch_add(1, Ordering::SeqCst);
-        Box::new(TestProcessorImpl {
-            processor: *self,
-        })
+        Box::new(TestProcessorImpl { processor: *self })
     }
 
     fn as_any(&self) -> &dyn Any {

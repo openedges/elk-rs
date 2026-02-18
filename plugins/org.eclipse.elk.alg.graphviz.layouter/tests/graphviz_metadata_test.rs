@@ -2,8 +2,8 @@ use org_eclipse_elk_alg_graphviz_dot::org::eclipse::elk::alg::graphviz::dot::tra
     NeatoModel, OverlapMode,
 };
 use org_eclipse_elk_alg_graphviz_layouter::org::eclipse::elk::alg::graphviz::layouter::options::{
-    CircoOptions, DotOptions, FdpOptions, GraphvizMetaDataProvider, GraphvizOptions,
-    NeatoOptions, TwopiOptions,
+    CircoOptions, DotOptions, FdpOptions, GraphvizMetaDataProvider, GraphvizOptions, NeatoOptions,
+    TwopiOptions,
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::data::{
     LayoutMetaDataService, LayoutOptionTarget,

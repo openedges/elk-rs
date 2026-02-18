@@ -25,6 +25,15 @@ JAVA_METHOD_RE = re.compile(
     r"@Test\s+(?:public\s+)?void\s+([a-zA-Z0-9_]+)\s*\(",
     re.MULTILINE,
 )
+JAVA_GRAPH_RESOURCE_PROVIDER_RE = re.compile(r"@GraphResourceProvider\b", re.MULTILINE)
+JAVA_MODEL_RESOURCE_PATH_RE = re.compile(
+    r'new\s+ModelResourcePath\s*\(\s*"([^"]+)"\s*\)',
+    re.MULTILINE,
+)
+RUST_RESOURCE_LITERAL_RE = re.compile(
+    r'"([^"\n]*\.(?:elkt|elkg))"',
+    re.IGNORECASE,
+)
 
 
 def normalize(name: str) -> str:
@@ -125,6 +134,203 @@ def rust_tests(root: Path) -> List[Dict[str, str]]:
     return rows
 
 
+def extract_issue_id(resource_path: str) -> str:
+    name = Path(resource_path).name.lower()
+    match = re.search(r"^(\d+)_", name)
+    if match:
+        return match.group(1)
+    match = re.search(r"issue[_-]?(\d+)", name)
+    if match:
+        return match.group(1)
+    return ""
+
+
+def normalize_resource_path(resource_path: str) -> str:
+    normalized = resource_path.replace("\\", "/").strip()
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
+    return normalized
+
+
+def java_graph_resources(root: Path) -> List[Dict[str, str]]:
+    rows: List[Dict[str, str]] = []
+    for path in sorted(root.rglob("*.java")):
+        try:
+            text = path.read_text(encoding="utf-8", errors="ignore")
+        except Exception:
+            continue
+        stripped = JAVA_BLOCK_COMMENT_RE.sub("", text)
+        stripped = JAVA_LINE_COMMENT_RE.sub("", stripped)
+        if not JAVA_GRAPH_RESOURCE_PROVIDER_RE.search(stripped):
+            continue
+
+        m_class = JAVA_CLASS_RE.search(stripped)
+        class_name = m_class.group(1) if m_class else path.stem
+        package = ""
+        m_pkg = JAVA_PACKAGE_RE.search(stripped)
+        if m_pkg:
+            package = m_pkg.group(1)
+        rel = path.relative_to(root)
+        project = rel.parts[0] if rel.parts else ""
+
+        resources = JAVA_MODEL_RESOURCE_PATH_RE.findall(stripped)
+        if not resources:
+            rows.append(
+                {
+                    "project": project,
+                    "package": package,
+                    "class": class_name,
+                    "file": str(path),
+                    "resource_pattern": "<dynamic>",
+                    "issue_id": "",
+                }
+            )
+            continue
+
+        for resource_pattern in resources:
+            rows.append(
+                {
+                    "project": project,
+                    "package": package,
+                    "class": class_name,
+                    "file": str(path),
+                    "resource_pattern": resource_pattern,
+                    "issue_id": extract_issue_id(resource_pattern),
+                }
+            )
+    return rows
+
+
+def rust_graph_resource_literals(root: Path) -> List[Dict[str, str]]:
+    rows: List[Dict[str, str]] = []
+    for path in sorted(root.rglob("tests/*.rs")):
+        try:
+            text = path.read_text(encoding="utf-8", errors="ignore")
+        except Exception:
+            continue
+
+        crate = ""
+        parts = path.parts
+        if "plugins" in parts:
+            idx = parts.index("plugins")
+            if idx + 1 < len(parts):
+                crate = parts[idx + 1]
+
+        literals = sorted(set(RUST_RESOURCE_LITERAL_RE.findall(text)))
+        for literal in literals:
+            normalized = normalize_resource_path(literal)
+            rows.append(
+                {
+                    "crate": crate,
+                    "file": str(path),
+                    "resource_literal": literal,
+                    "resource_norm": normalized,
+                    "basename": Path(normalized).name,
+                    "issue_id": extract_issue_id(normalized),
+                }
+            )
+    return rows
+
+
+def models_resource_stats(models_root: Path, resource_pattern: str) -> Tuple[str, int]:
+    if resource_pattern == "<dynamic>":
+        return "dynamic", 0
+    normalized = normalize_resource_path(resource_pattern)
+    if "*" in normalized:
+        matches = list(models_root.glob(normalized))
+        return ("yes" if matches else "no", len(matches))
+    target = models_root / normalized
+    return ("yes" if target.exists() else "no", 1 if target.exists() else 0)
+
+
+def map_graph_resources(
+    java_rows: List[Dict[str, str]],
+    rust_rows: List[Dict[str, str]],
+    models_root: Path,
+) -> List[Dict[str, str]]:
+    rust_by_basename: Dict[str, List[Dict[str, str]]] = defaultdict(list)
+    rust_by_issue: Dict[str, List[Dict[str, str]]] = defaultdict(list)
+    for row in rust_rows:
+        rust_by_basename[row["basename"]].append(row)
+        if row["issue_id"]:
+            rust_by_issue[row["issue_id"]].append(row)
+
+    mapped_rows: List[Dict[str, str]] = []
+    for row in java_rows:
+        pattern = row["resource_pattern"]
+        normalized = normalize_resource_path(pattern)
+        issue_id = row["issue_id"]
+        wildcard = "*" in normalized
+
+        exact_matches = []
+        basename_matches = []
+        issue_matches = []
+        wildcard_matches = []
+        status = "no_rust_match"
+
+        if pattern == "<dynamic>":
+            status = "dynamic_provider"
+        else:
+            basename = Path(normalized).name
+            basename_matches = rust_by_basename.get(basename, [])
+            if issue_id:
+                issue_matches = rust_by_issue.get(issue_id, [])
+
+            for rust_row in rust_rows:
+                resource_norm = rust_row["resource_norm"]
+                if resource_norm == normalized or resource_norm.endswith("/" + normalized):
+                    exact_matches.append(rust_row)
+
+            if wildcard:
+                wildcard_prefix = normalized.split("*", 1)[0]
+                for rust_row in rust_rows:
+                    resource_norm = rust_row["resource_norm"]
+                    if wildcard_prefix and wildcard_prefix in resource_norm:
+                        wildcard_matches.append(rust_row)
+
+            if exact_matches:
+                status = "exact_path_match"
+            elif wildcard and wildcard_matches:
+                status = "wildcard_prefix_match"
+            elif basename_matches:
+                status = "basename_match"
+            elif issue_matches:
+                status = "issue_id_match"
+
+        model_exists, model_match_count = models_resource_stats(models_root, pattern)
+        match_pool = (
+            exact_matches
+            if exact_matches
+            else wildcard_matches
+            if wildcard_matches
+            else basename_matches
+            if basename_matches
+            else issue_matches
+        )
+        rust_examples = ";".join(
+            f"{match['crate']}:{Path(match['file']).name}:{match['resource_literal']}"
+            for match in match_pool[:3]
+        )
+
+        mapped_rows.append(
+            {
+                "java_project": row["project"],
+                "java_class": row["class"],
+                "java_file": row["file"],
+                "resource_pattern": pattern,
+                "resource_issue_id": issue_id,
+                "resource_wildcard": "yes" if wildcard else "no",
+                "models_exists": model_exists,
+                "models_match_count": str(model_match_count),
+                "mapping_status": status,
+                "rust_match_count": str(len(match_pool)),
+                "rust_examples": rust_examples,
+            }
+        )
+
+    return mapped_rows
+
+
 CARGO_TEST_LINE_RE = re.compile(
     r"^test\s+(\S+)\s+\.\.\.\s+(ok|FAILED|ignored)$", re.MULTILINE
 )
@@ -186,12 +392,14 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Map Java tests to Rust tests by normalized name.")
     parser.add_argument("--java-root", default="external/elk/test", help="Java tests root")
     parser.add_argument("--rust-root", default="plugins", help="Rust crates root")
+    parser.add_argument("--models-root", default="external/elk-models", help="ELK models root for GraphResourceProvider path validation")
     parser.add_argument("--out-dir", default="perf/test_parity", help="Output directory")
     parser.add_argument("--capture-cargo-test", action="store_true", help="Run cargo test and capture results to rust_test_results.tsv")
     args = parser.parse_args()
 
     java_root = Path(args.java_root)
     rust_root = Path(args.rust_root)
+    models_root = Path(args.models_root)
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -346,6 +554,71 @@ def main() -> int:
         f.write(f"method_matched_same_module={method_matched_same_module}\n")
         f.write(f"method_missing_by_name={method_missing}\n")
 
+    # Step T-4: GraphResourceProvider resource parity
+    java_resource_rows = java_graph_resources(java_root)
+    rust_resource_rows = rust_graph_resource_literals(rust_root)
+    graph_resource_mapping = map_graph_resources(java_resource_rows, rust_resource_rows, models_root)
+
+    with (out_dir / "graph_resource_mapping.tsv").open("w", encoding="utf-8") as f:
+        f.write(
+            "java_project\tjava_class\tjava_file\tresource_pattern\tresource_issue_id\tresource_wildcard\t"
+            "models_exists\tmodels_match_count\tmapping_status\trust_match_count\trust_examples\n"
+        )
+        for row in graph_resource_mapping:
+            f.write(
+                "\t".join(
+                    [
+                        row["java_project"],
+                        row["java_class"],
+                        row["java_file"],
+                        row["resource_pattern"],
+                        row["resource_issue_id"],
+                        row["resource_wildcard"],
+                        row["models_exists"],
+                        row["models_match_count"],
+                        row["mapping_status"],
+                        row["rust_match_count"],
+                        row["rust_examples"],
+                    ]
+                )
+                + "\n"
+            )
+
+    status_counter = Counter(row["mapping_status"] for row in graph_resource_mapping)
+    mapped_count = sum(
+        1
+        for row in graph_resource_mapping
+        if row["mapping_status"]
+        in {"exact_path_match", "wildcard_prefix_match", "basename_match", "issue_id_match"}
+    )
+    unresolved_count = status_counter.get("no_rust_match", 0)
+    dynamic_count = status_counter.get("dynamic_provider", 0)
+    model_missing_count = sum(
+        1 for row in graph_resource_mapping if row["models_exists"] == "no"
+    )
+
+    with (out_dir / "graph_resource_summary.md").open("w", encoding="utf-8") as f:
+        f.write("# Graph Resource Parity\n\n")
+        f.write(f"- java graph resources: **{len(graph_resource_mapping)}**\n")
+        f.write(f"- mapped to rust resources: **{mapped_count}**\n")
+        f.write(f"- unresolved: **{unresolved_count}**\n")
+        f.write(f"- dynamic providers: **{dynamic_count}**\n")
+        f.write(f"- missing in external/elk-models: **{model_missing_count}**\n\n")
+        f.write("| Status | Count |\n")
+        f.write("|---|---:|\n")
+        for status, count in status_counter.most_common():
+            f.write(f"| {status} | {count} |\n")
+
+    with (out_dir / "summary.txt").open("a", encoding="utf-8") as f:
+        f.write(f"\n--- GraphResourceProvider parity ---\n")
+        f.write(f"java_graph_resources={len(graph_resource_mapping)}\n")
+        f.write(f"graph_resources_mapped={mapped_count}\n")
+        f.write(f"graph_resources_unresolved={unresolved_count}\n")
+        f.write(f"graph_resources_dynamic={dynamic_count}\n")
+        f.write(f"graph_resources_missing_in_models={model_missing_count}\n")
+        for status, count in status_counter.most_common():
+            f.write(f"graph_status_{status}={count}\n")
+
     # Step T-2: Capture cargo test results
     if args.capture_cargo_test:
         capture_cargo_test_results(out_dir)
@@ -355,6 +628,11 @@ def main() -> int:
     print(f"matched_same_module={matched_same_module}")
     print(f"java_test_methods={total_java_methods} method_matched={method_matched} method_missing={method_missing}")
     print(f"method_matched_same_module={method_matched_same_module}")
+    print(
+        "graph_resources="
+        f"{len(graph_resource_mapping)} mapped={mapped_count} "
+        f"unresolved={unresolved_count} dynamic={dynamic_count}"
+    )
     return 0
 
 

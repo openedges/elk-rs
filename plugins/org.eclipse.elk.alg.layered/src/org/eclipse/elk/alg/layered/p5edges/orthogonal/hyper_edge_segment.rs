@@ -84,7 +84,11 @@ impl HyperEdgeSegment {
             .unwrap_or_default();
         for other_port in connected_ports {
             if !hyper_edge_segment_map.contains_key(&port_key(&other_port)) {
-                HyperEdgeSegment::add_port_positions(segment_ref, &other_port, hyper_edge_segment_map);
+                HyperEdgeSegment::add_port_positions(
+                    segment_ref,
+                    &other_port,
+                    hyper_edge_segment_map,
+                );
             }
         }
     }
@@ -95,14 +99,20 @@ impl HyperEdgeSegment {
         };
         let node_pos = port_guard
             .node()
-            .and_then(|node| node.lock().ok().map(|mut node_guard| *node_guard.shape().position_ref()))
+            .and_then(|node| {
+                node.lock()
+                    .ok()
+                    .map(|mut node_guard| *node_guard.shape().position_ref())
+            })
             .unwrap_or_default();
         let port_pos = *port_guard.shape().position_ref();
         let anchor = *port_guard.anchor_ref();
 
         match self.routing_direction {
             RoutingDirection::WestToEast => node_pos.y + port_pos.y + anchor.y,
-            RoutingDirection::NorthToSouth | RoutingDirection::SouthToNorth => node_pos.x + port_pos.x + anchor.x,
+            RoutingDirection::NorthToSouth | RoutingDirection::SouthToNorth => {
+                node_pos.x + port_pos.x + anchor.x
+            }
         }
     }
 
@@ -205,7 +215,9 @@ impl HyperEdgeSegment {
     }
 
     pub fn split_partner(&self) -> Option<HyperEdgeSegmentRef> {
-        self.split_partner.as_ref().and_then(|partner| partner.upgrade())
+        self.split_partner
+            .as_ref()
+            .and_then(|partner| partner.upgrade())
     }
 
     pub fn set_split_partner(&mut self, split_partner: Option<&HyperEdgeSegmentRef>) {
@@ -281,7 +293,8 @@ impl HyperEdgeSegment {
             {
                 let mut partner = split_partner.borrow_mut();
                 partner.split_partner = Some(Rc::downgrade(segment_ref));
-                partner.outgoing_connection_coordinates = segment.outgoing_connection_coordinates.clone();
+                partner.outgoing_connection_coordinates =
+                    segment.outgoing_connection_coordinates.clone();
             }
 
             segment.outgoing_connection_coordinates.clear();
@@ -294,7 +307,10 @@ impl HyperEdgeSegment {
             segment.recompute_extent();
             split_partner.borrow_mut().recompute_extent();
 
-            (segment.incoming_segment_dependencies.clone(), segment.outgoing_segment_dependencies.clone())
+            (
+                segment.incoming_segment_dependencies.clone(),
+                segment.outgoing_segment_dependencies.clone(),
+            )
         };
 
         for dep in incoming_deps {

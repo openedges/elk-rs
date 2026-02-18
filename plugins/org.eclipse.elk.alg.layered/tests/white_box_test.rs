@@ -61,7 +61,11 @@ fn run_network_simplex_layerer(
 ) -> org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LGraphRef {
     initialize_plain_java_layout();
     let (root, _nodes) = build_test_graph();
-    set_node_property(&root, CoreOptions::ALGORITHM, "org.eclipse.elk.layered".to_string());
+    set_node_property(
+        &root,
+        CoreOptions::ALGORITHM,
+        "org.eclipse.elk.layered".to_string(),
+    );
     set_node_property(
         &root,
         CoreOptions::HIERARCHY_HANDLING,
@@ -109,10 +113,7 @@ fn layer_index(
 
 fn set_dimensions(node: &ElkNodeRef, width: f64, height: f64) {
     let mut node_mut = node.borrow_mut();
-    node_mut
-        .connectable()
-        .shape()
-        .set_dimensions(width, height);
+    node_mut.connectable().shape().set_dimensions(width, height);
 }
 
 fn set_node_property<T: Clone + Send + Sync + 'static>(

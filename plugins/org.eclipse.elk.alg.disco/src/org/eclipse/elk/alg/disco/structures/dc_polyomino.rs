@@ -1,7 +1,9 @@
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::polyomino::structures::{
     Direction, PlanarGrid, Polyomino, PolyominoLike,
 };
-use org_eclipse_elk_core::org::eclipse::elk::core::math::{elk_rectangle::ElkRectangle, kvector::KVector};
+use org_eclipse_elk_core::org::eclipse::elk::core::math::{
+    elk_rectangle::ElkRectangle, kvector::KVector,
+};
 
 use crate::org::eclipse::elk::alg::disco::graph::{DCComponentRef, DCDirection, DCElement};
 
@@ -42,7 +44,10 @@ impl DCPolyomino {
     pub fn get_offset(&self) -> KVector {
         let mut comp_guard = self.representee.lock().expect("component lock");
         let mut offset = comp_guard.get_dimensions_of_bounding_rectangle();
-        offset.sub_values(self.p_width as f64 * self.cell_size_x, self.p_height as f64 * self.cell_size_y);
+        offset.sub_values(
+            self.p_width as f64 * self.cell_size_x,
+            self.p_height as f64 * self.cell_size_y,
+        );
         offset.scale(-0.5);
         offset
     }
@@ -172,10 +177,19 @@ impl DCPolyomino {
         }
     }
 
-    fn weakly_block_area(&mut self, x_upper_left: i32, y_upper_left: i32, x_bottom_right: i32, y_bottom_right: i32) {
-        self.poly
-            .grid_mut()
-            .weakly_block_area(x_upper_left, y_upper_left, x_bottom_right, y_bottom_right);
+    fn weakly_block_area(
+        &mut self,
+        x_upper_left: i32,
+        y_upper_left: i32,
+        x_bottom_right: i32,
+        y_bottom_right: i32,
+    ) {
+        self.poly.grid_mut().weakly_block_area(
+            x_upper_left,
+            y_upper_left,
+            x_bottom_right,
+            y_bottom_right,
+        );
     }
 }
 
@@ -188,7 +202,15 @@ impl PolyominoLike for DCPolyomino {
         self.poly.grid_mut()
     }
 
-    fn get_polyomino_extensions(&self) -> &Vec<org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::utils::UniqueTriple<Direction, i32, i32>> {
+    fn get_polyomino_extensions(
+        &self,
+    ) -> &Vec<
+        org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::utils::UniqueTriple<
+            Direction,
+            i32,
+            i32,
+        >,
+    > {
         self.poly.get_polyomino_extensions()
     }
 

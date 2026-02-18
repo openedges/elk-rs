@@ -52,11 +52,17 @@ fn init_layered_options() {
 }
 
 fn set_node_dimensions(node: &ElkNodeRef, width: f64, height: f64) {
-    node.borrow_mut().connectable().shape().set_dimensions(width, height);
+    node.borrow_mut()
+        .connectable()
+        .shape()
+        .set_dimensions(width, height);
 }
 
 fn set_port_dimensions(port: &ElkPortRef, width: f64, height: f64) {
-    port.borrow_mut().connectable().shape().set_dimensions(width, height);
+    port.borrow_mut()
+        .connectable()
+        .shape()
+        .set_dimensions(width, height);
 }
 
 fn set_label_dimensions(label: &ElkLabelRef, width: f64, height: f64) {
@@ -111,14 +117,19 @@ fn create_port_with_label(node: &ElkNodeRef, side: PortSide, text: &str) -> ElkP
     set_port_dimensions(&port, 10.0, 10.0);
     set_port_property(&port, LayeredOptions::PORT_SIDE, side);
 
-    let label = ElkGraphUtil::create_label_with_text(text, Some(ElkGraphElementRef::Port(port.clone())));
+    let label =
+        ElkGraphUtil::create_label_with_text(text, Some(ElkGraphElementRef::Port(port.clone())));
     set_label_dimensions(&label, 20.0, 10.0);
     port
 }
 
 fn build_issue_405_scenario() -> ElkNodeRef {
     let graph = ElkGraphUtil::create_graph();
-    set_node_property(&graph, CoreOptions::ALGORITHM, LayeredOptions::ALGORITHM_ID.to_string());
+    set_node_property(
+        &graph,
+        CoreOptions::ALGORITHM,
+        LayeredOptions::ALGORITHM_ID.to_string(),
+    );
     set_node_property(&graph, CoreOptions::DIRECTION, Direction::Right);
     set_node_property(&graph, CoreOptions::EDGE_ROUTING, EdgeRouting::Orthogonal);
 
@@ -132,7 +143,11 @@ fn build_issue_405_scenario() -> ElkNodeRef {
 
     let mut placement = PortLabelPlacement::outside();
     placement.insert(PortLabelPlacement::NextToPortIfPossible);
-    set_node_property(&reference_node, CoreOptions::PORT_LABELS_PLACEMENT, placement);
+    set_node_property(
+        &reference_node,
+        CoreOptions::PORT_LABELS_PLACEMENT,
+        placement,
+    );
 
     let west = create_port_with_label(&reference_node, PortSide::West, "west");
     let east = create_port_with_label(&reference_node, PortSide::East, "east");
@@ -170,7 +185,11 @@ fn build_issue_405_scenario() -> ElkNodeRef {
 
 fn build_issue_603_scenario() -> ElkNodeRef {
     let graph = ElkGraphUtil::create_graph();
-    set_node_property(&graph, CoreOptions::ALGORITHM, LayeredOptions::ALGORITHM_ID.to_string());
+    set_node_property(
+        &graph,
+        CoreOptions::ALGORITHM,
+        LayeredOptions::ALGORITHM_ID.to_string(),
+    );
     set_node_property(
         &graph,
         LayeredOptions::NODE_LABELS_PADDING,
@@ -211,7 +230,11 @@ fn build_issue_603_scenario() -> ElkNodeRef {
 
 fn build_issue_680_scenario() -> ElkNodeRef {
     let graph = ElkGraphUtil::create_graph();
-    set_node_property(&graph, CoreOptions::ALGORITHM, LayeredOptions::ALGORITHM_ID.to_string());
+    set_node_property(
+        &graph,
+        CoreOptions::ALGORITHM,
+        LayeredOptions::ALGORITHM_ID.to_string(),
+    );
     set_node_property(&graph, CoreOptions::DIRECTION, Direction::Down);
     set_node_property(&graph, CoreOptions::EDGE_ROUTING, EdgeRouting::Orthogonal);
 
@@ -252,7 +275,11 @@ fn build_issue_680_scenario() -> ElkNodeRef {
 
 fn build_issue_871_base_scenario(model_order_feedback_mode: bool) -> ElkNodeRef {
     let graph = ElkGraphUtil::create_graph();
-    set_node_property(&graph, CoreOptions::ALGORITHM, LayeredOptions::ALGORITHM_ID.to_string());
+    set_node_property(
+        &graph,
+        CoreOptions::ALGORITHM,
+        LayeredOptions::ALGORITHM_ID.to_string(),
+    );
     set_node_property(&graph, CoreOptions::DIRECTION, Direction::Right);
     if model_order_feedback_mode {
         set_node_property(
@@ -317,7 +344,11 @@ fn build_issue_871_plain_scenario() -> ElkNodeRef {
 
 fn build_issue_905_scenario() -> ElkNodeRef {
     let graph = ElkGraphUtil::create_graph();
-    set_node_property(&graph, CoreOptions::ALGORITHM, LayeredOptions::ALGORITHM_ID.to_string());
+    set_node_property(
+        &graph,
+        CoreOptions::ALGORITHM,
+        LayeredOptions::ALGORITHM_ID.to_string(),
+    );
     set_node_property(&graph, CoreOptions::DIRECTION, Direction::Right);
 
     let source = ElkGraphUtil::create_node(Some(graph.clone()));
@@ -330,12 +361,14 @@ fn build_issue_905_scenario() -> ElkNodeRef {
         ElkConnectableShapeRef::Node(target),
     );
 
-    let tail = ElkGraphUtil::create_label_with_text(
-        "tail",
-        Some(ElkGraphElementRef::Edge(edge.clone())),
-    );
+    let tail =
+        ElkGraphUtil::create_label_with_text("tail", Some(ElkGraphElementRef::Edge(edge.clone())));
     set_label_dimensions(&tail, 16.0, 10.0);
-    set_label_property(&tail, LayeredOptions::EDGE_LABELS_PLACEMENT, EdgeLabelPlacement::Tail);
+    set_label_property(
+        &tail,
+        LayeredOptions::EDGE_LABELS_PLACEMENT,
+        EdgeLabelPlacement::Tail,
+    );
     set_label_location(&tail, 5.0, 10.0);
 
     let center = ElkGraphUtil::create_label_with_text(
@@ -350,12 +383,13 @@ fn build_issue_905_scenario() -> ElkNodeRef {
     );
     set_label_location(&center, 20.0, 80.0);
 
-    let head = ElkGraphUtil::create_label_with_text(
-        "head",
-        Some(ElkGraphElementRef::Edge(edge)),
-    );
+    let head = ElkGraphUtil::create_label_with_text("head", Some(ElkGraphElementRef::Edge(edge)));
     set_label_dimensions(&head, 16.0, 10.0);
-    set_label_property(&head, LayeredOptions::EDGE_LABELS_PLACEMENT, EdgeLabelPlacement::Head);
+    set_label_property(
+        &head,
+        LayeredOptions::EDGE_LABELS_PLACEMENT,
+        EdgeLabelPlacement::Head,
+    );
     set_label_location(&head, 35.0, 150.0);
 
     graph
@@ -393,7 +427,15 @@ fn run_scenario(name: &str, iterations: usize, warmup: usize) -> Option<(u128, f
     Some((nanos, avg_ms, scenarios_per_sec))
 }
 
-fn append_result(path: &str, scenario: &str, iterations: usize, warmup: usize, elapsed_nanos: u128, avg_ms: f64, scenarios_per_sec: f64) {
+fn append_result(
+    path: &str,
+    scenario: &str,
+    iterations: usize,
+    warmup: usize,
+    elapsed_nanos: u128,
+    avg_ms: f64,
+    scenarios_per_sec: f64,
+) {
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_secs())
@@ -407,7 +449,11 @@ fn append_result(path: &str, scenario: &str, iterations: usize, warmup: usize, e
         let _ = std::fs::create_dir_all(parent);
     }
 
-    if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+    {
         use std::io::Write;
         let _ = file.write_all(line.as_bytes());
     }

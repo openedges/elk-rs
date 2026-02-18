@@ -282,7 +282,9 @@ impl NubSpline {
     }
 
     fn calculate_outer_box(&mut self) {
-        self.outer_box = Some(Rectangle::from_vectors_iter(self.get_control_points().iter()));
+        self.outer_box = Some(Rectangle::from_vectors_iter(
+            self.get_control_points().iter(),
+        ));
     }
 
     fn get_t_from_polar(polar: &[f64]) -> f64 {
@@ -307,7 +309,8 @@ impl NubSpline {
         }
         knot_index = knot_index.saturating_sub(1);
 
-        let _ = self.insert_knot_at_current_position(insertions, knot_to_insert, cp_index, knot_index);
+        let _ =
+            self.insert_knot_at_current_position(insertions, knot_to_insert, cp_index, knot_index);
     }
 
     fn insert_knot_at_current_position(
@@ -360,7 +363,11 @@ impl NubSpline {
         (cp_index, knot_index)
     }
 
-    pub fn get_first_vertical_point(nub_spline: &NubSpline, accuracy: f64, max_recursion: usize) -> KVector {
+    pub fn get_first_vertical_point(
+        nub_spline: &NubSpline,
+        accuracy: f64,
+        max_recursion: usize,
+    ) -> KVector {
         let mut first_derive = NubSpline::generate_derived_nubs(nub_spline);
         let mut current_accuracy = f64::INFINITY;
         let mut current_vector: Option<KVector> = None;
@@ -379,8 +386,13 @@ impl NubSpline {
         copy.get_point_on_curve(knot, false)
     }
 
-    pub fn get_last_vertical_point(nub_spline: &NubSpline, accuracy: f64, max_recursion: usize) -> KVector {
-        let mut first_derive = NubSpline::generate_inverted_nubs(&NubSpline::generate_derived_nubs(nub_spline));
+    pub fn get_last_vertical_point(
+        nub_spline: &NubSpline,
+        accuracy: f64,
+        max_recursion: usize,
+    ) -> KVector {
+        let mut first_derive =
+            NubSpline::generate_inverted_nubs(&NubSpline::generate_derived_nubs(nub_spline));
         let mut current_accuracy = f64::INFINITY;
         let mut current_vector: Option<KVector> = None;
         let mut loop_count = 0usize;
@@ -399,7 +411,11 @@ impl NubSpline {
         copy.get_point_on_curve(max_val - knot, false)
     }
 
-    pub fn get_first_horizontal_point(nub_spline: &NubSpline, accuracy: f64, max_recursion: usize) -> KVector {
+    pub fn get_first_horizontal_point(
+        nub_spline: &NubSpline,
+        accuracy: f64,
+        max_recursion: usize,
+    ) -> KVector {
         let mut first_derive = NubSpline::generate_derived_nubs(nub_spline);
         let mut current_accuracy = f64::INFINITY;
         let mut current_vector: Option<KVector> = None;
@@ -418,8 +434,13 @@ impl NubSpline {
         copy.get_point_on_curve(knot, false)
     }
 
-    pub fn get_last_horizontal_point(nub_spline: &NubSpline, accuracy: f64, max_recursion: usize) -> KVector {
-        let mut first_derive = NubSpline::generate_inverted_nubs(&NubSpline::generate_derived_nubs(nub_spline));
+    pub fn get_last_horizontal_point(
+        nub_spline: &NubSpline,
+        accuracy: f64,
+        max_recursion: usize,
+    ) -> KVector {
+        let mut first_derive =
+            NubSpline::generate_inverted_nubs(&NubSpline::generate_derived_nubs(nub_spline));
         let mut current_accuracy = f64::INFINITY;
         let mut current_vector: Option<KVector> = None;
         let mut loop_count = 0usize;
@@ -474,7 +495,9 @@ impl NubSpline {
                 return NubSpline::get_t_from_polar(&second_cp.polar_coordinate);
             }
 
-            if (first_is_positive && second_is_negative) || (first_is_negative && second_is_positive) {
+            if (first_is_positive && second_is_negative)
+                || (first_is_negative && second_is_positive)
+            {
                 let factor = first_y / (first_y - second_y);
                 let t1 = NubSpline::get_t_from_polar(&first_cp.polar_coordinate);
                 let t2 = NubSpline::get_t_from_polar(&second_cp.polar_coordinate);
@@ -506,7 +529,9 @@ impl NubSpline {
                 return NubSpline::get_t_from_polar(&second_cp.polar_coordinate);
             }
 
-            if (first_is_positive && second_is_negative) || (first_is_negative && second_is_positive) {
+            if (first_is_positive && second_is_negative)
+                || (first_is_negative && second_is_positive)
+            {
                 let factor = first_x / (first_x - second_x);
                 let t1 = NubSpline::get_t_from_polar(&first_cp.polar_coordinate);
                 let t2 = NubSpline::get_t_from_polar(&second_cp.polar_coordinate);
@@ -567,7 +592,11 @@ impl NubSpline {
         self.is_bezier = true;
     }
 
-    pub fn get_bezier_cp(&mut self, with_source_vector: bool, with_target_vector: bool) -> KVectorChain {
+    pub fn get_bezier_cp(
+        &mut self,
+        with_source_vector: bool,
+        with_target_vector: bool,
+    ) -> KVectorChain {
         if !self.is_bezier {
             self.to_bezier();
         }

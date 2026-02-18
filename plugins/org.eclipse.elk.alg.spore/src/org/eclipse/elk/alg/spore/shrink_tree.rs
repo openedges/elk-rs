@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use org_eclipse_elk_core::org::eclipse::elk::core::alg::algorithm_assembler::{AlgorithmAssembler, SharedProcessor};
+use org_eclipse_elk_core::org::eclipse::elk::core::alg::algorithm_assembler::{
+    AlgorithmAssembler, SharedProcessor,
+};
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
 use crate::org::eclipse::elk::alg::spore::graph::Graph;
@@ -27,8 +29,14 @@ impl ShrinkTree {
                 SPOrEPhases::P1Structure,
                 Arc::new(StructureExtractionStrategy::DelaunayTriangulation),
             )
-            .set_phase(SPOrEPhases::P2ProcessingOrder, Arc::new(graph.tree_construction_strategy))
-            .set_phase(SPOrEPhases::P3Execution, Arc::new(graph.compaction_strategy));
+            .set_phase(
+                SPOrEPhases::P2ProcessingOrder,
+                Arc::new(graph.tree_construction_strategy),
+            )
+            .set_phase(
+                SPOrEPhases::P3Execution,
+                Arc::new(graph.compaction_strategy),
+            );
 
         self.algorithm = self.algorithm_assembler.build(graph);
 

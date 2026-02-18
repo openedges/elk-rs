@@ -140,7 +140,10 @@ fn test_reset_without_fail_on_missing_phase() {
 fn test_add_processor_configuration() {
     let mut assembler: AlgorithmAssembler<TestPhases, TestGraph> = AlgorithmAssembler::create();
     let mut config = LayoutProcessorConfiguration::create();
-    config.add_before(TestPhases::Phase1, processor_factory(TestProcessors::Processor3));
+    config.add_before(
+        TestPhases::Phase1,
+        processor_factory(TestProcessors::Processor3),
+    );
     assembler.add_processor_configuration(&config);
 
     assembler.set_phase(TestPhases::Phase1, phase_factory(TestPhases::Phase1));

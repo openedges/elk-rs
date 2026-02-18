@@ -100,9 +100,7 @@ impl LayoutDataContentAssist {
     ) -> Vec<Proposal<Box<dyn Any>>> {
         let mut proposals = Vec::new();
         match option.option_type() {
-            LayoutOptionType::Boolean
-            | LayoutOptionType::Enum
-            | LayoutOptionType::EnumSet => {
+            LayoutOptionType::Boolean | LayoutOptionType::Enum | LayoutOptionType::EnumSet => {
                 for choice in option.choices() {
                     proposals.push(Proposal::of(choice.clone(), Some(choice), None));
                 }
@@ -162,9 +160,7 @@ impl LayoutDataContentAssist {
                     })
                     .unwrap_or(true)
             })
-            .filter(|option| {
-                element.is_none_or(|element| !has_property_id(element, option.id()))
-            })
+            .filter(|option| element.is_none_or(|element| !has_property_id(element, option.id())))
             .filter(|option| option.visibility() != LayoutOptionVisibility::Hidden)
             .filter_map(|option| {
                 matches_prefix(
@@ -198,11 +194,8 @@ fn matches_prefix<T>(
 where
     T: ILayoutMetaData + Clone,
 {
-    let matches_name = !prefix.is_empty()
-        && data
-            .name()
-            .to_lowercase()
-            .contains(&prefix.to_lowercase());
+    let matches_name =
+        !prefix.is_empty() && data.name().to_lowercase().contains(&prefix.to_lowercase());
     let id_split: Vec<&str> = data.id().split('.').collect();
     let prefix_split: Option<Vec<&str>> = if matches_name {
         None
@@ -292,23 +285,31 @@ fn get_relevant_node(element: &ElkGraphElementRef) -> Option<ElkNodeRef> {
 
 fn has_property_id(element: &ElkGraphElementRef, property_id: &str) -> bool {
     match element {
-        ElkGraphElementRef::Node(node) => with_node_properties(node, |props| props.has_property_id(property_id)),
+        ElkGraphElementRef::Node(node) => {
+            with_node_properties(node, |props| props.has_property_id(property_id))
+        }
         ElkGraphElementRef::Edge(edge) => {
             let mut edge_mut = edge.borrow_mut();
-            edge_mut.element().properties_mut().has_property_id(property_id)
+            edge_mut
+                .element()
+                .properties_mut()
+                .has_property_id(property_id)
         }
-        ElkGraphElementRef::Port(port) => with_port_properties(port, |props| props.has_property_id(property_id)),
+        ElkGraphElementRef::Port(port) => {
+            with_port_properties(port, |props| props.has_property_id(property_id))
+        }
         ElkGraphElementRef::Label(label) => {
             let mut label_mut = label.borrow_mut();
-            label_mut.shape().graph_element().properties_mut().has_property_id(property_id)
+            label_mut
+                .shape()
+                .graph_element()
+                .properties_mut()
+                .has_property_id(property_id)
         }
     }
 }
 
-fn with_node_properties<R>(
-    node: &ElkNodeRef,
-    f: impl FnOnce(&mut MapPropertyHolder) -> R,
-) -> R {
+fn with_node_properties<R>(node: &ElkNodeRef, f: impl FnOnce(&mut MapPropertyHolder) -> R) -> R {
     let mut node_mut = node.borrow_mut();
     let props = node_mut
         .connectable()
@@ -318,10 +319,7 @@ fn with_node_properties<R>(
     f(props)
 }
 
-fn with_port_properties<R>(
-    port: &ElkPortRef,
-    f: impl FnOnce(&mut MapPropertyHolder) -> R,
-) -> R {
+fn with_port_properties<R>(port: &ElkPortRef, f: impl FnOnce(&mut MapPropertyHolder) -> R) -> R {
     let mut port_mut = port.borrow_mut();
     let props = port_mut
         .connectable()

@@ -151,7 +151,11 @@ fn test_different_self_hyper_loops() {
         .sl_edges()
         .iter()
         .map(|sl_edge| {
-            let edge = sl_edge.lock().expect("self loop edge lock").l_edge().clone();
+            let edge = sl_edge
+                .lock()
+                .expect("self loop edge lock")
+                .l_edge()
+                .clone();
             edge_key(&edge)
         })
         .collect();
@@ -161,7 +165,11 @@ fn test_different_self_hyper_loops() {
         .sl_edges()
         .iter()
         .map(|sl_edge| {
-            let edge = sl_edge.lock().expect("self loop edge lock").l_edge().clone();
+            let edge = sl_edge
+                .lock()
+                .expect("self loop edge lock")
+                .l_edge()
+                .clone();
             edge_key(&edge)
         })
         .collect();

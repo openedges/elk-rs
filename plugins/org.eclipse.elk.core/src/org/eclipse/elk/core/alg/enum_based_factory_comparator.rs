@@ -16,11 +16,7 @@ impl EnumBasedFactoryComparator {
         let ord1 = factory1.enum_ordinal();
         let ord2 = factory2.enum_ordinal();
 
-        if type1.is_none()
-            || type2.is_none()
-            || ord1.is_none()
-            || ord2.is_none()
-            || type1 != type2
+        if type1.is_none() || type2.is_none() || ord1.is_none() || ord2.is_none() || type1 != type2
         {
             panic!(
                 "This comparator can only compare enumeration constants that are part of the same enumeration."

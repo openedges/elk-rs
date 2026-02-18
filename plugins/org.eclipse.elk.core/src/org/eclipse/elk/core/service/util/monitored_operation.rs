@@ -1,4 +1,7 @@
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 use std::time::Instant;
 
 use crate::org::eclipse::elk::core::util::{
@@ -74,7 +77,10 @@ impl MonitoredOperation {
         result
     }
 
-    pub fn run_unmonitored<O: IMonitoredOperation>(&mut self, operation: &mut O) -> OperationStatus {
+    pub fn run_unmonitored<O: IMonitoredOperation>(
+        &mut self,
+        operation: &mut O,
+    ) -> OperationStatus {
         self.timestamp = Some(Instant::now());
         if self.is_canceled() {
             return OperationStatus::Canceled;
@@ -180,7 +186,11 @@ impl IElkProgressMonitor for CancelableProgressMonitor {
         self.inner.logs()
     }
 
-    fn log_graph(&mut self, graph: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef, tag: &str) {
+    fn log_graph(
+        &mut self,
+        graph: &org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef,
+        tag: &str,
+    ) {
         self.inner.log_graph(graph, tag)
     }
 
