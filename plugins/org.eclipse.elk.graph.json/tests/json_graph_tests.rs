@@ -7,7 +7,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::math::{
     ElkMargin, ElkPadding, KVector, KVectorChain,
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::options::{
-    CoreOptions, Direction, EdgeLabelPlacement,
+    CoreOptions, Direction, EdgeLabelPlacement, PortSide, SizeConstraint,
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{
     BasicProgressMonitor, IndividualSpacings, Maybe,
@@ -233,6 +233,44 @@ fn import_layout_options() {
     assert_eq!(
         node_property(&root, CoreOptions::DIRECTION),
         Some(Direction::Down)
+    );
+}
+
+#[test]
+fn import_node_size_constraints_enumset() {
+    let graph = r#"
+    {
+      "id": "root",
+      "children": [
+        {
+          "id": "n1",
+          "layoutOptions": {
+            "org.eclipse.elk.nodeSize.constraints": "[PORTS, PORT_LABELS, NODE_LABELS, MINIMUM_SIZE]"
+          }
+        }
+      ]
+    }
+    "#;
+
+    let root = ElkGraphJson::for_graph(graph).to_elk().unwrap();
+    let node = find_node(&node_children(&root), "n1");
+    let constraints = node_property(&node, CoreOptions::NODE_SIZE_CONSTRAINTS)
+        .expect("node size constraints should parse");
+    assert!(
+        constraints.contains(&SizeConstraint::Ports),
+        "PORTS should be present in parsed node size constraints"
+    );
+    assert!(
+        constraints.contains(&SizeConstraint::PortLabels),
+        "PORT_LABELS should be present in parsed node size constraints"
+    );
+    assert!(
+        constraints.contains(&SizeConstraint::NodeLabels),
+        "NODE_LABELS should be present in parsed node size constraints"
+    );
+    assert!(
+        constraints.contains(&SizeConstraint::MinimumSize),
+        "MINIMUM_SIZE should be present in parsed node size constraints"
     );
 }
 
@@ -973,6 +1011,84 @@ fn transfer_layout_edge_sections_exist() {
         }
         assert!(obj.get("container").is_some());
     }
+}
+
+#[test]
+fn transfer_layout_compensates_fixed_order_vertical_port_surrounding_height() {
+    let graph = r#"
+    {
+      "id": "root",
+      "children": [
+        {
+          "id": "N1",
+          "layoutOptions": {
+            "org.eclipse.elk.portConstraints": "FIXED_ORDER",
+            "org.eclipse.elk.nodeSize.constraints": "[PORTS, PORT_LABELS, NODE_LABELS, MINIMUM_SIZE]"
+          },
+          "ports": [
+            { "id": "P1", "layoutOptions": { "org.eclipse.elk.port.side": "EAST" } },
+            { "id": "P2", "layoutOptions": { "org.eclipse.elk.port.side": "EAST" } },
+            { "id": "P3", "layoutOptions": { "org.eclipse.elk.port.side": "EAST" } }
+          ]
+        }
+      ]
+    }
+    "#;
+
+    let shared = Rc::new(RefCell::new(parse_lenient_json(graph)));
+    let mut importer = Maybe::default();
+    let root = ElkGraphJson::for_graph_shared(shared.clone())
+        .remember_importer(&mut importer)
+        .to_elk()
+        .unwrap();
+
+    let n1 = find_node(&node_children(&root), "N1");
+    {
+        let mut node_ref = n1.borrow_mut();
+        let shape = node_ref.connectable().shape();
+        shape.set_location(12.0, 12.0);
+        shape.set_width(20.0);
+        shape.set_height(20.0);
+    }
+
+    let mut ports = node_ports(&n1);
+    ports.sort_by_key(|port| {
+        let mut port_ref = port.borrow_mut();
+        port_ref
+            .connectable()
+            .shape()
+            .graph_element()
+            .identifier()
+            .map(|id| id.to_string())
+            .unwrap_or_default()
+    });
+    for (port, y) in ports.iter().zip([10.0_f64, 20.0, 30.0]) {
+        set_port_property(port, CoreOptions::PORT_SIDE, PortSide::East);
+        let mut port_ref = port.borrow_mut();
+        let shape = port_ref.connectable().shape();
+        shape.set_location(20.0, y);
+        shape.set_width(0.0);
+        shape.set_height(0.0);
+    }
+
+    importer
+        .get_mut()
+        .expect("importer")
+        .transfer_layout(&root)
+        .unwrap();
+
+    let root_value = shared.borrow();
+    let n1_obj = root_value["children"]
+        .as_array()
+        .and_then(|children| {
+            children
+                .iter()
+                .find(|child| child.get("id").and_then(|id| id.as_str()) == Some("N1"))
+        })
+        .and_then(|child| child.as_object())
+        .expect("N1");
+
+    assert_eq!(n1_obj.get("height").and_then(|v| v.as_f64()), Some(40.0));
 }
 
 #[test]

@@ -864,6 +864,17 @@ impl JsonImporter {
                     || opts.contains_key("nodeSize.constraints")
             })
             .unwrap_or(false);
+        let has_ports_and_port_labels_size_constraints = layout_options
+            .and_then(|opts| {
+                opts.get(CoreOptions::NODE_SIZE_CONSTRAINTS.id())
+                    .or_else(|| opts.get("nodeSize.constraints"))
+            })
+            .and_then(Value::as_str)
+            .map(|text| {
+                let normalized = text.to_ascii_uppercase();
+                normalized.contains("PORTS") && normalized.contains("PORT_LABELS")
+            })
+            .unwrap_or(false);
         let has_explicit_port_constraints = layout_options
             .map(|opts| {
                 opts.contains_key(CoreOptions::PORT_CONSTRAINTS.id())
@@ -954,6 +965,21 @@ impl JsonImporter {
                 }
             }
             json_obj.insert("width".to_string(), Value::Number(f64_to_number(4.0)));
+        }
+        if has_ports_and_port_labels_size_constraints
+            && port_constraints == PortConstraints::FixedOrder
+        {
+            if let Some(compensated_height) =
+                recompute_fixed_order_vertical_port_surrounding_height(node)
+            {
+                let current_height = json_obj.get("height").and_then(Value::as_f64).unwrap_or(0.0);
+                if compensated_height > current_height + 1e-9 {
+                    json_obj.insert(
+                        "height".to_string(),
+                        Value::Number(f64_to_number(compensated_height)),
+                    );
+                }
+            }
         }
         Ok(())
     }
@@ -2049,4 +2075,42 @@ fn recompute_compacted_parent_width_candidate(
     } else {
         Some(child_span_candidate)
     }
+}
+
+fn recompute_fixed_order_vertical_port_surrounding_height(node: &ElkNodeRef) -> Option<f64> {
+    let ports = node_ports(node);
+    if ports.len() < 2 {
+        return None;
+    }
+
+    let mut min_y = f64::INFINITY;
+    let mut max_y = f64::NEG_INFINITY;
+    let mut counted = 0usize;
+
+    for port in ports {
+        let (side, y, h) = {
+            let mut port_ref = port.borrow_mut();
+            let shape = port_ref.connectable().shape();
+            let side = shape
+                .graph_element()
+                .properties_mut()
+                .get_property(CoreOptions::PORT_SIDE)
+                .unwrap_or(PortSide::Undefined);
+            (side, shape.y(), shape.height())
+        };
+
+        if side != PortSide::East && side != PortSide::West {
+            return None;
+        }
+
+        min_y = min_y.min(y);
+        max_y = max_y.max(y + h);
+        counted += 1;
+    }
+
+    if counted < 2 || !min_y.is_finite() || !max_y.is_finite() || min_y <= 0.0 {
+        return None;
+    }
+
+    Some(max_y + min_y)
 }
