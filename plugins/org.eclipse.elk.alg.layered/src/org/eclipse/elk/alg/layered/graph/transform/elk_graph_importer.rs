@@ -801,6 +801,7 @@ impl<'a> ElkGraphImporter<'a> {
                 .unwrap_or_else(|| "<no-edge-id>".to_string());
             (sources, targets, props, labels, edge_id)
         };
+        let trace_edge_origin_map = std::env::var_os("ELK_TRACE_EDGE_ORIGIN_MAP").is_some();
 
         let Some(source_shape) = sources.first() else {
             return;
@@ -868,6 +869,15 @@ impl<'a> ElkGraphImporter<'a> {
             edge_guard.set_property(InternalProperties::ORIGIN, Some(Origin::ElkEdge(origin_id)));
             self.origin_store.register_ledge(origin_id, ledge.clone());
 
+            if trace_edge_origin_map {
+                let source_id = Self::connectable_shape_identifier(source_shape);
+                let target_id = Self::connectable_shape_identifier(target_shape);
+                eprintln!(
+                    "[edge-origin-map] edge_origin={} edge_id={} source_shape={} target_shape={}",
+                    origin_id, edge_id, source_id, target_id
+                );
+            }
+
             for label in labels {
                 let llabel = self.transform_label(&label);
                 edge_guard.labels_mut().push(llabel);
@@ -884,6 +894,27 @@ impl<'a> ElkGraphImporter<'a> {
                 edge_guard.set_property(InternalProperties::COORDINATE_SYSTEM_ORIGIN, coord_origin);
             }
         };
+    }
+
+    fn connectable_shape_identifier(shape: &ElkConnectableShapeRef) -> String {
+        match shape {
+            ElkConnectableShapeRef::Node(node) => node
+                .borrow_mut()
+                .connectable()
+                .shape()
+                .graph_element()
+                .identifier()
+                .unwrap_or("<no-node-id>")
+                .to_owned(),
+            ElkConnectableShapeRef::Port(port) => port
+                .borrow_mut()
+                .connectable()
+                .shape()
+                .graph_element()
+                .identifier()
+                .unwrap_or("<no-port-id>")
+                .to_owned(),
+        }
     }
 
     fn find_coordinate_system_origin(

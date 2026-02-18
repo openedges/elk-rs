@@ -59,6 +59,7 @@ impl ILayoutProcessor<LGraph> for LabelDummyRemover {
                     edge_label_spacing,
                     label_label_spacing,
                     layout_direction,
+                    edge_routing,
                     compaction_strategy,
                     spacings.as_ref(),
                 );
@@ -78,6 +79,7 @@ impl LabelDummyRemover {
         edge_label_spacing: f64,
         label_label_spacing: f64,
         layout_direction: Direction,
+        edge_routing: EdgeRouting,
         compaction_strategy: GraphCompactionStrategy,
         spacings: Option<&Spacings>,
     ) {
@@ -131,7 +133,7 @@ impl LabelDummyRemover {
             )
         };
 
-        if !layout_direction.is_vertical() {
+        if !layout_direction.is_vertical() && edge_routing != EdgeRouting::Splines {
             Self::adjust_horizontal_dummy_position_for_post_compaction(
                 node,
                 &mut curr_label_pos,

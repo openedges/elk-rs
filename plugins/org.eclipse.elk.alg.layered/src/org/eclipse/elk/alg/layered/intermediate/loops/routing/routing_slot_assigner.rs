@@ -217,17 +217,13 @@ fn compute_loop_activity(holder: &SelfLoopHolderRef, loops: &[SelfHyperLoopRef])
             );
 
         if port_count > 0 && leftmost_port_id >= 0 && rightmost_port_id >= 0 {
-            let mut port_idx = leftmost_port_id as usize;
-            if port_idx == 0 {
-                port_idx = port_count - 1;
-            } else {
-                port_idx -= 1;
-            }
-            let target_idx = rightmost_port_id as usize;
+            let mut port_idx = leftmost_port_id - 1;
+            let target_idx = rightmost_port_id;
+            let port_count_i32 = port_count as i32;
 
             while port_idx != target_idx {
-                port_idx = (port_idx + 1) % port_count;
-                loop_activity[port_idx] = true;
+                port_idx = (port_idx + 1).rem_euclid(port_count_i32);
+                loop_activity[port_idx as usize] = true;
             }
         }
 

@@ -4,6 +4,14 @@
 - 신규 단계 완료 시 이 문서에 누적 기록하고, `AGENTS.md`의 핵심 스냅샷/우선순위를 동기화한다.
 
 ## 진행된 작업
+- Step M-5 p2 진단(2026-02-18): `algebraic_rlc_RLC.elkt` 단건에 대해 cycle-breaker 추적을 추가해 edge origin 매핑/역전 집합을 수집(`ELK_TRACE_EDGE_ORIGIN_MAP`, `ELK_TRACE_CYCLE_REVERSALS`, `ELK_TRACE_CYCLE_CHOICES`). Rust 경로에서 cycle-breaker 역전은 `E3/E15`(origin `53/65`)로 확인됐고, `compare_model_parity_layouts.py --max-diffs-per-model 500` 기준 단건 drift는 `117 diff(section 76 / coordinate 31 / structure 6 / ordering 2 / other 2)`로 재현.
+- Step M-5 p2 가설 검증(2026-02-18): cycle-breaker random 상태 가설을 `ELK_DEBUG_CYCLE_RANDOM_PREFETCH` 실험으로 점검. `algebraic` 단건은 prefetch `0 -> 117 diff`, `1 -> 77 diff`, `4 -> 130 diff` 등 변동을 확인했지만 3-model subset(`algebraic/backtrack/cartracking`) 총합은 `594 -> 571(prefetch=1)`로 일부 개선/일부 악화가 공존해 전역 fix로 채택하지 않음. 강제 역전(`ELK_DEBUG_CYCLE_FORCE_REVERSE_ORIGINS=51,65`)도 `117 -> 116 diff`로 효과 미미.
+- Step M-5 p2 Java 정합 보정(2026-02-18): `NetworkSimplexLayerer`의 iteration limit 계산을 Java와 동일하게 `floor(sqrt(n))`로 수정(`network_simplex_layerer.rs`). 기존 Rust의 `round(sqrt(n))` 편차를 제거했으며, 검증 결과 `cargo check -p org-eclipse-elk-alg-layered --lib`, `cargo check -p org-eclipse-elk-alg-common --lib`, `cargo test -p org-eclipse-elk-alg-layered --test network_simplex_bk_test` 통과. 다만 `algebraic` 단건 및 3-model subset parity 수치는 기존과 동일(`117`, `594`)하여 추가 root cause 분석이 필요.
+- Step M-5 p2 추적 인프라 보강(2026-02-18): `ElkGraphImporter` edge origin trace(`ELK_TRACE_EDGE_ORIGIN_MAP`), `GreedyCycleBreaker` 선택/역전 trace(`ELK_TRACE_CYCLE_CHOICES`, `ELK_TRACE_CYCLE_REVERSALS`), `NetworkSimplex` 반복 중단 trace(`ELK_TRACE_NETWORK_SIMPLEX`)를 추가해 p2 layering 편차를 모델 단위로 추적 가능하도록 정리.
+- Step M-5 p5 스플라인/루프 보정(2026-02-18): `HorizontalGraphCompactor`에 `EdgeRouting::Splines` 경로를 추가하고 spline segment compaction/constraint/좌표 보정 루틴을 연결했다. `LabelDummyRemover`는 spline 라우팅에서 post-compaction 수평 보정을 건너뛰도록 분기했고, `RoutingSlotAssigner`의 loop activity 인덱싱을 Java 동작과 맞게 `rem_euclid` 기반으로 보정했다.
+- Step M-5 p2-p5 전송 경계 보강(2026-02-18): `ElkGraphLayoutTransferrer`에 centered inside node label 최소 폭 반영 및 external-port resize 분기 정합을 보강했고, parity runner trace에 `PORT_INDEX`/`PORT_SIDE`를 포함해 포트 순서 기반 편차를 직접 점검할 수 있도록 확장했다.
+- Step M-5 검증(2026-02-18): `cargo check -p org-eclipse-elk-alg-layered --lib`, `cargo check -p org-eclipse-elk-alg-common --lib`, `cargo check -p org-eclipse-elk-graph-json --bin model_parity_layout_runner`, `cargo test -p org-eclipse-elk-alg-layered --test network_simplex_bk_test`, `cargo test -p org-eclipse-elk-graph-json --test json_graph_tests`, `cargo clippy -p org-eclipse-elk-alg-layered --lib`, `cargo clippy -p org-eclipse-elk-graph-json --all-targets`를 실행해 통과를 확인했다(기존 warning만 유지).
+
 - 문서 체계 정리(2026-02-18): `AGENTS.md`를 핵심 운영 규칙/품질 게이트/현재 스냅샷 중심으로 축약하고, 상세 진행 내용(단계별 구현/검증/수치/TODO)은 `HISTORY.md`에만 기록하도록 운영 원칙을 확정.
 - 진행률(최신): 모델 패리티 333건 중 `examples/general/spacing/portsSurrounding.elkt` 드리프트 6건을 해결하여 해당 구간 오차 0건으로 감소. `inside`/복합 노드 포트 라벨 배치 규칙 드리프트 3건(`inside_two_default_hierarchical`, `inside_two_with_one_edge`, `inside_three_with_one_edge`) 추가 해소로 동일 테스트군(`port_label_placement_variants_test`) 재확인 완료.
 - layered `LabelAndNodeSizeProcessor`에서 동/서측 자유 배치 보정 반영 버그 수정: `portsSurrounding` 오차 원인인 `apply_free_vertical_port_surrounding_adjustment` 반환값 오류를 수정해 동서측 포트 주변 간격 보정을 적용하도록 처리.
@@ -878,3 +886,9 @@
 - Step M-5 후속 지표 갱신(2026-02-18): `phase_focus_top_low_medium` 25개 재실행 결과 `matches=14`, `drift=11`, `total_diffs=140`로 직전 상태(`13/12/141`) 대비 +1/-1/-1 개선
 - Step M-5 후속 정적 점검(2026-02-18): `cargo clippy -p org-eclipse-elk-graph-json --all-targets` 종료코드 0(의존 크레이트 기존 warning만 존재)
 - Step M-5 후속 전체 게이트 시도(2026-02-18): `cargo clippy --workspace --all-targets`는 종료코드 0, `cargo test --workspace`는 `plugins/org.eclipse.elk.graph.json/tests/edge_coords_test.rs`의 `edge_coords_round_trip` 1건 실패로 종료코드 101. 해당 실패는 기존 이력에 이미 기록된 known failing 케이스로 이번 변경 범위(`json_importer` fixed-order 포트 주변 높이 보정)와 직접 연관된 신규 회귀는 `json_graph_tests`/parity probe 기준 미재현
+
+## 진행할 작업
+- Step M-5 p2 root cause 확정: `algebraic_rlc_RLC.elkt`의 잔여 drift(`117`)를 대상으로 cycle-breaker 역전 집합(`53/65`) 이후 p2 layering 전이(특히 component split/순서)까지 추적해 Java와 갈라지는 첫 지점을 고정한다.
+- Step M-5 p5 잔여 low-diff 정리: spline/hyperedge/self-loop가 섞인 low-diff 모델에 대해 `HorizontalGraphCompactor` 적용 전후 section/coordinate diff를 재측정하고, 필요 시 compaction 제약 전달 경로를 추가 보정한다.
+- parity 지표 재검증: 우선 3-model subset(`algebraic/backtrack/cartracking`)과 `phase_focus_top_low_medium`을 재실행해 수치 변화를 확인하고, 개선이 확인되면 full parity 재실행으로 스냅샷(`matches/drift/total_diffs`)을 갱신한다.
+- 품질 게이트 유지: 단계 종료 시 `cargo clippy --workspace --all-targets`와 `cargo test --workspace`를 재실행하고 예외/known failing이 있으면 근거와 우회안을 `HISTORY.md`에 즉시 기록한다.

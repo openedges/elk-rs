@@ -17,6 +17,7 @@ use crate::org::eclipse::elk::alg::layered::options::{
     ConstraintCalculationStrategy, GraphCompactionStrategy, InternalProperties, LayeredOptions,
     Spacings,
 };
+use crate::org::eclipse::elk::alg::layered::p5edges::splines::SplineSegmentRef;
 
 #[derive(Default)]
 pub struct HorizontalGraphCompactor;
@@ -37,8 +38,7 @@ impl ILayoutProcessor<LGraph> for HorizontalGraphCompactor {
         let edge_routing = layered_graph
             .get_property(LayeredOptions::EDGE_ROUTING)
             .unwrap_or(EdgeRouting::Undefined);
-        if edge_routing != EdgeRouting::Orthogonal {
-            // Keep pre-existing behavior for non-orthogonal routes until full Java compactor parity is ported.
+        if edge_routing != EdgeRouting::Orthogonal && edge_routing != EdgeRouting::Splines {
             return;
         }
 
@@ -49,9 +49,13 @@ impl ILayoutProcessor<LGraph> for HorizontalGraphCompactor {
             .get_property(LayeredOptions::COMPACTION_POST_COMPACTION_CONSTRAINTS)
             .unwrap_or(ConstraintCalculationStrategy::Scanline);
 
-        let mut context = CompactionContext::new(layered_graph);
+        let mut context = CompactionContext::new(layered_graph, edge_routing);
         context.transform_nodes();
-        context.transform_edges_orthogonal();
+        match edge_routing {
+            EdgeRouting::Orthogonal => context.transform_edges_orthogonal(),
+            EdgeRouting::Splines => context.transform_edges_splines(),
+            _ => {}
+        }
         context.compact(strategy, constraint_strategy, spacings);
         context.apply_layout(layered_graph);
 
@@ -68,10 +72,14 @@ struct CommentOffset {
 
 #[derive(Clone)]
 struct VerticalSegment {
+    segment_id: usize,
+    joined_segment_ids: HashSet<usize>,
+    constraint_target_ids: HashSet<usize>,
     hitbox: ElkRectangle,
     represented_edges: Vec<LEdgeRef>,
     represented_edge_keys: HashSet<usize>,
     affected_bends: Vec<(LEdgeRef, usize)>,
+    affected_spline_segments: Vec<SplineSegmentRef>,
     potential_group_parents: Vec<CNodeRef>,
 }
 
@@ -87,6 +95,7 @@ enum CNodeOrigin {
 }
 
 struct CompactionContext {
+    edge_routing: EdgeRouting,
     c_graph: CGraphRef,
     nodes: Vec<LNodeRef>,
     node_to_cnode: HashMap<usize, CNodeRef>,
@@ -95,10 +104,11 @@ struct CompactionContext {
     cnode_to_segment: HashMap<usize, usize>,
     connection_locks: HashMap<usize, DirectionLocks>,
     comment_offsets: Vec<CommentOffset>,
+    next_segment_id: usize,
 }
 
 impl CompactionContext {
-    fn new(graph: &LGraph) -> Self {
+    fn new(graph: &LGraph, edge_routing: EdgeRouting) -> Self {
         let has_edges = graph.layers().iter().any(|layer| {
             layer.lock().ok().is_some_and(|layer| {
                 layer.nodes().iter().any(|node| {
@@ -122,6 +132,7 @@ impl CompactionContext {
         }
 
         Self {
+            edge_routing,
             c_graph: CGraph::new(directions),
             nodes,
             node_to_cnode: HashMap::new(),
@@ -130,6 +141,7 @@ impl CompactionContext {
             cnode_to_segment: HashMap::new(),
             connection_locks: HashMap::new(),
             comment_offsets: Vec::new(),
+            next_segment_id: 0,
         }
     }
 
@@ -187,7 +199,16 @@ impl CompactionContext {
     }
 
     fn transform_edges_orthogonal(&mut self) {
-        let mut segments = self.collect_vertical_segments_orthogonal();
+        let segments = self.collect_vertical_segments_orthogonal();
+        self.register_segments(segments);
+    }
+
+    fn transform_edges_splines(&mut self) {
+        let segments = self.collect_vertical_segments_splines();
+        self.register_segments(segments);
+    }
+
+    fn register_segments(&mut self, mut segments: Vec<VerticalSegment>) {
         if segments.is_empty() {
             return;
         }
@@ -203,9 +224,9 @@ impl CompactionContext {
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
 
-        let merged = self.merge_segments(segments);
-        self.segments = merged;
+        self.segments = self.merge_segments(segments);
 
+        let mut segment_id_to_cnode: HashMap<usize, CNodeRef> = HashMap::new();
         for (segment_index, segment) in self.segments.iter().enumerate() {
             let c_node = CNode::create(&self.c_graph, segment.hitbox);
             if let Some(parent) = segment.potential_group_parents.first() {
@@ -218,6 +239,9 @@ impl CompactionContext {
             self.cnode_origin
                 .insert(cnode_key, CNodeOrigin::Segment(segment_index));
             self.cnode_to_segment.insert(cnode_key, segment_index);
+            for segment_id in &segment.joined_segment_ids {
+                segment_id_to_cnode.insert(*segment_id, c_node.clone());
+            }
 
             let mut incoming_ports: HashSet<usize> = HashSet::new();
             let mut outgoing_ports: HashSet<usize> = HashSet::new();
@@ -242,6 +266,38 @@ impl CompactionContext {
                 locks.right = true;
             }
             self.connection_locks.insert(cnode_key, locks);
+        }
+
+        self.add_predefined_constraints(&segment_id_to_cnode);
+    }
+
+    fn add_predefined_constraints(&mut self, segment_id_to_cnode: &HashMap<usize, CNodeRef>) {
+        let mut unique_pairs: HashSet<(usize, usize)> = HashSet::new();
+        let mut constraints = Vec::new();
+
+        for segment in &self.segments {
+            let Some(source_cnode) = segment_id_to_cnode.get(&segment.segment_id).cloned() else {
+                continue;
+            };
+            for target_segment_id in &segment.constraint_target_ids {
+                let Some(target_cnode) = segment_id_to_cnode.get(target_segment_id).cloned() else {
+                    continue;
+                };
+                if Rc::ptr_eq(&source_cnode, &target_cnode) {
+                    continue;
+                }
+                let key = (rc_key(&source_cnode), rc_key(&target_cnode));
+                if unique_pairs.insert(key) {
+                    constraints.push((source_cnode.clone(), target_cnode));
+                }
+            }
+        }
+
+        if !constraints.is_empty() {
+            self.c_graph
+                .borrow_mut()
+                .predefined_horizontal_constraints
+                .extend(constraints);
         }
     }
 
@@ -326,6 +382,10 @@ impl CompactionContext {
 
         self.apply_comment_positions();
         self.apply_segment_positions();
+        if self.edge_routing == EdgeRouting::Splines {
+            self.apply_spline_self_loop_offsets();
+            self.adjust_straight_spline_segments();
+        }
         self.apply_self_loop_label_offsets();
         self.update_graph_bounds(layered_graph);
     }
@@ -375,6 +435,201 @@ impl CompactionContext {
                     point.x += delta_x;
                     chain.set(*bend_index, point);
                 }
+            }
+            let mut adjusted_spline_segments: HashSet<usize> = HashSet::new();
+            for spline_segment in &segment.affected_spline_segments {
+                let spline_key = arc_key(spline_segment);
+                if !adjusted_spline_segments.insert(spline_key) {
+                    continue;
+                }
+                if let Ok(mut segment_guard) = spline_segment.lock() {
+                    segment_guard.bounding_box.x += delta_x;
+                }
+            }
+        }
+    }
+
+    fn apply_spline_self_loop_offsets(&self) {
+        for c_node in &self.c_graph.borrow().c_nodes {
+            let key = rc_key(c_node);
+            let Some(CNodeOrigin::Node(node)) = self.cnode_origin.get(&key) else {
+                continue;
+            };
+            let Some(pre) = c_node.borrow().hitbox_pre_compaction else {
+                continue;
+            };
+            let delta_x = c_node.borrow().hitbox.x - pre.x;
+            if compare_fuzzy::eq(delta_x, 0.0) {
+                continue;
+            }
+
+            let outgoing = node
+                .lock()
+                .ok()
+                .map(|node_guard| node_guard.outgoing_edges())
+                .unwrap_or_default();
+            for edge in outgoing {
+                let is_self_loop = edge
+                    .lock()
+                    .ok()
+                    .is_some_and(|edge_guard| edge_guard.is_self_loop());
+                if !is_self_loop {
+                    continue;
+                }
+                if let Ok(mut edge_guard) = edge.lock() {
+                    edge_guard.bend_points().offset(delta_x, 0.0);
+                }
+            }
+        }
+    }
+
+    fn adjust_straight_spline_segments(&self) {
+        for node in self.layer_nodes() {
+            let outgoing = node
+                .lock()
+                .ok()
+                .map(|node_guard| node_guard.outgoing_edges())
+                .unwrap_or_default();
+            for edge in outgoing {
+                let spline = edge.lock().ok().and_then(|mut edge_guard| {
+                    edge_guard.get_property(InternalProperties::SPLINE_ROUTE_START)
+                });
+                if let Some(spline) = spline {
+                    self.adjust_spline_control_points(&spline);
+                }
+            }
+        }
+    }
+
+    fn adjust_spline_control_points(&self, spline: &[SplineSegmentRef]) {
+        if spline.is_empty() {
+            return;
+        }
+
+        let mut last_segment = spline[0].clone();
+        if spline.len() == 1 {
+            self.adjust_control_point_between_segments(&last_segment, &last_segment, 1, 0, spline);
+            return;
+        }
+
+        let mut index = 1usize;
+        while index < spline.len() {
+            let process = last_segment
+                .lock()
+                .ok()
+                .is_some_and(|segment| segment.initial_segment || !segment.is_straight);
+            if process {
+                if let Some((next_index, next_segment)) =
+                    self.first_non_straight_segment(spline, index)
+                {
+                    self.adjust_control_point_between_segments(
+                        &last_segment,
+                        &next_segment,
+                        index,
+                        next_index,
+                        spline,
+                    );
+                    index = next_index + 1;
+                    last_segment = next_segment;
+                    continue;
+                }
+            }
+            index += 1;
+        }
+    }
+
+    fn first_non_straight_segment(
+        &self,
+        spline: &[SplineSegmentRef],
+        index: usize,
+    ) -> Option<(usize, SplineSegmentRef)> {
+        if index >= spline.len() {
+            return None;
+        }
+        for (i, segment) in spline.iter().enumerate().skip(index) {
+            let is_match = segment
+                .lock()
+                .ok()
+                .is_some_and(|guard| i == spline.len() - 1 || !guard.is_straight);
+            if is_match {
+                return Some((i, segment.clone()));
+            }
+        }
+        None
+    }
+
+    fn adjust_control_point_between_segments(
+        &self,
+        left: &SplineSegmentRef,
+        right: &SplineSegmentRef,
+        left_idx: usize,
+        right_idx: usize,
+        spline: &[SplineSegmentRef],
+    ) {
+        let (left_initial, left_straight, left_bbox_x, left_bbox_w, left_source_node) = left
+            .lock()
+            .ok()
+            .map(|segment| {
+                (
+                    segment.initial_segment,
+                    segment.is_straight,
+                    segment.bounding_box.x,
+                    segment.bounding_box.width,
+                    segment.source_node.clone(),
+                )
+            })
+            .unwrap_or((false, false, 0.0, 0.0, None));
+
+        let (mut start_x, idx1) = if left_initial && left_straight {
+            let source_x = left_source_node
+                .as_ref()
+                .and_then(|node| self.node_to_cnode.get(&arc_key(node)))
+                .map(|c_node| {
+                    let hitbox = c_node.borrow().hitbox;
+                    hitbox.x + hitbox.width
+                })
+                .unwrap_or(left_bbox_x + left_bbox_w);
+            (source_x, left_idx.saturating_sub(1))
+        } else {
+            (left_bbox_x + left_bbox_w, left_idx)
+        };
+
+        let (right_last, right_straight, right_bbox_x, right_target_node) = right
+            .lock()
+            .ok()
+            .map(|segment| {
+                (
+                    segment.last_segment,
+                    segment.is_straight,
+                    segment.bounding_box.x,
+                    segment.target_node.clone(),
+                )
+            })
+            .unwrap_or((false, false, 0.0, None));
+
+        let (end_x, idx2) = if right_last && right_straight {
+            let target_x = right_target_node
+                .as_ref()
+                .and_then(|node| self.node_to_cnode.get(&arc_key(node)))
+                .map(|c_node| c_node.borrow().hitbox.x)
+                .unwrap_or(right_bbox_x);
+            (target_x, right_idx + 1)
+        } else {
+            (right_bbox_x, right_idx)
+        };
+
+        let strip = end_x - start_x;
+        let chunks = usize::max(2, idx2.saturating_sub(idx1)) as f64;
+        let chunk = strip / chunks;
+
+        start_x += chunk;
+        for idx in idx1..idx2 {
+            if let Some(segment_ref) = spline.get(idx) {
+                if let Ok(mut segment) = segment_ref.lock() {
+                    let width = segment.bounding_box.width;
+                    segment.bounding_box.x = start_x - width / 2.0;
+                }
+                start_x += chunk;
             }
         }
     }
@@ -480,7 +735,7 @@ impl CompactionContext {
         }
     }
 
-    fn collect_vertical_segments_orthogonal(&self) -> Vec<VerticalSegment> {
+    fn collect_vertical_segments_orthogonal(&mut self) -> Vec<VerticalSegment> {
         let mut segments = Vec::new();
 
         for node in self.layer_nodes() {
@@ -591,6 +846,46 @@ impl CompactionContext {
         segments
     }
 
+    fn collect_vertical_segments_splines(&mut self) -> Vec<VerticalSegment> {
+        let mut segments: Vec<VerticalSegment> = Vec::new();
+        let mut segment_id_to_index: HashMap<usize, usize> = HashMap::new();
+
+        for node in self.layer_nodes() {
+            let outgoing = node
+                .lock()
+                .ok()
+                .map(|node_guard| node_guard.outgoing_edges())
+                .unwrap_or_default();
+            for edge in outgoing {
+                let spline_chain = edge.lock().ok().and_then(|mut edge_guard| {
+                    edge_guard.get_property(InternalProperties::SPLINE_ROUTE_START)
+                });
+                let Some(spline_chain) = spline_chain else {
+                    continue;
+                };
+
+                let mut last_non_straight_segment_id: Option<usize> = None;
+                for spline_segment in spline_chain {
+                    let Some(segment) = self.new_spline_vertical_segment(&spline_segment) else {
+                        continue;
+                    };
+                    let current_segment_id = segment.segment_id;
+                    if let Some(last_segment_id) = last_non_straight_segment_id {
+                        if let Some(index) = segment_id_to_index.get(&last_segment_id).copied() {
+                            segments[index].constraint_target_ids.insert(current_segment_id);
+                        }
+                    }
+
+                    segment_id_to_index.insert(current_segment_id, segments.len());
+                    last_non_straight_segment_id = Some(current_segment_id);
+                    segments.push(segment);
+                }
+            }
+        }
+
+        segments
+    }
+
     fn merge_segments(&self, mut segments: Vec<VerticalSegment>) -> Vec<VerticalSegment> {
         if segments.is_empty() {
             return Vec::new();
@@ -611,13 +906,14 @@ impl CompactionContext {
     }
 
     fn new_vertical_segment(
-        &self,
+        &mut self,
         bend1: KVector,
         bend2: KVector,
         edge: &LEdgeRef,
         bend_indices: Vec<usize>,
         potential_parent: Option<CNodeRef>,
     ) -> VerticalSegment {
+        let segment_id = self.allocate_segment_id();
         let mut represented_edge_keys = HashSet::new();
         represented_edge_keys.insert(arc_key(edge));
 
@@ -632,6 +928,9 @@ impl CompactionContext {
         }
 
         VerticalSegment {
+            segment_id,
+            joined_segment_ids: HashSet::from([segment_id]),
+            constraint_target_ids: HashSet::new(),
             hitbox: ElkRectangle::with_values(
                 bend1.x.min(bend2.x),
                 bend1.y.min(bend2.y),
@@ -641,8 +940,47 @@ impl CompactionContext {
             represented_edges: vec![edge.clone()],
             represented_edge_keys,
             affected_bends,
+            affected_spline_segments: Vec::new(),
             potential_group_parents,
         }
+    }
+
+    fn new_spline_vertical_segment(
+        &mut self,
+        spline_segment: &SplineSegmentRef,
+    ) -> Option<VerticalSegment> {
+        let (is_straight, hitbox, representative_edge) = spline_segment
+            .lock()
+            .ok()
+            .and_then(|segment| {
+                let edge = segment.edges.first().cloned()?;
+                Some((segment.is_straight, segment.bounding_box, edge))
+            })?;
+        if is_straight {
+            return None;
+        }
+
+        let segment_id = self.allocate_segment_id();
+        let mut represented_edge_keys = HashSet::new();
+        represented_edge_keys.insert(arc_key(&representative_edge));
+
+        Some(VerticalSegment {
+            segment_id,
+            joined_segment_ids: HashSet::from([segment_id]),
+            constraint_target_ids: HashSet::new(),
+            hitbox,
+            represented_edges: vec![representative_edge],
+            represented_edge_keys,
+            affected_bends: Vec::new(),
+            affected_spline_segments: vec![spline_segment.clone()],
+            potential_group_parents: Vec::new(),
+        })
+    }
+
+    fn allocate_segment_id(&mut self) -> usize {
+        let id = self.next_segment_id;
+        self.next_segment_id += 1;
+        id
     }
 
     fn layer_nodes(&self) -> Vec<LNodeRef> {
@@ -828,10 +1166,14 @@ fn segments_intersect(a: &VerticalSegment, b: &VerticalSegment) -> bool {
 }
 
 fn join_segments(mut left: VerticalSegment, right: VerticalSegment) -> VerticalSegment {
+    left.joined_segment_ids.extend(right.joined_segment_ids);
+    left.constraint_target_ids.extend(right.constraint_target_ids);
     left.represented_edges.extend(right.represented_edges);
     left.represented_edge_keys
         .extend(right.represented_edge_keys);
     left.affected_bends.extend(right.affected_bends);
+    left.affected_spline_segments
+        .extend(right.affected_spline_segments);
     left.potential_group_parents
         .extend(right.potential_group_parents);
 

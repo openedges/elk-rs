@@ -409,13 +409,27 @@ fn trace_port_order_before_layout(root: &ElkNodeRef) {
                 .ports()
                 .iter()
                 .map(|port| {
-                    port.borrow_mut()
+                    let mut port_mut = port.borrow_mut();
+                    let id = port_mut
                         .connectable()
                         .shape()
                         .graph_element()
                         .identifier()
                         .unwrap_or("<no-port-id>")
-                        .to_owned()
+                        .to_owned();
+                    let pindex = port_mut
+                        .connectable()
+                        .shape()
+                        .graph_element()
+                        .properties_mut()
+                        .get_property(CoreOptions::PORT_INDEX);
+                    let pside = port_mut
+                        .connectable()
+                        .shape()
+                        .graph_element()
+                        .properties_mut()
+                        .get_property(CoreOptions::PORT_SIDE);
+                    format!("{id}(index={pindex:?},side={pside:?})")
                 })
                 .collect::<Vec<_>>()
                 .join(", ");

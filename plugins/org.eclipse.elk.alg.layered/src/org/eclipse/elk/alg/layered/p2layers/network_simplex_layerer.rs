@@ -208,7 +208,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for NetworkSimplexLayerer {
         let mut previous_layering_node_counts: Option<Vec<i32>> = None;
 
         for (idx, component) in connected_components.iter().enumerate() {
-            let iter_limit = thoroughness * (component.len() as f64).sqrt().round().max(1.0) as i32;
+            // Java parity: (int) Math.sqrt(connComp.size()) -> floor(sqrt(n)) for n >= 1
+            let iter_limit = thoroughness * (component.len() as f64).sqrt() as i32;
             let mut graph = self.initialize_graph(component);
 
             let mut simplex = NetworkSimplex::for_graph(&mut graph);

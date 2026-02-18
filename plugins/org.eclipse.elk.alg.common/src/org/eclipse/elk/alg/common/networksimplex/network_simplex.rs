@@ -98,6 +98,12 @@ impl<'a> NetworkSimplex<'a> {
             if let Some(enter) = self.enter_edge(&leave) {
                 self.exchange(&leave, &enter);
             } else {
+                if std::env::var_os("ELK_TRACE_NETWORK_SIMPLEX").is_some() {
+                    eprintln!(
+                        "[network-simplex] break: missing entering edge at iter={iter} leave_edge_id={}",
+                        edge_internal_id(&leave)
+                    );
+                }
                 break;
             }
             edge = self.leave_edge();

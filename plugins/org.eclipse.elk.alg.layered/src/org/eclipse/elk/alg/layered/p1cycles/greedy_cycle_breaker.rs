@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::LazyLock;
 
@@ -6,7 +7,8 @@ use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutP
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{IElkProgressMonitor, Random};
 
-use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LGraphUtil, LNodeRef};
+use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LGraph, LGraphUtil, LNodeRef, LPortRef};
+use crate::org::eclipse::elk::alg::layered::options::internal_properties::Origin;
 use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorStrategy;
 use crate::org::eclipse::elk::alg::layered::options::{
     GroupOrderStrategy, InternalProperties, LayeredOptions,
@@ -113,7 +115,22 @@ impl GreedyCycleBreaker {
             }
         }
 
+        let trace_choices = std::env::var_os("ELK_TRACE_CYCLE_CHOICES").is_some();
         let index = self.random.next_int(nodes.len() as i32) as usize;
+        if trace_choices {
+            let candidates = nodes
+                .iter()
+                .map(node_index)
+                .map(|idx| idx.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
+            eprintln!(
+                "[cycle-breaker-choice] candidates=[{}] picked_index={} picked_node={}",
+                candidates,
+                index,
+                nodes.get(index).map(node_index).unwrap_or_default()
+            );
+        }
         nodes.get(index).cloned()
     }
 
@@ -193,6 +210,9 @@ impl GreedyCycleBreaker {
 
     fn reverse_edges(&mut self, graph: &mut LGraph, nodes: &[LNodeRef]) {
         let dummy_graph = crate::org::eclipse::elk::alg::layered::graph::LGraph::new();
+        let trace_reversals = std::env::var_os("ELK_TRACE_CYCLE_REVERSALS").is_some();
+        let forced_reversed = forced_reversed_origin_ids();
+        let mut reversed_edges = Vec::new();
         for node in nodes {
             let (ports, node_idx) = match node.lock() {
                 Ok(mut node_guard) => {
@@ -218,10 +238,25 @@ impl GreedyCycleBreaker {
                         continue;
                     };
                     let target_index = node_index(&target_node);
-                    if node_idx < self.mark.len()
+                    let reverse_by_mark = node_idx < self.mark.len()
                         && target_index < self.mark.len()
-                        && self.mark[node_idx] > self.mark[target_index]
+                        && self.mark[node_idx] > self.mark[target_index];
+                    let should_reverse = if let Some(forced) = &forced_reversed {
+                        edge_origin_id(&edge).is_some_and(|origin_id| forced.contains(&origin_id))
+                    } else {
+                        reverse_by_mark
+                    };
+                    if should_reverse
                     {
+                        if trace_reversals {
+                            reversed_edges.push(trace_reversal_entry(
+                                &edge,
+                                node_idx,
+                                target_index,
+                                self.mark[node_idx],
+                                self.mark[target_index],
+                            ));
+                        }
                         crate::org::eclipse::elk::alg::layered::graph::LEdge::reverse(
                             &edge,
                             &dummy_graph,
@@ -231,6 +266,15 @@ impl GreedyCycleBreaker {
                     }
                 }
             }
+        }
+
+        if trace_reversals && !reversed_edges.is_empty() {
+            reversed_edges.sort();
+            eprintln!(
+                "[cycle-breaker] reversed_count={} edges={}",
+                reversed_edges.len(),
+                reversed_edges.join(" | ")
+            );
         }
     }
 }
@@ -255,6 +299,14 @@ impl ILayoutPhase<LayeredPhases, LGraph> for GreedyCycleBreaker {
         self.random = layered_graph
             .get_property(InternalProperties::RANDOM)
             .unwrap_or_else(|| Random::new(0));
+        if let Some(prefetch) = cycle_prefetch_count() {
+            for _ in 0..prefetch {
+                let _ = self.random.next_int(2);
+            }
+            if std::env::var_os("ELK_TRACE_CYCLE_CHOICES").is_some() {
+                eprintln!("[cycle-breaker-choice] random_prefetch={prefetch}");
+            }
+        }
 
         for (index, node) in nodes.iter().enumerate() {
             if let Ok(mut node_guard) = node.lock() {
@@ -409,4 +461,78 @@ fn node_index(node: &LNodeRef) -> usize {
         .ok()
         .map(|mut node_guard| node_guard.shape().graph_element().id as usize)
         .unwrap_or(0)
+}
+
+fn trace_reversal_entry(
+    edge: &LEdgeRef,
+    source_node_idx: usize,
+    target_node_idx: usize,
+    source_mark: i32,
+    target_mark: i32,
+) -> String {
+    let (edge_origin, source_port_origin, target_port_origin) = edge
+        .lock()
+        .ok()
+        .map(|mut edge_guard| {
+            let edge_origin = edge_guard
+                .get_property(InternalProperties::ORIGIN)
+                .and_then(|origin| match origin {
+                    Origin::ElkEdge(origin_id) => Some(origin_id),
+                    _ => None,
+                });
+            let source_port_origin = edge_guard.source().and_then(|port| trace_port_origin(&port));
+            let target_port_origin = edge_guard.target().and_then(|port| trace_port_origin(&port));
+            (edge_origin, source_port_origin, target_port_origin)
+        })
+        .unwrap_or((None, None, None));
+
+    format!(
+        "edge_origin={:?},source_port_origin={:?},target_port_origin={:?},src_node={},tgt_node={},src_mark={},tgt_mark={}",
+        edge_origin,
+        source_port_origin,
+        target_port_origin,
+        source_node_idx,
+        target_node_idx,
+        source_mark,
+        target_mark
+    )
+}
+
+fn trace_port_origin(port: &LPortRef) -> Option<usize> {
+    port.lock()
+        .ok()
+        .and_then(|mut port_guard| port_guard.get_property(InternalProperties::ORIGIN))
+        .and_then(|origin| match origin {
+            Origin::ElkPort(origin_id) => Some(origin_id),
+            _ => None,
+        })
+}
+
+fn cycle_prefetch_count() -> Option<usize> {
+    std::env::var("ELK_DEBUG_CYCLE_RANDOM_PREFETCH")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+}
+
+fn edge_origin_id(edge: &LEdgeRef) -> Option<usize> {
+    edge.lock()
+        .ok()
+        .and_then(|mut edge_guard| edge_guard.get_property(InternalProperties::ORIGIN))
+        .and_then(|origin| match origin {
+            Origin::ElkEdge(origin_id) => Some(origin_id),
+            _ => None,
+        })
+}
+
+fn forced_reversed_origin_ids() -> Option<HashSet<usize>> {
+    let raw = std::env::var("ELK_DEBUG_CYCLE_FORCE_REVERSE_ORIGINS").ok()?;
+    let values = raw
+        .split(',')
+        .filter_map(|token| token.trim().parse::<usize>().ok())
+        .collect::<HashSet<_>>();
+    if values.is_empty() {
+        None
+    } else {
+        Some(values)
+    }
 }
