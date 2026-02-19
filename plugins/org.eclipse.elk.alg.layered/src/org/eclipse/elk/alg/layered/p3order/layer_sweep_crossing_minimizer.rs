@@ -892,71 +892,9 @@ impl LayerSweepCrossingMinimizer {
         None
     }
 
-    fn next_boolean_for_graph(&mut self, index: usize) -> bool {
-        self.sync_random_from_graph_heuristic(index);
-        let value = self.random.next_boolean();
-        self.sync_graph_heuristic_from_random(index);
-        value
-    }
-
-    fn sync_random_from_graph_heuristic(&mut self, index: usize) {
-        let random = if let Some(graph_data) = self.graph_info_holders.get_mut(index) {
-            if let Some(heuristic) = graph_data
-                .cross_minimizer()
-                .as_any_mut()
-                .downcast_mut::<crate::org::eclipse::elk::alg::layered::p3order::BarycenterHeuristic>()
-            {
-                Some(heuristic.random())
-            } else if let Some(heuristic) = graph_data
-                .cross_minimizer()
-                .as_any_mut()
-                .downcast_mut::<crate::org::eclipse::elk::alg::layered::p3order::ModelOrderBarycenterHeuristic>()
-            {
-                Some(heuristic.random())
-            } else if let Some(heuristic) = graph_data
-                .cross_minimizer()
-                .as_any_mut()
-                .downcast_mut::<crate::org::eclipse::elk::alg::layered::p3order::MedianHeuristic>()
-            {
-                Some(heuristic.random())
-            } else {
-                None
-            }
-        } else {
-            None
-        };
-        if let Some(random) = random {
-            self.random = random;
-        }
-    }
-
-    fn sync_graph_heuristic_from_random(&mut self, index: usize) {
-        let random = self.random.clone();
-        if let Some(graph_data) = self.graph_info_holders.get_mut(index) {
-            if let Some(heuristic) = graph_data
-                .cross_minimizer()
-                .as_any_mut()
-                .downcast_mut::<crate::org::eclipse::elk::alg::layered::p3order::BarycenterHeuristic>()
-            {
-                heuristic.set_random(random);
-                return;
-            }
-            if let Some(heuristic) = graph_data
-                .cross_minimizer()
-                .as_any_mut()
-                .downcast_mut::<crate::org::eclipse::elk::alg::layered::p3order::ModelOrderBarycenterHeuristic>()
-            {
-                heuristic.set_random(random);
-                return;
-            }
-            if let Some(heuristic) = graph_data
-                .cross_minimizer()
-                .as_any_mut()
-                .downcast_mut::<crate::org::eclipse::elk::alg::layered::p3order::MedianHeuristic>()
-            {
-                heuristic.set_random(random);
-            }
-        }
+    fn next_boolean_for_graph(&mut self, _index: usize) -> bool {
+        // Java uses the shared LayerSweepCrossingMinimizer random directly for sweep direction.
+        self.random.next_boolean()
     }
 
     fn initialize(&mut self, root_graph: &LGraphRef, root_graph_guard: &mut LGraph) -> Vec<usize> {

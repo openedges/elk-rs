@@ -40,9 +40,10 @@ impl NNode {
     }
 
     pub fn connected_edges(&self) -> Vec<NEdgeRef> {
-        let mut edges = Vec::with_capacity(self.outgoing_edges.len() + self.incoming_edges.len());
-        edges.extend(self.outgoing_edges.iter().cloned());
+        // Java parity: NNode#getConnectedEdges() returns incoming edges first, then outgoing edges.
+        let mut edges = Vec::with_capacity(self.incoming_edges.len() + self.outgoing_edges.len());
         edges.extend(self.incoming_edges.iter().cloned());
+        edges.extend(self.outgoing_edges.iter().cloned());
         edges
     }
 }

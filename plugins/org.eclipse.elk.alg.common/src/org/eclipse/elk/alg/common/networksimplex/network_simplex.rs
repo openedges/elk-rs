@@ -184,15 +184,10 @@ impl<'a> NetworkSimplex<'a> {
             return;
         }
 
-        let max_iterations = self.graph.nodes.len().max(1);
-        let mut iter = 0;
         self.edge_visited.fill(false);
         while let Some(root) = self.graph.nodes.first().cloned() {
             let count = self.tight_tree_dfs(&root);
             if count >= self.graph.nodes.len() {
-                break;
-            }
-            if iter >= max_iterations {
                 break;
             }
             let Some(edge) = self.minimal_slack() else {
@@ -210,7 +205,6 @@ impl<'a> NetworkSimplex<'a> {
                 }
             }
             self.edge_visited.fill(false);
-            iter += 1;
         }
 
         self.edge_visited.fill(false);

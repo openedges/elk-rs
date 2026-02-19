@@ -29,8 +29,10 @@
 4. 변경 코드 리뷰 후 커밋 (`<scope>: <summary>`)
 5. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
-## 현재 핵심 스냅샷 (2026-02-18)
-- Full model parity: `matches=1132/1439`, `drift=307`, `total_diffs=5803`, `errors=0`, `timeouts=0`, `java_non_ok=9`
+## 현재 핵심 스냅샷 (2026-02-19)
+- Full model parity: `matches=1140/1439`, `drift=299`, `total_diffs=5702`, `errors=0`, `timeouts=0`, `java_non_ok=9`
+- `phase_focus_top_low_medium`(25): `matches=18`, `drift=7`, `total_diffs=101`
+- 3-model subset(`algebraic/backtrack/cartracking`): `matches=1`, `drift=2`, `total_diffs=369`
 - 포팅/테스트/빌드/성능 자동화 파이프라인은 운영 상태
 - 현재 우선 작업: low-diff 모델 우선 해소(`Step M-5`), 중점 phase는 `p2_layering`, `p5_edge_routing`
 
