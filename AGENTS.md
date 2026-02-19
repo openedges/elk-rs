@@ -30,17 +30,27 @@
 5. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
 ## 현재 핵심 스냅샷 (2026-02-19)
-- Full model parity: `matches=1140/1439`, `drift=299`, `total_diffs=5702`, `errors=0`, `timeouts=0`, `java_non_ok=9`
-- `phase_focus_top_low_medium`(25): `matches=18`, `drift=7`, `total_diffs=101`
+- Full model parity(2026-02-19 재실행): `matches=1135/1439`, `drift=304`, `total_diffs=5783`, `errors=0`, `timeouts=0`, `java_non_ok=9`
+- tickets parity(2026-02-19 최신): `matches=101/109`, `drift=8`, `total_diffs=112`, `errors=0`, `timeouts=0`, `java_non_ok=1`
+- `phase_focus_top_low_medium`(25): `matches=25`, `drift=0`, `total_diffs=0` (2026-02-19 재실행)
+- p5 low/medium 3-model(`tickets/layered/288_{a,b}`, `552_hierarchySelfLoopPorts`): `matches=2`, `drift=1`, `total_diffs=26` (`552` drift 해소, `288_b` 잔여)
 - 3-model subset(`algebraic/backtrack/cartracking`): `matches=1`, `drift=2`, `total_diffs=369`
+- P3 seed subset(`high-degree/labels1/variants`): `matches=3`, `drift=0`, `total_diffs=0`
 - 포팅/테스트/빌드/성능 자동화 파이프라인은 운영 상태
-- 현재 우선 작업: low-diff 모델 우선 해소(`Step M-5`), 중점 phase는 `p2_layering`, `p5_edge_routing`
+- 현재 우선 작업: `Step M-5` high-impact drift 축소(중점 phase: `p2_layering`, `p5_edge_routing`)와 tickets 잔여 8건(`213, 302, 352, 368, 453, 502, 665, 701`) 소거
+
+## 구현 우선순위 스냅샷 (2026-02-19)
+- P1(구현 공백 제거, 완료): `IntermediateProcessorStrategy` NoOp 10개(`ConstraintsPostprocessor`, `HypernodeProcessor`, `EndNodePortLabelManagementProcessor`, `CenterLabelManagementProcessor`, `HighDegreeNodeLayerProcessor`, `AlternatingLayerUnzipper`, `SingleEdgeGraphWrapper`, `BreakingPointInserter`, `BreakingPointProcessor`, `BreakingPointRemover`)를 모두 실제 구현으로 연결 완료. 잔여 NoOp는 0개.
+- P2(p5 정합, 완료): `horizontal_graph_compactor.rs`의 scanline edge-aware 제약 계산을 포팅하고 `GraphCompactionStrategy::EdgeLength`를 `NetworkSimplexCompaction` 경로로 연결했다. 관련 품질 게이트(`cargo clippy --workspace --all-targets`, `cargo test --workspace`)는 통과.
+- P3(p2 고영향 모델): seed 3개(`tests/layered/high_degree_nodes/high-degree-example.elkt`, `tests/layered/compaction_oned/labels/labels1.elkt`, `tests/core/label_placement/port_labels/variants.elkt`) 수렴 완료. 다음은 `realworld/ptolemy` 상위 drift 군(`algebraic/backtrack/cartracking` 포함)으로 확장한다.
+- P4(p5 저중간 diff 소거): `tickets/layered/425_selfLoopInCompoundNode.elkt` 수렴 완료. 다음은 `tickets/layered/502_collapsingCompoundNode.elkt`(compound collapse 높이/포트 y), `453_interactiveProblems.elkt`, `665_includeChildrenDoesntStop.elkt`, `701_portLabels.elkt` 순으로 잔여 8건을 축소한다.
+- 정책 TODO: `java_non_ok=9`를 포함한 `1448/1448` 목표로 확장할지, 현재처럼 `1439` 비교 분모를 유지할지 정의를 고정한다.
 
 ## 기본 실행 명령
 - 전체 정적 점검: `cargo clippy --workspace --all-targets`
 - 전체 테스트: `cargo test --workspace`
 - Full parity: `MODEL_PARITY_SKIP_JAVA_EXPORT=true sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models perf/model_parity_full`
-- Drift 분석: `python3 scripts/analyze_layered_drift.py --details perf/model_parity_full/diff_details.tsv`
+- Drift 분석: `python3 scripts/analyze_layered_drift.py --diff-details perf/model_parity_full/diff_details.tsv --manifest perf/model_parity_full/rust_manifest.tsv`
 
 ## 진행 기록 위치
 - 상세 진행 이력/완료 단계/드리프트 분석/실험 로그/TODO: `HISTORY.md`
