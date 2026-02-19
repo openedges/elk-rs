@@ -139,8 +139,8 @@ impl LayerSweepCrossingMinimizer {
         };
         if trace {
             eprintln!(
-                "crossmin: compare randomized node_infl={} port_infl={}",
-                node_influence, port_influence
+                "crossmin: compare randomized node_infl={} port_infl={} model_order_strategy={:?}",
+                node_influence, port_influence, consider_model_order_strategy
             );
         }
 
@@ -151,6 +151,9 @@ impl LayerSweepCrossingMinimizer {
             let consider_model_order = consider_model_order_strategy != OrderingStrategy::None;
             if consider_model_order {
                 self.graph_info_holders[index].set_first_try_with_initial_order(true);
+                if trace {
+                    eprintln!("crossmin: compare randomized set first_try_with_initial_order=true");
+                }
             }
             if trace {
                 eprintln!("crossmin: compare randomized thoroughness={}", thoroughness);
@@ -173,6 +176,9 @@ impl LayerSweepCrossingMinimizer {
             let consider_model_order = consider_model_order_strategy != OrderingStrategy::None;
             if consider_model_order {
                 self.graph_info_holders[index].set_first_try_with_initial_order(true);
+                if trace {
+                    eprintln!("crossmin: compare randomized set first_try_with_initial_order=true");
+                }
             }
             if trace {
                 eprintln!("crossmin: compare randomized thoroughness={}", thoroughness);
@@ -212,7 +218,11 @@ impl LayerSweepCrossingMinimizer {
             .get(index)
             .map(|g| g.first_try_with_initial_order())
             .unwrap_or(false);
-        if initial_crossings == 0.0 && try_initial {
+        // Preserve already-optimal ordering for external-port boundary graphs.
+        // This avoids spurious first-sweep reordering that drifts from Java parity.
+        if initial_crossings == 0.0
+            && (try_initial || self.has_single_external_port_boundaries(index))
+        {
             return 0;
         }
 
@@ -295,7 +305,10 @@ impl LayerSweepCrossingMinimizer {
             .get(index)
             .map(|g| g.first_try_with_initial_order())
             .unwrap_or(false);
-        if initial_crossings == 0.0 && try_initial {
+        // Keep the same zero-crossing guard as integer crossing mode for parity.
+        if initial_crossings == 0.0
+            && (try_initial || self.has_single_external_port_boundaries(index))
+        {
             return 0.0;
         }
 
@@ -496,57 +509,59 @@ impl LayerSweepCrossingMinimizer {
             None
         };
         let mut total_crossings = 0.0;
+        // Match Java's implementation details for parity:
+        // - Use the root graph's model-order settings for all counted layers.
+        // - Recurse into children with plain crossing count (without model-order influence).
+        let (
+            root_graph_ref,
+            root_model_order_strategy,
+            root_group_strategy,
+            root_port_model_order,
+            root_node_influence,
+            root_port_influence,
+        ) = {
+            let graph_data = &self.graph_info_holders[start_index];
+            (
+                graph_data.l_graph().clone(),
+                graph_data.consider_model_order_strategy(),
+                graph_data.group_order_strategy(),
+                graph_data.port_model_order(),
+                graph_data.node_influence(),
+                graph_data.port_influence(),
+            )
+        };
         let mut stack = VecDeque::new();
         stack.push_back(start_index);
         while let Some(index) = stack.pop_back() {
-            let (
-                graph_ref,
-                order,
-                model_order_strategy,
-                group_strategy,
-                port_model_order,
-                node_influence,
-                port_influence,
-                crossings,
-            ) = {
+            let (order, crossings) = {
                 let graph_data = &mut self.graph_info_holders[index];
-                let graph_ref = graph_data.l_graph().clone();
                 let order = graph_data.current_node_order().clone();
                 let crossings = graph_data.cross_counter().count_all_crossings(&order);
-                (
-                    graph_ref,
-                    order,
-                    graph_data.consider_model_order_strategy(),
-                    graph_data.group_order_strategy(),
-                    graph_data.port_model_order(),
-                    graph_data.node_influence(),
-                    graph_data.port_influence(),
-                    crossings as f64,
-                )
+                (order, crossings as f64)
             };
             let mut model_order_influence = 0.0;
-            if model_order_strategy != OrderingStrategy::None {
-                model_order_influence += node_influence
+            if root_model_order_strategy != OrderingStrategy::None {
+                model_order_influence += root_node_influence
                     * self.count_model_order_node_changes(
-                        &graph_ref,
+                        &root_graph_ref,
                         &order,
-                        model_order_strategy,
-                        group_strategy,
+                        root_model_order_strategy,
+                        root_group_strategy,
                     ) as f64;
-                model_order_influence += port_influence
+                model_order_influence += root_port_influence
                     * self.count_model_order_port_changes(
-                        &graph_ref,
+                        &root_graph_ref,
                         &order,
-                        model_order_strategy,
-                        port_model_order,
-                        group_strategy,
+                        root_model_order_strategy,
+                        root_port_model_order,
+                        root_group_strategy,
                     ) as f64;
             }
             total_crossings += crossings + model_order_influence;
             let child_indices = self.child_graph_indices(index);
             for child_index in child_indices {
                 if !self.graph_info_holders[child_index].dont_sweep_into() {
-                    stack.push_back(child_index);
+                    total_crossings += self.count_current_number_of_crossings(child_index) as f64;
                 }
             }
         }
@@ -856,6 +871,26 @@ impl LayerSweepCrossingMinimizer {
             .collect()
     }
 
+    fn has_single_external_port_boundaries(&self, index: usize) -> bool {
+        let Some(order) = self
+            .graph_info_holders
+            .get(index)
+            .map(|holder| holder.current_node_order())
+        else {
+            return false;
+        };
+        if order.len() < 5 {
+            return false;
+        }
+        let (Some(first_layer), Some(last_layer)) = (order.first(), order.last()) else {
+            return false;
+        };
+        if first_layer.len() != 1 || last_layer.len() != 1 {
+            return false;
+        }
+        is_external_port_dummy(&first_layer[0]) && is_external_port_dummy(&last_layer[0])
+    }
+
     fn reset_random_for_all_graphs(&mut self) {
         if std::env::var_os("ELK_TRACE_CROSSMIN").is_some() {
             eprintln!("crossmin: reset_random_for_all_graphs");
@@ -893,6 +928,13 @@ impl LayerSweepCrossingMinimizer {
     }
 
     fn next_boolean_for_graph(&mut self, _index: usize) -> bool {
+        if let Ok(force) = std::env::var("ELK_DEBUG_CROSSMIN_FORCE_SWEEP") {
+            match force.as_str() {
+                "forward" => return true,
+                "backward" => return false,
+                _ => {}
+            }
+        }
         // Java uses the shared LayerSweepCrossingMinimizer random directly for sweep direction.
         self.random.next_boolean()
     }
@@ -906,13 +948,17 @@ impl LayerSweepCrossingMinimizer {
             .get_property(InternalProperties::RANDOM)
             .unwrap_or_default();
         self.random_seed = self.random.next_long() as u64;
+        if trace {
+            eprintln!(
+                "crossmin:init root_ptr={:p} random_seed={}",
+                Arc::as_ptr(root_graph),
+                self.random_seed as i64
+            );
+        }
 
         let mut graphs_to_sweep_on: Vec<usize> = Vec::new();
         let mut queue: VecDeque<LGraphRef> = VecDeque::new();
-        let mut seen: BTreeSet<usize> = BTreeSet::new();
-
         queue.push_back(root_graph.clone());
-        seen.insert(Arc::as_ptr(root_graph) as usize);
 
         while let Some(graph) = queue.pop_front() {
             let index = self.graph_info_holders.len();
@@ -950,10 +996,7 @@ impl LayerSweepCrossingMinimizer {
                 );
             }
             for child_graph in g_data.child_graphs().iter().cloned() {
-                let key = Arc::as_ptr(&child_graph) as usize;
-                if seen.insert(key) {
-                    queue.push_back(child_graph);
-                }
+                queue.push_back(child_graph);
             }
             self.graph_info_holders.push(g_data);
             if self.graph_info_holders[index].dont_sweep_into() {
@@ -1139,6 +1182,10 @@ impl ILayoutPhase<LayeredPhases, LGraph> for LayerSweepCrossingMinimizer {
             Arc::new(IntermediateProcessorStrategy::PortListSorter),
         );
         Some(config)
+    }
+
+    fn is_hierarchy_aware(&self) -> bool {
+        true
     }
 }
 

@@ -1092,7 +1092,21 @@ fn node_label_location_info_for_placement(
                 col: ContainerArea::End,
                 outside_side: Some(OutsideSide::East),
             }),
-            HorizontalLabelAlignment::Center => None,
+            HorizontalLabelAlignment::Center => match vertical_alignment {
+                VerticalLabelAlignment::Top => Some(NodeLabelLocationInfo {
+                    inside: false,
+                    row: ContainerArea::Begin,
+                    col: ContainerArea::Center,
+                    outside_side: Some(OutsideSide::North),
+                }),
+                VerticalLabelAlignment::Bottom => Some(NodeLabelLocationInfo {
+                    inside: false,
+                    row: ContainerArea::End,
+                    col: ContainerArea::Center,
+                    outside_side: Some(OutsideSide::South),
+                }),
+                VerticalLabelAlignment::Center => None,
+            },
         };
     }
 

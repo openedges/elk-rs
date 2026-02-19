@@ -944,8 +944,7 @@ impl JsonImporter {
         };
         let should_compact_inside_self_loop_node = inside_self_loops_active
             && !has_explicit_size_constraints
-            && has_explicit_port_constraints
-            && port_constraints.is_side_fixed()
+            && (!has_explicit_port_constraints || port_constraints.is_side_fixed())
             && all_ports_zero_sized;
         let should_compact_passthrough_node = !inside_self_loops_active
             && !self.root_has_include_children_hint()
@@ -959,9 +958,17 @@ impl JsonImporter {
         {
             let delta = node_width - 4.0;
             self.inside_self_loop_node_x_delta.insert(node_key(node), delta);
-            if should_compact_passthrough_node {
-                if let Some(parent) = node.borrow().parent() {
+            if let Some(parent) = node.borrow().parent() {
+                if should_compact_passthrough_node {
                     self.passthrough_compacted_parent_keys.push(node_key(&parent));
+                } else if should_compact_inside_self_loop_node {
+                    let parent_has_single_child = {
+                        let mut parent_ref = parent.borrow_mut();
+                        parent_ref.children().len() == 1
+                    };
+                    if parent_has_single_child {
+                        self.passthrough_compacted_parent_keys.push(node_key(&parent));
+                    }
                 }
             }
             json_obj.insert("width".to_string(), Value::Number(f64_to_number(4.0)));
@@ -2067,11 +2074,13 @@ fn recompute_compacted_parent_width_candidate(
     }
 
     if edge_max_x.is_finite() {
-        Some(
-            child_span_candidate
-                .max(edge_max_x)
-                .max(child_span_candidate + edge_max_x),
-        )
+        let mut candidate = child_span_candidate.max(edge_max_x);
+        if children.len() > 1 {
+            // For parents containing additional siblings, Java keeps extra horizontal
+            // room contributed by both compacted child span and routed edge extent.
+            candidate = candidate.max(child_span_candidate + edge_max_x);
+        }
+        Some(candidate)
     } else {
         Some(child_span_candidate)
     }
@@ -2086,9 +2095,10 @@ fn recompute_fixed_order_vertical_port_surrounding_height(node: &ElkNodeRef) -> 
     let mut min_y = f64::INFINITY;
     let mut max_y = f64::NEG_INFINITY;
     let mut counted = 0usize;
+    let mut all_zero_sized = true;
 
     for port in ports {
-        let (side, y, h) = {
+        let (side, y, w, h) = {
             let mut port_ref = port.borrow_mut();
             let shape = port_ref.connectable().shape();
             let side = shape
@@ -2096,11 +2106,15 @@ fn recompute_fixed_order_vertical_port_surrounding_height(node: &ElkNodeRef) -> 
                 .properties_mut()
                 .get_property(CoreOptions::PORT_SIDE)
                 .unwrap_or(PortSide::Undefined);
-            (side, shape.y(), shape.height())
+            (side, shape.y(), shape.width(), shape.height())
         };
 
         if side != PortSide::East && side != PortSide::West {
             return None;
+        }
+
+        if w.abs() > 1e-9 || h.abs() > 1e-9 {
+            all_zero_sized = false;
         }
 
         min_y = min_y.min(y);
@@ -2108,7 +2122,10 @@ fn recompute_fixed_order_vertical_port_surrounding_height(node: &ElkNodeRef) -> 
         counted += 1;
     }
 
-    if counted < 2 || !min_y.is_finite() || !max_y.is_finite() || min_y <= 0.0 {
+    // This compensation is only intended for point-like ports. For sized ports, layered's
+    // transferred height is already correct and reapplying this formula can overgrow the node.
+    if !all_zero_sized || counted < 2 || !min_y.is_finite() || !max_y.is_finite() || min_y <= 0.0
+    {
         return None;
     }
 

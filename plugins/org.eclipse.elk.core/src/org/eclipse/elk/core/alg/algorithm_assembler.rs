@@ -263,6 +263,14 @@ impl<G: 'static> ILayoutProcessor<G> for SharedProcessorAdapter<G> {
             .map(|processor| processor.type_name())
             .unwrap_or_else(|| std::any::type_name::<Self>())
     }
+
+    fn is_hierarchy_aware(&self) -> bool {
+        self.processor
+            .lock()
+            .ok()
+            .map(|processor| processor.is_hierarchy_aware())
+            .unwrap_or(false)
+    }
 }
 
 struct PhaseProcessorAdapter<P, G> {
@@ -298,6 +306,14 @@ where
             .ok()
             .map(|phase| phase.type_name())
             .unwrap_or_else(|| std::any::type_name::<Self>())
+    }
+
+    fn is_hierarchy_aware(&self) -> bool {
+        self.phase
+            .lock()
+            .ok()
+            .map(|phase| phase.is_hierarchy_aware())
+            .unwrap_or(false)
     }
 }
 

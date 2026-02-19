@@ -1,18 +1,26 @@
+use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::sync::Arc;
 
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::compaction::oned::compare_fuzzy;
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::compaction::oned::{
-    CGraph, CGraphRef, CGroup, CNode, CNodeRef, ISpacingsHandler, OneDimensionalCompactor,
+    CGraph, CGraphRef, CGroup, CNode, CNodeRef, ICompactionAlgorithm,
+    IConstraintCalculationAlgorithm, ISpacingsHandler, OneDimensionalCompactor,
     QuadraticConstraintCalculation,
+};
+use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::compaction::Scanline;
+use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::networksimplex::{
+    NEdge, NGraph, NNode, NNodeRef, NetworkSimplex,
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::{ElkRectangle, KVector};
 use org_eclipse_elk_core::org::eclipse::elk::core::options::{Direction, EdgeRouting, PortSide};
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LGraph, LNodeRef, NodeType};
+use crate::org::eclipse::elk::alg::layered::graph::{
+    LEdgeRef, LGraph, LNodeRef, LPortRef, NodeType,
+};
 use crate::org::eclipse::elk::alg::layered::options::{
     ConstraintCalculationStrategy, GraphCompactionStrategy, InternalProperties, LayeredOptions,
     Spacings,
@@ -56,7 +64,7 @@ impl ILayoutProcessor<LGraph> for HorizontalGraphCompactor {
             EdgeRouting::Splines => context.transform_edges_splines(),
             _ => {}
         }
-        context.compact(strategy, constraint_strategy, spacings);
+        context.compact(layered_graph, strategy, constraint_strategy, spacings);
         context.apply_layout(layered_graph);
 
         progress_monitor.done();
@@ -78,6 +86,9 @@ struct VerticalSegment {
     hitbox: ElkRectangle,
     represented_edges: Vec<LEdgeRef>,
     represented_edge_keys: HashSet<usize>,
+    ignore_spacing_up: bool,
+    ignore_spacing_down: bool,
+    port: Option<LPortRef>,
     affected_bends: Vec<(LEdgeRef, usize)>,
     affected_spline_segments: Vec<SplineSegmentRef>,
     potential_group_parents: Vec<CNodeRef>,
@@ -303,11 +314,17 @@ impl CompactionContext {
 
     fn compact(
         &mut self,
+        layered_graph: &LGraph,
         strategy: GraphCompactionStrategy,
         constraint_strategy: ConstraintCalculationStrategy,
         spacings: Option<Spacings>,
     ) {
         let mut compactor = OneDimensionalCompactor::new(self.c_graph.clone());
+        let metadata =
+            CompactionMetadata::from_context(&self.cnode_origin, &self.segments, layered_graph);
+        let vertical_edge_edge_spacing = layered_graph
+            .get_property_ref(LayeredOptions::SPACING_EDGE_EDGE)
+            .unwrap_or(0.0);
         let spacing_handler =
             SpecialSpacingsHandler::new(&self.cnode_origin, &self.segments, spacings);
         compactor.set_spacings_handler(Box::new(spacing_handler));
@@ -317,9 +334,13 @@ impl CompactionContext {
                 compactor.set_constraint_algorithm(Box::new(QuadraticConstraintCalculation));
             }
             ConstraintCalculationStrategy::Scanline => {
-                // Java uses EdgeAwareScanlineConstraintCalculation here. Until the edge-aware
-                // variant is ported, quadratic constraints keep zero-sized node constraints stable.
-                compactor.set_constraint_algorithm(Box::new(QuadraticConstraintCalculation));
+                compactor.set_constraint_algorithm(Box::new(
+                    EdgeAwareScanlineConstraintCalculation::new(
+                        self.edge_routing,
+                        vertical_edge_edge_spacing,
+                        metadata.clone(),
+                    ),
+                ));
             }
         }
 
@@ -361,7 +382,9 @@ impl CompactionContext {
                     .compact();
             }
             GraphCompactionStrategy::EdgeLength => {
-                // TODO: wire NetworkSimplexCompaction for full Java parity.
+                compactor.set_compaction_algorithm(Box::new(NetworkSimplexCompaction::new(
+                    metadata.clone(),
+                )));
                 compactor.compact();
             }
         }
@@ -754,12 +777,12 @@ impl CompactionContext {
             };
 
             for edge in outgoing {
-                let (source_side, bend_points) = if let Ok(edge_guard) = edge.lock() {
-                    let source_side = edge_guard
-                        .source()
-                        .and_then(|source| source.lock().ok().map(|port| port.side()))
-                        .unwrap_or(PortSide::Undefined);
-                    (source_side, edge_guard.bend_points_ref().to_array())
+                let (source_port, target_port, bend_points) = if let Ok(edge_guard) = edge.lock() {
+                    (
+                        edge_guard.source(),
+                        edge_guard.target(),
+                        edge_guard.bend_points_ref().to_array(),
+                    )
                 } else {
                     continue;
                 };
@@ -768,75 +791,125 @@ impl CompactionContext {
                     continue;
                 }
 
+                let source_side = source_port
+                    .as_ref()
+                    .and_then(|source| source.lock().ok().map(|port| port.side()))
+                    .unwrap_or(PortSide::Undefined);
                 let first_bend = bend_points[0];
                 match source_side {
                     PortSide::North => {
-                        segments.push(self.new_vertical_segment(
+                        let mut segment = self.new_vertical_segment(
                             first_bend,
                             KVector::with_values(first_bend.x, node_hitbox.y),
                             &edge,
                             vec![0],
                             Some(c_node.clone()),
-                        ));
+                        );
+                        segment.ignore_spacing_down = true;
+                        segment.port = source_port.clone();
+                        segments.push(segment);
                     }
                     PortSide::South => {
-                        segments.push(self.new_vertical_segment(
+                        let mut segment = self.new_vertical_segment(
                             first_bend,
                             KVector::with_values(first_bend.x, node_hitbox.y + node_hitbox.height),
                             &edge,
                             vec![0],
                             Some(c_node.clone()),
-                        ));
+                        );
+                        segment.ignore_spacing_up = true;
+                        segment.port = source_port.clone();
+                        segments.push(segment);
                     }
                     _ => {}
                 }
 
                 let mut bend1 = first_bend;
+                let mut first_regular_segment = true;
+                let mut last_regular_segment_index: Option<usize> = None;
 
                 for (i, bend2) in bend_points.iter().enumerate().skip(1) {
                     let bend2 = *bend2;
                     if !compare_fuzzy::eq(bend1.y, bend2.y) {
-                        let segment =
+                        let mut segment =
                             self.new_vertical_segment(bend1, bend2, &edge, vec![i - 1, i], None);
+                        if first_regular_segment {
+                            first_regular_segment = false;
+                            if bend2.y < node_hitbox.y {
+                                segment.ignore_spacing_down = true;
+                            } else if bend2.y > node_hitbox.y + node_hitbox.height {
+                                segment.ignore_spacing_up = true;
+                            } else {
+                                segment.ignore_spacing_up = true;
+                                segment.ignore_spacing_down = true;
+                            }
+                        }
                         segments.push(segment);
+                        last_regular_segment_index = Some(segments.len() - 1);
                     }
                     bend1 = bend2;
+                }
+
+                if let Some(index) = last_regular_segment_index {
+                    let target_hitbox = target_port
+                        .as_ref()
+                        .and_then(|target| target.lock().ok().and_then(|port| port.node()))
+                        .and_then(|target_node| {
+                            self.node_to_cnode.get(&arc_key(&target_node)).cloned()
+                        })
+                        .map(|target_c_node| target_c_node.borrow().hitbox);
+                    if let Some(target_hitbox) = target_hitbox {
+                        if bend1.y < target_hitbox.y {
+                            segments[index].ignore_spacing_down = true;
+                        } else if bend1.y > target_hitbox.y + target_hitbox.height {
+                            segments[index].ignore_spacing_up = true;
+                        } else {
+                            segments[index].ignore_spacing_up = true;
+                            segments[index].ignore_spacing_down = true;
+                        }
+                    }
                 }
             }
 
             for edge in incoming {
-                let (target_side, bend_points) = if let Ok(edge_guard) = edge.lock() {
-                    let target_side = edge_guard
-                        .target()
-                        .and_then(|target| target.lock().ok().map(|port| port.side()))
-                        .unwrap_or(PortSide::Undefined);
-                    (target_side, edge_guard.bend_points_ref().to_array())
+                let (target_port, bend_points) = if let Ok(edge_guard) = edge.lock() {
+                    (edge_guard.target(), edge_guard.bend_points_ref().to_array())
                 } else {
                     continue;
                 };
                 if bend_points.is_empty() {
                     continue;
                 }
+                let target_side = target_port
+                    .as_ref()
+                    .and_then(|target| target.lock().ok().map(|port| port.side()))
+                    .unwrap_or(PortSide::Undefined);
                 let last_idx = bend_points.len() - 1;
                 let bend = bend_points[last_idx];
                 match target_side {
                     PortSide::North => {
-                        segments.push(self.new_vertical_segment(
+                        let mut segment = self.new_vertical_segment(
                             bend,
                             KVector::with_values(bend.x, node_hitbox.y),
                             &edge,
                             vec![last_idx],
                             Some(c_node.clone()),
-                        ));
+                        );
+                        segment.ignore_spacing_down = true;
+                        segment.port = target_port.clone();
+                        segments.push(segment);
                     }
                     PortSide::South => {
-                        segments.push(self.new_vertical_segment(
+                        let mut segment = self.new_vertical_segment(
                             bend,
                             KVector::with_values(bend.x, node_hitbox.y + node_hitbox.height),
                             &edge,
                             vec![last_idx],
                             Some(c_node.clone()),
-                        ));
+                        );
+                        segment.ignore_spacing_up = true;
+                        segment.port = target_port.clone();
+                        segments.push(segment);
                     }
                     _ => {}
                 }
@@ -872,7 +945,9 @@ impl CompactionContext {
                     let current_segment_id = segment.segment_id;
                     if let Some(last_segment_id) = last_non_straight_segment_id {
                         if let Some(index) = segment_id_to_index.get(&last_segment_id).copied() {
-                            segments[index].constraint_target_ids.insert(current_segment_id);
+                            segments[index]
+                                .constraint_target_ids
+                                .insert(current_segment_id);
                         }
                     }
 
@@ -939,6 +1014,9 @@ impl CompactionContext {
             ),
             represented_edges: vec![edge.clone()],
             represented_edge_keys,
+            ignore_spacing_up: false,
+            ignore_spacing_down: false,
+            port: None,
             affected_bends,
             affected_spline_segments: Vec::new(),
             potential_group_parents,
@@ -949,10 +1027,8 @@ impl CompactionContext {
         &mut self,
         spline_segment: &SplineSegmentRef,
     ) -> Option<VerticalSegment> {
-        let (is_straight, hitbox, representative_edge) = spline_segment
-            .lock()
-            .ok()
-            .and_then(|segment| {
+        let (is_straight, hitbox, representative_edge) =
+            spline_segment.lock().ok().and_then(|segment| {
                 let edge = segment.edges.first().cloned()?;
                 Some((segment.is_straight, segment.bounding_box, edge))
             })?;
@@ -971,6 +1047,9 @@ impl CompactionContext {
             hitbox,
             represented_edges: vec![representative_edge],
             represented_edge_keys,
+            ignore_spacing_up: false,
+            ignore_spacing_down: false,
+            port: None,
             affected_bends: Vec::new(),
             affected_spline_segments: vec![spline_segment.clone()],
             potential_group_parents: Vec::new(),
@@ -1048,6 +1127,825 @@ impl CompactionContext {
             false
         }
     }
+}
+
+const EDGE_AWARE_EPSILON: f64 = 0.5;
+const EDGE_AWARE_SMALL_EPSILON: f64 = 0.01;
+const NETWORK_SIMPLEX_SEPARATION_WEIGHT: f64 = 1.0;
+const NETWORK_SIMPLEX_EDGE_WEIGHT: f64 = 100.0;
+
+#[derive(Clone)]
+struct SegmentCompactionInfo {
+    represented_edges: Vec<LEdgeRef>,
+    represented_edge_keys: HashSet<usize>,
+    ignore_spacing_up: bool,
+    ignore_spacing_down: bool,
+    port: Option<LPortRef>,
+}
+
+#[derive(Clone)]
+struct CompactionMetadata {
+    node_origins: HashMap<usize, LNodeRef>,
+    segment_infos: HashMap<usize, SegmentCompactionInfo>,
+    node_spacing_node_node: HashMap<usize, f64>,
+    node_spacing_edge_edge: HashMap<usize, f64>,
+}
+
+impl CompactionMetadata {
+    fn from_context(
+        origins: &HashMap<usize, CNodeOrigin>,
+        segments: &[VerticalSegment],
+        graph: &LGraph,
+    ) -> Self {
+        let mut node_origins = HashMap::new();
+        let mut segment_infos = HashMap::new();
+        let mut node_spacing_node_node = HashMap::new();
+        let mut node_spacing_edge_edge = HashMap::new();
+
+        for (key, origin) in origins {
+            match origin {
+                CNodeOrigin::Node(node) => {
+                    node_origins.insert(*key, node.clone());
+                    node_spacing_node_node.insert(
+                        *key,
+                        Spacings::get_individual_or_default_with_graph(
+                            graph,
+                            node,
+                            LayeredOptions::SPACING_NODE_NODE,
+                        ),
+                    );
+                    node_spacing_edge_edge.insert(
+                        *key,
+                        Spacings::get_individual_or_default_with_graph(
+                            graph,
+                            node,
+                            LayeredOptions::SPACING_EDGE_EDGE,
+                        ),
+                    );
+                }
+                CNodeOrigin::Segment(index) => {
+                    if let Some(segment) = segments.get(*index) {
+                        segment_infos.insert(
+                            *key,
+                            SegmentCompactionInfo {
+                                represented_edges: segment.represented_edges.clone(),
+                                represented_edge_keys: segment.represented_edge_keys.clone(),
+                                ignore_spacing_up: segment.ignore_spacing_up,
+                                ignore_spacing_down: segment.ignore_spacing_down,
+                                port: segment.port.clone(),
+                            },
+                        );
+                    }
+                }
+            }
+        }
+
+        Self {
+            node_origins,
+            segment_infos,
+            node_spacing_node_node,
+            node_spacing_edge_edge,
+        }
+    }
+
+    fn node_origin(&self, c_node: &CNodeRef) -> Option<&LNodeRef> {
+        self.node_origins.get(&rc_key(c_node))
+    }
+
+    fn segment_info(&self, c_node: &CNodeRef) -> Option<&SegmentCompactionInfo> {
+        self.segment_infos.get(&rc_key(c_node))
+    }
+
+    fn is_segment(&self, c_node: &CNodeRef) -> bool {
+        self.segment_info(c_node).is_some()
+    }
+
+    fn is_external_port_node(&self, c_node: &CNodeRef) -> bool {
+        self.node_origin(c_node).is_some_and(|node| {
+            node.lock()
+                .ok()
+                .is_some_and(|node_guard| node_guard.node_type() == NodeType::ExternalPort)
+        })
+    }
+
+    fn node_node_spacing(&self, c_node: &CNodeRef) -> Option<f64> {
+        self.node_spacing_node_node.get(&rc_key(c_node)).copied()
+    }
+
+    fn node_edge_spacing(&self, c_node: &CNodeRef) -> Option<f64> {
+        self.node_spacing_edge_edge.get(&rc_key(c_node)).copied()
+    }
+
+    fn segment_port(&self, c_node: &CNodeRef) -> Option<LPortRef> {
+        self.segment_info(c_node).and_then(|info| info.port.clone())
+    }
+
+    fn segments_share_edge(&self, c_node1: &CNodeRef, c_node2: &CNodeRef) -> bool {
+        let Some(edges1) = self
+            .segment_info(c_node1)
+            .map(|info| &info.represented_edge_keys)
+        else {
+            return false;
+        };
+        let Some(edges2) = self
+            .segment_info(c_node2)
+            .map(|info| &info.represented_edge_keys)
+        else {
+            return false;
+        };
+        edges1.iter().any(|edge| edges2.contains(edge))
+    }
+}
+
+struct EdgeAwareScanlineConstraintCalculation {
+    edge_routing: EdgeRouting,
+    vertical_edge_edge_spacing: f64,
+    metadata: CompactionMetadata,
+}
+
+impl EdgeAwareScanlineConstraintCalculation {
+    fn new(
+        edge_routing: EdgeRouting,
+        vertical_edge_edge_spacing: f64,
+        metadata: CompactionMetadata,
+    ) -> Self {
+        Self {
+            edge_routing,
+            vertical_edge_edge_spacing,
+            metadata,
+        }
+    }
+
+    fn calculate_for_spline(&self, compactor: &mut OneDimensionalCompactor) {
+        self.sweep(compactor, |node| self.metadata.is_segment(node));
+
+        let min_spacing = self.minimum_spacing(compactor);
+        let nodes = compactor.c_graph.borrow().c_nodes.clone();
+        for node in &nodes {
+            if self.metadata.node_origin(node).is_some() {
+                self.alter_hitbox(node, min_spacing, 1.0);
+            }
+        }
+
+        self.sweep(compactor, |_node| true);
+
+        for node in &nodes {
+            if self.metadata.node_origin(node).is_some() {
+                self.alter_hitbox(node, min_spacing, -1.0);
+            }
+        }
+    }
+
+    fn calculate_for_orthogonal(&self, compactor: &mut OneDimensionalCompactor) {
+        let segment_spacing = self.segment_spacing();
+        let nodes = compactor.c_graph.borrow().c_nodes.clone();
+
+        let mut segment_nodes = Vec::new();
+        for node in &nodes {
+            if self.metadata.is_segment(node) {
+                self.alter_hitbox(node, segment_spacing, 1.0);
+                segment_nodes.push(node.clone());
+            }
+        }
+        self.sweep(compactor, |node| self.metadata.is_segment(node));
+        for node in segment_nodes {
+            self.alter_hitbox(&node, segment_spacing, -1.0);
+        }
+
+        let mut node_spacing_schedule = Vec::new();
+        for node in &nodes {
+            if self.metadata.node_origin(node).is_some() {
+                let spacing = self
+                    .metadata
+                    .node_edge_spacing(node)
+                    .unwrap_or(self.vertical_edge_edge_spacing);
+                let adjusted = (spacing / 2.0 - EDGE_AWARE_EPSILON).max(0.0);
+                self.alter_hitbox(node, adjusted, 1.0);
+                node_spacing_schedule.push((node.clone(), adjusted));
+            }
+        }
+        self.sweep(compactor, |node| self.metadata.node_origin(node).is_some());
+        for (node, spacing) in node_spacing_schedule {
+            self.alter_hitbox(&node, spacing, -1.0);
+        }
+
+        let min_spacing = self.minimum_spacing(compactor);
+        let groups = compactor.c_graph.borrow().c_groups.clone();
+        for group in &groups {
+            self.alter_grouped_hitbox_orthogonal(group, min_spacing, 1.0);
+        }
+        self.sweep(compactor, |_node| true);
+        for group in &groups {
+            self.alter_grouped_hitbox_orthogonal(group, min_spacing, -1.0);
+        }
+    }
+
+    fn segment_spacing(&self) -> f64 {
+        (self.vertical_edge_edge_spacing / 2.0 - EDGE_AWARE_EPSILON).max(0.0)
+    }
+
+    fn minimum_spacing(&self, compactor: &OneDimensionalCompactor) -> f64 {
+        let mut min_spacing = f64::INFINITY;
+        let nodes = compactor.c_graph.borrow().c_nodes.clone();
+        for node in &nodes {
+            if self.metadata.is_external_port_node(node) {
+                continue;
+            }
+
+            if self.metadata.is_segment(node) {
+                min_spacing = min_spacing.min(self.segment_spacing());
+                continue;
+            }
+
+            if let Some(spacing) = self.metadata.node_node_spacing(node) {
+                min_spacing = min_spacing.min((spacing / 2.0 - EDGE_AWARE_EPSILON).max(0.0));
+            }
+        }
+
+        if min_spacing.is_finite() {
+            min_spacing
+        } else {
+            0.0
+        }
+    }
+
+    fn alter_grouped_hitbox_orthogonal(
+        &self,
+        group: &Rc<std::cell::RefCell<CGroup>>,
+        spacing: f64,
+        fac: f64,
+    ) {
+        let master = group
+            .borrow()
+            .master
+            .clone()
+            .or_else(|| group.borrow().c_nodes.first().cloned());
+        let Some(master) = master else {
+            return;
+        };
+        self.alter_hitbox(&master, spacing, fac);
+
+        let group_nodes = group.borrow().c_nodes.clone();
+        if group_nodes.len() <= 1 {
+            return;
+        }
+
+        let delta = spacing * fac;
+        for node in group_nodes {
+            if Rc::ptr_eq(&node, &master) {
+                continue;
+            }
+            let Some(segment) = self.metadata.segment_info(&node) else {
+                continue;
+            };
+            let mut node_mut = node.borrow_mut();
+            if segment.ignore_spacing_up {
+                node_mut.hitbox.y += delta + EDGE_AWARE_SMALL_EPSILON;
+                node_mut.hitbox.height -= delta + EDGE_AWARE_SMALL_EPSILON;
+            } else if segment.ignore_spacing_down {
+                node_mut.hitbox.height -= delta + EDGE_AWARE_SMALL_EPSILON;
+            }
+        }
+    }
+
+    fn alter_hitbox(&self, node: &CNodeRef, spacing: f64, fac: f64) {
+        let delta = spacing * fac;
+        let mut node_mut = node.borrow_mut();
+        if let Some(segment) = self.metadata.segment_info(node) {
+            if !segment.ignore_spacing_up {
+                node_mut.hitbox.y -= delta + EDGE_AWARE_SMALL_EPSILON;
+                node_mut.hitbox.height += delta + EDGE_AWARE_SMALL_EPSILON;
+            } else if !segment.ignore_spacing_down {
+                node_mut.hitbox.height += delta + EDGE_AWARE_SMALL_EPSILON;
+            }
+        } else if self.metadata.node_origin(node).is_some() {
+            node_mut.hitbox.y -= delta;
+            node_mut.hitbox.height += 2.0 * delta;
+        }
+    }
+
+    fn sweep<F>(&self, compactor: &mut OneDimensionalCompactor, filter: F)
+    where
+        F: Fn(&CNodeRef) -> bool,
+    {
+        let all_nodes = compactor.c_graph.borrow().c_nodes.clone();
+        for (index, node) in all_nodes.iter().enumerate() {
+            node.borrow_mut().id = index as i32;
+        }
+
+        let mut points = Vec::new();
+        for node in all_nodes {
+            if filter(&node) {
+                points.push(EdgeAwareTimestamp {
+                    node: node.clone(),
+                    low: true,
+                });
+                points.push(EdgeAwareTimestamp { node, low: false });
+            }
+        }
+        if points.is_empty() {
+            return;
+        }
+
+        let node_count = compactor.c_graph.borrow().c_nodes.len();
+        let mut handler = EdgeAwareScanlineHandler::new(node_count);
+        Scanline::execute(
+            points,
+            edge_aware_timestamp_cmp,
+            &mut |timestamp: &EdgeAwareTimestamp| {
+                handler.handle(timestamp);
+            },
+        );
+    }
+}
+
+impl IConstraintCalculationAlgorithm for EdgeAwareScanlineConstraintCalculation {
+    fn calculate_constraints(&self, compactor: &mut OneDimensionalCompactor) {
+        match self.edge_routing {
+            EdgeRouting::Orthogonal => self.calculate_for_orthogonal(compactor),
+            EdgeRouting::Splines => self.calculate_for_spline(compactor),
+            _ => {}
+        }
+    }
+}
+
+#[derive(Clone)]
+struct EdgeAwareTimestamp {
+    node: CNodeRef,
+    low: bool,
+}
+
+fn edge_aware_timestamp_cmp(left: &EdgeAwareTimestamp, right: &EdgeAwareTimestamp) -> Ordering {
+    let mut left_y = left.node.borrow().hitbox.y;
+    if !left.low {
+        left_y += left.node.borrow().hitbox.height;
+    }
+
+    let mut right_y = right.node.borrow().hitbox.y;
+    if !right.low {
+        right_y += right.node.borrow().hitbox.height;
+    }
+
+    let cmp = left_y.partial_cmp(&right_y).unwrap_or(Ordering::Equal);
+    if cmp == Ordering::Equal {
+        if !left.low && right.low {
+            return Ordering::Less;
+        }
+        if !right.low && left.low {
+            return Ordering::Greater;
+        }
+    }
+    cmp
+}
+
+struct EdgeAwareScanlineHandler {
+    intervals: Vec<CNodeRef>,
+    cand: Vec<Option<CNodeRef>>,
+}
+
+impl EdgeAwareScanlineHandler {
+    fn new(node_count: usize) -> Self {
+        Self {
+            intervals: Vec::new(),
+            cand: vec![None; node_count],
+        }
+    }
+
+    fn handle(&mut self, timestamp: &EdgeAwareTimestamp) {
+        if timestamp.low {
+            self.insert(&timestamp.node);
+        } else {
+            self.delete(&timestamp.node);
+        }
+    }
+
+    fn insert(&mut self, node: &CNodeRef) {
+        let position = self.insertion_pos(node);
+        self.intervals.insert(position, node.clone());
+
+        let node_id = node.borrow().id as usize;
+        self.cand[node_id] = self.lower(node);
+
+        if let Some(right) = self.higher(node) {
+            let right_id = right.borrow().id as usize;
+            self.cand[right_id] = Some(node.clone());
+        }
+    }
+
+    fn delete(&mut self, node: &CNodeRef) {
+        if let Some(left) = self.lower(node) {
+            let node_id = node.borrow().id as usize;
+            if self.cand[node_id]
+                .as_ref()
+                .is_some_and(|candidate| Rc::ptr_eq(candidate, &left))
+                && in_different_groups(&left, node)
+            {
+                left.borrow_mut().constraints.push(node.clone());
+            }
+        }
+
+        if let Some(right) = self.higher(node) {
+            let right_id = right.borrow().id as usize;
+            if self.cand[right_id]
+                .as_ref()
+                .is_some_and(|candidate| Rc::ptr_eq(candidate, node))
+                && in_different_groups(&right, node)
+            {
+                node.borrow_mut().constraints.push(right.clone());
+            }
+        }
+
+        self.intervals
+            .retain(|candidate| !Rc::ptr_eq(candidate, node));
+    }
+
+    fn insertion_pos(&self, node: &CNodeRef) -> usize {
+        let center = cnode_center_x(node);
+        let mut position = 0usize;
+        while position < self.intervals.len() && cnode_center_x(&self.intervals[position]) < center
+        {
+            position += 1;
+        }
+        position
+    }
+
+    fn index_of(&self, node: &CNodeRef) -> Option<usize> {
+        self.intervals
+            .iter()
+            .position(|candidate| Rc::ptr_eq(candidate, node))
+    }
+
+    fn lower(&self, node: &CNodeRef) -> Option<CNodeRef> {
+        let index = self.index_of(node)?;
+        if index > 0 {
+            Some(self.intervals[index - 1].clone())
+        } else {
+            None
+        }
+    }
+
+    fn higher(&self, node: &CNodeRef) -> Option<CNodeRef> {
+        let index = self.index_of(node)?;
+        if index + 1 < self.intervals.len() {
+            Some(self.intervals[index + 1].clone())
+        } else {
+            None
+        }
+    }
+}
+
+struct NetworkSimplexCompaction {
+    metadata: CompactionMetadata,
+}
+
+impl NetworkSimplexCompaction {
+    fn new(metadata: CompactionMetadata) -> Self {
+        Self { metadata }
+    }
+
+    fn add_group_edge(
+        &self,
+        group_to_nnode: &HashMap<usize, NNodeRef>,
+        source_group: &Rc<std::cell::RefCell<CGroup>>,
+        target_group: &Rc<std::cell::RefCell<CGroup>>,
+        delta: i32,
+        weight: f64,
+    ) {
+        let Some(source) = group_to_nnode.get(&group_key(source_group)).cloned() else {
+            return;
+        };
+        let Some(target) = group_to_nnode.get(&group_key(target_group)).cloned() else {
+            return;
+        };
+        self.add_nnode_edge(source, target, delta, weight);
+    }
+
+    fn add_nnode_edge(&self, source: NNodeRef, target: NNodeRef, delta: i32, weight: f64) {
+        if Arc::ptr_eq(&source, &target) {
+            return;
+        }
+        NEdge::of()
+            .delta(delta.max(0))
+            .weight(weight)
+            .source(source)
+            .target(target)
+            .create();
+    }
+
+    fn add_separation_constraints(
+        &self,
+        compactor: &mut OneDimensionalCompactor,
+        network_simplex_graph: &mut NGraph,
+        group_to_nnode: &HashMap<usize, NNodeRef>,
+    ) {
+        let c_nodes = compactor.c_graph.borrow().c_nodes.clone();
+        for c_node in &c_nodes {
+            let constraints = c_node.borrow().constraints.clone();
+            for inc_node in constraints {
+                let Some(source_group) = c_node.borrow().group() else {
+                    continue;
+                };
+                let Some(target_group) = inc_node.borrow().group() else {
+                    continue;
+                };
+                if Rc::ptr_eq(&source_group, &target_group) {
+                    continue;
+                }
+
+                let spacing = if compactor.direction.is_horizontal() {
+                    compactor
+                        .spacings_handler
+                        .get_horizontal_spacing(c_node, &inc_node)
+                } else {
+                    compactor
+                        .spacings_handler
+                        .get_vertical_spacing(c_node, &inc_node)
+                };
+                let source_offset = c_node.borrow().c_group_offset.x;
+                let source_width = c_node.borrow().hitbox.width;
+                let target_offset = inc_node.borrow().c_group_offset.x;
+                let delta = (source_offset + source_width + spacing - target_offset)
+                    .ceil()
+                    .max(0.0) as i32;
+
+                if !self.metadata.segments_share_edge(c_node, &inc_node) {
+                    let source_is_segment = self.metadata.is_segment(c_node);
+                    let target_is_segment = self.metadata.is_segment(&inc_node);
+                    let source_is_node = self.metadata.node_origin(c_node).is_some();
+                    let target_is_node = self.metadata.node_origin(&inc_node).is_some();
+                    let weight = if (source_is_segment && target_is_node)
+                        || (target_is_segment && source_is_node)
+                    {
+                        2.0
+                    } else {
+                        NETWORK_SIMPLEX_SEPARATION_WEIGHT
+                    };
+                    self.add_group_edge(
+                        group_to_nnode,
+                        &source_group,
+                        &target_group,
+                        delta,
+                        weight,
+                    );
+                    continue;
+                }
+
+                let helper = NNode::of().create(network_simplex_graph);
+                let offset_delta = (inc_node.borrow().c_group_offset.x
+                    - c_node.borrow().c_group_offset.x)
+                    .ceil() as i32;
+
+                let mut adjust = offset_delta as f64
+                    - (inc_node.borrow().c_group_offset.x - c_node.borrow().c_group_offset.x);
+                let mut alter_offset_node = c_node.clone();
+                let mut port = self.metadata.segment_port(c_node);
+                if port.is_none() {
+                    port = self.metadata.segment_port(&inc_node);
+                    adjust = -adjust;
+                    alter_offset_node = inc_node.clone();
+                }
+                if let Some(port) = port {
+                    alter_offset_node.borrow_mut().c_group_offset.x -= adjust;
+                    if let Ok(mut port_guard) = port.lock() {
+                        port_guard.shape().position().x -= adjust;
+                    }
+                }
+
+                let Some(source_nnode) = group_to_nnode.get(&group_key(&source_group)).cloned()
+                else {
+                    continue;
+                };
+                let Some(target_nnode) = group_to_nnode.get(&group_key(&target_group)).cloned()
+                else {
+                    continue;
+                };
+                self.add_nnode_edge(
+                    helper.clone(),
+                    source_nnode,
+                    offset_delta.max(0),
+                    NETWORK_SIMPLEX_SEPARATION_WEIGHT,
+                );
+                self.add_nnode_edge(
+                    helper,
+                    target_nnode,
+                    (-offset_delta).max(0),
+                    NETWORK_SIMPLEX_SEPARATION_WEIGHT,
+                );
+            }
+        }
+    }
+
+    fn add_edge_constraints(
+        &self,
+        compactor: &mut OneDimensionalCompactor,
+        group_to_nnode: &HashMap<usize, NNodeRef>,
+    ) {
+        let c_nodes = compactor.c_graph.borrow().c_nodes.clone();
+        let mut lnode_map: HashMap<usize, CNodeRef> = HashMap::new();
+        let mut ledge_map: HashMap<usize, Vec<CNodeRef>> = HashMap::new();
+
+        for c_node in &c_nodes {
+            if let Some(node) = self.metadata.node_origin(c_node) {
+                lnode_map.insert(arc_key(node), c_node.clone());
+            } else if let Some(segment) = self.metadata.segment_info(c_node) {
+                let mut seen = HashSet::new();
+                for edge in &segment.represented_edges {
+                    let key = arc_key(edge);
+                    if seen.insert(key) {
+                        ledge_map.entry(key).or_default().push(c_node.clone());
+                    }
+                }
+            }
+        }
+
+        for c_node in c_nodes {
+            let Some(l_node) = self.metadata.node_origin(&c_node).cloned() else {
+                continue;
+            };
+            let outgoing = l_node
+                .lock()
+                .ok()
+                .map(|node_guard| node_guard.outgoing_edges())
+                .unwrap_or_default();
+            for l_edge in outgoing {
+                let (is_self_loop, source_port, target_port) = if let Ok(edge_guard) = l_edge.lock()
+                {
+                    (
+                        edge_guard.is_self_loop(),
+                        edge_guard.source(),
+                        edge_guard.target(),
+                    )
+                } else {
+                    continue;
+                };
+                if is_self_loop {
+                    continue;
+                }
+                let (Some(source_port), Some(target_port)) = (source_port, target_port) else {
+                    continue;
+                };
+
+                let source_side = source_port
+                    .lock()
+                    .ok()
+                    .map(|port| port.side())
+                    .unwrap_or(PortSide::Undefined);
+                let target_side = target_port
+                    .lock()
+                    .ok()
+                    .map(|port| port.side())
+                    .unwrap_or(PortSide::Undefined);
+                if is_north_south_side(source_side) && is_north_south_side(target_side) {
+                    continue;
+                }
+
+                let Some(target_node) = target_port.lock().ok().and_then(|port| port.node()) else {
+                    continue;
+                };
+                let Some(target_c_node) = lnode_map.get(&arc_key(&target_node)).cloned() else {
+                    continue;
+                };
+
+                let Some(source_group) = c_node.borrow().group() else {
+                    continue;
+                };
+                let Some(target_group) = target_c_node.borrow().group() else {
+                    continue;
+                };
+                self.add_group_edge(
+                    group_to_nnode,
+                    &source_group,
+                    &target_group,
+                    0,
+                    NETWORK_SIMPLEX_EDGE_WEIGHT,
+                );
+
+                if source_side == PortSide::West
+                    && source_port
+                        .lock()
+                        .ok()
+                        .is_some_and(|port| !port.outgoing_edges().is_empty())
+                {
+                    if let Some(segment_nodes) = ledge_map.get(&arc_key(&l_edge)) {
+                        for segment_node in segment_nodes {
+                            if segment_node.borrow().hitbox.x < c_node.borrow().hitbox.x {
+                                let Some(segment_group) = segment_node.borrow().group() else {
+                                    continue;
+                                };
+                                self.add_group_edge(
+                                    group_to_nnode,
+                                    &segment_group,
+                                    &source_group,
+                                    1,
+                                    NETWORK_SIMPLEX_EDGE_WEIGHT,
+                                );
+                            }
+                        }
+                    }
+                }
+
+                if target_side == PortSide::East
+                    && target_port
+                        .lock()
+                        .ok()
+                        .is_some_and(|port| !port.incoming_edges().is_empty())
+                {
+                    if let Some(segment_nodes) = ledge_map.get(&arc_key(&l_edge)) {
+                        for segment_node in segment_nodes {
+                            if segment_node.borrow().hitbox.x > c_node.borrow().hitbox.x {
+                                let Some(segment_group) = segment_node.borrow().group() else {
+                                    continue;
+                                };
+                                self.add_group_edge(
+                                    group_to_nnode,
+                                    &source_group,
+                                    &segment_group,
+                                    1,
+                                    NETWORK_SIMPLEX_EDGE_WEIGHT,
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn add_artificial_source_node(&self, network_simplex_graph: &mut NGraph, next_id: &mut i32) {
+        let mut sources = Vec::new();
+        for node in &network_simplex_graph.nodes {
+            if node
+                .lock()
+                .ok()
+                .is_some_and(|node_guard| node_guard.incoming_edges().is_empty())
+            {
+                sources.push(node.clone());
+            }
+        }
+        if sources.len() <= 1 {
+            return;
+        }
+
+        let dummy_source = NNode::of().id(*next_id).create(network_simplex_graph);
+        *next_id += 1;
+        for source in sources {
+            self.add_nnode_edge(dummy_source.clone(), source, 1, 0.0);
+        }
+    }
+}
+
+impl ICompactionAlgorithm for NetworkSimplexCompaction {
+    fn compact(&self, compactor: &mut OneDimensionalCompactor) {
+        let c_groups = compactor.c_graph.borrow().c_groups.clone();
+        let mut network_simplex_graph = NGraph::new();
+        let mut group_to_nnode: HashMap<usize, NNodeRef> = HashMap::new();
+        let mut next_id = 0i32;
+
+        for group in &c_groups {
+            group.borrow_mut().id = next_id;
+            let n_node = NNode::of().id(next_id).create(&mut network_simplex_graph);
+            group_to_nnode.insert(group_key(group), n_node);
+            next_id += 1;
+        }
+
+        self.add_separation_constraints(compactor, &mut network_simplex_graph, &group_to_nnode);
+        self.add_edge_constraints(compactor, &group_to_nnode);
+        self.add_artificial_source_node(&mut network_simplex_graph, &mut next_id);
+
+        let mut simplex = NetworkSimplex::for_graph(&mut network_simplex_graph);
+        simplex.execute();
+
+        let c_nodes = compactor.c_graph.borrow().c_nodes.clone();
+        for c_node in c_nodes {
+            let Some(group) = c_node.borrow().group() else {
+                continue;
+            };
+            let Some(n_node) = group_to_nnode.get(&group_key(&group)) else {
+                continue;
+            };
+            let layer = n_node.lock().ok().map(|node| node.layer).unwrap_or(0);
+            let offset = c_node.borrow().c_group_offset.x;
+            c_node.borrow_mut().hitbox.x = layer as f64 + offset;
+        }
+    }
+}
+
+fn cnode_center_x(node: &CNodeRef) -> f64 {
+    let node_ref = node.borrow();
+    node_ref.hitbox.x + node_ref.hitbox.width / 2.0
+}
+
+fn in_different_groups(left: &CNodeRef, right: &CNodeRef) -> bool {
+    let left_group = left.borrow().group();
+    let right_group = right.borrow().group();
+    match (left_group, right_group) {
+        (Some(left_group), Some(right_group)) => !Rc::ptr_eq(&left_group, &right_group),
+        _ => true,
+    }
+}
+
+fn is_north_south_side(side: PortSide) -> bool {
+    side == PortSide::North || side == PortSide::South
 }
 
 struct SpecialSpacingsHandler {
@@ -1167,10 +2065,16 @@ fn segments_intersect(a: &VerticalSegment, b: &VerticalSegment) -> bool {
 
 fn join_segments(mut left: VerticalSegment, right: VerticalSegment) -> VerticalSegment {
     left.joined_segment_ids.extend(right.joined_segment_ids);
-    left.constraint_target_ids.extend(right.constraint_target_ids);
+    left.constraint_target_ids
+        .extend(right.constraint_target_ids);
     left.represented_edges.extend(right.represented_edges);
     left.represented_edge_keys
         .extend(right.represented_edge_keys);
+    left.ignore_spacing_up |= right.ignore_spacing_up;
+    left.ignore_spacing_down |= right.ignore_spacing_down;
+    if left.port.is_none() {
+        left.port = right.port;
+    }
     left.affected_bends.extend(right.affected_bends);
     left.affected_spline_segments
         .extend(right.affected_spline_segments);
@@ -1199,5 +2103,9 @@ fn arc_key<T>(value: &Arc<std::sync::Mutex<T>>) -> usize {
 }
 
 fn rc_key(value: &CNodeRef) -> usize {
+    Rc::as_ptr(value) as usize
+}
+
+fn group_key(value: &Rc<std::cell::RefCell<CGroup>>) -> usize {
     Rc::as_ptr(value) as usize
 }

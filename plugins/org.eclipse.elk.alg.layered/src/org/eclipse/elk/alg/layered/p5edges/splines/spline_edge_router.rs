@@ -1179,7 +1179,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for SplineEdgeRouter {
         let layers = layered_graph.layers().clone();
         let first_layer = layers.first().cloned();
         let last_layer = layers.last().cloned();
-        let _is_left_layer_external = first_layer
+        let is_left_layer_external = first_layer
             .as_ref()
             .map(|layer| {
                 layer
@@ -1212,7 +1212,6 @@ impl ILayoutPhase<LayeredPhases, LGraph> for SplineEdgeRouter {
 
         let mut left_layer: Option<LayerRef> = None;
         let mut xpos = 0.0;
-        let mut is_special_left_layer = true;
 
         for idx in 0..=layers.len() {
             let right_layer = layers.get(idx).cloned();
@@ -1238,6 +1237,17 @@ impl ILayoutPhase<LayeredPhases, LGraph> for SplineEdgeRouter {
 
             let mut x_segment_delta = 0.0;
             let mut right_layer_position = xpos;
+            let is_special_left_layer = left_layer.is_none()
+                || (is_left_layer_external
+                    && left_layer
+                        .as_ref()
+                        .map(|layer| {
+                            first_layer
+                                .as_ref()
+                                .map(|first| Arc::ptr_eq(layer, first))
+                                .unwrap_or(false)
+                        })
+                        .unwrap_or(false));
             let is_special_right_layer = right_layer.is_none()
                 || (is_right_layer_external
                     && right_layer
@@ -1307,7 +1317,6 @@ impl ILayoutPhase<LayeredPhases, LGraph> for SplineEdgeRouter {
             }
 
             left_layer = right_layer;
-            is_special_left_layer = is_special_right_layer;
         }
 
         for edge in &self.start_edges {

@@ -728,7 +728,7 @@ impl LGraphUtil {
 
         if port_side == PortSide::Undefined && port_constraints.is_side_fixed() {
             port_side = LGraphUtil::calc_port_side(port, direction);
-            if let Ok(mut port_guard) = port.lock() {
+            let should_set_border_offset = if let Ok(mut port_guard) = port.lock() {
                 port_guard.set_side(port_side);
 
                 let has_border_offset = port_guard
@@ -737,12 +737,16 @@ impl LGraphUtil {
                     .properties()
                     .has_property(LayeredOptions::PORT_BORDER_OFFSET);
                 let pos = *port_guard.shape().position_ref();
-
-                if !has_border_offset
+                !has_border_offset
                     && port_side != PortSide::Undefined
                     && (pos.x != 0.0 || pos.y != 0.0)
-                {
-                    let offset = LGraphUtil::calc_port_offset(port, port_side);
+            } else {
+                false
+            };
+            if should_set_border_offset {
+                // Avoid re-locking the same port mutex while already held above.
+                let offset = LGraphUtil::calc_port_offset(port, port_side);
+                if let Ok(mut port_guard) = port.lock() {
                     port_guard.set_property(LayeredOptions::PORT_BORDER_OFFSET, Some(offset));
                 }
             }

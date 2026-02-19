@@ -1,0 +1,2 @@
+model_rel_path	status	diff_count	top_category	first_diff	java_layout_json	rust_layout_json
+realworld/ptolemy/hierarchical/continuous_pendulum3d_Pendulum3D.elkt	drift	14	section	children[4]/children[3]/y: number mismatch (126.4 != 46.400000000000006)	/Users/cody.ij.hwang/Projects/github/elk-rs/perf/model_parity/java/layout/realworld/ptolemy/hierarchical/continuous_pendulum3d_Pendulum3D.elkt.json	perf/model_parity_step50_pendulum3d_prefetch_scan/p11/rust/realworld/ptolemy/hierarchical/continuous_pendulum3d_Pendulum3D.elkt.json

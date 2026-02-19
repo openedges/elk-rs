@@ -243,7 +243,9 @@ impl BarycenterHeuristic {
                     // Java: float perturbation = random.nextFloat() * RANDOM_AMOUNT - RANDOM_AMOUNT / 2.0f
                     // All float (f32) arithmetic, then promoted to double for +=
                     let rand_f32 = self.random.next_float() as f32;
-                    let perturbation = (rand_f32 * 0.07_f32 - 0.07_f32 / 2.0_f32) as f64;
+                    let random_amount = RANDOM_AMOUNT as f32;
+                    let perturbation =
+                        (rand_f32 * random_amount - random_amount / 2.0_f32) as f64;
                     state_guard.summed_weight += perturbation;
                     state_guard.barycenter =
                         Some(state_guard.summed_weight / state_guard.degree as f64);
@@ -487,16 +489,14 @@ impl ICrossingMinimizationHeuristic for BarycenterHeuristic {
 
 impl IInitializable for BarycenterHeuristic {
     fn init_after_traversal(&mut self) {
-        self.constraint_resolver.init_after_traversal();
-        self.port_distributor.init_after_traversal();
+        // Java initializes the resolver/distributor separately in GraphInfoHolder and
+        // only snapshots the computed arrays here.
         self.barycenter_state = self.constraint_resolver.barycenter_states();
         self.port_ranks = self.port_distributor.port_ranks();
     }
 
     fn init_at_layer_level(&mut self, layer_index: usize, node_order: &[Vec<LNodeRef>]) {
         self.constraint_resolver
-            .init_at_layer_level(layer_index, node_order);
-        self.port_distributor
             .init_at_layer_level(layer_index, node_order);
         if let Some(first_node) = node_order[layer_index].first() {
             if let Some(layer) = first_node
@@ -519,8 +519,6 @@ impl IInitializable for BarycenterHeuristic {
     ) {
         self.constraint_resolver
             .init_at_node_level(layer_index, node_index, node_order);
-        self.port_distributor
-            .init_at_node_level(layer_index, node_index, node_order);
     }
 
     fn init_at_port_level(
@@ -536,8 +534,6 @@ impl IInitializable for BarycenterHeuristic {
             port_index,
             node_order,
         );
-        self.port_distributor
-            .init_at_port_level(layer_index, node_index, port_index, node_order);
     }
 
     fn init_at_edge_level(
@@ -550,14 +546,6 @@ impl IInitializable for BarycenterHeuristic {
         node_order: &[Vec<LNodeRef>],
     ) {
         self.constraint_resolver.init_at_edge_level(
-            layer_index,
-            node_index,
-            port_index,
-            edge_index,
-            edge,
-            node_order,
-        );
-        self.port_distributor.init_at_edge_level(
             layer_index,
             node_index,
             port_index,

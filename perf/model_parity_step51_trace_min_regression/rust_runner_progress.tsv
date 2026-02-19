@@ -1,0 +1,15 @@
+event	index	total	model_rel_path	status	elapsed_ms	note
+start	1	7	tickets/core/056_portLabelPlacement.elkt	-	0	-
+end	1	7	tickets/core/056_portLabelPlacement.elkt	ok	8	-
+start	2	7	tickets/layered/182_minNodeSizeForHierarchicalNodes.elkt	-	0	-
+end	2	7	tickets/layered/182_minNodeSizeForHierarchicalNodes.elkt	ok	6	-
+start	3	7	tickets/layered/316_wrongGraphSizeWithIncludeChildren.elkt	-	0	-
+end	3	7	tickets/layered/316_wrongGraphSizeWithIncludeChildren.elkt	ok	3	-
+start	4	7	tickets/layered/405_differentPortLabelPositionsTwoWestOutsideNextToPort.elkt	-	0	-
+end	4	7	tickets/layered/405_differentPortLabelPositionsTwoWestOutsideNextToPort.elkt	ok	15	-
+start	5	7	tickets/layered/425_selfLoopInCompoundNode.elkt	-	0	-
+end	5	7	tickets/layered/425_selfLoopInCompoundNode.elkt	ok	8	-
+start	6	7	tickets/layered/515_polylineOverNodeIncOut.elkt	-	0	-
+end	6	7	tickets/layered/515_polylineOverNodeIncOut.elkt	ok	4	-
+start	7	7	tickets/layered/515_polylineOverNodeOutgoing.elkt	-	0	-
+end	7	7	tickets/layered/515_polylineOverNodeOutgoing.elkt	ok	6	-

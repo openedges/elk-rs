@@ -1,0 +1,2 @@
+model_rel_path	status	diff_count	top_category	first_diff	java_layout_json	rust_layout_json
+tests/layered/node_label_placement/outside_placement_hpriority.elkt	match	0			/Users/cody.ij.hwang/Projects/github/elk-rs/perf/model_parity/java/layout/tests/layered/node_label_placement/outside_placement_hpriority.elkt.json	perf/model_parity_step50_outside_hpriority/rust/tests/layered/node_label_placement/outside_placement_hpriority.elkt.json

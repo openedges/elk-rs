@@ -160,6 +160,29 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
         if trace {
             eprintln!("bk: compaction done");
         }
+        if std::env::var_os("ELK_TRACE_BK_LAYOUTS").is_some() {
+            for bal in &layouts {
+                eprintln!("bk-layout: {}", bal);
+                for layer in &layers {
+                    let nodes = layer
+                        .lock()
+                        .ok()
+                        .map(|layer_guard| layer_guard.nodes().clone())
+                        .unwrap_or_default();
+                    for node in nodes {
+                        let id = node_id(&node);
+                        eprintln!(
+                            "bk-layout-node: layout={} id={} y={:.3} inner={:.3} final={:.3}",
+                            bal,
+                            id,
+                            bal.y[id].unwrap_or(0.0),
+                            bal.inner_shift[id],
+                            bal.y[id].unwrap_or(0.0) + bal.inner_shift[id]
+                        );
+                    }
+                }
+            }
+        }
 
         if monitor.is_logging_enabled() {
             for bal in layouts.iter() {
@@ -172,7 +195,16 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
 
         if produce_balanced_layout {
             let balanced = create_balanced_layout(&layouts, &layers, &nodes_by_id);
-            if check_order_constraint(&balanced, &layers, monitor) {
+            let balanced_ok = check_order_constraint(&balanced, &layers, monitor);
+            if trace {
+                eprintln!(
+                    "bk: balanced candidate={} size={} order_ok={}",
+                    balanced,
+                    balanced.layout_size(),
+                    balanced_ok
+                );
+            }
+            if balanced_ok {
                 balanced_layout = Some(balanced);
             }
         }
@@ -186,7 +218,16 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
 
         if chosen_layout.is_none() {
             for bal in layouts.iter() {
-                if check_order_constraint(bal, &layers, monitor)
+                let order_ok = check_order_constraint(bal, &layers, monitor);
+                if trace {
+                    eprintln!(
+                        "bk: candidate={} size={} order_ok={}",
+                        bal,
+                        bal.layout_size(),
+                        order_ok
+                    );
+                }
+                if order_ok
                     && chosen_layout
                         .map(|chosen| chosen.layout_size() > bal.layout_size())
                         .unwrap_or(true)
@@ -196,7 +237,11 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
             }
         }
         if trace {
-            eprintln!("bk: layout chosen");
+            if let Some(layout) = chosen_layout {
+                eprintln!("bk: layout chosen={layout} size={}", layout.layout_size());
+            } else {
+                eprintln!("bk: layout chosen=<none>");
+            }
         }
 
         let chosen_layout = chosen_layout

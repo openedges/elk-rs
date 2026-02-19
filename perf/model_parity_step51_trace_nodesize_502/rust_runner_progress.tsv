@@ -1,0 +1,3 @@
+event	index	total	model_rel_path	status	elapsed_ms	note
+start	1	1	tickets/layered/502_collapsingCompoundNode.elkt	-	0	-
+end	1	1	tickets/layered/502_collapsingCompoundNode.elkt	ok	6	-

@@ -1,0 +1,18 @@
+algorithm: layered
+hierarchyHandling: INCLUDE_CHILDREN
+randomSeed: 1
+
+node Container_1
+nodeProperty Container_1 nodeSizeConstraints:[PORTS, NODE_LABELS, MINIMUM_SIZE]
+nodeProperty Container_1 padding:[top=6.0,left=5.0,bottom=5.0,right=5.0]
+nodeProperty Container_1 nodeLabelsPlacement:[H_CENTER, V_TOP, INSIDE]
+
+node Node_1 parent Container_1 [size:10,10]
+nodeProperty Node_1 nodeSizeConstraints:[PORTS, NODE_LABELS, MINIMUM_SIZE]
+nodeProperty Node_1 nodeLabelsPlacement:[H_CENTER, V_TOP, INSIDE]
+
+edge E1: Node_1 -> Node_1
+
+node Container_2
+nodeProperty Container_2 nodeSizeConstraints:[PORTS, NODE_LABELS, MINIMUM_SIZE]
+nodeProperty Container_2 nodeLabelsPlacement:[H_CENTER, V_TOP, INSIDE]

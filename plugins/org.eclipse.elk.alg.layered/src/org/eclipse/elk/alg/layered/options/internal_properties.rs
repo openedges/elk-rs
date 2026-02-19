@@ -16,6 +16,7 @@ use crate::org::eclipse::elk::alg::layered::graph::transform::l_graph_adapters::
 use crate::org::eclipse::elk::alg::layered::graph::{
     LEdgeRef, LGraph, LGraphRef, LLabelRef, LNodeRef, LPortRef, NodeRefKey,
 };
+use crate::org::eclipse::elk::alg::layered::intermediate::breaking_point_info::BreakingPointInfoRef;
 use crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfLoopHolderRef;
 use crate::org::eclipse::elk::alg::layered::options::{
     EdgeConstraint, GraphProperties, InLayerConstraint, Spacings,
@@ -240,6 +241,8 @@ pub static IS_PART_OF_CYCLE_PROPERTY: LazyLock<Property<bool>> =
     LazyLock::new(|| Property::with_default("partOfCycle", false));
 pub static CYCLIC_PROPERTY: LazyLock<Property<bool>> =
     LazyLock::new(|| Property::with_default("cyclic", false));
+pub static BREAKING_POINT_INFO_PROPERTY: LazyLock<Property<BreakingPointInfoRef>> =
+    LazyLock::new(|| Property::new("breakingPointInfo"));
 
 pub static TOP_COMMENTS_PROPERTY: LazyLock<Property<Vec<LNodeRef>>> =
     LazyLock::new(|| Property::new("TopSideComments"));
@@ -359,6 +362,8 @@ impl InternalProperties {
     pub const TARJAN_ON_STACK: &'static LazyLock<Property<bool>> = &TARJAN_ON_STACK_PROPERTY;
     pub const IS_PART_OF_CYCLE: &'static LazyLock<Property<bool>> = &IS_PART_OF_CYCLE_PROPERTY;
     pub const CYCLIC: &'static LazyLock<Property<bool>> = &CYCLIC_PROPERTY;
+    pub const BREAKING_POINT_INFO: &'static LazyLock<Property<BreakingPointInfoRef>> =
+        &BREAKING_POINT_INFO_PROPERTY;
     pub const TOP_COMMENTS: &'static LazyLock<Property<Vec<LNodeRef>>> = &TOP_COMMENTS_PROPERTY;
     pub const BOTTOM_COMMENTS: &'static LazyLock<Property<Vec<LNodeRef>>> =
         &BOTTOM_COMMENTS_PROPERTY;

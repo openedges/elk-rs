@@ -174,7 +174,11 @@ impl GraphConfigurator {
         }
 
         if favor_straightness.is_none() {
-            let favor = edge_routing == EdgeRouting::Orthogonal;
+            // Java layered metadata defaults edge routing to ORTHOGONAL for this algorithm.
+            // In Rust, missing values are often still read as Undefined from copied graph properties,
+            // while phase selection already falls back to Orthogonal for Undefined.
+            // Treat Undefined as Orthogonal here as well so the BK favor-straight default is consistent.
+            let favor = matches!(edge_routing, EdgeRouting::Orthogonal | EdgeRouting::Undefined);
             if let Ok(mut graph_guard) = graph.lock() {
                 graph_guard.set_property(
                     LayeredOptions::NODE_PLACEMENT_FAVOR_STRAIGHT_EDGES,
@@ -473,7 +477,7 @@ impl GraphConfigurator {
 
         !interactive_crossmin
             && greedy_type != GreedySwitchType::Off
-            && (activation_threshold == 0 || activation_threshold > graph_size)
+            && (activation_threshold == 0 || activation_threshold >= graph_size)
     }
 
     fn is_hierarchical_layout(graph: &mut LGraph) -> bool {

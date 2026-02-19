@@ -45,12 +45,13 @@ impl GroupModelOrderCalculator {
                 node_guard.get_property(LayeredOptions::GROUP_MODEL_ORDER_CYCLE_BREAKING_ID)
             })
             .unwrap_or(0);
-        let node_model_order = node
+        if let Some(node_model_order) = node
             .lock()
             .ok()
             .and_then(|mut node_guard| node_guard.get_property(InternalProperties::MODEL_ORDER))
-            .unwrap_or(0);
-        model_order += group_id * small_offset + node_model_order;
+        {
+            model_order += group_id * small_offset + node_model_order;
+        }
 
         model_order
     }

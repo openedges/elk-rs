@@ -121,6 +121,52 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
             if *TRACE_NODE_SIZE {
                 eprintln!("label-node-size: phase2b (inside port label restack) done");
             }
+
+            // Java parity guard: phase2b can shrink self-loop helper-port nodes again because
+            // NodeDimensionCalculation does not account for restored hidden self-loop ports.
+            // Re-apply port-driven node sizing only for those self-loop holder nodes.
+            let mut phase2c_reapplied_nodes = 0usize;
+            let mut seen = HashSet::new();
+            for node in graph.layerless_nodes().clone() {
+                let key = Arc::as_ptr(&node) as usize;
+                if seen.insert(key) && should_reapply_phase2_self_loop_port_sizing(&node) {
+                    place_ports_on_node(
+                        &node,
+                        graph_port_spacing,
+                        &graph_ports_surrounding,
+                        graph_topdown_layout,
+                        graph_node_size_fixed_graph_size,
+                    );
+                    phase2c_reapplied_nodes += 1;
+                }
+            }
+
+            for layer in graph.layers().clone() {
+                let nodes = layer
+                    .lock()
+                    .ok()
+                    .map(|layer_guard| LGraphUtil::to_node_array(layer_guard.nodes()))
+                    .unwrap_or_default();
+                for node in nodes {
+                    let key = Arc::as_ptr(&node) as usize;
+                    if seen.insert(key) && should_reapply_phase2_self_loop_port_sizing(&node) {
+                        place_ports_on_node(
+                            &node,
+                            graph_port_spacing,
+                            &graph_ports_surrounding,
+                            graph_topdown_layout,
+                            graph_node_size_fixed_graph_size,
+                        );
+                        phase2c_reapplied_nodes += 1;
+                    }
+                }
+            }
+            if *TRACE_NODE_SIZE {
+                eprintln!(
+                    "label-node-size: phase2c (self-loop port sizing reapply) nodes={}",
+                    phase2c_reapplied_nodes
+                );
+            }
         } else if *TRACE_NODE_SIZE {
             eprintln!("label-node-size: step2 skipped (experiment)");
         }
@@ -191,6 +237,21 @@ fn should_apply_phase1_port_placement(node: &LNodeRef) -> bool {
         .ok()
         .and_then(|mut node_guard| node_guard.get_property(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE))
         .unwrap_or(false)
+}
+
+fn should_reapply_phase2_self_loop_port_sizing(node: &LNodeRef) -> bool {
+    if !should_apply_phase1_port_placement(node) {
+        return false;
+    }
+    node.lock().ok().is_some_and(|mut node_guard| {
+        let has_self_loop_holder = node_guard
+            .get_property(InternalProperties::SELF_LOOP_HOLDER)
+            .is_some();
+        let size_constraints = node_guard
+            .get_property(LayeredOptions::NODE_SIZE_CONSTRAINTS)
+            .unwrap_or_default();
+        has_self_loop_holder && size_constraints.contains(&SizeConstraint::Ports)
+    })
 }
 
 fn place_ports_on_node(

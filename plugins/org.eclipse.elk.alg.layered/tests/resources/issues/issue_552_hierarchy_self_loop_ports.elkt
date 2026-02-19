@@ -1,0 +1,23 @@
+algorithm: layered
+hierarchyHandling: INCLUDE_CHILDREN
+randomSeed: 1
+
+node n1 {
+	port p_child_in {
+		layout [ size: 0, 0 ]
+	}
+	port p_loop_tgt {
+		layout [ size: 0, 0 ]
+	}
+	port p_loop_src {
+		layout [ size: 0, 0 ]
+	}
+
+	node n2 {
+		layout [ size: 20, 20 ]
+	}
+
+	edge e_child: p_child_in -> n2
+}
+
+edge e_loop: n1.p_loop_src -> n1.p_loop_tgt

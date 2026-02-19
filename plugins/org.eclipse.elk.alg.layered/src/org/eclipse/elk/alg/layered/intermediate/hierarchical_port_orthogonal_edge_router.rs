@@ -573,6 +573,21 @@ impl HierarchicalPortOrthogonalEdgeRouter {
         let edge_spacing = layered_graph
             .get_property(LayeredOptions::SPACING_EDGE_EDGE)
             .unwrap_or(0.0);
+        if *TRACE_HIER_PORT_ORTHO {
+            eprintln!(
+                "[hier-port-ortho] route_edges prep north(src={},tgt={}) south(src={},tgt={}) spacing(node={},edge={}) graph(size=({:.1},{:.1}) offset=({:.1},{:.1}))",
+                northern_source_layer.len(),
+                northern_target_layer.len(),
+                southern_source_layer.len(),
+                southern_target_layer.len(),
+                node_spacing,
+                edge_spacing,
+                layered_graph.size_ref().x,
+                layered_graph.size_ref().y,
+                layered_graph.offset_ref().x,
+                layered_graph.offset_ref().y
+            );
+        }
 
         for dummy in north_south_dummies {
             let ext_side = dummy
@@ -654,6 +669,17 @@ impl HierarchicalPortOrthogonalEdgeRouter {
                 layered_graph.offset().y += self.northern_ext_port_edge_routing_height;
                 layered_graph.size().y += self.northern_ext_port_edge_routing_height;
             }
+            if *TRACE_HIER_PORT_ORTHO {
+                eprintln!(
+                    "[hier-port-ortho] north slots={} added_height={:.1} graph(size=({:.1},{:.1}) offset=({:.1},{:.1}))",
+                    slots,
+                    self.northern_ext_port_edge_routing_height,
+                    layered_graph.size_ref().x,
+                    layered_graph.size_ref().y,
+                    layered_graph.offset_ref().x,
+                    layered_graph.offset_ref().y
+                );
+            }
         }
 
         if !southern_source_layer.is_empty() {
@@ -672,6 +698,16 @@ impl HierarchicalPortOrthogonalEdgeRouter {
             );
             if slots > 0 {
                 layered_graph.size().y += node_spacing + (slots as f64 - 1.0) * edge_spacing;
+            }
+            if *TRACE_HIER_PORT_ORTHO {
+                eprintln!(
+                    "[hier-port-ortho] south slots={} graph(size=({:.1},{:.1}) offset=({:.1},{:.1}))",
+                    slots,
+                    layered_graph.size_ref().x,
+                    layered_graph.size_ref().y,
+                    layered_graph.offset_ref().x,
+                    layered_graph.offset_ref().y
+                );
             }
         }
     }

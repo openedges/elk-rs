@@ -1,0 +1,3 @@
+event	index	total	model_rel_path	status	elapsed_ms	note
+start	1	1	realworld/ptolemy/hierarchical/continuous_cartpendulum_CartPendulum.elkt	-	0	-
+end	1	1	realworld/ptolemy/hierarchical/continuous_cartpendulum_CartPendulum.elkt	ok	5	-

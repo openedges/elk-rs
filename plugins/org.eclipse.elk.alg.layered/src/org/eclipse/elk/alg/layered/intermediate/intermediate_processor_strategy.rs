@@ -11,19 +11,22 @@ use crate::org::eclipse::elk::alg::layered::intermediate::graph_transformer::{
     GraphTransformer, Mode as GraphTransformerMode,
 };
 use crate::org::eclipse::elk::alg::layered::intermediate::{
+    AlternatingLayerUnzipper, BreakingPointInserter, BreakingPointProcessor, BreakingPointRemover,
     CommentNodeMarginCalculator, CommentPostprocessor, CommentPreprocessor,
-    EdgeAndLayerConstraintEdgeReverser, EndLabelPostprocessor, EndLabelPreprocessor,
-    EndLabelSorter, HierarchicalNodeResizingProcessor, HierarchicalPortConstraintProcessor,
-    HierarchicalPortDummySizeProcessor, HierarchicalPortOrthogonalEdgeRouter,
-    HierarchicalPortPositionProcessor, HorizontalGraphCompactor, HyperedgeDummyMerger,
-    InLayerConstraintProcessor, InnermostNodeMarginCalculator, InteractiveExternalPortPositioner,
-    InvertedPortProcessor, LabelAndNodeSizeProcessor, LabelDummyInserter, LabelDummyRemover,
-    LabelDummySwitcher, LabelSideSelector, LayerConstraintPostprocessor,
-    LayerConstraintPreprocessor, LayerSizeAndGraphHeightCalculator, LongEdgeJoiner,
-    LongEdgeSplitter, NodePromotion, NorthSouthPortPostprocessor, NorthSouthPortPreprocessor,
-    PartitionMidprocessor, PartitionPostprocessor, PartitionPreprocessor, PortListSorter,
-    PortSideProcessor, ReversedEdgeRestorer, SelfLoopPortRestorer, SelfLoopPostProcessor,
-    SelfLoopPreProcessor, SelfLoopRouter, SemiInteractiveCrossMinProcessor,
+    ConstraintsPostprocessor, EdgeAndLayerConstraintEdgeReverser, EndLabelPostprocessor,
+    EndLabelPreprocessor, EndLabelSorter, HierarchicalNodeResizingProcessor,
+    HierarchicalPortConstraintProcessor, HierarchicalPortDummySizeProcessor,
+    HierarchicalPortOrthogonalEdgeRouter, HierarchicalPortPositionProcessor,
+    HighDegreeNodeLayeringProcessor, HorizontalGraphCompactor, HyperedgeDummyMerger,
+    HypernodeProcessor, InLayerConstraintProcessor, InnermostNodeMarginCalculator,
+    InteractiveExternalPortPositioner, InvertedPortProcessor, LabelAndNodeSizeProcessor,
+    LabelDummyInserter, LabelDummyRemover, LabelDummySwitcher, LabelManagementProcessor,
+    LabelSideSelector, LayerConstraintPostprocessor, LayerConstraintPreprocessor,
+    LayerSizeAndGraphHeightCalculator, LongEdgeJoiner, LongEdgeSplitter, NodePromotion,
+    NorthSouthPortPostprocessor, NorthSouthPortPreprocessor, PartitionMidprocessor,
+    PartitionPostprocessor, PartitionPreprocessor, PortListSorter, PortSideProcessor,
+    ReversedEdgeRestorer, SelfLoopPortRestorer, SelfLoopPostProcessor, SelfLoopPreProcessor,
+    SelfLoopRouter, SemiInteractiveCrossMinProcessor, SingleEdgeGraphWrapper,
     SortByInputModelProcessor,
 };
 use crate::org::eclipse::elk::alg::layered::p3order::{CrossMinType, LayerSweepCrossingMinimizer};
@@ -196,8 +199,17 @@ impl ILayoutProcessorFactory<LGraph> for IntermediateProcessorStrategy {
             IntermediateProcessorStrategy::PartitionPostprocessor => {
                 Box::new(PartitionPostprocessor)
             }
+            IntermediateProcessorStrategy::HighDegreeNodeLayerProcessor => {
+                Box::new(HighDegreeNodeLayeringProcessor::default())
+            }
             IntermediateProcessorStrategy::SelfLoopPreprocessor => Box::new(SelfLoopPreProcessor),
             IntermediateProcessorStrategy::SelfLoopPortRestorer => Box::new(SelfLoopPortRestorer),
+            IntermediateProcessorStrategy::AlternatingLayerUnzipper => {
+                Box::new(AlternatingLayerUnzipper)
+            }
+            IntermediateProcessorStrategy::SingleEdgeGraphWrapper => {
+                Box::new(SingleEdgeGraphWrapper)
+            }
             IntermediateProcessorStrategy::InLayerConstraintProcessor => {
                 Box::new(InLayerConstraintProcessor)
             }
@@ -215,6 +227,11 @@ impl ILayoutProcessorFactory<LGraph> for IntermediateProcessorStrategy {
             ),
             IntermediateProcessorStrategy::LongEdgeSplitter => Box::new(LongEdgeSplitter),
             IntermediateProcessorStrategy::LongEdgeJoiner => Box::new(LongEdgeJoiner),
+            IntermediateProcessorStrategy::BreakingPointInserter => Box::new(BreakingPointInserter),
+            IntermediateProcessorStrategy::BreakingPointProcessor => {
+                Box::new(BreakingPointProcessor)
+            }
+            IntermediateProcessorStrategy::BreakingPointRemover => Box::new(BreakingPointRemover),
             IntermediateProcessorStrategy::ReversedEdgeRestorer => Box::new(ReversedEdgeRestorer),
             IntermediateProcessorStrategy::LayerSizeAndGraphHeightCalculator => {
                 Box::new(LayerSizeAndGraphHeightCalculator)
@@ -256,10 +273,19 @@ impl ILayoutProcessorFactory<LGraph> for IntermediateProcessorStrategy {
             IntermediateProcessorStrategy::HierarchicalPortOrthogonalEdgeRouter => {
                 Box::new(HierarchicalPortOrthogonalEdgeRouter::default())
             }
+            IntermediateProcessorStrategy::ConstraintsPostprocessor => {
+                Box::new(ConstraintsPostprocessor)
+            }
+            IntermediateProcessorStrategy::HypernodeProcessor => Box::new(HypernodeProcessor),
+            IntermediateProcessorStrategy::EndNodePortLabelManagementProcessor => {
+                Box::new(LabelManagementProcessor::new(false))
+            }
+            IntermediateProcessorStrategy::CenterLabelManagementProcessor => {
+                Box::new(LabelManagementProcessor::new(true))
+            }
             IntermediateProcessorStrategy::HorizontalCompactor => {
                 Box::new(HorizontalGraphCompactor)
             }
-            _ => Box::new(NoOpLayoutProcessor),
         }
     }
 
@@ -275,12 +301,6 @@ impl ILayoutProcessorFactory<LGraph> for IntermediateProcessorStrategy {
                 .unwrap_or(0),
         )
     }
-}
-
-struct NoOpLayoutProcessor;
-
-impl ILayoutProcessor<LGraph> for NoOpLayoutProcessor {
-    fn process(&mut self, _graph: &mut LGraph, _progress_monitor: &mut dyn IElkProgressMonitor) {}
 }
 
 struct LayerSweepAsProcessor {

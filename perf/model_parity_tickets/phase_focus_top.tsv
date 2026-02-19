@@ -1,0 +1,11 @@
+priority_rank	phase_root	diff_bucket	diff_count	model_rel_path	class	top_category	first_diff
+1	p4_node_placement	low_1_5	4	tickets/layered/425_selfLoopInCompoundNode.elkt	other	coordinate	children[0]/children[0]/width: number mismatch (30.0 != 10.0)
+2	p4_node_placement	medium_6_19	7	tickets/layered/502_collapsingCompoundNode.elkt	other	coordinate	children[0]/edges[0]/sections[0]/startPoint/y: number mismatch (4.0 != 24.0)
+3	p4_node_placement	medium_6_19	8	tickets/layered/182_minNodeSizeForHierarchicalNodes.elkt	other	coordinate	children[0]/ports[0]/x: number mismatch (6.285714285714286 != 10.0)
+4	p4_node_placement	medium_6_19	15	tickets/layered/665_includeChildrenDoesntStop.elkt	other	coordinate	children[0]/children[0]/children[0]/x: number mismatch (149.4242331510003 != 12.0)
+5	p4_node_placement	medium_6_19	16	tickets/layered/453_interactiveProblems.elkt	other	coordinate	children[0]/height: number mismatch (61.0 != 45.0)
+6	p4_node_placement	high_20_cap	20	tickets/layered/213_componentsCompaction.elkt	other	coordinate	children[0]/children[0]/x: number mismatch (12.5 != 12.0)
+7	p4_node_placement	high_20_cap	20	tickets/layered/701_portLabels.elkt	other	coordinate	children[0]/children[0]/children[0]/height: number mismatch (52.0 != 44.0)
+8	p5_edge_routing	medium_6_19	6	tickets/layered/352_selfLoopNPEorAIOOBE.elkt	other	section	edges[4]/sections[0]/bendPoints[0]/y: number mismatch (64.0 != 118.0)
+9	p5_edge_routing	medium_6_19	8	tickets/layered/368_selfLoopLabelsIOOBE.elkt	other	section	children[0]/x: number mismatch (22.0 != 12.0)
+10	p5_edge_routing	high_20_cap	20	tickets/layered/302_brokenSplineSelfLoops.elkt	other	section	children[0]/y: number mismatch (12.0 != 23.333333333333336)

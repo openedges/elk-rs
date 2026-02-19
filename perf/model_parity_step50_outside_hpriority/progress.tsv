@@ -1,0 +1,3 @@
+event	index	total	model_rel_path	status	elapsed_ms	note
+start	1	1	tests/layered/node_label_placement/outside_placement_hpriority.elkt	-	0	-
+end	1	1	tests/layered/node_label_placement/outside_placement_hpriority.elkt	ok	2	-

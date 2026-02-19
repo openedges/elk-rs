@@ -10,6 +10,7 @@ pub struct LayerSizeAndGraphHeightCalculator;
 impl ILayoutProcessor<LGraph> for LayerSizeAndGraphHeightCalculator {
     fn process(&mut self, layered_graph: &mut LGraph, monitor: &mut dyn IElkProgressMonitor) {
         monitor.begin("Layer size calculation", 1.0);
+        let trace_layer_height = std::env::var("ELK_TRACE_LAYER_HEIGHT").is_ok();
 
         let mut min_y = f64::INFINITY;
         let mut max_y = f64::NEG_INFINITY;
@@ -73,6 +74,41 @@ impl ILayoutProcessor<LGraph> for LayerSizeAndGraphHeightCalculator {
                 layer_guard.size().y = bottom - top;
             }
 
+            if trace_layer_height {
+                let first = nodes.first().and_then(|node| {
+                    node.lock().ok().map(|mut g| {
+                        (
+                            g.shape().graph_element().id,
+                            g.node_type(),
+                            g.shape().position_ref().y,
+                            g.shape().size_ref().y,
+                            g.margin().top,
+                            g.margin().bottom,
+                        )
+                    })
+                });
+                let last = nodes.last().and_then(|node| {
+                    node.lock().ok().map(|mut g| {
+                        (
+                            g.shape().graph_element().id,
+                            g.node_type(),
+                            g.shape().position_ref().y,
+                            g.shape().size_ref().y,
+                            g.margin().top,
+                            g.margin().bottom,
+                        )
+                    })
+                });
+                eprintln!(
+                    "[layer-height] layer nodes={} top={:.1} bottom={:.1} first={:?} last={:?}",
+                    nodes.len(),
+                    top,
+                    bottom,
+                    first,
+                    last
+                );
+            }
+
             min_y = min_y.min(top);
             max_y = max_y.max(bottom);
         }
@@ -84,6 +120,15 @@ impl ILayoutProcessor<LGraph> for LayerSizeAndGraphHeightCalculator {
 
         layered_graph.size().y = max_y - min_y;
         layered_graph.offset().y -= min_y;
+        if trace_layer_height {
+            eprintln!(
+                "[layer-height] result min_y={:.1} max_y={:.1} size_y={:.1} offset_y={:.1}",
+                min_y,
+                max_y,
+                layered_graph.size_ref().y,
+                layered_graph.offset_ref().y
+            );
+        }
 
         monitor.done();
     }

@@ -1,4 +1,6 @@
 use std::collections::VecDeque;
+use std::rc::Rc;
+use std::{cell::Cell, thread_local};
 
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::{
     GraphFeature, MapPropertyHolder,
@@ -42,7 +44,10 @@ impl RecursiveGraphLayoutEngine {
         test_controller: Option<*mut TestController>,
         progress_monitor: &mut dyn IElkProgressMonitor,
     ) -> Vec<ElkEdgeRef> {
+        let _trace_depth = RecursiveTraceDepthGuard::new();
+        recursive_trace(layout_node, "enter");
         if progress_monitor.is_canceled() {
+            recursive_trace(layout_node, "exit canceled");
             return Vec::new();
         }
 
@@ -50,6 +55,7 @@ impl RecursiveGraphLayoutEngine {
             props.get_property(CoreOptions::NO_LAYOUT).unwrap_or(false)
         });
         if no_layout {
+            recursive_trace(layout_node, "exit no_layout=true");
             return Vec::new();
         }
 
@@ -61,8 +67,17 @@ impl RecursiveGraphLayoutEngine {
         let inside_self_loops = self.gather_inside_self_loops(layout_node);
         let has_inside_self_loops = !inside_self_loops.is_empty();
         let has_children = !children.is_empty();
+        recursive_trace(
+            layout_node,
+            &format!(
+                "state children={} inside_self_loops={}",
+                children.len(),
+                inside_self_loops.len()
+            ),
+        );
 
         if !has_children && !has_inside_self_loops {
+            recursive_trace(layout_node, "exit leaf without inside self loops");
             return Vec::new();
         }
 
@@ -75,6 +90,7 @@ impl RecursiveGraphLayoutEngine {
         let supports_inside_self_loops =
             algorithm_data.supports_feature(GraphFeature::InsideSelfLoops);
         if !has_children && has_inside_self_loops && !supports_inside_self_loops {
+            recursive_trace(layout_node, "exit inside self loops unsupported");
             return Vec::new();
         }
 
@@ -88,6 +104,14 @@ impl RecursiveGraphLayoutEngine {
         let include_children = hierarchy_handling == HierarchyHandling::IncludeChildren
             && (algorithm_data.supports_feature(GraphFeature::Compound)
                 || algorithm_data.supports_feature(GraphFeature::Clusters));
+        recursive_trace(
+            layout_node,
+            &format!(
+                "config hierarchy_handling={hierarchy_handling:?} include_children={} algorithm={}",
+                include_children,
+                algorithm_data.id()
+            ),
+        );
 
         let topdown_layout = with_node_properties_mut(layout_node, |props| {
             props
@@ -121,6 +145,13 @@ impl RecursiveGraphLayoutEngine {
                     .unwrap_or(false);
 
                 if stop_hierarchy || algorithm_switch {
+                    recursive_trace(
+                        &node,
+                        &format!(
+                            "recurse include_children stop_hierarchy={} algorithm_switch={}",
+                            stop_hierarchy, algorithm_switch
+                        ),
+                    );
                     let mut sub_monitor = progress_monitor.sub_task(1.0);
                     let child_loops =
                         self.layout_recursively(&node, test_controller, sub_monitor.as_mut());
@@ -139,6 +170,13 @@ impl RecursiveGraphLayoutEngine {
                         let mut node_mut = node.borrow_mut();
                         node_mut.children().iter().cloned().collect()
                     };
+                    recursive_trace(
+                        &node,
+                        &format!(
+                            "include_children queue grandchildren={}",
+                            grandchildren.len()
+                        ),
+                    );
                     for child in grandchildren {
                         queue.push_back(child);
                     }
@@ -158,6 +196,7 @@ impl RecursiveGraphLayoutEngine {
             }
 
             for child in children {
+                recursive_trace(&child, "recurse separate child");
                 let mut sub_monitor = progress_monitor.sub_task(1.0);
                 let child_loops =
                     self.layout_recursively(&child, test_controller, sub_monitor.as_mut());
@@ -167,6 +206,7 @@ impl RecursiveGraphLayoutEngine {
         }
 
         if progress_monitor.is_canceled() {
+            recursive_trace(layout_node, "exit canceled after child processing");
             return Vec::new();
         }
 
@@ -177,6 +217,15 @@ impl RecursiveGraphLayoutEngine {
         }
 
         if !topdown_layout {
+            recursive_trace(
+                layout_node,
+                &format!(
+                    "execute algorithm={} node_count={} include_children={}",
+                    algorithm_data.id(),
+                    node_count,
+                    include_children
+                ),
+            );
             let mut sub_monitor = progress_monitor.sub_task(node_count as f32);
             self.execute_algorithm(
                 layout_node,
@@ -188,11 +237,16 @@ impl RecursiveGraphLayoutEngine {
 
         self.post_process_inside_self_loops(&children_inside_self_loops);
 
-        if has_inside_self_loops && supports_inside_self_loops {
+        let result = if has_inside_self_loops && supports_inside_self_loops {
             inside_self_loops
         } else {
             Vec::new()
-        }
+        };
+        recursive_trace(
+            layout_node,
+            &format!("exit returning_inside_self_loops={}", result.len()),
+        );
+        result
     }
 
     fn execute_algorithm(
@@ -828,6 +882,51 @@ fn with_edge_properties_mut<R>(
     let mut edge_mut = edge.borrow_mut();
     let props = edge_mut.element().properties_mut();
     f(props)
+}
+
+thread_local! {
+    static TRACE_RECURSIVE_DEPTH: Cell<usize> = const { Cell::new(0) };
+}
+
+struct RecursiveTraceDepthGuard {
+    enabled: bool,
+}
+
+impl RecursiveTraceDepthGuard {
+    fn new() -> Self {
+        let enabled = recursive_trace_enabled();
+        if enabled {
+            TRACE_RECURSIVE_DEPTH.with(|depth| depth.set(depth.get() + 1));
+        }
+        Self { enabled }
+    }
+}
+
+impl Drop for RecursiveTraceDepthGuard {
+    fn drop(&mut self) {
+        if self.enabled {
+            TRACE_RECURSIVE_DEPTH.with(|depth| depth.set(depth.get().saturating_sub(1)));
+        }
+    }
+}
+
+fn recursive_trace_enabled() -> bool {
+    std::env::var_os("ELK_TRACE_RECURSIVE_LAYOUT").is_some()
+}
+
+fn recursive_trace(node: &ElkNodeRef, message: &str) {
+    if !recursive_trace_enabled() {
+        return;
+    }
+    TRACE_RECURSIVE_DEPTH.with(|depth| {
+        let indent = "  ".repeat(depth.get());
+        eprintln!(
+            "recursive-layout: {}node_ptr={:p} {}",
+            indent,
+            Rc::as_ptr(node),
+            message
+        );
+    });
 }
 
 fn node_dimensions(node: &ElkNodeRef) -> (f64, f64) {

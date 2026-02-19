@@ -31,7 +31,12 @@ fn handle_outer_nodes(layered_graph: &mut LGraph) -> Vec<LNodeRef> {
 
         if let Some(edge_constraint) = edge_constraint {
             if let Ok(mut node_guard) = node.lock() {
-                node_guard.set_property(InternalProperties::EDGE_CONSTRAINT, Some(edge_constraint));
+                // Java parity: EdgeAndLayerConstraintEdgeReverser stores OUTGOING_ONLY
+                // regardless of whether the computed edge constraint is incoming or outgoing.
+                node_guard.set_property(
+                    InternalProperties::EDGE_CONSTRAINT,
+                    Some(EdgeConstraint::OutgoingOnly),
+                );
             }
             reverse_edges(
                 &node,
@@ -56,7 +61,12 @@ fn handle_inner_nodes(_layered_graph: &mut LGraph, remaining_nodes: &[LNodeRef])
 
         if let Some(edge_constraint) = edge_constraint {
             if let Ok(mut node_guard) = node.lock() {
-                node_guard.set_property(InternalProperties::EDGE_CONSTRAINT, Some(edge_constraint));
+                // Java parity: EdgeAndLayerConstraintEdgeReverser stores OUTGOING_ONLY
+                // regardless of whether the computed edge constraint is incoming or outgoing.
+                node_guard.set_property(
+                    InternalProperties::EDGE_CONSTRAINT,
+                    Some(EdgeConstraint::OutgoingOnly),
+                );
             }
             reverse_edges(
                 node,

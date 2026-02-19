@@ -75,8 +75,7 @@ impl GreedyCycleBreaker {
             let big_offset = offset
                 * layered_graph
                     .get_property(InternalProperties::CB_NUM_MODEL_ORDER_GROUPS)
-                    .unwrap_or(0)
-                    .max(1);
+                    .unwrap_or(0);
             let enforce_group_model_order = layered_graph
                 .get_property(LayeredOptions::GROUP_MODEL_ORDER_CB_GROUP_ORDER_STRATEGY)
                 .unwrap_or(GroupOrderStrategy::OnlyWithinGroup)
@@ -209,7 +208,10 @@ impl GreedyCycleBreaker {
     }
 
     fn reverse_edges(&mut self, graph: &mut LGraph, nodes: &[LNodeRef]) {
-        let dummy_graph = crate::org::eclipse::elk::alg::layered::graph::LGraph::new();
+        let reverse_graph = nodes
+            .first()
+            .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.graph()))
+            .unwrap_or_else(crate::org::eclipse::elk::alg::layered::graph::LGraph::new);
         let trace_reversals = std::env::var_os("ELK_TRACE_CYCLE_REVERSALS").is_some();
         let forced_reversed = forced_reversed_origin_ids();
         let mut reversed_edges = Vec::new();
@@ -259,7 +261,7 @@ impl GreedyCycleBreaker {
                         }
                         crate::org::eclipse::elk::alg::layered::graph::LEdge::reverse(
                             &edge,
-                            &dummy_graph,
+                            &reverse_graph,
                             true,
                         );
                         graph.set_property(InternalProperties::CYCLIC, Some(true));

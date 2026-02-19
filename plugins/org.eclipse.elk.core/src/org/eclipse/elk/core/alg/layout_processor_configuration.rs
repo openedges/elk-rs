@@ -99,7 +99,7 @@ where
 
     fn do_add(&mut self, index: usize, processor: ProcessorFactory<G>) {
         let slot = self.get_list_item(index);
-        if slot.iter().any(|item| Arc::ptr_eq(item, &processor)) {
+        if slot.iter().any(|item| same_factory(item, &processor)) {
             return;
         }
         slot.push(processor);
@@ -138,4 +138,15 @@ fn phase_index<P: EnumSetType>(phase: P) -> usize {
         .iter()
         .position(|candidate| *candidate == phase)
         .unwrap_or_else(|| panic!("Phase not found in variants."))
+}
+
+fn same_factory<G>(a: &ProcessorFactory<G>, b: &ProcessorFactory<G>) -> bool {
+    let a_enum = (a.enum_type_id(), a.enum_ordinal());
+    let b_enum = (b.enum_type_id(), b.enum_ordinal());
+
+    if let ((Some(a_type), Some(a_ord)), (Some(b_type), Some(b_ord))) = (a_enum, b_enum) {
+        return a_type == b_type && a_ord == b_ord;
+    }
+
+    Arc::ptr_eq(a, b)
 }

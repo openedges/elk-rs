@@ -22,7 +22,8 @@ use crate::org::eclipse::elk::alg::layered::compound::{
 use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LGraphRef, NodeType};
 use crate::org::eclipse::elk::alg::layered::graph_configurator::GraphConfigurator;
 use crate::org::eclipse::elk::alg::layered::options::{
-    GraphProperties, InternalProperties, LayeredOptions,
+    CrossingMinimizationStrategy, GraphProperties, GreedySwitchType, InternalProperties,
+    LayeredOptions,
 };
 
 #[cfg(debug_assertions)]
@@ -428,41 +429,106 @@ impl ElkLayered {
 
     fn hierarchical_layout(&mut self, lgraph: &LGraphRef, monitor: &mut dyn IElkProgressMonitor) {
         let graphs = self.collect_all_graphs_bottom_up(lgraph);
-        for graph in &graphs {
-            self.graph_configurator.prepare_graph_for_layout(graph);
+        self.review_and_correct_hierarchical_processors(lgraph, &graphs);
+
+        struct GraphAndAlgorithm {
+            graph: LGraphRef,
+            processors: Vec<SharedProcessor<LGraph>>,
+            index: usize,
         }
 
-        let total_work = graphs
-            .iter()
-            .map(|graph| {
-                graph
-                    .lock()
-                    .ok()
-                    .and_then(|mut guard| guard.get_property(InternalProperties::PROCESSORS))
-                    .map(|processors| processors.len())
-                    .unwrap_or(0)
-            })
-            .sum::<usize>() as f32;
+        let mut total_work = 0.0;
+        let mut graphs_and_algorithms: Vec<GraphAndAlgorithm> = Vec::with_capacity(graphs.len());
+        for graph in &graphs {
+            self.graph_configurator.prepare_graph_for_layout(graph);
+            let processors = graph
+                .lock()
+                .ok()
+                .and_then(|mut guard| guard.get_property(InternalProperties::PROCESSORS))
+                .unwrap_or_default();
+            total_work += processors.len() as f32;
+            graphs_and_algorithms.push(GraphAndAlgorithm {
+                graph: graph.clone(),
+                processors,
+                index: 0,
+            });
+        }
 
         monitor.begin("Recursive hierarchical layout", total_work);
+        if graphs_and_algorithms.is_empty() {
+            monitor.done();
+            return;
+        }
 
-        for graph in &graphs {
-            if monitor.is_canceled() {
-                return;
+        let root_index = graphs_and_algorithms
+            .iter()
+            .position(|entry| {
+                entry
+                    .graph
+                    .lock()
+                    .ok()
+                    .and_then(|graph_guard| graph_guard.parent_node())
+                    .is_none()
+            })
+            .unwrap_or_else(|| graphs_and_algorithms.len().saturating_sub(1));
+
+        while graphs_and_algorithms[root_index].index
+            < graphs_and_algorithms[root_index].processors.len()
+        {
+            for entry_index in 0..graphs_and_algorithms.len() {
+                while !monitor.is_canceled() {
+                    let (graph, processor, is_root, hierarchy_aware) = {
+                        let entry = &mut graphs_and_algorithms[entry_index];
+                        if entry.index >= entry.processors.len() {
+                            break;
+                        }
+
+                        let graph = entry.graph.clone();
+                        let is_root = graph
+                            .lock()
+                            .ok()
+                            .and_then(|graph_guard| graph_guard.parent_node())
+                            .is_none();
+                        let processor = entry.processors[entry.index].clone();
+                        entry.index += 1;
+                        let hierarchy_aware = processor
+                            .lock()
+                            .ok()
+                            .map(|processor_guard| processor_guard.is_hierarchy_aware())
+                            .unwrap_or(false);
+                        (graph, processor, is_root, hierarchy_aware)
+                    };
+
+                    if !hierarchy_aware {
+                        let mut sub_monitor = monitor.sub_task(1.0);
+                        self.run_processor_for_graph(&graph, &processor, sub_monitor.as_mut());
+                        continue;
+                    }
+
+                    if is_root {
+                        let mut sub_monitor = monitor.sub_task(1.0);
+                        self.run_processor_for_graph(&graph, &processor, sub_monitor.as_mut());
+                    }
+                    break;
+                }
+
+                if monitor.is_canceled() {
+                    return;
+                }
             }
-            self.layout_component(graph, monitor);
         }
 
         monitor.done();
     }
 
     fn collect_all_graphs_bottom_up(&self, root: &LGraphRef) -> Vec<LGraphRef> {
-        let mut queue: VecDeque<LGraphRef> = VecDeque::new();
-        let mut result: Vec<LGraphRef> = Vec::new();
-        queue.push_back(root.clone());
+        // Mirror Java's stack-based push/pop order to keep hierarchy traversal stable.
+        let mut collected: VecDeque<LGraphRef> = VecDeque::new();
+        let mut continue_searching: VecDeque<LGraphRef> = VecDeque::new();
+        collected.push_front(root.clone());
+        continue_searching.push_front(root.clone());
 
-        while let Some(graph) = queue.pop_front() {
-            result.push(graph.clone());
+        while let Some(graph) = continue_searching.pop_front() {
             let nodes = graph
                 .lock()
                 .ok()
@@ -474,13 +540,13 @@ impl ElkLayered {
                     .ok()
                     .and_then(|node_guard| node_guard.nested_graph())
                 {
-                    queue.push_back(nested);
+                    collected.push_front(nested.clone());
+                    continue_searching.push_front(nested);
                 }
             }
         }
 
-        result.reverse();
-        result
+        collected.into_iter().collect()
     }
 
     fn layout_component(&mut self, lgraph: &LGraphRef, monitor: &mut dyn IElkProgressMonitor) {
@@ -506,16 +572,42 @@ impl ElkLayered {
             }
 
             let mut sub_monitor = monitor.sub_task(monitor_progress);
-            if let Ok(mut graph_guard) = lgraph.lock() {
-                if let Ok(mut proc_guard) = processor.lock() {
-                    let proc_name = proc_guard.type_name();
-                    trace_step(&format!("processor start: {proc_name}"));
-                    self.notify_processor_ready_with_graph(&graph_guard, proc_guard.as_ref());
-                    proc_guard.process(&mut *graph_guard, sub_monitor.as_mut());
-                    self.notify_processor_finished_with_graph(&graph_guard, proc_guard.as_ref());
-                    trace_edge_wiring(&graph_guard, &format!("after {proc_name}"));
-                    trace_node_positions(&graph_guard, &format!("after {proc_name}"));
-                    trace_step(&format!("processor done: {proc_name}"));
+            self.run_processor_for_graph(lgraph, processor, sub_monitor.as_mut());
+        }
+    }
+
+    fn run_processor_for_graph(
+        &mut self,
+        lgraph: &LGraphRef,
+        processor: &SharedProcessor<LGraph>,
+        monitor: &mut dyn IElkProgressMonitor,
+    ) {
+        if let Ok(mut graph_guard) = lgraph.lock() {
+            if let Ok(mut proc_guard) = processor.lock() {
+                let proc_name = proc_guard.type_name();
+                let is_root = graph_guard.parent_node().is_none();
+                if std::env::var_os("ELK_TRACE_CROSSMIN").is_some() {
+                    eprintln!(
+                        "crossmin: processor start graph_ptr={:p} is_root={} proc={}",
+                        Arc::as_ptr(lgraph),
+                        is_root,
+                        proc_name
+                    );
+                }
+                trace_step(&format!("processor start: {proc_name}"));
+                self.notify_processor_ready_with_graph(&graph_guard, proc_guard.as_ref());
+                proc_guard.process(&mut *graph_guard, monitor);
+                self.notify_processor_finished_with_graph(&graph_guard, proc_guard.as_ref());
+                trace_edge_wiring(&graph_guard, &format!("after {proc_name}"));
+                trace_node_positions(&graph_guard, &format!("after {proc_name}"));
+                trace_step(&format!("processor done: {proc_name}"));
+                if std::env::var_os("ELK_TRACE_CROSSMIN").is_some() {
+                    eprintln!(
+                        "crossmin: processor done graph_ptr={:p} is_root={} proc={}",
+                        Arc::as_ptr(lgraph),
+                        is_root,
+                        proc_name
+                    );
                 }
             }
         }
@@ -543,6 +635,43 @@ impl ElkLayered {
                 .get_property(InternalProperties::PROCESSORS)
                 .unwrap_or_default(),
         )
+    }
+
+    fn review_and_correct_hierarchical_processors(&self, root: &LGraphRef, graphs: &[LGraphRef]) {
+        let (root_crossing_minimization, root_greedy_switch_type) = {
+            let mut root_guard = match root.lock() {
+                Ok(guard) => guard,
+                Err(_) => return,
+            };
+            (
+                root_guard
+                    .get_property(LayeredOptions::CROSSING_MINIMIZATION_STRATEGY)
+                    .unwrap_or(CrossingMinimizationStrategy::LayerSweep),
+                root_guard
+                    .get_property(
+                        LayeredOptions::CROSSING_MINIMIZATION_GREEDY_SWITCH_HIERARCHICAL_TYPE,
+                    )
+                    .unwrap_or(GreedySwitchType::Off),
+            )
+        };
+
+        for graph in graphs {
+            if let Ok(mut graph_guard) = graph.lock() {
+                let child_crossing_minimization = graph_guard
+                    .get_property(LayeredOptions::CROSSING_MINIMIZATION_STRATEGY)
+                    .unwrap_or(CrossingMinimizationStrategy::LayerSweep);
+                if child_crossing_minimization != root_crossing_minimization {
+                    panic!(
+                        "The hierarchy aware processor {:?} in a child graph is only allowed if the root graph uses the same processor.",
+                        child_crossing_minimization
+                    );
+                }
+                graph_guard.set_property(
+                    LayeredOptions::CROSSING_MINIMIZATION_GREEDY_SWITCH_HIERARCHICAL_TYPE,
+                    Some(root_greedy_switch_type),
+                );
+            }
+        }
     }
 
     fn notify_processor_ready_with_graph(
@@ -626,6 +755,39 @@ impl ElkLayered {
             }
             adjusted_size.x = adjusted_size.x.max(min_size.x);
             adjusted_size.y = adjusted_size.y.max(min_size.y);
+        }
+
+        if std::env::var("ELK_TRACE_RESIZE").is_ok() {
+            if let Ok(mut graph_guard) = lgraph.lock() {
+                let parent_id = graph_guard
+                    .parent_node()
+                    .and_then(|node| node.lock().ok().map(|mut n| n.shape().graph_element().id))
+                    .unwrap_or(-1);
+                let size = *graph_guard.size_ref();
+                let padding = graph_guard.padding_ref().clone();
+                let offset = *graph_guard.offset_ref();
+                eprintln!(
+                    "[elk-layered][resize] parent={} size=({:.1},{:.1}) pad=({:.1},{:.1},{:.1},{:.1}) off=({:.1},{:.1}) constraints={:?} size_options={:?} min=({:.1},{:.1}) fixed={} calc=({:.1},{:.1}) adj=({:.1},{:.1})",
+                    parent_id,
+                    size.x,
+                    size.y,
+                    padding.left,
+                    padding.top,
+                    padding.right,
+                    padding.bottom,
+                    offset.x,
+                    offset.y,
+                    size_constraints,
+                    size_options,
+                    min_size.x,
+                    min_size.y,
+                    fixed_graph_size,
+                    calculated_size.x,
+                    calculated_size.y,
+                    adjusted_size.x,
+                    adjusted_size.y
+                );
+            }
         }
 
         if !fixed_graph_size {
