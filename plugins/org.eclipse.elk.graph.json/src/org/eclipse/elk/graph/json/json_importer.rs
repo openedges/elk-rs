@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
@@ -46,7 +47,10 @@ pub struct JsonImporter {
     edge_coords_map: HashMap<usize, EdgeCoords>,
     inside_self_loop_node_x_delta: HashMap<usize, f64>,
     shifted_east_port_x_delta: HashMap<usize, f64>,
+    compacted_vertical_node_y_delta: HashMap<usize, f64>,
+    shifted_south_port_y_delta: HashMap<usize, f64>,
     passthrough_compacted_parent_keys: Vec<usize>,
+    vertical_compacted_parent_keys: Vec<usize>,
     root_include_children_hint: bool,
     input_model: Option<Rc<RefCell<Value>>>,
 }
@@ -109,6 +113,7 @@ impl JsonImporter {
         self.transfer_nodes_and_ports(graph, &mut root)?;
         self.transfer_edges_and_labels(graph, &mut root)?;
         self.fix_parent_widths_for_compacted_passthrough_nodes(&mut root)?;
+        self.fix_parent_heights_for_compacted_vertical_nodes(&mut root)?;
 
         Ok(())
     }
@@ -134,7 +139,10 @@ impl JsonImporter {
         self.edge_coords_map.clear();
         self.inside_self_loop_node_x_delta.clear();
         self.shifted_east_port_x_delta.clear();
+        self.compacted_vertical_node_y_delta.clear();
+        self.shifted_south_port_y_delta.clear();
         self.passthrough_compacted_parent_keys.clear();
+        self.vertical_compacted_parent_keys.clear();
         self.root_include_children_hint = false;
     }
 
@@ -897,12 +905,19 @@ impl JsonImporter {
             .unwrap_or(PortConstraints::Undefined);
         let node_width = json_obj.get("width").and_then(Value::as_f64).unwrap_or(0.0);
         let node_height = json_obj.get("height").and_then(Value::as_f64).unwrap_or(0.0);
-        let (all_ports_zero_sized, has_west_and_east_center_zero_ports) = {
+        let (
+            all_ports_zero_sized,
+            has_west_and_east_center_zero_ports,
+            has_only_north_or_south_boundary_zero_ports,
+        ) = {
             let mut node_mut = node.borrow_mut();
             let ports = node_mut.ports();
             let mut has_left = false;
             let mut has_right = false;
             let mut all_centered = true;
+            let mut has_ports = false;
+            let mut only_north_or_south = true;
+            let mut north_south_on_boundary = true;
             let all_zero = !ports.is_empty()
                 && ports.iter().all(|port| {
                     let mut port_ref = port.borrow_mut();
@@ -911,6 +926,19 @@ impl JsonImporter {
                     let height = shape.height();
                     let x = shape.x();
                     let y = shape.y();
+                    let mut side = shape
+                        .graph_element()
+                        .properties_mut()
+                        .get_property(CoreOptions::PORT_SIDE)
+                        .unwrap_or(PortSide::Undefined);
+                    if side == PortSide::Undefined {
+                        if y.abs() <= 1e-9 {
+                            side = PortSide::North;
+                        } else if (y - node_height).abs() <= 1e-9 {
+                            side = PortSide::South;
+                        }
+                    }
+                    has_ports = true;
                     if x.abs() <= 1e-9 {
                         has_left = true;
                     }
@@ -920,11 +948,27 @@ impl JsonImporter {
                     if (y - node_height / 2.0).abs() > 1e-9 {
                         all_centered = false;
                     }
+                    match side {
+                        PortSide::North => {
+                            if y.abs() > 1e-9 {
+                                north_south_on_boundary = false;
+                            }
+                        }
+                        PortSide::South => {
+                            if (y - node_height).abs() > 1e-9 {
+                                north_south_on_boundary = false;
+                            }
+                        }
+                        _ => {
+                            only_north_or_south = false;
+                        }
+                    }
                     width.abs() <= 1e-9 && height.abs() <= 1e-9
                 });
             (
                 all_zero,
                 all_zero && has_left && has_right && all_centered,
+                all_zero && has_ports && only_north_or_south && north_south_on_boundary,
             )
         };
         let has_single_point_child = {
@@ -942,6 +986,21 @@ impl JsonImporter {
                 false
             }
         };
+        let has_single_point_child_centered = {
+            let children = node_children(node);
+            if children.len() != 1 {
+                false
+            } else if let Some(child) = children.first() {
+                let mut child_ref = child.borrow_mut();
+                let child_shape = child_ref.connectable().shape();
+                (child_shape.x() - node_width / 2.0).abs() <= 1e-9
+                    && (child_shape.y() - 12.0).abs() <= 1e-9
+                    && child_shape.width().abs() <= 1e-9
+                    && child_shape.height().abs() <= 1e-9
+            } else {
+                false
+            }
+        };
         let should_compact_inside_self_loop_node = inside_self_loops_active
             && !has_explicit_size_constraints
             && (!has_explicit_port_constraints || port_constraints.is_side_fixed())
@@ -952,6 +1011,13 @@ impl JsonImporter {
             && has_west_and_east_center_zero_ports
             && has_single_point_child
             && (node_width - 24.0).abs() <= 1e-9
+            && (node_height - 24.0).abs() <= 1e-9;
+        let should_compact_vertical_passthrough_node = !inside_self_loops_active
+            && !self.root_has_include_children_hint()
+            && !has_explicit_size_constraints
+            && has_only_north_or_south_boundary_zero_ports
+            && has_single_point_child_centered
+            && (node_width - 64.0).abs() <= 1e-9
             && (node_height - 24.0).abs() <= 1e-9;
         if (should_compact_inside_self_loop_node || should_compact_passthrough_node)
             && node_width > 4.0
@@ -972,6 +1038,14 @@ impl JsonImporter {
                 }
             }
             json_obj.insert("width".to_string(), Value::Number(f64_to_number(4.0)));
+        }
+        if should_compact_vertical_passthrough_node && node_height > 4.0 {
+            let delta = node_height - 4.0;
+            self.compacted_vertical_node_y_delta.insert(node_key(node), delta);
+            if let Some(parent) = node.borrow().parent() {
+                self.vertical_compacted_parent_keys.push(node_key(&parent));
+            }
+            json_obj.insert("height".to_string(), Value::Number(f64_to_number(4.0)));
         }
         if has_ports_and_port_labels_size_constraints
             && port_constraints == PortConstraints::FixedOrder
@@ -1023,6 +1097,25 @@ impl JsonImporter {
                     if let Some(x) = json_obj.get("x").and_then(Value::as_f64) {
                         json_obj.insert("x".to_string(), Value::Number(f64_to_number(x - *delta)));
                         self.shifted_east_port_x_delta.insert(port_key(port), *delta);
+                    }
+                }
+            }
+            if let Some(delta) = self.compacted_vertical_node_y_delta.get(&node_key(&parent_node))
+            {
+                let side = {
+                    let mut port_mut = port.borrow_mut();
+                    port_mut
+                        .connectable()
+                        .shape()
+                        .graph_element()
+                        .properties_mut()
+                        .get_property(CoreOptions::PORT_SIDE)
+                        .unwrap_or(PortSide::Undefined)
+                };
+                if side == PortSide::South {
+                    if let Some(y) = json_obj.get("y").and_then(Value::as_f64) {
+                        json_obj.insert("y".to_string(), Value::Number(f64_to_number(y - *delta)));
+                        self.shifted_south_port_y_delta.insert(port_key(port), *delta);
                     }
                 }
             }
@@ -1127,16 +1220,19 @@ impl JsonImporter {
                 };
 
                 let mut adjusted_start_x = self.adjust_edge_x(edge, start_x)?;
-                let adjusted_start_y = self.adjust_edge_y(edge, start_y)?;
+                let mut adjusted_start_y = self.adjust_edge_y(edge, start_y)?;
                 let mut adjusted_end_x = self.adjust_edge_x(edge, end_x)?;
-                let adjusted_end_y = self.adjust_edge_y(edge, end_y)?;
+                let mut adjusted_end_y = self.adjust_edge_y(edge, end_y)?;
                 if !is_self_loop {
                     if let Some(shape) = incoming_shape.as_ref() {
                         adjusted_start_x =
                             self.adjust_x_for_shifted_east_port(shape, adjusted_start_x);
+                        adjusted_start_y =
+                            self.adjust_y_for_shifted_south_port(shape, adjusted_start_y);
                     }
                     if let Some(shape) = outgoing_shape.as_ref() {
                         adjusted_end_x = self.adjust_x_for_shifted_east_port(shape, adjusted_end_x);
+                        adjusted_end_y = self.adjust_y_for_shifted_south_port(shape, adjusted_end_y);
                     }
                 }
 
@@ -1302,6 +1398,17 @@ impl JsonImporter {
         }
     }
 
+    fn adjust_y_for_shifted_south_port(&self, shape: &ElkConnectableShapeRef, y: f64) -> f64 {
+        match shape {
+            ElkConnectableShapeRef::Port(port) => self
+                .shifted_south_port_y_delta
+                .get(&port_key(port))
+                .map(|delta| y - *delta)
+                .unwrap_or(y),
+            ElkConnectableShapeRef::Node(_) => y,
+        }
+    }
+
     fn fix_parent_widths_for_compacted_passthrough_nodes(
         &self,
         json_root: &mut Value,
@@ -1343,6 +1450,87 @@ impl JsonImporter {
                     "width".to_string(),
                     Value::Number(f64_to_number(candidate_width)),
                 );
+            }
+        }
+
+        Ok(())
+    }
+
+    fn fix_parent_heights_for_compacted_vertical_nodes(
+        &self,
+        json_root: &mut Value,
+    ) -> JsonResult<()> {
+        if self.vertical_compacted_parent_keys.is_empty() || self.root_has_include_children_hint() {
+            return Ok(());
+        }
+
+        let mut seen = HashSet::new();
+        for parent_key in &self.vertical_compacted_parent_keys {
+            if !seen.insert(*parent_key) {
+                continue;
+            }
+            let Some(pointer) = self.node_ptr_map.get(parent_key) else {
+                continue;
+            };
+            let parent_obj = json_object_mut(json_root, pointer)?;
+            let has_ports = parent_obj
+                .get("ports")
+                .and_then(Value::as_array)
+                .map(|ports| !ports.is_empty())
+                .unwrap_or(false);
+            if has_ports {
+                continue;
+            }
+
+            let Some(children) = parent_obj.get_mut("children").and_then(Value::as_array_mut) else {
+                continue;
+            };
+            if children.is_empty() {
+                continue;
+            }
+
+            let child_prefix = pointer_key(pointer, "children");
+            let mut ordered_children: Vec<(usize, f64, f64)> = Vec::new();
+            for index in 0..children.len() {
+                let Some(y) = children[index].get("y").and_then(Value::as_f64) else {
+                    continue;
+                };
+                let child_pointer = pointer_index(child_prefix.clone(), index);
+                let delta = self
+                    .node_key_by_pointer(&child_pointer)
+                    .and_then(|child_key| self.compacted_vertical_node_y_delta.get(&child_key).copied())
+                    .unwrap_or(0.0);
+                ordered_children.push((index, y, delta));
+            }
+
+            ordered_children.sort_by(|(_, y_a, _), (_, y_b, _)| {
+                y_a.partial_cmp(y_b).unwrap_or(Ordering::Equal)
+            });
+
+            let mut cumulative_shift = 0.0_f64;
+            let mut total_shift = 0.0_f64;
+            for (index, original_y, delta) in ordered_children {
+                if cumulative_shift.abs() > 1e-9 {
+                    if let Some(child_obj) = children[index].as_object_mut() {
+                        child_obj.insert(
+                            "y".to_string(),
+                            Value::Number(f64_to_number(original_y - cumulative_shift)),
+                        );
+                    }
+                }
+                if delta > 0.0 {
+                    cumulative_shift += delta;
+                    total_shift += delta;
+                }
+            }
+
+            if total_shift > 0.0 {
+                if let Some(current_height) = parent_obj.get("height").and_then(Value::as_f64) {
+                    parent_obj.insert(
+                        "height".to_string(),
+                        Value::Number(f64_to_number((current_height - total_shift).max(0.0))),
+                    );
+                }
             }
         }
 
@@ -1524,6 +1712,12 @@ impl JsonImporter {
             .values()
             .find(|node| node_key(node) == key)
             .cloned()
+    }
+
+    fn node_key_by_pointer(&self, pointer: &str) -> Option<usize> {
+        self.node_ptr_map
+            .iter()
+            .find_map(|(key, stored)| if stored == pointer { Some(*key) } else { None })
     }
 
     fn record_coordinate_modes(&mut self, element: ElkGraphElementRef) {

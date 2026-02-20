@@ -3,7 +3,6 @@ use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector_chain::KVectorC
 use org_eclipse_elk_core::org::eclipse::elk::core::options::content_alignment::ContentAlignment;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_routing::EdgeRouting;
-use org_eclipse_elk_core::org::eclipse::elk::core::options::node_label_placement::NodeLabelPlacement;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_label_placement::PortLabelPlacement;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::size_constraint::SizeConstraint;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::size_options::SizeOptions;
@@ -24,7 +23,8 @@ use crate::org::eclipse::elk::alg::layered::graph::{
 };
 use crate::org::eclipse::elk::alg::layered::intermediate::INCLUDE_LABEL;
 use crate::org::eclipse::elk::alg::layered::options::{
-    GraphProperties, InternalProperties, LayeredOptions, Origin, OriginId,
+    GraphProperties, InternalProperties, LayeredOptions, NodeFlexibility,
+    NodePlacementStrategy, Origin, OriginId,
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::PortSide;
@@ -285,160 +285,111 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
             return;
         };
 
-        let (size_constraints_included_port_labels, minimum_centered_inside_label_width) = {
+        let size_constraints_included_port_labels = {
             let mut elk_node_mut = elk_node.borrow_mut();
             let shape = elk_node_mut.connectable().shape();
             let props = shape.graph_element().properties_mut();
             let size_constraints = props
                 .get_property(LayeredOptions::NODE_SIZE_CONSTRAINTS)
                 .unwrap_or_else(SizeConstraint::fixed);
-            let size_constraints_included_port_labels =
-                size_constraints.contains(&SizeConstraint::PortLabels);
+            size_constraints.contains(&SizeConstraint::PortLabels)
+        };
+        let parent_node = lgraph.lock().ok().and_then(|g| g.parent_node());
 
-            let mut minimum_centered_inside_label_width = 0.0_f64;
-            if size_constraints.contains(&SizeConstraint::NodeLabels) {
-                let spacing_label_node = props
-                    .get_property(CoreOptions::SPACING_LABEL_NODE)
-                    .unwrap_or(5.0);
-                let default_node_label_placement = props
-                    .get_property(CoreOptions::NODE_LABELS_PLACEMENT)
-                    .unwrap_or_default();
-                let labels: Vec<_> = shape.graph_element().labels().iter().cloned().collect();
+        // Java parity: parent node resize is only applied for root graphs
+        // (graphs without a representing parent node). Nested graphs are
+        // already resized by the layered pipeline and must not be inflated here.
+        if parent_node.is_none() {
+            let (graph_props, actual_graph_size) = {
+                let mut graph_guard = match lgraph.lock() {
+                    Ok(guard) => guard,
+                    Err(_) => return,
+                };
+                let gp = graph_guard
+                    .get_property(InternalProperties::GRAPH_PROPERTIES)
+                    .unwrap_or_else(EnumSet::none_of);
+                let size = graph_guard.actual_size();
+                (gp, size)
+            };
 
-                for label in labels {
-                    let (label_width, mut label_props) = {
-                        let mut label_mut = label.borrow_mut();
-                        let label_shape = label_mut.shape();
-                        let width = label_shape.width();
-                        let props = label_shape.graph_element().properties().clone();
-                        (width, props)
-                    };
-
-                    let placement = if label_props.has_property_id(CoreOptions::NODE_LABELS_PLACEMENT.id()) {
-                        label_props
-                            .get_property(CoreOptions::NODE_LABELS_PLACEMENT)
-                            .unwrap_or_else(|| default_node_label_placement.clone())
-                    } else {
-                        default_node_label_placement.clone()
-                    };
-
-                    if placement.contains(&NodeLabelPlacement::Inside)
-                        && placement.contains(&NodeLabelPlacement::HCenter)
-                    {
-                        minimum_centered_inside_label_width = minimum_centered_inside_label_width
-                            .max(label_width + 2.0 * spacing_label_node);
-                    }
+            if graph_props.contains(&GraphProperties::ExternalPorts) {
+                // Set PORT_CONSTRAINTS to FixedPos
+                {
+                    let mut elk_node_mut = elk_node.borrow_mut();
+                    elk_node_mut
+                        .connectable()
+                        .shape()
+                        .graph_element()
+                        .properties_mut()
+                        .set_property(
+                            LayeredOptions::PORT_CONSTRAINTS,
+                            Some(PortConstraints::FixedPos),
+                        );
                 }
-            }
-
-            (
-                size_constraints_included_port_labels,
-                minimum_centered_inside_label_width,
-            )
-        };
-
-        let next_to_port_if_possible = {
-            let mut elk_node_mut = elk_node.borrow_mut();
-            elk_node_mut
-                .connectable()
-                .shape()
-                .graph_element()
-                .properties_mut()
-                .get_property(CoreOptions::PORT_LABELS_PLACEMENT)
-                .unwrap_or_else(PortLabelPlacement::outside)
-                .contains(&PortLabelPlacement::NextToPortIfPossible)
-        };
-        let (graph_props, mut actual_graph_size, graph_size) = {
-            let mut graph_guard = match lgraph.lock() {
-                Ok(guard) => guard,
-                Err(_) => return,
-            };
-            let gp = graph_guard
-                .get_property(InternalProperties::GRAPH_PROPERTIES)
-                .unwrap_or_else(EnumSet::none_of);
-            let size = graph_guard.actual_size();
-            let graph_size = *graph_guard.size_ref();
-            (gp, size, graph_size)
-        };
-        if minimum_centered_inside_label_width > actual_graph_size.x {
-            actual_graph_size.x = minimum_centered_inside_label_width;
-        }
-
-        if graph_props.contains(&GraphProperties::ExternalPorts) {
-            // Set PORT_CONSTRAINTS to FixedPos
-            {
-                let mut elk_node_mut = elk_node.borrow_mut();
-                elk_node_mut
-                    .connectable()
-                    .shape()
-                    .graph_element()
-                    .properties_mut()
-                    .set_property(
-                        LayeredOptions::PORT_CONSTRAINTS,
-                        Some(PortConstraints::FixedPos),
-                    );
-            }
-            // Resize: move_ports=false, move_labels=true
-            let external_width = if graph_size.x <= 0.0 && next_to_port_if_possible {
-                4.0
-            } else {
-                actual_graph_size.x
-            };
-            ElkUtil::resize_node_with(
-                &elk_node,
-                external_width,
-                actual_graph_size.y,
-                false,
-                true,
-            );
-        } else {
-            // Only resize if NODE_SIZE_FIXED_GRAPH_SIZE is false
-            let fixed_graph_size = {
-                let mut elk_node_mut = elk_node.borrow_mut();
-                elk_node_mut
-                    .connectable()
-                    .shape()
-                    .graph_element()
-                    .properties_mut()
-                    .get_property(CoreOptions::NODE_SIZE_FIXED_GRAPH_SIZE)
-                    .unwrap_or(false)
-            };
-            if !fixed_graph_size {
-                // Resize: move_ports=true, move_labels=true
+                // Resize: move_ports=false, move_labels=true
                 ElkUtil::resize_node_with(
                     &elk_node,
                     actual_graph_size.x,
                     actual_graph_size.y,
-                    true,
+                    false,
                     true,
                 );
+            } else {
+                // Only resize if NODE_SIZE_FIXED_GRAPH_SIZE is false
+                let fixed_graph_size = {
+                    let mut elk_node_mut = elk_node.borrow_mut();
+                    elk_node_mut
+                        .connectable()
+                        .shape()
+                        .graph_element()
+                        .properties_mut()
+                        .get_property(CoreOptions::NODE_SIZE_FIXED_GRAPH_SIZE)
+                        .unwrap_or(false)
+                };
+                if !fixed_graph_size {
+                    // Resize: move_ports=true, move_labels=true
+                    ElkUtil::resize_node_with(
+                        &elk_node,
+                        actual_graph_size.x,
+                        actual_graph_size.y,
+                        true,
+                        true,
+                    );
+                }
             }
         }
 
-        // Restore NODE_SIZE_CONSTRAINTS with Java parity semantics.
-        {
-            let mut elk_node_mut = elk_node.borrow_mut();
-            let props = elk_node_mut
-                .connectable()
-                .shape()
-                .graph_element()
-                .properties_mut();
-            if size_constraints_included_port_labels {
-                props.set_property(
-                    LayeredOptions::NODE_SIZE_CONSTRAINTS,
-                    Some(EnumSet::of(&[SizeConstraint::PortLabels])),
-                );
-            } else {
-                props.set_property(
-                    LayeredOptions::NODE_SIZE_CONSTRAINTS,
-                    Some(SizeConstraint::fixed()),
-                );
-            }
+        // Keep node size constraints aligned with Java transfer behavior.
+        let mut elk_node_mut = elk_node.borrow_mut();
+        let props = elk_node_mut
+            .connectable()
+            .shape()
+            .graph_element()
+            .properties_mut();
+        if size_constraints_included_port_labels {
+            props.set_property(
+                LayeredOptions::NODE_SIZE_CONSTRAINTS,
+                Some(EnumSet::of(&[SizeConstraint::PortLabels])),
+            );
+        } else {
+            props.set_property(
+                LayeredOptions::NODE_SIZE_CONSTRAINTS,
+                Some(SizeConstraint::fixed()),
+            );
         }
     }
 
     fn apply_node_layout(&self, lnode: &LNodeRef, offset: KVector) {
-        let (origin, position, size, ports, labels, has_nested_graph) = {
+        let (
+            origin,
+            position,
+            size,
+            ports,
+            labels,
+            has_nested_graph,
+            node_has_label_placement,
+            port_labels_are_fixed,
+        ) = {
             let mut node_guard = match lnode.lock() {
                 Ok(guard) => guard,
                 Err(_) => return,
@@ -449,7 +400,25 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
             let ports = node_guard.ports().clone();
             let labels = node_guard.labels().clone();
             let has_nested_graph = node_guard.nested_graph().is_some();
-            (origin, position, size, ports, labels, has_nested_graph)
+            let node_has_label_placement = !node_guard
+                .get_property(LayeredOptions::NODE_LABELS_PLACEMENT)
+                .unwrap_or_else(EnumSet::none_of)
+                .is_empty();
+            let port_labels_are_fixed = PortLabelPlacement::is_fixed(
+                &node_guard
+                    .get_property(CoreOptions::PORT_LABELS_PLACEMENT)
+                    .unwrap_or_else(PortLabelPlacement::outside),
+            );
+            (
+                origin,
+                position,
+                size,
+                ports,
+                labels,
+                has_nested_graph,
+                node_has_label_placement,
+                port_labels_are_fixed,
+            )
         };
 
         let Some(Origin::ElkNode(node_id)) = origin else {
@@ -502,8 +471,11 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
             shape.set_y(position.y + offset.y);
         }
 
-        // Java parity: set node size only if size constraints are present or this is a compound node.
-        let should_set_size = !elk_size_constraints.is_empty() || has_nested_graph;
+        // Java parity: set node size when size constraints are non-empty
+        // or network-simplex node flexibility allows size adaptation.
+        let should_set_size = !elk_size_constraints.is_empty()
+            || has_nested_graph
+            || uses_network_simplex_flexible_size(lnode);
         if should_set_size {
             let mut elk_node_mut = elk_node.borrow_mut();
             let shape = elk_node_mut.connectable().shape();
@@ -512,16 +484,29 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
 
         // Set port positions and PORT_SIDE
         for port in &ports {
-            self.apply_port_layout(port);
+            self.apply_port_layout(port, !port_labels_are_fixed);
         }
 
-        // Set node label positions
+        // Java parity: set node label positions only when node/label placement is configured.
         for label in &labels {
-            self.apply_label_layout_with_size(label);
+            let label_has_label_placement = label
+                .lock()
+                .ok()
+                .map(|mut label_guard| {
+                    label_guard
+                        .shape()
+                        .graph_element()
+                        .properties()
+                        .has_property(LayeredOptions::NODE_LABELS_PLACEMENT)
+                })
+                .unwrap_or(false);
+            if node_has_label_placement || label_has_label_placement {
+                self.apply_label_layout_with_size(label);
+            }
         }
     }
 
-    fn apply_port_layout(&self, lport: &LPortRef) {
+    fn apply_port_layout(&self, lport: &LPortRef, apply_labels: bool) {
         let (origin, position, size, labels, side) = {
             let mut port_guard = match lport.lock() {
                 Ok(guard) => guard,
@@ -553,8 +538,10 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
                 .set_property(CoreOptions::PORT_SIDE, Some(side));
         }
 
-        for label in labels {
-            self.apply_label_layout_with_size(&label);
+        if apply_labels {
+            for label in labels {
+                self.apply_label_layout_with_size(&label);
+            }
         }
     }
 
@@ -941,37 +928,46 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
                 break;
             }
 
-            let (parent_node, offset, padding) = {
+            // Java parity: when moving one hierarchy level up, add
+            // `representingNode.position + parentGraph.offset + parentGraph.padding`.
+            // The previous implementation used the current graph's offset/padding,
+            // which over-shifts hierarchical edge sections for nested sources.
+            let parent_node = {
                 let graph_guard = match current_graph.lock() {
                     Ok(guard) => guard,
                     Err(_) => break,
                 };
-                (
-                    graph_guard.parent_node(),
-                    *graph_guard.offset_ref(),
-                    graph_guard.padding_ref().clone(),
-                )
+                graph_guard.parent_node()
             };
-
             let Some(parent_node) = parent_node else {
                 break;
             };
 
-            let (parent_pos, next_graph) = {
+            let (parent_pos, parent_graph) = {
                 let mut node_guard = match parent_node.lock() {
                     Ok(guard) => guard,
                     Err(_) => break,
                 };
                 (*node_guard.shape().position_ref(), node_guard.graph())
             };
-
-            result.x += parent_pos.x + offset.x + padding.left;
-            result.y += parent_pos.y + offset.y + padding.top;
-
-            let Some(next_graph) = next_graph else {
+            let Some(parent_graph) = parent_graph else {
                 break;
             };
-            current_graph = next_graph;
+
+            let (parent_offset, parent_padding) = {
+                let parent_graph_guard = match parent_graph.lock() {
+                    Ok(guard) => guard,
+                    Err(_) => break,
+                };
+                (
+                    *parent_graph_guard.offset_ref(),
+                    parent_graph_guard.padding_ref().clone(),
+                )
+            };
+
+            result.x += parent_pos.x + parent_offset.x + parent_padding.left;
+            result.y += parent_pos.y + parent_offset.y + parent_padding.top;
+            current_graph = parent_graph;
         }
 
         result
@@ -1111,6 +1107,55 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
             }
         }
     }
+}
+
+fn uses_network_simplex_flexible_size(lnode: &LNodeRef) -> bool {
+    let graph_ref = lnode.lock().ok().and_then(|node_guard| node_guard.graph());
+    let Some(graph_ref) = graph_ref else {
+        return false;
+    };
+
+    let node_placement_strategy = graph_ref
+        .lock()
+        .ok()
+        .and_then(|mut graph_guard| {
+            graph_guard.get_property(LayeredOptions::NODE_PLACEMENT_STRATEGY)
+        })
+        .unwrap_or_default();
+    if node_placement_strategy != NodePlacementStrategy::NetworkSimplex {
+        return false;
+    }
+
+    let node_flexibility = lnode
+        .lock()
+        .ok()
+        .and_then(|mut node_guard| {
+            if node_guard
+                .shape()
+                .graph_element()
+                .properties()
+                .has_property(LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY)
+            {
+                node_guard.get_property(
+                    LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY,
+                )
+            } else {
+                None
+            }
+        })
+        .or_else(|| {
+            graph_ref.lock().ok().and_then(|mut graph_guard| {
+                graph_guard.get_property(
+                    LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_DEFAULT,
+                )
+            })
+        })
+        .or_else(|| {
+            LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_DEFAULT.get_default()
+        })
+        .unwrap_or(NodeFlexibility::None);
+
+    node_flexibility.is_flexible_size_where_space_permits()
 }
 
 fn collect_nodes_from_graph(

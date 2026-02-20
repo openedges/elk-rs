@@ -873,10 +873,16 @@ impl InsideLabelLayoutGrid {
         };
 
         if min_width > 0.0 {
-            min_width += self.node_label_padding.left + self.node_label_padding.right;
+            min_width += self.node_padding.left
+                + self.node_padding.right
+                + self.node_label_padding.left
+                + self.node_label_padding.right;
         }
         if min_height > 0.0 {
-            min_height += self.node_label_padding.top + self.node_label_padding.bottom;
+            min_height += self.node_padding.top
+                + self.node_padding.bottom
+                + self.node_label_padding.top
+                + self.node_label_padding.bottom;
         }
 
         KVector::with_values(min_width, min_height)
@@ -1334,6 +1340,11 @@ impl NodeLabelAndSizeCalculator {
             &port_labels_placement,
             &size_options,
         );
+        Self::setup_inside_port_label_cell_minimums(
+            &mut inside_layout,
+            node,
+            &port_labels_placement,
+        );
         let minimum_size_accounts_for_padding = size_constraints
             .contains(&SizeConstraint::MinimumSize)
             && size_options.contains(&SizeOptions::MinimumSizeAccountsForPadding);
@@ -1463,7 +1474,6 @@ impl NodeLabelAndSizeCalculator {
         N::LabelAdapter: 'static,
     {
         let node_cell_padding = &mut inside_layout.node_padding;
-        let node_label_cell_padding = &mut inside_layout.node_label_padding;
         let symmetrical = !size_options.contains(&SizeOptions::Asymmetrical);
 
         for port in node.get_ports() {
@@ -1559,48 +1569,35 @@ impl NodeLabelAndSizeCalculator {
 
             match port.get_side() {
                 PortSide::North => {
-                    let inside_part_is_bigger = inside_part > node_label_cell_padding.top;
-                    node_label_cell_padding.top = node_label_cell_padding.top.max(inside_part);
+                    let inside_part_is_bigger = inside_part > node_cell_padding.top;
+                    node_cell_padding.top = node_cell_padding.top.max(inside_part);
                     if symmetrical && inside_part_is_bigger {
-                        node_label_cell_padding.top = node_label_cell_padding
-                            .top
-                            .max(node_label_cell_padding.bottom);
-                        node_label_cell_padding.bottom =
-                            node_label_cell_padding.top + port_border_offset;
+                        node_cell_padding.top = node_cell_padding.top.max(node_cell_padding.bottom);
+                        node_cell_padding.bottom = node_cell_padding.top + port_border_offset;
                     }
                 }
                 PortSide::South => {
-                    let inside_part_is_bigger = inside_part > node_label_cell_padding.bottom;
-                    node_label_cell_padding.bottom =
-                        node_label_cell_padding.bottom.max(inside_part);
+                    let inside_part_is_bigger = inside_part > node_cell_padding.bottom;
+                    node_cell_padding.bottom = node_cell_padding.bottom.max(inside_part);
                     if symmetrical && inside_part_is_bigger {
-                        node_label_cell_padding.bottom = node_label_cell_padding
-                            .bottom
-                            .max(node_label_cell_padding.top);
-                        node_label_cell_padding.top =
-                            node_label_cell_padding.bottom + port_border_offset;
+                        node_cell_padding.bottom = node_cell_padding.bottom.max(node_cell_padding.top);
+                        node_cell_padding.top = node_cell_padding.bottom + port_border_offset;
                     }
                 }
                 PortSide::East => {
-                    let inside_part_is_bigger = inside_part > node_label_cell_padding.right;
-                    node_label_cell_padding.right = node_label_cell_padding.right.max(inside_part);
+                    let inside_part_is_bigger = inside_part > node_cell_padding.right;
+                    node_cell_padding.right = node_cell_padding.right.max(inside_part);
                     if symmetrical && inside_part_is_bigger {
-                        node_label_cell_padding.right = node_label_cell_padding
-                            .right
-                            .max(node_label_cell_padding.left);
-                        node_label_cell_padding.left =
-                            node_label_cell_padding.right + port_border_offset;
+                        node_cell_padding.right = node_cell_padding.right.max(node_cell_padding.left);
+                        node_cell_padding.left = node_cell_padding.right + port_border_offset;
                     }
                 }
                 PortSide::West | PortSide::Undefined => {
-                    let inside_part_is_bigger = inside_part > node_label_cell_padding.left;
-                    node_label_cell_padding.left = node_label_cell_padding.left.max(inside_part);
+                    let inside_part_is_bigger = inside_part > node_cell_padding.left;
+                    node_cell_padding.left = node_cell_padding.left.max(inside_part);
                     if symmetrical && inside_part_is_bigger {
-                        node_label_cell_padding.left = node_label_cell_padding
-                            .left
-                            .max(node_label_cell_padding.right);
-                        node_label_cell_padding.right =
-                            node_label_cell_padding.left + port_border_offset;
+                        node_cell_padding.left = node_cell_padding.left.max(node_cell_padding.right);
+                        node_cell_padding.right = node_cell_padding.left + port_border_offset;
                     }
                 }
             }
@@ -1634,8 +1631,25 @@ impl NodeLabelAndSizeCalculator {
         let label_spacing = node
             .get_property(CoreOptions::SPACING_LABEL_PORT_HORIZONTAL)
             .unwrap_or(0.0);
+        let size_constraints = node
+            .get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)
+            .unwrap_or_default();
+        let allow_inside_spacing_compensation =
+            !size_constraints.contains(&SizeConstraint::MinimumSize);
+        let port_spacing = node
+            .get_property(CoreOptions::SPACING_PORT_PORT)
+            .unwrap_or(0.0)
+            .max(0.0);
+        let node_label_spacing = node
+            .get_property(CoreOptions::SPACING_LABEL_NODE)
+            .unwrap_or(0.0)
+            .max(0.0);
         let mut east_width = 0.0_f64;
         let mut west_width = 0.0_f64;
+        let mut north_width = 0.0_f64;
+        let mut south_width = 0.0_f64;
+        let mut east_border_extension = 0.0_f64;
+        let mut west_border_extension = 0.0_f64;
 
         for port in node.get_ports() {
             let max_label_width = port
@@ -1648,14 +1662,41 @@ impl NodeLabelAndSizeCalculator {
                 continue;
             }
 
+            let border_extension = (-port
+                .get_property(CoreOptions::PORT_BORDER_OFFSET)
+                .unwrap_or(0.0))
+            .max(0.0);
+
             match port.get_side() {
                 PortSide::East => {
                     east_width = east_width.max(max_label_width);
+                    east_border_extension = east_border_extension.max(border_extension);
+                }
+                PortSide::North => {
+                    north_width = north_width.max(max_label_width);
+                }
+                PortSide::South => {
+                    south_width = south_width.max(max_label_width);
                 }
                 PortSide::West | PortSide::Undefined => {
                     west_width = west_width.max(max_label_width);
+                    west_border_extension = west_border_extension.max(border_extension);
                 }
-                _ => {}
+            }
+        }
+
+        if allow_inside_spacing_compensation {
+            if north_width > 0.0 {
+                north_width += port_spacing + 2.0 * label_spacing + 3.0;
+            }
+            if south_width > 0.0 {
+                south_width += port_spacing + 2.0 * label_spacing + 3.0;
+            }
+            if east_width > 0.0 {
+                east_width += port_spacing + node_label_spacing + east_border_extension + 4.0;
+            }
+            if west_width > 0.0 {
+                west_width += port_spacing + node_label_spacing + west_border_extension + 4.0;
             }
         }
 
@@ -1672,6 +1713,22 @@ impl NodeLabelAndSizeCalculator {
                 ContainerArea::Center,
                 ContainerArea::Begin,
                 west_width + label_spacing,
+            );
+        }
+
+        if north_width > 0.0 {
+            inside_layout.ensure_cell_min_width(
+                ContainerArea::Begin,
+                ContainerArea::Center,
+                north_width + label_spacing,
+            );
+        }
+
+        if south_width > 0.0 {
+            inside_layout.ensure_cell_min_width(
+                ContainerArea::End,
+                ContainerArea::Center,
+                south_width + label_spacing,
             );
         }
     }

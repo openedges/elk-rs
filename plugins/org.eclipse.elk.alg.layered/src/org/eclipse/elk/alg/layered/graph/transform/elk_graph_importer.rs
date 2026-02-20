@@ -125,37 +125,52 @@ impl<'a> ElkGraphImporter<'a> {
             if self.should_skip_node(&child) {
                 continue;
             }
-            let (child_is_hierarchical, has_children) = {
+            let has_children = {
                 let mut child_ref = child.borrow_mut();
-                (child_ref.is_hierarchical(), !child_ref.children().is_empty())
+                !child_ref.children().is_empty()
             };
             let has_inside_self_loops = self.has_inside_self_loop_edge(&child);
-            if child_is_hierarchical || has_children || has_inside_self_loops {
-                let Some(lnode) = self.node_for(&child) else {
-                    continue;
-                };
-                let nested_graph = self.create_lgraph(&child);
-                if let Ok(mut nested_guard) = nested_graph.lock() {
-                    nested_guard
-                        .set_property(LayeredOptions::DIRECTION, Some(parent_graph_direction));
-                    nested_guard.set_parent_node(Some(lnode.clone()));
-                }
-                if let Ok(mut node_guard) = lnode.lock() {
-                    node_guard.set_nested_graph(Some(nested_graph.clone()));
-                    node_guard.set_property(InternalProperties::COMPOUND_NODE, Some(true));
-                }
-                if self.should_calculate_minimum_graph_size(&child) {
-                    let child_ports: Vec<ElkPortRef> = {
-                        let mut child_mut = child.borrow_mut();
-                        child_mut.ports().iter().cloned().collect()
-                    };
-                    for port in &child_ports {
-                        self.ensure_defined_port_side(&nested_graph, port);
-                    }
-                    self.calculate_minimum_graph_size(&child, &nested_graph);
-                }
-                self.import_hierarchical_graph(&child, &nested_graph);
+            let has_hierarchy_handling_enabled = self
+                .graph_property(&child, LayeredOptions::HIERARCHY_HANDLING)
+                .unwrap_or(HierarchyHandling::SeparateChildren)
+                == HierarchyHandling::IncludeChildren;
+            let uses_elk_layered = self
+                .graph_property(&child, CoreOptions::ALGORITHM)
+                .map(|algorithm_id: String| {
+                    LayeredOptions::ALGORITHM_ID.ends_with(algorithm_id.trim())
+                })
+                .unwrap_or(true);
+
+            if !(uses_elk_layered
+                && has_hierarchy_handling_enabled
+                && (has_children || has_inside_self_loops))
+            {
+                continue;
             }
+
+            let Some(lnode) = self.node_for(&child) else {
+                continue;
+            };
+            let nested_graph = self.create_lgraph(&child);
+            if let Ok(mut nested_guard) = nested_graph.lock() {
+                nested_guard.set_property(LayeredOptions::DIRECTION, Some(parent_graph_direction));
+                nested_guard.set_parent_node(Some(lnode.clone()));
+            }
+            if let Ok(mut node_guard) = lnode.lock() {
+                node_guard.set_nested_graph(Some(nested_graph.clone()));
+                node_guard.set_property(InternalProperties::COMPOUND_NODE, Some(true));
+            }
+            if self.should_calculate_minimum_graph_size(&child) {
+                let child_ports: Vec<ElkPortRef> = {
+                    let mut child_mut = child.borrow_mut();
+                    child_mut.ports().iter().cloned().collect()
+                };
+                for port in &child_ports {
+                    self.ensure_defined_port_side(&nested_graph, port);
+                }
+                self.calculate_minimum_graph_size(&child, &nested_graph);
+            }
+            self.import_hierarchical_graph(&child, &nested_graph);
         }
 
         self.import_flat_graph_edges(elkgraph, lgraph);

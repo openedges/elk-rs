@@ -29,21 +29,21 @@
 4. 변경 코드 리뷰 후 커밋 (`<scope>: <summary>`)
 5. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
-## 현재 핵심 스냅샷 (2026-02-19)
-- Full model parity(2026-02-19 재실행): `matches=1135/1439`, `drift=304`, `total_diffs=5783`, `errors=0`, `timeouts=0`, `java_non_ok=9`
-- tickets parity(2026-02-19 최신): `matches=101/109`, `drift=8`, `total_diffs=112`, `errors=0`, `timeouts=0`, `java_non_ok=1`
-- `phase_focus_top_low_medium`(25): `matches=25`, `drift=0`, `total_diffs=0` (2026-02-19 재실행)
-- p5 low/medium 3-model(`tickets/layered/288_{a,b}`, `552_hierarchySelfLoopPorts`): `matches=2`, `drift=1`, `total_diffs=26` (`552` drift 해소, `288_b` 잔여)
-- 3-model subset(`algebraic/backtrack/cartracking`): `matches=1`, `drift=2`, `total_diffs=369`
-- P3 seed subset(`high-degree/labels1/variants`): `matches=3`, `drift=0`, `total_diffs=0`
+## 현재 핵심 스냅샷 (2026-02-20)
+- Full model parity(2026-02-20 최신 report): `matches=1142/1439`, `drift=297`, `total_diffs=5710`, `errors=0`, `timeouts=0`, `java_non_ok=9`
+- tickets parity(2026-02-20 최신): `matches=107/109`, `drift=2`, `total_diffs=40`, `errors=0`, `timeouts=0`, `java_non_ok=1`
+- tickets 잔여 drift: `tickets/layered/213_componentsCompaction.elkt`, `tickets/layered/701_portLabels.elkt`
+- tickets full-diff(`--max-diffs-per-model 5000`) 기준 총 diff는 `264`이며, `701_portLabels` 단건 diff는 `139 -> 129`로 감소
+- `phase_focus_top_low_medium`(25): `matches=25`, `drift=0`, `total_diffs=0` (2026-02-19 재실행 유지)
 - 포팅/테스트/빌드/성능 자동화 파이프라인은 운영 상태
-- 현재 우선 작업: `Step M-5` high-impact drift 축소(중점 phase: `p2_layering`, `p5_edge_routing`)와 tickets 잔여 8건(`213, 302, 352, 368, 453, 502, 665, 701`) 소거
+- 현재 우선 작업: `Step M-5` high-impact drift 축소(중점 phase: `p2_layering`, `p5_edge_routing`)와 tickets 잔여 2건(`213`, `701`) 소거
 
-## 구현 우선순위 스냅샷 (2026-02-19)
+## 구현 우선순위 스냅샷 (2026-02-20)
 - P1(구현 공백 제거, 완료): `IntermediateProcessorStrategy` NoOp 10개(`ConstraintsPostprocessor`, `HypernodeProcessor`, `EndNodePortLabelManagementProcessor`, `CenterLabelManagementProcessor`, `HighDegreeNodeLayerProcessor`, `AlternatingLayerUnzipper`, `SingleEdgeGraphWrapper`, `BreakingPointInserter`, `BreakingPointProcessor`, `BreakingPointRemover`)를 모두 실제 구현으로 연결 완료. 잔여 NoOp는 0개.
 - P2(p5 정합, 완료): `horizontal_graph_compactor.rs`의 scanline edge-aware 제약 계산을 포팅하고 `GraphCompactionStrategy::EdgeLength`를 `NetworkSimplexCompaction` 경로로 연결했다. 관련 품질 게이트(`cargo clippy --workspace --all-targets`, `cargo test --workspace`)는 통과.
-- P3(p2 고영향 모델): seed 3개(`tests/layered/high_degree_nodes/high-degree-example.elkt`, `tests/layered/compaction_oned/labels/labels1.elkt`, `tests/core/label_placement/port_labels/variants.elkt`) 수렴 완료. 다음은 `realworld/ptolemy` 상위 drift 군(`algebraic/backtrack/cartracking` 포함)으로 확장한다.
-- P4(p5 저중간 diff 소거): `tickets/layered/425_selfLoopInCompoundNode.elkt` 수렴 완료. 다음은 `tickets/layered/502_collapsingCompoundNode.elkt`(compound collapse 높이/포트 y), `453_interactiveProblems.elkt`, `665_includeChildrenDoesntStop.elkt`, `701_portLabels.elkt` 순으로 잔여 8건을 축소한다.
+- P3(full parity 고영향 모델): `p2_layering`, `p5_edge_routing` 중심으로 `realworld/ptolemy` 상위 drift 군(`algebraic/backtrack/cartracking` 포함)과 `phase_focus_top_low_medium` 큐를 우선 소거한다.
+- P4(tickets 잔여 2건 소거): `tickets/layered/701_portLabels.elkt`(inside port-label/side별 cell 폭 정합) 먼저 수렴시키고, 이어 `tickets/layered/213_componentsCompaction.elkt`(component compaction 좌표 정합)까지 마무리한다.
+- P5(재검증/동기화): tickets `109/109` 수렴 시 full parity/phase 분석 산출물을 재생성하고 `HISTORY.md`/`AGENTS.md`를 즉시 동기화한다.
 - 정책 TODO: `java_non_ok=9`를 포함한 `1448/1448` 목표로 확장할지, 현재처럼 `1439` 비교 분모를 유지할지 정의를 고정한다.
 
 ## 기본 실행 명령

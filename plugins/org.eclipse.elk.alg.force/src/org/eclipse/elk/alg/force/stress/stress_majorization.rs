@@ -127,6 +127,16 @@ impl StressMajorization {
                 }
             }
         }
+
+        if std::env::var_os("ELK_TRACE_STRESS").is_some() {
+            let edge_count = graph.edges().len();
+            let apsp01 = if n > 1 { self.apsp[0][1] } else { 0.0 };
+            let w01 = if n > 1 { self.w[0][1] } else { 0.0 };
+            eprintln!(
+                "stress-majorization: nodes={} edges={} desired_edge_length={} apsp01={} w01={}",
+                n, edge_count, self.desired_edge_length, apsp01, w01
+            );
+        }
     }
 
     pub fn execute(&mut self, graph: &mut FGraph) {
@@ -162,6 +172,12 @@ impl StressMajorization {
             cur_stress = self.compute_stress(graph);
 
             if self.done(count, prev_stress, cur_stress) {
+                if std::env::var_os("ELK_TRACE_STRESS").is_some() {
+                    eprintln!(
+                        "stress-majorization: iterations={} prev_stress={} cur_stress={}",
+                        count, prev_stress, cur_stress
+                    );
+                }
                 break;
             }
             count += 1;

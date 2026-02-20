@@ -1,6 +1,7 @@
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::NodeMicroLayout;
 use org_eclipse_elk_core::org::eclipse::elk::core::abstract_layout_provider::AbstractLayoutProvider;
 use org_eclipse_elk_core::org::eclipse::elk::core::graph_layout_engine::IGraphLayoutEngine;
+use org_eclipse_elk_core::org::eclipse::elk::core::math::elk_padding::ElkPadding;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 
@@ -8,6 +9,7 @@ use crate::org::eclipse::elk::alg::force::components_processor::ComponentsProces
 use crate::org::eclipse::elk::alg::force::elk_graph_importer::ElkGraphImporter;
 use crate::org::eclipse::elk::alg::force::force_layout_provider::ForceLayoutProvider;
 use crate::org::eclipse::elk::alg::force::i_graph_importer::IGraphImporter;
+use crate::org::eclipse::elk::alg::force::options::ForceOptions;
 use crate::org::eclipse::elk::alg::force::options::StressOptions;
 use crate::org::eclipse::elk::alg::force::stress::StressMajorization;
 
@@ -53,6 +55,23 @@ impl IGraphLayoutEngine for StressLayoutProvider {
         };
 
         if !interactive {
+            // Java parity: Stress delegates to Force for initial coordinates.
+            // Force's algorithm-level default padding is 50, which may not be
+            // materialized on a stress-configured node.
+            {
+                let mut root = layout_graph.borrow_mut();
+                let props = root
+                    .connectable()
+                    .shape()
+                    .graph_element()
+                    .properties_mut();
+                if !props.has_property(ForceOptions::PADDING) {
+                    props.set_property(
+                        ForceOptions::PADDING,
+                        Some(ElkPadding::with_any(50.0)),
+                    );
+                }
+            }
             let mut force = ForceLayoutProvider::new();
             force.layout(layout_graph, progress_monitor.sub_task(1.0).as_mut());
         } else {
