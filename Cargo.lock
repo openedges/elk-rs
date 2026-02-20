@@ -139,6 +139,7 @@ dependencies = [
  "org-eclipse-elk-alg-rectpacking",
  "org-eclipse-elk-core",
  "org-eclipse-elk-graph",
+ "serde_json",
 ]
 
 [[package]]

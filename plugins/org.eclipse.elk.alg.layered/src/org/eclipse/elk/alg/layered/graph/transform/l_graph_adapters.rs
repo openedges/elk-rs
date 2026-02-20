@@ -47,9 +47,10 @@ impl LGraphAdapters {
                         .map(|node_guard| node_filter(&node_guard))
                         .unwrap_or(false);
                     if passes_filter {
-                        node_adapters.push(LNodeAdapter::new(
+                        node_adapters.push(LNodeAdapter::with_graph_properties(
                             node.clone(),
                             transparent_north_south_edges,
+                            properties.clone(),
                         ));
 
                         if transparent_comment_nodes {
@@ -164,6 +165,7 @@ pub struct LNodeAdapter {
     node: LNodeRef,
     volatile_id: Cell<i32>,
     transparent_north_south_edges: bool,
+    graph_properties: Option<MapPropertyHolder>,
 }
 
 impl LNodeAdapter {
@@ -172,6 +174,20 @@ impl LNodeAdapter {
             node,
             volatile_id: Cell::new(0),
             transparent_north_south_edges,
+            graph_properties: None,
+        }
+    }
+
+    fn with_graph_properties(
+        node: LNodeRef,
+        transparent_north_south_edges: bool,
+        graph_properties: MapPropertyHolder,
+    ) -> Self {
+        LNodeAdapter {
+            node,
+            volatile_id: Cell::new(0),
+            transparent_north_south_edges,
+            graph_properties: Some(graph_properties),
         }
     }
 
@@ -248,7 +264,11 @@ impl NodeAdapter<LNodeRef> for LNodeAdapter {
     type EdgeAdapter = LEdgeAdapter;
 
     fn get_graph(&self) -> Option<Self::Graph> {
-        None
+        self.graph_properties.as_ref().map(|props| LGraphAdapter {
+            nodes: Vec::new(),
+            volatile_id: Cell::new(0),
+            properties: props.clone(),
+        })
     }
 
     fn get_labels(&self) -> Vec<Self::LabelAdapter> {

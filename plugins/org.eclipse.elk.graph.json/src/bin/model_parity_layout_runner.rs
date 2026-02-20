@@ -54,6 +54,7 @@ struct Config {
     pretty_print: bool,
     stop_on_error: bool,
     progress_log: Option<PathBuf>,
+    trace_dir: Option<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -74,7 +75,8 @@ fn print_usage() {
     --rust-layout-dir <path> \\
     [--pretty-print <true|false>] \\
     [--stop-on-error <true|false>] \\
-    [--progress-log <path>]"
+    [--progress-log <path>] \\
+    [--trace-dir <path>]"
     );
 }
 
@@ -99,6 +101,7 @@ fn parse_args() -> Result<Config, String> {
     let mut pretty_print = false;
     let mut stop_on_error = false;
     let mut progress_log: Option<PathBuf> = None;
+    let mut trace_dir: Option<PathBuf> = None;
 
     let mut index = 1usize;
     while index < args.len() {
@@ -146,6 +149,13 @@ fn parse_args() -> Result<Config, String> {
                     .ok_or_else(|| "missing value for --progress-log".to_string())?;
                 progress_log = Some(PathBuf::from(value));
             }
+            "--trace-dir" => {
+                index += 1;
+                let value = args
+                    .get(index)
+                    .ok_or_else(|| "missing value for --trace-dir".to_string())?;
+                trace_dir = Some(PathBuf::from(value));
+            }
             _ => {
                 return Err(format!("unknown argument: {flag}"));
             }
@@ -164,6 +174,7 @@ fn parse_args() -> Result<Config, String> {
         pretty_print,
         stop_on_error,
         progress_log,
+        trace_dir,
     })
 }
 
@@ -599,6 +610,17 @@ fn run(config: Config) -> Result<(), String> {
             progress_writer
                 .flush()
                 .map_err(|err| format!("failed to flush progress log start event: {err}"))?;
+        }
+
+        // Set per-model trace directory if tracing is enabled
+        if let Some(trace_base) = &config.trace_dir {
+            let model_name = row
+                .model_rel_path
+                .replace(['/', '\\'], "_")
+                .replace(".elkt", "")
+                .replace(".json", "");
+            let model_trace_dir = trace_base.join(&model_name);
+            env::set_var("ELK_TRACE_DIR", model_trace_dir.as_os_str());
         }
 
         let (rust_layout_json, rust_status, rust_error) = if row.java_status != "ok" {

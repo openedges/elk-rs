@@ -1219,6 +1219,96 @@ fn place_outside_container(
 }
 
 impl NodeLabelAndSizeCalculator {
+    /// Processes a single node using Java's full 7-phase cell system pipeline.
+    /// This is the Rust equivalent of Java's `NodeLabelAndSizeCalculator.process()`.
+    ///
+    /// Phases:
+    ///   1. Setup label cells (NodeLabelCellCreator, InsidePortLabelCellCreator)
+    ///   2. Setup client area + node padding for ports
+    ///   3. Port placement size (horizontal + vertical)
+    ///   4. Cell system size contribution flags
+    ///   5. Set node width + place horizontal ports
+    ///   6. Set node height + place vertical ports
+    ///   7. Place labels + apply stuff
+    pub fn process<N, T>(node: &N, layout_direction: Direction) -> KVector
+    where
+        T: 'static,
+        N: NodeAdapter<T>,
+        N::Graph: GraphElementAdapter<T>,
+        N::Label: 'static,
+        N::LabelAdapter: 'static,
+        N::Port: 'static,
+        N::PortAdapter: 'static,
+    {
+        use super::internal::algorithm::{
+            cell_system_configurator::CellSystemConfigurator,
+            horizontal_port_placement_size_calculator::HorizontalPortPlacementSizeCalculator,
+            inside_port_label_cell_creator::InsidePortLabelCellCreator,
+            label_placer::LabelPlacer,
+            node_label_and_size_utilities::NodeLabelAndSizeUtilities,
+            node_label_cell_creator::NodeLabelCellCreator,
+            node_size_calculator::NodeSizeCalculator,
+            port_context_creator::PortContextCreator,
+            port_label_placement_calculator::PortLabelPlacementCalculator,
+            port_placement_calculator::PortPlacementCalculator,
+            vertical_port_placement_size_calculator::VerticalPortPlacementSizeCalculator,
+        };
+        use super::internal::node_context::NodeContext;
+        use super::internal::port_context::PortContext;
+
+        // PREPARATORY PREPARATIONS: Create context objects
+        let mut node_context = NodeContext::new(node);
+        PortContextCreator::create_port_contexts(&mut node_context, node, false);
+
+        // PHASE 1 (WONDEROUS WATERFOWL): Setup All Cells
+        let horizontal_layout_mode = !layout_direction.is_vertical();
+        NodeLabelCellCreator::create_node_label_cells(&mut node_context, node, false, horizontal_layout_mode);
+        InsidePortLabelCellCreator::create_inside_port_label_cells(&mut node_context);
+
+        // PHASE 2 (DEFECTIVE DUCK): Setup Client Area Space and Node Cell Padding
+        NodeLabelAndSizeUtilities::setup_minimum_client_area_size(&mut node_context);
+        NodeLabelAndSizeUtilities::setup_node_padding_for_ports_with_offset(&mut node_context);
+
+        // PHASE 3 (SALVAGEABLE SWAN): Minimum Space Required to Place Ports
+        HorizontalPortPlacementSizeCalculator::calculate_horizontal_port_placement_size(&mut node_context);
+        VerticalPortPlacementSizeCalculator::calculate_vertical_port_placement_size(&mut node_context);
+
+        // PHASE 4 (DAMNABLE DUCKLING): Setup Cell System Size Contribution Flags
+        CellSystemConfigurator::configure_cell_system_size_contributions(&mut node_context);
+
+        // PHASE 5 (DUCK AND COVER): Set Node Width and Place Horizontal Ports
+        NodeSizeCalculator::set_node_width(&mut node_context);
+        PortPlacementCalculator::place_horizontal_ports(&mut node_context);
+        PortLabelPlacementCalculator::place_horizontal_port_labels(&mut node_context);
+
+        // PHASE 6 (GIGANTIC GOOSE): Set Node Height and Place Vertical Ports
+        CellSystemConfigurator::update_vertical_inside_port_label_cell_padding(&mut node_context);
+        NodeSizeCalculator::set_node_height(&mut node_context);
+        NodeLabelAndSizeUtilities::offset_southern_ports_by_node_size(&mut node_context);
+        PortPlacementCalculator::place_vertical_ports(&mut node_context);
+        PortLabelPlacementCalculator::place_vertical_port_labels(&mut node_context);
+
+        // PHASE 7 (THANKSGIVING): Place Labels and Apply Stuff
+        LabelPlacer::place_labels(&mut node_context);
+        NodeLabelAndSizeUtilities::set_node_padding(&node_context);
+
+        // applyStuff: write computed sizes/positions back to the adapter
+        node.set_size(node_context.node_size);
+        // Apply port positions: collect all port contexts sorted by volatile_id,
+        // then zip with ports (which are iterated in the same creation order)
+        let mut all_port_contexts: Vec<&PortContext> = node_context
+            .port_contexts
+            .values()
+            .flat_map(|v| v.iter())
+            .collect();
+        all_port_contexts.sort_by_key(|pc| pc.volatile_id);
+        for (port, pc) in node.get_ports().into_iter().zip(all_port_contexts.iter()) {
+            port.set_position(pc.port_position);
+        }
+
+        node_context.node_size
+    }
+
     pub fn process_node<N, T>(node: &N, layout_direction: Direction)
     where
         T: 'static,

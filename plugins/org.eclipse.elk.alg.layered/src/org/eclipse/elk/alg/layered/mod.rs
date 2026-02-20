@@ -14,6 +14,7 @@ pub mod p3order;
 pub mod p4nodes;
 pub mod p5edges;
 pub mod plain_java_initialization;
+pub mod trace_recorder;
 
 pub use elk_layered::ElkLayered;
 pub use graph_configurator::GraphConfigurator;

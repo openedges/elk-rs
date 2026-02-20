@@ -414,6 +414,8 @@ impl NodeDimensionCalculation {
         <<G as GraphAdapter<T>>::NodeAdapter as NodeAdapter<<G as GraphAdapter<T>>::Node>>::Graph: GraphElementAdapter<<G as GraphAdapter<T>>::Node>,
         <<G as GraphAdapter<T>>::NodeAdapter as NodeAdapter<<G as GraphAdapter<T>>::Node>>::Label: 'static,
         <<G as GraphAdapter<T>>::NodeAdapter as NodeAdapter<<G as GraphAdapter<T>>::Node>>::LabelAdapter: 'static,
+        <<G as GraphAdapter<T>>::NodeAdapter as NodeAdapter<<G as GraphAdapter<T>>::Node>>::Port: 'static,
+        <<G as GraphAdapter<T>>::NodeAdapter as NodeAdapter<<G as GraphAdapter<T>>::Node>>::PortAdapter: 'static,
         <G as GraphAdapter<T>>::Node: 'static,
     {
         let layout_direction = adapter
