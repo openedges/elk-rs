@@ -28,28 +28,52 @@
 3. warning이 새로 발생하면 임시 무시 없이 해당 단계에서 즉시 수정한다.
 
 ## 품질 게이트 (단계 종료 시 필수)
-1. `cargo clippy --workspace --all-targets`
-2. `cargo test --workspace`
-3. 필요 시 `cargo build --workspace` 및 parity/perf 재검증
-4. 변경 코드 리뷰 후 커밋 (`<scope>: <summary>`)
-5. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
+1. 코드 변경 후 코드리뷰 실행
+2. Full parity 실행 및 통과률 확인: `MODEL_PARITY_SKIP_JAVA_EXPORT=true sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models perf/model_parity_full`
+3. `cargo build --workspace` (error/warning 0건)
+4. `cargo clippy --workspace --all-targets` (warning 0건)
+5. `cargo test --workspace` (failure 0건)
+6. 확인 후 문서에 진행상황(특히 parity 통과률)을 기록:
+   - `AGENTS.md`의 `현재 핵심 스냅샷` 섹션의 parity 수치 갱신
+   - `HISTORY.md`에 변경 내역/수치 변화 기록
+7. 커밋 (`<scope>: <summary>`)
+8. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
 ## 현재 핵심 스냅샷 (2026-02-20)
-- Full model parity(2026-02-20 재측정): `matches=1117/1439`, `drift=322`, `errors=0`, `timeouts=0`, `java_non_ok=9`
-  - 이전 stored 결과(1142)는 구 빌드 기준으로 stale 상태였음. 현재 코드 기준 true baseline=1116, vertical port height fix 반영 후 1117.
-- tickets parity(2026-02-20 최신): `matches=107/109`, `drift=2`, `errors=0`, `timeouts=0`, `java_non_ok=1`
+- Full model parity: `matches=1150/1439` (79.9%), `drift=289`, `errors=0`, `timeouts=0`, `java_non_ok=9`
+  - 이전: 1116(HEAD cb94b09) → routing_director.rs regression revert + INSIDE port label offset fix → **1150**
+- tickets parity: `matches=107/109`, `drift=2`, `errors=0`, `timeouts=0`, `java_non_ok=1`
 - tickets 잔여 drift: `tickets/layered/213_componentsCompaction.elkt`, `tickets/layered/701_portLabels.elkt`
 - 포팅/테스트/빌드/성능 자동화 파이프라인은 운영 상태
-- 현재 우선 작업: `Step M-5` high-impact drift 축소(중점 phase: `p2_layering`, `p5_edge_routing`)와 tickets 잔여 2건(`213`, `701`) 소거
-- 최근 fix: `VerticalPortPlacementSizeCalculator` 등가 구현 추가 (node_label_and_size_calculator.rs). `tests/core/node_size/inside_port_labels.elkt` 모델 3→0 diffs 수정.
 
-## 구현 우선순위 스냅샷 (2026-02-20)
-- P1(구현 공백 제거, 완료): `IntermediateProcessorStrategy` NoOp 10개(`ConstraintsPostprocessor`, `HypernodeProcessor`, `EndNodePortLabelManagementProcessor`, `CenterLabelManagementProcessor`, `HighDegreeNodeLayerProcessor`, `AlternatingLayerUnzipper`, `SingleEdgeGraphWrapper`, `BreakingPointInserter`, `BreakingPointProcessor`, `BreakingPointRemover`)를 모두 실제 구현으로 연결 완료. 잔여 NoOp는 0개.
-- P2(p5 정합, 완료): `horizontal_graph_compactor.rs`의 scanline edge-aware 제약 계산을 포팅하고 `GraphCompactionStrategy::EdgeLength`를 `NetworkSimplexCompaction` 경로로 연결했다. 관련 품질 게이트(`cargo clippy --workspace --all-targets`, `cargo test --workspace`)는 통과.
-- P3(full parity 고영향 모델): `p2_layering`, `p5_edge_routing` 중심으로 `realworld/ptolemy` 상위 drift 군(`algebraic/backtrack/cartracking` 포함)과 `phase_focus_top_low_medium` 큐를 우선 소거한다.
-- P4(tickets 잔여 2건 소거): `tickets/layered/701_portLabels.elkt`(inside port-label/side별 cell 폭 정합) 먼저 수렴시키고, 이어 `tickets/layered/213_componentsCompaction.elkt`(component compaction 좌표 정합)까지 마무리한다.
-- P5(재검증/동기화): tickets `109/109` 수렴 시 full parity/phase 분석 산출물을 재생성하고 `HISTORY.md`/`AGENTS.md`를 즉시 동기화한다.
-- 정책 TODO: `java_non_ok=9`를 포함한 `1448/1448` 목표로 확장할지, 현재처럼 `1439` 비교 분모를 유지할지 정의를 고정한다.
+## Parity 100% 전략 (Phase 1→2→3)
+
+### Drift 분포
+- 289개 drifted 모델 중 277개(95.8%)가 20-diff cap 도달
+- hierarchical ptolemy: 182개(63%), flattened ptolemy: 88개(30%), tests/examples: 17개(6%), tickets: 2개(1%)
+- first diff의 92.1%가 노드 좌표(x/y) — 체계적 원인
+
+### 근본 원인
+- `alg.common/nodespacing` cell system 불완전: Java 25개 파일(~5,368 LOC) 중 핵심 4개 calculator 누락
+  - `HorizontalPortPlacementSizeCalculator` (391 LOC) — N/S 포트 최소 너비
+  - `PortPlacementCalculator` (404 LOC) — 포트 최종 위치
+  - `PortLabelPlacementCalculator` (526 LOC) — 포트 라벨 위치
+  - `CellSystemConfigurator` (163 LOC) — 셀 크기 기여 플래그
+
+### Phase 1: Cell System 충실한 포팅 (최우선)
+- Java의 cell system (NodeContext, PortContext, GridContainerCell, 7개 algorithm phase)을 Rust로 포팅
+- 예상 ~2,500-3,000 LOC 신규/교체, ~270개 모델 해결 예상
+- 상세 계획: `.claude/plans/cuddly-forging-liskov.md`
+
+### Phase 2: 진단 도구 구축
+- Processor pipeline 설정 비교, phase-level state snapshot, divergence binary search
+- Phase 3의 효율을 위해 필요
+
+### Phase 3: 잔여 Drift 해소
+- ElkGraphLayoutTransferrer 보상 로직 정리
+- HierarchicalPortPositionProcessor 좌표 변환 정렬
+- HashSet → IndexSet 변환, self-loop routing 미세 차이
+- low-hanging fruit: verticalOrder(3 diffs), next_to_port_if_possible_inside(5 diffs)
 
 ## 기본 실행 명령
 - 전체 정적 점검: `cargo clippy --workspace --all-targets`

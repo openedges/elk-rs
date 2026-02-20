@@ -1307,10 +1307,13 @@ fn reverse_west_and_south_side(ports: &mut [LPortRef]) {
         return;
     }
 
-    // Java's PortPlacementCalculator does NOT reverse SOUTH ports before placement.
-    // Only reverse WEST for clockwise order; SOUTH reversal is handled by PortListSorter later.
-    // let (south_low, south_high) = find_port_side_range(ports, PortSide::South);
-    // reverse_range(ports, south_low, south_high);
+    // Java's NodeContext.comparePortContexts sorts SOUTH and WEST ports in descending
+    // volatile_id order (right-to-left / bottom-to-top) so that the placement loop can
+    // iterate left-to-right / top-to-bottom.  We achieve the same by reversing after
+    // the ascending sort.  PortListSorter runs BEFORE this processor but
+    // ensure_clockwise_port_order re-sorts ports, so BOTH sides must be reversed here.
+    let (south_low, south_high) = find_port_side_range(ports, PortSide::South);
+    reverse_range(ports, south_low, south_high);
 
     let (west_low, west_high) = find_port_side_range(ports, PortSide::West);
     reverse_range(ports, west_low, west_high);
