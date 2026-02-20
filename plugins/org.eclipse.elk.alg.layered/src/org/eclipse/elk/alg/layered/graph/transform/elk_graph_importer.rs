@@ -616,7 +616,7 @@ impl<'a> ElkGraphImporter<'a> {
             .origin_store
             .store(ElkGraphElementRef::Node(elknode.clone()));
 
-        let (mut properties, position, mut size, labels, ports, node_is_hierarchical) = {
+        let (properties, position, size, labels, ports, node_is_hierarchical) = {
             let mut node_mut = elknode.borrow_mut();
             let shape = node_mut.connectable().shape();
             let props = shape.graph_element().properties().clone();

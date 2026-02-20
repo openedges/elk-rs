@@ -46,7 +46,7 @@ impl ILayoutProcessor<LGraph> for NorthSouthPortPreprocessor {
                 let node_key = std::sync::Arc::as_ptr(&node) as usize;
                 trace_ns(&format!("node={node_key} pointer={pointer} begin"));
 
-                let (node_type, port_constraints, mut north_ports, mut south_ports, graph_ref) = {
+                let (node_type, port_constraints, north_ports, south_ports, graph_ref) = {
                     let mut node_guard = match node.try_lock() {
                         Ok(guard) => guard,
                         Err(_) => continue,

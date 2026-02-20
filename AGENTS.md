@@ -22,6 +22,11 @@
 - 외부 의존성/환경 제약이 있으면 합리적 가정과 안전한 기본값으로 빌드/테스트를 유지한다.
 - 테스트/빌드 실패 시 우선 수정하고 재시도한 뒤 계속 진행한다.
 
+## 단계별 상시 체크 (매 작업 단계)
+1. 코드/문서 변경 직후 `cargo build --workspace`를 실행한다.
+2. `cargo build` 출력의 error/warning을 0건으로 맞춘 뒤 다음 단계로 진행한다.
+3. warning이 새로 발생하면 임시 무시 없이 해당 단계에서 즉시 수정한다.
+
 ## 품질 게이트 (단계 종료 시 필수)
 1. `cargo clippy --workspace --all-targets`
 2. `cargo test --workspace`

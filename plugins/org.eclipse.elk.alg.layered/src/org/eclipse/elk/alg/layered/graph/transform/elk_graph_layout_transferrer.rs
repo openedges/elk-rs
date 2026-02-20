@@ -11,7 +11,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::EnumSet;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{
     ElkConnectableShapeRef, ElkEdgeRef, ElkEdgeSection, ElkGraphElementRef, ElkNodeRef, ElkPortRef,
 };
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashSet, VecDeque};
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -1043,7 +1043,7 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
     /// This is analogous to HierarchicalNodeResizingProcessor::resizeGraphNoReallyIMeanIt.
     fn apply_content_alignment_offset(&self, lgraph: &LGraphRef, offset: &mut KVector) {
         let (size_constraint, content_alignment, calculated_size) = {
-            let mut graph_guard = match lgraph.lock() {
+            let graph_guard = match lgraph.lock() {
                 Ok(guard) => guard,
                 Err(_) => return,
             };
@@ -1066,13 +1066,13 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
         let mut min_size = lgraph
             .lock()
             .ok()
-            .and_then(|mut g| g.get_property_ref(LayeredOptions::NODE_SIZE_MINIMUM))
+            .and_then(|g| g.get_property_ref(LayeredOptions::NODE_SIZE_MINIMUM))
             .unwrap_or_default();
 
         let size_options = lgraph
             .lock()
             .ok()
-            .and_then(|mut g| g.get_property_ref(CoreOptions::NODE_SIZE_OPTIONS))
+            .and_then(|g| g.get_property_ref(CoreOptions::NODE_SIZE_OPTIONS))
             .unwrap_or_else(EnumSet::none_of);
 
         if size_options.contains(&SizeOptions::DefaultMinimumSize) {
@@ -1183,100 +1183,6 @@ fn collect_nodes_from_graph(
     }
 
     nodes
-}
-
-fn collect_edges_by_origin(
-    nodes: &[LNodeRef],
-    parent_node: Option<&LNodeRef>,
-) -> HashMap<OriginId, LEdgeRef> {
-    let mut edges: HashMap<OriginId, LEdgeRef> = HashMap::new();
-    let mut seen: HashSet<usize> = HashSet::new();
-
-    // Collect edges from parent node's ports (edges going down into descendants)
-    if let Some(parent_lnode) = parent_node {
-        let ports = match parent_lnode.lock() {
-            Ok(guard) => guard.ports().clone(),
-            Err(_) => Vec::new(),
-        };
-        eprintln!("DEBUG: parent node has {} ports", ports.len());
-        for port in ports {
-            let outgoing = match port.lock() {
-                Ok(port_guard) => port_guard.outgoing_edges().clone(),
-                Err(_) => continue,
-            };
-            eprintln!("DEBUG: parent port has {} outgoing edges", outgoing.len());
-            for edge in outgoing {
-                // Filter: only include edges where target is a descendant of parent
-                let target_node = edge
-                    .lock()
-                    .ok()
-                    .and_then(|edge_guard| edge_guard.target())
-                    .and_then(|target_port| {
-                        target_port
-                            .lock()
-                            .ok()
-                            .and_then(|port_guard| port_guard.node())
-                    });
-
-                if let Some(target_node_ref) = target_node {
-                    let is_desc = LGraphUtil::is_descendant(&target_node_ref, parent_lnode);
-                    eprintln!("DEBUG: edge target is_descendant = {}", is_desc);
-                    if is_desc {
-                        let key = Arc::as_ptr(&edge) as usize;
-                        if seen.insert(key) {
-                            if let Some(origin_id) = origin_id_for_edge(&edge) {
-                                eprintln!(
-                                    "DEBUG: collected parent edge with origin_id {:?}",
-                                    origin_id
-                                );
-                                edges.entry(origin_id).or_insert_with(|| edge.clone());
-                            }
-                        }
-                    }
-                } else {
-                    eprintln!("DEBUG: edge has no target node");
-                }
-            }
-        }
-    }
-
-    for node in nodes {
-        let ports = match node.lock() {
-            Ok(guard) => guard.ports().clone(),
-            Err(_) => continue,
-        };
-        for port in ports {
-            let (incoming, outgoing) = match port.lock() {
-                Ok(port_guard) => (
-                    port_guard.incoming_edges().clone(),
-                    port_guard.outgoing_edges().clone(),
-                ),
-                Err(_) => continue,
-            };
-            for edge in incoming.iter().chain(outgoing.iter()) {
-                let key = Arc::as_ptr(edge) as usize;
-                if !seen.insert(key) {
-                    continue;
-                }
-                if let Some(origin_id) = origin_id_for_edge(edge) {
-                    edges.entry(origin_id).or_insert_with(|| edge.clone());
-                }
-            }
-        }
-    }
-
-    edges
-}
-
-fn origin_id_for_edge(edge: &LEdgeRef) -> Option<OriginId> {
-    let origin = edge
-        .lock()
-        .ok()
-        .and_then(|mut guard| guard.get_property(InternalProperties::ORIGIN));
-    match origin {
-        Some(Origin::ElkEdge(origin_id)) => Some(origin_id),
-        _ => None,
-    }
 }
 
 fn resolve_port_for_fallback(container: &ElkNodeRef, port: &ElkPortRef) -> ElkPortRef {

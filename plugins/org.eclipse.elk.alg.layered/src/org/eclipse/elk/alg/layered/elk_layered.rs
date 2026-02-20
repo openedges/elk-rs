@@ -758,7 +758,7 @@ impl ElkLayered {
         }
 
         if std::env::var("ELK_TRACE_RESIZE").is_ok() {
-            if let Ok(mut graph_guard) = lgraph.lock() {
+            if let Ok(graph_guard) = lgraph.lock() {
                 let parent_id = graph_guard
                     .parent_node()
                     .and_then(|node| node.lock().ok().map(|mut n| n.shape().graph_element().id))

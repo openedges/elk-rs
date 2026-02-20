@@ -899,34 +899,6 @@ impl LayerSweepCrossingMinimizer {
         self.random.set_seed(self.random_seed);
     }
 
-    fn reset_random_for_graph(graph_data: &mut GraphInfoHolder, seed: u64) -> Option<()> {
-        if let Some(heuristic) = graph_data
-            .cross_minimizer()
-            .as_any_mut()
-            .downcast_mut::<crate::org::eclipse::elk::alg::layered::p3order::BarycenterHeuristic>()
-        {
-            heuristic.set_random_seed(seed);
-            return Some(());
-        }
-        if let Some(heuristic) = graph_data
-            .cross_minimizer()
-            .as_any_mut()
-            .downcast_mut::<crate::org::eclipse::elk::alg::layered::p3order::ModelOrderBarycenterHeuristic>()
-        {
-            heuristic.set_random_seed(seed);
-            return Some(());
-        }
-        if let Some(heuristic) = graph_data
-            .cross_minimizer()
-            .as_any_mut()
-            .downcast_mut::<crate::org::eclipse::elk::alg::layered::p3order::MedianHeuristic>(
-        ) {
-            heuristic.set_random_seed(seed);
-            return Some(());
-        }
-        None
-    }
-
     fn next_boolean_for_graph(&mut self, _index: usize) -> bool {
         if let Ok(force) = std::env::var("ELK_DEBUG_CROSSMIN_FORCE_SWEEP") {
             match force.as_str() {

@@ -192,7 +192,7 @@ impl HyperedgeCrossingsCounter {
                     match (source_he, target_he) {
                         (None, None) => {
                             let id = hyperedges.len();
-                            let mut hyperedge = Hyperedge::new(id, source_key);
+                            let mut hyperedge = Hyperedge::new(source_key);
                             hyperedge.edges.push(edge.clone());
                             hyperedge.ports.push(source_port.clone());
                             hyperedge.ports.push(target_port.clone());
@@ -419,7 +419,6 @@ impl HyperedgeCrossingsCounter {
 
 #[derive(Clone)]
 struct Hyperedge {
-    id: usize,
     identity_hash: usize,
     edges: Vec<LEdgeRef>,
     ports: Vec<LPortRef>,
@@ -430,9 +429,8 @@ struct Hyperedge {
 }
 
 impl Hyperedge {
-    fn new(id: usize, identity_hash: usize) -> Self {
+    fn new(identity_hash: usize) -> Self {
         Hyperedge {
-            id,
             identity_hash,
             edges: Vec::new(),
             ports: Vec::new(),
