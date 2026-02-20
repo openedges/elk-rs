@@ -1481,10 +1481,10 @@ impl<'a> ElkGraphImporter<'a> {
             if let Ok(mut dummy_guard) = dummy.lock() {
                 let spacing_label_port_horizontal = self
                     .graph_property(&parent, LayeredOptions::SPACING_LABEL_PORT_HORIZONTAL)
-                    .unwrap_or(0.0);
+                    .unwrap_or(1.0);
                 let spacing_label_port_vertical = self
                     .graph_property(&parent, LayeredOptions::SPACING_LABEL_PORT_VERTICAL)
-                    .unwrap_or(0.0);
+                    .unwrap_or(1.0);
                 let spacing_label_label = self
                     .graph_property(&parent, LayeredOptions::SPACING_LABEL_LABEL)
                     .unwrap_or(0.0);

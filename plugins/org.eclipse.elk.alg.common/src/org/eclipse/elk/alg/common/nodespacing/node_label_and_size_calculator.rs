@@ -1,7 +1,7 @@
-use org_eclipse_elk_core::org::eclipse::elk::core::math::{ElkPadding, KVector};
+use org_eclipse_elk_core::org::eclipse::elk::core::math::{ElkMargin, ElkPadding, KVector};
 use org_eclipse_elk_core::org::eclipse::elk::core::options::{
-    CoreOptions, Direction, NodeLabelPlacement, PortLabelPlacement, PortSide, SizeConstraint,
-    SizeOptions,
+    CoreOptions, Direction, NodeLabelPlacement, PortAlignment, PortConstraints, PortLabelPlacement,
+    PortSide, SizeConstraint, SizeOptions,
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::util::adapters::{
     GraphElementAdapter, NodeAdapter, PortAdapter,
@@ -1392,6 +1392,35 @@ impl NodeLabelAndSizeCalculator {
                 height_requested = true;
             }
 
+            // Apply port-driven minimum height for EAST/WEST ports. This mirrors Java's
+            // VerticalPortPlacementSizeCalculator which sets cell heights through the cell
+            // system. We only apply this when height_requested is already true (i.e., other
+            // size constraints like NodeLabels or MinimumSize are active) to avoid overriding
+            // the initial_node_size fallback for nodes that rely solely on PORTS constraint.
+            if size_constraints.contains(&SizeConstraint::Ports) && height_requested {
+                let port_constraints = node
+                    .get_property(CoreOptions::PORT_CONSTRAINTS)
+                    .unwrap_or(PortConstraints::Undefined);
+                if port_constraints != PortConstraints::FixedPos
+                    && port_constraints != PortConstraints::FixedRatio
+                {
+                    let east_height = Self::vertical_port_size_for_free_side(
+                        node,
+                        PortSide::East,
+                        &size_constraints,
+                        &port_labels_placement,
+                    );
+                    let west_height = Self::vertical_port_size_for_free_side(
+                        node,
+                        PortSide::West,
+                        &size_constraints,
+                        &port_labels_placement,
+                    );
+                    let port_height = east_height.max(west_height);
+                    required_height = required_height.max(port_height);
+                }
+            }
+
             if !width_requested {
                 required_width = initial_node_size.x;
             }
@@ -1611,6 +1640,168 @@ impl NodeLabelAndSizeCalculator {
                 inside_layout.node_label_padding
             );
         }
+    }
+
+    /// Computes the minimum height for ports on one side (EAST or WEST) assuming free port placement.
+    /// This mirrors Java's `VerticalPortPlacementSizeCalculator.calculateVerticalNodeSizeRequiredByFreePorts()`.
+    fn vertical_port_size_for_free_side<N, T>(
+        node: &N,
+        side: PortSide,
+        size_constraints: &EnumSet<SizeConstraint>,
+        port_labels_placement: &EnumSet<PortLabelPlacement>,
+    ) -> f64
+    where
+        T: 'static,
+        N: NodeAdapter<T>,
+        N::Graph: GraphElementAdapter<T>,
+        N::Label: 'static,
+        N::LabelAdapter: 'static,
+    {
+        let ports: Vec<_> = node
+            .get_ports()
+            .into_iter()
+            .filter(|p| p.get_side() == side)
+            .collect();
+        if ports.is_empty() {
+            return 0.0;
+        }
+
+        let port_port_spacing =
+            IndividualSpacings::get_individual_or_inherited_adapter(
+                node,
+                CoreOptions::SPACING_PORT_PORT,
+            )
+            .unwrap_or(10.0)
+            .max(0.0);
+        let surrounding: ElkMargin =
+            IndividualSpacings::get_individual_or_inherited_adapter(
+                node,
+                CoreOptions::SPACING_PORTS_SURROUNDING,
+            )
+            .unwrap_or_default();
+        let port_label_spacing_v =
+            IndividualSpacings::get_individual_or_inherited_adapter(
+                node,
+                CoreOptions::SPACING_LABEL_PORT_VERTICAL,
+            )
+            .unwrap_or(1.0);
+        let treat_as_group = node
+            .get_property(CoreOptions::PORT_LABELS_TREAT_AS_GROUP)
+            .unwrap_or(true);
+        let port_labels_outside = port_labels_placement.contains(&PortLabelPlacement::Outside);
+        let next_to_port_if_possible = port_labels_placement
+            .contains(&PortLabelPlacement::NextToPortIfPossible);
+        let always_same_side = port_labels_placement
+            .contains(&PortLabelPlacement::AlwaysSameSide);
+        let always_other_same_side = port_labels_placement
+            .contains(&PortLabelPlacement::AlwaysOtherSameSide);
+        let space_efficient = port_labels_placement.contains(&PortLabelPlacement::SpaceEfficient);
+        let space_efficient_port_labels =
+            !always_same_side && !always_other_same_side && (space_efficient || ports.len() == 2);
+
+        let include_port_labels = size_constraints.contains(&SizeConstraint::PortLabels);
+
+        // Determine if labels on this side are placed "next to port" (beside it vertically)
+        // For EAST/WEST ports with outside labels and NEXT_TO_PORT_IF_POSSIBLE, labels sit beside.
+        let labels_next_to_port = if port_labels_outside {
+            next_to_port_if_possible && (side == PortSide::East || side == PortSide::West)
+        } else {
+            // Inside labels on EAST/WEST are placed next to port
+            port_labels_placement.contains(&PortLabelPlacement::Inside)
+                && (side == PortSide::East || side == PortSide::West)
+        };
+
+        // Compute per-port top/bottom margins from labels
+        struct PortMargin {
+            top: f64,
+            bottom: f64,
+        }
+        let mut margins: Vec<PortMargin> = Vec::with_capacity(ports.len());
+
+        for port in &ports {
+            let mut margin = PortMargin {
+                top: 0.0,
+                bottom: 0.0,
+            };
+
+            if include_port_labels {
+                let labels = port.get_labels();
+                let label_height: f64 = if labels.is_empty() {
+                    0.0
+                } else {
+                    labels.iter().map(|l| l.get_size().y).sum::<f64>()
+                        + port_label_spacing_v * (labels.len() as f64 - 1.0).max(0.0)
+                };
+
+                if label_height > 0.0 {
+                    if labels_next_to_port {
+                        let port_height = port.get_size().y;
+                        if label_height > port_height {
+                            if treat_as_group || labels.len() == 1 {
+                                let overhang = (label_height - port_height) / 2.0;
+                                margin.top = overhang;
+                                margin.bottom = overhang;
+                            } else {
+                                let first_label_height = labels[0].get_size().y;
+                                let first_label_overhang =
+                                    (first_label_height - port_height) / 2.0;
+                                margin.top = first_label_overhang.max(0.0);
+                                margin.bottom =
+                                    label_height - first_label_overhang - port_height;
+                            }
+                        }
+                    } else {
+                        // Label placed below the port
+                        margin.bottom = port_label_spacing_v + label_height;
+                    }
+                }
+            }
+
+            margins.push(margin);
+        }
+
+        // For outside placement: topmost port margin.top = 0, bottommost port margin.bottom = 0
+        if port_labels_outside && !margins.is_empty() {
+            margins[0].top = 0.0;
+            let last = margins.len() - 1;
+            margins[last].bottom = 0.0;
+
+            // Space-efficient: if topmost port's labels are NOT next to port, clear its bottom margin
+            if space_efficient_port_labels && !labels_next_to_port {
+                margins[0].bottom = 0.0;
+            }
+        }
+
+        // Sum port heights + margins + inter-port spacing
+        let mut height = 0.0_f64;
+        for (i, port) in ports.iter().enumerate() {
+            height += margins[i].top + port.get_size().y + margins[i].bottom;
+            if i + 1 < ports.len() {
+                height += port_port_spacing;
+            }
+        }
+
+        // Add surrounding port margins (top/bottom for EAST/WEST)
+        let (surr_top, surr_bottom) = match side {
+            PortSide::East | PortSide::West => (surrounding.top, surrounding.bottom),
+            _ => (0.0, 0.0),
+        };
+        height += surr_top + surr_bottom;
+
+        // For DISTRIBUTED alignment, add 2 * port_port_spacing
+        let port_alignment = match side {
+            PortSide::East => node.get_property(CoreOptions::PORT_ALIGNMENT_EAST),
+            PortSide::West => node.get_property(CoreOptions::PORT_ALIGNMENT_WEST),
+            _ => None,
+        }
+        .or_else(|| node.get_property(CoreOptions::PORT_ALIGNMENT_DEFAULT))
+        .unwrap_or(PortAlignment::Justified);
+
+        if port_alignment == PortAlignment::Distributed {
+            height += 2.0 * port_port_spacing;
+        }
+
+        height
     }
 
     fn setup_inside_port_label_cell_minimums<N, T>(

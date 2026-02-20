@@ -35,13 +35,13 @@
 5. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
 ## 현재 핵심 스냅샷 (2026-02-20)
-- Full model parity(2026-02-20 최신 report): `matches=1142/1439`, `drift=297`, `total_diffs=5710`, `errors=0`, `timeouts=0`, `java_non_ok=9`
-- tickets parity(2026-02-20 최신): `matches=107/109`, `drift=2`, `total_diffs=40`, `errors=0`, `timeouts=0`, `java_non_ok=1`
+- Full model parity(2026-02-20 재측정): `matches=1117/1439`, `drift=322`, `errors=0`, `timeouts=0`, `java_non_ok=9`
+  - 이전 stored 결과(1142)는 구 빌드 기준으로 stale 상태였음. 현재 코드 기준 true baseline=1116, vertical port height fix 반영 후 1117.
+- tickets parity(2026-02-20 최신): `matches=107/109`, `drift=2`, `errors=0`, `timeouts=0`, `java_non_ok=1`
 - tickets 잔여 drift: `tickets/layered/213_componentsCompaction.elkt`, `tickets/layered/701_portLabels.elkt`
-- tickets full-diff(`--max-diffs-per-model 5000`) 기준 총 diff는 `264`이며, `701_portLabels` 단건 diff는 `139 -> 129`로 감소
-- `phase_focus_top_low_medium`(25): `matches=25`, `drift=0`, `total_diffs=0` (2026-02-19 재실행 유지)
 - 포팅/테스트/빌드/성능 자동화 파이프라인은 운영 상태
 - 현재 우선 작업: `Step M-5` high-impact drift 축소(중점 phase: `p2_layering`, `p5_edge_routing`)와 tickets 잔여 2건(`213`, `701`) 소거
+- 최근 fix: `VerticalPortPlacementSizeCalculator` 등가 구현 추가 (node_label_and_size_calculator.rs). `tests/core/node_size/inside_port_labels.elkt` 모델 3→0 diffs 수정.
 
 ## 구현 우선순위 스냅샷 (2026-02-20)
 - P1(구현 공백 제거, 완료): `IntermediateProcessorStrategy` NoOp 10개(`ConstraintsPostprocessor`, `HypernodeProcessor`, `EndNodePortLabelManagementProcessor`, `CenterLabelManagementProcessor`, `HighDegreeNodeLayerProcessor`, `AlternatingLayerUnzipper`, `SingleEdgeGraphWrapper`, `BreakingPointInserter`, `BreakingPointProcessor`, `BreakingPointRemover`)를 모두 실제 구현으로 연결 완료. 잔여 NoOp는 0개.

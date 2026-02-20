@@ -248,7 +248,7 @@ fn assert_below_or_right(port: ElkPortRef, context: &str) {
         let (port_x, port_y, port_w, port_h, port_id) = port_shape;
 
         let parent_id = {
-            let mut port_mut = port.borrow_mut();
+            let port_mut = port.borrow_mut();
             port_mut.parent().and_then(|parent| {
                 parent
                     .borrow_mut()
@@ -310,7 +310,7 @@ fn assert_above_or_left(port: ElkPortRef, context: &str) {
         let (port_x, port_y, port_w, port_h, port_id) = port_shape;
 
         let parent_id = {
-            let mut port_mut = port.borrow_mut();
+            let port_mut = port.borrow_mut();
             port_mut.parent().and_then(|parent| {
                 parent
                     .borrow_mut()

@@ -51,7 +51,6 @@ pub struct SelfHyperLoop {
     sl_labels: Option<SelfHyperLoopLabels>,
     self_loop_type: Option<SelfLoopType>,
     sl_ports_by_side: HashMap<PortSide, Vec<SelfLoopPortRef>>,
-    sl_ports_by_side_order: Vec<PortSide>,
     leftmost_port: Option<SelfLoopPortRef>,
     rightmost_port: Option<SelfLoopPortRef>,
     occupied_port_sides: HashSet<PortSide>,
@@ -66,7 +65,6 @@ impl SelfHyperLoop {
             sl_labels: None,
             self_loop_type: None,
             sl_ports_by_side: HashMap::new(),
-            sl_ports_by_side_order: Vec::new(),
             leftmost_port: None,
             rightmost_port: None,
             occupied_port_sides: HashSet::new(),
@@ -159,16 +157,12 @@ impl SelfHyperLoop {
 
     pub fn compute_ports_per_side(&mut self) {
         self.sl_ports_by_side.clear();
-        self.sl_ports_by_side_order.clear();
         let mut sides = HashSet::new();
 
         for sl_port in &self.sl_ports {
             let side = sl_port_side(sl_port);
             if side == PortSide::Undefined {
                 continue;
-            }
-            if !self.sl_ports_by_side_order.contains(&side) {
-                self.sl_ports_by_side_order.push(side);
             }
             self.sl_ports_by_side
                 .entry(side)
@@ -189,10 +183,6 @@ impl SelfHyperLoop {
             .get(&side)
             .cloned()
             .unwrap_or_default()
-    }
-
-    pub fn port_sides_in_insertion_order(&self) -> Vec<PortSide> {
-        self.sl_ports_by_side_order.clone()
     }
 
     pub fn leftmost_port(&self) -> Option<SelfLoopPortRef> {

@@ -438,9 +438,9 @@ impl NodeDimensionCalculation {
             let always_other_same_side =
                 placement.contains(&PortLabelPlacement::AlwaysOtherSameSide);
             let space_efficient = placement.contains(&PortLabelPlacement::SpaceEfficient);
-            let label_gap_horizontal = node
-                .get_property(CoreOptions::SPACING_LABEL_PORT_HORIZONTAL)
-                .unwrap_or(1.0);
+            let label_gap_horizontal_raw = node
+                .get_property(CoreOptions::SPACING_LABEL_PORT_HORIZONTAL);
+            let label_gap_horizontal = label_gap_horizontal_raw.unwrap_or(1.0);
             let label_gap_vertical = node
                 .get_property(CoreOptions::SPACING_LABEL_PORT_VERTICAL)
                 .unwrap_or(1.0);
@@ -563,6 +563,15 @@ impl NodeDimensionCalculation {
                 for (label_idx, label) in labels.iter().enumerate() {
                     let mut label_pos = label.get_position();
                     let label_size = label.get_size();
+                    // Java parity: for INSIDE labels, don't include port_border_offset
+                    // in the position formula.  Java's cell-based
+                    // simpleInsidePortLabelPlacement effectively uses 0 for the
+                    // computed border offset set by LGraphUtil.initializePort.
+                    let inside_pbo = if inside_label_placement {
+                        0.0
+                    } else {
+                        port_border_offset
+                    };
                     match port.get_side() {
                         PortSide::North => {
                             label_pos.x = match relation {
@@ -574,7 +583,7 @@ impl NodeDimensionCalculation {
                             };
                             if constrained_placement {
                                 label_pos.y = if inside_label_placement {
-                                    port_size.y + port_border_offset + label_border_offset
+                                    port_size.y + inside_pbo + label_border_offset
                                 } else {
                                     -label_size.y - label_gap_vertical
                                 };
@@ -590,7 +599,7 @@ impl NodeDimensionCalculation {
                             };
                             if constrained_placement {
                                 label_pos.y = if inside_label_placement {
-                                    -port_border_offset - label_border_offset - label_size.y
+                                    -inside_pbo - label_border_offset - label_size.y
                                 } else {
                                     port_size.y + label_gap_vertical
                                 };
@@ -599,7 +608,7 @@ impl NodeDimensionCalculation {
                         PortSide::East => {
                             if constrained_placement {
                                 label_pos.x = if inside_label_placement {
-                                    -port_border_offset - label_border_offset - label_size.x
+                                    -inside_pbo - label_border_offset - label_size.x
                                 } else {
                                     port_size.x + label_gap_horizontal
                                 };
@@ -620,7 +629,7 @@ impl NodeDimensionCalculation {
                         PortSide::West | PortSide::Undefined => {
                             if constrained_placement {
                                 label_pos.x = if inside_label_placement {
-                                    port_size.x + port_border_offset + label_border_offset
+                                    port_size.x + inside_pbo + label_border_offset
                                 } else {
                                     -label_size.x - label_gap_horizontal
                                 };

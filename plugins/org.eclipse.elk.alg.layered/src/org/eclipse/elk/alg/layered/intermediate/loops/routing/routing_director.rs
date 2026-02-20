@@ -5,6 +5,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use crate::org::eclipse::elk::alg::layered::intermediate::loops::{
     SelfLoopHolderRef, SelfLoopPortRef, SelfLoopType,
 };
+use crate::org::eclipse::elk::alg::layered::options::LayeredOptions;
 
 pub struct RoutingDirector;
 
@@ -25,6 +26,7 @@ impl RoutingDirector {
         for sl_loop in loops {
             if let Ok(mut sl_loop_guard) = sl_loop.lock() {
                 sl_loop_guard.sort_ports_by_id();
+                sl_loop_guard.compute_ports_per_side();
                 determine_loop_route(&mut sl_loop_guard, holder, &port_penalties);
                 compute_occupied_port_sides(&mut sl_loop_guard);
             }
@@ -44,7 +46,26 @@ fn assign_port_ids(holder: &SelfLoopHolderRef) {
         })
         .unwrap_or_default();
 
-    for (index, port) in ports.into_iter().enumerate() {
+    let mut ordered_ports: Vec<(
+        i32,
+        usize,
+        crate::org::eclipse::elk::alg::layered::graph::LPortRef,
+    )> = ports
+        .into_iter()
+        .enumerate()
+        .map(|(original_order, port)| {
+            let explicit_index = port
+                .lock()
+                .ok()
+                .and_then(|mut port_guard| port_guard.get_property(LayeredOptions::PORT_INDEX))
+                .unwrap_or(i32::MAX);
+            (explicit_index, original_order, port)
+        })
+        .collect();
+    ordered_ports
+        .sort_by_key(|(explicit_index, original_order, _)| (*explicit_index, *original_order));
+
+    for (index, (_, _, port)) in ordered_ports.into_iter().enumerate() {
         if let Ok(mut port_guard) = port.lock() {
             port_guard.shape().graph_element().id = index as i32;
         }
@@ -184,13 +205,104 @@ fn determine_two_side_opposing_route(
     let option2_penalty =
         compute_edge_penalty(holder, port_penalties, &option2_left, &option2_right);
 
-    if option1_penalty <= option2_penalty {
+    // Java parity for north/south-only opposing loops without east/west external pressure:
+    // route via EAST by default.
+    if is_north_south_pair(&sides)
+        && !has_connected_port_on_side(holder, PortSide::East)
+        && !has_connected_port_on_side(holder, PortSide::West)
+    {
+        let option1_uses_east = route_contains_side(
+            sl_port_side(&option1_left),
+            sl_port_side(&option1_right),
+            PortSide::East,
+        );
+        if option1_uses_east {
+            sl_loop.set_leftmost_port(Some(option1_left));
+            sl_loop.set_rightmost_port(Some(option1_right));
+        } else {
+            sl_loop.set_leftmost_port(Some(option2_left));
+            sl_loop.set_rightmost_port(Some(option2_right));
+        }
+        return;
+    }
+
+    if option1_penalty < option2_penalty {
+        sl_loop.set_leftmost_port(Some(option1_left));
+        sl_loop.set_rightmost_port(Some(option1_right));
+        return;
+    }
+    if option2_penalty < option1_penalty {
+        sl_loop.set_leftmost_port(Some(option2_left));
+        sl_loop.set_rightmost_port(Some(option2_right));
+        return;
+    }
+
+    // Java parity: opposing-side ties are effectively biased towards top/left routing.
+    // Choose the option whose clockwise intermediate side is preferred.
+    let option1_mid = sides[0].right();
+    let option2_mid = sides[1].right();
+    if opposing_tie_break_rank(option1_mid) <= opposing_tie_break_rank(option2_mid) {
         sl_loop.set_leftmost_port(Some(option1_left));
         sl_loop.set_rightmost_port(Some(option1_right));
     } else {
         sl_loop.set_leftmost_port(Some(option2_left));
         sl_loop.set_rightmost_port(Some(option2_right));
     }
+}
+
+fn opposing_tie_break_rank(side: PortSide) -> i32 {
+    match side {
+        PortSide::North => 0,
+        PortSide::West => 1,
+        PortSide::South => 2,
+        PortSide::East => 3,
+        PortSide::Undefined => 4,
+    }
+}
+
+fn is_north_south_pair(sides: &[PortSide]) -> bool {
+    sides.len() == 2
+        && sides.contains(&PortSide::North)
+        && sides.contains(&PortSide::South)
+}
+
+fn route_contains_side(left_side: PortSide, right_side: PortSide, side: PortSide) -> bool {
+    if left_side == PortSide::Undefined || right_side == PortSide::Undefined {
+        return false;
+    }
+    let mut current = left_side;
+    for _ in 0..4 {
+        if current == side {
+            return true;
+        }
+        if current == right_side {
+            break;
+        }
+        current = current.right();
+    }
+    false
+}
+
+fn has_connected_port_on_side(holder: &SelfLoopHolderRef, side: PortSide) -> bool {
+    holder
+        .lock()
+        .ok()
+        .and_then(|holder_guard| {
+            holder_guard
+                .l_node()
+                .lock()
+                .ok()
+                .map(|node_guard| node_guard.ports().clone())
+        })
+        .unwrap_or_default()
+        .into_iter()
+        .any(|port| {
+            port.lock().ok().is_some_and(|port_guard| {
+                port_guard.side() == side
+                    && (!port_guard.incoming_edges().is_empty()
+                        || !port_guard.outgoing_edges().is_empty())
+            })
+        })
 }
 
 fn determine_three_side_route(
@@ -323,19 +435,14 @@ fn highest_port_on_side(
 fn loop_sides(
     sl_loop: &crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfHyperLoop,
 ) -> Vec<PortSide> {
-    let sides = sl_loop.port_sides_in_insertion_order();
-    if !sides.is_empty() {
-        return sides;
-    }
-
-    let mut fallback = Vec::new();
+    let mut sides = Vec::new();
     for sl_port in sl_loop.sl_ports() {
         let side = sl_port_side(sl_port);
-        if side != PortSide::Undefined && !fallback.contains(&side) {
-            fallback.push(side);
+        if side != PortSide::Undefined && !sides.contains(&side) {
+            sides.push(side);
         }
     }
-    fallback
+    sides
 }
 
 fn compute_port_penalties(holder: &SelfLoopHolderRef) -> Vec<i32> {
