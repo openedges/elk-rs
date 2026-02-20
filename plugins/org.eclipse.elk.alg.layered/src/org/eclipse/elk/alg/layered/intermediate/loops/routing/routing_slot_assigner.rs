@@ -35,16 +35,21 @@ impl RoutingSlotAssigner {
 
         assign_raw_routing_slots_to_segments(&hyper_edge_segments);
         assign_raw_routing_slots_to_loops(holder, &sl_loop_to_segment_map);
-        // Java parity: update holder counts BEFORE shift phase.
-        // Java's setRoutingSlot() does Math.max inline, so holder reflects raw (max) slots.
-        // The shift phase only lowers slots, so Java's max is always the raw phase max.
-        update_holder_routing_slot_count(holder);
+        // Java parity: update holder counts AFTER shift phase.
+        // Java's setRoutingSlot() updates routingSlotCount inline on every call (both raw and shift phases).
+        // The shift phase can INCREASE slots (e.g., when a loop's activity range spans ports used by
+        // other sides, nextFreeRoutingSlotAtPort gets incremented and forces a higher slot on the current
+        // side). Calling update_holder_routing_slot_count before shift captures pre-shift slots that may
+        // be lower than the final slots, causing routing_slot_positions to have fewer entries than needed
+        // and base_vector() to return 0.0 for out-of-bounds slot indices.
         shift_towards_node(
             holder,
             &label_crossing_matrix,
             &label_id_by_loop,
             &sl_loop_activity_over_ports,
         );
+        // Must be called AFTER shift_towards_node to capture final (potentially increased) slot values.
+        update_holder_routing_slot_count(holder);
     }
 }
 

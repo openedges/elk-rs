@@ -5,7 +5,6 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use crate::org::eclipse::elk::alg::layered::intermediate::loops::{
     SelfLoopHolderRef, SelfLoopPortRef, SelfLoopType,
 };
-use crate::org::eclipse::elk::alg::layered::options::LayeredOptions;
 
 pub struct RoutingDirector;
 
@@ -35,6 +34,10 @@ impl RoutingDirector {
 }
 
 fn assign_port_ids(holder: &SelfLoopHolderRef) {
+    // Java parity: assignPortIds assigns IDs by list position (0, 1, 2, ...).
+    // Java's port list is sorted by side+position (from NodePortSorter earlier in the pipeline).
+    // Rust MUST NOT sort by PORT_INDEX here - that changes which "column" each port occupies
+    // in nextFreeRoutingSlotAtPort, causing incorrect slot assignments in shiftTowardsNode.
     let ports = holder
         .lock()
         .ok()
@@ -46,26 +49,7 @@ fn assign_port_ids(holder: &SelfLoopHolderRef) {
         })
         .unwrap_or_default();
 
-    let mut ordered_ports: Vec<(
-        i32,
-        usize,
-        crate::org::eclipse::elk::alg::layered::graph::LPortRef,
-    )> = ports
-        .into_iter()
-        .enumerate()
-        .map(|(original_order, port)| {
-            let explicit_index = port
-                .lock()
-                .ok()
-                .and_then(|mut port_guard| port_guard.get_property(LayeredOptions::PORT_INDEX))
-                .unwrap_or(i32::MAX);
-            (explicit_index, original_order, port)
-        })
-        .collect();
-    ordered_ports
-        .sort_by_key(|(explicit_index, original_order, _)| (*explicit_index, *original_order));
-
-    for (index, (_, _, port)) in ordered_ports.into_iter().enumerate() {
+    for (index, port) in ports.into_iter().enumerate() {
         if let Ok(mut port_guard) = port.lock() {
             port_guard.shape().graph_element().id = index as i32;
         }

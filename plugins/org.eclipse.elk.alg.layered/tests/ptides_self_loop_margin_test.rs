@@ -341,3 +341,206 @@ fn east_west_fixedpos_self_loop_detected_as_two_sides_opposing() {
         "EAST->WEST self-loop should be TwoSidesOpposing, got {sl_loop_type:?}"
     );
 }
+
+/// Diagnostic test: dump intermediate state after each stage to identify where margin.left fails to extend
+#[test]
+fn debug_trace_margin_extension() {
+    init_layered_metadata();
+
+    let graph = LGraph::new();
+    let node = LNode::new(&graph);
+    {
+        let mut node_guard = node.lock().expect("node lock");
+        node_guard.shape().size().x = 121.0;
+        node_guard.shape().size().y = 30.0;
+        node_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::FixedPos));
+        node_guard.set_property(LayeredOptions::EDGE_ROUTING, Some(EdgeRouting::Orthogonal));
+        node_guard.margin().left = 8.0;
+    }
+    graph.lock().expect("graph lock").layerless_nodes_mut().push(node.clone());
+
+    let p33 = LPort::new();
+    {
+        let mut p = p33.lock().expect("p33 lock");
+        p.set_side(PortSide::East);
+        p.shape().position().x = 113.0;
+        p.shape().position().y = 7.0;
+        p.shape().size().x = 8.0;
+        p.shape().size().y = 8.0;
+        p.set_property(LayeredOptions::PORT_INDEX, Some(-1i32));
+    }
+    LPort::set_node(&p33, Some(node.clone()));
+
+    let p32 = LPort::new();
+    {
+        let mut p = p32.lock().expect("p32 lock");
+        p.set_side(PortSide::West);
+        p.shape().position().x = -8.0;
+        p.shape().position().y = 7.0;
+        p.shape().size().x = 8.0;
+        p.shape().size().y = 8.0;
+        p.set_property(LayeredOptions::PORT_INDEX, Some(0i32));
+    }
+    LPort::set_node(&p32, Some(node.clone()));
+
+    let p34 = LPort::new();
+    {
+        let mut p = p34.lock().expect("p34 lock");
+        p.set_side(PortSide::West);
+        p.shape().position().x = -8.0;
+        p.shape().position().y = 15.0;
+        p.shape().size().x = 8.0;
+        p.shape().size().y = 8.0;
+        p.set_property(LayeredOptions::PORT_INDEX, Some(2i32));
+    }
+    LPort::set_node(&p34, Some(node.clone()));
+
+    let p35 = LPort::new();
+    {
+        let mut p = p35.lock().expect("p35 lock");
+        p.set_side(PortSide::East);
+        p.shape().position().x = 113.0;
+        p.shape().position().y = 15.0;
+        p.shape().size().x = 8.0;
+        p.shape().size().y = 8.0;
+        p.set_property(LayeredOptions::PORT_INDEX, Some(3i32));
+    }
+    LPort::set_node(&p35, Some(node.clone()));
+
+    let e21 = LEdge::new();
+    LEdge::set_source(&e21, Some(p33.clone()));
+    LEdge::set_target(&e21, Some(p34.clone()));
+
+    let external = LNode::new(&graph);
+    {
+        let mut ext_guard = external.lock().expect("ext lock");
+        ext_guard.shape().size().x = 20.0;
+        ext_guard.shape().size().y = 20.0;
+    }
+    graph.lock().expect("graph lock").layerless_nodes_mut().push(external.clone());
+
+    let ext_east = LPort::new();
+    {
+        let mut p = ext_east.lock().expect("ext_east lock");
+        p.set_side(PortSide::East);
+        p.shape().position().x = 20.0;
+        p.shape().position().y = 10.0;
+        p.shape().size().x = 8.0;
+        p.shape().size().y = 8.0;
+    }
+    LPort::set_node(&ext_east, Some(external.clone()));
+    let ext_west = LPort::new();
+    {
+        let mut p = ext_west.lock().expect("ext_west lock");
+        p.set_side(PortSide::West);
+        p.shape().position().x = 0.0;
+        p.shape().position().y = 10.0;
+        p.shape().size().x = 8.0;
+        p.shape().size().y = 8.0;
+    }
+    LPort::set_node(&ext_west, Some(external.clone()));
+
+    let _e_p32 = {
+        let e = LEdge::new();
+        LEdge::set_source(&e, Some(p32.clone()));
+        LEdge::set_target(&e, Some(ext_west.clone()));
+        e
+    };
+    let _e_p35 = {
+        let e = LEdge::new();
+        LEdge::set_source(&e, Some(ext_east.clone()));
+        LEdge::set_target(&e, Some(p35.clone()));
+        e
+    };
+
+    // Check initial state
+    {
+        let is_self_loop = e21.lock().expect("e21 lock").is_self_loop();
+        eprintln!("[DIAG] e21.is_self_loop() before preprocessor = {}", is_self_loop);
+        let node_guard = node.lock().expect("node lock");
+        eprintln!("[DIAG] node.outgoing_edges().len() = {}", node_guard.outgoing_edges().len());
+        eprintln!("[DIAG] node.ports().len() = {}", node_guard.ports().len());
+    }
+
+    let mut pre = SelfLoopPreProcessor;
+    run_processor(&mut pre, &graph);
+
+    {
+        use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::InternalProperties;
+        let holder = node.lock().expect("node lock").get_property(InternalProperties::SELF_LOOP_HOLDER);
+        eprintln!("[DIAG] After preprocessor: has_holder = {}", holder.is_some());
+        if let Some(holder) = holder {
+            let holder_guard = holder.lock().expect("holder lock");
+            let loops = holder_guard.sl_hyper_loops();
+            eprintln!("[DIAG] sl_hyper_loops.len() = {}", loops.len());
+            for (i, sl_loop) in loops.iter().enumerate() {
+                let loop_guard = sl_loop.lock().expect("loop lock");
+                eprintln!("[DIAG] loop[{}]: sl_edges.len()={}, sl_ports.len()={}, self_loop_type={:?}",
+                    i, loop_guard.sl_edges().len(), loop_guard.sl_ports().len(), loop_guard.self_loop_type());
+                eprintln!("[DIAG] loop[{}]: occupied_port_sides={:?}", i, loop_guard.occupied_port_sides());
+            }
+        }
+    }
+
+    let layer = Layer::new(&graph);
+    graph.lock().expect("graph lock").layers_mut().push(layer.clone());
+    LNode::set_layer(&node, Some(layer));
+    graph.lock().expect("graph lock").layerless_nodes_mut().retain(|candidate| !Arc::ptr_eq(candidate, &node));
+
+    let mut restorer = SelfLoopPortRestorer;
+    run_processor(&mut restorer, &graph);
+
+    {
+        use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::InternalProperties;
+        let holder = node.lock().expect("node lock").get_property(InternalProperties::SELF_LOOP_HOLDER);
+        if let Some(holder) = holder {
+            let holder_guard = holder.lock().expect("holder lock");
+            let loops = holder_guard.sl_hyper_loops();
+            eprintln!("[DIAG] After restorer: sl_hyper_loops.len() = {}", loops.len());
+            for (i, sl_loop) in loops.iter().enumerate() {
+                let loop_guard = sl_loop.lock().expect("loop lock");
+                eprintln!("[DIAG] loop[{}]: self_loop_type={:?}, sl_edges.len()={}", i, loop_guard.self_loop_type(), loop_guard.sl_edges().len());
+            }
+            eprintln!("[DIAG] holder.routing_slot_count = {:?}", holder_guard.routing_slot_count());
+        }
+    }
+
+    let mut router = SelfLoopRouter;
+    run_processor(&mut router, &graph);
+
+    {
+        use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::InternalProperties;
+        use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide as PS;
+        let holder = node.lock().expect("node lock after router").get_property(InternalProperties::SELF_LOOP_HOLDER);
+        if let Some(holder) = holder {
+            let holder_guard = holder.lock().expect("holder lock after router");
+            eprintln!("[DIAG] After router: holder.routing_slot_count = {:?}", holder_guard.routing_slot_count());
+            let loops = holder_guard.sl_hyper_loops();
+            for (i, sl_loop) in loops.iter().enumerate() {
+                let loop_guard = sl_loop.lock().expect("loop lock after router");
+                eprintln!("[DIAG2] loop[{}]: occupied_port_sides={:?}", i, loop_guard.occupied_port_sides());
+                eprintln!("[DIAG2] loop[{}]: routing_slots N={} E={} S={} W={}",
+                    i,
+                    loop_guard.routing_slot(PS::North),
+                    loop_guard.routing_slot(PS::East),
+                    loop_guard.routing_slot(PS::South),
+                    loop_guard.routing_slot(PS::West),
+                );
+                if let Some(lp) = loop_guard.leftmost_port() {
+                    let side = lp.lock().ok().and_then(|pg| pg.l_port().lock().ok().map(|l| l.side())).unwrap_or(PS::Undefined);
+                    eprintln!("[DIAG2] loop[{}]: leftmost_side={:?}", i, side);
+                }
+                if let Some(rp) = loop_guard.rightmost_port() {
+                    let side = rp.lock().ok().and_then(|pg| pg.l_port().lock().ok().map(|l| l.side())).unwrap_or(PS::Undefined);
+                    eprintln!("[DIAG2] loop[{}]: rightmost_side={:?}", i, side);
+                }
+            }
+        }
+    }
+
+    let margin_left = node.lock().expect("node lock").margin().left;
+    eprintln!("[DIAG] After router: margin.left = {}", margin_left);
+
+    // Just print, don't assert, to see full trace
+    eprintln!("[DIAG] Expected margin.left = 18.0");
+}
