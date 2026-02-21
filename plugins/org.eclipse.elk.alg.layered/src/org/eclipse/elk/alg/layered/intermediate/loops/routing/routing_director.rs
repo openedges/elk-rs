@@ -189,27 +189,6 @@ fn determine_two_side_opposing_route(
     let option2_penalty =
         compute_edge_penalty(holder, port_penalties, &option2_left, &option2_right);
 
-    // Java parity for north/south-only opposing loops without east/west external pressure:
-    // route via EAST by default.
-    if is_north_south_pair(&sides)
-        && !has_connected_port_on_side(holder, PortSide::East)
-        && !has_connected_port_on_side(holder, PortSide::West)
-    {
-        let option1_uses_east = route_contains_side(
-            sl_port_side(&option1_left),
-            sl_port_side(&option1_right),
-            PortSide::East,
-        );
-        if option1_uses_east {
-            sl_loop.set_leftmost_port(Some(option1_left));
-            sl_loop.set_rightmost_port(Some(option1_right));
-        } else {
-            sl_loop.set_leftmost_port(Some(option2_left));
-            sl_loop.set_rightmost_port(Some(option2_right));
-        }
-        return;
-    }
-
     if option1_penalty < option2_penalty {
         sl_loop.set_leftmost_port(Some(option1_left));
         sl_loop.set_rightmost_port(Some(option1_right));
@@ -244,50 +223,6 @@ fn opposing_tie_break_rank(side: PortSide) -> i32 {
     }
 }
 
-fn is_north_south_pair(sides: &[PortSide]) -> bool {
-    sides.len() == 2
-        && sides.contains(&PortSide::North)
-        && sides.contains(&PortSide::South)
-}
-
-fn route_contains_side(left_side: PortSide, right_side: PortSide, side: PortSide) -> bool {
-    if left_side == PortSide::Undefined || right_side == PortSide::Undefined {
-        return false;
-    }
-    let mut current = left_side;
-    for _ in 0..4 {
-        if current == side {
-            return true;
-        }
-        if current == right_side {
-            break;
-        }
-        current = current.right();
-    }
-    false
-}
-
-fn has_connected_port_on_side(holder: &SelfLoopHolderRef, side: PortSide) -> bool {
-    holder
-        .lock()
-        .ok()
-        .and_then(|holder_guard| {
-            holder_guard
-                .l_node()
-                .lock()
-                .ok()
-                .map(|node_guard| node_guard.ports().clone())
-        })
-        .unwrap_or_default()
-        .into_iter()
-        .any(|port| {
-            port.lock().ok().is_some_and(|port_guard| {
-                port_guard.side() == side
-                    && (!port_guard.incoming_edges().is_empty()
-                        || !port_guard.outgoing_edges().is_empty())
-            })
-        })
-}
 
 fn determine_three_side_route(
     sl_loop: &mut crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfHyperLoop,
