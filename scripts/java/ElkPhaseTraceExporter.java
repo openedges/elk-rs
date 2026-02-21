@@ -142,6 +142,7 @@ public class ElkPhaseTraceExporter {
                 ctor.setAccessible(true);
                 Object graphImporter = ctor.newInstance();
                 Method importMethod = importerClass.getMethod("importGraph", ElkNode.class);
+                importMethod.setAccessible(true);
                 LGraph lgraph = (LGraph) importMethod.invoke(graphImporter, reimportedGraph);
 
                 // Prepare test execution
@@ -573,6 +574,12 @@ public class ElkPhaseTraceExporter {
     // ========================== File I/O Utilities ==========================
 
     private static ElkNode loadGraph(final Path modelFile) throws IOException {
+        String content = new String(Files.readAllBytes(modelFile), StandardCharsets.UTF_8);
+        if (modelFile.toString().endsWith(".json")) {
+            // Load from JSON (preferred - avoids Xtext dependency)
+            return ElkGraphJson.forGraph(content).toElk();
+        }
+        // For .elkt/.elkg files, try EMF ResourceSet (requires Xtext)
         ResourceSet resourceSet = new ResourceSetImpl();
         Resource resource = resourceSet.getResource(
                 URI.createFileURI(modelFile.toString()), true);
@@ -619,7 +626,7 @@ public class ElkPhaseTraceExporter {
 
     private static boolean isSupportedModelFile(final Path path) {
         String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
-        return name.endsWith(".elkt") || name.endsWith(".elkg");
+        return name.endsWith(".elkt") || name.endsWith(".elkg") || name.endsWith(".json");
     }
 
     private static boolean matchesIncludeTokens(

@@ -473,85 +473,14 @@ impl<'a> ElkGraphImporter<'a> {
             return;
         };
 
-        let has_children = {
-            let mut node_ref = elkgraph.borrow_mut();
-            !node_ref.children().is_empty()
-        };
-        let skip_port_min_for_compound_ports_port_labels = has_children
-            && size_constraints.contains(&SizeConstraint::Ports)
-            && size_constraints.contains(&SizeConstraint::PortLabels)
-            && size_constraints.len() == 2;
-        if size_constraints.contains(&SizeConstraint::Ports)
-            && !skip_port_min_for_compound_ports_port_labels
-        {
-            let port_spacing = self
-                .graph_property(elkgraph, CoreOptions::SPACING_PORT_PORT)
-                .unwrap_or(10.0);
-            let ports: Vec<ElkPortRef> = {
-                let mut node_mut = elkgraph.borrow_mut();
-                node_mut.ports().iter().cloned().collect()
-            };
-
-            let mut north_total = 0.0;
-            let mut east_total = 0.0;
-            let mut south_total = 0.0;
-            let mut west_total = 0.0;
-            let mut north_count = 0usize;
-            let mut east_count = 0usize;
-            let mut south_count = 0usize;
-            let mut west_count = 0usize;
-
-            for port in ports {
-                let (side, width, height) = {
-                    let mut port_mut = port.borrow_mut();
-                    let side = port_mut
-                        .connectable()
-                        .shape()
-                        .graph_element()
-                        .properties_mut()
-                        .get_property(CoreOptions::PORT_SIDE)
-                        .unwrap_or(PortSide::Undefined);
-                    let shape = port_mut.connectable().shape();
-                    (side, shape.width(), shape.height())
-                };
-
-                match side {
-                    PortSide::North => {
-                        north_total += width;
-                        north_count += 1;
-                    }
-                    PortSide::East => {
-                        east_total += height;
-                        east_count += 1;
-                    }
-                    PortSide::South => {
-                        south_total += width;
-                        south_count += 1;
-                    }
-                    PortSide::West => {
-                        west_total += height;
-                        west_count += 1;
-                    }
-                    PortSide::Undefined => {}
-                }
-            }
-
-            let side_required_span = |total: f64, count: usize| -> f64 {
-                if count == 0 {
-                    0.0
-                } else {
-                    total + port_spacing * (count as f64 + 1.0)
-                }
-            };
-
-            let vertical_port_min = side_required_span(west_total, west_count)
-                .max(side_required_span(east_total, east_count));
-            let horizontal_port_min = side_required_span(north_total, north_count)
-                .max(side_required_span(south_total, south_count));
-
-            min_size.x = min_size.x.max(horizontal_port_min);
-            min_size.y = min_size.y.max(vertical_port_min);
-        }
+        // Match Java: use the full cell system to calculate minimum size
+        let layout_direction = self
+            .graph_property(elkgraph, CoreOptions::DIRECTION)
+            .unwrap_or(Direction::Right);
+        let node_adapter = ElkGraphAdapters::adapt_single_node(elkgraph.clone());
+        let calculated_min = NodeLabelAndSizeCalculator::process(&node_adapter, layout_direction);
+        min_size.x = min_size.x.max(calculated_min.x);
+        min_size.y = min_size.y.max(calculated_min.y);
 
         size_constraints.insert(SizeConstraint::MinimumSize);
 

@@ -229,7 +229,12 @@ impl MapPropertyHolder {
         if let Some(value) = self.property_map.get(property.id()) {
             match value {
                 PropertyValue::Resolved(value) => {
-                    let typed = value.clone().downcast::<T>().ok()?;
+                    let downcast_result = value.clone().downcast::<T>();
+                    if downcast_result.is_err() && std::env::var("ELK_TRACE_SIZING").is_ok() {
+                        eprintln!("TRACE get_property DOWNCAST FAIL: id={} expected_type={} actual_type_id={:?}",
+                            property.id(), std::any::type_name::<T>(), (**value).type_id());
+                    }
+                    let typed = downcast_result.ok()?;
                     return Some((*typed).clone());
                 }
                 PropertyValue::Proxy(proxy) => {

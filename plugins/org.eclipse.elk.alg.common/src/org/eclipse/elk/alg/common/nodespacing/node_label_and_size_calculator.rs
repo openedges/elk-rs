@@ -1320,6 +1320,12 @@ impl NodeLabelAndSizeCalculator {
         let size_constraints = node
             .get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)
             .unwrap_or_default();
+        if std::env::var("ELK_TRACE_SIZING").is_ok() {
+            let label_count = node.get_labels().len();
+            let sz = node.get_size();
+            eprintln!("TRACE process_node: labels={} size=({},{}) size_constraints={:?} compound={}",
+                label_count, sz.x, sz.y, size_constraints, node.is_compound_node());
+        }
         let size_options = node
             .get_property(CoreOptions::NODE_SIZE_OPTIONS)
             .unwrap_or_default();

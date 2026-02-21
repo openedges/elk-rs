@@ -345,6 +345,10 @@ impl ElkUtil {
             }
         }
 
+        if std::env::var("ELK_TRACE_SIZING").is_ok() {
+            eprintln!("TRACE resize_node_with: old=({:.1},{:.1}) input=({:.1},{:.1}) new=({:.1},{:.1})",
+                old_size.x, old_size.y, new_width, new_height, new_size.x, new_size.y);
+        }
         {
             let mut node_mut = node.borrow_mut();
             node_mut

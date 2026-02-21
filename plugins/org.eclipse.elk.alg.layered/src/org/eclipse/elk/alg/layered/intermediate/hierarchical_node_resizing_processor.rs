@@ -501,6 +501,13 @@ fn resize_graph(lgraph: &mut LGraph) {
         adjusted_size.y = adjusted_size.y.max(min_size.y);
     }
 
+    if std::env::var("ELK_TRACE_SIZING").is_ok() {
+        let min_size = lgraph.get_property_ref(LayeredOptions::NODE_SIZE_MINIMUM).unwrap_or_default();
+        let padding = lgraph.padding_ref().clone();
+        eprintln!("TRACE resize_graph: constraints={:?} calculated_size=({:.1},{:.1}) adjusted_size=({:.1},{:.1}) min_size=({:.1},{:.1}) padding=({:.1},{:.1},{:.1},{:.1})",
+            size_constraint, calculated_size.x, calculated_size.y, adjusted_size.x, adjusted_size.y,
+            min_size.x, min_size.y, padding.left, padding.top, padding.right, padding.bottom);
+    }
     resize_graph_no_really_i_mean_it(lgraph, &calculated_size, &adjusted_size);
 }
 
