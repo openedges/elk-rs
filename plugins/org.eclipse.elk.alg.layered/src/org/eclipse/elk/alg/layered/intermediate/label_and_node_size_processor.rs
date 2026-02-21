@@ -1023,7 +1023,17 @@ fn place_ports_on_side(
 
     let (surrounding_start, surrounding_end) = match side {
         PortSide::North | PortSide::South => (surrounding_spacing.left, surrounding_spacing.right),
-        PortSide::East | PortSide::West => (surrounding_spacing.top, surrounding_spacing.bottom),
+        PortSide::East | PortSide::West => {
+            // Java parity: The cell system's updateVerticalInsidePortLabelCellPadding
+            // always reduces EAST/WEST cell padding by topBorderOffset which includes
+            // portLabelSpacingVertical from the NORTH/SOUTH cell padding.
+            // This applies regardless of port label placement (inside/outside).
+            let border_offset = label_port_spacing_vertical;
+            (
+                (surrounding_spacing.top - border_offset).max(0.0),
+                (surrounding_spacing.bottom - border_offset).max(0.0),
+            )
+        }
         PortSide::Undefined => (0.0, 0.0),
     };
     let ordered_ports: Vec<_> = match side {
@@ -1675,9 +1685,19 @@ fn required_axis_length_for_side(
         CoreOptions::SPACING_PORTS_SURROUNDING,
         graph_ports_surrounding.clone(),
     );
+    let label_port_spacing_vertical = node_guard
+        .get_property(CoreOptions::SPACING_LABEL_PORT_VERTICAL)
+        .unwrap_or(1.0);
     let (surrounding_start, surrounding_end) = match side {
         PortSide::North | PortSide::South => (surrounding_spacing.left, surrounding_spacing.right),
-        PortSide::East | PortSide::West => (surrounding_spacing.top, surrounding_spacing.bottom),
+        PortSide::East | PortSide::West => {
+            // Java parity: cell system reduces EAST/WEST surrounding by portLabelSpacingVertical
+            let border_offset = label_port_spacing_vertical;
+            (
+                (surrounding_spacing.top - border_offset).max(0.0),
+                (surrounding_spacing.bottom - border_offset).max(0.0),
+            )
+        }
         PortSide::Undefined => (0.0, 0.0),
     };
 
@@ -1784,9 +1804,19 @@ fn required_inside_port_axis_for_side(
         CoreOptions::SPACING_PORTS_SURROUNDING,
         graph_ports_surrounding.clone(),
     );
+    let label_port_spacing_vertical = node_guard
+        .get_property(CoreOptions::SPACING_LABEL_PORT_VERTICAL)
+        .unwrap_or(1.0);
     let (surrounding_start, surrounding_end) = match side {
         PortSide::North | PortSide::South => (surrounding_spacing.left, surrounding_spacing.right),
-        PortSide::East | PortSide::West => (surrounding_spacing.top, surrounding_spacing.bottom),
+        PortSide::East | PortSide::West => {
+            // Java parity: cell system reduces EAST/WEST surrounding by portLabelSpacingVertical
+            let border_offset = label_port_spacing_vertical;
+            (
+                (surrounding_spacing.top - border_offset).max(0.0),
+                (surrounding_spacing.bottom - border_offset).max(0.0),
+            )
+        }
         PortSide::Undefined => (0.0, 0.0),
     };
 

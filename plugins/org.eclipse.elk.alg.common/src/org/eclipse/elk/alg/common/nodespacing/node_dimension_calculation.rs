@@ -215,15 +215,15 @@ impl NodeDimensionCalculation {
                         port.get_side(),
                         PortSide::East | PortSide::West | PortSide::Undefined
                     ) {
-                    if inside_label_placement {
-                        (port_size.y - total_label_height) / 2.0
-                    } else {
-                        match relation {
-                            LabelPlacementRelation::BelowOrRight => port_size.y + 1.0,
-                            LabelPlacementRelation::AboveOrLeft => -total_label_height - 1.0,
-                            LabelPlacementRelation::Centered => {
-                                (port_size.y - total_label_height) / 2.0
-                            }
+                    match relation {
+                        LabelPlacementRelation::BelowOrRight => {
+                            port_size.y + label_gap_vertical
+                        }
+                        LabelPlacementRelation::AboveOrLeft => {
+                            -total_label_height - label_gap_vertical
+                        }
+                        LabelPlacementRelation::Centered => {
+                            (port_size.y - total_label_height) / 2.0
                         }
                     }
                 } else {
@@ -281,8 +281,12 @@ impl NodeDimensionCalculation {
                                     LabelPlacementRelation::Centered => {
                                         (port_size.y - label_size.y) / 2.0
                                     }
-                                    LabelPlacementRelation::BelowOrRight => port_size.y + 1.0,
-                                    LabelPlacementRelation::AboveOrLeft => -label_size.y - 1.0,
+                                    LabelPlacementRelation::BelowOrRight => {
+                                        port_size.y + label_gap_vertical
+                                    }
+                                    LabelPlacementRelation::AboveOrLeft => {
+                                        -label_size.y - label_gap_vertical
+                                    }
                                 };
                             }
                         }
@@ -302,8 +306,12 @@ impl NodeDimensionCalculation {
                                     LabelPlacementRelation::Centered => {
                                         (port_size.y - label_size.y) / 2.0
                                     }
-                                    LabelPlacementRelation::BelowOrRight => port_size.y + 1.0,
-                                    LabelPlacementRelation::AboveOrLeft => -label_size.y - 1.0,
+                                    LabelPlacementRelation::BelowOrRight => {
+                                        port_size.y + label_gap_vertical
+                                    }
+                                    LabelPlacementRelation::AboveOrLeft => {
+                                        -label_size.y - label_gap_vertical
+                                    }
                                 };
                             }
                         }
@@ -547,15 +555,15 @@ impl NodeDimensionCalculation {
                         port.get_side(),
                         PortSide::East | PortSide::West | PortSide::Undefined
                     ) {
-                    if inside_label_placement {
-                        (port_size.y - total_label_height) / 2.0
-                    } else {
-                        match relation {
-                            LabelPlacementRelation::BelowOrRight => port_size.y + 1.0,
-                            LabelPlacementRelation::AboveOrLeft => -total_label_height - 1.0,
-                            LabelPlacementRelation::Centered => {
-                                (port_size.y - total_label_height) / 2.0
-                            }
+                    match relation {
+                        LabelPlacementRelation::BelowOrRight => {
+                            port_size.y + label_gap_vertical
+                        }
+                        LabelPlacementRelation::AboveOrLeft => {
+                            -total_label_height - label_gap_vertical
+                        }
+                        LabelPlacementRelation::Centered => {
+                            (port_size.y - total_label_height) / 2.0
                         }
                     }
                 } else {
@@ -623,8 +631,12 @@ impl NodeDimensionCalculation {
                                     LabelPlacementRelation::Centered => {
                                         (port_size.y - label_size.y) / 2.0
                                     }
-                                    LabelPlacementRelation::BelowOrRight => port_size.y + 1.0,
-                                    LabelPlacementRelation::AboveOrLeft => -label_size.y - 1.0,
+                                    LabelPlacementRelation::BelowOrRight => {
+                                        port_size.y + label_gap_vertical
+                                    }
+                                    LabelPlacementRelation::AboveOrLeft => {
+                                        -label_size.y - label_gap_vertical
+                                    }
                                 };
                             }
                         }
@@ -644,8 +656,12 @@ impl NodeDimensionCalculation {
                                     LabelPlacementRelation::Centered => {
                                         (port_size.y - label_size.y) / 2.0
                                     }
-                                    LabelPlacementRelation::BelowOrRight => port_size.y + 1.0,
-                                    LabelPlacementRelation::AboveOrLeft => -label_size.y - 1.0,
+                                    LabelPlacementRelation::BelowOrRight => {
+                                        port_size.y + label_gap_vertical
+                                    }
+                                    LabelPlacementRelation::AboveOrLeft => {
+                                        -label_size.y - label_gap_vertical
+                                    }
                                 };
                             }
                         }
@@ -885,15 +901,15 @@ impl NodeDimensionCalculation {
                         port.get_side(),
                         PortSide::East | PortSide::West | PortSide::Undefined
                     ) {
-                    if inside_label_placement {
-                        (port_size.y - total_label_height) / 2.0
-                    } else {
-                        match relation {
-                            LabelPlacementRelation::BelowOrRight => port_size.y + 1.0,
-                            LabelPlacementRelation::AboveOrLeft => -total_label_height - 1.0,
-                            LabelPlacementRelation::Centered => {
-                                (port_size.y - total_label_height) / 2.0
-                            }
+                    match relation {
+                        LabelPlacementRelation::BelowOrRight => {
+                            port_size.y + label_gap_vertical
+                        }
+                        LabelPlacementRelation::AboveOrLeft => {
+                            -total_label_height - label_gap_vertical
+                        }
+                        LabelPlacementRelation::Centered => {
+                            (port_size.y - total_label_height) / 2.0
                         }
                     }
                 } else {
@@ -952,8 +968,12 @@ impl NodeDimensionCalculation {
                                     LabelPlacementRelation::Centered => {
                                         (port_size.y - label_size.y) / 2.0
                                     }
-                                    LabelPlacementRelation::BelowOrRight => port_size.y + 1.0,
-                                    LabelPlacementRelation::AboveOrLeft => -label_size.y - 1.0,
+                                    LabelPlacementRelation::BelowOrRight => {
+                                        port_size.y + label_gap_vertical
+                                    }
+                                    LabelPlacementRelation::AboveOrLeft => {
+                                        -label_size.y - label_gap_vertical
+                                    }
                                 };
                             }
                         }
@@ -973,8 +993,12 @@ impl NodeDimensionCalculation {
                                     LabelPlacementRelation::Centered => {
                                         (port_size.y - label_size.y) / 2.0
                                     }
-                                    LabelPlacementRelation::BelowOrRight => port_size.y + 1.0,
-                                    LabelPlacementRelation::AboveOrLeft => -label_size.y - 1.0,
+                                    LabelPlacementRelation::BelowOrRight => {
+                                        port_size.y + label_gap_vertical
+                                    }
+                                    LabelPlacementRelation::AboveOrLeft => {
+                                        -label_size.y - label_gap_vertical
+                                    }
                                 };
                             }
                         }
