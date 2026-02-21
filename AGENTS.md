@@ -54,12 +54,16 @@
 - crossing min 구조적 컴포넌트는 전수 검증 완료 (Java와 동일)
 
 ### 전략: Bottom-Up Phase-by-Phase Verification
-- Phase 1: Java phase trace 도구 — **완료** (`scripts/java/ElkPhaseTraceExporter.java`, `scripts/run_java_phase_trace.sh`)
-- Phase 2: Rust phase trace 도구 — **완료** (`trace_recorder.rs`, `elk_layered.rs` trace hook, `--trace-dir` CLI)
-- Phase 3: Phase diff 비교 도구 — **완료** (`scripts/compare_phase_traces.py`)
-- **Phase 4: trace 실행 및 divergence 분석** ← 현재 단계
-- Phase 5: Cell System 수정 (최대 영향, ~200 모델) — LGraphAdapters 버그 수정 필요
-- Phase 6: Crossing min f32/f64 정밀도 차이 해소 (~50 모델)
+- Phase 1: Java phase trace 도구 — **완료**
+- Phase 2: Rust phase trace 도구 — **완료**
+- Phase 3: Phase diff 비교 도구 — **완료**
+- Phase 4: trace 실행 및 divergence 분석 — **완료** (결과: `perf/model_parity/phase_trace_analysis.json`)
+  - 1416 모델 비교: 1213 step-0 format artifact, 203 real divergence
+  - 185/203은 full parity match (중간 차이가 최종 결과에서 상쇄)
+  - **10개 고유 모델이 실제 drift를 유발하는 phase divergence 보유**
+  - PortSideProcessor(3, 계층), LabelAndNodeSizeProcessor(3, 계층), LayerSizeAndGraphHeightCalculator(3), BKNodePlacer(1), SplineEdgeRouter(1)
+- **Phase 5: 식별된 10개 모델의 프로세서별 버그 수정** ← 현재 단계
+- Phase 6: Crossing min random state divergence 해소 (~257 모델, step-0 format으로 미확인)
 - Phase 7: Self-loop, N/S port spline 등 잔여 수정
 
 ## 기본 실행 명령
