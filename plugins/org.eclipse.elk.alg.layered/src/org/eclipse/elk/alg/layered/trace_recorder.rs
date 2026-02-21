@@ -72,6 +72,12 @@ fn serialize_node(node: &LNodeRef, known_layer_index: Option<usize>) -> Option<V
         })
         .unwrap_or(json!(-1));
 
+    let margin = guard.margin();
+    let margin_json = json!({
+        "top": margin.top, "bottom": margin.bottom,
+        "left": margin.left, "right": margin.right,
+    });
+
     let port_refs: Vec<_> = guard.ports().clone();
     let label_refs: Vec<_> = guard.labels().clone();
     drop(guard);
@@ -88,6 +94,7 @@ fn serialize_node(node: &LNodeRef, known_layer_index: Option<usize>) -> Option<V
         "width": size_x,
         "height": size_y,
         "layer": layer_index,
+        "margin": margin_json,
         "ports": ports,
         "labels": labels,
     }))
