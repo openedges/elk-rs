@@ -32,6 +32,7 @@ use crate::org::eclipse::elk::alg::layered::trace_recorder;
 /// Global step counter for trace recording. Uses AtomicUsize so it can be
 /// incremented from `run_processor_for_graph` without requiring `&mut self`.
 static TRACE_STEP_COUNTER: AtomicUsize = AtomicUsize::new(0);
+static TRACE_LAYOUT_DEPTH: AtomicUsize = AtomicUsize::new(0);
 
 #[cfg(debug_assertions)]
 fn trace_step(message: &str) {
@@ -286,13 +287,40 @@ impl ElkLayered {
         TRACE_STEP_COUNTER.store(0, Ordering::Relaxed);
     }
 
+    /// Remove all `step_*.json` files from the ELK_TRACE_DIR directory.
+    fn clear_trace_directory() {
+        if let Ok(trace_dir) = std::env::var("ELK_TRACE_DIR") {
+            if let Ok(entries) = std::fs::read_dir(&trace_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.extension().map_or(false, |e| e == "json") {
+                        if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                            if name.starts_with("step_") {
+                                let _ = std::fs::remove_file(&path);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     fn do_layout_with_monitor(
         &mut self,
         lgraph: &LGraphRef,
         monitor: &mut dyn IElkProgressMonitor,
     ) {
         monitor.begin("Layered layout", 1.0);
-        Self::reset_trace_step_counter();
+        let prev_depth = TRACE_LAYOUT_DEPTH.fetch_add(1, Ordering::Relaxed);
+        // At each top-level layout entry (depth 0), reset the trace counter and
+        // clear previous trace files.  RecursiveGraphLayoutEngine processes child
+        // sub-graphs first, then the root.  Clearing at each depth-0 entry ensures
+        // only the LAST sub-graph (the root) retains its traces, matching Java's
+        // TestExecutionState behaviour.
+        if prev_depth == 0 {
+            Self::reset_trace_step_counter();
+            Self::clear_trace_directory();
+        }
 
         self.graph_configurator.prepare_graph_for_layout(lgraph);
 
@@ -313,6 +341,7 @@ impl ElkLayered {
         self.components_processor.combine(&components, lgraph);
         self.resize_graph(lgraph);
 
+        TRACE_LAYOUT_DEPTH.fetch_sub(1, Ordering::Relaxed);
         monitor.done();
     }
 
@@ -614,20 +643,23 @@ impl ElkLayered {
                 trace_edge_wiring(&graph_guard, &format!("after {proc_name}"));
                 trace_node_positions(&graph_guard, &format!("after {proc_name}"));
                 trace_step(&format!("processor done: {proc_name}"));
-                // Trace recording: serialize LGraph snapshot to JSON after each step
-                if let Ok(trace_dir) = std::env::var("ELK_TRACE_DIR") {
-                    let step = TRACE_STEP_COUNTER.fetch_add(1, Ordering::Relaxed);
-                    let trace_path = PathBuf::from(&trace_dir);
-                    if let Err(e) = trace_recorder::serialize_lgraph_snapshot(
-                        &graph_guard,
-                        step,
-                        proc_name,
-                        &trace_path,
-                    ) {
-                        eprintln!(
-                            "[elk-layered][trace] failed to write snapshot step={} proc={}: {}",
-                            step, proc_name, e
-                        );
+                // Trace recording: serialize LGraph snapshot to JSON after each step.
+                // Only trace the outermost layout (depth==1) to match Java behavior.
+                if TRACE_LAYOUT_DEPTH.load(Ordering::Relaxed) == 1 {
+                    if let Ok(trace_dir) = std::env::var("ELK_TRACE_DIR") {
+                        let step = TRACE_STEP_COUNTER.fetch_add(1, Ordering::Relaxed);
+                        let trace_path = PathBuf::from(&trace_dir);
+                        if let Err(e) = trace_recorder::serialize_lgraph_snapshot(
+                            &graph_guard,
+                            step,
+                            proc_name,
+                            &trace_path,
+                        ) {
+                            eprintln!(
+                                "[elk-layered][trace] failed to write snapshot step={} proc={}: {}",
+                                step, proc_name, e
+                            );
+                        }
                     }
                 }
                 if std::env::var_os("ELK_TRACE_CROSSMIN").is_some() {

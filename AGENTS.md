@@ -54,10 +54,10 @@
 - crossing min 구조적 컴포넌트는 전수 검증 완료 (Java와 동일)
 
 ### 전략: Bottom-Up Phase-by-Phase Verification
-- 상세 계획: `perf/PARITY_PLAN.md`
-- Phase 1-2: Java/Rust phase trace 도구 구축
-- Phase 3: Phase diff tool (프로세서별 divergence point 탐지)
-- Phase 4: 프로세서별 단위 테스트
+- Phase 1: Java phase trace 도구 — **완료** (`scripts/java/ElkPhaseTraceExporter.java`, `scripts/run_java_phase_trace.sh`)
+- Phase 2: Rust phase trace 도구 — **완료** (`trace_recorder.rs`, `elk_layered.rs` trace hook, `--trace-dir` CLI)
+- Phase 3: Phase diff 비교 도구 — **완료** (`scripts/compare_phase_traces.py`)
+- **Phase 4: trace 실행 및 divergence 분석** ← 현재 단계
 - Phase 5: Cell System 수정 (최대 영향, ~200 모델) — LGraphAdapters 버그 수정 필요
 - Phase 6: Crossing min f32/f64 정밀도 차이 해소 (~50 모델)
 - Phase 7: Self-loop, N/S port spline 등 잔여 수정
@@ -67,6 +67,9 @@
 - 전체 테스트: `cargo test --workspace`
 - Full parity: `MODEL_PARITY_SKIP_JAVA_EXPORT=true sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models perf/model_parity_full`
 - Drift 분석: `python3 scripts/analyze_layered_drift.py --diff-details perf/model_parity_full/diff_details.tsv --manifest perf/model_parity_full/rust_manifest.tsv`
+- Java phase trace: `sh scripts/run_java_phase_trace.sh <model_dir> <output_dir>`
+- Rust phase trace: `cargo run --release --bin model_parity_layout_runner -- --trace-dir <output_dir> <input.json>`
+- Phase trace 비교: `python3 scripts/compare_phase_traces.py <java_trace_dir> <rust_trace_dir>` (단건) 또는 `--batch` (일괄)
 
 ## 진행 기록 위치
 - 상세 진행 이력/완료 단계/드리프트 분석/실험 로그/TODO: `HISTORY.md`

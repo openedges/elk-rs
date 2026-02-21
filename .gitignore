@@ -32,6 +32,12 @@
 /perf/model_parity_categories/
 /perf/test_parity/
 
+# Phase trace outputs
+/perf/model_parity/java_trace/
+/perf/model_parity/rust_trace/
+/perf/model_parity_full/java_trace/
+/perf/model_parity_full/rust_trace/
+
 # Python cache
 __pycache__/
 *.pyc

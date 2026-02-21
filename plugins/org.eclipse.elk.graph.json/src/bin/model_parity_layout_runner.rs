@@ -18,6 +18,7 @@ use org_eclipse_elk_alg_force::org::eclipse::elk::alg::force::force_layout_provi
 use org_eclipse_elk_alg_force::org::eclipse::elk::alg::force::options::force_meta_data_provider::ForceMetaDataProvider;
 use org_eclipse_elk_alg_force::org::eclipse::elk::alg::force::options::stress_meta_data_provider::StressMetaDataProvider;
 use org_eclipse_elk_alg_force::org::eclipse::elk::alg::force::stress::stress_layout_provider::StressLayoutProvider;
+use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::elk_layered::ElkLayered;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::layered_layout_provider::LayeredLayoutProvider;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::LayeredMetaDataProvider;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::plain_java_initialization::initialize_plain_java_layout;
@@ -357,6 +358,10 @@ fn run_layout_case(
             trace_port_order_before_layout(&root);
         }
 
+        // Reset trace step counter once per model (before the recursive layout
+        // processes all sub-graphs) so step numbers are globally unique.
+        ElkLayered::reset_trace_step_counter();
+
         let mut engine = RecursiveGraphLayoutEngine::new();
         let mut monitor = BasicProgressMonitor::new();
         engine.layout(&root, &mut monitor);
@@ -613,13 +618,10 @@ fn run(config: Config) -> Result<(), String> {
         }
 
         // Set per-model trace directory if tracing is enabled
+        // Use the relative path directly (preserving directory structure) to match Java's
+        // outputDir.resolve(relPath) convention for batch comparison compatibility.
         if let Some(trace_base) = &config.trace_dir {
-            let model_name = row
-                .model_rel_path
-                .replace(['/', '\\'], "_")
-                .replace(".elkt", "")
-                .replace(".json", "");
-            let model_trace_dir = trace_base.join(&model_name);
+            let model_trace_dir = trace_base.join(&row.model_rel_path);
             env::set_var("ELK_TRACE_DIR", model_trace_dir.as_os_str());
         }
 

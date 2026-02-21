@@ -928,6 +928,8 @@
 - Step M-5 stress 내부 force 기본값 정합(2026-02-19): `StressLayoutProvider`에서 non-interactive 초기 배치 시 `ForceLayoutProvider` 호출 전에 `ForceOptions::PADDING` 부재 시 `ElkPadding(50)`를 주입하도록 보강(Java force option support 기본값과 정합). `665_includeChildrenDoesntStop` 단건 parity 재검증에서 `drift -> match` 확인(`/tmp/elk665_after_padding/report.md`)
 - Step M-5 tickets 지표 갱신(2026-02-19): 고정 Java baseline 기준 tickets parity 재실행(`MODEL_PARITY_SKIP_JAVA_EXPORT=true sh scripts/run_model_parity_by_category.sh tickets`) 결과 `matches=106/109`, `drift=3`, `total_diffs=47`, `errors/timeouts=0`, `java_non_ok=1(588)`로 개선(직전 `105/109`, `drift=4`, `total_diffs=62` 대비 +1/-1/-15). 잔여 drift: `213_componentsCompaction`, `502_collapsingCompoundNode`, `701_portLabels`
 
+- Phase trace 도구 구현 확인 및 문서 정리(2026-02-21): Phase 1-3 도구가 이미 모두 구현되어 있음을 확인. `scripts/java/ElkPhaseTraceExporter.java`(866 LOC), `scripts/run_java_phase_trace.sh`(320 LOC), `scripts/compare_phase_traces.py`, Rust `trace_recorder.rs` + `elk_layered.rs` trace hook + `model_parity_layout_runner.rs --trace-dir` CLI. `perf/PARITY_PLAN.md`를 삭제하고 `AGENTS.md`에 Phase 1-3 완료 상태 및 phase trace 실행 명령을 반영. `.gitignore`에 trace 출력 디렉토리 추가. 다음 단계는 Phase 4: trace 실행 및 divergence 분석.
+
 ## 진행할 작업
 - Step M-5 tickets 잔여 2건 우선 처리: `701_portLabels`(inside label clamp/stack + node width), `213_componentsCompaction`(component compaction coordinate drift) 순으로 축소한다.
 - Step M-5 701 후속 정밀화: `node_dimension_calculation.rs`의 constrained inside north/south stack(clamp_x, start coordinate, overlap 회피) 경로를 Java `PortLabelPlacementCalculator`와 대조해 `MyNode*_g*` 계열 잔여 x/y drift를 제거한다.

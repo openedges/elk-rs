@@ -164,16 +164,29 @@ class SnapshotComparator:
     # Nodes
 
     def _nodes(self, java: dict, rust: dict, diffs: list[DiffEntry]) -> None:
-        jmap = {n["id"]: n for n in java.get("nodes", [])}
-        rmap = {n["id"]: n for n in rust.get("nodes", [])}
-        for nid in sorted(set(jmap) - set(rmap)):
-            self._push(diffs, f"nodes/{nid}", "present", "missing")
-        for nid in sorted(set(rmap) - set(jmap)):
-            self._push(diffs, f"nodes/{nid}", "missing", "present")
-        for nid in sorted(set(jmap) & set(rmap)):
-            if len(diffs) >= self.max_diffs:
-                return
-            self._node(jmap[nid], rmap[nid], f"nodes/{nid}", diffs)
+        jnodes = java.get("nodes", [])
+        rnodes = rust.get("nodes", [])
+        jmap = {n["id"]: n for n in jnodes}
+        rmap = {n["id"]: n for n in rnodes}
+        # If IDs overlap, match by ID; otherwise fall back to positional matching
+        if set(jmap) & set(rmap) or (not jnodes and not rnodes):
+            for nid in sorted(set(jmap) - set(rmap)):
+                self._push(diffs, f"nodes/{nid}", "present", "missing")
+            for nid in sorted(set(rmap) - set(jmap)):
+                self._push(diffs, f"nodes/{nid}", "missing", "present")
+            for nid in sorted(set(jmap) & set(rmap)):
+                if len(diffs) >= self.max_diffs:
+                    return
+                self._node(jmap[nid], rmap[nid], f"nodes/{nid}", diffs)
+        else:
+            # Positional fallback (Java/Rust use different ID schemes)
+            if len(jnodes) != len(rnodes):
+                self._push(diffs, "nodes", f"count={len(jnodes)}", f"count={len(rnodes)}")
+            for i in range(min(len(jnodes), len(rnodes))):
+                if len(diffs) >= self.max_diffs:
+                    return
+                jn, rn = jnodes[i], rnodes[i]
+                self._node(jn, rn, f"nodes[{i}]/{jn.get('id','?')}", diffs)
 
     def _node(self, jn: dict, rn: dict, prefix: str, diffs: list[DiffEntry]) -> None:
         for f in ("x", "y", "width", "height"):
@@ -211,16 +224,27 @@ class SnapshotComparator:
     # Edges
 
     def _edges(self, java: dict, rust: dict, diffs: list[DiffEntry]) -> None:
-        jmap = {e["id"]: e for e in java.get("edges", [])}
-        rmap = {e["id"]: e for e in rust.get("edges", [])}
-        for eid in sorted(set(jmap) - set(rmap)):
-            self._push(diffs, f"edges/{eid}", "present", "missing")
-        for eid in sorted(set(rmap) - set(jmap)):
-            self._push(diffs, f"edges/{eid}", "missing", "present")
-        for eid in sorted(set(jmap) & set(rmap)):
-            if len(diffs) >= self.max_diffs:
-                return
-            self._edge(jmap[eid], rmap[eid], f"edges/{eid}", diffs)
+        jedges = java.get("edges", [])
+        redges = rust.get("edges", [])
+        jmap = {e["id"]: e for e in jedges}
+        rmap = {e["id"]: e for e in redges}
+        if set(jmap) & set(rmap) or (not jedges and not redges):
+            for eid in sorted(set(jmap) - set(rmap)):
+                self._push(diffs, f"edges/{eid}", "present", "missing")
+            for eid in sorted(set(rmap) - set(jmap)):
+                self._push(diffs, f"edges/{eid}", "missing", "present")
+            for eid in sorted(set(jmap) & set(rmap)):
+                if len(diffs) >= self.max_diffs:
+                    return
+                self._edge(jmap[eid], rmap[eid], f"edges/{eid}", diffs)
+        else:
+            # Positional fallback
+            if len(jedges) != len(redges):
+                self._push(diffs, "edges", f"count={len(jedges)}", f"count={len(redges)}")
+            for i in range(min(len(jedges), len(redges))):
+                if len(diffs) >= self.max_diffs:
+                    return
+                self._edge(jedges[i], redges[i], f"edges[{i}]/{jedges[i].get('id','?')}", diffs)
 
     def _edge(self, je: dict, re_: dict, prefix: str, diffs: list[DiffEntry]) -> None:
         for f in ("sourceNode", "sourcePort", "targetNode", "targetPort"):
@@ -410,8 +434,9 @@ def compare_model(
     java_steps = collect_step_files(java_dir)
     rust_steps = collect_step_files(rust_dir)
 
-    jmap: dict[int, tuple[str, Path]] = {i: (s, p) for i, s, p in java_steps}
-    rmap: dict[int, tuple[str, Path]] = {i: (s, p) for i, s, p in rust_steps}
+    # Skip step_-1_INITIAL (Java-only artifact, no Rust equivalent)
+    jmap: dict[int, tuple[str, Path]] = {i: (s, p) for i, s, p in java_steps if i >= 0}
+    rmap: dict[int, tuple[str, Path]] = {i: (s, p) for i, s, p in rust_steps if i >= 0}
 
     all_indices = sorted(set(jmap) | set(rmap))
     step_results: list[StepResult] = []
