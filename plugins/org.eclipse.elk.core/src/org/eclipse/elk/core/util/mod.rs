@@ -1,5 +1,6 @@
 use std::collections::{BTreeSet, HashSet};
 use std::hash::Hash;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::{MapPropertyHolder, Property};
@@ -75,6 +76,15 @@ where
     }
 }
 
+/// Global counter for `ELK_RANDOM_TRACE` output. Increments on every
+/// internal `next(bits)` call so the sequence is comparable across clones.
+static RANDOM_TRACE_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+#[inline]
+fn random_trace_enabled() -> bool {
+    std::env::var_os("ELK_RANDOM_TRACE").is_some()
+}
+
 #[derive(Clone, Debug)]
 pub struct Random {
     state: Arc<Mutex<u64>>,
@@ -106,6 +116,9 @@ impl Random {
         let scrambled = (seed ^ Self::MULTIPLIER) & Self::MASK;
         if let Ok(mut state) = self.state.lock() {
             *state = scrambled;
+            if random_trace_enabled() {
+                eprintln!("RANDOM_TRACE set_seed({seed}) -> state=0x{scrambled:012x}");
+            }
         }
     }
 
@@ -113,13 +126,20 @@ impl Random {
         if let Ok(mut sequence) = self.mock_double_sequence.lock() {
             if let Some(sequence) = sequence.as_mut() {
                 sequence.current += sequence.step;
-                return sequence.current;
+                let value = sequence.current;
+                if random_trace_enabled() {
+                    eprintln!("RANDOM_TRACE next_double -> {value:.7}");
+                }
+                return value;
             }
         }
         let high = self.next(26) as u64;
         let low = self.next(27) as u64;
-        let value = (high << 27) + low;
-        (value as f64) / ((1u64 << 53) as f64)
+        let value = ((high << 27) + low) as f64 / ((1u64 << 53) as f64);
+        if random_trace_enabled() {
+            eprintln!("RANDOM_TRACE next_double -> {value:.7}");
+        }
+        value
     }
 
     pub fn next_float(&mut self) -> f64 {
@@ -130,12 +150,20 @@ impl Random {
             .unwrap_or(false);
         if use_mock {
             let value = self.next_double();
+            // next_double already printed the trace; re-print at next_float level
+            if random_trace_enabled() {
+                eprintln!("RANDOM_TRACE next_float -> {:.7}", value as f32);
+            }
             return value as f32 as f64;
         }
-        let value = self.next(24);
+        let raw = self.next(24);
         // Match Java's nextFloat() precision: return 32-bit float converted to f64
         // Java: return next(24) / ((float)(1 << 24));
-        ((value as f32) / ((1u32 << 24) as f32)) as f64
+        let value = ((raw as f32) / ((1u32 << 24) as f32)) as f64;
+        if random_trace_enabled() {
+            eprintln!("RANDOM_TRACE next_float -> {value:.7}");
+        }
+        value
     }
 
     pub fn next_long(&mut self) -> i64 {
@@ -143,32 +171,48 @@ impl Random {
         // return ((long)(next(32)) << 32) + next(32);
         let high = self.next(32) as i32 as i64;
         let low = self.next(32) as i32 as i64;
-        (high << 32).wrapping_add(low)
+        let value = (high << 32).wrapping_add(low);
+        if random_trace_enabled() {
+            eprintln!("RANDOM_TRACE next_long -> {value}");
+        }
+        value
     }
 
     pub fn next_boolean(&mut self) -> bool {
         if let Ok(next_boolean) = self.mock_next_boolean.lock() {
             if let Some(value) = *next_boolean {
+                if random_trace_enabled() {
+                    eprintln!("RANDOM_TRACE next_boolean -> {value}");
+                }
                 return value;
             }
         }
-        self.next(1) != 0
+        let value = self.next(1) != 0;
+        if random_trace_enabled() {
+            eprintln!("RANDOM_TRACE next_boolean -> {value}");
+        }
+        value
     }
 
     pub fn next_int(&mut self, bound: i32) -> i32 {
         if bound <= 0 {
             panic!("bound must be positive");
         }
-        if (bound & -bound) == bound {
-            return (((bound as i64) * (self.next(31) as i64)) >> 31) as i32;
-        }
-        loop {
-            let bits = self.next(31) as i32;
-            let val = bits % bound;
-            if bits - val + (bound - 1) >= 0 {
-                return val;
+        let value = if (bound & -bound) == bound {
+            (((bound as i64) * (self.next(31) as i64)) >> 31) as i32
+        } else {
+            loop {
+                let bits = self.next(31) as i32;
+                let val = bits % bound;
+                if bits - val + (bound - 1) >= 0 {
+                    break val;
+                }
             }
+        };
+        if random_trace_enabled() {
+            eprintln!("RANDOM_TRACE next_int({bound}) -> {value}");
         }
+        value
     }
 
     fn next(&mut self, bits: u32) -> u32 {
@@ -177,7 +221,12 @@ impl Random {
             .wrapping_mul(Self::MULTIPLIER)
             .wrapping_add(Self::ADDEND))
             & Self::MASK;
-        (*state >> (48 - bits)) as u32
+        let value = (*state >> (48 - bits)) as u32;
+        if random_trace_enabled() {
+            let n = RANDOM_TRACE_COUNTER.fetch_add(1, Ordering::SeqCst);
+            eprintln!("RANDOM_TRACE [{n}] next({bits}) -> {value}  seed=0x{:012x}", *state);
+        }
+        value
     }
 
     pub fn set_mock_next_boolean(&mut self, value: bool) {

@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::util::Random;
+use crate::org::eclipse::elk::alg::layered::p3order::random_trace;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LNodeRef, LPortRef, NodeType};
 use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, PortType};
@@ -49,7 +50,16 @@ impl BarycenterHeuristic {
 
     pub(crate) fn randomize_barycenters(&mut self, nodes: &[LNodeRef]) {
         for node in nodes {
-            let value = self.random.next_double();
+            let node_label = node
+                .lock()
+                .ok()
+                .map(|mut g| format!("id:{}", g.shape().graph_element().id))
+                .unwrap_or_else(|| "<locked>".into());
+            let raw = self.random.next_double();
+            let value = random_trace::trace_next_double(
+                raw,
+                &format!("barycenter::randomize_barycenters node={node_label}"),
+            );
             if let Some(state) = self.state_of(node) {
                 if let Ok(mut state_guard) = state.lock() {
                     state_guard.barycenter = Some(value);
@@ -124,7 +134,17 @@ impl BarycenterHeuristic {
                         .and_then(|state_guard| state_guard.barycenter)
                 });
                 if bary.is_none() {
-                    let value = self.random.next_float() * max_bary - 1.0;
+                    let node_label = node
+                        .lock()
+                        .ok()
+                        .map(|mut g| format!("id:{}", g.shape().graph_element().id))
+                        .unwrap_or_else(|| "<locked>".into());
+                    let raw_f = self.random.next_float();
+                    let raw_f = random_trace::trace_next_float(
+                        raw_f,
+                        &format!("barycenter::fill_in_unknown_barycenters node={node_label}"),
+                    );
+                    let value = raw_f * max_bary - 1.0;
                     if let Some(state) = self.state_of(node) {
                         if let Ok(mut state_guard) = state.lock() {
                             state_guard.barycenter = Some(value);
@@ -267,7 +287,12 @@ impl BarycenterHeuristic {
                 if state_guard.degree > 0 {
                     // Java: float perturbation = random.nextFloat() * RANDOM_AMOUNT - RANDOM_AMOUNT / 2.0f
                     // All float (f32) arithmetic, then promoted to double for +=
-                    let rand_f32 = self.random.next_float() as f32;
+                    let raw_f = self.random.next_float();
+                    let raw_f = random_trace::trace_next_float(
+                        raw_f,
+                        &format!("barycenter::calculate_barycenter node={node_name}"),
+                    );
+                    let rand_f32 = raw_f as f32;
                     let random_amount = RANDOM_AMOUNT as f32;
                     let perturbation =
                         (rand_f32 * random_amount - random_amount / 2.0_f32) as f64;

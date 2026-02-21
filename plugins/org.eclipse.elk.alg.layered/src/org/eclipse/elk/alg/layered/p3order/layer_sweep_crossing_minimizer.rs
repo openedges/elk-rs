@@ -25,6 +25,7 @@ use crate::org::eclipse::elk::alg::layered::options::{
 use crate::org::eclipse::elk::alg::layered::p3order::{
     in_north_south_east_west_order, GraphInfoHolder, SweepCopy,
 };
+use crate::org::eclipse::elk::alg::layered::p3order::random_trace;
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkReflect;
 
@@ -218,11 +219,8 @@ impl LayerSweepCrossingMinimizer {
             .get(index)
             .map(|g| g.first_try_with_initial_order())
             .unwrap_or(false);
-        // Preserve already-optimal ordering for external-port boundary graphs.
-        // This avoids spurious first-sweep reordering that drifts from Java parity.
-        if initial_crossings == 0.0
-            && (try_initial || self.has_single_external_port_boundaries(index))
-        {
+        // Java: if (initialCrossings == 0 && FIRST_TRY_WITH_INITIAL_ORDER) { return 0; }
+        if initial_crossings == 0.0 && try_initial {
             return 0;
         }
 
@@ -305,10 +303,8 @@ impl LayerSweepCrossingMinimizer {
             .get(index)
             .map(|g| g.first_try_with_initial_order())
             .unwrap_or(false);
-        // Keep the same zero-crossing guard as integer crossing mode for parity.
-        if initial_crossings == 0.0
-            && (try_initial || self.has_single_external_port_boundaries(index))
-        {
+        // Java: if (initialCrossings == 0 && FIRST_TRY_WITH_INITIAL_ORDER) { return 0; }
+        if initial_crossings == 0.0 && try_initial {
             return 0.0;
         }
 
@@ -908,7 +904,8 @@ impl LayerSweepCrossingMinimizer {
             }
         }
         // Java uses the shared LayerSweepCrossingMinimizer random directly for sweep direction.
-        self.random.next_boolean()
+        let v = self.random.next_boolean();
+        random_trace::trace_next_boolean(v, "crossing_min::sweep_direction")
     }
 
     fn initialize(&mut self, root_graph: &LGraphRef, root_graph_guard: &mut LGraph) -> Vec<usize> {
@@ -919,7 +916,11 @@ impl LayerSweepCrossingMinimizer {
         self.random = root_graph_guard
             .get_property(InternalProperties::RANDOM)
             .unwrap_or_default();
-        self.random_seed = self.random.next_long() as u64;
+        // Reset the random-trace counter at the start of each new graph layout.
+        random_trace::reset_counter();
+        let raw_seed = self.random.next_long();
+        self.random_seed =
+            random_trace::trace_next_long(raw_seed, "graph_info_holder::initialize") as u64;
         if trace {
             eprintln!(
                 "crossmin:init root_ptr={:p} random_seed={}",

@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, Random};
+use crate::org::eclipse::elk::alg::layered::p3order::random_trace;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LGraphRef, LNodeRef};
 use crate::org::eclipse::elk::alg::layered::intermediate::greedyswitch::greedy_switch_heuristic::GreedySwitchHeuristic;
@@ -838,7 +839,9 @@ fn create_port_distributors(
         return (Box::new(GreedyPortDistributor::new()), None);
     }
 
-    let use_node_relative = random.next_boolean();
+    let use_node_relative_raw = random.next_boolean();
+    let use_node_relative =
+        random_trace::trace_next_boolean(use_node_relative_raw, "graph_info_holder::create_port_distributor");
     let needs_barycenter = cross_min_type == CrossMinType::Barycenter;
     if trace {
         eprintln!(

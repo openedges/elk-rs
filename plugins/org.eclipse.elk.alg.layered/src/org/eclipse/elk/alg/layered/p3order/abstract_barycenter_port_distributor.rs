@@ -342,7 +342,8 @@ impl AbstractBarycenterPortDistributor {
     fn iterate_ports_and_collect_in_layer_ports(&mut self, node: &LNodeRef, ports: &[LPortRef]) {
         self.min_barycenter = 0.0;
         self.max_barycenter = 0.0;
-        let absurdly_large_float = 2.0 * self.layer_size(node) as f64 + 1.0;
+        // Java: final float absurdlyLargeFloat = 2 * layer.getNodes().size() + 1;
+        let absurdly_large_float: f32 = (2 * self.layer_size(node) + 1) as f32;
         let timing = std::env::var_os("ELK_TRACE_CROSSMIN_TIMING").is_some();
 
         'port_iteration: for port in ports {
@@ -359,7 +360,8 @@ impl AbstractBarycenterPortDistributor {
                 eprintln!("crossmin: port_id={} side={:?}", pid, side);
             }
             let north_south_port = matches!(side, PortSide::North | PortSide::South);
-            let mut sum = 0.0;
+            // Java: float sum = 0; — use f32 to match Java's float accumulation
+            let mut sum: f32 = 0.0;
 
             if north_south_port {
                 let dummy = port.lock().ok().and_then(|mut port_guard| {
@@ -369,8 +371,8 @@ impl AbstractBarycenterPortDistributor {
                     continue;
                 };
                 let contribution =
-                    self.deal_with_north_south_ports(absurdly_large_float, port, &dummy);
-                sum += contribution;
+                    self.deal_with_north_south_ports(absurdly_large_float as f64, port, &dummy);
+                sum += contribution as f32;
                 if timing {
                     eprintln!(
                         "crossmin: north_south contribution port_id={} sum={}",
@@ -390,7 +392,8 @@ impl AbstractBarycenterPortDistributor {
                         continue 'port_iteration;
                     } else {
                         let pid = port_id(&connected_port);
-                        sum += self.port_ranks.get(pid).copied().unwrap_or(0.0);
+                        // Java: sum += portRanks[connectedPort.id]; (float += float)
+                        sum += self.port_ranks.get(pid).copied().unwrap_or(0.0) as f32;
                     }
                 }
                 let incoming_edges = connected_incoming_edges(port);
@@ -406,25 +409,28 @@ impl AbstractBarycenterPortDistributor {
                         continue 'port_iteration;
                     } else {
                         let pid = port_id(&connected_port);
-                        sum -= self.port_ranks.get(pid).copied().unwrap_or(0.0);
+                        // Java: sum -= portRanks[connectedPort.id]; (float -= float)
+                        sum -= self.port_ranks.get(pid).copied().unwrap_or(0.0) as f32;
                     }
                 }
             }
 
-            let degree = port
+            // Java: int degree = port.getDegree();
+            let degree: i32 = port
                 .lock()
                 .ok()
-                .map(|port_guard| port_guard.degree() as f64)
-                .unwrap_or(0.0);
+                .map(|port_guard| port_guard.degree() as i32)
+                .unwrap_or(0);
             let pid = port_id(port);
             self.ensure_port_capacity(pid);
-            if degree > 0.0 {
-                let value = f32t(sum / degree);
+            if degree > 0 {
+                // Java: portBarycenter[port.id] = sum / degree; (float / int → float)
+                let value = (sum / degree as f32) as f64;
                 self.port_barycenter[pid] = value;
                 self.min_barycenter = self.min_barycenter.min(value);
                 self.max_barycenter = self.max_barycenter.max(value);
             } else if north_south_port {
-                self.port_barycenter[pid] = f32t(sum);
+                self.port_barycenter[pid] = sum as f64;
             }
         }
     }
@@ -436,19 +442,21 @@ impl AbstractBarycenterPortDistributor {
         layer_index: usize,
         layer_size: usize,
     ) {
+        // Java uses int for nodeIndexInLayer and layerSize
         let node_id_usize = if node_id < 0 { 0 } else { node_id as usize };
-        let node_index_in_layer = self
+        let node_index_in_layer: i32 = self
             .node_positions
             .get(layer_index)
             .and_then(|positions| positions.get(node_id_usize))
             .copied()
-            .unwrap_or(node_id_usize) as f64
-            + 1.0;
-        let layer_size = layer_size as f64 + 1.0;
+            .unwrap_or(node_id_usize) as i32
+            + 1;
+        let layer_size: i32 = layer_size as i32 + 1;
         let in_layer_ports = self.in_layer_ports.clone();
         for port in &in_layer_ports {
-            let mut sum = 0.0;
-            let mut in_layer_connections = 0.0;
+            // Java uses int sum and int inLayerConnections
+            let mut sum: i32 = 0;
+            let mut in_layer_connections: i32 = 0;
             let connected = connected_ports(port);
             for connected_port in connected {
                 if port_same_layer(&connected_port, node) {
@@ -457,16 +465,19 @@ impl AbstractBarycenterPortDistributor {
                     } else {
                         sum += self
                             .position_of_node_port_owner_in_layer(&connected_port, layer_index)
-                            as f64
-                            + 1.0;
+                            as i32
+                            + 1;
                     }
-                    in_layer_connections += 1.0;
+                    in_layer_connections += 1;
                 }
             }
-            if in_layer_connections == 0.0 {
+            if in_layer_connections == 0 {
                 continue;
             }
-            let barycenter = sum / in_layer_connections;
+            // Java: float barycenter = (float) sum / inLayerConnections;
+            let barycenter: f32 = sum as f32 / in_layer_connections as f32;
+            let node_index_f: f32 = node_index_in_layer as f32;
+            let layer_size_f: f32 = layer_size as f32;
             let side = port
                 .lock()
                 .ok()
@@ -474,19 +485,22 @@ impl AbstractBarycenterPortDistributor {
                 .unwrap_or(PortSide::Undefined);
             let pid = port_id(port);
             self.ensure_port_capacity(pid);
+            // Java stores directly into float[] portBarycenter, so all arithmetic is float
             if side == PortSide::East {
-                if barycenter < node_index_in_layer {
-                    self.port_barycenter[pid] = f32t(self.min_barycenter - barycenter);
+                if barycenter < node_index_f {
+                    self.port_barycenter[pid] =
+                        (self.min_barycenter as f32 - barycenter) as f64;
                 } else {
                     self.port_barycenter[pid] =
-                        f32t(self.max_barycenter + (layer_size - barycenter));
+                        (self.max_barycenter as f32 + (layer_size_f - barycenter)) as f64;
                 }
             } else if side == PortSide::West {
-                if barycenter < node_index_in_layer {
-                    self.port_barycenter[pid] = f32t(self.max_barycenter + barycenter);
+                if barycenter < node_index_f {
+                    self.port_barycenter[pid] =
+                        (self.max_barycenter as f32 + barycenter) as f64;
                 } else {
                     self.port_barycenter[pid] =
-                        f32t(self.min_barycenter - (layer_size - barycenter));
+                        (self.min_barycenter as f32 - (layer_size_f - barycenter)) as f64;
                 }
             }
         }
