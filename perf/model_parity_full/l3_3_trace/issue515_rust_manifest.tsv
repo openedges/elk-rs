@@ -1,2 +1,0 @@
-model_rel_path	input_json	java_layout_json	java_status	java_error	rust_layout_json	rust_status	rust_error
-tickets/layered/515_polylineOverNodeOutgoing.elkt	/Users/luuvish/Projects/research/elk-rs/perf/model_parity_full/java/input/tickets/layered/515_polylineOverNodeOutgoing.elkt.json	/Users/luuvish/Projects/research/elk-rs/perf/model_parity_full/java/layout/tickets/layered/515_polylineOverNodeOutgoing.elkt.json	ok		perf/model_parity_full/l3_3_trace/issue515_layout/tickets/layered/515_polylineOverNodeOutgoing.elkt.json	ok	

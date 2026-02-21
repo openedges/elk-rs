@@ -1,2 +1,0 @@
-model_rel_path	input_json	java_layout_json	java_status	java_error
-tests/layered/node_label_placement/outside_placement_hpriority.elkt	/Users/cody.ij.hwang/Projects/github/elk-rs/perf/model_parity/java/input/tests/layered/node_label_placement/outside_placement_hpriority.elkt.json	/Users/cody.ij.hwang/Projects/github/elk-rs/perf/model_parity/java/layout/tests/layered/node_label_placement/outside_placement_hpriority.elkt.json	ok	

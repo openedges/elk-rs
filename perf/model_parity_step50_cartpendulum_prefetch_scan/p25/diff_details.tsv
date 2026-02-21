@@ -1,2 +1,0 @@
-model_rel_path	status	diff_count	top_category	first_diff	java_layout_json	rust_layout_json
-realworld/ptolemy/hierarchical/continuous_cartpendulum_CartPendulum.elkt	match	0			/Users/cody.ij.hwang/Projects/github/elk-rs/perf/model_parity/java/layout/realworld/ptolemy/hierarchical/continuous_cartpendulum_CartPendulum.elkt.json	perf/model_parity_step50_cartpendulum_prefetch_scan/p25/rust/realworld/ptolemy/hierarchical/continuous_cartpendulum_CartPendulum.elkt.json

@@ -1,3 +1,0 @@
-tickets/layered/368_selfLoopLabelsIOOBE.elkt
-tickets/layered/476_multiLabelInHorizontalLayout.elkt
-tickets/layered/476_multiLabelInVerticalLayout.elkt

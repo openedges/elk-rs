@@ -39,41 +39,28 @@
 7. 커밋 (`<scope>: <summary>`)
 8. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
-## 현재 핵심 스냅샷 (2026-02-20)
-- Full model parity: `matches=1150/1439` (79.9%), `drift=289`, `errors=0`, `timeouts=0`, `java_non_ok=9`
-  - 이전: 1116(HEAD cb94b09) → routing_director.rs regression revert + INSIDE port label offset fix → **1150**
-- tickets parity: `matches=107/109`, `drift=2`, `errors=0`, `timeouts=0`, `java_non_ok=1`
-- tickets 잔여 drift: `tickets/layered/213_componentsCompaction.elkt`, `tickets/layered/701_portLabels.elkt`
+## 현재 핵심 스냅샷 (2026-02-21)
+- Full model parity: `matches=1164/1439` (80.9%), `drift=275`, `diffs=5374`, `errors=0`, `timeouts=0`, `java_non_ok=9`
+  - 이전: 1150 → self-loop fix + crossing min early return + port label fix → **1164**
+- 남은 drift 275개는 모두 crossing min random state divergence에서 캐스케이딩
 - 포팅/테스트/빌드/성능 자동화 파이프라인은 운영 상태
+- `cargo build --workspace`: warning 0건, `cargo clippy --workspace --all-targets`: warning 0건
 
-## Parity 100% 전략 (Phase 1→2→3)
+## Parity 100% 전략
 
-### Drift 분포
-- 289개 drifted 모델 중 277개(95.8%)가 20-diff cap 도달
-- hierarchical ptolemy: 182개(63%), flattened ptolemy: 88개(30%), tests/examples: 17개(6%), tickets: 2개(1%)
-- first diff의 92.1%가 노드 좌표(x/y) — 체계적 원인
+### Drift 분포 (275개 모델)
+- diff 분류: coordinate(80.1%), section(15.4%), structure(3.9%), ordering(0.3%), label(0.3%)
+- 275개 모두 crossing min random state divergence에서 캐스케이딩
+- crossing min 구조적 컴포넌트는 전수 검증 완료 (Java와 동일)
 
-### 근본 원인
-- `alg.common/nodespacing` cell system 불완전: Java 25개 파일(~5,368 LOC) 중 핵심 4개 calculator 누락
-  - `HorizontalPortPlacementSizeCalculator` (391 LOC) — N/S 포트 최소 너비
-  - `PortPlacementCalculator` (404 LOC) — 포트 최종 위치
-  - `PortLabelPlacementCalculator` (526 LOC) — 포트 라벨 위치
-  - `CellSystemConfigurator` (163 LOC) — 셀 크기 기여 플래그
-
-### Phase 1: Cell System 충실한 포팅 (최우선)
-- Java의 cell system (NodeContext, PortContext, GridContainerCell, 7개 algorithm phase)을 Rust로 포팅
-- 예상 ~2,500-3,000 LOC 신규/교체, ~270개 모델 해결 예상
-- 상세 계획: `.claude/plans/cuddly-forging-liskov.md`
-
-### Phase 2: 진단 도구 구축
-- Processor pipeline 설정 비교, phase-level state snapshot, divergence binary search
-- Phase 3의 효율을 위해 필요
-
-### Phase 3: 잔여 Drift 해소
-- ElkGraphLayoutTransferrer 보상 로직 정리
-- HierarchicalPortPositionProcessor 좌표 변환 정렬
-- HashSet → IndexSet 변환, self-loop routing 미세 차이
-- low-hanging fruit: verticalOrder(3 diffs), next_to_port_if_possible_inside(5 diffs)
+### 전략: Bottom-Up Phase-by-Phase Verification
+- 상세 계획: `perf/PARITY_PLAN.md`
+- Phase 1-2: Java/Rust phase trace 도구 구축
+- Phase 3: Phase diff tool (프로세서별 divergence point 탐지)
+- Phase 4: 프로세서별 단위 테스트
+- Phase 5: Cell System 수정 (최대 영향, ~200 모델) — LGraphAdapters 버그 수정 필요
+- Phase 6: Crossing min f32/f64 정밀도 차이 해소 (~50 모델)
+- Phase 7: Self-loop, N/S port spline 등 잔여 수정
 
 ## 기본 실행 명령
 - 전체 정적 점검: `cargo clippy --workspace --all-targets`

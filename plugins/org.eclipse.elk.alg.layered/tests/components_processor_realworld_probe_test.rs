@@ -129,7 +129,7 @@ fn dump_node_positions_after_layout(rel_path: &str) {
                     if node_guard.node_type()
                         == org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::NodeType::Normal
                     {
-                        let pos = node_guard.shape().position_ref().clone();
+                        let pos = *node_guard.shape().position_ref();
                         let name = node_guard.designation();
                         eprintln!(
                             "[node-pos-probe] model={rel_path} layer={layer_index} node={name} pos=({}, {})",

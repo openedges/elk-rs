@@ -1,2 +1,0 @@
-model_rel_path	input_json	java_layout_json	java_status	java_error	rust_layout_json	rust_status	rust_error
-tickets/layered/502_collapsingCompoundNode.elkt	/Users/cody.ij.hwang/Projects/github/elk-rs/perf/model_parity_tickets/java/input/tickets/layered/502_collapsingCompoundNode.elkt.json	/Users/cody.ij.hwang/Projects/github/elk-rs/perf/model_parity_tickets/java/layout/tickets/layered/502_collapsingCompoundNode.elkt.json	ok		perf/model_parity_step51_trace_nodesize_502/rust/layout/tickets/layered/502_collapsingCompoundNode.elkt.json	ok	

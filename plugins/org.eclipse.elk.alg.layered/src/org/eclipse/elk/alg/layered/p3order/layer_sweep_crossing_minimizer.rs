@@ -867,6 +867,7 @@ impl LayerSweepCrossingMinimizer {
             .collect()
     }
 
+    #[allow(dead_code)] // Java parity: used in Java but not yet wired in Rust
     fn has_single_external_port_boundaries(&self, index: usize) -> bool {
         let Some(order) = self
             .graph_info_holders
