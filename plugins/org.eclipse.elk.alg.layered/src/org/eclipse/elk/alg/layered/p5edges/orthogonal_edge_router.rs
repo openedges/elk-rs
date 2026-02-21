@@ -185,6 +185,20 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
         );
 
         let layers = layered_graph.layers().clone();
+        if std::env::var_os("ELK_TRACE_COMPOUND_WIDTH").is_some() {
+            let layer_info: Vec<String> = layers.iter().enumerate().map(|(i, layer)| {
+                let node_count = layer.lock().ok().map(|g| g.nodes().len()).unwrap_or(0);
+                let nodes_str = layer.lock().ok().map(|g| {
+                    g.nodes().iter().map(|n| {
+                        n.lock().ok().map(|ng| format!("{:?}",
+                            ng.node_type()
+                        )).unwrap_or("?".to_string())
+                    }).collect::<Vec<_>>().join(", ")
+                }).unwrap_or_default();
+                format!("L{}[{}]: {}", i, node_count, nodes_str)
+            }).collect();
+            eprintln!("[compound-width] edge_router layers={} detail: {}", layers.len(), layer_info.join(" | "));
+        }
         // Java uses `float xpos` (f32). Truncate through f32 at each step for parity.
         let mut xpos: f64 = 0.0;
         let mut left_layer = None;
@@ -280,6 +294,10 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
             } else if !is_left_layer_external && !is_right_layer_external {
                 xpos = (xpos + node_node_spacing) as f32 as f64;
             }
+            if std::env::var_os("ELK_TRACE_COMPOUND_WIDTH").is_some() {
+                eprintln!("[compound-width] edge_router: layer_index={} xpos={} slots={} left_ext={} right_ext={}",
+                    layer_index, xpos, slots_count, is_left_layer_external, is_right_layer_external);
+            }
 
             left_layer = right_layer;
             left_layer_nodes = right_layer_nodes;
@@ -294,6 +312,9 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
             }
         }
 
+        if std::env::var_os("ELK_TRACE_COMPOUND_WIDTH").is_some() {
+            eprintln!("[compound-width] edge_router: FINAL xpos={} graph_size_x={}", xpos, xpos as f32 as f64);
+        }
         layered_graph.size().x = xpos as f32 as f64;
         monitor.done();
     }

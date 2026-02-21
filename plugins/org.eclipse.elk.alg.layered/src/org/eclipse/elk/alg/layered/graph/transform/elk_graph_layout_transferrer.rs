@@ -11,7 +11,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::EnumSet;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{
     ElkConnectableShapeRef, ElkEdgeRef, ElkEdgeSection, ElkGraphElementRef, ElkNodeRef, ElkPortRef,
 };
-use std::collections::{HashSet, VecDeque};
+use std::collections::VecDeque;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -296,6 +296,32 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
         };
         let parent_node = lgraph.lock().ok().and_then(|g| g.parent_node());
 
+        if std::env::var_os("ELK_TRACE_COMPOUND_WIDTH").is_some() {
+            let origin_id_str = elk_node
+                .borrow_mut()
+                .connectable()
+                .shape()
+                .graph_element()
+                .identifier()
+                .unwrap_or("<no-id>")
+                .to_owned();
+            let (graph_size, graph_offset, lpadding) = {
+                let graph_guard = lgraph.lock().unwrap();
+                let size = *graph_guard.size_ref();
+                let offset = *graph_guard.offset_ref();
+                let pad = graph_guard.padding_ref().clone();
+                (size, offset, pad)
+            };
+            let actual = lgraph.lock().unwrap().actual_size();
+            let has_parent = parent_node.is_some();
+            eprintln!(
+                "[compound-width] apply_layout: node={} has_parent_node={} graph_size=({},{}) offset=({},{}) padding=({},{},{},{}) actual_size=({},{})",
+                origin_id_str, has_parent, graph_size.x, graph_size.y, graph_offset.x, graph_offset.y,
+                lpadding.top, lpadding.right, lpadding.bottom, lpadding.left,
+                actual.x, actual.y
+            );
+        }
+
         // Java parity: parent node resize is only applied for root graphs
         // (graphs without a representing parent node). Nested graphs are
         // already resized by the layered pipeline and must not be inflated here.
@@ -308,7 +334,18 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
                 let gp = graph_guard
                     .get_property(InternalProperties::GRAPH_PROPERTIES)
                     .unwrap_or_else(EnumSet::none_of);
+                let gs_x = graph_guard.size().x;
+                let gs_y = graph_guard.size().y;
+                let pt = graph_guard.padding_ref().top;
+                let pr = graph_guard.padding_ref().right;
+                let pb = graph_guard.padding_ref().bottom;
+                let pl = graph_guard.padding_ref().left;
                 let size = graph_guard.actual_size();
+                eprintln!(
+                    "[TRANSFERRER] applyParentNodeLayout: graph_size=({},{}) pad=({},{},{},{}) actual=({},{}) ext_ports={}",
+                    gs_x, gs_y, pt, pr, pb, pl,
+                    size.x, size.y, gp.contains(&GraphProperties::ExternalPorts)
+                );
                 (gp, size)
             };
 
@@ -357,6 +394,26 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
                     );
                 }
             }
+        }
+
+        if std::env::var_os("ELK_TRACE_COMPOUND_WIDTH").is_some() {
+            let origin_id_str = elk_node
+                .borrow_mut()
+                .connectable()
+                .shape()
+                .graph_element()
+                .identifier()
+                .unwrap_or("<no-id>")
+                .to_owned();
+            let (w, h) = {
+                let mut node_mut = elk_node.borrow_mut();
+                let shape = node_mut.connectable().shape();
+                (shape.width(), shape.height())
+            };
+            eprintln!(
+                "[compound-width] after_resize: node={} width={} height={}",
+                origin_id_str, w, h
+            );
         }
 
         // Keep node size constraints aligned with Java transfer behavior.
@@ -1161,6 +1218,7 @@ fn uses_network_simplex_flexible_size(lnode: &LNodeRef) -> bool {
 fn collect_nodes_from_graph(
     graph: &crate::org::eclipse::elk::alg::layered::graph::LGraph,
 ) -> Vec<LNodeRef> {
+    use std::collections::HashSet;
     let mut seen: HashSet<usize> = HashSet::new();
     let mut nodes = Vec::new();
 

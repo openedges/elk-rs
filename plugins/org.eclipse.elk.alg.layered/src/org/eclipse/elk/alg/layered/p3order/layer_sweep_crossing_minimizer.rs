@@ -926,6 +926,11 @@ impl LayerSweepCrossingMinimizer {
                 Arc::as_ptr(root_graph),
                 self.random_seed as i64
             );
+            eprintln!(
+                "[CROSSMIN] initialize: random_seed={} (i64={})",
+                self.random_seed,
+                self.random_seed as i64
+            );
         }
 
         let mut graphs_to_sweep_on: Vec<usize> = Vec::new();
@@ -1126,6 +1131,31 @@ impl ILayoutPhase<LayeredPhases, LGraph> for LayerSweepCrossingMinimizer {
                 self.graph_info_holders.len(),
                 graphs_to_sweep_on
             );
+            // Trace 1: layer structure at start of process()
+            for (gi, holder) in self.graph_info_holders.iter().enumerate() {
+                let order = holder.current_node_order();
+                eprintln!("[CROSSMIN] process: graph={} layers={}", gi, order.len());
+                for (li, layer) in order.iter().enumerate() {
+                    let node_ids: Vec<String> = layer
+                        .iter()
+                        .map(|n| {
+                            n.lock()
+                                .ok()
+                                .map(|mut g| {
+                                    format!("id:{}", g.shape().graph_element().id)
+                                })
+                                .unwrap_or_else(|| "<locked>".to_string())
+                        })
+                        .collect();
+                    eprintln!(
+                        "[CROSSMIN] process: graph={} layer={} nodes={} ids=[{}]",
+                        gi,
+                        li,
+                        layer.len(),
+                        node_ids.join(", ")
+                    );
+                }
+            }
         }
         let method = self.choose_minimizing_method(graphs_to_sweep_on[0]);
         if trace {

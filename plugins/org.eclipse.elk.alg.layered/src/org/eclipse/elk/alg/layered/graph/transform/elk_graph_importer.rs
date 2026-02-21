@@ -109,6 +109,20 @@ impl<'a> ElkGraphImporter<'a> {
             self.import_flat_graph(elkgraph, &lgraph);
         }
 
+        if std::env::var_os("ELK_TRACE_COMPOUND_WIDTH").is_some() {
+            if let Ok(graph_guard) = lgraph.lock() {
+                let node_count = graph_guard.layerless_nodes().len();
+                let edge_count: usize = graph_guard.layerless_nodes().iter().filter_map(|n| {
+                    n.lock().ok().map(|ng| ng.ports().iter().filter_map(|p| {
+                        p.lock().ok().map(|pg| pg.outgoing_edges().len())
+                    }).sum::<usize>())
+                }).sum();
+                let graph_id = elkgraph.borrow_mut().connectable().shape().graph_element()
+                    .identifier().unwrap_or("<no-id>").to_owned();
+                eprintln!("[compound-width] after_import: graph={} nodes={} edges={}", graph_id, node_count, edge_count);
+            }
+        }
+
         lgraph
     }
 
@@ -525,6 +539,24 @@ impl<'a> ElkGraphImporter<'a> {
             lpadding.right = padding.right + node_label_padding.right;
             lpadding.bottom = padding.bottom + node_label_padding.bottom;
             lpadding.left = padding.left + node_label_padding.left;
+
+            if std::env::var_os("ELK_TRACE_COMPOUND_WIDTH").is_some() {
+                let graph_id = elkgraph
+                    .borrow_mut()
+                    .connectable()
+                    .shape()
+                    .graph_element()
+                    .identifier()
+                    .unwrap_or("<no-id>")
+                    .to_owned();
+                eprintln!(
+                    "[compound-width] create_lgraph: graph={} elk_padding=({},{},{},{}) node_label_padding=({},{},{},{}) lpadding=({},{},{},{})",
+                    graph_id,
+                    padding.top, padding.right, padding.bottom, padding.left,
+                    node_label_padding.top, node_label_padding.right, node_label_padding.bottom, node_label_padding.left,
+                    lpadding.top, lpadding.right, lpadding.bottom, lpadding.left,
+                );
+            }
 
             let origin_id = self
                 .origin_store
@@ -1043,7 +1075,34 @@ impl<'a> ElkGraphImporter<'a> {
                     return Some(existing.clone());
                 }
                 let parent = port.borrow().parent()?;
-                let lnode = self.node_for(&parent)?;
+                let lnode = match self.node_for(&parent) {
+                    Some(n) => n,
+                    None => {
+                        if std::env::var_os("ELK_TRACE_COMPOUND_WIDTH").is_some() {
+                            let parent_id = parent
+                                .borrow_mut()
+                                .connectable()
+                                .shape()
+                                .graph_element()
+                                .identifier()
+                                .unwrap_or("<no-id>")
+                                .to_owned();
+                            let port_id = port
+                                .borrow_mut()
+                                .connectable()
+                                .shape()
+                                .graph_element()
+                                .identifier()
+                                .unwrap_or("<no-port-id>")
+                                .to_owned();
+                            eprintln!(
+                                "[compound-width] resolve_port FAILED: port={} parent_node={} not in node_map",
+                                port_id, parent_id
+                            );
+                        }
+                        return None;
+                    }
+                };
                 let direction = LGraphUtil::get_direction(lgraph);
                 let mut graph_properties = lgraph
                     .lock()

@@ -279,8 +279,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for MinWidthLayerer {
         }
 
         graph.layers_mut().reverse();
-        graph.layerless_nodes_mut().clear();
 
+        graph.layerless_nodes_mut().clear();
         monitor.done();
     }
 

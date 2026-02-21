@@ -153,6 +153,7 @@ impl BarycenterHeuristic {
     }
 
     fn calculate_barycenter(&mut self, node: &LNodeRef, forward: bool, port_ranks: &[f64]) {
+        let trace_cm = std::env::var_os("ELK_TRACE_CROSSMIN").is_some();
         if let Some(state) = self.state_of(node) {
             if let Ok(mut state_guard) = state.lock() {
                 if state_guard.visited {
@@ -164,6 +165,17 @@ impl BarycenterHeuristic {
                 state_guard.barycenter = None;
             }
         }
+
+        let node_name = if trace_cm {
+            node.lock()
+                .ok()
+                .map(|mut g| {
+                    format!("id:{}", g.shape().graph_element().id)
+                })
+                .unwrap_or_else(|| "<locked>".into())
+        } else {
+            String::new()
+        };
 
         let ports = node
             .lock()
@@ -209,6 +221,19 @@ impl BarycenterHeuristic {
                 } else {
                     let pid = port_id(&fixed_port);
                     let rank = port_ranks.get(pid).copied().unwrap_or(0.0);
+                    if trace_cm {
+                        let fp_name = fixed_port
+                            .lock()
+                            .ok()
+                            .map(|mut g| {
+                                format!("pid:{}", g.shape().graph_element().id)
+                            })
+                            .unwrap_or_else(|| "<locked>".into());
+                        eprintln!(
+                            "[CROSSMIN] calc_bary: node={} fixed_port={} port_id={} rank={}",
+                            node_name, fp_name, pid, rank
+                        );
+                    }
                     if let Some(state) = self.state_of(node) {
                         if let Ok(mut state_guard) = state.lock() {
                             state_guard.summed_weight += rank;
@@ -249,6 +274,12 @@ impl BarycenterHeuristic {
                     state_guard.summed_weight += perturbation;
                     state_guard.barycenter =
                         Some(state_guard.summed_weight / state_guard.degree as f64);
+                }
+                if trace_cm {
+                    eprintln!(
+                        "[CROSSMIN] calc_bary: node={} FINAL summed_weight={} degree={} barycenter={:?}",
+                        node_name, state_guard.summed_weight, state_guard.degree, state_guard.barycenter
+                    );
                 }
             }
         }
@@ -397,6 +428,41 @@ impl BarycenterHeuristic {
                     "crossmin: barycenter sort+constraints done in {} ms (len={})",
                     sort_start.elapsed().as_millis(),
                     layer.len()
+                );
+            }
+        }
+
+        if std::env::var_os("ELK_TRACE_CROSSMIN").is_some() {
+            let li = layer
+                .first()
+                .and_then(|n| n.lock().ok().and_then(|ng| ng.layer()))
+                .and_then(|l| l.lock().ok().map(|mut lg| lg.graph_element().id))
+                .unwrap_or(-1);
+            eprintln!(
+                "[CROSSMIN] minimize_crossings_layer: layer={} forward={} nodes={}",
+                li,
+                forward,
+                layer.len()
+            );
+            for (i, node) in layer.iter().enumerate() {
+                let (name, bary, deg, sw) = self
+                    .state_of(node)
+                    .and_then(|st| {
+                        st.lock().ok().map(|sg| {
+                            let nm = node
+                                .lock()
+                                .ok()
+                                .map(|mut g| {
+                                    format!("id:{}", g.shape().graph_element().id)
+                                })
+                                .unwrap_or_else(|| "<locked>".into());
+                            (nm, sg.barycenter, sg.degree, sg.summed_weight)
+                        })
+                    })
+                    .unwrap_or(("<no_state>".into(), None, 0, 0.0));
+                eprintln!(
+                    "[CROSSMIN] minimize_crossings_layer: layer={} node[{}]={} barycenter={:?} degree={} summed_weight={}",
+                    li, i, name, bary, deg, sw
                 );
             }
         }

@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import collections
 import csv
+csv.field_size_limit(10 * 1024 * 1024)  # 10 MB
 import json
 import math
 import re

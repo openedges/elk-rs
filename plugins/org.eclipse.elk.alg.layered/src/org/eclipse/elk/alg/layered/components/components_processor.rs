@@ -253,6 +253,30 @@ impl ComponentGroupLike for ModelOrderComponentGroup {
 }
 
 fn combine_simple_row(components: &[LGraphRef], target: &LGraphRef) {
+    // Java parity: single-component optimization
+    // When there's only one component and it IS the target graph, do nothing (no-op).
+    // This prevents double-application of the graph offset.
+    if components.len() == 1 {
+        if Arc::ptr_eq(&components[0], target) {
+            return;
+        }
+        // Single component but different graph: move and copy properties
+        if let Ok(mut target_guard) = target.lock() {
+            target_guard.layerless_nodes_mut().clear();
+        }
+        move_graph(target, &components[0], 0.0, 0.0);
+        if let (Ok(mut target_guard), Ok(mut source_guard)) = (target.lock(), components[0].lock()) {
+            target_guard
+                .graph_element()
+                .properties_mut()
+                .copy_properties(source_guard.graph_element().properties());
+            *target_guard.padding() = source_guard.padding_ref().clone();
+            target_guard.size().x = source_guard.size_ref().x;
+            target_guard.size().y = source_guard.size_ref().y;
+        }
+        return;
+    }
+
     let mut ordered_components = components.to_vec();
     sort_components_by_priority(&mut ordered_components, target);
 

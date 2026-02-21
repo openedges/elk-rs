@@ -1651,11 +1651,12 @@ fn is_flexible_node(graph: &LGraph, node: &LNodeRef) -> bool {
             node,
             LayeredOptions::SPACING_PORT_PORT,
         );
-        let mut additional_port_spacing: ElkMargin = Spacings::get_individual_or_default_with_graph(
-            graph,
-            node,
-            LayeredOptions::SPACING_PORTS_SURROUNDING,
-        );
+        let mut additional_port_spacing: ElkMargin =
+            Spacings::get_individual_or_default_with_graph(
+                graph,
+                node,
+                LayeredOptions::SPACING_PORTS_SURROUNDING,
+            );
         if additional_port_spacing == ElkMargin::new() {
             additional_port_spacing = ElkMargin::with_any(port_spacing);
         }

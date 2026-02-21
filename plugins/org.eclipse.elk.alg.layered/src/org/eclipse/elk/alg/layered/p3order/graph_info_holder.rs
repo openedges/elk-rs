@@ -840,6 +840,13 @@ fn create_port_distributors(
 
     let use_node_relative = random.next_boolean();
     let needs_barycenter = cross_min_type == CrossMinType::Barycenter;
+    if trace {
+        eprintln!(
+            "[CROSSMIN] initialize: port_distributor={} (next_boolean={})",
+            if use_node_relative { "NodeRelative" } else { "LayerTotal" },
+            use_node_relative
+        );
+    }
     if use_node_relative {
         if trace {
             eprintln!(
