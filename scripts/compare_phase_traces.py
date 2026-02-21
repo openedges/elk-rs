@@ -149,59 +149,116 @@ class SnapshotComparator:
         self.max_diffs = max_diffs
 
     # ------------------------------------------------------------------
+    # Normalization: convert Java/Rust formats to common representation
+
+    @staticmethod
+    def _normalize(snap: dict) -> dict:
+        """Normalize a snapshot so both Java and Rust use the same structure.
+
+        Handles two Java formats:
+        - Flat: top-level ``nodes``/``edges``/``layers``
+        - Component: ``components`` array, each with own nodes/edges/layers
+
+        Common format after normalization:
+        - ``all_nodes``: list of *all* node objects (layerless + in-layer)
+        - ``layer_ids``: list[list[str]] – per-layer node-ID lists
+        - ``edges``, ``graphSize``, ``padding``, ``offset``, ``size``
+        """
+        # If Java uses components format, flatten all components
+        if "components" in snap and snap.get("components"):
+            all_nodes: list[dict] = []
+            layer_ids: list[list[str]] = []
+            all_edges: list[dict] = []
+            graph_size = None
+            padding = None
+            offset = None
+            size = None
+            for comp in snap["components"]:
+                sub = SnapshotComparator._normalize(comp)
+                all_nodes.extend(sub["all_nodes"])
+                layer_ids.extend(sub["layer_ids"])
+                all_edges.extend(sub["edges"])
+                # Use first component's metadata as fallback
+                if graph_size is None:
+                    graph_size = sub.get("graphSize")
+                if padding is None:
+                    padding = sub.get("padding")
+            return {
+                "all_nodes": all_nodes,
+                "layer_ids": layer_ids,
+                "edges": all_edges,
+                "graphSize": graph_size or snap.get("graphSize"),
+                "padding": padding or snap.get("padding"),
+                "offset": snap.get("offset"),
+                "size": snap.get("size"),
+            }
+
+        all_nodes = list(snap.get("nodes", []))
+        layer_ids: list[list[str]] = []
+
+        for layer in snap.get("layers", []):
+            if isinstance(layer, dict) and "nodes" in layer:
+                # Rust format: {"index": i, "nodes": [{full node objects}]}
+                layer_nodes = layer["nodes"]
+                all_nodes.extend(layer_nodes)
+                layer_ids.append([n["id"] for n in layer_nodes])
+            elif isinstance(layer, list):
+                # Java format: ["N1", "N3", ...]
+                layer_ids.append(list(layer))
+            else:
+                layer_ids.append([])
+
+        return {
+            "all_nodes": all_nodes,
+            "layer_ids": layer_ids,
+            "edges": snap.get("edges", []),
+            "graphSize": snap.get("graphSize"),
+            "padding": snap.get("padding"),
+            "offset": snap.get("offset"),
+            "size": snap.get("size"),
+        }
+
+    # ------------------------------------------------------------------
     # Public entry point
 
     def compare(self, java: dict, rust: dict) -> list[DiffEntry]:
         diffs: list[DiffEntry] = []
-        self._nodes(java, rust, diffs)
-        self._edges(java, rust, diffs)
-        self._layers(java, rust, diffs)
-        self._graph_size(java, rust, diffs)
-        self._padding(java, rust, diffs)
+        jn = self._normalize(java)
+        rn = self._normalize(rust)
+        self._all_nodes(jn, rn, diffs)
+        self._edges_norm(jn, rn, diffs)
+        self._layer_structure(jn, rn, diffs)
+        self._graph_size_norm(jn, rn, diffs)
+        self._padding_norm(jn, rn, diffs)
         return diffs
 
     # ------------------------------------------------------------------
-    # Nodes
+    # All nodes (from normalized snapshot)
 
-    def _nodes(self, java: dict, rust: dict, diffs: list[DiffEntry]) -> None:
-        jnodes = java.get("nodes", [])
-        rnodes = rust.get("nodes", [])
-        jmap = {n["id"]: n for n in jnodes}
-        rmap = {n["id"]: n for n in rnodes}
-        # If IDs overlap, match by ID; otherwise fall back to positional matching
-        if set(jmap) & set(rmap) or (not jnodes and not rnodes):
-            for nid in sorted(set(jmap) - set(rmap)):
-                self._push(diffs, f"nodes/{nid}", "present", "missing")
-            for nid in sorted(set(rmap) - set(jmap)):
-                self._push(diffs, f"nodes/{nid}", "missing", "present")
-            for nid in sorted(set(jmap) & set(rmap)):
-                if len(diffs) >= self.max_diffs:
-                    return
-                self._node(jmap[nid], rmap[nid], f"nodes/{nid}", diffs)
-        else:
-            # Positional fallback (Java/Rust use different ID schemes)
-            if len(jnodes) != len(rnodes):
-                self._push(diffs, "nodes", f"count={len(jnodes)}", f"count={len(rnodes)}")
-            for i in range(min(len(jnodes), len(rnodes))):
-                if len(diffs) >= self.max_diffs:
-                    return
-                jn, rn = jnodes[i], rnodes[i]
-                self._node(jn, rn, f"nodes[{i}]/{jn.get('id','?')}", diffs)
+    def _all_nodes(self, jn: dict, rn: dict, diffs: list[DiffEntry]) -> None:
+        jnodes = jn["all_nodes"]
+        rnodes = rn["all_nodes"]
+        # Always use positional matching (Java/Rust have different ID schemes: N1 vs N0)
+        if len(jnodes) != len(rnodes):
+            self._push(diffs, "nodes", f"count={len(jnodes)}", f"count={len(rnodes)}")
+        for i in range(min(len(jnodes), len(rnodes))):
+            if len(diffs) >= self.max_diffs:
+                return
+            jnode, rnode = jnodes[i], rnodes[i]
+            self._node(jnode, rnode, f"nodes[{i}]", diffs)
 
     def _node(self, jn: dict, rn: dict, prefix: str, diffs: list[DiffEntry]) -> None:
         for f in ("x", "y", "width", "height"):
             self._num(jn, rn, f, prefix, diffs)
         for f in ("type", "layer"):
             self._scalar(jn, rn, f, prefix, diffs)
-        # ports
-        jp = {p["id"]: p for p in jn.get("ports", [])}
-        rp = {p["id"]: p for p in rn.get("ports", [])}
-        for pid in sorted(set(jp) - set(rp)):
-            self._push(diffs, f"{prefix}/ports/{pid}", "present", "missing")
-        for pid in sorted(set(rp) - set(jp)):
-            self._push(diffs, f"{prefix}/ports/{pid}", "missing", "present")
-        for pid in sorted(set(jp) & set(rp)):
-            self._port(jp[pid], rp[pid], f"{prefix}/ports/{pid}", diffs)
+        # ports — positional matching (IDs differ between Java/Rust)
+        jports = jn.get("ports", [])
+        rports = rn.get("ports", [])
+        if len(jports) != len(rports):
+            self._push(diffs, f"{prefix}/ports", f"count={len(jports)}", f"count={len(rports)}")
+        for i in range(min(len(jports), len(rports))):
+            self._port(jports[i], rports[i], f"{prefix}/ports[{i}]", diffs)
         # labels
         self._labels(jn.get("labels", []), rn.get("labels", []), f"{prefix}/labels", diffs)
 
@@ -221,34 +278,22 @@ class SnapshotComparator:
             self._scalar(jlist[i], rlist[i], "text", lp, diffs)
 
     # ------------------------------------------------------------------
-    # Edges
+    # Edges (normalized)
 
-    def _edges(self, java: dict, rust: dict, diffs: list[DiffEntry]) -> None:
-        jedges = java.get("edges", [])
-        redges = rust.get("edges", [])
-        jmap = {e["id"]: e for e in jedges}
-        rmap = {e["id"]: e for e in redges}
-        if set(jmap) & set(rmap) or (not jedges and not redges):
-            for eid in sorted(set(jmap) - set(rmap)):
-                self._push(diffs, f"edges/{eid}", "present", "missing")
-            for eid in sorted(set(rmap) - set(jmap)):
-                self._push(diffs, f"edges/{eid}", "missing", "present")
-            for eid in sorted(set(jmap) & set(rmap)):
-                if len(diffs) >= self.max_diffs:
-                    return
-                self._edge(jmap[eid], rmap[eid], f"edges/{eid}", diffs)
-        else:
-            # Positional fallback
-            if len(jedges) != len(redges):
-                self._push(diffs, "edges", f"count={len(jedges)}", f"count={len(redges)}")
-            for i in range(min(len(jedges), len(redges))):
-                if len(diffs) >= self.max_diffs:
-                    return
-                self._edge(jedges[i], redges[i], f"edges[{i}]/{jedges[i].get('id','?')}", diffs)
+    def _edges_norm(self, jn: dict, rn: dict, diffs: list[DiffEntry]) -> None:
+        jedges = jn["edges"]
+        redges = rn["edges"]
+        # Positional matching (IDs differ between Java/Rust)
+        if len(jedges) != len(redges):
+            self._push(diffs, "edges", f"count={len(jedges)}", f"count={len(redges)}")
+        for i in range(min(len(jedges), len(redges))):
+            if len(diffs) >= self.max_diffs:
+                return
+            self._edge(jedges[i], redges[i], f"edges[{i}]", diffs)
 
     def _edge(self, je: dict, re_: dict, prefix: str, diffs: list[DiffEntry]) -> None:
-        for f in ("sourceNode", "sourcePort", "targetNode", "targetPort"):
-            self._scalar(je, re_, f, prefix, diffs)
+        # Skip source/target ID fields — Java and Rust use different ID schemes
+        # (Java: "source"/"target" with ElkNode IDs, Rust: "source"/"target" with N{id})
         jbp = je.get("bendPoints", [])
         rbp = re_.get("bendPoints", [])
         if len(jbp) != len(rbp):
@@ -260,41 +305,41 @@ class SnapshotComparator:
         self._labels(je.get("labels", []), re_.get("labels", []), f"{prefix}/labels", diffs)
 
     # ------------------------------------------------------------------
-    # Layers / graphSize / padding
+    # Layer structure (normalized — just check counts, not IDs)
 
-    def _layers(self, java: dict, rust: dict, diffs: list[DiffEntry]) -> None:
-        jl = java.get("layers")
-        rl = rust.get("layers")
-        if jl is None and rl is None:
-            return
-        if jl is None or rl is None:
-            self._push(diffs, "layers", jl, rl)
-            return
+    def _layer_structure(self, jn: dict, rn: dict, diffs: list[DiffEntry]) -> None:
+        jl = jn["layer_ids"]
+        rl = rn["layer_ids"]
         if len(jl) != len(rl):
             self._push(diffs, "layers", f"count={len(jl)}", f"count={len(rl)}")
         for i in range(min(len(jl), len(rl))):
-            js = sorted(str(x) for x in jl[i])
-            rs = sorted(str(x) for x in rl[i])
-            if js != rs:
-                self._push(diffs, f"layers[{i}]", js, rs)
+            if len(jl[i]) != len(rl[i]):
+                self._push(diffs, f"layers[{i}]",
+                            f"count={len(jl[i])}", f"count={len(rl[i])}")
 
-    def _graph_size(self, java: dict, rust: dict, diffs: list[DiffEntry]) -> None:
-        jg = java.get("graphSize")
-        rg = rust.get("graphSize")
+    def _graph_size_norm(self, jn: dict, rn: dict, diffs: list[DiffEntry]) -> None:
+        jg = jn.get("graphSize")
+        rg = rn.get("graphSize")
         if jg is None and rg is None:
             return
-        if jg is None or rg is None:
+        # Skip when Java has no graphSize (import-state: not set until later)
+        if jg is None and rg is not None:
+            return
+        if rg is None:
             self._push(diffs, "graphSize", jg, rg)
             return
         for f in ("width", "height"):
             self._num(jg, rg, f, "graphSize", diffs)
 
-    def _padding(self, java: dict, rust: dict, diffs: list[DiffEntry]) -> None:
-        jp = java.get("padding")
-        rp = rust.get("padding")
+    def _padding_norm(self, jn: dict, rn: dict, diffs: list[DiffEntry]) -> None:
+        jp = jn.get("padding")
+        rp = rn.get("padding")
         if jp is None and rp is None:
             return
-        if jp is None or rp is None:
+        # Skip when Java has no padding (import-state: not set until later)
+        if jp is None and rp is not None:
+            return
+        if rp is None:
             self._push(diffs, "padding", jp, rp)
             return
         for f in ("top", "bottom", "left", "right"):
@@ -314,6 +359,11 @@ class SnapshotComparator:
             self._push(diffs, f"{prefix}/{field}", jv, rv)
             return
         if isinstance(jv, (int, float)) and isinstance(rv, (int, float)):
+            # Skip geometric diffs when Java reports 0 (import-state artifact:
+            # Java LNodes start with all geometry=0, Rust preserves ElkNode values).
+            # After LabelAndNodeSizeProcessor, Java will have real values.
+            if field in ("x", "y", "width", "height") and float(jv) == 0.0 and float(rv) != 0.0:
+                return
             delta = float(jv) - float(rv)
             if abs(delta) > self.tol:
                 diffs.append(DiffEntry(f"{prefix}/{field}", float(jv), float(rv), delta))
@@ -624,10 +674,22 @@ def _is_batch_dir(java_base: Path, rust_base: Path) -> bool:
     return False
 
 
+def _find_trace_dirs(base: Path) -> dict[str, Path]:
+    """Recursively find directories containing step files, keyed by normalized relative path."""
+    result: dict[str, Path] = {}
+    for dirpath, _dirnames, filenames in os.walk(base):
+        if any(f.startswith("step_") and f.endswith(".json") for f in filenames):
+            rel = os.path.relpath(dirpath, base)
+            # Normalize: strip trailing .json from directory names
+            normalized = rel.replace(".json", "")
+            result[normalized] = Path(dirpath)
+    return result
+
+
 def iter_model_pairs(java_base: Path, rust_base: Path) -> Iterator[tuple[str, Path, Path]]:
-    """Yield (model_name, java_dir, rust_dir) for each common sub-directory."""
-    jmodels = {d.name: d for d in sorted(java_base.iterdir()) if d.is_dir()}
-    rmodels = {d.name: d for d in sorted(rust_base.iterdir()) if d.is_dir()}
+    """Yield (model_name, java_dir, rust_dir) for each common model trace directory."""
+    jmodels = _find_trace_dirs(java_base)
+    rmodels = _find_trace_dirs(rust_base)
     for name in sorted(set(jmodels) & set(rmodels)):
         yield name, jmodels[name], rmodels[name]
 

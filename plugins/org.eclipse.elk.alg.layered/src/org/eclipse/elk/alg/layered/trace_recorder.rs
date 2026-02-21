@@ -45,7 +45,7 @@ fn serialize_port(port: &Arc<std::sync::Mutex<super::graph::LPort>>) -> Option<V
     }))
 }
 
-fn serialize_node(node: &LNodeRef) -> Option<Value> {
+fn serialize_node(node: &LNodeRef, known_layer_index: Option<usize>) -> Option<Value> {
     let mut guard = node.try_lock().ok()?;
     let id = format!("N{}", guard.shape().graph_element().id);
     // Avoid calling designation() as it uses label.lock() which can deadlock
@@ -60,10 +60,16 @@ fn serialize_node(node: &LNodeRef) -> Option<Value> {
     let pos_y = guard.shape().position_ref().y;
     let size_x = guard.shape().size_ref().x;
     let size_y = guard.shape().size_ref().y;
-    let layer_index: Value = guard
-        .layer()
-        .and_then(|l| l.try_lock().ok().and_then(|lg| lg.index()))
+    // Use the known layer index passed from the outer loop (avoids re-locking
+    // the layer which is already held by the caller in serialize_lgraph_snapshot).
+    let layer_index: Value = known_layer_index
         .map(|i| json!(i as i64))
+        .or_else(|| {
+            guard
+                .layer()
+                .and_then(|l| l.try_lock().ok().and_then(|lg| lg.index()))
+                .map(|i| json!(i as i64))
+        })
         .unwrap_or(json!(-1));
 
     let port_refs: Vec<_> = guard.ports().clone();
@@ -155,7 +161,7 @@ pub fn serialize_lgraph_snapshot(
             layer_guard
                 .nodes()
                 .iter()
-                .filter_map(serialize_node)
+                .filter_map(|n| serialize_node(n, Some(layer_index)))
                 .collect()
         } else {
             Vec::new()
@@ -170,7 +176,7 @@ pub fn serialize_lgraph_snapshot(
     let layerless_json: Vec<Value> = lgraph
         .layerless_nodes()
         .iter()
-        .filter_map(serialize_node)
+        .filter_map(|n| serialize_node(n, None))
         .collect();
 
     // Collect all edges from all nodes (outgoing only to avoid duplicates)
