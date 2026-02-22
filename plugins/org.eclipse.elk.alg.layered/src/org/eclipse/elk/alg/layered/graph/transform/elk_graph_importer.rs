@@ -466,8 +466,16 @@ impl<'a> ElkGraphImporter<'a> {
                 }
             }
         }
-
-        LGraphUtil::compute_graph_properties(lgraph);
+        // Keep importer-level graph-property behavior for the root graph only.
+        // Running this on nested graphs can over-classify NonFreePorts and
+        // introduce phase drift (e.g. premature InvertedPortProcessor insertion).
+        let is_root_graph = lgraph
+            .lock()
+            .ok()
+            .is_some_and(|guard| guard.parent_node().is_none());
+        if is_root_graph {
+            LGraphUtil::compute_graph_properties(lgraph);
+        }
     }
 
     fn should_skip_node(&self, node: &ElkNodeRef) -> bool {

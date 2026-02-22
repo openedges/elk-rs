@@ -149,6 +149,7 @@ ELK Java -> Rust 포팅의 검증은 아래 다층 게이트로 운영한다.
    - `JAVA_TRACE_EXTERNAL_ISOLATE=false JAVA_TRACE_BUILD_PLUGINS=false sh scripts/run_java_phase_trace.sh perf/model_parity/java/input /tmp/phase_gate/java_trace`
 3. Rust phase trace 생성
    - `cargo run --release -p org-eclipse-elk-graph-json --bin model_parity_layout_runner -- --input-manifest perf/model_parity/java/java_manifest.tsv --output-manifest /tmp/phase_gate/rust_manifest.tsv --rust-layout-dir /tmp/phase_gate/rust_layout --pretty-print false --stop-on-error false --trace-dir /tmp/phase_gate/rust_trace`
+   - 참고: timeout 모델이 trace 실행 중간에 나오면 timeout worker가 남아 후속 trace가 누락될 수 있다. known timeout 모델(`ptides_powerplant_PowerPlant.elkg/.elkt`)은 manifest 끝으로 재배치한 뒤 실행한다.
 4. Batch phase 비교
    - `python3 scripts/compare_phase_traces.py /tmp/phase_gate/java_trace /tmp/phase_gate/rust_trace --batch --json > /tmp/phase_gate/phase_compare_full.json`
    - 순서 기준: `compare_phase_traces.py`는 component-run 재정렬 없이 **strict step order**로 비교한다.
@@ -164,17 +165,17 @@ ELK Java -> Rust 포팅의 검증은 아래 다층 게이트로 운영한다.
 ### 11.3 현재 기준선 (재측정 결과)
 
 - 기준 모델(`java_status=ok`): `1439`
-- 비교불가(error): `0`
+- 비교불가(error): `1`
   - Java만 trace 없음: `0`
-  - Rust만 trace 없음: `0`
+  - Rust만 trace 없음: `1` (`realworld/ptolemy/hierarchical/ptides_powerplant_PowerPlant.elkt`)
   - 양측 trace 없음: `0`
-- 비교 가능(shared): `1439`
-- shared 모델 phase 결과: `all_match=0`, `diverged=1439`
+- 비교 가능(shared): `1438`
+- shared 모델 phase 결과: `all_match=0`, `diverged=1438`
 - 최신 gate 요약: `perf/model_parity/phase_gate_latest.md`
-- 최근 갱신(2026-02-22, recursive+strict): `step 0`과 `step 4` error를 모두 `0`으로 해소
-- 최신 step 범위(루트 trace 기준): `0..37`
-- 현재 frontier(낮은 step) 실패 분포: `step8=41`, `step9=71`
-- 1차 대형 hotspot: `step10=316`, `step11=615`, `step12=238`
+- 최근 갱신(2026-02-22, recursive+strict): `step 8` error가 `41 -> 4`로 감소, `step 0` error는 `0` 유지
+- 최신 step 범위(루트 trace 기준): `0..20`
+- 현재 frontier(낮은 step) 실패 분포: `step1=82`, `step2=50`, `step3=10`, `step4=1`, `step7=1`, `step8=4`
+- 1차 대형 hotspot: `step10=327`, `step11=567`, `step12=206`
 
 ### 11.4 단계별 처리 순서 (앞 phase 우선)
 
@@ -187,8 +188,8 @@ ELK Java -> Rust 포팅의 검증은 아래 다층 게이트로 운영한다.
 
 현재 우선 순위(frontier):
 
-1. `step 8~12`
-2. `step 13~21`
-3. 이후는 `first_failure_by_step` 오름차순(`37 ...`)으로 처리
+1. `step 1~4` (가장 이른 phase frontier)
+2. `step 7~12`
+3. `step 13~20`
 
 각 단계 완료 기준은 해당 step의 `error=0`이다.
