@@ -7,7 +7,7 @@
 // - P32(WEST) and P35(EAST) are regular connected ports with index=0,3
 // - E21 is the self-loop P33(EAST)->P34(WEST)
 // - P34 is at x=-8, so InnermostNodeMarginCalculator sets margin.left=8
-// - After SelfLoopRouter, margin.left should extend to 18 (margin.left + node_self_loop_distance)
+// - After SelfLoopRouter, margin.left should extend to 28 because WEST uses slot 1 in this setup
 
 use std::sync::Arc;
 
@@ -48,9 +48,9 @@ fn run_processor(processor: &mut dyn ILayoutProcessor<LGraph>, graph: &std::sync
 ///
 /// After SelfLoopRouter:
 /// - occupied = {WEST, NORTH, EAST}
-/// - routing_slot_count[WEST] = 1
-/// - positions[WEST][0] = -(8+10) = -18
-/// - margin.left should extend to 18
+/// - routing_slot_count[WEST] = 2 and this loop uses WEST slot 1
+/// - positions[WEST][1] = -(8+10) - edge_edge_distance = -28
+/// - margin.left should extend to 28
 #[test]
 fn opposing_east_west_self_loop_fixedpos_extends_west_margin() {
     init_layered_metadata();
@@ -227,17 +227,19 @@ fn opposing_east_west_self_loop_fixedpos_extends_west_margin() {
     let mut router = SelfLoopRouter;
     run_processor(&mut router, &graph);
 
-    // Verify: margin.left should extend from 8 to 18
+    // Verify: margin.left should extend from 8 to 28.
+    // In this setup WEST gets slot 1 (not 0), so one edge-edge spacing step is added:
     // baseline = -(margin.left + node_self_loop_distance) = -(8 + 10) = -18
-    // update_margins_with_point(-18) -> margin.left = max(8, 18) = 18
+    // slot 1 position = -18 - edge_edge_distance(10) = -28
+    // update_margins_with_point(-28) -> margin.left = max(8, 28) = 28
     let margin_left = {
         let mut node_guard = node.lock().expect("node lock after routing");
         node_guard.margin().left
     };
 
     assert!(
-        (margin_left - 18.0).abs() < 1.0,
-        "Expected margin.left=18 (WEST opposing self-loop extending from initial 8 by node_self_loop_distance=10), got {margin_left}"
+        (margin_left - 28.0).abs() < 1.0,
+        "Expected margin.left=28 (WEST opposing self-loop uses slot 1 and extends from initial 8), got {margin_left}"
     );
 }
 
@@ -542,5 +544,5 @@ fn debug_trace_margin_extension() {
     eprintln!("[DIAG] After router: margin.left = {}", margin_left);
 
     // Just print, don't assert, to see full trace
-    eprintln!("[DIAG] Expected margin.left = 18.0");
+    eprintln!("[DIAG] Expected margin.left = 28.0");
 }

@@ -39,18 +39,18 @@
 7. 커밋 (`<scope>: <summary>`)
 8. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
-## 현재 핵심 스냅샷 (2026-02-21)
-- Full model parity: `matches=1164/1439` (80.9%), `drift=275`, `diffs=5374`, `errors=0`, `timeouts=0`, `java_non_ok=9`
-  - 이전: 1150 → self-loop fix + crossing min early return + port label fix → **1164**
-- 남은 drift 275개는 모두 crossing min random state divergence에서 캐스케이딩
+## 현재 핵심 스냅샷 (2026-02-22)
+- Full model parity: `matches=1174/1439` (81.6%), `drift=265`, `diffs=5222`, `errors=0`, `timeouts=0`, `java_non_ok=9`
+  - 이전 스냅샷(2026-02-21): `1164/1439` → 최신 재검증에서 **1174/1439**로 갱신
+- 남은 drift 265개는 기존 phase 분석 기준 crossing min random state divergence에서의 cascading 영향이 중심
 - 포팅/테스트/빌드/성능 자동화 파이프라인은 운영 상태
 - `cargo build --workspace`: warning 0건, `cargo clippy --workspace --all-targets`: warning 0건
 
 ## Parity 100% 전략
 
-### Drift 분포 (275개 모델)
-- diff 분류: coordinate(80.1%), section(15.4%), structure(3.9%), ordering(0.3%), label(0.3%)
-- 275개 모두 crossing min random state divergence에서 캐스케이딩
+### Drift 분포 (265개 모델)
+- diff 분류: coordinate(80.0%), section(15.6%), structure(3.7%), ordering(0.3%), label(0.2%), other(0.1%)
+- 265개의 drift는 기존 분석 기준 crossing min random state divergence cascading이 중심
 - crossing min 구조적 컴포넌트는 전수 검증 완료 (Java와 동일)
 
 ### 전략: Bottom-Up Phase-by-Phase Verification

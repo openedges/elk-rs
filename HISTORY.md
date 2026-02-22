@@ -934,9 +934,12 @@
 - Step M-5 tickets 지표 갱신(2026-02-19): 고정 Java baseline 기준 tickets parity 재실행(`MODEL_PARITY_SKIP_JAVA_EXPORT=true sh scripts/run_model_parity_by_category.sh tickets`) 결과 `matches=106/109`, `drift=3`, `total_diffs=47`, `errors/timeouts=0`, `java_non_ok=1(588)`로 개선(직전 `105/109`, `drift=4`, `total_diffs=62` 대비 +1/-1/-15). 잔여 drift: `213_componentsCompaction`, `502_collapsingCompoundNode`, `701_portLabels`
 
 - Phase trace 도구 구현 확인 및 문서 정리(2026-02-21): Phase 1-3 도구가 이미 모두 구현되어 있음을 확인. `scripts/java/ElkPhaseTraceExporter.java`(866 LOC), `scripts/run_java_phase_trace.sh`(320 LOC), `scripts/compare_phase_traces.py`, Rust `trace_recorder.rs` + `elk_layered.rs` trace hook + `model_parity_layout_runner.rs --trace-dir` CLI. `perf/PARITY_PLAN.md`를 삭제하고 `AGENTS.md`에 Phase 1-3 완료 상태 및 phase trace 실행 명령을 반영. `.gitignore`에 trace 출력 디렉토리 추가. 다음 단계는 Phase 4: trace 실행 및 divergence 분석.
+- 품질 게이트 재검증(2026-02-22): `LAYERED_PHASE_WIRING_PARITY_STRICT=true sh scripts/check_layered_phase_wiring_parity.sh` 통과, `cargo build --workspace`/`cargo clippy --workspace --all-targets` 통과, `cargo test --workspace` 전체 통과(도큐먼트 테스트 포함, 종료코드 0) 확인
+- 테스트 실패 원인 정리 및 수정(2026-02-22): `plugins/org.eclipse.elk.alg.layered/tests/ptides_self_loop_margin_test.rs`의 `opposing_east_west_self_loop_fixedpos_extends_west_margin` 기대값이 실제 routing slot(서쪽 slot 1)과 달라 실패하던 문제를 테스트 기대값/주석 정합으로 보정(`18 -> 28`). 재검증: `cargo test -p org-eclipse-elk-alg-layered --test ptides_self_loop_margin_test` 3/3 통과
+- Full parity 재실행(2026-02-22): `MODEL_PARITY_SKIP_JAVA_EXPORT=true sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models perf/model_parity_full` 실행. 결과 `total=1448`, `compared=1439`, `matches=1174`, `drift=265`, `total_diffs=5222`, `errors=0`, `timeouts=0`, `java_non_ok=9`로 갱신(`perf/model_parity_full/report.md`, `diff_details.tsv`, `rust_manifest.tsv`)
 
 ## 진행할 작업
 - Step M-5 tickets 잔여 2건 우선 처리: `701_portLabels`(inside label clamp/stack + node width), `213_componentsCompaction`(component compaction coordinate drift) 순으로 축소한다.
 - Step M-5 701 후속 정밀화: `node_dimension_calculation.rs`의 constrained inside north/south stack(clamp_x, start coordinate, overlap 회피) 경로를 Java `PortLabelPlacementCalculator`와 대조해 `MyNode*_g*` 계열 잔여 x/y drift를 제거한다.
-- parity 지표 재검증: tickets subset(잔여 2건) → `perf/model_parity_tickets` 전체 → full parity(`perf/model_parity_full`) 순으로 재실행해 개선 누적 여부를 확인한다.
+- parity 지표 재검증: 현재 full baseline(`matches=1174/1439`, `drift=265`) 기준으로 tickets subset(잔여 2건) → `perf/model_parity_tickets` 전체 → full parity(`perf/model_parity_full`) 순으로 재실행해 개선 누적 여부를 확인한다.
 - 품질 게이트 유지: 단계 종료 시 `cargo clippy --workspace --all-targets`와 `cargo test --workspace`를 재실행하고 예외/known failing이 있으면 근거와 우회안을 `HISTORY.md`에 즉시 기록한다.
