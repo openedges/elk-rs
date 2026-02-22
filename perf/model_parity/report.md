@@ -3,36 +3,36 @@
 - manifest: `/Users/luuvish/Projects/research/elk-rs/perf/model_parity/rust_manifest.tsv`
 - total rows: 1448
 - compared rows: 1439
-- matched rows: 1164
-- drift rows: 275
+- matched rows: 1174
+- drift rows: 265
 - skipped rows (java/rust non-ok): 9
 - compare errors: 0
 - abs tolerance: 1e-06
 - max diffs per model: 20
-- total diffs across all models: 5374
+- total diffs across all models: 5222
 
 ## Drift Classification Summary
 
 | Category | Count | Percentage |
 |----------|------:|-----------:|
-| coordinate | 4302 | 80.1% |
-| section | 827 | 15.4% |
-| structure | 210 | 3.9% |
-| ordering | 17 | 0.3% |
-| label | 15 | 0.3% |
+| coordinate | 4178 | 80.0% |
+| section | 817 | 15.6% |
+| structure | 195 | 3.7% |
+| ordering | 16 | 0.3% |
+| label | 13 | 0.2% |
 | other | 3 | 0.1% |
 
 ### Top Diff Path Prefixes
 
-- `children[*]/y`: 1451 (27.0%)
-- `children[*]/x`: 1135 (21.1%)
-- `children[*]/children[*]/y`: 825 (15.4%)
-- `children[*]/edges[*]/sections[*]`: 550 (10.2%)
-- `children[*]/children[*]/children[*]`: 452 (8.4%)
-- `children[*]/children[*]/x`: 322 (6.0%)
-- `children[*]/children[*]/edges[*]`: 307 (5.7%)
+- `children[*]/y`: 1369 (26.2%)
+- `children[*]/x`: 1086 (20.8%)
+- `children[*]/children[*]/y`: 828 (15.9%)
+- `children[*]/edges[*]/sections[*]`: 555 (10.6%)
+- `children[*]/children[*]/children[*]`: 459 (8.8%)
+- `children[*]/children[*]/x`: 324 (6.2%)
+- `children[*]/children[*]/edges[*]`: 307 (5.9%)
 - `children[*]/edges[*]`: 60 (1.1%)
-- `edges[*]/sections[*]/bendPoints[*]`: 54 (1.0%)
+- `edges[*]/sections[*]/bendPoints[*]`: 51 (1.0%)
 - `children[*]/edges[*]/junctionPoints[*]`: 46 (0.9%)
 
 ## Drift Samples
@@ -42,8 +42,6 @@
 - `examples/user-hints/model-order/modelOrderCycleBreaking.elkt`: diffs=20 [section=11, coordinate=8, structure=1], first: children[0]/children[0]/x: number mismatch (62.0 != 82.0)
 - `realworld/ptolemy/flattened/algebraic_rlc_RLC.elkg`: diffs=20 [coordinate=20], first: children[0]/x: number mismatch (653.0 != 610.0)
 - `realworld/ptolemy/flattened/algebraic_rlc_RLC.elkt`: diffs=20 [coordinate=20], first: children[0]/x: number mismatch (653.0 != 610.0)
-- `realworld/ptolemy/flattened/aspect_de_DE2.elkg`: diffs=8 [structure=4, coordinate=2, section=2], first: children[19]/y: number mismatch (376.5 != 296.5)
-- `realworld/ptolemy/flattened/aspect_de_DE2.elkt`: diffs=8 [structure=4, coordinate=2, section=2], first: children[19]/y: number mismatch (376.5 != 296.5)
 - `realworld/ptolemy/flattened/backtrack_primetest_PrimeTest.elkg`: diffs=20 [coordinate=20], first: children[0]/x: number mismatch (1170.0 != 206.0)
 - `realworld/ptolemy/flattened/backtrack_primetest_PrimeTest.elkt`: diffs=20 [coordinate=20], first: children[0]/x: number mismatch (1170.0 != 206.0)
 - `realworld/ptolemy/flattened/continuous_cartracking_CarTracking.elkg`: diffs=20 [coordinate=20], first: children[0]/x: number mismatch (1762.0 != 1754.0)
@@ -57,3 +55,5 @@
 - `realworld/ptolemy/flattened/continuous_staticunits_StaticUnits.elkg`: diffs=20 [coordinate=20], first: children[0]/x: number mismatch (113.0 != 133.0)
 - `realworld/ptolemy/flattened/continuous_staticunits_StaticUnits.elkt`: diffs=20 [coordinate=20], first: children[0]/x: number mismatch (113.0 != 133.0)
 - `realworld/ptolemy/flattened/ddf_rijndaelencryption_RijndaelEncryption.elkg`: diffs=20 [coordinate=20], first: children[0]/y: number mismatch (196.5 != 182.83333333333331)
+- `realworld/ptolemy/flattened/ddf_rijndaelencryption_RijndaelEncryption.elkt`: diffs=20 [coordinate=20], first: children[0]/y: number mismatch (196.5 != 182.83333333333331)
+- `realworld/ptolemy/flattened/de_clock_ClockTest.elkg`: diffs=20 [coordinate=20], first: children[0]/y: number mismatch (394.9 != 292.6333333333333)
