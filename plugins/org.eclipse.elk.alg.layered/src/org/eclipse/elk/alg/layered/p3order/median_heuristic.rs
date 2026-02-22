@@ -119,6 +119,12 @@ impl MedianHeuristic {
     }
 }
 
+impl Default for MedianHeuristic {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ICrossingMinimizationHeuristic for MedianHeuristic {
     fn always_improves(&self) -> bool {
         false

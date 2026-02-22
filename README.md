@@ -48,6 +48,7 @@ This includes:
 
 - Perf operation guide: `perf/README.md`
 - Script catalog and env knobs: `scripts/README.md`
+- Validation environment map: `VALIDATION.md`
 - Baseline lifecycle policy: `perf/baselines/POLICY.md`
 - Java perf triage: `perf/JAVA_PERF_TRIAGE.md`
 

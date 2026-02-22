@@ -11,6 +11,9 @@
 # Perf artifacts
 /perf/*.csv
 /perf/summary.md
+/perf/tmp/*
+!/perf/tmp/.gitkeep
+/perf/layered_phase_wiring/*.tsv
 
 # Model parity outputs
 /perf/model_parity_full/rust/

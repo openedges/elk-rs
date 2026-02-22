@@ -6,6 +6,27 @@ Release quick guide:
 - That failure does not directly mean Rust is slower than Java. Java comparison is evaluated separately via `check_java_perf_parity*.sh`.
 - Release decisions should consider code quality (`cargo test/clippy/build`), parity reports (`status: ok`), and performance gates together.
 
+Directory policy (keep vs temporary):
+- Keep in repo (`KEEP`):
+  - `perf/baselines/*` (baseline CSV + policy docs)
+  - `perf/*.md` parity/perf summary reports used by gates
+  - `perf/results_*.csv`, `perf/java_results_layered_issue_scenarios.csv`
+  - `perf/java_parity_thresholds*.csv`
+  - Compact parity summaries (`report.md`, `diff_details.tsv`, `rust_manifest.tsv`, `java/java_manifest.tsv`, `phase_root_*.{md,tsv}`, `phase_focus_top.{md,tsv}`)
+- Runtime temporary (`TEMP`):
+  - `perf/tmp/**` (new scratch output root)
+  - `perf/layered_phase_wiring/*.tsv` (expanded wiring rows)
+  - `perf/test_parity/**`
+  - Heavy parity payloads: `perf/model_parity*/java/input/**`, `perf/model_parity*/java/layout/**`, `perf/model_parity*/rust/layout/**`, `perf/model_parity*/java_trace/**`, `perf/model_parity*/rust_trace/**`
+
+Recommended usage:
+- Scratch/diagnostic runs: write outputs under `perf/tmp/...`
+- Snapshot/release runs: write summaries under `perf/model_parity*` and keep only compact reports/manifests
+- Cleanup runtime TEMP outputs:
+  - dry-run: `sh scripts/clean_perf_temp.sh`
+  - apply: `sh scripts/clean_perf_temp.sh --apply`
+  - include legacy tracked runtime files: `sh scripts/clean_perf_temp.sh --apply --include-tracked`
+
 `results_comment_attachment.csv` columns:
 - unix_timestamp_seconds
 - count

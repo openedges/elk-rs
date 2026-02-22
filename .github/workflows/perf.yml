@@ -376,6 +376,8 @@ jobs:
         run: sh scripts/check_algorithm_feature_parity.sh
       - name: Check algorithm metadata parity
         run: sh scripts/check_algorithm_metadata_parity.sh
+      - name: Check layered phase wiring parity
+        run: sh scripts/check_layered_phase_wiring_parity.sh
       - name: Upload perf artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -400,5 +402,7 @@ jobs:
             perf/algorithm_option_default_value_parity.md
             perf/algorithm_feature_parity.md
             perf/algorithm_metadata_parity.md
+            perf/layered_phase_wiring_parity.md
+            perf/layered_phase_wiring/*.tsv
             perf/summary.md
             perf/baselines/*.csv

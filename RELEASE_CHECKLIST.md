@@ -2,12 +2,39 @@
 
 Before release, pass the following gates in order to mark the build as release-ready.
 
+## 0) Validation Flow (Run in This Order)
+
+Run the core validation flow in this exact order:
+
+1. `LAYERED_PHASE_WIRING_PARITY_STRICT=true sh scripts/check_layered_phase_wiring_parity.sh`
+2. `cargo build --workspace`
+3. `cargo clippy --workspace --all-targets`
+4. `cargo test --workspace`
+5. `MODEL_PARITY_SKIP_JAVA_EXPORT=true sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models perf/model_parity_full`
+6. `cargo build --workspace --release`
+
+Pass criteria for each step:
+
+- Step 1: `perf/layered_phase_wiring_parity.md` reports `status: ok`
+- Step 2: build error/warning count is zero
+- Step 3: clippy warning count is zero
+- Step 4: test failure count is zero
+- Step 5: parity report is generated and drift metrics are reviewed/recorded
+- Step 6: release profile build succeeds
+
+If a step fails, apply this triage loop:
+
+1. Reproduce with a focused command (single crate/test/script).
+2. Narrow scope to the failing module/phase.
+3. If needed, run Java/Rust phase-trace comparison for divergence localization.
+4. Record root-cause hypothesis and reproduce command in `HISTORY.md`.
+
 ## 1) Code Quality Gates (Required)
 
 ```sh
-cargo test --workspace
-cargo clippy --workspace --all-targets
 cargo build --workspace
+cargo clippy --workspace --all-targets
+cargo test --workspace
 cargo build --workspace --release
 ```
 
@@ -28,6 +55,7 @@ ALGORITHM_OPTION_DEFAULT_PARITY_STRICT=true sh scripts/check_algorithm_option_de
 ALGORITHM_OPTION_DEFAULT_VALUE_PARITY_STRICT=true sh scripts/check_algorithm_option_default_value_parity.sh
 ALGORITHM_FEATURE_PARITY_STRICT=true sh scripts/check_algorithm_feature_parity.sh
 ALGORITHM_METADATA_PARITY_STRICT=true sh scripts/check_algorithm_metadata_parity.sh
+LAYERED_PHASE_WIRING_PARITY_STRICT=true sh scripts/check_layered_phase_wiring_parity.sh
 ```
 
 Decision:
@@ -67,6 +95,7 @@ Decision:
 - `perf/core_options_parity.md`
 - `perf/core_option_dependency_parity.md`
 - `perf/algorithm_*_parity.md`
+- `perf/layered_phase_wiring_parity.md`
 - `perf/recursive_runtime_budget.md`
 - `perf/java_vs_rust.md`
 - `perf/java_vs_rust_baseline.md`

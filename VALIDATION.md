@@ -1,0 +1,124 @@
+# 검증환경 종합 정리
+
+ELK Java -> Rust 포팅의 검증은 아래 다층 게이트로 운영한다.
+
+## 0) 테스트 플로우 (실행 우선순위)
+
+로컬/CI 공통으로 아래 순서로 실행한다.
+
+1. `LAYERED_PHASE_WIRING_PARITY_STRICT=true sh scripts/check_layered_phase_wiring_parity.sh`
+2. `cargo build --workspace`
+3. `cargo clippy --workspace --all-targets`
+4. `cargo test --workspace`
+5. (릴리즈/회귀 분석 단계) `MODEL_PARITY_SKIP_JAVA_EXPORT=true sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models perf/model_parity_full`
+
+각 단계의 판정 기준:
+
+- 1단계: `perf/layered_phase_wiring_parity.md`가 `status: ok`여야 함
+- 2단계: build error/warning 0건
+- 3단계: clippy warning 0건
+- 4단계: test failure 0건
+- 5단계: parity drift 수치/분포를 기록하고 `HISTORY.md` 갱신
+
+실패 시 공통 분석 루프:
+
+1. 실패 단계 단건 재현
+2. 관련 crate/test로 범위 축소
+3. 필요 시 phase trace 비교(Java/Rust)로 divergence 지점 식별
+4. 원인/가설/재현 명령을 `HISTORY.md`에 기록
+
+## 1) 코드 품질 게이트
+
+- 목적: 빌드/테스트/정적분석의 기본 건전성 확보
+- 명령:
+  - `cargo build --workspace`
+  - `cargo clippy --workspace --all-targets`
+  - `cargo test --workspace`
+- 실패 기준: error/warning/failure 1건 이상
+
+## 2) 정적 parity (구성/메타데이터)
+
+- 목적: Java와 Rust의 옵션/알고리즘 등록/메타데이터 불일치 탐지
+- 주요 스크립트:
+  - `sh scripts/check_core_options_parity.sh`
+  - `sh scripts/check_core_option_dependency_parity.sh`
+  - `sh scripts/check_algorithm_*_parity.sh`
+- 산출물: `perf/*parity.md`
+
+## 3) phase wiring parity (정적 구조)
+
+- 목적: layered `GraphConfigurator`의 phase wiring(before/after/phase/processor/guard) 동등성 검증
+- 명령:
+  - `sh scripts/check_layered_phase_wiring_parity.sh`
+  - strict: `LAYERED_PHASE_WIRING_PARITY_STRICT=true sh scripts/check_layered_phase_wiring_parity.sh`
+- 입력:
+  - Java: `external/elk/plugins/org.eclipse.elk.alg.layered/src/org/eclipse/elk/alg/layered/GraphConfigurator.java`
+  - Rust: `plugins/org.eclipse.elk.alg.layered/src/org/eclipse/elk/alg/layered/graph_configurator.rs`
+- 산출물:
+  - 보고서: `perf/layered_phase_wiring_parity.md`
+  - 상세 TSV: `perf/layered_phase_wiring/*.tsv`
+
+## 4) 테스트 parity (구조 레벨)
+
+- 목적: Java 테스트 모듈/이슈 테스트의 이식 커버리지 확인
+- 주요 스크립트:
+  - `sh scripts/check_layered_issue_test_parity.sh`
+  - `sh scripts/check_java_test_module_parity.sh`
+- 주의: 메서드 semantics를 Java 테스트 엔진으로 1:1 실행하는 검증은 아님(구조/카운트/매핑 중심)
+
+## 5) 동작 parity (실행 결과)
+
+- 목적: 동일 모델 입력에 대해 Java layout 결과와 Rust 결과를 직접 비교
+- 파이프라인:
+  - `MODEL_PARITY_SKIP_JAVA_EXPORT=true sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models perf/model_parity_full`
+  - 내부 단계: Java export -> Rust replay -> JSON diff
+- 산출물:
+  - `perf/model_parity_full/report.md`
+  - `perf/model_parity_full/diff_details.tsv`
+  - `perf/model_parity_full/rust_manifest.tsv`
+
+## 6) phase/알고리즘 단위 원인 분석
+
+- 목적: drift의 최초 divergence phase/processor를 식별하고 원인 축소
+- 도구:
+  - Java trace: `sh scripts/run_java_phase_trace.sh <model_dir> <output_dir>`
+  - Rust trace: `cargo run --release --bin model_parity_layout_runner -- --trace-dir <output_dir> <input.json>`
+  - 비교: `python3 scripts/compare_phase_traces.py <java_trace_dir> <rust_trace_dir>`
+  - 배치 분석: `python3 scripts/analyze_layered_drift.py --diff-details ... --manifest ...`
+
+## 7) 성능/회귀 게이트
+
+- 목적: Rust baseline 대비 성능 회귀 방지 + Java 대비 편차 모니터링
+- 주요 명령:
+  - `PERF_COMPARE_MODE=baseline sh scripts/check_perf_regression.sh 5 3`
+  - `sh scripts/check_recursive_perf_runtime_budget.sh perf/results_recursive_layout_scenarios.csv default perf/recursive_runtime_budget.md`
+  - `sh scripts/check_java_perf_parity.sh ...`
+  - `sh scripts/check_java_perf_parity_scenarios.sh ...`
+
+## 8) CI 반영 상태
+
+- 빠른 게이트: `.github/workflows/ci.yml` (`run_fast_checks.sh`)
+- 전체 성능/패리티 게이트: `.github/workflows/perf.yml`
+  - algorithm/core parity
+  - `check_layered_phase_wiring_parity.sh`
+  - 보고서/TSV 아티팩트 업로드
+
+## 9) 운영 원칙
+
+- 릴리즈 전에는 `RELEASE_CHECKLIST.md` 순서대로 실행한다.
+- parity 수치/실험 로그/예외 사유는 `HISTORY.md`에 누적 기록한다.
+- 핵심 스냅샷(요약 수치)은 `AGENTS.md`에 유지한다.
+- `perf/README.md`의 `Directory policy (keep vs temporary)`를 따라 `KEEP`/`TEMP` 산출물을 분리 관리한다.
+
+## 10) 실행 확인 순서
+
+- 권장 순서:
+  1. `LAYERED_PHASE_WIRING_PARITY_STRICT=true sh scripts/check_layered_phase_wiring_parity.sh`
+  2. `cargo build --workspace`
+  3. `cargo clippy --workspace --all-targets`
+  4. `cargo test --workspace`
+- 2026-02-22 실행 결과:
+  - 1~3 단계는 통과
+  - 4 단계는 `plugins/org.eclipse.elk.alg.layered/tests/ptides_self_loop_margin_test.rs`의 `opposing_east_west_self_loop_fixedpos_extends_west_margin` 1건 실패
+  - 재현 명령: `CARGO_TARGET_DIR=/tmp/elk-rs-test-target cargo test -p org-eclipse-elk-alg-layered --test ptides_self_loop_margin_test`
+  - 원인 요약: 구현 로직보다는 테스트 기대값(`18`)과 실제 슬롯 배정 결과(`28`) 불일치 가능성이 높음(수정은 보류)
