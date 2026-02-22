@@ -4,7 +4,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::{
     PortSide, SizeConstraint, SizeOptions,
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::util::adapters::{
-    GraphElementAdapter, NodeAdapter, PortAdapter,
+    GraphElementAdapter, LabelAdapter, NodeAdapter, PortAdapter,
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::util::ElkUtil;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, IndividualSpacings};
@@ -1317,6 +1317,7 @@ impl NodeLabelAndSizeCalculator {
         N::Label: 'static,
         N::LabelAdapter: 'static,
     {
+        let trace_labels = std::env::var("ELK_TRACE_SIZING_LABELS").is_ok();
         let size_constraints = node
             .get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)
             .unwrap_or_default();
@@ -1405,6 +1406,19 @@ impl NodeLabelAndSizeCalculator {
             } else {
                 default_label_placement.clone()
             };
+            if trace_labels {
+                let pos = label.get_position();
+                let size = label.get_size();
+                eprintln!(
+                    "TRACE label(before): text='{}' placement={:?} pos=({}, {}) size=({}, {})",
+                    label.get_text(),
+                    effective_placement,
+                    pos.x,
+                    pos.y,
+                    size.x,
+                    size.y
+                );
+            }
             let dyn_label = DynLabel::new::<N::Label, N::LabelAdapter>(label);
 
             if let Some(label_location) =
@@ -1573,6 +1587,31 @@ impl NodeLabelAndSizeCalculator {
             final_node_size,
             outside_overhang,
         );
+
+        if trace_labels {
+            for label in node.get_labels() {
+                let pos = label.get_position();
+                let size = label.get_size();
+                let placement = if label.has_property(CoreOptions::NODE_LABELS_PLACEMENT) {
+                    label
+                        .get_property(CoreOptions::NODE_LABELS_PLACEMENT)
+                        .unwrap_or_else(|| default_label_placement.clone())
+                } else {
+                    default_label_placement.clone()
+                };
+                eprintln!(
+                    "TRACE label(after): text='{}' placement={:?} pos=({}, {}) size=({}, {}) node_size=({}, {})",
+                    label.get_text(),
+                    placement,
+                    pos.x,
+                    pos.y,
+                    size.x,
+                    size.y,
+                    final_node_size.x,
+                    final_node_size.y
+                );
+            }
+        }
 
         if size_options.contains(&SizeOptions::ComputePadding) {
             let mut computed_padding = ElkPadding::new();

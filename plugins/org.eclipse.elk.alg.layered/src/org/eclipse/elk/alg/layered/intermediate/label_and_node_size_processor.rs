@@ -78,17 +78,20 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
             if *TRACE_NODE_SIZE {
                 eprintln!("label-node-size: step2 (port placement) begin");
             }
+            let mut phase2_resized_nodes = 0usize;
             let mut seen = HashSet::new();
             for node in graph.layerless_nodes().clone() {
                 let key = Arc::as_ptr(&node) as usize;
                 if seen.insert(key) && should_apply_phase1_port_placement(&node) {
-                    place_ports_on_node(
+                    if place_ports_on_node(
                         &node,
                         graph_port_spacing,
                         &graph_ports_surrounding,
                         graph_topdown_layout,
                         graph_node_size_fixed_graph_size,
-                    );
+                    ) {
+                        phase2_resized_nodes += 1;
+                    }
                 }
             }
 
@@ -101,18 +104,37 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
                 for node in nodes {
                     let key = Arc::as_ptr(&node) as usize;
                     if seen.insert(key) && should_apply_phase1_port_placement(&node) {
-                        place_ports_on_node(
+                        if place_ports_on_node(
                             &node,
                             graph_port_spacing,
                             &graph_ports_surrounding,
                             graph_topdown_layout,
                             graph_node_size_fixed_graph_size,
-                        );
+                        ) {
+                            phase2_resized_nodes += 1;
+                        }
                     }
                 }
             }
             if *TRACE_NODE_SIZE {
-                eprintln!("label-node-size: step2 (port placement) done");
+                eprintln!(
+                    "label-node-size: step2 (port placement) done, resized_nodes={}",
+                    phase2_resized_nodes
+                );
+            }
+
+            if phase2_resized_nodes > 0 {
+                if *TRACE_NODE_SIZE {
+                    eprintln!(
+                        "label-node-size: phase2a (reflow labels after phase1 node resize) begin"
+                    );
+                }
+                NodeDimensionCalculation::calculate_label_and_node_sizes(&adapter);
+                if *TRACE_NODE_SIZE {
+                    eprintln!(
+                        "label-node-size: phase2a (reflow labels after phase1 node resize) done"
+                    );
+                }
             }
             let should_run_phase2b = graph_needs_phase2b_inside_port_label_restack(graph);
             if should_run_phase2b {
@@ -178,6 +200,20 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
                     "label-node-size: phase2c (self-loop port sizing reapply) nodes={}",
                     phase2c_reapplied_nodes
                 );
+            }
+
+            if phase2c_reapplied_nodes > 0 {
+                if *TRACE_NODE_SIZE {
+                    eprintln!(
+                        "label-node-size: phase2d (reflow labels after phase2c node resize) begin"
+                    );
+                }
+                NodeDimensionCalculation::calculate_label_and_node_sizes(&adapter);
+                if *TRACE_NODE_SIZE {
+                    eprintln!(
+                        "label-node-size: phase2d (reflow labels after phase2c node resize) done"
+                    );
+                }
             }
         } else if *TRACE_NODE_SIZE {
             eprintln!("label-node-size: step2 skipped (experiment)");
@@ -329,7 +365,7 @@ fn place_ports_on_node(
     graph_ports_surrounding: &ElkMargin,
     graph_topdown_layout: bool,
     graph_node_size_fixed_graph_size: bool,
-) {
+) -> bool {
     let (
         node_type,
         mut node_size,
@@ -372,8 +408,9 @@ fn place_ports_on_node(
                 node_size_fixed_graph_size,
             )
         }
-        Err(_) => return,
+        Err(_) => return false,
     };
+    let initial_size = node_size;
     if *TRACE_NODE_SIZE {
         let id = node
             .lock()
@@ -409,7 +446,7 @@ fn place_ports_on_node(
     }
 
     if node_type != NodeType::Normal {
-        return;
+        return false;
     }
 
     if std::env::var("ELK_DISABLE_CLOCKWISE_SIDE_ORDER").is_err() {
@@ -443,7 +480,21 @@ fn place_ports_on_node(
     if inside_self_loops_active {
         place_inside_self_loop_ports(node, node_size.x, node_size.y);
         update_node_margin(node);
-        return;
+        let size_changed = (node_size.x - initial_size.x).abs() > f64::EPSILON
+            || (node_size.y - initial_size.y).abs() > f64::EPSILON;
+        if *TRACE_NODE_SIZE && size_changed
+        {
+            let id = node
+                .lock()
+                .ok()
+                .map(|mut node_guard| node_guard.shape().graph_element().id)
+                .unwrap_or(-1);
+            eprintln!(
+                "label-node-size: node id={} resized by phase1 from ({}, {}) -> ({}, {}) [inside-self-loop path]",
+                id, initial_size.x, initial_size.y, node_size.x, node_size.y
+            );
+        }
+        return size_changed;
     }
 
     if port_constraints.is_pos_fixed() {
@@ -454,7 +505,8 @@ fn place_ports_on_node(
         adjust_ports_on_side(node, PortSide::East, node_size.x, node_size.y);
         adjust_ports_on_side(node, PortSide::West, node_size.x, node_size.y);
         update_node_margin(node);
-        return;
+        return (node_size.x - initial_size.x).abs() > f64::EPSILON
+            || (node_size.y - initial_size.y).abs() > f64::EPSILON;
     }
 
     if port_constraints.is_ratio_fixed() {
@@ -463,7 +515,8 @@ fn place_ports_on_node(
         place_ports_fixed_ratio_on_side(node, PortSide::East, node_size.x, node_size.y);
         place_ports_fixed_ratio_on_side(node, PortSide::West, node_size.x, node_size.y);
         update_node_margin(node);
-        return;
+        return (node_size.x - initial_size.x).abs() > f64::EPSILON
+            || (node_size.y - initial_size.y).abs() > f64::EPSILON;
     }
 
     place_ports_on_side(
@@ -499,6 +552,21 @@ fn place_ports_on_node(
         graph_ports_surrounding,
     );
     update_node_margin(node);
+    if *TRACE_NODE_SIZE && ((node_size.x - initial_size.x).abs() > f64::EPSILON
+        || (node_size.y - initial_size.y).abs() > f64::EPSILON)
+    {
+        let id = node
+            .lock()
+            .ok()
+            .map(|mut node_guard| node_guard.shape().graph_element().id)
+            .unwrap_or(-1);
+        eprintln!(
+            "label-node-size: node id={} resized by phase1 from ({}, {}) -> ({}, {})",
+            id, initial_size.x, initial_size.y, node_size.x, node_size.y
+        );
+    }
+    (node_size.x - initial_size.x).abs() > f64::EPSILON
+        || (node_size.y - initial_size.y).abs() > f64::EPSILON
 }
 
 fn place_inside_self_loop_ports(node: &LNodeRef, width: f64, height: f64) {

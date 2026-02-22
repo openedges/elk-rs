@@ -7,7 +7,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::math::{
     ElkMargin, ElkPadding, KVector, KVectorChain,
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::options::{
-    CoreOptions, Direction, EdgeLabelPlacement, PortSide, SizeConstraint,
+    CoreOptions, Direction, EdgeLabelPlacement, NodeLabelPlacement, PortSide, SizeConstraint,
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{
     BasicProgressMonitor, IndividualSpacings, Maybe,
@@ -233,6 +233,46 @@ fn import_layout_options() {
     assert_eq!(
         node_property(&root, CoreOptions::DIRECTION),
         Some(Direction::Down)
+    );
+}
+
+#[test]
+fn import_label_layout_options_node_labels_placement() {
+    let graph = r#"
+    {
+      "id": "root",
+      "children": [
+        {
+          "id": "n1",
+          "labels": [
+            {
+              "id": "l1",
+              "text": "Node Label",
+              "layoutOptions": {
+                "nodeLabels.placement": "[H_CENTER, V_TOP, INSIDE]"
+              },
+              "width": 40.0,
+              "height": 15.0
+            }
+          ]
+        }
+      ]
+    }
+    "#;
+
+    let root = ElkGraphJson::for_graph(graph).to_elk().unwrap();
+    let n1 = find_node(&node_children(&root), "n1");
+    let labels = node_labels(&n1);
+    assert_eq!(labels.len(), 1, "n1 should have one label");
+
+    let placement = label_property(&labels[0], CoreOptions::NODE_LABELS_PLACEMENT)
+        .expect("label-level nodeLabels.placement should be parsed");
+    assert!(
+        placement.contains(&NodeLabelPlacement::HCenter)
+            && placement.contains(&NodeLabelPlacement::VTop)
+            && placement.contains(&NodeLabelPlacement::Inside),
+        "expected [H_CENTER, V_TOP, INSIDE], got {:?}",
+        placement
     );
 }
 
