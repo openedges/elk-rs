@@ -70,7 +70,7 @@ impl GraphInfoHolder {
                 graph_guard.get_property(InternalProperties::GRAPH_PROPERTIES)
             })
             .unwrap_or_default();
-        let random = graph
+        let mut random = graph
             .lock()
             .ok()
             .and_then(|mut graph_guard| graph_guard.get_property(InternalProperties::RANDOM))
@@ -158,7 +158,7 @@ impl GraphInfoHolder {
             current_node_order,
             parent_node,
             graph_properties,
-            random,
+            &mut random,
             force_model_order,
             max_model_order_nodes,
             constraints_between_non_dummies,
@@ -193,8 +193,6 @@ impl GraphInfoHolder {
         if trace {
             eprintln!("crossmin: graph_info_holder new_with_graph properties");
         }
-        // Use the shared Random from the minimizer (matches Java's shared reference behavior)
-        let random = shared_random.clone();
         let force_model_order = graph
             .get_property(LayeredOptions::CROSSING_MINIMIZATION_FORCE_NODE_MODEL_ORDER)
             .unwrap_or(false);
@@ -232,7 +230,7 @@ impl GraphInfoHolder {
             current_node_order,
             parent_node,
             graph_properties,
-            random,
+            shared_random,
             force_model_order,
             max_model_order_nodes,
             constraints_between_non_dummies,
@@ -253,7 +251,7 @@ impl GraphInfoHolder {
         current_node_order: Vec<Vec<LNodeRef>>,
         parent_node: Option<LNodeRef>,
         graph_properties: EnumSet<GraphProperties>,
-        random: Random,
+        random: &mut Random,
         force_model_order: bool,
         max_model_order_nodes: i32,
         constraints_between_non_dummies: bool,
@@ -269,7 +267,6 @@ impl GraphInfoHolder {
         if trace {
             eprintln!("crossmin: graph_info_holder build start");
         }
-        let mut random = random;
         trace_in_layer_constraints(&current_node_order);
         let has_parent = parent_node.is_some();
         let parent_graph_ref = parent_node
@@ -281,7 +278,7 @@ impl GraphInfoHolder {
         let has_external_ports = graph_properties.contains(&GraphProperties::ExternalPorts);
 
         let (port_distributor, mut barycenter_port_distributor) =
-            create_port_distributors(cross_min_type, &mut random, current_node_order.len());
+            create_port_distributors(cross_min_type, random, current_node_order.len());
         if trace {
             eprintln!("crossmin: graph_info_holder port distributors ready");
         }

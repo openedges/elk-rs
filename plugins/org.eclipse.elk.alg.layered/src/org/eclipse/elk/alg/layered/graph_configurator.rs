@@ -477,7 +477,7 @@ impl GraphConfigurator {
 
         !interactive_crossmin
             && greedy_type != GreedySwitchType::Off
-            && (activation_threshold == 0 || activation_threshold >= graph_size)
+            && (activation_threshold == 0 || activation_threshold > graph_size)
     }
 
     fn is_hierarchical_layout(graph: &mut LGraph) -> bool {
