@@ -1491,8 +1491,8 @@ impl JsonImporter {
 
             let child_prefix = pointer_key(pointer, "children");
             let mut ordered_children: Vec<(usize, f64, f64)> = Vec::new();
-            for index in 0..children.len() {
-                let Some(y) = children[index].get("y").and_then(Value::as_f64) else {
+            for (index, child) in children.iter().enumerate() {
+                let Some(y) = child.get("y").and_then(Value::as_f64) else {
                     continue;
                 };
                 let child_pointer = pointer_index(child_prefix.clone(), index);

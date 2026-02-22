@@ -289,7 +289,7 @@ impl LabelDummyRemover {
     ) {
         let inline = labels
             .iter()
-            .all(|label| Self::label_inline_property(label));
+            .all(Self::label_inline_property);
 
         if layout_direction == Direction::Up {
             for label in labels.iter().rev() {

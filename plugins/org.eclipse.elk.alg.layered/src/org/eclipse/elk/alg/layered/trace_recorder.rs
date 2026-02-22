@@ -249,6 +249,6 @@ pub fn serialize_lgraph_snapshot(
     let filename = format!("step_{step:03}_{safe_name}.json");
     let filepath = output_dir.join(filename);
     let serialized = serde_json::to_string_pretty(&snapshot)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        .map_err(std::io::Error::other)?;
     fs::write(filepath, serialized)
 }

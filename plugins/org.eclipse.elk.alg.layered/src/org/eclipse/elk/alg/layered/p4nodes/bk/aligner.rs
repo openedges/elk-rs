@@ -234,14 +234,14 @@ impl BKAligner {
                             candidate
                                 .lock()
                                 .ok()
-                                .and_then(|edge_guard| {
+                                .map(|edge_guard| {
                                     let src = edge_guard.source().and_then(|port| {
                                         port.lock().ok().and_then(|port_guard| port_guard.node())
                                     });
                                     let tgt = edge_guard.target().and_then(|port| {
                                         port.lock().ok().and_then(|port_guard| port_guard.node())
                                     });
-                                    Some((src, tgt))
+                                    (src, tgt)
                                 })
                                 .map(|(src, tgt)| {
                                     if let (Some(src), Some(tgt)) = (src, tgt) {

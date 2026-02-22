@@ -52,7 +52,6 @@ impl PortContext {
         port_border_offset: f64,
         has_port_border_offset: bool,
         has_compound_connections: bool,
-        label_sizes: Vec<KVector>,
     ) -> Self {
         PortContext {
             port_size,
@@ -65,7 +64,7 @@ impl PortContext {
             has_compound_connections,
             port_margin: ElkMargin::new(),
             port_label_cell: None,
-            label_sizes,
+            label_sizes: Vec::new(),
             label_positions: Vec::new(),
             port_ratio_or_position: 0.0,
         }

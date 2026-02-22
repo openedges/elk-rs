@@ -204,13 +204,11 @@ impl NodeLabelAndSizeUtilities {
         if node_context
             .size_constraints
             .contains(&SizeConstraint::MinimumSize)
-        {
-            if !node_context
+            && !node_context
                 .size_options
                 .contains(&SizeOptions::MinimumSizeAccountsForPadding)
-            {
-                return Some(Self::get_minimum_node_or_client_area_size(node_context));
-            }
+        {
+            return Some(Self::get_minimum_node_or_client_area_size(node_context));
         }
         None
     }

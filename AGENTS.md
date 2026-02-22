@@ -62,8 +62,13 @@
   - 185/203은 full parity match (중간 차이가 최종 결과에서 상쇄)
   - **10개 고유 모델이 실제 drift를 유발하는 phase divergence 보유**
   - PortSideProcessor(3, 계층), LabelAndNodeSizeProcessor(3, 계층), LayerSizeAndGraphHeightCalculator(3), BKNodePlacer(1), SplineEdgeRouter(1)
-- **Phase 5: 식별된 10개 모델의 프로세서별 버그 수정** ← 현재 단계
-- Phase 6: Crossing min random state divergence 해소 (~257 모델, step-0 format으로 미확인)
+- Phase 5: 식별된 10개 모델의 프로세서별 버그 수정 — **완료** (추가 수정 가능한 항목 없음)
+  - 10개 중 실제 drift는 4개만: LifeCGAVR(PortSideProcessor), Life(PortSideProcessor), next_to_port(LayerSize), labels(BKNodePlacer)
+  - labels.elkt: Java HashMap keySet() 비결정성 (PortSide identity hashCode) — **수정 불가**
+  - `<=` 비교연산자 변경 시도 → 1164→1103 퇴행(-61), 롤백. `opposing_tie_break_rank` 유지가 최적
+  - next_to_port_if_possible_inside: 내부 레이아웃 그래프 크기 차이 (step_000부터 diverge), stale Java ref 가능 — **수정 불요**
+  - Life/LifeCGAVR: PortSideProcessor 기능적 동일 확인, 자식 sub-graph crossing-min cascade — **수정 불요**
+- Phase 6: Crossing min random state divergence 해소 (~257 모델)
 - Phase 7: Self-loop, N/S port spline 등 잔여 수정
 
 ## 기본 실행 명령

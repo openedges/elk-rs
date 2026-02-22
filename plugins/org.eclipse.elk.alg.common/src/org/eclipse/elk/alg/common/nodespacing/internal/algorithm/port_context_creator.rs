@@ -32,8 +32,7 @@ impl PortContextCreator {
                 .port_labels_placement
                 .contains(&PortLabelPlacement::Inside);
 
-        let mut volatile_id: i32 = 0;
-        for port in node.get_ports() {
+        for (volatile_id, port) in (0_i32..).zip(node.get_ports()) {
             let port_side = port.get_side();
             if port_side == PortSide::Undefined {
                 panic!(
@@ -43,7 +42,6 @@ impl PortContextCreator {
             }
 
             port.set_volatile_id(volatile_id);
-            volatile_id += 1;
 
             Self::create_port_context(node_context, port, im_port_labels);
         }
@@ -95,10 +93,10 @@ impl PortContextCreator {
             port_border_offset,
             has_port_border_offset,
             has_compound_connections,
-            label_sizes,
         );
 
         port_context.labels_next_to_port = labels_next_to_port;
+        port_context.label_sizes = label_sizes;
         port_context.label_positions = label_positions;
 
         // If the port has labels and if port labels are to be placed, we need to remember them
@@ -113,7 +111,7 @@ impl PortContextCreator {
         node_context
             .port_contexts
             .entry(port_side)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(port_context);
     }
 }

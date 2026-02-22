@@ -18,6 +18,8 @@ const OVERLAP_EPSILON: f64 = 0.5;
 const LABEL_CHAR_WIDTH: f64 = 6.0;
 const LABEL_HEIGHT: f64 = 10.0;
 
+type NodeDebugInfo = (f64, f64, Vec<(f64, f64, f64, f64)>, Vec<ElkLabelRef>);
+
 fn run_layout(graph: &ElkNodeRef) {
     let mut provider = LayeredLayoutProvider::new();
     provider.layout(graph, &mut BasicProgressMonitor::new());
@@ -167,12 +169,7 @@ fn maybe_debug_labels(node: &ElkNodeRef) {
         return;
     }
 
-    let (width, height, node_padding, node_labels): (
-        f64,
-        f64,
-        Vec<(f64, f64, f64, f64)>,
-        Vec<ElkLabelRef>,
-    ) = {
+    let (width, height, node_padding, node_labels): NodeDebugInfo = {
         let mut node_mut = node.borrow_mut();
         let shape = node_mut.connectable().shape();
         let size = (shape.width(), shape.height());

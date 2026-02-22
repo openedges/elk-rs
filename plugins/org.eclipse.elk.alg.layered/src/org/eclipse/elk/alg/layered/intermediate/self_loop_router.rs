@@ -427,12 +427,12 @@ fn modify_bend_points(
 
             if bend_points.len() >= 2 {
                 let mut curr_side = source_side;
-                let mut first_bp = &bend_points[0];
 
-                for i in 1..bend_points.len() {
-                    let second_bp = &bend_points[i];
+                for window in bend_points.windows(2) {
+                    let first_bp = &window[0];
+                    let second_bp = &window[1];
 
-                    spline_points.add_vector(first_bp.clone());
+                    spline_points.add_vector(*first_bp);
 
                     // Compute midpoint offset away from node
                     let direction = SplinesMath::port_side_to_direction(curr_side);
@@ -442,7 +442,6 @@ fn modify_bend_points(
                     );
                     spline_points.add_vector(mid);
 
-                    first_bp = second_bp;
                     curr_side = if clockwise {
                         curr_side.right()
                     } else {
@@ -450,7 +449,7 @@ fn modify_bend_points(
                     };
                 }
 
-                spline_points.add_vector(bend_points.last().unwrap().clone());
+                spline_points.add_vector(*bend_points.last().unwrap());
             }
 
             spline_points.add_vector(target_anchor);

@@ -63,7 +63,7 @@ impl ILayoutProcessor<LGraph> for HighDegreeNodeLayeringProcessor {
             if !pre_layers.is_empty() {
                 for (_, info) in &high_degree_nodes {
                     for root in &info.inc_tree_roots {
-                        self.move_tree(root, EdgeSelector::Incoming, &pre_layers);
+                        move_tree(root, EdgeSelector::Incoming, &pre_layers);
                     }
                 }
             }
@@ -85,7 +85,7 @@ impl ILayoutProcessor<LGraph> for HighDegreeNodeLayeringProcessor {
             if !after_layers.is_empty() {
                 for (_, info) in &high_degree_nodes {
                     for root in &info.out_tree_roots {
-                        self.move_tree(root, EdgeSelector::Outgoing, &after_layers);
+                        move_tree(root, EdgeSelector::Outgoing, &after_layers);
                     }
                 }
             }
@@ -279,22 +279,23 @@ impl HighDegreeNodeLayeringProcessor {
         current_height + 1
     }
 
-    fn move_tree(&self, root: &LNodeRef, edges: EdgeSelector, layers: &[LayerRef]) {
-        if layers.is_empty() {
-            return;
-        }
+}
 
-        LNode::set_layer(root, Some(layers[0].clone()));
-        if layers.len() == 1 {
-            return;
-        }
+fn move_tree(root: &LNodeRef, edges: EdgeSelector, layers: &[LayerRef]) {
+    if layers.is_empty() {
+        return;
+    }
 
-        for edge in selected_edges(root, edges) {
-            let Some(other) = other_node(&edge, root) else {
-                continue;
-            };
-            self.move_tree(&other, edges, &layers[1..]);
-        }
+    LNode::set_layer(root, Some(layers[0].clone()));
+    if layers.len() == 1 {
+        return;
+    }
+
+    for edge in selected_edges(root, edges) {
+        let Some(other) = other_node(&edge, root) else {
+            continue;
+        };
+        move_tree(&other, edges, &layers[1..]);
     }
 }
 

@@ -416,9 +416,9 @@ fn place_ports_on_node(
         ensure_clockwise_port_order(node, port_constraints);
     }
 
-    let allow_shrink = !topdown_layout
-        && !node_size_fixed_graph_size
-        && !(port_labels_are_fixed && size_constraints.contains(&SizeConstraint::PortLabels));
+    let allow_shrink = !(topdown_layout
+        || node_size_fixed_graph_size
+        || port_labels_are_fixed && size_constraints.contains(&SizeConstraint::PortLabels));
 
     if size_constraints.contains(&SizeConstraint::Ports) {
         node_size = enforce_port_driven_minimum_size(

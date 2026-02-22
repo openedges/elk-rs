@@ -252,9 +252,9 @@ fn graph_layout_to_node(node: &LNodeRef, lgraph: &mut LGraph) {
                 .unwrap_or_default();
             let size_opts = node_guard
                 .shape()
-                .get_property(&CoreOptions::NODE_SIZE_OPTIONS)
+                .get_property(CoreOptions::NODE_SIZE_OPTIONS)
                 .unwrap_or_else(EnumSet::none_of);
-            let lgraph_size = lgraph.size_ref().clone();
+            let lgraph_size = *lgraph.size_ref();
             let padding = lgraph.padding_ref().clone();
             eprintln!(
                 "[hnr] node={:?} actual_graph_size={:?} lgraph_size={:?} padding=({},{},{},{}) min_size=({},{}) constraints={:?} size_opts={:?}",

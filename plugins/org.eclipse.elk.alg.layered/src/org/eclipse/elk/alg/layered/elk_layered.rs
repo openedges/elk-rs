@@ -136,7 +136,7 @@ fn trace_node_positions(graph: &LGraph, stage: &str) {
         .cloned()
         .map(|node| (None, 0, node))
         .collect();
-    for (layer_idx, layer) in graph.layers().into_iter().enumerate() {
+    for (layer_idx, layer) in graph.layers().iter().enumerate() {
         if let Ok(layer_guard) = layer.lock() {
             nodes.extend(
                 layer_guard
@@ -293,7 +293,7 @@ impl ElkLayered {
             if let Ok(entries) = std::fs::read_dir(&trace_dir) {
                 for entry in entries.flatten() {
                     let path = entry.path();
-                    if path.extension().map_or(false, |e| e == "json") {
+                    if path.extension().is_some_and(|e| e == "json") {
                         if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
                             if name.starts_with("step_") {
                                 let _ = std::fs::remove_file(&path);
@@ -517,10 +517,9 @@ impl ElkLayered {
         while graphs_and_algorithms[root_index].index
             < graphs_and_algorithms[root_index].processors.len()
         {
-            for entry_index in 0..graphs_and_algorithms.len() {
+            for entry in &mut graphs_and_algorithms {
                 while !monitor.is_canceled() {
                     let (graph, processor, is_root, hierarchy_aware) = {
-                        let entry = &mut graphs_and_algorithms[entry_index];
                         if entry.index >= entry.processors.len() {
                             break;
                         }

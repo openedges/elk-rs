@@ -148,7 +148,7 @@ impl HorizontalPortPlacementSizeCalculator {
 
         let mut previous: Option<(f64, f64, f64)> = None; // (ratio, width, margin_right)
 
-        for (_i, &(ratio, width, margin_left, margin_right)) in port_data.iter().enumerate() {
+        for &(ratio, width, margin_left, margin_right) in port_data.iter() {
             if let Some((prev_ratio, prev_width, prev_margin_right)) = previous {
                 let required_space =
                     prev_width + prev_margin_right + port_port_spacing + margin_left;

@@ -133,20 +133,18 @@ impl NodeSizeCalculator {
             if node_context
                 .size_constraints
                 .contains(&SizeConstraint::Ports)
+                && (node_context.port_constraints == PortConstraints::FixedRatio
+                    || node_context.port_constraints == PortConstraints::FixedPos)
             {
-                if node_context.port_constraints == PortConstraints::FixedRatio
-                    || node_context.port_constraints == PortConstraints::FixedPos
+                if let Some(east_cell) =
+                    node_context.inside_port_label_cells.get(&PortSide::East)
                 {
-                    if let Some(east_cell) =
-                        node_context.inside_port_label_cells.get(&PortSide::East)
-                    {
-                        h = h.max(east_cell.minimum_height());
-                    }
-                    if let Some(west_cell) =
-                        node_context.inside_port_label_cells.get(&PortSide::West)
-                    {
-                        h = h.max(west_cell.minimum_height());
-                    }
+                    h = h.max(east_cell.minimum_height());
+                }
+                if let Some(west_cell) =
+                    node_context.inside_port_label_cells.get(&PortSide::West)
+                {
+                    h = h.max(west_cell.minimum_height());
                 }
             }
 

@@ -211,7 +211,7 @@ impl GreedyCycleBreaker {
         let reverse_graph = nodes
             .first()
             .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.graph()))
-            .unwrap_or_else(crate::org::eclipse::elk::alg::layered::graph::LGraph::new);
+            .unwrap_or_default();
         let trace_reversals = std::env::var_os("ELK_TRACE_CYCLE_REVERSALS").is_some();
         let forced_reversed = forced_reversed_origin_ids();
         let mut reversed_edges = Vec::new();

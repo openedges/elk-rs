@@ -575,11 +575,11 @@ fn does_edge_point_right_node(label_dummy: &LNodeRef) -> bool {
 
     let incoming_right = incoming
         .first()
-        .map(|e| does_edge_point_right_edge(e))
+        .map(does_edge_point_right_edge)
         .unwrap_or(false);
     let outgoing_right = outgoing
         .first()
-        .map(|e| does_edge_point_right_edge(e))
+        .map(does_edge_point_right_edge)
         .unwrap_or(false);
 
     incoming_right || outgoing_right
