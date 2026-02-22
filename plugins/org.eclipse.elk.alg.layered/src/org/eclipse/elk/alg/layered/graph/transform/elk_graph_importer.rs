@@ -127,8 +127,9 @@ impl<'a> ElkGraphImporter<'a> {
     }
 
     fn import_hierarchical_graph(&mut self, elkgraph: &ElkNodeRef, lgraph: &LGraphRef) {
-        self.import_flat_graph_nodes(elkgraph, lgraph);
         let parent_graph_direction = LGraphUtil::get_direction(lgraph);
+        let mut model_order_index = 0i32;
+        let mut cb_group_model_orders: HashSet<i32> = HashSet::new();
 
         let children: Vec<ElkNodeRef> = {
             let mut graph_mut = elkgraph.borrow_mut();
@@ -139,15 +140,34 @@ impl<'a> ElkGraphImporter<'a> {
             if self.should_skip_node(&child) {
                 continue;
             }
+
+            if self.needs_model_order(&child) {
+                self.set_element_model_order_for_node(&child, model_order_index);
+                model_order_index += 1;
+                if self.has_graph_property(&child, LayeredOptions::GROUP_MODEL_ORDER_CYCLE_BREAKING_ID) {
+                    if let Some(group_id) = self
+                        .graph_property(&child, LayeredOptions::GROUP_MODEL_ORDER_CYCLE_BREAKING_ID)
+                    {
+                        cb_group_model_orders.insert(group_id);
+                    }
+                }
+            }
+
             let has_children = {
                 let mut child_ref = child.borrow_mut();
                 !child_ref.children().is_empty()
             };
             let has_inside_self_loops = self.has_inside_self_loop_edge(&child);
-            let has_hierarchy_handling_enabled = self
+            let child_hierarchy_handling = self
                 .graph_property(&child, LayeredOptions::HIERARCHY_HANDLING)
-                .unwrap_or(HierarchyHandling::SeparateChildren)
-                == HierarchyHandling::IncludeChildren;
+                .unwrap_or(HierarchyHandling::Inherit);
+            // Java resolves child INHERIT against the parent's INCLUDE_CHILDREN mode.
+            // This importer already recurses only under INCLUDE_CHILDREN, so treat INHERIT
+            // as enabled here to mirror Java nested-graph creation.
+            let has_hierarchy_handling_enabled = matches!(
+                child_hierarchy_handling,
+                HierarchyHandling::IncludeChildren | HierarchyHandling::Inherit
+            );
             let uses_elk_layered = self
                 .graph_property(&child, CoreOptions::ALGORITHM)
                 .map(|algorithm_id: String| {
@@ -155,36 +175,53 @@ impl<'a> ElkGraphImporter<'a> {
                 })
                 .unwrap_or(true);
 
-            if !(uses_elk_layered
+            let mut nested_graph: Option<LGraphRef> = None;
+            if uses_elk_layered
                 && has_hierarchy_handling_enabled
-                && (has_children || has_inside_self_loops))
+                && (has_children || has_inside_self_loops)
             {
-                continue;
+                let created_nested = self.create_lgraph(&child);
+                if let Ok(mut nested_guard) = created_nested.lock() {
+                    nested_guard.set_property(LayeredOptions::DIRECTION, Some(parent_graph_direction));
+                }
+                if self.should_calculate_minimum_graph_size(&child) {
+                    let child_ports: Vec<ElkPortRef> = {
+                        let mut child_mut = child.borrow_mut();
+                        child_mut.ports().iter().cloned().collect()
+                    };
+                    for port in &child_ports {
+                        self.ensure_defined_port_side(&created_nested, port);
+                    }
+                    self.calculate_minimum_graph_size(&child, &created_nested);
+                }
+                nested_graph = Some(created_nested);
             }
 
-            let Some(lnode) = self.node_for(&child) else {
+            let Some(lnode) = self.transform_node(&child, lgraph) else {
                 continue;
             };
-            let nested_graph = self.create_lgraph(&child);
-            if let Ok(mut nested_guard) = nested_graph.lock() {
-                nested_guard.set_property(LayeredOptions::DIRECTION, Some(parent_graph_direction));
-                nested_guard.set_parent_node(Some(lnode.clone()));
-            }
-            if let Ok(mut node_guard) = lnode.lock() {
-                node_guard.set_nested_graph(Some(nested_graph.clone()));
-                node_guard.set_property(InternalProperties::COMPOUND_NODE, Some(true));
-            }
-            if self.should_calculate_minimum_graph_size(&child) {
-                let child_ports: Vec<ElkPortRef> = {
-                    let mut child_mut = child.borrow_mut();
-                    child_mut.ports().iter().cloned().collect()
-                };
-                for port in &child_ports {
-                    self.ensure_defined_port_side(&nested_graph, port);
+
+            if let Some(nested_graph) = nested_graph {
+                if let Ok(mut nested_guard) = nested_graph.lock() {
+                    nested_guard.set_parent_node(Some(lnode.clone()));
                 }
-                self.calculate_minimum_graph_size(&child, &nested_graph);
+                if let Ok(mut node_guard) = lnode.lock() {
+                    node_guard.set_nested_graph(Some(nested_graph.clone()));
+                    node_guard.set_property(InternalProperties::COMPOUND_NODE, Some(true));
+                }
+                self.import_hierarchical_graph(&child, &nested_graph);
             }
-            self.import_hierarchical_graph(&child, &nested_graph);
+        }
+
+        if let Ok(mut graph_guard) = lgraph.lock() {
+            graph_guard.set_property(
+                InternalProperties::MAX_MODEL_ORDER_NODES,
+                Some(model_order_index),
+            );
+            graph_guard.set_property(
+                InternalProperties::CB_NUM_MODEL_ORDER_GROUPS,
+                Some(cb_group_model_orders.len() as i32),
+            );
         }
 
         self.import_flat_graph_edges(elkgraph, lgraph);
@@ -515,14 +552,12 @@ impl<'a> ElkGraphImporter<'a> {
             Direction::Right,
         );
 
-        let (properties, width, height, padding) = {
+        let (properties, padding) = {
             let mut graph_mut = elkgraph.borrow_mut();
             let shape = graph_mut.connectable().shape();
-            let width = shape.width();
-            let height = shape.height();
             let mut props = shape.graph_element().properties().clone();
             let padding = props.get_property(CoreOptions::PADDING).unwrap_or_default();
-            (props, width, height, padding)
+            (props, padding)
         };
 
         if let Ok(mut graph_guard) = lgraph.lock() {
@@ -530,9 +565,6 @@ impl<'a> ElkGraphImporter<'a> {
                 .graph_element()
                 .properties_mut()
                 .copy_properties(&properties);
-            let size = graph_guard.size();
-            size.x = width;
-            size.y = height;
 
             let lpadding = graph_guard.padding();
             lpadding.top = padding.top + node_label_padding.top;
@@ -1142,7 +1174,25 @@ impl<'a> ElkGraphImporter<'a> {
             }
             ElkConnectableShapeRef::Node(node) => {
                 let lnode = self.node_for(node)?;
-                Some(LGraphUtil::create_port(&lnode, None, port_type, lgraph))
+                // Java parity:
+                // - source endpoint creation uses the current edge-containing graph (`lgraph`)
+                // - target endpoint creation uses `targetLNode.getGraph()`
+                // Here, `transform_edge` always resolves target with `PortType::Input`.
+                let graph_for_port = if port_type == PortType::Input {
+                    lnode
+                        .lock()
+                        .ok()
+                        .and_then(|node_guard| node_guard.graph())
+                        .unwrap_or_else(|| lgraph.clone())
+                } else {
+                    lgraph.clone()
+                };
+                Some(LGraphUtil::create_port(
+                    &lnode,
+                    None,
+                    port_type,
+                    &graph_for_port,
+                ))
             }
         }
     }

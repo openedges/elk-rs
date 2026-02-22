@@ -43,6 +43,9 @@
 - Full model parity: `matches=1174/1439` (81.6%), `drift=265`, `diffs=5222`, `errors=0`, `timeouts=0`, `java_non_ok=9`
   - 이전 스냅샷(2026-02-21): `1164/1439` → 최신 재검증에서 **1174/1439**로 갱신
 - 남은 drift 265개는 기존 phase 분석 기준 crossing min random state divergence에서의 cascading 영향이 중심
+- Phase-gate(recursive+strict) 최신 기준: `base=1439`, `precheck_error=0`, `step0_error=0`
+  - 초기 frontier: `step8=41`, `step9=71`
+  - 대형 hotspot: `step10=316`, `step11=615`, `step12=238`
 - 포팅/테스트/빌드/성능 자동화 파이프라인은 운영 상태
 - `cargo build --workspace`: warning 0건, `cargo clippy --workspace --all-targets`: warning 0건
 
@@ -57,11 +60,10 @@
 - Phase 1: Java phase trace 도구 — **완료**
 - Phase 2: Rust phase trace 도구 — **완료**
 - Phase 3: Phase diff 비교 도구 — **완료**
-- Phase 4: trace 실행 및 divergence 분석 — **완료** (결과: `perf/model_parity/phase_trace_analysis.json`)
-  - 1416 모델 비교: 1213 step-0 format artifact, 203 real divergence
-  - 185/203은 full parity match (중간 차이가 최종 결과에서 상쇄)
-  - **10개 고유 모델이 실제 drift를 유발하는 phase divergence 보유**
-  - PortSideProcessor(3, 계층), LabelAndNodeSizeProcessor(3, 계층), LayerSizeAndGraphHeightCalculator(3), BKNodePlacer(1), SplineEdgeRouter(1)
+- Phase 4: trace 실행 및 divergence 분석 — **운영 중**
+  - 최신 기준은 recursive+strict gate 산출물(`perf/model_parity/phase_gate_latest.md`)을 단일 기준으로 사용
+  - 최신 step range(루트 trace 기준): `0..37`
+  - 우선순위는 `first_failure_by_step` 오름차순(가장 작은 step error부터 0화)
 - Phase 5: 식별된 10개 모델의 프로세서별 버그 수정 — **완료** (추가 수정 가능한 항목 없음)
   - 10개 중 실제 drift는 4개만: LifeCGAVR(PortSideProcessor), Life(PortSideProcessor), next_to_port(LayerSize), labels(BKNodePlacer)
   - labels.elkt: Java HashMap keySet() 비결정성 (PortSide identity hashCode) — **수정 불가**

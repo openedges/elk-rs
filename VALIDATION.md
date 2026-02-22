@@ -137,8 +137,9 @@ ELK Java -> Rust 포팅의 검증은 아래 다층 게이트로 운영한다.
 1. 기준 집합은 `perf/model_parity/java/java_manifest.tsv`에서 `java_status=ok`인 전체 모델이다.
 2. Java/Rust phase trace 중 한쪽이라도 없으면 `비교불가(error)`로 분류한다.
 3. 비교 가능한 모델은 `compare_phase_traces.py --batch` 결과에서 `최초 non-match step`을 해당 모델의 실패 phase로 기록한다.
-4. 어떤 모델이 step `k`에서 실패하면 `k+1` 이후 step은 미판정으로 취급한다.
-5. 최종 합격 조건은 `비교불가(error)=0`이고, 모든 phase step에서 `error=0`이다.
+4. `compare_phase_traces.py`는 노드/포트/레이어를 위치 기반(positional)으로 비교하므로, 순서가 바뀌면 drift(error)로 판정한다.
+5. 어떤 모델이 step `k`에서 실패하면 `k+1` 이후 step은 미판정으로 취급한다.
+6. 최종 합격 조건은 `비교불가(error)=0`이고, 모든 phase step에서 `error=0`이다.
 
 ### 11.2 실행 절차 (고정)
 
@@ -150,9 +151,15 @@ ELK Java -> Rust 포팅의 검증은 아래 다층 게이트로 운영한다.
    - `cargo run --release -p org-eclipse-elk-graph-json --bin model_parity_layout_runner -- --input-manifest perf/model_parity/java/java_manifest.tsv --output-manifest /tmp/phase_gate/rust_manifest.tsv --rust-layout-dir /tmp/phase_gate/rust_layout --pretty-print false --stop-on-error false --trace-dir /tmp/phase_gate/rust_trace`
 4. Batch phase 비교
    - `python3 scripts/compare_phase_traces.py /tmp/phase_gate/java_trace /tmp/phase_gate/rust_trace --batch --json > /tmp/phase_gate/phase_compare_full.json`
+   - 순서 기준: `compare_phase_traces.py`는 component-run 재정렬 없이 **strict step order**로 비교한다.
 5. Gate 집계
    - `python3 scripts/summarize_phase_gate.py --java-manifest perf/model_parity/java/java_manifest.tsv --rust-manifest /tmp/phase_gate/rust_manifest.tsv --java-trace-dir /tmp/phase_gate/java_trace --rust-trace-dir /tmp/phase_gate/rust_trace --compare-json /tmp/phase_gate/phase_compare_full.json --output-json perf/model_parity/phase_gate_latest.json --output-md perf/model_parity/phase_gate_latest.md`
    - 판정 산출물(`precheck`, `phase별 reached/match/error`, `first failure by step`)은 `perf/model_parity/phase_gate_latest.md`를 기준으로 확인한다.
+
+추가 실행 원칙:
+
+- Java trace exporter는 `RecursiveGraphLayoutEngine`을 우선 사용한다(실패 시 layered provider fallback).
+- Rust trace는 Java와 동일하게 루트 layout graph만 snapshot으로 기록한다(하위 recursive run은 미기록).
 
 ### 11.3 현재 기준선 (재측정 결과)
 
@@ -164,28 +171,24 @@ ELK Java -> Rust 포팅의 검증은 아래 다층 게이트로 운영한다.
 - 비교 가능(shared): `1439`
 - shared 모델 phase 결과: `all_match=0`, `diverged=1439`
 - 최신 gate 요약: `perf/model_parity/phase_gate_latest.md`
+- 최근 갱신(2026-02-22, recursive+strict): `step 0`과 `step 4` error를 모두 `0`으로 해소
+- 최신 step 범위(루트 trace 기준): `0..37`
+- 현재 frontier(낮은 step) 실패 분포: `step8=41`, `step9=71`
+- 1차 대형 hotspot: `step10=316`, `step11=615`, `step12=238`
 
 ### 11.4 단계별 처리 순서 (앞 phase 우선)
 
-다음 순서로만 진행한다.
+다음 규칙으로만 진행한다.
 
-1. `Precheck` 비교불가 `0` (완료, 유지)
-2. `step 0` error `1050 -> 0`
-3. `step 3` error `2 -> 0`
-4. `step 10` error `4 -> 0`
-5. `step 11` error `1 -> 0`
-6. `step 12` error `8 -> 0`
-7. `step 13` error `6 -> 0`
-8. `step 14` error `2 -> 0`
-9. `step 15` error `36 -> 0`
-10. `step 16` error `32 -> 0`
-11. `step 17` error `93 -> 0`
-12. `step 18` error `126 -> 0`
-13. `step 19` error `16 -> 0`
-14. `step 20` error `35 -> 0`
-15. `step 21` error `19 -> 0`
-16. `step 22` error `2 -> 0`
-17. `step 23` error `3 -> 0`
-18. `step 24` error `4 -> 0`
+1. `Precheck` 비교불가 `0` 유지
+2. `first_failure_by_step`에서 **가장 작은 step**의 `error`를 `0`으로 만든다.
+3. 해당 step이 `0`이 되면, 다음으로 작은 step으로 이동한다.
+4. 이미 더 작은 step에 `error>0`가 남아 있으면, 큰 step은 수정/평가하지 않는다.
 
-각 단계 완료 기준은 해당 step의 `error=0`이며, 그 전 단계가 남아 있으면 뒤 단계 수정/평가는 하지 않는다.
+현재 우선 순위(frontier):
+
+1. `step 8~12`
+2. `step 13~21`
+3. 이후는 `first_failure_by_step` 오름차순(`37 ...`)으로 처리
+
+각 단계 완료 기준은 해당 step의 `error=0`이다.

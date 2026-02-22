@@ -123,11 +123,6 @@ impl LNode {
 
     pub fn set_layer(node: &LNodeRef, layer: Option<LayerRef>) {
         let current_layer = node.lock().ok().and_then(|node| node.layer());
-        if let (Some(current_layer), Some(new_layer)) = (&current_layer, &layer) {
-            if Arc::ptr_eq(current_layer, new_layer) {
-                return;
-            }
-        }
 
         if let Some(current_layer) = current_layer {
             if let Ok(mut layer) = current_layer.lock() {

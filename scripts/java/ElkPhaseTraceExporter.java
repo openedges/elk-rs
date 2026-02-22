@@ -30,6 +30,7 @@ import org.eclipse.elk.alg.layered.graph.LLabel;
 import org.eclipse.elk.alg.layered.graph.LNode;
 import org.eclipse.elk.alg.layered.graph.LPort;
 import org.eclipse.elk.alg.layered.graph.Layer;
+import org.eclipse.elk.alg.layered.LayeredLayoutProvider;
 import org.eclipse.elk.alg.layered.options.InternalProperties;
 import org.eclipse.elk.alg.layered.options.LayeredMetaDataProvider;
 import org.eclipse.elk.alg.layered.options.LayeredOptions;
@@ -93,6 +94,8 @@ public class ElkPhaseTraceExporter {
         final int randomSeed = parseIntProperty("elk.trace.randomSeed", 1);
         final boolean prettyPrint = Boolean.parseBoolean(
                 System.getProperty("elk.trace.prettyPrint", "true"));
+        final boolean jsonRoundTrip = Boolean.parseBoolean(
+                System.getProperty("elk.trace.jsonRoundTrip", "true"));
         final List<String> includeTokens = parseCsvTokens(
                 System.getProperty("elk.trace.include", ""));
         final List<String> excludeTokens = parseCsvTokens(
@@ -122,18 +125,22 @@ public class ElkPhaseTraceExporter {
 
             try {
                 ElkNode loadedGraph = loadGraph(modelFile);
-                loadedGraph.setProperty(CoreOptions.RANDOM_SEED, randomSeed);
+                ElkNode traceGraph = loadedGraph;
 
-                // Round-trip through JSON (same as ElkModelParityExportTest)
-                String inputJson = ElkGraphJson.forGraph(loadedGraph)
-                        .prettyPrint(false)
-                        .shortLayoutOptionKeys(false)
-                        .omitZeroPositions(false)
-                        .omitZeroDimension(false)
-                        .omitLayout(false)
-                        .omitUnknownLayoutOptions(false)
-                        .toJson();
-                ElkNode reimportedGraph = ElkGraphJson.forGraph(inputJson).toElk();
+                if (jsonRoundTrip) {
+                    // Optional extra round-trip through JSON (legacy phase-trace behavior).
+                    String inputJson = ElkGraphJson.forGraph(loadedGraph)
+                            .prettyPrint(false)
+                            .shortLayoutOptionKeys(false)
+                            .omitZeroPositions(false)
+                            .omitZeroDimension(false)
+                            .omitLayout(false)
+                            .omitUnknownLayoutOptions(false)
+                            .toJson();
+                    traceGraph = ElkGraphJson.forGraph(inputJson).toElk();
+                }
+
+                traceGraph.setProperty(CoreOptions.RANDOM_SEED, randomSeed);
 
                 // Build output directory for this model
                 Path modelTraceDir = outputDir.resolve(relPath);
@@ -141,20 +148,18 @@ public class ElkPhaseTraceExporter {
 
                 // Use recursive layout + TestController so hierarchy/includeChildren models
                 // are traced as well. For phase-gate parity we force layered explicitly.
-                reimportedGraph.setProperty(CoreOptions.ALGORITHM, LayeredOptions.ALGORITHM_ID);
+                traceGraph.setProperty(CoreOptions.ALGORITHM, LayeredOptions.ALGORITHM_ID);
 
-                TraceCaptureListener traceListener = new TraceCaptureListener(modelTraceDir, prettyPrint);
-                TestController testController = new TestController(LayeredOptions.ALGORITHM_ID);
-                testController.addLayoutExecutionListener(traceListener);
                 try {
-                    RecursiveGraphLayoutEngine engine = new RecursiveGraphLayoutEngine();
-                    engine.layout(reimportedGraph, testController, new BasicProgressMonitor());
-                } finally {
-                    testController.uninstall();
+                    // Phase-gate baseline must follow recursive hierarchy execution.
+                    traceWithRecursiveEngine(traceGraph, modelTraceDir, prettyPrint);
+                } catch (Throwable recursiveFailure) {
+                    // Keep a compatibility fallback for models that cannot be handled by
+                    // recursive execution in this exporter environment.
+                    deleteRecursively(modelTraceDir);
+                    Files.createDirectories(modelTraceDir);
+                    traceWithLayeredProvider(traceGraph, modelTraceDir, prettyPrint);
                 }
-
-                // Write an index file listing all processors in observed order.
-                traceListener.writeIndex();
 
                 successCount++;
 
@@ -216,6 +221,39 @@ public class ElkPhaseTraceExporter {
         Files.write(indexPath, b.toString().getBytes(StandardCharsets.UTF_8));
     }
 
+    private static void traceWithLayeredProvider(
+            final ElkNode graph,
+            final Path modelTraceDir,
+            final boolean prettyPrint) throws Exception {
+        TraceCaptureListener traceListener = new TraceCaptureListener(modelTraceDir, prettyPrint);
+        LayeredLayoutProvider provider = new LayeredLayoutProvider();
+        TestController testController = new TestController(LayeredOptions.ALGORITHM_ID);
+        testController.addLayoutExecutionListener(traceListener);
+        testController.install(provider);
+        try {
+            provider.layout(graph, new BasicProgressMonitor());
+        } finally {
+            testController.uninstall();
+        }
+        traceListener.writeIndex();
+    }
+
+    private static void traceWithRecursiveEngine(
+            final ElkNode graph,
+            final Path modelTraceDir,
+            final boolean prettyPrint) throws Exception {
+        TraceCaptureListener traceListener = new TraceCaptureListener(modelTraceDir, prettyPrint);
+        TestController testController = new TestController(LayeredOptions.ALGORITHM_ID);
+        testController.addLayoutExecutionListener(traceListener);
+        try {
+            RecursiveGraphLayoutEngine engine = new RecursiveGraphLayoutEngine();
+            engine.layout(graph, testController, new BasicProgressMonitor());
+        } finally {
+            testController.uninstall();
+        }
+        traceListener.writeIndex();
+    }
+
     private static Throwable rootCause(final Throwable throwable) {
         Throwable cursor = throwable;
         while (cursor.getCause() != null && cursor.getCause() != cursor) {
@@ -248,6 +286,9 @@ public class ElkPhaseTraceExporter {
                 final org.eclipse.elk.core.alg.ILayoutProcessor<?> processor,
                 final Object graph,
                 final boolean isRoot) {
+            if (!isRoot) {
+                return;
+            }
             if (!(graph instanceof LGraph)) {
                 return;
             }
