@@ -24,23 +24,23 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.eclipse.elk.alg.layered.ElkLayered;
-import org.eclipse.elk.alg.layered.ElkLayered.TestExecutionState;
 import org.eclipse.elk.alg.layered.graph.LEdge;
 import org.eclipse.elk.alg.layered.graph.LGraph;
 import org.eclipse.elk.alg.layered.graph.LLabel;
 import org.eclipse.elk.alg.layered.graph.LNode;
 import org.eclipse.elk.alg.layered.graph.LPort;
 import org.eclipse.elk.alg.layered.graph.Layer;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
 import org.eclipse.elk.alg.layered.options.InternalProperties;
-import org.eclipse.elk.core.data.LayoutMetaDataService;
-import org.eclipse.elk.core.options.CoreOptions;
 import org.eclipse.elk.alg.layered.options.LayeredMetaDataProvider;
-import org.eclipse.elk.core.alg.ILayoutProcessor;
+import org.eclipse.elk.alg.layered.options.LayeredOptions;
+import org.eclipse.elk.core.RecursiveGraphLayoutEngine;
+import org.eclipse.elk.core.data.LayoutMetaDataService;
 import org.eclipse.elk.core.math.KVector;
 import org.eclipse.elk.core.math.KVectorChain;
+import org.eclipse.elk.core.options.CoreOptions;
+import org.eclipse.elk.core.testing.TestController;
+import org.eclipse.elk.core.testing.TestController.ILayoutExecutionListener;
+import org.eclipse.elk.core.util.BasicProgressMonitor;
 import org.eclipse.elk.graph.ElkNode;
 import org.eclipse.elk.graph.json.ElkGraphJson;
 import org.eclipse.emf.common.util.URI;
@@ -135,60 +135,38 @@ public class ElkPhaseTraceExporter {
                         .toJson();
                 ElkNode reimportedGraph = ElkGraphJson.forGraph(inputJson).toElk();
 
-                // Import to LGraph
-                // Use reflection to access package-private ElkGraphImporter
-                Class<?> importerClass = Class.forName("org.eclipse.elk.alg.layered.graph.transform.ElkGraphImporter");
-                Constructor<?> ctor = importerClass.getDeclaredConstructor();
-                ctor.setAccessible(true);
-                Object graphImporter = ctor.newInstance();
-                Method importMethod = importerClass.getMethod("importGraph", ElkNode.class);
-                importMethod.setAccessible(true);
-                LGraph lgraph = (LGraph) importMethod.invoke(graphImporter, reimportedGraph);
-
-                // Prepare test execution
-                ElkLayered elkLayered = new ElkLayered();
-                TestExecutionState state = elkLayered.prepareLayoutTest(lgraph);
-                List<ILayoutProcessor<LGraph>> configuration =
-                        elkLayered.getLayoutTestConfiguration(state);
-
                 // Build output directory for this model
                 Path modelTraceDir = outputDir.resolve(relPath);
                 Files.createDirectories(modelTraceDir);
 
-                // Capture initial state (before any processor)
-                String initialSnapshot = buildSnapshot(
-                        -1, "INITIAL", state.getGraphs(), prettyPrint);
-                writeSnapshot(modelTraceDir, "step_-1_INITIAL.json", initialSnapshot);
+                // Use recursive layout + TestController so hierarchy/includeChildren models
+                // are traced as well. For phase-gate parity we force layered explicitly.
+                reimportedGraph.setProperty(CoreOptions.ALGORITHM, LayeredOptions.ALGORITHM_ID);
 
-                // Step through each processor
-                int step = 0;
-                while (!elkLayered.isLayoutTestFinished(state)) {
-                    String processorName = configuration.get(state.getStep())
-                            .getClass().getSimpleName();
-
-                    elkLayered.runLayoutTestStep(state);
-
-                    String snapshot = buildSnapshot(
-                            step, processorName, state.getGraphs(), prettyPrint);
-                    String fileName = String.format(
-                            Locale.ROOT, "step_%03d_%s.json", step, processorName);
-                    writeSnapshot(modelTraceDir, fileName, snapshot);
-
-                    step++;
+                TraceCaptureListener traceListener = new TraceCaptureListener(modelTraceDir, prettyPrint);
+                TestController testController = new TestController(LayeredOptions.ALGORITHM_ID);
+                testController.addLayoutExecutionListener(traceListener);
+                try {
+                    RecursiveGraphLayoutEngine engine = new RecursiveGraphLayoutEngine();
+                    engine.layout(reimportedGraph, testController, new BasicProgressMonitor());
+                } finally {
+                    testController.uninstall();
                 }
 
-                // Write an index file listing all processors in order
-                writeIndex(configuration, modelTraceDir, prettyPrint);
+                // Write an index file listing all processors in observed order.
+                traceListener.writeIndex();
 
                 successCount++;
 
             } catch (Throwable throwable) {
                 failureCount++;
+                Throwable rootCause = rootCause(throwable);
                 System.err.println(String.format(
                         Locale.ROOT,
                         "ERROR tracing model %s: %s",
                         relPath,
-                        throwable.toString()));
+                        rootCause.toString()));
+                rootCause.printStackTrace(System.err);
             }
         }
 
@@ -213,24 +191,17 @@ public class ElkPhaseTraceExporter {
     }
 
     private static void writeIndex(
-            final List<ILayoutProcessor<LGraph>> configuration,
+            final List<String> processors,
             final Path modelTraceDir,
             final boolean prettyPrint) throws IOException {
 
         JsonBuilder b = new JsonBuilder(prettyPrint);
         b.beginObject();
-        b.key("count"); b.value(configuration.size());
+        b.key("count"); b.value(processors.size());
         b.key("steps"); b.beginArray();
 
-        // Step -1: INITIAL
-        b.beginObject();
-        b.key("step"); b.value(-1);
-        b.key("processor"); b.value("INITIAL");
-        b.key("file"); b.value("step_-1_INITIAL.json");
-        b.endObject();
-
-        for (int i = 0; i < configuration.size(); i++) {
-            String name = configuration.get(i).getClass().getSimpleName();
+        for (int i = 0; i < processors.size(); i++) {
+            String name = processors.get(i);
             b.beginObject();
             b.key("step"); b.value(i);
             b.key("processor"); b.value(name);
@@ -243,6 +214,65 @@ public class ElkPhaseTraceExporter {
 
         Path indexPath = modelTraceDir.resolve("index.json");
         Files.write(indexPath, b.toString().getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static Throwable rootCause(final Throwable throwable) {
+        Throwable cursor = throwable;
+        while (cursor.getCause() != null && cursor.getCause() != cursor) {
+            cursor = cursor.getCause();
+        }
+        return cursor;
+    }
+
+    private static final class TraceCaptureListener implements ILayoutExecutionListener {
+        private final Path modelTraceDir;
+        private final boolean prettyPrint;
+        private final List<String> processors = new ArrayList<>();
+        private int step = 0;
+
+        TraceCaptureListener(final Path modelTraceDir, final boolean prettyPrint) {
+            this.modelTraceDir = modelTraceDir;
+            this.prettyPrint = prettyPrint;
+        }
+
+        @Override
+        public void layoutProcessorReady(
+                final org.eclipse.elk.core.alg.ILayoutProcessor<?> processor,
+                final Object graph,
+                final boolean isRoot) {
+            // Snapshot is captured after each processor, matching Rust semantics.
+        }
+
+        @Override
+        public void layoutProcessorFinished(
+                final org.eclipse.elk.core.alg.ILayoutProcessor<?> processor,
+                final Object graph,
+                final boolean isRoot) {
+            if (!(graph instanceof LGraph)) {
+                return;
+            }
+
+            String processorName = processor.getClass().getSimpleName();
+            processors.add(processorName);
+
+            String snapshot = buildSnapshot(
+                    step, processorName, Collections.singletonList((LGraph) graph), prettyPrint);
+            String fileName = String.format(
+                    Locale.ROOT, "step_%03d_%s.json", step, processorName);
+            try {
+                writeSnapshot(modelTraceDir, fileName, snapshot);
+            } catch (IOException exception) {
+                throw new RuntimeException(
+                        "failed to write Java trace snapshot for step " + step + ": " + fileName,
+                        exception);
+            }
+
+            step++;
+        }
+
+        void writeIndex() throws IOException {
+            ElkPhaseTraceExporter.writeIndex(processors, modelTraceDir, prettyPrint);
+        }
     }
 
     // ========================== LGraph Snapshot Serialization ==========================

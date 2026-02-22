@@ -350,6 +350,12 @@ impl ElkLayered {
         lgraph: &LGraphRef,
         monitor: &mut dyn IElkProgressMonitor,
     ) {
+        let prev_depth = TRACE_LAYOUT_DEPTH.fetch_add(1, Ordering::Relaxed);
+        if prev_depth == 0 {
+            Self::reset_trace_step_counter();
+            Self::clear_trace_directory();
+        }
+
         trace_step("compound layout: begin");
         monitor.begin("Layered layout", 2.0);
 
@@ -393,6 +399,7 @@ impl ElkLayered {
 
         monitor.done();
         trace_step("compound layout: done");
+        TRACE_LAYOUT_DEPTH.fetch_sub(1, Ordering::Relaxed);
     }
 
     pub fn prepare_layout_test(&mut self, lgraph: &LGraphRef) -> TestExecutionState {

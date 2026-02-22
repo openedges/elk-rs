@@ -122,6 +122,11 @@ ELK Java -> Rust 포팅의 검증은 아래 다층 게이트로 운영한다.
   - 4 단계는 `plugins/org.eclipse.elk.alg.layered/tests/ptides_self_loop_margin_test.rs`의 `opposing_east_west_self_loop_fixedpos_extends_west_margin` 1건 실패
   - 재현 명령: `CARGO_TARGET_DIR=/tmp/elk-rs-test-target cargo test -p org-eclipse-elk-alg-layered --test ptides_self_loop_margin_test`
   - 원인 요약: 구현 로직보다는 테스트 기대값(`18`)과 실제 슬롯 배정 결과(`28`) 불일치 가능성이 높음(수정은 보류)
+- 2026-02-22(phase-gate 재실행 후) 확인 결과:
+  - `CARGO_TARGET_DIR=/tmp/elk-rs-phase-gate-target cargo clippy --workspace --all-targets` 통과
+  - `CARGO_TARGET_DIR=/tmp/elk-rs-phase-gate-target cargo test --workspace`는 `plugins/org.eclipse.elk.alg.layered/tests/issue_425_test.rs`의 `issue_425_self_loop_in_compound_matches_java_reference_sizes` 1건 실패
+  - 단건 재현: `CARGO_TARGET_DIR=/tmp/elk-rs-phase-gate-target cargo test -p org-eclipse-elk-alg-layered --test issue_425_test`
+  - 실패 관측값: `Node_1 width expected 30.0, got 20.0` (원인 분석/수정 필요)
 
 ## 11) Phase-Gate 우선 검증 계획 (2026-02-22)
 
@@ -146,40 +151,41 @@ ELK Java -> Rust 포팅의 검증은 아래 다층 게이트로 운영한다.
 4. Batch phase 비교
    - `python3 scripts/compare_phase_traces.py /tmp/phase_gate/java_trace /tmp/phase_gate/rust_trace --batch --json > /tmp/phase_gate/phase_compare_full.json`
 5. Gate 집계
-   - 모델별 최초 실패 phase 기준으로 `phase별 reached/match/error`를 산출하고, `비교불가(error)` 목록을 분리 기록한다.
+   - `python3 scripts/summarize_phase_gate.py --java-manifest perf/model_parity/java/java_manifest.tsv --rust-manifest /tmp/phase_gate/rust_manifest.tsv --java-trace-dir /tmp/phase_gate/java_trace --rust-trace-dir /tmp/phase_gate/rust_trace --compare-json /tmp/phase_gate/phase_compare_full.json --output-json perf/model_parity/phase_gate_latest.json --output-md perf/model_parity/phase_gate_latest.md`
+   - 판정 산출물(`precheck`, `phase별 reached/match/error`, `first failure by step`)은 `perf/model_parity/phase_gate_latest.md`를 기준으로 확인한다.
 
 ### 11.3 현재 기준선 (재측정 결과)
 
 - 기준 모델(`java_status=ok`): `1439`
-- 비교불가(error): `23`
-  - Java만 trace 없음: `1`
-  - Rust만 trace 없음: `14`
-  - 양측 trace 없음: `8`
-- 비교 가능(shared): `1416`
-- shared 모델 phase 결과: `all_match=0`, `diverged=1416`
+- 비교불가(error): `0`
+  - Java만 trace 없음: `0`
+  - Rust만 trace 없음: `0`
+  - 양측 trace 없음: `0`
+- 비교 가능(shared): `1439`
+- shared 모델 phase 결과: `all_match=0`, `diverged=1439`
+- 최신 gate 요약: `perf/model_parity/phase_gate_latest.md`
 
 ### 11.4 단계별 처리 순서 (앞 phase 우선)
 
 다음 순서로만 진행한다.
 
-1. `Precheck` 비교불가 `23 -> 0`
-2. `step 0` error `1213 -> 0`
-3. `step 1` error `1 -> 0`
-4. `step 6` error `8 -> 0`
-5. `step 10` error `4 -> 0`
-6. `step 11` error `2 -> 0`
-7. `step 12` error `12 -> 0`
-8. `step 13` error `10 -> 0`
-9. `step 14` error `19 -> 0`
-10. `step 15` error `39 -> 0`
-11. `step 16` error `25 -> 0`
-12. `step 17` error `18 -> 0`
-13. `step 18` error `26 -> 0`
-14. `step 19` error `14 -> 0`
-15. `step 20` error `11 -> 0`
-16. `step 21` error `7 -> 0`
-17. `step 22` error `1 -> 0`
-18. `step 23` error `3 -> 0`
-19. `step 24` error `3 -> 0`
+1. `Precheck` 비교불가 `0` (완료, 유지)
+2. `step 0` error `1050 -> 0`
+3. `step 3` error `2 -> 0`
+4. `step 10` error `4 -> 0`
+5. `step 11` error `1 -> 0`
+6. `step 12` error `8 -> 0`
+7. `step 13` error `6 -> 0`
+8. `step 14` error `2 -> 0`
+9. `step 15` error `36 -> 0`
+10. `step 16` error `32 -> 0`
+11. `step 17` error `93 -> 0`
+12. `step 18` error `126 -> 0`
+13. `step 19` error `16 -> 0`
+14. `step 20` error `35 -> 0`
+15. `step 21` error `19 -> 0`
+16. `step 22` error `2 -> 0`
+17. `step 23` error `3 -> 0`
+18. `step 24` error `4 -> 0`
 
 각 단계 완료 기준은 해당 step의 `error=0`이며, 그 전 단계가 남아 있으면 뒤 단계 수정/평가는 하지 않는다.

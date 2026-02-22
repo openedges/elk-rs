@@ -322,6 +322,7 @@ fn run_layout_case(
     output_json_path: &Path,
     pretty_print: bool,
     random_seed_override: Option<i32>,
+    force_layered_algorithm: bool,
 ) -> Result<(), String> {
     let result = panic::catch_unwind(AssertUnwindSafe(|| -> Result<(), String> {
         let input_text = fs::read_to_string(input_json_path).map_err(|err| {
@@ -352,6 +353,18 @@ fn run_layout_case(
                 .graph_element()
                 .properties_mut()
                 .set_property(CoreOptions::RANDOM_SEED, Some(seed));
+        }
+
+        if force_layered_algorithm {
+            root.borrow_mut()
+                .connectable()
+                .shape()
+                .graph_element()
+                .properties_mut()
+                .set_property(
+                    CoreOptions::ALGORITHM,
+                    Some("org.eclipse.elk.layered".to_string()),
+                );
         }
 
         if std::env::var_os("ELK_TRACE_PRE_LAYOUT_PORT_ORDER").is_some() {
@@ -508,6 +521,7 @@ fn run_layout_case_with_timeout(
     output_json_path: PathBuf,
     pretty_print: bool,
     random_seed_override: Option<i32>,
+    force_layered_algorithm: bool,
     timeout: Duration,
 ) -> Result<(), String> {
     let (tx, rx) = mpsc::channel();
@@ -517,6 +531,7 @@ fn run_layout_case_with_timeout(
             &output_json_path,
             pretty_print,
             random_seed_override,
+            force_layered_algorithm,
         );
         let _ = tx.send(result);
     });
@@ -643,6 +658,7 @@ fn run(config: Config) -> Result<(), String> {
                 output_json_path,
                 config.pretty_print,
                 random_seed_override,
+                config.trace_dir.is_some(),
                 timeout,
             ) {
                 Ok(()) => {

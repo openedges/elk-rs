@@ -82,16 +82,17 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
             let mut seen = HashSet::new();
             for node in graph.layerless_nodes().clone() {
                 let key = Arc::as_ptr(&node) as usize;
-                if seen.insert(key) && should_apply_phase1_port_placement(&node) {
-                    if place_ports_on_node(
+                if seen.insert(key)
+                    && should_apply_phase1_port_placement(&node)
+                    && place_ports_on_node(
                         &node,
                         graph_port_spacing,
                         &graph_ports_surrounding,
                         graph_topdown_layout,
                         graph_node_size_fixed_graph_size,
-                    ) {
-                        phase2_resized_nodes += 1;
-                    }
+                    )
+                {
+                    phase2_resized_nodes += 1;
                 }
             }
 
@@ -103,16 +104,17 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
                     .unwrap_or_default();
                 for node in nodes {
                     let key = Arc::as_ptr(&node) as usize;
-                    if seen.insert(key) && should_apply_phase1_port_placement(&node) {
-                        if place_ports_on_node(
+                    if seen.insert(key)
+                        && should_apply_phase1_port_placement(&node)
+                        && place_ports_on_node(
                             &node,
                             graph_port_spacing,
                             &graph_ports_surrounding,
                             graph_topdown_layout,
                             graph_node_size_fixed_graph_size,
-                        ) {
-                            phase2_resized_nodes += 1;
-                        }
+                        )
+                    {
+                        phase2_resized_nodes += 1;
                     }
                 }
             }

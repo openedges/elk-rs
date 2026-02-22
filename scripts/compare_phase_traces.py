@@ -104,6 +104,98 @@ def collect_step_files(directory: Path) -> list[tuple[int, str, Path]]:
     return results
 
 
+def _snapshot_signature(path: Path, cache: dict[Path, tuple]) -> tuple:
+    """Compute an order-insensitive structural signature for component-run matching."""
+    cached = cache.get(path)
+    if cached is not None:
+        return cached
+
+    try:
+        snap = load_json(path)
+        norm = SnapshotComparator._normalize(snap)
+    except Exception:
+        # Keep failures deterministic but sortable.
+        sig = ("load_error",)
+        cache[path] = sig
+        return sig
+
+    nodes = norm.get("all_nodes", [])
+    edges = norm.get("edges", [])
+    layer_ids = norm.get("layer_ids", [])
+
+    port_count = 0
+    node_label_count = 0
+    edge_label_count = 0
+    side_hist: dict[str, int] = {}
+    for node in nodes:
+        ports = node.get("ports", [])
+        labels = node.get("labels", [])
+        port_count += len(ports)
+        node_label_count += len(labels)
+        for port in ports:
+            side = str(port.get("side"))
+            side_hist[side] = side_hist.get(side, 0) + 1
+    for edge in edges:
+        edge_label_count += len(edge.get("labels", []))
+
+    sig = (
+        len(nodes),
+        len(edges),
+        tuple(len(layer) for layer in layer_ids),
+        port_count,
+        node_label_count,
+        edge_label_count,
+        tuple(sorted(side_hist.items())),
+    )
+    cache[path] = sig
+    return sig
+
+
+def _canonicalize_component_runs(
+    steps: list[tuple[int, str, Path]],
+) -> list[tuple[int, str, Path]]:
+    """Normalize component-run ordering for consecutive same-processor steps.
+
+    Some models emit one step per connected component. Java and Rust can produce
+    different component iteration orders while still being semantically equivalent.
+    For each consecutive run with the same processor name and run length > 1,
+    we sort snapshots by structural signature and then assign them back to the
+    original step indices in ascending order.
+    """
+    if len(steps) <= 1:
+        return steps
+
+    out: list[tuple[int, str, Path]] = []
+    sig_cache: dict[Path, tuple] = {}
+    cursor = 0
+    while cursor < len(steps):
+        run_start = cursor
+        run_proc = _processor_from_stem(steps[cursor][1])
+        cursor += 1
+        while cursor < len(steps):
+            proc = _processor_from_stem(steps[cursor][1])
+            if proc != run_proc:
+                break
+            cursor += 1
+
+        run = steps[run_start:cursor]
+        if len(run) <= 1:
+            out.extend(run)
+            continue
+
+        sorted_indices = sorted(idx for idx, _stem, _path in run)
+        sorted_entries = sorted(
+            run,
+            key=lambda item: (_snapshot_signature(item[2], sig_cache), item[0], item[1]),
+        )
+
+        for target_idx, (_orig_idx, stem, path) in zip(sorted_indices, sorted_entries):
+            out.append((target_idx, stem, path))
+
+    out.sort(key=lambda t: t[0])
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Diff data structure
 # ---------------------------------------------------------------------------
@@ -485,8 +577,10 @@ def compare_model(
     rust_steps = collect_step_files(rust_dir)
 
     # Skip step_-1_INITIAL (Java-only artifact, no Rust equivalent)
-    jmap: dict[int, tuple[str, Path]] = {i: (s, p) for i, s, p in java_steps if i >= 0}
-    rmap: dict[int, tuple[str, Path]] = {i: (s, p) for i, s, p in rust_steps if i >= 0}
+    jsteps = _canonicalize_component_runs([(i, s, p) for i, s, p in java_steps if i >= 0])
+    rsteps = _canonicalize_component_runs([(i, s, p) for i, s, p in rust_steps if i >= 0])
+    jmap: dict[int, tuple[str, Path]] = {i: (s, p) for i, s, p in jsteps}
+    rmap: dict[int, tuple[str, Path]] = {i: (s, p) for i, s, p in rsteps}
 
     all_indices = sorted(set(jmap) | set(rmap))
     step_results: list[StepResult] = []
