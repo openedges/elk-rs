@@ -122,3 +122,64 @@ ELK Java -> Rust 포팅의 검증은 아래 다층 게이트로 운영한다.
   - 4 단계는 `plugins/org.eclipse.elk.alg.layered/tests/ptides_self_loop_margin_test.rs`의 `opposing_east_west_self_loop_fixedpos_extends_west_margin` 1건 실패
   - 재현 명령: `CARGO_TARGET_DIR=/tmp/elk-rs-test-target cargo test -p org-eclipse-elk-alg-layered --test ptides_self_loop_margin_test`
   - 원인 요약: 구현 로직보다는 테스트 기대값(`18`)과 실제 슬롯 배정 결과(`28`) 불일치 가능성이 높음(수정은 보류)
+
+## 11) Phase-Gate 우선 검증 계획 (2026-02-22)
+
+목표를 모델별 최종 layout match가 아니라, **phase 순서별 게이트 통과**로 재정의한다.
+
+### 11.1 판정 규칙
+
+1. 기준 집합은 `perf/model_parity/java/java_manifest.tsv`에서 `java_status=ok`인 전체 모델이다.
+2. Java/Rust phase trace 중 한쪽이라도 없으면 `비교불가(error)`로 분류한다.
+3. 비교 가능한 모델은 `compare_phase_traces.py --batch` 결과에서 `최초 non-match step`을 해당 모델의 실패 phase로 기록한다.
+4. 어떤 모델이 step `k`에서 실패하면 `k+1` 이후 step은 미판정으로 취급한다.
+5. 최종 합격 조건은 `비교불가(error)=0`이고, 모든 phase step에서 `error=0`이다.
+
+### 11.2 실행 절차 (고정)
+
+1. Wiring parity strict
+   - `LAYERED_PHASE_WIRING_PARITY_STRICT=true sh scripts/check_layered_phase_wiring_parity.sh perf/layered_phase_wiring_parity_strict_latest.md`
+2. Java phase trace 생성 (ELKT 직접 파싱 대신 JSON 입력 사용)
+   - `JAVA_TRACE_EXTERNAL_ISOLATE=false JAVA_TRACE_BUILD_PLUGINS=false sh scripts/run_java_phase_trace.sh perf/model_parity/java/input /tmp/phase_gate/java_trace`
+3. Rust phase trace 생성
+   - `cargo run --release -p org-eclipse-elk-graph-json --bin model_parity_layout_runner -- --input-manifest perf/model_parity/java/java_manifest.tsv --output-manifest /tmp/phase_gate/rust_manifest.tsv --rust-layout-dir /tmp/phase_gate/rust_layout --pretty-print false --stop-on-error false --trace-dir /tmp/phase_gate/rust_trace`
+4. Batch phase 비교
+   - `python3 scripts/compare_phase_traces.py /tmp/phase_gate/java_trace /tmp/phase_gate/rust_trace --batch --json > /tmp/phase_gate/phase_compare_full.json`
+5. Gate 집계
+   - 모델별 최초 실패 phase 기준으로 `phase별 reached/match/error`를 산출하고, `비교불가(error)` 목록을 분리 기록한다.
+
+### 11.3 현재 기준선 (재측정 결과)
+
+- 기준 모델(`java_status=ok`): `1439`
+- 비교불가(error): `23`
+  - Java만 trace 없음: `1`
+  - Rust만 trace 없음: `14`
+  - 양측 trace 없음: `8`
+- 비교 가능(shared): `1416`
+- shared 모델 phase 결과: `all_match=0`, `diverged=1416`
+
+### 11.4 단계별 처리 순서 (앞 phase 우선)
+
+다음 순서로만 진행한다.
+
+1. `Precheck` 비교불가 `23 -> 0`
+2. `step 0` error `1213 -> 0`
+3. `step 1` error `1 -> 0`
+4. `step 6` error `8 -> 0`
+5. `step 10` error `4 -> 0`
+6. `step 11` error `2 -> 0`
+7. `step 12` error `12 -> 0`
+8. `step 13` error `10 -> 0`
+9. `step 14` error `19 -> 0`
+10. `step 15` error `39 -> 0`
+11. `step 16` error `25 -> 0`
+12. `step 17` error `18 -> 0`
+13. `step 18` error `26 -> 0`
+14. `step 19` error `14 -> 0`
+15. `step 20` error `11 -> 0`
+16. `step 21` error `7 -> 0`
+17. `step 22` error `1 -> 0`
+18. `step 23` error `3 -> 0`
+19. `step 24` error `3 -> 0`
+
+각 단계 완료 기준은 해당 step의 `error=0`이며, 그 전 단계가 남아 있으면 뒤 단계 수정/평가는 하지 않는다.
