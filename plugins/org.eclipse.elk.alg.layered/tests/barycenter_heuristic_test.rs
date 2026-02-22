@@ -34,7 +34,7 @@ fn minimize_crossings_removes_crossing_in_simple_cross() {
     let expected = switched_order(&node_order[1], 0, 1);
 
     let mut heuristic = create_heuristic(&node_order, 1);
-    let _ = heuristic.minimize_crossings(&mut node_order, 1, true, true);
+    let _ = heuristic.minimize_crossings(&mut node_order, 1, true, true, &mut Random::new(1));
 
     assert_order_equals(&node_order[1], &expected);
 }
@@ -61,7 +61,7 @@ fn randomize_first_layer_can_keep_or_swap_order() {
     for seed in 0..128 {
         let mut node_order = to_node_order(&graph);
         let mut heuristic = create_heuristic(&node_order, seed);
-        let _ = heuristic.set_first_layer_order(&mut node_order, true);
+        let _ = heuristic.set_first_layer_order(&mut node_order, true, &mut Random::new(seed));
 
         if order_equals(&node_order[0], &expected_original) {
             saw_original = true;
@@ -101,7 +101,7 @@ fn fixed_port_order_crossing_backwards() {
     let expected = switched_order(&node_order[0], 0, 1);
 
     let mut heuristic = create_heuristic(&node_order, 1);
-    let _ = heuristic.minimize_crossings(&mut node_order, 0, false, true);
+    let _ = heuristic.minimize_crossings(&mut node_order, 0, false, true, &mut Random::new(1));
 
     assert_order_equals(&node_order[0], &expected);
 }
@@ -128,7 +128,7 @@ fn in_layer_edges_reorder_nodes() {
     ];
 
     let mut heuristic = create_heuristic(&node_order, 3);
-    let _ = heuristic.minimize_crossings(&mut node_order, 1, true, true);
+    let _ = heuristic.minimize_crossings(&mut node_order, 1, true, true, &mut Random::new(1));
 
     assert_order_equals(&node_order[1], &expected);
 }
@@ -166,7 +166,7 @@ fn north_south_edges_reorder_nodes() {
     let initial = node_order[1].clone();
 
     let mut heuristic = create_heuristic(&node_order, 17);
-    let _ = heuristic.minimize_crossings(&mut node_order, 1, true, true);
+    let _ = heuristic.minimize_crossings(&mut node_order, 1, true, true, &mut Random::new(17));
 
     let actual_relative_order = relative_index_order(&node_order[1], &initial);
     // Rust currently produces a different deterministic order than Java's MockRandom setup.
@@ -193,11 +193,12 @@ fn filling_in_unknown_barycenters() {
     let expected_middle = node_order[1].clone();
 
     let mut heuristic = create_heuristic(&node_order, 1);
-    let _ = heuristic.minimize_crossings(&mut node_order, 0, true, true);
-    let _ = heuristic.minimize_crossings(&mut node_order, 1, true, false);
+    let mut random = Random::new(1);
+    let _ = heuristic.minimize_crossings(&mut node_order, 0, true, true, &mut random);
+    let _ = heuristic.minimize_crossings(&mut node_order, 1, true, false, &mut random);
     assert_order_equals(&node_order[1], &expected_middle);
 
-    let _ = heuristic.minimize_crossings(&mut node_order, 2, true, false);
+    let _ = heuristic.minimize_crossings(&mut node_order, 2, true, false, &mut random);
     assert_order_equals(&node_order[2], &expected_switched_right);
 }
 
@@ -219,11 +220,10 @@ fn fixed_port_order_crossing_independent_of_random_seed() {
     let expected = switched_order(&node_order[1], 0, 1);
 
     let mut heuristic = create_heuristic(&node_order, 1);
-    let _ = heuristic.minimize_crossings(&mut node_order, 1, true, true);
+    let _ = heuristic.minimize_crossings(&mut node_order, 1, true, true, &mut Random::new(1));
     assert_order_equals(&node_order[1], &expected);
 
-    heuristic.set_random(Random::new(999));
-    let _ = heuristic.minimize_crossings(&mut node_order, 1, true, true);
+    let _ = heuristic.minimize_crossings(&mut node_order, 1, true, true, &mut Random::new(999));
     assert_order_equals(&node_order[1], &expected);
 }
 
@@ -484,7 +484,7 @@ fn to_node_order(graph: &LGraphRef) -> Vec<Vec<LNodeRef>> {
     Vec::new()
 }
 
-fn create_heuristic(node_order: &[Vec<LNodeRef>], seed: u64) -> BarycenterHeuristic {
+fn create_heuristic(node_order: &[Vec<LNodeRef>], _seed: u64) -> BarycenterHeuristic {
     let mut port_distributor = NodeRelativePortDistributor::new(node_order.len());
     let mut constraint_resolver = ForsterConstraintResolver::new(node_order, false);
 
@@ -494,7 +494,6 @@ fn create_heuristic(node_order: &[Vec<LNodeRef>], seed: u64) -> BarycenterHeuris
 
     let mut heuristic = BarycenterHeuristic::new(
         constraint_resolver,
-        Random::new(seed),
         Box::new(port_distributor),
     );
     let mut heuristic_initializable: [&mut dyn IInitializable; 1] = [&mut heuristic];

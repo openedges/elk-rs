@@ -27,32 +27,19 @@ pub struct ModelOrderBarycenterHeuristic {
 impl ModelOrderBarycenterHeuristic {
     pub fn new(
         constraint_resolver: ForsterConstraintResolver,
-        random: Random,
         port_distributor: Box<dyn BarycenterPortDistributor>,
         force_model_order: bool,
         max_model_order_nodes: i32,
         group_order_strategy: GroupOrderStrategy,
     ) -> Self {
         ModelOrderBarycenterHeuristic {
-            base: BarycenterHeuristic::new(constraint_resolver, random, port_distributor),
+            base: BarycenterHeuristic::new(constraint_resolver, port_distributor),
             bigger_than: BTreeMap::new(),
             smaller_than: BTreeMap::new(),
             force_model_order,
             max_model_order_nodes,
             group_order_strategy,
         }
-    }
-
-    pub fn set_random(&mut self, random: Random) {
-        self.base.set_random(random);
-    }
-
-    pub fn random(&self) -> Random {
-        self.base.random()
-    }
-
-    pub fn set_random_seed(&mut self, seed: u64) {
-        self.base.set_random_seed(seed);
     }
 
     fn compare_based_on_transitive_dependencies(&mut self, n1: &LNodeRef, n2: &LNodeRef) -> i32 {
@@ -325,8 +312,8 @@ impl ICrossingMinimizationHeuristic for ModelOrderBarycenterHeuristic {
         self.base.always_improves()
     }
 
-    fn set_first_layer_order(&mut self, order: &mut [Vec<LNodeRef>], forward_sweep: bool) -> bool {
-        self.base.set_first_layer_order(order, forward_sweep)
+    fn set_first_layer_order(&mut self, order: &mut [Vec<LNodeRef>], forward_sweep: bool, random: &mut Random) -> bool {
+        self.base.set_first_layer_order(order, forward_sweep, random)
     }
 
     fn minimize_crossings(
@@ -335,6 +322,7 @@ impl ICrossingMinimizationHeuristic for ModelOrderBarycenterHeuristic {
         free_layer_index: usize,
         forward_sweep: bool,
         is_first_sweep: bool,
+        random: &mut Random,
     ) -> bool {
         if !self
             .base
@@ -366,8 +354,8 @@ impl ICrossingMinimizationHeuristic for ModelOrderBarycenterHeuristic {
                 .unwrap_or(false);
 
         let mut nodes = order[free_layer_index].clone();
-        self.base.calculate_barycenters(&nodes, forward_sweep);
-        self.base.fill_in_unknown_barycenters(&nodes, pre_ordered);
+        self.base.calculate_barycenters(&nodes, forward_sweep, random);
+        self.base.fill_in_unknown_barycenters(&nodes, pre_ordered, random);
 
         if nodes.len() > 1 {
             if self.force_model_order {

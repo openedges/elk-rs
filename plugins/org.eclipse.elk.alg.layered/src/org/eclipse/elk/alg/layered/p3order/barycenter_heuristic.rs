@@ -1,7 +1,10 @@
 use std::any::Any;
 use std::cmp::Ordering;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, LazyLock, Mutex};
 use std::time::Instant;
+
+static TRACE_PORT_RANKS: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_PORT_RANKS").is_some());
 
 use org_eclipse_elk_core::org::eclipse::elk::core::util::Random;
 use crate::org::eclipse::elk::alg::layered::p3order::random_trace;
@@ -15,47 +18,34 @@ use crate::org::eclipse::elk::alg::layered::p3order::i_crossing_minimization_heu
 
 pub struct BarycenterHeuristic {
     pub(crate) port_ranks: Vec<f64>,
-    random: Random,
     pub(crate) constraint_resolver: ForsterConstraintResolver,
     barycenter_state: Vec<Vec<Arc<Mutex<BarycenterState>>>>,
     pub(crate) port_distributor: Box<dyn BarycenterPortDistributor>,
+    pub sweep_iteration: usize,
 }
 
 impl BarycenterHeuristic {
     pub fn new(
         constraint_resolver: ForsterConstraintResolver,
-        random: Random,
         port_distributor: Box<dyn BarycenterPortDistributor>,
     ) -> Self {
         BarycenterHeuristic {
             port_ranks: Vec::new(),
-            random,
             constraint_resolver,
             barycenter_state: Vec::new(),
             port_distributor,
+            sweep_iteration: 0,
         }
     }
 
-    pub fn set_random(&mut self, random: Random) {
-        self.random = random;
-    }
-
-    pub fn random(&self) -> Random {
-        self.random.clone()
-    }
-
-    pub fn set_random_seed(&mut self, seed: u64) {
-        self.random.set_seed(seed);
-    }
-
-    pub(crate) fn randomize_barycenters(&mut self, nodes: &[LNodeRef]) {
+    pub(crate) fn randomize_barycenters(&mut self, nodes: &[LNodeRef], random: &mut Random) {
         for node in nodes {
             let node_label = node
                 .lock()
                 .ok()
                 .map(|mut g| format!("id:{}", g.shape().graph_element().id))
                 .unwrap_or_else(|| "<locked>".into());
-            let raw = self.random.next_double();
+            let raw = random.next_double();
             let value = random_trace::trace_next_double(
                 raw,
                 &format!("barycenter::randomize_barycenters node={node_label}"),
@@ -70,7 +60,7 @@ impl BarycenterHeuristic {
         }
     }
 
-    pub(crate) fn fill_in_unknown_barycenters(&mut self, nodes: &[LNodeRef], pre_ordered: bool) {
+    pub(crate) fn fill_in_unknown_barycenters(&mut self, nodes: &[LNodeRef], pre_ordered: bool, random: &mut Random) {
         if pre_ordered {
             let mut last_value = -1.0;
             for index in 0..nodes.len() {
@@ -139,7 +129,7 @@ impl BarycenterHeuristic {
                         .ok()
                         .map(|mut g| format!("id:{}", g.shape().graph_element().id))
                         .unwrap_or_else(|| "<locked>".into());
-                    let raw_f = self.random.next_float();
+                    let raw_f = random.next_float();
                     let raw_f = random_trace::trace_next_float(
                         raw_f,
                         &format!("barycenter::fill_in_unknown_barycenters node={node_label}"),
@@ -157,7 +147,7 @@ impl BarycenterHeuristic {
         }
     }
 
-    pub(crate) fn calculate_barycenters(&mut self, nodes: &[LNodeRef], forward: bool) {
+    pub(crate) fn calculate_barycenters(&mut self, nodes: &[LNodeRef], forward: bool, random: &mut Random) {
         for node in nodes {
             if let Some(state) = self.state_of(node) {
                 if let Ok(mut state_guard) = state.lock() {
@@ -168,11 +158,11 @@ impl BarycenterHeuristic {
 
         let port_ranks = self.port_ranks.clone();
         for node in nodes {
-            self.calculate_barycenter(node, forward, &port_ranks);
+            self.calculate_barycenter(node, forward, &port_ranks, random);
         }
     }
 
-    fn calculate_barycenter(&mut self, node: &LNodeRef, forward: bool, port_ranks: &[f64]) {
+    fn calculate_barycenter(&mut self, node: &LNodeRef, forward: bool, port_ranks: &[f64], random: &mut Random) {
         let trace_cm = std::env::var_os("ELK_TRACE_CROSSMIN").is_some();
         if let Some(state) = self.state_of(node) {
             if let Ok(mut state_guard) = state.lock() {
@@ -229,7 +219,7 @@ impl BarycenterHeuristic {
 
                 if same_layer(&fixed_node, node) {
                     if !Arc::ptr_eq(&fixed_node, node) {
-                        self.calculate_barycenter(&fixed_node, forward, port_ranks);
+                        self.calculate_barycenter(&fixed_node, forward, port_ranks, random);
                         let (degree, weight) = self.state_values(&fixed_node);
                         if let Some(state) = self.state_of(node) {
                             if let Ok(mut state_guard) = state.lock() {
@@ -270,7 +260,7 @@ impl BarycenterHeuristic {
         if let Some(associates) = associates {
             for associate in associates {
                 if same_layer(&associate, node) {
-                    self.calculate_barycenter(&associate, forward, port_ranks);
+                    self.calculate_barycenter(&associate, forward, port_ranks, random);
                     let (degree, weight) = self.state_values(&associate);
                     if let Some(state) = self.state_of(node) {
                         if let Ok(mut state_guard) = state.lock() {
@@ -287,7 +277,7 @@ impl BarycenterHeuristic {
                 if state_guard.degree > 0 {
                     // Java: float perturbation = random.nextFloat() * RANDOM_AMOUNT - RANDOM_AMOUNT / 2.0f
                     // All float (f32) arithmetic, then promoted to double for +=
-                    let raw_f = self.random.next_float();
+                    let raw_f = random.next_float();
                     let raw_f = random_trace::trace_next_float(
                         raw_f,
                         &format!("barycenter::calculate_barycenter node={node_name}"),
@@ -380,20 +370,64 @@ impl BarycenterHeuristic {
         pre_ordered: bool,
         randomize: bool,
         forward: bool,
+        random: &mut Random,
     ) {
         let trace = std::env::var_os("ELK_TRACE_CROSSMIN_TIMING").is_some();
+        let trace_pr = *TRACE_PORT_RANKS && self.sweep_iteration == 0;
         let start = if trace { Some(Instant::now()) } else { None };
         if randomize {
-            self.randomize_barycenters(layer);
+            self.randomize_barycenters(layer, random);
         } else {
-            self.calculate_barycenters(layer, forward);
-            self.fill_in_unknown_barycenters(layer, pre_ordered);
+            self.calculate_barycenters(layer, forward, random);
+            self.fill_in_unknown_barycenters(layer, pre_ordered, random);
         }
         if let Some(start) = start {
             eprintln!(
                 "crossmin: barycenter barycenters done in {} ms (randomize={})",
                 start.elapsed().as_millis(),
                 randomize
+            );
+        }
+
+        if trace_pr && !layer.is_empty() {
+            // Trace barycenters after computation
+            let layer_idx = layer_index(layer.first().unwrap());
+            for node in layer.iter() {
+                let node_id = node
+                    .lock()
+                    .ok()
+                    .map(|mut g| g.shape().graph_element().id)
+                    .unwrap_or(-1);
+                let (barycenter, summed_weight, degree) = self
+                    .state_of(node)
+                    .and_then(|st| {
+                        st.lock().ok().map(|sg| {
+                            (sg.barycenter, sg.summed_weight, sg.degree)
+                        })
+                    })
+                    .unwrap_or((None, 0.0, 0));
+                let bary_val = barycenter.unwrap_or(f64::NAN);
+                eprintln!(
+                    "[BARYCENTER]\t0\t{}\t{}\t{}\t{}\t{}",
+                    layer_idx, node_id, bary_val, summed_weight, degree
+                );
+            }
+            // Trace node order before sort
+            let node_ids_before: Vec<i32> = layer
+                .iter()
+                .map(|n| {
+                    n.lock()
+                        .ok()
+                        .map(|mut g| g.shape().graph_element().id)
+                        .unwrap_or(-1)
+                })
+                .collect();
+            let ids_str_before: Vec<String> =
+                node_ids_before.iter().map(|id| id.to_string()).collect();
+            eprintln!(
+                "[NODE_ORDER]\t0\t{}\tbefore\t{}",
+                layer_idx,
+                ids_str_before.join("\t")
             );
         }
 
@@ -455,6 +489,26 @@ impl BarycenterHeuristic {
                     layer.len()
                 );
             }
+        }
+
+        if trace_pr && !layer.is_empty() {
+            let layer_idx = layer_index(layer.first().unwrap());
+            let node_ids_after: Vec<i32> = layer
+                .iter()
+                .map(|n| {
+                    n.lock()
+                        .ok()
+                        .map(|mut g| g.shape().graph_element().id)
+                        .unwrap_or(-1)
+                })
+                .collect();
+            let ids_str_after: Vec<String> =
+                node_ids_after.iter().map(|id| id.to_string()).collect();
+            eprintln!(
+                "[NODE_ORDER]\t0\t{}\tafter\t{}",
+                layer_idx,
+                ids_str_after.join("\t")
+            );
         }
 
         if std::env::var_os("ELK_TRACE_CROSSMIN").is_some() {
@@ -520,14 +574,14 @@ impl ICrossingMinimizationHeuristic for BarycenterHeuristic {
         false
     }
 
-    fn set_first_layer_order(&mut self, order: &mut [Vec<LNodeRef>], forward_sweep: bool) -> bool {
+    fn set_first_layer_order(&mut self, order: &mut [Vec<LNodeRef>], forward_sweep: bool, random: &mut Random) -> bool {
         let start_index = if forward_sweep {
             0
         } else {
             order.len().saturating_sub(1)
         };
         let mut nodes = order[start_index].clone();
-        self.minimize_crossings_layer(&mut nodes, false, true, forward_sweep);
+        self.minimize_crossings_layer(&mut nodes, false, true, forward_sweep, random);
         order[start_index] = nodes;
         false
     }
@@ -538,6 +592,7 @@ impl ICrossingMinimizationHeuristic for BarycenterHeuristic {
         free_layer_index: usize,
         forward_sweep: bool,
         is_first_sweep: bool,
+        random: &mut Random,
     ) -> bool {
         if !self.is_first_layer(order, free_layer_index, forward_sweep) {
             let fixed_layer_index = if forward_sweep {
@@ -564,7 +619,7 @@ impl ICrossingMinimizationHeuristic for BarycenterHeuristic {
                 .unwrap_or(false);
 
         let mut nodes = order[free_layer_index].clone();
-        self.minimize_crossings_layer(&mut nodes, pre_ordered, false, forward_sweep);
+        self.minimize_crossings_layer(&mut nodes, pre_ordered, false, forward_sweep, random);
         order[free_layer_index] = nodes;
         false
     }
@@ -575,6 +630,14 @@ impl ICrossingMinimizationHeuristic for BarycenterHeuristic {
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
+    }
+
+    fn reset_sweep_iteration(&mut self) {
+        self.sweep_iteration = 0;
+    }
+
+    fn increment_sweep_iteration(&mut self) {
+        self.sweep_iteration += 1;
     }
 }
 

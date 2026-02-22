@@ -115,8 +115,9 @@ impl LayerSweepCrossingMinimizer {
         while improved {
             self.prepare_cross_minimizer(index);
             improved = {
+                let random = &mut self.random;
                 let graph_data = &mut self.graph_info_holders[index];
-                graph_data.set_first_layer_order(is_forward_sweep)
+                graph_data.set_first_layer_order(is_forward_sweep, random)
             };
             improved |= self.sweep_reducing_crossings(index, is_forward_sweep, false);
             is_forward_sweep = !is_forward_sweep;
@@ -159,11 +160,13 @@ impl LayerSweepCrossingMinimizer {
             if trace {
                 eprintln!("crossmin: compare randomized thoroughness={}", thoroughness);
             }
+            self.graph_info_holders[index].reset_sweep_iteration();
             for _ in 0..thoroughness {
                 if trace {
                     eprintln!("crossmin: compare randomized iter");
                 }
                 let crossings = self.minimize_crossings_node_port_order_with_counter(index);
+                self.graph_info_holders[index].increment_sweep_iteration();
                 if crossings < best_crossings {
                     best_crossings = crossings;
                     self.save_all_node_orders_of_changed_graphs();
@@ -184,11 +187,13 @@ impl LayerSweepCrossingMinimizer {
             if trace {
                 eprintln!("crossmin: compare randomized thoroughness={}", thoroughness);
             }
+            self.graph_info_holders[index].reset_sweep_iteration();
             for _ in 0..thoroughness {
                 if trace {
                     eprintln!("crossmin: compare randomized iter");
                 }
                 let crossings = self.minimize_crossings_with_counter(index);
+                self.graph_info_holders[index].increment_sweep_iteration();
                 if crossings < best_crossings {
                     best_crossings = crossings;
                     self.save_all_node_orders_of_changed_graphs();
@@ -235,8 +240,9 @@ impl LayerSweepCrossingMinimizer {
         let use_initial = (first_try || second_try) && model_order != OrderingStrategy::None;
         if !use_initial {
             self.prepare_cross_minimizer(index);
+            let random = &mut self.random;
             let graph_data = &mut self.graph_info_holders[index];
-            graph_data.set_first_layer_order(is_forward_sweep);
+            graph_data.set_first_layer_order(is_forward_sweep, random);
         } else {
             is_forward_sweep = first_try;
         }
@@ -319,8 +325,9 @@ impl LayerSweepCrossingMinimizer {
         let use_initial = (first_try || second_try) && model_order != OrderingStrategy::None;
         if !use_initial {
             self.prepare_cross_minimizer(index);
+            let random = &mut self.random;
             let graph_data = &mut self.graph_info_holders[index];
-            graph_data.set_first_layer_order(is_forward_sweep);
+            graph_data.set_first_layer_order(is_forward_sweep, random);
         } else {
             is_forward_sweep = first_try;
         }
@@ -646,6 +653,7 @@ impl LayerSweepCrossingMinimizer {
 
             self.prepare_cross_minimizer(index);
             {
+                let random = &mut self.random;
                 let graph_data = &mut self.graph_info_holders[index];
                 if trace {
                     eprintln!(
@@ -654,7 +662,7 @@ impl LayerSweepCrossingMinimizer {
                     );
                 }
                 improved |=
-                    graph_data.minimize_crossings_on_layer(i_usize, forward, allow_first_sweep);
+                    graph_data.minimize_crossings_on_layer(i_usize, forward, allow_first_sweep, random);
                 let order = graph_data.current_node_order().clone();
                 if trace {
                     eprintln!(
@@ -767,8 +775,9 @@ impl LayerSweepCrossingMinimizer {
                     sorted;
             } else {
                 self.prepare_cross_minimizer(nested_index);
+                let random = &mut self.random;
                 let graph_data = &mut self.graph_info_holders[nested_index];
-                graph_data.set_first_layer_order(is_forward_sweep);
+                graph_data.set_first_layer_order(is_forward_sweep, random);
             }
         }
 
@@ -954,6 +963,7 @@ impl LayerSweepCrossingMinimizer {
                     graph.clone(),
                     root_graph_guard,
                     self.cross_min_type,
+                    &mut self.random,
                 )
             } else {
                 GraphInfoHolder::new(graph.clone(), self.cross_min_type)

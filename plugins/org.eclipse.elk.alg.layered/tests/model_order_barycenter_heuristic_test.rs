@@ -26,7 +26,7 @@ fn test_model_order_respected() {
     let mut node_order = to_node_order(&graph);
     let mut heuristic = create_heuristic(&node_order, 7);
 
-    let _ = heuristic.minimize_crossings(&mut node_order, 1, true, true);
+    let _ = heuristic.minimize_crossings(&mut node_order, 1, true, true, &mut Random::new(7));
 
     let mut model_order = -1;
     for node in &node_order[1] {
@@ -177,7 +177,7 @@ fn to_node_order(graph: &LGraphRef) -> Vec<Vec<LNodeRef>> {
     Vec::new()
 }
 
-fn create_heuristic(node_order: &[Vec<LNodeRef>], seed: u64) -> ModelOrderBarycenterHeuristic {
+fn create_heuristic(node_order: &[Vec<LNodeRef>], _seed: u64) -> ModelOrderBarycenterHeuristic {
     let mut port_distributor = NodeRelativePortDistributor::new(node_order.len());
     let mut constraint_resolver = ForsterConstraintResolver::new(node_order, false);
 
@@ -187,7 +187,6 @@ fn create_heuristic(node_order: &[Vec<LNodeRef>], seed: u64) -> ModelOrderBaryce
 
     let mut heuristic = ModelOrderBarycenterHeuristic::new(
         constraint_resolver,
-        Random::new(seed),
         Box::new(port_distributor),
         true,
         0,

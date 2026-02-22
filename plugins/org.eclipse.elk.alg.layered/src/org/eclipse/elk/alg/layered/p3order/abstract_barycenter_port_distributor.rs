@@ -1,8 +1,11 @@
 use std::cmp::Ordering;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
+
+static TRACE_PORT_RANKS: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_PORT_RANKS").is_some());
 
 use crate::org::eclipse::elk::alg::layered::graph::{LNodeRef, LPortRef};
 use crate::org::eclipse::elk::alg::layered::options::{
@@ -313,9 +316,6 @@ impl AbstractBarycenterPortDistributor {
         layer_index: usize,
         layer_size: usize,
     ) {
-        if ports.len() <= 1 {
-            return;
-        }
         let timing = std::env::var_os("ELK_TRACE_CROSSMIN_TIMING").is_some();
         if timing {
             eprintln!(
@@ -957,6 +957,35 @@ impl AbstractBarycenterPortDistributor {
         let mut consumed_rank = 0.0;
         for node in layer {
             consumed_rank += self.calculate_port_ranks_for_node(node, consumed_rank, port_type);
+        }
+        if *TRACE_PORT_RANKS {
+            self.trace_port_ranks(layer);
+        }
+    }
+
+    fn trace_port_ranks(&self, layer: &[LNodeRef]) {
+        for node in layer {
+            let (node_id, layer_idx, ports) = if let Ok(mut node_guard) = node.lock() {
+                let nid = node_guard.shape().graph_element().id;
+                let layer_idx = node_guard
+                    .layer()
+                    .and_then(|l| l.lock().ok().map(|mut lg| lg.graph_element().id))
+                    .unwrap_or(-1);
+                let ports = node_guard.ports().clone();
+                (nid, layer_idx, ports)
+            } else {
+                continue;
+            };
+            for port in &ports {
+                if let Ok(mut port_guard) = port.lock() {
+                    let pid = port_guard.shape().graph_element().id as usize;
+                    let rank = self.port_ranks.get(pid).copied().unwrap_or(0.0);
+                    eprintln!(
+                        "[PORT_RANK]\t0\t{}\t{}\t{}\t{}",
+                        layer_idx, node_id, pid, rank
+                    );
+                }
+            }
         }
     }
 }

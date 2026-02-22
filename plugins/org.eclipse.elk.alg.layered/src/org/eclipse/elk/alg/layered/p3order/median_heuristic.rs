@@ -8,25 +8,11 @@ use crate::org::eclipse::elk::alg::layered::options::InternalProperties;
 use crate::org::eclipse::elk::alg::layered::p3order::counting::IInitializable;
 use crate::org::eclipse::elk::alg::layered::p3order::i_crossing_minimization_heuristic::ICrossingMinimizationHeuristic;
 
-pub struct MedianHeuristic {
-    random: Random,
-}
+pub struct MedianHeuristic;
 
 impl MedianHeuristic {
-    pub fn new(random: Random) -> Self {
-        MedianHeuristic { random }
-    }
-
-    pub fn set_random(&mut self, random: Random) {
-        self.random = random;
-    }
-
-    pub fn random(&self) -> Random {
-        self.random.clone()
-    }
-
-    pub fn set_random_seed(&mut self, seed: u64) {
-        self.random.set_seed(seed);
+    pub fn new() -> Self {
+        MedianHeuristic
     }
 
     fn weight_of(node: &LNodeRef) -> Option<f64> {
@@ -138,7 +124,7 @@ impl ICrossingMinimizationHeuristic for MedianHeuristic {
         false
     }
 
-    fn set_first_layer_order(&mut self, order: &mut [Vec<LNodeRef>], forward_sweep: bool) -> bool {
+    fn set_first_layer_order(&mut self, order: &mut [Vec<LNodeRef>], forward_sweep: bool, random: &mut Random) -> bool {
         let first_index = if forward_sweep {
             0
         } else {
@@ -149,7 +135,7 @@ impl ICrossingMinimizationHeuristic for MedianHeuristic {
         };
         let mut first_layer = layer.to_vec();
         for node in &first_layer {
-            let weight = self.random.next_double();
+            let weight = random.next_double();
             if let Ok(mut node_guard) = node.lock() {
                 node_guard.set_property(InternalProperties::WEIGHT, Some(weight));
             }
@@ -174,6 +160,7 @@ impl ICrossingMinimizationHeuristic for MedianHeuristic {
         free_layer_index: usize,
         forward_sweep: bool,
         _is_first_sweep: bool,
+        _random: &mut Random,
     ) -> bool {
         let reference_layer = if forward_sweep {
             free_layer_index as isize - 1

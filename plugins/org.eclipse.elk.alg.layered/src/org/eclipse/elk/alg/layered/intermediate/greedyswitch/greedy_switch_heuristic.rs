@@ -1,5 +1,7 @@
 use std::any::Any;
 
+use org_eclipse_elk_core::org::eclipse::elk::core::util::Random;
+
 use crate::org::eclipse::elk::alg::layered::graph::{LNodeRef, NodeType};
 use crate::org::eclipse::elk::alg::layered::intermediate::greedyswitch::crossing_matrix_filler::CrossingMatrixFiller;
 use crate::org::eclipse::elk::alg::layered::intermediate::greedyswitch::switch_decider::{
@@ -227,7 +229,7 @@ impl ICrossingMinimizationHeuristic for GreedySwitchHeuristic {
         self.greedy_switch_type != CrossMinType::OneSidedGreedySwitch
     }
 
-    fn set_first_layer_order(&mut self, order: &mut [Vec<LNodeRef>], forward_sweep: bool) -> bool {
+    fn set_first_layer_order(&mut self, order: &mut [Vec<LNodeRef>], forward_sweep: bool, _random: &mut Random) -> bool {
         let start_index = self.start_index(forward_sweep, order.len());
         if let Some(mut switch_decider) = self.set_up(order, start_index, forward_sweep) {
             return self.sweep_downward_in_layer(order, start_index, &mut switch_decider);
@@ -241,6 +243,7 @@ impl ICrossingMinimizationHeuristic for GreedySwitchHeuristic {
         free_layer_index: usize,
         forward_sweep: bool,
         _is_first_sweep: bool,
+        _random: &mut Random,
     ) -> bool {
         if let Some(mut switch_decider) = self.set_up(order, free_layer_index, forward_sweep) {
             return self.continue_switching_until_no_improvement_in_layer(

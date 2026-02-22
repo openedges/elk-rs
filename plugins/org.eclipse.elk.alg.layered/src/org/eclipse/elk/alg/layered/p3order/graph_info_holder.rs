@@ -176,6 +176,7 @@ impl GraphInfoHolder {
         graph_ref: LGraphRef,
         graph: &mut LGraph,
         cross_min_type: CrossMinType,
+        shared_random: &mut Random,
     ) -> Self {
         let trace = std::env::var_os("ELK_TRACE_CROSSMIN").is_some();
         if trace {
@@ -192,9 +193,8 @@ impl GraphInfoHolder {
         if trace {
             eprintln!("crossmin: graph_info_holder new_with_graph properties");
         }
-        let random = graph
-            .get_property(InternalProperties::RANDOM)
-            .unwrap_or_default();
+        // Use the shared Random from the minimizer (matches Java's shared reference behavior)
+        let random = shared_random.clone();
         let force_model_order = graph
             .get_property(LayeredOptions::CROSSING_MINIMIZATION_FORCE_NODE_MODEL_ORDER)
             .unwrap_or(false);
@@ -303,17 +303,16 @@ impl GraphInfoHolder {
                 if force_model_order {
                     Box::new(ModelOrderBarycenterHeuristic::new(
                         resolver,
-                        random,
                         distributor,
                         force_model_order,
                         max_model_order_nodes,
                         group_order_strategy,
                     ))
                 } else {
-                    Box::new(BarycenterHeuristic::new(resolver, random, distributor))
+                    Box::new(BarycenterHeuristic::new(resolver, distributor))
                 }
             }
-            CrossMinType::Median => Box::new(MedianHeuristic::new(random)),
+            CrossMinType::Median => Box::new(MedianHeuristic::new()),
             CrossMinType::OneSidedGreedySwitch | CrossMinType::TwoSidedGreedySwitch => {
                 Box::new(GreedySwitchHeuristic::new(cross_min_type, has_parent))
             }
@@ -434,13 +433,21 @@ impl GraphInfoHolder {
         &mut *self.cross_minimizer
     }
 
+    pub fn reset_sweep_iteration(&mut self) {
+        self.cross_minimizer.reset_sweep_iteration();
+    }
+
+    pub fn increment_sweep_iteration(&mut self) {
+        self.cross_minimizer.increment_sweep_iteration();
+    }
+
     pub fn port_distributor(&mut self) -> &mut dyn ISweepPortDistributor {
         &mut *self.port_distributor
     }
 
-    pub fn set_first_layer_order(&mut self, forward_sweep: bool) -> bool {
+    pub fn set_first_layer_order(&mut self, forward_sweep: bool, random: &mut Random) -> bool {
         self.cross_minimizer
-            .set_first_layer_order(&mut self.current_node_order, forward_sweep)
+            .set_first_layer_order(&mut self.current_node_order, forward_sweep, random)
     }
 
     pub fn minimize_crossings_on_layer(
@@ -448,12 +455,14 @@ impl GraphInfoHolder {
         free_layer_index: usize,
         forward_sweep: bool,
         is_first_sweep: bool,
+        random: &mut Random,
     ) -> bool {
         self.cross_minimizer.minimize_crossings(
             &mut self.current_node_order,
             free_layer_index,
             forward_sweep,
             is_first_sweep,
+            random,
         )
     }
 
