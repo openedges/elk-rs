@@ -1479,8 +1479,11 @@ impl NodeLabelAndSizeCalculator {
             .unwrap_or(false);
         let initial_node_size = node.get_size();
         let mut target_node_size = initial_node_size;
+        let fixed_size_constraints = has_effectively_fixed_size_constraints(&size_constraints);
+        let fixed_port_labels = PortLabelPlacement::is_fixed(&port_labels_placement);
+        let compound_fixed_port_labels = node.is_compound_node() && fixed_port_labels;
 
-        if !has_effectively_fixed_size_constraints(&size_constraints) {
+        if !fixed_size_constraints {
             let mut required_width = 0.0_f64;
             let mut required_height = 0.0_f64;
             let mut width_requested = false;
@@ -1572,6 +1575,11 @@ impl NodeLabelAndSizeCalculator {
             } else {
                 required_height
             };
+            node.set_size(target_node_size);
+        } else if compound_fixed_port_labels {
+            let compound_min_size = inside_layout.compute_minimum_size(false);
+            target_node_size.x = target_node_size.x.max(compound_min_size.x);
+            target_node_size.y = target_node_size.y.max(compound_min_size.y);
             node.set_size(target_node_size);
         }
 
@@ -1847,6 +1855,7 @@ impl NodeLabelAndSizeCalculator {
         let space_efficient = port_labels_placement.contains(&PortLabelPlacement::SpaceEfficient);
         let space_efficient_port_labels =
             !always_same_side && !always_other_same_side && (space_efficient || ports.len() == 2);
+        let fixed_port_labels = PortLabelPlacement::is_fixed(port_labels_placement);
 
         let include_port_labels = size_constraints.contains(&SizeConstraint::PortLabels);
 
@@ -1875,33 +1884,58 @@ impl NodeLabelAndSizeCalculator {
 
             if include_port_labels {
                 let labels = port.get_labels();
-                let label_height: f64 = if labels.is_empty() {
-                    0.0
-                } else {
-                    labels.iter().map(|l| l.get_size().y).sum::<f64>()
-                        + port_label_spacing_v * (labels.len() as f64 - 1.0).max(0.0)
-                };
-
-                if label_height > 0.0 {
-                    if labels_next_to_port {
-                        let port_height = port.get_size().y;
-                        if label_height > port_height {
-                            if treat_as_group || labels.len() == 1 {
-                                let overhang = (label_height - port_height) / 2.0;
-                                margin.top = overhang;
-                                margin.bottom = overhang;
-                            } else {
-                                let first_label_height = labels[0].get_size().y;
-                                let first_label_overhang =
-                                    (first_label_height - port_height) / 2.0;
-                                margin.top = first_label_overhang.max(0.0);
-                                margin.bottom =
-                                    label_height - first_label_overhang - port_height;
-                            }
+                if fixed_port_labels {
+                    let mut min_y = 0.0_f64;
+                    let mut max_y = 0.0_f64;
+                    let mut has_fixed_label = false;
+                    for label in &labels {
+                        let pos = label.get_position();
+                        let size = label.get_size();
+                        let y1 = pos.y;
+                        let y2 = pos.y + size.y;
+                        if !has_fixed_label {
+                            min_y = y1;
+                            max_y = y2;
+                            has_fixed_label = true;
+                        } else {
+                            min_y = min_y.min(y1);
+                            max_y = max_y.max(y2);
                         }
+                    }
+                    if has_fixed_label {
+                        let port_height = port.get_size().y;
+                        margin.top = (-min_y).max(0.0);
+                        margin.bottom = (max_y - port_height).max(0.0);
+                    }
+                } else {
+                    let label_height: f64 = if labels.is_empty() {
+                        0.0
                     } else {
-                        // Label placed below the port
-                        margin.bottom = port_label_spacing_v + label_height;
+                        labels.iter().map(|l| l.get_size().y).sum::<f64>()
+                            + port_label_spacing_v * (labels.len() as f64 - 1.0).max(0.0)
+                    };
+
+                    if label_height > 0.0 {
+                        if labels_next_to_port {
+                            let port_height = port.get_size().y;
+                            if label_height > port_height {
+                                if treat_as_group || labels.len() == 1 {
+                                    let overhang = (label_height - port_height) / 2.0;
+                                    margin.top = overhang;
+                                    margin.bottom = overhang;
+                                } else {
+                                    let first_label_height = labels[0].get_size().y;
+                                    let first_label_overhang =
+                                        (first_label_height - port_height) / 2.0;
+                                    margin.top = first_label_overhang.max(0.0);
+                                    margin.bottom =
+                                        label_height - first_label_overhang - port_height;
+                                }
+                            }
+                        } else {
+                            // Label placed below the port
+                            margin.bottom = port_label_spacing_v + label_height;
+                        }
                     }
                 }
             }
@@ -2033,10 +2067,10 @@ impl NodeLabelAndSizeCalculator {
                 south_width += port_spacing + 2.0 * label_spacing + 3.0;
             }
             if east_width > 0.0 {
-                east_width += port_spacing + node_label_spacing + east_border_extension + 4.0;
+                east_width += port_spacing + node_label_spacing + east_border_extension + 2.0;
             }
             if west_width > 0.0 {
-                west_width += port_spacing + node_label_spacing + west_border_extension + 4.0;
+                west_width += port_spacing + node_label_spacing + west_border_extension + 2.0;
             }
         }
 

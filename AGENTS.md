@@ -47,6 +47,7 @@
   - 비교불가 0건 (`comparable=1439`)
   - `step0..step9` error=0 (step 7까지 전부 통과 + step8/9도 0)
   - 초기 frontier: `step10=6`, `step11=3`, `step12=9`, `step13=7`, `step14=1`
+  - step10 6모델 subset 추적 최신값: `matches=5/6`, `drift=1`, `total_diffs=43` (`tickets/layered/701_portLabels.elkt`)
   - 대형 hotspot: `step18=309`, `step17=308`, `step16=93`, `step15=78`, `step20=41`
 - 포팅/테스트/빌드/성능 자동화 파이프라인은 운영 상태
 - `cargo build --workspace`: warning 0건, `cargo clippy --workspace --all-targets`: warning 0건
