@@ -48,6 +48,7 @@ pub struct GraphInfoHolder {
     node_influence: f64,
     port_influence: f64,
     thoroughness: i32,
+    random: Random,
     first_try_with_initial_order: bool,
     second_try_with_initial_order: bool,
 }
@@ -352,6 +353,7 @@ impl GraphInfoHolder {
             node_influence,
             port_influence,
             thoroughness,
+            random: random.clone(),
             first_try_with_initial_order: false,
             second_try_with_initial_order: false,
         };
@@ -442,7 +444,8 @@ impl GraphInfoHolder {
         &mut *self.port_distributor
     }
 
-    pub fn set_first_layer_order(&mut self, forward_sweep: bool, random: &mut Random) -> bool {
+    pub fn set_first_layer_order(&mut self, forward_sweep: bool) -> bool {
+        let random = &mut self.random;
         self.cross_minimizer
             .set_first_layer_order(&mut self.current_node_order, forward_sweep, random)
     }
@@ -452,8 +455,8 @@ impl GraphInfoHolder {
         free_layer_index: usize,
         forward_sweep: bool,
         is_first_sweep: bool,
-        random: &mut Random,
     ) -> bool {
+        let random = &mut self.random;
         self.cross_minimizer.minimize_crossings(
             &mut self.current_node_order,
             free_layer_index,
