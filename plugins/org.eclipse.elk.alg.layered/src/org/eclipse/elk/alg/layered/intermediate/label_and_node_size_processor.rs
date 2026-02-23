@@ -125,7 +125,9 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
                 );
             }
 
-            if phase2_resized_nodes > 0 {
+            let should_run_phase2a =
+                phase2_resized_nodes > 0 && graph_has_any_port_labels(graph);
+            if should_run_phase2a {
                 if *TRACE_NODE_SIZE {
                     eprintln!(
                         "label-node-size: phase2a (reflow labels after phase1 node resize) begin"
@@ -137,6 +139,8 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
                         "label-node-size: phase2a (reflow labels after phase1 node resize) done"
                     );
                 }
+            } else if *TRACE_NODE_SIZE && phase2_resized_nodes > 0 {
+                eprintln!("label-node-size: phase2a skipped (no port labels)");
             }
             let should_run_phase2b = graph_needs_phase2b_inside_port_label_restack(graph);
             if should_run_phase2b {
@@ -828,6 +832,43 @@ fn node_has_inside_port_label_constraints(node: &LNodeRef) -> bool {
         placement.contains(&PortLabelPlacement::Inside)
             && size_constraints.contains(&SizeConstraint::PortLabels)
     })
+}
+
+fn graph_has_any_port_labels(graph: &LGraph) -> bool {
+    let mut seen = HashSet::new();
+    let node_has_port_labels = |node: &LNodeRef| -> bool {
+        if let Ok(node_guard) = node.lock() {
+            return node_guard.ports().iter().any(|port| {
+                port.lock()
+                    .ok()
+                    .is_some_and(|port_guard| !port_guard.labels().is_empty())
+            });
+        }
+        false
+    };
+
+    for node in graph.layerless_nodes().clone() {
+        let key = Arc::as_ptr(&node) as usize;
+        if seen.insert(key) && node_has_port_labels(&node) {
+            return true;
+        }
+    }
+
+    for layer in graph.layers().clone() {
+        let nodes = layer
+            .lock()
+            .ok()
+            .map(|layer_guard| LGraphUtil::to_node_array(layer_guard.nodes()))
+            .unwrap_or_default();
+        for node in nodes {
+            let key = Arc::as_ptr(&node) as usize;
+            if seen.insert(key) && node_has_port_labels(&node) {
+                return true;
+            }
+        }
+    }
+
+    false
 }
 
 fn update_node_margin(node: &LNodeRef) {
