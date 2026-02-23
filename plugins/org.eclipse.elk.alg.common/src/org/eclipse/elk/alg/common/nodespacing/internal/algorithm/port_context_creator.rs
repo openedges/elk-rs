@@ -81,9 +81,33 @@ impl PortContextCreator {
         let label_sizes: Vec<KVector> = labels.iter().map(|l| l.get_size()).collect();
         let label_positions: Vec<KVector> = labels.iter().map(|l| l.get_position()).collect();
 
-        let labels_next_to_port = port
-            .get_property(CoreOptions::PORT_LABELS_NEXT_TO_PORT_IF_POSSIBLE)
-            .unwrap_or(false);
+        let port_labels_next_to_port = node_context
+            .port_labels_placement
+            .contains(&PortLabelPlacement::NextToPortIfPossible);
+        let labels_next_to_port =
+            if node_context
+                .port_labels_placement
+                .contains(&PortLabelPlacement::Inside)
+            {
+                if node_context.treat_as_compound_node {
+                    port_labels_next_to_port && !has_compound_connections
+                } else {
+                    true
+                }
+            } else if node_context
+                .port_labels_placement
+                .contains(&PortLabelPlacement::Outside)
+            {
+                if port_labels_next_to_port {
+                    let has_incident_edges =
+                        !port.get_incoming_edges().is_empty() || !port.get_outgoing_edges().is_empty();
+                    !has_incident_edges
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
 
         let mut port_context = PortContext::new(
             port_size,

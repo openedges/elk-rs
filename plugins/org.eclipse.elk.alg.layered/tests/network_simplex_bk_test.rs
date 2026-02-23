@@ -5,6 +5,9 @@ use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::{
     EdgeStraighteningStrategy, FixedAlignment, LayeredMetaDataProvider, LayeredOptions,
     LayeringStrategy, NodePlacementStrategy,
 };
+use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::p2layers::network_simplex_layerer::NetworkSimplexLayerer;
+use org_eclipse_elk_core::org::eclipse::elk::core::alg::ILayoutPhase;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::BasicProgressMonitor;
 use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
@@ -28,8 +31,11 @@ fn network_simplex_layering_invariants() {
     );
 
     let lgraph = import_lgraph(&root);
-    let mut layered = ElkLayered::new();
-    layered.do_layout(&lgraph, None);
+    let mut layerer = NetworkSimplexLayerer::new();
+    let mut monitor = BasicProgressMonitor::new();
+    if let Ok(mut graph_guard) = lgraph.lock() {
+        layerer.process(&mut graph_guard, &mut monitor);
+    }
 
     assert_layering_invariants(&lgraph);
 }

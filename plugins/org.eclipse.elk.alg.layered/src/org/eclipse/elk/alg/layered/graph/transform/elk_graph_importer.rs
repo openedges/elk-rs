@@ -5,6 +5,7 @@ use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::nodespacing::Nod
 use org_eclipse_elk_core::org::eclipse::elk::core::math::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::direction::Direction;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_label_placement::EdgeLabelPlacement;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::hierarchy_handling::HierarchyHandling;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_label_placement::PortLabelPlacement;
@@ -466,16 +467,6 @@ impl<'a> ElkGraphImporter<'a> {
                 }
             }
         }
-        // Keep importer-level graph-property behavior for the root graph only.
-        // Running this on nested graphs can over-classify NonFreePorts and
-        // introduce phase drift (e.g. premature InvertedPortProcessor insertion).
-        let is_root_graph = lgraph
-            .lock()
-            .ok()
-            .is_some_and(|guard| guard.parent_node().is_none());
-        if is_root_graph {
-            LGraphUtil::compute_graph_properties(lgraph);
-        }
     }
 
     fn should_skip_node(&self, node: &ElkNodeRef) -> bool {
@@ -507,6 +498,17 @@ impl<'a> ElkGraphImporter<'a> {
             return;
         }
 
+        // Java parity guard: fixed port label placement on hierarchical nodes can carry
+        // hand-authored absolute label coordinates. Recomputing and enforcing importer
+        // minimums from those fixed coordinates over-constrains some compounds (e.g. 701).
+        if PortLabelPlacement::is_fixed(
+            &self
+                .graph_property(elkgraph, CoreOptions::PORT_LABELS_PLACEMENT)
+                .unwrap_or_default(),
+        ) {
+            return;
+        }
+
         if self
             .graph_property(elkgraph, LayeredOptions::PORT_CONSTRAINTS)
             .unwrap_or(PortConstraints::Undefined)
@@ -532,12 +534,19 @@ impl<'a> ElkGraphImporter<'a> {
             return;
         };
 
-        // Match Java: use the full cell system to calculate minimum size
+        // Match Java's importer path:
+        // NodeLabelAndSizeCalculator.process(graphAdapter, nodeAdapter, false, true)
+        // i.e. compute-only and ignore inside port labels for hierarchical minima.
         let layout_direction = self
             .graph_property(elkgraph, CoreOptions::DIRECTION)
             .unwrap_or(Direction::Right);
         let node_adapter = ElkGraphAdapters::adapt_single_node(elkgraph.clone());
-        let calculated_min = NodeLabelAndSizeCalculator::process(&node_adapter, layout_direction);
+        let calculated_min = NodeLabelAndSizeCalculator::process_with_options(
+            &node_adapter,
+            layout_direction,
+            false,
+            true,
+        );
         min_size.x = min_size.x.max(calculated_min.x);
         min_size.y = min_size.y.max(calculated_min.y);
 
@@ -952,6 +961,46 @@ impl<'a> ElkGraphImporter<'a> {
         LEdge::set_source(&ledge, Some(source_port));
         LEdge::set_target(&ledge, Some(target_port));
 
+        let mut graph_properties = lgraph
+            .lock()
+            .ok()
+            .and_then(|mut graph_guard| graph_guard.get_property(InternalProperties::GRAPH_PROPERTIES))
+            .unwrap_or_else(EnumSet::none_of);
+
+        // Java parity: self loops and hyperedges are tracked while importing edges.
+        let is_self_loop = ledge
+            .lock()
+            .ok()
+            .is_some_and(|edge_guard| edge_guard.is_self_loop());
+        if is_self_loop {
+            graph_properties.insert(GraphProperties::SelfLoops);
+        }
+
+        let is_hyperedge = {
+            let source_counts = ledge.lock().ok().and_then(|edge_guard| {
+                edge_guard.source().and_then(|source| {
+                    source
+                        .lock()
+                        .ok()
+                        .map(|port_guard| (port_guard.incoming_edges().len(), port_guard.outgoing_edges().len()))
+                })
+            });
+            let target_counts = ledge.lock().ok().and_then(|edge_guard| {
+                edge_guard.target().and_then(|target| {
+                    target
+                        .lock()
+                        .ok()
+                        .map(|port_guard| (port_guard.incoming_edges().len(), port_guard.outgoing_edges().len()))
+                })
+            });
+            source_counts
+                .is_some_and(|(inc, out)| inc > 1 || out > 1)
+                || target_counts.is_some_and(|(inc, out)| inc > 1 || out > 1)
+        };
+        if is_hyperedge {
+            graph_properties.insert(GraphProperties::Hyperedges);
+        }
+
         if let Ok(mut edge_guard) = ledge.lock() {
             edge_guard
                 .graph_element()
@@ -977,7 +1026,43 @@ impl<'a> ElkGraphImporter<'a> {
             }
 
             for label in labels {
+                let (no_layout, text) = {
+                    let mut label_mut = label.borrow_mut();
+                    let no_layout = label_mut
+                        .shape()
+                        .graph_element()
+                        .properties_mut()
+                        .get_property(CoreOptions::NO_LAYOUT)
+                        .unwrap_or(false);
+                    let text = label_mut.text().to_owned();
+                    (no_layout, text)
+                };
+                if no_layout || text.is_empty() {
+                    continue;
+                }
+
                 let llabel = self.transform_label(&label);
+                let placement = llabel
+                    .lock()
+                    .ok()
+                    .and_then(|mut label_guard| {
+                        label_guard.get_property(LayeredOptions::EDGE_LABELS_PLACEMENT)
+                    })
+                    .unwrap_or(EdgeLabelPlacement::Center);
+                match placement {
+                    EdgeLabelPlacement::Head | EdgeLabelPlacement::Tail => {
+                        graph_properties.insert(GraphProperties::EndLabels);
+                    }
+                    EdgeLabelPlacement::Center => {
+                        graph_properties.insert(GraphProperties::CenterLabels);
+                        if let Ok(mut label_guard) = llabel.lock() {
+                            label_guard.set_property(
+                                LayeredOptions::EDGE_LABELS_PLACEMENT,
+                                Some(EdgeLabelPlacement::Center),
+                            );
+                        }
+                    }
+                }
                 edge_guard.labels_mut().push(llabel);
             }
 
@@ -992,6 +1077,10 @@ impl<'a> ElkGraphImporter<'a> {
                 edge_guard.set_property(InternalProperties::COORDINATE_SYSTEM_ORIGIN, coord_origin);
             }
         };
+
+        if let Ok(mut graph_guard) = lgraph.lock() {
+            graph_guard.set_property(InternalProperties::GRAPH_PROPERTIES, Some(graph_properties));
+        }
     }
 
     fn connectable_shape_identifier(shape: &ElkConnectableShapeRef) -> String {

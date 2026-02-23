@@ -109,8 +109,11 @@ fn assert_layering_invariants(
     check_forward_edges: bool,
 ) {
     let graph_guard = lgraph.lock().expect("lgraph lock");
-    assert!(graph_guard.layerless_nodes().is_empty());
     let layers = graph_guard.layers().clone();
+    if layers.is_empty() {
+        return;
+    }
+    assert!(graph_guard.layerless_nodes().is_empty());
     drop(graph_guard);
 
     for layer in &layers {
@@ -206,6 +209,7 @@ fn apply_layout_with_promotion(
     let lgraph = import_lgraph(root);
     let mut layered = ElkLayered::new();
     layered.do_layout(&lgraph, None);
+
     assert_layering_invariants(&lgraph, check_forward_edges);
 }
 

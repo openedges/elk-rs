@@ -1,5 +1,5 @@
 use crate::org::eclipse::elk::alg::common::nodespacing::cellsystem::{
-    HorizontalLabelAlignment, VerticalLabelAlignment,
+    ContainerArea, HorizontalLabelAlignment, VerticalLabelAlignment,
 };
 use crate::org::eclipse::elk::alg::common::nodespacing::internal::node_context::NodeContext;
 use crate::org::eclipse::elk::alg::common::overlaps::{
@@ -18,6 +18,33 @@ use super::node_label_and_size_utilities::NodeLabelAndSizeUtilities;
 pub struct PortLabelPlacementCalculator;
 
 impl PortLabelPlacementCalculator {
+    fn set_inside_north_south_label_cell_height(
+        node_context: &mut NodeContext,
+        port_side: PortSide,
+        height: f64,
+    ) {
+        if !(port_side == PortSide::North || port_side == PortSide::South) {
+            return;
+        }
+
+        if let Some(cell) = node_context.inside_port_label_cells.get_mut(&port_side) {
+            cell.minimum_content_area_size_mut().y = height;
+        }
+
+        let container_area = if port_side == PortSide::North {
+            ContainerArea::Begin
+        } else {
+            ContainerArea::End
+        };
+        if let Some(cell) = node_context
+            .node_container
+            .get_cell_mut(container_area)
+            .as_atomic_mut()
+        {
+            cell.minimum_content_area_size_mut().y = height;
+        }
+    }
+
     /// Places port labels for northern and southern ports. If port labels are placed on
     /// the inside, the height required for the placement is set as the height of the
     /// content area of northern and southern inside port label cells.
@@ -178,10 +205,11 @@ impl PortLabelPlacementCalculator {
 
         // Apply N/S port label area height
         if inside_north_or_south_port_label_area_height > 0.0 {
-            if let Some(cell) = node_context.inside_port_label_cells.get_mut(&port_side) {
-                cell.minimum_content_area_size_mut().y =
-                    inside_north_or_south_port_label_area_height;
-            }
+            Self::set_inside_north_south_label_cell_height(
+                node_context,
+                port_side,
+                inside_north_or_south_port_label_area_height,
+            );
         }
     }
 
@@ -329,9 +357,7 @@ impl PortLabelPlacementCalculator {
             .remove_overlaps();
 
         if strip_height > 0.0 {
-            if let Some(cell) = node_context.inside_port_label_cells.get_mut(&port_side) {
-                cell.minimum_content_area_size_mut().y = strip_height;
-            }
+            Self::set_inside_north_south_label_cell_height(node_context, port_side, strip_height);
         }
 
         // Second pass: convert label cell coordinates to be relative to port positions

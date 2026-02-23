@@ -210,11 +210,6 @@ for jar in $(find "${HOME}/.m2/repository/com/google/code/gson" -name "gson-*.ja
   CLASSPATH="$CLASSPATH:$jar"
 done
 
-# Add EMF JARs from Maven local repo
-for jar in $(find "${HOME}/.m2/repository/org/eclipse/emf" -name "*.jar" 2>/dev/null | grep -v sources | grep -v javadoc); do
-  CLASSPATH="$CLASSPATH:$jar"
-done
-
 # Add Eclipse Xtext/Xbase JARs (needed for some ELK text format support)
 for jar in $(find "${HOME}/.m2/repository/org/eclipse/xtext" -name "*.jar" 2>/dev/null | grep -v sources | grep -v javadoc | head -20); do
   CLASSPATH="$CLASSPATH:$jar"
@@ -253,7 +248,7 @@ for jar in $(find -L "${HOME}/.m2/repository/.cache/tycho" -name "*.jar" 2>/dev/
   CLASSPATH="$CLASSPATH:$jar"
 done
 # Add org.osgi JARs from standard Maven repo
-for jar in $(find -L "${HOME}/.m2/repository/org/osgi" -name "*.jar" 2>/dev/null | grep -v '\.source' | grep -v sources | grep -v javadoc | head -20); do
+for jar in $(find -L "${HOME}/.m2/repository/org/osgi" -name "*.jar" 2>/dev/null | grep -v '\.source' | grep -v sources | grep -v javadoc | head -200); do
   CLASSPATH="$CLASSPATH:$jar"
 done
 
@@ -267,13 +262,6 @@ fi
 # Broad search: find Guava JAR anywhere in .m2 if not found above
 if ! echo "$CLASSPATH" | grep -qi "guava"; then
   for jar in $(find "${HOME}/.m2" -name "com.google.guava*.jar" -o -name "guava-*.jar" 2>/dev/null | grep -v sources | grep -v source | grep -v javadoc | head -3); do
-    CLASSPATH="$CLASSPATH:$jar"
-  done
-fi
-
-# Broad search: find EMF JARs anywhere in .m2 if not found above
-if ! echo "$CLASSPATH" | grep -qi "emf"; then
-  for jar in $(find "${HOME}/.m2" -name "org.eclipse.emf*.jar" 2>/dev/null | grep -v sources | grep -v source | grep -v javadoc | head -20); do
     CLASSPATH="$CLASSPATH:$jar"
   done
 fi

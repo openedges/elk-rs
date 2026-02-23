@@ -319,4 +319,9 @@ impl ILayoutProcessor<LGraph> for LayerSweepAsProcessor {
     fn process(&mut self, graph: &mut LGraph, progress_monitor: &mut dyn IElkProgressMonitor) {
         ILayoutPhase::process(&mut self.minimizer, graph, progress_monitor);
     }
+
+    fn type_name(&self) -> &'static str {
+        // Java traces identify this wrapper step by the wrapped phase name.
+        "LayerSweepCrossingMinimizer"
+    }
 }

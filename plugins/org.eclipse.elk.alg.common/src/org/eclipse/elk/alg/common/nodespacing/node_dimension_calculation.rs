@@ -94,12 +94,18 @@ impl NodeDimensionCalculation {
         let layout_direction = adapter
             .get_property(CoreOptions::DIRECTION)
             .unwrap_or(Direction::Undefined);
+        let use_full_process_for_fixed = std::env::var_os("ELK_NODE_DIM_FULL_FOR_FIXED").is_some();
         for node in adapter.get_nodes() {
-            NodeLabelAndSizeCalculator::process_node(&node, layout_direction);
-
             let placement = node
                 .get_property(CoreOptions::PORT_LABELS_PLACEMENT)
                 .unwrap_or_default();
+            if use_full_process_for_fixed && PortLabelPlacement::is_fixed(&placement) {
+                NodeLabelAndSizeCalculator::process(&node, layout_direction);
+                continue;
+            }
+
+            NodeLabelAndSizeCalculator::process_node(&node, layout_direction);
+
             if PortLabelPlacement::is_fixed(&placement) {
                 continue;
             }
@@ -426,6 +432,16 @@ impl NodeDimensionCalculation {
         <<G as GraphAdapter<T>>::NodeAdapter as NodeAdapter<<G as GraphAdapter<T>>::Node>>::PortAdapter: 'static,
         <G as GraphAdapter<T>>::Node: 'static,
     {
+        if std::env::var_os("ELK_NODE_DIM_USE_FULL_PROCESS").is_some() {
+            let layout_direction = adapter
+                .get_property(CoreOptions::DIRECTION)
+                .unwrap_or(Direction::Undefined);
+            for node in adapter.get_nodes() {
+                NodeLabelAndSizeCalculator::process(&node, layout_direction);
+            }
+            return;
+        }
+
         let layout_direction = adapter
             .get_property(CoreOptions::DIRECTION)
             .unwrap_or(Direction::Undefined);
