@@ -90,9 +90,16 @@ fn process_eastern_and_western_port_dummies_layer(layer: &LayerRef) {
             return std::cmp::Ordering::Greater;
         }
 
-        node1_pos
-            .partial_cmp(&node2_pos)
-            .unwrap_or(std::cmp::Ordering::Equal)
+        // Match Java comparator semantics exactly:
+        // if (pos1 == pos2) 0 else if (pos1 < pos2) -1 else 1.
+        // This intentionally treats NaN as "greater" (falls into else branch).
+        if node1_pos == node2_pos {
+            std::cmp::Ordering::Equal
+        } else if node1_pos < node2_pos {
+            std::cmp::Ordering::Less
+        } else {
+            std::cmp::Ordering::Greater
+        }
     });
 
     let mut last_hierarchical_dummy: Option<LNodeRef> = None;

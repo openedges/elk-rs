@@ -1505,10 +1505,10 @@ impl NodeDimensionCalculation {
             left_y.partial_cmp(&right_y).unwrap_or(Ordering::Equal)
         });
 
-        let mut placed_rectangles: Vec<(f64, f64, f64, f64)> =
+        let mut placed_rectangles: Vec<(i32, f64, f64, f64, f64)> =
             Vec::with_capacity(avoid_rects.len());
         for rect in avoid_rects {
-            placed_rectangles.push((rect.x, rect.y, rect.width, rect.height));
+            placed_rectangles.push((i32::MIN, rect.x, rect.y, rect.width, rect.height));
         }
 
         for (port, label) in sorted {
@@ -1516,6 +1516,7 @@ impl NodeDimensionCalculation {
             let label_size = label.get_size();
             let mut label_position = label.get_position();
             let port_height = port.get_size().y;
+            let port_id = port.get_volatile_id();
 
             let absolute_x = port_position.x + label_position.x;
             let mut absolute_y = port_position.y + label_position.y;
@@ -1524,7 +1525,11 @@ impl NodeDimensionCalculation {
 
             loop {
                 let mut adjusted = false;
-                for (placed_x, placed_y, placed_w, placed_h) in &placed_rectangles {
+                for (placed_port_id, placed_x, placed_y, placed_w, placed_h) in &placed_rectangles {
+                    // Keep intra-port label spacing as defined by the label cell itself.
+                    if *placed_port_id == port_id {
+                        continue;
+                    }
                     let horizontal_overlap = absolute_x < *placed_x + *placed_w + gap_x
                         && absolute_x + label_size.x > *placed_x - gap_x;
                     let vertical_overlap = absolute_y < *placed_y + *placed_h + gap_y
@@ -1550,7 +1555,7 @@ impl NodeDimensionCalculation {
             }
             label_position.y = absolute_y - port_position.y;
             label.set_position(label_position);
-            placed_rectangles.push((absolute_x, absolute_y, label_size.x, label_size.y));
+            placed_rectangles.push((port_id, absolute_x, absolute_y, label_size.x, label_size.y));
         }
     }
 
@@ -1984,10 +1989,10 @@ impl NodeDimensionCalculation {
 
         sortable_entries.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(Ordering::Equal));
 
-        let mut placed_rectangles: Vec<(f64, f64, f64, f64)> =
+        let mut placed_rectangles: Vec<(usize, f64, f64, f64, f64)> =
             Vec::with_capacity(avoid_rects.len());
         for rect in avoid_rects {
-            placed_rectangles.push((rect.x, rect.y, rect.width, rect.height));
+            placed_rectangles.push((usize::MAX, rect.x, rect.y, rect.width, rect.height));
         }
 
         for (port_idx, label_idx, _) in sortable_entries {
@@ -2007,7 +2012,11 @@ impl NodeDimensionCalculation {
 
             loop {
                 let mut adjusted = false;
-                for (placed_x, placed_y, placed_w, placed_h) in &placed_rectangles {
+                for (placed_port_idx, placed_x, placed_y, placed_w, placed_h) in &placed_rectangles {
+                    // Keep intra-port label spacing as defined by the label cell itself.
+                    if *placed_port_idx == port_idx {
+                        continue;
+                    }
                     let horizontal_overlap = absolute_x < *placed_x + *placed_w + gap_x
                         && absolute_x + label_size.x > *placed_x - gap_x;
                     let vertical_overlap = absolute_y < *placed_y + *placed_h + gap_y
@@ -2033,7 +2042,7 @@ impl NodeDimensionCalculation {
             }
             label_position.y = absolute_y - port_position.y;
             label.set_position(label_position);
-            placed_rectangles.push((absolute_x, absolute_y, label_size.x, label_size.y));
+            placed_rectangles.push((port_idx, absolute_x, absolute_y, label_size.x, label_size.y));
         }
     }
 

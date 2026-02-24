@@ -45,11 +45,15 @@
 - 남은 drift 265개는 기존 phase 분석 기준 crossing min random state divergence에서의 cascading 영향이 중심
 - Phase-gate(recursive+strict) 최신 기준: `base=1439`, `precheck_error=0`, `step0_error=0`
   - 비교불가 0건 (`comparable=1439`)
-  - `step0..step9` error=0 (step 7까지 전부 통과 + step8/9도 0)
-  - 초기 frontier: `step10=6`, `step11=3`, `step12=9`, `step13=7`, `step14=1`
-  - step10 6모델 subset 추적 최신값: `matches=5/6`, `drift=1`, `total_diffs=8` (`tickets/layered/701_portLabels.elkt`)
-    - `701_portLabels` 단건은 `diff=8`, phase trace first divergence는 여전히 `step10(InLayerConstraintProcessor)`의 `nodes[1]/height` 1건(`1508.0 vs 1509.0`)
-  - 대형 hotspot: `step18=309`, `step17=308`, `step16=93`, `step15=78`, `step20=41`
+  - `all_match_models=1284`, `diverged_models=155`
+  - `step0..step9` error=0, `step11`도 error=0
+  - 초기 frontier(최초 실패 step): `step10=5`, `step12=7`, `step13=2`, `step17=1`, `step18=4`, `step19=4`, `step20=3`
+  - 대형 hotspot(step gate error 상위): `step21=8`, `step46=8`, `step117=8`, `step12=7`, `step25=6`
+- Tickets parity 최신(2026-02-24 재실행): `matches=108/109`, `drift=1`, `total_diffs=20`, `errors=0`, `timeouts=0`, `java_non_ok=1(588)`
+  - `tickets/layered/368_selfLoopLabelsIOOBE.elkt`, `tickets/layered/701_portLabels.elkt`는 `match`
+  - 잔여 `tickets/layered/213_componentsCompaction.elkt` first diff는 `children[0]/children[0]/x: 12.5 != 12.0` (기존 `12.5 != 24.0` 대비 개선)
+  - `MODEL_PARITY_MAX_DIFFS_PER_MODEL=20` 기준 top prefix는 `children[*]/children[*]/y` 85%, `children[*]/children[*]/x` 15%
+  - 단건 고diff(`max_diffs=5000`) 기준 `total_diffs=86` (`section=55`, `coordinate=30`, `other=1`)로 직전 90 대비 감소. 잔여의 대부분은 Java baseline 쪽 `NaN` y/height 좌표와의 비교에서 발생
 - 포팅/테스트/빌드/성능 자동화 파이프라인은 운영 상태
 - `cargo build --workspace`: warning 0건, `cargo clippy --workspace --all-targets`: warning 0건
 

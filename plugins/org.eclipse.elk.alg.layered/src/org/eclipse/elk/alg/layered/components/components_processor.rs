@@ -3,8 +3,10 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
+use org_eclipse_elk_core::org::eclipse::elk::core::math::ElkRectangle;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::direction::Direction;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_routing::EdgeRouting;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::{
     PortSide, SIDES_EAST, SIDES_EAST_SOUTH, SIDES_EAST_SOUTH_WEST, SIDES_EAST_WEST, SIDES_NONE,
@@ -321,6 +323,8 @@ fn combine_simple_row(components: &[LGraphRef], target: &LGraphRef) {
         component_spacing,
     );
 
+    maybe_compact_components(&ordered_components, target, false);
+
     for component in &ordered_components {
         move_graph(target, component, 0.0, 0.0);
     }
@@ -374,6 +378,8 @@ fn combine_component_group(components: &[LGraphRef], target: &LGraphRef) {
         target_guard.size().x = (offset.x - component_spacing).max(0.0);
         target_guard.size().y = (offset.y - component_spacing).max(0.0);
     }
+
+    maybe_compact_components(components, target, true);
 
     for group in component_groups {
         move_graphs(target, &group.get_components(), 0.0, 0.0);
@@ -480,6 +486,8 @@ fn combine_component_group_model_order(components: &[LGraphRef], target: &LGraph
         target_guard.size().x = (max_size.x - component_spacing).max(0.0);
         target_guard.size().y = (max_size.y - component_spacing).max(0.0);
     }
+
+    maybe_compact_components(components, target, true);
 
     for group in component_groups {
         move_graphs(target, &group.get_components(), 0.0, 0.0);
@@ -759,6 +767,8 @@ fn combine_model_order_row(components: &[LGraphRef], target: &LGraphRef) {
 
     place_components_in_rows_model_order(components, target, max_row_width, component_spacing);
 
+    maybe_compact_components(components, target, false);
+
     for component in components {
         move_graph(target, component, 0.0, 0.0);
     }
@@ -831,6 +841,188 @@ fn place_components_in_rows_model_order(
         target_guard.size().x = broadest_row;
         target_guard.size().y = ypos + highest_box;
     }
+}
+
+struct ComponentCompactionEntry {
+    graph: LGraphRef,
+    bounds: ElkRectangle,
+    has_external_connections: bool,
+}
+
+fn maybe_compact_components(components: &[LGraphRef], target: &LGraphRef, require_orthogonal: bool) {
+    if components.len() < 2 {
+        return;
+    }
+
+    let (compact_enabled, edge_routing) = components
+        .first()
+        .and_then(|component| component.lock().ok())
+        .map(|mut guard| {
+            (
+                guard
+                    .get_property(LayeredOptions::COMPACTION_CONNECTED_COMPONENTS)
+                    .unwrap_or(false),
+                guard
+                    .get_property(LayeredOptions::EDGE_ROUTING)
+                    .unwrap_or(EdgeRouting::Orthogonal),
+            )
+        })
+        .unwrap_or((false, EdgeRouting::Orthogonal));
+
+    if !compact_enabled {
+        return;
+    }
+    if require_orthogonal && edge_routing != EdgeRouting::Orthogonal {
+        return;
+    }
+
+    // Java parity: component compaction works in a shared absolute coordinate system.
+    // Apply each graph's accumulated offset to its nodes first, then reset graph offsets.
+    for component in components {
+        let (offset_x, offset_y) = component
+            .lock()
+            .ok()
+            .map(|guard| (guard.offset_ref().x, guard.offset_ref().y))
+            .unwrap_or((0.0, 0.0));
+        if offset_x != 0.0 || offset_y != 0.0 {
+            offset_graph(component, offset_x, offset_y);
+        }
+        if let Ok(mut guard) = component.lock() {
+            guard.offset().x = 0.0;
+            guard.offset().y = 0.0;
+        }
+    }
+
+    let mut entries: Vec<ComponentCompactionEntry> = Vec::new();
+    for component in components {
+        let Some(bounds) = compute_component_bounds(component) else {
+            continue;
+        };
+        let has_external_connections = component
+            .lock()
+            .ok()
+            .and_then(|mut guard| guard.get_property(InternalProperties::EXT_PORT_CONNECTIONS))
+            .is_some_and(|connections| !connections.is_empty());
+        entries.push(ComponentCompactionEntry {
+            graph: component.clone(),
+            bounds,
+            has_external_connections,
+        });
+    }
+
+    if entries.len() < 2 {
+        return;
+    }
+
+    let anchor_x = entries
+        .iter()
+        .filter(|entry| entry.has_external_connections)
+        .map(|entry| entry.bounds.x)
+        .fold(f64::INFINITY, f64::min);
+    let anchor_x = if anchor_x.is_finite() {
+        anchor_x
+    } else {
+        entries
+            .iter()
+            .map(|entry| entry.bounds.x)
+            .fold(f64::INFINITY, f64::min)
+    };
+    if !anchor_x.is_finite() {
+        return;
+    }
+
+    let mut min_x = f64::INFINITY;
+    let mut min_y = f64::INFINITY;
+    let mut max_x = f64::NEG_INFINITY;
+    let mut max_y = f64::NEG_INFINITY;
+
+    for entry in &entries {
+        let delta_x = if entry.has_external_connections {
+            0.0
+        } else {
+            anchor_x - entry.bounds.x
+        };
+        if delta_x != 0.0 {
+            offset_graph(&entry.graph, delta_x, 0.0);
+        }
+
+        let shifted_x = entry.bounds.x + delta_x;
+        min_x = min_x.min(shifted_x);
+        min_y = min_y.min(entry.bounds.y);
+        max_x = max_x.max(shifted_x + entry.bounds.width);
+        max_y = max_y.max(entry.bounds.y + entry.bounds.height);
+    }
+
+    if !(min_x.is_finite() && min_y.is_finite() && max_x.is_finite() && max_y.is_finite()) {
+        return;
+    }
+
+    let global_offset = KVector::with_values(-min_x, -min_y);
+    let graph_size = KVector::with_values((max_x - min_x).max(0.0), (max_y - min_y).max(0.0));
+
+    for component in components {
+        if let Ok(mut guard) = component.lock() {
+            guard.offset().x = global_offset.x;
+            guard.offset().y = global_offset.y;
+        }
+    }
+
+    if let Ok(mut target_guard) = target.lock() {
+        target_guard.size().x = graph_size.x;
+        target_guard.size().y = graph_size.y;
+    }
+}
+
+fn compute_component_bounds(component: &LGraphRef) -> Option<ElkRectangle> {
+    let nodes = collect_component_nodes(component);
+    if nodes.is_empty() {
+        return component
+            .lock()
+            .ok()
+            .map(|guard| ElkRectangle::with_values(0.0, 0.0, guard.size_ref().x, guard.size_ref().y));
+    }
+
+    let mut min_x = f64::INFINITY;
+    let mut min_y = f64::INFINITY;
+    let mut max_x = f64::NEG_INFINITY;
+    let mut max_y = f64::NEG_INFINITY;
+    let mut has_regular_node = false;
+
+    for node in nodes {
+        let Ok(mut node_guard) = node.lock() else {
+            continue;
+        };
+        if node_guard.node_type() == NodeType::ExternalPort {
+            continue;
+        }
+        has_regular_node = true;
+        let position = *node_guard.shape().position_ref();
+        let size = *node_guard.shape().size_ref();
+        let margin = node_guard.margin();
+
+        min_x = min_x.min(position.x - margin.left);
+        min_y = min_y.min(position.y - margin.top);
+        max_x = max_x.max(position.x + size.x + margin.right);
+        max_y = max_y.max(position.y + size.y + margin.bottom);
+    }
+
+    if !has_regular_node {
+        return component
+            .lock()
+            .ok()
+            .map(|guard| ElkRectangle::with_values(0.0, 0.0, guard.size_ref().x, guard.size_ref().y));
+    }
+
+    if !(min_x.is_finite() && min_y.is_finite() && max_x.is_finite() && max_y.is_finite()) {
+        return None;
+    }
+
+    Some(ElkRectangle::with_values(
+        min_x,
+        min_y,
+        (max_x - min_x).max(0.0),
+        (max_y - min_y).max(0.0),
+    ))
 }
 
 fn max_of(values: &[f64]) -> f64 {

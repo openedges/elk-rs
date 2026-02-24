@@ -1842,6 +1842,13 @@ impl NodeLabelAndSizeCalculator {
                 CoreOptions::SPACING_LABEL_PORT_VERTICAL,
             )
             .unwrap_or(1.0);
+        let label_label_spacing =
+            IndividualSpacings::get_individual_or_inherited_adapter(
+                node,
+                CoreOptions::SPACING_LABEL_LABEL,
+            )
+            .unwrap_or(0.0)
+            .max(0.0);
         let treat_as_group = node
             .get_property(CoreOptions::PORT_LABELS_TREAT_AS_GROUP)
             .unwrap_or(true);
@@ -1919,7 +1926,7 @@ impl NodeLabelAndSizeCalculator {
                         0.0
                     } else {
                         labels.iter().map(|l| l.get_size().y).sum::<f64>()
-                            + port_label_spacing_v * (labels.len() as f64 - 1.0).max(0.0)
+                            + label_label_spacing * (labels.len() as f64 - 1.0).max(0.0)
                     };
 
                     if label_height > 0.0 {

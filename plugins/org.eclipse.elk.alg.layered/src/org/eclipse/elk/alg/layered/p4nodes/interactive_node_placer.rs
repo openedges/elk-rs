@@ -7,7 +7,9 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 use crate::org::eclipse::elk::alg::layered::graph::l_node::NodeType;
 use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LNodeRef};
 use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorStrategy;
-use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, Spacings};
+use crate::org::eclipse::elk::alg::layered::options::{
+    GraphProperties, InternalProperties, Spacings,
+};
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
 
 static HIERARCHY_PROCESSING_ADDITIONS: LazyLock<
@@ -60,11 +62,18 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveNodePlacer {
 
     fn get_layout_processor_configuration(
         &self,
-        _graph: &LGraph,
+        graph: &LGraph,
     ) -> Option<LayoutProcessorConfiguration<LayeredPhases, LGraph>> {
-        Some(LayoutProcessorConfiguration::create_from(
-            &HIERARCHY_PROCESSING_ADDITIONS,
-        ))
+        if graph
+            .get_property_ref(InternalProperties::GRAPH_PROPERTIES)
+            .is_some_and(|props| props.contains(&GraphProperties::ExternalPorts))
+        {
+            Some(LayoutProcessorConfiguration::create_from(
+                &HIERARCHY_PROCESSING_ADDITIONS,
+            ))
+        } else {
+            None
+        }
     }
 }
 

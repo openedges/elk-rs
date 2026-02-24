@@ -1,10 +1,8 @@
-use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 
-use org_eclipse_elk_core::org::eclipse::elk::core::options::PortSide;
 use serde_json::{json, Value};
 
 use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LGraph, LNodeRef};
@@ -47,59 +45,6 @@ fn serialize_port(port: &Arc<std::sync::Mutex<super::graph::LPort>>) -> Option<V
     }))
 }
 
-fn side_rank(side: PortSide) -> i32 {
-    match side {
-        PortSide::North => 0,
-        PortSide::East => 1,
-        PortSide::South => 2,
-        PortSide::West => 3,
-        PortSide::Undefined => 4,
-    }
-}
-
-fn compare_ports_for_trace(
-    a: &Arc<std::sync::Mutex<super::graph::LPort>>,
-    b: &Arc<std::sync::Mutex<super::graph::LPort>>,
-) -> Ordering {
-    let (side_a, pos_a, id_a) = if let Ok(mut guard) = a.try_lock() {
-        (
-            guard.side(),
-            *guard.shape().position_ref(),
-            guard.shape().graph_element().id,
-        )
-    } else {
-        return Ordering::Equal;
-    };
-    let (side_b, pos_b, id_b) = if let Ok(mut guard) = b.try_lock() {
-        (
-            guard.side(),
-            *guard.shape().position_ref(),
-            guard.shape().graph_element().id,
-        )
-    } else {
-        return Ordering::Equal;
-    };
-
-    let by_side = side_rank(side_a).cmp(&side_rank(side_b));
-    if by_side != Ordering::Equal {
-        return by_side;
-    }
-
-    let by_axis = match side_a {
-        PortSide::North => pos_a.x.partial_cmp(&pos_b.x),
-        PortSide::East => pos_a.y.partial_cmp(&pos_b.y),
-        PortSide::South => pos_b.x.partial_cmp(&pos_a.x),
-        PortSide::West => pos_b.y.partial_cmp(&pos_a.y),
-        PortSide::Undefined => Some(Ordering::Equal),
-    }
-    .unwrap_or(Ordering::Equal);
-    if by_axis != Ordering::Equal {
-        return by_axis;
-    }
-
-    id_a.cmp(&id_b)
-}
-
 fn serialize_node(node: &LNodeRef, known_layer_index: Option<usize>) -> Option<Value> {
     let mut guard = node.try_lock().ok()?;
     let id = format!("N{}", guard.shape().graph_element().id);
@@ -133,11 +78,9 @@ fn serialize_node(node: &LNodeRef, known_layer_index: Option<usize>) -> Option<V
         "left": margin.left, "right": margin.right,
     });
 
-    let mut port_refs: Vec<_> = guard.ports().clone();
+    let port_refs: Vec<_> = guard.ports().clone();
     let label_refs: Vec<_> = guard.labels().clone();
     drop(guard);
-
-    port_refs.sort_by(compare_ports_for_trace);
 
     let ports: Vec<Value> = port_refs.iter().filter_map(serialize_port).collect();
     let labels: Vec<Value> = label_refs.iter().filter_map(serialize_label).collect();
