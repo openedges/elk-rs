@@ -697,9 +697,9 @@ fn place_ports_on_node(
         return false;
     }
 
-    if std::env::var("ELK_DISABLE_CLOCKWISE_SIDE_ORDER").is_err() {
-        ensure_clockwise_port_order(node, port_constraints);
-    }
+    // Java's NodeDimensionCalculation uses side-sorted PortContexts for placement,
+    // but it does not rewrite the node's backing port list order.
+    // Keep the original list order and apply side-specific placement order below.
 
     let allow_shrink = !(topdown_layout
         || node_size_fixed_graph_size
@@ -1551,10 +1551,9 @@ fn place_ports_on_side(
             }
             rotated
         }
-        // Only reverse WEST if ensure_clockwise_port_order didn't already reverse
-        // (ensure_clockwise_port_order runs for FIXED_SIDE but NOT FIXED_ORDER)
-        PortSide::West if constraints.is_order_fixed() => ports.iter().rev().collect(),
-        PortSide::South if constraints.is_order_fixed() => ports.iter().rev().collect(),
+        // Java NodeContext.comparePortContexts: SOUTH/WEST are descending by volatile-id.
+        PortSide::West => ports.iter().rev().collect(),
+        PortSide::South => ports.iter().rev().collect(),
         _ => ports.iter().collect(),
     };
 
