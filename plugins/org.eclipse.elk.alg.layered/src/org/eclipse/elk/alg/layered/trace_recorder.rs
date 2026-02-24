@@ -7,6 +7,22 @@ use serde_json::{json, Value};
 
 use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LGraph, LNodeRef};
 
+const TRACE_NAN_SENTINEL: &str = "__ELK_TRACE_NAN__";
+const TRACE_POS_INF_SENTINEL: &str = "__ELK_TRACE_POS_INF__";
+const TRACE_NEG_INF_SENTINEL: &str = "__ELK_TRACE_NEG_INF__";
+
+fn number_or_special(value: f64) -> Value {
+    if value.is_nan() {
+        Value::String(TRACE_NAN_SENTINEL.to_owned())
+    } else if value.is_infinite() && value.is_sign_positive() {
+        Value::String(TRACE_POS_INF_SENTINEL.to_owned())
+    } else if value.is_infinite() && value.is_sign_negative() {
+        Value::String(TRACE_NEG_INF_SENTINEL.to_owned())
+    } else {
+        json!(value)
+    }
+}
+
 fn serialize_label(label: &Arc<std::sync::Mutex<super::graph::LLabel>>) -> Option<Value> {
     let mut guard = label.try_lock().ok()?;
     let text = guard.text().to_string();
@@ -16,10 +32,10 @@ fn serialize_label(label: &Arc<std::sync::Mutex<super::graph::LLabel>>) -> Optio
     let size_y = guard.shape().size_ref().y;
     Some(json!({
         "text": text,
-        "x": pos_x,
-        "y": pos_y,
-        "width": size_x,
-        "height": size_y,
+        "x": number_or_special(pos_x),
+        "y": number_or_special(pos_y),
+        "width": number_or_special(size_x),
+        "height": number_or_special(size_y),
     }))
 }
 
@@ -39,8 +55,8 @@ fn serialize_port(port: &Arc<std::sync::Mutex<super::graph::LPort>>) -> Option<V
     Some(json!({
         "id": id,
         "side": side_str,
-        "x": pos_x,
-        "y": pos_y,
+        "x": number_or_special(pos_x),
+        "y": number_or_special(pos_y),
         "labels": labels,
     }))
 }
@@ -60,17 +76,20 @@ fn serialize_node(node: &LNodeRef, known_layer_index: Option<usize>) -> Option<V
     let pos_y = guard.shape().position_ref().y;
     let size_x = guard.shape().size_ref().x;
     let size_y = guard.shape().size_ref().y;
-    // Use the known layer index passed from the outer loop (avoids re-locking
-    // the layer which is already held by the caller in serialize_lgraph_snapshot).
-    let layer_index: Value = known_layer_index
-        .map(|i| json!(i as i64))
-        .or_else(|| {
-            guard
-                .layer()
-                .and_then(|l| l.try_lock().ok().and_then(|lg| lg.index()))
-                .map(|i| json!(i as i64))
-        })
-        .unwrap_or(json!(-1));
+    // Keep Java semantics for truly layerless nodes (layer = -1).
+    // `known_layer_index` is only a fallback for nodes that already have a
+    // layer reference but whose layer lock can't be acquired here.
+    let layer_index: Value = if let Some(layer_ref) = guard.layer() {
+        layer_ref
+            .try_lock()
+            .ok()
+            .and_then(|lg| lg.index())
+            .or(known_layer_index)
+            .map(|i| json!(i as i64))
+            .unwrap_or(json!(-1))
+    } else {
+        json!(-1)
+    };
 
     let margin = guard.margin();
     let margin_json = json!({
@@ -89,10 +108,10 @@ fn serialize_node(node: &LNodeRef, known_layer_index: Option<usize>) -> Option<V
         "id": id,
         "name": name,
         "type": node_type.name(),
-        "x": pos_x,
-        "y": pos_y,
-        "width": size_x,
-        "height": size_y,
+        "x": number_or_special(pos_x),
+        "y": number_or_special(pos_y),
+        "width": number_or_special(size_x),
+        "height": number_or_special(size_y),
         "layer": layer_index,
         "margin": margin_json,
         "ports": ports,
@@ -133,7 +152,7 @@ fn serialize_edge(edge: &LEdgeRef) -> Option<Value> {
     let bend_points: Vec<Value> = guard
         .bend_points_ref()
         .iter()
-        .map(|v| json!({"x": v.x, "y": v.y}))
+        .map(|v| json!({"x": number_or_special(v.x), "y": number_or_special(v.y)}))
         .collect();
 
     let label_refs: Vec<_> = guard.labels().clone();
@@ -231,10 +250,10 @@ pub fn serialize_lgraph_snapshot(
         "nodes": layerless_json,
         "layers": layers_json,
         "edges": edges_json,
-        "graphSize": {"width": graph_size.x, "height": graph_size.y},
+        "graphSize": {"width": number_or_special(graph_size.x), "height": number_or_special(graph_size.y)},
         "padding": {"top": pad.top, "bottom": pad.bottom, "left": pad.left, "right": pad.right},
-        "offset": {"x": offset.x, "y": offset.y},
-        "size": {"width": size.x, "height": size.y},
+        "offset": {"x": number_or_special(offset.x), "y": number_or_special(offset.y)},
+        "size": {"width": number_or_special(size.x), "height": number_or_special(size.y)},
     });
 
     fs::create_dir_all(output_dir)?;
@@ -249,6 +268,9 @@ pub fn serialize_lgraph_snapshot(
     let filename = format!("step_{step:03}_{safe_name}.json");
     let filepath = output_dir.join(filename);
     let serialized = serde_json::to_string_pretty(&snapshot)
-        .map_err(std::io::Error::other)?;
+        .map_err(std::io::Error::other)?
+        .replace(&format!("\"{TRACE_NAN_SENTINEL}\""), "NaN")
+        .replace(&format!("\"{TRACE_POS_INF_SENTINEL}\""), "Infinity")
+        .replace(&format!("\"{TRACE_NEG_INF_SENTINEL}\""), "-Infinity");
     fs::write(filepath, serialized)
 }

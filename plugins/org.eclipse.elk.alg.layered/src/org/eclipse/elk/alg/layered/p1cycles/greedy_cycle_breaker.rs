@@ -288,6 +288,14 @@ impl Default for GreedyCycleBreaker {
 }
 
 impl ILayoutPhase<LayeredPhases, LGraph> for GreedyCycleBreaker {
+    fn type_name(&self) -> &'static str {
+        if self.prefer_model_order {
+            "GreedyModelOrderCycleBreaker"
+        } else {
+            "GreedyCycleBreaker"
+        }
+    }
+
     fn process(&mut self, layered_graph: &mut LGraph, monitor: &mut dyn IElkProgressMonitor) {
         monitor.begin("Greedy cycle removal", 1.0);
 

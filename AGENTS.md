@@ -45,10 +45,10 @@
 - 남은 drift 265개는 기존 phase 분석 기준 crossing min random state divergence에서의 cascading 영향이 중심
 - Phase-gate(recursive+strict) 최신 기준: `base=1439`, `precheck_error=0`, `step0_error=0`
   - 비교불가 0건 (`comparable=1439`)
-  - `all_match_models=1284`, `diverged_models=155`
-  - `step0..step9` error=0, `step11`도 error=0
-  - 초기 frontier(최초 실패 step): `step10=5`, `step12=7`, `step13=2`, `step17=1`, `step18=4`, `step19=4`, `step20=3`
-  - 대형 hotspot(step gate error 상위): `step21=8`, `step46=8`, `step117=8`, `step12=7`, `step25=6`
+  - `all_match_models=1419`, `diverged_models=20`
+  - `step0..step20` error=0
+  - 초기 frontier(최초 실패 step): `step21=4`, `step23=4`, `step32=1`, `step46=2`
+  - 대형 hotspot(step gate error 상위): `step21=4`, `step23=4`, `step46=2`, `step195=2`, `step215=2`
 - Tickets parity 최신(2026-02-24 재실행): `matches=108/109`, `drift=1`, `total_diffs=20`, `errors=0`, `timeouts=0`, `java_non_ok=1(588)`
   - `tickets/layered/368_selfLoopLabelsIOOBE.elkt`, `tickets/layered/701_portLabels.elkt`는 `match`
   - 잔여 `tickets/layered/213_componentsCompaction.elkt` first diff는 `children[0]/children[0]/x: 12.5 != 12.0` (기존 `12.5 != 24.0` 대비 개선)

@@ -23,6 +23,15 @@ fn greedy_cycle_breaker_produces_acyclic_graph() {
 }
 
 #[test]
+fn greedy_cycle_breaker_type_name_matches_model_order_mode() {
+    let greedy = GreedyCycleBreaker::new();
+    assert_eq!(greedy.type_name(), "GreedyCycleBreaker");
+
+    let model_order = GreedyCycleBreaker::new_with_model_order(true);
+    assert_eq!(model_order.type_name(), "GreedyModelOrderCycleBreaker");
+}
+
+#[test]
 fn depth_first_cycle_breaker_produces_acyclic_graph() {
     run_cycle_breaker_test(CycleBreakingStrategy::DepthFirst, build_cyclic_graph());
 }
