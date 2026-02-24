@@ -45,10 +45,10 @@
 - 남은 drift 265개는 기존 phase 분석 기준 crossing min random state divergence에서의 cascading 영향이 중심
 - Phase-gate(recursive+strict) 최신 기준: `base=1439`, `precheck_error=0`, `step0_error=0`
   - 비교불가 0건 (`comparable=1439`)
-  - `all_match_models=1419`, `diverged_models=20`
-  - `step0..step20` error=0
-  - 초기 frontier(최초 실패 step): `step21=4`, `step23=4`, `step32=1`, `step46=2`
-  - 대형 hotspot(step gate error 상위): `step21=4`, `step23=4`, `step46=2`, `step195=2`, `step215=2`
+  - `all_match_models=1428`, `diverged_models=11`
+  - `step0..step22` error=0
+  - 초기 frontier(최초 실패 step): `step23=3`, `step32=1`, `step46=2`, `step92=1`
+  - 대형 hotspot(step gate error 상위): `step23=3`, `step46=2`, `step32=1`, `step92=1`, `step119=1`
 - Tickets parity 최신(2026-02-24 재실행): `matches=108/109`, `drift=1`, `total_diffs=20`, `errors=0`, `timeouts=0`, `java_non_ok=1(588)`
   - `tickets/layered/368_selfLoopLabelsIOOBE.elkt`, `tickets/layered/701_portLabels.elkt`는 `match`
   - 잔여 `tickets/layered/213_componentsCompaction.elkt` first diff는 `children[0]/children[0]/x: 12.5 != 12.0` (기존 `12.5 != 24.0` 대비 개선)
@@ -70,7 +70,7 @@
 - Phase 3: Phase diff 비교 도구 — **완료**
 - Phase 4: trace 실행 및 divergence 분석 — **운영 중**
   - 최신 기준은 recursive+strict gate 산출물(`perf/model_parity/phase_gate_latest.md`)을 단일 기준으로 사용
-  - 최신 step range(루트 trace 기준): `0..20`
+  - 최신 step range(루트 trace 기준): `0..22`
   - Rust trace 실행 시 timeout 모델이 중간에 나오면 후속 모델 trace가 누락될 수 있어, known timeout 모델은 manifest 끝으로 재배치해 실행
   - 우선순위는 `first_failure_by_step` 오름차순(가장 작은 step error부터 0화)
 - Phase 5: 식별된 10개 모델의 프로세서별 버그 수정 — **완료** (추가 수정 가능한 항목 없음)

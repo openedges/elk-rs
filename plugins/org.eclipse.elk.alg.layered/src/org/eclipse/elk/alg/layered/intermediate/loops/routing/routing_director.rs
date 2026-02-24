@@ -200,14 +200,6 @@ fn determine_two_side_opposing_route(
         return;
     }
 
-    // Java parity: for NORTH/SOUTH opposing loops, tie handling follows option order.
-    // Keep option1 on tie to match RoutingDirector#determineTwoSideOpposingLoopRoutes.
-    if is_north_south_opposing_pair(sides[0], sides[1]) {
-        sl_loop.set_leftmost_port(Some(option1_left));
-        sl_loop.set_rightmost_port(Some(option1_right));
-        return;
-    }
-
     // Java parity: opposing-side ties are effectively biased towards top/left routing.
     // Choose the option whose clockwise intermediate side is preferred.
     let option1_mid = sides[0].right();
@@ -230,12 +222,6 @@ fn opposing_tie_break_rank(side: PortSide) -> i32 {
         PortSide::Undefined => 4,
     }
 }
-
-fn is_north_south_opposing_pair(a: PortSide, b: PortSide) -> bool {
-    (a == PortSide::North && b == PortSide::South)
-        || (a == PortSide::South && b == PortSide::North)
-}
-
 
 fn determine_three_side_route(
     sl_loop: &mut crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfHyperLoop,

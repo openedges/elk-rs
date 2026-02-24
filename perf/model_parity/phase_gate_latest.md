@@ -4,7 +4,7 @@
 - base_models(java_status=ok): **1439**
 - comparable_models: **1439**
 - precheck_errors(비교불가): **0**
-- all_match_models: **1419**, diverged_models: **20**
+- all_match_models: **1428**, diverged_models: **11**
 
 ## Precheck
 
@@ -38,66 +38,66 @@
 | 18 | OrthogonalEdgeRouter | 1429 | 1429 | 0 |
 | 19 | HierarchicalPortOrthogonalEdgeRouter | 1397 | 1397 | 0 |
 | 20 | LongEdgeJoiner | 1338 | 1338 | 0 |
-| 21 | EndLabelSorter | 1155 | 1151 | 4 |
-| 22 | ReversedEdgeRestorer | 1094 | 1094 | 0 |
-| 23 | EdgeAndLayerConstraintEdgeReverser | 919 | 915 | 4 |
-| 24 | GreedyCycleBreaker | 901 | 901 | 0 |
-| 25 | LayerConstraintPreprocessor | 887 | 887 | 0 |
-| 26 | NetworkSimplexLayerer | 870 | 870 | 0 |
-| 27 | LayerConstraintPostprocessor | 849 | 849 | 0 |
-| 28 | HierarchicalPortConstraintProcessor | 846 | 846 | 0 |
-| 29 | LongEdgeSplitter | 844 | 844 | 0 |
-| 30 | PortSideProcessor | 844 | 844 | 0 |
-| 31 | PortListSorter | 843 | 843 | 0 |
-| 32 | LayerSweepCrossingMinimizer | 843 | 842 | 1 |
-| 33 | LayerSweepCrossingMinimizer | 842 | 842 | 0 |
-| 34 | InLayerConstraintProcessor | 842 | 842 | 0 |
-| 35 | LabelAndNodeSizeProcessor | 842 | 842 | 0 |
-| 36 | InnermostNodeMarginCalculator | 842 | 842 | 0 |
-| 37 | HierarchicalPortDummySizeProcessor | 842 | 842 | 0 |
-| 38 | BKNodePlacer | 837 | 837 | 0 |
-| 39 | LayerSizeAndGraphHeightCalculator | 836 | 836 | 0 |
-| 40 | HierarchicalPortPositionProcessor | 825 | 825 | 0 |
-| 41 | OrthogonalEdgeRouter | 822 | 822 | 0 |
-| 42 | HierarchicalPortOrthogonalEdgeRouter | 797 | 797 | 0 |
-| 43 | LongEdgeJoiner | 789 | 789 | 0 |
-| 44 | EndLabelSorter | 779 | 779 | 0 |
-| 45 | ReversedEdgeRestorer | 763 | 763 | 0 |
-| 46 | EdgeAndLayerConstraintEdgeReverser | 689 | 687 | 2 |
-| 47 | PortSideProcessor | 682 | 682 | 0 |
-| 48 | PortListSorter | 665 | 665 | 0 |
-| 49 | LayerSweepCrossingMinimizer | 661 | 661 | 0 |
-| 50 | LayerSweepCrossingMinimizer | 653 | 653 | 0 |
-| 51 | InLayerConstraintProcessor | 647 | 647 | 0 |
-| 52 | LabelAndNodeSizeProcessor | 638 | 638 | 0 |
-| 53 | InnermostNodeMarginCalculator | 638 | 638 | 0 |
-| 54 | BKNodePlacer | 630 | 630 | 0 |
-| 55 | LayerSizeAndGraphHeightCalculator | 630 | 630 | 0 |
-| 56 | OrthogonalEdgeRouter | 630 | 630 | 0 |
-| 57 | LongEdgeJoiner | 628 | 628 | 0 |
-| 58 | EndLabelSorter | 628 | 628 | 0 |
-| 59 | ReversedEdgeRestorer | 628 | 628 | 0 |
-| 60 | GraphTransformer | 628 | 628 | 0 |
-| 61 | GraphTransformer | 628 | 628 | 0 |
-| 62 | EdgeAndLayerConstraintEdgeReverser | 627 | 627 | 0 |
-| 63 | GreedyCycleBreaker | 623 | 623 | 0 |
-| 64 | LayerConstraintPreprocessor | 623 | 623 | 0 |
-| 65 | NetworkSimplexLayerer | 621 | 621 | 0 |
-| 66 | LayerConstraintPostprocessor | 612 | 612 | 0 |
-| 67 | LongEdgeSplitter | 612 | 612 | 0 |
-| 68 | PortSideProcessor | 602 | 602 | 0 |
-| 69 | PortListSorter | 580 | 580 | 0 |
-| 70 | LayerSweepCrossingMinimizer | 571 | 571 | 0 |
-| 71 | LayerSweepCrossingMinimizer | 543 | 543 | 0 |
-| 72 | InLayerConstraintProcessor | 543 | 543 | 0 |
-| 73 | LabelAndNodeSizeProcessor | 535 | 535 | 0 |
-| 74 | InnermostNodeMarginCalculator | 535 | 535 | 0 |
-| 75 | BKNodePlacer | 525 | 525 | 0 |
-| 76 | LayerSizeAndGraphHeightCalculator | 523 | 523 | 0 |
-| 77 | OrthogonalEdgeRouter | 515 | 515 | 0 |
-| 78 | LongEdgeJoiner | 515 | 515 | 0 |
-| 79 | EndLabelSorter | 515 | 515 | 0 |
-| 80 | ReversedEdgeRestorer | 510 | 510 | 0 |
+| 21 | EndLabelSorter | 1155 | 1155 | 0 |
+| 22 | ReversedEdgeRestorer | 1098 | 1098 | 0 |
+| 23 | EdgeAndLayerConstraintEdgeReverser | 923 | 920 | 3 |
+| 24 | GreedyCycleBreaker | 906 | 906 | 0 |
+| 25 | LayerConstraintPreprocessor | 892 | 892 | 0 |
+| 26 | NetworkSimplexLayerer | 875 | 875 | 0 |
+| 27 | LayerConstraintPostprocessor | 854 | 854 | 0 |
+| 28 | HierarchicalPortConstraintProcessor | 851 | 851 | 0 |
+| 29 | LongEdgeSplitter | 849 | 849 | 0 |
+| 30 | PortSideProcessor | 848 | 848 | 0 |
+| 31 | PortListSorter | 847 | 847 | 0 |
+| 32 | LayerSweepCrossingMinimizer | 847 | 846 | 1 |
+| 33 | LayerSweepCrossingMinimizer | 846 | 846 | 0 |
+| 34 | InLayerConstraintProcessor | 846 | 846 | 0 |
+| 35 | LabelAndNodeSizeProcessor | 846 | 846 | 0 |
+| 36 | InnermostNodeMarginCalculator | 846 | 846 | 0 |
+| 37 | HierarchicalPortDummySizeProcessor | 846 | 846 | 0 |
+| 38 | BKNodePlacer | 841 | 841 | 0 |
+| 39 | LayerSizeAndGraphHeightCalculator | 840 | 840 | 0 |
+| 40 | HierarchicalPortPositionProcessor | 829 | 829 | 0 |
+| 41 | OrthogonalEdgeRouter | 826 | 826 | 0 |
+| 42 | HierarchicalPortOrthogonalEdgeRouter | 801 | 801 | 0 |
+| 43 | LongEdgeJoiner | 793 | 793 | 0 |
+| 44 | EndLabelSorter | 783 | 783 | 0 |
+| 45 | ReversedEdgeRestorer | 767 | 767 | 0 |
+| 46 | EdgeAndLayerConstraintEdgeReverser | 693 | 691 | 2 |
+| 47 | PortSideProcessor | 686 | 686 | 0 |
+| 48 | PortListSorter | 669 | 669 | 0 |
+| 49 | LayerSweepCrossingMinimizer | 665 | 665 | 0 |
+| 50 | LayerSweepCrossingMinimizer | 657 | 657 | 0 |
+| 51 | InLayerConstraintProcessor | 651 | 651 | 0 |
+| 52 | LabelAndNodeSizeProcessor | 642 | 642 | 0 |
+| 53 | InnermostNodeMarginCalculator | 642 | 642 | 0 |
+| 54 | BKNodePlacer | 634 | 634 | 0 |
+| 55 | LayerSizeAndGraphHeightCalculator | 634 | 634 | 0 |
+| 56 | OrthogonalEdgeRouter | 634 | 634 | 0 |
+| 57 | LongEdgeJoiner | 632 | 632 | 0 |
+| 58 | EndLabelSorter | 632 | 632 | 0 |
+| 59 | ReversedEdgeRestorer | 632 | 632 | 0 |
+| 60 | GraphTransformer | 632 | 632 | 0 |
+| 61 | GraphTransformer | 632 | 632 | 0 |
+| 62 | EdgeAndLayerConstraintEdgeReverser | 631 | 631 | 0 |
+| 63 | GreedyCycleBreaker | 627 | 627 | 0 |
+| 64 | LayerConstraintPreprocessor | 627 | 627 | 0 |
+| 65 | NetworkSimplexLayerer | 625 | 625 | 0 |
+| 66 | LayerConstraintPostprocessor | 616 | 616 | 0 |
+| 67 | LongEdgeSplitter | 616 | 616 | 0 |
+| 68 | PortSideProcessor | 606 | 606 | 0 |
+| 69 | PortListSorter | 584 | 584 | 0 |
+| 70 | LayerSweepCrossingMinimizer | 575 | 575 | 0 |
+| 71 | LayerSweepCrossingMinimizer | 547 | 547 | 0 |
+| 72 | InLayerConstraintProcessor | 547 | 547 | 0 |
+| 73 | LabelAndNodeSizeProcessor | 539 | 539 | 0 |
+| 74 | InnermostNodeMarginCalculator | 539 | 539 | 0 |
+| 75 | BKNodePlacer | 529 | 529 | 0 |
+| 76 | LayerSizeAndGraphHeightCalculator | 527 | 527 | 0 |
+| 77 | OrthogonalEdgeRouter | 519 | 519 | 0 |
+| 78 | LongEdgeJoiner | 519 | 519 | 0 |
+| 79 | EndLabelSorter | 519 | 519 | 0 |
+| 80 | ReversedEdgeRestorer | 514 | 514 | 0 |
 | 81 | GraphTransformer | 510 | 510 | 0 |
 | 82 | EdgeAndLayerConstraintEdgeReverser | 510 | 510 | 0 |
 | 83 | GreedyCycleBreaker | 509 | 509 | 0 |
@@ -212,12 +212,12 @@
 | 192 | LayerConstraintPreprocessor | 140 | 140 | 0 |
 | 193 | NetworkSimplexLayerer | 140 | 140 | 0 |
 | 194 | LayerConstraintPostprocessor | 136 | 136 | 0 |
-| 195 | LongEdgeSplitter | 136 | 134 | 2 |
-| 196 | PortSideProcessor | 128 | 128 | 0 |
-| 197 | PortListSorter | 128 | 128 | 0 |
-| 198 | LayerSweepCrossingMinimizer | 124 | 124 | 0 |
-| 199 | LayerSweepCrossingMinimizer | 124 | 124 | 0 |
-| 200 | InLayerConstraintProcessor | 124 | 124 | 0 |
+| 195 | LongEdgeSplitter | 136 | 136 | 0 |
+| 196 | PortSideProcessor | 130 | 130 | 0 |
+| 197 | PortListSorter | 130 | 130 | 0 |
+| 198 | LayerSweepCrossingMinimizer | 126 | 126 | 0 |
+| 199 | LayerSweepCrossingMinimizer | 126 | 126 | 0 |
+| 200 | InLayerConstraintProcessor | 126 | 126 | 0 |
 | 201 | LabelAndNodeSizeProcessor | 124 | 124 | 0 |
 | 202 | InnermostNodeMarginCalculator | 124 | 124 | 0 |
 | 203 | BKNodePlacer | 123 | 123 | 0 |
@@ -232,12 +232,12 @@
 | 212 | NetworkSimplexLayerer | 116 | 116 | 0 |
 | 213 | LayerConstraintPostprocessor | 116 | 116 | 0 |
 | 214 | LongEdgeSplitter | 112 | 112 | 0 |
-| 215 | PortSideProcessor | 112 | 110 | 2 |
-| 216 | PortListSorter | 110 | 110 | 0 |
-| 217 | LayerSweepCrossingMinimizer | 108 | 108 | 0 |
-| 218 | LayerSweepCrossingMinimizer | 108 | 108 | 0 |
-| 219 | InLayerConstraintProcessor | 106 | 106 | 0 |
-| 220 | LabelAndNodeSizeProcessor | 104 | 104 | 0 |
+| 215 | PortSideProcessor | 112 | 112 | 0 |
+| 216 | PortListSorter | 112 | 112 | 0 |
+| 217 | LayerSweepCrossingMinimizer | 110 | 110 | 0 |
+| 218 | LayerSweepCrossingMinimizer | 110 | 110 | 0 |
+| 219 | InLayerConstraintProcessor | 108 | 108 | 0 |
+| 220 | LabelAndNodeSizeProcessor | 106 | 106 | 0 |
 | 221 | InnermostNodeMarginCalculator | 102 | 102 | 0 |
 | 222 | BKNodePlacer | 102 | 102 | 0 |
 | 223 | LayerSizeAndGraphHeightCalculator | 102 | 102 | 0 |
@@ -1542,14 +1542,11 @@
 
 ## First Failure By Step
 
-- step 21: 4
-- step 23: 4
+- step 23: 3
 - step 32: 1
 - step 46: 2
 - step 92: 1
 - step 119: 1
 - step 144: 1
 - step 158: 1
-- step 195: 2
 - step 207: 1
-- step 215: 2
