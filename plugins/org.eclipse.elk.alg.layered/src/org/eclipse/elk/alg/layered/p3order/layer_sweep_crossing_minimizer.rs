@@ -638,7 +638,7 @@ impl LayerSweepCrossingMinimizer {
             );
         }
 
-        let mut i = first_free(forward, length) as isize;
+        let mut i = first_free(forward, length);
         while is_not_end(length, i, forward) {
             let i_usize = i as usize;
             let allow_first_sweep = {
@@ -1214,11 +1214,11 @@ fn end_index(is_forward: bool, length: usize) -> usize {
     }
 }
 
-fn first_free(is_forward: bool, length: usize) -> usize {
+fn first_free(is_forward: bool, length: usize) -> isize {
     if is_forward {
         1
     } else {
-        length.saturating_sub(2)
+        length as isize - 2
     }
 }
 

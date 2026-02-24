@@ -275,6 +275,82 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
                     phase2e_reapplied_nodes
                 );
             }
+
+            // Final port reposition pass: after phase2[a-e], node sizes can shift again.
+            // Re-apply side placement against the final node size without further resizing.
+            let mut graphs_with_non_zero_border_offset = HashSet::new();
+            let mut seen = HashSet::new();
+            for node in graph.layerless_nodes().clone() {
+                let key = Arc::as_ptr(&node) as usize;
+                if seen.insert(key) && node_has_non_zero_border_offset(&node) {
+                    if let Some(graph_key) = graph_key_for_node(&node) {
+                        graphs_with_non_zero_border_offset.insert(graph_key);
+                    }
+                }
+            }
+            for layer in graph.layers().clone() {
+                let nodes = layer
+                    .lock()
+                    .ok()
+                    .map(|layer_guard| LGraphUtil::to_node_array(layer_guard.nodes()))
+                    .unwrap_or_default();
+                for node in nodes {
+                    let key = Arc::as_ptr(&node) as usize;
+                    if seen.insert(key) && node_has_non_zero_border_offset(&node) {
+                        if let Some(graph_key) = graph_key_for_node(&node) {
+                            graphs_with_non_zero_border_offset.insert(graph_key);
+                        }
+                    }
+                }
+            }
+
+            let mut phase2f_repositioned_nodes = 0usize;
+            let mut seen = HashSet::new();
+            for node in graph.layerless_nodes().clone() {
+                let key = Arc::as_ptr(&node) as usize;
+                if seen.insert(key)
+                    && should_reposition_ports_after_phase2(
+                        &node,
+                        &graphs_with_non_zero_border_offset,
+                    )
+                {
+                    reposition_ports_only_on_node(
+                        &node,
+                        graph_port_spacing,
+                        &graph_ports_surrounding,
+                    );
+                    phase2f_repositioned_nodes += 1;
+                }
+            }
+            for layer in graph.layers().clone() {
+                let nodes = layer
+                    .lock()
+                    .ok()
+                    .map(|layer_guard| LGraphUtil::to_node_array(layer_guard.nodes()))
+                    .unwrap_or_default();
+                for node in nodes {
+                    let key = Arc::as_ptr(&node) as usize;
+                    if seen.insert(key)
+                        && should_reposition_ports_after_phase2(
+                            &node,
+                            &graphs_with_non_zero_border_offset,
+                        )
+                    {
+                        reposition_ports_only_on_node(
+                            &node,
+                            graph_port_spacing,
+                            &graph_ports_surrounding,
+                        );
+                        phase2f_repositioned_nodes += 1;
+                    }
+                }
+            }
+            if *TRACE_NODE_SIZE {
+                eprintln!(
+                    "label-node-size: phase2f (final port reposition) nodes={}",
+                    phase2f_repositioned_nodes
+                );
+            }
         } else if *TRACE_NODE_SIZE {
             eprintln!("label-node-size: step2 skipped (experiment)");
         }
@@ -345,6 +421,54 @@ fn should_apply_phase1_port_placement(node: &LNodeRef) -> bool {
         .ok()
         .and_then(|mut node_guard| node_guard.get_property(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE))
         .unwrap_or(false)
+}
+
+fn should_reposition_ports_after_phase2(
+    node: &LNodeRef,
+    graphs_with_non_zero_border_offset: &HashSet<usize>,
+) -> bool {
+    if !should_apply_phase1_port_placement(node) {
+        return false;
+    }
+
+    node.lock().ok().is_some_and(|mut node_guard| {
+        let Some(graph) = node_guard.graph() else {
+            return false;
+        };
+        let graph_key = Arc::as_ptr(&graph) as usize;
+        if !graphs_with_non_zero_border_offset.contains(&graph_key) {
+            return false;
+        }
+
+        let constraints = node_guard
+            .get_property(LayeredOptions::PORT_CONSTRAINTS)
+            .unwrap_or(PortConstraints::Undefined);
+        !constraints.is_pos_fixed() && !constraints.is_ratio_fixed()
+    })
+}
+
+fn graph_key_for_node(node: &LNodeRef) -> Option<usize> {
+    node.lock()
+        .ok()
+        .and_then(|node_guard| node_guard.graph())
+        .map(|graph| Arc::as_ptr(&graph) as usize)
+}
+
+fn node_has_non_zero_border_offset(node: &LNodeRef) -> bool {
+    node.lock().ok().is_some_and(|node_guard| {
+        node_guard.ports().iter().any(|port| {
+            port.lock()
+                .ok()
+                .map(|mut port_guard| {
+                    port_guard
+                        .get_property(CoreOptions::PORT_BORDER_OFFSET)
+                        .unwrap_or(0.0)
+                        .abs()
+                        > f64::EPSILON
+                })
+                .unwrap_or(false)
+        })
+    })
 }
 
 fn should_reapply_phase2_self_loop_port_sizing(node: &LNodeRef) -> bool {
@@ -697,6 +821,92 @@ fn place_ports_on_node(
     }
     (node_size.x - initial_size.x).abs() > f64::EPSILON
         || (node_size.y - initial_size.y).abs() > f64::EPSILON
+}
+
+fn reposition_ports_only_on_node(
+    node: &LNodeRef,
+    graph_port_spacing: f64,
+    graph_ports_surrounding: &ElkMargin,
+) {
+    let (node_type, node_size, port_constraints, inside_self_loops_active) = match node.lock() {
+        Ok(mut node_guard) => (
+            node_guard.node_type(),
+            *node_guard.shape().size_ref(),
+            node_guard
+                .get_property(LayeredOptions::PORT_CONSTRAINTS)
+                .unwrap_or(PortConstraints::Undefined),
+            node_guard
+                .get_property(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE)
+                .unwrap_or(false),
+        ),
+        Err(_) => return,
+    };
+
+    if node_type != NodeType::Normal {
+        return;
+    }
+
+    if std::env::var("ELK_DISABLE_CLOCKWISE_SIDE_ORDER").is_err() {
+        ensure_clockwise_port_order(node, port_constraints);
+    }
+
+    if inside_self_loops_active {
+        place_inside_self_loop_ports(node, node_size.x, node_size.y);
+        update_node_margin(node);
+        return;
+    }
+
+    if port_constraints.is_pos_fixed() {
+        adjust_ports_on_side(node, PortSide::North, node_size.x, node_size.y);
+        adjust_ports_on_side(node, PortSide::South, node_size.x, node_size.y);
+        adjust_ports_on_side(node, PortSide::East, node_size.x, node_size.y);
+        adjust_ports_on_side(node, PortSide::West, node_size.x, node_size.y);
+        update_node_margin(node);
+        return;
+    }
+
+    if port_constraints.is_ratio_fixed() {
+        place_ports_fixed_ratio_on_side(node, PortSide::North, node_size.x, node_size.y);
+        place_ports_fixed_ratio_on_side(node, PortSide::South, node_size.x, node_size.y);
+        place_ports_fixed_ratio_on_side(node, PortSide::East, node_size.x, node_size.y);
+        place_ports_fixed_ratio_on_side(node, PortSide::West, node_size.x, node_size.y);
+        update_node_margin(node);
+        return;
+    }
+
+    place_ports_on_side(
+        node,
+        PortSide::North,
+        node_size.x,
+        node_size.y,
+        graph_port_spacing,
+        graph_ports_surrounding,
+    );
+    place_ports_on_side(
+        node,
+        PortSide::South,
+        node_size.x,
+        node_size.y,
+        graph_port_spacing,
+        graph_ports_surrounding,
+    );
+    place_ports_on_side(
+        node,
+        PortSide::East,
+        node_size.x,
+        node_size.y,
+        graph_port_spacing,
+        graph_ports_surrounding,
+    );
+    place_ports_on_side(
+        node,
+        PortSide::West,
+        node_size.x,
+        node_size.y,
+        graph_port_spacing,
+        graph_ports_surrounding,
+    );
+    update_node_margin(node);
 }
 
 fn apply_inside_north_south_label_post_resize_adjustments(

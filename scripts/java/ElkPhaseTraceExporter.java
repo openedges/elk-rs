@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.eclipse.elk.alg.test.PlainJavaInitialization;
 import org.eclipse.elk.alg.layered.graph.LEdge;
 import org.eclipse.elk.alg.layered.graph.LGraph;
 import org.eclipse.elk.alg.layered.graph.LLabel;
@@ -77,6 +78,8 @@ public class ElkPhaseTraceExporter {
     private static final String DEFAULT_OUTPUT_DIR = "perf/model_parity/java_trace";
 
     public static void main(String[] args) throws IOException {
+        PlainJavaInitialization.initializePlainJavaLayout();
+
         // Register ELK layout providers directly (without Xtext/Guice from PlainJavaInitialization)
         LayoutMetaDataService.getInstance().registerLayoutMetaDataProviders(
                 new CoreOptions(), new LayeredMetaDataProvider());

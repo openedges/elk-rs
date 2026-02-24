@@ -39,7 +39,7 @@
 7. 커밋 (`<scope>: <summary>`)
 8. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
-## 현재 핵심 스냅샷 (2026-02-23)
+## 현재 핵심 스냅샷 (2026-02-24)
 - Full model parity: `matches=1174/1439` (81.6%), `drift=265`, `diffs=5222`, `errors=0`, `timeouts=0`, `java_non_ok=9`
   - full parity 수치는 2026-02-22 기준(이번 업데이트는 phase-gate 재검증 중심)
 - 남은 drift 265개는 기존 phase 분석 기준 crossing min random state divergence에서의 cascading 영향이 중심
@@ -47,7 +47,8 @@
   - 비교불가 0건 (`comparable=1439`)
   - `step0..step9` error=0 (step 7까지 전부 통과 + step8/9도 0)
   - 초기 frontier: `step10=6`, `step11=3`, `step12=9`, `step13=7`, `step14=1`
-  - step10 6모델 subset 추적 최신값: `matches=5/6`, `drift=1`, `total_diffs=43` (`tickets/layered/701_portLabels.elkt`)
+  - step10 6모델 subset 추적 최신값: `matches=5/6`, `drift=1`, `total_diffs=8` (`tickets/layered/701_portLabels.elkt`)
+    - `701_portLabels` 단건은 `diff=8`, phase trace first divergence는 여전히 `step10(InLayerConstraintProcessor)`의 `nodes[1]/height` 1건(`1508.0 vs 1509.0`)
   - 대형 hotspot: `step18=309`, `step17=308`, `step16=93`, `step15=78`, `step20=41`
 - 포팅/테스트/빌드/성능 자동화 파이프라인은 운영 상태
 - `cargo build --workspace`: warning 0건, `cargo clippy --workspace --all-targets`: warning 0건

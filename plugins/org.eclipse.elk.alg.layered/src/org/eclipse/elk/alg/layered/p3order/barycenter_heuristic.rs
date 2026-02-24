@@ -431,14 +431,15 @@ impl BarycenterHeuristic {
             );
         }
 
-        if std::env::var_os("ELK_TRACE_BARYCENTER_LAYER").is_some()
-            && layer.iter().any(|node| {
+        let trace_layer_pattern = std::env::var("ELK_TRACE_BARYCENTER_LAYER_PATTERN").ok();
+        if trace_layer_pattern.as_ref().is_some_and(|pattern| {
+            layer.iter().any(|node| {
                 node.lock()
                     .ok()
-                    .map(|mut node_guard| node_guard.to_string().contains("pumpOutletPressure"))
+                    .map(|mut node_guard| node_guard.to_string().contains(pattern))
                     .unwrap_or(false)
             })
-        {
+        }) {
             eprintln!(
                 "crossmin: barycenter layer_state pre_ordered={} randomize={} forward={}",
                 pre_ordered, randomize, forward

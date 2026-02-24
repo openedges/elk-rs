@@ -1883,7 +1883,14 @@ impl NodeLabelAndSizeCalculator {
             };
 
             if include_port_labels {
-                let labels = port.get_labels();
+                let labels: Vec<_> = port
+                    .get_labels()
+                    .into_iter()
+                    .filter(|label| {
+                        let size = label.get_size();
+                        size.x > 0.0 || size.y > 0.0
+                    })
+                    .collect();
                 if fixed_port_labels {
                     let mut min_y = 0.0_f64;
                     let mut max_y = 0.0_f64;

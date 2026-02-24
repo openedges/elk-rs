@@ -181,6 +181,27 @@ echo "=== Collecting classpath ==="
 
 CLASSPATH=""
 
+select_latest_jar() {
+  base_dir=$1
+  pattern=$2
+  find "$base_dir" -name "$pattern" 2>/dev/null \
+    | grep -v sources \
+    | grep -v javadoc \
+    | sort -V \
+    | tail -1
+}
+
+# Prepend preferred dependency versions first to avoid mixed-version classpath conflicts.
+PREFERRED_GUAVA_JAR=$(select_latest_jar "${HOME}/.m2/repository/com/google/guava" "guava-*.jar")
+PREFERRED_GUICE_JAR=$(select_latest_jar "${HOME}/.m2/repository/com/google/inject" "guice-*.jar")
+PREFERRED_JAKARTA_INJECT_JAR=$(select_latest_jar "${HOME}/.m2/repository/jakarta/inject" "jakarta.inject-api-*.jar")
+
+for jar in "$PREFERRED_GUAVA_JAR" "$PREFERRED_GUICE_JAR" "$PREFERRED_JAKARTA_INJECT_JAR"; do
+  if [ -n "$jar" ] && [ -f "$jar" ]; then
+    CLASSPATH="${CLASSPATH:+$CLASSPATH:}$jar"
+  fi
+done
+
 # Add all target/classes directories from plugin modules
 for d in "$ELK_ROOT"/plugins/*/target/classes; do
   if [ -d "$d" ]; then
@@ -201,9 +222,9 @@ for jar in $(find "$ELK_ROOT" -name "*.jar" -path "*/target/dependency/*" 2>/dev
 done
 
 # Add Guava JARs from Maven local repo
-for jar in $(find "${HOME}/.m2/repository/com/google/guava" -name "guava-*.jar" 2>/dev/null | grep -v sources | grep -v javadoc | head -5); do
-  CLASSPATH="$CLASSPATH:$jar"
-done
+if [ -n "$PREFERRED_GUAVA_JAR" ] && [ -f "$PREFERRED_GUAVA_JAR" ]; then
+  CLASSPATH="$CLASSPATH:$PREFERRED_GUAVA_JAR"
+fi
 
 # Add Gson JARs from Maven local repo
 for jar in $(find "${HOME}/.m2/repository/com/google/code/gson" -name "gson-*.jar" 2>/dev/null | grep -v sources | grep -v javadoc | head -2); do
@@ -226,9 +247,13 @@ for jar in $(find "${HOME}/.m2/repository/junit" -name "junit-*.jar" 2>/dev/null
 done
 
 # Add Google Inject (Guice) - needed by PlainJavaInitialization
-for jar in $(find "${HOME}/.m2/repository/com/google/inject" -name "guice-*.jar" 2>/dev/null | grep -v sources | grep -v javadoc | head -3); do
-  CLASSPATH="$CLASSPATH:$jar"
-done
+if [ -n "$PREFERRED_GUICE_JAR" ] && [ -f "$PREFERRED_GUICE_JAR" ]; then
+  CLASSPATH="$CLASSPATH:$PREFERRED_GUICE_JAR"
+fi
+# Add Jakarta Inject API (Guice 7+ runtime dependency)
+if [ -n "$PREFERRED_JAKARTA_INJECT_JAR" ] && [ -f "$PREFERRED_JAKARTA_INJECT_JAR" ]; then
+  CLASSPATH="$CLASSPATH:$PREFERRED_JAKARTA_INJECT_JAR"
+fi
 for jar in $(find "${HOME}/.m2/repository/javax/inject" -name "javax.inject-*.jar" 2>/dev/null | grep -v sources | grep -v javadoc | head -1); do
   CLASSPATH="$CLASSPATH:$jar"
 done

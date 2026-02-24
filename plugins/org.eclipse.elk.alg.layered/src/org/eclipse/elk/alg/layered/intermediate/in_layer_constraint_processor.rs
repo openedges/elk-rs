@@ -38,6 +38,17 @@ impl ILayoutProcessor<LGraph> for InLayerConstraintProcessor {
                     })
                     .unwrap_or(InLayerConstraint::None);
 
+                if std::env::var_os("ELK_TRACE_ILC").is_some() {
+                    let node_name = node
+                        .lock()
+                        .ok()
+                        .map(|mut node_guard| node_guard.to_string())
+                        .unwrap_or_else(|| "<poisoned-node>".to_owned());
+                    eprintln!(
+                        "rust-ilc: layer_node_index={i} node={node_name} constraint={constraint:?}"
+                    );
+                }
+
                 if top_insertion_index.is_none() {
                     if constraint != InLayerConstraint::Top {
                         top_insertion_index = Some(i);
