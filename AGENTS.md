@@ -40,29 +40,27 @@
 8. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
 ## 현재 핵심 스냅샷 (2026-02-25)
-- Full model parity: `matches=1174/1439` (81.6%), `drift=265`, `diffs=5222`, `errors=0`, `timeouts=0`, `java_non_ok=9`
-  - full parity 수치는 2026-02-22 기준(이번 업데이트는 phase-gate 재검증 중심)
-- 남은 drift 265개는 기존 phase 분석 기준 crossing min random state divergence에서의 cascading 영향이 중심
+- Full model parity: `matches=1426/1439` (99.1%), `drift=13`, `diffs=170`, `errors=0`, `timeouts=0`, `java_non_ok=9`
+  - 2026-02-25 재실행 기준(기존 Java manifest 절대경로 stale 이슈는 로컬 경로 manifest로 보정 후 집계)
+- 남은 drift 13개는 ptolemy self-loop/section 계열과 일부 tickets/test 리소스에 집중
 - Phase-gate(recursive+strict) 최신 기준: `base=1439`, `precheck_error=0`, `step0_error=0`
   - 비교불가 0건 (`comparable=1439`)
-  - `all_match_models=1437`, `diverged_models=2`
-  - `step0..step31` error=0
-  - 초기 frontier(최초 실패 step): `step32=1`, `step207=1`
-  - 대형 hotspot(step gate error 상위): `step32=1`, `step207=1`
-- Tickets parity 최신(2026-02-24 재실행): `matches=108/109`, `drift=1`, `total_diffs=20`, `errors=0`, `timeouts=0`, `java_non_ok=1(588)`
-  - `tickets/layered/368_selfLoopLabelsIOOBE.elkt`, `tickets/layered/701_portLabels.elkt`는 `match`
-  - 잔여 `tickets/layered/213_componentsCompaction.elkt` first diff는 `children[0]/children[0]/x: 12.5 != 12.0` (기존 `12.5 != 24.0` 대비 개선)
-  - `MODEL_PARITY_MAX_DIFFS_PER_MODEL=20` 기준 top prefix는 `children[*]/children[*]/y` 85%, `children[*]/children[*]/x` 15%
-  - 단건 고diff(`max_diffs=5000`) 기준 `total_diffs=86` (`section=55`, `coordinate=30`, `other=1`)로 직전 90 대비 감소. 잔여의 대부분은 Java baseline 쪽 `NaN` y/height 좌표와의 비교에서 발생
+  - `all_match_models=1439`, `diverged_models=0`
+  - `step0..step1521` error=0
+  - 초기 frontier(최초 실패 step): 없음
+  - 대형 hotspot(step gate error 상위): 없음
+- Tickets parity 최신(2026-02-25, full parity 집계 기준): `matches=107/109`, `drift=2`, `errors=0`, `timeouts=0`, `java_non_ok=1(588)`
+  - 잔여 drift: `tickets/layered/213_componentsCompaction.elkt` (`children[0]/children[0]/x: 12.5 != 12.0`)
+  - 잔여 drift: `tickets/layered/368_selfLoopLabelsIOOBE.elkt` (`children[0]/x: 12.0 != 22.0`)
 - 포팅/테스트/빌드/성능 자동화 파이프라인은 운영 상태
-- `cargo build --workspace`: warning 0건, `cargo clippy --workspace --all-targets`: warning 0건
+- `cargo build --workspace`: warning 0건, `cargo clippy --workspace --all-targets`: warning 0건, `cargo test --workspace`: failure 0건
 
 ## Parity 100% 전략
 
-### Drift 분포 (265개 모델)
-- diff 분류: coordinate(80.0%), section(15.6%), structure(3.7%), ordering(0.3%), label(0.2%), other(0.1%)
-- 265개의 drift는 기존 분석 기준 crossing min random state divergence cascading이 중심
-- crossing min 구조적 컴포넌트는 전수 검증 완료 (Java와 동일)
+### Drift 분포 (13개 모델)
+- diff 분류(총 170): section(75.9%), coordinate(21.8%), other(1.8%), label(0.6%)
+- drift 13개 중 8개는 `realworld/ptolemy/*PowerPlant*` 계열, 3개는 tests 리소스, 2개는 tickets(213/368)
+- phase-root 집계 기준: `p5_edge_routing` 10개 모델(총 139 diff), `p4_node_placement` 3개 모델(총 31 diff)
 
 ### 전략: Bottom-Up Phase-by-Phase Verification
 - Phase 1: Java phase trace 도구 — **완료**
@@ -70,17 +68,17 @@
 - Phase 3: Phase diff 비교 도구 — **완료**
 - Phase 4: trace 실행 및 divergence 분석 — **운영 중**
   - 최신 기준은 recursive+strict gate 산출물(`perf/model_parity/phase_gate_latest.md`)을 단일 기준으로 사용
-  - 최신 step range(루트 trace 기준): `0..31`
+  - 최신 step range(루트 trace 기준): `0..42` (recursive trace 누적 최대 step index는 `1521`)
   - Rust trace 실행 시 timeout 모델이 중간에 나오면 후속 모델 trace가 누락될 수 있어, known timeout 모델은 manifest 끝으로 재배치해 실행
-  - 우선순위는 `first_failure_by_step` 오름차순(가장 작은 step error부터 0화)
+  - 우선순위는 `first_failure_by_step` 오름차순(현재 gate는 `first_failure_by_step` 비어 있음)
 - Phase 5: 식별된 10개 모델의 프로세서별 버그 수정 — **완료** (추가 수정 가능한 항목 없음)
   - 10개 중 실제 drift는 4개만: LifeCGAVR(PortSideProcessor), Life(PortSideProcessor), next_to_port(LayerSize), labels(BKNodePlacer)
   - labels.elkt: Java HashMap keySet() 비결정성 (PortSide identity hashCode) — **수정 불가**
   - `<=` 비교연산자 변경 시도 → 1164→1103 퇴행(-61), 롤백. `opposing_tie_break_rank` 유지가 최적
   - next_to_port_if_possible_inside: 내부 레이아웃 그래프 크기 차이 (step_000부터 diverge), stale Java ref 가능 — **수정 불요**
   - Life/LifeCGAVR: PortSideProcessor 기능적 동일 확인, 자식 sub-graph crossing-min cascade — **수정 불요**
-- Phase 6: Crossing min random state divergence 해소 (~257 모델)
-- Phase 7: Self-loop, N/S port spline 등 잔여 수정
+- Phase 6: p5 edge routing section drift(PTIDES/self-loop 리소스) 정리
+- Phase 7: p4 node placement 좌표 drift(`next_to_port_if_possible_inside`, `multilabels_compound`, `213_componentsCompaction`) 정리
 
 ## 기본 실행 명령
 - 전체 정적 점검: `cargo clippy --workspace --all-targets`

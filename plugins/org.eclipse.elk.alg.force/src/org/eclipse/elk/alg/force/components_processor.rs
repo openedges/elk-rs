@@ -71,7 +71,7 @@ impl ComponentsProcessor {
 
             for node in graph.nodes() {
                 if let Ok(mut node_guard) = node.lock() {
-                    priority += node_guard.get_property(ForceOptions::PRIORITY).unwrap_or(0);
+                    priority += node_guard.get_property(ForceOptions::PRIORITY).unwrap_or(1);
                     let pos = node_guard.position_ref();
                     let size = node_guard.size_ref();
                     min_x = min_x.min(pos.x - size.x / 2.0);

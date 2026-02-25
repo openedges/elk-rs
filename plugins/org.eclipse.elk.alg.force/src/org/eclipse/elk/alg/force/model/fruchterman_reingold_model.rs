@@ -63,7 +63,7 @@ impl ForceModel for FruchtermanReingoldModel {
         let area = total_width * total_height;
         let spacing = graph
             .get_property(ForceOptions::SPACING_NODE_NODE)
-            .unwrap_or(20.0);
+            .unwrap_or(80.0);
         let c = spacing * SPACING_FACTOR;
         if n > 0.0 {
             self.k = (area / (2.0 * n)).sqrt() * c;
@@ -104,7 +104,7 @@ impl ForceModel for FruchtermanReingoldModel {
         let priority = forcer
             .with_particle_mut(|p| p.get_property(ForceOptions::PRIORITY))
             .flatten()
-            .unwrap_or(0);
+            .unwrap_or(1);
         let mut force = Self::repulsive(d, self.k) * (priority as f64);
 
         let connection = graph.get_connection(forcer, forcee);

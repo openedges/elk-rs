@@ -47,7 +47,7 @@ impl ForceModel for EadesModel {
         self.max_iterations = graph.get_property(ForceOptions::ITERATIONS).unwrap_or(300);
         self.spring_length = graph
             .get_property(ForceOptions::SPACING_NODE_NODE)
-            .unwrap_or(20.0);
+            .unwrap_or(80.0);
         self.repulsion_factor = graph.get_property(ForceOptions::REPULSION).unwrap_or(5.0);
     }
 
@@ -87,7 +87,7 @@ impl ForceModel for EadesModel {
             let priority = forcer
                 .with_particle_mut(|p| p.get_property(ForceOptions::PRIORITY))
                 .flatten()
-                .unwrap_or(0);
+                .unwrap_or(1);
             Self::repulsive(d, self.repulsion_factor) * (priority as f64)
         };
 

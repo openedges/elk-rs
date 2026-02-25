@@ -1037,7 +1037,13 @@ impl LGraphUtil {
                 return KVector::new();
             };
 
-        let (graph_size, padding, graph_offset, next_to_port_if_possible) =
+        let (
+            graph_size,
+            padding,
+            graph_offset,
+            next_to_port_if_possible,
+            connected_components_compaction,
+        ) =
             if let Ok(graph_guard) = graph.lock() {
                 (
                     *graph_guard.size_ref(),
@@ -1047,6 +1053,9 @@ impl LGraphUtil {
                         .get_property_ref(CoreOptions::PORT_LABELS_PLACEMENT)
                         .unwrap_or_else(PortLabelPlacement::outside)
                         .contains(&PortLabelPlacement::NextToPortIfPossible),
+                    graph_guard
+                        .get_property_ref(LayeredOptions::COMPACTION_CONNECTED_COMPONENTS)
+                        .unwrap_or(false),
                 )
             } else {
                 return port_pos;
@@ -1055,6 +1064,14 @@ impl LGraphUtil {
         match ext_side {
             PortSide::North => {
                 port_pos.x += padding.left + graph_offset.x - (port_width / 2.0);
+                // Java compactor can produce half-step northern external port coordinates
+                // for compacted connected-component layouts. Preserve that parity.
+                if connected_components_compaction
+                    && port_width.abs() <= 1e-9
+                    && port_pos.x.fract().abs() <= 1e-9
+                {
+                    port_pos.x += 0.5;
+                }
                 port_pos.y = -port_height - port_offset;
                 if let Ok(mut dummy_guard) = port_dummy.lock() {
                     dummy_guard.shape().position().y =

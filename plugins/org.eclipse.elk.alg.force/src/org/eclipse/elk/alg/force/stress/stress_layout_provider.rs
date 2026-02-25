@@ -56,8 +56,8 @@ impl IGraphLayoutEngine for StressLayoutProvider {
 
         if !interactive {
             // Java parity: Stress delegates to Force for initial coordinates.
-            // Force's algorithm-level default padding is 50, which may not be
-            // materialized on a stress-configured node.
+            // Force-specific defaults (for example padding=50, spacing=80) may
+            // not be materialized on a stress-configured node.
             {
                 let mut root = layout_graph.borrow_mut();
                 let props = root
@@ -70,6 +70,9 @@ impl IGraphLayoutEngine for StressLayoutProvider {
                         ForceOptions::PADDING,
                         Some(ElkPadding::with_any(50.0)),
                     );
+                }
+                if !props.has_property(ForceOptions::SPACING_NODE_NODE) {
+                    props.set_property(ForceOptions::SPACING_NODE_NODE, Some(80.0));
                 }
             }
             let mut force = ForceLayoutProvider::new();

@@ -181,7 +181,7 @@ impl FGraph {
                         .lock()
                         .ok()
                         .and_then(|mut edge_guard| edge_guard.get_property(ForceOptions::PRIORITY))
-                        .unwrap_or(0),
+                        .unwrap_or(1),
                     _ => 0,
                 }
             }
@@ -204,7 +204,7 @@ impl FGraph {
                 let target_id = edge_guard
                     .target()
                     .and_then(|node| node.lock().ok().map(|n| n.id()));
-                let priority = edge_guard.get_property(ForceOptions::PRIORITY).unwrap_or(0);
+                let priority = edge_guard.get_property(ForceOptions::PRIORITY).unwrap_or(1);
                 match (source_id, target_id) {
                     (Some(source_id), Some(target_id)) => (source_id, target_id, priority),
                     _ => continue,
