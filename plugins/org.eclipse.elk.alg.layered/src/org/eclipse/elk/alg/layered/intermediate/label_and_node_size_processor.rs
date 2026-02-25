@@ -846,7 +846,9 @@ fn reposition_ports_only_on_node(
         return;
     }
 
-    if std::env::var("ELK_DISABLE_CLOCKWISE_SIDE_ORDER").is_err() {
+    if std::env::var("ELK_DISABLE_CLOCKWISE_SIDE_ORDER").is_err()
+        && !should_skip_clockwise_reorder_for_phase2f(node)
+    {
         ensure_clockwise_port_order(node, port_constraints);
     }
 
@@ -1754,6 +1756,27 @@ fn place_ports_on_side(
             current_pos += margin_start + axis_size + margin_end + space_between_ports;
         }
     }
+}
+
+fn should_skip_clockwise_reorder_for_phase2f(node: &LNodeRef) -> bool {
+    if !node_has_non_zero_border_offset(node) {
+        return false;
+    }
+
+    let (mut has_south, mut has_west) = (false, false);
+    if let Ok(node_guard) = node.lock() {
+        for port in node_guard.ports() {
+            if let Ok(port_guard) = port.lock() {
+                match port_guard.side() {
+                    PortSide::South => has_south = true,
+                    PortSide::West => has_west = true,
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    has_south && has_west
 }
 
 fn ensure_clockwise_port_order(node: &LNodeRef, port_constraints: PortConstraints) {

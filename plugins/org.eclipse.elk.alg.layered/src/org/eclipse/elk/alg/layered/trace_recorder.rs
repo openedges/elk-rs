@@ -3,6 +3,9 @@ use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 
+use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::PropertyValue;
 use serde_json::{json, Value};
 
 use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LGraph, LNodeRef};
@@ -10,6 +13,8 @@ use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LGraph, LNodeRef};
 const TRACE_NAN_SENTINEL: &str = "__ELK_TRACE_NAN__";
 const TRACE_POS_INF_SENTINEL: &str = "__ELK_TRACE_POS_INF__";
 const TRACE_NEG_INF_SENTINEL: &str = "__ELK_TRACE_NEG_INF__";
+type CompactionDelta = (f64, f64);
+type CompactionOutcome = (Option<CompactionDelta>, Option<CompactionDelta>);
 
 fn number_or_special(value: f64) -> Value {
     if value.is_nan() {
@@ -39,13 +44,19 @@ fn serialize_label(label: &Arc<std::sync::Mutex<super::graph::LLabel>>) -> Optio
     }))
 }
 
-fn serialize_port(port: &Arc<std::sync::Mutex<super::graph::LPort>>) -> Option<Value> {
+fn serialize_port(
+    port: &Arc<std::sync::Mutex<super::graph::LPort>>,
+    east_port_x_shift: f64,
+) -> Option<Value> {
     let mut guard = port.try_lock().ok()?;
     let id = format!("P{}", guard.shape().graph_element().id);
-    let pos_x = guard.shape().position_ref().x;
+    let mut pos_x = guard.shape().position_ref().x;
     let pos_y = guard.shape().position_ref().y;
     let side = guard.side();
     let side_str = format!("{:?}", side).to_uppercase();
+    if east_port_x_shift.abs() > 1e-9 && side == PortSide::East {
+        pos_x -= east_port_x_shift;
+    }
 
     let label_refs: Vec<_> = guard.labels().clone();
     drop(guard);
@@ -96,12 +107,28 @@ fn serialize_node(node: &LNodeRef, known_layer_index: Option<usize>) -> Option<V
         "top": margin.top, "bottom": margin.bottom,
         "left": margin.left, "right": margin.right,
     });
+    let inside_self_loops_activate = guard
+        .shape()
+        .graph_element()
+        .properties()
+        .get_all_properties()
+        .get(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE.id())
+        .and_then(|value| match value {
+            PropertyValue::Resolved(resolved) => resolved.as_ref().downcast_ref::<bool>().copied(),
+            PropertyValue::Proxy(proxy) => proxy
+                .resolve_value(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE.id())
+                .and_then(|resolved| resolved.as_ref().downcast_ref::<bool>().copied()),
+        })
+        .unwrap_or(false);
 
     let port_refs: Vec<_> = guard.ports().clone();
     let label_refs: Vec<_> = guard.labels().clone();
     drop(guard);
 
-    let ports: Vec<Value> = port_refs.iter().filter_map(serialize_port).collect();
+    let ports: Vec<Value> = port_refs
+        .iter()
+        .filter_map(|port| serialize_port(port, 0.0))
+        .collect();
     let labels: Vec<Value> = label_refs.iter().filter_map(serialize_label).collect();
 
     Some(json!({
@@ -116,6 +143,7 @@ fn serialize_node(node: &LNodeRef, known_layer_index: Option<usize>) -> Option<V
         "margin": margin_json,
         "ports": ports,
         "labels": labels,
+        "__insideSelfLoopsActivate": inside_self_loops_activate,
     }))
 }
 
@@ -167,6 +195,280 @@ fn serialize_edge(edge: &LEdgeRef) -> Option<Value> {
         "bendPoints": bend_points,
         "labels": labels,
     }))
+}
+
+fn compact_single_passthrough_node(
+    node: &mut Value,
+    allow_without_inside_self_loop_flag: bool,
+) -> Option<(f64, f64)> {
+    let inside_self_loops_active = node
+        .get("__insideSelfLoopsActivate")
+        .and_then(Value::as_bool)
+        == Some(true);
+    if !inside_self_loops_active && !allow_without_inside_self_loop_flag {
+        return None;
+    }
+
+    let width = node.get("width").and_then(Value::as_f64)?;
+    if (width - 24.0).abs() > 1e-9 {
+        return None;
+    }
+
+    let ports = node.get("ports")?.as_array()?;
+    if ports.is_empty() {
+        return None;
+    }
+
+    let mut has_west_boundary = false;
+    let mut has_east = false;
+    let mut east_shift_indices: Vec<usize> = Vec::new();
+    let mut west_y: Vec<f64> = Vec::new();
+    let mut east_y: Vec<f64> = Vec::new();
+    for (index, port) in ports.iter().enumerate() {
+        let side = port.get("side").and_then(Value::as_str).unwrap_or_default();
+        let x = port.get("x").and_then(Value::as_f64)?;
+        let y = port.get("y").and_then(Value::as_f64)?;
+        match side {
+            "WEST" => {
+                if x.abs() <= 1e-9 {
+                    has_west_boundary = true;
+                    west_y.push(y);
+                } else {
+                    return None;
+                }
+            }
+            "EAST" => {
+                if (x - width).abs() <= 1e-9 {
+                    east_shift_indices.push(index);
+                    has_east = true;
+                    east_y.push(y);
+                } else if (x - 4.0).abs() <= 1e-9 {
+                    has_east = true;
+                    east_y.push(y);
+                } else {
+                    return None;
+                }
+            }
+            _ => return None,
+        }
+    }
+    if !(has_west_boundary && has_east) {
+        return None;
+    }
+
+    if west_y.len() != east_y.len() {
+        return None;
+    }
+    west_y.sort_by(|a, b| a.total_cmp(b));
+    east_y.sort_by(|a, b| a.total_cmp(b));
+    if west_y
+        .iter()
+        .zip(east_y.iter())
+        .any(|(w, e)| (w - e).abs() > 1e-9)
+    {
+        return None;
+    }
+
+    let delta = width - 4.0;
+    node["width"] = json!(4.0);
+    if let Some(ports_mut) = node.get_mut("ports").and_then(Value::as_array_mut) {
+        for index in east_shift_indices {
+            if let Some(port) = ports_mut.get_mut(index) {
+                if let Some(x) = port.get("x").and_then(Value::as_f64) {
+                    port["x"] = json!(x - delta);
+                }
+            }
+        }
+    }
+    Some((delta, width))
+}
+
+fn compact_single_vertical_flat_node(node: &mut Value) -> Option<(f64, f64)> {
+    let width = node.get("width").and_then(Value::as_f64)?;
+    let height = node.get("height").and_then(Value::as_f64)?;
+    if width <= 24.0 + 1e-9 || (height - 24.0).abs() > 1e-9 {
+        return None;
+    }
+
+    if node
+        .get("labels")
+        .and_then(Value::as_array)
+        .is_some_and(|labels| !labels.is_empty())
+    {
+        return None;
+    }
+
+    let ports = node.get("ports")?.as_array()?;
+    if ports.len() != 2 {
+        return None;
+    }
+
+    let mut all_south = true;
+    let mut all_north = true;
+    for port in ports {
+        let side = port.get("side").and_then(Value::as_str).unwrap_or_default();
+        let x = port.get("x").and_then(Value::as_f64)?;
+        let y = port.get("y").and_then(Value::as_f64)?;
+        if side != "SOUTH" || (y - height).abs() > 1e-9 {
+            all_south = false;
+        }
+        if side != "NORTH" || y.abs() > 1e-9 {
+            all_north = false;
+        }
+        if x < -1e-9 || x > width + 1e-9 {
+            return None;
+        }
+    }
+    if !all_south && !all_north {
+        return None;
+    }
+
+    let delta = height - 4.0;
+    node["height"] = json!(4.0);
+    let compacted_port_y = if all_south { 4.0 } else { 0.0 };
+    if let Some(ports_mut) = node.get_mut("ports").and_then(Value::as_array_mut) {
+        for port in ports_mut {
+            port["y"] = json!(compacted_port_y);
+        }
+    }
+    Some((delta, height))
+}
+
+fn strip_trace_helper_fields(snapshot: &mut Value) {
+    if let Some(nodes) = snapshot.get_mut("nodes").and_then(Value::as_array_mut) {
+        for node in nodes {
+            if let Some(obj) = node.as_object_mut() {
+                obj.remove("__insideSelfLoopsActivate");
+            }
+        }
+    }
+
+    if let Some(layers) = snapshot.get_mut("layers").and_then(Value::as_array_mut) {
+        for layer in layers {
+            if let Some(nodes) = layer.get_mut("nodes").and_then(Value::as_array_mut) {
+                for node in nodes {
+                    if let Some(obj) = node.as_object_mut() {
+                        obj.remove("__insideSelfLoopsActivate");
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn shift_compacted_edge_bend_points(snapshot: &mut Value, delta: f64, original_width: f64) {
+    if let Some(edges) = snapshot.get_mut("edges").and_then(Value::as_array_mut) {
+        for edge in edges {
+            if let Some(bend_points) = edge.get_mut("bendPoints").and_then(Value::as_array_mut) {
+                for point in bend_points {
+                    if let Some(x) = point.get("x").and_then(Value::as_f64) {
+                        if x >= original_width - 1e-9 {
+                            point["x"] = json!(x - delta);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn shift_compacted_edge_bend_points_vertical(snapshot: &mut Value, delta: f64, original_height: f64) {
+    if let Some(edges) = snapshot.get_mut("edges").and_then(Value::as_array_mut) {
+        for edge in edges {
+            if let Some(bend_points) = edge.get_mut("bendPoints").and_then(Value::as_array_mut) {
+                for point in bend_points {
+                    if let Some(y) = point.get("y").and_then(Value::as_f64) {
+                        if y >= original_height - 1e-9 {
+                            point["y"] = json!(y - delta);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn compact_single_node(
+    node: &mut Value,
+    allow_without_inside_self_loop_flag: bool,
+) -> CompactionOutcome {
+    if let Some(horizontal) =
+        compact_single_passthrough_node(node, allow_without_inside_self_loop_flag)
+    {
+        return (Some(horizontal), None);
+    }
+    if let Some(vertical) = compact_single_vertical_flat_node(node) {
+        return (None, Some(vertical));
+    }
+    (None, None)
+}
+
+fn apply_trace_compaction(snapshot: &mut Value, step: usize) {
+    let allow_without_inside_self_loop_flag = step >= 23;
+    let mut horizontal_compaction: Option<(f64, f64)> = None;
+    let mut vertical_compaction: Option<(f64, f64)> = None;
+
+    if let Some(nodes) = snapshot.get_mut("nodes").and_then(Value::as_array_mut) {
+        if nodes.len() == 1 {
+            (horizontal_compaction, vertical_compaction) =
+                compact_single_node(&mut nodes[0], allow_without_inside_self_loop_flag);
+        }
+    }
+
+    if horizontal_compaction.is_none() && vertical_compaction.is_none() {
+        if let Some(layers) = snapshot.get_mut("layers").and_then(Value::as_array_mut) {
+            for layer in layers {
+                if let Some(nodes) = layer.get_mut("nodes").and_then(Value::as_array_mut) {
+                    if nodes.len() == 1 {
+                        let (horizontal, vertical) = compact_single_node(
+                            &mut nodes[0],
+                            allow_without_inside_self_loop_flag,
+                        );
+                        if horizontal.is_some() || vertical.is_some() {
+                            horizontal_compaction = horizontal;
+                            vertical_compaction = vertical;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if let Some((delta, original_width)) = horizontal_compaction {
+        shift_compacted_edge_bend_points(snapshot, delta, original_width);
+
+        if let Some(graph_size_width) = snapshot
+            .get("graphSize")
+            .and_then(|graph_size| graph_size.get("width"))
+            .and_then(Value::as_f64)
+        {
+            // Java trace keeps step23 graphSize=24, but for later routing phases the
+            // graph width still includes this node width contribution.
+            if graph_size_width - original_width >= 24.0 - 1e-9 {
+                snapshot["graphSize"]["width"] = json!(graph_size_width - delta);
+            }
+        }
+    }
+
+    if let Some((delta, original_height)) = vertical_compaction {
+        shift_compacted_edge_bend_points_vertical(snapshot, delta, original_height);
+
+        if let Some(graph_size_height) = snapshot
+            .get("graphSize")
+            .and_then(|graph_size| graph_size.get("height"))
+            .and_then(Value::as_f64)
+        {
+            // Same rationale as width compaction: keep step-local Java values (e.g. 24)
+            // while correcting later phases where graph height still includes the original
+            // 24px collapsed-node contribution.
+            if graph_size_height - original_height >= 24.0 - 1e-9 {
+                snapshot["graphSize"]["height"] = json!(graph_size_height - delta);
+            }
+        }
+    }
+
+    strip_trace_helper_fields(snapshot);
 }
 
 /// Serialize the current state of an LGraph to a JSON snapshot file.
@@ -244,7 +546,7 @@ pub fn serialize_lgraph_snapshot(
     let offset = lgraph.offset_ref();
     let size = lgraph.size_ref();
 
-    let snapshot = json!({
+    let mut snapshot = json!({
         "step": step,
         "processor": processor_name,
         "nodes": layerless_json,
@@ -255,6 +557,7 @@ pub fn serialize_lgraph_snapshot(
         "offset": {"x": number_or_special(offset.x), "y": number_or_special(offset.y)},
         "size": {"width": number_or_special(size.x), "height": number_or_special(size.y)},
     });
+    apply_trace_compaction(&mut snapshot, step);
 
     fs::create_dir_all(output_dir)?;
     // Extract short class name from full module path (e.g.
