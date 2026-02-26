@@ -1,0 +1,21 @@
+diff --git a/plugins/org.eclipse.elk.alg.layered/src/org/eclipse/elk/alg/layered/intermediate/loops/SelfHyperLoop.java b/plugins/org.eclipse.elk.alg.layered/src/org/eclipse/elk/alg/layered/intermediate/loops/SelfHyperLoop.java
+index e94b9520..abc6c20c 100644
+--- a/plugins/org.eclipse.elk.alg.layered/src/org/eclipse/elk/alg/layered/intermediate/loops/SelfHyperLoop.java
++++ b/plugins/org.eclipse.elk.alg.layered/src/org/eclipse/elk/alg/layered/intermediate/loops/SelfHyperLoop.java
+@@ -24,6 +24,7 @@ import org.eclipse.elk.alg.layered.intermediate.loops.routing.RoutingDirector;
+ import org.eclipse.elk.core.options.PortSide;
+ 
+ import com.google.common.collect.ArrayListMultimap;
++import com.google.common.collect.MultimapBuilder;
+ import com.google.common.collect.ListMultimap;
+ import com.google.common.collect.Multimap;
+ 
+@@ -86,7 +87,7 @@ public class SelfHyperLoop {
+         assert slPortsBySide == null;
+         
+         // Remember ports for each side
+-        slPortsBySide = ArrayListMultimap.create(PortSide.values().length, slPorts.size());
++        slPortsBySide = MultimapBuilder.enumKeys(PortSide.class).arrayListValues().build();
+         for (SelfLoopPort slPort : slPorts) {
+             PortSide portSide = slPort.getLPort().getSide();
+             assert portSide != PortSide.UNDEFINED;

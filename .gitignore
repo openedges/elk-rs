@@ -16,22 +16,41 @@
 /perf/layered_phase_wiring/*.tsv
 
 # Model parity outputs
-/perf/model_parity_full/rust/
-/perf/model_parity_full/java/
-/perf/model_parity_full/*.tsv
-/perf/model_parity_full/*.txt
-/perf/model_parity_full/report.md
-/perf/model_parity_full/**/*.json
+#
+# KEEP (compact summaries, tracked):
+#   perf/model_parity/report.md
+#   perf/model_parity/diff_details.tsv
+#   perf/model_parity/rust_manifest.tsv
+#   perf/model_parity/java/java_manifest.tsv
+#   perf/model_parity/phase_gate_latest.md
+#
+# TEMP (regenerated on each parity run):
+
+# Heavy JSON payloads (java input/layout, rust layout)
+/perf/model_parity/java/input/
+/perf/model_parity/java/layout/
 /perf/model_parity/rust/
-/perf/model_parity/java/*
-!/perf/model_parity/java/
-!/perf/model_parity/java/java_manifest.tsv
-/perf/model_parity/**/*.json
+
+# Progress log, phase gate snapshots, and diagnostic outputs
+/perf/model_parity/rust_runner_progress.tsv
+/perf/model_parity/phase_gate_*.json
+/perf/model_parity/drift_summary*.txt
+/perf/model_parity/ordering_diff_*.tsv
+/perf/model_parity/realworld_*.tsv
+/perf/model_parity/realworld_*.md
+/perf/model_parity/rust_manifest_realworld_*.tsv
+
+# model_parity_full and other variant dirs — all temp
+/perf/model_parity_full/
+/perf/model_parity_*/java/input/
+/perf/model_parity_*/java/layout/
 /perf/model_parity_*/rust/
-/perf/model_parity_*/java/*
+/perf/model_parity_*/rust_runner_progress.tsv
+/perf/model_parity_*/**/*.json
+# Preserve java_manifest.tsv in variant dirs
 !/perf/model_parity_*/java/
 !/perf/model_parity_*/java/java_manifest.tsv
-/perf/model_parity_*/**/*.json
+
 /perf/model_parity_categories/
 /perf/test_parity/
 

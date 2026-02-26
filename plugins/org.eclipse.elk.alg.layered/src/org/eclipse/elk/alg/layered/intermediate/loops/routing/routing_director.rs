@@ -208,15 +208,21 @@ fn determine_two_side_opposing_route(
     }
 }
 
-/// Returns a sort rank that matches the Java HashMap iteration order for
-/// PortSide enum constants observed in the reference layout generation.
-/// Counter-clockwise order: NORTH(0) < WEST(1) < SOUTH(2) < EAST(3).
+/// Returns a sort rank that matches the Java `EnumMap` iteration order for
+/// `PortSide` enum constants. Java enum ordinal (declaration) order is
+/// UNDEFINED(0), NORTH(1), EAST(2), SOUTH(3), WEST(4). Since UNDEFINED is
+/// never a key in `slPortsBySide`, the effective iteration order is the
+/// clockwise sequence: NORTH < EAST < SOUTH < WEST.
+///
+/// The Java side uses `MultimapBuilder.enumKeys(PortSide.class)` which
+/// iterates in this ordinal order, making opposing self-loop tie-breaks
+/// deterministic.
 fn opposing_side_order_rank(side: PortSide) -> i32 {
     match side {
         PortSide::North => 0,
-        PortSide::West => 1,
+        PortSide::East => 1,
         PortSide::South => 2,
-        PortSide::East => 3,
+        PortSide::West => 3,
         PortSide::Undefined => 4,
     }
 }

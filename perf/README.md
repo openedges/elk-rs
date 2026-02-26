@@ -142,6 +142,13 @@ Compare helper:
 - Java compare scripts assume the same scenario schema as Rust layered issue CSV (`scenario` in col 2, `avg_ms` in col 6, `scenarios_per_sec` in col 7); override with `JAVA_*_COL` env vars if needed.
 - Quality gate knobs: `JAVA_ARTIFACT_MIN_ROWS` and `JAVA_ARTIFACT_REQUIRED_SCENARIOS` (comma-separated) control Java CSV artifact acceptance; the effective row floor is `max(JAVA_ARTIFACT_MIN_ROWS, required_scenario_count)`.
 
+Java non-determinism and parity patches:
+- Java ELK's `SelfHyperLoop.computePortsPerSide()` uses `ArrayListMultimap` (HashMap-backed) whose `keySet()` iteration order varies across JVM invocations. When opposing self-loop routing hits a tie in edge penalties, the iteration order decides whether the loop routes NORTH or SOUTH, causing ~80 models to drift between parity runs.
+- To stabilize parity comparisons, `scripts/run_java_model_parity_export.sh` applies patches from `scripts/java/patches/` to the isolation worktree before building. Patches are never applied to the original `external/elk` tree; they are automatically cleaned up when the isolation worktree is deleted.
+- The Rust side uses a matching clockwise (enum ordinal) sort order in `opposing_side_order_rank` so that both sides produce identical tie-break results.
+- Set `JAVA_PARITY_APPLY_PATCHES=false` to skip patch application (e.g. for testing raw Java behavior).
+- See `scripts/java/patches/README.md` for patch inventory and management.
+
 Java generation policy (CI):
 - Use `JAVA_PERF_MVN_LOCAL_REPO=${RUNNER_TEMP}/m2-java-perf-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}` (or an equivalent unique path per run-attempt).
 - Keep prepare/install and test phases on the same local repo path inside one job to reuse generated Tycho artifacts.

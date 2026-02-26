@@ -31,6 +31,9 @@ JAVA_PARITY_RETRIES=${JAVA_PARITY_RETRIES:-0}
 JAVA_PARITY_RETRY_DELAY_SECS=${JAVA_PARITY_RETRY_DELAY_SECS:-3}
 JAVA_PARITY_DRY_RUN=${JAVA_PARITY_DRY_RUN:-false}
 
+JAVA_PARITY_PATCHES_DIR=${JAVA_PARITY_PATCHES_DIR:-$REPO_ROOT/scripts/java/patches}
+JAVA_PARITY_APPLY_PATCHES=${JAVA_PARITY_APPLY_PATCHES:-true}
+
 JAVA_PARITY_LIMIT=${JAVA_PARITY_LIMIT:-0}
 JAVA_PARITY_INCLUDE=${JAVA_PARITY_INCLUDE:-}
 JAVA_PARITY_EXCLUDE=${JAVA_PARITY_EXCLUDE:-}
@@ -168,6 +171,18 @@ if [ "$JAVA_PARITY_DRY_RUN" != "true" ] && [ "$JAVA_PARITY_EXTERNAL_ISOLATE" = "
     isolation_mode=copy
     echo "warning: failed to create git worktree; using copied external/elk tree at: $isolated_copy_dir" >&2
   fi
+fi
+
+if [ "$JAVA_PARITY_DRY_RUN" != "true" ] && [ "$JAVA_PARITY_APPLY_PATCHES" = "true" ] && [ -d "$JAVA_PARITY_PATCHES_DIR" ]; then
+  for p in "$JAVA_PARITY_PATCHES_DIR"/*.patch; do
+    [ -f "$p" ] || continue
+    if git -C "$ELK_ROOT" apply "$p"; then
+      echo "java parity: applied patch $(basename "$p")"
+    else
+      echo "java parity: failed to apply patch $(basename "$p")" >&2
+      exit 1
+    fi
+  done
 fi
 
 if [ -z "$JAVA_PARITY_PREPARE_POM" ]; then
