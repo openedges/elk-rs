@@ -73,6 +73,7 @@ def compare_json(
     abs_tol: float,
     max_diffs: int,
     diffs: list[str],
+    skip_fields: frozenset[str] | None = None,
 ) -> None:
     if len(diffs) >= max_diffs:
         return
@@ -97,6 +98,9 @@ def compare_json(
     if isinstance(left, dict):
         left_keys = set(left.keys())
         right_keys = set(right.keys())
+        if skip_fields:
+            left_keys -= skip_fields
+            right_keys -= skip_fields
         missing_left = sorted(right_keys - left_keys)
         missing_right = sorted(left_keys - right_keys)
         if missing_left:
@@ -109,7 +113,7 @@ def compare_json(
                 return
         for key in sorted(left_keys & right_keys):
             child_path = f"{path}/{key}" if path else key
-            compare_json(left[key], right[key], child_path, abs_tol, max_diffs, diffs)
+            compare_json(left[key], right[key], child_path, abs_tol, max_diffs, diffs, skip_fields)
             if len(diffs) >= max_diffs:
                 return
         return
@@ -124,7 +128,7 @@ def compare_json(
             return
         for index, (left_item, right_item) in enumerate(zip(left_items, right_items)):
             child_path = f"{path}[{index}]"
-            compare_json(left_item, right_item, child_path, abs_tol, max_diffs, diffs)
+            compare_json(left_item, right_item, child_path, abs_tol, max_diffs, diffs, skip_fields)
             if len(diffs) >= max_diffs:
                 return
         return
@@ -157,6 +161,13 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Exit with non-zero status when drift/error exists",
     )
+    parser.add_argument(
+        "--skip-fields",
+        default="",
+        help="Comma-separated JSON field names to ignore during comparison "
+        "(e.g. 'id,incomingShape,outgoingShape,sources,targets,container' "
+        "for Java determinism checks where element-reference hashes vary)",
+    )
     return parser.parse_args()
 
 
@@ -166,6 +177,11 @@ def main() -> int:
     manifest_path = Path(args.manifest)
     report_path = Path(args.report)
     details_path = Path(args.details)
+    skip_fields: frozenset[str] | None = (
+        frozenset(f.strip() for f in args.skip_fields.split(",") if f.strip())
+        if args.skip_fields
+        else None
+    )
 
     if not manifest_path.exists():
         raise FileNotFoundError(f"manifest does not exist: {manifest_path}")
@@ -227,7 +243,7 @@ def main() -> int:
                     left = load_json(Path(java_layout_json))
                     right = load_json(Path(rust_layout_json))
                     diffs: list[str] = []
-                    compare_json(left, right, "", args.abs_tol, args.max_diffs_per_model, diffs)
+                    compare_json(left, right, "", args.abs_tol, args.max_diffs_per_model, diffs, skip_fields)
                     if diffs:
                         drift += 1
                         status = "drift"
