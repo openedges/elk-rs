@@ -1,5 +1,9 @@
 Performance results are appended by scripts in `scripts/`.
 
+For functional parity documentation (Java ELK vs elk-rs layout comparison,
+verification layers, known exceptions, directory structure), see
+[`perf/PARITY.md`](PARITY.md).
+
 Release quick guide:
 - Run the pre-release checklist in `RELEASE_CHECKLIST.md`.
 - A failure in `PERF_COMPARE_MODE=baseline sh scripts/check_perf_regression.sh 5 3` means a "Rust current vs Rust baseline" regression.
