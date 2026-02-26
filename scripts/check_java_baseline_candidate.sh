@@ -1,18 +1,18 @@
 #!/bin/sh
 set -eu
 
-CANDIDATE_FILE=${1:-perf/baselines/java_layered_issue_scenarios.candidate.csv}
-RUST_FILE=${2:-perf/results_layered_issue_scenarios.csv}
+CANDIDATE_FILE=${1:-parity/baselines/java_layered_issue_scenarios.candidate.csv}
+RUST_FILE=${2:-parity/results_layered_issue_scenarios.csv}
 WINDOW=${3:-3}
 THRESHOLD=${4:-0}
-REPORT=${5:-perf/java_baseline_candidate_check.md}
+REPORT=${5:-parity/java_baseline_candidate_check.md}
 
 JAVA_CANDIDATE_MIN_ROWS=${JAVA_CANDIDATE_MIN_ROWS:-1}
 JAVA_CANDIDATE_REQUIRED_SCENARIOS=${JAVA_CANDIDATE_REQUIRED_SCENARIOS:-issue_405,issue_603,issue_680,issue_871,issue_905}
 JAVA_CANDIDATE_REQUIRE_PARITY=${JAVA_CANDIDATE_REQUIRE_PARITY:-true}
 JAVA_CANDIDATE_STRICT=${JAVA_CANDIDATE_STRICT:-false}
-JAVA_CANDIDATE_PARITY_THRESHOLDS_FILE=${JAVA_CANDIDATE_PARITY_THRESHOLDS_FILE:-perf/java_parity_thresholds.csv}
-TARGET_BASELINE=${TARGET_BASELINE:-perf/baselines/java_layered_issue_scenarios.csv}
+JAVA_CANDIDATE_PARITY_THRESHOLDS_FILE=${JAVA_CANDIDATE_PARITY_THRESHOLDS_FILE:-parity/java_parity_thresholds.csv}
+TARGET_BASELINE=${TARGET_BASELINE:-parity/baselines/java_layered_issue_scenarios.csv}
 
 mkdir -p "$(dirname "$REPORT")"
 
@@ -36,13 +36,13 @@ else
     JAVA_GENERATE_DRY_RUN=false \
     JAVA_ARTIFACT_MIN_ROWS="$JAVA_CANDIDATE_MIN_ROWS" \
     JAVA_ARTIFACT_REQUIRED_SCENARIOS="$JAVA_CANDIDATE_REQUIRED_SCENARIOS" \
-    sh scripts/check_java_perf_artifacts.sh "$CANDIDATE_FILE" "$tmp_artifact_report" >"$tmp_artifact_log" 2>&1; then
+    sh scripts/check_java_parity_artifacts.sh "$CANDIDATE_FILE" "$tmp_artifact_report" >"$tmp_artifact_log" 2>&1; then
     status="not_ready"
     reason="artifact validation failed"
   fi
 
   if [ "$status" = "ready" ]; then
-    if ! sh scripts/compare_java_perf_results.sh "$RUST_FILE" "$CANDIDATE_FILE" "$WINDOW" "$tmp_compare_report" >"$tmp_compare_log" 2>&1; then
+    if ! sh scripts/compare_java_parity_results.sh "$RUST_FILE" "$CANDIDATE_FILE" "$WINDOW" "$tmp_compare_report" >"$tmp_compare_log" 2>&1; then
       status="not_ready"
       reason="compare report generation failed"
     fi
@@ -50,12 +50,12 @@ else
 
   if [ "$status" = "ready" ] && [ "$JAVA_CANDIDATE_REQUIRE_PARITY" = "true" ]; then
     if [ -n "$JAVA_CANDIDATE_PARITY_THRESHOLDS_FILE" ] && [ -f "$JAVA_CANDIDATE_PARITY_THRESHOLDS_FILE" ]; then
-      if ! sh scripts/check_java_perf_parity_scenarios.sh "$RUST_FILE" "$CANDIDATE_FILE" "$WINDOW" "$JAVA_CANDIDATE_PARITY_THRESHOLDS_FILE" >"$tmp_parity_log" 2>&1; then
+      if ! sh scripts/check_java_parity_scenarios.sh "$RUST_FILE" "$CANDIDATE_FILE" "$WINDOW" "$JAVA_CANDIDATE_PARITY_THRESHOLDS_FILE" >"$tmp_parity_log" 2>&1; then
         status="not_ready"
         reason="parity check failed"
       fi
     else
-      if ! sh scripts/check_java_perf_parity.sh "$RUST_FILE" "$CANDIDATE_FILE" "$WINDOW" "$THRESHOLD" >"$tmp_parity_log" 2>&1; then
+      if ! sh scripts/check_java_parity.sh "$RUST_FILE" "$CANDIDATE_FILE" "$WINDOW" "$THRESHOLD" >"$tmp_parity_log" 2>&1; then
         status="not_ready"
         reason="parity check failed"
       fi
@@ -78,7 +78,7 @@ fi
   if [ "$status" = "ready" ]; then
     echo "## Next Action"
     echo
-    echo "- promote candidate: \`sh scripts/update_java_perf_baseline.sh \"$CANDIDATE_FILE\" \"$TARGET_BASELINE\"\`"
+    echo "- promote candidate: \`sh scripts/update_java_parity_baseline.sh \"$CANDIDATE_FILE\" \"$TARGET_BASELINE\"\`"
   else
     echo "## Diagnostic Logs"
     echo

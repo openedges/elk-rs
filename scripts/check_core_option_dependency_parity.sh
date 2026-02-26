@@ -4,7 +4,7 @@ set -eu
 JAVA_CORE_OPTIONS="${JAVA_CORE_OPTIONS:-external/elk/plugins/org.eclipse.elk.core/src-gen/org/eclipse/elk/core/options/CoreOptions.java}"
 RUST_CORE_OPTIONS="${RUST_CORE_OPTIONS:-plugins/org.eclipse.elk.core/src/org/eclipse/elk/core/options/core_options.rs}"
 RUST_CORE_META="${RUST_CORE_META:-plugins/org.eclipse.elk.core/src/org/eclipse/elk/core/options/core_options_meta.rs}"
-REPORT_FILE="${1:-perf/core_option_dependency_parity.md}"
+REPORT_FILE="${1:-parity/core_option_dependency_parity.md}"
 STRICT_MODE="${CORE_OPTION_DEPENDENCY_PARITY_STRICT:-true}"
 
 tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/core-option-dependency-parity.XXXXXX")"

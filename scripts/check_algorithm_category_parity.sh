@@ -3,7 +3,7 @@ set -eu
 
 JAVA_SOURCES_ROOT="${JAVA_SOURCES_ROOT:-external/elk/plugins}"
 RUST_SOURCES_ROOT="${RUST_SOURCES_ROOT:-plugins}"
-REPORT_FILE="${1:-perf/algorithm_category_parity.md}"
+REPORT_FILE="${1:-parity/algorithm_category_parity.md}"
 STRICT_MODE="${ALGORITHM_CATEGORY_PARITY_STRICT:-false}"
 
 tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/algorithm-category-parity.XXXXXX")"

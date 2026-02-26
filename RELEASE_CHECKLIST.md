@@ -10,12 +10,12 @@ Run the core validation flow in this exact order:
 2. `cargo build --workspace`
 3. `cargo clippy --workspace --all-targets`
 4. `cargo test --workspace`
-5. `MODEL_PARITY_SKIP_JAVA_EXPORT=true sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models perf/model_parity_full`
+5. `MODEL_PARITY_SKIP_JAVA_EXPORT=true sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models parity/model_parity_full`
 6. `cargo build --workspace --release`
 
 Pass criteria for each step:
 
-- Step 1: `perf/layered_phase_wiring_parity.md` reports `status: ok`
+- Step 1: `parity/layered_phase_wiring_parity.md` reports `status: ok`
 - Step 2: build error/warning count is zero
 - Step 3: clippy warning count is zero
 - Step 4: test failure count is zero
@@ -59,26 +59,26 @@ LAYERED_PHASE_WIRING_PARITY_STRICT=true sh scripts/check_layered_phase_wiring_pa
 ```
 
 Decision:
-- If any report (`perf/*parity.md`) is not `status: ok`, stop the release.
+- If any report (`parity/*parity.md`) is not `status: ok`, stop the release.
 
 ## 3) Performance Gates (Required + Recommended)
 
 Required checks:
 
 ```sh
-PERF_COMPARE_MODE=baseline sh scripts/check_perf_regression.sh 5 3
-sh scripts/check_recursive_perf_runtime_budget.sh perf/results_recursive_layout_scenarios.csv default perf/recursive_runtime_budget.md
+PARITY_COMPARE_MODE=baseline sh scripts/check_parity_regression.sh 5 3
+sh scripts/check_recursive_parity_runtime_budget.sh parity/results_recursive_layout_scenarios.csv default parity/recursive_runtime_budget.md
 ```
 
 Java comparison checks:
 
 ```sh
-sh scripts/check_java_perf_parity.sh perf/results_layered_issue_scenarios.csv perf/java_results_layered_issue_scenarios.csv 3 0
-sh scripts/check_java_perf_parity_scenarios.sh perf/results_layered_issue_scenarios.csv perf/java_results_layered_issue_scenarios.csv 3 perf/java_parity_thresholds.csv
+sh scripts/check_java_parity.sh parity/results_layered_issue_scenarios.csv parity/java_results_layered_issue_scenarios.csv 3 0
+sh scripts/check_java_parity_scenarios.sh parity/results_layered_issue_scenarios.csv parity/java_results_layered_issue_scenarios.csv 3 parity/java_parity_thresholds.csv
 ```
 
 Decision:
-- A failure in `check_perf_regression.sh 5 3` means "current Rust is >5% slower than Rust baseline."
+- A failure in `check_parity_regression.sh 5 3` means "current Rust is >5% slower than Rust baseline."
 - This is different from Java-vs-Rust parity.
 - If Java parity checks pass, it does not mean Rust is slower than Java.
 
@@ -87,19 +87,19 @@ Decision:
 - `code quality + parity + runtime budget` all pass: release allowed.
 - Only `baseline 5% regression` fails and Java parity passes:
   - default policy: investigate the regression before release.
-  - exception: emergency release is allowed, but document the perf risk in release notes.
+  - exception: emergency release is allowed, but document the parity risk in release notes.
 - Java parity fails: stop the release.
 
 ## 5) Artifacts to Review (Recommended)
 
-- `perf/core_options_parity.md`
-- `perf/core_option_dependency_parity.md`
-- `perf/algorithm_*_parity.md`
-- `perf/layered_phase_wiring_parity.md`
-- `perf/recursive_runtime_budget.md`
-- `perf/java_vs_rust.md`
-- `perf/java_vs_rust_baseline.md`
-- `perf/java_perf_status.md`
+- `parity/core_options_parity.md`
+- `parity/core_option_dependency_parity.md`
+- `parity/algorithm_*_parity.md`
+- `parity/layered_phase_wiring_parity.md`
+- `parity/recursive_runtime_budget.md`
+- `parity/java_vs_rust.md`
+- `parity/java_vs_rust_baseline.md`
+- `parity/java_parity_status.md`
 
 ## 6) When Baseline Updates Are Needed
 
@@ -111,11 +111,11 @@ Update baseline only when all conditions are met:
 Procedure:
 
 ```sh
-sh scripts/run_perf_layered_issue_scenarios.sh "issue_405,issue_603,issue_680,issue_871,issue_905" 20 3 perf/results_layered_issue_scenarios.csv
-PERF_RECURSIVE_SCENARIO_PROFILE=default sh scripts/run_perf_recursive_layout_scenarios.sh "" 5 1 perf/results_recursive_layout_scenarios.csv
-sh scripts/update_perf_baseline.sh
-sh scripts/update_perf_recursive_scenarios_baseline.sh
-PERF_COMPARE_MODE=baseline sh scripts/check_perf_regression.sh 5 3
+sh scripts/run_parity_layered_issue_scenarios.sh "issue_405,issue_603,issue_680,issue_871,issue_905" 20 3 parity/results_layered_issue_scenarios.csv
+PARITY_RECURSIVE_SCENARIO_PROFILE=default sh scripts/run_parity_recursive_layout_scenarios.sh "" 5 1 parity/results_recursive_layout_scenarios.csv
+sh scripts/update_parity_baseline.sh
+sh scripts/update_parity_recursive_scenarios_baseline.sh
+PARITY_COMPARE_MODE=baseline sh scripts/check_parity_regression.sh 5 3
 ```
 
-Follow detailed baseline operations in `perf/baselines/POLICY.md`.
+Follow detailed baseline operations in `parity/baselines/POLICY.md`.

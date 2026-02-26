@@ -53,7 +53,7 @@ import com.google.gson.JsonParser;
 public class ElkModelParityExportTest {
 
     private static final String DEFAULT_MODELS_ROOT = "external/elk-models";
-    private static final String DEFAULT_OUTPUT_DIR = "perf/model_parity/java";
+    private static final String DEFAULT_OUTPUT_DIR = "parity/model_parity/java";
     private static final String MANIFEST_FILE_NAME = "java_manifest.tsv";
     private static final String INPUT_DIR_NAME = "input";
     private static final String LAYOUT_DIR_NAME = "layout";

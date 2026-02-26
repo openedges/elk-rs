@@ -3,7 +3,7 @@ set -eu
 
 JAVA_SOURCES_ROOT="${JAVA_SOURCES_ROOT:-external/elk/plugins}"
 RUST_SOURCES_ROOT="${RUST_SOURCES_ROOT:-plugins}"
-REPORT_FILE="${1:-perf/algorithm_feature_parity.md}"
+REPORT_FILE="${1:-parity/algorithm_feature_parity.md}"
 STRICT_MODE="${ALGORITHM_FEATURE_PARITY_STRICT:-false}"
 IGNORE_IDS="${ALGORITHM_FEATURE_IGNORE_IDS:-}"
 

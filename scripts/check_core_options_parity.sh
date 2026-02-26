@@ -5,7 +5,7 @@ JAVA_CORE_OPTIONS="${JAVA_CORE_OPTIONS:-external/elk/plugins/org.eclipse.elk.cor
 RUST_CORE_OPTIONS="${RUST_CORE_OPTIONS:-plugins/org.eclipse.elk.core/src/org/eclipse/elk/core/options/core_options.rs}"
 RUST_CORE_META="${RUST_CORE_META:-plugins/org.eclipse.elk.core/src/org/eclipse/elk/core/options/core_options_meta.rs}"
 RUST_SOURCES_ROOT="${RUST_SOURCES_ROOT:-plugins}"
-REPORT_FILE="${1:-perf/core_options_parity.md}"
+REPORT_FILE="${1:-parity/core_options_parity.md}"
 
 tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/core-options-parity.XXXXXX")"
 trap 'rm -rf "$tmp_dir"' EXIT INT TERM

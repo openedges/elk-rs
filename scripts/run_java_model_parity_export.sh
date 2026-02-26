@@ -5,7 +5,7 @@ SCRIPT_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
 REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 
 MODELS_ROOT_INPUT=${1:-external/elk-models}
-OUTPUT_DIR_INPUT=${2:-perf/model_parity/java}
+OUTPUT_DIR_INPUT=${2:-parity/model_parity/java}
 
 JAVA_PARITY_MVN_BIN=${JAVA_PARITY_MVN_BIN:-mvn}
 JAVA_PARITY_BUILD_PLUGINS=${JAVA_PARITY_BUILD_PLUGINS:-true}

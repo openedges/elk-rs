@@ -3,7 +3,7 @@ set -eu
 
 JAVA_TEST_ROOT="${JAVA_TEST_ROOT:-external/elk/test}"
 RUST_PLUGIN_ROOT="${RUST_PLUGIN_ROOT:-plugins}"
-REPORT_FILE="${1:-perf/java_test_module_parity.md}"
+REPORT_FILE="${1:-parity/java_test_module_parity.md}"
 
 tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/java-test-module-parity.XXXXXX")"
 trap 'rm -rf "$tmp_dir"' EXIT INT TERM
@@ -92,10 +92,10 @@ rust_only_modules_count="$(wc -l < "$rust_only_modules" | tr -d ' ')"
 layered_issue_status="unknown"
 layered_issue_java_tests="unknown"
 layered_issue_rust_tests="unknown"
-if [ -f "perf/layered_issue_test_parity.md" ]; then
-    layered_issue_status="$(awk -F': ' '/^- status:/ {print $2; exit}' perf/layered_issue_test_parity.md)"
-    layered_issue_java_tests="$(awk -F': ' '/^- java @Test total:/ {print $2; exit}' perf/layered_issue_test_parity.md)"
-    layered_issue_rust_tests="$(awk -F': ' '/^- rust #\[test\] total:/ {print $2; exit}' perf/layered_issue_test_parity.md)"
+if [ -f "parity/layered_issue_test_parity.md" ]; then
+    layered_issue_status="$(awk -F': ' '/^- status:/ {print $2; exit}' parity/layered_issue_test_parity.md)"
+    layered_issue_java_tests="$(awk -F': ' '/^- java @Test total:/ {print $2; exit}' parity/layered_issue_test_parity.md)"
+    layered_issue_rust_tests="$(awk -F': ' '/^- rust #\[test\] total:/ {print $2; exit}' parity/layered_issue_test_parity.md)"
 fi
 
 {
@@ -127,7 +127,7 @@ fi
     echo
     echo '- `mapping=direct` rows are crate-level structural mapping, not method-level 1:1 semantics proof.'
     echo '- `org.eclipse.elk.alg.test` and `org.eclipse.elk.shared.test` are treated as no-direct due to architecture mismatch.'
-    echo '- For layered issue method-level parity, use `perf/layered_issue_test_parity.md`.'
+    echo '- For layered issue method-level parity, use `parity/layered_issue_test_parity.md`.'
     echo
     if [ "$rust_only_modules_count" -gt 0 ]; then
         echo "## Rust-only Test Modules"

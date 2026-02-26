@@ -4,7 +4,7 @@ set -eu
 JAVA_SOURCES_ROOT="${JAVA_SOURCES_ROOT:-external/elk/plugins}"
 RUST_SOURCES_ROOT="${RUST_SOURCES_ROOT:-plugins}"
 RUST_CORE_DATA_FILE="${RUST_CORE_DATA_FILE:-$RUST_SOURCES_ROOT/org.eclipse.elk.core/src/org/eclipse/elk/core/data/mod.rs}"
-REPORT_FILE="${1:-perf/algorithm_option_support_parity.md}"
+REPORT_FILE="${1:-parity/algorithm_option_support_parity.md}"
 STRICT_MODE="${ALGORITHM_OPTION_SUPPORT_PARITY_STRICT:-false}"
 IGNORE_IDS="${ALGORITHM_OPTION_SUPPORT_IGNORE_IDS:-}"
 

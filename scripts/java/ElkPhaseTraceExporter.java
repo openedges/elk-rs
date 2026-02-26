@@ -75,7 +75,7 @@ import org.eclipse.emf.ecore.resource.impl.ResourceSetImpl;
 public class ElkPhaseTraceExporter {
 
     private static final String DEFAULT_MODELS_ROOT = "external/elk-models";
-    private static final String DEFAULT_OUTPUT_DIR = "perf/model_parity/java_trace";
+    private static final String DEFAULT_OUTPUT_DIR = "parity/model_parity/java_trace";
 
     public static void main(String[] args) throws IOException {
         PlainJavaInitialization.initializePlainJavaLayout();

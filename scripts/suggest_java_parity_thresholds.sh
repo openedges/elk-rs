@@ -1,11 +1,11 @@
 #!/usr/bin/env sh
 set -eu
 
-RUST_FILE="${1:-perf/results_layered_issue_scenarios.csv}"
-JAVA_FILE="${2:-perf/java_results_layered_issue_scenarios.csv}"
+RUST_FILE="${1:-parity/results_layered_issue_scenarios.csv}"
+JAVA_FILE="${2:-parity/java_results_layered_issue_scenarios.csv}"
 WINDOW="${3:-3}"
 BUFFER_PCT="${4:-2}"
-OUT="${5:-perf/java_parity_thresholds.suggested.csv}"
+OUT="${5:-parity/java_parity_thresholds.suggested.csv}"
 
 RUST_SCENARIO_COL="${RUST_SCENARIO_COL:-2}"
 RUST_AVG_COL="${RUST_AVG_COL:-6}"

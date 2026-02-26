@@ -1,9 +1,9 @@
 #!/bin/sh
 set -eu
 
-SOURCE=${1:-perf/java_results_layered_issue_scenarios.csv}
-TARGET=${2:-perf/baselines/java_layered_issue_scenarios.candidate.csv}
-REPORT=${3:-perf/java_baseline_candidate_status.md}
+SOURCE=${1:-parity/java_results_layered_issue_scenarios.csv}
+TARGET=${2:-parity/baselines/java_layered_issue_scenarios.candidate.csv}
+REPORT=${3:-parity/java_baseline_candidate_status.md}
 
 JAVA_CANDIDATE_MIN_ROWS=${JAVA_CANDIDATE_MIN_ROWS:-1}
 JAVA_CANDIDATE_REQUIRED_SCENARIOS=${JAVA_CANDIDATE_REQUIRED_SCENARIOS:-}
@@ -35,7 +35,7 @@ if ! validation_output=$(
   JAVA_GENERATE_DRY_RUN=false \
   JAVA_ARTIFACT_MIN_ROWS="$JAVA_CANDIDATE_MIN_ROWS" \
   JAVA_ARTIFACT_REQUIRED_SCENARIOS="$JAVA_CANDIDATE_REQUIRED_SCENARIOS" \
-  sh scripts/check_java_perf_artifacts.sh "$SOURCE" "$tmp_report" 2>&1
+  sh scripts/check_java_parity_artifacts.sh "$SOURCE" "$tmp_report" 2>&1
 ); then
   {
     echo "# Java Baseline Candidate"

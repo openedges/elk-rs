@@ -9,56 +9,56 @@
 .omc/
 
 # Perf artifacts
-/perf/*.csv
-/perf/summary.md
-/perf/tmp/*
-!/perf/tmp/.gitkeep
-/perf/layered_phase_wiring/*.tsv
+/parity/*.csv
+/parity/summary.md
+/parity/tmp/*
+!/parity/tmp/.gitkeep
+/parity/layered_phase_wiring/*.tsv
 
 # Model parity outputs
 #
 # KEEP (compact summaries, tracked):
-#   perf/model_parity/report.md
-#   perf/model_parity/diff_details.tsv
-#   perf/model_parity/rust_manifest.tsv
-#   perf/model_parity/java/java_manifest.tsv
-#   perf/model_parity/phase_gate_latest.md
+#   parity/model_parity/report.md
+#   parity/model_parity/diff_details.tsv
+#   parity/model_parity/rust_manifest.tsv
+#   parity/model_parity/java/java_manifest.tsv
+#   parity/model_parity/phase_gate_latest.md
 #
 # TEMP (regenerated on each parity run):
 
 # Heavy JSON payloads (java input/layout, rust layout)
-/perf/model_parity/java/input/
-/perf/model_parity/java/layout/
-/perf/model_parity/rust/
+/parity/model_parity/java/input/
+/parity/model_parity/java/layout/
+/parity/model_parity/rust/
 
 # Progress log, phase gate snapshots, and diagnostic outputs
-/perf/model_parity/rust_runner_progress.tsv
-/perf/model_parity/phase_gate_*.json
-/perf/model_parity/drift_summary*.txt
-/perf/model_parity/ordering_diff_*.tsv
-/perf/model_parity/realworld_*.tsv
-/perf/model_parity/realworld_*.md
-/perf/model_parity/rust_manifest_realworld_*.tsv
+/parity/model_parity/rust_runner_progress.tsv
+/parity/model_parity/phase_gate_*.json
+/parity/model_parity/drift_summary*.txt
+/parity/model_parity/ordering_diff_*.tsv
+/parity/model_parity/realworld_*.tsv
+/parity/model_parity/realworld_*.md
+/parity/model_parity/rust_manifest_realworld_*.tsv
 
 # model_parity_full and other variant dirs — all temp
-/perf/model_parity_full/
-/perf/model_parity_*/java/input/
-/perf/model_parity_*/java/layout/
-/perf/model_parity_*/rust/
-/perf/model_parity_*/rust_runner_progress.tsv
-/perf/model_parity_*/**/*.json
+/parity/model_parity_full/
+/parity/model_parity_*/java/input/
+/parity/model_parity_*/java/layout/
+/parity/model_parity_*/rust/
+/parity/model_parity_*/rust_runner_progress.tsv
+/parity/model_parity_*/**/*.json
 # Preserve java_manifest.tsv in variant dirs
-!/perf/model_parity_*/java/
-!/perf/model_parity_*/java/java_manifest.tsv
+!/parity/model_parity_*/java/
+!/parity/model_parity_*/java/java_manifest.tsv
 
-/perf/model_parity_categories/
-/perf/test_parity/
+/parity/model_parity_categories/
+/parity/test_parity/
 
 # Phase trace outputs
-/perf/model_parity/java_trace/
-/perf/model_parity/rust_trace/
-/perf/model_parity_full/java_trace/
-/perf/model_parity_full/rust_trace/
+/parity/model_parity/java_trace/
+/parity/model_parity/rust_trace/
+/parity/model_parity_full/java_trace/
+/parity/model_parity_full/rust_trace/
 
 # Python cache
 __pycache__/

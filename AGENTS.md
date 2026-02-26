@@ -29,7 +29,7 @@
 
 ## 품질 게이트 (단계 종료 시 필수)
 1. 코드 변경 후 코드리뷰 실행
-2. Full parity 실행 및 통과률 확인: `MODEL_PARITY_SKIP_JAVA_EXPORT=true sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models perf/model_parity_full`
+2. Full parity 실행 및 통과률 확인: `MODEL_PARITY_SKIP_JAVA_EXPORT=true sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models parity/model_parity_full`
 3. `cargo build --workspace` (error/warning 0건)
 4. `cargo clippy --workspace --all-targets` (warning 0건)
 5. `cargo test --workspace` (failure 0건)
@@ -39,12 +39,12 @@
 7. 커밋 (`<scope>: <summary>`)
 8. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
-## 현재 핵심 스냅샷 (2026-02-25)
+## 현재 핵심 스냅샷 (2026-02-26)
 - Full model parity: `matches=1436/1439` (99.8%), `drift=3`, `diffs=31`, `errors=0`, `timeouts=0`, `java_non_ok=9`
   - 2026-02-25 inside self-loop 노드 compaction 조건 수정 후 재집계 기준
-- 남은 drift 3개: tests 리소스 2개 + tickets 1개
-  - `tests/core/label_placement/port_labels/next_to_port_if_possible_inside.elkt` (5 diffs) — stale Java ref, 수정 불요
-  - `tests/layered/port_label_placement/multilabels_compound.elkt` (6 diffs) — stale Java ref (Outside.width=4 vs Rust 24: padding 12+12=24 기준 Java 불일치), 수정 불요
+- 남은 drift 3개: tests 리소스 2개 + tickets 1개 (2026-02-26 Java baseline 재생성으로 재확인, 모두 실제 구현 차이)
+  - `tests/core/label_placement/port_labels/next_to_port_if_possible_inside.elkt` (5 diffs) — 포트 배치 좌표 차이 (`port.x: 4.0 vs 24.0`)
+  - `tests/layered/port_label_placement/multilabels_compound.elkt` (6 diffs) — compound 레이아웃 좌표 차이 (`node.x: 38.0 vs 58.0`)
   - `tickets/layered/213_componentsCompaction.elkt` (20 diffs) — 컴포넌트 compaction 미구현
 - Phase-gate(recursive+strict) 최신 기준: `base=1439`, `precheck_error=0`, `step0_error=0`
   - 비교불가 0건 (`comparable=1439`)
@@ -54,7 +54,6 @@
   - 대형 hotspot(step gate error 상위): 없음
 - Tickets parity: `matches=108/109`, `drift=1`, `errors=0`, `timeouts=0`, `java_non_ok=1(588)`
   - 잔여 drift: `tickets/layered/213_componentsCompaction.elkt` (`children[0]/children[0]/x: 12.5 != 12.0`)
-  - 해소됨: `tickets/layered/368_selfLoopLabelsIOOBE.elkt` (opposing self-loop routing 수정으로 match)
 - 포팅/테스트/빌드/성능 자동화 파이프라인은 운영 상태
 - `cargo build --workspace`: warning 0건, `cargo clippy --workspace --all-targets`: warning 0건, `cargo test --workspace`: failure 0건
 
@@ -65,32 +64,22 @@
 - phase-root 집계: `p4_node_placement` 2개 모델(총 11 diff), `213_componentsCompaction` 1개 모델(총 20 diff)
 
 ### 전략: Bottom-Up Phase-by-Phase Verification
-- Phase 1: Java phase trace 도구 — **완료**
-- Phase 2: Rust phase trace 도구 — **완료**
-- Phase 3: Phase diff 비교 도구 — **완료**
+- Phase 1-3: Java/Rust phase trace 및 비교 도구 — **완료** (상세: `HISTORY.md`)
 - Phase 4: trace 실행 및 divergence 분석 — **운영 중**
-  - 최신 기준은 recursive+strict gate 산출물(`perf/model_parity/phase_gate_latest.md`)을 단일 기준으로 사용
+  - 최신 기준은 recursive+strict gate 산출물(`parity/model_parity/phase_gate_latest.md`)을 단일 기준으로 사용
   - 최신 step range(루트 trace 기준): `0..42` (recursive trace 누적 최대 step index는 `1521`)
   - Rust trace 실행 시 timeout 모델이 중간에 나오면 후속 모델 trace가 누락될 수 있어, known timeout 모델은 manifest 끝으로 재배치해 실행
   - 우선순위는 `first_failure_by_step` 오름차순(현재 gate는 `first_failure_by_step` 비어 있음)
-- Phase 5: 식별된 10개 모델의 프로세서별 버그 수정 — **완료** (추가 수정 가능한 항목 없음)
-  - 10개 중 실제 drift는 4개만: LifeCGAVR(PortSideProcessor), Life(PortSideProcessor), next_to_port(LayerSize), labels(BKNodePlacer)
-  - labels.elkt: Java HashMap keySet() 비결정성 (PortSide identity hashCode) — **수정 불가**
-  - next_to_port_if_possible_inside: 내부 레이아웃 그래프 크기 차이 (step_000부터 diverge), stale Java ref 가능 — **수정 불요**
-  - Life/LifeCGAVR: PortSideProcessor 기능적 동일 확인, 자식 sub-graph crossing-min cascade — **수정 불요**
-- Phase 6: p5 edge routing section drift(PTIDES/self-loop 리소스) 정리 — **완료** (10/10 해소)
-  - opposing self-loop routing의 `<=` tie-break 및 Java HashMap PortSide 순서 재현으로 ptides 8개 + 368 1개 해소
-  - `inside_outside.elkt`(7 diffs): `json_importer.rs`의 inside self-loop node compaction 조건에 `has_no_children` 가드 추가로 해소
+- Phase 5-6: 모델별 버그 수정 및 edge routing drift 정리 — **완료** (상세: `HISTORY.md`)
 - Phase 7: p4 node placement 좌표 drift 분석 — **진행 중**
-  - `next_to_port_if_possible_inside` — stale Java ref 확인 완료, 수정 불요
-  - `multilabels_compound` — stale Java ref 확인 완료 (Outside.width: Java=4 vs Rust=24, padding 12*2=24 기준 Java 불일치), 수정 불요
-  - `213_componentsCompaction` — 잔여, 컴포넌트 compaction 차이(20 diffs)
+  - `next_to_port_if_possible_inside` — 포트 배치 좌표 차이 (Java baseline 재생성으로 재확인, 실제 구현 차이)
+  - `multilabels_compound` — compound 레이아웃 좌표 차이 (Java baseline 재생성으로 재확인, 실제 구현 차이)
+  - `213_componentsCompaction` — 컴포넌트 compaction 미구현 (20 diffs)
 
 ## 기본 실행 명령
 - 전체 정적 점검: `cargo clippy --workspace --all-targets`
 - 전체 테스트: `cargo test --workspace`
-- Full parity: `MODEL_PARITY_SKIP_JAVA_EXPORT=true sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models perf/model_parity_full`
-- Drift 분석: `python3 scripts/analyze_layered_drift.py --diff-details perf/model_parity_full/diff_details.tsv --manifest perf/model_parity_full/rust_manifest.tsv`
+- Full parity: `MODEL_PARITY_SKIP_JAVA_EXPORT=true sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models parity/model_parity_full`
 - Java phase trace: `sh scripts/run_java_phase_trace.sh <model_dir> <output_dir>`
 - Rust phase trace: `cargo run --release --bin model_parity_layout_runner -- --trace-dir <output_dir> <input.json>`
 - Phase trace 비교: `python3 scripts/compare_phase_traces.py <java_trace_dir> <rust_trace_dir>` (단건) 또는 `--batch` (일괄)
