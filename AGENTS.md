@@ -40,27 +40,29 @@
 8. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
 ## 현재 핵심 스냅샷 (2026-02-25)
-- Full model parity: `matches=1426/1439` (99.1%), `drift=13`, `diffs=170`, `errors=0`, `timeouts=0`, `java_non_ok=9`
-  - 2026-02-25 재실행 기준(기존 Java manifest 절대경로 stale 이슈는 로컬 경로 manifest로 보정 후 집계)
-- 남은 drift 13개는 ptolemy self-loop/section 계열과 일부 tickets/test 리소스에 집중
+- Full model parity: `matches=1436/1439` (99.8%), `drift=3`, `diffs=31`, `errors=0`, `timeouts=0`, `java_non_ok=9`
+  - 2026-02-25 inside self-loop 노드 compaction 조건 수정 후 재집계 기준
+- 남은 drift 3개: tests 리소스 2개 + tickets 1개
+  - `tests/core/label_placement/port_labels/next_to_port_if_possible_inside.elkt` (5 diffs) — stale Java ref, 수정 불요
+  - `tests/layered/port_label_placement/multilabels_compound.elkt` (6 diffs) — stale Java ref (Outside.width=4 vs Rust 24: padding 12+12=24 기준 Java 불일치), 수정 불요
+  - `tickets/layered/213_componentsCompaction.elkt` (20 diffs) — 컴포넌트 compaction 미구현
 - Phase-gate(recursive+strict) 최신 기준: `base=1439`, `precheck_error=0`, `step0_error=0`
   - 비교불가 0건 (`comparable=1439`)
   - `all_match_models=1439`, `diverged_models=0`
   - `step0..step1521` error=0
   - 초기 frontier(최초 실패 step): 없음
   - 대형 hotspot(step gate error 상위): 없음
-- Tickets parity 최신(2026-02-25, full parity 집계 기준): `matches=107/109`, `drift=2`, `errors=0`, `timeouts=0`, `java_non_ok=1(588)`
+- Tickets parity: `matches=108/109`, `drift=1`, `errors=0`, `timeouts=0`, `java_non_ok=1(588)`
   - 잔여 drift: `tickets/layered/213_componentsCompaction.elkt` (`children[0]/children[0]/x: 12.5 != 12.0`)
-  - 잔여 drift: `tickets/layered/368_selfLoopLabelsIOOBE.elkt` (`children[0]/x: 12.0 != 22.0`)
+  - 해소됨: `tickets/layered/368_selfLoopLabelsIOOBE.elkt` (opposing self-loop routing 수정으로 match)
 - 포팅/테스트/빌드/성능 자동화 파이프라인은 운영 상태
 - `cargo build --workspace`: warning 0건, `cargo clippy --workspace --all-targets`: warning 0건, `cargo test --workspace`: failure 0건
 
 ## Parity 100% 전략
 
-### Drift 분포 (13개 모델)
-- diff 분류(총 170): section(75.9%), coordinate(21.8%), other(1.8%), label(0.6%)
-- drift 13개 중 8개는 `realworld/ptolemy/*PowerPlant*` 계열, 3개는 tests 리소스, 2개는 tickets(213/368)
-- phase-root 집계 기준: `p5_edge_routing` 10개 모델(총 139 diff), `p4_node_placement` 3개 모델(총 31 diff)
+### Drift 분포 (3개 모델)
+- diff 분류(총 31): coordinate(28), other(2), section(1)
+- phase-root 집계: `p4_node_placement` 2개 모델(총 11 diff), `213_componentsCompaction` 1개 모델(총 20 diff)
 
 ### 전략: Bottom-Up Phase-by-Phase Verification
 - Phase 1: Java phase trace 도구 — **완료**
@@ -74,11 +76,15 @@
 - Phase 5: 식별된 10개 모델의 프로세서별 버그 수정 — **완료** (추가 수정 가능한 항목 없음)
   - 10개 중 실제 drift는 4개만: LifeCGAVR(PortSideProcessor), Life(PortSideProcessor), next_to_port(LayerSize), labels(BKNodePlacer)
   - labels.elkt: Java HashMap keySet() 비결정성 (PortSide identity hashCode) — **수정 불가**
-  - `<=` 비교연산자 변경 시도 → 1164→1103 퇴행(-61), 롤백. `opposing_tie_break_rank` 유지가 최적
   - next_to_port_if_possible_inside: 내부 레이아웃 그래프 크기 차이 (step_000부터 diverge), stale Java ref 가능 — **수정 불요**
   - Life/LifeCGAVR: PortSideProcessor 기능적 동일 확인, 자식 sub-graph crossing-min cascade — **수정 불요**
-- Phase 6: p5 edge routing section drift(PTIDES/self-loop 리소스) 정리
-- Phase 7: p4 node placement 좌표 drift(`next_to_port_if_possible_inside`, `multilabels_compound`, `213_componentsCompaction`) 정리
+- Phase 6: p5 edge routing section drift(PTIDES/self-loop 리소스) 정리 — **완료** (10/10 해소)
+  - opposing self-loop routing의 `<=` tie-break 및 Java HashMap PortSide 순서 재현으로 ptides 8개 + 368 1개 해소
+  - `inside_outside.elkt`(7 diffs): `json_importer.rs`의 inside self-loop node compaction 조건에 `has_no_children` 가드 추가로 해소
+- Phase 7: p4 node placement 좌표 drift 분석 — **진행 중**
+  - `next_to_port_if_possible_inside` — stale Java ref 확인 완료, 수정 불요
+  - `multilabels_compound` — stale Java ref 확인 완료 (Outside.width: Java=4 vs Rust=24, padding 12*2=24 기준 Java 불일치), 수정 불요
+  - `213_componentsCompaction` — 잔여, 컴포넌트 compaction 차이(20 diffs)
 
 ## 기본 실행 명령
 - 전체 정적 점검: `cargo clippy --workspace --all-targets`

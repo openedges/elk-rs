@@ -334,18 +334,7 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
                 let gp = graph_guard
                     .get_property(InternalProperties::GRAPH_PROPERTIES)
                     .unwrap_or_else(EnumSet::none_of);
-                let gs_x = graph_guard.size().x;
-                let gs_y = graph_guard.size().y;
-                let pt = graph_guard.padding_ref().top;
-                let pr = graph_guard.padding_ref().right;
-                let pb = graph_guard.padding_ref().bottom;
-                let pl = graph_guard.padding_ref().left;
                 let size = graph_guard.actual_size();
-                eprintln!(
-                    "[TRANSFERRER] applyParentNodeLayout: graph_size=({},{}) pad=({},{},{},{}) actual=({},{}) ext_ports={}",
-                    gs_x, gs_y, pt, pr, pb, pl,
-                    size.x, size.y, gp.contains(&GraphProperties::ExternalPorts)
-                );
                 (gp, size)
             };
 

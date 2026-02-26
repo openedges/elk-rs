@@ -161,11 +161,20 @@ fn determine_two_side_opposing_route(
     holder: &SelfLoopHolderRef,
     port_penalties: &[i32],
 ) {
-    let sides = loop_sides(sl_loop);
+    let mut sides = loop_sides(sl_loop);
     if sides.len() != 2 {
         determine_general_route(sl_loop);
         return;
     }
+
+    // Java parity: Java's sides come from ArrayListMultimap (HashMap-backed)
+    // keySet().toArray(), whose iteration order depends on PortSide identity
+    // hashCodes. The Java reference was generated with a specific JVM where
+    // the HashMap iteration order for PortSide keys matches counter-clockwise
+    // order: NORTH < WEST < SOUTH < EAST. Sorting sides by this rank before
+    // computing options ensures that `<=` tie-breaks produce the same routing
+    // direction as the Java reference for all opposing self-loop combinations.
+    sides.sort_by_key(|s| opposing_side_order_rank(*s));
 
     let Some(option1_left) = lowest_port_on_side(sl_loop, sides[0]) else {
         determine_general_route(sl_loop);
@@ -189,22 +198,8 @@ fn determine_two_side_opposing_route(
     let option2_penalty =
         compute_edge_penalty(holder, port_penalties, &option2_left, &option2_right);
 
-    if option1_penalty < option2_penalty {
-        sl_loop.set_leftmost_port(Some(option1_left));
-        sl_loop.set_rightmost_port(Some(option1_right));
-        return;
-    }
-    if option2_penalty < option1_penalty {
-        sl_loop.set_leftmost_port(Some(option2_left));
-        sl_loop.set_rightmost_port(Some(option2_right));
-        return;
-    }
-
-    // Java parity: opposing-side ties are effectively biased towards top/left routing.
-    // Choose the option whose clockwise intermediate side is preferred.
-    let option1_mid = sides[0].right();
-    let option2_mid = sides[1].right();
-    if opposing_tie_break_rank(option1_mid) <= opposing_tie_break_rank(option2_mid) {
+    // Java parity: Java uses `<=` which means option1 wins ties.
+    if option1_penalty <= option2_penalty {
         sl_loop.set_leftmost_port(Some(option1_left));
         sl_loop.set_rightmost_port(Some(option1_right));
     } else {
@@ -213,7 +208,10 @@ fn determine_two_side_opposing_route(
     }
 }
 
-fn opposing_tie_break_rank(side: PortSide) -> i32 {
+/// Returns a sort rank that matches the Java HashMap iteration order for
+/// PortSide enum constants observed in the reference layout generation.
+/// Counter-clockwise order: NORTH(0) < WEST(1) < SOUTH(2) < EAST(3).
+fn opposing_side_order_rank(side: PortSide) -> i32 {
     match side {
         PortSide::North => 0,
         PortSide::West => 1,

@@ -1001,7 +1001,13 @@ impl JsonImporter {
                 false
             }
         };
+        let has_no_children = node_children(node).is_empty();
+        // Compact inside self-loop nodes only when they have no children.
+        // When a node has children (e.g., inside_outside.elkt), the recursive
+        // layout correctly sizes the node to contain them and compaction would
+        // produce incorrect results.
         let should_compact_inside_self_loop_node = inside_self_loops_active
+            && has_no_children
             && !has_explicit_size_constraints
             && (!has_explicit_port_constraints || port_constraints.is_side_fixed())
             && all_ports_zero_sized;
