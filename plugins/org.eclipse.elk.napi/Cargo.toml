@@ -1,0 +1,16 @@
+[package]
+name = "org-eclipse-elk-napi"
+version = "0.1.0"
+edition = "2021"
+license = "EPL-2.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { version = "2", features = ["napi4"] }
+napi-derive = "2"
+org-eclipse-elk-graph-json = { path = "../org.eclipse.elk.graph.json" }
+
+[build-dependencies]
+napi-build = "2"

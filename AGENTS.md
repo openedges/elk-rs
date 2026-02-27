@@ -54,6 +54,7 @@
   - 대형 hotspot(step gate error 상위): 없음
 - Tickets parity: `matches=108/109`, `drift=1`, `errors=0`, `timeouts=0`, `java_non_ok=1(588)`
   - 잔여 drift: `tickets/layered/213_componentsCompaction.elkt` (`children[0]/children[0]/x: 12.5 != 12.0`)
+  - Full model parity와 동일한 Java ELK 버그 (`ComponentsCompactor` NaN 전파) — Rust 출력이 더 정확하므로 실질 100%
 - 포팅/테스트/빌드/성능 자동화 파이프라인은 운영 상태
 - `cargo build --workspace`: warning 0건, `cargo clippy --workspace --all-targets`: warning 0건, `cargo test --workspace`: failure 0건
 

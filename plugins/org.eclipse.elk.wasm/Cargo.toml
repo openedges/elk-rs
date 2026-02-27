@@ -1,0 +1,12 @@
+[package]
+name = "org-eclipse-elk-wasm"
+version = "0.1.0"
+edition = "2021"
+license = "EPL-2.0"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+org-eclipse-elk-graph-json = { path = "../org.eclipse.elk.graph.json" }
