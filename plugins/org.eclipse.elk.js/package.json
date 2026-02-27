@@ -1,0 +1,30 @@
+{
+  "name": "elk-rs",
+  "version": "0.1.0",
+  "description": "ELK layout engine in Rust — elkjs-compatible API with WASM and native Node.js addon",
+  "license": "EPL-2.0",
+  "main": "js/index.js",
+  "browser": "js/index.browser.js",
+  "types": "typings/elk-api.d.ts",
+  "files": [
+    "js/",
+    "dist/",
+    "typings/"
+  ],
+  "scripts": {
+    "build": "sh build.sh",
+    "test": "vitest run",
+    "test:parity": "node test/parity/run.mjs"
+  },
+  "devDependencies": {
+    "elkjs": "^0.11.0",
+    "vitest": "^3.0.0"
+  },
+  "keywords": [
+    "elk",
+    "layout",
+    "graph",
+    "wasm",
+    "rust"
+  ]
+}

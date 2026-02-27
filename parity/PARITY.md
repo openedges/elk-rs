@@ -19,6 +19,7 @@ Local and CI share the same sequence:
 3. `cargo clippy --workspace --all-targets`
 4. `cargo test --workspace`
 5. Model parity (layout output comparison, release/regression only)
+6. JS parity (`npm run test:parity` in `plugins/org.eclipse.elk.js/`)
 
 ### Pass Criteria
 
@@ -29,6 +30,7 @@ Local and CI share the same sequence:
 | 3 | Clippy | Zero warnings |
 | 4 | Unit tests | Zero failures |
 | 5 | Model parity | Drift count within known exceptions |
+| 6 | JS parity | Zero `ELKRS_DRIFT` (elkjs-only drift is acceptable) |
 
 ### Failure Analysis Loop
 
@@ -72,6 +74,15 @@ cargo test --workspace
 ```
 
 **Current status** (2026-02-26): 509 tests, 0 failures.
+
+JS unit tests (Vitest):
+
+```sh
+cd plugins/org.eclipse.elk.js
+npm test   # vitest run
+```
+
+**Current status** (2026-02-27): 32 tests, 0 failures.
 
 ### 2. Model Parity (Layout Output Comparison)
 
@@ -164,7 +175,46 @@ Output: `parity/layered_issue_test_parity.md`, `parity/java_test_module_parity.m
 
 Note: This checks structure and count, not semantic equivalence of test logic.
 
-### 6. Performance and Regression Gates
+### 6. JS Parity (3-Way: elk-rs JS vs elkjs vs Java ELK)
+
+Verifies that elk-rs compiled to JS (via NAPI/WASM) produces identical layout
+output to Java ELK, and classifies any divergence from elkjs (GWT-compiled).
+
+```sh
+cd plugins/org.eclipse.elk.js
+npm run test:parity
+# or with options:
+node test/parity/run.mjs [--models <dir>] [--tolerance <num>] [--stop-on-error]
+```
+
+The runner performs a 3-way comparison for each model:
+
+1. Run through **elk-rs JS** (NAPI/WASM binding)
+2. Run through **elkjs** (GWT-compiled Java ELK)
+3. Load **Java ELK baseline** from `parity/model_parity/java/layout/`
+4. Compare all three and classify diffs
+
+Classification:
+
+| Label | Meaning |
+|-------|---------|
+| `PASS` | All three match |
+| `ELKJS_DRIFT` | elk-rs matches Java, elkjs diverges (GWT artifact) |
+| `ELKRS_DRIFT` | elkjs matches Java, elk-rs diverges (elk-rs bug) |
+| `ALL_DIFFER` | All three produce different results |
+
+Exit code is 0 when only `ELKJS_DRIFT` diffs exist; non-zero only for real
+elk-rs failures (`ELKRS_DRIFT` or `ELKRS_ERROR`).
+
+**Current status** (2026-02-27):
+- Models: 550 (JSON from `external/elk-models/realworld/`)
+- **PASS: 530**, ELKJS_DRIFT: 20, ELKRS_DRIFT: 0
+- elk-rs vs Java match: **550/550 (100%)**
+- ELKJS_DRIFT causes: y-offset delta=10 (17 models, GWT spacing), floating-point ~2.3e-5 (3 models, GWT double emulation)
+
+Output: `plugins/org.eclipse.elk.js/test/parity/results/parity-report.json`
+
+### 7. Performance and Regression Gates
 
 Prevents performance regression against Rust baselines and monitors Java
 comparison.
@@ -301,6 +351,11 @@ parity/
   layered_issue_test_parity.md       # Test method count parity
   java_test_module_parity.md         # Module-level test parity
 
+plugins/org.eclipse.elk.js/
+  test/parity/
+    run.mjs                            # 3-way JS parity runner (elk-rs vs elkjs vs Java)
+    results/parity-report.json         # Detailed failure report (gitignored)
+
 scripts/
   run_model_parity_elk_vs_rust.sh    # Full parity pipeline (Java+Rust+compare)
   run_java_model_parity_export.sh    # Java-only export with patch support
@@ -320,6 +375,7 @@ scripts/
 | Full run outputs | `parity/model_parity_full/` | Gitignored | Ephemeral, entire dir is temp |
 | API parity reports | `parity/*.md` | Tracked | Updated by check scripts, committed |
 | Java patches | `scripts/java/patches/` | Tracked | Manual maintenance |
+| JS parity report | `plugins/org.eclipse.elk.js/test/parity/results/` | Gitignored | Regenerated on each run |
 
 ### Cleanup
 
