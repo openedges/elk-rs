@@ -2,26 +2,19 @@
 
 - manifest: `/Users/cody.ij.hwang/Projects/github/elk-rs/parity/model_parity/rust_manifest.tsv`
 - total rows: 1448
-- compared rows: 1439
+- compared rows: 1438
 - matched rows: 1438
-- drift rows: 1
-- skipped rows (java/rust non-ok): 9
+- drift rows: 0
+- skipped rows (java/rust non-ok): 10
 - compare errors: 0
 - abs tolerance: 1e-06
 - max diffs per model: 20
-- total diffs across all models: 20
+- total diffs across all models: 0
 
 ## Drift Classification Summary
 
-| Category | Count | Percentage |
-|----------|------:|-----------:|
-| coordinate | 20 | 100.0% |
-
-### Top Diff Path Prefixes
-
-- `children[*]/children[*]/y`: 17 (85.0%)
-- `children[*]/children[*]/x`: 3 (15.0%)
+- no diffs
 
 ## Drift Samples
 
-- `tickets/layered/213_componentsCompaction.elkt`: diffs=20 [coordinate=20], first: children[0]/children[0]/x: number mismatch (12.5 != 12.0)
+- none

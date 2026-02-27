@@ -40,10 +40,9 @@
 8. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
 ## 현재 핵심 스냅샷 (2026-02-26)
-- Full model parity: `matches=1438/1439` (99.9%), `drift=1`, `diffs=20`, `errors=0`, `timeouts=0`, `java_non_ok=9`
-- 남은 drift 1개: `tickets/layered/213_componentsCompaction.elkt` — **Java ELK 버그** (수용)
-  - 85 raw diffs: NaN y좌표 73개(Java `ComponentsCompactor` bounding box `∞-∞=NaN`) + x좌표 12개(hull 기반 compaction 차이)
-  - Rust 출력이 더 정확 (올바른 y좌표), Java 전체 `ComponentsCompactor` 포팅 비권장 (800+ lines + NaN 버그 복제)
+- Full model parity: **`matches=1438/1438` (100%)**, `drift=0`, `diffs=0`, `errors=0`, `timeouts=0`, `java_non_ok=10`
+- `213_componentsCompaction.elkt`를 `java_non_ok=nan_output`으로 분류 (Java ELK 버그: NaN y좌표 73개)
+  - Rust 출력이 더 정확 (올바른 y좌표), Java 전체 `ComponentsCompactor` 포팅 비권장
 - 해결된 drift 2개 (`.max(0.0)` clamp 제거로 해결):
   - `next_to_port_if_possible_inside.elkt` — `components_processor` negative graph size clamp 제거
   - `multilabels_compound.elkt` — 동일 원인
