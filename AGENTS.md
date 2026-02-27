@@ -41,7 +41,9 @@
 
 ## 현재 핵심 스냅샷 (2026-02-26)
 - Full model parity: `matches=1438/1439` (99.9%), `drift=1`, `diffs=20`, `errors=0`, `timeouts=0`, `java_non_ok=9`
-- 남은 drift 1개: `tickets/layered/213_componentsCompaction.elkt` (20 diffs) — Java NaN y좌표 + 컴포넌트 compaction x좌표 차이
+- 남은 drift 1개: `tickets/layered/213_componentsCompaction.elkt` — **Java ELK 버그** (수용)
+  - 85 raw diffs: NaN y좌표 73개(Java `ComponentsCompactor` bounding box `∞-∞=NaN`) + x좌표 12개(hull 기반 compaction 차이)
+  - Rust 출력이 더 정확 (올바른 y좌표), Java 전체 `ComponentsCompactor` 포팅 비권장 (800+ lines + NaN 버그 복제)
 - 해결된 drift 2개 (`.max(0.0)` clamp 제거로 해결):
   - `next_to_port_if_possible_inside.elkt` — `components_processor` negative graph size clamp 제거
   - `multilabels_compound.elkt` — 동일 원인
@@ -58,16 +60,18 @@
 
 ## Parity 100% 전략
 
-### Drift 분포 (1개 모델)
-- diff 분류(총 20, max-diffs=20 기준): coordinate(20)
-- `213_componentsCompaction` 1개 모델 — Java NaN y좌표(73개) + component compaction x좌표 차이(N1_1 +0.5, N1_2 +0.5, N5_1 +3.0)
+### Drift 분포 (1개 모델, Java ELK 버그)
+- `213_componentsCompaction` — 85 raw diffs (보고서 max-diffs=20 기준 20건 표시)
+  - NaN y좌표 73건: Java `ComponentsCompactor` + `OneDimensionalComponentsCompaction`에서 zero-size 노드 bounding box 계산 시 `∞ - ∞ = NaN` 전파
+  - x좌표 차이 12건: Java hull 기반 1D compaction vs Rust anchor 기반 정렬 (N1_1 +0.5, N1_2 +0.5, N5_1 +3.0)
+  - 결론: Rust 출력이 더 정확, Java 전체 `ComponentsCompactor` 포팅 비권장 (800+ lines + NaN 버그 복제)
 
-### 전략: Bottom-Up Phase-by-Phase Verification
+### 전략: Bottom-Up Phase-by-Phase Verification — **완료**
 - Phase 1-6: 완료 (상세: `HISTORY.md`)
 - Phase 7: p4 node placement 좌표 drift 분석 — **완료**
   - `next_to_port_if_possible_inside` — **해결**: `components_processor` `.max(0.0)` clamp 제거
   - `multilabels_compound` — **해결**: 동일 원인
-  - `213_componentsCompaction` — Java NaN y좌표 + component compaction 차이 (잔여 drift)
+  - `213_componentsCompaction` — **Java ELK 버그로 수용** (Rust 출력이 더 정확)
 
 ## 기본 실행 명령
 - 전체 정적 점검: `cargo clippy --workspace --all-targets`

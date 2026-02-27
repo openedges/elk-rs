@@ -180,11 +180,32 @@ sh scripts/check_java_parity.sh
 sh scripts/check_java_parity_scenarios.sh
 ```
 
-## Known Drift (1 model)
+## Known Drift (1 model — Java ELK Bug)
 
-| Model | Diffs | Root Cause |
-|-------|------:|------------|
-| `213_componentsCompaction.elkt` | 20 | Java produces NaN y-coordinates (73 fields); x-coordinate differences from connected component compaction (N1_1 +0.5, N1_2 +0.5, N5_1 +3.0) |
+| Model | Raw Diffs | Root Cause |
+|-------|----------:|------------|
+| `213_componentsCompaction.elkt` | 85 | Java ELK `ComponentsCompactor` bug — NaN y-coordinates (73) + compaction x-offset (12) |
+
+**Classification: accepted divergence (Rust output is more correct)**
+
+This model uses `compaction.connectedComponents=true` with a compound node containing
+9 connected components, zero-size children, and WEST+NORTH external ports.
+
+- **NaN y-coordinates (73 of 85 diffs)**: Java's `ComponentsCompactor.compact()` uses
+  `OneDimensionalComponentsCompaction` for iterative horizontal/vertical compaction.
+  With all-zero-size nodes, the bounding box calculation (`graphTopLeft.y` /
+  `graphBottomRight.y`) degenerates through `∞ - ∞ = NaN`, which propagates to all
+  child node y-positions, edge coordinates, and port y-positions. Rust's simplified
+  `maybe_compact_components` produces correct y-coordinates.
+
+- **x-coordinate differences (12 of 85 diffs)**: Java's hull-based `OneDimensionalCompactor`
+  shifts Component 1 (with NORTH port) by +0.5 and Component 5 (WEST reverse edge) by +3.0.
+  Rust uses anchor-based x-alignment without rectilinear convex hull computation.
+
+- **Not porting**: Java's full `ComponentsCompactor` pipeline (800+ lines across
+  `ComponentsCompactor.java`, `OneDimensionalComponentsCompaction.java`,
+  `RectilinearConvexHull.java`, `ComponentsToCGraphTransformer.java`) would replicate
+  the NaN bug. Rust's current output is superior for this model.
 
 ### Resolved Drift (2026-02-26)
 
