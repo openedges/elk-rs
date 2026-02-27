@@ -157,7 +157,7 @@ if (_parentPort) {
   var wasmReady = null;
 
   wasmReady = (function() {
-    return import('./wasm/org_eclipse_elk_wasm.js').then(function(module) {
+    return import('../dist/wasm/org_eclipse_elk_wasm.js').then(function(module) {
       if (module.default && typeof module.default === 'function') {
         return module.default().then(function() {
           wasmBackend = module;

@@ -1,0 +1,5 @@
+node_modules/
+test/
+vitest.config.js
+build.sh
+dist/elk-rs.node

@@ -6,6 +6,7 @@
 - 데이터 모델/파일 구조를 Java와 동일하게 유지한다.
 - 빌드/테스트/Clippy를 항상 통과 상태로 유지한다.
 - 성능 측정 자동화를 유지하고 Java 대비 성능 회귀를 방지한다.
+- elkjs 호환 npm 패키지(`elk-rs`)를 제공한다 (WASM + 향후 NAPI).
 - 라이선스는 Java Version과 동일하게 유지한다.
 
 ## 문서 운영 원칙
@@ -55,6 +56,10 @@
 - Tickets parity: `matches=108/109`, `drift=1`, `errors=0`, `timeouts=0`, `java_non_ok=1(588)`
   - 잔여 drift: `tickets/layered/213_componentsCompaction.elkt` (`children[0]/children[0]/x: 12.5 != 12.0`)
   - Full model parity와 동일한 Java ELK 버그 (`ComponentsCompactor` NaN 전파) — Rust 출력이 더 정확하므로 실질 100%
+- npm 패키지 `elk-rs@0.1.0`: WASM-only 릴리즈 준비 완료 (32 Vitest 통과, 550/550 elkjs parity)
+  - `plugins/org.eclipse.elk.js/`: JS API, WASM backend, TypeScript typings, README, LICENSE
+  - `npm publish --dry-run` 검증 완료 (12 files, 1.6MB compressed)
+  - 향후 v0.2.0+: NAPI 플랫폼별 패키지 (`@elk-rs/darwin-arm64` 등) 추가 예정
 - 포팅/테스트/빌드/성능 자동화 파이프라인은 운영 상태
 - `cargo build --workspace`: warning 0건, `cargo clippy --workspace --all-targets`: warning 0건, `cargo test --workspace`: failure 0건
 

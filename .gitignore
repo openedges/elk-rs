@@ -63,3 +63,6 @@
 # Python cache
 __pycache__/
 *.pyc
+
+# Auto Claude data directory
+.auto-claude/

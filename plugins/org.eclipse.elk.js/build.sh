@@ -16,6 +16,9 @@ mkdir -p "$DIST_DIR/wasm"
 echo "--- Building WASM ---"
 if command -v wasm-pack &> /dev/null; then
   (cd "$WASM_DIR" && wasm-pack build --target web --out-dir "$DIST_DIR/wasm" --release)
+  # wasm-pack generates .gitignore (containing "*") and package.json in the output dir.
+  # Remove them so npm pack can include the WASM files.
+  rm -f "$DIST_DIR/wasm/.gitignore" "$DIST_DIR/wasm/package.json"
   echo "WASM build complete."
 else
   echo "WARNING: wasm-pack not found. Skipping WASM build."

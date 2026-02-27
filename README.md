@@ -2,25 +2,63 @@
 
 Pure Rust port of Eclipse Layout Kernel (ELK), keeping Java-side feature/API/test parity while operating as a Rust workspace.
 
+## npm Package
+
+elk-rs is available as a drop-in replacement for [elkjs](https://github.com/nickkraft/elkjs):
+
+```bash
+npm install elk-rs
+```
+
+```js
+const ELK = require('elk-rs');
+const elk = new ELK();
+
+elk.layout({
+  id: 'root',
+  layoutOptions: { 'elk.algorithm': 'layered' },
+  children: [
+    { id: 'n1', width: 30, height: 30 },
+    { id: 'n2', width: 30, height: 30 },
+  ],
+  edges: [{ id: 'e1', sources: ['n1'], targets: ['n2'] }]
+}).then(console.log);
+```
+
+See [`plugins/org.eclipse.elk.js/README.md`](plugins/org.eclipse.elk.js/README.md) for full API documentation.
+
 ## Repository Layout
 
 - `plugins/`: Rust crates mapped to ELK plugin structure (`org.eclipse.elk.*`)
+  - `org.eclipse.elk.js/`: npm package — JS API, WASM backend, TypeScript typings
+  - `org.eclipse.elk.wasm/`: WASM bindings (wasm-bindgen)
+  - `org.eclipse.elk.napi/`: Native Node.js addon (NAPI-RS)
 - `scripts/`: quality and parity automation scripts
 - `parity/`: parity reports, baselines, parity outputs, policy docs
 - `external/`: upstream references (`elk`, `elk-models`, `elkjs`) as submodules
-- `AGENTS.md`: project progress log and next-work tracking
 
 ## Prerequisites
 
-- Rust toolchain (stable)
+- Rust toolchain (stable, with `wasm32-unknown-unknown` target for WASM build)
 - Git with submodule support
 - Shell environment with standard Unix tools (`sh`, `awk`, `sed`, `rg`)
+- [wasm-pack](https://rustwasm.github.io/wasm-pack/) (for WASM build)
+- Node.js 16+ (for JS package tests)
 
 ## Setup
 
 ```sh
 git submodule update --init --recursive
 cargo build --workspace
+```
+
+### Building the JS/WASM Package
+
+```sh
+cd plugins/org.eclipse.elk.js
+sh build.sh
+npm install
+npm test
 ```
 
 ## Validation Flow

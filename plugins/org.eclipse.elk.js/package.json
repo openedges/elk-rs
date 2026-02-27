@@ -6,15 +6,34 @@
   "main": "js/index.js",
   "browser": "js/index.browser.js",
   "types": "typings/elk-api.d.ts",
+  "exports": {
+    ".": {
+      "browser": "./js/index.browser.js",
+      "default": "./js/index.js"
+    },
+    "./package.json": "./package.json"
+  },
   "files": [
     "js/",
-    "dist/",
-    "typings/"
+    "dist/wasm/",
+    "typings/",
+    "LICENSE.md",
+    "README.md"
   ],
   "scripts": {
     "build": "sh build.sh",
     "test": "vitest run",
     "test:parity": "node test/parity/run.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/openedges/elk-rs.git",
+    "directory": "plugins/org.eclipse.elk.js"
+  },
+  "homepage": "https://github.com/openedges/elk-rs",
+  "bugs": "https://github.com/openedges/elk-rs/issues",
+  "engines": {
+    "node": ">=16"
   },
   "devDependencies": {
     "elkjs": "^0.11.0",

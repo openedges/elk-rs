@@ -24,7 +24,10 @@ function loadBackend() {
     // WASM not available either
   }
 
-  return null;
+  throw new Error(
+    'elk-rs: Could not load native addon or WASM module.\n'
+    + 'Ensure the package was installed correctly and dist/wasm/ exists.'
+  );
 }
 
 class ELKNode extends ELK {
@@ -64,16 +67,9 @@ class ELKNode extends ELK {
       }
     }
 
-    // If no workerFactory yet, try direct mode (native/WASM) or fake worker
+    // If no workerFactory yet, try direct mode (native/WASM)
     if (!optionsClone.workerFactory && !optionsClone.workerUrl) {
-      var backend = loadBackend();
-      if (backend) {
-        optionsClone.backend = backend;
-      } else {
-        // Last resort: fake worker
-        var FakeWorker = require('./elk-worker.js').Worker;
-        optionsClone.workerFactory = function(_url) { return new FakeWorker(); };
-      }
+      optionsClone.backend = loadBackend();
     } else if (!optionsClone.workerFactory) {
       // workerUrl provided but no workerFactory and web-worker not installed
       var FakeWorker = require('./elk-worker.js').Worker;
