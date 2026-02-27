@@ -40,12 +40,11 @@
 8. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
 ## 현재 핵심 스냅샷 (2026-02-26)
-- Full model parity: `matches=1436/1439` (99.8%), `drift=3`, `diffs=31`, `errors=0`, `timeouts=0`, `java_non_ok=9`
-  - 2026-02-25 inside self-loop 노드 compaction 조건 수정 후 재집계 기준
-- 남은 drift 3개: tests 리소스 2개 + tickets 1개 (2026-02-26 Java baseline 재생성으로 재확인, 모두 실제 구현 차이)
-  - `tests/core/label_placement/port_labels/next_to_port_if_possible_inside.elkt` (5 diffs) — 포트 배치 좌표 차이 (`port.x: 4.0 vs 24.0`)
-  - `tests/layered/port_label_placement/multilabels_compound.elkt` (6 diffs) — compound 레이아웃 좌표 차이 (`node.x: 38.0 vs 58.0`)
-  - `tickets/layered/213_componentsCompaction.elkt` (20 diffs) — 컴포넌트 compaction 미구현
+- Full model parity: `matches=1438/1439` (99.9%), `drift=1`, `diffs=20`, `errors=0`, `timeouts=0`, `java_non_ok=9`
+- 남은 drift 1개: `tickets/layered/213_componentsCompaction.elkt` (20 diffs) — Java NaN y좌표 + 컴포넌트 compaction x좌표 차이
+- 해결된 drift 2개 (`.max(0.0)` clamp 제거로 해결):
+  - `next_to_port_if_possible_inside.elkt` — `components_processor` negative graph size clamp 제거
+  - `multilabels_compound.elkt` — 동일 원인
 - Phase-gate(recursive+strict) 최신 기준: `base=1439`, `precheck_error=0`, `step0_error=0`
   - 비교불가 0건 (`comparable=1439`)
   - `all_match_models=1439`, `diverged_models=0`
@@ -59,22 +58,16 @@
 
 ## Parity 100% 전략
 
-### Drift 분포 (3개 모델)
-- diff 분류(총 31): coordinate(28), other(2), section(1)
-- phase-root 집계: `p4_node_placement` 2개 모델(총 11 diff), `213_componentsCompaction` 1개 모델(총 20 diff)
+### Drift 분포 (1개 모델)
+- diff 분류(총 20, max-diffs=20 기준): coordinate(20)
+- `213_componentsCompaction` 1개 모델 — Java NaN y좌표(73개) + component compaction x좌표 차이(N1_1 +0.5, N1_2 +0.5, N5_1 +3.0)
 
 ### 전략: Bottom-Up Phase-by-Phase Verification
-- Phase 1-3: Java/Rust phase trace 및 비교 도구 — **완료** (상세: `HISTORY.md`)
-- Phase 4: trace 실행 및 divergence 분석 — **운영 중**
-  - 최신 기준은 recursive+strict gate 산출물(`parity/model_parity/phase_gate_latest.md`)을 단일 기준으로 사용
-  - 최신 step range(루트 trace 기준): `0..42` (recursive trace 누적 최대 step index는 `1521`)
-  - Rust trace 실행 시 timeout 모델이 중간에 나오면 후속 모델 trace가 누락될 수 있어, known timeout 모델은 manifest 끝으로 재배치해 실행
-  - 우선순위는 `first_failure_by_step` 오름차순(현재 gate는 `first_failure_by_step` 비어 있음)
-- Phase 5-6: 모델별 버그 수정 및 edge routing drift 정리 — **완료** (상세: `HISTORY.md`)
-- Phase 7: p4 node placement 좌표 drift 분석 — **진행 중**
-  - `next_to_port_if_possible_inside` — 포트 배치 좌표 차이 (Java baseline 재생성으로 재확인, 실제 구현 차이)
-  - `multilabels_compound` — compound 레이아웃 좌표 차이 (Java baseline 재생성으로 재확인, 실제 구현 차이)
-  - `213_componentsCompaction` — 컴포넌트 compaction 미구현 (20 diffs)
+- Phase 1-6: 완료 (상세: `HISTORY.md`)
+- Phase 7: p4 node placement 좌표 drift 분석 — **완료**
+  - `next_to_port_if_possible_inside` — **해결**: `components_processor` `.max(0.0)` clamp 제거
+  - `multilabels_compound` — **해결**: 동일 원인
+  - `213_componentsCompaction` — Java NaN y좌표 + component compaction 차이 (잔여 drift)
 
 ## 기본 실행 명령
 - 전체 정적 점검: `cargo clippy --workspace --all-targets`

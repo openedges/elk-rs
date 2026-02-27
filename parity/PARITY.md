@@ -89,8 +89,8 @@ MODEL_PARITY_SKIP_JAVA_EXPORT=true \
 ```
 
 **Current status** (2026-02-26):
-- Total: 1448 models, Compared: 1439, **Matched: 1436**, Drift: 3, Skipped: 9
-- Match rate: **99.8%**
+- Total: 1448 models, Compared: 1439, **Matched: 1438**, Drift: 1, Skipped: 9
+- Match rate: **99.9%**
 
 Output reports:
 - `parity/model_parity/report.md` -- summary with drift classification
@@ -180,15 +180,18 @@ sh scripts/check_java_parity.sh
 sh scripts/check_java_parity_scenarios.sh
 ```
 
-## Known Drift (3 models)
-
-Confirmed as real implementation differences after Java baseline re-export (2026-02-26).
+## Known Drift (1 model)
 
 | Model | Diffs | Root Cause |
 |-------|------:|------------|
-| `next_to_port_if_possible_inside.elkt` | 5 | Port placement coordinate difference (`port.x: 4.0 vs 24.0`); inside port label cell layout |
-| `multilabels_compound.elkt` | 6 | Compound layout coordinate difference (`node.x: 38.0 vs 58.0`); compound label edge case |
-| `213_componentsCompaction.elkt` | 20 | 1D component compaction not fully ported |
+| `213_componentsCompaction.elkt` | 20 | Java produces NaN y-coordinates (73 fields); x-coordinate differences from connected component compaction (N1_1 +0.5, N1_2 +0.5, N5_1 +3.0) |
+
+### Resolved Drift (2026-02-26)
+
+| Model | Fix |
+|-------|-----|
+| `next_to_port_if_possible_inside.elkt` | Removed `.max(0.0)` clamp in `components_processor.rs` `combine_component_group` |
+| `multilabels_compound.elkt` | Same fix — negative graph sizes are valid intermediate values (matching Java) |
 
 ## Exception Cases
 

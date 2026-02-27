@@ -375,8 +375,8 @@ fn combine_component_group(components: &[LGraphRef], target: &LGraphRef) {
     }
 
     if let Ok(mut target_guard) = target.lock() {
-        target_guard.size().x = (offset.x - component_spacing).max(0.0);
-        target_guard.size().y = (offset.y - component_spacing).max(0.0);
+        target_guard.size().x = offset.x - component_spacing;
+        target_guard.size().y = offset.y - component_spacing;
     }
 
     maybe_compact_components(components, target, true);
@@ -483,8 +483,8 @@ fn combine_component_group_model_order(components: &[LGraphRef], target: &LGraph
     }
 
     if let Ok(mut target_guard) = target.lock() {
-        target_guard.size().x = (max_size.x - component_spacing).max(0.0);
-        target_guard.size().y = (max_size.y - component_spacing).max(0.0);
+        target_guard.size().x = max_size.x - component_spacing;
+        target_guard.size().y = max_size.y - component_spacing;
     }
 
     maybe_compact_components(components, target, true);
