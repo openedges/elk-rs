@@ -40,7 +40,8 @@
 7. 커밋 (`<scope>: <summary>`)
 8. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
-## 현재 핵심 스냅샷 (2026-02-26)
+## 현재 핵심 스냅샷 (2026-02-27)
+- **elk-rs 버전**: `0.11.0` (ELK Java `v0.11.0` 기준 포팅), Cargo workspace 전체 + npm 동일 버전
 - Full model parity: **`matches=1438/1438` (100%)**, `drift=0`, `diffs=0`, `errors=0`, `timeouts=0`, `java_non_ok=10`
 - `213_componentsCompaction.elkt`를 `java_non_ok=nan_output`으로 분류 (Java ELK 버그: NaN y좌표 73개)
   - Rust 출력이 더 정확 (올바른 y좌표), Java 전체 `ComponentsCompactor` 포팅 비권장
@@ -56,12 +57,14 @@
 - Tickets parity: `matches=108/109`, `drift=1`, `errors=0`, `timeouts=0`, `java_non_ok=1(588)`
   - 잔여 drift: `tickets/layered/213_componentsCompaction.elkt` (`children[0]/children[0]/x: 12.5 != 12.0`)
   - Full model parity와 동일한 Java ELK 버그 (`ComponentsCompactor` NaN 전파) — Rust 출력이 더 정확하므로 실질 100%
-- npm 패키지 `elk-rs@0.1.0`: WASM-only 릴리즈 준비 완료 (32 Vitest 통과, 550/550 elkjs parity)
+- npm 패키지 `elk-rs@0.11.0`: WASM-only 릴리즈 준비 완료 (32 Vitest 통과, 550/550 elkjs parity)
   - `plugins/org.eclipse.elk.js/`: JS API, WASM backend, TypeScript typings, README, LICENSE
   - `npm publish --dry-run` 검증 완료 (12 files, 1.6MB compressed)
   - 향후 v0.2.0+: NAPI 플랫폼별 패키지 (`@elk-rs/darwin-arm64` 등) 추가 예정
 - 포팅/테스트/빌드/성능 자동화 파이프라인은 운영 상태
 - `cargo build --workspace`: warning 0건, `cargo clippy --workspace --all-targets`: warning 0건, `cargo test --workspace`: failure 0건
+- 서브모듈 고정: `external/elk` → `v0.11.0` 태그, `external/elkjs` → `0.11.0` 태그
+- ELKT 파서 nested block 테스트 수정: `elkt_test_loader.rs`의 `get_or_create_port` 부모 노드 조회 버그 수정 (pre-existing failure)
 
 ## Parity 100% 전략
 

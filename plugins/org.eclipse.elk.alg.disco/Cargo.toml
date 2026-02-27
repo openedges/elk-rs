@@ -1,8 +1,8 @@
 [package]
 name = "org-eclipse-elk-alg-disco"
-version = "0.1.0"
-edition = "2021"
-license = "EPL-2.0"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
 
 [dependencies]
 org-eclipse-elk-core = { path = "../org.eclipse.elk.core" }

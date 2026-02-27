@@ -3148,7 +3148,8 @@ fn get_or_create_port(
     }
 
     let parent = if let Some(parent_node_id) = parent_node_id {
-        get_or_create_node(graph, nodes, parent_node_id, None)
+        find_node_by_identifier_reference(nodes, parent_node_id, None)
+            .unwrap_or_else(|| get_or_create_node(graph, nodes, parent_node_id, None))
     } else {
         graph.clone()
     };

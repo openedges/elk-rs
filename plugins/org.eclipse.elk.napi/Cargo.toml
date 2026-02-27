@@ -1,8 +1,8 @@
 [package]
 name = "org-eclipse-elk-napi"
-version = "0.1.0"
-edition = "2021"
-license = "EPL-2.0"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
 
 [lib]
 crate-type = ["cdylib"]
