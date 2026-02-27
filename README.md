@@ -130,6 +130,7 @@ Use the full release gate in `RELEASE_CHECKLIST.md`, which includes:
 - Parity verification system: `parity/PARITY.md`
 - Baseline lifecycle policy: `parity/baselines/POLICY.md`
 - Java parity triage: `parity/java_parity_triage.md`
+- Version management and porting policy: `VERSIONING.md`
 
 Generated reports are written under `parity/` (for example `parity/*_parity.md`, `parity/model_parity/report.md`).
 
