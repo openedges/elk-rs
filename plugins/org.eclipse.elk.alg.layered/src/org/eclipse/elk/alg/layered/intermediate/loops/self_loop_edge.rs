@@ -1,4 +1,5 @@
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Weak};
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use crate::org::eclipse::elk::alg::layered::graph::LEdgeRef;
 use crate::org::eclipse::elk::alg::layered::intermediate::loops::{

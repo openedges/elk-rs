@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::{
     LGraph, LGraphRef, LNode, LNodeRef, Layer,
@@ -10,7 +11,7 @@ use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::{
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::NullElkProgressMonitor;
 
-fn graph_with_layer() -> (LGraphRef, Arc<std::sync::Mutex<Layer>>) {
+fn graph_with_layer() -> (LGraphRef, Arc<Mutex<Layer>>) {
     let graph = LGraph::new();
     let layer = Layer::new(&graph);
     graph
@@ -23,7 +24,7 @@ fn graph_with_layer() -> (LGraphRef, Arc<std::sync::Mutex<Layer>>) {
 
 fn add_node_with_constraint(
     graph: &LGraphRef,
-    layer: &Arc<std::sync::Mutex<Layer>>,
+    layer: &Arc<Mutex<Layer>>,
     constraint: InLayerConstraint,
 ) -> LNodeRef {
     let node = LNode::new(graph);
@@ -42,7 +43,7 @@ fn run_processor(graph: &LGraphRef) {
     processor.process(&mut graph_guard, &mut monitor);
 }
 
-fn layer_nodes(layer: &Arc<std::sync::Mutex<Layer>>) -> Vec<LNodeRef> {
+fn layer_nodes(layer: &Arc<Mutex<Layer>>) -> Vec<LNodeRef> {
     layer.lock().expect("layer lock").nodes().clone()
 }
 

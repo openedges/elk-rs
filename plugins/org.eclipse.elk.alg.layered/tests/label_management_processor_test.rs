@@ -1,7 +1,8 @@
 mod issue_support;
 
 use std::any::Any;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use issue_support::init_layered_options;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::{

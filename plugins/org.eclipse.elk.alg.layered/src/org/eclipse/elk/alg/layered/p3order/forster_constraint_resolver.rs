@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, VecDeque};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LNodeRef, NodeType};
 use crate::org::eclipse::elk::alg::layered::options::InternalProperties;

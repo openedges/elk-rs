@@ -1,5 +1,6 @@
 use std::collections::HashSet;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::spore::scanline_overlap_check::ScanlineOverlapCheck;
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::t_edge::TEdge;

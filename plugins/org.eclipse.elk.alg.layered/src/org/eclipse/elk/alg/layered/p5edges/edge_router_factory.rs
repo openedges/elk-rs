@@ -1,5 +1,6 @@
 use std::collections::HashMap;
-use std::sync::{Arc, LazyLock, Mutex};
+use std::sync::{Arc, LazyLock};
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutPhase;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase_factory::ILayoutPhaseFactory;

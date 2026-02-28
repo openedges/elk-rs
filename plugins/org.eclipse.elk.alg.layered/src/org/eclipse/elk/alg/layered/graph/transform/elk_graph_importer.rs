@@ -1,5 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
+use std::sync::Arc;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::nodespacing::NodeLabelAndSizeCalculator;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::KVector;
@@ -1182,7 +1184,7 @@ impl<'a> ElkGraphImporter<'a> {
             (text, position, size, props)
         };
 
-        let llabel = std::sync::Arc::new(std::sync::Mutex::new(LLabel::with_text(text)));
+        let llabel = Arc::new(Mutex::new(LLabel::with_text(text)));
         if let Ok(mut label_guard) = llabel.lock() {
             label_guard
                 .shape()

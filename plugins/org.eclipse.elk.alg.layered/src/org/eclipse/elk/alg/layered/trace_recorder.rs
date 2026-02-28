@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
@@ -28,7 +29,7 @@ fn number_or_special(value: f64) -> Value {
     }
 }
 
-fn serialize_label(label: &Arc<std::sync::Mutex<super::graph::LLabel>>) -> Option<Value> {
+fn serialize_label(label: &Arc<Mutex<super::graph::LLabel>>) -> Option<Value> {
     let mut guard = label.try_lock().ok()?;
     let text = guard.text().to_string();
     let pos_x = guard.shape().position_ref().x;
@@ -45,7 +46,7 @@ fn serialize_label(label: &Arc<std::sync::Mutex<super::graph::LLabel>>) -> Optio
 }
 
 fn serialize_port(
-    port: &Arc<std::sync::Mutex<super::graph::LPort>>,
+    port: &Arc<Mutex<super::graph::LPort>>,
     east_port_x_shift: f64,
 ) -> Option<Value> {
     let mut guard = port.try_lock().ok()?;

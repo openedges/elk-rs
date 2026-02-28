@@ -1,5 +1,6 @@
 use std::collections::{HashSet, VecDeque};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::EnumSetType;

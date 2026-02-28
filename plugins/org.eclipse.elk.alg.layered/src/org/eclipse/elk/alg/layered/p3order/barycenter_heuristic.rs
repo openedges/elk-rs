@@ -1,6 +1,7 @@
 use std::any::Any;
 use std::cmp::Ordering;
-use std::sync::{Arc, LazyLock, Mutex};
+use std::sync::{Arc, LazyLock};
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 use std::time::Instant;
 
 static TRACE_PORT_RANKS: LazyLock<bool> =

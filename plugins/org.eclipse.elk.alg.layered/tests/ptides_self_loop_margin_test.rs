@@ -10,6 +10,7 @@
 // - After SelfLoopRouter, margin.left should extend to 28 because WEST uses slot 1 in this setup
 
 use std::sync::Arc;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::{
     LEdge, LGraph, LNode, LPort, Layer,
@@ -32,7 +33,7 @@ fn init_layered_metadata() {
     service.register_layout_meta_data_provider(&LayeredMetaDataProvider);
 }
 
-fn run_processor(processor: &mut dyn ILayoutProcessor<LGraph>, graph: &std::sync::Arc<std::sync::Mutex<LGraph>>) {
+fn run_processor(processor: &mut dyn ILayoutProcessor<LGraph>, graph: &Arc<Mutex<LGraph>>) {
     let mut monitor = NullElkProgressMonitor;
     processor.process(&mut graph.lock().expect("graph lock"), &mut monitor);
 }

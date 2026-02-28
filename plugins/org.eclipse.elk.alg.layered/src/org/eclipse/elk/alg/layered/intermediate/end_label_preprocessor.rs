@@ -1,6 +1,8 @@
 #![allow(clippy::mutable_key_type)]
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::MutexGuard;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::nodespacing::{
     HorizontalLabelAlignment, LabelCell, VerticalLabelAlignment,
@@ -414,7 +416,7 @@ fn remove_label_overlaps(
         edge_label_spacing,
     ));
 
-    let mut label_guards: Vec<std::sync::MutexGuard<'_, LabelCell<LLabelAdapter, LLabelRef>>> =
+    let mut label_guards: Vec<MutexGuard<'_, LabelCell<LLabelAdapter, LLabelRef>>> =
         Vec::new();
 
     for (index, port) in ports.iter().enumerate() {

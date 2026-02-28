@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::{
     LEdge, LGraph, LGraphRef, LNode, LNodeRef, LPort, LPortRef, Layer, NodeType,
@@ -43,7 +44,7 @@ fn mock_random(next_boolean: bool) -> Random {
     random
 }
 
-fn make_layer(graph: &LGraphRef) -> std::sync::Arc<std::sync::Mutex<Layer>> {
+fn make_layer(graph: &LGraphRef) -> Arc<Mutex<Layer>> {
     let layer = Layer::new(graph);
     if let Ok(mut graph_guard) = graph.lock() {
         graph_guard.layers_mut().push(layer.clone());
@@ -51,11 +52,11 @@ fn make_layer(graph: &LGraphRef) -> std::sync::Arc<std::sync::Mutex<Layer>> {
     layer
 }
 
-fn make_layers(graph: &LGraphRef, count: usize) -> Vec<std::sync::Arc<std::sync::Mutex<Layer>>> {
+fn make_layers(graph: &LGraphRef, count: usize) -> Vec<Arc<Mutex<Layer>>> {
     (0..count).map(|_| make_layer(graph)).collect()
 }
 
-fn add_node(graph: &LGraphRef, layer: &std::sync::Arc<std::sync::Mutex<Layer>>) -> LNodeRef {
+fn add_node(graph: &LGraphRef, layer: &Arc<Mutex<Layer>>) -> LNodeRef {
     let node = LNode::new(graph);
     if let Ok(mut node_guard) = node.lock() {
         node_guard.set_node_type(NodeType::Normal);
@@ -127,7 +128,7 @@ fn same_port_order(actual: &[LPortRef], expected: &[LPortRef]) -> bool {
             .all(|(left, right)| Arc::ptr_eq(left, right))
 }
 
-fn clone_layer_nodes(layer: &std::sync::Arc<std::sync::Mutex<Layer>>) -> Vec<LNodeRef> {
+fn clone_layer_nodes(layer: &Arc<Mutex<Layer>>) -> Vec<LNodeRef> {
     layer.lock().expect("layer lock").nodes().clone()
 }
 
@@ -245,7 +246,7 @@ fn add_in_layer_edge(source: &LNodeRef, target: &LNodeRef, side: PortSide) {
 }
 
 fn add_external_port_dummy_node_to_layer(
-    layer: &std::sync::Arc<std::sync::Mutex<Layer>>,
+    layer: &Arc<Mutex<Layer>>,
     port: &LPortRef,
 ) -> LNodeRef {
     let graph = layer
@@ -284,7 +285,7 @@ fn add_external_port_dummy_node_to_layer(
 }
 
 fn add_external_port_dummies_to_layer(
-    layer: &std::sync::Arc<std::sync::Mutex<Layer>>,
+    layer: &Arc<Mutex<Layer>>,
     ports: &[LPortRef],
 ) -> Vec<LNodeRef> {
     if ports.is_empty() {

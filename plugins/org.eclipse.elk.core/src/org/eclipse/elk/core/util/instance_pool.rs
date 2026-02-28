@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 pub trait IFactory<T>: Send + Sync {
     fn create(&self) -> T;

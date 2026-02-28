@@ -1,4 +1,5 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, Random};
 use crate::org::eclipse::elk::alg::layered::p3order::random_trace;

@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::sync::Arc;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::compaction::oned::compare_fuzzy;
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::compaction::oned::{
@@ -2098,7 +2099,7 @@ fn fuzzy_cmp(left: f64, right: f64) -> std::cmp::Ordering {
     }
 }
 
-fn arc_key<T>(value: &Arc<std::sync::Mutex<T>>) -> usize {
+fn arc_key<T>(value: &Arc<Mutex<T>>) -> usize {
     Arc::as_ptr(value) as usize
 }
 

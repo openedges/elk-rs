@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::{
     LEdge, LGraph, LNode, LPort, Layer, NodeType,
@@ -13,10 +14,10 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::NullElkProgressMonitor;
 
 fn add_node(
-    graph: &Arc<std::sync::Mutex<LGraph>>,
-    layer: &Arc<std::sync::Mutex<Layer>>,
+    graph: &Arc<Mutex<LGraph>>,
+    layer: &Arc<Mutex<Layer>>,
     node_type: NodeType,
-) -> Arc<std::sync::Mutex<LNode>> {
+) -> Arc<Mutex<LNode>> {
     let node = LNode::new(graph);
     {
         let mut node_guard = node.lock().expect("node lock");
@@ -26,7 +27,7 @@ fn add_node(
     node
 }
 
-fn add_port(node: &Arc<std::sync::Mutex<LNode>>, side: PortSide) -> Arc<std::sync::Mutex<LPort>> {
+fn add_port(node: &Arc<Mutex<LNode>>, side: PortSide) -> Arc<Mutex<LPort>> {
     let port = LPort::new();
     {
         let mut port_guard = port.lock().expect("port lock");
@@ -37,9 +38,9 @@ fn add_port(node: &Arc<std::sync::Mutex<LNode>>, side: PortSide) -> Arc<std::syn
 }
 
 fn connect(
-    source: &Arc<std::sync::Mutex<LPort>>,
-    target: &Arc<std::sync::Mutex<LPort>>,
-) -> Arc<std::sync::Mutex<LEdge>> {
+    source: &Arc<Mutex<LPort>>,
+    target: &Arc<Mutex<LPort>>,
+) -> Arc<Mutex<LEdge>> {
     let edge = LEdge::new();
     LEdge::set_source(&edge, Some(source.clone()));
     LEdge::set_target(&edge, Some(target.clone()));

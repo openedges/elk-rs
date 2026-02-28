@@ -1,6 +1,7 @@
 use std::any::Any;
 use std::collections::{BTreeSet, HashMap, HashSet, LinkedList};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, OnceLock};
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::GraphFeature;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkReflect;

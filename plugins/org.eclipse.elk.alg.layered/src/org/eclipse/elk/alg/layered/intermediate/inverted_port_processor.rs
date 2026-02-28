@@ -1,4 +1,6 @@
+use std::sync::Arc;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector_chain::KVectorChain;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_label_placement::EdgeLabelPlacement;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
@@ -176,7 +178,7 @@ fn create_west_port_side_dummy(layer: &LayerRef, west_port: &LPortRef, edge: &LE
 fn create_dummy_node(
     layer: &LayerRef,
     origin_edge: &LEdgeRef,
-) -> std::sync::Arc<std::sync::Mutex<LNode>> {
+) -> Arc<Mutex<LNode>> {
     let graph = layer
         .lock()
         .ok()
@@ -198,7 +200,7 @@ fn create_dummy_node(
     dummy
 }
 
-fn create_dummy_port(dummy: &std::sync::Arc<std::sync::Mutex<LNode>>, side: PortSide) -> LPortRef {
+fn create_dummy_port(dummy: &Arc<Mutex<LNode>>, side: PortSide) -> LPortRef {
     let port = LPort::new();
     if let Ok(mut port_guard) = port.lock() {
         port_guard.set_side(side);

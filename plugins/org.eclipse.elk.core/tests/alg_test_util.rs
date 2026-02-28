@@ -3,7 +3,9 @@
 use std::any::Any;
 use std::fmt;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, LazyLock, Mutex, MutexGuard};
+use std::sync::{Arc, LazyLock};
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::MutexGuard;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::{
     ILayoutPhase, ILayoutPhaseFactory, ILayoutProcessor, ILayoutProcessorFactory,

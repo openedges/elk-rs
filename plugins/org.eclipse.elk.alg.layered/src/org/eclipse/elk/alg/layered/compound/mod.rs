@@ -2,6 +2,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
@@ -437,7 +438,7 @@ impl CompoundGraphPreprocessor {
                                 (KVector::new(), KVector::new())
                             };
 
-                            let dummy_label = Arc::new(std::sync::Mutex::new(LLabel::new()));
+                            let dummy_label = Arc::new(Mutex::new(LLabel::new()));
                             if let Ok(mut dummy_label_guard) = dummy_label.lock() {
                                 dummy_label_guard.shape().size().x = label_size.x;
                                 dummy_label_guard.shape().size().y = label_size.y;

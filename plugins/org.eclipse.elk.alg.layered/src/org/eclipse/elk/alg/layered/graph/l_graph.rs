@@ -1,4 +1,5 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
@@ -98,8 +99,7 @@ impl LGraph {
         &self,
         property: &Property<T>,
     ) -> Option<T> {
-        let mut holder = self.element.properties().clone();
-        holder.get_property(property)
+        self.element.properties().get_property_immut(property)
     }
 
     pub fn set_property<T: Clone + Send + Sync + 'static>(

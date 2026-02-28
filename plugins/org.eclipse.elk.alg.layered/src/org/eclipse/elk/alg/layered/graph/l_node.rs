@@ -1,5 +1,6 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Weak};
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;

@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
@@ -410,8 +411,8 @@ fn create_breaking_point_dummy(
     layer: &LayerRef,
 ) -> (
     LNodeRef,
-    Arc<std::sync::Mutex<crate::org::eclipse::elk::alg::layered::graph::LPort>>,
-    Arc<std::sync::Mutex<crate::org::eclipse::elk::alg::layered::graph::LPort>>,
+    Arc<Mutex<crate::org::eclipse::elk::alg::layered::graph::LPort>>,
+    Arc<Mutex<crate::org::eclipse::elk::alg::layered::graph::LPort>>,
 ) {
     let node = LNode::new(graph_ref);
     if let Ok(mut node_guard) = node.lock() {

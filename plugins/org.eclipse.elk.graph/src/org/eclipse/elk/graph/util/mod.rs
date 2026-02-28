@@ -1,13 +1,16 @@
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
-use std::sync::{Mutex, OnceLock};
+use std::sync::OnceLock;
 
 use crate::org::eclipse::elk::graph::{
     ElkConnectableShapeRef, ElkEdgeRef, ElkGraphElementRef, ElkGraphFactory, ElkLabelRef,
     ElkNodeRef, ElkPortRef,
 };
 
+pub mod elk_mutex;
 mod graph_identifier_generator;
+
+use self::elk_mutex::Mutex;
 
 pub use graph_identifier_generator::GraphIdentifierGenerator;
 

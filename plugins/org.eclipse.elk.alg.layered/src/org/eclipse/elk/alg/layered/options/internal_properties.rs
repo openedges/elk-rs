@@ -1,5 +1,6 @@
 use std::hash::{Hash, Hasher};
-use std::sync::{Arc, LazyLock, Mutex};
+use std::sync::{Arc, LazyLock};
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::nodespacing::LabelCell;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::SharedProcessor;

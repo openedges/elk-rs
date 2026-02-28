@@ -1,7 +1,9 @@
+use std::sync::Arc;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::{
     LEdge, LGraph, LGraphRef, LNode, LNodeRef, LPort, LPortRef, Layer,
 };
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::intermediate::NorthSouthPortPreprocessor;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::{
     InternalProperties, LayeredMetaDataProvider, LayeredOptions,
 };
@@ -16,7 +18,7 @@ fn init_layered_metadata() {
         .register_layout_meta_data_provider(&LayeredMetaDataProvider);
 }
 
-fn graph_with_single_layer() -> (LGraphRef, std::sync::Arc<std::sync::Mutex<Layer>>) {
+fn graph_with_single_layer() -> (LGraphRef, Arc<Mutex<Layer>>) {
     let graph = LGraph::new();
     let layer = Layer::new(&graph);
     graph
@@ -27,7 +29,7 @@ fn graph_with_single_layer() -> (LGraphRef, std::sync::Arc<std::sync::Mutex<Laye
     (graph, layer)
 }
 
-fn add_node(graph: &LGraphRef, layer: &std::sync::Arc<std::sync::Mutex<Layer>>) -> LNodeRef {
+fn add_node(graph: &LGraphRef, layer: &Arc<Mutex<Layer>>) -> LNodeRef {
     let node = LNode::new(graph);
     LNode::set_layer(&node, Some(layer.clone()));
     node

@@ -1,5 +1,6 @@
 use std::fmt;
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Weak};
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector_chain::KVectorChain;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;

@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::fmt;
-use std::sync::{LazyLock, Mutex};
+use std::sync::LazyLock;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Cleanup {

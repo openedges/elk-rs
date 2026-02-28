@@ -257,6 +257,25 @@ impl MapPropertyHolder {
         default_value
     }
 
+    pub fn get_property_immut<T: Clone + Send + Sync + 'static>(
+        &self,
+        property: &Property<T>,
+    ) -> Option<T> {
+        if let Some(value) = self.property_map.get(property.id()) {
+            match value {
+                PropertyValue::Resolved(value) => {
+                    return value.clone().downcast::<T>().ok().map(|v| (*v).clone());
+                }
+                PropertyValue::Proxy(proxy) => {
+                    if let Some(resolved) = proxy.resolve_value(property.id()) {
+                        return resolved.downcast::<T>().ok().map(|v| (*v).clone());
+                    }
+                }
+            }
+        }
+        property.get_default()
+    }
+
     pub fn has_property<T: Clone + Send + Sync + 'static>(&self, property: &Property<T>) -> bool {
         self.property_map.contains_key(property.id())
     }

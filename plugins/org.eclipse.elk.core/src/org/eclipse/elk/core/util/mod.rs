@@ -1,7 +1,8 @@
 use std::collections::{BTreeSet, HashSet};
 use std::hash::Hash;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::{MapPropertyHolder, Property};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkGraphElementRef, ElkNodeRef};

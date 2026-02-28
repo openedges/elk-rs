@@ -1,5 +1,6 @@
 use std::any::Any;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use super::n_node::NNodeRef;
 

@@ -1,4 +1,5 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::{
     LEdge, LEdgeRef, LGraph, LGraphRef, LLabel, LNode, LNodeRef, LPort, LPortRef, Layer, NodeType,

@@ -1,4 +1,5 @@
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Weak};
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 pub mod l_edge;
 pub mod l_graph;

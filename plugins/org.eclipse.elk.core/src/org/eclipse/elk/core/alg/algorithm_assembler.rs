@@ -2,7 +2,8 @@ use std::any::TypeId;
 use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap};
 use std::marker::PhantomData;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 use std::time::Instant;
 
 use crate::org::eclipse::elk::core::util::{EnumSetType, IElkProgressMonitor};
