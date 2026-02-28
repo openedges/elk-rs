@@ -7,13 +7,19 @@
 .idea/
 .vscode/
 .omc/
+.auto-claude/
 
-# Perf artifacts
-/tests/*.csv
-/tests/summary.md
+# Python cache
+__pycache__/
+*.pyc
+
+# Perf benchmark outputs
+/tests/perf/*.csv
+/tests/perf/report.md
+
+# Temp test artifacts
 /tests/tmp/*
 !/tests/tmp/.gitkeep
-/tests/layered_phase_wiring/*.tsv
 
 # Model parity outputs
 #
@@ -40,29 +46,22 @@
 /tests/model_parity/realworld_*.md
 /tests/model_parity/rust_manifest_realworld_*.tsv
 
-# model_parity_full and other variant dirs — all temp
-/tests/model_parity_full/
+# Layered phase wiring artifacts
+/tests/layered_phase_wiring/*.tsv
+
+# Script-generated temp dirs
+/tests/test_parity/
+/tests/model_parity_categories/
+
+# Phase trace outputs
+/tests/model_parity/java_trace/
+/tests/model_parity/rust_trace/
+
+# model_parity variant dirs — all temp except java_manifest.tsv
 /tests/model_parity_*/java/input/
 /tests/model_parity_*/java/layout/
 /tests/model_parity_*/rust/
 /tests/model_parity_*/rust_runner_progress.tsv
 /tests/model_parity_*/**/*.json
-# Preserve java_manifest.tsv in variant dirs
 !/tests/model_parity_*/java/
 !/tests/model_parity_*/java/java_manifest.tsv
-
-/tests/model_parity_categories/
-/tests/test_parity/
-
-# Phase trace outputs
-/tests/model_parity/java_trace/
-/tests/model_parity/rust_trace/
-/tests/model_parity_full/java_trace/
-/tests/model_parity_full/rust_trace/
-
-# Python cache
-__pycache__/
-*.pyc
-
-# Auto Claude data directory
-.auto-claude/

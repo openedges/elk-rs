@@ -18,9 +18,10 @@ Directory policy (keep vs temporary):
   - `tests/java_parity_thresholds*.csv`
   - Compact parity summaries (`report.md`, `diff_details.tsv`, `rust_manifest.tsv`, `java/java_manifest.tsv`, `phase_root_*.{md,tsv}`, `phase_focus_top.{md,tsv}`)
 - Runtime temporary (`TEMP`):
-  - `tests/tmp/**` (new scratch output root)
+  - `tests/tmp/**` (scratch output root)
+  - `tests/perf/*.csv`, `tests/perf/report.md` (5-way performance benchmark outputs)
   - `tests/layered_phase_wiring/*.tsv` (expanded wiring rows)
-  - `tests/test_parity/**`
+  - `tests/test_parity/**`, `tests/model_parity_categories/**`
   - Heavy parity payloads: `tests/model_parity*/java/input/**`, `tests/model_parity*/java/layout/**`, `tests/model_parity*/rust/layout/**`, `tests/model_parity*/java_trace/**`, `tests/model_parity*/rust_trace/**`
 
 Recommended usage:
