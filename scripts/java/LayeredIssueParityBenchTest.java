@@ -18,34 +18,23 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
-import java.util.EnumSet;
 import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.eclipse.elk.alg.layered.LayeredLayoutProvider;
 import org.eclipse.elk.alg.layered.options.CrossingMinimizationStrategy;
-import org.eclipse.elk.alg.layered.options.CycleBreakingStrategy;
 import org.eclipse.elk.alg.layered.options.GreedySwitchType;
 import org.eclipse.elk.alg.layered.options.LayeredOptions;
-import org.eclipse.elk.alg.layered.options.OrderingStrategy;
 import org.eclipse.elk.alg.test.PlainJavaInitialization;
+import org.eclipse.elk.core.RecursiveGraphLayoutEngine;
 import org.eclipse.elk.core.math.ElkPadding;
 import org.eclipse.elk.core.options.CoreOptions;
 import org.eclipse.elk.core.options.Direction;
-import org.eclipse.elk.core.options.EdgeLabelPlacement;
 import org.eclipse.elk.core.options.EdgeRouting;
-import org.eclipse.elk.core.options.NodeLabelPlacement;
-import org.eclipse.elk.core.options.PortConstraints;
-import org.eclipse.elk.core.options.PortLabelPlacement;
-import org.eclipse.elk.core.options.PortSide;
-import org.eclipse.elk.core.util.BasicProgressMonitor;
-import org.eclipse.elk.graph.ElkEdge;
-import org.eclipse.elk.graph.ElkLabel;
+import org.eclipse.elk.core.util.NullElkProgressMonitor;
 import org.eclipse.elk.graph.ElkNode;
-import org.eclipse.elk.graph.ElkPort;
 import org.eclipse.elk.graph.util.ElkGraphUtil;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -57,7 +46,12 @@ import org.junit.Test;
  */
 public class LayeredIssueParityBenchTest {
 
-    private static final String DEFAULT_SCENARIOS = "issue_405,issue_603,issue_680,issue_871,issue_905";
+    private static final String DEFAULT_SCENARIOS =
+            "layered_small,layered_medium,layered_large,layered_xlarge,"
+            + "force_medium,stress_medium,mrtree_medium,radial_medium,rectpacking_medium,"
+            + "routing_polyline,routing_orthogonal,routing_splines,"
+            + "crossmin_layer_sweep,crossmin_none,"
+            + "hierarchy_flat,hierarchy_nested";
     private static final int DEFAULT_ITERATIONS = 20;
     private static final int DEFAULT_WARMUP = 3;
     private static final String DEFAULT_OUTPUT = "parity/java_results_layered_issue_scenarios.csv";
@@ -115,11 +109,22 @@ public class LayeredIssueParityBenchTest {
 
     private static boolean isSupportedScenario(final String scenario) {
         switch (scenario) {
-        case "issue_405":
-        case "issue_603":
-        case "issue_680":
-        case "issue_871":
-        case "issue_905":
+        case "layered_small":
+        case "layered_medium":
+        case "layered_large":
+        case "layered_xlarge":
+        case "force_medium":
+        case "stress_medium":
+        case "mrtree_medium":
+        case "radial_medium":
+        case "rectpacking_medium":
+        case "routing_polyline":
+        case "routing_orthogonal":
+        case "routing_splines":
+        case "crossmin_layer_sweep":
+        case "crossmin_none":
+        case "hierarchy_flat":
+        case "hierarchy_nested":
             return true;
         default:
             return false;
@@ -132,15 +137,15 @@ public class LayeredIssueParityBenchTest {
             final int warmup,
             final Path output) throws IOException {
 
-        final LayeredLayoutProvider provider = new LayeredLayoutProvider();
+        final RecursiveGraphLayoutEngine engine = new RecursiveGraphLayoutEngine();
 
         for (int i = 0; i < warmup; i++) {
-            provider.layout(buildScenario(scenario), new BasicProgressMonitor());
+            engine.layout(buildScenario(scenario), new NullElkProgressMonitor());
         }
 
         final long start = System.nanoTime();
         for (int i = 0; i < iterations; i++) {
-            provider.layout(buildScenario(scenario), new BasicProgressMonitor());
+            engine.layout(buildScenario(scenario), new NullElkProgressMonitor());
         }
         final long elapsedNanos = Math.max(1L, System.nanoTime() - start);
 
@@ -164,16 +169,38 @@ public class LayeredIssueParityBenchTest {
 
     private static ElkNode buildScenario(final String scenario) {
         switch (scenario) {
-        case "issue_405":
-            return buildIssue405Scenario();
-        case "issue_603":
-            return buildIssue603Scenario();
-        case "issue_680":
-            return buildIssue680Scenario();
-        case "issue_871":
-            return buildIssue871Scenario();
-        case "issue_905":
-            return buildIssue905Scenario();
+        case "layered_small":
+            return buildLayeredDagScenario(10, 15, 42);
+        case "layered_medium":
+            return buildLayeredDagScenario(50, 100, 42);
+        case "layered_large":
+            return buildLayeredDagScenario(200, 500, 42);
+        case "layered_xlarge":
+            return buildLayeredDagScenario(1000, 3000, 42);
+        case "force_medium":
+            return buildGeneralGraphScenario(50, 80, 100, "org.eclipse.elk.force");
+        case "stress_medium":
+            return buildGeneralGraphScenario(50, 80, 100, "org.eclipse.elk.stress");
+        case "mrtree_medium":
+            return buildTreeScenario(50, 200, "org.eclipse.elk.mrtree");
+        case "radial_medium":
+            return buildTreeScenario(50, 200, "org.eclipse.elk.radial");
+        case "rectpacking_medium":
+            return buildRectpackingScenario(50, 100);
+        case "routing_polyline":
+            return buildRoutingScenario(50, 100, 42, EdgeRouting.POLYLINE);
+        case "routing_orthogonal":
+            return buildRoutingScenario(50, 100, 42, EdgeRouting.ORTHOGONAL);
+        case "routing_splines":
+            return buildRoutingScenario(50, 100, 42, EdgeRouting.SPLINES);
+        case "crossmin_layer_sweep":
+            return buildCrossminScenario(50, 100, 42, true);
+        case "crossmin_none":
+            return buildCrossminScenario(50, 100, 42, false);
+        case "hierarchy_flat":
+            return buildLayeredDagScenario(30, 50, 300);
+        case "hierarchy_nested":
+            return buildHierarchyNestedScenario(300);
         default:
             throw new IllegalArgumentException("Unsupported scenario: " + scenario);
         }
@@ -187,6 +214,12 @@ public class LayeredIssueParityBenchTest {
         return graph;
     }
 
+    private static ElkNode graphWithAlgorithm(final String algorithm) {
+        ElkNode graph = ElkGraphUtil.createGraph();
+        graph.setProperty(CoreOptions.ALGORITHM, algorithm);
+        return graph;
+    }
+
     private static ElkNode newSizedNode(final ElkNode parent, final String id, final double width, final double height) {
         ElkNode node = ElkGraphUtil.createNode(parent);
         node.setIdentifier(id);
@@ -194,135 +227,221 @@ public class LayeredIssueParityBenchTest {
         return node;
     }
 
-    private static ElkPort newPort(final ElkNode parent, final String id, final PortSide side) {
-        ElkPort port = ElkGraphUtil.createPort(parent);
-        port.setIdentifier(id);
-        port.setDimensions(8.0, 8.0);
-        port.setProperty(CoreOptions.PORT_SIDE, side);
-        return port;
+    private static int lcg(int state) {
+        return (int)((((long)state * 1103515245L + 12345L)) & 0x7fffffffL);
     }
 
-    private static ElkNode buildIssue405Scenario() {
+    private static ElkNode buildLayeredDagScenario(int nodes, int edges, int seed) {
         ElkNode graph = baseGraph();
-        ElkNode reference = newSizedNode(graph, "reference", 90.0, 70.0);
-        reference.setProperty(CoreOptions.PORT_CONSTRAINTS, PortConstraints.FIXED_SIDE);
 
-        EnumSet<PortLabelPlacement> placement = PortLabelPlacement.outside();
-        placement.add(PortLabelPlacement.NEXT_TO_PORT_IF_POSSIBLE);
-        reference.setProperty(CoreOptions.PORT_LABELS_PLACEMENT, placement);
+        ElkNode[] nodeArray = new ElkNode[nodes];
+        for (int i = 0; i < nodes; i++) {
+            nodeArray[i] = newSizedNode(graph, "n" + i, 40.0, 30.0);
+        }
 
-        ElkPort west = newPort(reference, "west", PortSide.WEST);
-        ElkPort east = newPort(reference, "east", PortSide.EAST);
-        ElkPort north = newPort(reference, "north", PortSide.NORTH);
-        ElkPort south = newPort(reference, "south", PortSide.SOUTH);
-        ElkGraphUtil.createLabel("west", west);
-        ElkGraphUtil.createLabel("east", east);
-        ElkGraphUtil.createLabel("north", north);
-        ElkGraphUtil.createLabel("south", south);
+        int state = seed;
+        int created = 0;
+        while (created < edges) {
+            state = lcg(state);
+            int src = state % nodes;
+            if (src < 0) src += nodes;
+            state = lcg(state);
+            int tgt = state % nodes;
+            if (tgt < 0) tgt += nodes;
 
-        ElkNode westNode = newSizedNode(graph, "westNode", 30.0, 20.0);
-        ElkNode eastNode = newSizedNode(graph, "eastNode", 30.0, 20.0);
-        ElkNode northNode = newSizedNode(graph, "northNode", 30.0, 20.0);
-        ElkNode southNode = newSizedNode(graph, "southNode", 30.0, 20.0);
+            int layerSrc = src * 5 / nodes;
+            int layerTgt = tgt * 5 / nodes;
+            if (layerSrc >= layerTgt) {
+                continue;
+            }
 
-        ElkPort westNodePort = newPort(westNode, "westNodePort", PortSide.EAST);
-        ElkPort eastNodePort = newPort(eastNode, "eastNodePort", PortSide.WEST);
-        ElkPort northNodePort = newPort(northNode, "northNodePort", PortSide.SOUTH);
-        ElkPort southNodePort = newPort(southNode, "southNodePort", PortSide.NORTH);
+            ElkGraphUtil.createSimpleEdge(nodeArray[src], nodeArray[tgt]);
+            created++;
+        }
 
-        ElkGraphUtil.createSimpleEdge(westNodePort, west);
-        ElkGraphUtil.createSimpleEdge(east, eastNodePort);
-        ElkGraphUtil.createSimpleEdge(northNodePort, north);
-        ElkGraphUtil.createSimpleEdge(south, southNodePort);
         return graph;
     }
 
-    private static ElkNode buildIssue603Scenario() {
-        ElkNode graph = baseGraph();
-        graph.setProperty(CoreOptions.DIRECTION, Direction.DOWN);
+    private static ElkNode buildGeneralGraphScenario(int nodes, int edges, int seed, String algorithm) {
+        ElkNode graph = graphWithAlgorithm(algorithm);
 
-        ElkNode compound = newSizedNode(graph, "compound", 180.0, 140.0);
-        compound.setProperty(CoreOptions.NODE_LABELS_PLACEMENT, NodeLabelPlacement.insideTopCenter());
-        ElkGraphUtil.createLabel("compound", compound);
+        ElkNode[] nodeArray = new ElkNode[nodes];
+        for (int i = 0; i < nodes; i++) {
+            nodeArray[i] = newSizedNode(graph, "n" + i, 40.0, 30.0);
+        }
 
-        ElkNode a = newSizedNode(compound, "a", 36.0, 24.0);
-        ElkNode b = newSizedNode(compound, "b", 36.0, 24.0);
-        ElkNode c = newSizedNode(compound, "c", 36.0, 24.0);
-        ElkNode d = newSizedNode(compound, "d", 36.0, 24.0);
-        ElkNode e = newSizedNode(compound, "e", 36.0, 24.0);
-        ElkGraphUtil.createSimpleEdge(a, c);
-        ElkGraphUtil.createSimpleEdge(b, c);
-        ElkGraphUtil.createSimpleEdge(c, d);
-        ElkGraphUtil.createSimpleEdge(c, e);
+        int state = seed;
+        for (int i = 0; i < edges; i++) {
+            state = lcg(state);
+            int src = state % nodes;
+            if (src < 0) src += nodes;
+            state = lcg(state);
+            int tgt = state % nodes;
+            if (tgt < 0) tgt += nodes;
+            ElkGraphUtil.createSimpleEdge(nodeArray[src], nodeArray[tgt]);
+        }
+
         return graph;
     }
 
-    private static ElkNode buildIssue680Scenario() {
-        ElkNode graph = baseGraph();
-        graph.setProperty(CoreOptions.DIRECTION, Direction.DOWN);
+    private static ElkNode buildTreeScenario(int nodes, int seed, String algorithm) {
+        ElkNode graph = graphWithAlgorithm(algorithm);
 
-        ElkNode parent = newSizedNode(graph, "parent", 120.0, 120.0);
-        parent.setProperty(CoreOptions.ALGORITHM, LayeredOptions.ALGORITHM_ID);
-        parent.setProperty(CoreOptions.DIRECTION, Direction.DOWN);
-        parent.setProperty(CoreOptions.EDGE_ROUTING, EdgeRouting.ORTHOGONAL);
+        ElkNode[] nodeArray = new ElkNode[nodes];
+        nodeArray[0] = newSizedNode(graph, "n0", 40.0, 30.0);
 
-        ElkPort parentTop = newPort(parent, "parentTop", PortSide.NORTH);
-        parentTop.setProperty(LayeredOptions.PORT_BORDER_OFFSET, -20.0);
-        ElkPort parentBottom = newPort(parent, "parentBottom", PortSide.SOUTH);
-        parentBottom.setProperty(LayeredOptions.PORT_BORDER_OFFSET, -18.0);
+        int state = seed;
+        for (int i = 1; i < nodes; i++) {
+            nodeArray[i] = newSizedNode(graph, "n" + i, 40.0, 30.0);
+            state = lcg(state);
+            int parent = state % i;
+            if (parent < 0) parent += i;
+            ElkGraphUtil.createSimpleEdge(nodeArray[parent], nodeArray[i]);
+        }
 
-        ElkNode child = newSizedNode(parent, "child", 52.0, 78.0);
-        ElkPort childTop = newPort(child, "childTop", PortSide.NORTH);
-        childTop.setProperty(LayeredOptions.PORT_BORDER_OFFSET, -8.0);
-        ElkPort childBottom = newPort(child, "childBottom", PortSide.SOUTH);
-        childBottom.setProperty(LayeredOptions.PORT_BORDER_OFFSET, -8.0);
-
-        ElkGraphUtil.createSimpleEdge(parentTop, childTop);
-        ElkGraphUtil.createSimpleEdge(childBottom, parentBottom);
         return graph;
     }
 
-    private static ElkNode buildIssue871Scenario() {
-        ElkNode graph = baseGraph();
-        graph.setProperty(LayeredOptions.CYCLE_BREAKING_STRATEGY, CycleBreakingStrategy.MODEL_ORDER);
-        graph.setProperty(LayeredOptions.CONSIDER_MODEL_ORDER_STRATEGY, OrderingStrategy.PREFER_EDGES);
-        graph.setProperty(LayeredOptions.CROSSING_MINIMIZATION_STRATEGY, CrossingMinimizationStrategy.NONE);
-        graph.setProperty(LayeredOptions.CROSSING_MINIMIZATION_GREEDY_SWITCH_TYPE, GreedySwitchType.OFF);
-        graph.setProperty(CoreOptions.PADDING, new ElkPadding(0.0));
-        graph.setProperty(CoreOptions.SPACING_NODE_NODE, 10.0);
-        graph.setProperty(LayeredOptions.SPACING_NODE_NODE_BETWEEN_LAYERS, 20.0);
-        graph.setProperty(LayeredOptions.FEEDBACK_EDGES, true);
+    private static ElkNode buildRectpackingScenario(int nodes, int seed) {
+        ElkNode graph = graphWithAlgorithm("org.eclipse.elk.rectpacking");
 
-        ElkNode n1 = newSizedNode(graph, "n1", 30.0, 30.0);
-        ElkNode n2 = newSizedNode(graph, "n2", 30.0, 30.0);
-        ElkNode n3 = newSizedNode(graph, "n3", 30.0, 30.0);
-        ElkNode n4 = newSizedNode(graph, "n4", 30.0, 30.0);
-        ElkGraphUtil.createSimpleEdge(n1, n2);
-        ElkGraphUtil.createSimpleEdge(n1, n3);
-        ElkGraphUtil.createSimpleEdge(n2, n4);
-        ElkGraphUtil.createSimpleEdge(n4, n3);
+        int state = seed;
+        for (int i = 0; i < nodes; i++) {
+            state = lcg(state);
+            double width = 20.0 + (state % 61);
+            if (width < 20.0) width += 61.0;
+            state = lcg(state);
+            double height = 20.0 + (state % 61);
+            if (height < 20.0) height += 61.0;
+            newSizedNode(graph, "n" + i, width, height);
+        }
+
         return graph;
     }
 
-    private static ElkNode buildIssue905Scenario() {
+    private static ElkNode buildRoutingScenario(int nodes, int edges, int seed, EdgeRouting routing) {
         ElkNode graph = baseGraph();
-        graph.setProperty(CoreOptions.EDGE_LABELS_PLACEMENT, EdgeLabelPlacement.Center);
+        graph.setProperty(CoreOptions.EDGE_ROUTING, routing);
 
-        ElkNode left = newSizedNode(graph, "left", 40.0, 30.0);
-        ElkNode right = newSizedNode(graph, "right", 40.0, 30.0);
-        ElkEdge edge = ElkGraphUtil.createSimpleEdge(left, right);
+        ElkNode[] nodeArray = new ElkNode[nodes];
+        for (int i = 0; i < nodes; i++) {
+            nodeArray[i] = newSizedNode(graph, "n" + i, 40.0, 30.0);
+        }
 
-        ElkLabel tail = ElkGraphUtil.createLabel("tail", edge);
-        tail.setProperty(LayeredOptions.EDGE_LABELS_PLACEMENT, EdgeLabelPlacement.Tail);
-        tail.setLocation(5.0, 120.0);
+        int state = seed;
+        int created = 0;
+        while (created < edges) {
+            state = lcg(state);
+            int src = state % nodes;
+            if (src < 0) src += nodes;
+            state = lcg(state);
+            int tgt = state % nodes;
+            if (tgt < 0) tgt += nodes;
 
-        ElkLabel center = ElkGraphUtil.createLabel("center", edge);
-        center.setProperty(LayeredOptions.EDGE_LABELS_PLACEMENT, EdgeLabelPlacement.Center);
-        center.setLocation(30.0, 40.0);
+            int layerSrc = src * 5 / nodes;
+            int layerTgt = tgt * 5 / nodes;
+            if (layerSrc >= layerTgt) {
+                continue;
+            }
 
-        ElkLabel head = ElkGraphUtil.createLabel("head", edge);
-        head.setProperty(LayeredOptions.EDGE_LABELS_PLACEMENT, EdgeLabelPlacement.Head);
-        head.setLocation(45.0, 130.0);
+            ElkGraphUtil.createSimpleEdge(nodeArray[src], nodeArray[tgt]);
+            created++;
+        }
+
+        return graph;
+    }
+
+    private static ElkNode buildCrossminScenario(int nodes, int edges, int seed, boolean layerSweep) {
+        ElkNode graph = baseGraph();
+
+        if (layerSweep) {
+            graph.setProperty(LayeredOptions.CROSSING_MINIMIZATION_STRATEGY,
+                    CrossingMinimizationStrategy.LAYER_SWEEP);
+            graph.setProperty(LayeredOptions.CROSSING_MINIMIZATION_GREEDY_SWITCH_TYPE,
+                    GreedySwitchType.TWO_SIDED);
+        } else {
+            graph.setProperty(LayeredOptions.CROSSING_MINIMIZATION_STRATEGY,
+                    CrossingMinimizationStrategy.NONE);
+            graph.setProperty(LayeredOptions.CROSSING_MINIMIZATION_GREEDY_SWITCH_TYPE,
+                    GreedySwitchType.OFF);
+        }
+
+        ElkNode[] nodeArray = new ElkNode[nodes];
+        for (int i = 0; i < nodes; i++) {
+            nodeArray[i] = newSizedNode(graph, "n" + i, 40.0, 30.0);
+        }
+
+        int state = seed;
+        int created = 0;
+        while (created < edges) {
+            state = lcg(state);
+            int src = state % nodes;
+            if (src < 0) src += nodes;
+            state = lcg(state);
+            int tgt = state % nodes;
+            if (tgt < 0) tgt += nodes;
+
+            int layerSrc = src * 5 / nodes;
+            int layerTgt = tgt * 5 / nodes;
+            if (layerSrc >= layerTgt) {
+                continue;
+            }
+
+            ElkGraphUtil.createSimpleEdge(nodeArray[src], nodeArray[tgt]);
+            created++;
+        }
+
+        return graph;
+    }
+
+    private static ElkNode buildHierarchyNestedScenario(int seed) {
+        ElkNode graph = ElkGraphUtil.createGraph();
+        graph.setProperty(CoreOptions.ALGORITHM, LayeredOptions.ALGORITHM_ID);
+        graph.setProperty(CoreOptions.DIRECTION, Direction.RIGHT);
+        graph.setProperty(CoreOptions.EDGE_ROUTING, EdgeRouting.ORTHOGONAL);
+
+        int state = seed;
+
+        // 3 compound children
+        ElkNode[] compounds = new ElkNode[3];
+        for (int c = 0; c < 3; c++) {
+            ElkNode compound = ElkGraphUtil.createNode(graph);
+            compound.setIdentifier("mid" + c);
+            compound.setProperty(CoreOptions.ALGORITHM, LayeredOptions.ALGORITHM_ID);
+            compound.setProperty(CoreOptions.DIRECTION, Direction.RIGHT);
+            compound.setProperty(CoreOptions.EDGE_ROUTING, EdgeRouting.ORTHOGONAL);
+            compound.setProperty(CoreOptions.PADDING, new ElkPadding(10.0));
+            compounds[c] = compound;
+
+            // 9 leaf children per compound
+            ElkNode[] leaves = new ElkNode[9];
+            for (int i = 0; i < 9; i++) {
+                leaves[i] = newSizedNode(compound, "mid" + c + "_n" + i, 30.0, 20.0);
+            }
+
+            // internal edges within compound
+            state = lcg(state);
+            for (int i = 0; i < 8; i++) {
+                state = lcg(state);
+                int src = state % 9;
+                if (src < 0) src += 9;
+                state = lcg(state);
+                int tgt = state % 9;
+                if (tgt < 0) tgt += 9;
+                int layerSrc = src * 3 / 9;
+                int layerTgt = tgt * 3 / 9;
+                if (layerSrc < layerTgt) {
+                    ElkGraphUtil.createSimpleEdge(leaves[src], leaves[tgt]);
+                }
+            }
+        }
+
+        // cross-compound edges between consecutive compounds
+        for (int c = 0; c < 2; c++) {
+            state = lcg(state);
+            ElkGraphUtil.createSimpleEdge(compounds[c], compounds[c + 1]);
+        }
+
         return graph;
     }
 }

@@ -395,6 +395,54 @@ fn build_issue_905_scenario() -> ElkNodeRef {
     graph
 }
 
+fn lcg(state: u32) -> u32 {
+    (state.wrapping_mul(1103515245).wrapping_add(12345)) & 0x7fffffff
+}
+
+fn build_layered_dag_scenario(nodes: usize, edges: usize, seed: u32) -> ElkNodeRef {
+    let graph = ElkGraphUtil::create_graph();
+    set_node_property(
+        &graph,
+        CoreOptions::ALGORITHM,
+        LayeredOptions::ALGORITHM_ID.to_string(),
+    );
+    set_node_property(&graph, CoreOptions::DIRECTION, Direction::Right);
+    set_node_property(&graph, CoreOptions::EDGE_ROUTING, EdgeRouting::Orthogonal);
+
+    let node_refs: Vec<ElkNodeRef> = (0..nodes)
+        .map(|_| {
+            let node = ElkGraphUtil::create_node(Some(graph.clone()));
+            set_node_dimensions(&node, 40.0, 30.0);
+            node
+        })
+        .collect();
+
+    let layer_of: Vec<usize> = (0..nodes).map(|i| i * 5 / nodes).collect();
+
+    let mut state = seed;
+    let mut generated = 0usize;
+    let mut attempts = 0usize;
+    let max_attempts = edges * 100;
+
+    while generated < edges && attempts < max_attempts {
+        state = lcg(state);
+        let src = (state as usize) % nodes;
+        state = lcg(state);
+        let tgt = (state as usize) % nodes;
+        attempts += 1;
+
+        if layer_of[src] < layer_of[tgt] {
+            let _edge = ElkGraphUtil::create_simple_edge(
+                ElkConnectableShapeRef::Node(node_refs[src].clone()),
+                ElkConnectableShapeRef::Node(node_refs[tgt].clone()),
+            );
+            generated += 1;
+        }
+    }
+
+    graph
+}
+
 fn build_issue_scenario(name: &str) -> Option<ElkNodeRef> {
     match name {
         "issue_405" => Some(build_issue_405_scenario()),
@@ -403,6 +451,10 @@ fn build_issue_scenario(name: &str) -> Option<ElkNodeRef> {
         "issue_871" => Some(build_issue_871_scenario()),
         "issue_871_plain" => Some(build_issue_871_plain_scenario()),
         "issue_905" => Some(build_issue_905_scenario()),
+        "layered_small" => Some(build_layered_dag_scenario(10, 15, 42)),
+        "layered_medium" => Some(build_layered_dag_scenario(50, 100, 42)),
+        "layered_large" => Some(build_layered_dag_scenario(200, 500, 42)),
+        "layered_xlarge" => Some(build_layered_dag_scenario(1000, 3000, 42)),
         _ => None,
     }
 }
@@ -466,7 +518,7 @@ fn main() {
     let scenarios_arg = parse_arg_str(
         &args,
         "--scenarios",
-        "issue_405,issue_603,issue_680,issue_871,issue_905",
+        "layered_small,layered_medium,layered_large,layered_xlarge",
     );
     let iterations = parse_arg(&args, "--iterations", 20).max(1);
     let warmup = parse_arg(&args, "--warmup", 3);

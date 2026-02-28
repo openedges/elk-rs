@@ -132,6 +132,21 @@ Strict mode must be enabled for releases (e.g., `ALGORITHM_ID_PARITY_STRICT=true
 
 See `scripts/README.md` for default arguments and environment knobs.
 
+### E. Performance Benchmark — 5-Way Comparison (5 items)
+
+| Item | Command | Description |
+|------|---------|-------------|
+| Synthetic 5-way | `sh scripts/run_perf_benchmark.sh synthetic` | All 5 engines on synthetic scenarios |
+| Model 5-way | `sh scripts/run_perf_benchmark.sh models` | All 5 engines on model JSON inputs |
+| JS benchmark | `cd plugins/org.eclipse.elk.js && npm run bench` | elkjs/NAPI/WASM only |
+| Comparison report | `python3 scripts/compare_perf_results.py tests/perf/` | Markdown report generation |
+| Report output | `tests/perf/report.md` | Per-engine and per-scenario comparison |
+
+Engines: Java (`RecursiveGraphLayoutEngine` via JSON), Rust native (direct `ElkNode`),
+Rust API (`layout_json`), NAPI (Node.js native addon), WASM, elkjs (GWT-compiled).
+
+Prerequisite: NAPI/WASM builds must be complete (`cd plugins/org.eclipse.elk.js && sh build.sh`).
+
 ---
 
 ## 3. Scenario-Based Procedures
@@ -301,7 +316,34 @@ PARITY_COMPARE_MODE=baseline sh scripts/check_parity_regression.sh 5 3
 
 For detailed baseline operations, see `tests/baselines/POLICY.md`.
 
-### 3.7 Porting a New ELK Version
+### 3.7 Performance Benchmark (5-Way Comparison)
+
+Prerequisite: NAPI and WASM builds must be complete.
+
+```sh
+cd plugins/org.eclipse.elk.js && sh build.sh && cd -
+```
+
+Quick synthetic benchmark (5 scenarios, no Java):
+
+```sh
+PERF_SKIP_JAVA=true sh scripts/run_perf_benchmark.sh synthetic 5 1 tests/perf
+python3 scripts/compare_perf_results.py tests/perf/
+```
+
+Full model benchmark (all engines including Java):
+
+```sh
+sh scripts/run_perf_benchmark.sh models 20 3 tests/perf
+```
+
+JS-only benchmark:
+
+```sh
+cd plugins/org.eclipse.elk.js && npm run bench
+```
+
+### 3.8 Porting a New ELK Version
 
 See the porting workflow in `VERSIONING.md`.
 

@@ -60,6 +60,9 @@ Release readiness quick run:
 - `check_layered_phase_wiring_parity.sh [report]` (compares Java `GraphConfigurator` and Rust `graph_configurator` phase wiring rows (`before`/`after`, phase, processor, guard signature), emits detailed TSV artifacts under `tests/layered_phase_wiring/`; default report `tests/layered_phase_wiring_parity.md`; strict mode via `LAYERED_PHASE_WIRING_PARITY_STRICT=true`)
 - `clean_parity_temp.sh [--apply] [--include-tracked] [--root <perf_dir>]` (cleans runtime TEMP artifacts under `tests/`; default is dry-run and skips tracked files, `--include-tracked` enables legacy tracked payload cleanup)
 - `update_ptolemy_coverage_agents.sh` (runs `node_promotion_test`의 external ptolemy parse coverage/model-order validated count를 수집해 `AGENTS.md` 진행 기록에 배치별 정량 항목을 자동 추가)
+- `run_perf_benchmark.sh [mode] [iterations] [warmup] [output_dir]` (5-way performance benchmark orchestration: Rust native, Rust API, Java, elkjs, NAPI, WASM; `mode` is `synthetic` (default) or `models`; outputs per-engine CSV + comparison report)
+- `run_java_model_benchmark.sh [mode] [iterations] [warmup] [output]` (Java model benchmark via `ElkModelBenchTest`; supports `synthetic` and `models` modes; follows same isolation/injection pattern as `run_java_parity_layered_issue_scenarios.sh`)
+- `compare_perf_results.py [results_dir] [output]` (5-way CSV comparison report generator; reads per-engine CSV files, outputs markdown with summary + per-scenario tables; supports both new format with `engine` column and legacy format)
 - `run_all_checks.sh [threshold] [window]` (cargo test, clippy, parity gate)
 - `run_fast_checks.sh` (cargo test, clippy only)
 
