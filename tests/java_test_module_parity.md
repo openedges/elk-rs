@@ -34,7 +34,7 @@
 
 - `mapping=direct` rows are crate-level structural mapping, not method-level 1:1 semantics proof.
 - `org.eclipse.elk.alg.test` and `org.eclipse.elk.shared.test` are treated as no-direct due to architecture mismatch.
-- For layered issue method-level parity, use `parity/layered_issue_test_parity.md`.
+- For layered issue method-level parity, use `tests/layered_issue_test_parity.md`.
 
 ## Rust-only Test Modules
 

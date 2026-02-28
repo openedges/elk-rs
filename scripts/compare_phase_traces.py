@@ -740,31 +740,31 @@ def build_parser() -> argparse.ArgumentParser:
 Examples:
   # Single model
   python scripts/compare_phase_traces.py \\
-      parity/model_parity/java/trace/verticalOrder/ \\
-      parity/model_parity/rust/trace/verticalOrder/
+      tests/model_parity/java/trace/verticalOrder/ \\
+      tests/model_parity/rust/trace/verticalOrder/
 
   # Single model, verbose diff output
   python scripts/compare_phase_traces.py \\
-      parity/model_parity/java/trace/verticalOrder/ \\
-      parity/model_parity/rust/trace/verticalOrder/ \\
+      tests/model_parity/java/trace/verticalOrder/ \\
+      tests/model_parity/rust/trace/verticalOrder/ \\
       --verbose
 
   # Stop at first divergence
   python scripts/compare_phase_traces.py \\
-      parity/model_parity/java/trace/verticalOrder/ \\
-      parity/model_parity/rust/trace/verticalOrder/ \\
+      tests/model_parity/java/trace/verticalOrder/ \\
+      tests/model_parity/rust/trace/verticalOrder/ \\
       --stop-at-first
 
   # JSON output
   python scripts/compare_phase_traces.py \\
-      parity/model_parity/java/trace/verticalOrder/ \\
-      parity/model_parity/rust/trace/verticalOrder/ \\
+      tests/model_parity/java/trace/verticalOrder/ \\
+      tests/model_parity/rust/trace/verticalOrder/ \\
       --json
 
   # Batch over all models
   python scripts/compare_phase_traces.py \\
-      parity/model_parity/java/trace/ \\
-      parity/model_parity/rust/trace/ \\
+      tests/model_parity/java/trace/ \\
+      tests/model_parity/rust/trace/ \\
       --batch
 """,
     )

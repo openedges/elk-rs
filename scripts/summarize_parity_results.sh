@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-OUT=${1:-parity/summary.md}
+OUT=${1:-tests/summary.md}
 
 write_section() {
   title=$1
@@ -46,7 +46,7 @@ write_section() {
 
 write_section \
   "Comment Attachment" \
-  "parity/results_comment_attachment.csv" \
+  "tests/results_comment_attachment.csv" \
   "|timestamp|count|iterations|warmup|avg_ms|ops_per_sec|\n|---|---|---|---|---|---|" \
   'line=$1
   ts=$(echo "$line" | awk -F"," "{print \$1}")
@@ -69,7 +69,7 @@ write_section \
 
 write_section \
   "Graph Validation" \
-  "parity/results_graph_validation.csv" \
+  "tests/results_graph_validation.csv" \
   "|timestamp|mode|nodes|edges|iterations|warmup|avg_ms|elems_per_sec|\n|---|---|---|---|---|---|---|---|" \
   'line=$1
   ts=$(echo "$line" | awk -F"," "{print \$1}")
@@ -96,7 +96,7 @@ write_section \
 
 write_section \
   "Recursive Layout" \
-  "parity/results_recursive_layout.csv" \
+  "tests/results_recursive_layout.csv" \
   "|timestamp|algorithm|nodes|edges|iterations|warmup|avg_ms|elems_per_sec|validate_graph|validate_options|\n|---|---|---|---|---|---|---|---|---|---|" \
   'line=$1
   ts=$(echo "$line" | awk -F"," "{print \$1}")
@@ -127,7 +127,7 @@ write_section \
 
 write_section \
   "Recursive Layout (Layered)" \
-  "parity/results_recursive_layout_layered.csv" \
+  "tests/results_recursive_layout_layered.csv" \
   "|timestamp|algorithm|nodes|edges|iterations|warmup|avg_ms|elems_per_sec|validate_graph|validate_options|\n|---|---|---|---|---|---|---|---|---|---|" \
   'line=$1
   ts=$(echo "$line" | awk -F"," "{print \$1}")
@@ -158,7 +158,7 @@ write_section \
 
 write_section \
   "Recursive Layout Scenarios" \
-  "parity/results_recursive_layout_scenarios.csv" \
+  "tests/results_recursive_layout_scenarios.csv" \
   "|timestamp|scenario|algorithm|nodes|edges|iterations|warmup|avg_ms|elems_per_sec|validate_graph|validate_options|\n|---|---|---|---|---|---|---|---|---|---|---|" \
   'line=$1
   ts=$(echo "$line" | awk -F"," "{print \$1}")
@@ -191,7 +191,7 @@ write_section \
 
 write_section \
   "Layered Issue Scenarios" \
-  "parity/results_layered_issue_scenarios.csv" \
+  "tests/results_layered_issue_scenarios.csv" \
   "|timestamp|scenario|iterations|warmup|elapsed_nanos|avg_ms|scenarios_per_sec|\n|---|---|---|---|---|---|---|" \
   'line=$1
   ts=$(echo "$line" | awk -F"," "{print \$1}")

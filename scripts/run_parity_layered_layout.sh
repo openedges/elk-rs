@@ -7,7 +7,7 @@ ITERATIONS=${3:-5}
 WARMUP=${4:-1}
 VALIDATE_GRAPH=${5:-false}
 VALIDATE_OPTIONS=${6:-false}
-OUTPUT=${7:-parity/results_recursive_layout_layered.csv}
+OUTPUT=${7:-tests/results_recursive_layout_layered.csv}
 
 sh scripts/run_parity_recursive_layout.sh \
   "$NODES" \

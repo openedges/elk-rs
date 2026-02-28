@@ -167,13 +167,12 @@ fn determine_two_side_opposing_route(
         return;
     }
 
-    // Java parity: Java's sides come from ArrayListMultimap (HashMap-backed)
-    // keySet().toArray(), whose iteration order depends on PortSide identity
-    // hashCodes. The Java reference was generated with a specific JVM where
-    // the HashMap iteration order for PortSide keys matches counter-clockwise
-    // order: NORTH < WEST < SOUTH < EAST. Sorting sides by this rank before
-    // computing options ensures that `<=` tie-breaks produce the same routing
-    // direction as the Java reference for all opposing self-loop combinations.
+    // Java parity: the Java reference uses a patched ArrayListMultimap replaced
+    // with MultimapBuilder.enumKeys(PortSide.class) for deterministic iteration.
+    // EnumMap iterates in enum ordinal (declaration) order, which for PortSide is
+    // the clockwise sequence: NORTH < EAST < SOUTH < WEST. Sorting sides by this
+    // rank ensures that `<=` tie-breaks produce the same routing direction as the
+    // patched Java reference for all opposing self-loop combinations.
     sides.sort_by_key(|s| opposing_side_order_rank(*s));
 
     let Some(option1_left) = lowest_port_on_side(sl_loop, sides[0]) else {

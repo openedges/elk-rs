@@ -451,20 +451,20 @@ mod tests {
     fn test_known_algorithms() {
         let result = known_layout_algorithms().unwrap();
         let value: Value = serde_json::from_str(&result).unwrap();
-        assert!(value.as_array().unwrap().len() > 0);
+        assert!(!value.as_array().unwrap().is_empty());
     }
 
     #[test]
     fn test_known_options() {
         let result = known_layout_options().unwrap();
         let value: Value = serde_json::from_str(&result).unwrap();
-        assert!(value.as_array().unwrap().len() > 0);
+        assert!(!value.as_array().unwrap().is_empty());
     }
 
     #[test]
     fn test_known_categories() {
         let result = known_layout_categories().unwrap();
         let value: Value = serde_json::from_str(&result).unwrap();
-        assert!(value.as_array().unwrap().len() > 0);
+        assert!(!value.as_array().unwrap().is_empty());
     }
 }

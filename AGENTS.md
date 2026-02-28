@@ -13,6 +13,8 @@
 - `AGENTS.md`: 작업 방식, 품질 게이트, 현재 핵심 우선순위만 관리한다.
 - `HISTORY.md`: 단계별 구현/검증/수치 변화/이슈 분석 등 진행 이력을 모두 기록한다.
 - 새 단계 완료 시 `HISTORY.md`를 먼저 갱신하고, 필요 시 `AGENTS.md`의 핵심 스냅샷만 동기화한다.
+- `TESTING.md`: 검증 환경 준비, 항목 명세, 상황별 절차, 릴리즈 체크리스트, 알려진 이슈 통합 문서.
+- `VERSIONING.md`: 버전 관리, 서브모듈 고정 정책, 포팅 워크플로우.
 - AGENTS 본문 설명은 한글로 작성한다(코드/명령어/식별자/경로는 원문 영문 유지).
 
 ## 자동 진행 규칙
@@ -30,64 +32,45 @@
 
 ## 품질 게이트 (단계 종료 시 필수)
 1. 코드 변경 후 코드리뷰 실행
-2. Full parity 실행 및 통과률 확인: `MODEL_PARITY_SKIP_JAVA_EXPORT=true sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models parity/model_parity_full`
-3. `cargo build --workspace` (error/warning 0건)
-4. `cargo clippy --workspace --all-targets` (warning 0건)
-5. `cargo test --workspace` (failure 0건)
+2. `cargo build --workspace` (error/warning 0건)
+3. `cargo clippy --workspace --all-targets` (warning 0건)
+4. `cargo test --workspace` (failure 0건, 알려진 실패 제외 — `TESTING.md` § 4.2 참조)
+5. Full parity 실행 및 통과률 확인 (상세 명령은 `TESTING.md` § 2.B 참조)
 6. 확인 후 문서에 진행상황(특히 parity 통과률)을 기록:
    - `AGENTS.md`의 `현재 핵심 스냅샷` 섹션의 parity 수치 갱신
    - `HISTORY.md`에 변경 내역/수치 변화 기록
 7. 커밋 (`<scope>: <summary>`)
 8. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
-## 현재 핵심 스냅샷 (2026-02-27)
-- **elk-rs 버전**: `0.11.0` (ELK Java `v0.11.0` 기준 포팅), Cargo workspace 전체 + npm 동일 버전
-- Full model parity: **`matches=1438/1438` (100%)**, `drift=0`, `diffs=0`, `errors=0`, `timeouts=0`, `java_non_ok=10`
-- `213_componentsCompaction.elkt`를 `java_non_ok=nan_output`으로 분류 (Java ELK 버그: NaN y좌표 73개)
-  - Rust 출력이 더 정확 (올바른 y좌표), Java 전체 `ComponentsCompactor` 포팅 비권장
-- 해결된 drift 2개 (`.max(0.0)` clamp 제거로 해결):
-  - `next_to_port_if_possible_inside.elkt` — `components_processor` negative graph size clamp 제거
-  - `multilabels_compound.elkt` — 동일 원인
-- Phase-gate(recursive+strict) 최신 기준: `base=1439`, `precheck_error=0`, `step0_error=0`
-  - 비교불가 0건 (`comparable=1439`)
-  - `all_match_models=1439`, `diverged_models=0`
-  - `step0..step1521` error=0
-  - 초기 frontier(최초 실패 step): 없음
-  - 대형 hotspot(step gate error 상위): 없음
-- Tickets parity: `matches=108/109`, `drift=1`, `errors=0`, `timeouts=0`, `java_non_ok=1(588)`
-  - 잔여 drift: `tickets/layered/213_componentsCompaction.elkt` (`children[0]/children[0]/x: 12.5 != 12.0`)
-  - Full model parity와 동일한 Java ELK 버그 (`ComponentsCompactor` NaN 전파) — Rust 출력이 더 정확하므로 실질 100%
-- npm 패키지 `elk-rs@0.11.0`: WASM-only 릴리즈 준비 완료 (32 Vitest 통과, 550/550 elkjs parity)
-  - `plugins/org.eclipse.elk.js/`: JS API, WASM backend, TypeScript typings, README, LICENSE
-  - `npm publish --dry-run` 검증 완료 (12 files, 1.6MB compressed)
-  - 향후 v0.2.0+: NAPI 플랫폼별 패키지 (`@elk-rs/darwin-arm64` 등) 추가 예정
-- 포팅/테스트/빌드/성능 자동화 파이프라인은 운영 상태
-- `cargo build --workspace`: warning 0건, `cargo clippy --workspace --all-targets`: warning 0건, `cargo test --workspace`: failure 0건
-- 서브모듈 고정: `external/elk` → `v0.11.0` 태그, `external/elkjs` → `0.11.0` 태그
-- ELKT 파서 nested block 테스트 수정: `elkt_test_loader.rs`의 `get_or_create_port` 부모 노드 조회 버그 수정 (pre-existing failure)
+## 현재 핵심 스냅샷 (2026-02-28)
+- **elk-rs 버전**: `0.11.0` (ELK Java `v0.11.0` 기준 포팅 완료)
+  - Cargo workspace 전체 + npm 동일 버전
+  - 서브모듈 고정: `external/elk` → `v0.11.0` 태그, `external/elkjs` → `0.11.0` 태그
+- **Model parity**: `matches=1438/1438` (**100%**), `drift=0`, `java_non_ok=10`
+- **Phase-step trace**: `1439/1439` 모델 전 step 일치, 초기 frontier/hotspot 없음
+- **Tickets parity**: `matches=108/109`, `drift=1` (Java ELK 버그 동일 원인)
+- **JS parity**: 550/550 elk-rs vs Java 일치 (ELKJS_DRIFT 20건은 GWT 아티팩트)
+- **npm 패키지**: `elk-rs@0.11.0` WASM-only 릴리즈 준비 완료 (32 Vitest 통과)
+  - 향후: NAPI 플랫폼별 패키지 (`@elk-rs/darwin-arm64` 등) 추가 예정
+- **코드 품질**: `cargo build` warning 0건, `cargo clippy` warning 0건
+- **알려진 실패**: `elk_live_examples_test` 1건 (cross-hierarchy edge resolution, `TESTING.md` § 4.2)
+- `213_componentsCompaction.elkt`: `java_non_ok=nan_output`으로 분류 — Rust 출력이 더 정확
 
-## Parity 100% 전략
+## Drift 분석 요약
 
-### Drift 분포 (1개 모델, Java ELK 버그)
-- `213_componentsCompaction` — 85 raw diffs (보고서 max-diffs=20 기준 20건 표시)
-  - NaN y좌표 73건: Java `ComponentsCompactor` + `OneDimensionalComponentsCompaction`에서 zero-size 노드 bounding box 계산 시 `∞ - ∞ = NaN` 전파
-  - x좌표 차이 12건: Java hull 기반 1D compaction vs Rust anchor 기반 정렬 (N1_1 +0.5, N1_2 +0.5, N5_1 +3.0)
-  - 결론: Rust 출력이 더 정확, Java 전체 `ComponentsCompactor` 포팅 비권장 (800+ lines + NaN 버그 복제)
+### 213_componentsCompaction (Java ELK 버그)
+- NaN y좌표 73건: Java `ComponentsCompactor`에서 zero-size 노드 bounding box 계산 시 `∞ - ∞ = NaN` 전파
+- x좌표 차이 12건: Java hull 기반 1D compaction vs Rust anchor 기반 정렬
+- 결론: Rust 출력이 더 정확, Java `ComponentsCompactor` 포팅 비권장 (800+ lines + NaN 버그 복제)
 
-### 전략: Bottom-Up Phase-by-Phase Verification — **완료**
-- Phase 1-6: 완료 (상세: `HISTORY.md`)
-- Phase 7: p4 node placement 좌표 drift 분석 — **완료**
-  - `next_to_port_if_possible_inside` — **해결**: `components_processor` `.max(0.0)` clamp 제거
-  - `multilabels_compound` — **해결**: 동일 원인
-  - `213_componentsCompaction` — **Java ELK 버그로 수용** (Rust 출력이 더 정확)
+### 해결된 drift (2026-02-26)
+- `next_to_port_if_possible_inside.elkt` — `components_processor` `.max(0.0)` clamp 제거
+- `multilabels_compound.elkt` — 동일 원인 (negative graph size는 유효한 중간값)
 
 ## 기본 실행 명령
-- 전체 정적 점검: `cargo clippy --workspace --all-targets`
-- 전체 테스트: `cargo test --workspace`
-- Full parity: `MODEL_PARITY_SKIP_JAVA_EXPORT=true sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models parity/model_parity_full`
-- Java phase trace: `sh scripts/run_java_phase_trace.sh <model_dir> <output_dir>`
-- Rust phase trace: `cargo run --release --bin model_parity_layout_runner -- --trace-dir <output_dir> <input.json>`
-- Phase trace 비교: `python3 scripts/compare_phase_traces.py <java_trace_dir> <rust_trace_dir>` (단건) 또는 `--batch` (일괄)
+- 일상 개발 및 릴리즈 절차: `TESTING.md` § 3 참조
+- Full parity: `MODEL_PARITY_SKIP_JAVA_EXPORT=true sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models tests/model_parity_full`
+- Phase trace 비교: `python3 scripts/compare_phase_traces.py <java_trace_dir> <rust_trace_dir> --batch`
 
 ## 진행 기록 위치
 - 상세 진행 이력/완료 단계/드리프트 분석/실험 로그/TODO: `HISTORY.md`

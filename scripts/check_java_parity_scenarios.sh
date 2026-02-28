@@ -1,10 +1,10 @@
 #!/bin/sh
 set -eu
 
-RUST_FILE=${1:-parity/results_layered_issue_scenarios.csv}
-JAVA_FILE=${2:-parity/java_results_layered_issue_scenarios.csv}
+RUST_FILE=${1:-tests/results_layered_issue_scenarios.csv}
+JAVA_FILE=${2:-tests/java_results_layered_issue_scenarios.csv}
 WINDOW=${3:-3}
-THRESHOLDS_FILE=${4:-parity/java_parity_thresholds.csv}
+THRESHOLDS_FILE=${4:-tests/java_parity_thresholds.csv}
 
 RUST_SCENARIO_COL=${RUST_SCENARIO_COL:-2}
 RUST_AVG_COL=${RUST_AVG_COL:-6}

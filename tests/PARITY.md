@@ -10,6 +10,9 @@ routes, and label positions as Java ELK.
 This document describes the parity verification system: what is checked, how it
 is checked, the current status, known exceptions, and directory conventions.
 
+For the operational testing guide (environment setup, scenario-based procedures,
+release checklist), see [`TESTING.md`](../TESTING.md).
+
 ## Gate Execution Order
 
 Local and CI share the same sequence:
@@ -25,7 +28,7 @@ Local and CI share the same sequence:
 
 | Step | Gate | Criterion |
 |------|------|-----------|
-| 1 | Phase wiring | `parity/layered_phase_wiring_parity.md` reports `status: ok` |
+| 1 | Phase wiring | `tests/layered_phase_wiring_parity.md` reports `status: ok` |
 | 2 | Build | Zero errors and warnings |
 | 3 | Clippy | Zero warnings |
 | 4 | Unit tests | Zero failures |
@@ -73,7 +76,8 @@ cargo clippy --workspace --all-targets
 cargo test --workspace
 ```
 
-**Current status** (2026-02-26): 509 tests, 0 failures.
+**Current status** (2026-02-28): 653 tests, 1 known failure
+(`elk_live_examples_test` — cross-hierarchy edge resolution, see `TESTING.md` § 4.2).
 
 JS unit tests (Vitest):
 
@@ -92,11 +96,11 @@ The primary parity gate. Compares complete layout output of 1448 models
 ```sh
 # Full run: Java export + Rust layout + comparison
 JAVA_PARITY_REQUIRE_CLEAN_EXTERNAL_ELK=false \
-  sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models parity/model_parity
+  sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models tests/model_parity
 
 # Skip Java export (reuse existing Java baseline)
 MODEL_PARITY_SKIP_JAVA_EXPORT=true \
-  sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models parity/model_parity
+  sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models tests/model_parity
 ```
 
 **Current status** (2026-02-26):
@@ -105,9 +109,9 @@ MODEL_PARITY_SKIP_JAVA_EXPORT=true \
 - Skipped: 9 Java exceptions + 1 Java NaN bug (`213_componentsCompaction.elkt`)
 
 Output reports:
-- `parity/model_parity/report.md` -- summary with drift classification
-- `parity/model_parity/diff_details.tsv` -- per-model detail rows
-- `parity/model_parity/rust_manifest.tsv` -- Rust runner results
+- `tests/model_parity/report.md` -- summary with drift classification
+- `tests/model_parity/diff_details.tsv` -- per-model detail rows
+- `tests/model_parity/rust_manifest.tsv` -- Rust runner results
 
 ### 3. Phase-Step Verification (Layered Pipeline Trace)
 
@@ -130,12 +134,12 @@ python3 scripts/compare_phase_traces.py <java_trace_dir> <rust_trace_dir> --batc
 python3 scripts/summarize_phase_gate.py \
   --java-manifest ... --rust-manifest ... \
   --java-trace-dir ... --rust-trace-dir ... \
-  --compare-json ... --output-md parity/model_parity/phase_gate_latest.md
+  --compare-json ... --output-md tests/model_parity/phase_gate_latest.md
 ```
 
 **Current status**: gate_pass=**true**, 1439/1439 models match at all 50+ steps.
 
-Output: `parity/model_parity/phase_gate_latest.md`
+Output: `tests/model_parity/phase_gate_latest.md`
 
 ### 4. API/Metadata Parity
 
@@ -159,7 +163,7 @@ declarations match between Java and Rust:
 | Test method counts | `check_layered_issue_test_parity.sh` | ok |
 | Test module parity | `check_java_test_module_parity.sh` | ok |
 
-Reports are written to `parity/*.md`.
+Reports are written to `tests/*.md`.
 
 ### 5. Test Parity (Structural Coverage)
 
@@ -171,7 +175,7 @@ sh scripts/check_layered_issue_test_parity.sh
 sh scripts/check_java_test_module_parity.sh
 ```
 
-Output: `parity/layered_issue_test_parity.md`, `parity/java_test_module_parity.md`
+Output: `tests/layered_issue_test_parity.md`, `tests/java_test_module_parity.md`
 
 Note: This checks structure and count, not semantic equivalence of test logic.
 
@@ -191,7 +195,7 @@ The runner performs a 3-way comparison for each model:
 
 1. Run through **elk-rs JS** (NAPI/WASM binding)
 2. Run through **elkjs** (GWT-compiled Java ELK)
-3. Load **Java ELK baseline** from `parity/model_parity/java/layout/`
+3. Load **Java ELK baseline** from `tests/model_parity/java/layout/`
 4. Compare all three and classify diffs
 
 Classification:
@@ -312,15 +316,15 @@ output) are excluded from comparison. These are tracked in the manifest as
 
 ## Operational Principles
 
-- Run `RELEASE_CHECKLIST.md` before releases.
+- Run `TESTING.md` § 3.6 (Release Checklist) before releases.
 - Record parity metrics, experiment logs, and exception reasons in `HISTORY.md`.
-- Follow the `Directory policy (keep vs temporary)` in `parity/README.md`.
-- See `parity/java_parity_triage.md` for Java parity failure triage procedures.
+- Follow the `Directory policy (keep vs temporary)` in `tests/README.md`.
+- See `tests/java_parity_triage.md` for Java parity failure triage procedures.
 
 ## Directory Structure
 
 ```
-parity/
+tests/
   README.md                          # Parity workflow reference (scripts, CSVs)
   PARITY.md                         # This document
 
@@ -370,10 +374,10 @@ scripts/
 
 | Category | Location | Git Status | Lifecycle |
 |----------|----------|------------|-----------|
-| Compact summaries | `parity/model_parity/*.{md,tsv}` | Tracked | Updated on each parity run, committed |
-| JSON payloads | `parity/model_parity/**/layout/` | Gitignored | Regenerated on each run, auto-cleaned |
-| Full run outputs | `parity/model_parity_full/` | Gitignored | Ephemeral, entire dir is temp |
-| API parity reports | `parity/*.md` | Tracked | Updated by check scripts, committed |
+| Compact summaries | `tests/model_parity/*.{md,tsv}` | Tracked | Updated on each parity run, committed |
+| JSON payloads | `tests/model_parity/**/layout/` | Gitignored | Regenerated on each run, auto-cleaned |
+| Full run outputs | `tests/model_parity_full/` | Gitignored | Ephemeral, entire dir is temp |
+| API parity reports | `tests/*.md` | Tracked | Updated by check scripts, committed |
 | Java patches | `scripts/java/patches/` | Tracked | Manual maintenance |
 | JS parity report | `plugins/org.eclipse.elk.js/test/parity/results/` | Gitignored | Regenerated on each run |
 

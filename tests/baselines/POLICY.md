@@ -5,8 +5,8 @@ This document defines how baseline CSVs and Java parity thresholds are produced 
 ## Scope
 
 - Baseline targets:
-  - `parity/results_layered_issue_scenarios.csv` -> `parity/baselines/layered_issue_scenarios.csv`
-  - `parity/results_recursive_layout_scenarios.csv` -> `parity/baselines/recursive_layout_scenarios.csv`
+  - `tests/results_layered_issue_scenarios.csv` -> `tests/baselines/layered_issue_scenarios.csv`
+  - `tests/results_recursive_layout_scenarios.csv` -> `tests/baselines/recursive_layout_scenarios.csv`
 - Scenario key: `scenario` column (second column).
 - Metrics used by compare/check scripts:
   - `avg_ms` (`layered_issue`: column 6, `recursive_scenarios`: column 9)
@@ -33,9 +33,9 @@ This document defines how baseline CSVs and Java parity thresholds are produced 
 ## Update Procedure
 
 1. Generate fresh results:
-   - `sh scripts/run_parity_layered_issue_scenarios.sh "issue_405,issue_603,issue_680,issue_871,issue_905" 20 3 parity/results_layered_issue_scenarios.csv`
-   - `PARITY_RECURSIVE_SCENARIO_PROFILE=default sh scripts/run_parity_recursive_layout_scenarios.sh "" 5 1 parity/results_recursive_layout_scenarios.csv`
-   - (optional deep refresh) `PARITY_RECURSIVE_SCENARIO_PROFILE=full sh scripts/run_parity_recursive_layout_scenarios.sh "" 5 1 parity/results_recursive_layout_scenarios.csv`
+   - `sh scripts/run_parity_layered_issue_scenarios.sh "issue_405,issue_603,issue_680,issue_871,issue_905" 20 3 tests/results_layered_issue_scenarios.csv`
+   - `PARITY_RECURSIVE_SCENARIO_PROFILE=default sh scripts/run_parity_recursive_layout_scenarios.sh "" 5 1 tests/results_recursive_layout_scenarios.csv`
+   - (optional deep refresh) `PARITY_RECURSIVE_SCENARIO_PROFILE=full sh scripts/run_parity_recursive_layout_scenarios.sh "" 5 1 tests/results_recursive_layout_scenarios.csv`
 2. Copy to baselines:
    - `sh scripts/update_parity_baseline.sh`
    - `sh scripts/update_parity_recursive_scenarios_baseline.sh`
@@ -67,7 +67,7 @@ This document defines how baseline CSVs and Java parity thresholds are produced 
 - Java parity:
   - `java_compare_enabled=true` when Java CSV exists or `java_generate_enabled=true`.
   - Keep `java_parity_gate=false` until CI stability is confirmed; then enable with a team-agreed threshold policy.
-  - Prefer scenario thresholds in `parity/java_parity_thresholds.csv` (`scenario,max_avg_ms_regression_pct,max_scenarios_per_sec_regression_pct`) over a single global threshold.
+  - Prefer scenario thresholds in `tests/java_parity_thresholds.csv` (`scenario,max_avg_ms_regression_pct,max_scenarios_per_sec_regression_pct`) over a single global threshold.
 
 ## Java CI Lock Avoidance
 
@@ -78,7 +78,7 @@ This document defines how baseline CSVs and Java parity thresholds are produced 
 
 ## Java Baseline (Optional)
 
-- If Java parity is tracked against a pinned Java CSV, keep it at `parity/baselines/java_layered_issue_scenarios.csv`.
+- If Java parity is tracked against a pinned Java CSV, keep it at `tests/baselines/java_layered_issue_scenarios.csv`.
 - Update flow:
   1. Generate Java CSV (`java_generate_enabled=true` in CI or local Maven run with matching scenarios).
   2. Export candidate (`sh scripts/export_java_baseline_candidate.sh`) and review readiness (`sh scripts/check_java_baseline_candidate.sh`).
@@ -87,7 +87,7 @@ This document defines how baseline CSVs and Java parity thresholds are produced 
 - CI toggle:
   - `java_compare_enabled=true`
   - `java_compare_mode=baseline` (or `both`)
-  - `java_baseline_file=parity/baselines/java_layered_issue_scenarios.csv`
+  - `java_baseline_file=tests/baselines/java_layered_issue_scenarios.csv`
   - optionally `java_allow_generate_failure=true` to let `both` mode proceed with baseline checks when fresh Java generation is temporarily unavailable
   - optionally tune `java_generate_retries` / `java_generate_retry_delay_secs` for transient Maven/Tycho fetch failures
   - optionally `java_export_baseline_candidate=true` to publish baseline-candidate artifact (`java_baseline_candidate_file`) for manual promotion

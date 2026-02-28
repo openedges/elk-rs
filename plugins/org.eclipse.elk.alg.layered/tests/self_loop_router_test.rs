@@ -1263,7 +1263,7 @@ fn self_loop_router_prefers_east_route_when_west_ports_are_more_connected() {
 }
 
 #[test]
-fn self_loop_router_prefers_north_route_on_east_west_tie() {
+fn self_loop_router_prefers_south_route_on_east_west_tie() {
     init_layered_metadata();
     let (graph, node, self_loop) = build_east_west_self_loop_graph();
 
@@ -1288,22 +1288,31 @@ fn self_loop_router_prefers_north_route_on_east_west_tie() {
     let mut post = SelfLoopPostProcessor;
     run_processor(&mut post, &graph);
 
-    let node_y = {
+    let (node_y, node_h) = {
         let mut node_guard = node.lock().expect("node lock");
-        node_guard.shape().position_ref().y
+        (
+            node_guard.shape().position_ref().y,
+            node_guard.shape().size_ref().y,
+        )
     };
-    let min_y = {
+    let max_y = {
         let edge_guard = self_loop.lock().expect("self-loop edge lock");
         edge_guard
             .bend_points_ref()
             .iter()
             .map(|point| point.y)
-            .fold(f64::INFINITY, f64::min)
+            .fold(f64::NEG_INFINITY, f64::max)
     };
 
+    // After commit 4a04c68, the Java parity reference uses patched
+    // MultimapBuilder.enumKeys() which iterates in enum ordinal (CW) order:
+    // EAST(1) < WEST(3). With this ordering, option1 (south route) wins the
+    // `<=` tie-break for east-west opposing self-loops.
     assert!(
-        min_y < node_y - 1e-6,
-        "expected north route for east/west tie, min_y={min_y}, node_y={node_y}"
+        max_y > node_y + node_h - 1e-6,
+        "expected south route for east/west tie (patched Java parity), \
+         max_y={max_y}, node_bottom={}",
+        node_y + node_h
     );
 }
 

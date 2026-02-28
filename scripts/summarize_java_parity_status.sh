@@ -1,15 +1,15 @@
 #!/bin/sh
 set -eu
 
-RESULTS_REPORT=${1:-parity/java_vs_rust.md}
-BASELINE_REPORT=${2:-parity/java_vs_rust_baseline.md}
-JAVA_RESULTS_FILE=${3:-parity/java_results_layered_issue_scenarios.csv}
-JAVA_BASELINE_FILE=${4:-parity/baselines/java_layered_issue_scenarios.csv}
-OUTPUT=${5:-parity/java_parity_status.md}
-RUST_RESULTS_FILE=${RUST_RESULTS_FILE:-parity/results_layered_issue_scenarios.csv}
-JAVA_BASELINE_CANDIDATE_FILE=${JAVA_BASELINE_CANDIDATE_FILE:-parity/baselines/java_layered_issue_scenarios.candidate.csv}
-JAVA_BASELINE_CANDIDATE_REPORT=${JAVA_BASELINE_CANDIDATE_REPORT:-parity/java_baseline_candidate_status.md}
-JAVA_BASELINE_CANDIDATE_CHECK_REPORT=${JAVA_BASELINE_CANDIDATE_CHECK_REPORT:-parity/java_baseline_candidate_check.md}
+RESULTS_REPORT=${1:-tests/java_vs_rust.md}
+BASELINE_REPORT=${2:-tests/java_vs_rust_baseline.md}
+JAVA_RESULTS_FILE=${3:-tests/java_results_layered_issue_scenarios.csv}
+JAVA_BASELINE_FILE=${4:-tests/baselines/java_layered_issue_scenarios.csv}
+OUTPUT=${5:-tests/java_parity_status.md}
+RUST_RESULTS_FILE=${RUST_RESULTS_FILE:-tests/results_layered_issue_scenarios.csv}
+JAVA_BASELINE_CANDIDATE_FILE=${JAVA_BASELINE_CANDIDATE_FILE:-tests/baselines/java_layered_issue_scenarios.candidate.csv}
+JAVA_BASELINE_CANDIDATE_REPORT=${JAVA_BASELINE_CANDIDATE_REPORT:-tests/java_baseline_candidate_status.md}
+JAVA_BASELINE_CANDIDATE_CHECK_REPORT=${JAVA_BASELINE_CANDIDATE_CHECK_REPORT:-tests/java_baseline_candidate_check.md}
 
 exists_or_no() {
   file=$1

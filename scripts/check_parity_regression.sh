@@ -4,8 +4,8 @@ set -eu
 THRESHOLD=${1:-5}
 WINDOW=${2:-3}
 MODE=${PARITY_COMPARE_MODE:-window}
-BASELINE_LAYERED_FILE=${PARITY_BASELINE_LAYERED_FILE:-parity/baselines/layered_issue_scenarios.csv}
-BASELINE_RECURSIVE_SCENARIOS_FILE=${PARITY_BASELINE_RECURSIVE_SCENARIOS_FILE:-parity/baselines/recursive_layout_scenarios.csv}
+BASELINE_LAYERED_FILE=${PARITY_BASELINE_LAYERED_FILE:-tests/baselines/layered_issue_scenarios.csv}
+BASELINE_RECURSIVE_SCENARIOS_FILE=${PARITY_BASELINE_RECURSIVE_SCENARIOS_FILE:-tests/baselines/recursive_layout_scenarios.csv}
 fail=0
 
 case "$MODE" in
@@ -290,18 +290,18 @@ check_file_per_scenario_against_baseline() {
 }
 
 if mode_enabled window; then
-  check_file "comment_attachment" "parity/results_comment_attachment.csv" 6 7 2 3 4
-  check_file "graph_validation" "parity/results_graph_validation.csv" 8 9 2 3 4
-  check_file "recursive_layout" "parity/results_recursive_layout.csv" 8 9 2 3 4
-  check_file "recursive_layout_layered" "parity/results_recursive_layout_layered.csv" 8 9 2 3 4
-  check_file_per_scenario "recursive_layout_scenarios" "parity/results_recursive_layout_scenarios.csv" 9 10 2 6 7
-  check_file_per_scenario "layered_issue_scenarios" "parity/results_layered_issue_scenarios.csv" 6 7 2 3 4
+  check_file "comment_attachment" "tests/results_comment_attachment.csv" 6 7 2 3 4
+  check_file "graph_validation" "tests/results_graph_validation.csv" 8 9 2 3 4
+  check_file "recursive_layout" "tests/results_recursive_layout.csv" 8 9 2 3 4
+  check_file "recursive_layout_layered" "tests/results_recursive_layout_layered.csv" 8 9 2 3 4
+  check_file_per_scenario "recursive_layout_scenarios" "tests/results_recursive_layout_scenarios.csv" 9 10 2 6 7
+  check_file_per_scenario "layered_issue_scenarios" "tests/results_layered_issue_scenarios.csv" 6 7 2 3 4
 fi
 
 if mode_enabled baseline; then
   check_file_per_scenario_against_baseline \
     "recursive_layout_scenarios" \
-    "parity/results_recursive_layout_scenarios.csv" \
+    "tests/results_recursive_layout_scenarios.csv" \
     "$BASELINE_RECURSIVE_SCENARIOS_FILE" \
     9 \
     10 \
@@ -310,7 +310,7 @@ if mode_enabled baseline; then
     7
   check_file_per_scenario_against_baseline \
     "layered_issue_scenarios" \
-    "parity/results_layered_issue_scenarios.csv" \
+    "tests/results_layered_issue_scenarios.csv" \
     "$BASELINE_LAYERED_FILE" \
     6 \
     7 \

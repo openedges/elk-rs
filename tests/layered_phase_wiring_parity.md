@@ -9,7 +9,7 @@
 - extra rows in rust: 0
 - java unresolved add_all configs: 0
 - rust unresolved add_all configs: 0
-- artifacts: `parity/layered_phase_wiring`
+- artifacts: `tests/layered_phase_wiring`
 
 ## Missing Rows In Rust
 - none

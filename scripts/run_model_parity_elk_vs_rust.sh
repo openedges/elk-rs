@@ -5,7 +5,7 @@ SCRIPT_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
 REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 
 MODELS_ROOT_INPUT=${1:-external/elk-models}
-OUTPUT_ROOT_INPUT=${2:-parity/model_parity}
+OUTPUT_ROOT_INPUT=${2:-tests/model_parity}
 
 MODEL_PARITY_CARGO_FLAGS=${MODEL_PARITY_CARGO_FLAGS:---release}
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env sh
 set -eu
 
-SOURCE="${1:-parity/java_parity_thresholds.suggested.csv}"
-TARGET="${2:-parity/java_parity_thresholds.csv}"
+SOURCE="${1:-tests/java_parity_thresholds.suggested.csv}"
+TARGET="${2:-tests/java_parity_thresholds.csv}"
 REQUIRED_SCENARIOS="${JAVA_PARITY_REQUIRED_SCENARIOS:-issue_405,issue_603,issue_680,issue_871,issue_905}"
 
 if [ ! -f "$SOURCE" ]; then

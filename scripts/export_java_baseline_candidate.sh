@@ -1,9 +1,9 @@
 #!/bin/sh
 set -eu
 
-SOURCE=${1:-parity/java_results_layered_issue_scenarios.csv}
-TARGET=${2:-parity/baselines/java_layered_issue_scenarios.candidate.csv}
-REPORT=${3:-parity/java_baseline_candidate_status.md}
+SOURCE=${1:-tests/java_results_layered_issue_scenarios.csv}
+TARGET=${2:-tests/baselines/java_layered_issue_scenarios.candidate.csv}
+REPORT=${3:-tests/java_baseline_candidate_status.md}
 
 JAVA_CANDIDATE_MIN_ROWS=${JAVA_CANDIDATE_MIN_ROWS:-1}
 JAVA_CANDIDATE_REQUIRED_SCENARIOS=${JAVA_CANDIDATE_REQUIRED_SCENARIOS:-}

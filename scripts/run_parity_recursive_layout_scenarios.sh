@@ -4,7 +4,7 @@ set -eu
 SCENARIOS_INPUT=${1:-}
 ITERATIONS=${2:-5}
 WARMUP=${3:-1}
-OUTPUT=${4:-parity/results_recursive_layout_scenarios.csv}
+OUTPUT=${4:-tests/results_recursive_layout_scenarios.csv}
 SCENARIO_PROFILE=${PARITY_RECURSIVE_SCENARIO_PROFILE:-default}
 
 if [ -n "$SCENARIOS_INPUT" ]; then

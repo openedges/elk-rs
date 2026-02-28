@@ -17,7 +17,7 @@
     "js/",
     "dist/wasm/",
     "typings/",
-    "LICENSE.md",
+    "LICENSE",
     "README.md"
   ],
   "scripts": {

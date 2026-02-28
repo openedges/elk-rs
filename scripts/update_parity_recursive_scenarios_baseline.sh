@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
 
-SOURCE=${1:-parity/results_recursive_layout_scenarios.csv}
-TARGET=${2:-parity/baselines/recursive_layout_scenarios.csv}
+SOURCE=${1:-tests/results_recursive_layout_scenarios.csv}
+TARGET=${2:-tests/baselines/recursive_layout_scenarios.csv}
 
 if [ ! -s "$SOURCE" ]; then
   echo "source file missing or empty: $SOURCE" >&2

@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
 
-RUST_FILE=${1:-parity/results_layered_issue_scenarios.csv}
-JAVA_FILE=${2:-parity/java_results_layered_issue_scenarios.csv}
+RUST_FILE=${1:-tests/results_layered_issue_scenarios.csv}
+JAVA_FILE=${2:-tests/java_results_layered_issue_scenarios.csv}
 WINDOW=${3:-3}
 THRESHOLD=${4:-0}
 

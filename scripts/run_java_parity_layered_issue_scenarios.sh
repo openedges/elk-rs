@@ -7,7 +7,7 @@ REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 SCENARIOS=${1:-issue_405,issue_603,issue_680,issue_871,issue_905}
 ITERATIONS=${2:-20}
 WARMUP=${3:-3}
-OUTPUT=${4:-parity/java_results_layered_issue_scenarios.csv}
+OUTPUT=${4:-tests/java_results_layered_issue_scenarios.csv}
 
 JAVA_PARITY_MVN_BIN=${JAVA_PARITY_MVN_BIN:-mvn}
 JAVA_PARITY_BUILD_PLUGINS=${JAVA_PARITY_BUILD_PLUGINS:-true}

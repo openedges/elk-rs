@@ -3,7 +3,7 @@ set -eu
 
 JAVA_ISSUE_TEST_ROOT="${JAVA_ISSUE_TEST_ROOT:-external/elk/test/org.eclipse.elk.alg.layered.test/src/org/eclipse/elk/alg/layered/issues}"
 RUST_ISSUE_TEST_ROOT="${RUST_ISSUE_TEST_ROOT:-plugins/org.eclipse.elk.alg.layered/tests}"
-REPORT_FILE="${1:-parity/layered_issue_test_parity.md}"
+REPORT_FILE="${1:-tests/layered_issue_test_parity.md}"
 STRICT_MODE="${LAYERED_ISSUE_TEST_PARITY_STRICT:-false}"
 
 tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/layered-issue-test-parity.XXXXXX")"

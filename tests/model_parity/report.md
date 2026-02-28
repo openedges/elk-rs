@@ -1,6 +1,6 @@
 # ELK Model Parity Report
 
-- manifest: `/Users/cody.ij.hwang/Projects/github/elk-rs/parity/model_parity/rust_manifest.tsv`
+- manifest: `/Users/cody.ij.hwang/Projects/github/elk-rs/tests/model_parity/rust_manifest.tsv`
 - total rows: 1448
 - compared rows: 1438
 - matched rows: 1438

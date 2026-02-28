@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
 
-SOURCE=${1:-parity/java_results_layered_issue_scenarios.csv}
-TARGET=${2:-parity/baselines/java_layered_issue_scenarios.csv}
+SOURCE=${1:-tests/java_results_layered_issue_scenarios.csv}
+TARGET=${2:-tests/baselines/java_layered_issue_scenarios.csv}
 
 if [ ! -s "$SOURCE" ]; then
   echo "missing or empty Java source baseline file: $SOURCE" >&2

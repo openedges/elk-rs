@@ -13,7 +13,7 @@ This guide is for failures in `.github/workflows/parity.yml` Java steps.
 - `java_baseline_parity_gate=true`
 - Java execution runs with external ELK isolation (`JAVA_PARITY_EXTERNAL_ISOLATE=true`).
 
-The default path is strict by design: any generation/parity/candidate-readiness failure should fail the workflow.
+The default path is strict by design: any generation/tests/candidate-readiness failure should fail the workflow.
 
 ## Failure Classes and Actions
 
@@ -32,14 +32,14 @@ Actions:
 2. If network incident is confirmed, keep strict default but temporarily set `java_allow_generate_failure=true` for diagnostic-only runs.
 3. Revert `java_allow_generate_failure` back to `false` after incident closes.
 
-### 2) Java parity gate failed (`parity/java_vs_rust.md`)
+### 2) Java parity gate failed (`tests/java_vs_rust.md`)
 
 Typical symptom:
 - `check_java_parity.sh` fails on results compare.
 
 Check in order:
-1. Rust parity input freshness (`parity/results_layered_issue_scenarios.csv`).
-2. Java CSV freshness (`parity/java_results_layered_issue_scenarios.csv`).
+1. Rust parity input freshness (`tests/results_layered_issue_scenarios.csv`).
+2. Java CSV freshness (`tests/java_results_layered_issue_scenarios.csv`).
 3. Threshold (`java_parity_threshold`) and scenario coverage.
 
 Actions:
@@ -47,7 +47,7 @@ Actions:
 2. If reproducible, investigate Rust regression first.
 3. Only adjust threshold with explicit team decision.
 
-### 3) Baseline parity gate failed (`parity/java_vs_rust_baseline.md`)
+### 3) Baseline parity gate failed (`tests/java_vs_rust_baseline.md`)
 
 Typical symptom:
 - `check_java_parity.sh` fails in baseline mode.
@@ -60,7 +60,7 @@ Actions:
 ### 4) Candidate readiness failed
 
 Typical symptom:
-- `parity/java_baseline_candidate_check.md` status is `not_ready` or step failed.
+- `tests/java_baseline_candidate_check.md` status is `not_ready` or step failed.
 
 Check in order:
 1. Required scenarios exist.
@@ -75,7 +75,7 @@ Actions:
 ## Promotion Rule
 
 Promote Java baseline only when all are true:
-- `parity/java_vs_rust.md` exists and parity passed.
-- `parity/java_vs_rust_baseline.md` exists and parity passed.
-- `parity/java_baseline_candidate_check.md` is `ready`.
+- `tests/java_vs_rust.md` exists and parity passed.
+- `tests/java_vs_rust_baseline.md` exists and parity passed.
+- `tests/java_baseline_candidate_check.md` is `ready`.
 - Candidate reflects the intended scenario set.

@@ -1,10 +1,10 @@
 # elk-rs
 
-Pure Rust port of Eclipse Layout Kernel (ELK), keeping Java-side feature/API/test parity while operating as a Rust workspace.
+Pure Rust port of [Eclipse Layout Kernel (ELK)](https://www.eclipse.org/elk/), keeping Java-side feature/API/test parity while operating as a Rust workspace.
 
 ## npm Package
 
-elk-rs is available as a drop-in replacement for [elkjs](https://github.com/nickkraft/elkjs):
+elk-rs is available as a drop-in replacement for [elkjs](https://github.com/kieler/elkjs):
 
 ```bash
 npm install elk-rs
@@ -34,16 +34,18 @@ See [`plugins/org.eclipse.elk.js/README.md`](plugins/org.eclipse.elk.js/README.m
   - `org.eclipse.elk.wasm/`: WASM bindings (wasm-bindgen)
   - `org.eclipse.elk.napi/`: Native Node.js addon (NAPI-RS)
 - `scripts/`: quality and parity automation scripts
-- `parity/`: parity reports, baselines, parity outputs, policy docs
+- `tests/`: parity reports, baselines, verification outputs, policy docs
 - `external/`: upstream references (`elk`, `elk-models`, `elkjs`) as submodules
 
 ## Prerequisites
 
 - Rust toolchain (stable, with `wasm32-unknown-unknown` target for WASM build)
 - Git with submodule support
-- Shell environment with standard Unix tools (`sh`, `awk`, `sed`, `rg`)
 - [wasm-pack](https://rustwasm.github.io/wasm-pack/) (for WASM build)
 - Node.js 16+ (for JS package tests)
+
+For full validation (model parity, phase traces), additional tools are required.
+See `TESTING.md` § 1 for the complete environment setup.
 
 ## Setup
 
@@ -61,13 +63,9 @@ npm install
 npm test
 ```
 
-## Validation Flow
+## Validation
 
-All validation follows the gate execution order defined in `parity/PARITY.md`.
-
-### 1. Static Checks (Code Quality)
-
-Basic build, lint, and test health. Run after every code change.
+Run after every code change:
 
 ```sh
 cargo build --workspace            # zero errors/warnings
@@ -75,64 +73,23 @@ cargo clippy --workspace --all-targets  # zero warnings
 cargo test --workspace             # zero failures
 ```
 
-### 2. Full Model Parity
+For model parity, phase-step traces, API/metadata checks, performance gates,
+and release procedures, see `TESTING.md`.
 
-Compares complete layout output of 1448 models between Java ELK and elk-rs.
-This is the primary functional gate.
+## Documentation
 
-```sh
-# Full run (Java export + Rust layout + comparison):
-sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models parity/model_parity
+| Document | Description |
+|----------|-------------|
+| `CHANGELOG.md` | Release history and notable changes |
+| `TESTING.md` | Testing and validation guide (setup, verification items, release checklist) |
+| `VERSIONING.md` | Version management, porting policy, and changelog rules |
+| `tests/PARITY.md` | Parity verification system (architecture, env vars, exceptions) |
+| `tests/README.md` | Parity operation guide and script reference |
+| `scripts/README.md` | Script catalog and environment knobs |
+| `tests/baselines/POLICY.md` | Baseline lifecycle policy |
+| `tests/java_parity_triage.md` | Java parity failure triage |
 
-# Reuse existing Java baseline (faster):
-MODEL_PARITY_SKIP_JAVA_EXPORT=true \
-  sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models parity/model_parity
-```
-
-Output: `parity/model_parity/report.md`, `parity/model_parity/diff_details.tsv`
-
-### 3. Phase-Step Trace Verification
-
-Compares intermediate state after each of 50+ layered pipeline processors.
-Pinpoints at which processing step divergence first occurs.
-
-```sh
-# Generate Java traces:
-sh scripts/run_java_phase_trace.sh <input_dir> <output_dir>
-
-# Generate Rust traces:
-cargo run --release --bin model_parity_layout_runner \
-  -- --trace-dir <output_dir> <input.json>
-
-# Compare and summarize:
-python3 scripts/compare_phase_traces.py <java_trace_dir> <rust_trace_dir> --batch
-python3 scripts/summarize_phase_gate.py \
-  --java-manifest ... --rust-manifest ... \
-  --java-trace-dir ... --rust-trace-dir ... \
-  --compare-json ... --output-md parity/model_parity/phase_gate_latest.md
-```
-
-Output: `parity/model_parity/phase_gate_latest.md`
-
-### Release Validation
-
-Use the full release gate in `RELEASE_CHECKLIST.md`, which includes:
-
-- all static checks above
-- Java parity/metadata parity gates
-- parity regression and runtime budget gates
-- go/no-go rules when baseline-only regressions appear
-
-## Parity Docs
-
-- Parity operation guide: `parity/README.md`
-- Script catalog and env knobs: `scripts/README.md`
-- Parity verification system: `parity/PARITY.md`
-- Baseline lifecycle policy: `parity/baselines/POLICY.md`
-- Java parity triage: `parity/java_parity_triage.md`
-- Version management and porting policy: `VERSIONING.md`
-
-Generated reports are written under `parity/` (for example `parity/*_parity.md`, `parity/model_parity/report.md`).
+Generated reports are written under `tests/` (e.g., `tests/*_parity.md`, `tests/model_parity/report.md`).
 
 ## External Module Policy
 
@@ -144,7 +101,4 @@ Generated reports are written under `parity/` (for example `parity/*_parity.md`,
 
 ## License
 
-License follows upstream ELK project terms. See:
-
-- `LICENSE.md`
-- `NOTICE.md`
+Eclipse Public License 2.0 (EPL-2.0). See `LICENSE` and `NOTICE`.

@@ -1,6 +1,6 @@
 # elk-rs
 
-ELK layout engine rewritten in Rust — drop-in replacement for [elkjs](https://github.com/nickkraft/elkjs) with WASM and native Node.js addon support.
+ELK layout engine rewritten in Rust — drop-in replacement for [elkjs](https://github.com/kieler/elkjs) with WASM and native Node.js addon support.
 
 ## Installation
 
@@ -104,4 +104,4 @@ Terminates the Web Worker (if one was created).
 
 ## License
 
-[Eclipse Public License 2.0](./LICENSE.md)
+[Eclipse Public License 2.0](./LICENSE)

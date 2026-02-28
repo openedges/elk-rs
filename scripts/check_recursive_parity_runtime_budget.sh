@@ -1,9 +1,9 @@
 #!/usr/bin/env sh
 set -eu
 
-RESULTS_FILE="${1:-parity/results_recursive_layout_scenarios.csv}"
+RESULTS_FILE="${1:-tests/results_recursive_layout_scenarios.csv}"
 PROFILE="${2:-${PARITY_RECURSIVE_SCENARIO_PROFILE:-default}}"
-REPORT_FILE="${3:-parity/recursive_runtime_budget.md}"
+REPORT_FILE="${3:-tests/recursive_runtime_budget.md}"
 STRICT_MODE="${RECURSIVE_RUNTIME_BUDGET_STRICT:-true}"
 
 case "$PROFILE" in

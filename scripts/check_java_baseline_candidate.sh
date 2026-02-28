@@ -1,18 +1,18 @@
 #!/bin/sh
 set -eu
 
-CANDIDATE_FILE=${1:-parity/baselines/java_layered_issue_scenarios.candidate.csv}
-RUST_FILE=${2:-parity/results_layered_issue_scenarios.csv}
+CANDIDATE_FILE=${1:-tests/baselines/java_layered_issue_scenarios.candidate.csv}
+RUST_FILE=${2:-tests/results_layered_issue_scenarios.csv}
 WINDOW=${3:-3}
 THRESHOLD=${4:-0}
-REPORT=${5:-parity/java_baseline_candidate_check.md}
+REPORT=${5:-tests/java_baseline_candidate_check.md}
 
 JAVA_CANDIDATE_MIN_ROWS=${JAVA_CANDIDATE_MIN_ROWS:-1}
 JAVA_CANDIDATE_REQUIRED_SCENARIOS=${JAVA_CANDIDATE_REQUIRED_SCENARIOS:-issue_405,issue_603,issue_680,issue_871,issue_905}
 JAVA_CANDIDATE_REQUIRE_PARITY=${JAVA_CANDIDATE_REQUIRE_PARITY:-true}
 JAVA_CANDIDATE_STRICT=${JAVA_CANDIDATE_STRICT:-false}
-JAVA_CANDIDATE_PARITY_THRESHOLDS_FILE=${JAVA_CANDIDATE_PARITY_THRESHOLDS_FILE:-parity/java_parity_thresholds.csv}
-TARGET_BASELINE=${TARGET_BASELINE:-parity/baselines/java_layered_issue_scenarios.csv}
+JAVA_CANDIDATE_PARITY_THRESHOLDS_FILE=${JAVA_CANDIDATE_PARITY_THRESHOLDS_FILE:-tests/java_parity_thresholds.csv}
+TARGET_BASELINE=${TARGET_BASELINE:-tests/baselines/java_layered_issue_scenarios.csv}
 
 mkdir -p "$(dirname "$REPORT")"
 

@@ -11,7 +11,7 @@
 #   tests     - 193 test models
 #   realworld - 1,100 real-world models
 #
-# Output is written to parity/model_parity_{category}/.
+# Output is written to tests/model_parity_{category}/.
 # All MODEL_PARITY_* and JAVA_PARITY_* env vars are forwarded.
 
 set -eu
@@ -20,11 +20,11 @@ CATEGORY=${1:-all}
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
 
 case "$CATEGORY" in
-  all)       INCLUDE="" ; OUTPUT="parity/model_parity" ;;
-  examples)  INCLUDE="examples" ; OUTPUT="parity/model_parity_examples" ;;
-  tickets)   INCLUDE="tickets" ; OUTPUT="parity/model_parity_tickets" ;;
-  tests)     INCLUDE="tests" ; OUTPUT="parity/model_parity_tests" ;;
-  realworld) INCLUDE="realworld" ; OUTPUT="parity/model_parity_realworld" ;;
+  all)       INCLUDE="" ; OUTPUT="tests/model_parity" ;;
+  examples)  INCLUDE="examples" ; OUTPUT="tests/model_parity_examples" ;;
+  tickets)   INCLUDE="tickets" ; OUTPUT="tests/model_parity_tickets" ;;
+  tests)     INCLUDE="tests" ; OUTPUT="tests/model_parity_tests" ;;
+  realworld) INCLUDE="realworld" ; OUTPUT="tests/model_parity_realworld" ;;
   *)
     echo "Unknown category: $CATEGORY" >&2
     echo "Valid categories: all, examples, tickets, tests, realworld" >&2
@@ -36,7 +36,7 @@ echo "Running model parity for category: $CATEGORY"
 echo "  include filter: ${INCLUDE:-<none>}"
 echo "  output dir:     $OUTPUT"
 
-DEFAULT_EXCLUDE_FILE="$SCRIPT_DIR/../parity/model_parity_full/java_exclude.txt"
+DEFAULT_EXCLUDE_FILE="$SCRIPT_DIR/../tests/model_parity_full/java_exclude.txt"
 if [ -z "${JAVA_PARITY_EXCLUDE_FILE:-}" ] && [ -f "$DEFAULT_EXCLUDE_FILE" ]; then
   JAVA_PARITY_EXCLUDE_FILE="$DEFAULT_EXCLUDE_FILE"
   echo "  exclude file:   $JAVA_PARITY_EXCLUDE_FILE"

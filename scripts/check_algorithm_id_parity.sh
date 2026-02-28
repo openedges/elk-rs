@@ -3,7 +3,7 @@ set -eu
 
 JAVA_SOURCES_ROOT="${JAVA_SOURCES_ROOT:-external/elk/plugins}"
 RUST_SOURCES_ROOT="${RUST_SOURCES_ROOT:-plugins}"
-REPORT_FILE="${1:-parity/algorithm_id_parity.md}"
+REPORT_FILE="${1:-tests/algorithm_id_parity.md}"
 STRICT_MODE="${ALGORITHM_ID_PARITY_STRICT:-false}"
 
 tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/algorithm-id-parity.XXXXXX")"

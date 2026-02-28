@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
 
-JAVA_FILE=${1:-parity/java_results_layered_issue_scenarios.csv}
-REPORT_FILE=${2:-parity/java_vs_rust.md}
+JAVA_FILE=${1:-tests/java_results_layered_issue_scenarios.csv}
+REPORT_FILE=${2:-tests/java_vs_rust.md}
 
 JAVA_COMPARE_ENABLED=${JAVA_COMPARE_ENABLED:-true}
 JAVA_GENERATE_ENABLED=${JAVA_GENERATE_ENABLED:-false}
