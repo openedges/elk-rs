@@ -71,6 +71,8 @@
 - 일상 개발 및 릴리즈 절차: `TESTING.md` § 3 참조
 - Full parity: `MODEL_PARITY_SKIP_JAVA_EXPORT=true sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models tests/model_parity_full`
 - Phase trace 비교: `python3 scripts/compare_phase_traces.py <java_trace_dir> <rust_trace_dir> --batch`
+- 5-way 성능 벤치마크: `sh scripts/run_perf_benchmark.sh synthetic 10 3 tests/perf`
+  - 통합 바이너리: `perf_benchmark --engine rust_native|rust_api --mode synthetic|models`
 
 ## 진행 기록 위치
 - 상세 진행 이력/완료 단계/드리프트 분석/실험 로그/TODO: `HISTORY.md`
