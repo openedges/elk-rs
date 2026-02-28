@@ -1,0 +1,6 @@
+mod abstract_barycenter_port_distributor_test;
+mod allow_non_flow_ports_to_switch_sides_test;
+mod greedy_port_distributor_test;
+mod greedy_switch_processor_test;
+mod layer_sweep_hierarchical_two_sided_greedy_switch_test;
+mod switch_decider_test;

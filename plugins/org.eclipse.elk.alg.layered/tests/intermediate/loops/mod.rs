@@ -1,0 +1,7 @@
+mod polyline_self_loop_parity_model_test;
+mod polyline_self_loop_router_test;
+mod ptides_self_loop_margin_test;
+mod self_loop_holder_test;
+mod self_loop_issue_resources_test;
+mod self_loop_preprocessor_test;
+mod self_loop_router_test;

@@ -895,7 +895,7 @@ fn main() {
                     match run_api_benchmark(&model.name, &model.json, iterations, warmup) {
                         Ok((nanos, avg_ms, ops_per_sec)) => {
                             ok += 1;
-                            if ok <= 5 || ok % 10 == 0 {
+                            if ok <= 5 || ok.is_multiple_of(10) {
                                 eprintln!("  {}: {:.4} ms/op", model.name, avg_ms);
                             }
                             csv_lines.push(format_csv_line(

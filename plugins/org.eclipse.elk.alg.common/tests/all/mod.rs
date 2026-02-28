@@ -1,0 +1,10 @@
+mod inside_port_label_test;
+mod issue_475_test;
+mod network_simplex_test;
+mod next_to_port_label_placement_test;
+mod node_micro_layout_test;
+mod nodespacing_test;
+mod one_dimensional_compactor_test;
+mod port_label_placement_variants_test;
+mod rectilinear_convex_hull_test;
+mod two_bit_grid_test;
