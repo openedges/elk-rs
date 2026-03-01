@@ -41,6 +41,29 @@ impl ILayoutProcessor<LGraph> for SortByInputModelProcessor {
             .get_property(LayeredOptions::CONSIDER_MODEL_ORDER_PORT_MODEL_ORDER)
             .unwrap_or(false);
         let comparator_graph = build_ordering_context_graph(graph);
+        let mut pre_ports_node_comparator = ModelOrderNodeComparator::new(
+            comparator_graph.clone(),
+            Vec::new(),
+            ordering_strategy,
+            long_edge_strategy,
+            group_strategy,
+            true,
+        );
+        let mut post_ports_node_comparator = ModelOrderNodeComparator::new(
+            comparator_graph.clone(),
+            Vec::new(),
+            ordering_strategy,
+            long_edge_strategy,
+            group_strategy,
+            false,
+        );
+        let mut port_comparator = ModelOrderPortComparator::new(
+            comparator_graph.clone(),
+            Vec::new(),
+            ordering_strategy,
+            None,
+            port_model_order,
+        );
 
         for (layer_index, layer) in layers.iter().enumerate() {
             if let Ok(mut layer_guard) = layer.lock() {
@@ -57,31 +80,18 @@ impl ILayoutProcessor<LGraph> for SortByInputModelProcessor {
                 })
                 .unwrap_or_default();
 
-            let mut node_comparator = ModelOrderNodeComparator::new(
-                comparator_graph.clone(),
-                previous_layer_nodes.clone(),
-                ordering_strategy,
-                long_edge_strategy,
-                group_strategy,
-                true,
-            );
+            pre_ports_node_comparator.reset_for_previous_layer(previous_layer_nodes.clone());
             let mut nodes = layer
                 .lock()
                 .ok()
                 .map(|layer_guard| layer_guard.nodes().clone())
                 .unwrap_or_default();
-            Self::insertion_sort(nodes.as_mut_slice(), &mut node_comparator);
+            Self::insertion_sort(nodes.as_mut_slice(), &mut pre_ports_node_comparator);
             if let Ok(mut layer_guard) = layer.lock() {
                 layer_guard.nodes_mut().clone_from(&nodes);
             }
 
-            let mut port_comparator = ModelOrderPortComparator::new(
-                comparator_graph.clone(),
-                previous_layer_nodes.clone(),
-                ordering_strategy,
-                None,
-                port_model_order,
-            );
+            port_comparator.reset_for_previous_layer(previous_layer_nodes.clone());
             for node in &nodes {
                 let constraints = node
                     .lock()
@@ -111,15 +121,8 @@ impl ILayoutProcessor<LGraph> for SortByInputModelProcessor {
                 }
             }
 
-            let mut node_comparator = ModelOrderNodeComparator::new(
-                comparator_graph.clone(),
-                previous_layer_nodes,
-                ordering_strategy,
-                long_edge_strategy,
-                group_strategy,
-                false,
-            );
-            Self::insertion_sort(nodes.as_mut_slice(), &mut node_comparator);
+            post_ports_node_comparator.reset_for_previous_layer(previous_layer_nodes);
+            Self::insertion_sort(nodes.as_mut_slice(), &mut post_ports_node_comparator);
             if let Ok(mut layer_guard) = layer.lock() {
                 layer_guard.nodes_mut().clone_from(&nodes);
             }
