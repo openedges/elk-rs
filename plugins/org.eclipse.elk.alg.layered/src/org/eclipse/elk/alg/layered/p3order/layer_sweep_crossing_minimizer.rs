@@ -666,16 +666,20 @@ impl LayerSweepCrossingMinimizer {
                 format_layer_nodes(&order[first])
             );
         }
-        let first_layer_targets = {
+        let mut hierarchical_targets = Vec::new();
+        {
             let order = self.graph_info_holders[index].current_node_order();
-            collect_hierarchical_targets(&order[first_index(forward, length)])
-        };
+            collect_hierarchical_targets(
+                &order[first_index(forward, length)],
+                &mut hierarchical_targets,
+            );
+        }
         let start = if timing {
             Some(std::time::Instant::now())
         } else {
             None
         };
-        improved |= self.sweep_in_hierarchical_nodes(&first_layer_targets, forward, first_sweep);
+        improved |= self.sweep_in_hierarchical_nodes(&hierarchical_targets, forward, first_sweep);
         if let Some(start) = start {
             eprintln!(
                 "crossmin: sweep_in_hierarchical_nodes layer={} done in {} ms",
@@ -734,16 +738,16 @@ impl LayerSweepCrossingMinimizer {
                     format_layer_nodes(&order[i_usize])
                 );
             }
-            let layer_targets = {
+            {
                 let order = self.graph_info_holders[index].current_node_order();
-                collect_hierarchical_targets(&order[i_usize])
-            };
+                collect_hierarchical_targets(&order[i_usize], &mut hierarchical_targets);
+            }
             let start = if timing {
                 Some(std::time::Instant::now())
             } else {
                 None
             };
-            improved |= self.sweep_in_hierarchical_nodes(&layer_targets, forward, first_sweep);
+            improved |= self.sweep_in_hierarchical_nodes(&hierarchical_targets, forward, first_sweep);
             if let Some(start) = start {
                 eprintln!(
                     "crossmin: sweep_in_hierarchical_nodes layer={} done in {} ms",
@@ -1407,18 +1411,21 @@ fn graph_id(graph: &LGraphRef) -> Option<usize> {
         .map(|mut graph_guard| graph_guard.graph_element().id as usize)
 }
 
-fn collect_hierarchical_targets(layer: &[LNodeRef]) -> Vec<(LNodeRef, usize)> {
-    layer
-        .iter()
-        .filter_map(|node| {
-            let nested_graph = node
-                .lock()
-                .ok()
-                .and_then(|node_guard| node_guard.nested_graph())?;
-            let nested_index = graph_id(&nested_graph)?;
-            Some((node.clone(), nested_index))
-        })
-        .collect()
+fn collect_hierarchical_targets(layer: &[LNodeRef], out: &mut Vec<(LNodeRef, usize)>) {
+    out.clear();
+    for node in layer {
+        let Some(nested_graph) = node
+            .lock()
+            .ok()
+            .and_then(|node_guard| node_guard.nested_graph())
+        else {
+            continue;
+        };
+        let Some(nested_index) = graph_id(&nested_graph) else {
+            continue;
+        };
+        out.push((node.clone(), nested_index));
+    }
 }
 
 fn root_graph_ref(graph: &mut LGraph) -> Option<LGraphRef> {
