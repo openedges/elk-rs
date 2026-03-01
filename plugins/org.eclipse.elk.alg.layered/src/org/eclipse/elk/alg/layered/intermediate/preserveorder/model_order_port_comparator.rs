@@ -38,7 +38,7 @@ pub struct ModelOrderPortComparator {
     target_node_model_order: Option<HashMap<NodeRefKey, i32>>,
     port_model_order: bool,
     previous_layer: Vec<LNodeRef>,
-    previous_layer_position: HashMap<NodeRefKey, usize>,
+    previous_layer_position: HashMap<usize, usize>,
     graph: LGraphRef,
     strategy: OrderingStrategy,
     bigger_than: HashMap<PortRefKey, HashSet<PortRefKey>>,
@@ -496,14 +496,8 @@ impl ModelOrderPortComparator {
     }
 
     fn compare_in_previous_layer(&self, p1_node: &LNodeRef, p2_node: &LNodeRef) -> i32 {
-        let p1_pos = self
-            .previous_layer_position
-            .get(&NodeRefKey(p1_node.clone()))
-            .copied();
-        let p2_pos = self
-            .previous_layer_position
-            .get(&NodeRefKey(p2_node.clone()))
-            .copied();
+        let p1_pos = self.previous_layer_position.get(&node_ptr(p1_node)).copied();
+        let p2_pos = self.previous_layer_position.get(&node_ptr(p2_node)).copied();
         match (p1_pos, p2_pos) {
             (Some(left), Some(right)) => match left.cmp(&right) {
                 std::cmp::Ordering::Less => -1,
@@ -654,10 +648,14 @@ fn edge_model_order(edge: &LEdgeRef, graph: &LGraphRef, offset: usize) -> i32 {
     order
 }
 
-fn build_layer_position_map(layer: &[LNodeRef]) -> HashMap<NodeRefKey, usize> {
+fn build_layer_position_map(layer: &[LNodeRef]) -> HashMap<usize, usize> {
     let mut positions = HashMap::with_capacity(layer.len());
     for (index, node) in layer.iter().enumerate() {
-        positions.insert(NodeRefKey(node.clone()), index);
+        positions.insert(node_ptr(node), index);
     }
     positions
+}
+
+fn node_ptr(node: &LNodeRef) -> usize {
+    std::sync::Arc::as_ptr(node) as usize
 }
