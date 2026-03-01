@@ -84,11 +84,10 @@ fn prepare_resolver(nodes: &[LNodeRef]) -> ForsterConstraintResolver {
         resolver.init_at_node_level(0, node_index, &node_order);
     }
 
-    let barycenter_states = resolver.barycenter_states();
-    if let Some(layer_states) = barycenter_states.first() {
-        for (index, state) in layer_states.iter().enumerate() {
-            if let Ok(mut state_guard) = state.lock() {
-                state_guard.barycenter = Some(index as f64);
+    if let Some(layer_states) = resolver.barycenter_states.first_mut() {
+        for (index, state) in layer_states.iter_mut().enumerate() {
+            if let Some(state) = state.as_mut() {
+                state.barycenter = Some(index as f64);
             }
         }
     }

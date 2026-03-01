@@ -1,4 +1,5 @@
 pub mod abstract_barycenter_port_distributor;
+pub mod cross_min_snapshot;
 pub mod random_trace;
 pub mod barycenter_heuristic;
 pub mod barycenter_port_distributor;

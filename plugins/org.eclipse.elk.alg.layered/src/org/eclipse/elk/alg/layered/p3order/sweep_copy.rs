@@ -128,22 +128,12 @@ impl SweepCopy {
                 .unwrap_or(0);
             for node_index in 0..node_count {
                 let node = self.node_order[layer_index][node_index].clone();
+                // Single node lock for id, type check, port orders, and constraints
                 if let Ok(mut node_guard) = node.lock() {
                     node_guard.shape().graph_element().id = node_index as i32;
                     if node_guard.node_type() == NodeType::NorthSouthPort {
                         north_south_port_dummies.push(node.clone());
                     }
-                };
-
-                if let Ok(mut layer_guard) = layer_ref.lock() {
-                    if node_index < layer_guard.nodes().len() {
-                        layer_guard.nodes_mut()[node_index] = node.clone();
-                    } else {
-                        layer_guard.nodes_mut().push(node.clone());
-                    }
-                };
-
-                if let Ok(mut node_guard) = node.lock() {
                     node_guard.ports_mut().clear();
                     if let Some(ports) = self
                         .port_orders
@@ -162,6 +152,14 @@ impl SweepCopy {
                                 Some(PortConstraints::FixedOrder),
                             );
                         }
+                    }
+                };
+
+                if let Ok(mut layer_guard) = layer_ref.lock() {
+                    if node_index < layer_guard.nodes().len() {
+                        layer_guard.nodes_mut()[node_index] = node.clone();
+                    } else {
+                        layer_guard.nodes_mut().push(node.clone());
                     }
                 };
             }
@@ -191,23 +189,30 @@ fn deep_copy(node_order: &[Vec<LNodeRef>]) -> Vec<Vec<LNodeRef>> {
 }
 
 fn assert_correct_port_sides(dummy: &LNodeRef) -> Option<LNodeRef> {
-    let origin = dummy.lock().ok().and_then(|mut node_guard| {
-        node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
-    });
-    let origin = origin?;
-    let origin_constraints = origin
-        .lock()
-        .ok()
-        .and_then(|mut node_guard| node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS))
-        .unwrap_or(PortConstraints::Undefined);
+    // Batch-extract dummy data in a single lock
+    let (origin, dummy_ports, dummy_id) = {
+        let mut node_guard = dummy.lock().ok()?;
+        let origin = node_guard
+            .get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)?;
+        let ports = node_guard.ports().clone();
+        let id = node_guard.shape().graph_element().id;
+        (origin, ports, id)
+    };
+    // Batch-extract origin data in a single lock (constraints, id, ports)
+    let (origin_constraints, origin_id, ports) = {
+        let Ok(mut origin_guard) = origin.lock() else {
+            return Some(origin);
+        };
+        let c = origin_guard
+            .get_property(LayeredOptions::PORT_CONSTRAINTS)
+            .unwrap_or(PortConstraints::Undefined);
+        let id = origin_guard.shape().graph_element().id;
+        let p = origin_guard.ports().clone();
+        (c, id, p)
+    };
     if origin_constraints.is_pos_fixed() {
         return Some(origin);
     }
-    let dummy_ports = dummy
-        .lock()
-        .ok()
-        .map(|node_guard| node_guard.ports().clone())
-        .unwrap_or_default();
     let dummy_port = dummy_ports.first()?.clone();
     let dummy_origin_port = dummy_port
         .lock()
@@ -220,22 +225,6 @@ fn assert_correct_port_sides(dummy: &LNodeRef) -> Option<LNodeRef> {
     let Some(dummy_origin_port) = dummy_origin_port else {
         return Some(origin);
     };
-
-    let origin_id = origin
-        .lock()
-        .ok()
-        .map(|mut node_guard| node_guard.shape().graph_element().id)
-        .unwrap_or(0);
-    let dummy_id = dummy
-        .lock()
-        .ok()
-        .map(|mut node_guard| node_guard.shape().graph_element().id)
-        .unwrap_or(0);
-    let ports = origin
-        .lock()
-        .ok()
-        .map(|node_guard| node_guard.ports().clone())
-        .unwrap_or_default();
     for port in ports {
         if Arc::ptr_eq(&port, &dummy_origin_port) {
             if let Ok(mut port_guard) = port.lock() {
@@ -274,16 +263,26 @@ fn sort_ports_combined(ports: &mut [LPortRef], constraints: PortConstraints) {
 }
 
 fn compare_ports(p1: &LPortRef, p2: &LPortRef, constraints: PortConstraints) -> std::cmp::Ordering {
-    let side1 = p1
-        .lock()
-        .ok()
-        .map(|port_guard| port_guard.side())
-        .unwrap_or(PortSide::Undefined);
-    let side2 = p2
-        .lock()
-        .ok()
-        .map(|port_guard| port_guard.side())
-        .unwrap_or(PortSide::Undefined);
+    use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
+
+    // Batch-extract all needed data from each port in a single lock
+    let extract = |port: &LPortRef| -> (PortSide, Option<i32>, KVector) {
+        if let Ok(mut port_guard) = port.lock() {
+            let side = port_guard.side();
+            let idx = if constraints == PortConstraints::FixedOrder {
+                port_guard.get_property(LayeredOptions::PORT_INDEX)
+            } else {
+                None
+            };
+            let pos = *port_guard.shape().position_ref();
+            (side, idx, pos)
+        } else {
+            (PortSide::Undefined, None, KVector::default())
+        }
+    };
+    let (side1, idx1, pos1) = extract(p1);
+    let (side2, idx2, pos2) = extract(p2);
+
     let side_cmp = side1.cmp(&side2);
     if side_cmp != std::cmp::Ordering::Equal {
         return side_cmp;
@@ -294,14 +293,6 @@ fn compare_ports(p1: &LPortRef, p2: &LPortRef, constraints: PortConstraints) -> 
     }
 
     if constraints == PortConstraints::FixedOrder {
-        let idx1 = p1
-            .lock()
-            .ok()
-            .and_then(|mut port_guard| port_guard.get_property(LayeredOptions::PORT_INDEX));
-        let idx2 = p2
-            .lock()
-            .ok()
-            .and_then(|mut port_guard| port_guard.get_property(LayeredOptions::PORT_INDEX));
         if let (Some(i1), Some(i2)) = (idx1, idx2) {
             if i1 != i2 {
                 return i1.cmp(&i2);
@@ -309,16 +300,6 @@ fn compare_ports(p1: &LPortRef, p2: &LPortRef, constraints: PortConstraints) -> 
         }
     }
 
-    let pos1 = p1
-        .lock()
-        .ok()
-        .map(|mut port_guard| *port_guard.shape().position_ref())
-        .unwrap_or_default();
-    let pos2 = p2
-        .lock()
-        .ok()
-        .map(|mut port_guard| *port_guard.shape().position_ref())
-        .unwrap_or_default();
     match side1 {
         PortSide::North => pos1
             .x

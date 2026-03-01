@@ -1,6 +1,5 @@
 use std::collections::{BTreeMap, VecDeque};
 use std::sync::{Arc, LazyLock};
-use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 static TRACE_FORSTER_GROUPS: LazyLock<bool> =
     LazyLock::new(|| std::env::var_os("ELK_TRACE_FORSTER_GROUPS").is_some());
@@ -13,7 +12,7 @@ use crate::org::eclipse::elk::alg::layered::p3order::counting::IInitializable;
 pub struct ForsterConstraintResolver {
     constraints_between_non_dummies: bool,
     layout_units: BTreeMap<usize, Vec<LNodeRef>>,
-    barycenter_states: Vec<Vec<Option<Arc<Mutex<BarycenterState>>>>>,
+    pub barycenter_states: Vec<Vec<Option<BarycenterState>>>,
     constraint_groups: Vec<Vec<Option<ConstraintGroupId>>>,
     constraint_group_arena: Vec<ConstraintGroup>,
 }
@@ -32,18 +31,6 @@ impl ForsterConstraintResolver {
             constraint_groups: Vec::new(),
             constraint_group_arena: Vec::new(),
         }
-    }
-
-    pub fn barycenter_states(&self) -> Vec<Vec<Arc<Mutex<BarycenterState>>>> {
-        self.barycenter_states
-            .iter()
-            .map(|layer| {
-                layer
-                    .iter()
-                    .map(|state| state.clone().expect("barycenter state missing"))
-                    .collect()
-            })
-            .collect()
     }
 
     fn add_group(&mut self, group: ConstraintGroup) -> ConstraintGroupId {
@@ -122,10 +109,11 @@ impl ForsterConstraintResolver {
                 .unwrap_or_default();
             for node in group_nodes {
                 nodes.push(node.clone());
-                if let Some(state) = self.state_of(&node) {
-                    if let Ok(mut state_guard) = state.lock() {
-                        state_guard.barycenter = group_barycenter;
-                    }
+                let (li, ni) = (layer_index(&node), node_id(&node));
+                if let Some(state) = self.barycenter_states
+                    .get_mut(li).and_then(|l| l.get_mut(ni)).and_then(|o| o.as_mut())
+                {
+                    state.barycenter = group_barycenter;
                 }
             }
         }
@@ -451,35 +439,25 @@ impl ForsterConstraintResolver {
             .expect("constraint group missing")
     }
 
-    fn state_of(&self, node: &LNodeRef) -> Option<Arc<Mutex<BarycenterState>>> {
-        let layer_index = layer_index(node);
-        let node_index = node_id(node);
-        self.barycenter_states
-            .get(layer_index)
-            .and_then(|layer| layer.get(node_index))
-            .and_then(|state| state.clone())
-    }
-
     fn group_barycenter(&self, group: ConstraintGroupId) -> Option<f64> {
         let node = self.group(group).map(|group_data| group_data.single_node().clone())?;
-        self.state_of(&node).and_then(|state| {
-            state
-                .lock()
-                .ok()
-                .and_then(|state_guard| state_guard.barycenter)
-        })
+        let (li, ni) = (layer_index(&node), node_id(&node));
+        self.barycenter_states
+            .get(li).and_then(|l| l.get(ni)).and_then(|o| o.as_ref())
+            .and_then(|s| s.barycenter)
     }
 
-    fn set_group_barycenter(&self, group: ConstraintGroupId, barycenter: Option<f64>) {
+    fn set_group_barycenter(&mut self, group: ConstraintGroupId, barycenter: Option<f64>) {
         let nodes = match self.group(group) {
             Some(group_data) => group_data.nodes.clone(),
             None => return,
         };
         for node in nodes {
-            if let Some(state) = self.state_of(&node) {
-                if let Ok(mut state_guard) = state.lock() {
-                    state_guard.barycenter = barycenter;
-                }
+            let (li, ni) = (layer_index(&node), node_id(&node));
+            if let Some(state) = self.barycenter_states
+                .get_mut(li).and_then(|l| l.get_mut(ni)).and_then(|o| o.as_mut())
+            {
+                state.barycenter = barycenter;
             }
         }
     }
@@ -502,8 +480,7 @@ impl ForsterConstraintResolver {
                 if node_index >= layer_states.len() {
                     layer_states.resize(node_index + 1, None);
                 }
-                layer_states[node_index] =
-                    Some(Arc::new(Mutex::new(BarycenterState::new(node.clone()))));
+                layer_states[node_index] = Some(BarycenterState::new(node.clone()));
             }
 
             let layout_unit = node.lock().ok().and_then(|mut node_guard| {

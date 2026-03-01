@@ -19,6 +19,7 @@ use crate::org::eclipse::elk::alg::layered::p3order::barycenter_port_distributor
 use crate::org::eclipse::elk::alg::layered::p3order::counting::{
     init_initializables, AllCrossingsCounter, IInitializable,
 };
+use crate::org::eclipse::elk::alg::layered::p3order::cross_min_snapshot::CrossMinSnapshot;
 use crate::org::eclipse::elk::alg::layered::p3order::forster_constraint_resolver::ForsterConstraintResolver;
 use crate::org::eclipse::elk::alg::layered::p3order::i_crossing_minimization_heuristic::ICrossingMinimizationHeuristic;
 use crate::org::eclipse::elk::alg::layered::p3order::i_sweep_port_distributor::ISweepPortDistributor;
@@ -57,6 +58,7 @@ pub struct GraphInfoHolder {
     random: Random,
     first_try_with_initial_order: bool,
     second_try_with_initial_order: bool,
+    snapshot: Arc<CrossMinSnapshot>,
 }
 
 impl GraphInfoHolder {
@@ -336,6 +338,9 @@ impl GraphInfoHolder {
             eprintln!("crossmin: graph_info_holder sweep type decider ready");
         }
 
+        // Placeholder snapshot; replaced after init assigns all IDs.
+        let empty_snapshot = Arc::new(CrossMinSnapshot::build(&[], 0));
+
         let mut holder = GraphInfoHolder {
             l_graph: graph,
             current_node_order,
@@ -362,6 +367,7 @@ impl GraphInfoHolder {
             random: random.clone(),
             first_try_with_initial_order: false,
             second_try_with_initial_order: false,
+            snapshot: empty_snapshot,
         };
 
         let order = holder.current_node_order.clone();
@@ -384,6 +390,32 @@ impl GraphInfoHolder {
         if trace {
             eprintln!("crossmin: graph_info_holder init components done");
         }
+
+        // Build snapshot now that all graph_element().id values are finalized.
+        let snapshot = Arc::new(CrossMinSnapshot::build(&order, holder.n_ports));
+        if trace {
+            eprintln!("crossmin: graph_info_holder snapshot built (nodes={}, ports={})",
+                snapshot.n_nodes(), snapshot.n_ports());
+        }
+
+        // Propagate snapshot to components for lock-free ID lookups.
+        holder.crossings_counter.set_snapshot(snapshot.clone());
+        if let Some(bary) = holder
+            .cross_minimizer
+            .as_any_mut()
+            .downcast_mut::<BarycenterHeuristic>()
+        {
+            bary.set_snapshot(snapshot.clone());
+        }
+        if let Some(model_bary) = holder
+            .cross_minimizer
+            .as_any_mut()
+            .downcast_mut::<ModelOrderBarycenterHeuristic>()
+        {
+            model_bary.set_snapshot(snapshot.clone());
+        }
+
+        holder.snapshot = snapshot;
 
         holder.use_bottom_up =
             layer_sweep_type_decider.use_bottom_up_with_boundary(&order, hierarchical_sweepiness);
@@ -609,6 +641,10 @@ impl GraphInfoHolder {
 
     pub fn port_positions(&self) -> &Vec<i32> {
         &self.port_positions
+    }
+
+    pub fn snapshot(&self) -> &CrossMinSnapshot {
+        &self.snapshot
     }
 
     pub fn update_greedy_context(

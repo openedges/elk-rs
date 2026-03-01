@@ -7,7 +7,7 @@ use crate::org::eclipse::elk::alg::layered::p3order::counting::IInitializable;
 use crate::org::eclipse::elk::alg::layered::p3order::i_sweep_port_distributor::ISweepPortDistributor;
 
 pub struct NodeRelativePortDistributor {
-    inner: AbstractBarycenterPortDistributor,
+    pub(crate) inner: AbstractBarycenterPortDistributor,
 }
 
 impl NodeRelativePortDistributor {

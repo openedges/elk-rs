@@ -1,6 +1,7 @@
 use std::any::Any;
 use std::cmp::Ordering;
 use std::collections::{btree_map::Entry, BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::util::Random;
 
@@ -12,6 +13,7 @@ use crate::org::eclipse::elk::alg::layered::options::{
 use crate::org::eclipse::elk::alg::layered::p3order::barycenter_heuristic::BarycenterHeuristic;
 use crate::org::eclipse::elk::alg::layered::p3order::barycenter_port_distributor::BarycenterPortDistributor;
 use crate::org::eclipse::elk::alg::layered::p3order::counting::IInitializable;
+use crate::org::eclipse::elk::alg::layered::p3order::cross_min_snapshot::CrossMinSnapshot;
 use crate::org::eclipse::elk::alg::layered::p3order::forster_constraint_resolver::ForsterConstraintResolver;
 use crate::org::eclipse::elk::alg::layered::p3order::i_crossing_minimization_heuristic::ICrossingMinimizationHeuristic;
 
@@ -40,6 +42,10 @@ impl ModelOrderBarycenterHeuristic {
             max_model_order_nodes,
             group_order_strategy,
         }
+    }
+
+    pub fn set_snapshot(&mut self, snapshot: Arc<CrossMinSnapshot>) {
+        self.base.set_snapshot(snapshot);
     }
 
     fn compare_based_on_transitive_dependencies(&mut self, n1: &LNodeRef, n2: &LNodeRef) -> i32 {
@@ -91,14 +97,8 @@ impl ModelOrderBarycenterHeuristic {
     }
 
     fn compare_based_on_barycenter(&mut self, n1: &LNodeRef, n2: &LNodeRef) -> i32 {
-        let s1 = self
-            .base
-            .state_of(n1)
-            .and_then(|state| state.lock().ok().map(|state| state.barycenter));
-        let s2 = self
-            .base
-            .state_of(n2)
-            .and_then(|state| state.lock().ok().map(|state| state.barycenter));
+        let s1 = self.base.get_barycenter(n1);
+        let s2 = self.base.get_barycenter(n2);
 
         match (s1, s2) {
             (Some(s1), Some(s2)) => {

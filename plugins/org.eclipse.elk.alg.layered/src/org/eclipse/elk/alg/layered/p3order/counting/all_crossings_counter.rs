@@ -1,6 +1,8 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, LazyLock};
 
+use crate::org::eclipse::elk::alg::layered::p3order::cross_min_snapshot::CrossMinSnapshot;
+
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LNodeRef, LPortRef, NodeType};
@@ -33,6 +35,10 @@ impl AllCrossingsCounter {
             has_north_south_ports: vec![false; length],
             n_ports: 0,
         }
+    }
+
+    pub fn set_snapshot(&mut self, snapshot: Arc<CrossMinSnapshot>) {
+        self.crossing_counter.set_snapshot(snapshot);
     }
 
     pub fn count_all_crossings(&mut self, current_order: &[Vec<LNodeRef>]) -> i32 {

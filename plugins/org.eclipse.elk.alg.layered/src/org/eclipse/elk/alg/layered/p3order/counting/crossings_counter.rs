@@ -12,12 +12,14 @@ use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, Origin
 use crate::org::eclipse::elk::alg::layered::p3order::counting::{
     in_north_south_east_west_order, BinaryIndexedTree,
 };
+use crate::org::eclipse::elk::alg::layered::p3order::cross_min_snapshot::CrossMinSnapshot;
 
 pub struct CrossingsCounter {
     port_positions: Vec<i32>,
     index_tree: BinaryIndexedTree,
     ends: VecDeque<i32>,
     node_cardinalities: Vec<i32>,
+    snapshot: Option<Arc<CrossMinSnapshot>>,
 }
 
 impl CrossingsCounter {
@@ -27,6 +29,29 @@ impl CrossingsCounter {
             index_tree: BinaryIndexedTree::new(0),
             ends: VecDeque::new(),
             node_cardinalities: Vec::new(),
+            snapshot: None,
+        }
+    }
+
+    pub fn set_snapshot(&mut self, snapshot: Arc<CrossMinSnapshot>) {
+        self.snapshot = Some(snapshot);
+    }
+
+    #[inline]
+    fn port_id_of(&self, port: &LPortRef) -> usize {
+        if let Some(ref snap) = self.snapshot {
+            snap.port_id(port) as usize
+        } else {
+            port_id(port)
+        }
+    }
+
+    #[inline]
+    fn node_id_of(&self, node: &LNodeRef) -> usize {
+        if let Some(ref snap) = self.snapshot {
+            snap.node_id(node) as usize
+        } else {
+            node_id(node)
         }
     }
 
@@ -37,12 +62,24 @@ impl CrossingsCounter {
     ) -> i32 {
         let ports = self.init_port_positions_counter_clockwise(left_layer, right_layer);
         self.index_tree = BinaryIndexedTree::new(ports.len());
-        self.count_crossings_on_ports(&ports)
+        let snap = self.snapshot.clone();
+        if let Some(ref snap) = snap {
+            let port_ids: Vec<u32> = ports.iter().map(|p| snap.port_id(p)).collect();
+            self.count_crossings_on_ports_snap(snap, &port_ids)
+        } else {
+            self.count_crossings_on_ports(&ports)
+        }
     }
 
     pub fn count_in_layer_crossings_on_side(&mut self, nodes: &[LNodeRef], side: PortSide) -> i32 {
         let ports = self.init_port_positions_for_in_layer_crossings(nodes, side);
-        self.count_in_layer_crossings_on_ports(&ports)
+        let snap = self.snapshot.clone();
+        if let Some(ref snap) = snap {
+            let port_ids: Vec<u32> = ports.iter().map(|p| snap.port_id(p)).collect();
+            self.count_in_layer_crossings_on_ports_snap(snap, &port_ids)
+        } else {
+            self.count_in_layer_crossings_on_ports(&ports)
+        }
     }
 
     pub fn count_north_south_port_crossings_in_layer(&mut self, layer: &[LNodeRef]) -> i32 {
@@ -56,15 +93,35 @@ impl CrossingsCounter {
         upper_port: &LPortRef,
         lower_port: &LPortRef,
     ) -> Pair<i32, i32> {
-        let mut ports = self.connected_ports_sorted_by_position(upper_port, lower_port);
-        let upper_lower_crossings = self.count_crossings_on_ports(&ports);
-        self.index_tree.clear();
-        self.switch_ports(upper_port, lower_port);
-        ports.sort_by_key(|port| self.position_of(port));
-        let lower_upper_crossings = self.count_crossings_on_ports(&ports);
-        self.index_tree.clear();
-        self.switch_ports(lower_port, upper_port);
-        Pair::of(upper_lower_crossings, lower_upper_crossings)
+        let snap = self.snapshot.clone();
+        if let Some(ref snap) = snap {
+            let mut ports =
+                self.connected_ports_sorted_by_position_snap(snap, upper_port, lower_port);
+            let upper_lower_crossings = self.count_crossings_on_ports_snap(snap, &ports);
+            self.index_tree.clear();
+            let up_id = snap.port_id(upper_port) as usize;
+            let lo_id = snap.port_id(lower_port) as usize;
+            if up_id < self.port_positions.len() && lo_id < self.port_positions.len() {
+                self.port_positions.swap(up_id, lo_id);
+            }
+            ports.sort_by_key(|&pid| *self.port_positions.get(pid as usize).unwrap_or(&0));
+            let lower_upper_crossings = self.count_crossings_on_ports_snap(snap, &ports);
+            self.index_tree.clear();
+            if up_id < self.port_positions.len() && lo_id < self.port_positions.len() {
+                self.port_positions.swap(up_id, lo_id);
+            }
+            Pair::of(upper_lower_crossings, lower_upper_crossings)
+        } else {
+            let mut ports = self.connected_ports_sorted_by_position(upper_port, lower_port);
+            let upper_lower_crossings = self.count_crossings_on_ports(&ports);
+            self.index_tree.clear();
+            self.switch_ports(upper_port, lower_port);
+            ports.sort_by_key(|port| self.position_of(port));
+            let lower_upper_crossings = self.count_crossings_on_ports(&ports);
+            self.index_tree.clear();
+            self.switch_ports(lower_port, upper_port);
+            Pair::of(upper_lower_crossings, lower_upper_crossings)
+        }
     }
 
     pub fn count_in_layer_crossings_between_nodes_in_both_orders(
@@ -73,16 +130,31 @@ impl CrossingsCounter {
         lower_node: &LNodeRef,
         side: PortSide,
     ) -> Pair<i32, i32> {
-        let mut ports =
-            self.connected_in_layer_ports_sorted_by_position(upper_node, lower_node, side);
-        let upper_lower_crossings = self.count_in_layer_crossings_on_ports(&ports);
-        self.switch_nodes(upper_node, lower_node, side);
-        self.index_tree.clear();
-        ports.sort_by_key(|port| self.position_of(port));
-        let lower_upper_crossings = self.count_in_layer_crossings_on_ports(&ports);
-        self.switch_nodes(lower_node, upper_node, side);
-        self.index_tree.clear();
-        Pair::of(upper_lower_crossings, lower_upper_crossings)
+        let snap = self.snapshot.clone();
+        if let Some(ref snap) = snap {
+            let mut ports = self.connected_in_layer_ports_sorted_by_position_snap(
+                snap, upper_node, lower_node, side,
+            );
+            let upper_lower_crossings = self.count_in_layer_crossings_on_ports_snap(snap, &ports);
+            self.switch_nodes(upper_node, lower_node, side);
+            self.index_tree.clear();
+            ports.sort_by_key(|&pid| *self.port_positions.get(pid as usize).unwrap_or(&0));
+            let lower_upper_crossings = self.count_in_layer_crossings_on_ports_snap(snap, &ports);
+            self.switch_nodes(lower_node, upper_node, side);
+            self.index_tree.clear();
+            Pair::of(upper_lower_crossings, lower_upper_crossings)
+        } else {
+            let mut ports =
+                self.connected_in_layer_ports_sorted_by_position(upper_node, lower_node, side);
+            let upper_lower_crossings = self.count_in_layer_crossings_on_ports(&ports);
+            self.switch_nodes(upper_node, lower_node, side);
+            self.index_tree.clear();
+            ports.sort_by_key(|port| self.position_of(port));
+            let lower_upper_crossings = self.count_in_layer_crossings_on_ports(&ports);
+            self.switch_nodes(lower_node, upper_node, side);
+            self.index_tree.clear();
+            Pair::of(upper_lower_crossings, lower_upper_crossings)
+        }
     }
 
     pub fn init_for_counting_between(&mut self, left_layer: &[LNodeRef], right_layer: &[LNodeRef]) {
@@ -102,8 +174,8 @@ impl CrossingsCounter {
     }
 
     pub fn switch_ports(&mut self, top_port: &LPortRef, bottom_port: &LPortRef) {
-        let top_index = port_id(top_port);
-        let bottom_index = port_id(bottom_port);
+        let top_index = self.port_id_of(top_port);
+        let bottom_index = self.port_id_of(bottom_port);
         if top_index >= self.port_positions.len() || bottom_index >= self.port_positions.len() {
             return;
         }
@@ -111,20 +183,20 @@ impl CrossingsCounter {
     }
 
     pub fn switch_nodes(&mut self, was_upper: &LNodeRef, was_lower: &LNodeRef, side: PortSide) {
-        let upper_id = node_id(was_upper);
-        let lower_id = node_id(was_lower);
+        let upper_id = self.node_id_of(was_upper);
+        let lower_id = self.node_id_of(was_lower);
         let upper_shift = *self.node_cardinalities.get(lower_id).unwrap_or(&0);
         let lower_shift = *self.node_cardinalities.get(upper_id).unwrap_or(&0);
 
         for port in in_north_south_east_west_order(was_upper, side) {
-            let idx = port_id(&port);
+            let idx = self.port_id_of(&port);
             if idx < self.port_positions.len() {
                 self.port_positions[idx] = self.position_of(&port) + upper_shift;
             }
         }
 
         for port in in_north_south_east_west_order(was_lower, side) {
-            let idx = port_id(&port);
+            let idx = self.port_id_of(&port);
             if idx < self.port_positions.len() {
                 self.port_positions[idx] = self.position_of(&port) - lower_shift;
             }
@@ -366,10 +438,11 @@ impl CrossingsCounter {
             let node = nodes[i as usize].clone();
             let node_ports = self.get_ports(&node, side, top_down);
             if get_cardinalities {
-                self.node_cardinalities[node_id(&node)] = node_ports.len() as i32;
+                let nid = self.node_id_of(&node);
+                self.node_cardinalities[nid] = node_ports.len() as i32;
             }
             for port in &node_ports {
-                let pid = port_id(port);
+                let pid = self.port_id_of(port);
                 if pid >= self.port_positions.len() {
                     self.port_positions.resize(pid + 1, 0);
                 }
@@ -413,6 +486,7 @@ impl CrossingsCounter {
                     STACK_SIDE,
                     index,
                     &mut self.port_positions,
+                    &self.snapshot,
                 );
             }
             if node_has_property(current, InternalProperties::IN_LAYER_LAYOUT_UNIT) {
@@ -430,7 +504,8 @@ impl CrossingsCounter {
                 NodeType::Normal => {
                     for port in get_north_south_ports_with_incident_edges(current, PortSide::North)
                     {
-                        set_port_position(&mut self.port_positions, &port, index);
+                        let pid = self.port_id_of(&port);
+                        set_port_position(&mut self.port_positions, pid, index);
                         index += 1;
                         ports.push(port);
                     }
@@ -441,11 +516,13 @@ impl CrossingsCounter {
                         STACK_SIDE,
                         index,
                         &mut self.port_positions,
+                        &self.snapshot,
                     );
 
                     for port in get_north_south_ports_with_incident_edges(current, PortSide::South)
                     {
-                        set_port_position(&mut self.port_positions, &port, index);
+                        let pid = self.port_id_of(&port);
+                        set_port_position(&mut self.port_positions, pid, index);
                         index += 1;
                         ports.push(port);
                     }
@@ -457,7 +534,8 @@ impl CrossingsCounter {
                         .map(|mut node_guard| node_guard.port_side_view(INDEXING_SIDE))
                         .unwrap_or_default();
                     if let Some(port) = west_ports.first() {
-                        set_port_position(&mut self.port_positions, port, index);
+                        let pid = self.port_id_of(port);
+                        set_port_position(&mut self.port_positions, pid, index);
                         index += 1;
                         ports.push(port.clone());
                     }
@@ -477,7 +555,8 @@ impl CrossingsCounter {
                         .map(|mut node_guard| node_guard.port_side_view(PortSide::West))
                         .unwrap_or_default()
                     {
-                        set_port_position(&mut self.port_positions, &port, index);
+                        let pid = self.port_id_of(&port);
+                        set_port_position(&mut self.port_positions, pid, index);
                         index += 1;
                         ports.push(port);
                     }
@@ -500,6 +579,7 @@ impl CrossingsCounter {
             STACK_SIDE,
             index,
             &mut self.port_positions,
+            &self.snapshot,
         );
 
         ports
@@ -524,8 +604,172 @@ impl CrossingsCounter {
         }
     }
 
+    // ── Snapshot-based methods (lock-free CSR adjacency) ────────────────
+
+    fn nsew_ports_snap(
+        &self,
+        snap: &CrossMinSnapshot,
+        node: &LNodeRef,
+        side: PortSide,
+    ) -> Vec<u32> {
+        let flat = snap.node_flat_index(node);
+        let all_ports = snap.node_ports(flat);
+        let mut ports: Vec<u32> = all_ports
+            .iter()
+            .copied()
+            .filter(|&pid| snap.port_side_of(pid) == side)
+            .collect();
+        match side {
+            PortSide::South | PortSide::West => ports.reverse(),
+            _ => {}
+        }
+        ports
+    }
+
+    fn count_crossings_on_ports_snap(
+        &mut self,
+        snap: &CrossMinSnapshot,
+        ports: &[u32],
+    ) -> i32 {
+        let mut crossings = 0;
+        for &pid in ports {
+            let current_position = *self.port_positions.get(pid as usize).unwrap_or(&0);
+            self.index_tree.remove_all(current_position as usize);
+            for &other_pid in snap.port_predecessors(pid) {
+                let end_position = *self.port_positions.get(other_pid as usize).unwrap_or(&0);
+                if end_position > current_position {
+                    crossings += self.index_tree.rank(end_position as usize);
+                    self.ends.push_back(end_position);
+                }
+            }
+            for &other_pid in snap.port_successors(pid) {
+                let end_position = *self.port_positions.get(other_pid as usize).unwrap_or(&0);
+                if end_position > current_position {
+                    crossings += self.index_tree.rank(end_position as usize);
+                    self.ends.push_back(end_position);
+                }
+            }
+            while let Some(end_pos) = self.ends.pop_back() {
+                self.index_tree.add(end_pos as usize);
+            }
+        }
+        crossings
+    }
+
+    fn count_in_layer_crossings_on_ports_snap(
+        &mut self,
+        snap: &CrossMinSnapshot,
+        ports: &[u32],
+    ) -> i32 {
+        let mut crossings = 0;
+        for &pid in ports {
+            let current_position = *self.port_positions.get(pid as usize).unwrap_or(&0);
+            self.index_tree.remove_all(current_position as usize);
+            let pid_layer = snap.port_owner_layer(pid);
+            let mut num_between_layer_edges = 0;
+            for &other_pid in snap.port_predecessors(pid) {
+                if snap.port_owner_layer(other_pid) == pid_layer {
+                    let end_position =
+                        *self.port_positions.get(other_pid as usize).unwrap_or(&0);
+                    if end_position > current_position {
+                        crossings += self.index_tree.rank(end_position as usize);
+                        self.ends.push_back(end_position);
+                    }
+                } else {
+                    num_between_layer_edges += 1;
+                }
+            }
+            for &other_pid in snap.port_successors(pid) {
+                if snap.port_owner_layer(other_pid) == pid_layer {
+                    let end_position =
+                        *self.port_positions.get(other_pid as usize).unwrap_or(&0);
+                    if end_position > current_position {
+                        crossings += self.index_tree.rank(end_position as usize);
+                        self.ends.push_back(end_position);
+                    }
+                } else {
+                    num_between_layer_edges += 1;
+                }
+            }
+            crossings += self.index_tree.size() * num_between_layer_edges;
+            while let Some(end_pos) = self.ends.pop_back() {
+                self.index_tree.add(end_pos as usize);
+            }
+        }
+        crossings
+    }
+
+    fn connected_ports_sorted_by_position_snap(
+        &self,
+        snap: &CrossMinSnapshot,
+        upper_port: &LPortRef,
+        lower_port: &LPortRef,
+    ) -> Vec<u32> {
+        let mut ports: Vec<u32> = Vec::new();
+        let mut seen: BTreeSet<u32> = BTreeSet::new();
+        for port in [upper_port, lower_port] {
+            let pid = snap.port_id(port);
+            if seen.insert(pid) {
+                ports.push(pid);
+            }
+            for &other_pid in snap.port_predecessors(pid) {
+                if other_pid == pid {
+                    continue;
+                }
+                if seen.insert(other_pid) {
+                    ports.push(other_pid);
+                }
+            }
+            for &other_pid in snap.port_successors(pid) {
+                if other_pid == pid {
+                    continue;
+                }
+                if seen.insert(other_pid) {
+                    ports.push(other_pid);
+                }
+            }
+        }
+        ports.sort_by_key(|&pid| *self.port_positions.get(pid as usize).unwrap_or(&0));
+        ports
+    }
+
+    fn connected_in_layer_ports_sorted_by_position_snap(
+        &self,
+        snap: &CrossMinSnapshot,
+        upper_node: &LNodeRef,
+        lower_node: &LNodeRef,
+        side: PortSide,
+    ) -> Vec<u32> {
+        let mut ports: Vec<u32> = Vec::new();
+        let mut seen: BTreeSet<u32> = BTreeSet::new();
+        for node in [upper_node, lower_node] {
+            let node_ports = self.nsew_ports_snap(snap, node, side);
+            for pid in node_ports {
+                for &other_pid in snap
+                    .port_predecessors(pid)
+                    .iter()
+                    .chain(snap.port_successors(pid))
+                {
+                    if snap.port_owner_flat(pid) == snap.port_owner_flat(other_pid) {
+                        continue;
+                    }
+                    if seen.insert(pid) {
+                        ports.push(pid);
+                    }
+                    if snap.port_owner_layer(pid) == snap.port_owner_layer(other_pid)
+                        && seen.insert(other_pid)
+                    {
+                        ports.push(other_pid);
+                    }
+                }
+            }
+        }
+        ports.sort_by_key(|&pid| *self.port_positions.get(pid as usize).unwrap_or(&0));
+        ports
+    }
+
     fn position_of(&self, port: &LPortRef) -> i32 {
-        let pid = port_id(port);
+        let pid = self.port_id_of(port);
         *self.port_positions.get(pid).unwrap_or(&0)
     }
 }
@@ -684,6 +928,7 @@ fn empty_stack(
     side: PortSide,
     mut index: i32,
     port_positions: &mut Vec<i32>,
+    snapshot: &Option<Arc<CrossMinSnapshot>>,
 ) -> i32 {
     while let Some(dummy) = stack.pop() {
         let dummy_ports = dummy
@@ -692,7 +937,12 @@ fn empty_stack(
             .map(|mut node_guard| node_guard.port_side_view(side))
             .unwrap_or_default();
         if let Some(port) = dummy_ports.first() {
-            set_port_position(port_positions, port, index);
+            let pid = if let Some(ref snap) = snapshot {
+                snap.port_id(port) as usize
+            } else {
+                port_id(port)
+            };
+            set_port_position(port_positions, pid, index);
             index += 1;
             ports.push(port.clone());
         }
@@ -700,8 +950,7 @@ fn empty_stack(
     index
 }
 
-fn set_port_position(port_positions: &mut Vec<i32>, port: &LPortRef, position: i32) {
-    let pid = port_id(port);
+fn set_port_position(port_positions: &mut Vec<i32>, pid: usize, position: i32) {
     if pid >= port_positions.len() {
         port_positions.resize(pid + 1, 0);
     }

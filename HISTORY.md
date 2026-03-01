@@ -1078,9 +1078,31 @@
 - `perf_benchmark --engine rust_native --mode synthetic --iterations 10 --warmup 3` 재측정
 - full model parity 재실행하여 회귀 없음 확인
 
-## 진행할 작업
-- **성능 최적화 Phase 1**: `std::env::var_os` → `LazyLock` 전환 (121개 호출, layered 크레이트)
-- **성능 최적화 Phase 2-3**: 할당 최적화 (ports_by_side, SweepCopy)
-- Step M-5 tickets 잔여 2건: `701_portLabels`, `213_componentsCompaction`
-- parity 지표 재검증: full baseline(`matches=1174/1439`, `drift=265`) 기준
-- 품질 게이트 유지: 단계 종료 시 `cargo clippy --workspace --all-targets`와 `cargo test --workspace` 재실행
+## 완료: 성능 최적화 — Phase-Local Snapshot Approach (2026-03-01)
+
+**목표**: 972ms → ≤650ms (Java 463ms 대비 1.4x 이내)
+**전략**: P3 crossing minimization (71.8%, 698ms)의 339개 `.lock()` 호출을 phase-local snapshot으로 제거
+**결과**: 972ms → ~952ms (~20ms 개선, 2.1%). 목표 미달.
+
+### 실행 결과 요약
+
+| Step | 내용 | 결과 |
+|------|------|------|
+| 1 | CrossMinSnapshot 구조체 + 빌더 인프라 | 완료 (인프라) |
+| 2 | port_id/node_id lock → snapshot HashMap | 완료 |
+| 3 | BarycenterState flat Vec (Arc\<Mutex\> 제거) | 완료 |
+| 4 | calculate_barycenter CSR edge traversal | 완료 |
+| 5 | CrossingsCounter snapshot 전환 | 완료 |
+| 6 | port rank/distribution snapshot 전환 | 완료 |
+| 7 | P5 Edge Router batch lock coalescing | 완료 |
+| 8 | SweepCopy lock coalescing | 완료 |
+
+**parity**: 1438/1438 match, 0 drift (모든 step 검증 통과)
+**`layered_xlarge`**: 982ms → 952ms (측정 분산 내, ~30ms)
+
+### 교훈
+- macOS/Darwin의 uncontended `pthread_mutex` overhead는 ~20ns로 매우 낮음
+- 예상 310-485ms 절감 vs 실제 ~30ms: lock 자체보다 `Vec<Arc<T>>` clone, Arc ref counting,
+  메모리 할당이 더 큰 비용
+- 근본 해결은 core graph를 arena-based flat model로 전환해야 함
+- 하지만 snapshot 인프라(CSR adjacency)는 향후 arena 전환의 기반으로 재활용 가능
