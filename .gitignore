@@ -8,6 +8,7 @@
 .vscode/
 .omc/
 .auto-claude/
+/.cache/
 
 # Python cache
 __pycache__/
@@ -65,3 +66,6 @@ __pycache__/
 /tests/model_parity_*/**/*.json
 !/tests/model_parity_*/java/
 !/tests/model_parity_*/java/java_manifest.tsv
+
+# Full parity local working dir (generated artifacts)
+/tests/model_parity_full/
