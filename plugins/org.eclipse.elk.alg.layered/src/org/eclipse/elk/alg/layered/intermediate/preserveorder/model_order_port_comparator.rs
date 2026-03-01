@@ -35,7 +35,7 @@ impl std::hash::Hash for PortRefKey {
 }
 
 pub struct ModelOrderPortComparator {
-    target_node_model_order: Option<HashMap<NodeRefKey, i32>>,
+    target_node_model_order: Option<HashMap<usize, i32>>,
     port_model_order: bool,
     previous_layer: Vec<LNodeRef>,
     previous_layer_position: HashMap<usize, usize>,
@@ -56,7 +56,7 @@ impl ModelOrderPortComparator {
         let mut previous_layer_position = HashMap::with_capacity(previous_layer.len());
         refill_layer_position_map(&mut previous_layer_position, &previous_layer);
         ModelOrderPortComparator {
-            target_node_model_order,
+            target_node_model_order: to_target_node_position_map(target_node_model_order),
             port_model_order,
             previous_layer,
             previous_layer_position,
@@ -325,10 +325,10 @@ impl ModelOrderPortComparator {
                     }
                 }
                 if let Some(map) = &self.target_node_model_order {
-                    if let Some(order) = map.get(&NodeRefKey(p1_target_node.clone())) {
+                    if let Some(order) = map.get(&node_ptr(p1_target_node)) {
                         p1_order = *order;
                     }
-                    if let Some(order) = map.get(&NodeRefKey(p2_target_node.clone())) {
+                    if let Some(order) = map.get(&node_ptr(p2_target_node)) {
                         p2_order = *order;
                     }
                 }
@@ -395,7 +395,7 @@ impl ModelOrderPortComparator {
         &mut self,
         target_node_model_order: Option<HashMap<NodeRefKey, i32>>,
     ) {
-        self.target_node_model_order = target_node_model_order;
+        self.target_node_model_order = to_target_node_position_map(target_node_model_order);
         self.clear_transitive_ordering();
     }
 
@@ -668,4 +668,16 @@ fn refill_layer_position_map(positions: &mut HashMap<usize, usize>, layer: &[LNo
 
 fn node_ptr(node: &LNodeRef) -> usize {
     std::sync::Arc::as_ptr(node) as usize
+}
+
+fn to_target_node_position_map(
+    target_node_model_order: Option<HashMap<NodeRefKey, i32>>,
+) -> Option<HashMap<usize, i32>> {
+    target_node_model_order.map(|orders| {
+        let mut pointer_orders = HashMap::with_capacity(orders.len());
+        for (key, value) in orders {
+            pointer_orders.insert(node_ptr(&key.0), value);
+        }
+        pointer_orders
+    })
 }
