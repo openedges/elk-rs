@@ -54,14 +54,14 @@
 - **JS parity**: 550/550 elk-rs vs Java 일치 (ELKJS_DRIFT 20건은 GWT 아티팩트)
 - **npm 패키지**: `elk-rs@0.11.0` WASM-only 릴리즈 준비 완료 (32 Vitest 통과)
   - 향후: NAPI 플랫폼별 패키지 (`@elk-rs/darwin-arm64` 등) 추가 예정
-- **성능 기준선**: Rust ~2.4x slower than Java (`layered_xlarge` 1,130ms vs ~463ms)
-  - 이전 1,576ms → 1,130ms (**-28.3%**), Phase 1-3 최적화 적용 (상세: `HISTORY.md`)
-  - 최근 probe: `layered_xlarge` `1,020ms -> 992ms`(5/1), `990ms`(10/3) 추가 개선 (Phase 2.1 clone/lock/할당 축소)
-  - 완료: Phase 1 `LazyLock` 전환(130개 env::var 호출), Phase 2 ports_by_side 버퍼 재사용, Phase 3 SweepCopy copy_from()
-  - 잔여 병목: Mutex lock 빈도(~10-15%), malloc/free(~5%), **Phase 4 Full arena 전환 필수 착수(선택 아님)**
-  - 실행 계획: `HISTORY.md`의 `Full arena 전환 필수화 및 실행 계획 확정(2026-03-01)` 항목을 기준으로 Phase 0~5 순차 진행
+- **성능 기준선**: Rust ~2.13x slower than Java (`layered_xlarge` 986.70ms vs 463.21ms, synthetic 10/3 baseline)
+  - 이전 1,576ms → 986.70ms (**-37.4%**), Phase 1-4 최적화 반영 (상세: `HISTORY.md`)
+  - 최근 probe: `layered_xlarge` `1,020ms -> 992ms`(5/1), `990ms`(10/3), `988.53ms`(10/3), 최신 `986.70ms`(10/3)
+  - 완료: Phase 1 `LazyLock` 전환(130개 env::var 호출), Phase 2 ports_by_side 버퍼 재사용, Phase 3 Delta crossing cache, Phase 4 P5 hybrid routing-slot kernel
+  - 잔여 병목: Arc/Mutex 기반 core graph lock 경합(~10-15%), malloc/free(~5%), **Phase 5 Full arena 전면 전환 필수 진행 중**
+  - 실행 계획: `HISTORY.md`의 `Full arena 전환 필수화 및 실행 계획 확정(2026-03-01)` 항목 기준 Phase 0~4 완료, Phase 5 순차 진행
 - **코드 품질**: `cargo build` warning 0건, `cargo clippy` warning 0건
-- **Parity 재검증 상태**: full parity 재실행은 Tycho/네트워크 제약으로 보류(상세 오류/재시도는 `HISTORY.md` 최신 항목 참조)
+- **Parity 재검증 상태**: full parity 재실행 완료 — `compared=1438`, `matches=1438`, `drift=0`, `skipped=9`, `errors=0`
 - **알려진 실패**: `elk_live_examples_test` 1건 (cross-hierarchy edge resolution, `TESTING.md` § 4.2)
 - `213_componentsCompaction.elkt`: `java_non_ok=nan_output`으로 분류 — Rust 출력이 더 정확
 

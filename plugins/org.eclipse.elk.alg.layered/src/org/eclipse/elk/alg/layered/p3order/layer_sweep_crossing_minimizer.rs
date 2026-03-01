@@ -57,6 +57,8 @@ pub struct LayerSweepCrossingMinimizer {
     cross_min_type: CrossMinType,
     graph_info_holders: Vec<GraphInfoHolder>,
     graphs_whose_node_order_changed: BTreeSet<usize>,
+    graphs_dirty_for_crossing_count: BTreeSet<usize>,
+    cached_crossings_by_graph: Vec<Option<i32>>,
     random: Random,
     random_seed: u64,
 }
@@ -67,8 +69,23 @@ impl LayerSweepCrossingMinimizer {
             cross_min_type,
             graph_info_holders: Vec::new(),
             graphs_whose_node_order_changed: BTreeSet::new(),
+            graphs_dirty_for_crossing_count: BTreeSet::new(),
+            cached_crossings_by_graph: Vec::new(),
             random: Random::default(),
             random_seed: 0,
+        }
+    }
+
+    fn mark_graph_dirty_for_crossing_count(&mut self, index: usize) {
+        // Crossing counts are hierarchical. If a child graph changes, parent
+        // crossing totals become stale as well.
+        let mut current = Some(index);
+        while let Some(graph_index) = current {
+            self.graphs_dirty_for_crossing_count.insert(graph_index);
+            current = self
+                .graph_info_holders
+                .get(graph_index)
+                .and_then(|holder| holder.parent_graph_index());
         }
     }
 
@@ -250,6 +267,7 @@ impl LayerSweepCrossingMinimizer {
             self.prepare_cross_minimizer(index);
             let graph_data = &mut self.graph_info_holders[index];
             graph_data.set_first_layer_order(is_forward_sweep);
+            self.mark_graph_dirty_for_crossing_count(index);
         } else {
             is_forward_sweep = first_try;
         }
@@ -334,6 +352,7 @@ impl LayerSweepCrossingMinimizer {
             self.prepare_cross_minimizer(index);
             let graph_data = &mut self.graph_info_holders[index];
             graph_data.set_first_layer_order(is_forward_sweep);
+            self.mark_graph_dirty_for_crossing_count(index);
         } else {
             is_forward_sweep = first_try;
         }
@@ -482,14 +501,32 @@ impl LayerSweepCrossingMinimizer {
         } else {
             None
         };
+
+        if self.cached_crossings_by_graph.len() != self.graph_info_holders.len() {
+            self.cached_crossings_by_graph = vec![None; self.graph_info_holders.len()];
+            self.graphs_dirty_for_crossing_count.clear();
+        }
+
         let mut total_crossings = 0;
         let mut stack = VecDeque::new();
+        let mut visited = Vec::new();
         stack.push_back(start_index);
         while let Some(index) = stack.pop_back() {
-            let crossings = {
-                let graph_data = &mut self.graph_info_holders[index];
-                graph_data.count_current_crossings()
-            };
+            visited.push(index);
+            let needs_recompute = self
+                .cached_crossings_by_graph
+                .get(index)
+                .and_then(|value| *value)
+                .is_none()
+                || self.graphs_dirty_for_crossing_count.contains(&index);
+            if needs_recompute {
+                let crossings = {
+                    let graph_data = &mut self.graph_info_holders[index];
+                    graph_data.count_current_crossings()
+                };
+                self.cached_crossings_by_graph[index] = Some(crossings);
+            }
+            let crossings = self.cached_crossings_by_graph[index].unwrap_or(0);
             total_crossings += crossings;
             let child_indices = self.child_graph_indices(index);
             for child_index in child_indices {
@@ -497,6 +534,9 @@ impl LayerSweepCrossingMinimizer {
                     stack.push_back(child_index);
                 }
             }
+        }
+        for index in visited {
+            self.graphs_dirty_for_crossing_count.remove(&index);
         }
         if let Some(start) = start {
             eprintln!(
@@ -541,10 +581,7 @@ impl LayerSweepCrossingMinimizer {
         let mut stack = VecDeque::new();
         stack.push_back(start_index);
         while let Some(index) = stack.pop_back() {
-            let crossings = {
-                let graph_data = &mut self.graph_info_holders[index];
-                graph_data.count_current_crossings() as f64
-            };
+            let crossings = self.count_current_number_of_crossings(index) as f64;
             let mut model_order_influence = 0.0;
             if root_model_order_strategy != OrderingStrategy::None {
                 let order = self.graph_info_holders[index].current_node_order();
@@ -568,7 +605,8 @@ impl LayerSweepCrossingMinimizer {
             let child_indices = self.child_graph_indices(index);
             for child_index in child_indices {
                 if !self.graph_info_holders[child_index].dont_sweep_into() {
-                    total_crossings += self.count_current_number_of_crossings(child_index) as f64;
+                    // children are already included in count_current_number_of_crossings(index)
+                    // for pure crossing count; preserve Java behavior by not double-adding here.
                 }
             }
         }
@@ -711,6 +749,7 @@ impl LayerSweepCrossingMinimizer {
         }
 
         self.graphs_whose_node_order_changed.insert(index);
+        self.mark_graph_dirty_for_crossing_count(index);
         improved
     }
 
@@ -771,10 +810,12 @@ impl LayerSweepCrossingMinimizer {
                 };
                 self.graph_info_holders[nested_index].current_node_order_mut()[start_index] =
                     sorted;
+                self.mark_graph_dirty_for_crossing_count(nested_index);
             } else {
                 self.prepare_cross_minimizer(nested_index);
                 let graph_data = &mut self.graph_info_holders[nested_index];
                 graph_data.set_first_layer_order(is_forward_sweep);
+                self.mark_graph_dirty_for_crossing_count(nested_index);
             }
         }
 
@@ -796,6 +837,7 @@ impl LayerSweepCrossingMinimizer {
         let best_sweep = self.graph_info_holders[index]
             .best_sweep()
             .map(|s| s.nodes());
+        let parent_index = self.graph_info_holders[index].parent_graph_index();
         if !has_external_ports || best_sweep.is_none() {
             return;
         }
@@ -812,6 +854,9 @@ impl LayerSweepCrossingMinimizer {
                 Some(PortConstraints::FixedOrder),
             );
         };
+        if let Some(parent_index) = parent_index {
+            self.mark_graph_dirty_for_crossing_count(parent_index);
+        }
     }
 
     fn save_all_node_orders_of_changed_graphs(&mut self) {
@@ -927,6 +972,8 @@ impl LayerSweepCrossingMinimizer {
     fn initialize(&mut self, root_graph: &LGraphRef, root_graph_guard: &mut LGraph) -> Vec<usize> {
         self.graph_info_holders.clear();
         self.graphs_whose_node_order_changed.clear();
+        self.graphs_dirty_for_crossing_count.clear();
+        self.cached_crossings_by_graph.clear();
         let trace = *TRACE_CROSSMIN;
 
         self.random = root_graph_guard
