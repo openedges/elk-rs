@@ -138,10 +138,12 @@ impl CrossingsCounter {
         side: PortSide,
     ) -> Vec<LPortRef> {
         let mut ports: Vec<LPortRef> = Vec::new();
+        let mut edge_buf = Vec::new();
         let mut seen: BTreeSet<usize> = BTreeSet::new();
         for node in [upper_node, lower_node] {
             for port in in_north_south_east_west_order(node, side) {
-                for edge in connected_edges(&port) {
+                collect_connected_edges(&port, &mut edge_buf);
+                for edge in &edge_buf {
                     if edge
                         .lock()
                         .ok()
@@ -153,8 +155,8 @@ impl CrossingsCounter {
                     if seen.insert(port_ptr_id(&port)) {
                         ports.push(port.clone());
                     }
-                    if is_in_layer(&edge) {
-                        let other = other_end_of(&edge, &port);
+                    if is_in_layer(edge) {
+                        let other = other_end_of(edge, &port);
                         if seen.insert(port_ptr_id(&other)) {
                             ports.push(other);
                         }
@@ -172,16 +174,18 @@ impl CrossingsCounter {
         lower_port: &LPortRef,
     ) -> Vec<LPortRef> {
         let mut ports: Vec<LPortRef> = Vec::new();
+        let mut edge_buf = Vec::new();
         let mut seen: BTreeSet<usize> = BTreeSet::new();
         for port in [upper_port, lower_port] {
             if seen.insert(port_ptr_id(port)) {
                 ports.push(port.clone());
             }
-            for edge in connected_edges(port) {
-                if is_port_self_loop(&edge) {
+            collect_connected_edges(port, &mut edge_buf);
+            for edge in &edge_buf {
+                if is_port_self_loop(edge) {
                     continue;
                 }
-                let other = other_end_of(&edge, port);
+                let other = other_end_of(edge, port);
                 if seen.insert(port_ptr_id(&other)) {
                     ports.push(other);
                 }
@@ -193,11 +197,14 @@ impl CrossingsCounter {
 
     fn count_crossings_on_ports(&mut self, ports: &[LPortRef]) -> i32 {
         let mut crossings = 0;
+        let mut edge_buf = Vec::new();
         for port in ports {
-            self.index_tree.remove_all(self.position_of(port) as usize);
-            for edge in connected_edges(port) {
-                let end_position = self.position_of(&other_end_of(&edge, port));
-                if end_position > self.position_of(port) {
+            let current_position = self.position_of(port);
+            self.index_tree.remove_all(current_position as usize);
+            collect_connected_edges(port, &mut edge_buf);
+            for edge in &edge_buf {
+                let end_position = self.position_of(&other_end_of(edge, port));
+                if end_position > current_position {
                     crossings += self.index_tree.rank(end_position as usize);
                     self.ends.push_back(end_position);
                 }
@@ -211,13 +218,16 @@ impl CrossingsCounter {
 
     fn count_in_layer_crossings_on_ports(&mut self, ports: &[LPortRef]) -> i32 {
         let mut crossings = 0;
+        let mut edge_buf = Vec::new();
         for port in ports {
-            self.index_tree.remove_all(self.position_of(port) as usize);
+            let current_position = self.position_of(port);
+            self.index_tree.remove_all(current_position as usize);
             let mut num_between_layer_edges = 0;
-            for edge in connected_edges(port) {
-                if is_in_layer(&edge) {
-                    let end_position = self.position_of(&other_end_of(&edge, port));
-                    if end_position > self.position_of(port) {
+            collect_connected_edges(port, &mut edge_buf);
+            for edge in &edge_buf {
+                if is_in_layer(edge) {
+                    let end_position = self.position_of(&other_end_of(edge, port));
+                    if end_position > current_position {
                         crossings += self.index_tree.rank(end_position as usize);
                         self.ends.push_back(end_position);
                     }
@@ -534,11 +544,12 @@ fn node_id(node: &LNodeRef) -> usize {
         .unwrap_or(0)
 }
 
-fn connected_edges(port: &LPortRef) -> Vec<LEdgeRef> {
-    port.lock()
-        .ok()
-        .map(|port_guard| port_guard.connected_edges())
-        .unwrap_or_default()
+fn collect_connected_edges(port: &LPortRef, out: &mut Vec<LEdgeRef>) {
+    out.clear();
+    if let Ok(port_guard) = port.lock() {
+        out.extend(port_guard.incoming_edges().iter().cloned());
+        out.extend(port_guard.outgoing_edges().iter().cloned());
+    }
 }
 
 fn is_in_layer(edge: &LEdgeRef) -> bool {
@@ -568,30 +579,35 @@ fn is_in_layer(edge: &LEdgeRef) -> bool {
 }
 
 fn other_end_of(edge: &LEdgeRef, from_port: &LPortRef) -> LPortRef {
-    let source = edge.lock().ok().and_then(|edge_guard| edge_guard.source());
-    if let Some(source) = source {
-        if Arc::ptr_eq(&source, from_port) {
-            return edge
-                .lock()
-                .ok()
-                .and_then(|edge_guard| edge_guard.target())
-                .expect("target port missing");
-        }
-    }
-    edge.lock()
+    let (source, target) = edge
+        .lock()
         .ok()
-        .and_then(|edge_guard| edge_guard.source())
-        .expect("source port missing")
+        .map(|edge_guard| (edge_guard.source(), edge_guard.target()))
+        .unwrap_or((None, None));
+    match (source, target) {
+        (Some(source), Some(target)) => {
+            if Arc::ptr_eq(&source, from_port) {
+                target
+            } else {
+                source
+            }
+        }
+        _ => panic!("edge endpoint missing"),
+    }
 }
 
 fn is_port_self_loop(edge: &LEdgeRef) -> bool {
-    let source = edge.lock().ok().and_then(|edge_guard| edge_guard.source());
-    let target = edge.lock().ok().and_then(|edge_guard| edge_guard.target());
-    if let (Some(source), Some(target)) = (source, target) {
-        Arc::ptr_eq(&source, &target)
-    } else {
-        false
-    }
+    edge.lock()
+        .ok()
+        .map(|edge_guard| {
+            let source = edge_guard.source();
+            let target = edge_guard.target();
+            match (source, target) {
+                (Some(source), Some(target)) => Arc::ptr_eq(&source, &target),
+                _ => false,
+            }
+        })
+        .unwrap_or(false)
 }
 
 fn port_ptr_id(port: &LPortRef) -> usize {

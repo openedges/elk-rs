@@ -468,6 +468,11 @@ impl GraphInfoHolder {
         &mut self.crossings_counter
     }
 
+    pub fn count_current_crossings(&mut self) -> i32 {
+        self.crossings_counter
+            .count_all_crossings(&self.current_node_order)
+    }
+
     pub fn cross_minimizer(&mut self) -> &mut dyn ICrossingMinimizationHeuristic {
         &mut *self.cross_minimizer
     }
@@ -503,6 +508,18 @@ impl GraphInfoHolder {
             forward_sweep,
             is_first_sweep,
             random,
+        )
+    }
+
+    pub fn distribute_ports_while_sweeping(
+        &mut self,
+        current_index: usize,
+        is_forward_sweep: bool,
+    ) -> bool {
+        self.port_distributor.distribute_ports_while_sweeping(
+            &self.current_node_order,
+            current_index,
+            is_forward_sweep,
         )
     }
 
@@ -624,7 +641,9 @@ impl IInitializable for GraphInfoHolder {
             .and_then(|layer| layer.get(node_index))
             .cloned();
         if let Some(node) = node {
-            if let Ok(node_guard) = node.lock() {
+            if let Ok(mut node_guard) = node.lock() {
+                // p3-order repeatedly queries side-filtered ports; cache side ranges once.
+                node_guard.cache_port_sides();
                 if let Some(nested_graph) = node_guard.nested_graph() {
                     self.child_graphs.push(nested_graph);
                 }

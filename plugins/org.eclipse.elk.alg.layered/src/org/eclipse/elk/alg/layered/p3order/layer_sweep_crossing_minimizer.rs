@@ -488,8 +488,7 @@ impl LayerSweepCrossingMinimizer {
         while let Some(index) = stack.pop_back() {
             let crossings = {
                 let graph_data = &mut self.graph_info_holders[index];
-                let order = graph_data.current_node_order().clone();
-                graph_data.cross_counter().count_all_crossings(&order)
+                graph_data.count_current_crossings()
             };
             total_crossings += crossings;
             let child_indices = self.child_graph_indices(index);
@@ -542,25 +541,24 @@ impl LayerSweepCrossingMinimizer {
         let mut stack = VecDeque::new();
         stack.push_back(start_index);
         while let Some(index) = stack.pop_back() {
-            let (order, crossings) = {
+            let crossings = {
                 let graph_data = &mut self.graph_info_holders[index];
-                let order = graph_data.current_node_order().clone();
-                let crossings = graph_data.cross_counter().count_all_crossings(&order);
-                (order, crossings as f64)
+                graph_data.count_current_crossings() as f64
             };
             let mut model_order_influence = 0.0;
             if root_model_order_strategy != OrderingStrategy::None {
+                let order = self.graph_info_holders[index].current_node_order();
                 model_order_influence += root_node_influence
                     * self.count_model_order_node_changes(
                         &root_graph_ref,
-                        &order,
+                        order,
                         root_model_order_strategy,
                         root_group_strategy,
                     ) as f64;
                 model_order_influence += root_port_influence
                     * self.count_model_order_port_changes(
                         &root_graph_ref,
-                        &order,
+                        order,
                         root_model_order_strategy,
                         root_port_model_order,
                         root_group_strategy,
@@ -595,7 +593,6 @@ impl LayerSweepCrossingMinimizer {
         let timing = *TRACE_CROSSMIN_TIMING;
         let mut improved = {
             let graph_data = &mut self.graph_info_holders[index];
-            let order = graph_data.current_node_order().clone();
             if trace {
                 eprintln!(
                     "crossmin: distribute_ports layer={} forward={} first={}",
@@ -609,9 +606,8 @@ impl LayerSweepCrossingMinimizer {
             } else {
                 None
             };
-            let improved = graph_data
-                .port_distributor()
-                .distribute_ports_while_sweeping(&order, first_index(forward, length), forward);
+            let improved =
+                graph_data.distribute_ports_while_sweeping(first_index(forward, length), forward);
             if let Some(start) = start {
                 eprintln!(
                     "crossmin: distribute_ports layer={} done in {} ms",
@@ -668,7 +664,6 @@ impl LayerSweepCrossingMinimizer {
                 }
                 improved |=
                     graph_data.minimize_crossings_on_layer(i_usize, forward, allow_first_sweep);
-                let order = graph_data.current_node_order().clone();
                 if trace {
                     eprintln!(
                         "crossmin: distribute_ports layer={} forward={} first={}",
@@ -680,9 +675,7 @@ impl LayerSweepCrossingMinimizer {
                 } else {
                     None
                 };
-                let distributed = graph_data
-                    .port_distributor()
-                    .distribute_ports_while_sweeping(&order, i_usize, forward);
+                let distributed = graph_data.distribute_ports_while_sweeping(i_usize, forward);
                 if let Some(start) = start {
                     eprintln!(
                         "crossmin: distribute_ports layer={} done in {} ms",
@@ -844,7 +837,23 @@ impl LayerSweepCrossingMinimizer {
     }
 
     fn prepare_cross_minimizer(&mut self, index: usize) {
-        let parent_snapshot = self.parent_snapshot_for(index);
+        // Parent snapshot cloning is only needed for greedy-switch variants.
+        if !matches!(
+            self.cross_min_type,
+            CrossMinType::OneSidedGreedySwitch | CrossMinType::TwoSidedGreedySwitch
+        ) {
+            return;
+        }
+        let has_parent = self
+            .graph_info_holders
+            .get(index)
+            .map(|holder| holder.has_parent())
+            .unwrap_or(false);
+        let parent_snapshot = if has_parent {
+            self.parent_snapshot_for(index)
+        } else {
+            None
+        };
         if let Some(graph_data) = self.graph_info_holders.get_mut(index) {
             graph_data.update_greedy_context(parent_snapshot);
         }
