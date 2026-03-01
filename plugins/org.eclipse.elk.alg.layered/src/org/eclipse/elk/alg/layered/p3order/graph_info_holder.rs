@@ -1,5 +1,10 @@
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
+
+static TRACE_CROSSMIN: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN").is_some());
+static TRACE_CROSSMIN_CONSTRAINTS: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN_CONSTRAINTS").is_some());
 
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, Random};
 use crate::org::eclipse::elk::alg::layered::p3order::random_trace;
@@ -180,7 +185,7 @@ impl GraphInfoHolder {
         cross_min_type: CrossMinType,
         shared_random: &mut Random,
     ) -> Self {
-        let trace = std::env::var_os("ELK_TRACE_CROSSMIN").is_some();
+        let trace = *TRACE_CROSSMIN;
         if trace {
             eprintln!("crossmin: graph_info_holder new_with_graph start");
         }
@@ -265,7 +270,7 @@ impl GraphInfoHolder {
         port_influence: f64,
         thoroughness: i32,
     ) -> Self {
-        let trace = std::env::var_os("ELK_TRACE_CROSSMIN").is_some();
+        let trace = *TRACE_CROSSMIN;
         if trace {
             eprintln!("crossmin: graph_info_holder build start");
         }
@@ -417,12 +422,44 @@ impl GraphInfoHolder {
         self.currently_best_node_and_port_order = Some(sweep);
     }
 
+    /// Reuse existing allocation when updating currently_best from current_node_order.
+    pub fn update_currently_best_from_current(&mut self) {
+        match &mut self.currently_best_node_and_port_order {
+            Some(existing) => existing.copy_from(&self.current_node_order),
+            None => {
+                self.currently_best_node_and_port_order =
+                    Some(SweepCopy::new(&self.current_node_order));
+            }
+        }
+    }
+
     pub fn best_node_and_port_order(&self) -> Option<&SweepCopy> {
         self.best_node_and_port_order.as_ref()
     }
 
     pub fn set_best_node_and_port_order(&mut self, sweep: SweepCopy) {
         self.best_node_and_port_order = Some(sweep);
+    }
+
+    /// Reuse existing allocation when updating best from currently_best (or current_node_order).
+    pub fn update_best_from_currently_best_or_current(&mut self) {
+        if let Some(currently_best) = &self.currently_best_node_and_port_order {
+            let nodes = currently_best.nodes().clone();
+            match &mut self.best_node_and_port_order {
+                Some(existing) => existing.copy_from(&nodes),
+                None => {
+                    self.best_node_and_port_order = Some(SweepCopy::new(&nodes));
+                }
+            }
+        } else {
+            match &mut self.best_node_and_port_order {
+                Some(existing) => existing.copy_from(&self.current_node_order),
+                None => {
+                    self.best_node_and_port_order =
+                        Some(SweepCopy::new(&self.current_node_order));
+                }
+            }
+        }
     }
 
     pub fn cross_counter(&mut self) -> &mut AllCrossingsCounter {
@@ -609,7 +646,7 @@ impl IInitializable for GraphInfoHolder {
 }
 
 fn trace_in_layer_constraints(node_order: &[Vec<LNodeRef>]) {
-    if std::env::var_os("ELK_TRACE_CROSSMIN_CONSTRAINTS").is_none() {
+    if !*TRACE_CROSSMIN_CONSTRAINTS {
         return;
     }
 
@@ -841,7 +878,7 @@ fn create_port_distributors(
     Box<dyn ISweepPortDistributor>,
     Option<Box<dyn BarycenterPortDistributor>>,
 ) {
-    let trace = std::env::var_os("ELK_TRACE_CROSSMIN").is_some();
+    let trace = *TRACE_CROSSMIN;
     if cross_min_type == CrossMinType::TwoSidedGreedySwitch {
         if trace {
             eprintln!("crossmin: port_distributor=GreedySwitch");

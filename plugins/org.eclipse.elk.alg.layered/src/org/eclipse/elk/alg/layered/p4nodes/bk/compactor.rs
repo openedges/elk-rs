@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, VecDeque};
+use std::sync::LazyLock;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LNodeRef};
 use crate::org::eclipse::elk::alg::layered::options::{
@@ -12,6 +13,15 @@ use super::threshold_strategy::{
     NullThresholdStrategy, SimpleThresholdStrategy, ThresholdStrategy,
 };
 use super::util::{node_id, node_margin_bottom, node_margin_top, node_size_y};
+
+static TRACE_BK_PLACE_BLOCK: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_BK_PLACE_BLOCK").is_some());
+static TRACE_BK_GUARD: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_BK_GUARD").is_some());
+static BK_REVERSE_SINK_QUEUE: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_BK_REVERSE_SINK_QUEUE").is_some());
+static TRACE_BK_CLASSES: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_BK_CLASSES").is_some());
 
 pub struct BKCompactor {
     spacings: Spacings,
@@ -55,7 +65,7 @@ impl BKCompactor {
         bal: &mut BKAlignedLayout,
         ni: &NeighborhoodInformation,
     ) {
-        let trace_place_block = std::env::var_os("ELK_TRACE_BK_PLACE_BLOCK").is_some();
+        let trace_place_block = *TRACE_BK_PLACE_BLOCK;
         if bal.y[root_id].is_some() {
             return;
         }
@@ -242,7 +252,7 @@ impl BKCompactor {
 
             current = bal.align[current];
             if current == root_id || steps >= max_steps {
-                if steps >= max_steps && std::env::var("ELK_TRACE_BK_GUARD").is_ok() {
+                if steps >= max_steps && *TRACE_BK_GUARD {
                     eprintln!(
                         "bk-guard: place_block loop hit max_steps root_id={} current={} max_steps={}",
                         root_id, current, max_steps
@@ -285,10 +295,10 @@ impl BKCompactor {
 
     fn place_classes(&mut self, bal: &mut BKAlignedLayout, vdir: VDirection) {
         let mut queue_order: Vec<usize> = self.sink_order.clone();
-        if std::env::var_os("ELK_BK_REVERSE_SINK_QUEUE").is_some() {
+        if *BK_REVERSE_SINK_QUEUE {
             queue_order.reverse();
         }
-        if std::env::var_os("ELK_TRACE_BK_CLASSES").is_some() {
+        if *TRACE_BK_CLASSES {
             for id in &queue_order {
                 if let Some(node) = self.sink_nodes.get(id) {
                     eprintln!(

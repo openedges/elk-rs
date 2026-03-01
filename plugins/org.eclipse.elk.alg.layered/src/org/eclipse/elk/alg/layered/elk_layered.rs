@@ -2,7 +2,7 @@ use std::any::TypeId;
 use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::SharedProcessor;
@@ -34,9 +34,23 @@ use crate::org::eclipse::elk::alg::layered::trace_recorder;
 static TRACE_STEP_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static TRACE_LAYOUT_DEPTH: AtomicUsize = AtomicUsize::new(0);
 
+static TRACE: LazyLock<bool> = LazyLock::new(|| std::env::var("ELK_TRACE").is_ok());
+static TRACE_EDGE_WIRING: LazyLock<bool> =
+    LazyLock::new(|| std::env::var("ELK_TRACE_EDGE_WIRING").is_ok());
+static TRACE_NODES: LazyLock<bool> =
+    LazyLock::new(|| std::env::var("ELK_TRACE_NODES").is_ok());
+static TRACE_NODES_FILTER: LazyLock<Option<String>> =
+    LazyLock::new(|| std::env::var("ELK_TRACE_NODES_FILTER").ok());
+static TRACE_DIR: LazyLock<Option<String>> =
+    LazyLock::new(|| std::env::var("ELK_TRACE_DIR").ok());
+static TRACE_CROSSMIN: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN").is_some());
+static TRACE_RESIZE: LazyLock<bool> =
+    LazyLock::new(|| std::env::var("ELK_TRACE_RESIZE").is_ok());
+
 #[cfg(debug_assertions)]
 fn trace_step(message: &str) {
-    if std::env::var("ELK_TRACE").is_ok() {
+    if *TRACE {
         eprintln!("[elk-layered] {message}");
     }
 }
@@ -46,7 +60,7 @@ fn trace_step(_message: &str) {}
 
 #[cfg(debug_assertions)]
 fn trace_edge_wiring(graph: &LGraph, stage: &str) {
-    if std::env::var("ELK_TRACE_EDGE_WIRING").is_err() {
+    if !*TRACE_EDGE_WIRING {
         return;
     }
 
@@ -125,11 +139,11 @@ fn trace_edge_wiring(_graph: &LGraph, _stage: &str) {}
 
 #[cfg(debug_assertions)]
 fn trace_node_positions(graph: &LGraph, stage: &str) {
-    if std::env::var("ELK_TRACE_NODES").is_err() {
+    if !*TRACE_NODES {
         return;
     }
 
-    let filter = std::env::var("ELK_TRACE_NODES_FILTER").ok();
+    let filter = TRACE_NODES_FILTER.clone();
     let mut nodes: Vec<(Option<usize>, usize, _)> = graph
         .layerless_nodes()
         .iter()
@@ -289,8 +303,8 @@ impl ElkLayered {
 
     /// Remove all `step_*.json` files from the ELK_TRACE_DIR directory.
     fn clear_trace_directory() {
-        if let Ok(trace_dir) = std::env::var("ELK_TRACE_DIR") {
-            if let Ok(entries) = std::fs::read_dir(&trace_dir) {
+        if let Some(trace_dir) = TRACE_DIR.as_deref() {
+            if let Ok(entries) = std::fs::read_dir(trace_dir) {
                 for entry in entries.flatten() {
                     let path = entry.path();
                     if path.extension().is_some_and(|e| e == "json") {
@@ -307,7 +321,7 @@ impl ElkLayered {
 
     /// Clear stale step snapshots once at the beginning of a traced model run.
     fn prepare_trace_directory_for_run() {
-        if std::env::var_os("ELK_TRACE_DIR").is_none() {
+        if TRACE_DIR.is_none() {
             return;
         }
         if TRACE_STEP_COUNTER.load(Ordering::Relaxed) == 0 {
@@ -320,7 +334,7 @@ impl ElkLayered {
         if TRACE_LAYOUT_DEPTH.load(Ordering::Relaxed) != 1 || graph.parent_node().is_some() {
             return;
         }
-        let Ok(trace_dir) = std::env::var("ELK_TRACE_DIR") else {
+        let Some(trace_dir) = TRACE_DIR.as_deref() else {
             return;
         };
 
@@ -660,7 +674,7 @@ impl ElkLayered {
             if let Ok(mut proc_guard) = processor.lock() {
                 let proc_name = proc_guard.type_name();
                 let is_root = graph_guard.parent_node().is_none();
-                if std::env::var_os("ELK_TRACE_CROSSMIN").is_some() {
+                if *TRACE_CROSSMIN {
                     eprintln!(
                         "crossmin: processor start graph_ptr={:p} is_root={} proc={}",
                         Arc::as_ptr(lgraph),
@@ -680,7 +694,7 @@ impl ElkLayered {
                 if is_root {
                     Self::record_trace_snapshot_for_root(&graph_guard, proc_name);
                 }
-                if std::env::var_os("ELK_TRACE_CROSSMIN").is_some() {
+                if *TRACE_CROSSMIN {
                     eprintln!(
                         "crossmin: processor done graph_ptr={:p} is_root={} proc={}",
                         Arc::as_ptr(lgraph),
@@ -836,7 +850,7 @@ impl ElkLayered {
             adjusted_size.y = adjusted_size.y.max(min_size.y);
         }
 
-        if std::env::var("ELK_TRACE_RESIZE").is_ok() {
+        if *TRACE_RESIZE {
             if let Ok(graph_guard) = lgraph.lock() {
                 let parent_id = graph_guard
                     .parent_node()

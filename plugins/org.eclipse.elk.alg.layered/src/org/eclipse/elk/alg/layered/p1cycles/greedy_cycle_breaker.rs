@@ -3,6 +3,28 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::LazyLock;
 
+static TRACE_CYCLE_CHOICES: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_CYCLE_CHOICES").is_some());
+static TRACE_CYCLE_REVERSALS: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_CYCLE_REVERSALS").is_some());
+static DEBUG_CYCLE_RANDOM_PREFETCH: LazyLock<Option<usize>> = LazyLock::new(|| {
+    std::env::var("ELK_DEBUG_CYCLE_RANDOM_PREFETCH")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+});
+static DEBUG_CYCLE_FORCE_REVERSE_ORIGINS: LazyLock<Option<HashSet<usize>>> = LazyLock::new(|| {
+    let raw = std::env::var("ELK_DEBUG_CYCLE_FORCE_REVERSE_ORIGINS").ok()?;
+    let values = raw
+        .split(',')
+        .filter_map(|token| token.trim().parse::<usize>().ok())
+        .collect::<HashSet<_>>();
+    if values.is_empty() {
+        None
+    } else {
+        Some(values)
+    }
+});
+
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutPhase;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{IElkProgressMonitor, Random};
@@ -114,7 +136,7 @@ impl GreedyCycleBreaker {
             }
         }
 
-        let trace_choices = std::env::var_os("ELK_TRACE_CYCLE_CHOICES").is_some();
+        let trace_choices = *TRACE_CYCLE_CHOICES;
         let index = self.random.next_int(nodes.len() as i32) as usize;
         if trace_choices {
             let candidates = nodes
@@ -212,8 +234,8 @@ impl GreedyCycleBreaker {
             .first()
             .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.graph()))
             .unwrap_or_default();
-        let trace_reversals = std::env::var_os("ELK_TRACE_CYCLE_REVERSALS").is_some();
-        let forced_reversed = forced_reversed_origin_ids();
+        let trace_reversals = *TRACE_CYCLE_REVERSALS;
+        let forced_reversed = DEBUG_CYCLE_FORCE_REVERSE_ORIGINS.as_ref();
         let mut reversed_edges = Vec::new();
         for node in nodes {
             let (ports, node_idx) = match node.lock() {
@@ -309,11 +331,11 @@ impl ILayoutPhase<LayeredPhases, LGraph> for GreedyCycleBreaker {
         self.random = layered_graph
             .get_property(InternalProperties::RANDOM)
             .unwrap_or_else(|| Random::new(0));
-        if let Some(prefetch) = cycle_prefetch_count() {
+        if let Some(prefetch) = *DEBUG_CYCLE_RANDOM_PREFETCH {
             for _ in 0..prefetch {
                 let _ = self.random.next_int(2);
             }
-            if std::env::var_os("ELK_TRACE_CYCLE_CHOICES").is_some() {
+            if *TRACE_CYCLE_CHOICES {
                 eprintln!("[cycle-breaker-choice] random_prefetch={prefetch}");
             }
         }
@@ -518,11 +540,6 @@ fn trace_port_origin(port: &LPortRef) -> Option<usize> {
         })
 }
 
-fn cycle_prefetch_count() -> Option<usize> {
-    std::env::var("ELK_DEBUG_CYCLE_RANDOM_PREFETCH")
-        .ok()
-        .and_then(|value| value.parse::<usize>().ok())
-}
 
 fn edge_origin_id(edge: &LEdgeRef) -> Option<usize> {
     edge.lock()
@@ -534,15 +551,3 @@ fn edge_origin_id(edge: &LEdgeRef) -> Option<usize> {
         })
 }
 
-fn forced_reversed_origin_ids() -> Option<HashSet<usize>> {
-    let raw = std::env::var("ELK_DEBUG_CYCLE_FORCE_REVERSE_ORIGINS").ok()?;
-    let values = raw
-        .split(',')
-        .filter_map(|token| token.trim().parse::<usize>().ok())
-        .collect::<HashSet<_>>();
-    if values.is_empty() {
-        None
-    } else {
-        Some(values)
-    }
-}

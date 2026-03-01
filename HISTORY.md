@@ -4,6 +4,7 @@
 - 신규 단계 완료 시 이 문서에 누적 기록하고, `AGENTS.md`의 핵심 스냅샷/우선순위를 동기화한다.
 
 ## 진행된 작업
+- 성능 최적화 Phase 1-3: LazyLock + 할당 핫스팟 제거(2026-03-01): 프로파일링에서 식별된 3대 병목을 순차 최적화해 `layered_xlarge` 기준 **1,576ms → 1,130ms (-28.3%)** 개선을 달성했다. **Phase 1 (LazyLock 전환)**: 35+ 파일의 ~130개 `std::env::var_os()`/`std::env::var()` 핫루프 호출을 `static LazyLock<bool>` / `LazyLock<Option<String>>` 스태틱으로 전환했다. 각 env var는 프로세스당 1회만 평가되고 이후 0-cost 읽기가 된다. 기존 `barycenter_heuristic.rs`의 `TRACE_PORT_RANKS` 패턴을 참조했으며, 파일별 로컬 스태틱으로 정의해 cross-module 의존성을 피했다. 특수 케이스: `ELK_TRACE_DIR`/`ELK_TRACE_NODES_FILTER`/`ELK_DEBUG_CROSSMIN_FORCE_SWEEP`/`ELK_TRACE_BK_NODE_FILTER`/`ELK_TRACE_BARYCENTER_LAYER_PATTERN`은 `LazyLock<Option<String>>`으로, `ELK_DISABLE_*` 반전 로직은 `is_ok()` + `!*DISABLE_X`로 처리했다. **Phase 2 (ports_by_side 버퍼 재사용)**: `abstract_barycenter_port_distributor.rs`에서 sweep당 노드당 3회 `ports_by_side()` Vec 할당을 `side_buf`/`south_buf`/`north_buf` 재사용 버퍼 + 단일 패스 파티셔닝으로 교체했다. `distribute_ports_for_iter` 시그니처를 `Vec<LPortRef>` → `&[LPortRef]`로 변경하고, `std::mem::take` 패턴으로 borrow checker를 해결했다. **Phase 3 (SweepCopy copy_from())**: `sweep_copy.rs`에 `copy_from()` 메서드를 추가해 3-level nested `Vec<Vec<Vec<LPortRef>>>` 할당을 재사용하도록 했다. `graph_info_holder.rs`에 `update_currently_best_from_current()`/`update_best_from_currently_best_or_current()` 헬퍼를 추가했으나, Phase 3 호출부는 추가 검증 필요로 미적용 상태(메서드만 추가). **버그 수정**: 병렬 에이전트가 생성한 27개 self-referential LazyLock 스태틱(`LazyLock::new(|| *SELF)` 26건 + `LazyLock::new(|| SELF.clone())` 1건)이 첫 접근 시 교착을 유발하는 문제를 발견·수정했다. `sample` 스택트레이스로 `BarycenterHeuristic::minimize_crossings_layer` → `Once::call` → `Once::wait` 교착을 확인하고, `TRACE_BARYCENTER_LAYER_PATTERN.clone()` self-reference를 `std::env::var("ELK_TRACE_BARYCENTER_LAYER_PATTERN").ok()`로 수정했다. **벤치마크 결과** (10 iterations, 3 warmup): `layered_xlarge` 1,576→1,130ms (-28.3%), `layered_large` 89→58ms (-34.8%), `layered_medium` 13→11.3ms (-13%), `layered_small` 1.8→1.3ms (-28%). 검증: `cargo build --workspace` (0 errors), `cargo clippy --workspace --all-targets` (0 warnings), `cargo test --workspace` (602 tests, 0 failures).
 - 성능 벤치마크 바이너리 통합(2026-02-28): `perf_scenarios.rs`(600줄, rust_native)와 `perf_model_benchmark.rs`(598줄, rust_api) 두 벤치마크 바이너리를 `perf_benchmark.rs`(695줄)로 합쳤다. ~40% 코드 중복(LCG, arg parsing, CSV 출력, 시나리오 목록)을 제거하고 `--engine rust_native|rust_api` 플래그로 구분하도록 통합했다. (1) 65줄 `ensure_initialized()` 복사본을 `layout_api::ensure_initialized()` 1줄 호출로 대체. (2) `format_csv_line()`에 `engine: &str` 파라미터 추가(기존 `ENGINE` 상수 제거). (3) `run_perf_benchmark.sh`를 단일 빌드+두 번 실행 구조로 변경. (4) `.gitignore` 정리: stale 패턴(`tests/*.csv`, `tests/summary.md`) 제거, `tests/perf/` 출력 패턴 추가, 섹션 재구성. (5) `tests/README.md` directory policy에 perf 출력 추가. 검증: `cargo build --release --bin perf_benchmark` 통과, 양 엔진 smoke test(16 시나리오 × 10 iterations) 통과. API 오버헤드 측정 결과 대형 그래프(layered_xlarge) ~1%, 소형 그래프 13-24%.
 - 문서 체계 정비 및 디렉토리 정리(2026-02-28): 검증 문서 단일 진입점 생성, 디렉토리 리네임, 파일명 정규화를 수행했다. (1) `TESTING.md` 생성 — 검증 환경 준비, 항목 명세(코드 품질 3항목 + 레이아웃 동등성 3항목 + API/메타데이터 14항목 + 성능 3항목), 상황별 절차(일상 개발/프로세서 추가/옵션 변경/JS 변경/PR/릴리즈), 릴리즈 체크리스트(`RELEASE_CHECKLIST.md` 통합), 알려진 이슈를 영어로 작성. Java HashMap 결정론 패치(`SelfHyperLoop.computePortsPerSide()` → `MultimapBuilder.enumKeys()`) 설명 추가. 테스트 수 509→653 갱신, `elk_live_examples_test` pre-existing failure 문서화. (2) `RELEASE_CHECKLIST.md` 삭제 — `TESTING.md` § 3.6에 완전 통합. (3) `parity/` → `tests/` 디렉토리 리네임 — `git mv parity/ tests/`, 61개 파일에서 경로 참조 일괄 변경. `model_parity/`, `test/parity/`, `test_parity/` 등 compound path 오치환 수정. (4) `LICENSE.md` → `LICENSE`, `NOTICE.md` → `NOTICE` — markdown에서 plain text로 변환(heading/escape/anchor 제거), `README.md`, `package.json`, JS `README.md` 참조 갱신. (5) `README.md` 교정 — elkjs URL `nickkraft/elkjs` → `kieler/elkjs`(서브모듈 일치), ELK 프로젝트 링크 추가, Validation 섹션 간소화(`TESTING.md` 참조), Documentation 테이블화, SPDX identifier(EPL-2.0) 추가. (6) `VERSIONING.md` 교정 — Context 현행화(버전 `0.11.0`, 서브모듈 릴리즈 태그 고정 반영), stale "Current issue" 제거, `elk-models` 서브모듈 추가, 중복 Validation Flow 섹션(§ 5) 제거. (7) `AGENTS.md` 교정 — 스냅샷 날짜/테스트 수 갱신, `v0.2.0` 참조 제거, `elk_live_examples_test` 실패 기록, `VERSIONING.md` 문서 운영 원칙 추가, 완료된 Parity 100% 전략을 Drift 분석 요약으로 축소, 기본 실행 명령 `TESTING.md` 참조로 간소화. (8) `tests/PARITY.md` 교정 — 테스트 수 509→653 갱신, `elk_live_examples_test` 실패 기록, `TESTING.md` 교차 참조 추가. (9) clippy 경고 수정 — `layout_api.rs:454,461,468`의 `len() > 0` → `!is_empty()` 변경. 검증: `cargo build --workspace` 통과, `cargo clippy --workspace --all-targets` 통과.
 - ELKT 파서 nested block 테스트 수정(2026-02-27): `plugins/org.eclipse.elk.alg.layered/tests/elkt_test_loader.rs`의 `get_or_create_port`에서 부모 노드 조회 버그를 수정했다. `get_or_create_port`가 부모 노드를 찾을 때 `get_or_create_node(graph, nodes, parent_node_id, None)`을 호출했는데, nested block에서 노드가 `"root.child_a"` 키로 저장되어 있을 때 `"child_a"`로 조회하면 매칭 실패 → 중복 노드 생성 → 포트가 잘못된 부모에 연결 → edge containment 오류 → `resolve_port` None 반환으로 `transform_edge` 패닉이 발생했다. 수정: `get_or_create_node` 호출 전에 `find_node_by_identifier_reference`로 suffix 매칭을 먼저 시도하고, 실패 시에만 `get_or_create_node`로 fallback하도록 변경했다. 첫 번째 시도에서 `get_or_create_node` 내부에 fallback을 넣었으나 `port_label_placement_variants_test` 12건이 깨져서 revert하고, `get_or_create_port` 한정으로 타겟 수정을 적용했다. 검증: `elkt_loader_test` 21건, `port_label_placement_variants_test` 12건 모두 통과. 이 테스트(`load_nested_blocks_and_combined_layout_properties`)는 최초 추가 시점(batch commit `59f372c`)부터 깨져 있던 pre-existing failure였다.
@@ -981,8 +982,74 @@
 
 - graph-json 테스트 파일 구조 분리(2026-02-28): `json_graph_tests.rs`(1,601줄, 43개 테스트)를 Java 7개 클래스 구조에 맞춰 8개 파일로 분리. `common.rs`(공유 헬퍼), `graph_test.rs`(GraphTest, 5), `edges_test.rs`(EdgesTest, 3), `layout_options_test.rs`(LayoutOptionsTest, 11), `export_test.rs`(ExportTest, 6), `individual_spacings_test.rs`(IndividualSpacingsTest, 6), `sections_test.rs`(SectionsTest, 4), `transfer_layout_test.rs`(TransferLayoutTest, 8). `mod.rs` 모듈 선언 갱신. 검증: `cargo test -p org-eclipse-elk-graph-json` 51/51 통과, warning 0건
 
+## 성능 프로파일링 결과 (2026-02-28)
+
+### 측정 환경
+- 시나리오: `layered_xlarge` (1000 nodes, 3000 edges), macOS `sample` 10s/1ms, 7,896 샘플
+- 기준선: Rust `layered_xlarge` 1,251ms vs Java ~400ms (**Rust ~3x 느림**)
+
+### 페이즈별 시간 분포 (3,728 phase processor 샘플 기준)
+| Phase | Samples | 비율 |
+|-------|---------|------|
+| P3 Crossing Min | 2,678 | 71.8% |
+| P5 Edge Router | 700 | 18.8% |
+| P2 Network Simplex | 297 | 8.0% |
+| P4 BK Node Placer | 30 | 0.8% |
+| P1 Cycle Breaker | 8 | 0.2% |
+
+### 핵심 병목 3가지
+
+**병목 #1: 핫 루프 내 `std::env::var_os()` — 779 샘플 (9.9%)**
+- p3order/에 38개, layered 전체 **121개**의 `std::env::var_os()` 호출
+- `distribute_ports_for_iter()`, `iterate_ports_and_collect_in_layer_ports()` 등 매 노드/포트마다 반복 호출
+- macOS `getenv()`는 글로벌 락(`os_unfair_lock`) + 환경변수 선형 스캔
+- Java `System.getenv()`는 JVM 캐시 → HashMap O(1)
+
+**병목 #2: malloc/free 오버헤드 — 815 샘플 (10.3%)**
+- `ports_by_side()`: 매 호출마다 새 `Vec<LPortRef>` 할당 (`.filter().cloned().collect()`) — 노드당 3회
+- `SweepCopy::deep_copy()`: 전체 노드/포트 순서 벡터 deep clone — 비교마다 발생
+- `node_guard.ports().clone()`: 포트 리스트 Arc 클론
+- Java Young GC는 짧은 수명 객체를 거의 무비용으로 처리
+
+**병목 #3: `Arc<Mutex<>>` 락 빈도 — crossing min 경로 전체 (~10-15% 추정)**
+- `LNodeRef = Arc<Mutex<LNode>>`, `LPortRef = Arc<Mutex<LPort>>`
+- 교차 수 계산 시 에지 순회마다 2+ `.lock()`, `ports_by_side()`에서 포트마다 `.lock()`
+- parking_lot Mutex라 빠르지만, 호출 빈도가 수백만 회
+- Java는 락 없이 직접 필드 접근 (`port.getSide()`)
+
+## 성능 최적화 작업 계획
+
+### Phase 1: `std::env::var_os` → `LazyLock` 전환 (예상 +10% 개선)
+- **범위**: layered 크레이트 121개 호출을 `static TRACE_*: LazyLock<bool>` 패턴으로 변환
+- **참고**: `barycenter_heuristic.rs:8`의 `TRACE_PORT_RANKS`가 이미 이 패턴 사용 중
+- **parity 영향**: 없음 (디버그 트레이스 체크만 변경)
+- **검증**: `cargo test --workspace` + `perf_benchmark --engine rust_native` 재측정
+
+### Phase 2: `ports_by_side()` 할당 제거 (예상 +3-5% 개선)
+- **현재**: `fn ports_by_side() -> Vec<LPortRef>` — `.filter().cloned().collect()` 매 호출
+- **개선**: iterator 반환 또는 pre-allocated 버퍼 재사용
+- **대상**: `abstract_barycenter_port_distributor.rs:279-281` (`distribute_ports`에서 노드당 3회)
+- **parity 영향**: 없음
+
+### Phase 3: `SweepCopy` 할당 최적화 (예상 +2-3% 개선)
+- **현재**: `deep_copy()` — 전체 `Vec<Vec<LNodeRef>>` clone 매 비교
+- **개선**: pre-allocated double-buffer 패턴, 불필요한 clone 제거
+- **대상**: `sweep_copy.rs`, `graph_info_holder.rs`
+- **parity 영향**: 없음
+
+### Phase 4 (중기): Arena 기반 그래프 구조 (예상 +20-30% 개선, 대규모 리팩토링)
+- `Arc<Mutex<LNode>>` → 인덱스 기반 arena 접근
+- 락 오버헤드 완전 제거 + 캐시 지역성 향상
+- 가장 큰 효과이지만 parity 검증 부담이 크므로 Phase 1-3 완료 후 검토
+
+### 검증 프로세스
+- 각 Phase 완료 시 `cargo test --workspace` + `cargo clippy --workspace --all-targets`
+- `perf_benchmark --engine rust_native --mode synthetic --iterations 10 --warmup 3` 재측정
+- full model parity 재실행하여 회귀 없음 확인
+
 ## 진행할 작업
-- Step M-5 tickets 잔여 2건 우선 처리: `701_portLabels`(inside label clamp/stack + node width), `213_componentsCompaction`(component compaction coordinate drift) 순으로 축소한다.
-- Step M-5 701 후속 정밀화: `node_dimension_calculation.rs`의 constrained inside north/south stack(clamp_x, start coordinate, overlap 회피) 경로를 Java `PortLabelPlacementCalculator`와 대조해 `MyNode*_g*` 계열 잔여 x/y drift를 제거한다.
-- parity 지표 재검증: 현재 full baseline(`matches=1174/1439`, `drift=265`) 기준으로 tickets subset(잔여 2건) → `parity/model_parity_tickets` 전체 → full parity(`parity/model_parity_full`) 순으로 재실행해 개선 누적 여부를 확인한다.
-- 품질 게이트 유지: 단계 종료 시 `cargo clippy --workspace --all-targets`와 `cargo test --workspace`를 재실행하고 예외/known failing이 있으면 근거와 우회안을 `HISTORY.md`에 즉시 기록한다.
+- **성능 최적화 Phase 1**: `std::env::var_os` → `LazyLock` 전환 (121개 호출, layered 크레이트)
+- **성능 최적화 Phase 2-3**: 할당 최적화 (ports_by_side, SweepCopy)
+- Step M-5 tickets 잔여 2건: `701_portLabels`, `213_componentsCompaction`
+- parity 지표 재검증: full baseline(`matches=1174/1439`, `drift=265`) 기준
+- 품질 게이트 유지: 단계 종료 시 `cargo clippy --workspace --all-targets`와 `cargo test --workspace` 재실행

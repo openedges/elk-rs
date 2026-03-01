@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use org_eclipse_elk_core::org::eclipse::elk::core::math::{ElkMargin, ElkPadding, KVector};
 use org_eclipse_elk_core::org::eclipse::elk::core::options::{
     CoreOptions, Direction, NodeLabelPlacement, PortAlignment, PortConstraints, PortLabelPlacement,
@@ -8,6 +10,13 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::adapters::{
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::util::ElkUtil;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, IndividualSpacings};
+
+static TRACE_SIZING_LABELS: LazyLock<bool> =
+    LazyLock::new(|| std::env::var("ELK_TRACE_SIZING_LABELS").is_ok());
+static TRACE_SIZING: LazyLock<bool> =
+    LazyLock::new(|| std::env::var("ELK_TRACE_SIZING").is_ok());
+static DEBUG_NODE_LABEL_PADDING: LazyLock<bool> =
+    LazyLock::new(|| std::env::var("DEBUG_NODE_LABEL_PADDING").is_ok());
 /// Type-erased label wrapper. Stores any label that implements GraphElementAdapter
 /// so that LabelCellLayout can work with both ElkLabelAdapter and LLabelAdapter.
 trait DynLabelOps {
@@ -1331,11 +1340,11 @@ impl NodeLabelAndSizeCalculator {
         N::Label: 'static,
         N::LabelAdapter: 'static,
     {
-        let trace_labels = std::env::var("ELK_TRACE_SIZING_LABELS").is_ok();
+        let trace_labels = *TRACE_SIZING_LABELS;
         let size_constraints = node
             .get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)
             .unwrap_or_default();
-        if std::env::var("ELK_TRACE_SIZING").is_ok() {
+        if *TRACE_SIZING {
             let label_count = node.get_labels().len();
             let sz = node.get_size();
             eprintln!("TRACE process_node: labels={} size=({},{}) size_constraints={:?} compound={}",
@@ -1666,7 +1675,7 @@ impl NodeLabelAndSizeCalculator {
             let port_border_offset = port
                 .get_property(CoreOptions::PORT_BORDER_OFFSET)
                 .unwrap_or(0.0);
-            if std::env::var("DEBUG_NODE_LABEL_PADDING").is_ok() {
+            if *DEBUG_NODE_LABEL_PADDING {
                 eprintln!(
                     "[NODE_PADDING_DEBUG] node={} port={} side={:?} border_offset={:.3}",
                     node.get_volatile_id(),
@@ -1738,7 +1747,7 @@ impl NodeLabelAndSizeCalculator {
                 port.get_side(),
             );
 
-            if std::env::var("DEBUG_NODE_LABEL_PADDING").is_ok() {
+            if *DEBUG_NODE_LABEL_PADDING {
                 eprintln!(
                     "[NODE_PADDING_DEBUG] node={} port={} inside_part={:.3} port_size=({}, {}) label_bbox_min=({}, {}) label_bbox_size=({}, {})",
                     node.get_volatile_id(),
@@ -1789,7 +1798,7 @@ impl NodeLabelAndSizeCalculator {
             }
         }
 
-        if std::env::var("DEBUG_NODE_LABEL_PADDING").is_ok() {
+        if *DEBUG_NODE_LABEL_PADDING {
             eprintln!(
                 "[NODE_PADDING_DEBUG] node={} after_setup node_cell_padding={:?} node_label_cell_padding={:?}",
                 node.get_volatile_id(),

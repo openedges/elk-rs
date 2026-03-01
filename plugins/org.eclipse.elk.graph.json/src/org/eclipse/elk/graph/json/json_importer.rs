@@ -2,6 +2,10 @@ use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
+use std::sync::LazyLock;
+
+static TRACE_JSON_EDGE_ADJUST: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_JSON_EDGE_ADJUST").is_some());
 
 use serde_json::{Map, Value};
 
@@ -1243,7 +1247,7 @@ impl JsonImporter {
                 }
 
                 let start_point = point_object(adjusted_start_x, adjusted_start_y);
-                if std::env::var_os("ELK_TRACE_JSON_EDGE_ADJUST").is_some() {
+                if *TRACE_JSON_EDGE_ADJUST {
                     eprintln!(
                         "[json-edge-adjust] edge={} section={} raw_start=({}, {}) raw_end=({}, {}) adj_start=({}, {}) adj_end=({}, {})",
                         edge_id,

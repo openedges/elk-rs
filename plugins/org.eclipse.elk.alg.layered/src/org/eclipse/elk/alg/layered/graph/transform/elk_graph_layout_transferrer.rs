@@ -13,7 +13,7 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::{
 };
 use std::collections::VecDeque;
 use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use crate::org::eclipse::elk::alg::layered::graph::l_graph_util::LGraphUtil;
 use crate::org::eclipse::elk::alg::layered::graph::transform::elk_graph_transformer::OriginStore;
@@ -28,6 +28,17 @@ use crate::org::eclipse::elk::alg::layered::options::{
 };
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::PortSide;
+
+static DEBUG_EDGES: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_DEBUG_EDGES").is_some());
+static TRACE_EDGE_APPLY: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_EDGE_APPLY").is_some());
+static TRACE_COMPOUND_WIDTH: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_COMPOUND_WIDTH").is_some());
+static TRACE: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE").is_some());
+static TRACE_EDGE_OFFSETS: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_EDGE_OFFSETS").is_some());
 
 pub struct ElkGraphLayoutTransferrer<'a> {
     origin_store: &'a OriginStore,
@@ -198,7 +209,7 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
             }
         }
 
-        if std::env::var("ELK_DEBUG_EDGES").is_ok() {
+        if *DEBUG_EDGES {
             eprintln!(
                 "DEBUG: collected {} ledges by traversal, {} elk_edges",
                 edge_list.len(),
@@ -220,7 +231,7 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
                 .unwrap_or(EdgeRouting::Undefined)
         };
 
-        if std::env::var_os("ELK_TRACE_EDGE_APPLY").is_some() {
+        if *TRACE_EDGE_APPLY {
             eprintln!(
                 "[transferrer-graph] graph_origin={} edges={} offset=({}, {})",
                 graph_id,
@@ -243,7 +254,7 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
             let Some(edge_id) = edge_id else {
                 continue;
             };
-            if std::env::var_os("ELK_TRACE_EDGE_APPLY").is_some() {
+            if *TRACE_EDGE_APPLY {
                 eprintln!(
                     "[transferrer-graph-edge] graph_origin={} edge_origin={}",
                     graph_id, edge_id
@@ -296,7 +307,7 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
         };
         let parent_node = lgraph.lock().ok().and_then(|g| g.parent_node());
 
-        if std::env::var_os("ELK_TRACE_COMPOUND_WIDTH").is_some() {
+        if *TRACE_COMPOUND_WIDTH {
             let origin_id_str = elk_node
                 .borrow_mut()
                 .connectable()
@@ -385,7 +396,7 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
             }
         }
 
-        if std::env::var_os("ELK_TRACE_COMPOUND_WIDTH").is_some() {
+        if *TRACE_COMPOUND_WIDTH {
             let origin_id_str = elk_node
                 .borrow_mut()
                 .connectable()
@@ -664,7 +675,7 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
             }
         }
 
-        if std::env::var("ELK_TRACE").is_ok() {
+        if *TRACE {
             let edge_id_str = {
                 let mut edge_mut = elk_edge.borrow_mut();
                 edge_mut.element().identifier().map(|id| id.to_string())
@@ -750,7 +761,7 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
             end.y += to.y;
         }
 
-        if std::env::var_os("ELK_TRACE_EDGE_OFFSETS").is_some() {
+        if *TRACE_EDGE_OFFSETS {
             let edge_identifier = {
                 let mut edge_mut = elk_edge.borrow_mut();
                 edge_mut
@@ -843,7 +854,7 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
         // Apply bend points via ElkUtil::apply_vector_chain
         ElkUtil::apply_vector_chain(&bend_point_chain, &section);
 
-        if std::env::var_os("ELK_TRACE_EDGE_OFFSETS").is_some() {
+        if *TRACE_EDGE_OFFSETS {
             let (sx, sy, ex, ey) = {
                 let section_ref = section.borrow();
                 (

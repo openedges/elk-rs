@@ -1,10 +1,14 @@
 use std::collections::{HashSet, VecDeque};
+use std::sync::LazyLock;
 
 use crate::org::eclipse::elk::alg::layered::graph::LEdgeRef;
 
 use super::aligned_layout::{BKAlignedLayout, HDirection, VDirection};
 use super::neighborhood_information::NeighborhoodInformation;
 use super::util::{node_id, port_node_id, port_offset_y};
+
+static TRACE_BK_THRESH: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_BK_THRESH").is_some());
 
 const THRESHOLD: f64 = f64::MAX;
 const EPSILON: f64 = 0.0001;
@@ -146,7 +150,7 @@ impl SimpleThresholdStrategy {
     }
 
     fn get_bound(&mut self, bal: &mut BKAlignedLayout, block_node: usize, is_root: bool) -> f64 {
-        let trace = std::env::var_os("ELK_TRACE_BK_THRESH").is_some();
+        let trace = *TRACE_BK_THRESH;
         let invalid = match bal.vdir {
             Some(VDirection::Up) => f64::INFINITY,
             _ => f64::NEG_INFINITY,
@@ -255,7 +259,7 @@ impl SimpleThresholdStrategy {
         ni: &NeighborhoodInformation,
         pp: &Postprocessable,
     ) -> bool {
-        let trace = std::env::var_os("ELK_TRACE_BK_THRESH").is_some();
+        let trace = *TRACE_BK_THRESH;
         let edge = pp.edge.as_ref().expect("processable edge missing");
         let (source_port, target_port) = edge
             .lock()
@@ -351,7 +355,7 @@ impl ThresholdStrategy for SimpleThresholdStrategy {
     }
 
     fn post_process(&mut self, bal: &mut BKAlignedLayout, ni: &NeighborhoodInformation) {
-        let trace = std::env::var_os("ELK_TRACE_BK_THRESH").is_some();
+        let trace = *TRACE_BK_THRESH;
         while let Some(pp) = self.post_process_queue.pop_front() {
             let pick = self.pick_edge(bal, pp);
             let Some(edge) = pick.edge.clone() else {

@@ -1,7 +1,7 @@
 #![allow(clippy::mutable_key_type)]
 
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
@@ -23,6 +23,10 @@ use crate::org::eclipse::elk::alg::layered::options::{
     GraphProperties, InternalProperties, LayeredOptions, PortType,
 };
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::OrthogonalRoutingGenerator;
+
+static TRACE: LazyLock<bool> = LazyLock::new(|| std::env::var_os("ELK_TRACE").is_some());
+static TRACE_INSIDE_YO: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_INSIDE_YO").is_some());
 
 #[derive(Clone)]
 pub struct CrossHierarchyEdge {
@@ -214,7 +218,7 @@ impl CompoundGraphPreprocessor {
 
         self.transform_hierarchy_edges(graph, None, &mut cross_hierarchy_map, &mut dummy_node_map);
 
-        if std::env::var("ELK_TRACE").is_ok() {
+        if *TRACE {
             for orig_edge in cross_hierarchy_map.keys() {
                 let label_count = orig_edge
                     .lock()
@@ -227,7 +231,7 @@ impl CompoundGraphPreprocessor {
         self.move_labels_and_remove_original_edges(graph, &cross_hierarchy_map);
         self.set_sides_of_ports_to_sides_of_dummy_nodes(&dummy_node_map);
 
-        if std::env::var("ELK_TRACE").is_ok() {
+        if *TRACE {
             eprintln!(
                 "[compound-pre] cross_hierarchy_map entries={}",
                 cross_hierarchy_map.keys().len()
@@ -546,7 +550,7 @@ impl CompoundGraphPreprocessor {
 
                         label_moves.push((label_ref.clone(), target_index));
                         if let Ok(mut label_guard) = label_ref.lock() {
-                            if std::env::var("ELK_TRACE").is_ok() && label_guard.text() == "e2" {
+                            if *TRACE && label_guard.text() == "e2" {
                                 eprintln!(
                                     "[compound-pre] moving e2 label (segments={})",
                                     edge_segments.len()
@@ -829,7 +833,7 @@ impl CompoundGraphPreprocessor {
                 .map(|node_guard| node_guard.ports().clone())
                 .unwrap_or_default();
 
-            if std::env::var("ELK_TRACE").is_ok() {
+            if *TRACE {
                 let origin_id = child_node
                     .lock()
                     .ok()
@@ -920,7 +924,7 @@ impl CompoundGraphPreprocessor {
                         None => continue,
                     };
 
-                    if std::env::var("ELK_TRACE").is_ok()
+                    if *TRACE
                         && in_edge
                             .lock()
                             .ok()
@@ -991,7 +995,7 @@ impl CompoundGraphPreprocessor {
         cross_hierarchy_map: &mut CrossHierarchyMap,
         dummy_node_map: &mut HashMap<PortRefKey, LNodeRef>,
     ) {
-        let trace_inside = std::env::var_os("ELK_TRACE_INSIDE_YO").is_some();
+        let trace_inside = *TRACE_INSIDE_YO;
         let inside_self_loops_active = node
             .lock()
             .ok()
@@ -1255,7 +1259,7 @@ impl CompoundGraphPreprocessor {
                         port_type,
                     ),
                 );
-                if std::env::var("ELK_TRACE").is_ok()
+                if *TRACE
                     && orig_edge
                         .lock()
                         .ok()
@@ -1348,7 +1352,7 @@ impl CompoundGraphPreprocessor {
             orig_edge,
             CrossHierarchyEdge::new(dummy_edge, graph.clone(), port_type),
         );
-        if std::env::var("ELK_TRACE").is_ok()
+        if *TRACE
             && orig_edge
                 .lock()
                 .ok()
@@ -1702,7 +1706,7 @@ impl CompoundGraphPostprocessor {
             }
             sort_cross_hierarchy_edges(&mut cross_edges, graph);
 
-            let trace_edge = std::env::var("ELK_TRACE").is_ok()
+            let trace_edge = *TRACE
                 && (cross_edges.iter().any(|edge| {
                     edge.edge()
                         .lock()

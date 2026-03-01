@@ -42,7 +42,7 @@
 7. 커밋 (`<scope>: <summary>`)
 8. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
-## 현재 핵심 스냅샷 (2026-02-28)
+## 현재 핵심 스냅샷 (2026-03-01)
 - **elk-rs 버전**: `0.11.0` (ELK Java `v0.11.0` 기준 포팅 완료)
   - Cargo workspace 전체 + npm 동일 버전
   - 서브모듈 고정: `external/elk` → `v0.11.0` 태그, `external/elkjs` → `0.11.0` 태그
@@ -52,6 +52,10 @@
 - **JS parity**: 550/550 elk-rs vs Java 일치 (ELKJS_DRIFT 20건은 GWT 아티팩트)
 - **npm 패키지**: `elk-rs@0.11.0` WASM-only 릴리즈 준비 완료 (32 Vitest 통과)
   - 향후: NAPI 플랫폼별 패키지 (`@elk-rs/darwin-arm64` 등) 추가 예정
+- **성능 기준선**: Rust ~2.4x slower than Java (`layered_xlarge` 1,130ms vs ~463ms)
+  - 이전 1,576ms → 1,130ms (**-28.3%**), Phase 1-3 최적화 적용 (상세: `HISTORY.md`)
+  - 완료: Phase 1 `LazyLock` 전환(130개 env::var 호출), Phase 2 ports_by_side 버퍼 재사용, Phase 3 SweepCopy copy_from()
+  - 잔여 병목: Mutex lock 빈도(~10-15%), malloc/free(~5%), 향후 Phase 4 arena 구조 검토
 - **코드 품질**: `cargo build` warning 0건, `cargo clippy` warning 0건
 - **알려진 실패**: `elk_live_examples_test` 1건 (cross-hierarchy edge resolution, `TESTING.md` § 4.2)
 - `213_componentsCompaction.elkt`: `java_non_ok=nan_output`으로 분류 — Rust 출력이 더 정확

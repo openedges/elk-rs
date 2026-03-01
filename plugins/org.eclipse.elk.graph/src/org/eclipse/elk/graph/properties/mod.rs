@@ -3,6 +3,10 @@ use std::collections::HashMap;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
+use std::sync::LazyLock;
+
+static TRACE_SIZING: LazyLock<bool> =
+    LazyLock::new(|| std::env::var("ELK_TRACE_SIZING").is_ok());
 
 use crate::org::eclipse::elk::graph::util::ElkReflect;
 
@@ -230,7 +234,7 @@ impl MapPropertyHolder {
             match value {
                 PropertyValue::Resolved(value) => {
                     let downcast_result = value.clone().downcast::<T>();
-                    if downcast_result.is_err() && std::env::var("ELK_TRACE_SIZING").is_ok() {
+                    if downcast_result.is_err() && *TRACE_SIZING {
                         eprintln!("TRACE get_property DOWNCAST FAIL: id={} expected_type={} actual_type_id={:?}",
                             property.id(), std::any::type_name::<T>(), (**value).type_id());
                     }

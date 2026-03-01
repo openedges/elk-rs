@@ -2,6 +2,10 @@ use std::collections::HashMap;
 use std::env;
 use std::path::MAIN_SEPARATOR;
 use std::rc::Rc;
+use std::sync::LazyLock;
+
+static TRACE_SIZING: LazyLock<bool> =
+    LazyLock::new(|| std::env::var("ELK_TRACE_SIZING").is_ok());
 
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{
@@ -345,7 +349,7 @@ impl ElkUtil {
             }
         }
 
-        if std::env::var("ELK_TRACE_SIZING").is_ok() {
+        if *TRACE_SIZING {
             eprintln!("TRACE resize_node_with: old=({:.1},{:.1}) input=({:.1},{:.1}) new=({:.1},{:.1})",
                 old_size.x, old_size.y, new_width, new_height, new_size.x, new_size.y);
         }

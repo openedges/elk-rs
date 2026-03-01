@@ -6,6 +6,8 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 
 static TRACE_PORT_RANKS: LazyLock<bool> =
     LazyLock::new(|| std::env::var_os("ELK_TRACE_PORT_RANKS").is_some());
+static TRACE_CROSSMIN_TIMING: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN_TIMING").is_some());
 
 use crate::org::eclipse::elk::alg::layered::graph::{LNodeRef, LPortRef};
 use crate::org::eclipse::elk::alg::layered::options::{
@@ -35,6 +37,10 @@ pub struct AbstractBarycenterPortDistributor {
     port_barycenter: Vec<f64>,
     in_layer_ports: Vec<LPortRef>,
     n_ports: usize,
+    // Reusable buffers for ports_by_side partitioning (avoids 3x Vec alloc per node per sweep)
+    side_buf: Vec<LPortRef>,
+    south_buf: Vec<LPortRef>,
+    north_buf: Vec<LPortRef>,
 }
 
 impl AbstractBarycenterPortDistributor {
@@ -48,6 +54,9 @@ impl AbstractBarycenterPortDistributor {
             port_barycenter: Vec::new(),
             in_layer_ports: Vec::new(),
             n_ports: 0,
+            side_buf: Vec::new(),
+            south_buf: Vec::new(),
+            north_buf: Vec::new(),
         }
     }
 
@@ -254,7 +263,7 @@ impl AbstractBarycenterPortDistributor {
         layer_index: usize,
         layer_size: usize,
     ) {
-        let timing = std::env::var_os("ELK_TRACE_CROSSMIN_TIMING").is_some();
+        let timing = *TRACE_CROSSMIN_TIMING;
         let (node_id, constraints, ports_snapshot) = if let Ok(mut node_guard) = node.lock() {
             (
                 node_guard.shape().graph_element().id,
@@ -276,9 +285,25 @@ impl AbstractBarycenterPortDistributor {
                 constraints
             );
         }
-        let side_ports = ports_by_side(&ports_snapshot, side);
-        let south_ports = ports_by_side(&ports_snapshot, PortSide::South);
-        let north_ports = ports_by_side(&ports_snapshot, PortSide::North);
+        // Single-pass partitioning into reusable buffers (avoids 3x Vec alloc per node)
+        self.side_buf.clear();
+        self.south_buf.clear();
+        self.north_buf.clear();
+        for port in &ports_snapshot {
+            let s = port
+                .lock()
+                .map(|port_guard| port_guard.side())
+                .unwrap_or(PortSide::Undefined);
+            if s == side {
+                self.side_buf.push(port.clone());
+            }
+            if s == PortSide::South {
+                self.south_buf.push(port.clone());
+            }
+            if s == PortSide::North {
+                self.north_buf.push(port.clone());
+            }
+        }
 
         if constraints.is_order_fixed() {
             if timing {
@@ -294,14 +319,23 @@ impl AbstractBarycenterPortDistributor {
             eprintln!(
                 "crossmin: distribute_ports node={} side_ports={} south_ports={} north_ports={}",
                 node_id,
-                side_ports.len(),
-                south_ports.len(),
-                north_ports.len()
+                self.side_buf.len(),
+                self.south_buf.len(),
+                self.north_buf.len()
             );
         }
-        self.distribute_ports_for_iter(node, side_ports, node_id, layer_index, layer_size);
-        self.distribute_ports_for_iter(node, south_ports, node_id, layer_index, layer_size);
-        self.distribute_ports_for_iter(node, north_ports, node_id, layer_index, layer_size);
+        // Take ownership temporarily to satisfy borrow checker (&mut self + &self.buf)
+        let buf = std::mem::take(&mut self.side_buf);
+        self.distribute_ports_for_iter(node, &buf, node_id, layer_index, layer_size);
+        self.side_buf = buf;
+
+        let buf = std::mem::take(&mut self.south_buf);
+        self.distribute_ports_for_iter(node, &buf, node_id, layer_index, layer_size);
+        self.south_buf = buf;
+
+        let buf = std::mem::take(&mut self.north_buf);
+        self.distribute_ports_for_iter(node, &buf, node_id, layer_index, layer_size);
+        self.north_buf = buf;
         self.sort_ports(node);
         if timing {
             eprintln!("crossmin: distribute_ports end node={}", node_id);
@@ -311,12 +345,12 @@ impl AbstractBarycenterPortDistributor {
     fn distribute_ports_for_iter(
         &mut self,
         node: &LNodeRef,
-        ports: Vec<LPortRef>,
+        ports: &[LPortRef],
         node_id: i32,
         layer_index: usize,
         layer_size: usize,
     ) {
-        let timing = std::env::var_os("ELK_TRACE_CROSSMIN_TIMING").is_some();
+        let timing = *TRACE_CROSSMIN_TIMING;
         if timing {
             eprintln!(
                 "crossmin: distribute_ports_for_iter node={} layer={} ports={}",
@@ -344,7 +378,7 @@ impl AbstractBarycenterPortDistributor {
         self.max_barycenter = 0.0;
         // Java: final float absurdlyLargeFloat = 2 * layer.getNodes().size() + 1;
         let absurdly_large_float: f32 = (2 * self.layer_size(node) + 1) as f32;
-        let timing = std::env::var_os("ELK_TRACE_CROSSMIN_TIMING").is_some();
+        let timing = *TRACE_CROSSMIN_TIMING;
 
         'port_iteration: for port in ports {
             let pid = port_id(port);
@@ -512,7 +546,7 @@ impl AbstractBarycenterPortDistributor {
         port: &LPortRef,
         port_dummy: &LNodeRef,
     ) -> f64 {
-        let timing = std::env::var_os("ELK_TRACE_CROSSMIN_TIMING").is_some();
+        let timing = *TRACE_CROSSMIN_TIMING;
         let mut input = false;
         let mut output = false;
         let dummy_ports = port_dummy
@@ -829,7 +863,7 @@ impl ISweepPortDistributor for AbstractBarycenterPortDistributor {
         current_index: usize,
         is_forward_sweep: bool,
     ) -> bool {
-        let timing = std::env::var_os("ELK_TRACE_CROSSMIN_TIMING").is_some();
+        let timing = *TRACE_CROSSMIN_TIMING;
         self.update_node_positions(node_order, current_index);
         let free_layer = &node_order[current_index];
         let side = if is_forward_sweep {
@@ -1118,18 +1152,6 @@ fn connected_ports(port: &LPortRef) -> Vec<LPortRef> {
         .ok()
         .map(|port_guard| port_guard.connected_ports())
         .unwrap_or_default()
-}
-
-fn ports_by_side(ports: &[LPortRef], side: PortSide) -> Vec<LPortRef> {
-    ports
-        .iter()
-        .filter(|port| {
-            port.lock()
-                .map(|port_guard| port_guard.side() == side)
-                .unwrap_or(false)
-        })
-        .cloned()
-        .collect()
 }
 
 fn port_owner_is(port: &LPortRef, node: &LNodeRef) -> bool {

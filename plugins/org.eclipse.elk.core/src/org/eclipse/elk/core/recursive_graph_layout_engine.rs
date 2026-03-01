@@ -910,8 +910,11 @@ impl Drop for RecursiveTraceDepthGuard {
     }
 }
 
+static TRACE_RECURSIVE_LAYOUT: std::sync::LazyLock<bool> =
+    std::sync::LazyLock::new(|| std::env::var_os("ELK_TRACE_RECURSIVE_LAYOUT").is_some());
+
 fn recursive_trace_enabled() -> bool {
-    std::env::var_os("ELK_TRACE_RECURSIVE_LAYOUT").is_some()
+    *TRACE_RECURSIVE_LAYOUT
 }
 
 fn recursive_trace(node: &ElkNodeRef, message: &str) {

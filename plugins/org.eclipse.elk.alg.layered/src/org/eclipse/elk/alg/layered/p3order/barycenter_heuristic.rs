@@ -6,6 +6,14 @@ use std::time::Instant;
 
 static TRACE_PORT_RANKS: LazyLock<bool> =
     LazyLock::new(|| std::env::var_os("ELK_TRACE_PORT_RANKS").is_some());
+static TRACE_CROSSMIN: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN").is_some());
+static TRACE_BARYCENTER_NAN: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_BARYCENTER_NAN").is_some());
+static TRACE_CROSSMIN_TIMING: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN_TIMING").is_some());
+static TRACE_BARYCENTER_LAYER_PATTERN: LazyLock<Option<String>> =
+    LazyLock::new(|| std::env::var("ELK_TRACE_BARYCENTER_LAYER_PATTERN").ok());
 
 use org_eclipse_elk_core::org::eclipse::elk::core::util::Random;
 use crate::org::eclipse::elk::alg::layered::p3order::random_trace;
@@ -164,7 +172,7 @@ impl BarycenterHeuristic {
     }
 
     fn calculate_barycenter(&mut self, node: &LNodeRef, forward: bool, port_ranks: &[f64], random: &mut Random) {
-        let trace_cm = std::env::var_os("ELK_TRACE_CROSSMIN").is_some();
+        let trace_cm = *TRACE_CROSSMIN;
         if let Some(state) = self.state_of(node) {
             if let Ok(mut state_guard) = state.lock() {
                 if state_guard.visited {
@@ -336,7 +344,7 @@ impl BarycenterHeuristic {
         match (left_bary, right_bary) {
             (Some(left_bary), Some(right_bary)) => {
                 let ord = left_bary.partial_cmp(&right_bary).unwrap_or_else(|| {
-                    if std::env::var_os("ELK_TRACE_BARYCENTER_NAN").is_some() {
+                    if *TRACE_BARYCENTER_NAN {
                         let left_name = left
                             .lock()
                             .ok()
@@ -373,7 +381,7 @@ impl BarycenterHeuristic {
         forward: bool,
         random: &mut Random,
     ) {
-        let trace = std::env::var_os("ELK_TRACE_CROSSMIN_TIMING").is_some();
+        let trace = *TRACE_CROSSMIN_TIMING;
         let trace_pr = *TRACE_PORT_RANKS && self.sweep_iteration == 0;
         let start = if trace { Some(Instant::now()) } else { None };
         if randomize {
@@ -432,7 +440,7 @@ impl BarycenterHeuristic {
             );
         }
 
-        let trace_layer_pattern = std::env::var("ELK_TRACE_BARYCENTER_LAYER_PATTERN").ok();
+        let trace_layer_pattern = TRACE_BARYCENTER_LAYER_PATTERN.clone();
         if trace_layer_pattern.as_ref().is_some_and(|pattern| {
             layer.iter().any(|node| {
                 node.lock()
@@ -513,7 +521,7 @@ impl BarycenterHeuristic {
             );
         }
 
-        if std::env::var_os("ELK_TRACE_CROSSMIN").is_some() {
+        if *TRACE_CROSSMIN {
             let li = layer
                 .first()
                 .and_then(|n| n.lock().ok().and_then(|ng| ng.layer()))

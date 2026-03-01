@@ -1,6 +1,7 @@
 #![allow(clippy::mutable_key_type)]
 
 use std::collections::{HashMap, HashSet};
+use std::sync::LazyLock;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LGraphRef, LNodeRef, LPortRef, NodeRefKey, NodeType};
 use crate::org::eclipse::elk::alg::layered::intermediate::preserveorder::model_order_port_comparator::ModelOrderPortComparator;
@@ -8,6 +9,9 @@ use crate::org::eclipse::elk::alg::layered::intermediate::CMGroupModelOrderCalcu
 use crate::org::eclipse::elk::alg::layered::options::{
     GroupOrderStrategy, InternalProperties, LongEdgeOrderingStrategy, OrderingStrategy,
 };
+
+static TRACE_CROSSMIN: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN").is_some());
 
 pub struct ModelOrderNodeComparator {
     previous_layer: Vec<LNodeRef>,
@@ -186,7 +190,7 @@ impl ModelOrderNodeComparator {
                     .get_property(InternalProperties::MAX_MODEL_ORDER_NODES)
                     .unwrap_or(0),
                 Err(_) => {
-                    if std::env::var_os("ELK_TRACE_CROSSMIN").is_some() {
+                    if *TRACE_CROSSMIN {
                         eprintln!("node_compare: graph lock busy, using default max_nodes");
                     }
                     0

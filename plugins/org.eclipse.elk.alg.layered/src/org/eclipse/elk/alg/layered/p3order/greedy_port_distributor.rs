@@ -1,3 +1,8 @@
+use std::sync::LazyLock;
+
+static TRACE_GREEDY_PORTS: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_GREEDY_PORTS").is_some());
+
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 
@@ -124,7 +129,7 @@ impl GreedyPortDistributor {
 
         let mut improved = false;
         let mut continue_switching;
-        let trace = std::env::var_os("ELK_TRACE_GREEDY_PORTS").is_some();
+        let trace = *TRACE_GREEDY_PORTS;
         let mut iterations = 0usize;
         loop {
             continue_switching = false;

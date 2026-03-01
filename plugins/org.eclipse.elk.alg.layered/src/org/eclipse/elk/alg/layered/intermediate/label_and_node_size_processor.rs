@@ -33,6 +33,8 @@ static ENABLE_PHASE1_PORT_PLACEMENT: LazyLock<bool> = LazyLock::new(|| {
         .map(|value| !(value == "0" || value.eq_ignore_ascii_case("false")))
         .unwrap_or(true)
 });
+static DISABLE_CLOCKWISE_SIDE_ORDER: LazyLock<bool> =
+    LazyLock::new(|| std::env::var("ELK_DISABLE_CLOCKWISE_SIDE_ORDER").is_ok());
 
 impl Default for LabelAndNodeSizeProcessor {
     fn default() -> Self {
@@ -846,7 +848,7 @@ fn reposition_ports_only_on_node(
         return;
     }
 
-    if std::env::var("ELK_DISABLE_CLOCKWISE_SIDE_ORDER").is_err()
+    if !*DISABLE_CLOCKWISE_SIDE_ORDER
         && !should_skip_clockwise_reorder_for_phase2f(node)
     {
         ensure_clockwise_port_order(node, port_constraints);

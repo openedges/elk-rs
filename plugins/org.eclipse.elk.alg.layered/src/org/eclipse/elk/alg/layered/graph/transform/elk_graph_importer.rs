@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::nodespacing::NodeLabelAndSizeCalculator;
@@ -32,6 +32,17 @@ use crate::org::eclipse::elk::alg::layered::options::{
     CycleBreakingStrategy, GraphProperties, InternalProperties, LayeredOptions, LayeringStrategy,
     NodePromotionStrategy, OrderingStrategy, Origin, OriginId, PortType,
 };
+
+static TRACE_COMPOUND_WIDTH: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_COMPOUND_WIDTH").is_some());
+static TRACE_IMPORT_EDGE_SELECTION: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_IMPORT_EDGE_SELECTION").is_some());
+static TRACE_IMPORT_PORT_ORDER: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_IMPORT_PORT_ORDER").is_some());
+static TRACE_EDGE_ORIGIN_MAP: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_EDGE_ORIGIN_MAP").is_some());
+static TRACE_INSIDE_YO: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_INSIDE_YO").is_some());
 
 pub struct ElkGraphImporter<'a> {
     origin_store: &'a mut OriginStore,
@@ -112,7 +123,7 @@ impl<'a> ElkGraphImporter<'a> {
             self.import_flat_graph(elkgraph, &lgraph);
         }
 
-        if std::env::var_os("ELK_TRACE_COMPOUND_WIDTH").is_some() {
+        if *TRACE_COMPOUND_WIDTH {
             if let Ok(graph_guard) = lgraph.lock() {
                 let node_count = graph_guard.layerless_nodes().len();
                 let edge_count: usize = graph_guard.layerless_nodes().iter().filter_map(|n| {
@@ -291,7 +302,7 @@ impl<'a> ElkGraphImporter<'a> {
                 self.set_element_model_order_for_edge(&edge, edge_model_order_index);
                 edge_model_order_index += 1;
             }
-            let trace_edge_selection = std::env::var_os("ELK_TRACE_IMPORT_EDGE_SELECTION").is_some();
+            let trace_edge_selection = *TRACE_IMPORT_EDGE_SELECTION;
             let edge_id_for_trace = if trace_edge_selection {
                 edge.borrow_mut()
                     .element()
@@ -591,7 +602,7 @@ impl<'a> ElkGraphImporter<'a> {
             lpadding.bottom = padding.bottom + node_label_padding.bottom;
             lpadding.left = padding.left + node_label_padding.left;
 
-            if std::env::var_os("ELK_TRACE_COMPOUND_WIDTH").is_some() {
+            if *TRACE_COMPOUND_WIDTH {
                 let graph_id = elkgraph
                     .borrow_mut()
                     .connectable()
@@ -647,7 +658,7 @@ impl<'a> ElkGraphImporter<'a> {
         };
         let is_hierarchical = node_is_hierarchical || self.has_inside_self_loop_edge(elknode);
 
-        if std::env::var_os("ELK_TRACE_IMPORT_PORT_ORDER").is_some() {
+        if *TRACE_IMPORT_PORT_ORDER {
             let node_id = elknode
                 .borrow_mut()
                 .connectable()
@@ -910,7 +921,7 @@ impl<'a> ElkGraphImporter<'a> {
                 .unwrap_or_else(|| "<no-edge-id>".to_string());
             (sources, targets, props, labels, edge_id)
         };
-        let trace_edge_origin_map = std::env::var_os("ELK_TRACE_EDGE_ORIGIN_MAP").is_some();
+        let trace_edge_origin_map = *TRACE_EDGE_ORIGIN_MAP;
 
         let Some(source_shape) = sources.first() else {
             return;
@@ -947,7 +958,7 @@ impl<'a> ElkGraphImporter<'a> {
         let inside_self_loops = properties
             .get_property(CoreOptions::INSIDE_SELF_LOOPS_YO)
             .unwrap_or(false);
-        if std::env::var_os("ELK_TRACE_INSIDE_YO").is_some() {
+        if *TRACE_INSIDE_YO {
             let has_inside_yo = properties.has_property(CoreOptions::INSIDE_SELF_LOOPS_YO);
             eprintln!(
                 "[import-edge] edge={} has_inside_yo={} inside_yo={}",
@@ -1225,7 +1236,7 @@ impl<'a> ElkGraphImporter<'a> {
                 let lnode = match self.node_for(&parent) {
                     Some(n) => n,
                     None => {
-                        if std::env::var_os("ELK_TRACE_COMPOUND_WIDTH").is_some() {
+                        if *TRACE_COMPOUND_WIDTH {
                             let parent_id = parent
                                 .borrow_mut()
                                 .connectable()

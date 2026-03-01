@@ -20,6 +20,9 @@ use crate::org::eclipse::elk::alg::layered::LayeredPhases;
 
 const MIN_EDGE_SPACING: f64 = 2.0;
 
+static DISABLE_GREEDY_SWITCH: LazyLock<bool> =
+    LazyLock::new(|| std::env::var("ELK_DISABLE_GREEDY_SWITCH").is_ok());
+
 static BASELINE_PROCESSING_CONFIGURATION: LazyLock<
     LayoutProcessorConfiguration<LayeredPhases, LGraph>,
 > = LazyLock::new(|| {
@@ -377,9 +380,7 @@ impl GraphConfigurator {
             );
         }
 
-        if Self::activate_greedy_switch_for(graph)
-            && std::env::var("ELK_DISABLE_GREEDY_SWITCH").is_err()
-        {
+        if Self::activate_greedy_switch_for(graph) && !*DISABLE_GREEDY_SWITCH {
             let greedy_type = if Self::is_hierarchical_layout(graph) {
                 graph
                     .get_property(

@@ -81,9 +81,12 @@ where
 /// internal `next(bits)` call so the sequence is comparable across clones.
 static RANDOM_TRACE_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
+static RANDOM_TRACE: std::sync::LazyLock<bool> =
+    std::sync::LazyLock::new(|| std::env::var_os("ELK_RANDOM_TRACE").is_some());
+
 #[inline]
 fn random_trace_enabled() -> bool {
-    std::env::var_os("ELK_RANDOM_TRACE").is_some()
+    *RANDOM_TRACE
 }
 
 #[derive(Clone, Debug)]

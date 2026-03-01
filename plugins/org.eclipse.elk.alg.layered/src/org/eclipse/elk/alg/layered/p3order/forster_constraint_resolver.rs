@@ -1,6 +1,9 @@
 use std::collections::{BTreeMap, VecDeque};
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
+
+static TRACE_FORSTER_GROUPS: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_FORSTER_GROUPS").is_some());
 
 use crate::org::eclipse::elk::alg::layered::graph::{LNodeRef, NodeType};
 use crate::org::eclipse::elk::alg::layered::options::InternalProperties;
@@ -62,7 +65,7 @@ impl ForsterConstraintResolver {
             groups.push(group);
         }
 
-        let trace = std::env::var_os("ELK_TRACE_FORSTER_GROUPS").is_some()
+        let trace = *TRACE_FORSTER_GROUPS
             && groups.iter().any(group_contains_pump);
         if trace {
             eprintln!(
@@ -112,7 +115,7 @@ impl ForsterConstraintResolver {
         groups: &[ConstraintGroupRef],
         only_between_normal_nodes: bool,
     ) {
-        let trace = std::env::var_os("ELK_TRACE_FORSTER_GROUPS").is_some()
+        let trace = *TRACE_FORSTER_GROUPS
             && groups.iter().any(group_contains_pump);
 
         for group in groups.iter() {

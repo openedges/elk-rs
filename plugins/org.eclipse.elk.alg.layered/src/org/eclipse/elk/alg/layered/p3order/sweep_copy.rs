@@ -36,6 +36,34 @@ impl SweepCopy {
         }
     }
 
+    /// Reuse existing allocations to copy from a new node order.
+    pub fn copy_from(&mut self, node_order_in: &[Vec<LNodeRef>]) {
+        let target_len = node_order_in.len();
+
+        // Reuse outer + inner Vec allocations for node_order
+        self.node_order.resize_with(target_len, Vec::new);
+        self.node_order.truncate(target_len);
+        for (i, layer) in node_order_in.iter().enumerate() {
+            self.node_order[i].clear();
+            self.node_order[i].extend_from_slice(layer);
+        }
+
+        // Reuse all 3 levels of Vec allocations for port_orders
+        self.port_orders.resize_with(target_len, Vec::new);
+        self.port_orders.truncate(target_len);
+        for (i, layer) in node_order_in.iter().enumerate() {
+            let inner = &mut self.port_orders[i];
+            inner.resize_with(layer.len(), Vec::new);
+            inner.truncate(layer.len());
+            for (j, node) in layer.iter().enumerate() {
+                inner[j].clear();
+                if let Ok(node_guard) = node.lock() {
+                    inner[j].extend_from_slice(node_guard.ports());
+                }
+            }
+        }
+    }
+
     pub fn nodes(&self) -> &Vec<Vec<LNodeRef>> {
         &self.node_order
     }

@@ -8,13 +8,16 @@
 /// The counter is a global atomic so it accumulates across all call sites in
 /// the same process, giving a total ordering that can be compared with Java.
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::LazyLock;
 
 static COUNTER: AtomicUsize = AtomicUsize::new(0);
+static CROSSMIN_RANDOM_TRACE: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("CROSSMIN_RANDOM_TRACE").is_some());
 
 /// Returns `true` when `CROSSMIN_RANDOM_TRACE` is set in the environment.
 #[inline]
 pub fn is_enabled() -> bool {
-    std::env::var_os("CROSSMIN_RANDOM_TRACE").is_some()
+    *CROSSMIN_RANDOM_TRACE
 }
 
 /// Reset the counter to zero (call once at the start of a new graph layout).

@@ -1,5 +1,8 @@
 use std::collections::{BTreeSet, VecDeque};
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
+
+static TRACE_CROSSINGS_BREAKDOWN: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSINGS_BREAKDOWN").is_some());
 
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::pair::Pair;
@@ -557,7 +560,7 @@ fn is_in_layer(edge: &LEdgeRef) -> bool {
     if let (Some(source_layer), Some(target_layer)) = (source_layer, target_layer) {
         Arc::ptr_eq(&source_layer, &target_layer)
     } else {
-        if std::env::var_os("ELK_TRACE_CROSSINGS_BREAKDOWN").is_some() {
+        if *TRACE_CROSSINGS_BREAKDOWN {
             eprintln!("rust-crossings: is_in_layer missing layer endpoint");
         }
         false

@@ -32,6 +32,17 @@ static HIERARCHY_PROCESSING_ADDITIONS: LazyLock<
     config
 });
 
+static TRACE_BK: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_BK").is_some());
+static TRACE_BK_LAYOUTS: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_BK_LAYOUTS").is_some());
+static TRACE_BK_NODE_STATE: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_BK_NODE_STATE").is_some());
+static TRACE_BK_NODE_FILTER: LazyLock<Option<String>> =
+    LazyLock::new(|| std::env::var("ELK_TRACE_BK_NODE_FILTER").ok());
+static TRACE_BK_CONFLICTS: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_BK_CONFLICTS").is_some());
+
 pub struct BKNodePlacer {
     marked_edges: HashSet<usize>,
 }
@@ -53,7 +64,7 @@ impl Default for BKNodePlacer {
 impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
     fn process(&mut self, graph: &mut LGraph, monitor: &mut dyn IElkProgressMonitor) {
         monitor.begin("Brandes & Koepf node placement", 1.0);
-        let trace = std::env::var_os("ELK_TRACE_BK").is_some();
+        let trace = *TRACE_BK;
         if trace {
             eprintln!("bk: start");
         }
@@ -160,7 +171,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
         if trace {
             eprintln!("bk: compaction done");
         }
-        if std::env::var_os("ELK_TRACE_BK_LAYOUTS").is_some() {
+        if *TRACE_BK_LAYOUTS {
             for bal in &layouts {
                 eprintln!("bk-layout: {}", bal);
                 for layer in &layers {
@@ -247,8 +258,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
         let chosen_layout = chosen_layout
             .unwrap_or_else(|| layouts.first().expect("At least one BK layout must exist"));
 
-        if std::env::var_os("ELK_TRACE_BK_NODE_STATE").is_some() {
-            let filter = std::env::var("ELK_TRACE_BK_NODE_FILTER").ok();
+        if *TRACE_BK_NODE_STATE {
+            let filter = TRACE_BK_NODE_FILTER.as_deref();
             for layer in &layers {
                 let nodes = layer
                     .lock()
@@ -374,7 +385,7 @@ fn build_nodes_by_id(layers: &[LayerRef], node_count: usize) -> Vec<LNodeRef> {
 impl BKNodePlacer {
     fn mark_conflicts(&mut self, layers: &[LayerRef], ni: &NeighborhoodInformation) {
         const MIN_LAYERS_FOR_CONFLICTS: usize = 3;
-        let trace_conflicts = std::env::var_os("ELK_TRACE_BK_CONFLICTS").is_some();
+        let trace_conflicts = *TRACE_BK_CONFLICTS;
         if layers.len() < MIN_LAYERS_FOR_CONFLICTS {
             return;
         }

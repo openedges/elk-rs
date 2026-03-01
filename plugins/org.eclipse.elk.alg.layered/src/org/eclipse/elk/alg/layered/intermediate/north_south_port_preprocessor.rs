@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
@@ -11,10 +13,13 @@ use crate::org::eclipse::elk::alg::layered::options::{
     InternalProperties, LayeredOptions, OrderingStrategy,
 };
 
+static TRACE_NS: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_NS").is_some());
+
 pub struct NorthSouthPortPreprocessor;
 
 fn trace_ns(message: &str) {
-    if std::env::var_os("ELK_TRACE_NS").is_some() {
+    if *TRACE_NS {
         eprintln!("[north-south-pre] {message}");
     }
 }

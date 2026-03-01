@@ -1,8 +1,13 @@
+use std::sync::LazyLock;
+
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LNode};
 use crate::org::eclipse::elk::alg::layered::options::{InLayerConstraint, InternalProperties};
+
+static TRACE_ILC: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_TRACE_ILC").is_some());
 
 pub struct InLayerConstraintProcessor;
 
@@ -38,7 +43,7 @@ impl ILayoutProcessor<LGraph> for InLayerConstraintProcessor {
                     })
                     .unwrap_or(InLayerConstraint::None);
 
-                if std::env::var_os("ELK_TRACE_ILC").is_some() {
+                if *TRACE_ILC {
                     let node_name = node
                         .lock()
                         .ok()

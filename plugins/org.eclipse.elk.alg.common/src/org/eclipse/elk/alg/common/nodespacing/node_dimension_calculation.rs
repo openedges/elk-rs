@@ -2,6 +2,11 @@ use std::any::Any;
 use std::cmp::Ordering;
 use std::sync::LazyLock;
 
+static NODE_DIM_FULL_FOR_FIXED: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_NODE_DIM_FULL_FOR_FIXED").is_some());
+static NODE_DIM_USE_FULL_PROCESS: LazyLock<bool> =
+    LazyLock::new(|| std::env::var_os("ELK_NODE_DIM_USE_FULL_PROCESS").is_some());
+
 use org_eclipse_elk_core::org::eclipse::elk::core::math::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::{
     CoreOptions, Direction, NodeLabelPlacement, PortLabelPlacement, PortSide, SizeConstraint,
@@ -94,7 +99,7 @@ impl NodeDimensionCalculation {
         let layout_direction = adapter
             .get_property(CoreOptions::DIRECTION)
             .unwrap_or(Direction::Undefined);
-        let use_full_process_for_fixed = std::env::var_os("ELK_NODE_DIM_FULL_FOR_FIXED").is_some();
+        let use_full_process_for_fixed = *NODE_DIM_FULL_FOR_FIXED;
         for node in adapter.get_nodes() {
             let placement = node
                 .get_property(CoreOptions::PORT_LABELS_PLACEMENT)
@@ -432,7 +437,7 @@ impl NodeDimensionCalculation {
         <<G as GraphAdapter<T>>::NodeAdapter as NodeAdapter<<G as GraphAdapter<T>>::Node>>::PortAdapter: 'static,
         <G as GraphAdapter<T>>::Node: 'static,
     {
-        if std::env::var_os("ELK_NODE_DIM_USE_FULL_PROCESS").is_some() {
+        if *NODE_DIM_USE_FULL_PROCESS {
             let layout_direction = adapter
                 .get_property(CoreOptions::DIRECTION)
                 .unwrap_or(Direction::Undefined);
