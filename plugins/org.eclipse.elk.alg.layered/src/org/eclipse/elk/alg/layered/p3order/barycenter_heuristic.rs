@@ -1,5 +1,6 @@
 use std::any::Any;
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 use std::time::Instant;
@@ -327,19 +328,20 @@ impl BarycenterHeuristic {
         (0, 0.0)
     }
 
-    fn compare_barycenter(&self, left: &LNodeRef, right: &LNodeRef) -> Ordering {
-        let left_bary = self.state_of(left).and_then(|state| {
-            state
-                .lock()
-                .ok()
-                .and_then(|state_guard| state_guard.barycenter)
-        });
-        let right_bary = self.state_of(right).and_then(|state| {
-            state
-                .lock()
-                .ok()
-                .and_then(|state_guard| state_guard.barycenter)
-        });
+    fn compare_barycenter(
+        &self,
+        left: &LNodeRef,
+        right: &LNodeRef,
+        barycenter_snapshot: &HashMap<usize, Option<f64>>,
+    ) -> Ordering {
+        let left_bary = barycenter_snapshot
+            .get(&node_ptr_id(left))
+            .copied()
+            .flatten();
+        let right_bary = barycenter_snapshot
+            .get(&node_ptr_id(right))
+            .copied()
+            .flatten();
 
         match (left_bary, right_bary) {
             (Some(left_bary), Some(right_bary)) => {
@@ -371,6 +373,20 @@ impl BarycenterHeuristic {
             (None, Some(_)) => Ordering::Greater,
             _ => Ordering::Equal,
         }
+    }
+
+    fn barycenter_snapshot(&self, nodes: &[LNodeRef]) -> HashMap<usize, Option<f64>> {
+        let mut snapshot = HashMap::with_capacity(nodes.len());
+        for node in nodes {
+            let barycenter = self.state_of(node).and_then(|state| {
+                state
+                    .lock()
+                    .ok()
+                    .and_then(|state_guard| state_guard.barycenter)
+            });
+            snapshot.insert(node_ptr_id(node), barycenter);
+        }
+        snapshot
     }
 
     fn minimize_crossings_layer(
@@ -480,9 +496,10 @@ impl BarycenterHeuristic {
 
         if layer.len() > 1 {
             let sort_start = if trace { Some(Instant::now()) } else { None };
+            let barycenter_snapshot = self.barycenter_snapshot(layer);
             let mut entries: Vec<(usize, LNodeRef)> = layer.iter().cloned().enumerate().collect();
             entries.sort_by(|(left_index, left), (right_index, right)| {
-                let ord = self.compare_barycenter(left, right);
+                let ord = self.compare_barycenter(left, right, &barycenter_snapshot);
                 if ord == Ordering::Equal {
                     left_index.cmp(right_index)
                 } else {
@@ -759,6 +776,10 @@ fn layer_index(node: &LNodeRef) -> usize {
         }
     }
     0
+}
+
+fn node_ptr_id(node: &LNodeRef) -> usize {
+    Arc::as_ptr(node) as usize
 }
 
 fn same_layer(left: &LNodeRef, right: &LNodeRef) -> bool {
