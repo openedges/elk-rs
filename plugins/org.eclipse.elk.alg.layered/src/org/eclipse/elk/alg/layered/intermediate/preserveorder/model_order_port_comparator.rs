@@ -372,6 +372,13 @@ impl ModelOrderPortComparator {
         self.clear_transitive_ordering();
     }
 
+    pub fn reset_for_previous_layer_slice(&mut self, previous_layer: &[LNodeRef]) {
+        self.previous_layer.clear();
+        self.previous_layer.extend(previous_layer.iter().cloned());
+        self.target_node_model_order = None;
+        self.clear_transitive_ordering();
+    }
+
     pub fn reset_for_node_target_model_order(
         &mut self,
         target_node_model_order: Option<HashMap<NodeRefKey, i32>>,

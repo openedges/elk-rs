@@ -78,13 +78,13 @@ impl ILayoutProcessor<LGraph> for SortByInputModelProcessor {
                 previous_layer_nodes = nodes.clone();
             }
 
-            pre_ports_node_comparator.reset_for_previous_layer(previous_layer_nodes.clone());
+            pre_ports_node_comparator.reset_for_previous_layer_slice(&previous_layer_nodes);
             Self::insertion_sort(nodes.as_mut_slice(), &mut pre_ports_node_comparator);
             if let Ok(mut layer_guard) = layer.lock() {
                 layer_guard.nodes_mut().clone_from(&nodes);
             }
 
-            port_comparator.reset_for_previous_layer(previous_layer_nodes.clone());
+            port_comparator.reset_for_previous_layer_slice(&previous_layer_nodes);
             for node in &nodes {
                 let constraints = node
                     .lock()
@@ -114,12 +114,12 @@ impl ILayoutProcessor<LGraph> for SortByInputModelProcessor {
                 }
             }
 
-            post_ports_node_comparator.reset_for_previous_layer(previous_layer_nodes);
+            post_ports_node_comparator.reset_for_previous_layer_slice(&previous_layer_nodes);
             Self::insertion_sort(nodes.as_mut_slice(), &mut post_ports_node_comparator);
             if let Ok(mut layer_guard) = layer.lock() {
                 layer_guard.nodes_mut().clone_from(&nodes);
             }
-            previous_layer_nodes = nodes.clone();
+            previous_layer_nodes = nodes;
         }
 
         progress_monitor.done();

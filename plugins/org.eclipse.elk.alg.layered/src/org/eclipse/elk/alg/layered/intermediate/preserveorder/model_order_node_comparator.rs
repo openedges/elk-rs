@@ -231,6 +231,12 @@ impl ModelOrderNodeComparator {
         self.clear_transitive_ordering();
     }
 
+    pub fn reset_for_previous_layer_slice(&mut self, previous_layer: &[LNodeRef]) {
+        self.previous_layer.clear();
+        self.previous_layer.extend(previous_layer.iter().cloned());
+        self.clear_transitive_ordering();
+    }
+
     fn ensure_sets(&mut self, key: &NodeRefKey) {
         self.bigger_than.entry(key.clone()).or_default();
         self.smaller_than.entry(key.clone()).or_default();

@@ -429,9 +429,9 @@ impl LayerSweepCrossingMinimizer {
         );
         for (layer_index, layer) in layers.iter().enumerate() {
             let prev_layer = previous_layer_index
-                .and_then(|previous| layers.get(previous).cloned())
-                .unwrap_or_default();
-            comp.reset_for_previous_layer(prev_layer);
+                .and_then(|previous| layers.get(previous).map(|layer| layer.as_slice()))
+                .unwrap_or(&[]);
+            comp.reset_for_previous_layer_slice(prev_layer);
             active_indices.clear();
             for (index, node) in layer.iter().enumerate() {
                 let has_model_order = node
@@ -477,9 +477,9 @@ impl LayerSweepCrossingMinimizer {
         );
         for (layer_index, layer) in layers.iter().enumerate() {
             let prev_layer = previous_layer_index
-                .and_then(|previous| layers.get(previous).cloned())
-                .unwrap_or_default();
-            comp.reset_for_previous_layer(prev_layer);
+                .and_then(|previous| layers.get(previous).map(|layer| layer.as_slice()))
+                .unwrap_or(&[]);
+            comp.reset_for_previous_layer_slice(prev_layer);
             for node in layer {
                 let maybe_ports = node
                     .lock()
