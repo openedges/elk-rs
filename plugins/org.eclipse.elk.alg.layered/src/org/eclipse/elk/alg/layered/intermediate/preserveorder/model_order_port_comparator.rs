@@ -53,7 +53,8 @@ impl ModelOrderPortComparator {
         target_node_model_order: Option<HashMap<NodeRefKey, i32>>,
         port_model_order: bool,
     ) -> Self {
-        let previous_layer_position = build_layer_position_map(&previous_layer);
+        let mut previous_layer_position = HashMap::with_capacity(previous_layer.len());
+        refill_layer_position_map(&mut previous_layer_position, &previous_layer);
         ModelOrderPortComparator {
             target_node_model_order,
             port_model_order,
@@ -171,19 +172,26 @@ impl ModelOrderPortComparator {
                         && layer_id(&p1_node)
                             == layer_id(&port_node(p1).unwrap_or_else(|| p1_node.clone()))
                     {
-                        let reference_layer = p1_node
+                        let in_previous = p1_node
                             .lock()
                             .ok()
                             .and_then(|node_guard| node_guard.layer())
                             .and_then(|layer| {
-                                layer
-                                    .lock()
-                                    .ok()
-                                    .map(|layer_guard| layer_guard.nodes().clone())
+                                layer.lock().ok().map(|layer_guard| {
+                                    self.check_reference_layer(
+                                        layer_guard.nodes(),
+                                        &p1_node,
+                                        &p2_node,
+                                    )
+                                })
                             })
-                            .unwrap_or_else(|| self.previous_layer.clone());
-                        let in_previous =
-                            self.check_reference_layer(&reference_layer, &p1_node, &p2_node);
+                            .unwrap_or_else(|| {
+                                self.check_reference_layer(
+                                    &self.previous_layer,
+                                    &p1_node,
+                                    &p2_node,
+                                )
+                            });
                         if in_previous != 0 {
                             if side1 == PortSide::East {
                                 reverse_order = -reverse_order;
@@ -370,7 +378,7 @@ impl ModelOrderPortComparator {
 
     pub fn reset_for_previous_layer(&mut self, previous_layer: Vec<LNodeRef>) {
         self.previous_layer = previous_layer;
-        self.previous_layer_position = build_layer_position_map(&self.previous_layer);
+        refill_layer_position_map(&mut self.previous_layer_position, &self.previous_layer);
         self.target_node_model_order = None;
         self.clear_transitive_ordering();
     }
@@ -378,7 +386,7 @@ impl ModelOrderPortComparator {
     pub fn reset_for_previous_layer_slice(&mut self, previous_layer: &[LNodeRef]) {
         self.previous_layer.clear();
         self.previous_layer.extend(previous_layer.iter().cloned());
-        self.previous_layer_position = build_layer_position_map(&self.previous_layer);
+        refill_layer_position_map(&mut self.previous_layer_position, &self.previous_layer);
         self.target_node_model_order = None;
         self.clear_transitive_ordering();
     }
@@ -648,12 +656,14 @@ fn edge_model_order(edge: &LEdgeRef, graph: &LGraphRef, offset: usize) -> i32 {
     order
 }
 
-fn build_layer_position_map(layer: &[LNodeRef]) -> HashMap<usize, usize> {
-    let mut positions = HashMap::with_capacity(layer.len());
+fn refill_layer_position_map(positions: &mut HashMap<usize, usize>, layer: &[LNodeRef]) {
+    positions.clear();
+    if positions.capacity() < layer.len() {
+        positions.reserve(layer.len() - positions.capacity());
+    }
     for (index, node) in layer.iter().enumerate() {
         positions.insert(node_ptr(node), index);
     }
-    positions
 }
 
 fn node_ptr(node: &LNodeRef) -> usize {
