@@ -15,6 +15,7 @@ static TRACE_CROSSMIN: LazyLock<bool> =
 
 pub struct ModelOrderNodeComparator {
     previous_layer: Vec<LNodeRef>,
+    previous_layer_position: HashMap<NodeRefKey, usize>,
     graph: LGraphRef,
     ordering_strategy: OrderingStrategy,
     _group_order_strategy: GroupOrderStrategy,
@@ -37,8 +38,10 @@ impl ModelOrderNodeComparator {
         group_order_strategy: GroupOrderStrategy,
         before_ports: bool,
     ) -> Self {
+        let previous_layer_position = build_layer_position_map(&previous_layer);
         ModelOrderNodeComparator {
             previous_layer,
+            previous_layer_position,
             graph,
             ordering_strategy,
             _group_order_strategy: group_order_strategy,
@@ -135,13 +138,14 @@ impl ModelOrderNodeComparator {
                         }
                     }
 
-                    for previous_node in &self.previous_layer {
-                        if ArcPtr::eq_nodes(previous_node, p1_node) {
-                            self.update_bigger_and_smaller(n2, n1);
-                            return self.finish_compare(&pair_key, -1);
-                        } else if ArcPtr::eq_nodes(previous_node, p2_node) {
+                    let in_previous = self.compare_in_previous_layer(p1_node, p2_node);
+                    if in_previous != 0 {
+                        if in_previous > 0 {
                             self.update_bigger_and_smaller(n1, n2);
                             return self.finish_compare(&pair_key, 1);
+                        } else {
+                            self.update_bigger_and_smaller(n2, n1);
+                            return self.finish_compare(&pair_key, -1);
                         }
                     }
                 }
@@ -228,12 +232,14 @@ impl ModelOrderNodeComparator {
 
     pub fn reset_for_previous_layer(&mut self, previous_layer: Vec<LNodeRef>) {
         self.previous_layer = previous_layer;
+        self.previous_layer_position = build_layer_position_map(&self.previous_layer);
         self.clear_transitive_ordering();
     }
 
     pub fn reset_for_previous_layer_slice(&mut self, previous_layer: &[LNodeRef]) {
         self.previous_layer.clear();
         self.previous_layer.extend(previous_layer.iter().cloned());
+        self.previous_layer_position = build_layer_position_map(&self.previous_layer);
         self.clear_transitive_ordering();
     }
 
@@ -245,6 +251,25 @@ impl ModelOrderNodeComparator {
     fn finish_compare(&mut self, key: &NodePairKey, value: i32) -> i32 {
         self.visiting.remove(key);
         value
+    }
+
+    fn compare_in_previous_layer(&self, p1_node: &LNodeRef, p2_node: &LNodeRef) -> i32 {
+        let p1_pos = self
+            .previous_layer_position
+            .get(&NodeRefKey(p1_node.clone()))
+            .copied();
+        let p2_pos = self
+            .previous_layer_position
+            .get(&NodeRefKey(p2_node.clone()))
+            .copied();
+        match (p1_pos, p2_pos) {
+            (Some(left), Some(right)) => match left.cmp(&right) {
+                std::cmp::Ordering::Less => -1,
+                std::cmp::Ordering::Equal => 0,
+                std::cmp::Ordering::Greater => 1,
+            },
+            _ => 0,
+        }
     }
 
     fn update_bigger_and_smaller(&mut self, bigger: &LNodeRef, smaller: &LNodeRef) {
@@ -629,4 +654,12 @@ impl ArcPtr {
     fn eq_ports(a: &LPortRef, b: &LPortRef) -> bool {
         std::sync::Arc::ptr_eq(a, b)
     }
+}
+
+fn build_layer_position_map(layer: &[LNodeRef]) -> HashMap<NodeRefKey, usize> {
+    let mut positions = HashMap::with_capacity(layer.len());
+    for (index, node) in layer.iter().enumerate() {
+        positions.insert(NodeRefKey(node.clone()), index);
+    }
+    positions
 }
