@@ -413,9 +413,8 @@ impl LayerSweepCrossingMinimizer {
         let mut previous_layer_index: Option<usize> = None;
         let mut wrong_model_order = 0;
         for (layer_index, layer) in layers.iter().enumerate() {
-            let prev_layer = layers
-                .get(previous_layer_index.unwrap_or(0))
-                .cloned()
+            let prev_layer = previous_layer_index
+                .and_then(|previous| layers.get(previous).cloned())
                 .unwrap_or_default();
             let mut comp = ModelOrderNodeComparator::new(
                 graph.clone(),
@@ -463,9 +462,8 @@ impl LayerSweepCrossingMinimizer {
         let mut previous_layer_index: Option<usize> = None;
         let mut wrong_model_order = 0;
         for (layer_index, layer) in layers.iter().enumerate() {
-            let prev_layer = layers
-                .get(previous_layer_index.unwrap_or(0))
-                .cloned()
+            let prev_layer = previous_layer_index
+                .and_then(|previous| layers.get(previous).cloned())
                 .unwrap_or_default();
             let mut comp = ModelOrderPortComparator::new(
                 graph.clone(),
