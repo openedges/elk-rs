@@ -72,14 +72,9 @@ impl ILayoutProcessor<LGraph> for SortByInputModelProcessor {
                 .unwrap_or_default();
             Self::insertion_sort(nodes.as_mut_slice(), &mut node_comparator);
             if let Ok(mut layer_guard) = layer.lock() {
-                *layer_guard.nodes_mut() = nodes;
+                layer_guard.nodes_mut().clone_from(&nodes);
             }
 
-            let nodes = layer
-                .lock()
-                .ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
             let mut port_comparator = ModelOrderPortComparator::new(
                 comparator_graph.clone(),
                 previous_layer_nodes.clone(),
@@ -87,7 +82,7 @@ impl ILayoutProcessor<LGraph> for SortByInputModelProcessor {
                 None,
                 port_model_order,
             );
-            for node in nodes {
+            for node in &nodes {
                 let constraints = node
                     .lock()
                     .ok()
@@ -102,7 +97,7 @@ impl ILayoutProcessor<LGraph> for SortByInputModelProcessor {
                     continue;
                 }
 
-                let long_edge_targets = Self::long_edge_target_node_preprocessing(&node);
+                let long_edge_targets = Self::long_edge_target_node_preprocessing(node);
                 port_comparator.reset_for_node_target_model_order(Some(long_edge_targets));
                 let mut ports = node
                     .lock()
@@ -124,14 +119,9 @@ impl ILayoutProcessor<LGraph> for SortByInputModelProcessor {
                 group_strategy,
                 false,
             );
-            let mut nodes = layer
-                .lock()
-                .ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
             Self::insertion_sort(nodes.as_mut_slice(), &mut node_comparator);
             if let Ok(mut layer_guard) = layer.lock() {
-                *layer_guard.nodes_mut() = nodes;
+                layer_guard.nodes_mut().clone_from(&nodes);
             }
         }
 
