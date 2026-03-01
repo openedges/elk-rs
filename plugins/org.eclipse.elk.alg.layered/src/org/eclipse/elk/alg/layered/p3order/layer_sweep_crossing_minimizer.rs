@@ -594,31 +594,27 @@ impl LayerSweepCrossingMinimizer {
                 graph_data.port_influence(),
             )
         };
-        let mut stack = VecDeque::new();
-        stack.push_back(start_index);
-        while let Some(index) = stack.pop_back() {
-            let crossings = self.count_current_number_of_crossings(index) as f64;
-            let mut model_order_influence = 0.0;
-            if root_model_order_strategy != OrderingStrategy::None {
-                let order = self.graph_info_holders[index].current_node_order();
-                model_order_influence += root_node_influence
-                    * self.count_model_order_node_changes(
-                        &root_graph_ref,
-                        order,
-                        root_model_order_strategy,
-                        root_group_strategy,
-                    ) as f64;
-                model_order_influence += root_port_influence
-                    * self.count_model_order_port_changes(
-                        &root_graph_ref,
-                        order,
-                        root_model_order_strategy,
-                        root_port_model_order,
-                        root_group_strategy,
-                    ) as f64;
-            }
-            total_crossings += crossings + model_order_influence;
+        let crossings = self.count_current_number_of_crossings(start_index) as f64;
+        let mut model_order_influence = 0.0;
+        if root_model_order_strategy != OrderingStrategy::None {
+            let order = self.graph_info_holders[start_index].current_node_order();
+            model_order_influence += root_node_influence
+                * self.count_model_order_node_changes(
+                    &root_graph_ref,
+                    order,
+                    root_model_order_strategy,
+                    root_group_strategy,
+                ) as f64;
+            model_order_influence += root_port_influence
+                * self.count_model_order_port_changes(
+                    &root_graph_ref,
+                    order,
+                    root_model_order_strategy,
+                    root_port_model_order,
+                    root_group_strategy,
+                ) as f64;
         }
+        total_crossings += crossings + model_order_influence;
         if let Some(start) = start {
             eprintln!(
                 "crossmin: count_crossings_node_port index={} total={} took {} ms",
