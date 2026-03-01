@@ -366,6 +366,14 @@ impl ModelOrderPortComparator {
         self.smaller_than.clear();
     }
 
+    pub fn reset_for_node_target_model_order(
+        &mut self,
+        target_node_model_order: Option<HashMap<NodeRefKey, i32>>,
+    ) {
+        self.target_node_model_order = target_node_model_order;
+        self.clear_transitive_ordering();
+    }
+
     fn check_port_model_order(&self, p1: &LPortRef, p2: &LPortRef) -> i32 {
         if has_port_model_order(p1) && has_port_model_order(p2) {
             let number_of_ports = port_node(p1)

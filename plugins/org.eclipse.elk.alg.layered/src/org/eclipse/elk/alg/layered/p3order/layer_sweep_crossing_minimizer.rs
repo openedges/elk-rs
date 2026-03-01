@@ -464,6 +464,13 @@ impl LayerSweepCrossingMinimizer {
             let prev_layer = previous_layer
                 .clone()
                 .unwrap_or_else(|| layers.first().cloned().unwrap_or_default());
+            let mut comp = ModelOrderPortComparator::new(
+                graph.clone(),
+                prev_layer,
+                strategy,
+                None,
+                port_model_order,
+            );
             for node in layer {
                 let ports = node
                     .lock()
@@ -472,13 +479,7 @@ impl LayerSweepCrossingMinimizer {
                     .unwrap_or_default();
                 let long_edge_targets =
                     SortByInputModelProcessor::long_edge_target_node_preprocessing(node);
-                let mut comp = ModelOrderPortComparator::new(
-                    graph.clone(),
-                    prev_layer.clone(),
-                    strategy,
-                    Some(long_edge_targets),
-                    port_model_order,
-                );
+                comp.reset_for_node_target_model_order(Some(long_edge_targets));
                 for i in 0..ports.len() {
                     for j in (i + 1)..ports.len() {
                         if comp.compare(&ports[i], &ports[j]) > 0 {
@@ -486,7 +487,6 @@ impl LayerSweepCrossingMinimizer {
                         }
                     }
                 }
-                comp.clear_transitive_ordering();
                 let _ = group_strategy;
             }
             previous_layer = Some(layer.clone());
