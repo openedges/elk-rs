@@ -80,6 +80,13 @@ impl ILayoutProcessor<LGraph> for SortByInputModelProcessor {
                 .ok()
                 .map(|layer_guard| layer_guard.nodes().clone())
                 .unwrap_or_default();
+            let mut port_comparator = ModelOrderPortComparator::new(
+                comparator_graph.clone(),
+                previous_layer_nodes.clone(),
+                ordering_strategy,
+                None,
+                port_model_order,
+            );
             for node in nodes {
                 let constraints = node
                     .lock()
@@ -96,13 +103,7 @@ impl ILayoutProcessor<LGraph> for SortByInputModelProcessor {
                 }
 
                 let long_edge_targets = Self::long_edge_target_node_preprocessing(&node);
-                let mut port_comparator = ModelOrderPortComparator::new(
-                    comparator_graph.clone(),
-                    previous_layer_nodes.clone(),
-                    ordering_strategy,
-                    Some(long_edge_targets),
-                    port_model_order,
-                );
+                port_comparator.reset_for_node_target_model_order(Some(long_edge_targets));
                 let mut ports = node
                     .lock()
                     .ok()
