@@ -65,27 +65,20 @@ impl ILayoutProcessor<LGraph> for SortByInputModelProcessor {
             port_model_order,
         );
 
+        let mut previous_layer_nodes = Vec::new();
         for (layer_index, layer) in layers.iter().enumerate() {
-            if let Ok(mut layer_guard) = layer.lock() {
+            let mut nodes = if let Ok(mut layer_guard) = layer.lock() {
                 layer_guard.graph_element().id = layer_index as i32;
+                layer_guard.nodes().clone()
+            } else {
+                Vec::new()
+            };
+            // Java semantics: for the first layer, previousLayer is the layer itself.
+            if layer_index == 0 {
+                previous_layer_nodes = nodes.clone();
             }
 
-            let previous_layer_index = if layer_index == 0 { 0 } else { layer_index - 1 };
-            let previous_layer_nodes = layers
-                .get(previous_layer_index)
-                .and_then(|prev| {
-                    prev.lock()
-                        .ok()
-                        .map(|layer_guard| layer_guard.nodes().clone())
-                })
-                .unwrap_or_default();
-
             pre_ports_node_comparator.reset_for_previous_layer(previous_layer_nodes.clone());
-            let mut nodes = layer
-                .lock()
-                .ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
             Self::insertion_sort(nodes.as_mut_slice(), &mut pre_ports_node_comparator);
             if let Ok(mut layer_guard) = layer.lock() {
                 layer_guard.nodes_mut().clone_from(&nodes);
@@ -126,6 +119,7 @@ impl ILayoutProcessor<LGraph> for SortByInputModelProcessor {
             if let Ok(mut layer_guard) = layer.lock() {
                 layer_guard.nodes_mut().clone_from(&nodes);
             }
+            previous_layer_nodes = nodes.clone();
         }
 
         progress_monitor.done();

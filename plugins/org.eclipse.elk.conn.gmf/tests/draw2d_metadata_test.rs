@@ -1,3 +1,5 @@
+use std::sync::Once;
+
 use org_eclipse_elk_conn_gmf::org::eclipse::elk::conn::gmf::layouter::{
     Draw2DMetaDataProvider, Draw2DOptions,
 };
@@ -6,9 +8,13 @@ use org_eclipse_elk_core::org::eclipse::elk::core::math::ElkPadding;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::{CoreOptions, Direction};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::GraphFeature;
 
+static DRAW2D_OPTIONS_INIT: Once = Once::new();
+
 fn init_draw2d_options() {
-    let service = LayoutMetaDataService::get_instance();
-    service.register_layout_meta_data_provider(&Draw2DMetaDataProvider);
+    DRAW2D_OPTIONS_INIT.call_once(|| {
+        let service = LayoutMetaDataService::get_instance();
+        service.register_layout_meta_data_provider(&Draw2DMetaDataProvider);
+    });
 }
 
 #[test]
