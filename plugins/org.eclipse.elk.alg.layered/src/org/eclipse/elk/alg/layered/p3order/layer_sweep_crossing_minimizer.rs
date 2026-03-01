@@ -418,6 +418,7 @@ impl LayerSweepCrossingMinimizer {
     ) -> i32 {
         let mut previous_layer_index: Option<usize> = None;
         let mut wrong_model_order = 0;
+        let mut active_indices = Vec::new();
         let mut comp = ModelOrderNodeComparator::new(
             graph.clone(),
             Vec::new(),
@@ -431,23 +432,22 @@ impl LayerSweepCrossingMinimizer {
                 .and_then(|previous| layers.get(previous).cloned())
                 .unwrap_or_default();
             comp.reset_for_previous_layer(prev_layer);
-            let has_model_order: Vec<bool> = layer
-                .iter()
-                .map(|node| {
-                    node.lock()
-                        .ok()
-                        .and_then(|mut node_guard| {
-                            node_guard.get_property(InternalProperties::MODEL_ORDER)
-                        })
-                        .is_some()
-                })
-                .collect();
-            for i in 0..layer.len() {
-                if !has_model_order[i] {
-                    continue;
+            active_indices.clear();
+            for (index, node) in layer.iter().enumerate() {
+                let has_model_order = node
+                    .lock()
+                    .ok()
+                    .and_then(|mut node_guard| {
+                        node_guard.get_property(InternalProperties::MODEL_ORDER)
+                    })
+                    .is_some();
+                if has_model_order {
+                    active_indices.push(index);
                 }
-                for j in (i + 1)..layer.len() {
-                    if has_model_order[j] && comp.compare(&layer[i], &layer[j]) > 0 {
+            }
+            for (active_pos, &i) in active_indices.iter().enumerate() {
+                for &j in active_indices.iter().skip(active_pos + 1) {
+                    if comp.compare(&layer[i], &layer[j]) > 0 {
                         wrong_model_order += 1;
                     }
                 }
@@ -481,14 +481,19 @@ impl LayerSweepCrossingMinimizer {
                 .unwrap_or_default();
             comp.reset_for_previous_layer(prev_layer);
             for node in layer {
-                let ports = node
+                let maybe_ports = node
                     .lock()
                     .ok()
-                    .map(|node_guard| node_guard.ports().clone())
-                    .unwrap_or_default();
-                if ports.len() < 2 {
+                    .and_then(|node_guard| {
+                        if node_guard.ports().len() < 2 {
+                            None
+                        } else {
+                            Some(node_guard.ports().clone())
+                        }
+                    });
+                let Some(ports) = maybe_ports else {
                     continue;
-                }
+                };
                 let long_edge_targets =
                     SortByInputModelProcessor::long_edge_target_node_preprocessing(node);
                 comp.reset_for_node_target_model_order(Some(long_edge_targets));
