@@ -45,6 +45,17 @@ pub struct ModelOrderPortComparator {
     smaller_than: HashMap<PortRefKey, HashSet<PortRefKey>>,
 }
 
+struct PortSnapshot {
+    side: PortSide,
+    node: Option<LNodeRef>,
+    incoming_first: Option<LEdgeRef>,
+    incoming_len: usize,
+    outgoing_first: Option<LEdgeRef>,
+    outgoing_len: usize,
+    long_edge_target_node: Option<LNodeRef>,
+    has_model_order: bool,
+}
+
 impl ModelOrderPortComparator {
     pub fn new(
         graph: LGraphRef,
@@ -103,8 +114,10 @@ impl ModelOrderPortComparator {
             return 1;
         }
 
-        let side1 = port_side(p1);
-        let side2 = port_side(p2);
+        let p1_snapshot = port_snapshot(p1);
+        let p2_snapshot = port_snapshot(p2);
+        let side1 = p1_snapshot.side;
+        let side2 = p2_snapshot.side;
         if side1 != side2 {
             let result = match side1.cmp(&side2) {
                 std::cmp::Ordering::Less => -1,
@@ -120,21 +133,21 @@ impl ModelOrderPortComparator {
         }
 
         let mut reverse_order = 1;
-        let incoming1 = incoming_edges(p1);
-        let incoming2 = incoming_edges(p2);
-        if !incoming1.is_empty() && !incoming2.is_empty() {
+        if p1_snapshot.incoming_first.is_some() && p2_snapshot.incoming_first.is_some() {
             if matches!(side1, PortSide::West | PortSide::North | PortSide::South) {
                 reverse_order = -reverse_order;
             }
 
-            let p1_source_port = incoming1[0]
-                .lock()
-                .ok()
-                .and_then(|edge_guard| edge_guard.source());
-            let p2_source_port = incoming2[0]
-                .lock()
-                .ok()
-                .and_then(|edge_guard| edge_guard.source());
+            let p1_source_port =
+                p1_snapshot
+                    .incoming_first
+                    .as_ref()
+                    .and_then(|edge| edge.lock().ok().and_then(|edge_guard| edge_guard.source()));
+            let p2_source_port =
+                p2_snapshot
+                    .incoming_first
+                    .as_ref()
+                    .and_then(|edge| edge.lock().ok().and_then(|edge_guard| edge_guard.source()));
             if let (Some(p1_source_port), Some(p2_source_port)) = (p1_source_port, p2_source_port) {
                 let p1_node = p1_source_port
                     .lock()
@@ -170,7 +183,7 @@ impl ModelOrderPortComparator {
                             == crate::org::eclipse::elk::alg::layered::graph::NodeType::LongEdge
                         && layer_id(&p1_node) == layer_id(&p2_node)
                         && layer_id(&p1_node)
-                            == layer_id(&port_node(p1).unwrap_or_else(|| p1_node.clone()))
+                            == layer_id(p1_snapshot.node.as_ref().unwrap_or(&p1_node))
                     {
                         let in_previous = p1_node
                             .lock()
@@ -218,7 +231,12 @@ impl ModelOrderPortComparator {
                     }
 
                     if self.port_model_order {
-                        let result = self.check_port_model_order(p1, p2);
+                        let result = self.check_port_model_order(
+                            p1,
+                            p2,
+                            p1_snapshot.has_model_order,
+                            p2_snapshot.has_model_order,
+                        );
                         if result != 0 {
                             if result > 0 {
                                 self.update_bigger_and_smaller(p1, p2, reverse_order);
@@ -233,18 +251,12 @@ impl ModelOrderPortComparator {
             }
         }
 
-        let outgoing1 = outgoing_edges(p1);
-        let outgoing2 = outgoing_edges(p2);
-        if !outgoing1.is_empty() && !outgoing2.is_empty() {
+        if p1_snapshot.outgoing_first.is_some() && p2_snapshot.outgoing_first.is_some() {
             if matches!(side1, PortSide::West | PortSide::South) {
                 reverse_order = -reverse_order;
             }
-            let p1_target_node = p1.lock().ok().and_then(|mut port_guard| {
-                port_guard.get_property(InternalProperties::LONG_EDGE_TARGET_NODE)
-            });
-            let p2_target_node = p2.lock().ok().and_then(|mut port_guard| {
-                port_guard.get_property(InternalProperties::LONG_EDGE_TARGET_NODE)
-            });
+            let p1_target_node = p1_snapshot.long_edge_target_node.clone();
+            let p2_target_node = p2_snapshot.long_edge_target_node.clone();
 
             if self.strategy == OrderingStrategy::PreferNodes {
                 if let (Some(p1_target_node), Some(p2_target_node)) =
@@ -290,7 +302,12 @@ impl ModelOrderPortComparator {
             }
 
             if self.port_model_order {
-                let result = self.check_port_model_order(p1, p2);
+                let result = self.check_port_model_order(
+                    p1,
+                    p2,
+                    p1_snapshot.has_model_order,
+                    p2_snapshot.has_model_order,
+                );
                 if result != 0 {
                     if result > 0 {
                         self.update_bigger_and_smaller(p1, p2, reverse_order);
@@ -303,14 +320,14 @@ impl ModelOrderPortComparator {
             }
 
             let mut p1_order = edge_model_order(
-                &outgoing1[0],
+                p1_snapshot.outgoing_first.as_ref().unwrap_or_else(|| unreachable!()),
                 &self.graph,
-                outgoing1.len() + incoming1.len(),
+                p1_snapshot.outgoing_len + p1_snapshot.incoming_len,
             );
             let mut p2_order = edge_model_order(
-                &outgoing2[0],
+                p2_snapshot.outgoing_first.as_ref().unwrap_or_else(|| unreachable!()),
                 &self.graph,
-                outgoing2.len() + incoming2.len(),
+                p2_snapshot.outgoing_len + p2_snapshot.incoming_len,
             );
 
             if let (Some(p1_target_node), Some(p2_target_node)) = (&p1_target_node, &p2_target_node)
@@ -343,14 +360,16 @@ impl ModelOrderPortComparator {
             }
         }
 
-        if !incoming1.is_empty() && !outgoing2.is_empty() {
+        if p1_snapshot.incoming_first.is_some() && p2_snapshot.outgoing_first.is_some() {
             self.update_bigger_and_smaller(p1, p2, reverse_order);
             return 1;
-        } else if !outgoing1.is_empty() && !incoming2.is_empty() {
+        } else if p1_snapshot.outgoing_first.is_some() && p2_snapshot.incoming_first.is_some() {
             self.update_bigger_and_smaller(p2, p1, reverse_order);
             return -1;
-        } else if has_port_model_order(p1) && has_port_model_order(p2) {
-            let number_of_ports = port_node(p1)
+        } else if p1_snapshot.has_model_order && p2_snapshot.has_model_order {
+            let number_of_ports = p1_snapshot
+                .node
+                .as_ref()
                 .and_then(|node| node.lock().ok().map(|node_guard| node_guard.ports().len()))
                 .unwrap_or(0) as i32;
             let p1_order = port_model_order(p1, &self.graph, number_of_ports);
@@ -399,8 +418,14 @@ impl ModelOrderPortComparator {
         self.clear_transitive_ordering();
     }
 
-    fn check_port_model_order(&self, p1: &LPortRef, p2: &LPortRef) -> i32 {
-        if has_port_model_order(p1) && has_port_model_order(p2) {
+    fn check_port_model_order(
+        &self,
+        p1: &LPortRef,
+        p2: &LPortRef,
+        p1_has_model_order: bool,
+        p2_has_model_order: bool,
+    ) -> i32 {
+        if p1_has_model_order && p2_has_model_order {
             let number_of_ports = port_node(p1)
                 .and_then(|node| node.lock().ok().map(|node_guard| node_guard.ports().len()))
                 .unwrap_or(0) as i32;
@@ -517,27 +542,6 @@ impl ModelOrderPortComparator {
     }
 }
 
-fn incoming_edges(port: &LPortRef) -> Vec<LEdgeRef> {
-    port.lock()
-        .ok()
-        .map(|port_guard| port_guard.incoming_edges().clone())
-        .unwrap_or_default()
-}
-
-fn outgoing_edges(port: &LPortRef) -> Vec<LEdgeRef> {
-    port.lock()
-        .ok()
-        .map(|port_guard| port_guard.outgoing_edges().clone())
-        .unwrap_or_default()
-}
-
-fn port_side(port: &LPortRef) -> PortSide {
-    port.lock()
-        .ok()
-        .map(|port_guard| port_guard.side())
-        .unwrap_or(PortSide::Undefined)
-}
-
 fn port_node(port: &LPortRef) -> Option<LNodeRef> {
     port.lock().ok().and_then(|port_guard| port_guard.node())
 }
@@ -566,13 +570,6 @@ fn has_model_order(node: &LNodeRef) -> bool {
     node.lock()
         .ok()
         .and_then(|mut node_guard| node_guard.get_property(InternalProperties::MODEL_ORDER))
-        .is_some()
-}
-
-fn has_port_model_order(port: &LPortRef) -> bool {
-    port.lock()
-        .ok()
-        .and_then(|mut port_guard| port_guard.get_property(InternalProperties::MODEL_ORDER))
         .is_some()
 }
 
@@ -680,4 +677,40 @@ fn to_target_node_position_map(
         }
         pointer_orders
     })
+}
+
+fn port_snapshot(port: &LPortRef) -> PortSnapshot {
+    if let Ok(mut port_guard) = port.lock() {
+        let (incoming_first, incoming_len) = {
+            let incoming = port_guard.incoming_edges();
+            (incoming.first().cloned(), incoming.len())
+        };
+        let (outgoing_first, outgoing_len) = {
+            let outgoing = port_guard.outgoing_edges();
+            (outgoing.first().cloned(), outgoing.len())
+        };
+        return PortSnapshot {
+            side: port_guard.side(),
+            node: port_guard.node(),
+            incoming_first,
+            incoming_len,
+            outgoing_first,
+            outgoing_len,
+            long_edge_target_node: port_guard.get_property(InternalProperties::LONG_EDGE_TARGET_NODE),
+            has_model_order: port_guard
+                .get_property(InternalProperties::MODEL_ORDER)
+                .is_some(),
+        };
+    }
+
+    PortSnapshot {
+        side: PortSide::Undefined,
+        node: None,
+        incoming_first: None,
+        incoming_len: 0,
+        outgoing_first: None,
+        outgoing_len: 0,
+        long_edge_target_node: None,
+        has_model_order: false,
+    }
 }
