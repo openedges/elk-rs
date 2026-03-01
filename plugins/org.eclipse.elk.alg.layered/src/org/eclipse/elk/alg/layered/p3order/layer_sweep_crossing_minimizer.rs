@@ -859,23 +859,13 @@ impl LayerSweepCrossingMinimizer {
     }
 
     fn save_all_node_orders_of_changed_graphs(&mut self) {
-        let indices: Vec<usize> = self
-            .graphs_whose_node_order_changed
-            .iter()
-            .copied()
-            .collect();
-        for index in indices {
+        for &index in &self.graphs_whose_node_order_changed {
             self.graph_info_holders[index].update_best_from_currently_best_or_current();
         }
     }
 
     fn set_currently_best_node_orders(&mut self) {
-        let indices: Vec<usize> = self
-            .graphs_whose_node_order_changed
-            .iter()
-            .copied()
-            .collect();
-        for index in indices {
+        for &index in &self.graphs_whose_node_order_changed {
             self.graph_info_holders[index].update_currently_best_from_current();
         }
     }
