@@ -1,0 +1,9 @@
+# Models excluded from Java parity export
+#
+# Each non-empty, non-comment line is a substring filter passed to the Java
+# export test via -Delk.parity.exclude.  A model whose relative path contains
+# any of these tokens will be skipped during Java export.
+
+# Java ELK bug: zero-size bounding box in component compaction produces NaN
+# y-coordinates.  Rust output is more correct; excluding to avoid false drift.
+tickets/layered/213_componentsCompaction.elkt

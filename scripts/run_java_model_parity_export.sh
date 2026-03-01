@@ -178,6 +178,17 @@ if [ "$JAVA_PARITY_DRY_RUN" != "true" ] && [ "$JAVA_PARITY_APPLY_PATCHES" = "tru
     [ -f "$p" ] || continue
     if git -C "$ELK_ROOT" apply "$p"; then
       echo "java parity: applied patch $(basename "$p")"
+      # Verify patch content actually landed in the source tree
+      case "$(basename "$p")" in
+        *self-loop-routing*)
+          _shj="$ELK_ROOT/plugins/org.eclipse.elk.alg.layered/src/org/eclipse/elk/alg/layered/intermediate/loops/SelfHyperLoop.java"
+          if [ -f "$_shj" ] && grep -q "MultimapBuilder" "$_shj"; then
+            echo "java parity: VERIFIED patch content in SelfHyperLoop.java"
+          else
+            echo "java parity: WARNING — patch applied but MultimapBuilder NOT found in SelfHyperLoop.java" >&2
+          fi
+          ;;
+      esac
     else
       echo "java parity: failed to apply patch $(basename "$p")" >&2
       exit 1
