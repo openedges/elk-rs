@@ -59,6 +59,9 @@ pub struct LayerSweepCrossingMinimizer {
     graphs_whose_node_order_changed: BTreeSet<usize>,
     graphs_dirty_for_crossing_count: BTreeSet<usize>,
     cached_crossings_by_graph: Vec<Option<i32>>,
+    crossing_count_stack: VecDeque<usize>,
+    crossing_count_visited: Vec<usize>,
+    crossing_count_child_indices: Vec<usize>,
     random: Random,
     random_seed: u64,
 }
@@ -71,6 +74,9 @@ impl LayerSweepCrossingMinimizer {
             graphs_whose_node_order_changed: BTreeSet::new(),
             graphs_dirty_for_crossing_count: BTreeSet::new(),
             cached_crossings_by_graph: Vec::new(),
+            crossing_count_stack: VecDeque::new(),
+            crossing_count_visited: Vec::new(),
+            crossing_count_child_indices: Vec::new(),
             random: Random::default(),
             random_seed: 0,
         }
@@ -508,9 +514,12 @@ impl LayerSweepCrossingMinimizer {
         }
 
         let mut total_crossings = 0;
-        let mut stack = VecDeque::new();
-        let mut visited = Vec::new();
-        let mut child_indices = Vec::new();
+        let mut stack = std::mem::take(&mut self.crossing_count_stack);
+        let mut visited = std::mem::take(&mut self.crossing_count_visited);
+        let mut child_indices = std::mem::take(&mut self.crossing_count_child_indices);
+        stack.clear();
+        visited.clear();
+        child_indices.clear();
         stack.push_back(start_index);
         while let Some(index) = stack.pop_back() {
             visited.push(index);
@@ -536,9 +545,15 @@ impl LayerSweepCrossingMinimizer {
                 }
             }
         }
-        for index in visited {
+        for index in visited.drain(..) {
             self.graphs_dirty_for_crossing_count.remove(&index);
         }
+        stack.clear();
+        visited.clear();
+        child_indices.clear();
+        self.crossing_count_stack = stack;
+        self.crossing_count_visited = visited;
+        self.crossing_count_child_indices = child_indices;
         if let Some(start) = start {
             eprintln!(
                 "crossmin: count_crossings index={} total={} took {} ms",
