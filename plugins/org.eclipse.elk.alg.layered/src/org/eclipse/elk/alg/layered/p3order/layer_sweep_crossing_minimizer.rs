@@ -431,23 +431,23 @@ impl LayerSweepCrossingMinimizer {
                 .and_then(|previous| layers.get(previous).cloned())
                 .unwrap_or_default();
             comp.reset_for_previous_layer(prev_layer);
+            let has_model_order: Vec<bool> = layer
+                .iter()
+                .map(|node| {
+                    node.lock()
+                        .ok()
+                        .and_then(|mut node_guard| {
+                            node_guard.get_property(InternalProperties::MODEL_ORDER)
+                        })
+                        .is_some()
+                })
+                .collect();
             for i in 0..layer.len() {
+                if !has_model_order[i] {
+                    continue;
+                }
                 for j in (i + 1)..layer.len() {
-                    let has_i = layer[i]
-                        .lock()
-                        .ok()
-                        .and_then(|mut node_guard| {
-                            node_guard.get_property(InternalProperties::MODEL_ORDER)
-                        })
-                        .is_some();
-                    let has_j = layer[j]
-                        .lock()
-                        .ok()
-                        .and_then(|mut node_guard| {
-                            node_guard.get_property(InternalProperties::MODEL_ORDER)
-                        })
-                        .is_some();
-                    if has_i && has_j && comp.compare(&layer[i], &layer[j]) > 0 {
+                    if has_model_order[j] && comp.compare(&layer[i], &layer[j]) > 0 {
                         wrong_model_order += 1;
                     }
                 }
@@ -486,6 +486,9 @@ impl LayerSweepCrossingMinimizer {
                     .ok()
                     .map(|node_guard| node_guard.ports().clone())
                     .unwrap_or_default();
+                if ports.len() < 2 {
+                    continue;
+                }
                 let long_edge_targets =
                     SortByInputModelProcessor::long_edge_target_node_preprocessing(node);
                 comp.reset_for_node_target_model_order(Some(long_edge_targets));
