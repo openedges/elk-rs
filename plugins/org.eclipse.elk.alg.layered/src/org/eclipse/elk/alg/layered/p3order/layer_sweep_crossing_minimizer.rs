@@ -32,7 +32,7 @@ use crate::org::eclipse::elk::alg::layered::options::{
     OrderingStrategy,
 };
 use crate::org::eclipse::elk::alg::layered::p3order::{
-    in_north_south_east_west_order, GraphInfoHolder, SweepCopy,
+    in_north_south_east_west_order, GraphInfoHolder,
 };
 use crate::org::eclipse::elk::alg::layered::p3order::random_trace;
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
@@ -828,13 +828,7 @@ impl LayerSweepCrossingMinimizer {
             .copied()
             .collect();
         for index in indices {
-            let sweep = self.graph_info_holders[index]
-                .currently_best_node_and_port_order()
-                .cloned()
-                .unwrap_or_else(|| {
-                    SweepCopy::new(self.graph_info_holders[index].current_node_order())
-                });
-            self.graph_info_holders[index].set_best_node_and_port_order(sweep);
+            self.graph_info_holders[index].update_best_from_currently_best_or_current();
         }
     }
 
@@ -845,8 +839,7 @@ impl LayerSweepCrossingMinimizer {
             .copied()
             .collect();
         for index in indices {
-            let sweep = SweepCopy::new(self.graph_info_holders[index].current_node_order());
-            self.graph_info_holders[index].set_currently_best_node_and_port_order(sweep);
+            self.graph_info_holders[index].update_currently_best_from_current();
         }
     }
 
