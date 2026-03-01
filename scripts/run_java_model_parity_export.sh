@@ -268,6 +268,31 @@ if [ "$JAVA_PARITY_DRY_RUN" != "true" ]; then
   fi
 fi
 
+# ---------------------------------------------------------------------------
+# Guard: purge stale ELK SNAPSHOT artifacts from the local Maven cache.
+#
+# Tycho/OSGi resolves bundles by highest version, so a leftover
+# 0.12.0-SNAPSHOT (or any version higher than the one being built) will
+# silently override the freshly built patched JARs at test runtime.
+# This caused a full-day debugging session (2026-03-01) where the
+# SelfHyperLoop determinism patch appeared to apply correctly but the
+# test still ran with unpatched bytecode from the stale cache.
+# ---------------------------------------------------------------------------
+if [ "$JAVA_PARITY_DRY_RUN" != "true" ]; then
+  _elk_m2_base="${JAVA_PARITY_MVN_LOCAL_REPO:-$HOME/.m2/repository}/org/eclipse/elk"
+  if [ -d "$_elk_m2_base" ]; then
+    _stale_dirs=$(find "$_elk_m2_base" -maxdepth 2 -type d -name '*-SNAPSHOT' 2>/dev/null || true)
+    if [ -n "$_stale_dirs" ]; then
+      _count=$(printf '%s\n' "$_stale_dirs" | wc -l | awk '{print $1}')
+      echo "java parity: purging $_count stale ELK SNAPSHOT directories from Maven cache"
+      printf '%s\n' "$_stale_dirs" | while IFS= read -r d; do
+        echo "  rm -rf $d"
+        rm -rf "$d"
+      done
+    fi
+  fi
+fi
+
 if [ "$JAVA_PARITY_BUILD_PLUGINS" = "true" ]; then
   set -- "$JAVA_PARITY_MVN_BIN" -f "$JAVA_PARITY_PREPARE_POM"
   if [ -n "$JAVA_PARITY_PREPARE_MODULES" ]; then

@@ -369,7 +369,40 @@ This test loads all `.elkt` files from `external/elk-models/examples/` and runs
 recursive layout. Some examples contain cross-hierarchy edges that are not yet
 handled. This does not affect model parity (which uses JSON input).
 
-### 4.3 Failure Analysis
+### 4.3 Stale Maven Cache (Java Export)
+
+**Symptom**: Java determinism patches apply correctly (verified in source tree)
+but the parity test still produces unpatched output.
+
+**Root cause**: Stale ELK SNAPSHOT JARs in `~/.m2/repository/org/eclipse/elk/`.
+Tycho/OSGi resolves bundles by highest version, so a leftover `X.Y.Z-SNAPSHOT`
+that is higher than the version being built silently overrides the freshly
+compiled patched JARs at test runtime.
+
+**Prevention**: `run_java_model_parity_export.sh` automatically purges all ELK
+SNAPSHOT directories from the Maven cache before building. This guard runs
+unconditionally (unless `JAVA_PARITY_DRY_RUN=true`).
+
+**Manual fix**:
+
+```sh
+find ~/.m2/repository/org/eclipse/elk -name '*-SNAPSHOT' -type d -exec rm -rf {} +
+```
+
+Then re-run without `MODEL_PARITY_SKIP_JAVA_EXPORT=true` to regenerate the
+Java baseline.
+
+**Diagnosis**: Use `javap -c` on the suspect class inside the cached JAR to
+confirm which code variant is present:
+
+```sh
+# Check if the patched MultimapBuilder is in the built JAR:
+jar_path=$(find ~/.m2/repository/org/eclipse/elk -name '*.jar' -path '*/alg.layered/*' | head -1)
+javap -c -classpath "$jar_path" org.eclipse.elk.alg.layered.intermediate.loops.SelfHyperLoop \
+  | grep -E 'MultimapBuilder|ArrayListMultimap'
+```
+
+### 4.4 Failure Analysis
 
 See the "Failure Analysis Loop" section in `tests/PARITY.md`.
 

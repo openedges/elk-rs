@@ -36,3 +36,26 @@ Set `JAVA_PARITY_APPLY_PATCHES=false` to skip patch application.
 3. Test: run `scripts/run_java_model_parity_export.sh` and verify the patch
    applies cleanly and the build succeeds.
 4. Add a row to the inventory table above.
+
+## Troubleshooting: patches apply but have no effect
+
+**Symptom**: The export script reports `VERIFIED patch content in ...` but
+the Java test output still shows unpatched behavior.
+
+**Root cause**: Stale ELK SNAPSHOT JARs in the local Maven cache
+(`~/.m2/repository/org/eclipse/elk/*/X.Y.Z-SNAPSHOT/`). Tycho/OSGi resolves
+bundles by highest version number, so a leftover higher-versioned SNAPSHOT
+(e.g. `0.12.0-SNAPSHOT`) silently overrides the freshly built patched JARs
+at test runtime.
+
+**Prevention**: The export script automatically purges all ELK SNAPSHOT
+directories from the Maven cache before building. If you use a custom
+`JAVA_PARITY_MVN_LOCAL_REPO`, the purge targets that directory instead.
+
+**Manual fix** (if the guard is bypassed or insufficient):
+
+```sh
+find ~/.m2/repository/org/eclipse/elk -name '*-SNAPSHOT' -type d -exec rm -rf {} +
+```
+
+Then re-run the full parity export (without `MODEL_PARITY_SKIP_JAVA_EXPORT`).
