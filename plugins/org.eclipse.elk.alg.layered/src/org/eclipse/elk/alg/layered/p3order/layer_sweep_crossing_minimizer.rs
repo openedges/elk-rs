@@ -410,12 +410,13 @@ impl LayerSweepCrossingMinimizer {
         strategy: OrderingStrategy,
         group_strategy: GroupOrderStrategy,
     ) -> i32 {
-        let mut previous_layer: Option<Vec<LNodeRef>> = None;
+        let mut previous_layer_index: Option<usize> = None;
         let mut wrong_model_order = 0;
-        for layer in layers {
-            let prev_layer = previous_layer
-                .clone()
-                .unwrap_or_else(|| layers.first().cloned().unwrap_or_default());
+        for (layer_index, layer) in layers.iter().enumerate() {
+            let prev_layer = layers
+                .get(previous_layer_index.unwrap_or(0))
+                .cloned()
+                .unwrap_or_default();
             let mut comp = ModelOrderNodeComparator::new(
                 graph.clone(),
                 prev_layer,
@@ -445,7 +446,7 @@ impl LayerSweepCrossingMinimizer {
                     }
                 }
             }
-            previous_layer = Some(layer.clone());
+            previous_layer_index = Some(layer_index);
         }
         wrong_model_order
     }
@@ -458,12 +459,14 @@ impl LayerSweepCrossingMinimizer {
         port_model_order: bool,
         group_strategy: GroupOrderStrategy,
     ) -> i32 {
-        let mut previous_layer: Option<Vec<LNodeRef>> = None;
+        let _ = group_strategy;
+        let mut previous_layer_index: Option<usize> = None;
         let mut wrong_model_order = 0;
-        for layer in layers {
-            let prev_layer = previous_layer
-                .clone()
-                .unwrap_or_else(|| layers.first().cloned().unwrap_or_default());
+        for (layer_index, layer) in layers.iter().enumerate() {
+            let prev_layer = layers
+                .get(previous_layer_index.unwrap_or(0))
+                .cloned()
+                .unwrap_or_default();
             let mut comp = ModelOrderPortComparator::new(
                 graph.clone(),
                 prev_layer,
@@ -487,9 +490,8 @@ impl LayerSweepCrossingMinimizer {
                         }
                     }
                 }
-                let _ = group_strategy;
             }
-            previous_layer = Some(layer.clone());
+            previous_layer_index = Some(layer_index);
         }
         wrong_model_order
     }
