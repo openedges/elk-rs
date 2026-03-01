@@ -418,18 +418,19 @@ impl LayerSweepCrossingMinimizer {
     ) -> i32 {
         let mut previous_layer_index: Option<usize> = None;
         let mut wrong_model_order = 0;
+        let mut comp = ModelOrderNodeComparator::new(
+            graph.clone(),
+            Vec::new(),
+            strategy,
+            LongEdgeOrderingStrategy::Equal,
+            group_strategy,
+            false,
+        );
         for (layer_index, layer) in layers.iter().enumerate() {
             let prev_layer = previous_layer_index
                 .and_then(|previous| layers.get(previous).cloned())
                 .unwrap_or_default();
-            let mut comp = ModelOrderNodeComparator::new(
-                graph.clone(),
-                prev_layer,
-                strategy,
-                LongEdgeOrderingStrategy::Equal,
-                group_strategy,
-                false,
-            );
+            comp.reset_for_previous_layer(prev_layer);
             for i in 0..layer.len() {
                 for j in (i + 1)..layer.len() {
                     let has_i = layer[i]
@@ -467,17 +468,18 @@ impl LayerSweepCrossingMinimizer {
         let _ = group_strategy;
         let mut previous_layer_index: Option<usize> = None;
         let mut wrong_model_order = 0;
+        let mut comp = ModelOrderPortComparator::new(
+            graph.clone(),
+            Vec::new(),
+            strategy,
+            None,
+            port_model_order,
+        );
         for (layer_index, layer) in layers.iter().enumerate() {
             let prev_layer = previous_layer_index
                 .and_then(|previous| layers.get(previous).cloned())
                 .unwrap_or_default();
-            let mut comp = ModelOrderPortComparator::new(
-                graph.clone(),
-                prev_layer,
-                strategy,
-                None,
-                port_model_order,
-            );
+            comp.reset_for_previous_layer(prev_layer);
             for node in layer {
                 let ports = node
                     .lock()

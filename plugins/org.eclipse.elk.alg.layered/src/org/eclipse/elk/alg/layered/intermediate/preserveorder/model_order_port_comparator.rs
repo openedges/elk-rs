@@ -366,6 +366,12 @@ impl ModelOrderPortComparator {
         self.smaller_than.clear();
     }
 
+    pub fn reset_for_previous_layer(&mut self, previous_layer: Vec<LNodeRef>) {
+        self.previous_layer = previous_layer;
+        self.target_node_model_order = None;
+        self.clear_transitive_ordering();
+    }
+
     pub fn reset_for_node_target_model_order(
         &mut self,
         target_node_model_order: Option<HashMap<NodeRefKey, i32>>,

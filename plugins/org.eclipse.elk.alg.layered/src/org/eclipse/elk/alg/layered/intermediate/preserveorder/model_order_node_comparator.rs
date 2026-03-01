@@ -223,6 +223,12 @@ impl ModelOrderNodeComparator {
     pub fn clear_transitive_ordering(&mut self) {
         self.bigger_than.clear();
         self.smaller_than.clear();
+        self.visiting.clear();
+    }
+
+    pub fn reset_for_previous_layer(&mut self, previous_layer: Vec<LNodeRef>) {
+        self.previous_layer = previous_layer;
+        self.clear_transitive_ordering();
     }
 
     fn ensure_sets(&mut self, key: &NodeRefKey) {
