@@ -510,6 +510,7 @@ impl LayerSweepCrossingMinimizer {
         let mut total_crossings = 0;
         let mut stack = VecDeque::new();
         let mut visited = Vec::new();
+        let mut child_indices = Vec::new();
         stack.push_back(start_index);
         while let Some(index) = stack.pop_back() {
             visited.push(index);
@@ -528,8 +529,8 @@ impl LayerSweepCrossingMinimizer {
             }
             let crossings = self.cached_crossings_by_graph[index].unwrap_or(0);
             total_crossings += crossings;
-            let child_indices = self.child_graph_indices(index);
-            for child_index in child_indices {
+            self.collect_child_graph_indices(index, &mut child_indices);
+            for &child_index in &child_indices {
                 if !self.graph_info_holders[child_index].dont_sweep_into() {
                     stack.push_back(child_index);
                 }
@@ -602,13 +603,6 @@ impl LayerSweepCrossingMinimizer {
                     ) as f64;
             }
             total_crossings += crossings + model_order_influence;
-            let child_indices = self.child_graph_indices(index);
-            for child_index in child_indices {
-                if !self.graph_info_holders[child_index].dont_sweep_into() {
-                    // children are already included in count_current_number_of_crossings(index)
-                    // for pure crossing count; preserve Java behavior by not double-adding here.
-                }
-            }
         }
         if let Some(start) = start {
             eprintln!(
@@ -907,13 +901,13 @@ impl LayerSweepCrossingMinimizer {
         ))
     }
 
-    fn child_graph_indices(&self, index: usize) -> Vec<usize> {
-        let graph_data = &self.graph_info_holders[index];
-        graph_data
-            .child_graphs()
-            .iter()
-            .filter_map(graph_id)
-            .collect()
+    fn collect_child_graph_indices(&self, index: usize, out: &mut Vec<usize>) {
+        out.clear();
+        for child in self.graph_info_holders[index].child_graphs() {
+            if let Some(child_index) = graph_id(child) {
+                out.push(child_index);
+            }
+        }
     }
 
     #[allow(dead_code)] // Java parity: used in Java but not yet wired in Rust
