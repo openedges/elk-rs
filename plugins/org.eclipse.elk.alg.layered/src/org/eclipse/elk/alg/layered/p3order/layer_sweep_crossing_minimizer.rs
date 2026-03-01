@@ -666,15 +666,16 @@ impl LayerSweepCrossingMinimizer {
                 format_layer_nodes(&order[first])
             );
         }
-        let first_layer = self.graph_info_holders[index].current_node_order()
-            [first_index(forward, length)]
-        .clone();
+        let first_layer_targets = {
+            let order = self.graph_info_holders[index].current_node_order();
+            collect_hierarchical_targets(&order[first_index(forward, length)])
+        };
         let start = if timing {
             Some(std::time::Instant::now())
         } else {
             None
         };
-        improved |= self.sweep_in_hierarchical_nodes(&first_layer, forward, first_sweep);
+        improved |= self.sweep_in_hierarchical_nodes(&first_layer_targets, forward, first_sweep);
         if let Some(start) = start {
             eprintln!(
                 "crossmin: sweep_in_hierarchical_nodes layer={} done in {} ms",
@@ -733,13 +734,16 @@ impl LayerSweepCrossingMinimizer {
                     format_layer_nodes(&order[i_usize])
                 );
             }
-            let layer = self.graph_info_holders[index].current_node_order()[i_usize].clone();
+            let layer_targets = {
+                let order = self.graph_info_holders[index].current_node_order();
+                collect_hierarchical_targets(&order[i_usize])
+            };
             let start = if timing {
                 Some(std::time::Instant::now())
             } else {
                 None
             };
-            improved |= self.sweep_in_hierarchical_nodes(&layer, forward, first_sweep);
+            improved |= self.sweep_in_hierarchical_nodes(&layer_targets, forward, first_sweep);
             if let Some(start) = start {
                 eprintln!(
                     "crossmin: sweep_in_hierarchical_nodes layer={} done in {} ms",
@@ -757,28 +761,19 @@ impl LayerSweepCrossingMinimizer {
 
     fn sweep_in_hierarchical_nodes(
         &mut self,
-        layer: &[LNodeRef],
+        hierarchical_nodes: &[(LNodeRef, usize)],
         is_forward_sweep: bool,
         is_first_sweep: bool,
     ) -> bool {
         let mut improved = false;
-        for node in layer {
-            let nested_graph = node
-                .lock()
-                .ok()
-                .and_then(|node_guard| node_guard.nested_graph());
-            if let Some(nested_graph) = nested_graph {
-                let nested_index = graph_id(&nested_graph);
-                if let Some(nested_index) = nested_index {
-                    if !self.graph_info_holders[nested_index].dont_sweep_into() {
-                        improved |= self.sweep_in_hierarchical_node(
-                            is_forward_sweep,
-                            node,
-                            nested_index,
-                            is_first_sweep,
-                        );
-                    }
-                }
+        for (node, nested_index) in hierarchical_nodes {
+            if !self.graph_info_holders[*nested_index].dont_sweep_into() {
+                improved |= self.sweep_in_hierarchical_node(
+                    is_forward_sweep,
+                    node,
+                    *nested_index,
+                    is_first_sweep,
+                );
             }
         }
         improved
@@ -1410,6 +1405,20 @@ fn graph_id(graph: &LGraphRef) -> Option<usize> {
         .lock()
         .ok()
         .map(|mut graph_guard| graph_guard.graph_element().id as usize)
+}
+
+fn collect_hierarchical_targets(layer: &[LNodeRef]) -> Vec<(LNodeRef, usize)> {
+    layer
+        .iter()
+        .filter_map(|node| {
+            let nested_graph = node
+                .lock()
+                .ok()
+                .and_then(|node_guard| node_guard.nested_graph())?;
+            let nested_index = graph_id(&nested_graph)?;
+            Some((node.clone(), nested_index))
+        })
+        .collect()
 }
 
 fn root_graph_ref(graph: &mut LGraph) -> Option<LGraphRef> {

@@ -56,8 +56,8 @@
   - 향후: NAPI 플랫폼별 패키지 (`@elk-rs/darwin-arm64` 등) 추가 예정
 - **성능 기준선**: Rust ~2.11x slower than Java (`layered_xlarge` 978.63ms vs 463.21ms, synthetic 10/3 baseline)
   - 이전 1,576ms → 978.63ms (**-37.9%**), Phase 1-4 + Phase 5.1/5.2 최적화 반영 (상세: `HISTORY.md`)
-  - 최근 probe: `layered_xlarge` `1,020ms -> 992ms`(5/1), `990ms`(10/3), `988.53ms`(10/3), `986.70ms`(10/3), `984.26ms`(10/3), 최신 `978.63ms`(10/3)
-  - 완료: Phase 1 `LazyLock` 전환(130개 env::var 호출), Phase 2 ports_by_side 버퍼 재사용, Phase 3 Delta crossing cache, Phase 4 P5 hybrid routing-slot kernel, Phase 5.1 P3 barycenter sort snapshot, Phase 5.2 ForsterConstraintResolver arena/index 전환, Phase 5.3 model-order port comparator 재사용, Phase 5.4 previous-layer clone 축소
+  - 최근 probe: `layered_xlarge` `1,020ms -> 992ms`(5/1), `990ms`(10/3), `988.53ms`(10/3), `986.70ms`(10/3), `984.26ms`(10/3), `978.63ms`(10/3), `980.90ms`(full 5-way 10/3), `994.23ms`/`1011.96ms`(rust_native/rust_api 단독 10/3)
+  - 완료: Phase 1 `LazyLock` 전환(130개 env::var 호출), Phase 2 ports_by_side 버퍼 재사용, Phase 3 Delta crossing cache, Phase 4 P5 hybrid routing-slot kernel, Phase 5.1 P3 barycenter sort snapshot, Phase 5.2 ForsterConstraintResolver arena/index 전환, Phase 5.3 model-order port comparator 재사용, Phase 5.4 previous-layer clone 축소, Phase 5.5 hierarchical sweep target snapshot
   - 잔여 병목: Arc/Mutex 기반 core graph lock 경합(~10-15%), malloc/free(~5%), **Phase 5 Full arena 전면 전환 필수 진행 중**
   - 실행 계획: `HISTORY.md`의 `Full arena 전환 필수화 및 실행 계획 확정(2026-03-01)` 항목 기준 Phase 0~4 완료, Phase 5 순차 진행
 - **코드 품질**: `cargo build` warning 0건, `cargo clippy` warning 0건
