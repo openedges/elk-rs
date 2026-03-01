@@ -46,7 +46,9 @@
 - **elk-rs 버전**: `0.11.0` (ELK Java `v0.11.0` 기준 포팅 완료)
   - Cargo workspace 전체 + npm 동일 버전
   - 서브모듈 고정: `external/elk` → `v0.11.0` 태그, `external/elkjs` → `0.11.0` 태그
-- **Model parity**: `matches=1438/1438` (**100%**), `drift=0`, `java_non_ok=10`
+- **Model parity**: `matches=1350/1439`, `drift=89`, `java_non_ok=9`
+  - 이전 기준선(cody.ij.hwang 머신): 1438/1438 (100%) — JDK/머신별 Java ELK 출력 차이로 fresh export 시 89건 drift
+  - 최적화 전후 동일 결과 확인 (pre-optimization baseline = 1350/1439, 동일)
 - **Phase-step trace**: `1439/1439` 모델 전 step 일치, 초기 frontier/hotspot 없음
 - **Tickets parity**: `matches=108/109`, `drift=1` (Java ELK 버그 동일 원인)
 - **JS parity**: 550/550 elk-rs vs Java 일치 (ELKJS_DRIFT 20건은 GWT 아티팩트)

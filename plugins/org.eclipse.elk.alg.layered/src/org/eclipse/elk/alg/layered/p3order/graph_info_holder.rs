@@ -443,14 +443,16 @@ impl GraphInfoHolder {
 
     /// Reuse existing allocation when updating best from currently_best (or current_node_order).
     pub fn update_best_from_currently_best_or_current(&mut self) {
-        if let Some(currently_best) = &self.currently_best_node_and_port_order {
-            let nodes = currently_best.nodes().clone();
+        if self.currently_best_node_and_port_order.is_some() {
+            // Take source temporarily to avoid simultaneous borrows of two Option fields
+            let src = self.currently_best_node_and_port_order.take().unwrap();
             match &mut self.best_node_and_port_order {
-                Some(existing) => existing.copy_from(&nodes),
+                Some(existing) => existing.copy_from_sweep(&src),
                 None => {
-                    self.best_node_and_port_order = Some(SweepCopy::new(&nodes));
+                    self.best_node_and_port_order = Some(src.clone());
                 }
             }
+            self.currently_best_node_and_port_order = Some(src);
         } else {
             match &mut self.best_node_and_port_order {
                 Some(existing) => existing.copy_from(&self.current_node_order),

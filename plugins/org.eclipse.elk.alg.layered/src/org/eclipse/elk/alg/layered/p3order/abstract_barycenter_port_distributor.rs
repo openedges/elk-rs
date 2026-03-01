@@ -360,7 +360,7 @@ impl AbstractBarycenterPortDistributor {
             );
         }
         self.in_layer_ports.clear();
-        self.iterate_ports_and_collect_in_layer_ports(node, &ports);
+        self.iterate_ports_and_collect_in_layer_ports(node, ports);
         if timing {
             eprintln!(
                 "crossmin: in_layer_ports collected node={} count={}",
