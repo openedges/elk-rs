@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::sync::{Arc, LazyLock};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
@@ -12,8 +12,8 @@ use crate::org::eclipse::elk::alg::layered::p5edges::polyline_edge_router::Polyl
 use crate::org::eclipse::elk::alg::layered::p5edges::splines::spline_edge_router::SplineEdgeRouter;
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
 
-static FACTORY_CACHE: LazyLock<Mutex<HashMap<EdgeRouting, Arc<EdgeRouterFactory>>>> =
-    LazyLock::new(|| Mutex::new(HashMap::new()));
+static FACTORY_CACHE: LazyLock<Mutex<FxHashMap<EdgeRouting, Arc<EdgeRouterFactory>>>> =
+    LazyLock::new(|| Mutex::new(FxHashMap::default()));
 
 pub struct EdgeRouterFactory {
     edge_routing: EdgeRouting,

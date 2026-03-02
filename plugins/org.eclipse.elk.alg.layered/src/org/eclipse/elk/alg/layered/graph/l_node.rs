@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::sync::{Arc, Weak};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
@@ -90,7 +90,7 @@ pub struct LNode {
     nested_graph: Option<LGraphRef>,
     margin: LMargin,
     padding: LPadding,
-    port_side_indices: Option<HashMap<PortSide, Pair<usize, usize>>>,
+    port_side_indices: Option<FxHashMap<PortSide, Pair<usize, usize>>>,
     port_sides_cached: bool,
 }
 
@@ -398,7 +398,7 @@ impl LNode {
     }
 
     fn find_port_indices(&mut self) {
-        let mut indices: HashMap<PortSide, Pair<usize, usize>> = HashMap::new();
+        let mut indices: FxHashMap<PortSide, Pair<usize, usize>> = FxHashMap::default();
         if self.ports.is_empty() {
             self.port_side_indices = Some(indices);
             return;

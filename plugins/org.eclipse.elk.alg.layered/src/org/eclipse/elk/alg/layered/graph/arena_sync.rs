@@ -3,7 +3,7 @@
 //! [`ArenaSync`] builds an arena from the existing graph (single lock pass)
 //! and provides methods to synchronize results back to the Arc graph.
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::sync::Arc;
 
 use super::arena::LArena;
@@ -15,9 +15,9 @@ pub struct ArenaSync {
     arena: LArena,
 
     // ── Arc pointer → arena ID ──────────────────────────────────────
-    node_arc_to_id: HashMap<usize, NodeId>,
-    port_arc_to_id: HashMap<usize, PortId>,
-    edge_arc_to_id: HashMap<usize, EdgeId>,
+    node_arc_to_id: FxHashMap<usize, NodeId>,
+    port_arc_to_id: FxHashMap<usize, PortId>,
+    edge_arc_to_id: FxHashMap<usize, EdgeId>,
 
     // ── Arena ID → Arc ref (for sync-back) ──────────────────────────
     node_id_to_arc: Vec<LNodeRef>,
@@ -36,9 +36,9 @@ impl ArenaSync {
     pub fn from_graph(graph: &LGraphRef) -> Self {
         let mut builder = LArenaBuilder::new();
 
-        let mut node_arc_to_id: HashMap<usize, NodeId> = HashMap::new();
-        let mut port_arc_to_id: HashMap<usize, PortId> = HashMap::new();
-        let mut edge_arc_to_id: HashMap<usize, EdgeId> = HashMap::new();
+        let mut node_arc_to_id: FxHashMap<usize, NodeId> = FxHashMap::default();
+        let mut port_arc_to_id: FxHashMap<usize, PortId> = FxHashMap::default();
+        let mut edge_arc_to_id: FxHashMap<usize, EdgeId> = FxHashMap::default();
 
         let mut node_id_to_arc: Vec<LNodeRef> = Vec::new();
         let mut port_id_to_arc: Vec<LPortRef> = Vec::new();
@@ -304,9 +304,9 @@ impl ArenaSync {
 fn add_node_to_builder(
     builder: &mut LArenaBuilder,
     node_ref: &LNodeRef,
-    node_arc_to_id: &mut HashMap<usize, NodeId>,
+    node_arc_to_id: &mut FxHashMap<usize, NodeId>,
     node_id_to_arc: &mut Vec<LNodeRef>,
-    port_arc_to_id: &mut HashMap<usize, PortId>,
+    port_arc_to_id: &mut FxHashMap<usize, PortId>,
     port_id_to_arc: &mut Vec<LPortRef>,
     label_id_to_arc: &mut Vec<LLabelRef>,
 ) -> NodeId {

@@ -1,9 +1,10 @@
 use std::any::Any;
-use std::collections::HashMap;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 use std::sync::LazyLock;
+
+use rustc_hash::FxHashMap;
 
 static TRACE_SIZING: LazyLock<bool> =
     LazyLock::new(|| std::env::var("ELK_TRACE_SIZING").is_ok());
@@ -170,13 +171,13 @@ impl<T: Clone + Send + Sync + 'static> Hash for Property<T> {
 
 #[derive(Clone)]
 pub struct MapPropertyHolder {
-    property_map: HashMap<String, PropertyValue>,
+    property_map: FxHashMap<String, PropertyValue>,
 }
 
 impl MapPropertyHolder {
     pub fn new() -> Self {
         MapPropertyHolder {
-            property_map: HashMap::new(),
+            property_map: FxHashMap::default(),
         }
     }
 
@@ -293,7 +294,7 @@ impl MapPropertyHolder {
         self
     }
 
-    pub fn get_all_properties(&self) -> &HashMap<String, PropertyValue> {
+    pub fn get_all_properties(&self) -> &FxHashMap<String, PropertyValue> {
         &self.property_map
     }
 

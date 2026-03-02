@@ -132,9 +132,7 @@ impl GraphElementAdapter<LNodeRef> for LGraphAdapter {
     fn set_position(&self, _pos: KVector) {}
 
     fn get_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> Option<P> {
-        // Clone properties so we can call get_property (which takes &mut self)
-        let mut props = self.properties.clone();
-        props.get_property(prop)
+        self.properties.get_property_immut(prop)
     }
 
     fn has_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> bool {

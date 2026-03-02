@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::panic::panic_any;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
@@ -14,7 +14,7 @@ pub struct Spacings {
     graph: LGraphRef,
     node_type_spacing_options_horizontal: Vec<Vec<Option<&'static Property<f64>>>>,
     node_type_spacing_options_vertical: Vec<Vec<Option<&'static Property<f64>>>>,
-    graph_property_values: HashMap<usize, f64>,
+    graph_property_values: FxHashMap<usize, f64>,
 }
 
 impl Spacings {
@@ -26,7 +26,7 @@ impl Spacings {
                 NodeType::COUNT
             ],
             node_type_spacing_options_vertical: vec![vec![None; NodeType::COUNT]; NodeType::COUNT],
-            graph_property_values: HashMap::new(),
+            graph_property_values: FxHashMap::default(),
         };
         spacings.precalculate_node_type_spacings();
         spacings.cache_graph_values();
@@ -233,7 +233,7 @@ impl Spacings {
     }
 
     fn cache_graph_values(&mut self) {
-        let mut values: HashMap<usize, f64> = HashMap::new();
+        let mut values: FxHashMap<usize, f64> = FxHashMap::default();
         let mut graph_guard = self.graph.lock().ok();
 
         let mut cache = |property: &'static Property<f64>| {

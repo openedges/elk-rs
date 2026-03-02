@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::rc::Rc;
 
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{
@@ -14,18 +14,18 @@ use crate::org::eclipse::elk::alg::layered::options::internal_properties::Origin
 #[derive(Default)]
 pub struct OriginStore {
     next_id: OriginId,
-    elements: HashMap<OriginId, ElkGraphElementRef>,
-    index: HashMap<usize, OriginId>,
-    ledges: HashMap<OriginId, LEdgeRef>,
+    elements: FxHashMap<OriginId, ElkGraphElementRef>,
+    index: FxHashMap<usize, OriginId>,
+    ledges: FxHashMap<OriginId, LEdgeRef>,
 }
 
 impl OriginStore {
     pub fn new() -> Self {
         OriginStore {
             next_id: 0,
-            elements: HashMap::new(),
-            index: HashMap::new(),
-            ledges: HashMap::new(),
+            elements: FxHashMap::default(),
+            index: FxHashMap::default(),
+            ledges: FxHashMap::default(),
         }
     }
 

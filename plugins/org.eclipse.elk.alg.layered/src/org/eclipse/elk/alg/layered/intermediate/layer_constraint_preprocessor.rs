@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
@@ -17,7 +17,7 @@ impl ILayoutProcessor<LGraph> for LayerConstraintPreprocessor {
         monitor.begin("Layer constraint preprocessing", 1.0);
 
         let mut hidden_nodes = Vec::new();
-        let mut hidden_connections = HashMap::<usize, HiddenNodeConnections>::new();
+        let mut hidden_connections = FxHashMap::<usize, HiddenNodeConnections>::default();
 
         let mut index = 0;
         while index < layered_graph.layerless_nodes().len() {
@@ -44,7 +44,7 @@ fn is_relevant_node(node: &LNodeRef) -> bool {
     constraint == LayerConstraint::FirstSeparate || constraint == LayerConstraint::LastSeparate
 }
 
-fn hide(node: &LNodeRef, hidden_connections: &mut HashMap<usize, HiddenNodeConnections>) {
+fn hide(node: &LNodeRef, hidden_connections: &mut FxHashMap<usize, HiddenNodeConnections>) {
     ensure_no_inacceptable_edges(node);
     let connected_edges = node
         .lock()
@@ -59,7 +59,7 @@ fn hide(node: &LNodeRef, hidden_connections: &mut HashMap<usize, HiddenNodeConne
 fn hide_edge(
     hidden_node: &LNodeRef,
     edge: &LEdgeRef,
-    hidden_connections: &mut HashMap<usize, HiddenNodeConnections>,
+    hidden_connections: &mut FxHashMap<usize, HiddenNodeConnections>,
 ) {
     let is_outgoing = edge
         .lock()
@@ -102,7 +102,7 @@ fn hide_edge(
 fn update_opposite_node_layer_constraints(
     hidden_node: &LNodeRef,
     opposite_node: &LNodeRef,
-    hidden_connections: &mut HashMap<usize, HiddenNodeConnections>,
+    hidden_connections: &mut FxHashMap<usize, HiddenNodeConnections>,
 ) {
     let has_constraint = opposite_node
         .lock()

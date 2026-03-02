@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
@@ -78,7 +78,7 @@ fn port_key(port: &LPortRef) -> usize {
 fn check_merge_allowed(
     curr_node: &LNodeRef,
     last_node: &LNodeRef,
-    hyperedge_ids: &HashMap<usize, i32>,
+    hyperedge_ids: &FxHashMap<usize, i32>,
 ) -> MergeState {
     let curr_has_label_dummies = curr_node
         .lock()
@@ -237,7 +237,7 @@ fn merge_nodes(
     }
 }
 
-fn identify_hyperedges(layered_graph: &LGraph) -> HashMap<usize, i32> {
+fn identify_hyperedges(layered_graph: &LGraph) -> FxHashMap<usize, i32> {
     let mut ports: Vec<LPortRef> = Vec::new();
     for layer in layered_graph.layers() {
         let layer_ports = layer
@@ -259,7 +259,7 @@ fn identify_hyperedges(layered_graph: &LGraph) -> HashMap<usize, i32> {
         ports.extend(layer_ports);
     }
 
-    let mut component_ids: HashMap<usize, i32> = HashMap::new();
+    let mut component_ids: FxHashMap<usize, i32> = FxHashMap::default();
     let mut next_id = 0i32;
     for port in ports {
         if component_ids.contains_key(&port_key(&port)) {
@@ -274,7 +274,7 @@ fn identify_hyperedges(layered_graph: &LGraph) -> HashMap<usize, i32> {
 fn mark_hyperedge_component(
     start: &LPortRef,
     component_id: i32,
-    component_ids: &mut HashMap<usize, i32>,
+    component_ids: &mut FxHashMap<usize, i32>,
 ) {
     let mut stack: Vec<LPortRef> = vec![start.clone()];
     while let Some(port) = stack.pop() {

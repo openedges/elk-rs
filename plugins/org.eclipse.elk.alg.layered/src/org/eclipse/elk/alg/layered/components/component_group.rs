@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::sync::LazyLock;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
@@ -205,8 +205,8 @@ const MODEL_ORDER_CONSTRAINT_PAIRS: &[(u8, u8)] = &[
     (MASK_NORTH_SOUTH, MASK_SOUTH),
 ];
 
-static MODEL_ORDER_CONSTRAINTS: LazyLock<HashMap<u8, Vec<u8>>> = LazyLock::new(|| {
-    let mut map: HashMap<u8, Vec<u8>> = HashMap::new();
+static MODEL_ORDER_CONSTRAINTS: LazyLock<FxHashMap<u8, Vec<u8>>> = LazyLock::new(|| {
+    let mut map: FxHashMap<u8, Vec<u8>> = FxHashMap::default();
     for &(candidate_mask, constraint_mask) in MODEL_ORDER_CONSTRAINT_PAIRS {
         let entry = map.entry(candidate_mask).or_default();
         if !entry.contains(&constraint_mask) {

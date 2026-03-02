@@ -356,6 +356,7 @@ name = "org-eclipse-elk-graph"
 version = "0.11.0"
 dependencies = [
  "parking_lot",
+ "rustc-hash",
 ]
 
 [[package]]

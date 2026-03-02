@@ -1,6 +1,6 @@
 #![allow(clippy::mutable_key_type)]
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::alignment::Alignment;
@@ -167,8 +167,8 @@ fn process_northern_and_southern_port_dummies(layered_graph: &mut LGraph) {
         return;
     };
 
-    let mut ext_port_to_dummy_node_map: Vec<HashMap<OriginId, LNodeRef>> =
-        vec![HashMap::new(); layer_count + 2];
+    let mut ext_port_to_dummy_node_map: Vec<FxHashMap<OriginId, LNodeRef>> =
+        vec![FxHashMap::default(); layer_count + 2];
     let mut new_dummy_nodes: Vec<Vec<LNodeRef>> = vec![Vec::new(); layer_count + 2];
     let mut original_external_port_dummies: Vec<LNodeRef> = Vec::new();
 
