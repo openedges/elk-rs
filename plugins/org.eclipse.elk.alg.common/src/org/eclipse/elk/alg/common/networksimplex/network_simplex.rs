@@ -354,6 +354,10 @@ impl<'a> NetworkSimplex<'a> {
         let mut min_span_out = i32::MAX;
         let mut min_span_in = i32::MAX;
 
+        // Must release node lock before calling edge_target_layer/edge_source_layer,
+        // because those functions lock edge→target/source which may be `node` itself
+        // (incoming edges: target == node; outgoing edges: source == node).
+        // parking_lot::Mutex is non-reentrant → deadlock if re-locked.
         let edges = match node.lock() {
             Ok(node_guard) => node_guard.connected_edges(),
             Err(_) => Vec::new(),
