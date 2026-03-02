@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
@@ -71,24 +71,77 @@ impl ComponentsProcessor {
             return vec![graph.clone()];
         }
 
+        // Pre-build adjacency list and ext_port info — pay lock cost once upfront,
+        // then DFS is lock-free index traversal (eliminates ~90 profile samples of
+        // repeated node→port→edge→port→node lock chains in recursive DFS).
+        let num_nodes = nodes.len();
+        let ptr_to_idx: FxHashMap<usize, usize> = nodes
+            .iter()
+            .enumerate()
+            .map(|(i, n)| (Arc::as_ptr(n) as usize, i))
+            .collect();
+
+        let mut adjacency: Vec<Vec<usize>> = vec![Vec::new(); num_nodes];
+        let mut ext_port_side: Vec<Option<PortSide>> = vec![None; num_nodes];
+
+        for (i, node) in nodes.iter().enumerate() {
+            if let Ok(mut node_guard) = node.lock() {
+                if node_guard.node_type() == NodeType::ExternalPort {
+                    ext_port_side[i] =
+                        node_guard.get_property(InternalProperties::EXT_PORT_SIDE);
+                }
+                for port in node_guard.ports() {
+                    if let Ok(port_guard) = port.lock() {
+                        for edge in port_guard.incoming_edges() {
+                            if let Some(src_node) = edge
+                                .lock()
+                                .ok()
+                                .and_then(|e| e.source())
+                                .and_then(|p| p.lock().ok().and_then(|pg| pg.node()))
+                            {
+                                if let Some(&j) = ptr_to_idx.get(&(Arc::as_ptr(&src_node) as usize)) {
+                                    adjacency[i].push(j);
+                                }
+                            }
+                        }
+                        for edge in port_guard.outgoing_edges() {
+                            if let Some(tgt_node) = edge
+                                .lock()
+                                .ok()
+                                .and_then(|e| e.target())
+                                .and_then(|p| p.lock().ok().and_then(|pg| pg.node()))
+                            {
+                                if let Some(&j) = ptr_to_idx.get(&(Arc::as_ptr(&tgt_node) as usize)) {
+                                    adjacency[i].push(j);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // DFS using pre-built adjacency — lock-free, no Vec alloc per recursive call
         let mut result: Vec<LGraphRef> = Vec::new();
-        let mut visited: FxHashSet<usize> = FxHashSet::default();
-        for node in &nodes {
-            let key = Arc::as_ptr(node) as usize;
-            if visited.contains(&key) {
+        let mut visited = vec![false; num_nodes];
+
+        for start in 0..num_nodes {
+            if visited[start] {
                 continue;
             }
 
-            let mut component_nodes: Vec<LNodeRef> = Vec::new();
+            let mut component_indices: Vec<usize> = Vec::new();
             let mut ext_port_sides: EnumSet<PortSide> = EnumSet::none_of();
-            Self::dfs(
-                node,
+            Self::dfs_flat(
+                start,
+                &adjacency,
+                &ext_port_side,
                 &mut visited,
-                &mut component_nodes,
+                &mut component_indices,
                 &mut ext_port_sides,
             );
 
-            if component_nodes.is_empty() {
+            if component_indices.is_empty() {
                 continue;
             }
 
@@ -105,11 +158,11 @@ impl ComponentsProcessor {
                     None::<org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector>,
                 );
 
-                for component_node in &component_nodes {
+                for &idx in &component_indices {
                     component_guard
                         .layerless_nodes_mut()
-                        .push(component_node.clone());
-                    if let Ok(mut node_guard) = component_node.lock() {
+                        .push(nodes[idx].clone());
+                    if let Ok(mut node_guard) = nodes[idx].lock() {
                         node_guard.set_graph(&component_graph);
                     }
                 }
@@ -195,54 +248,34 @@ impl ComponentsProcessor {
         combine_simple_row(components, target);
     }
 
-    fn dfs(
-        node: &LNodeRef,
-        visited: &mut FxHashSet<usize>,
-        component_nodes: &mut Vec<LNodeRef>,
+    /// Lock-free recursive DFS over pre-built adjacency list.
+    fn dfs_flat(
+        idx: usize,
+        adjacency: &[Vec<usize>],
+        ext_port_side: &[Option<PortSide>],
+        visited: &mut [bool],
+        component: &mut Vec<usize>,
         ext_port_sides: &mut EnumSet<PortSide>,
     ) {
-        let key = Arc::as_ptr(node) as usize;
-        if !visited.insert(key) {
+        if visited[idx] {
             return;
         }
-        component_nodes.push(node.clone());
+        visited[idx] = true;
+        component.push(idx);
 
-        let mut connected_nodes: Vec<LNodeRef> = Vec::new();
-        if let Ok(mut node_guard) = node.lock() {
-            if node_guard.node_type() == NodeType::ExternalPort {
-                if let Some(side) = node_guard.get_property(InternalProperties::EXT_PORT_SIDE) {
-                    ext_port_sides.insert(side);
-                }
-            }
-
-            for port in node_guard.ports() {
-                if let Ok(port_guard) = port.lock() {
-                    for edge in port_guard.incoming_edges() {
-                        if let Some(src_node) = edge
-                            .lock()
-                            .ok()
-                            .and_then(|e| e.source())
-                            .and_then(|p| p.lock().ok().and_then(|pg| pg.node()))
-                        {
-                            connected_nodes.push(src_node);
-                        }
-                    }
-                    for edge in port_guard.outgoing_edges() {
-                        if let Some(tgt_node) = edge
-                            .lock()
-                            .ok()
-                            .and_then(|e| e.target())
-                            .and_then(|p| p.lock().ok().and_then(|pg| pg.node()))
-                        {
-                            connected_nodes.push(tgt_node);
-                        }
-                    }
-                }
-            }
+        if let Some(side) = ext_port_side[idx] {
+            ext_port_sides.insert(side);
         }
 
-        for connected_node in connected_nodes {
-            Self::dfs(&connected_node, visited, component_nodes, ext_port_sides);
+        for &neighbor in &adjacency[idx] {
+            Self::dfs_flat(
+                neighbor,
+                adjacency,
+                ext_port_side,
+                visited,
+                component,
+                ext_port_sides,
+            );
         }
     }
 }
