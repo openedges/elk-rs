@@ -203,8 +203,15 @@ impl<'a> NetworkSimplex<'a> {
             let Some(edge) = self.minimal_slack() else {
                 break;
             };
-            let mut slack = edge_target_layer(&edge) - edge_source_layer(&edge) - edge_delta(&edge);
-            if edge_target_tree_node(&edge) {
+            let (e_delta, e_src, e_tgt) = match edge.lock() {
+                Ok(g) => (g.delta, g.source.clone(), g.target.clone()),
+                Err(_) => break,
+            };
+            let src_layer = e_src.lock().map(|g| g.layer).unwrap_or(0);
+            let tgt_layer = e_tgt.lock().map(|g| g.layer).unwrap_or(0);
+            let tgt_tree = e_tgt.lock().map(|g| g.tree_node).unwrap_or(false);
+            let mut slack = tgt_layer - src_layer - e_delta;
+            if tgt_tree {
                 slack = -slack;
             }
             for node in &self.graph.nodes {
@@ -299,31 +306,47 @@ impl<'a> NetworkSimplex<'a> {
         };
 
         for edge in &edges {
-            let edge_id = edge_internal_id(edge);
+            // Batch: single edge lock to extract all needed properties
+            let (edge_id, is_tree, delta, src, tgt) = match edge.lock() {
+                Ok(g) => (
+                    g.internal_id,
+                    g.tree_edge,
+                    g.delta,
+                    g.source.clone(),
+                    g.target.clone(),
+                ),
+                Err(_) => continue,
+            };
             if self.edge_visited.get(edge_id).copied().unwrap_or(false) {
                 continue;
             }
             if let Some(flag) = self.edge_visited.get_mut(edge_id) {
                 *flag = true;
             }
-            let opposite = edge.lock().ok().map(|edge_guard| edge_guard.other(node));
-            let Some(opposite) = opposite else {
-                continue;
+            let opposite = if Arc::ptr_eq(&src, node) {
+                &tgt
+            } else {
+                &src
             };
 
-            if edge_is_tree_edge(edge) {
-                node_count += self.tight_tree_dfs(&opposite);
-            } else if !node_tree_node(&opposite)
-                && edge_delta(edge) == edge_target_layer(edge) - edge_source_layer(edge)
-            {
-                if let Ok(mut edge_guard) = edge.lock() {
-                    edge_guard.tree_edge = true;
+            if is_tree {
+                node_count += self.tight_tree_dfs(opposite);
+            } else {
+                let opp_tree = opposite.lock().map(|g| g.tree_node).unwrap_or(false);
+                if !opp_tree {
+                    let src_layer = src.lock().map(|g| g.layer).unwrap_or(0);
+                    let tgt_layer = tgt.lock().map(|g| g.layer).unwrap_or(0);
+                    if delta == tgt_layer - src_layer {
+                        if let Ok(mut edge_guard) = edge.lock() {
+                            edge_guard.tree_edge = true;
+                        }
+                        let edge_ptr = Arc::as_ptr(edge) as usize;
+                        if self.tree_edge_set.insert(edge_ptr) {
+                            self.tree_edges.push(edge.clone());
+                        }
+                        node_count += self.tight_tree_dfs(opposite);
+                    }
                 }
-                let edge_ptr = Arc::as_ptr(edge) as usize;
-                if self.tree_edge_set.insert(edge_ptr) {
-                    self.tree_edges.push(edge.clone());
-                }
-                node_count += self.tight_tree_dfs(&opposite);
             }
         }
 
@@ -334,8 +357,17 @@ impl<'a> NetworkSimplex<'a> {
         let mut min_slack = i32::MAX;
         let mut min_edge: Option<NEdgeRef> = None;
         for edge in &self.edges {
-            if edge_source_tree_node(edge) ^ edge_target_tree_node(edge) {
-                let slack = edge_target_layer(edge) - edge_source_layer(edge) - edge_delta(edge);
+            // Batch: single edge lock to get source/target + delta
+            let (delta, src, tgt) = match edge.lock() {
+                Ok(g) => (g.delta, g.source.clone(), g.target.clone()),
+                Err(_) => continue,
+            };
+            let src_tree = src.lock().map(|g| g.tree_node).unwrap_or(false);
+            let tgt_tree = tgt.lock().map(|g| g.tree_node).unwrap_or(false);
+            if src_tree ^ tgt_tree {
+                let src_layer = src.lock().map(|g| g.layer).unwrap_or(0);
+                let tgt_layer = tgt.lock().map(|g| g.layer).unwrap_or(0);
+                let slack = tgt_layer - src_layer - delta;
                 if slack < min_slack {
                     min_slack = slack;
                     min_edge = Some(edge.clone());
@@ -352,17 +384,17 @@ impl<'a> NetworkSimplex<'a> {
             Err(_) => Vec::new(),
         };
         for edge in &edges {
-            if edge_is_tree_edge(edge) {
-                let edge_id = edge_internal_id(edge);
-                if !self.edge_visited.get(edge_id).copied().unwrap_or(false) {
-                    if let Some(flag) = self.edge_visited.get_mut(edge_id) {
-                        *flag = true;
-                    }
-                    let other = edge.lock().ok().map(|edge_guard| edge_guard.other(node));
-                    if let Some(other) = other {
-                        lowest = lowest.min(self.postorder_traversal(&other));
-                    }
+            // Batch: single edge lock
+            let (edge_id, is_tree, src, tgt) = match edge.lock() {
+                Ok(g) => (g.internal_id, g.tree_edge, g.source.clone(), g.target.clone()),
+                Err(_) => continue,
+            };
+            if is_tree && !self.edge_visited.get(edge_id).copied().unwrap_or(false) {
+                if let Some(flag) = self.edge_visited.get_mut(edge_id) {
+                    *flag = true;
                 }
+                let other = if Arc::ptr_eq(&src, node) { tgt } else { src };
+                lowest = lowest.min(self.postorder_traversal(&other));
             }
         }
 
@@ -378,27 +410,18 @@ impl<'a> NetworkSimplex<'a> {
             .unwrap_or(self.post_order)
     }
 
-    fn is_in_head(&self, node: &NNodeRef, edge: &NEdgeRef) -> bool {
-        let source = edge_source(edge);
-        let target = edge_target(edge);
-        let node_id = node_internal_id(node);
-        let source_id = node_internal_id(&source);
-        let target_id = node_internal_id(&target);
-
+    /// Check if `node` is in the head component of the spanning tree edge.
+    /// Uses pre-extracted edge source/target internal IDs to avoid repeated locks.
+    #[inline]
+    fn is_in_head_by_id(&self, node_id: usize, source_id: usize, target_id: usize) -> bool {
         if self.lowest_po_id[source_id] <= self.po_id[node_id]
             && self.po_id[node_id] <= self.po_id[source_id]
             && self.lowest_po_id[target_id] <= self.po_id[node_id]
             && self.po_id[node_id] <= self.po_id[target_id]
         {
-            if self.po_id[source_id] < self.po_id[target_id] {
-                return false;
-            }
-            return true;
+            return self.po_id[source_id] >= self.po_id[target_id];
         }
-        if self.po_id[source_id] < self.po_id[target_id] {
-            return true;
-        }
-        false
+        self.po_id[source_id] < self.po_id[target_id]
     }
 
     fn cutvalues(&mut self) {
@@ -441,13 +464,15 @@ impl<'a> NetworkSimplex<'a> {
                     guard.unknown_cutvalues[0].clone()
                 };
 
-                let edge_id = edge_internal_id(&to_determine);
+                // Batch: single lock on to_determine for all properties
+                let (edge_id, td_weight, source, target) = match to_determine.lock() {
+                    Ok(g) => (g.internal_id, g.weight, g.source.clone(), g.target.clone()),
+                    Err(_) => break,
+                };
                 if edge_id >= self.cutvalue.len() {
                     break;
                 }
-                self.cutvalue[edge_id] = edge_weight(&to_determine);
-                let source = edge_source(&to_determine);
-                let target = edge_target(&to_determine);
+                self.cutvalue[edge_id] = td_weight;
 
                 let cv_edges = match node.lock() {
                     Ok(node_guard) => node_guard.connected_edges(),
@@ -458,26 +483,35 @@ impl<'a> NetworkSimplex<'a> {
                     if Arc::ptr_eq(edge, &to_determine) {
                         continue;
                     }
-                    if edge_is_tree_edge(edge) {
+                    // Batch: single lock per inner edge
+                    let (e_id, e_tree, e_weight, e_src, e_tgt) = match edge.lock() {
+                        Ok(g) => (
+                            g.internal_id,
+                            g.tree_edge,
+                            g.weight,
+                            g.source.clone(),
+                            g.target.clone(),
+                        ),
+                        Err(_) => continue,
+                    };
+                    if e_tree {
                         let same_direction =
-                            edge_source_is(edge, &source) || edge_target_is(edge, &target);
+                            Arc::ptr_eq(&e_src, &source) || Arc::ptr_eq(&e_tgt, &target);
                         if same_direction {
-                            self.cutvalue[edge_id] -=
-                                self.cutvalue[edge_internal_id(edge)] - edge_weight(edge);
+                            self.cutvalue[edge_id] -= self.cutvalue[e_id] - e_weight;
                         } else {
-                            self.cutvalue[edge_id] +=
-                                self.cutvalue[edge_internal_id(edge)] - edge_weight(edge);
+                            self.cutvalue[edge_id] += self.cutvalue[e_id] - e_weight;
                         }
                     } else if Arc::ptr_eq(&node, &source) {
-                        if edge_source_is(edge, &node) {
-                            self.cutvalue[edge_id] += edge_weight(edge);
+                        if Arc::ptr_eq(&e_src, &node) {
+                            self.cutvalue[edge_id] += e_weight;
                         } else {
-                            self.cutvalue[edge_id] -= edge_weight(edge);
+                            self.cutvalue[edge_id] -= e_weight;
                         }
-                    } else if edge_source_is(edge, &node) {
-                        self.cutvalue[edge_id] -= edge_weight(edge);
+                    } else if Arc::ptr_eq(&e_src, &node) {
+                        self.cutvalue[edge_id] -= e_weight;
                     } else {
-                        self.cutvalue[edge_id] += edge_weight(edge);
+                        self.cutvalue[edge_id] += e_weight;
                     }
                 }
 
@@ -495,28 +529,46 @@ impl<'a> NetworkSimplex<'a> {
 
     fn leave_edge(&self) -> Option<NEdgeRef> {
         for edge in &self.tree_edges {
-            if edge_is_tree_edge(edge) {
-                let id = edge_internal_id(edge);
-                if id < self.cutvalue.len() && self.cutvalue[id] < FUZZY_ST_ZERO {
-                    return Some(edge.clone());
-                }
+            // Batch: single edge lock
+            let (is_tree, id) = match edge.lock() {
+                Ok(g) => (g.tree_edge, g.internal_id),
+                Err(_) => continue,
+            };
+            if is_tree && id < self.cutvalue.len() && self.cutvalue[id] < FUZZY_ST_ZERO {
+                return Some(edge.clone());
             }
         }
         None
     }
 
     fn enter_edge(&self, leave: &NEdgeRef) -> Option<NEdgeRef> {
-        if !edge_is_tree_edge(leave) {
+        // Pre-extract leave edge properties once (3 locks total instead of 5 per iteration)
+        let (leave_is_tree, leave_src, leave_tgt) = match leave.lock() {
+            Ok(g) => (g.tree_edge, g.source.clone(), g.target.clone()),
+            Err(_) => return None,
+        };
+        if !leave_is_tree {
             return None;
         }
+        let leave_src_id = leave_src.lock().map(|g| g.internal_id).unwrap_or(0);
+        let leave_tgt_id = leave_tgt.lock().map(|g| g.internal_id).unwrap_or(0);
 
         let mut replace: Option<NEdgeRef> = None;
         let mut rep_slack = i32::MAX;
         for edge in &self.edges {
-            let source = edge_source(edge);
-            let target = edge_target(edge);
-            if self.is_in_head(&source, leave) && !self.is_in_head(&target, leave) {
-                let slack = edge_target_layer(edge) - edge_source_layer(edge) - edge_delta(edge);
+            // Batch: single edge lock
+            let (delta, src, tgt) = match edge.lock() {
+                Ok(g) => (g.delta, g.source.clone(), g.target.clone()),
+                Err(_) => continue,
+            };
+            let src_id = src.lock().map(|g| g.internal_id).unwrap_or(0);
+            let tgt_id = tgt.lock().map(|g| g.internal_id).unwrap_or(0);
+            if self.is_in_head_by_id(src_id, leave_src_id, leave_tgt_id)
+                && !self.is_in_head_by_id(tgt_id, leave_src_id, leave_tgt_id)
+            {
+                let src_layer = src.lock().map(|g| g.layer).unwrap_or(0);
+                let tgt_layer = tgt.lock().map(|g| g.layer).unwrap_or(0);
+                let slack = tgt_layer - src_layer - delta;
                 if slack < rep_slack {
                     rep_slack = slack;
                     replace = Some(edge.clone());
@@ -528,7 +580,19 @@ impl<'a> NetworkSimplex<'a> {
     }
 
     fn exchange(&mut self, leave: &NEdgeRef, enter: &NEdgeRef) {
-        if !edge_is_tree_edge(leave) || edge_is_tree_edge(enter) {
+        // Batch: extract leave/enter properties with minimal locks
+        let (leave_is_tree, leave_src_id, leave_tgt_id) = {
+            let lg = match leave.lock() {
+                Ok(g) => (g.tree_edge, g.source.clone(), g.target.clone()),
+                Err(_) => return,
+            };
+            let src_id = lg.1.lock().map(|g| g.internal_id).unwrap_or(0);
+            let tgt_id = lg.2.lock().map(|g| g.internal_id).unwrap_or(0);
+            (lg.0, src_id, tgt_id)
+        };
+        let enter_is_tree = enter.lock().map(|g| g.tree_edge).unwrap_or(false);
+
+        if !leave_is_tree || enter_is_tree {
             return;
         }
 
@@ -550,12 +614,23 @@ impl<'a> NetworkSimplex<'a> {
             self.tree_edges.push(enter.clone());
         }
 
-        let mut delta = edge_target_layer(enter) - edge_source_layer(enter) - edge_delta(enter);
-        if !self.is_in_head(&edge_target(enter), leave) {
+        // Batch: enter edge properties in single lock
+        let (enter_delta, enter_src, enter_tgt) = match enter.lock() {
+            Ok(g) => (g.delta, g.source.clone(), g.target.clone()),
+            Err(_) => return,
+        };
+        let enter_src_layer = enter_src.lock().map(|g| g.layer).unwrap_or(0);
+        let enter_tgt_layer = enter_tgt.lock().map(|g| g.layer).unwrap_or(0);
+        let enter_tgt_id = enter_tgt.lock().map(|g| g.internal_id).unwrap_or(0);
+
+        let mut delta = enter_tgt_layer - enter_src_layer - enter_delta;
+        if !self.is_in_head_by_id(enter_tgt_id, leave_src_id, leave_tgt_id) {
             delta = -delta;
         }
+        // Pre-extracted leave_src_id/leave_tgt_id: avoids 5 locks per node in loop
         for node in &self.graph.nodes {
-            if !self.is_in_head(node, leave) {
+            let nid = node.lock().map(|g| g.internal_id).unwrap_or(0);
+            if !self.is_in_head_by_id(nid, leave_src_id, leave_tgt_id) {
                 if let Ok(mut node_guard) = node.lock() {
                     node_guard.layer += delta;
                 }
@@ -732,20 +807,12 @@ fn node_internal_id(node: &NNodeRef) -> usize {
         .unwrap_or(0)
 }
 
-fn node_tree_node(node: &NNodeRef) -> bool {
-    node.lock().map(|guard| guard.tree_node).unwrap_or(false)
-}
-
 fn edge_internal_id(edge: &NEdgeRef) -> usize {
     edge.lock().map(|guard| guard.internal_id).unwrap_or(0)
 }
 
 fn edge_delta(edge: &NEdgeRef) -> i32 {
     edge.lock().map(|guard| guard.delta).unwrap_or(0)
-}
-
-fn edge_weight(edge: &NEdgeRef) -> f64 {
-    edge.lock().map(|guard| guard.weight).unwrap_or(0.0)
 }
 
 fn edge_is_tree_edge(edge: &NEdgeRef) -> bool {
@@ -772,18 +839,6 @@ fn edge_target_layer(edge: &NEdgeRef) -> i32 {
         .lock()
         .map(|guard| guard.layer)
         .unwrap_or(0)
-}
-
-fn edge_source_tree_node(edge: &NEdgeRef) -> bool {
-    node_tree_node(&edge_source(edge))
-}
-
-fn edge_target_tree_node(edge: &NEdgeRef) -> bool {
-    node_tree_node(&edge_target(edge))
-}
-
-fn edge_source_is(edge: &NEdgeRef, node: &NNodeRef) -> bool {
-    Arc::ptr_eq(&edge_source(edge), node)
 }
 
 fn edge_target_is(edge: &NEdgeRef, node: &NNodeRef) -> bool {
