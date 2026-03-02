@@ -116,16 +116,20 @@ impl BarycenterHeuristic {
 
     pub(crate) fn randomize_barycenters(&mut self, nodes: &[LNodeRef], random: &mut Random) {
         for node in nodes {
-            let node_label = node
-                .lock()
-                .ok()
-                .map(|mut g| format!("id:{}", g.shape().graph_element().id))
-                .unwrap_or_else(|| "<locked>".into());
             let raw = random.next_double();
-            let value = random_trace::trace_next_double(
-                raw,
-                &format!("barycenter::randomize_barycenters node={node_label}"),
-            );
+            let value = if random_trace::is_enabled() {
+                let node_label = node
+                    .lock()
+                    .ok()
+                    .map(|mut g| format!("id:{}", g.shape().graph_element().id))
+                    .unwrap_or_else(|| "<locked>".into());
+                random_trace::trace_next_double(
+                    raw,
+                    &format!("barycenter::randomize_barycenters node={node_label}"),
+                )
+            } else {
+                raw
+            };
             let li = self.layer_index_of(node);
             let ni = self.node_id_of(node);
             if let Some(state) = self.bary_state_mut(li, ni) {
@@ -186,16 +190,20 @@ impl BarycenterHeuristic {
                 let ni = self.node_id_of(node);
                 let bary = self.bary_state(li, ni).and_then(|s| s.barycenter);
                 if bary.is_none() {
-                    let node_label = node
-                        .lock()
-                        .ok()
-                        .map(|mut g| format!("id:{}", g.shape().graph_element().id))
-                        .unwrap_or_else(|| "<locked>".into());
                     let raw_f = random.next_float();
-                    let raw_f = random_trace::trace_next_float(
-                        raw_f,
-                        &format!("barycenter::fill_in_unknown_barycenters node={node_label}"),
-                    );
+                    let raw_f = if random_trace::is_enabled() {
+                        let node_label = node
+                            .lock()
+                            .ok()
+                            .map(|mut g| format!("id:{}", g.shape().graph_element().id))
+                            .unwrap_or_else(|| "<locked>".into());
+                        random_trace::trace_next_float(
+                            raw_f,
+                            &format!("barycenter::fill_in_unknown_barycenters node={node_label}"),
+                        )
+                    } else {
+                        raw_f
+                    };
                     let value = raw_f * max_bary - 1.0;
                     if let Some(state) = self.bary_state_mut(li, ni) {
                         state.barycenter = Some(value);
@@ -354,10 +362,14 @@ impl BarycenterHeuristic {
         if let Some(state) = self.bary_state_mut(li, ni) {
             if state.degree > 0 {
                 let raw_f = random.next_float();
-                let raw_f = random_trace::trace_next_float(
-                    raw_f,
-                    &format!("barycenter::calculate_barycenter node={node_name}"),
-                );
+                let raw_f = if random_trace::is_enabled() {
+                    random_trace::trace_next_float(
+                        raw_f,
+                        &format!("barycenter::calculate_barycenter node={node_name}"),
+                    )
+                } else {
+                    raw_f
+                };
                 let rand_f32 = raw_f as f32;
                 let random_amount = RANDOM_AMOUNT as f32;
                 let perturbation =
@@ -473,10 +485,14 @@ impl BarycenterHeuristic {
         if let Some(state) = self.bary_state_mut(li, ni) {
             if state.degree > 0 {
                 let raw_f = random.next_float();
-                let raw_f = random_trace::trace_next_float(
-                    raw_f,
-                    &format!("barycenter::calculate_barycenter node={node_name}"),
-                );
+                let raw_f = if random_trace::is_enabled() {
+                    random_trace::trace_next_float(
+                        raw_f,
+                        &format!("barycenter::calculate_barycenter node={node_name}"),
+                    )
+                } else {
+                    raw_f
+                };
                 let rand_f32 = raw_f as f32;
                 let random_amount = RANDOM_AMOUNT as f32;
                 let perturbation =
