@@ -30,13 +30,12 @@ impl HyperEdgeCycleDetector {
         );
 
         for source in segments {
-            let outgoing = source.borrow().outgoing_segment_dependencies().clone();
-            for dep in outgoing {
+            let source_guard = source.borrow();
+            for dep in source_guard.outgoing_segment_dependencies() {
                 let dep_guard = dep.borrow();
                 if !critical_only || dep_guard.dependency_type() == DependencyType::Critical {
-                    let target = dep_guard.target();
-                    if let Some(target) = target {
-                        if source.borrow().mark > target.borrow().mark {
+                    if let Some(target) = dep_guard.target() {
+                        if source_guard.mark > target.borrow().mark {
                             result.push(dep.clone());
                         }
                     }
@@ -181,46 +180,52 @@ impl HyperEdgeCycleDetector {
         sinks: &mut VecDeque<HyperEdgeSegmentRef>,
         critical_only: bool,
     ) {
-        let outgoing = node.borrow().outgoing_segment_dependencies().clone();
-        for dep in outgoing {
-            let dep_guard = dep.borrow();
-            if !critical_only || dep_guard.dependency_type() == DependencyType::Critical {
-                if let Some(target) = dep_guard.target() {
-                    let mut tgt = target.borrow_mut();
-                    if tgt.mark < 0 && dep_guard.weight() > 0 {
-                        let new_in_weight = tgt.in_weight() - dep_guard.weight();
-                        tgt.set_in_weight(new_in_weight);
-                        if dep_guard.dependency_type() == DependencyType::Critical {
-                            let new_weight = tgt.critical_in_weight() - dep_guard.weight();
-                            tgt.set_critical_in_weight(new_weight);
-                        }
-                        let out_weight = tgt.out_weight();
-                        drop(tgt);
-                        if new_in_weight <= 0 && out_weight > 0 {
-                            sources.push_back(target.clone());
+        // Keep node borrow alive to avoid Vec clone of outgoing_segment_dependencies
+        {
+            let node_guard = node.borrow();
+            for dep in node_guard.outgoing_segment_dependencies() {
+                let dep_guard = dep.borrow();
+                if !critical_only || dep_guard.dependency_type() == DependencyType::Critical {
+                    if let Some(target) = dep_guard.target() {
+                        let mut tgt = target.borrow_mut();
+                        if tgt.mark < 0 && dep_guard.weight() > 0 {
+                            let new_in_weight = tgt.in_weight() - dep_guard.weight();
+                            tgt.set_in_weight(new_in_weight);
+                            if dep_guard.dependency_type() == DependencyType::Critical {
+                                let new_weight = tgt.critical_in_weight() - dep_guard.weight();
+                                tgt.set_critical_in_weight(new_weight);
+                            }
+                            let out_weight = tgt.out_weight();
+                            drop(tgt);
+                            if new_in_weight <= 0 && out_weight > 0 {
+                                sources.push_back(target.clone());
+                            }
                         }
                     }
                 }
             }
         }
 
-        let incoming = node.borrow().incoming_segment_dependencies().clone();
-        for dep in incoming {
-            let dep_guard = dep.borrow();
-            if !critical_only || dep_guard.dependency_type() == DependencyType::Critical {
-                if let Some(source) = dep_guard.source() {
-                    let mut src = source.borrow_mut();
-                    if src.mark < 0 && dep_guard.weight() > 0 {
-                        let new_out_weight = src.out_weight() - dep_guard.weight();
-                        src.set_out_weight(new_out_weight);
-                        if dep_guard.dependency_type() == DependencyType::Critical {
-                            let new_weight = src.critical_out_weight() - dep_guard.weight();
-                            src.set_critical_out_weight(new_weight);
-                        }
-                        let in_weight = src.in_weight();
-                        drop(src);
-                        if new_out_weight <= 0 && in_weight > 0 {
-                            sinks.push_back(source.clone());
+        // Keep node borrow alive to avoid Vec clone of incoming_segment_dependencies
+        {
+            let node_guard = node.borrow();
+            for dep in node_guard.incoming_segment_dependencies() {
+                let dep_guard = dep.borrow();
+                if !critical_only || dep_guard.dependency_type() == DependencyType::Critical {
+                    if let Some(source) = dep_guard.source() {
+                        let mut src = source.borrow_mut();
+                        if src.mark < 0 && dep_guard.weight() > 0 {
+                            let new_out_weight = src.out_weight() - dep_guard.weight();
+                            src.set_out_weight(new_out_weight);
+                            if dep_guard.dependency_type() == DependencyType::Critical {
+                                let new_weight = src.critical_out_weight() - dep_guard.weight();
+                                src.set_critical_out_weight(new_weight);
+                            }
+                            let in_weight = src.in_weight();
+                            drop(src);
+                            if new_out_weight <= 0 && in_weight > 0 {
+                                sinks.push_back(source.clone());
+                            }
                         }
                     }
                 }

@@ -423,39 +423,38 @@ impl OrthogonalRoutingGenerator {
         let mut sources: VecDeque<HyperEdgeSegmentRef> = VecDeque::new();
         let mut rightward_targets: VecDeque<HyperEdgeSegmentRef> = VecDeque::new();
         for segment in segments {
-            let in_weight = segment.borrow().incoming_segment_dependencies().len() as i32;
-            let out_weight = segment.borrow().outgoing_segment_dependencies().len() as i32;
-            {
-                let mut segment_guard = segment.borrow_mut();
-                segment_guard.set_in_weight(in_weight);
-                segment_guard.set_out_weight(out_weight);
-            }
+            // Single borrow_mut to read lengths and set weights
+            let mut segment_guard = segment.borrow_mut();
+            let in_weight = segment_guard.incoming_segment_dependencies().len() as i32;
+            let out_weight = segment_guard.outgoing_segment_dependencies().len() as i32;
+            segment_guard.set_in_weight(in_weight);
+            segment_guard.set_out_weight(out_weight);
+            let no_incoming_coords = segment_guard.incoming_connection_coordinates().is_empty();
+            drop(segment_guard);
             if in_weight == 0 {
                 sources.push_back(segment.clone());
             }
-            if out_weight == 0
-                && segment
-                    .borrow()
-                    .incoming_connection_coordinates()
-                    .is_empty()
-            {
+            if out_weight == 0 && no_incoming_coords {
                 rightward_targets.push_back(segment.clone());
             }
         }
 
         let mut max_rank = -1;
         while let Some(node) = sources.pop_front() {
-            let outgoing = node.borrow().outgoing_segment_dependencies().clone();
-            for dep in outgoing {
-                let target = dep.borrow().target();
-                if let Some(target) = target {
-                    let new_slot = node.borrow().routing_slot() + 1;
-                    if target.borrow().routing_slot() < new_slot {
-                        target.borrow_mut().set_routing_slot(new_slot);
+            // Keep node borrow alive to avoid Vec clone of outgoing deps
+            let node_guard = node.borrow();
+            let node_slot = node_guard.routing_slot();
+            for dep in node_guard.outgoing_segment_dependencies() {
+                if let Some(target) = dep.borrow().target() {
+                    let new_slot = node_slot + 1;
+                    let mut tgt = target.borrow_mut();
+                    if tgt.routing_slot() < new_slot {
+                        tgt.set_routing_slot(new_slot);
                     }
-                    max_rank = max_rank.max(target.borrow().routing_slot());
-                    let in_weight = target.borrow().in_weight() - 1;
-                    target.borrow_mut().set_in_weight(in_weight);
+                    max_rank = max_rank.max(tgt.routing_slot());
+                    let in_weight = tgt.in_weight() - 1;
+                    tgt.set_in_weight(in_weight);
+                    drop(tgt);
                     if in_weight == 0 {
                         sources.push_back(target.clone());
                     }
@@ -469,19 +468,22 @@ impl OrthogonalRoutingGenerator {
             }
 
             while let Some(node) = rightward_targets.pop_front() {
-                let incoming = node.borrow().incoming_segment_dependencies().clone();
-                for dep in incoming {
-                    let source = dep.borrow().source();
-                    if let Some(source) = source {
+                // Keep node borrow alive to avoid Vec clone of incoming deps
+                let node_guard = node.borrow();
+                let node_slot = node_guard.routing_slot();
+                for dep in node_guard.incoming_segment_dependencies() {
+                    if let Some(source) = dep.borrow().source() {
                         if !source.borrow().incoming_connection_coordinates().is_empty() {
                             continue;
                         }
-                        let new_slot = node.borrow().routing_slot() - 1;
-                        if source.borrow().routing_slot() > new_slot {
-                            source.borrow_mut().set_routing_slot(new_slot);
+                        let new_slot = node_slot - 1;
+                        let mut src = source.borrow_mut();
+                        if src.routing_slot() > new_slot {
+                            src.set_routing_slot(new_slot);
                         }
-                        let out_weight = source.borrow().out_weight() - 1;
-                        source.borrow_mut().set_out_weight(out_weight);
+                        let out_weight = src.out_weight() - 1;
+                        src.set_out_weight(out_weight);
+                        drop(src);
                         if out_weight == 0 {
                             rightward_targets.push_back(source.clone());
                         }
