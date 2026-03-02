@@ -1,6 +1,6 @@
 #![allow(clippy::mutable_key_type)]
 
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::sync::LazyLock;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
@@ -35,14 +35,14 @@ impl std::hash::Hash for PortRefKey {
 }
 
 pub struct ModelOrderPortComparator {
-    target_node_model_order: Option<HashMap<usize, i32>>,
+    target_node_model_order: Option<FxHashMap<usize, i32>>,
     port_model_order: bool,
     previous_layer: Vec<LNodeRef>,
-    previous_layer_position: HashMap<usize, usize>,
+    previous_layer_position: FxHashMap<usize, usize>,
     graph: LGraphRef,
     strategy: OrderingStrategy,
-    bigger_than: HashMap<PortRefKey, HashSet<PortRefKey>>,
-    smaller_than: HashMap<PortRefKey, HashSet<PortRefKey>>,
+    bigger_than: FxHashMap<PortRefKey, FxHashSet<PortRefKey>>,
+    smaller_than: FxHashMap<PortRefKey, FxHashSet<PortRefKey>>,
 }
 
 struct PortSnapshot {
@@ -61,10 +61,10 @@ impl ModelOrderPortComparator {
         graph: LGraphRef,
         previous_layer: Vec<LNodeRef>,
         strategy: OrderingStrategy,
-        target_node_model_order: Option<HashMap<NodeRefKey, i32>>,
+        target_node_model_order: Option<FxHashMap<NodeRefKey, i32>>,
         port_model_order: bool,
     ) -> Self {
-        let mut previous_layer_position = HashMap::with_capacity(previous_layer.len());
+        let mut previous_layer_position = FxHashMap::with_capacity_and_hasher(previous_layer.len(), Default::default());
         refill_layer_position_map(&mut previous_layer_position, &previous_layer);
         ModelOrderPortComparator {
             target_node_model_order: to_target_node_position_map(target_node_model_order),
@@ -73,8 +73,8 @@ impl ModelOrderPortComparator {
             previous_layer_position,
             graph,
             strategy,
-            bigger_than: HashMap::new(),
-            smaller_than: HashMap::new(),
+            bigger_than: FxHashMap::default(),
+            smaller_than: FxHashMap::default(),
         }
     }
 
@@ -412,7 +412,7 @@ impl ModelOrderPortComparator {
 
     pub fn reset_for_node_target_model_order(
         &mut self,
-        target_node_model_order: Option<HashMap<NodeRefKey, i32>>,
+        target_node_model_order: Option<FxHashMap<NodeRefKey, i32>>,
     ) {
         self.target_node_model_order = to_target_node_position_map(target_node_model_order);
         self.clear_transitive_ordering();
@@ -653,7 +653,7 @@ fn edge_model_order(edge: &LEdgeRef, graph: &LGraphRef, offset: usize) -> i32 {
     order
 }
 
-fn refill_layer_position_map(positions: &mut HashMap<usize, usize>, layer: &[LNodeRef]) {
+fn refill_layer_position_map(positions: &mut FxHashMap<usize, usize>, layer: &[LNodeRef]) {
     positions.clear();
     if positions.capacity() < layer.len() {
         positions.reserve(layer.len() - positions.capacity());
@@ -668,10 +668,10 @@ fn node_ptr(node: &LNodeRef) -> usize {
 }
 
 fn to_target_node_position_map(
-    target_node_model_order: Option<HashMap<NodeRefKey, i32>>,
-) -> Option<HashMap<usize, i32>> {
+    target_node_model_order: Option<FxHashMap<NodeRefKey, i32>>,
+) -> Option<FxHashMap<usize, i32>> {
     target_node_model_order.map(|orders| {
-        let mut pointer_orders = HashMap::with_capacity(orders.len());
+        let mut pointer_orders = FxHashMap::with_capacity_and_hasher(orders.len(), Default::default());
         for (key, value) in orders {
             pointer_orders.insert(node_ptr(&key.0), value);
         }

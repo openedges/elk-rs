@@ -220,7 +220,7 @@ pub static LONG_EDGE_TARGET_NODE_PROPERTY: LazyLock<Property<LNodeRef>> =
     LazyLock::new(|| Property::new("longEdgeTargetNode"));
 
 pub static TARGET_NODE_MODEL_ORDER_PROPERTY: LazyLock<
-    Property<std::collections::HashMap<NodeRefKey, i32>>,
+    Property<rustc_hash::FxHashMap<NodeRefKey, i32>>,
 > = LazyLock::new(|| Property::new("targetNode.modelOrder"));
 
 pub static FIRST_TRY_WITH_INITIAL_ORDER_PROPERTY: LazyLock<Property<bool>> =
@@ -352,7 +352,7 @@ impl InternalProperties {
     pub const LONG_EDGE_TARGET_NODE: &'static LazyLock<Property<LNodeRef>> =
         &LONG_EDGE_TARGET_NODE_PROPERTY;
     pub const TARGET_NODE_MODEL_ORDER: &'static LazyLock<
-        Property<std::collections::HashMap<NodeRefKey, i32>>,
+        Property<rustc_hash::FxHashMap<NodeRefKey, i32>>,
     > = &TARGET_NODE_MODEL_ORDER_PROPERTY;
     pub const FIRST_TRY_WITH_INITIAL_ORDER: &'static LazyLock<Property<bool>> =
         &FIRST_TRY_WITH_INITIAL_ORDER_PROPERTY;

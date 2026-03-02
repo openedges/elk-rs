@@ -1,6 +1,6 @@
 #![allow(clippy::mutable_key_type)]
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
@@ -153,8 +153,8 @@ impl SortByInputModelProcessor {
         comparator.clear_transitive_ordering();
     }
 
-    pub fn long_edge_target_node_preprocessing(node: &LNodeRef) -> HashMap<NodeRefKey, i32> {
-        let mut target_node_model_order: HashMap<NodeRefKey, i32> = HashMap::new();
+    pub fn long_edge_target_node_preprocessing(node: &LNodeRef) -> FxHashMap<NodeRefKey, i32> {
+        let mut target_node_model_order: FxHashMap<NodeRefKey, i32> = FxHashMap::default();
         let ports = if let Ok(mut node_guard) = node.lock() {
             if let Some(existing) =
                 node_guard.get_property(InternalProperties::TARGET_NODE_MODEL_ORDER)

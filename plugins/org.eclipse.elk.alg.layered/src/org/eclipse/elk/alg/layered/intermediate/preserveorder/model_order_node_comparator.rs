@@ -1,6 +1,6 @@
 #![allow(clippy::mutable_key_type)]
 
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::sync::LazyLock;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LGraphRef, LNodeRef, LPortRef, NodeRefKey, NodeType};
@@ -15,15 +15,15 @@ static TRACE_CROSSMIN: LazyLock<bool> =
 
 pub struct ModelOrderNodeComparator {
     previous_layer: Vec<LNodeRef>,
-    previous_layer_position: HashMap<usize, usize>,
+    previous_layer_position: FxHashMap<usize, usize>,
     graph: LGraphRef,
     ordering_strategy: OrderingStrategy,
     _group_order_strategy: GroupOrderStrategy,
-    bigger_than: HashMap<NodeRefKey, HashSet<NodeRefKey>>,
-    smaller_than: HashMap<NodeRefKey, HashSet<NodeRefKey>>,
+    bigger_than: FxHashMap<NodeRefKey, FxHashSet<NodeRefKey>>,
+    smaller_than: FxHashMap<NodeRefKey, FxHashSet<NodeRefKey>>,
     long_edge_node_order: LongEdgeOrderingStrategy,
     before_ports: bool,
-    visiting: HashSet<NodePairKey>,
+    visiting: FxHashSet<NodePairKey>,
 }
 
 #[derive(Clone, Hash, PartialEq, Eq)]
@@ -38,7 +38,7 @@ impl ModelOrderNodeComparator {
         group_order_strategy: GroupOrderStrategy,
         before_ports: bool,
     ) -> Self {
-        let mut previous_layer_position = HashMap::with_capacity(previous_layer.len());
+        let mut previous_layer_position = FxHashMap::with_capacity_and_hasher(previous_layer.len(), Default::default());
         refill_layer_position_map(&mut previous_layer_position, &previous_layer);
         ModelOrderNodeComparator {
             previous_layer,
@@ -46,11 +46,11 @@ impl ModelOrderNodeComparator {
             graph,
             ordering_strategy,
             _group_order_strategy: group_order_strategy,
-            bigger_than: HashMap::new(),
-            smaller_than: HashMap::new(),
+            bigger_than: FxHashMap::default(),
+            smaller_than: FxHashMap::default(),
             long_edge_node_order,
             before_ports,
-            visiting: HashSet::new(),
+            visiting: FxHashSet::default(),
         }
     }
 
@@ -651,7 +651,7 @@ impl ArcPtr {
     }
 }
 
-fn refill_layer_position_map(positions: &mut HashMap<usize, usize>, layer: &[LNodeRef]) {
+fn refill_layer_position_map(positions: &mut FxHashMap<usize, usize>, layer: &[LNodeRef]) {
     positions.clear();
     if positions.capacity() < layer.len() {
         positions.reserve(layer.len() - positions.capacity());
