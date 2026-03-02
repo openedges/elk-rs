@@ -7,6 +7,7 @@ license.workspace = true
 [dependencies]
 org-eclipse-elk-core = { path = "../org.eclipse.elk.core" }
 org-eclipse-elk-graph = { path = "../org.eclipse.elk.graph" }
+rustc-hash = "2"
 
 [dev-dependencies]
 org-eclipse-elk-alg-force = { path = "../org.eclipse.elk.alg.force" }

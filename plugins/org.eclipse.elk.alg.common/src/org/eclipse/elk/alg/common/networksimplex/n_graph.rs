@@ -66,7 +66,7 @@ impl NGraph {
             Ok(node_guard) => node_guard.connected_edges(),
             Err(_) => Vec::new(),
         };
-        for edge in edges {
+        for edge in &edges {
             let other = edge.lock().ok().map(|edge_guard| edge_guard.other(node));
             if let Some(other) = other {
                 Self::dfs(&other, mark);

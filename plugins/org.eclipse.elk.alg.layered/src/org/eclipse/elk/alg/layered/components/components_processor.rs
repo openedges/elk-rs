@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::collections::HashSet;
+use rustc_hash::FxHashSet;
 use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
@@ -72,7 +72,7 @@ impl ComponentsProcessor {
         }
 
         let mut result: Vec<LGraphRef> = Vec::new();
-        let mut visited: HashSet<usize> = HashSet::new();
+        let mut visited: FxHashSet<usize> = FxHashSet::default();
         for node in &nodes {
             let key = Arc::as_ptr(node) as usize;
             if visited.contains(&key) {
@@ -197,7 +197,7 @@ impl ComponentsProcessor {
 
     fn dfs(
         node: &LNodeRef,
-        visited: &mut HashSet<usize>,
+        visited: &mut FxHashSet<usize>,
         component_nodes: &mut Vec<LNodeRef>,
         ext_port_sides: &mut EnumSet<PortSide>,
     ) {
@@ -215,13 +215,26 @@ impl ComponentsProcessor {
                 }
             }
 
-            for port in node_guard.ports().clone() {
+            for port in node_guard.ports() {
                 if let Ok(port_guard) = port.lock() {
-                    for connected_port in port_guard.connected_ports() {
-                        if let Some(connected_node) =
-                            connected_port.lock().ok().and_then(|port| port.node())
+                    for edge in port_guard.incoming_edges() {
+                        if let Some(src_node) = edge
+                            .lock()
+                            .ok()
+                            .and_then(|e| e.source())
+                            .and_then(|p| p.lock().ok().and_then(|pg| pg.node()))
                         {
-                            connected_nodes.push(connected_node);
+                            connected_nodes.push(src_node);
+                        }
+                    }
+                    for edge in port_guard.outgoing_edges() {
+                        if let Some(tgt_node) = edge
+                            .lock()
+                            .ok()
+                            .and_then(|e| e.target())
+                            .and_then(|p| p.lock().ok().and_then(|pg| pg.node()))
+                        {
+                            connected_nodes.push(tgt_node);
                         }
                     }
                 }
@@ -1204,7 +1217,7 @@ fn collect_component_nodes(graph: &LGraphRef) -> Vec<LNodeRef> {
         return Vec::new();
     };
 
-    let mut seen: HashSet<usize> = HashSet::new();
+    let mut seen: FxHashSet<usize> = FxHashSet::default();
     let mut nodes: Vec<LNodeRef> = Vec::new();
 
     for node in layerless_nodes {

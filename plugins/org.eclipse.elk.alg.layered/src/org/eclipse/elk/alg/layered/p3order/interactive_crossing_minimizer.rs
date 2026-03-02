@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
-use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
+
+use rustc_hash::FxHashMap;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutPhase;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
@@ -68,7 +69,7 @@ impl InteractiveCrossingMinimizer {
     fn compare_nodes_by_pos(
         node1: &LNodeRef,
         node2: &LNodeRef,
-        positions: &HashMap<usize, f64>,
+        positions: &FxHashMap<usize, f64>,
     ) -> Ordering {
         let pos1 = positions
             .get(&Self::node_ptr_id(node1))
@@ -305,7 +306,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveCrossingMinimizer {
                 horiz_pos /= positioned_nodes as f64;
             }
 
-            let mut positions: HashMap<usize, f64> = HashMap::with_capacity(layer_nodes.len());
+            let mut positions: FxHashMap<usize, f64> = FxHashMap::with_capacity_and_hasher(layer_nodes.len(), Default::default());
             for (node_index, node) in layer_nodes.iter().enumerate() {
                 let pos = Self::get_pos(node, horiz_pos, interactive_reference_point);
                 if let Ok(mut node_guard) = node.lock() {

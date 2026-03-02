@@ -218,6 +218,7 @@ dependencies = [
  "org-eclipse-elk-alg-rectpacking",
  "org-eclipse-elk-core",
  "org-eclipse-elk-graph",
+ "rustc-hash",
 ]
 
 [[package]]

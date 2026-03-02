@@ -116,8 +116,11 @@ impl AbstractBarycenterPortDistributor {
         rank_sum: f64,
         port_type: PortType,
     ) -> f64 {
-        if let Some(snap) = self.snapshot.clone() {
-            return self.calculate_port_ranks_node_relative_snap(&snap, node, rank_sum, port_type);
+        if self.snapshot.is_some() {
+            let snap = self.snapshot.take().unwrap();
+            let result = self.calculate_port_ranks_node_relative_snap(&snap, node, rank_sum, port_type);
+            self.snapshot = Some(snap);
+            return result;
         }
         // Lock-based fallback
         let ports = node
@@ -285,8 +288,11 @@ impl AbstractBarycenterPortDistributor {
         rank_sum: f64,
         port_type: PortType,
     ) -> f64 {
-        if let Some(snap) = self.snapshot.clone() {
-            return self.calculate_port_ranks_layer_total_snap(&snap, node, rank_sum, port_type);
+        if self.snapshot.is_some() {
+            let snap = self.snapshot.take().unwrap();
+            let result = self.calculate_port_ranks_layer_total_snap(&snap, node, rank_sum, port_type);
+            self.snapshot = Some(snap);
+            return result;
         }
         // Lock-based fallback
         let ports = node
@@ -428,8 +434,10 @@ impl AbstractBarycenterPortDistributor {
         layer_index: usize,
         layer_size: usize,
     ) {
-        if let Some(snap) = self.snapshot.clone() {
+        if self.snapshot.is_some() {
+            let snap = self.snapshot.take().unwrap();
             self.distribute_ports_snap(&snap, node, side, layer_index, layer_size);
+            self.snapshot = Some(snap);
             return;
         }
         // Lock-based fallback
@@ -760,10 +768,11 @@ impl AbstractBarycenterPortDistributor {
         let absurdly_large_float: f32 = (2 * self.layer_size(node) + 1) as f32;
         let timing = *TRACE_CROSSMIN_TIMING;
 
-        let snap = self.snapshot.clone();
-        if let Some(ref snap) = snap {
+        if self.snapshot.is_some() {
+            let snap = self.snapshot.take().unwrap();
             let node_layer = snap.node_layer_index(node);
-            self.iterate_ports_snap(snap, node_layer, absurdly_large_float, timing, node, ports);
+            self.iterate_ports_snap(&snap, node_layer, absurdly_large_float, timing, node, ports);
+            self.snapshot = Some(snap);
         } else {
             self.iterate_ports_lock(absurdly_large_float, timing, node, ports);
         }
@@ -1264,10 +1273,10 @@ impl AbstractBarycenterPortDistributor {
     }
 
     fn update_node_positions(&mut self, node_order: &[Vec<LNodeRef>], current_index: usize) {
-        let snap = self.snapshot.clone();
+        let snap_ref = self.snapshot.as_ref();
         if let Some(layer_positions) = self.node_positions.get_mut(current_index) {
             for (index, node) in node_order[current_index].iter().enumerate() {
-                let nid = if let Some(ref snap) = snap {
+                let nid = if let Some(snap) = snap_ref {
                     snap.node_id(node) as usize
                 } else {
                     node_id(node)
@@ -1304,8 +1313,10 @@ impl AbstractBarycenterPortDistributor {
     }
 
     fn sort_ports(&mut self, node: &LNodeRef) {
-        if let Some(snap) = self.snapshot.clone() {
+        if self.snapshot.is_some() {
+            let snap = self.snapshot.take().unwrap();
             self.sort_ports_snap(&snap, node);
+            self.snapshot = Some(snap);
             return;
         }
         // Lock-based fallback

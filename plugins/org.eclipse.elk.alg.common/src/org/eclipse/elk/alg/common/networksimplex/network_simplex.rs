@@ -2,6 +2,8 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 use std::sync::LazyLock;
 
+use rustc_hash::FxHashSet;
+
 static TRACE_NETWORK_SIMPLEX: LazyLock<bool> =
     LazyLock::new(|| std::env::var_os("ELK_TRACE_NETWORK_SIMPLEX").is_some());
 
@@ -23,6 +25,7 @@ pub struct NetworkSimplex<'a> {
     iteration_limit: i32,
     edges: Vec<NEdgeRef>,
     tree_edges: Vec<NEdgeRef>,
+    tree_edge_set: FxHashSet<usize>,
     sources: Vec<NNodeRef>,
     edge_visited: Vec<bool>,
     post_order: i32,
@@ -41,6 +44,7 @@ impl<'a> NetworkSimplex<'a> {
             iteration_limit: i32::MAX,
             edges: Vec::new(),
             tree_edges: Vec::new(),
+            tree_edge_set: FxHashSet::default(),
             sources: Vec::new(),
             edge_visited: Vec::new(),
             post_order: 1,
@@ -168,6 +172,7 @@ impl<'a> NetworkSimplex<'a> {
 
         self.edges = edges;
         self.tree_edges.clear();
+        self.tree_edge_set.clear();
         self.post_order = 1;
     }
 
@@ -175,6 +180,7 @@ impl<'a> NetworkSimplex<'a> {
         self.cutvalue.clear();
         self.edges.clear();
         self.tree_edges.clear();
+        self.tree_edge_set.clear();
         self.edge_visited.clear();
         self.lowest_po_id.clear();
         self.po_id.clear();
@@ -261,9 +267,9 @@ impl<'a> NetworkSimplex<'a> {
             Err(_) => Vec::new(),
         };
 
-        for edge in edges {
-            let span = edge_target_layer(&edge) - edge_source_layer(&edge);
-            let target_is_node = edge_target_is(&edge, node);
+        for edge in &edges {
+            let span = edge_target_layer(edge) - edge_source_layer(edge);
+            let target_is_node = edge_target_is(edge, node);
             if target_is_node && span < min_span_in {
                 min_span_in = span;
             } else if span < min_span_out {
@@ -292,8 +298,8 @@ impl<'a> NetworkSimplex<'a> {
             Err(_) => Vec::new(),
         };
 
-        for edge in edges {
-            let edge_id = edge_internal_id(&edge);
+        for edge in &edges {
+            let edge_id = edge_internal_id(edge);
             if self.edge_visited.get(edge_id).copied().unwrap_or(false) {
                 continue;
             }
@@ -305,15 +311,16 @@ impl<'a> NetworkSimplex<'a> {
                 continue;
             };
 
-            if edge_is_tree_edge(&edge) {
+            if edge_is_tree_edge(edge) {
                 node_count += self.tight_tree_dfs(&opposite);
             } else if !node_tree_node(&opposite)
-                && edge_delta(&edge) == edge_target_layer(&edge) - edge_source_layer(&edge)
+                && edge_delta(edge) == edge_target_layer(edge) - edge_source_layer(edge)
             {
                 if let Ok(mut edge_guard) = edge.lock() {
                     edge_guard.tree_edge = true;
                 }
-                if !self.tree_edges.iter().any(|e| Arc::ptr_eq(e, &edge)) {
+                let edge_ptr = Arc::as_ptr(edge) as usize;
+                if self.tree_edge_set.insert(edge_ptr) {
                     self.tree_edges.push(edge.clone());
                 }
                 node_count += self.tight_tree_dfs(&opposite);
@@ -344,9 +351,9 @@ impl<'a> NetworkSimplex<'a> {
             Ok(node_guard) => node_guard.connected_edges(),
             Err(_) => Vec::new(),
         };
-        for edge in edges {
-            if edge_is_tree_edge(&edge) {
-                let edge_id = edge_internal_id(&edge);
+        for edge in &edges {
+            if edge_is_tree_edge(edge) {
+                let edge_id = edge_internal_id(edge);
                 if !self.edge_visited.get(edge_id).copied().unwrap_or(false) {
                     if let Some(flag) = self.edge_visited.get_mut(edge_id) {
                         *flag = true;
@@ -400,8 +407,16 @@ impl<'a> NetworkSimplex<'a> {
             let mut tree_edge_count = 0;
             if let Ok(mut node_guard) = node.lock() {
                 node_guard.unknown_cutvalues.clear();
-                let edges = node_guard.connected_edges();
-                for edge in edges {
+                // Collect tree edges into unknown_cutvalues; iterate incoming then outgoing.
+                for i in 0..node_guard.incoming_edges().len() {
+                    let edge = node_guard.incoming_edges()[i].clone();
+                    if edge_is_tree_edge(&edge) {
+                        node_guard.unknown_cutvalues.push(edge);
+                        tree_edge_count += 1;
+                    }
+                }
+                for i in 0..node_guard.outgoing_edges().len() {
+                    let edge = node_guard.outgoing_edges()[i].clone();
                     if edge_is_tree_edge(&edge) {
                         node_guard.unknown_cutvalues.push(edge);
                         tree_edge_count += 1;
@@ -434,35 +449,35 @@ impl<'a> NetworkSimplex<'a> {
                 let source = edge_source(&to_determine);
                 let target = edge_target(&to_determine);
 
-                let edges = match node.lock() {
+                let cv_edges = match node.lock() {
                     Ok(node_guard) => node_guard.connected_edges(),
                     Err(_) => Vec::new(),
                 };
 
-                for edge in edges {
-                    if Arc::ptr_eq(&edge, &to_determine) {
+                for edge in &cv_edges {
+                    if Arc::ptr_eq(edge, &to_determine) {
                         continue;
                     }
-                    if edge_is_tree_edge(&edge) {
+                    if edge_is_tree_edge(edge) {
                         let same_direction =
-                            edge_source_is(&edge, &source) || edge_target_is(&edge, &target);
+                            edge_source_is(edge, &source) || edge_target_is(edge, &target);
                         if same_direction {
                             self.cutvalue[edge_id] -=
-                                self.cutvalue[edge_internal_id(&edge)] - edge_weight(&edge);
+                                self.cutvalue[edge_internal_id(edge)] - edge_weight(edge);
                         } else {
                             self.cutvalue[edge_id] +=
-                                self.cutvalue[edge_internal_id(&edge)] - edge_weight(&edge);
+                                self.cutvalue[edge_internal_id(edge)] - edge_weight(edge);
                         }
                     } else if Arc::ptr_eq(&node, &source) {
-                        if edge_source_is(&edge, &node) {
-                            self.cutvalue[edge_id] += edge_weight(&edge);
+                        if edge_source_is(edge, &node) {
+                            self.cutvalue[edge_id] += edge_weight(edge);
                         } else {
-                            self.cutvalue[edge_id] -= edge_weight(&edge);
+                            self.cutvalue[edge_id] -= edge_weight(edge);
                         }
-                    } else if edge_source_is(&edge, &node) {
-                        self.cutvalue[edge_id] -= edge_weight(&edge);
+                    } else if edge_source_is(edge, &node) {
+                        self.cutvalue[edge_id] -= edge_weight(edge);
                     } else {
-                        self.cutvalue[edge_id] += edge_weight(&edge);
+                        self.cutvalue[edge_id] += edge_weight(edge);
                     }
                 }
 
@@ -522,13 +537,16 @@ impl<'a> NetworkSimplex<'a> {
                 edge_guard.tree_edge = false;
             }
         }
+        let leave_ptr = Arc::as_ptr(leave) as usize;
+        self.tree_edge_set.remove(&leave_ptr);
         self.tree_edges.retain(|edge| !Arc::ptr_eq(edge, leave));
         {
             if let Ok(mut edge_guard) = enter.lock() {
                 edge_guard.tree_edge = true;
             }
         }
-        if !self.tree_edges.iter().any(|edge| Arc::ptr_eq(edge, enter)) {
+        let enter_ptr = Arc::as_ptr(enter) as usize;
+        if self.tree_edge_set.insert(enter_ptr) {
             self.tree_edges.push(enter.clone());
         }
 
@@ -629,7 +647,7 @@ impl<'a> NetworkSimplex<'a> {
         for node in &self.graph.nodes {
             let edge_count = node
                 .lock()
-                .map(|guard| guard.connected_edges().len())
+                .map(|guard| guard.connected_edge_count())
                 .unwrap_or(0);
             if edge_count == 1 {
                 leafs.push_back(node.clone());
@@ -638,17 +656,21 @@ impl<'a> NetworkSimplex<'a> {
 
         let mut stack: VecDeque<Pair<NNodeRef, NEdgeRef>> = VecDeque::new();
         while let Some(node) = leafs.pop_front() {
-            let edges = match node.lock() {
-                Ok(node_guard) => node_guard.connected_edges(),
-                Err(_) => Vec::new(),
-            };
-            if edges.is_empty() {
-                continue;
-            }
-            let edge = edges[0].clone();
-            let is_out_edge = match node.lock() {
-                Ok(node_guard) => !node_guard.outgoing_edges().is_empty(),
-                Err(_) => false,
+            let (edge, is_out_edge) = match node.lock() {
+                Ok(node_guard) => {
+                    if node_guard.connected_edge_count() == 0 {
+                        continue;
+                    }
+                    // First connected edge: incoming first, then outgoing (Java parity)
+                    let is_out = node_guard.incoming_edges().is_empty();
+                    let e = if !node_guard.incoming_edges().is_empty() {
+                        node_guard.incoming_edges()[0].clone()
+                    } else {
+                        node_guard.outgoing_edges()[0].clone()
+                    };
+                    (e, is_out)
+                }
+                Err(_) => continue,
             };
             let other = edge.lock().ok().map(|edge_guard| edge_guard.other(&node));
             let Some(other) = other else {
@@ -661,7 +683,7 @@ impl<'a> NetworkSimplex<'a> {
             }
             let other_edges = other
                 .lock()
-                .map(|guard| guard.connected_edges().len())
+                .map(|guard| guard.connected_edge_count())
                 .unwrap_or(0);
             if other_edges == 1 {
                 leafs.push_back(other);

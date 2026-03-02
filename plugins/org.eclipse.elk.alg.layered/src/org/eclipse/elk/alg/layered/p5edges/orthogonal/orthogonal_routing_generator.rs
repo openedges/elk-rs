@@ -273,23 +273,21 @@ impl OrthogonalRoutingGenerator {
                 HyperEdgeSegmentDependency::create_and_add_critical(he1, he2);
                 critical_dependency_count += 1;
             }
-        } else {
-            if dep_value1 < dep_value2 {
-                HyperEdgeSegmentDependency::create_and_add_regular(
-                    he1,
-                    he2,
-                    dep_value2 - dep_value1,
-                );
-            } else if dep_value1 > dep_value2 {
-                HyperEdgeSegmentDependency::create_and_add_regular(
-                    he2,
-                    he1,
-                    dep_value1 - dep_value2,
-                );
-            } else if dep_value1 > 0 && dep_value2 > 0 {
-                HyperEdgeSegmentDependency::create_and_add_regular(he1, he2, 0);
-                HyperEdgeSegmentDependency::create_and_add_regular(he2, he1, 0);
-            }
+        } else if dep_value1 < dep_value2 {
+            HyperEdgeSegmentDependency::create_and_add_regular(
+                he1,
+                he2,
+                dep_value2 - dep_value1,
+            );
+        } else if dep_value1 > dep_value2 {
+            HyperEdgeSegmentDependency::create_and_add_regular(
+                he2,
+                he1,
+                dep_value1 - dep_value2,
+            );
+        } else if dep_value1 > 0 && dep_value2 > 0 {
+            HyperEdgeSegmentDependency::create_and_add_regular(he1, he2, 0);
+            HyperEdgeSegmentDependency::create_and_add_regular(he2, he1, 0);
         }
 
         critical_dependency_count

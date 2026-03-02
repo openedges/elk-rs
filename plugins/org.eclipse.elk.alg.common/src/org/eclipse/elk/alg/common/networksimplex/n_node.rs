@@ -47,6 +47,12 @@ impl NNode {
         edges.extend(self.outgoing_edges.iter().cloned());
         edges
     }
+
+    /// Number of connected edges without allocation.
+    #[inline]
+    pub fn connected_edge_count(&self) -> usize {
+        self.incoming_edges.len() + self.outgoing_edges.len()
+    }
 }
 
 pub struct NNodeBuilder {
