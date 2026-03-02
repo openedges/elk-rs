@@ -1194,3 +1194,59 @@ P3 진입 시 `ArenaSync::from_graph()` → arena에서 P3 전체 실행 → `sy
 | Mutation-heavy phase | LArenaBuilder | CSR은 immutable이므로 분리 |
 | Nested graph | Arena-per-layout-invocation | Java 모델과 동일, 단순 |
 | Migration | Dual-representation bridge | Phase별 점진 전환, parity 안전 |
+
+---
+
+## 완료: Post-Snapshot 최적화 스프린트 — 975ms → 487ms (2026-03-02)
+
+**목표**: `layered_xlarge` 975ms → ≤750ms (1차), ≤650ms (2차). Java ~463ms.
+**결과**: **975ms → 487ms (-50.1%, 2.0x speedup)**. Java 대비 1.05x. 1차 목표 초과 달성.
+
+### 실행 결과 요약
+
+| Step | Commit | 내용 | 누적 결과 |
+|------|--------|------|-----------|
+| 1 | `a969105` | CrossMinSnapshot CSR phase-local snapshot — lock-free P3/P5 hot paths | 975ms → (누적) |
+| 2 | `2ddefb4` | Snapshot port edge metadata in model-order comparator | ↓ |
+| 3 | `cc62dcf` | Pointer keys for target-node model-order cache | ↓ |
+| 4 | `9290bc3` | Reuse previous-layer position maps in comparators | ↓ |
+| 5 | `d1d2827` `26d4813` | FxHash + direct u32 port collection in P3 crossing counter + BIT allocation reuse | → 553ms |
+| 6 | `4552eee` | P5 orthogonal edge routing (VecDeque, FxHash, batched locks, zero-clone deps) | → 499ms |
+| 7 | `cb9955d` | FxHashMap in P2/P3 hot paths (barycenter, network simplex, greedy switch) | → 493ms |
+| 8 | `9ad42c4` | FxHashSet for P5 junction point dedup | → 487ms |
+
+- Steps 1-5: 975ms → 553ms (-43.3%) — P3 crossing minimization 중심
+- Steps 6-8: 553ms → 487ms (-11.9%) — P5 edge routing + 전역 hash 전환
+
+### Phase 타이밍 프로필 (487ms 기준)
+
+| Phase | 시간 | 비율 | 비고 |
+|-------|------|------|------|
+| P3 CrossingMinimizer | 270ms | 54% | 여전히 지배적, full arena 전환 대상 |
+| P5 OrthogonalEdgeRouter | 114ms | 23% | 스프린트 전 173ms에서 34% 감소 |
+| P2 NetworkSimplexLayerer | 43ms | 9% | |
+| LabelAndNodeSizeProcessor | 23ms | 5% | |
+| 기타 | 37ms | 9% | |
+
+### 핵심 최적화 기법
+
+1. **CrossMinSnapshot CSR 확장**: 기존 CrossMinSnapshot(335줄)의 flat-indexed CSR 형식을 P3/P5 전체 hot path로 확장. Lock-free node/port/edge 순회 달성.
+2. **FxHashMap/FxHashSet** (`rustc-hash`): `usize` 포인터 키에 대해 SipHash(~20ns) → FxHash(~3-5ns) 전환. P2/P3/P5 전역 적용.
+3. **VecDeque**: `Vec::remove(0)` O(n) → `VecDeque::pop_front()` O(1). Topological numbering, cycle detector FIFO 큐.
+4. **Batched Mutex locks**: Port lock 1회로 anchor+edges 수집, edge lock 1회로 is_self_loop+target 수집. P5 routing 3개 전략 전부 적용.
+5. **Zero-clone RefCell borrows**: 서로 다른 `Rc<RefCell<T>>`를 동시 borrow하여 `create_dependency_if_necessary`의 Vec<f64> clone 4회/pair 제거.
+6. **BinaryIndexedTree 재사용**: `reset()` 메서드로 allocation 재사용. Sweep 루프 내 매번 새 BIT 생성 대신 capacity 유지.
+7. **u32 port id 직접 수집**: `Arc<Mutex<LPort>>` → `u32` port id 기반 교차 비교. Arc refcount churn 완전 제거.
+
+### 검증
+- `cargo build --workspace` (0 warning)
+- `cargo clippy --workspace --all-targets` (0 warning)
+- `cargo test --workspace` (0 failure)
+- Full parity: 1438/1438 match, 0 drift
+- 벤치마크: `cargo run --release --bin perf_benchmark -- --scenarios layered_xlarge --warmup 8 --iterations 25`
+
+### 교훈
+- Phase-Local Snapshot(이전 스프린트 ~30ms 개선)에서 lock 자체보다 `Vec<Arc<T>>` clone/Arc refcount/malloc이 주요 비용이라는 교훈을 적용. CSR + FxHash + u32 값 복사로 이 3가지를 동시 제거.
+- P5 최적화가 예상(계획상 18.8%)보다 큰 효과. 실측 34.1% → 23%로 감소.
+- `rustc-hash` FxHashMap은 integer 키에 대해 일관된 개선. 단일 변경으로 수 ms씩 절감.
+- Java 대비 1.05x까지 접근. 추가 개선은 full arena(Phase 1 P3 전환)에서 기대.
