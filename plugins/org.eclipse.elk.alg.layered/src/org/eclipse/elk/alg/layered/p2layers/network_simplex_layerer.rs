@@ -87,32 +87,39 @@ impl NetworkSimplexLayerer {
         self.node_visited[idx] = true;
         self.component_nodes.push(node.clone());
 
+        // Collect opposite nodes: clone ports Vec to release node lock early,
+        // then iterate edges via incoming/outgoing directly (avoids connected_edges() alloc)
         let ports = match node.lock() {
             Ok(node_guard) => node_guard.ports().clone(),
             Err(_) => Vec::new(),
         };
 
-        for port in ports {
-            let edges = match port.lock() {
-                Ok(port_guard) => port_guard.connected_edges(),
-                Err(_) => Vec::new(),
-            };
-            for edge in edges {
-                let opposite_port = edge
-                    .lock()
-                    .ok()
-                    .map(|edge_guard| edge_guard.other_port(&port));
-                let Some(opposite_port) = opposite_port else {
-                    continue;
-                };
-                let opposite_node = opposite_port
-                    .lock()
-                    .ok()
-                    .and_then(|port_guard| port_guard.node());
-                let Some(opposite_node) = opposite_node else {
-                    continue;
-                };
-                self.connected_components_dfs(&opposite_node);
+        for port in &ports {
+            let mut opposite_nodes: Vec<LNodeRef> = Vec::new();
+            if let Ok(port_guard) = port.lock() {
+                for edge in port_guard.incoming_edges() {
+                    if let Some(src_node) = edge
+                        .lock()
+                        .ok()
+                        .and_then(|e| e.source())
+                        .and_then(|p| p.lock().ok().and_then(|pg| pg.node()))
+                    {
+                        opposite_nodes.push(src_node);
+                    }
+                }
+                for edge in port_guard.outgoing_edges() {
+                    if let Some(tgt_node) = edge
+                        .lock()
+                        .ok()
+                        .and_then(|e| e.target())
+                        .and_then(|p| p.lock().ok().and_then(|pg| pg.node()))
+                    {
+                        opposite_nodes.push(tgt_node);
+                    }
+                }
+            }
+            for opp in opposite_nodes {
+                self.connected_components_dfs(&opp);
             }
         }
     }

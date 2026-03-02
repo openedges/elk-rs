@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::sync::Arc;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
@@ -79,7 +79,7 @@ pub struct SplineSegment {
     pub hyper_edge_top_y_pos: f64,
     pub hyper_edge_bottom_y_pos: f64,
     pub center_control_point_y: f64,
-    pub edge_information: HashMap<usize, EdgeInformation>,
+    pub edge_information: FxHashMap<usize, EdgeInformation>,
 }
 
 impl SplineSegment {
@@ -213,7 +213,7 @@ impl SplineSegment {
             hyper_edge_top_y_pos: 0.0,
             hyper_edge_bottom_y_pos: 0.0,
             center_control_point_y: 0.0,
-            edge_information: HashMap::new(),
+            edge_information: FxHashMap::default(),
         }
     }
 

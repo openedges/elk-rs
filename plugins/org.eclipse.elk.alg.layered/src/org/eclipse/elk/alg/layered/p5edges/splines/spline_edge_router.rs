@@ -1,4 +1,6 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
+
+use rustc_hash::FxHashMap;
 use std::sync::{Arc, LazyLock};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
@@ -126,8 +128,8 @@ pub struct SplineEdgeRouter {
     self_loops_layer: Vec<LEdgeRef>,
     start_edges: Vec<LEdgeRef>,
     all_spline_segments: Vec<SplineSegmentRef>,
-    edge_to_segment_map: HashMap<usize, SplineSegmentRef>,
-    successing_edge: HashMap<usize, LEdgeRef>,
+    edge_to_segment_map: FxHashMap<usize, SplineSegmentRef>,
+    successing_edge: FxHashMap<usize, LEdgeRef>,
 }
 
 impl SplineEdgeRouter {
@@ -143,8 +145,8 @@ impl SplineEdgeRouter {
             self_loops_layer: Vec::new(),
             start_edges: Vec::new(),
             all_spline_segments: Vec::new(),
-            edge_to_segment_map: HashMap::new(),
-            successing_edge: HashMap::new(),
+            edge_to_segment_map: FxHashMap::default(),
+            successing_edge: FxHashMap::default(),
         }
     }
 

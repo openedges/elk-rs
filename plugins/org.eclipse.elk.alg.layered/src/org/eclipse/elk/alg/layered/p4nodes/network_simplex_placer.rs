@@ -1,4 +1,6 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
+
+use rustc_hash::FxHashMap;
 use std::sync::{Arc, LazyLock};
 
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::networksimplex::{
@@ -48,7 +50,7 @@ pub struct NetworkSimplexPlacer {
     n_graph: NGraph,
     node_reps: Vec<Option<NodeRep>>,
     edge_reps: Vec<Option<EdgeRep>>,
-    port_map: HashMap<usize, NNodeRef>,
+    port_map: FxHashMap<usize, NNodeRef>,
     node_count: usize,
     edge_count: usize,
     node_state: Vec<i32>,
@@ -66,7 +68,7 @@ impl NetworkSimplexPlacer {
             n_graph: NGraph::new(),
             node_reps: Vec::new(),
             edge_reps: Vec::new(),
-            port_map: HashMap::new(),
+            port_map: FxHashMap::default(),
             node_count: 0,
             edge_count: 0,
             node_state: Vec::new(),
