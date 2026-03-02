@@ -63,9 +63,22 @@ impl BinaryIndexedTree {
         }
     }
 
+    /// Reset to a new size, reusing existing heap allocation when capacity suffices.
+    pub fn reset(&mut self, max_num: usize) {
+        self.max_num = max_num;
+        let sums_len = max_num + 1;
+        self.binary_sums.truncate(sums_len);
+        self.binary_sums.resize(sums_len, 0);
+        self.binary_sums.fill(0);
+        self.nums_per_index.truncate(max_num);
+        self.nums_per_index.resize(max_num, 0);
+        self.nums_per_index.fill(0);
+        self.size = 0;
+    }
+
     pub fn clear(&mut self) {
-        self.binary_sums = vec![0; self.max_num + 1];
-        self.nums_per_index = vec![0; self.max_num];
+        self.binary_sums.fill(0);
+        self.nums_per_index.fill(0);
         self.size = 0;
     }
 

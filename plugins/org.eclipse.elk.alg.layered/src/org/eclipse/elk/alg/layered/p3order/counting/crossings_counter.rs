@@ -64,11 +64,11 @@ impl CrossingsCounter {
         if let Some(ref snap) = snap {
             let port_ids =
                 self.init_port_positions_counter_clockwise_snap(snap, left_layer, right_layer);
-            self.index_tree = BinaryIndexedTree::new(port_ids.len());
+            self.index_tree.reset(port_ids.len());
             self.count_crossings_on_ports_snap(snap, &port_ids)
         } else {
             let ports = self.init_port_positions_counter_clockwise(left_layer, right_layer);
-            self.index_tree = BinaryIndexedTree::new(ports.len());
+            self.index_tree.reset(ports.len());
             self.count_crossings_on_ports(&ports)
         }
     }
@@ -86,7 +86,7 @@ impl CrossingsCounter {
 
     pub fn count_north_south_port_crossings_in_layer(&mut self, layer: &[LNodeRef]) -> i32 {
         let ports = self.init_positions_for_north_south_counting(layer);
-        self.index_tree = BinaryIndexedTree::new(ports.len());
+        self.index_tree.reset(ports.len());
         self.count_north_south_crossings_on_ports(&ports)
     }
 
@@ -164,10 +164,10 @@ impl CrossingsCounter {
         if let Some(ref snap) = snap {
             let port_ids =
                 self.init_port_positions_counter_clockwise_snap(snap, left_layer, right_layer);
-            self.index_tree = BinaryIndexedTree::new(port_ids.len());
+            self.index_tree.reset(port_ids.len());
         } else {
             let ports = self.init_port_positions_counter_clockwise(left_layer, right_layer);
-            self.index_tree = BinaryIndexedTree::new(ports.len());
+            self.index_tree.reset(ports.len());
         }
     }
 
@@ -178,7 +178,7 @@ impl CrossingsCounter {
     ) -> Vec<LPortRef> {
         let mut ports = Vec::new();
         self.init_positions(nodes, &mut ports, side, true, true);
-        self.index_tree = BinaryIndexedTree::new(ports.len());
+        self.index_tree.reset(ports.len());
         ports
     }
 
@@ -584,7 +584,7 @@ impl CrossingsCounter {
     ) -> Vec<u32> {
         let mut port_ids = Vec::new();
         self.init_positions_snap(snap, nodes, &mut port_ids, side, true, true);
-        self.index_tree = BinaryIndexedTree::new(port_ids.len());
+        self.index_tree.reset(port_ids.len());
         port_ids
     }
 
