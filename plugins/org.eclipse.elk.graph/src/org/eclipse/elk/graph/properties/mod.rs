@@ -234,20 +234,21 @@ impl MapPropertyHolder {
         if let Some(value) = self.property_map.get(property.id()) {
             match value {
                 PropertyValue::Resolved(value) => {
-                    let downcast_result = value.clone().downcast::<T>();
-                    if downcast_result.is_err() && *TRACE_SIZING {
+                    if let Some(typed_ref) = (**value).downcast_ref::<T>() {
+                        return Some(typed_ref.clone());
+                    }
+                    if *TRACE_SIZING {
                         eprintln!("TRACE get_property DOWNCAST FAIL: id={} expected_type={} actual_type_id={:?}",
                             property.id(), std::any::type_name::<T>(), (**value).type_id());
                     }
-                    let typed = downcast_result.ok()?;
-                    return Some((*typed).clone());
+                    return None;
                 }
                 PropertyValue::Proxy(proxy) => {
                     if let Some(resolved) = proxy.resolve_value(property.id()) {
-                        let typed = resolved.clone().downcast::<T>().ok()?;
+                        let typed_ref = (*resolved).downcast_ref::<T>()?.clone();
                         self.property_map
                             .insert(property.id().to_owned(), PropertyValue::Resolved(resolved));
-                        return Some((*typed).clone());
+                        return Some(typed_ref);
                     }
                 }
             }
@@ -269,11 +270,11 @@ impl MapPropertyHolder {
         if let Some(value) = self.property_map.get(property.id()) {
             match value {
                 PropertyValue::Resolved(value) => {
-                    return value.clone().downcast::<T>().ok().map(|v| (*v).clone());
+                    return (**value).downcast_ref::<T>().cloned();
                 }
                 PropertyValue::Proxy(proxy) => {
                     if let Some(resolved) = proxy.resolve_value(property.id()) {
-                        return resolved.downcast::<T>().ok().map(|v| (*v).clone());
+                        return (*resolved).downcast_ref::<T>().cloned();
                     }
                 }
             }
