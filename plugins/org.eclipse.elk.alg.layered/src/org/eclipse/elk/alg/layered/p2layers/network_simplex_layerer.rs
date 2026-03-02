@@ -39,7 +39,6 @@ const ITER_LIMIT_FACTOR: i32 = 4;
 pub struct NetworkSimplexLayerer {
     node_visited: Vec<bool>,
     component_nodes: Vec<LNodeRef>,
-    opposite_buf: Vec<LNodeRef>,
 }
 
 impl NetworkSimplexLayerer {
@@ -47,83 +46,107 @@ impl NetworkSimplexLayerer {
         NetworkSimplexLayerer {
             node_visited: Vec::new(),
             component_nodes: Vec::new(),
-            opposite_buf: Vec::new(),
         }
     }
 
     fn connected_components(&mut self, nodes: &[LNodeRef]) -> Vec<Vec<LNodeRef>> {
-        if self.node_visited.len() < nodes.len() {
-            self.node_visited = vec![false; nodes.len()];
+        let num_nodes = nodes.len();
+        if self.node_visited.len() < num_nodes {
+            self.node_visited = vec![false; num_nodes];
         } else {
             self.node_visited.fill(false);
         }
         self.component_nodes.clear();
 
+        // Build ptr→idx map and set node IDs in single pass
+        let mut ptr_to_idx: FxHashMap<usize, usize> =
+            FxHashMap::with_capacity_and_hasher(num_nodes, Default::default());
         for (index, node) in nodes.iter().enumerate() {
+            ptr_to_idx.insert(Arc::as_ptr(node) as usize, index);
             if let Ok(mut node_guard) = node.lock() {
                 node_guard.shape().graph_element().id = index as i32;
             }
         }
 
-        let mut components: Vec<Vec<LNodeRef>> = Vec::new();
-        for node in nodes {
-            let idx = node_index(node);
-            if idx < self.node_visited.len() && !self.node_visited[idx] {
-                self.connected_components_dfs(node);
-                if components.is_empty() || components[0].len() < self.component_nodes.len() {
-                    components.insert(0, self.component_nodes.clone());
-                } else {
-                    components.push(self.component_nodes.clone());
+        // Pre-build adjacency list — one lock chain per node, then DFS is lock-free
+        let mut adjacency: Vec<Vec<usize>> = vec![Vec::new(); num_nodes];
+        for (i, node) in nodes.iter().enumerate() {
+            if let Ok(node_guard) = node.lock() {
+                for port in node_guard.ports() {
+                    if let Ok(port_guard) = port.lock() {
+                        for edge in port_guard.incoming_edges() {
+                            if let Some(src_node) = edge
+                                .lock()
+                                .ok()
+                                .and_then(|e| e.source())
+                                .and_then(|p| p.lock().ok().and_then(|pg| pg.node()))
+                            {
+                                if let Some(&j) =
+                                    ptr_to_idx.get(&(Arc::as_ptr(&src_node) as usize))
+                                {
+                                    adjacency[i].push(j);
+                                }
+                            }
+                        }
+                        for edge in port_guard.outgoing_edges() {
+                            if let Some(tgt_node) = edge
+                                .lock()
+                                .ok()
+                                .and_then(|e| e.target())
+                                .and_then(|p| p.lock().ok().and_then(|pg| pg.node()))
+                            {
+                                if let Some(&j) =
+                                    ptr_to_idx.get(&(Arc::as_ptr(&tgt_node) as usize))
+                                {
+                                    adjacency[i].push(j);
+                                }
+                            }
+                        }
+                    }
                 }
-                self.component_nodes.clear();
+            }
+        }
+
+        // Lock-free DFS using pre-built adjacency
+        let mut components: Vec<Vec<LNodeRef>> = Vec::new();
+        for start in 0..num_nodes {
+            if self.node_visited[start] {
+                continue;
+            }
+            self.component_nodes.clear();
+            Self::dfs_flat(
+                start,
+                &adjacency,
+                nodes,
+                &mut self.node_visited,
+                &mut self.component_nodes,
+            );
+            if components.is_empty() || components[0].len() < self.component_nodes.len() {
+                components.insert(0, self.component_nodes.clone());
+            } else {
+                components.push(self.component_nodes.clone());
             }
         }
         components
     }
 
-    fn connected_components_dfs(&mut self, node: &LNodeRef) {
-        let idx = node_index(node);
-        if idx >= self.node_visited.len() || self.node_visited[idx] {
+    /// Lock-free recursive DFS over pre-built adjacency list.
+    fn dfs_flat(
+        idx: usize,
+        adjacency: &[Vec<usize>],
+        nodes: &[LNodeRef],
+        visited: &mut [bool],
+        component: &mut Vec<LNodeRef>,
+    ) {
+        if visited[idx] {
             return;
         }
-        self.node_visited[idx] = true;
-        self.component_nodes.push(node.clone());
+        visited[idx] = true;
+        component.push(nodes[idx].clone());
 
-        // Collect opposite nodes within node lock scope — eliminates ports().clone() alloc
-        let base = self.opposite_buf.len();
-        if let Ok(node_guard) = node.lock() {
-            for port in node_guard.ports() {
-                if let Ok(port_guard) = port.lock() {
-                    for edge in port_guard.incoming_edges() {
-                        if let Some(src_node) = edge
-                            .lock()
-                            .ok()
-                            .and_then(|e| e.source())
-                            .and_then(|p| p.lock().ok().and_then(|pg| pg.node()))
-                        {
-                            self.opposite_buf.push(src_node);
-                        }
-                    }
-                    for edge in port_guard.outgoing_edges() {
-                        if let Some(tgt_node) = edge
-                            .lock()
-                            .ok()
-                            .and_then(|e| e.target())
-                            .and_then(|p| p.lock().ok().and_then(|pg| pg.node()))
-                        {
-                            self.opposite_buf.push(tgt_node);
-                        }
-                    }
-                }
-            }
+        for &neighbor in &adjacency[idx] {
+            Self::dfs_flat(neighbor, adjacency, nodes, visited, component);
         }
-
-        let count = self.opposite_buf.len() - base;
-        for i in 0..count {
-            let opp = self.opposite_buf[base + i].clone();
-            self.connected_components_dfs(&opp);
-        }
-        self.opposite_buf.truncate(base);
     }
 
     fn initialize_graph(&self, nodes: &[LNodeRef]) -> NGraph {
@@ -285,11 +308,4 @@ impl ILayoutPhase<LayeredPhases, LGraph> for NetworkSimplexLayerer {
             &BASELINE_PROCESSING_CONFIGURATION,
         ))
     }
-}
-
-fn node_index(node: &LNodeRef) -> usize {
-    node.lock()
-        .ok()
-        .map(|mut node_guard| node_guard.shape().graph_element().id as usize)
-        .unwrap_or(0)
 }
