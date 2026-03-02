@@ -516,7 +516,8 @@ impl CrossingsCounter {
         }
         let mut num_ports = ports.len() as i32;
         if get_cardinalities {
-            self.node_cardinalities = vec![0; nodes.len()];
+            self.node_cardinalities.clear();
+            self.node_cardinalities.resize(nodes.len(), 0);
         }
         let mut i = if top_down {
             0
@@ -602,49 +603,41 @@ impl CrossingsCounter {
         }
         let mut num_ports = port_ids.len() as i32;
         if get_cardinalities {
-            self.node_cardinalities = vec![0; nodes.len()];
+            self.node_cardinalities.clear();
+            self.node_cardinalities.resize(nodes.len(), 0);
         }
         let indices: Box<dyn Iterator<Item = usize>> = if top_down {
             Box::new(0..nodes.len())
         } else {
             Box::new((0..nodes.len()).rev())
         };
+        let mut filtered: Vec<u32> = Vec::new();
         for i in indices {
             let node = &nodes[i];
             // Lock node once to get port IDs in current order, filtered by side.
-            // Returns u32 port IDs directly — no Arc clone needed.
-            let filtered: Vec<u32> = node
-                .lock()
-                .ok()
-                .map(|node_guard| {
-                    let mut result: Vec<u32> = node_guard
-                        .ports()
-                        .iter()
-                        .filter_map(|p| {
-                            let pid = snap.port_id(p);
-                            if snap.port_side_of(pid) == side {
-                                Some(pid)
-                            } else {
-                                None
-                            }
-                        })
-                        .collect();
-                    // Apply reversal matching get_ports logic
-                    match side {
-                        PortSide::East => {
-                            if !top_down {
-                                result.reverse();
-                            }
-                        }
-                        _ => {
-                            if top_down {
-                                result.reverse();
-                            }
+            // Reuse buffer — no per-node allocation.
+            filtered.clear();
+            if let Ok(node_guard) = node.lock() {
+                for p in node_guard.ports() {
+                    let pid = snap.port_id(p);
+                    if snap.port_side_of(pid) == side {
+                        filtered.push(pid);
+                    }
+                }
+                // Apply reversal matching get_ports logic
+                match side {
+                    PortSide::East => {
+                        if !top_down {
+                            filtered.reverse();
                         }
                     }
-                    result
-                })
-                .unwrap_or_default();
+                    _ => {
+                        if top_down {
+                            filtered.reverse();
+                        }
+                    }
+                }
+            }
 
             if get_cardinalities {
                 let nid = snap.node_id(node) as usize;

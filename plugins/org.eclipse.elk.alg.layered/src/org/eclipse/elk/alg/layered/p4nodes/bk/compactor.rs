@@ -90,31 +90,28 @@ impl BKCompactor {
         let mut steps = 0usize;
         loop {
             let current_node = bal.nodes_by_id[current].clone();
-            let layer = current_node
+            let current_index = *ni.node_index.get(current).unwrap_or(&0);
+            // Extract only the needed neighbor — avoid cloning entire layer Vec<LNodeRef>
+            let neighbor_opt = current_node
                 .lock()
                 .ok()
-                .and_then(|node_guard| node_guard.layer());
-            let layer_nodes = layer
+                .and_then(|node_guard| node_guard.layer())
                 .and_then(|layer| {
-                    layer
-                        .lock()
-                        .ok()
-                        .map(|layer_guard| layer_guard.nodes().clone())
-                })
-                .unwrap_or_default();
-            let current_index = *ni.node_index.get(current).unwrap_or(&0);
-            let layer_size = layer_nodes.len();
+                    layer.lock().ok().and_then(|layer_guard| {
+                        let nodes = layer_guard.nodes();
+                        match vdir {
+                            VDirection::Up if current_index + 1 < nodes.len() => {
+                                Some(nodes[current_index + 1].clone())
+                            }
+                            VDirection::Down if current_index > 0 => {
+                                Some(nodes[current_index - 1].clone())
+                            }
+                            _ => None,
+                        }
+                    })
+                });
 
-            let has_neighbor = match vdir {
-                VDirection::Down => current_index > 0,
-                VDirection::Up => current_index + 1 < layer_size,
-            };
-
-            if has_neighbor {
-                let neighbor = match vdir {
-                    VDirection::Up => layer_nodes[current_index + 1].clone(),
-                    VDirection::Down => layer_nodes[current_index - 1].clone(),
-                };
+            if let Some(neighbor) = neighbor_opt {
                 let neighbor_id = node_id(&neighbor);
                 let neighbor_root = bal.root[neighbor_id];
 
@@ -398,21 +395,15 @@ impl ICompactor for BKCompactor {
             .hdir
             .expect("BK compactor requires a horizontal direction");
 
-        for layer in &bal.layers {
-            let nodes = layer
-                .lock()
-                .ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
-            for node in nodes {
-                let id = node_id(&node);
-                bal.sink[id] = id;
-                bal.shift[id] = if vdir == VDirection::Up {
-                    f64::NEG_INFINITY
-                } else {
-                    f64::INFINITY
-                };
-            }
+        // Bulk-initialize sink and shift for all nodes — avoid per-layer Vec clone
+        let shift_init = if vdir == VDirection::Up {
+            f64::NEG_INFINITY
+        } else {
+            f64::INFINITY
+        };
+        for id in 0..bal.sink.len() {
+            bal.sink[id] = id;
+            bal.shift[id] = shift_init;
         }
         self.sink_nodes.clear();
         self.sink_order.clear();
