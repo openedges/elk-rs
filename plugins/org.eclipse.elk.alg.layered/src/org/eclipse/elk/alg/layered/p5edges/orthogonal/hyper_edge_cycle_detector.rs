@@ -186,15 +186,17 @@ impl HyperEdgeCycleDetector {
             let dep_guard = dep.borrow();
             if !critical_only || dep_guard.dependency_type() == DependencyType::Critical {
                 if let Some(target) = dep_guard.target() {
-                    if target.borrow().mark < 0 && dep_guard.weight() > 0 {
-                        let new_in_weight = target.borrow().in_weight() - dep_guard.weight();
-                        target.borrow_mut().set_in_weight(new_in_weight);
+                    let mut tgt = target.borrow_mut();
+                    if tgt.mark < 0 && dep_guard.weight() > 0 {
+                        let new_in_weight = tgt.in_weight() - dep_guard.weight();
+                        tgt.set_in_weight(new_in_weight);
                         if dep_guard.dependency_type() == DependencyType::Critical {
-                            let new_weight =
-                                target.borrow().critical_in_weight() - dep_guard.weight();
-                            target.borrow_mut().set_critical_in_weight(new_weight);
+                            let new_weight = tgt.critical_in_weight() - dep_guard.weight();
+                            tgt.set_critical_in_weight(new_weight);
                         }
-                        if new_in_weight <= 0 && target.borrow().out_weight() > 0 {
+                        let out_weight = tgt.out_weight();
+                        drop(tgt);
+                        if new_in_weight <= 0 && out_weight > 0 {
                             sources.push_back(target.clone());
                         }
                     }
@@ -207,15 +209,17 @@ impl HyperEdgeCycleDetector {
             let dep_guard = dep.borrow();
             if !critical_only || dep_guard.dependency_type() == DependencyType::Critical {
                 if let Some(source) = dep_guard.source() {
-                    if source.borrow().mark < 0 && dep_guard.weight() > 0 {
-                        let new_out_weight = source.borrow().out_weight() - dep_guard.weight();
-                        source.borrow_mut().set_out_weight(new_out_weight);
+                    let mut src = source.borrow_mut();
+                    if src.mark < 0 && dep_guard.weight() > 0 {
+                        let new_out_weight = src.out_weight() - dep_guard.weight();
+                        src.set_out_weight(new_out_weight);
                         if dep_guard.dependency_type() == DependencyType::Critical {
-                            let new_weight =
-                                source.borrow().critical_out_weight() - dep_guard.weight();
-                            source.borrow_mut().set_critical_out_weight(new_weight);
+                            let new_weight = src.critical_out_weight() - dep_guard.weight();
+                            src.set_critical_out_weight(new_weight);
                         }
-                        if new_out_weight <= 0 && source.borrow().in_weight() > 0 {
+                        let in_weight = src.in_weight();
+                        drop(src);
+                        if new_out_weight <= 0 && in_weight > 0 {
                             sinks.push_back(source.clone());
                         }
                     }
@@ -226,5 +230,7 @@ impl HyperEdgeCycleDetector {
 }
 
 fn remove_segment(list: &mut Vec<HyperEdgeSegmentRef>, segment: &HyperEdgeSegmentRef) {
-    list.retain(|item| !Rc::ptr_eq(item, segment));
+    if let Some(pos) = list.iter().position(|item| Rc::ptr_eq(item, segment)) {
+        list.remove(pos);
+    }
 }

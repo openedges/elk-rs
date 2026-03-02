@@ -173,13 +173,15 @@ impl HyperEdgeSegment {
     }
 
     pub fn remove_outgoing_dependency(&mut self, dependency: &HyperEdgeSegmentDependencyRef) {
-        self.outgoing_segment_dependencies
-            .retain(|dep| !Rc::ptr_eq(dep, dependency));
+        if let Some(pos) = self.outgoing_segment_dependencies.iter().position(|dep| Rc::ptr_eq(dep, dependency)) {
+            self.outgoing_segment_dependencies.swap_remove(pos);
+        }
     }
 
     pub fn remove_incoming_dependency(&mut self, dependency: &HyperEdgeSegmentDependencyRef) {
-        self.incoming_segment_dependencies
-            .retain(|dep| !Rc::ptr_eq(dep, dependency));
+        if let Some(pos) = self.incoming_segment_dependencies.iter().position(|dep| Rc::ptr_eq(dep, dependency)) {
+            self.incoming_segment_dependencies.swap_remove(pos);
+        }
     }
 
     pub fn out_weight(&self) -> i32 {

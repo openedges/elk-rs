@@ -53,8 +53,19 @@ impl HyperEdgeSegmentDependency {
     }
 
     pub fn remove(dep: &HyperEdgeSegmentDependencyRef) {
-        HyperEdgeSegmentDependency::set_source(dep, None);
-        HyperEdgeSegmentDependency::set_target(dep, None);
+        let (old_source, old_target) = {
+            let dep_guard = dep.borrow();
+            (dep_guard.source(), dep_guard.target())
+        };
+        if let Some(old_source) = old_source {
+            old_source.borrow_mut().remove_outgoing_dependency(dep);
+        }
+        if let Some(old_target) = old_target {
+            old_target.borrow_mut().remove_incoming_dependency(dep);
+        }
+        let mut dep_guard = dep.borrow_mut();
+        dep_guard.source = None;
+        dep_guard.target = None;
     }
 
     pub fn reverse(dep: &HyperEdgeSegmentDependencyRef) {
@@ -62,8 +73,26 @@ impl HyperEdgeSegmentDependency {
             let dep_guard = dep.borrow();
             (dep_guard.source(), dep_guard.target())
         };
-        HyperEdgeSegmentDependency::set_source(dep, old_target);
-        HyperEdgeSegmentDependency::set_target(dep, old_source);
+        // Remove from old adjacency lists
+        if let Some(ref old_src) = old_source {
+            old_src.borrow_mut().remove_outgoing_dependency(dep);
+        }
+        if let Some(ref old_tgt) = old_target {
+            old_tgt.borrow_mut().remove_incoming_dependency(dep);
+        }
+        // Swap source and target
+        {
+            let mut dep_guard = dep.borrow_mut();
+            dep_guard.source = old_target.as_ref().map(Rc::downgrade);
+            dep_guard.target = old_source.as_ref().map(Rc::downgrade);
+        }
+        // Add to new adjacency lists (swapped roles)
+        if let Some(new_src) = old_target {
+            new_src.borrow_mut().add_outgoing_dependency(dep.clone());
+        }
+        if let Some(new_tgt) = old_source {
+            new_tgt.borrow_mut().add_incoming_dependency(dep.clone());
+        }
     }
 
     pub fn dependency_type(&self) -> DependencyType {
