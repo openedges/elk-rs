@@ -54,12 +54,12 @@
 - **JS parity**: 550/550 elk-rs vs Java 일치 (ELKJS_DRIFT 20건은 GWT 아티팩트)
 - **npm 패키지**: `elk-rs@0.11.0` WASM-only 릴리즈 준비 완료 (32 Vitest 통과)
   - 향후: NAPI 플랫폼별 패키지 (`@elk-rs/darwin-arm64` 등) 추가 예정
-- **성능 기준선**: Rust ~1.52x slower than Java (`layered_xlarge` 702ms vs 463.21ms, synthetic 25/8 baseline)
-  - 이전 1,576ms → 972ms → 794ms → **702ms** (**-55.4%** 누적), Phase 1-7 순차 최적화 반영 (상세: `HISTORY.md`)
-  - 최근 probe: `layered_xlarge` `701.7ms`(rust_native 단독 25/8)
-  - 완료: Phase 1 `LazyLock` 전환, Phase 2 ports_by_side 버퍼 재사용, Phase 3 Delta crossing cache, Phase 4 P5 hybrid routing-slot kernel, Phase 5 P3 crossing-min 순차 최적화, Phase 6 P3 hot-path Arc clone/allocation 제거, Phase 7 NetworkSimplex edge/node property cache + lock batching + FxHash 전환
+- **성능 기준선**: Rust ~1.45x slower than Java (`layered_xlarge` 672ms vs 463.21ms, synthetic 25/8 baseline)
+  - 이전 1,576ms → 972ms → 794ms → 702ms → **672ms** (**-57.4%** 누적), Phase 1-8 순차 최적화 반영 (상세: `HISTORY.md`)
+  - 최근 probe: `layered_xlarge` `670.6ms`/`674.6ms`(rust_native 단독 25/8)
+  - 완료: Phase 1 `LazyLock` 전환, Phase 2 ports_by_side 버퍼 재사용, Phase 3 Delta crossing cache, Phase 4 P5 hybrid routing-slot kernel, Phase 5 P3 crossing-min 순차 최적화, Phase 6 P3 hot-path Arc clone/allocation 제거, Phase 7 NetworkSimplex edge/node property cache + lock batching + FxHash 전환, Phase 8 MapPropertyHolder FxHashMap + cross-phase HashMap elimination
   - 잔여 병목: Arc/Mutex 기반 core graph lock 경합(~10-15%), malloc/free(~5%), **Full arena 전면 전환 필수 진행 중**
-  - 실행 계획: `HISTORY.md`의 `Full arena 전환 필수화 및 실행 계획 확정(2026-03-01)` 항목 기준 Phase 0~4 완료, Phase 5-7 완료, 차기 전면 전환 진행
+  - 실행 계획: `HISTORY.md`의 `Full arena 전환 필수화 및 실행 계획 확정(2026-03-01)` 항목 기준 Phase 0~4 완료, Phase 5-8 완료, 차기 전면 전환 진행
 - **코드 품질**: `cargo build` warning 0건, `cargo clippy` warning 0건
 - **Parity 재검증 상태**: full parity 재실행 완료 — `compared=1438`, `matches=1438`, `drift=0`, `skipped=9`, `errors=0`
 - **알려진 실패**: `elk_live_examples_test` 1건 (cross-hierarchy edge resolution, `TESTING.md` § 4.2)
