@@ -695,97 +695,126 @@ impl AbstractBarycenterPortDistributor {
         let timing = *TRACE_CROSSMIN_TIMING;
         let mut input = false;
         let mut output = false;
-        let dummy_ports = port_dummy
-            .lock()
-            .ok()
-            .map(|node_guard| node_guard.ports().clone())
-            .unwrap_or_default();
-        if timing {
-            eprintln!(
-                "crossmin: deal_with_north_south_ports dummy_ports={} for port_id={}",
-                dummy_ports.len(),
-                port_id(port)
-            );
-        }
-        for dummy_port in dummy_ports {
-            let origin_matches = dummy_port
-                .lock()
-                .ok()
-                .and_then(|mut port_guard| port_guard.get_property(InternalProperties::ORIGIN))
-                .and_then(|origin| match origin {
-                    crate::org::eclipse::elk::alg::layered::options::Origin::LPort(port_ref) => {
-                        Some(port_ref)
-                    }
-                    _ => None,
-                })
-                .map(|origin| Arc::ptr_eq(&origin, port))
-                .unwrap_or(false);
+
+        if let Some(ref snap) = self.snapshot {
+            // Snapshot path: use CSR for port iteration, connectivity; one lock for ORIGIN check
+            let dummy_flat = snap.node_flat_index(port_dummy);
+            let dummy_port_ids = snap.node_ports(dummy_flat);
             if timing {
                 eprintln!(
-                    "crossmin: dummy_port origin_matches={} dummy_port_id={}",
-                    origin_matches,
-                    port_id(&dummy_port)
+                    "crossmin: deal_with_north_south_ports dummy_ports={} for port_id={}",
+                    dummy_port_ids.len(),
+                    snap.port_id(port)
                 );
             }
-            if !origin_matches {
-                continue;
-            }
-            if timing {
-                eprintln!(
-                    "crossmin: dummy_port check outgoing port_id={}",
-                    port_id(&dummy_port)
-                );
-            }
-            let has_outgoing = dummy_port
-                .lock()
-                .ok()
-                .map(|port_guard| !port_guard.outgoing_edges().is_empty())
-                .unwrap_or(false);
-            if timing {
-                eprintln!(
-                    "crossmin: dummy_port outgoing done port_id={} has_outgoing={}",
-                    port_id(&dummy_port),
-                    has_outgoing
-                );
-            }
-            if has_outgoing {
-                output = true;
-            } else {
-                if timing {
-                    eprintln!(
-                        "crossmin: dummy_port check incoming port_id={}",
-                        port_id(&dummy_port)
-                    );
-                }
-                let has_incoming = dummy_port
-                    .lock()
-                    .ok()
-                    .map(|port_guard| !port_guard.incoming_edges().is_empty())
+            for &dpid in dummy_port_ids {
+                // ORIGIN property check still needs one lock per dummy port
+                let origin_matches = snap
+                    .port_ref_opt(dpid)
+                    .and_then(|dp| {
+                        dp.lock()
+                            .ok()
+                            .and_then(|mut pg| pg.get_property(InternalProperties::ORIGIN))
+                    })
+                    .and_then(|origin| match origin {
+                        crate::org::eclipse::elk::alg::layered::options::Origin::LPort(
+                            port_ref,
+                        ) => Some(port_ref),
+                        _ => None,
+                    })
+                    .map(|origin| Arc::ptr_eq(&origin, port))
                     .unwrap_or(false);
                 if timing {
                     eprintln!(
-                        "crossmin: dummy_port incoming done port_id={} has_incoming={}",
-                        port_id(&dummy_port),
-                        has_incoming
+                        "crossmin: dummy_port origin_matches={} dummy_port_id={}",
+                        origin_matches, dpid
                     );
                 }
-                if has_incoming {
-                    input = true;
+                if !origin_matches {
+                    continue;
+                }
+                // Use snapshot CSR for connectivity (no locks)
+                let has_outgoing = !snap.port_successors(dpid).is_empty();
+                if timing {
+                    eprintln!(
+                        "crossmin: dummy_port outgoing done port_id={} has_outgoing={}",
+                        dpid, has_outgoing
+                    );
+                }
+                if has_outgoing {
+                    output = true;
+                } else {
+                    let has_incoming = !snap.port_predecessors(dpid).is_empty();
+                    if timing {
+                        eprintln!(
+                            "crossmin: dummy_port incoming done port_id={} has_incoming={}",
+                            dpid, has_incoming
+                        );
+                    }
+                    if has_incoming {
+                        input = true;
+                    }
+                }
+            }
+        } else {
+            let dummy_ports = port_dummy
+                .lock()
+                .ok()
+                .map(|node_guard| node_guard.ports().clone())
+                .unwrap_or_default();
+            if timing {
+                eprintln!(
+                    "crossmin: deal_with_north_south_ports dummy_ports={} for port_id={}",
+                    dummy_ports.len(),
+                    port_id(port)
+                );
+            }
+            for dummy_port in dummy_ports {
+                let origin_matches = dummy_port
+                    .lock()
+                    .ok()
+                    .and_then(|mut port_guard| {
+                        port_guard.get_property(InternalProperties::ORIGIN)
+                    })
+                    .and_then(|origin| match origin {
+                        crate::org::eclipse::elk::alg::layered::options::Origin::LPort(
+                            port_ref,
+                        ) => Some(port_ref),
+                        _ => None,
+                    })
+                    .map(|origin| Arc::ptr_eq(&origin, port))
+                    .unwrap_or(false);
+                if !origin_matches {
+                    continue;
+                }
+                let has_outgoing = dummy_port
+                    .lock()
+                    .ok()
+                    .map(|port_guard| !port_guard.outgoing_edges().is_empty())
+                    .unwrap_or(false);
+                if has_outgoing {
+                    output = true;
+                } else {
+                    let has_incoming = dummy_port
+                        .lock()
+                        .ok()
+                        .map(|port_guard| !port_guard.incoming_edges().is_empty())
+                        .unwrap_or(false);
+                    if has_incoming {
+                        input = true;
+                    }
                 }
             }
         }
 
-        if timing {
-            eprintln!(
-                "crossmin: deal_with_north_south_ports lock port side start port_id={}",
-                port_id(port)
-            );
-        }
-        let side = port
-            .lock()
-            .ok()
-            .map(|port_guard| port_guard.side())
-            .unwrap_or(PortSide::Undefined);
+        let side = if let Some(ref snap) = self.snapshot {
+            snap.port_side_of(snap.port_id(port))
+        } else {
+            port.lock()
+                .ok()
+                .map(|port_guard| port_guard.side())
+                .unwrap_or(PortSide::Undefined)
+        };
         if timing {
             eprintln!(
                 "crossmin: deal_with_north_south_ports lock port side done port_id={} side={:?}",

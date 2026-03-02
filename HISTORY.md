@@ -1106,3 +1106,91 @@
   메모리 할당이 더 큰 비용
 - 근본 해결은 core graph를 arena-based flat model로 전환해야 함
 - 하지만 snapshot 인프라(CSR adjacency)는 향후 arena 전환의 기반으로 재활용 가능
+
+---
+
+## Full Arena 전환 상세 전략 (2026-03-02)
+
+### 목표
+`layered_xlarge` ≤750ms (1차), ≤650ms (2차). 현재 ~975ms, Java ~463ms (2.1x).
+
+### 아키텍처 설계
+
+**SoA (Struct-of-Arrays) + CSR (Compressed Sparse Row)**
+
+기존 `CrossMinSnapshot`(335줄)의 CSR 패턴을 전체 그래프로 확장한 `LArena`.
+
+- **Index types**: `NodeId(u32)`, `PortId(u32)`, `EdgeId(u32)`, `LabelId(u32)`, `LayerId(u32)` — 타입 안전, Copy, zero-cost
+- **SoA 필드**: 노드/포트/엣지/레이블/레이어 속성을 개별 `Vec<T>`로 저장 → 캐시 친화적
+- **CSR 관계**: `offset[i]..offset[i+1]` → `data[]` 슬라이스로 zero-alloc 순회
+  - node→port, node→label, port→in_edge, port→out_edge, port→label, edge→label, layer→node
+- **Properties**: `MapPropertyHolder` 그대로 유지 (타입 시스템 변경 위험 > 성능 이득)
+- **Mutation**: `LArenaBuilder` (Vec<Vec<T>> adjacency) ↔ `LArena` (CSR) 전환 (freeze/thaw)
+- **Bridge**: `ArenaSync` — Arc↔Arena 양방향 동기화, HashMap 기반 포인터↔ID 매핑
+
+### Phase 0: Arena Foundation (구현 완료)
+
+동작 변경 없이 데이터 구조 + 빌더 + 브리지 생성.
+
+| 파일 | 내용 |
+|------|------|
+| `graph/arena_types.rs` | Typed index newtypes (NodeId, PortId, EdgeId, LabelId, LayerId) |
+| `graph/arena.rs` | LArena — SoA 필드 + CSR 관계 + 접근자 메서드 |
+| `graph/arena_builder.rs` | LArenaBuilder — mutable builder, freeze()→LArena, thaw()→Builder |
+| `graph/arena_sync.rs` | ArenaSync — from_graph(), sync_positions/order/bend_points_to_graph() |
+| `graph/mod.rs` | 모듈 등록 및 re-export |
+
+### Phase 1: P3 Crossing Minimization Arena 전환 (71.8% runtime)
+
+P3 진입 시 `ArenaSync::from_graph()` → arena에서 P3 전체 실행 → `sync_order_to_graph()`로 결과 기록.
+
+전환 대상 (lock 밀도 순):
+
+| 파일 | locks | 전환 내용 |
+|------|-------|-----------|
+| `abstract_barycenter_port_distributor.rs` | 55 | arena CSR로 port 순회 |
+| `crossings_counter.rs` | 33 | arena 기반 crossing count |
+| `graph_info_holder.rs` | 32 | arena에서 빌드 |
+| `barycenter_heuristic.rs` | 30 | arena 기반 barycenter 계산 |
+| `layer_sweep_type_decider.rs` | 24 | arena property 읽기 |
+| `hyperedge_crossings_counter.rs` | 23 | arena port/edge 순회 |
+| `layer_sweep_crossing_minimizer.rs` | 20 | `Vec<Vec<LNodeRef>>` → `Vec<Vec<NodeId>>` |
+| `sweep_copy.rs` | 11 | `Vec<Vec<LNodeRef>>` → `Vec<Vec<NodeId>>` |
+| `forster_constraint_resolver.rs` | 13 | global arena 연결 |
+| `greedy_port_distributor.rs` | 13 | arena port 데이터 |
+| `median_heuristic.rs` | 11 | arena 기반 port 순회 |
+
+기대 효과: P3에서 315 lock sites 제거, `Vec<Arc<T>>::clone()` 완전 제거 → ~200-300ms 절감
+
+### Phase 2: P5 Edge Routing Arena 전환 (18.8% runtime)
+
+| 파일 | locks |
+|------|-------|
+| `spline_edge_router.rs` | 95 |
+| `polyline_edge_router.rs` | 31 |
+| `spline_segment.rs` | 12 |
+| orthogonal routing 관련 | ~33 |
+
+기대 효과: ~50-80ms 절감
+
+### Phase 3-4: 잔여 Phase + Intermediate 전환
+- **P4** (295 locks): `network_simplex_placer.rs` 등
+- **P1/P2** (264 locks): cycle breaker, layerer
+- **Intermediate** (~650 locks): dummy node 삽입 → `LArenaBuilder`
+
+### Phase 5: Import/Export 직접 연결 + Arc 제거
+- Import: `ElkGraph → LArenaBuilder` 직접 빌드
+- Export: arena → ElkGraph 직접 전달
+- Arc type aliases 제거, ArenaSync 브리지 제거
+
+### 설계 결정 근거
+
+| 결정 | 선택 | 이유 |
+|------|------|------|
+| Index type | Newtype `NodeId(u32)` | 타입 안전성, Copy, zero-cost |
+| Storage layout | SoA | 캐시 친화적 (단일 필드 순회 시) |
+| Relationship | CSR | O(1) 조회, zero alloc 순회, CrossMinSnapshot 패턴 확장 |
+| Properties | MapPropertyHolder 유지 | 타입 시스템 변경 위험 > 성능 이득 |
+| Mutation-heavy phase | LArenaBuilder | CSR은 immutable이므로 분리 |
+| Nested graph | Arena-per-layout-invocation | Java 모델과 동일, 단순 |
+| Migration | Dual-representation bridge | Phase별 점진 전환, parity 안전 |

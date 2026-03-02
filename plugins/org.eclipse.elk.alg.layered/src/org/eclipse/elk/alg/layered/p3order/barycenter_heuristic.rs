@@ -32,6 +32,8 @@ pub struct BarycenterHeuristic {
     pub(crate) port_distributor: Box<dyn BarycenterPortDistributor>,
     pub sweep_iteration: usize,
     snapshot: Option<Arc<CrossMinSnapshot>>,
+    /// Reusable buffer for flat→node lookup in calculate_barycenters (avoids HashMap alloc per call).
+    flat_to_node_buf: HashMap<u32, LNodeRef>,
 }
 
 impl BarycenterHeuristic {
@@ -45,11 +47,13 @@ impl BarycenterHeuristic {
             port_distributor,
             sweep_iteration: 0,
             snapshot: None,
+            flat_to_node_buf: HashMap::new(),
         }
     }
 
     pub fn set_snapshot(&mut self, snapshot: Arc<CrossMinSnapshot>) {
         self.port_distributor.set_snapshot(snapshot.clone());
+        self.constraint_resolver.set_snapshot(snapshot.clone());
         self.snapshot = Some(snapshot);
     }
 
@@ -205,8 +209,9 @@ impl BarycenterHeuristic {
         let snap = self.snapshot.clone();
 
         if let Some(ref snap) = snap {
-            // Snapshot-based path: build flat→node lookup for same-layer recursion
-            let mut flat_to_node: HashMap<u32, LNodeRef> = HashMap::with_capacity(nodes.len());
+            // Reuse flat→node buffer (avoids HashMap alloc per call)
+            let mut flat_to_node = std::mem::take(&mut self.flat_to_node_buf);
+            flat_to_node.clear();
             for node in nodes {
                 let flat = snap.node_flat_index(node);
                 let li = snap.node_layer_of(flat) as usize;
@@ -217,11 +222,14 @@ impl BarycenterHeuristic {
                 }
             }
 
-            let port_ranks = self.port_ranks.clone();
+            // Move port_ranks out temporarily to avoid clone (zero alloc)
+            let port_ranks = std::mem::take(&mut self.port_ranks);
             for node in nodes {
                 let flat = snap.node_flat_index(node);
                 self.calculate_barycenter_snap(snap, flat, forward, &port_ranks, random, &flat_to_node);
             }
+            self.port_ranks = port_ranks;
+            self.flat_to_node_buf = flat_to_node;
         } else {
             // Fallback: lock-based path (should not be reached after Step 1)
             for node in nodes {
@@ -717,10 +725,14 @@ impl BarycenterHeuristic {
     }
 
     pub(crate) fn is_external_port_dummy(&self, node: &LNodeRef) -> bool {
-        node.lock()
-            .ok()
-            .map(|node_guard| node_guard.node_type() == NodeType::ExternalPort)
-            .unwrap_or(false)
+        if let Some(ref snap) = self.snapshot {
+            snap.node_type_of(snap.node_flat_index(node)) == NodeType::ExternalPort
+        } else {
+            node.lock()
+                .ok()
+                .map(|node_guard| node_guard.node_type() == NodeType::ExternalPort)
+                .unwrap_or(false)
+        }
     }
 
     pub(crate) fn is_first_layer(
@@ -749,9 +761,8 @@ impl ICrossingMinimizationHeuristic for BarycenterHeuristic {
         } else {
             order.len().saturating_sub(1)
         };
-        let mut nodes = order[start_index].clone();
-        self.minimize_crossings_layer(&mut nodes, false, true, forward_sweep, random);
-        order[start_index] = nodes;
+        // Modify in-place — no clone needed (order is a separate parameter from self)
+        self.minimize_crossings_layer(&mut order[start_index], false, true, forward_sweep, random);
         false
     }
 
@@ -787,9 +798,8 @@ impl ICrossingMinimizationHeuristic for BarycenterHeuristic {
                 .map(|node| self.is_external_port_dummy(node))
                 .unwrap_or(false);
 
-        let mut nodes = order[free_layer_index].clone();
-        self.minimize_crossings_layer(&mut nodes, pre_ordered, false, forward_sweep, random);
-        order[free_layer_index] = nodes;
+        // Modify in-place — no clone needed (order is a separate parameter from self)
+        self.minimize_crossings_layer(&mut order[free_layer_index], pre_ordered, false, forward_sweep, random);
         false
     }
 

@@ -8,6 +8,7 @@ license.workspace = true
 org-eclipse-elk-alg-common = { path = "../org.eclipse.elk.alg.common" }
 org-eclipse-elk-core = { path = "../org.eclipse.elk.core" }
 org-eclipse-elk-graph = { path = "../org.eclipse.elk.graph" }
+rustc-hash = "2"
 serde_json = "1.0"
 
 [dev-dependencies]

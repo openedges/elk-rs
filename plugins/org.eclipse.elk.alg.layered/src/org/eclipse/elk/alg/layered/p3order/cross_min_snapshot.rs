@@ -1,9 +1,9 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LNodeRef, NodeType};
+use crate::org::eclipse::elk::alg::layered::graph::{LNodeRef, LPortRef, NodeType};
 
 /// Phase-local snapshot of graph adjacency for lock-free access during P3 crossing minimization.
 ///
@@ -16,9 +16,9 @@ use crate::org::eclipse::elk::alg::layered::graph::{LNodeRef, NodeType};
 pub struct CrossMinSnapshot {
     // ── Primary lookup: Arc pointer → index ──────────────────────────
     /// Arc::as_ptr(node) as usize → flat node index
-    node_map: HashMap<usize, u32>,
+    node_map: FxHashMap<usize, u32>,
     /// Arc::as_ptr(port) as usize → port ID (= graph_element().id)
-    port_map: HashMap<usize, u32>,
+    port_map: FxHashMap<usize, u32>,
 
     // ── Node attributes (indexed by flat node index) ─────────────────
     /// graph_element().id of each node (= position within its layer)
@@ -51,6 +51,12 @@ pub struct CrossMinSnapshot {
     /// Target port IDs (successors) for all ports
     port_out_tgt: Vec<u32>,
 
+    // ── Reverse maps (index → Arc ref) ────────────────────────────────
+    /// flat node index → LNodeRef (for transferring results back to Arc graph)
+    node_refs: Vec<LNodeRef>,
+    /// port ID → LPortRef (for transferring results back to Arc graph)
+    port_refs: Vec<Option<LPortRef>>,
+
     n_nodes: u32,
     n_ports: u32,
 }
@@ -63,14 +69,16 @@ impl CrossMinSnapshot {
     pub fn build(order: &[Vec<LNodeRef>], n_ports: usize) -> Self {
         let total_nodes: usize = order.iter().map(|l| l.len()).sum();
 
-        let mut node_map = HashMap::with_capacity(total_nodes);
-        let mut port_map = HashMap::with_capacity(n_ports);
+        let mut node_map = FxHashMap::with_capacity_and_hasher(total_nodes, Default::default());
+        let mut port_map = FxHashMap::with_capacity_and_hasher(n_ports, Default::default());
 
         let mut node_graph_id = Vec::with_capacity(total_nodes);
         let mut node_layer = Vec::with_capacity(total_nodes);
         let mut node_type_vec = Vec::with_capacity(total_nodes);
         let mut node_port_offset = Vec::with_capacity(total_nodes + 1);
         let mut node_port_ids = Vec::with_capacity(n_ports);
+        let mut node_refs_vec: Vec<LNodeRef> = Vec::with_capacity(total_nodes);
+        let mut port_refs_vec: Vec<Option<LPortRef>> = vec![None; n_ports];
 
         let mut port_side = vec![PortSide::Undefined; n_ports];
         let mut port_owner = vec![0u32; n_ports];
@@ -85,6 +93,7 @@ impl CrossMinSnapshot {
             for node_ref in layer_nodes {
                 let node_ptr = Arc::as_ptr(node_ref) as usize;
                 node_map.insert(node_ptr, flat_node_idx);
+                node_refs_vec.push(node_ref.clone());
 
                 if let Ok(mut node_guard) = node_ref.lock() {
                     node_graph_id.push(node_guard.shape().graph_element().id as u32);
@@ -106,6 +115,7 @@ impl CrossMinSnapshot {
                             if pid_usize < n_ports {
                                 port_side[pid_usize] = port_guard.side();
                                 port_owner[pid_usize] = flat_node_idx;
+                                port_refs_vec[pid_usize] = Some(port_ref.clone());
 
                                 // Collect incoming edge source ports
                                 for edge in port_guard.incoming_edges() {
@@ -168,6 +178,8 @@ impl CrossMinSnapshot {
             node_type: node_type_vec,
             node_port_offset,
             node_port_ids,
+            node_refs: node_refs_vec,
+            port_refs: port_refs_vec,
             port_side,
             port_owner,
             port_in_offset,
@@ -331,5 +343,19 @@ impl CrossMinSnapshot {
     #[inline]
     pub fn n_nodes(&self) -> u32 {
         self.n_nodes
+    }
+
+    // ── Reverse maps (index → Arc ref) ──────────────────────────────────
+
+    /// Get the Arc node reference for a flat node index.
+    #[inline]
+    pub fn node_ref(&self, flat_idx: u32) -> &LNodeRef {
+        &self.node_refs[flat_idx as usize]
+    }
+
+    /// Get the Arc port reference for a port ID.
+    #[inline]
+    pub fn port_ref_opt(&self, port_id: u32) -> Option<&LPortRef> {
+        self.port_refs.get(port_id as usize)?.as_ref()
     }
 }

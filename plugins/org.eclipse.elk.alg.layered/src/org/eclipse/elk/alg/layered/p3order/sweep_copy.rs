@@ -7,29 +7,54 @@ use crate::org::eclipse::elk::alg::layered::graph::{
     LGraph, LGraphRef, LNodeRef, LPortRef, LayerRef, NodeType,
 };
 use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions, Origin};
+use crate::org::eclipse::elk::alg::layered::p3order::cross_min_snapshot::CrossMinSnapshot;
 
+/// Snapshot of node and port orderings using compact u32 indices.
+///
+/// Stores flat node indices and port IDs from [`CrossMinSnapshot`] instead of
+/// `Arc` references.  This makes `copy_from_sweep` a pure `u32` memcpy with
+/// zero `Arc` refcounting.
 #[derive(Clone)]
 pub struct SweepCopy {
-    node_order: Vec<Vec<LNodeRef>>,
-    port_orders: Vec<Vec<Vec<LPortRef>>>,
+    /// Flat node indices (from CrossMinSnapshot) per layer.
+    node_order: Vec<Vec<u32>>,
+    /// Port IDs (graph_element().id) per node per layer.
+    port_orders: Vec<Vec<Vec<u32>>>,
 }
 
 impl SweepCopy {
-    pub fn new(node_order_in: &[Vec<LNodeRef>]) -> Self {
-        let node_order = deep_copy(node_order_in);
-        let mut port_orders: Vec<Vec<Vec<LPortRef>>> = Vec::new();
-        for layer in node_order_in {
-            let mut layer_ports = Vec::new();
-            for node in layer {
-                let ports = node
-                    .lock()
-                    .ok()
-                    .map(|node_guard| node_guard.ports().clone())
-                    .unwrap_or_default();
-                layer_ports.push(ports);
-            }
-            port_orders.push(layer_ports);
-        }
+    pub fn new(node_order_in: &[Vec<LNodeRef>], snapshot: &CrossMinSnapshot) -> Self {
+        let node_order: Vec<Vec<u32>> = node_order_in
+            .iter()
+            .map(|layer| {
+                layer
+                    .iter()
+                    .map(|node| snapshot.node_flat_index(node))
+                    .collect()
+            })
+            .collect();
+
+        let port_orders: Vec<Vec<Vec<u32>>> = node_order_in
+            .iter()
+            .map(|layer| {
+                layer
+                    .iter()
+                    .map(|node| {
+                        node.lock()
+                            .ok()
+                            .map(|node_guard| {
+                                node_guard
+                                    .ports()
+                                    .iter()
+                                    .map(|p| snapshot.port_id(p))
+                                    .collect()
+                            })
+                            .unwrap_or_default()
+                    })
+                    .collect()
+            })
+            .collect();
+
         SweepCopy {
             node_order,
             port_orders,
@@ -37,7 +62,7 @@ impl SweepCopy {
     }
 
     /// Reuse existing allocations to copy from a new node order.
-    pub fn copy_from(&mut self, node_order_in: &[Vec<LNodeRef>]) {
+    pub fn copy_from(&mut self, node_order_in: &[Vec<LNodeRef>], snapshot: &CrossMinSnapshot) {
         let target_len = node_order_in.len();
 
         // Reuse outer + inner Vec allocations for node_order
@@ -45,7 +70,8 @@ impl SweepCopy {
         self.node_order.truncate(target_len);
         for (i, layer) in node_order_in.iter().enumerate() {
             self.node_order[i].clear();
-            self.node_order[i].extend_from_slice(layer);
+            self.node_order[i]
+                .extend(layer.iter().map(|n| snapshot.node_flat_index(n)));
         }
 
         // Reuse all 3 levels of Vec allocations for port_orders
@@ -58,13 +84,15 @@ impl SweepCopy {
             for (j, node) in layer.iter().enumerate() {
                 inner[j].clear();
                 if let Ok(node_guard) = node.lock() {
-                    inner[j].extend_from_slice(node_guard.ports());
+                    inner[j].extend(node_guard.ports().iter().map(|p| snapshot.port_id(p)));
                 }
             }
         }
     }
 
-    /// Reuse existing allocations to copy from another SweepCopy (preserves saved port orders).
+    /// Reuse existing allocations to copy from another SweepCopy.
+    ///
+    /// This is now a pure `u32` memcpy — no `Arc` refcounting at all.
     pub fn copy_from_sweep(&mut self, source: &SweepCopy) {
         let target_len = source.node_order.len();
 
@@ -90,7 +118,8 @@ impl SweepCopy {
         }
     }
 
-    pub fn nodes(&self) -> &Vec<Vec<LNodeRef>> {
+    /// Get the node order as flat node indices.
+    pub fn node_indices(&self) -> &Vec<Vec<u32>> {
         &self.node_order
     }
 
@@ -98,25 +127,32 @@ impl SweepCopy {
         &self,
         l_graph: &LGraphRef,
         set_port_constraints: bool,
+        snapshot: &CrossMinSnapshot,
     ) {
         let layers = l_graph
             .lock()
             .ok()
             .map(|graph_guard| graph_guard.layers().clone())
             .unwrap_or_default();
-        self.apply_to_layers(&layers, set_port_constraints);
+        self.apply_to_layers(&layers, set_port_constraints, snapshot);
     }
 
     pub fn transfer_node_and_port_orders_to_graph_guard(
         &self,
         graph: &mut LGraph,
         set_port_constraints: bool,
+        snapshot: &CrossMinSnapshot,
     ) {
         let layers = graph.layers().clone();
-        self.apply_to_layers(&layers, set_port_constraints);
+        self.apply_to_layers(&layers, set_port_constraints, snapshot);
     }
 
-    fn apply_to_layers(&self, layers: &[LayerRef], set_port_constraints: bool) {
+    fn apply_to_layers(
+        &self,
+        layers: &[LayerRef],
+        set_port_constraints: bool,
+        snapshot: &CrossMinSnapshot,
+    ) {
         let mut update_port_order: Vec<LNodeRef> = Vec::new();
 
         for (layer_index, layer_ref) in layers.iter().enumerate() {
@@ -127,7 +163,8 @@ impl SweepCopy {
                 .map(|layer| layer.len())
                 .unwrap_or(0);
             for node_index in 0..node_count {
-                let node = self.node_order[layer_index][node_index].clone();
+                let flat_idx = self.node_order[layer_index][node_index];
+                let node = snapshot.node_ref(flat_idx).clone();
                 // Single node lock for id, type check, port orders, and constraints
                 if let Ok(mut node_guard) = node.lock() {
                     node_guard.shape().graph_element().id = node_index as i32;
@@ -140,7 +177,11 @@ impl SweepCopy {
                         .get(layer_index)
                         .and_then(|layer_ports| layer_ports.get(node_index))
                     {
-                        node_guard.ports_mut().extend(ports.iter().cloned());
+                        for &pid in ports {
+                            if let Some(port_ref) = snapshot.port_ref_opt(pid) {
+                                node_guard.ports_mut().push(port_ref.clone());
+                            }
+                        }
                     }
                     if set_port_constraints {
                         let constraints = node_guard
@@ -182,10 +223,6 @@ impl SweepCopy {
             };
         }
     }
-}
-
-fn deep_copy(node_order: &[Vec<LNodeRef>]) -> Vec<Vec<LNodeRef>> {
-    node_order.to_vec()
 }
 
 fn assert_correct_port_sides(dummy: &LNodeRef) -> Option<LNodeRef> {

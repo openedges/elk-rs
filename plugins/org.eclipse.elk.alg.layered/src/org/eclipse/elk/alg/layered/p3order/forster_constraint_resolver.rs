@@ -8,6 +8,7 @@ use crate::org::eclipse::elk::alg::layered::graph::{LNodeRef, NodeType};
 use crate::org::eclipse::elk::alg::layered::options::InternalProperties;
 use crate::org::eclipse::elk::alg::layered::p3order::barycenter_heuristic::BarycenterState;
 use crate::org::eclipse::elk::alg::layered::p3order::counting::IInitializable;
+use crate::org::eclipse::elk::alg::layered::p3order::cross_min_snapshot::CrossMinSnapshot;
 
 pub struct ForsterConstraintResolver {
     constraints_between_non_dummies: bool,
@@ -15,6 +16,7 @@ pub struct ForsterConstraintResolver {
     pub barycenter_states: Vec<Vec<Option<BarycenterState>>>,
     constraint_groups: Vec<Vec<Option<ConstraintGroupId>>>,
     constraint_group_arena: Vec<ConstraintGroup>,
+    snapshot: Option<Arc<CrossMinSnapshot>>,
 }
 
 type ConstraintGroupId = usize;
@@ -30,6 +32,41 @@ impl ForsterConstraintResolver {
             barycenter_states: Vec::new(),
             constraint_groups: Vec::new(),
             constraint_group_arena: Vec::new(),
+            snapshot: None,
+        }
+    }
+
+    pub fn set_snapshot(&mut self, snapshot: Arc<CrossMinSnapshot>) {
+        self.snapshot = Some(snapshot);
+    }
+
+    #[inline]
+    fn snap_node_id(&self, node: &LNodeRef) -> usize {
+        if let Some(ref snap) = self.snapshot {
+            snap.node_id(node) as usize
+        } else {
+            node_id(node)
+        }
+    }
+
+    #[inline]
+    fn snap_layer_index(&self, node: &LNodeRef) -> usize {
+        if let Some(ref snap) = self.snapshot {
+            snap.node_layer_index(node) as usize
+        } else {
+            layer_index(node)
+        }
+    }
+
+    #[inline]
+    fn snap_node_type(&self, node: &LNodeRef) -> NodeType {
+        if let Some(ref snap) = self.snapshot {
+            snap.node_type_of(snap.node_flat_index(node))
+        } else {
+            node.lock()
+                .ok()
+                .map(|node_guard| node_guard.node_type())
+                .unwrap_or(NodeType::Normal)
         }
     }
 
@@ -109,7 +146,7 @@ impl ForsterConstraintResolver {
                 .unwrap_or_default();
             for node in group_nodes {
                 nodes.push(node.clone());
-                let (li, ni) = (layer_index(&node), node_id(&node));
+                let (li, ni) = (self.snap_layer_index(&node), self.snap_node_id(&node));
                 if let Some(state) = self.barycenter_states
                     .get_mut(li).and_then(|l| l.get_mut(ni)).and_then(|o| o.as_mut())
                 {
@@ -144,11 +181,7 @@ impl ForsterConstraintResolver {
                 None => continue,
             };
             if only_between_normal_nodes {
-                let node_type = node
-                    .lock()
-                    .ok()
-                    .map(|node_guard| node_guard.node_type())
-                    .unwrap_or(NodeType::Normal);
+                let node_type = self.snap_node_type(&node);
                 if node_type != NodeType::Normal {
                     continue;
                 }
@@ -163,11 +196,7 @@ impl ForsterConstraintResolver {
                 .unwrap_or_default();
             for successor in successors {
                 if only_between_normal_nodes {
-                    let successor_type = successor
-                        .lock()
-                        .ok()
-                        .map(|node_guard| node_guard.node_type())
-                        .unwrap_or(NodeType::Normal);
+                    let successor_type = self.snap_node_type(&successor);
                     if successor_type != NodeType::Normal {
                         continue;
                     }
@@ -182,11 +211,7 @@ impl ForsterConstraintResolver {
             }
 
             if !only_between_normal_nodes {
-                let node_type = node
-                    .lock()
-                    .ok()
-                    .map(|node_guard| node_guard.node_type())
-                    .unwrap_or(NodeType::Normal);
+                let node_type = self.snap_node_type(&node);
                 if node_type == NodeType::Normal {
                     if let Some(last_node) = last_non_dummy_node.clone() {
                         let last_unit_key = node_ptr_id(&last_node);
@@ -430,8 +455,8 @@ impl ForsterConstraintResolver {
     }
 
     fn group_of(&self, node: &LNodeRef) -> ConstraintGroupId {
-        let layer_index = layer_index(node);
-        let node_index = node_id(node);
+        let layer_index = self.snap_layer_index(node);
+        let node_index = self.snap_node_id(node);
         self.constraint_groups
             .get(layer_index)
             .and_then(|layer| layer.get(node_index))
@@ -441,7 +466,7 @@ impl ForsterConstraintResolver {
 
     fn group_barycenter(&self, group: ConstraintGroupId) -> Option<f64> {
         let node = self.group(group).map(|group_data| group_data.single_node().clone())?;
-        let (li, ni) = (layer_index(&node), node_id(&node));
+        let (li, ni) = (self.snap_layer_index(&node), self.snap_node_id(&node));
         self.barycenter_states
             .get(li).and_then(|l| l.get(ni)).and_then(|o| o.as_ref())
             .and_then(|s| s.barycenter)
@@ -453,7 +478,7 @@ impl ForsterConstraintResolver {
             None => return,
         };
         for node in nodes {
-            let (li, ni) = (layer_index(&node), node_id(&node));
+            let (li, ni) = (self.snap_layer_index(&node), self.snap_node_id(&node));
             if let Some(state) = self.barycenter_states
                 .get_mut(li).and_then(|l| l.get_mut(ni)).and_then(|o| o.as_mut())
             {
@@ -463,8 +488,8 @@ impl ForsterConstraintResolver {
     }
 
     fn init_node_level(&mut self, node: &LNodeRef, full_init: bool) {
-        let layer_index = layer_index(node);
-        let node_index = node_id(node);
+        let layer_index = self.snap_layer_index(node);
+        let node_index = self.snap_node_id(node);
 
         if self.constraint_groups.get(layer_index).is_some() {
             let group_id = self.add_group(ConstraintGroup::new(node.clone()));

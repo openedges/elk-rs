@@ -60,24 +60,26 @@ impl CrossingsCounter {
         left_layer: &[LNodeRef],
         right_layer: &[LNodeRef],
     ) -> i32 {
-        let ports = self.init_port_positions_counter_clockwise(left_layer, right_layer);
-        self.index_tree = BinaryIndexedTree::new(ports.len());
         let snap = self.snapshot.clone();
         if let Some(ref snap) = snap {
-            let port_ids: Vec<u32> = ports.iter().map(|p| snap.port_id(p)).collect();
+            let port_ids =
+                self.init_port_positions_counter_clockwise_snap(snap, left_layer, right_layer);
+            self.index_tree = BinaryIndexedTree::new(port_ids.len());
             self.count_crossings_on_ports_snap(snap, &port_ids)
         } else {
+            let ports = self.init_port_positions_counter_clockwise(left_layer, right_layer);
+            self.index_tree = BinaryIndexedTree::new(ports.len());
             self.count_crossings_on_ports(&ports)
         }
     }
 
     pub fn count_in_layer_crossings_on_side(&mut self, nodes: &[LNodeRef], side: PortSide) -> i32 {
-        let ports = self.init_port_positions_for_in_layer_crossings(nodes, side);
         let snap = self.snapshot.clone();
         if let Some(ref snap) = snap {
-            let port_ids: Vec<u32> = ports.iter().map(|p| snap.port_id(p)).collect();
+            let port_ids = self.init_port_positions_for_in_layer_crossings_snap(snap, nodes, side);
             self.count_in_layer_crossings_on_ports_snap(snap, &port_ids)
         } else {
+            let ports = self.init_port_positions_for_in_layer_crossings(nodes, side);
             self.count_in_layer_crossings_on_ports(&ports)
         }
     }
@@ -158,8 +160,15 @@ impl CrossingsCounter {
     }
 
     pub fn init_for_counting_between(&mut self, left_layer: &[LNodeRef], right_layer: &[LNodeRef]) {
-        let ports = self.init_port_positions_counter_clockwise(left_layer, right_layer);
-        self.index_tree = BinaryIndexedTree::new(ports.len());
+        let snap = self.snapshot.clone();
+        if let Some(ref snap) = snap {
+            let port_ids =
+                self.init_port_positions_counter_clockwise_snap(snap, left_layer, right_layer);
+            self.index_tree = BinaryIndexedTree::new(port_ids.len());
+        } else {
+            let ports = self.init_port_positions_counter_clockwise(left_layer, right_layer);
+            self.index_tree = BinaryIndexedTree::new(ports.len());
+        }
     }
 
     pub fn init_port_positions_for_in_layer_crossings(
@@ -183,6 +192,15 @@ impl CrossingsCounter {
     }
 
     pub fn switch_nodes(&mut self, was_upper: &LNodeRef, was_lower: &LNodeRef, side: PortSide) {
+        let snap = self.snapshot.clone();
+        if let Some(ref snap) = snap {
+            self.switch_nodes_snap(snap, was_upper, was_lower, side);
+        } else {
+            self.switch_nodes_arc(was_upper, was_lower, side);
+        }
+    }
+
+    fn switch_nodes_arc(&mut self, was_upper: &LNodeRef, was_lower: &LNodeRef, side: PortSide) {
         let upper_id = self.node_id_of(was_upper);
         let lower_id = self.node_id_of(was_lower);
         let upper_shift = *self.node_cardinalities.get(lower_id).unwrap_or(&0);
@@ -199,6 +217,34 @@ impl CrossingsCounter {
             let idx = self.port_id_of(&port);
             if idx < self.port_positions.len() {
                 self.port_positions[idx] = self.position_of(&port) - lower_shift;
+            }
+        }
+    }
+
+    /// Snapshot path: uses CSR port-by-side lists, no node lock needed.
+    fn switch_nodes_snap(
+        &mut self,
+        snap: &CrossMinSnapshot,
+        was_upper: &LNodeRef,
+        was_lower: &LNodeRef,
+        side: PortSide,
+    ) {
+        let upper_id = snap.node_id(was_upper) as usize;
+        let lower_id = snap.node_id(was_lower) as usize;
+        let upper_shift = *self.node_cardinalities.get(lower_id).unwrap_or(&0);
+        let lower_shift = *self.node_cardinalities.get(upper_id).unwrap_or(&0);
+
+        for pid in self.nsew_ports_snap(snap, was_upper, side) {
+            let pid_usize = pid as usize;
+            if pid_usize < self.port_positions.len() {
+                self.port_positions[pid_usize] += upper_shift;
+            }
+        }
+
+        for pid in self.nsew_ports_snap(snap, was_lower, side) {
+            let pid_usize = pid as usize;
+            if pid_usize < self.port_positions.len() {
+                self.port_positions[pid_usize] -= lower_shift;
             }
         }
     }
@@ -318,60 +364,101 @@ impl CrossingsCounter {
     fn count_north_south_crossings_on_ports(&mut self, ports: &[LPortRef]) -> i32 {
         let mut crossings = 0;
         let mut targets_and_degrees: Vec<(LPortRef, i32)> = Vec::new();
+        let snap = self.snapshot.clone();
 
         for port in ports {
             self.index_tree.remove_all(self.position_of(port) as usize);
             targets_and_degrees.clear();
 
-            let node_type = port
-                .lock()
-                .ok()
-                .and_then(|port_guard| port_guard.node())
-                .and_then(|node| node.lock().ok().map(|node_guard| node_guard.node_type()))
-                .unwrap_or(NodeType::Normal);
+            let node_type = if let Some(ref snap) = snap {
+                let pid = snap.port_id(port);
+                snap.node_type_of(snap.port_owner_flat(pid))
+            } else {
+                port.lock()
+                    .ok()
+                    .and_then(|port_guard| port_guard.node())
+                    .and_then(|node| node.lock().ok().map(|node_guard| node_guard.node_type()))
+                    .unwrap_or(NodeType::Normal)
+            };
 
             match node_type {
                 NodeType::Normal => {
+                    // PORT_DUMMY property still needs one lock
                     let dummy = port.lock().ok().and_then(|mut port_guard| {
                         port_guard.get_property(InternalProperties::PORT_DUMMY)
                     });
                     if let Some(dummy) = dummy {
-                        let dummy_ports = dummy
-                            .lock()
-                            .ok()
-                            .map(|node_guard| node_guard.ports().clone())
-                            .unwrap_or_default();
-                        for dummy_port in dummy_ports {
-                            let degree = dummy_port
+                        if let Some(ref snap) = snap {
+                            // Snapshot path: use CSR for ports + degree
+                            let dummy_flat = snap.node_flat_index(&dummy);
+                            for &dpid in snap.node_ports(dummy_flat) {
+                                let degree = (snap.port_predecessors(dpid).len()
+                                    + snap.port_successors(dpid).len())
+                                    as i32;
+                                if let Some(dp_ref) = snap.port_ref_opt(dpid) {
+                                    targets_and_degrees.push((dp_ref.clone(), degree));
+                                }
+                            }
+                        } else {
+                            let dummy_ports = dummy
                                 .lock()
                                 .ok()
-                                .map(|port_guard| port_guard.degree() as i32)
-                                .unwrap_or(0);
-                            targets_and_degrees.push((dummy_port, degree));
+                                .map(|node_guard| node_guard.ports().clone())
+                                .unwrap_or_default();
+                            for dummy_port in dummy_ports {
+                                let degree = dummy_port
+                                    .lock()
+                                    .ok()
+                                    .map(|port_guard| port_guard.degree() as i32)
+                                    .unwrap_or(0);
+                                targets_and_degrees.push((dummy_port, degree));
+                            }
                         }
                     }
                 }
                 NodeType::LongEdge => {
-                    let other_port = port
-                        .lock()
-                        .ok()
-                        .and_then(|port_guard| port_guard.node())
-                        .and_then(|node| {
-                            node.lock()
-                                .ok()
-                                .map(|node_guard| node_guard.ports().clone())
-                        })
-                        .and_then(|ports| ports.into_iter().find(|p| !Arc::ptr_eq(p, port)));
-                    if let Some(other_port) = other_port {
-                        let degree = other_port
+                    if let Some(ref snap) = snap {
+                        // Snapshot path: find other port on same node via CSR
+                        let pid = snap.port_id(port);
+                        let flat = snap.port_owner_flat(pid);
+                        let other = snap
+                            .node_ports(flat)
+                            .iter()
+                            .find(|&&p| p != pid)
+                            .copied();
+                        if let Some(other_pid) = other {
+                            let degree = (snap.port_predecessors(other_pid).len()
+                                + snap.port_successors(other_pid).len())
+                                as i32;
+                            if let Some(op_ref) = snap.port_ref_opt(other_pid) {
+                                targets_and_degrees.push((op_ref.clone(), degree));
+                            }
+                        }
+                    } else {
+                        let other_port = port
                             .lock()
                             .ok()
-                            .map(|port_guard| port_guard.degree() as i32)
-                            .unwrap_or(0);
-                        targets_and_degrees.push((other_port, degree));
+                            .and_then(|port_guard| port_guard.node())
+                            .and_then(|node| {
+                                node.lock()
+                                    .ok()
+                                    .map(|node_guard| node_guard.ports().clone())
+                            })
+                            .and_then(|ports| {
+                                ports.into_iter().find(|p| !Arc::ptr_eq(p, port))
+                            });
+                        if let Some(other_port) = other_port {
+                            let degree = other_port
+                                .lock()
+                                .ok()
+                                .map(|port_guard| port_guard.degree() as i32)
+                                .unwrap_or(0);
+                            targets_and_degrees.push((other_port, degree));
+                        }
                     }
                 }
                 NodeType::NorthSouthPort => {
+                    // ORIGIN property still needs one lock
                     let origin_port = port
                         .lock()
                         .ok()
@@ -383,11 +470,17 @@ impl CrossingsCounter {
                             _ => None,
                         });
                     if let Some(origin_port) = origin_port {
-                        let degree = port
-                            .lock()
-                            .ok()
-                            .map(|port_guard| port_guard.degree() as i32)
-                            .unwrap_or(0);
+                        let degree = if let Some(ref snap) = snap {
+                            let pid = snap.port_id(port);
+                            (snap.port_predecessors(pid).len()
+                                + snap.port_successors(pid).len())
+                                as i32
+                        } else {
+                            port.lock()
+                                .ok()
+                                .map(|port_guard| port_guard.degree() as i32)
+                                .unwrap_or(0)
+                        };
                         targets_and_degrees.push((origin_port, degree));
                     }
                 }
@@ -469,6 +562,109 @@ impl CrossingsCounter {
         ports
     }
 
+    // ── Snapshot-specialized init methods (direct Vec<u32>, no Arc clones) ───
+
+    fn init_port_positions_counter_clockwise_snap(
+        &mut self,
+        snap: &CrossMinSnapshot,
+        left_layer: &[LNodeRef],
+        right_layer: &[LNodeRef],
+    ) -> Vec<u32> {
+        let mut port_ids = Vec::new();
+        self.init_positions_snap(snap, left_layer, &mut port_ids, PortSide::East, true, false);
+        self.init_positions_snap(snap, right_layer, &mut port_ids, PortSide::West, false, false);
+        port_ids
+    }
+
+    fn init_port_positions_for_in_layer_crossings_snap(
+        &mut self,
+        snap: &CrossMinSnapshot,
+        nodes: &[LNodeRef],
+        side: PortSide,
+    ) -> Vec<u32> {
+        let mut port_ids = Vec::new();
+        self.init_positions_snap(snap, nodes, &mut port_ids, side, true, true);
+        self.index_tree = BinaryIndexedTree::new(port_ids.len());
+        port_ids
+    }
+
+    fn init_positions_snap(
+        &mut self,
+        snap: &CrossMinSnapshot,
+        nodes: &[LNodeRef],
+        port_ids: &mut Vec<u32>,
+        side: PortSide,
+        top_down: bool,
+        get_cardinalities: bool,
+    ) {
+        if nodes.is_empty() {
+            return;
+        }
+        let mut num_ports = port_ids.len() as i32;
+        if get_cardinalities {
+            self.node_cardinalities = vec![0; nodes.len()];
+        }
+        let indices: Box<dyn Iterator<Item = usize>> = if top_down {
+            Box::new(0..nodes.len())
+        } else {
+            Box::new((0..nodes.len()).rev())
+        };
+        for i in indices {
+            let node = &nodes[i];
+            // Lock node once to get port IDs in current order, filtered by side.
+            // Returns u32 port IDs directly — no Arc clone needed.
+            let filtered: Vec<u32> = node
+                .lock()
+                .ok()
+                .map(|node_guard| {
+                    let mut result: Vec<u32> = node_guard
+                        .ports()
+                        .iter()
+                        .filter_map(|p| {
+                            let pid = snap.port_id(p);
+                            if snap.port_side_of(pid) == side {
+                                Some(pid)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
+                    // Apply reversal matching get_ports logic
+                    match side {
+                        PortSide::East => {
+                            if !top_down {
+                                result.reverse();
+                            }
+                        }
+                        _ => {
+                            if top_down {
+                                result.reverse();
+                            }
+                        }
+                    }
+                    result
+                })
+                .unwrap_or_default();
+
+            if get_cardinalities {
+                let nid = snap.node_id(node) as usize;
+                if nid < self.node_cardinalities.len() {
+                    self.node_cardinalities[nid] = filtered.len() as i32;
+                }
+            }
+
+            for &pid in &filtered {
+                let pid_usize = pid as usize;
+                if pid_usize >= self.port_positions.len() {
+                    self.port_positions.resize(pid_usize + 1, 0);
+                }
+                self.port_positions[pid_usize] = num_ports;
+                num_ports += 1;
+            }
+            port_ids.extend_from_slice(&filtered);
+        }
+    }
+
     fn init_positions_for_north_south_counting(&mut self, nodes: &[LNodeRef]) -> Vec<LPortRef> {
         const INDEXING_SIDE: PortSide = PortSide::West;
         const STACK_SIDE: PortSide = PortSide::East;
@@ -495,11 +691,15 @@ impl CrossingsCounter {
                 });
             }
 
-            let node_type = current
-                .lock()
-                .ok()
-                .map(|node_guard| node_guard.node_type())
-                .unwrap_or(NodeType::Normal);
+            let node_type = if let Some(ref snap) = self.snapshot {
+                snap.node_type_of(snap.node_flat_index(current))
+            } else {
+                current
+                    .lock()
+                    .ok()
+                    .map(|node_guard| node_guard.node_type())
+                    .unwrap_or(NodeType::Normal)
+            };
             match node_type {
                 NodeType::Normal => {
                     for port in get_north_south_ports_with_incident_edges(current, PortSide::North)
@@ -586,21 +786,56 @@ impl CrossingsCounter {
     }
 
     fn get_ports(&self, node: &LNodeRef, side: PortSide, top_down: bool) -> Vec<LPortRef> {
-        let ports = node
-            .lock()
-            .ok()
-            .map(|mut node_guard| node_guard.port_side_view(side))
-            .unwrap_or_default();
-        if side == PortSide::East {
-            if top_down {
-                ports
+        if let Some(ref snap) = self.snapshot {
+            // Snapshot path: get port IDs filtered by side (no Arc clone of ports list),
+            // then convert to LPortRef via reverse map. Still needs one node lock to get
+            // current port order (port distributor may have reordered).
+            let port_refs: Vec<LPortRef> = node
+                .lock()
+                .ok()
+                .map(|node_guard| {
+                    node_guard
+                        .ports()
+                        .iter()
+                        .filter_map(|p| {
+                            let pid = snap.port_id(p);
+                            if snap.port_side_of(pid) == side {
+                                snap.port_ref_opt(pid).cloned()
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            if side == PortSide::East {
+                if top_down {
+                    port_refs
+                } else {
+                    port_refs.into_iter().rev().collect()
+                }
+            } else if top_down {
+                port_refs.into_iter().rev().collect()
             } else {
-                ports.into_iter().rev().collect()
+                port_refs
             }
-        } else if top_down {
-            ports.into_iter().rev().collect()
         } else {
-            ports
+            let ports = node
+                .lock()
+                .ok()
+                .map(|mut node_guard| node_guard.port_side_view(side))
+                .unwrap_or_default();
+            if side == PortSide::East {
+                if top_down {
+                    ports
+                } else {
+                    ports.into_iter().rev().collect()
+                }
+            } else if top_down {
+                ports.into_iter().rev().collect()
+            } else {
+                ports
+            }
         }
     }
 

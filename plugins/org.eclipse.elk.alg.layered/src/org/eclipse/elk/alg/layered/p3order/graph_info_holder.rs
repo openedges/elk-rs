@@ -457,10 +457,10 @@ impl GraphInfoHolder {
     /// Reuse existing allocation when updating currently_best from current_node_order.
     pub fn update_currently_best_from_current(&mut self) {
         match &mut self.currently_best_node_and_port_order {
-            Some(existing) => existing.copy_from(&self.current_node_order),
+            Some(existing) => existing.copy_from(&self.current_node_order, &self.snapshot),
             None => {
                 self.currently_best_node_and_port_order =
-                    Some(SweepCopy::new(&self.current_node_order));
+                    Some(SweepCopy::new(&self.current_node_order, &self.snapshot));
             }
         }
     }
@@ -487,10 +487,10 @@ impl GraphInfoHolder {
             self.currently_best_node_and_port_order = Some(src);
         } else {
             match &mut self.best_node_and_port_order {
-                Some(existing) => existing.copy_from(&self.current_node_order),
+                Some(existing) => existing.copy_from(&self.current_node_order, &self.snapshot),
                 None => {
                     self.best_node_and_port_order =
-                        Some(SweepCopy::new(&self.current_node_order));
+                        Some(SweepCopy::new(&self.current_node_order, &self.snapshot));
                 }
             }
         }
@@ -644,6 +644,10 @@ impl GraphInfoHolder {
     }
 
     pub fn snapshot(&self) -> &CrossMinSnapshot {
+        &self.snapshot
+    }
+
+    pub fn snapshot_arc(&self) -> &Arc<CrossMinSnapshot> {
         &self.snapshot
     }
 

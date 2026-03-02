@@ -1,6 +1,10 @@
 use std::sync::{Arc, Weak};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
+pub mod arena;
+pub mod arena_builder;
+pub mod arena_sync;
+pub mod arena_types;
 pub mod l_edge;
 pub mod l_graph;
 pub mod l_graph_element;
@@ -27,6 +31,11 @@ pub use l_port::LPort;
 pub use l_shape::LShape;
 pub use layer::Layer;
 pub use tarjan::{NodeRefKey, Tarjan};
+
+pub use arena::LArena;
+pub use arena_builder::LArenaBuilder;
+pub use arena_sync::ArenaSync;
+pub use arena_types::{EdgeId, LabelId, LayerId, NodeId, PortId};
 
 pub type LGraphRef = Arc<Mutex<LGraph>>;
 pub type LGraphWeak = Weak<Mutex<LGraph>>;

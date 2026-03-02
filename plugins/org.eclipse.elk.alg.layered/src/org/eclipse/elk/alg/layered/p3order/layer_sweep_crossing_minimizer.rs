@@ -34,6 +34,7 @@ use crate::org::eclipse::elk::alg::layered::options::{
 use crate::org::eclipse::elk::alg::layered::p3order::{
     in_north_south_east_west_order, GraphInfoHolder,
 };
+use crate::org::eclipse::elk::alg::layered::p3order::cross_min_snapshot::CrossMinSnapshot;
 use crate::org::eclipse::elk::alg::layered::p3order::random_trace;
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkReflect;
@@ -679,26 +680,27 @@ impl LayerSweepCrossingMinimizer {
                 format_layer_nodes(&order[first])
             );
         }
+        let has_children = !self.graph_info_holders[index].child_graphs().is_empty();
         let mut hierarchical_targets = Vec::new();
-        {
+        if has_children {
             let order = self.graph_info_holders[index].current_node_order();
             collect_hierarchical_targets(
                 &order[first_index(forward, length)],
                 &mut hierarchical_targets,
             );
-        }
-        let start = if timing {
-            Some(std::time::Instant::now())
-        } else {
-            None
-        };
-        improved |= self.sweep_in_hierarchical_nodes(&hierarchical_targets, forward, first_sweep);
-        if let Some(start) = start {
-            eprintln!(
-                "crossmin: sweep_in_hierarchical_nodes layer={} done in {} ms",
-                first_index(forward, length),
-                start.elapsed().as_millis()
-            );
+            let start = if timing {
+                Some(std::time::Instant::now())
+            } else {
+                None
+            };
+            improved |= self.sweep_in_hierarchical_nodes(&hierarchical_targets, forward, first_sweep);
+            if let Some(start) = start {
+                eprintln!(
+                    "crossmin: sweep_in_hierarchical_nodes layer={} done in {} ms",
+                    first_index(forward, length),
+                    start.elapsed().as_millis()
+                );
+            }
         }
 
         let mut i = first_free(forward, length);
@@ -751,22 +753,22 @@ impl LayerSweepCrossingMinimizer {
                     format_layer_nodes(&order[i_usize])
                 );
             }
-            {
+            if has_children {
                 let order = self.graph_info_holders[index].current_node_order();
                 collect_hierarchical_targets(&order[i_usize], &mut hierarchical_targets);
-            }
-            let start = if timing {
-                Some(std::time::Instant::now())
-            } else {
-                None
-            };
-            improved |= self.sweep_in_hierarchical_nodes(&hierarchical_targets, forward, first_sweep);
-            if let Some(start) = start {
-                eprintln!(
-                    "crossmin: sweep_in_hierarchical_nodes layer={} done in {} ms",
-                    i_usize,
-                    start.elapsed().as_millis()
-                );
+                let start = if timing {
+                    Some(std::time::Instant::now())
+                } else {
+                    None
+                };
+                improved |= self.sweep_in_hierarchical_nodes(&hierarchical_targets, forward, first_sweep);
+                if let Some(start) = start {
+                    eprintln!(
+                        "crossmin: sweep_in_hierarchical_nodes layer={} done in {} ms",
+                        i_usize,
+                        start.elapsed().as_millis()
+                    );
+                }
             }
             i += next(forward);
         }
@@ -848,26 +850,30 @@ impl LayerSweepCrossingMinimizer {
 
     fn set_port_order_on_parent_graph(&mut self, index: usize) {
         let has_external_ports = self.graph_info_holders[index].has_external_ports();
-        let best_sweep = self.graph_info_holders[index]
-            .best_sweep()
-            .map(|s| s.nodes());
         let parent_index = self.graph_info_holders[index].parent_graph_index();
-        if !has_external_ports || best_sweep.is_none() {
-            return;
-        }
-        let best_sweep = best_sweep.unwrap();
-        let Some(parent) = self.graph_info_holders[index].parent() else {
-            return;
-        };
+        // Scope the immutable borrow of graph_info_holders[index]
+        {
+            let holder = &self.graph_info_holders[index];
+            let best = holder.best_sweep();
+            if !has_external_ports || best.is_none() {
+                return;
+            }
+            let best = best.unwrap();
+            let Some(parent) = holder.parent() else {
+                return;
+            };
+            let snapshot = holder.snapshot();
+            let nodes = best.node_indices();
 
-        sort_ports_by_dummy_positions_in_last_layer(best_sweep, &parent, true);
-        sort_ports_by_dummy_positions_in_last_layer(best_sweep, &parent, false);
-        if let Ok(mut parent_guard) = parent.lock() {
-            parent_guard.set_property(
-                LayeredOptions::PORT_CONSTRAINTS,
-                Some(PortConstraints::FixedOrder),
-            );
-        };
+            sort_ports_by_dummy_positions_in_last_layer_snap(nodes, &parent, true, snapshot);
+            sort_ports_by_dummy_positions_in_last_layer_snap(nodes, &parent, false, snapshot);
+            if let Ok(mut parent_guard) = parent.lock() {
+                parent_guard.set_property(
+                    LayeredOptions::PORT_CONSTRAINTS,
+                    Some(PortConstraints::FixedOrder),
+                );
+            };
+        }
         if let Some(parent_index) = parent_index {
             self.mark_graph_dirty_for_crossing_count(parent_index);
         }
@@ -1098,10 +1104,11 @@ impl LayerSweepCrossingMinimizer {
     ) {
         for graph_data in &self.graph_info_holders {
             if let Some(best_sweep) = graph_data.best_sweep() {
+                let snapshot = graph_data.snapshot();
                 if Arc::ptr_eq(graph_data.l_graph(), root_graph) {
-                    best_sweep.transfer_node_and_port_orders_to_graph_guard(root_graph_guard, true);
+                    best_sweep.transfer_node_and_port_orders_to_graph_guard(root_graph_guard, true, snapshot);
                 } else {
-                    best_sweep.transfer_node_and_port_orders_to_graph(graph_data.l_graph(), true);
+                    best_sweep.transfer_node_and_port_orders_to_graph(graph_data.l_graph(), true, snapshot);
                 }
             }
         }
@@ -1375,6 +1382,44 @@ fn sort_ports_by_dummy_positions_in_last_layer(
             };
             if is_on_end_of_sweep_side(&port, on_right_most_layer) && is_hierarchical(&port) {
                 if let Some(origin) = origin_port(&last_layer[j]) {
+                    ports[i] = origin;
+                    j = ((j as isize) + next(on_right_most_layer)) as usize;
+                }
+            }
+        }
+    }
+}
+
+/// Snapshot-based variant of [`sort_ports_by_dummy_positions_in_last_layer`]
+/// that takes `&[Vec<u32>]` (flat node indices) instead of `&[Vec<LNodeRef>]`.
+fn sort_ports_by_dummy_positions_in_last_layer_snap(
+    node_order: &[Vec<u32>],
+    parent: &LNodeRef,
+    on_right_most_layer: bool,
+    snapshot: &CrossMinSnapshot,
+) {
+    let end_index = end_index(on_right_most_layer, node_order.len());
+    let last_layer = match node_order.get(end_index) {
+        Some(layer) => layer,
+        None => return,
+    };
+    let mut j = first_index(on_right_most_layer, last_layer.len());
+    if last_layer.is_empty()
+        || snapshot.node_type_of(last_layer[j]) != NodeType::ExternalPort
+    {
+        return;
+    }
+
+    if let Ok(mut parent_guard) = parent.lock() {
+        let ports = parent_guard.ports_mut();
+        for i in 0..ports.len() {
+            let port = ports.get(i).cloned();
+            let Some(port) = port else {
+                continue;
+            };
+            if is_on_end_of_sweep_side(&port, on_right_most_layer) && is_hierarchical(&port) {
+                let node_ref = snapshot.node_ref(last_layer[j]);
+                if let Some(origin) = origin_port(node_ref) {
                     ports[i] = origin;
                     j = ((j as isize) + next(on_right_most_layer)) as usize;
                 }
