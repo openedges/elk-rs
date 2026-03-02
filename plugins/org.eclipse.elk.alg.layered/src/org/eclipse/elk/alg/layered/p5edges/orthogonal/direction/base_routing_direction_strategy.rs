@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use rustc_hash::FxHashSet;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector_chain::KVectorChain;
@@ -14,13 +14,13 @@ use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::direction::sout
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::direction::west_to_east_routing_strategy::WestToEastRoutingStrategy;
 
 pub struct BaseRoutingDirectionStrategy {
-    created_junction_points: HashSet<KVector>,
+    created_junction_points: FxHashSet<KVector>,
 }
 
 impl BaseRoutingDirectionStrategy {
     pub fn new() -> Self {
         BaseRoutingDirectionStrategy {
-            created_junction_points: HashSet::new(),
+            created_junction_points: FxHashSet::default(),
         }
     }
 
