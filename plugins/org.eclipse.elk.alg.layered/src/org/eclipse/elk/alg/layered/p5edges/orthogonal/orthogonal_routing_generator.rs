@@ -1,4 +1,6 @@
-use std::collections::HashMap;
+use std::collections::VecDeque;
+
+use rustc_hash::FxHashMap;
 use std::sync::LazyLock;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
@@ -60,7 +62,7 @@ impl OrthogonalRoutingGenerator {
         target_layer_nodes: Option<&[LNodeRef]>,
         start_pos: f64,
     ) -> i32 {
-        let mut port_to_segment_map: HashMap<usize, HyperEdgeSegmentRef> = HashMap::new();
+        let mut port_to_segment_map: FxHashMap<usize, HyperEdgeSegmentRef> = FxHashMap::default();
         let mut edge_segments: Vec<HyperEdgeSegmentRef> = Vec::new();
 
         self.create_hyper_edge_segments(
@@ -180,7 +182,7 @@ impl OrthogonalRoutingGenerator {
         nodes: Option<&[LNodeRef]>,
         port_side: PortSide,
         hyper_edges: &mut Vec<HyperEdgeSegmentRef>,
-        port_map: &mut HashMap<usize, HyperEdgeSegmentRef>,
+        port_map: &mut FxHashMap<usize, HyperEdgeSegmentRef>,
     ) {
         if let Some(nodes) = nodes {
             for node in nodes {
@@ -214,33 +216,49 @@ impl OrthogonalRoutingGenerator {
         he1: &HyperEdgeSegmentRef,
         he2: &HyperEdgeSegmentRef,
     ) -> i32 {
-        let (he1_start, he1_end, he1_outgoing, he1_incoming) = {
+        // Borrow both segments simultaneously (different Rc's → different RefCells).
+        // Compute all scalar results while borrows are alive to avoid 4x Vec<f64> clone.
+        let (conflicts1, conflicts2, dep_value1, dep_value2) = {
             let he1_guard = he1.borrow();
-            (
-                he1_guard.start_coordinate(),
-                he1_guard.end_coordinate(),
-                he1_guard.outgoing_connection_coordinates().clone(),
-                he1_guard.incoming_connection_coordinates().clone(),
-            )
-        };
-        let (he2_start, he2_end, he2_outgoing, he2_incoming) = {
             let he2_guard = he2.borrow();
-            (
-                he2_guard.start_coordinate(),
-                he2_guard.end_coordinate(),
-                he2_guard.outgoing_connection_coordinates().clone(),
-                he2_guard.incoming_connection_coordinates().clone(),
-            )
+
+            let he1_start = he1_guard.start_coordinate();
+            let he1_end = he1_guard.end_coordinate();
+            let he2_start = he2_guard.start_coordinate();
+            let he2_end = he2_guard.end_coordinate();
+
+            if (he1_start - he1_end).abs() < Self::TOLERANCE
+                || (he2_start - he2_end).abs() < Self::TOLERANCE
+            {
+                return 0;
+            }
+
+            let he1_outgoing = he1_guard.outgoing_connection_coordinates();
+            let he1_incoming = he1_guard.incoming_connection_coordinates();
+            let he2_outgoing = he2_guard.outgoing_connection_coordinates();
+            let he2_incoming = he2_guard.incoming_connection_coordinates();
+
+            let conflicts1 = self.count_conflicts(he1_outgoing, he2_incoming);
+            let conflicts2 = self.count_conflicts(he2_outgoing, he1_incoming);
+
+            let critical_conflicts_detected = conflicts1 == Self::CRITICAL_CONFLICTS_DETECTED
+                || conflicts2 == Self::CRITICAL_CONFLICTS_DETECTED;
+
+            let (dep_value1, dep_value2) = if critical_conflicts_detected {
+                (0, 0)
+            } else {
+                let crossings1 = Self::count_crossings(he1_outgoing, he2_start, he2_end)
+                    + Self::count_crossings(he2_incoming, he1_start, he1_end);
+                let crossings2 = Self::count_crossings(he2_outgoing, he1_start, he1_end)
+                    + Self::count_crossings(he1_incoming, he2_start, he2_end);
+                (
+                    Self::CONFLICT_PENALTY * conflicts1 + Self::CROSSING_PENALTY * crossings1,
+                    Self::CONFLICT_PENALTY * conflicts2 + Self::CROSSING_PENALTY * crossings2,
+                )
+            };
+
+            (conflicts1, conflicts2, dep_value1, dep_value2)
         };
-
-        if (he1_start - he1_end).abs() < Self::TOLERANCE
-            || (he2_start - he2_end).abs() < Self::TOLERANCE
-        {
-            return 0;
-        }
-
-        let conflicts1 = self.count_conflicts(&he1_outgoing, &he2_incoming);
-        let conflicts2 = self.count_conflicts(&he2_outgoing, &he1_incoming);
 
         let critical_conflicts_detected = conflicts1 == Self::CRITICAL_CONFLICTS_DETECTED
             || conflicts2 == Self::CRITICAL_CONFLICTS_DETECTED;
@@ -256,16 +274,6 @@ impl OrthogonalRoutingGenerator {
                 critical_dependency_count += 1;
             }
         } else {
-            let crossings1 = Self::count_crossings(&he1_outgoing, he2_start, he2_end)
-                + Self::count_crossings(&he2_incoming, he1_start, he1_end);
-            let crossings2 = Self::count_crossings(&he2_outgoing, he1_start, he1_end)
-                + Self::count_crossings(&he1_incoming, he2_start, he2_end);
-
-            let dep_value1 =
-                Self::CONFLICT_PENALTY * conflicts1 + Self::CROSSING_PENALTY * crossings1;
-            let dep_value2 =
-                Self::CONFLICT_PENALTY * conflicts2 + Self::CROSSING_PENALTY * crossings2;
-
             if dep_value1 < dep_value2 {
                 HyperEdgeSegmentDependency::create_and_add_regular(
                     he1,
@@ -414,8 +422,8 @@ impl OrthogonalRoutingGenerator {
     }
 
     fn topological_numbering(segments: &[HyperEdgeSegmentRef]) {
-        let mut sources: Vec<HyperEdgeSegmentRef> = Vec::new();
-        let mut rightward_targets: Vec<HyperEdgeSegmentRef> = Vec::new();
+        let mut sources: VecDeque<HyperEdgeSegmentRef> = VecDeque::new();
+        let mut rightward_targets: VecDeque<HyperEdgeSegmentRef> = VecDeque::new();
         for segment in segments {
             let in_weight = segment.borrow().incoming_segment_dependencies().len() as i32;
             let out_weight = segment.borrow().outgoing_segment_dependencies().len() as i32;
@@ -425,7 +433,7 @@ impl OrthogonalRoutingGenerator {
                 segment_guard.set_out_weight(out_weight);
             }
             if in_weight == 0 {
-                sources.push(segment.clone());
+                sources.push_back(segment.clone());
             }
             if out_weight == 0
                 && segment
@@ -433,12 +441,12 @@ impl OrthogonalRoutingGenerator {
                     .incoming_connection_coordinates()
                     .is_empty()
             {
-                rightward_targets.push(segment.clone());
+                rightward_targets.push_back(segment.clone());
             }
         }
 
         let mut max_rank = -1;
-        while let Some(node) = pop_front(&mut sources) {
+        while let Some(node) = sources.pop_front() {
             let outgoing = node.borrow().outgoing_segment_dependencies().clone();
             for dep in outgoing {
                 let target = dep.borrow().target();
@@ -451,7 +459,7 @@ impl OrthogonalRoutingGenerator {
                     let in_weight = target.borrow().in_weight() - 1;
                     target.borrow_mut().set_in_weight(in_weight);
                     if in_weight == 0 {
-                        sources.push(target.clone());
+                        sources.push_back(target.clone());
                     }
                 }
             }
@@ -462,7 +470,7 @@ impl OrthogonalRoutingGenerator {
                 node.borrow_mut().set_routing_slot(max_rank);
             }
 
-            while let Some(node) = pop_front(&mut rightward_targets) {
+            while let Some(node) = rightward_targets.pop_front() {
                 let incoming = node.borrow().incoming_segment_dependencies().clone();
                 for dep in incoming {
                     let source = dep.borrow().source();
@@ -477,7 +485,7 @@ impl OrthogonalRoutingGenerator {
                         let out_weight = source.borrow().out_weight() - 1;
                         source.borrow_mut().set_out_weight(out_weight);
                         if out_weight == 0 {
-                            rightward_targets.push(source.clone());
+                            rightward_targets.push_back(source.clone());
                         }
                     }
                 }
@@ -488,14 +496,6 @@ impl OrthogonalRoutingGenerator {
 
 fn port_key(port: &crate::org::eclipse::elk::alg::layered::graph::LPortRef) -> usize {
     std::sync::Arc::as_ptr(port) as usize
-}
-
-fn pop_front(list: &mut Vec<HyperEdgeSegmentRef>) -> Option<HyperEdgeSegmentRef> {
-    if list.is_empty() {
-        None
-    } else {
-        Some(list.remove(0))
-    }
 }
 
 #[cfg(test)]

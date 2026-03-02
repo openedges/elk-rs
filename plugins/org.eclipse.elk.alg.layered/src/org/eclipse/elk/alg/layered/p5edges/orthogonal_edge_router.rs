@@ -206,7 +206,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
         // Java uses `float xpos` (f32). Truncate through f32 at each step for parity.
         let mut xpos: f64 = 0.0;
         let mut left_layer = None;
-        let mut left_layer_nodes = None;
+        let mut left_layer_nodes: Option<Vec<crate::org::eclipse::elk::alg::layered::graph::LNodeRef>> = None;
         let mut left_layer_index: i32 = -1;
 
         let mut layer_index = 0;
@@ -255,20 +255,12 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
                 start_pos,
             );
 
-            let is_left_layer_external = left_layer
-                .as_ref()
-                .and_then(|layer| {
-                    layer
-                        .lock()
-                        .ok()
-                        .map(|layer_guard| layer_guard.nodes().clone())
-                })
-                .map(|nodes| {
-                    nodes
-                        .iter()
-                        .all(PolylineEdgeRouter::is_external_west_or_east_port)
-                })
-                .unwrap_or(true);
+            let is_left_layer_external = match left_layer_nodes.as_deref() {
+                Some(nodes) => nodes
+                    .iter()
+                    .all(PolylineEdgeRouter::is_external_west_or_east_port),
+                None => true,
+            };
             let is_right_layer_external = right_layer_nodes
                 .as_ref()
                 .map(|nodes| {

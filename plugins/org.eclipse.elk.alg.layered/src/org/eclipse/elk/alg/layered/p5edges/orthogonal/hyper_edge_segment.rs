@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::rc::{Rc, Weak};
 use std::sync::Arc;
 
@@ -57,7 +57,7 @@ impl HyperEdgeSegment {
     pub fn add_port_positions(
         segment_ref: &HyperEdgeSegmentRef,
         port: &LPortRef,
-        hyper_edge_segment_map: &mut HashMap<usize, HyperEdgeSegmentRef>,
+        hyper_edge_segment_map: &mut FxHashMap<usize, HyperEdgeSegmentRef>,
     ) {
         hyper_edge_segment_map.insert(port_key(port), segment_ref.clone());
         let mut segment = segment_ref.borrow_mut();

@@ -54,28 +54,30 @@ impl SouthToNorthRoutingStrategy {
 
         let segment_y = start_pos - segment.routing_slot() as f64 * edge_spacing;
         for port in segment.ports() {
-            let source_x = port
-                .lock()
-                .ok()
-                .and_then(|port_guard| port_guard.absolute_anchor())
-                .map(|anchor| anchor.x)
-                .unwrap_or(0.0);
-
-            let outgoing_edges = port
-                .lock()
-                .ok()
-                .map(|port_guard| port_guard.outgoing_edges().clone())
-                .unwrap_or_default();
-            for edge in outgoing_edges {
-                let is_self_loop = edge
-                    .lock()
-                    .ok()
-                    .map(|edge_guard| edge_guard.is_self_loop())
-                    .unwrap_or(false);
-                if is_self_loop {
+            // Batch: single lock to get both anchor and outgoing edges
+            let (source_x, outgoing_edges) = {
+                let Ok(port_guard) = port.lock() else {
                     continue;
-                }
-                let target = edge.lock().ok().and_then(|edge_guard| edge_guard.target());
+                };
+                let anchor_x = port_guard
+                    .absolute_anchor()
+                    .map(|a| a.x)
+                    .unwrap_or(0.0);
+                let edges = port_guard.outgoing_edges().clone();
+                (anchor_x, edges)
+            };
+
+            for edge in outgoing_edges {
+                // Batch: single lock to get is_self_loop + target
+                let target = {
+                    let Ok(edge_guard) = edge.lock() else {
+                        continue;
+                    };
+                    if edge_guard.is_self_loop() {
+                        continue;
+                    }
+                    edge_guard.target()
+                };
                 let Some(target) = target else {
                     continue;
                 };

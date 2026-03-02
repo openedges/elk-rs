@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::rc::Rc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::util::Random;
@@ -16,8 +17,8 @@ impl HyperEdgeCycleDetector {
         random: &mut Random,
     ) -> Vec<HyperEdgeSegmentDependencyRef> {
         let mut result = Vec::new();
-        let mut sources: Vec<HyperEdgeSegmentRef> = Vec::new();
-        let mut sinks: Vec<HyperEdgeSegmentRef> = Vec::new();
+        let mut sources: VecDeque<HyperEdgeSegmentRef> = VecDeque::new();
+        let mut sinks: VecDeque<HyperEdgeSegmentRef> = VecDeque::new();
 
         Self::initialize(segments, &mut sources, &mut sinks, critical_only);
         Self::compute_linear_ordering_marks(
@@ -48,8 +49,8 @@ impl HyperEdgeCycleDetector {
 
     fn initialize(
         segments: &[HyperEdgeSegmentRef],
-        sources: &mut Vec<HyperEdgeSegmentRef>,
-        sinks: &mut Vec<HyperEdgeSegmentRef>,
+        sources: &mut VecDeque<HyperEdgeSegmentRef>,
+        sinks: &mut VecDeque<HyperEdgeSegmentRef>,
         critical_only: bool,
     ) {
         let mut next_mark = -1;
@@ -94,17 +95,17 @@ impl HyperEdgeCycleDetector {
             segment_guard.set_critical_out_weight(critical_out_weight);
 
             if out_weight == 0 {
-                sinks.push(segment.clone());
+                sinks.push_back(segment.clone());
             } else if in_weight == 0 {
-                sources.push(segment.clone());
+                sources.push_back(segment.clone());
             }
         }
     }
 
     fn compute_linear_ordering_marks(
         segments: &[HyperEdgeSegmentRef],
-        sources: &mut Vec<HyperEdgeSegmentRef>,
-        sinks: &mut Vec<HyperEdgeSegmentRef>,
+        sources: &mut VecDeque<HyperEdgeSegmentRef>,
+        sinks: &mut VecDeque<HyperEdgeSegmentRef>,
         critical_only: bool,
         random: &mut Random,
     ) {
@@ -117,14 +118,14 @@ impl HyperEdgeCycleDetector {
         let mut next_source_mark = mark_base + 1;
 
         while !unprocessed.is_empty() {
-            while let Some(sink) = pop_front(sinks) {
+            while let Some(sink) = sinks.pop_front() {
                 remove_segment(&mut unprocessed, &sink);
                 sink.borrow_mut().mark = next_sink_mark;
                 next_sink_mark -= 1;
                 Self::update_neighbors(&sink, sources, sinks, critical_only);
             }
 
-            while let Some(source) = pop_front(sources) {
+            while let Some(source) = sources.pop_front() {
                 remove_segment(&mut unprocessed, &source);
                 source.borrow_mut().mark = next_source_mark;
                 next_source_mark += 1;
@@ -176,8 +177,8 @@ impl HyperEdgeCycleDetector {
 
     fn update_neighbors(
         node: &HyperEdgeSegmentRef,
-        sources: &mut Vec<HyperEdgeSegmentRef>,
-        sinks: &mut Vec<HyperEdgeSegmentRef>,
+        sources: &mut VecDeque<HyperEdgeSegmentRef>,
+        sinks: &mut VecDeque<HyperEdgeSegmentRef>,
         critical_only: bool,
     ) {
         let outgoing = node.borrow().outgoing_segment_dependencies().clone();
@@ -194,7 +195,7 @@ impl HyperEdgeCycleDetector {
                             target.borrow_mut().set_critical_in_weight(new_weight);
                         }
                         if new_in_weight <= 0 && target.borrow().out_weight() > 0 {
-                            sources.push(target.clone());
+                            sources.push_back(target.clone());
                         }
                     }
                 }
@@ -215,20 +216,12 @@ impl HyperEdgeCycleDetector {
                             source.borrow_mut().set_critical_out_weight(new_weight);
                         }
                         if new_out_weight <= 0 && source.borrow().in_weight() > 0 {
-                            sinks.push(source.clone());
+                            sinks.push_back(source.clone());
                         }
                     }
                 }
             }
         }
-    }
-}
-
-fn pop_front(list: &mut Vec<HyperEdgeSegmentRef>) -> Option<HyperEdgeSegmentRef> {
-    if list.is_empty() {
-        None
-    } else {
-        Some(list.remove(0))
     }
 }
 
