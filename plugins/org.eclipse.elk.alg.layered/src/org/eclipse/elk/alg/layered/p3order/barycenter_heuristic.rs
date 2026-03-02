@@ -1,6 +1,6 @@
 use std::any::Any;
 use std::cmp::Ordering;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::sync::{Arc, LazyLock};
 use std::time::Instant;
 
@@ -33,7 +33,7 @@ pub struct BarycenterHeuristic {
     pub sweep_iteration: usize,
     snapshot: Option<Arc<CrossMinSnapshot>>,
     /// Reusable buffer for flat→node lookup in calculate_barycenters (avoids HashMap alloc per call).
-    flat_to_node_buf: HashMap<u32, LNodeRef>,
+    flat_to_node_buf: FxHashMap<u32, LNodeRef>,
 }
 
 impl BarycenterHeuristic {
@@ -47,7 +47,7 @@ impl BarycenterHeuristic {
             port_distributor,
             sweep_iteration: 0,
             snapshot: None,
-            flat_to_node_buf: HashMap::new(),
+            flat_to_node_buf: FxHashMap::default(),
         }
     }
 
@@ -256,7 +256,7 @@ impl BarycenterHeuristic {
         forward: bool,
         port_ranks: &[f64],
         random: &mut Random,
-        flat_to_node: &HashMap<u32, LNodeRef>,
+        flat_to_node: &FxHashMap<u32, LNodeRef>,
     ) {
         let li = snap.node_layer_of(flat) as usize;
         let ni = snap.node_graph_id_of(flat) as usize;
@@ -495,7 +495,7 @@ impl BarycenterHeuristic {
         &self,
         left: &LNodeRef,
         right: &LNodeRef,
-        barycenter_snapshot: &HashMap<usize, Option<f64>>,
+        barycenter_snapshot: &FxHashMap<usize, Option<f64>>,
     ) -> Ordering {
         let left_bary = barycenter_snapshot
             .get(&node_ptr_id(left))
@@ -538,8 +538,8 @@ impl BarycenterHeuristic {
         }
     }
 
-    fn barycenter_snapshot(&self, nodes: &[LNodeRef]) -> HashMap<usize, Option<f64>> {
-        let mut snapshot = HashMap::with_capacity(nodes.len());
+    fn barycenter_snapshot(&self, nodes: &[LNodeRef]) -> FxHashMap<usize, Option<f64>> {
+        let mut snapshot = FxHashMap::with_capacity_and_hasher(nodes.len(), Default::default());
         for node in nodes {
             let barycenter = self.get_barycenter(node);
             snapshot.insert(node_ptr_id(node), barycenter);

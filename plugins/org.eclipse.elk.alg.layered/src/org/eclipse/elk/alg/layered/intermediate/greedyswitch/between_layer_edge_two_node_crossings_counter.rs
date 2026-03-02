@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
@@ -11,8 +11,8 @@ pub struct BetweenLayerEdgeTwoNodeCrossingsCounter {
     lower_upper_crossings: i32,
     current_node_order: Vec<Vec<LNodeRef>>,
     free_layer_index: usize,
-    port_positions: HashMap<usize, i32>,
-    node_indices: HashMap<usize, usize>,
+    port_positions: FxHashMap<usize, i32>,
+    node_indices: FxHashMap<usize, usize>,
     eastern_adjacencies: Option<Vec<AdjacencyList>>,
     western_adjacencies: Option<Vec<AdjacencyList>>,
 }
@@ -24,8 +24,8 @@ impl BetweenLayerEdgeTwoNodeCrossingsCounter {
             lower_upper_crossings: 0,
             current_node_order,
             free_layer_index,
-            port_positions: HashMap::new(),
-            node_indices: HashMap::new(),
+            port_positions: FxHashMap::default(),
+            node_indices: FxHashMap::default(),
             eastern_adjacencies: None,
             western_adjacencies: None,
         };
@@ -198,7 +198,7 @@ struct AdjacencyList {
 }
 
 impl AdjacencyList {
-    fn new(node: &LNodeRef, side: PortSide, port_positions: &HashMap<usize, i32>) -> Self {
+    fn new(node: &LNodeRef, side: PortSide, port_positions: &FxHashMap<usize, i32>) -> Self {
         let mut list = AdjacencyList {
             adjacency_list: Vec::new(),
             side,
@@ -213,7 +213,7 @@ impl AdjacencyList {
         list
     }
 
-    fn collect_adjacencies(&mut self, node: &LNodeRef, port_positions: &HashMap<usize, i32>) {
+    fn collect_adjacencies(&mut self, node: &LNodeRef, port_positions: &FxHashMap<usize, i32>) {
         let ports = in_north_south_east_west_order(node, self.side);
         for port in ports {
             let edges = edges_connected_to(&port, self.side);
@@ -231,7 +231,7 @@ impl AdjacencyList {
         }
     }
 
-    fn add_adjacency_of(&mut self, edge: &LEdgeRef, port_positions: &HashMap<usize, i32>) {
+    fn add_adjacency_of(&mut self, edge: &LEdgeRef, port_positions: &FxHashMap<usize, i32>) {
         let adjacent_port = adjacent_port_of(edge, self.side);
         let Some(adjacent_port) = adjacent_port else {
             return;

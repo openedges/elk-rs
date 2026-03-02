@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
@@ -10,7 +10,7 @@ use crate::org::eclipse::elk::alg::layered::p3order::counting::in_north_south_ea
 pub struct NorthSouthEdgeNeighbouringNodeCrossingsCounter {
     upper_lower_crossings: i32,
     lower_upper_crossings: i32,
-    port_positions: HashMap<usize, i32>,
+    port_positions: FxHashMap<usize, i32>,
     layer: Vec<LNodeRef>,
 }
 
@@ -19,7 +19,7 @@ impl NorthSouthEdgeNeighbouringNodeCrossingsCounter {
         let mut counter = NorthSouthEdgeNeighbouringNodeCrossingsCounter {
             upper_lower_crossings: 0,
             lower_upper_crossings: 0,
-            port_positions: HashMap::new(),
+            port_positions: FxHashMap::default(),
             layer: nodes.to_vec(),
         };
         counter.initialize_port_positions();

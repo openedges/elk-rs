@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::sync::Arc;
 use std::sync::LazyLock;
 
@@ -119,7 +119,7 @@ impl NetworkSimplexLayerer {
 
     fn initialize_graph(&self, nodes: &[LNodeRef]) -> NGraph {
         let mut graph = NGraph::new();
-        let mut node_map: HashMap<usize, NNodeRef> = HashMap::new();
+        let mut node_map: FxHashMap<usize, NNodeRef> = FxHashMap::default();
 
         for node in nodes {
             let origin: Arc<dyn std::any::Any + Send + Sync> = Arc::new(node.clone());
