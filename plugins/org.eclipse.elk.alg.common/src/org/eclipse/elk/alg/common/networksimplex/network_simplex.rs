@@ -33,6 +33,16 @@ pub struct NetworkSimplex<'a> {
     lowest_po_id: Vec<i32>,
     cutvalue: Vec<f64>,
     subtree_nodes_stack: Option<VecDeque<Pair<NNodeRef, NEdgeRef>>>,
+    // Cached edge properties (indexed by edge internal_id, constant after initialize)
+    e_src: Vec<NNodeRef>,
+    e_tgt: Vec<NNodeRef>,
+    e_src_id: Vec<usize>,
+    e_tgt_id: Vec<usize>,
+    e_delta: Vec<i32>,
+    e_weight: Vec<f64>,
+    e_tree: Vec<bool>,
+    // Per-node adjacency: connected edge internal_ids (incoming first, then outgoing)
+    node_edges: Vec<Vec<usize>>,
 }
 
 impl<'a> NetworkSimplex<'a> {
@@ -52,6 +62,14 @@ impl<'a> NetworkSimplex<'a> {
             lowest_po_id: Vec::new(),
             cutvalue: Vec::new(),
             subtree_nodes_stack: None,
+            e_src: Vec::new(),
+            e_tgt: Vec::new(),
+            e_src_id: Vec::new(),
+            e_tgt_id: Vec::new(),
+            e_delta: Vec::new(),
+            e_weight: Vec::new(),
+            e_tree: Vec::new(),
+            node_edges: Vec::new(),
         }
     }
 
@@ -155,14 +173,62 @@ impl<'a> NetworkSimplex<'a> {
             }
         }
 
+        // Build edge property cache (one lock per edge, all properties extracted)
+        let num_edges = edges.len();
+        self.e_src.clear();
+        self.e_tgt.clear();
+        self.e_src_id.clear();
+        self.e_tgt_id.clear();
+        self.e_delta.clear();
+        self.e_weight.clear();
+        self.e_tree.clear();
+        self.e_src.reserve(num_edges);
+        self.e_tgt.reserve(num_edges);
+        self.e_src_id.resize(num_edges, 0);
+        self.e_tgt_id.resize(num_edges, 0);
+        self.e_delta.resize(num_edges, 0);
+        self.e_weight.resize(num_edges, 0.0);
+        self.e_tree.resize(num_edges, false);
+
         for (index, edge) in edges.iter().enumerate() {
             if let Ok(mut edge_guard) = edge.lock() {
                 edge_guard.internal_id = index;
                 edge_guard.tree_edge = false;
+                self.e_src.push(edge_guard.source.clone());
+                self.e_tgt.push(edge_guard.target.clone());
+                self.e_delta[index] = edge_guard.delta;
+                self.e_weight[index] = edge_guard.weight;
+                self.e_tree[index] = false;
+                // source/target internal_ids are already set above
+                let src_id = edge_guard
+                    .source
+                    .lock()
+                    .map(|g| g.internal_id)
+                    .unwrap_or(0);
+                let tgt_id = edge_guard
+                    .target
+                    .lock()
+                    .map(|g| g.internal_id)
+                    .unwrap_or(0);
+                self.e_src_id[index] = src_id;
+                self.e_tgt_id[index] = tgt_id;
+            } else {
+                // Fallback: push empty refs (shouldn't happen)
+                self.e_src.push(self.graph.nodes[0].clone());
+                self.e_tgt.push(self.graph.nodes[0].clone());
             }
         }
 
-        let num_edges = edges.len();
+        // Build per-node adjacency list (incoming first, then outgoing — Java parity)
+        self.node_edges.clear();
+        self.node_edges.resize(num_nodes, Vec::new());
+        for eid in 0..num_edges {
+            self.node_edges[self.e_tgt_id[eid]].push(eid); // incoming to target
+        }
+        for eid in 0..num_edges {
+            self.node_edges[self.e_src_id[eid]].push(eid); // outgoing from source
+        }
+
         if self.cutvalue.len() < num_edges {
             self.cutvalue = vec![0.0; num_edges];
             self.edge_visited = vec![false; num_edges];
@@ -182,6 +248,14 @@ impl<'a> NetworkSimplex<'a> {
         self.tree_edges.clear();
         self.tree_edge_set.clear();
         self.edge_visited.clear();
+        self.e_src.clear();
+        self.e_tgt.clear();
+        self.e_src_id.clear();
+        self.e_tgt_id.clear();
+        self.e_delta.clear();
+        self.e_weight.clear();
+        self.e_tree.clear();
+        self.node_edges.clear();
         self.lowest_po_id.clear();
         self.po_id.clear();
         self.sources.clear();
@@ -296,55 +370,41 @@ impl<'a> NetworkSimplex<'a> {
 
     fn tight_tree_dfs(&mut self, node: &NNodeRef) -> usize {
         let mut node_count = 1;
-        if let Ok(mut node_guard) = node.lock() {
-            node_guard.tree_node = true;
-        }
+        let nid = node.lock().map(|mut g| { g.tree_node = true; g.internal_id }).unwrap_or(0);
 
-        let edges = match node.lock() {
-            Ok(node_guard) => node_guard.connected_edges(),
-            Err(_) => Vec::new(),
-        };
-
-        for edge in &edges {
-            // Batch: single edge lock to extract all needed properties
-            let (edge_id, is_tree, delta, src, tgt) = match edge.lock() {
-                Ok(g) => (
-                    g.internal_id,
-                    g.tree_edge,
-                    g.delta,
-                    g.source.clone(),
-                    g.target.clone(),
-                ),
-                Err(_) => continue,
-            };
-            if self.edge_visited.get(edge_id).copied().unwrap_or(false) {
+        // Use cached adjacency list — zero Vec alloc, zero edge locks
+        let num_adj = self.node_edges[nid].len();
+        for i in 0..num_adj {
+            let eid = self.node_edges[nid][i];
+            if self.edge_visited[eid] {
                 continue;
             }
-            if let Some(flag) = self.edge_visited.get_mut(edge_id) {
-                *flag = true;
-            }
-            let opposite = if Arc::ptr_eq(&src, node) {
-                &tgt
+            self.edge_visited[eid] = true;
+
+            let is_tree = self.e_tree[eid];
+            let opposite = if self.e_src_id[eid] == nid {
+                self.e_tgt[eid].clone()
             } else {
-                &src
+                self.e_src[eid].clone()
             };
 
             if is_tree {
-                node_count += self.tight_tree_dfs(opposite);
+                node_count += self.tight_tree_dfs(&opposite);
             } else {
                 let opp_tree = opposite.lock().map(|g| g.tree_node).unwrap_or(false);
                 if !opp_tree {
-                    let src_layer = src.lock().map(|g| g.layer).unwrap_or(0);
-                    let tgt_layer = tgt.lock().map(|g| g.layer).unwrap_or(0);
-                    if delta == tgt_layer - src_layer {
-                        if let Ok(mut edge_guard) = edge.lock() {
+                    let src_layer = self.e_src[eid].lock().map(|g| g.layer).unwrap_or(0);
+                    let tgt_layer = self.e_tgt[eid].lock().map(|g| g.layer).unwrap_or(0);
+                    if self.e_delta[eid] == tgt_layer - src_layer {
+                        self.e_tree[eid] = true;
+                        if let Ok(mut edge_guard) = self.edges[eid].lock() {
                             edge_guard.tree_edge = true;
                         }
-                        let edge_ptr = Arc::as_ptr(edge) as usize;
+                        let edge_ptr = Arc::as_ptr(&self.edges[eid]) as usize;
                         if self.tree_edge_set.insert(edge_ptr) {
-                            self.tree_edges.push(edge.clone());
+                            self.tree_edges.push(self.edges[eid].clone());
                         }
-                        node_count += self.tight_tree_dfs(opposite);
+                        node_count += self.tight_tree_dfs(&opposite);
                     }
                 }
             }
@@ -356,21 +416,16 @@ impl<'a> NetworkSimplex<'a> {
     fn minimal_slack(&self) -> Option<NEdgeRef> {
         let mut min_slack = i32::MAX;
         let mut min_edge: Option<NEdgeRef> = None;
-        for edge in &self.edges {
-            // Batch: single edge lock to get source/target + delta
-            let (delta, src, tgt) = match edge.lock() {
-                Ok(g) => (g.delta, g.source.clone(), g.target.clone()),
-                Err(_) => continue,
-            };
-            let src_tree = src.lock().map(|g| g.tree_node).unwrap_or(false);
-            let tgt_tree = tgt.lock().map(|g| g.tree_node).unwrap_or(false);
+        for eid in 0..self.edges.len() {
+            let src_tree = self.e_src[eid].lock().map(|g| g.tree_node).unwrap_or(false);
+            let tgt_tree = self.e_tgt[eid].lock().map(|g| g.tree_node).unwrap_or(false);
             if src_tree ^ tgt_tree {
-                let src_layer = src.lock().map(|g| g.layer).unwrap_or(0);
-                let tgt_layer = tgt.lock().map(|g| g.layer).unwrap_or(0);
-                let slack = tgt_layer - src_layer - delta;
+                let src_layer = self.e_src[eid].lock().map(|g| g.layer).unwrap_or(0);
+                let tgt_layer = self.e_tgt[eid].lock().map(|g| g.layer).unwrap_or(0);
+                let slack = tgt_layer - src_layer - self.e_delta[eid];
                 if slack < min_slack {
                     min_slack = slack;
-                    min_edge = Some(edge.clone());
+                    min_edge = Some(self.edges[eid].clone());
                 }
             }
         }
@@ -379,26 +434,22 @@ impl<'a> NetworkSimplex<'a> {
 
     fn postorder_traversal(&mut self, node: &NNodeRef) -> i32 {
         let mut lowest = i32::MAX;
-        let edges = match node.lock() {
-            Ok(node_guard) => node_guard.connected_edges(),
-            Err(_) => Vec::new(),
-        };
-        for edge in &edges {
-            // Batch: single edge lock
-            let (edge_id, is_tree, src, tgt) = match edge.lock() {
-                Ok(g) => (g.internal_id, g.tree_edge, g.source.clone(), g.target.clone()),
-                Err(_) => continue,
-            };
-            if is_tree && !self.edge_visited.get(edge_id).copied().unwrap_or(false) {
-                if let Some(flag) = self.edge_visited.get_mut(edge_id) {
-                    *flag = true;
-                }
-                let other = if Arc::ptr_eq(&src, node) { tgt } else { src };
+        let nid = node.lock().map(|g| g.internal_id).unwrap_or(0);
+        let num_adj = self.node_edges[nid].len();
+        for i in 0..num_adj {
+            let eid = self.node_edges[nid][i];
+            if self.e_tree[eid] && !self.edge_visited[eid] {
+                self.edge_visited[eid] = true;
+                let other = if self.e_src_id[eid] == nid {
+                    self.e_tgt[eid].clone()
+                } else {
+                    self.e_src[eid].clone()
+                };
                 lowest = lowest.min(self.postorder_traversal(&other));
             }
         }
 
-        let node_id = node_internal_id(node);
+        let node_id = nid;
         if node_id < self.po_id.len() {
             self.po_id[node_id] = self.post_order;
             self.lowest_po_id[node_id] = lowest.min(self.post_order);
@@ -429,19 +480,12 @@ impl<'a> NetworkSimplex<'a> {
         for node in &self.graph.nodes {
             let mut tree_edge_count = 0;
             if let Ok(mut node_guard) = node.lock() {
+                let nid = node_guard.internal_id;
                 node_guard.unknown_cutvalues.clear();
-                // Collect tree edges into unknown_cutvalues; iterate incoming then outgoing.
-                for i in 0..node_guard.incoming_edges().len() {
-                    let edge = node_guard.incoming_edges()[i].clone();
-                    if edge_is_tree_edge(&edge) {
-                        node_guard.unknown_cutvalues.push(edge);
-                        tree_edge_count += 1;
-                    }
-                }
-                for i in 0..node_guard.outgoing_edges().len() {
-                    let edge = node_guard.outgoing_edges()[i].clone();
-                    if edge_is_tree_edge(&edge) {
-                        node_guard.unknown_cutvalues.push(edge);
+                // Use cached adjacency list + e_tree to avoid per-edge locks
+                for &eid in &self.node_edges[nid] {
+                    if self.e_tree[eid] {
+                        node_guard.unknown_cutvalues.push(self.edges[eid].clone());
                         tree_edge_count += 1;
                     }
                 }
@@ -464,54 +508,44 @@ impl<'a> NetworkSimplex<'a> {
                     guard.unknown_cutvalues[0].clone()
                 };
 
-                // Batch: single lock on to_determine for all properties
-                let (edge_id, td_weight, source, target) = match to_determine.lock() {
-                    Ok(g) => (g.internal_id, g.weight, g.source.clone(), g.target.clone()),
-                    Err(_) => break,
-                };
-                if edge_id >= self.cutvalue.len() {
+                let td_id = to_determine.lock().map(|g| g.internal_id).unwrap_or(0);
+                if td_id >= self.cutvalue.len() {
                     break;
                 }
-                self.cutvalue[edge_id] = td_weight;
+                // Use cached weight, source, target — zero extra locks
+                let td_weight = self.e_weight[td_id];
+                let source = self.e_src[td_id].clone();
+                let target = self.e_tgt[td_id].clone();
+                self.cutvalue[td_id] = td_weight;
 
-                let cv_edges = match node.lock() {
-                    Ok(node_guard) => node_guard.connected_edges(),
-                    Err(_) => Vec::new(),
-                };
-
-                for edge in &cv_edges {
-                    if Arc::ptr_eq(edge, &to_determine) {
+                // Use cached adjacency list for connected edges
+                let nid = node.lock().map(|g| g.internal_id).unwrap_or(0);
+                let num_adj = self.node_edges[nid].len();
+                for i in 0..num_adj {
+                    let eid = self.node_edges[nid][i];
+                    if eid == td_id {
                         continue;
                     }
-                    // Batch: single lock per inner edge
-                    let (e_id, e_tree, e_weight, e_src, e_tgt) = match edge.lock() {
-                        Ok(g) => (
-                            g.internal_id,
-                            g.tree_edge,
-                            g.weight,
-                            g.source.clone(),
-                            g.target.clone(),
-                        ),
-                        Err(_) => continue,
-                    };
-                    if e_tree {
-                        let same_direction =
-                            Arc::ptr_eq(&e_src, &source) || Arc::ptr_eq(&e_tgt, &target);
+                    // All properties from cache — zero edge locks
+                    let e_weight = self.e_weight[eid];
+                    if self.e_tree[eid] {
+                        let same_direction = Arc::ptr_eq(&self.e_src[eid], &source)
+                            || Arc::ptr_eq(&self.e_tgt[eid], &target);
                         if same_direction {
-                            self.cutvalue[edge_id] -= self.cutvalue[e_id] - e_weight;
+                            self.cutvalue[td_id] -= self.cutvalue[eid] - e_weight;
                         } else {
-                            self.cutvalue[edge_id] += self.cutvalue[e_id] - e_weight;
+                            self.cutvalue[td_id] += self.cutvalue[eid] - e_weight;
                         }
                     } else if Arc::ptr_eq(&node, &source) {
-                        if Arc::ptr_eq(&e_src, &node) {
-                            self.cutvalue[edge_id] += e_weight;
+                        if Arc::ptr_eq(&self.e_src[eid], &node) {
+                            self.cutvalue[td_id] += e_weight;
                         } else {
-                            self.cutvalue[edge_id] -= e_weight;
+                            self.cutvalue[td_id] -= e_weight;
                         }
-                    } else if Arc::ptr_eq(&e_src, &node) {
-                        self.cutvalue[edge_id] -= e_weight;
+                    } else if Arc::ptr_eq(&self.e_src[eid], &node) {
+                        self.cutvalue[td_id] -= e_weight;
                     } else {
-                        self.cutvalue[edge_id] += e_weight;
+                        self.cutvalue[td_id] += e_weight;
                     }
                 }
 
@@ -529,12 +563,8 @@ impl<'a> NetworkSimplex<'a> {
 
     fn leave_edge(&self) -> Option<NEdgeRef> {
         for edge in &self.tree_edges {
-            // Batch: single edge lock
-            let (is_tree, id) = match edge.lock() {
-                Ok(g) => (g.tree_edge, g.internal_id),
-                Err(_) => continue,
-            };
-            if is_tree && id < self.cutvalue.len() && self.cutvalue[id] < FUZZY_ST_ZERO {
+            let eid = edge.lock().map(|g| g.internal_id).unwrap_or(0);
+            if self.e_tree[eid] && eid < self.cutvalue.len() && self.cutvalue[eid] < FUZZY_ST_ZERO {
                 return Some(edge.clone());
             }
         }
@@ -542,36 +572,27 @@ impl<'a> NetworkSimplex<'a> {
     }
 
     fn enter_edge(&self, leave: &NEdgeRef) -> Option<NEdgeRef> {
-        // Pre-extract leave edge properties once (3 locks total instead of 5 per iteration)
-        let (leave_is_tree, leave_src, leave_tgt) = match leave.lock() {
-            Ok(g) => (g.tree_edge, g.source.clone(), g.target.clone()),
-            Err(_) => return None,
-        };
-        if !leave_is_tree {
+        let leave_id = leave.lock().map(|g| g.internal_id).unwrap_or(0);
+        if !self.e_tree[leave_id] {
             return None;
         }
-        let leave_src_id = leave_src.lock().map(|g| g.internal_id).unwrap_or(0);
-        let leave_tgt_id = leave_tgt.lock().map(|g| g.internal_id).unwrap_or(0);
+        let leave_src_id = self.e_src_id[leave_id];
+        let leave_tgt_id = self.e_tgt_id[leave_id];
 
         let mut replace: Option<NEdgeRef> = None;
         let mut rep_slack = i32::MAX;
-        for edge in &self.edges {
-            // Batch: single edge lock
-            let (delta, src, tgt) = match edge.lock() {
-                Ok(g) => (g.delta, g.source.clone(), g.target.clone()),
-                Err(_) => continue,
-            };
-            let src_id = src.lock().map(|g| g.internal_id).unwrap_or(0);
-            let tgt_id = tgt.lock().map(|g| g.internal_id).unwrap_or(0);
+        for eid in 0..self.edges.len() {
+            let src_id = self.e_src_id[eid];
+            let tgt_id = self.e_tgt_id[eid];
             if self.is_in_head_by_id(src_id, leave_src_id, leave_tgt_id)
                 && !self.is_in_head_by_id(tgt_id, leave_src_id, leave_tgt_id)
             {
-                let src_layer = src.lock().map(|g| g.layer).unwrap_or(0);
-                let tgt_layer = tgt.lock().map(|g| g.layer).unwrap_or(0);
-                let slack = tgt_layer - src_layer - delta;
+                let src_layer = self.e_src[eid].lock().map(|g| g.layer).unwrap_or(0);
+                let tgt_layer = self.e_tgt[eid].lock().map(|g| g.layer).unwrap_or(0);
+                let slack = tgt_layer - src_layer - self.e_delta[eid];
                 if slack < rep_slack {
                     rep_slack = slack;
-                    replace = Some(edge.clone());
+                    replace = Some(self.edges[eid].clone());
                 }
             }
         }
@@ -580,54 +601,43 @@ impl<'a> NetworkSimplex<'a> {
     }
 
     fn exchange(&mut self, leave: &NEdgeRef, enter: &NEdgeRef) {
-        // Batch: extract leave/enter properties with minimal locks
-        let (leave_is_tree, leave_src_id, leave_tgt_id) = {
-            let lg = match leave.lock() {
-                Ok(g) => (g.tree_edge, g.source.clone(), g.target.clone()),
-                Err(_) => return,
-            };
-            let src_id = lg.1.lock().map(|g| g.internal_id).unwrap_or(0);
-            let tgt_id = lg.2.lock().map(|g| g.internal_id).unwrap_or(0);
-            (lg.0, src_id, tgt_id)
-        };
-        let enter_is_tree = enter.lock().map(|g| g.tree_edge).unwrap_or(false);
+        let leave_id = leave.lock().map(|g| g.internal_id).unwrap_or(0);
+        let enter_id = enter.lock().map(|g| g.internal_id).unwrap_or(0);
 
-        if !leave_is_tree || enter_is_tree {
+        if !self.e_tree[leave_id] || self.e_tree[enter_id] {
             return;
         }
 
-        {
-            if let Ok(mut edge_guard) = leave.lock() {
-                edge_guard.tree_edge = false;
-            }
+        // Toggle tree_edge on both edges — sync cache + underlying edge
+        if let Ok(mut edge_guard) = leave.lock() {
+            edge_guard.tree_edge = false;
         }
+        self.e_tree[leave_id] = false;
         let leave_ptr = Arc::as_ptr(leave) as usize;
         self.tree_edge_set.remove(&leave_ptr);
         self.tree_edges.retain(|edge| !Arc::ptr_eq(edge, leave));
-        {
-            if let Ok(mut edge_guard) = enter.lock() {
-                edge_guard.tree_edge = true;
-            }
+
+        if let Ok(mut edge_guard) = enter.lock() {
+            edge_guard.tree_edge = true;
         }
+        self.e_tree[enter_id] = true;
         let enter_ptr = Arc::as_ptr(enter) as usize;
         if self.tree_edge_set.insert(enter_ptr) {
             self.tree_edges.push(enter.clone());
         }
 
-        // Batch: enter edge properties in single lock
-        let (enter_delta, enter_src, enter_tgt) = match enter.lock() {
-            Ok(g) => (g.delta, g.source.clone(), g.target.clone()),
-            Err(_) => return,
-        };
-        let enter_src_layer = enter_src.lock().map(|g| g.layer).unwrap_or(0);
-        let enter_tgt_layer = enter_tgt.lock().map(|g| g.layer).unwrap_or(0);
-        let enter_tgt_id = enter_tgt.lock().map(|g| g.internal_id).unwrap_or(0);
+        // Use cached IDs — zero locks for leave/enter properties
+        let leave_src_id = self.e_src_id[leave_id];
+        let leave_tgt_id = self.e_tgt_id[leave_id];
+        let enter_tgt_id = self.e_tgt_id[enter_id];
+        let enter_src_layer = self.e_src[enter_id].lock().map(|g| g.layer).unwrap_or(0);
+        let enter_tgt_layer = self.e_tgt[enter_id].lock().map(|g| g.layer).unwrap_or(0);
 
-        let mut delta = enter_tgt_layer - enter_src_layer - enter_delta;
+        let mut delta = enter_tgt_layer - enter_src_layer - self.e_delta[enter_id];
         if !self.is_in_head_by_id(enter_tgt_id, leave_src_id, leave_tgt_id) {
             delta = -delta;
         }
-        // Pre-extracted leave_src_id/leave_tgt_id: avoids 5 locks per node in loop
+
         for node in &self.graph.nodes {
             let nid = node.lock().map(|g| g.internal_id).unwrap_or(0);
             if !self.is_in_head_by_id(nid, leave_src_id, leave_tgt_id) {
@@ -813,10 +823,6 @@ fn edge_internal_id(edge: &NEdgeRef) -> usize {
 
 fn edge_delta(edge: &NEdgeRef) -> i32 {
     edge.lock().map(|guard| guard.delta).unwrap_or(0)
-}
-
-fn edge_is_tree_edge(edge: &NEdgeRef) -> bool {
-    edge.lock().map(|guard| guard.tree_edge).unwrap_or(false)
 }
 
 fn edge_source(edge: &NEdgeRef) -> NNodeRef {
