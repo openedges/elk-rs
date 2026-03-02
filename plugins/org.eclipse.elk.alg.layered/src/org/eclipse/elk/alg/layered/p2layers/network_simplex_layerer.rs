@@ -39,6 +39,7 @@ const ITER_LIMIT_FACTOR: i32 = 4;
 pub struct NetworkSimplexLayerer {
     node_visited: Vec<bool>,
     component_nodes: Vec<LNodeRef>,
+    opposite_buf: Vec<LNodeRef>,
 }
 
 impl NetworkSimplexLayerer {
@@ -46,6 +47,7 @@ impl NetworkSimplexLayerer {
         NetworkSimplexLayerer {
             node_visited: Vec::new(),
             component_nodes: Vec::new(),
+            opposite_buf: Vec::new(),
         }
     }
 
@@ -87,41 +89,41 @@ impl NetworkSimplexLayerer {
         self.node_visited[idx] = true;
         self.component_nodes.push(node.clone());
 
-        // Collect opposite nodes: clone ports Vec to release node lock early,
-        // then iterate edges via incoming/outgoing directly (avoids connected_edges() alloc)
-        let ports = match node.lock() {
-            Ok(node_guard) => node_guard.ports().clone(),
-            Err(_) => Vec::new(),
-        };
-
-        let mut opposite_nodes: Vec<LNodeRef> = Vec::new();
-        for port in &ports {
-            if let Ok(port_guard) = port.lock() {
-                for edge in port_guard.incoming_edges() {
-                    if let Some(src_node) = edge
-                        .lock()
-                        .ok()
-                        .and_then(|e| e.source())
-                        .and_then(|p| p.lock().ok().and_then(|pg| pg.node()))
-                    {
-                        opposite_nodes.push(src_node);
+        // Collect opposite nodes within node lock scope — eliminates ports().clone() alloc
+        let base = self.opposite_buf.len();
+        if let Ok(node_guard) = node.lock() {
+            for port in node_guard.ports() {
+                if let Ok(port_guard) = port.lock() {
+                    for edge in port_guard.incoming_edges() {
+                        if let Some(src_node) = edge
+                            .lock()
+                            .ok()
+                            .and_then(|e| e.source())
+                            .and_then(|p| p.lock().ok().and_then(|pg| pg.node()))
+                        {
+                            self.opposite_buf.push(src_node);
+                        }
                     }
-                }
-                for edge in port_guard.outgoing_edges() {
-                    if let Some(tgt_node) = edge
-                        .lock()
-                        .ok()
-                        .and_then(|e| e.target())
-                        .and_then(|p| p.lock().ok().and_then(|pg| pg.node()))
-                    {
-                        opposite_nodes.push(tgt_node);
+                    for edge in port_guard.outgoing_edges() {
+                        if let Some(tgt_node) = edge
+                            .lock()
+                            .ok()
+                            .and_then(|e| e.target())
+                            .and_then(|p| p.lock().ok().and_then(|pg| pg.node()))
+                        {
+                            self.opposite_buf.push(tgt_node);
+                        }
                     }
                 }
             }
         }
-        for opp in opposite_nodes {
+
+        let count = self.opposite_buf.len() - base;
+        for i in 0..count {
+            let opp = self.opposite_buf[base + i].clone();
             self.connected_components_dfs(&opp);
         }
+        self.opposite_buf.truncate(base);
     }
 
     fn initialize_graph(&self, nodes: &[LNodeRef]) -> NGraph {

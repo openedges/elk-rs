@@ -972,20 +972,23 @@ impl AbstractBarycenterPortDistributor {
             // Java uses int sum and int inLayerConnections
             let mut sum: i32 = 0;
             let mut in_layer_connections: i32 = 0;
+
             let connected = connected_ports(port);
             for connected_port in connected {
                 if port_same_layer(&connected_port, node) {
                     if port_owner_is(&connected_port, node) {
                         sum += node_index_in_layer;
                     } else {
-                        sum += self
-                            .position_of_node_port_owner_in_layer(&connected_port, layer_index)
-                            as i32
+                        sum += self.position_of_node_port_owner_in_layer(
+                            &connected_port,
+                            layer_index,
+                        ) as i32
                             + 1;
                     }
                     in_layer_connections += 1;
                 }
             }
+
             if in_layer_connections == 0 {
                 continue;
             }

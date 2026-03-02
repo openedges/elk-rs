@@ -279,8 +279,8 @@ impl<'a> NetworkSimplex<'a> {
         }
 
         self.edge_visited.fill(false);
-        while let Some(root) = self.graph.nodes.first().cloned() {
-            let count = self.tight_tree_dfs(&root, 0);
+        while !self.graph.nodes.is_empty() {
+            let count = self.tight_tree_dfs(0);
             if count >= self.graph.nodes.len() {
                 break;
             }
@@ -321,8 +321,8 @@ impl<'a> NetworkSimplex<'a> {
         }
 
         let mut roots: VecDeque<usize> = VecDeque::new();
-        for nid in 0..num_nodes {
-            if incident[nid] == 0 {
+        for (nid, &inc) in incident.iter().enumerate().take(num_nodes) {
+            if inc == 0 {
                 roots.push_back(nid);
             }
         }
@@ -384,11 +384,11 @@ impl<'a> NetworkSimplex<'a> {
         Pair::of(min_span_in, min_span_out)
     }
 
-    fn tight_tree_dfs(&mut self, node: &NNodeRef, nid: usize) -> usize {
+    fn tight_tree_dfs(&mut self, nid: usize) -> usize {
         let mut node_count = 1;
         // Sync tree_node to both cache and underlying node
         self.n_tree_node[nid] = true;
-        if let Ok(mut g) = node.lock() {
+        if let Ok(mut g) = self.graph.nodes[nid].lock() {
             g.tree_node = true;
         }
 
@@ -401,14 +401,14 @@ impl<'a> NetworkSimplex<'a> {
             }
             self.edge_visited[eid] = true;
 
-            let (opp_ref, opp_id) = if self.e_src_id[eid] == nid {
-                (self.e_tgt[eid].clone(), self.e_tgt_id[eid])
+            let opp_id = if self.e_src_id[eid] == nid {
+                self.e_tgt_id[eid]
             } else {
-                (self.e_src[eid].clone(), self.e_src_id[eid])
+                self.e_src_id[eid]
             };
 
             if self.e_tree[eid] {
-                node_count += self.tight_tree_dfs(&opp_ref, opp_id);
+                node_count += self.tight_tree_dfs(opp_id);
             } else if !self.n_tree_node[opp_id] {
                 let src_layer = self.n_layer[self.e_src_id[eid]];
                 let tgt_layer = self.n_layer[self.e_tgt_id[eid]];
@@ -418,7 +418,7 @@ impl<'a> NetworkSimplex<'a> {
                         edge_guard.tree_edge = true;
                     }
                     self.tree_edge_ids.push(eid);
-                    node_count += self.tight_tree_dfs(&opp_ref, opp_id);
+                    node_count += self.tight_tree_dfs(opp_id);
                 }
             }
         }
@@ -594,12 +594,14 @@ impl<'a> NetworkSimplex<'a> {
 
     fn leave_edge(&self) -> Option<usize> {
         // Must iterate tree_edge_ids in insertion order (Java parity) — zero locks
-        for &eid in &self.tree_edge_ids {
-            if self.e_tree[eid] && eid < self.cutvalue.len() && self.cutvalue[eid] < FUZZY_ST_ZERO {
-                return Some(eid);
-            }
-        }
-        None
+        self.tree_edge_ids
+            .iter()
+            .find(|&&eid| {
+                self.e_tree[eid]
+                    && eid < self.cutvalue.len()
+                    && self.cutvalue[eid] < FUZZY_ST_ZERO
+            })
+            .copied()
     }
 
     fn enter_edge(&self, leave_id: usize) -> Option<usize> {
