@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::rc::Rc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::math::ElkRectangle;
@@ -395,7 +395,7 @@ impl OneDimensionalCompactor {
 
     fn reverse_constraints(&mut self) {
         let nodes = self.c_graph.borrow().c_nodes.clone();
-        let mut incoming_map: HashMap<usize, Vec<CNodeRef>> = HashMap::new();
+        let mut incoming_map: FxHashMap<usize, Vec<CNodeRef>> = FxHashMap::default();
 
         for node in &nodes {
             incoming_map.insert(node_key(node), Vec::new());

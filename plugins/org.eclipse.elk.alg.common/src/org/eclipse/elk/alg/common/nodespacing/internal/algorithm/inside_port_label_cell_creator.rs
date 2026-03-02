@@ -62,7 +62,7 @@ impl InsidePortLabelCellCreator {
         container: &mut StripContainerCell,
         container_area: ContainerArea,
         port_side: PortSide,
-        inside_port_label_cells: &mut std::collections::HashMap<PortSide, AtomicCell>,
+        inside_port_label_cells: &mut rustc_hash::FxHashMap<PortSide, AtomicCell>,
     ) {
         let port_label_cell = AtomicCell::new();
         // Store a copy in the HashMap for direct access. Since Rust doesn't support shared

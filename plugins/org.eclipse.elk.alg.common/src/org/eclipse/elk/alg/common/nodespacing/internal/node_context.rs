@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 use crate::org::eclipse::elk::alg::common::nodespacing::cellsystem::{
     AtomicCell, CellChild, ContainerArea, DynLabelCell, GridContainerCell, StripContainerCell,
@@ -89,17 +89,17 @@ pub struct NodeContext {
     // === Inside Port Label Cells ===
     /// All cells that describe the space required for ports and for inside port labels.
     /// Indexed by PortSide.
-    pub inside_port_label_cells: HashMap<PortSide, AtomicCell>,
+    pub inside_port_label_cells: FxHashMap<PortSide, AtomicCell>,
 
     // === Outside Node Label Containers ===
     /// All container cells that hold label cells for outside node labels.
     /// Indexed by PortSide.
-    pub outside_node_label_containers: HashMap<PortSide, StripContainerCell>,
+    pub outside_node_label_containers: FxHashMap<PortSide, StripContainerCell>,
 
     // === Label Cells ===
     /// All of the label cells created for possible node labels, both inside and outside.
     /// Indexed by NodeLabelLocation.
-    pub node_label_cells: HashMap<NodeLabelLocation, DynLabelCell>,
+    pub node_label_cells: FxHashMap<NodeLabelLocation, DynLabelCell>,
 }
 
 impl NodeContext {
@@ -263,9 +263,9 @@ impl NodeContext {
             port_alignment_default,
             port_contexts: BTreeMap::new(),
             node_container,
-            inside_port_label_cells: HashMap::new(),
-            outside_node_label_containers: HashMap::new(),
-            node_label_cells: HashMap::new(),
+            inside_port_label_cells: FxHashMap::default(),
+            outside_node_label_containers: FxHashMap::default(),
+            node_label_cells: FxHashMap::default(),
         }
     }
 
