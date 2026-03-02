@@ -94,8 +94,8 @@ impl NetworkSimplexLayerer {
             Err(_) => Vec::new(),
         };
 
+        let mut opposite_nodes: Vec<LNodeRef> = Vec::new();
         for port in &ports {
-            let mut opposite_nodes: Vec<LNodeRef> = Vec::new();
             if let Ok(port_guard) = port.lock() {
                 for edge in port_guard.incoming_edges() {
                     if let Some(src_node) = edge
@@ -118,9 +118,9 @@ impl NetworkSimplexLayerer {
                     }
                 }
             }
-            for opp in opposite_nodes {
-                self.connected_components_dfs(&opp);
-            }
+        }
+        for opp in opposite_nodes {
+            self.connected_components_dfs(&opp);
         }
     }
 

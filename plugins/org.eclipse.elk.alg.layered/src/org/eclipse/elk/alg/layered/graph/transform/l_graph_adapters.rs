@@ -33,8 +33,8 @@ impl LGraphAdapters {
         transparent_comment_nodes: bool,
         node_filter: impl Fn(&crate::org::eclipse::elk::alg::layered::graph::LNode) -> bool,
     ) -> LGraphAdapter {
-        // Clone the graph's property holder so we can delegate get_property calls
-        let properties = graph.graph_element().properties().clone();
+        // Wrap graph properties in Arc to share cheaply across all node adapters
+        let properties = Arc::new(graph.graph_element().properties().clone());
 
         // Collect nodes from layers only (Java: "We completely ignore layerless nodes here")
         let mut node_adapters: Vec<LNodeAdapter> = Vec::new();
@@ -101,7 +101,7 @@ impl LGraphAdapters {
         LGraphAdapter {
             nodes: node_adapters,
             volatile_id: Cell::new(0),
-            properties,
+            properties: properties.clone(),
         }
     }
 
@@ -115,7 +115,7 @@ impl LGraphAdapters {
 pub struct LGraphAdapter {
     nodes: Vec<LNodeAdapter>,
     volatile_id: Cell<i32>,
-    properties: MapPropertyHolder,
+    properties: Arc<MapPropertyHolder>,
 }
 
 impl GraphElementAdapter<LNodeRef> for LGraphAdapter {
@@ -163,7 +163,7 @@ pub struct LNodeAdapter {
     node: LNodeRef,
     volatile_id: Cell<i32>,
     transparent_north_south_edges: bool,
-    graph_properties: Option<MapPropertyHolder>,
+    graph_properties: Option<Arc<MapPropertyHolder>>,
 }
 
 impl LNodeAdapter {
@@ -179,7 +179,7 @@ impl LNodeAdapter {
     fn with_graph_properties(
         node: LNodeRef,
         transparent_north_south_edges: bool,
-        graph_properties: MapPropertyHolder,
+        graph_properties: Arc<MapPropertyHolder>,
     ) -> Self {
         LNodeAdapter {
             node,

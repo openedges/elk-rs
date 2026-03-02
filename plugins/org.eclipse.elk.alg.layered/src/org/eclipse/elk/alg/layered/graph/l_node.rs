@@ -1,4 +1,3 @@
-use rustc_hash::FxHashMap;
 use std::sync::{Arc, Weak};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
@@ -90,7 +89,7 @@ pub struct LNode {
     nested_graph: Option<LGraphRef>,
     margin: LMargin,
     padding: LPadding,
-    port_side_indices: Option<FxHashMap<PortSide, Pair<usize, usize>>>,
+    port_side_indices: Option<[Option<Pair<usize, usize>>; 5]>,
     port_sides_cached: bool,
 }
 
@@ -251,7 +250,7 @@ impl LNode {
             if let Some(indices) = self
                 .port_side_indices
                 .as_ref()
-                .and_then(|map| map.get(&side))
+                .and_then(|arr| arr[side as usize].as_ref())
             {
                 let slice = &self.ports[indices.first..indices.second];
                 let matches = slice.iter().all(|port| {
@@ -398,7 +397,7 @@ impl LNode {
     }
 
     fn find_port_indices(&mut self) {
-        let mut indices: FxHashMap<PortSide, Pair<usize, usize>> = FxHashMap::default();
+        let mut indices: [Option<Pair<usize, usize>>; 5] = [const { None }; 5];
         if self.ports.is_empty() {
             self.port_side_indices = Some(indices);
             return;
@@ -414,14 +413,14 @@ impl LNode {
                 .unwrap_or(PortSide::Undefined);
             if side != current_side {
                 if first_index != current_index {
-                    indices.insert(current_side, Pair::of(first_index, current_index));
+                    indices[current_side as usize] = Some(Pair::of(first_index, current_index));
                 }
                 current_side = side;
                 first_index = current_index;
             }
             current_index += 1;
         }
-        indices.insert(current_side, Pair::of(first_index, current_index));
+        indices[current_side as usize] = Some(Pair::of(first_index, current_index));
         self.port_side_indices = Some(indices);
     }
 
