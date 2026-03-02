@@ -157,11 +157,7 @@ impl<'a> NetworkSimplex<'a> {
 
     fn initialize(&mut self) {
         let num_nodes = self.graph.nodes.len();
-        for node in &self.graph.nodes {
-            if let Ok(mut node_guard) = node.lock() {
-                node_guard.tree_node = false;
-            }
-        }
+        // tree_node sync to underlying NNode deferred — algorithm uses SoA cache only
         self.po_id = vec![0; num_nodes];
         self.lowest_po_id = vec![0; num_nodes];
         self.sources.clear();
@@ -197,7 +193,6 @@ impl<'a> NetworkSimplex<'a> {
         for (index, edge) in edges.iter().enumerate() {
             if let Ok(mut edge_guard) = edge.lock() {
                 edge_guard.internal_id = index;
-                edge_guard.tree_edge = false;
                 self.e_src.push(edge_guard.source.clone());
                 self.e_tgt.push(edge_guard.target.clone());
                 self.e_delta[index] = edge_guard.delta;
@@ -386,11 +381,7 @@ impl<'a> NetworkSimplex<'a> {
 
     fn tight_tree_dfs(&mut self, nid: usize) -> usize {
         let mut node_count = 1;
-        // Sync tree_node to both cache and underlying node
         self.n_tree_node[nid] = true;
-        if let Ok(mut g) = self.graph.nodes[nid].lock() {
-            g.tree_node = true;
-        }
 
         // Use cached adjacency list — zero Vec alloc, zero edge locks
         let num_adj = self.node_edges[nid].len();
@@ -414,9 +405,6 @@ impl<'a> NetworkSimplex<'a> {
                 let tgt_layer = self.n_layer[self.e_tgt_id[eid]];
                 if self.e_delta[eid] == tgt_layer - src_layer {
                     self.e_tree[eid] = true;
-                    if let Ok(mut edge_guard) = self.edges[eid].lock() {
-                        edge_guard.tree_edge = true;
-                    }
                     self.tree_edge_ids.push(eid);
                     node_count += self.tight_tree_dfs(opp_id);
                 }
@@ -635,18 +623,12 @@ impl<'a> NetworkSimplex<'a> {
             return;
         }
 
-        // Toggle tree_edge on both edges — sync cache + underlying edge
-        if let Ok(mut edge_guard) = self.edges[leave_id].lock() {
-            edge_guard.tree_edge = false;
-        }
+        // Toggle tree membership — SoA cache only (no underlying edge sync needed)
         self.e_tree[leave_id] = false;
         if let Some(pos) = self.tree_edge_ids.iter().position(|&eid| eid == leave_id) {
             self.tree_edge_ids.remove(pos);
         }
 
-        if let Ok(mut edge_guard) = self.edges[enter_id].lock() {
-            edge_guard.tree_edge = true;
-        }
         self.e_tree[enter_id] = true;
         self.tree_edge_ids.push(enter_id);
 
