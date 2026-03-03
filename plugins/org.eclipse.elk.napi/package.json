@@ -2,7 +2,14 @@
   "name": "elk-rs-napi",
   "version": "0.11.0",
   "napi": {
-    "name": "elk-rs",
-    "triples": {}
+    "binaryName": "elk-rs",
+    "targets": [
+      "aarch64-apple-darwin",
+      "x86_64-apple-darwin",
+      "x86_64-unknown-linux-gnu",
+      "x86_64-unknown-linux-musl",
+      "aarch64-unknown-linux-gnu",
+      "x86_64-pc-windows-msvc"
+    ]
   }
 }

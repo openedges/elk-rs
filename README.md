@@ -10,6 +10,17 @@ elk-rs is available as a drop-in replacement for [elkjs](https://github.com/kiel
 npm install elk-rs
 ```
 
+On supported platforms, a native NAPI addon is automatically installed for best performance. Falls back to WASM on other platforms.
+
+| Platform | Package |
+|---|---|
+| macOS ARM64 (Apple Silicon) | `@elk-rs/darwin-arm64` |
+| macOS x64 (Intel) | `@elk-rs/darwin-x64` |
+| Linux x64 (glibc) | `@elk-rs/linux-x64-gnu` |
+| Linux x64 (musl/Alpine) | `@elk-rs/linux-x64-musl` |
+| Linux ARM64 | `@elk-rs/linux-arm64-gnu` |
+| Windows x64 | `@elk-rs/win32-x64-msvc` |
+
 ```js
 const ELK = require('elk-rs');
 const elk = new ELK();
@@ -30,7 +41,7 @@ See [`plugins/org.eclipse.elk.js/README.md`](plugins/org.eclipse.elk.js/README.m
 ## Repository Layout
 
 - `plugins/`: Rust crates mapped to ELK plugin structure (`org.eclipse.elk.*`)
-  - `org.eclipse.elk.js/`: npm package — JS API, WASM backend, TypeScript typings
+  - `org.eclipse.elk.js/`: npm package — JS API, NAPI/WASM backend, TypeScript typings
   - `org.eclipse.elk.wasm/`: WASM bindings (wasm-bindgen)
   - `org.eclipse.elk.napi/`: Native Node.js addon (NAPI-RS)
 - `scripts/`: quality and parity automation scripts
@@ -42,6 +53,7 @@ See [`plugins/org.eclipse.elk.js/README.md`](plugins/org.eclipse.elk.js/README.m
 - Rust toolchain (stable, with `wasm32-unknown-unknown` target for WASM build)
 - Git with submodule support
 - [wasm-pack](https://rustwasm.github.io/wasm-pack/) (for WASM build)
+- [@napi-rs/cli](https://napi.rs/) (for native addon build)
 - Node.js 16+ (for JS package tests)
 
 For full validation (model parity, phase traces), additional tools are required.

@@ -1,0 +1,14 @@
+{
+  "name": "@elk-rs/linux-x64-musl",
+  "version": "0.11.0",
+  "os": ["linux"],
+  "cpu": ["x64"],
+  "main": "elk-rs.linux-x64-musl.node",
+  "files": ["elk-rs.linux-x64-musl.node"],
+  "description": "elk-rs native binding for Linux x64 (musl/Alpine)",
+  "license": "EPL-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/openedges/elk-rs.git"
+  }
+}

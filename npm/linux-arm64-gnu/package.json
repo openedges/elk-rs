@@ -1,0 +1,14 @@
+{
+  "name": "@elk-rs/linux-arm64-gnu",
+  "version": "0.11.0",
+  "os": ["linux"],
+  "cpu": ["arm64"],
+  "main": "elk-rs.linux-arm64-gnu.node",
+  "files": ["elk-rs.linux-arm64-gnu.node"],
+  "description": "elk-rs native binding for Linux ARM64 (Graviton/RPi)",
+  "license": "EPL-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/openedges/elk-rs.git"
+  }
+}

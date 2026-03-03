@@ -10,6 +10,37 @@
 // Detect environment
 var isWebWorker = typeof self !== 'undefined' && typeof self.postMessage === 'function' && typeof window === 'undefined';
 
+// --- Platform detection (shared with index.js) ---
+
+function platformTriple() {
+  var platform = process.platform;
+  var arch = process.arch;
+  var tripleMap = {
+    'darwin-arm64': 'darwin-arm64',
+    'darwin-x64': 'darwin-x64',
+    'linux-x64': 'linux-x64-gnu',
+    'linux-arm64': 'linux-arm64-gnu',
+    'win32-x64': 'win32-x64-msvc',
+  };
+  var key = platform + '-' + arch;
+  return tripleMap[key] || null;
+}
+
+function loadNativeAddon() {
+  var triple = platformTriple();
+  // 1. Try platform-specific NAPI package
+  if (triple) {
+    try { return require('@elk-rs/' + triple); } catch (e) {}
+  }
+  // 2. Try platform-specific local .node file
+  if (triple) {
+    try { return require('../dist/elk-rs.' + triple + '.node'); } catch (e) {}
+  }
+  // 3. Try generic local .node file
+  try { return require('../dist/elk-rs.node'); } catch (e) {}
+  return null;
+}
+
 // --- In-process (fake) Worker for Node.js direct use ---
 
 function FakeWorker() {
@@ -25,15 +56,12 @@ FakeWorker.prototype._ensureBackend = function() {
   var self = this;
   this._initPromise = new Promise(function(resolve, reject) {
     try {
-      // Try native addon first, then WASM
-      var backend;
-      try {
-        backend = require('../dist/elk-rs.node');
-      } catch (e1) {
+      var backend = loadNativeAddon();
+      if (!backend) {
         try {
           backend = require('../dist/wasm/org_eclipse_elk_wasm.js');
         } catch (e2) {
-          throw new Error('elk-rs: Could not load native addon or WASM module. ' + e1.message);
+          throw new Error('elk-rs: Could not load native addon or WASM module.');
         }
       }
       self._backend = backend;
@@ -128,10 +156,8 @@ try {
 
 if (_parentPort) {
   // Node.js worker_threads — use require-based backend loading and parentPort
-  var nodeBackend = null;
-  try {
-    nodeBackend = require('../dist/elk-rs.node');
-  } catch (e1) {
+  var nodeBackend = loadNativeAddon();
+  if (!nodeBackend) {
     try {
       nodeBackend = require('../dist/wasm/org_eclipse_elk_wasm.js');
     } catch (e2) {

@@ -6,7 +6,7 @@
 - 데이터 모델/파일 구조를 Java와 동일하게 유지한다.
 - 빌드/테스트/Clippy를 항상 통과 상태로 유지한다.
 - 성능 측정 자동화를 유지하고 Java 대비 성능 회귀를 방지한다.
-- elkjs 호환 npm 패키지(`elk-rs`)를 제공한다 (WASM + 향후 NAPI).
+- elkjs 호환 npm 패키지(`elk-rs`)를 제공한다 (WASM + NAPI 플랫폼별 패키지).
 - 라이선스는 Java Version과 동일하게 유지한다.
 
 ## 문서 운영 원칙
@@ -52,8 +52,10 @@
 - **Phase-step trace**: `1439/1439` 모델 전 step 일치, 초기 frontier/hotspot 없음
 - **Tickets parity**: `matches=108/109`, `drift=1` (Java ELK 버그 동일 원인)
 - **JS parity**: 550/550 elk-rs vs Java 일치 (ELKJS_DRIFT 20건은 GWT 아티팩트)
-- **npm 패키지**: `elk-rs@0.11.0` WASM-only 릴리즈 준비 완료 (32 Vitest 통과)
-  - 향후: NAPI 플랫폼별 패키지 (`@elk-rs/darwin-arm64` 등) 추가 예정
+- **npm 패키지**: `elk-rs@0.11.0` WASM + NAPI 릴리즈 준비 완료 (35 Vitest 통과)
+  - NAPI 플랫폼별 패키지 6개 추가 완료: `@elk-rs/darwin-arm64`, `@elk-rs/darwin-x64`, `@elk-rs/linux-x64-gnu`, `@elk-rs/linux-x64-musl`, `@elk-rs/linux-arm64-gnu`, `@elk-rs/win32-x64-msvc`
+  - 로딩 우선순위: 플랫폼 NAPI 패키지 → 로컬 `.node` → WASM 폴백
+  - CI/CD: `.github/workflows/napi.yml` (태그 push 시 6 플랫폼 크로스 빌드 + npm publish)
 - **성능 기준선**: Rust **1.87x faster than Java** (`layered_xlarge` ~248ms vs 463.21ms, **0.54x** ratio, mimalloc, synthetic 25/8 baseline)
   - 이전 1,576ms → 972ms → 794ms → 702ms → 672ms → 641ms → 620ms → 626ms → 575ms → 572ms → 561ms → ~426ms → ~272ms → **~248ms** (**-84.3%** 누적), Phase 1-19 순차 최적화 반영 (상세: `HISTORY.md`)
   - **성능 최적화 실질 완료** (Phase 1-19): profile 매우 flat (개별 함수 <2%), 88% 순수 연산, 12% 인프라(malloc 7.9%, hash 4.3%)

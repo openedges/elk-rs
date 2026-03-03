@@ -42,11 +42,20 @@
     "elkjs": "^0.11.0",
     "vitest": "^3.0.0"
   },
+  "optionalDependencies": {
+    "@elk-rs/darwin-arm64": "0.11.0",
+    "@elk-rs/darwin-x64": "0.11.0",
+    "@elk-rs/linux-x64-gnu": "0.11.0",
+    "@elk-rs/linux-x64-musl": "0.11.0",
+    "@elk-rs/linux-arm64-gnu": "0.11.0",
+    "@elk-rs/win32-x64-msvc": "0.11.0"
+  },
   "keywords": [
     "elk",
     "layout",
     "graph",
     "wasm",
+    "napi",
     "rust"
   ]
 }

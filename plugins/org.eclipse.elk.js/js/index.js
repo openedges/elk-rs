@@ -9,15 +9,49 @@
  */
 var ELK = require('./elk-api.js');
 
+function platformTriple() {
+  var platform = process.platform;
+  var arch = process.arch;
+  var tripleMap = {
+    'darwin-arm64': 'darwin-arm64',
+    'darwin-x64': 'darwin-x64',
+    'linux-x64': 'linux-x64-gnu',
+    'linux-arm64': 'linux-arm64-gnu',
+    'win32-x64': 'win32-x64-msvc',
+  };
+  var key = platform + '-' + arch;
+  return tripleMap[key] || null;
+}
+
 function loadBackend() {
-  // Try native addon
+  var triple = platformTriple();
+
+  // 1. Try platform-specific NAPI package (installed via optionalDependencies)
+  if (triple) {
+    try {
+      return require('@elk-rs/' + triple);
+    } catch (e) {
+      // Platform package not installed
+    }
+  }
+
+  // 2. Try local .node file (dev/build with --platform flag)
+  if (triple) {
+    try {
+      return require('../dist/elk-rs.' + triple + '.node');
+    } catch (e) {
+      // Platform-specific local addon not available
+    }
+  }
+
+  // 3. Try generic local .node file (dev/build without --platform flag)
   try {
     return require('../dist/elk-rs.node');
   } catch (e) {
-    // Native addon not available
+    // Generic local addon not available
   }
 
-  // Fall back to WASM (Node.js compatible build)
+  // 4. Fall back to WASM (Node.js compatible build)
   try {
     return require('../dist/wasm/org_eclipse_elk_wasm.js');
   } catch (e) {
@@ -26,7 +60,7 @@ function loadBackend() {
 
   throw new Error(
     'elk-rs: Could not load native addon or WASM module.\n'
-    + 'Ensure the package was installed correctly and dist/wasm/ exists.'
+    + 'Ensure the package was installed correctly.'
   );
 }
 
