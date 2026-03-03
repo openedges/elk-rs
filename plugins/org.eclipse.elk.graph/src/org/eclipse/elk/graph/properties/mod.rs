@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::borrow::Cow;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
@@ -61,36 +62,54 @@ impl<T: fmt::Display> fmt::Display for Bound<T> {
 }
 
 pub struct Property<T: Clone + Send + Sync + 'static> {
-    id: String,
+    id: Cow<'static, str>,
     default_value: Option<T>,
     lower_bound: Bound<T>,
     upper_bound: Bound<T>,
 }
 
 impl<T: Clone + Send + Sync + 'static> Property<T> {
-    pub fn new(id: impl Into<String>) -> Self {
+    pub fn new(id: &'static str) -> Self {
         Property {
-            id: id.into(),
+            id: Cow::Borrowed(id),
             default_value: None,
             lower_bound: Bound::negative_infinity(),
             upper_bound: Bound::positive_infinity(),
         }
     }
 
-    pub fn with_default(id: impl Into<String>, default_value: T) -> Self {
+    pub fn with_default(id: &'static str, default_value: T) -> Self {
         let mut property = Property::new(id);
         property.default_value = Some(default_value);
         property
     }
 
-    pub fn from_property(other: &Property<T>, default_value: T) -> Self {
-        let mut property = Property::new(other.id.clone());
+    pub fn new_owned(id: impl Into<String>) -> Self {
+        Property {
+            id: Cow::Owned(id.into()),
+            default_value: None,
+            lower_bound: Bound::negative_infinity(),
+            upper_bound: Bound::positive_infinity(),
+        }
+    }
+
+    pub fn with_default_owned(id: impl Into<String>, default_value: T) -> Self {
+        let mut property = Property::new_owned(id);
         property.default_value = Some(default_value);
         property
     }
 
+    pub fn from_property(other: &Property<T>, default_value: T) -> Self {
+        Property {
+            id: other.id.clone(),
+            default_value: Some(default_value),
+            lower_bound: Bound::negative_infinity(),
+            upper_bound: Bound::positive_infinity(),
+        }
+    }
+
     pub fn with_default_and_lower(
-        id: impl Into<String>,
+        id: &'static str,
         default_value: T,
         lower_bound: Bound<T>,
     ) -> Self {
@@ -100,7 +119,7 @@ impl<T: Clone + Send + Sync + 'static> Property<T> {
     }
 
     pub fn with_default_and_bounds(
-        id: impl Into<String>,
+        id: &'static str,
         default_value: T,
         lower_bound: Bound<T>,
         upper_bound: Bound<T>,
@@ -112,6 +131,12 @@ impl<T: Clone + Send + Sync + 'static> Property<T> {
 
     pub fn id(&self) -> &str {
         &self.id
+    }
+
+    /// Get an owned Cow clone of the property id (cheap for static keys).
+    #[inline]
+    pub fn id_cow(&self) -> Cow<'static, str> {
+        self.id.clone()
     }
 
     pub fn get_default(&self) -> Option<T> {
@@ -171,7 +196,7 @@ impl<T: Clone + Send + Sync + 'static> Hash for Property<T> {
 
 #[derive(Clone)]
 pub struct MapPropertyHolder {
-    property_map: FxHashMap<String, PropertyValue>,
+    property_map: FxHashMap<Cow<'static, str>, PropertyValue>,
 }
 
 impl MapPropertyHolder {
@@ -189,7 +214,7 @@ impl MapPropertyHolder {
         match value {
             Some(value) => {
                 self.property_map.insert(
-                    property.id().to_owned(),
+                    property.id_cow(),
                     PropertyValue::Resolved(Arc::new(value)),
                 );
             }
@@ -206,7 +231,7 @@ impl MapPropertyHolder {
         proxy: Arc<dyn IPropertyValueProxy>,
     ) -> &mut Self {
         self.property_map
-            .insert(property_id.into(), PropertyValue::Proxy(proxy));
+            .insert(Cow::Owned(property_id.into()), PropertyValue::Proxy(proxy));
         self
     }
 
@@ -218,10 +243,11 @@ impl MapPropertyHolder {
         match value {
             Some(value) => {
                 self.property_map
-                    .insert(property_id.into(), PropertyValue::Resolved(value));
+                    .insert(Cow::Owned(property_id.into()), PropertyValue::Resolved(value));
             }
             None => {
-                self.property_map.remove(&property_id.into());
+                let key: String = property_id.into();
+                self.property_map.remove(key.as_str());
             }
         }
         self
@@ -247,7 +273,7 @@ impl MapPropertyHolder {
                     if let Some(resolved) = proxy.resolve_value(property.id()) {
                         let typed_ref = (*resolved).downcast_ref::<T>()?.clone();
                         self.property_map
-                            .insert(property.id().to_owned(), PropertyValue::Resolved(resolved));
+                            .insert(property.id_cow(), PropertyValue::Resolved(resolved));
                         return Some(typed_ref);
                     }
                 }
@@ -295,7 +321,7 @@ impl MapPropertyHolder {
         self
     }
 
-    pub fn get_all_properties(&self) -> &FxHashMap<String, PropertyValue> {
+    pub fn get_all_properties(&self) -> &FxHashMap<Cow<'static, str>, PropertyValue> {
         &self.property_map
     }
 

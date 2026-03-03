@@ -352,8 +352,8 @@ fn property_with_default<T: Clone + Send + Sync + 'static>(
 ) -> Property<T> {
     if let Some(default_value) = default_value.as_ref() {
         if let Some(typed) = default_value.downcast_ref::<T>() {
-            return Property::with_default(id, typed.clone());
+            return Property::with_default_owned(id, typed.clone());
         }
     }
-    Property::new(id)
+    Property::new_owned(id)
 }

@@ -175,7 +175,7 @@ impl LayoutConfigurator {
     }
 
     fn apply_properties(&self, element: &ElkGraphElementRef, properties: &MapPropertyHolder) {
-        let entries: Vec<(String, PropertyValue)> = properties
+        let entries: Vec<_> = properties
             .get_all_properties()
             .iter()
             .map(|(key, value)| (key.clone(), value.clone()))

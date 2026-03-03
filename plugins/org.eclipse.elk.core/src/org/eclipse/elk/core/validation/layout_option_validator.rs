@@ -93,7 +93,7 @@ impl Default for LayoutOptionValidator {
 impl IGraphElementVisitor for LayoutOptionValidator {
     fn visit(&mut self, element: &ElkGraphElementRef) {
         with_element_properties_mut(element, |properties| {
-            let entries: Vec<(String, PropertyValue)> = properties
+            let entries: Vec<_> = properties
                 .get_all_properties()
                 .iter()
                 .map(|(key, value)| (key.clone(), value.clone()))

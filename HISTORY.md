@@ -4,6 +4,8 @@
 - 신규 단계 완료 시 이 문서에 누적 기록하고, `AGENTS.md`의 핵심 스냅샷/우선순위를 동기화한다.
 
 ## 진행된 작업
+- Phase 19 Property key Cow<'static, str> interning(2026-03-03): `Property<T>.id`를 `String` → `Cow<'static, str>`로, `MapPropertyHolder.property_map`을 `FxHashMap<String, PropertyValue>` → `FxHashMap<Cow<'static, str>, PropertyValue>`로 전환. 421개 Property 상수의 `&'static str` 리터럴이 zero-alloc `Cow::Borrowed`로 처리되어 매 property lookup마다 `String::clone()` + alloc 제거. `set_property`/`get_property` 경로에서 `id().to_owned()` → `id_cow()` (pointer copy). Runtime `&str` 키가 필요한 `PropertyConstantsDelegator`용 `new_owned()`/`with_default_owned()` 추가. downstream 3파일 수정(layout_configurator, layout_option_validator, property_constants_delegator). **성능**: 272ms→**~248ms** (**-8.9%**), Java 463ms 대비 **0.54x** (Rust 1.87x faster). **누적**: 1,576ms→248ms (**-84.3%**). **검증**: build/clippy 0 warning, test 51/51 pass, parity `1438/1438`(0 drift).
+- Phase 18 mimalloc + graph_info_holder batch lock(2026-03-03): `perf_benchmark` 바이너리에 mimalloc global allocator 추가 (optional feature). `graph_info_holder::new()` 13개 별도 lock → 1개 batch lock. **성능**: 301ms→**~272ms** (**-9.6%**), Java 대비 **0.59x**. **검증**: parity `1438/1438`(0 drift), build/clippy 0 warning, test 0 failure.
 - Phase 17 calculate_port_ranks snapshot fast path + release warning fix(2026-03-03): (1) `abstract_barycenter_port_distributor.rs`의 `calculate_port_ranks_node_relative`/`_layer_total`에 CSR snapshot fast path 추가. Port side와 edge connectivity는 sweep 중 불변이므로 `snap.port_side_of()`, `snap.port_predecessors()`, `snap.port_successors()`로 lock-free 조회. 기존 노드당 lock 횟수 ~(2 node + 3n port) → ~(1 node + 0 port)로 감소. `ports_by_type()` 호출(내부에서 node lock + 포트별 lock) 제거하고 snapshot filter로 대체. Snapshot 미보유 시 기존 lock path로 fallback. (2) `elk_layered.rs`의 debug-only trace statics(`TRACE`, `TRACE_EDGE_WIRING`, `TRACE_NODES`, `TRACE_NODES_FILTER`)과 `long_edge_splitter.rs`의 `TRACE_LONG_EDGE_SPLIT`에 `#[cfg(debug_assertions)]` 추가해 release 빌드 dead_code warning 5건 제거. `LazyLock` import도 conditional로 전환. **성능**: ~301ms (이전 문서 기준 ~426ms에서 환경 변화로 baseline 이동 — 컴파일러/OS 업데이트 추정, 코드 변경 미반영). Snapshot optimization 자체는 uncontended pthread_mutex ~20ns 대비 FxHashMap lookup이 상쇄하여 측정 가능한 delta 없음. **커밋**: `dab9e82`. **검증**: parity `1438/1438`(0 drift), `cargo build`/`cargo clippy` 0 warning (debug + release), `cargo test` 0 failure. 벤치마크: `layered_xlarge` 301ms (25/8, 단독 실행).
 - Phase 16 P3 CSR snapshot propagation fix — SharedXxxPortDistributor set_snapshot 누락 수정(2026-03-03): `graph_info_holder.rs`의 `SharedNodeRelativePortDistributor`와 `SharedLayerTotalPortDistributor`에서 `BarycenterPortDistributor::set_snapshot()` trait 메서드가 default no-op을 사용하여 CSR snapshot이 inner distributor에 전파되지 않던 버그를 수정. `set_snapshot` override를 추가하여 `self.inner.lock() -> set_snapshot(snapshot)` 패턴으로 전파. 이를 통해 `distribute_ports`와 `sort_ports`가 CSR snapshot path를 사용하게 되어 lock-based fallback(node→port→edge lock chain per port) 대신 O(1) CSR indexed lookup을 수행. 단, `calculate_port_ranks`는 current port ordering에 의존하는데 CSR snapshot은 initial ordering만 보유하므로 snap path 사용 시 50모델 drift 발생 → `calculate_port_ranks_node_relative`/`_layer_total`의 snap branch를 제거하고 항상 lock path 사용. dead code `calculate_port_ranks_node_relative_snap`/`_layer_total_snap` 메서드도 삭제(-145 lines). **성능**: 561ms→**~426ms** (**-24.1%**), Java 463ms 대비 **0.92x** (Rust가 Java보다 빠름!). **누적**: 1,576ms→426ms (**-73.0%**). **검증**: parity `1438/1438`(0 drift), `cargo build`/`cargo clippy` 0 warning, `cargo test` 0 failure.
 - Phase 15 P2 adjacency pre-computation + P5 cycle detector/topological Vec clone elimination(2026-03-03): (1) `network_simplex_layerer.rs::connected_components`: P2 layering의 connected components DFS에 adjacency pre-computation 패턴 적용. 단일 upfront pass에서 `ptr_to_idx` FxHashMap + `adjacency: Vec<Vec<usize>>`를 구축하고, `dfs_flat(idx, adjacency, nodes, visited, component)` static 메서드로 lock-free 인덱스 순회. 기존 `connected_components_dfs`의 재귀 lock chain(node→port→edge→port→node per DFS step)을 완전 제거. 미사용 `opposite_buf` 필드 + `node_index` 함수 삭제. (2) `hyper_edge_cycle_detector.rs::detect_cycles`: 최종 루프에서 `source.borrow().outgoing_segment_dependencies().clone()` Vec 할당을 `source_guard` borrow 유지로 제거. (3) `hyper_edge_cycle_detector.rs::update_neighbors`: outgoing/incoming deps `.clone()` Vec 할당을 `node_guard` borrow 유지로 제거(2개소). `swap_remove`로 `remove_segment` 전환 시도 → 2모델 drift 발생(cycle detection mark 순서 의존), 즉시 REVERT. (4) `orthogonal_routing_generator.rs::topological_numbering`: outgoing/incoming deps `.clone()` Vec 할당을 `node_guard` borrow 유지로 제거(2개소). 초기화 루프의 3회 segment borrow를 단일 `borrow_mut()`로 통합. **성능**: 572ms→561ms (**-1.9%**), Java 463ms 대비 **1.21x**. **커밋**: `0ff2889`(P2 adjacency), `64d6d2f`(P5 Vec clone elimination). **검증**: parity `1438/1438`(0 drift), `cargo build`/`cargo clippy` 0 warning, `cargo test` 0 failure. **프로파일 분석(596 samples)**: malloc/free ~19%, P3 crossing-min ~63%(algorithmic core), P5 routing ~10%, P3 port distributor ~8%. 개별 함수 hotspot 2-4%로 매우 flat. micro-optimization 수확 체감 도달, 잔여 ~100ms 갭은 Arc/Mutex overhead + allocation overhead로 arena 전환 필수.
@@ -1168,14 +1170,39 @@
 - hierarchical graph (child graph) 경로에만 영향 (root graph는 이미 `new_with_graph()` 사용)
 - 벤치마크 측정 delta 없음 (layered_xlarge는 flat graph)
 
+### Phase 19: Property key Cow<'static, str> interning (2026-03-03)
+
+**Property 시스템 키 타입 변경**:
+- `Property<T>.id`: `String` → `Cow<'static, str>` — 421개 Property 상수가 모두 `&'static str` 리터럴이므로 zero-alloc `Cow::Borrowed`
+- `MapPropertyHolder.property_map`: `FxHashMap<String, PropertyValue>` → `FxHashMap<Cow<'static, str>, PropertyValue>`
+- `set_property()`: `property.id().to_owned()` → `property.id_cow()` (static key는 pointer copy만)
+- `set_property_proxy()`/`set_property_any()`: `Cow::Owned(property_id.into())` (runtime string은 기존대로 allocated)
+- `get_property()` proxy resolution: `property.id().to_owned()` → `property.id_cow()`
+- `Property::new_owned()`/`with_default_owned()` 추가 — `PropertyConstantsDelegator` 등 runtime `&str` 키가 필요한 드문 경로용
+- downstream 호출부 3개 수정: `layout_configurator.rs`, `layout_option_validator.rs` (Vec 타입 추론으로 전환), `property_constants_delegator.rs` (`_owned` 변형 사용)
+
+**벤치마크 결과** (layered_xlarge, 25/8, mimalloc):
+- Phase 18 baseline: ~272ms
+- Phase 19: ~248ms (247.8ms, 250.3ms)
+- **Delta: -24ms (-8.9%)**
+- Java 463ms 대비 ratio: 0.59x → **0.54x** (Rust 1.87x faster than Java)
+- 누적: 1,576ms → 248ms (**-84.3%**)
+
+**원인 분석**:
+- Property lookup은 layout 전 과정에서 수만 회 호출 — 매번 `String::clone()` + FxHash가 포인터 비교 + 사전계산 해시로 전환
+- `Cow::Borrowed` clone = pointer copy (8 bytes), hash = 기존 `str` hash와 동일하지만 key 생성 시 alloc 0회
+- profile의 `String::clone` 1.2% + 관련 hash/alloc overhead ~3% 합산 절감
+
+**검증**: build 0 warning, clippy 0 warning, test 51/51 pass, parity 1438/1438 match (drift=0)
+
 ### 차기 진행 계획
 
 1. ~~calculate_port_ranks CSR 전환~~ (Phase 17 완료)
 2. ~~mimalloc + batch lock~~ (Phase 18 완료 — ~272ms, 0.59x Java)
-3. **Full Arena 전면 전환**: `HISTORY.md` "Full Arena 전환 상세 전략" 참조
+3. ~~Property key interning~~ (Phase 19 완료 — ~248ms, 0.54x Java)
+4. **Full Arena 전면 전환**: `HISTORY.md` "Full Arena 전환 상세 전략" 참조
    - 현재 Phase 0 (Arena Foundation) 구조체 존재, Phase 1 (P3 full arena) 미착수
    - 기대 효과: Arc refcount + Mutex overhead 제거 → ~15-30ms 추가 절감 가능
-4. **Property 시스템 개선** (선택): String 키 interning으로 clone 비용 제거 (~1% 절감)
 
 ## 완료: 성능 최적화 — Phase-Local Snapshot Approach (2026-03-01)
 
