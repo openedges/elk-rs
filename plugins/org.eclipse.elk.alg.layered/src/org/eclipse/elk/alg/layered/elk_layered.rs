@@ -34,11 +34,15 @@ use crate::org::eclipse::elk::alg::layered::trace_recorder;
 static TRACE_STEP_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static TRACE_LAYOUT_DEPTH: AtomicUsize = AtomicUsize::new(0);
 
+#[cfg(debug_assertions)]
 static TRACE: LazyLock<bool> = LazyLock::new(|| std::env::var("ELK_TRACE").is_ok());
+#[cfg(debug_assertions)]
 static TRACE_EDGE_WIRING: LazyLock<bool> =
     LazyLock::new(|| std::env::var("ELK_TRACE_EDGE_WIRING").is_ok());
+#[cfg(debug_assertions)]
 static TRACE_NODES: LazyLock<bool> =
     LazyLock::new(|| std::env::var("ELK_TRACE_NODES").is_ok());
+#[cfg(debug_assertions)]
 static TRACE_NODES_FILTER: LazyLock<Option<String>> =
     LazyLock::new(|| std::env::var("ELK_TRACE_NODES_FILTER").ok());
 static TRACE_DIR: LazyLock<Option<String>> =

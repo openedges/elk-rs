@@ -116,8 +116,81 @@ impl AbstractBarycenterPortDistributor {
         rank_sum: f64,
         port_type: PortType,
     ) -> f64 {
-        // Always use lock path: port ranking depends on CURRENT port ordering
-        // which changes during sweeps via sort_ports. CSR snapshot has initial ordering only.
+        // Snapshot fast path: 1 node lock for current port ordering, 0 port locks.
+        // Port side and edge connectivity are immutable during sweeps — read from snapshot.
+        let snap = self.snapshot.clone();
+        if let Some(snap) = &snap {
+            let ports = node
+                .lock()
+                .ok()
+                .map(|node_guard| node_guard.ports().clone())
+                .unwrap_or_default();
+            match port_type {
+                PortType::Input => {
+                    let mut input_count = 0usize;
+                    let mut north_input_count = 0usize;
+                    for port in &ports {
+                        let pid = snap.port_id(port);
+                        if !snap.port_predecessors(pid).is_empty() {
+                            input_count += 1;
+                            if snap.port_side_of(pid) == PortSide::North {
+                                north_input_count += 1;
+                            }
+                        }
+                    }
+                    if input_count == 0 {
+                        return 1.0;
+                    }
+                    let incr = 1.0 / (input_count as f64 + 1.0);
+                    let mut north_pos = rank_sum + (north_input_count as f64) * incr;
+                    let mut rest_pos = rank_sum + 1.0 - incr;
+                    for port in &ports {
+                        let pid = snap.port_id(port);
+                        if snap.port_predecessors(pid).is_empty() {
+                            continue;
+                        }
+                        let pid_usize = pid as usize;
+                        self.ensure_port_capacity(pid_usize);
+                        if snap.port_side_of(pid) == PortSide::North {
+                            self.port_ranks[pid_usize] = f32t(north_pos);
+                            north_pos -= incr;
+                        } else {
+                            self.port_ranks[pid_usize] = f32t(rest_pos);
+                            rest_pos -= incr;
+                        }
+                    }
+                    return 1.0;
+                }
+                PortType::Output => {
+                    let mut output_count = 0usize;
+                    for port in &ports {
+                        let pid = snap.port_id(port);
+                        if !snap.port_successors(pid).is_empty() {
+                            output_count += 1;
+                        }
+                    }
+                    if output_count == 0 {
+                        return 1.0;
+                    }
+                    let incr = 1.0 / (output_count as f64 + 1.0);
+                    let mut pos = rank_sum + incr;
+                    for port in &ports {
+                        let pid = snap.port_id(port);
+                        if snap.port_successors(pid).is_empty() {
+                            continue;
+                        }
+                        let pid_usize = pid as usize;
+                        self.ensure_port_capacity(pid_usize);
+                        self.port_ranks[pid_usize] = f32t(pos);
+                        pos += incr;
+                    }
+                    return 1.0;
+                }
+                _ => return 1.0,
+            }
+        }
+
+        // Fallback lock path (no snapshot available)
         let ports = node
             .lock()
             .ok()
@@ -214,8 +287,68 @@ impl AbstractBarycenterPortDistributor {
         rank_sum: f64,
         port_type: PortType,
     ) -> f64 {
-        // Always use lock path: port ranking depends on CURRENT port ordering
-        // which changes during sweeps via sort_ports. CSR snapshot has initial ordering only.
+        // Snapshot fast path: 1 node lock for current port ordering, 0 port locks.
+        let snap = self.snapshot.clone();
+        if let Some(snap) = &snap {
+            let ports = node
+                .lock()
+                .ok()
+                .map(|node_guard| node_guard.ports().clone())
+                .unwrap_or_default();
+            match port_type {
+                PortType::Input => {
+                    let mut input_count = 0usize;
+                    let mut north_input_count = 0usize;
+                    for port in &ports {
+                        let pid = snap.port_id(port);
+                        if !snap.port_predecessors(pid).is_empty() {
+                            input_count += 1;
+                            if snap.port_side_of(pid) == PortSide::North {
+                                north_input_count += 1;
+                            }
+                        }
+                    }
+                    if input_count == 0 {
+                        return 0.0;
+                    }
+                    let mut north_pos = rank_sum + north_input_count as f64;
+                    let mut rest_pos = rank_sum + input_count as f64;
+                    for port in &ports {
+                        let pid = snap.port_id(port);
+                        if snap.port_predecessors(pid).is_empty() {
+                            continue;
+                        }
+                        let pid_usize = pid as usize;
+                        self.ensure_port_capacity(pid_usize);
+                        if snap.port_side_of(pid) == PortSide::North {
+                            self.port_ranks[pid_usize] = f32t(north_pos);
+                            north_pos -= 1.0;
+                        } else {
+                            self.port_ranks[pid_usize] = f32t(rest_pos);
+                            rest_pos -= 1.0;
+                        }
+                    }
+                    return input_count as f64;
+                }
+                PortType::Output => {
+                    let mut pos = 0.0;
+                    for port in &ports {
+                        let pid = snap.port_id(port);
+                        if snap.port_successors(pid).is_empty() {
+                            continue;
+                        }
+                        pos += 1.0;
+                        let pid_usize = pid as usize;
+                        self.ensure_port_capacity(pid_usize);
+                        self.port_ranks[pid_usize] = f32t(rank_sum + pos);
+                    }
+                    return pos;
+                }
+                _ => return 0.0,
+            }
+        }
+
+        // Fallback lock path (no snapshot available)
         let ports = node
             .lock()
             .ok()
