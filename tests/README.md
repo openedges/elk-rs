@@ -149,7 +149,7 @@ Compare helper:
 
 Java non-determinism and parity patches:
 - Java ELK's `SelfHyperLoop.computePortsPerSide()` uses `ArrayListMultimap` (HashMap-backed) whose `keySet()` iteration order varies across JVM invocations. When opposing self-loop routing hits a tie in edge penalties, the iteration order decides whether the loop routes NORTH or SOUTH, causing ~80 models to drift between parity runs.
-- To stabilize parity comparisons, `scripts/run_java_model_parity_export.sh` applies patches from `scripts/java/patches/` to the isolation worktree before building. Patches are never applied to the original `external/elk` tree; they are automatically cleaned up when the isolation worktree is deleted.
+- To stabilize parity comparisons, `scripts/java_model_parity_trace.sh` and `scripts/java_model_phase_step_trace.sh` apply patches from `scripts/java/patches/` to the isolation worktree before building. Patches are never applied to the original `external/elk` tree; they are automatically cleaned up when the isolation worktree is deleted.
 - The Rust side uses a matching clockwise (enum ordinal) sort order in `opposing_side_order_rank` so that both sides produce identical tie-break results.
 - Set `JAVA_PARITY_APPLY_PATCHES=false` to skip patch application (e.g. for testing raw Java behavior).
 - See `scripts/java/patches/README.md` for patch inventory and management.

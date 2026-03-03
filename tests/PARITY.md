@@ -22,7 +22,13 @@ Local and CI share the same sequence:
 3. `cargo clippy --workspace --all-targets`
 4. `cargo test --workspace`
 5. Model parity (layout output comparison, release/regression only)
-6. JS parity (`npm run test:parity` in `plugins/org.eclipse.elk.js/`)
+6. Phase-step trace (intermediate state across 50+ processors)
+7. JS parity (`npm run test:parity` in `plugins/org.eclipse.elk.js/`)
+
+**Note**: Steps 5 and 6 are both required to confirm full equivalence between Java ELK and
+elk-rs. Model parity verifies final layout output; phase-step trace verifies intermediate
+state after each layered processor. A model may produce identical final output while diverging
+at an intermediate step (equivalent intermediate), so both checks are necessary.
 
 ### Pass Criteria
 
@@ -33,7 +39,8 @@ Local and CI share the same sequence:
 | 3 | Clippy | Zero warnings |
 | 4 | Unit tests | Zero failures |
 | 5 | Model parity | Drift count within known exceptions |
-| 6 | JS parity | Zero `ELKRS_DRIFT` (elkjs-only drift is acceptable) |
+| 6 | Phase-step trace | All steps match (equivalent intermediate drift is acceptable) |
+| 7 | JS parity | Zero `ELKRS_DRIFT` (elkjs-only drift is acceptable) |
 
 ### Failure Analysis Loop
 
@@ -121,7 +128,7 @@ debugging.
 
 ```sh
 # Generate Java traces:
-sh scripts/run_java_phase_trace.sh <input_dir> <output_dir>
+sh scripts/java_model_phase_step_trace.sh <input_dir> <output_dir>
 
 # Generate Rust traces:
 cargo run --release -p org-eclipse-elk-graph-json --bin model_parity_layout_runner \
@@ -362,7 +369,8 @@ plugins/org.eclipse.elk.js/
 
 scripts/
   run_model_parity_elk_vs_rust.sh    # Full parity pipeline (Java+Rust+compare)
-  run_java_model_parity_export.sh    # Java-only export with patch support
+  java_model_parity_trace.sh         # Java-only export with patch support
+  java_model_phase_step_trace.sh     # Java phase-step trace exporter
   compare_model_parity_layouts.py    # JSON diff tool (--skip-fields, --strict)
   check_*.sh                         # Individual parity gate checks
   java/patches/                      # Java determinism patches

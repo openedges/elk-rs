@@ -39,7 +39,7 @@ cargo build --workspace && cargo test --workspace
 ### First Java Baseline Run
 
 ```sh
-sh scripts/run_java_model_parity_export.sh external/elk-models tests/model_parity
+sh scripts/java_model_parity_trace.sh external/elk-models tests/model_parity
 # Includes Maven + Tycho build; first run takes ~10 minutes
 ```
 
@@ -221,11 +221,15 @@ cargo clippy --workspace --all-targets
 # 4. Unit tests
 cargo test --workspace
 
-# 5. Full model parity
+# 5. Full model parity (layout output comparison)
 MODEL_PARITY_SKIP_JAVA_EXPORT=true \
   sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models tests/model_parity_full
 
-# 6. Release build
+# 6. Phase-step trace (intermediate state across 50+ processors)
+python3 scripts/compare_phase_traces.py \
+  tests/model_parity/java_trace tests/model_parity/rust_trace --batch
+
+# 7. Release build
 cargo build --workspace --release
 ```
 
@@ -235,8 +239,14 @@ Pass criteria:
 - Step 2: Zero build errors/warnings
 - Step 3: Zero clippy warnings
 - Step 4: Zero test failures
-- Step 5: Parity report generated, drift metrics reviewed and recorded
-- Step 6: Release profile build succeeds
+- Step 5: Model parity report generated, drift=0 (or within known exceptions)
+- Step 6: Phase-step trace report generated, all steps match (or equivalent intermediate only)
+- Step 7: Release profile build succeeds
+
+**Note**: Steps 5 and 6 are both required to confirm full equivalence. Model parity verifies
+final layout output; phase-step trace verifies intermediate state after each of the 50+
+layered processors. A model may produce identical final output while diverging at an
+intermediate step (equivalent intermediate), so both checks are necessary.
 
 Failure triage:
 
@@ -378,7 +388,7 @@ Tycho/OSGi resolves bundles by highest version, so a leftover `X.Y.Z-SNAPSHOT`
 that is higher than the version being built silently overrides the freshly
 compiled patched JARs at test runtime.
 
-**Prevention**: `run_java_model_parity_export.sh` automatically purges all ELK
+**Prevention**: `java_model_parity_trace.sh` automatically purges all ELK
 SNAPSHOT directories from the Maven cache before building. This guard runs
 unconditionally (unless `JAVA_PARITY_DRY_RUN=true`).
 

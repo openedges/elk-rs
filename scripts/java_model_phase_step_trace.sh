@@ -1,8 +1,28 @@
 #!/bin/sh
+# ============================================================================
+# java_model_phase_step_trace.sh — Java ELK phase-step trace exporter
+#
+# Builds ELK plugins, compiles ElkPhaseTraceExporter.java against the built
+# classpath, and runs it to export per-step JSON traces for each model.
+#
+# Now also applies determinism patches and purges stale SNAPSHOT caches
+# (controlled by JAVA_TRACE_APPLY_PATCHES and JAVA_TRACE_PURGE_SNAPSHOTS).
+#
+# Usage:
+#   sh scripts/java_model_phase_step_trace.sh [models_root] [output_dir]
+#
+# Environment variables: all JAVA_TRACE_* vars are supported.
+# ============================================================================
 set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
 REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
+
+EJC_PREFIX=JAVA_TRACE
+# shellcheck source=java/elk_java_common.sh
+. "$SCRIPT_DIR/java/elk_java_common.sh"
+
+# ========================== Configuration ===================================
 
 MODELS_ROOT_INPUT=${1:-external/elk-models}
 OUTPUT_DIR_INPUT=${2:-tests/model_parity/java_trace}
@@ -17,6 +37,12 @@ JAVA_TRACE_PREPARE_ARGS=${JAVA_TRACE_PREPARE_ARGS:--DskipTests -DskipITs}
 JAVA_TRACE_MVN_LOCAL_REPO=${JAVA_TRACE_MVN_LOCAL_REPO:-}
 JAVA_TRACE_MVN_ARGS=${JAVA_TRACE_MVN_ARGS:-}
 JAVA_TRACE_DRY_RUN=${JAVA_TRACE_DRY_RUN:-false}
+JAVA_TRACE_RETRIES=${JAVA_TRACE_RETRIES:-0}
+JAVA_TRACE_RETRY_DELAY_SECS=${JAVA_TRACE_RETRY_DELAY_SECS:-3}
+
+# New: determinism patches and SNAPSHOT purge (default: enabled)
+JAVA_TRACE_PATCHES_DIR=${JAVA_TRACE_PATCHES_DIR:-$REPO_ROOT/scripts/java/patches}
+JAVA_TRACE_APPLY_PATCHES=${JAVA_TRACE_APPLY_PATCHES:-true}
 
 JAVA_TRACE_BENCH_SOURCE=${JAVA_TRACE_BENCH_SOURCE:-$SCRIPT_DIR/java/ElkPhaseTraceExporter.java}
 
@@ -26,60 +52,30 @@ JAVA_TRACE_EXCLUDE=${JAVA_TRACE_EXCLUDE:-}
 JAVA_TRACE_RANDOM_SEED=${JAVA_TRACE_RANDOM_SEED:-1}
 JAVA_TRACE_PRETTY_PRINT=${JAVA_TRACE_PRETTY_PRINT:-true}
 
-MODELS_ROOT=$MODELS_ROOT_INPUT
-OUTPUT_DIR=$OUTPUT_DIR_INPUT
+# Resolve input paths to absolute
+ejc_resolve_to_absolute "$MODELS_ROOT_INPUT" "$REPO_ROOT"; MODELS_ROOT=$_ejc_val
+ejc_resolve_to_absolute "$OUTPUT_DIR_INPUT" "$REPO_ROOT";  OUTPUT_DIR=$_ejc_val
 
-case "$MODELS_ROOT" in
-  /*) ;;
-  *) MODELS_ROOT="$REPO_ROOT/$MODELS_ROOT" ;;
-esac
-case "$OUTPUT_DIR" in
-  /*) ;;
-  *) OUTPUT_DIR="$REPO_ROOT/$OUTPUT_DIR" ;;
-esac
+# ========================== Script-specific state ===========================
 
-ELK_ROOT=$JAVA_TRACE_EXTERNAL_ELK_ROOT
-isolation_mode=none
-isolated_worktree_dir=
-isolated_copy_dir=
+EJC_ELK_ROOT=$JAVA_TRACE_EXTERNAL_ELK_ROOT
 TRACE_CLASSES_DIR=
 
-cleanup() {
+# ========================== Cleanup =========================================
+
+_trace_cleanup() {
   if [ -n "$TRACE_CLASSES_DIR" ] && [ -d "$TRACE_CLASSES_DIR" ]; then
     rm -rf "$TRACE_CLASSES_DIR"
   fi
-
-  if [ "$isolation_mode" = "worktree" ] && [ -n "$isolated_worktree_dir" ]; then
-    git -C "$JAVA_TRACE_EXTERNAL_ELK_ROOT" worktree remove --force "$isolated_worktree_dir" >/dev/null 2>&1 || true
-  fi
-  if [ -n "$isolated_worktree_dir" ]; then
-    rm -rf "$isolated_worktree_dir"
-  fi
-  if [ -n "$isolated_copy_dir" ]; then
-    rm -rf "$isolated_copy_dir"
-  fi
 }
 
-trap cleanup EXIT INT TERM
+ejc_register_cleanup _trace_cleanup
 
-# ========================== Validation ==========================
+# ========================== Validation ======================================
+
+ejc_validate_maven
 
 if [ "$JAVA_TRACE_DRY_RUN" != "true" ]; then
-  case "$JAVA_TRACE_MVN_BIN" in
-    */*)
-      if [ ! -x "$JAVA_TRACE_MVN_BIN" ]; then
-        echo "maven command is not executable: $JAVA_TRACE_MVN_BIN" >&2
-        exit 1
-      fi
-      ;;
-    *)
-      if ! command -v "$JAVA_TRACE_MVN_BIN" >/dev/null 2>&1; then
-        echo "missing maven command in PATH: $JAVA_TRACE_MVN_BIN" >&2
-        exit 1
-      fi
-      ;;
-  esac
-
   if ! command -v javac >/dev/null 2>&1; then
     echo "missing javac in PATH" >&2
     exit 1
@@ -95,87 +91,22 @@ if [ ! -f "$JAVA_TRACE_BENCH_SOURCE" ]; then
   exit 1
 fi
 
-# ========================== Clean ELK check ==========================
+# ========================== Clean check + Isolation =========================
 
-if [ "$JAVA_TRACE_DRY_RUN" != "true" ] && [ "$JAVA_TRACE_REQUIRE_CLEAN_EXTERNAL_ELK" = "true" ]; then
-  if ! git -C "$JAVA_TRACE_EXTERNAL_ELK_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    echo "JAVA_TRACE_REQUIRE_CLEAN_EXTERNAL_ELK=true but external ELK root is not a git worktree: $JAVA_TRACE_EXTERNAL_ELK_ROOT" >&2
-    echo "set JAVA_TRACE_REQUIRE_CLEAN_EXTERNAL_ELK=false to bypass this guard." >&2
-    exit 1
-  fi
+ejc_check_clean_elk
+ejc_create_isolation trace
 
-  dirty_status=$(git -C "$JAVA_TRACE_EXTERNAL_ELK_ROOT" status --porcelain 2>/dev/null || true)
-  if [ -n "$dirty_status" ]; then
-    echo "external ELK tree has local changes; refusing phase trace export to protect external/elk state." >&2
-    printf "%s\n" "$dirty_status" | sed -n '1,20p' >&2
-    dirty_lines=$(printf "%s\n" "$dirty_status" | wc -l | awk '{print $1}')
-    if [ "$dirty_lines" -gt 20 ]; then
-      echo "... (showing first 20 of $dirty_lines changed paths)" >&2
-    fi
-    echo "set JAVA_TRACE_REQUIRE_CLEAN_EXTERNAL_ELK=false to bypass this guard." >&2
-    exit 1
-  fi
-fi
+# ========================== Patches + SNAPSHOT purge ========================
 
-# ========================== Isolation (worktree/copy) ==========================
+ejc_apply_patches
+ejc_purge_snapshot_cache
 
-if [ "$JAVA_TRACE_DRY_RUN" != "true" ] && [ "$JAVA_TRACE_EXTERNAL_ISOLATE" = "true" ]; then
-  isolated_worktree_dir=$(mktemp -d "$JAVA_TRACE_EXTERNAL_WORKTREE_ROOT/elk-java-trace-worktree.XXXXXX")
-  if [ -d "$isolated_worktree_dir" ]; then
-    rmdir "$isolated_worktree_dir"
-  fi
-  if git -C "$JAVA_TRACE_EXTERNAL_ELK_ROOT" worktree add --detach "$isolated_worktree_dir" HEAD >/dev/null 2>&1; then
-    ELK_ROOT=$isolated_worktree_dir
-    isolation_mode=worktree
-  else
-    rm -rf "$isolated_worktree_dir"
-    isolated_worktree_dir=
-    isolated_copy_dir=$(mktemp -d "$JAVA_TRACE_EXTERNAL_WORKTREE_ROOT/elk-java-trace-copy.XXXXXX")
-    cp -R "$JAVA_TRACE_EXTERNAL_ELK_ROOT"/. "$isolated_copy_dir"/
-    ELK_ROOT=$isolated_copy_dir
-    isolation_mode=copy
-    echo "warning: failed to create git worktree; using copied external/elk tree at: $isolated_copy_dir" >&2
-  fi
-fi
+# ========================== Build plugins ===================================
 
-# ========================== Helper ==========================
+PREPARE_POM="$EJC_ELK_ROOT/build/pom.xml"
+ejc_mvn_build_plugins "$PREPARE_POM"
 
-run_cmd() {
-  if [ "$JAVA_TRACE_DRY_RUN" = "true" ]; then
-    printf "java trace dry-run:"
-    for arg in "$@"; do
-      printf " %s" "$arg"
-    done
-    printf "\n"
-    return
-  fi
-
-  "$@"
-}
-
-# ========================== Step 1: Build ELK plugins with Maven ==========================
-
-PREPARE_POM="$ELK_ROOT/build/pom.xml"
-
-if [ "$JAVA_TRACE_BUILD_PLUGINS" = "true" ]; then
-  echo "=== Building ELK plugins with Maven ==="
-  set -- "$JAVA_TRACE_MVN_BIN" -f "$PREPARE_POM"
-  if [ -n "$JAVA_TRACE_MVN_LOCAL_REPO" ]; then
-    set -- "$@" "-Dmaven.repo.local=$JAVA_TRACE_MVN_LOCAL_REPO"
-  fi
-  if [ -n "$JAVA_TRACE_PREPARE_ARGS" ]; then
-    # shellcheck disable=SC2086
-    set -- "$@" $JAVA_TRACE_PREPARE_ARGS
-  fi
-  if [ -n "$JAVA_TRACE_MVN_ARGS" ]; then
-    # shellcheck disable=SC2086
-    set -- "$@" $JAVA_TRACE_MVN_ARGS
-  fi
-  set -- "$@" install
-  run_cmd "$@"
-fi
-
-# ========================== Step 2: Collect classpath ==========================
+# ========================== Collect classpath ===============================
 
 echo "=== Collecting classpath ==="
 
@@ -203,21 +134,21 @@ for jar in "$PREFERRED_GUAVA_JAR" "$PREFERRED_GUICE_JAR" "$PREFERRED_JAKARTA_INJ
 done
 
 # Add all target/classes directories from plugin modules
-for d in "$ELK_ROOT"/plugins/*/target/classes; do
+for d in "$EJC_ELK_ROOT"/plugins/*/target/classes; do
   if [ -d "$d" ]; then
     CLASSPATH="$CLASSPATH:$d"
   fi
 done
 
 # Add all target/classes directories from test modules (for PlainJavaInitialization)
-for d in "$ELK_ROOT"/test/*/target/classes; do
+for d in "$EJC_ELK_ROOT"/test/*/target/classes; do
   if [ -d "$d" ]; then
     CLASSPATH="$CLASSPATH:$d"
   fi
 done
 
 # Add dependency JARs from target/dependency/ directories (Tycho copies some here)
-for jar in $(find "$ELK_ROOT" -name "*.jar" -path "*/target/dependency/*" 2>/dev/null); do
+for jar in $(find "$EJC_ELK_ROOT" -name "*.jar" -path "*/target/dependency/*" 2>/dev/null); do
   CLASSPATH="$CLASSPATH:$jar"
 done
 
@@ -231,13 +162,23 @@ for jar in $(find "${HOME}/.m2/repository/com/google/code/gson" -name "gson-*.ja
   CLASSPATH="$CLASSPATH:$jar"
 done
 
-# Add Eclipse Xtext/Xbase JARs (needed for some ELK text format support)
-for jar in $(find "${HOME}/.m2/repository/org/eclipse/xtext" -name "*.jar" 2>/dev/null | grep -v sources | grep -v javadoc | head -20); do
-  CLASSPATH="$CLASSPATH:$jar"
+# Add Eclipse Xtext/Xbase JARs (needed for ELK text format support).
+# IMPORTANT: use select_latest_jar per module to pick only ONE version.
+# Different xtext versions (e.g. 2.28.0 vs 2.36.0) have different signing
+# certificates; mixing them on the classpath causes SecurityException
+# ("signer information does not match").
+for module in org.eclipse.xtext org.eclipse.xtext.util org.eclipse.xtext.common.types \
+              org.eclipse.xtext.xbase org.eclipse.xtext.xbase.lib \
+              org.eclipse.xtext.ecore org.eclipse.xtext.ide org.eclipse.xtext.smap; do
+  jar=$(select_latest_jar "${HOME}/.m2/repository/org/eclipse/xtext/$module" "${module}-*.jar")
+  if [ -n "$jar" ] && [ -f "$jar" ]; then
+    CLASSPATH="$CLASSPATH:$jar"
+  fi
 done
 
 # Add Tycho-resolved dependencies from target/
-for jar in $(find "$ELK_ROOT" -name "*.jar" -path "*/target/*.jar" 2>/dev/null | grep -v '\.source' | grep -v sources | grep -v javadoc); do
+# Exclude xtext JARs — already added via select_latest_jar above (signer conflict guard).
+for jar in $(find "$EJC_ELK_ROOT" -name "*.jar" -path "*/target/*.jar" 2>/dev/null | grep -v '\.source' | grep -v sources | grep -v javadoc | grep -v xtext); do
   CLASSPATH="$CLASSPATH:$jar"
 done
 
@@ -259,17 +200,20 @@ for jar in $(find "${HOME}/.m2/repository/javax/inject" -name "javax.inject-*.ja
 done
 
 # Also try p2/osgi bundles that Tycho resolves into the target platform
-for jar in $(find "$ELK_ROOT" -name "*.jar" -path "*/.p2/*" 2>/dev/null | grep -v '\.source' | grep -v sources | grep -v javadoc | head -200); do
+# IMPORTANT: exclude xtext JARs — they are already added from Maven Central above
+# (lines 166-168). p2/Tycho bundles are signed while Maven Central ones are not;
+# mixing both causes SecurityException ("signer information does not match").
+for jar in $(find "$EJC_ELK_ROOT" -name "*.jar" -path "*/.p2/*" 2>/dev/null | grep -v '\.source' | grep -v sources | grep -v javadoc | grep -v xtext | head -200); do
   CLASSPATH="$CLASSPATH:$jar"
 done
 
 # Tycho stores resolved p2 bundles in ~/.m2/repository/p2/osgi/bundle/
 # Use -L to follow symlinks and glob to ensure traversal
-for jar in $(find -L "${HOME}/.m2/repository/p2" -name "*.jar" 2>/dev/null | grep -v '\.source' | grep -v sources | grep -v javadoc | head -200); do
+for jar in $(find -L "${HOME}/.m2/repository/p2" -name "*.jar" 2>/dev/null | grep -v '\.source' | grep -v sources | grep -v javadoc | grep -v xtext | head -200); do
   CLASSPATH="$CLASSPATH:$jar"
 done
 # Also add Tycho cache (Eclipse target platform JARs)
-for jar in $(find -L "${HOME}/.m2/repository/.cache/tycho" -name "*.jar" 2>/dev/null | grep -v '\.source' | grep -v sources | grep -v javadoc | head -200); do
+for jar in $(find -L "${HOME}/.m2/repository/.cache/tycho" -name "*.jar" 2>/dev/null | grep -v '\.source' | grep -v sources | grep -v javadoc | grep -v xtext | head -200); do
   CLASSPATH="$CLASSPATH:$jar"
 done
 # Add org.osgi JARs from standard Maven repo
@@ -299,19 +243,19 @@ if [ -z "$CLASSPATH" ]; then
   exit 1
 fi
 
-# ========================== Step 3: Compile with javac ==========================
+# ========================== Compile with javac ==============================
 
 echo "=== Compiling ElkPhaseTraceExporter.java with javac ==="
 
 TRACE_CLASSES_DIR=$(mktemp -d "${TMPDIR:-/tmp}/elk-trace-classes.XXXXXX")
 
 if [ "$JAVA_TRACE_DRY_RUN" = "true" ]; then
-  echo "java trace dry-run: javac -cp <classpath> -d $TRACE_CLASSES_DIR $JAVA_TRACE_BENCH_SOURCE"
+  echo "ejc dry-run: javac -cp <classpath> -d $TRACE_CLASSES_DIR $JAVA_TRACE_BENCH_SOURCE"
 else
   javac -cp "$CLASSPATH" -d "$TRACE_CLASSES_DIR" "$JAVA_TRACE_BENCH_SOURCE"
 fi
 
-# ========================== Step 4: Run with java ==========================
+# ========================== Run with java ===================================
 
 echo "=== Running ElkPhaseTraceExporter ==="
 
@@ -327,6 +271,6 @@ set -- java -cp "$FULL_CLASSPATH" \
   "-Delk.trace.prettyPrint=$JAVA_TRACE_PRETTY_PRINT" \
   org.eclipse.elk.graph.json.test.ElkPhaseTraceExporter
 
-run_cmd "$@"
+ejc_run_cmd "$@"
 
 echo "java phase trace export finished: output=$OUTPUT_DIR"

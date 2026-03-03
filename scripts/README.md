@@ -17,12 +17,12 @@ Release readiness quick run:
 - `run_parity_recursive_layout_scenarios.sh [scenarios] [iterations] [warmup] [output]` (`fixed_dense`, `fixed_sparse`, `random_dense`, `random_sparse`, `box_sparse`, `box_large`, `fixed_validated`, `random_validated`, `box_validated` preset scenarios; when `scenarios` is empty, the default set is selected by `PARITY_RECURSIVE_SCENARIO_PROFILE=quick|default|full`)
 - `run_parity_layered_issue_scenarios.sh [scenarios] [iterations] [warmup] [output]`
 - `run_java_parity_layered_issue_scenarios.sh [scenarios] [iterations] [warmup] [output]` (runs the external ELK Java layered benchmark test; benchmark test source is temporarily injected from a repository template and cleaned up automatically)
-- `run_java_model_parity_export.sh [models_root] [output_dir]` (injects `scripts/java/ElkModelParityExportTest.java` into external ELK tests and exports model-level Java input/layout JSON + manifest for parity comparison)
+- `java_model_parity_trace.sh [models_root] [output_dir]` (injects `scripts/java/ElkModelParityExportTest.java` into external ELK tests and exports model-level Java input/layout JSON + manifest for parity comparison; applies determinism patches and purges stale SNAPSHOT caches)
 - `run_model_parity_elk_vs_rust.sh [models_root] [output_root]` (runs Java export -> Rust layout replay -> JSON diff report pipeline for `external/elk-models`)
 - `compare_model_parity_layouts.py --manifest <rust_manifest.tsv> --report <report.md> --details <details.tsv>` (numeric-tolerant structural comparison of Java vs Rust layout JSON results)
-- `run_java_phase_trace.sh [models_root] [output_dir]` (exports Java layered phase snapshots as `step_*.json`; supports JSON input roots such as `tests/model_parity/java/input`)
+- `java_model_phase_step_trace.sh [models_root] [output_dir]` (exports Java layered phase snapshots as `step_*.json`; applies determinism patches and purges stale SNAPSHOT caches; supports JSON input roots such as `tests/model_parity/java/input`)
 - `compare_phase_traces.py <java_trace_dir> <rust_trace_dir> --batch --json` (phase-by-phase Java/Rust trace diff with first-divergence detection)
-- `summarize_phase_gate.py --java-manifest <java_manifest.tsv> --rust-manifest <rust_manifest.tsv> --java-trace-dir <dir> --rust-trace-dir <dir> --compare-json <phase_compare.json> --output-json <out.json> --output-md <out.md>` (applies phase-gate rules: `java_status=ok` baseline, 비교불가=error, 최초 실패 step만 error 집계)
+- `summarize_phase_gate.py --java-manifest <java_manifest.tsv> --rust-manifest <rust_manifest.tsv> --java-trace-dir <dir> --rust-trace-dir <dir> --compare-json <phase_compare.json> --output-json <out.json> --output-md <out.md>` (applies phase-gate rules: `java_status=ok` baseline, incomparable=error, only the first failing step counts as error)
 - `run_parity_all.sh` (runs all parity scripts with defaults; supports env overrides)
 - `compare_parity_results.sh [window]` (`PARITY_COMPARE_MODE=window|baseline|both`, default window; baseline mode compares against `PARITY_BASELINE_LAYERED_FILE` + `PARITY_BASELINE_RECURSIVE_SCENARIOS_FILE`; scenario files auto-filter current-side rows to each scenario's latest run config tuple to avoid mixed-window contamination)
 - `check_recursive_parity_runtime_budget.sh [results_file] [profile] [report]` (checks whether latest per-scenario `avg_iteration_ms` in recursive scenario CSV exceeds profile budgets (`quick|default|full`); default budgets are `RECURSIVE_BUDGET_MS_QUICK=40`, `RECURSIVE_BUDGET_MS_DEFAULT=60`, `RECURSIVE_BUDGET_MS_FULL=120`; with `RECURSIVE_RUNTIME_BUDGET_STRICT=true`, budget violations fail the run)
@@ -59,7 +59,7 @@ Release readiness quick run:
 - `check_java_test_module_parity.sh [report]` (builds a Java↔Rust module-level test matrix from `external/elk/test` and `plugins/*`, reporting per-module test class/method counts and direct-map deltas; default `tests/java_test_module_parity.md`)
 - `check_layered_phase_wiring_parity.sh [report]` (compares Java `GraphConfigurator` and Rust `graph_configurator` phase wiring rows (`before`/`after`, phase, processor, guard signature), emits detailed TSV artifacts under `tests/layered_phase_wiring/`; default report `tests/layered_phase_wiring_parity.md`; strict mode via `LAYERED_PHASE_WIRING_PARITY_STRICT=true`)
 - `clean_parity_temp.sh [--apply] [--include-tracked] [--root <perf_dir>]` (cleans runtime TEMP artifacts under `tests/`; default is dry-run and skips tracked files, `--include-tracked` enables legacy tracked payload cleanup)
-- `update_ptolemy_coverage_agents.sh` (runs `node_promotion_test`의 external ptolemy parse coverage/model-order validated count를 수집해 `AGENTS.md` 진행 기록에 배치별 정량 항목을 자동 추가)
+- `update_ptolemy_coverage_agents.sh` (collects external ptolemy parse coverage and model-order validated counts from `node_promotion_test`, then auto-appends per-batch quantitative entries to the `AGENTS.md` progress log)
 - `run_perf_benchmark.sh [mode] [iterations] [warmup] [output_dir]` (5-way performance benchmark orchestration: Rust native, Rust API, Java, elkjs, NAPI, WASM; `mode` is `synthetic` (default) or `models`; outputs per-engine CSV + comparison report)
 - `run_java_model_benchmark.sh [mode] [iterations] [warmup] [output]` (Java model benchmark via `ElkModelBenchTest`; supports `synthetic` and `models` modes; follows same isolation/injection pattern as `run_java_parity_layered_issue_scenarios.sh`)
 - `compare_perf_results.py [results_dir] [output]` (5-way CSV comparison report generator; reads per-engine CSV files, outputs markdown with summary + per-scenario tables; supports both new format with `engine` column and legacy format)
@@ -145,6 +145,9 @@ JAVA_ARTIFACT_MIN_ROWS=1
 JAVA_ARTIFACT_REQUIRED_SCENARIOS=$LAYERED_ISSUE_SCENARIOS
 JAVA_PARITY_MVN_BIN=mvn
 JAVA_PARITY_BUILD_PLUGINS=true
+JAVA_PARITY_FORCE_REBUILD=false
+JAVA_PARITY_CLEAN_BUILD=false
+JAVA_PARITY_ISOLATION_DIR=
 JAVA_PARITY_EXTERNAL_ELK_ROOT=external/elk
 JAVA_PARITY_EXTERNAL_ISOLATE=true
 JAVA_PARITY_EXTERNAL_WORKTREE_ROOT=/tmp
@@ -173,6 +176,9 @@ JAVA_PARITY_DRY_RUN=false
 JAVA_PARITY_EXTERNAL_ISOLATE=true
 JAVA_PARITY_REQUIRE_CLEAN_EXTERNAL_ELK=true
 JAVA_PARITY_BUILD_PLUGINS=true
+JAVA_PARITY_FORCE_REBUILD=false
+JAVA_PARITY_CLEAN_BUILD=false
+JAVA_PARITY_ISOLATION_DIR=
 JAVA_PARITY_MVN_LOCAL_REPO=
 JAVA_PARITY_LIMIT=0
 JAVA_PARITY_INCLUDE=
@@ -198,8 +204,8 @@ Notes:
 - `JAVA_PARITY_RETRIES` / `JAVA_PARITY_RETRY_DELAY_SECS` tune retry policy for Java Maven commands.
 - `run_java_parity_layered_issue_scenarios.sh` performs DNS preflight by default and fails early when `repo.eclipse.org` or `repo.maven.apache.org` cannot be resolved (`JAVA_PARITY_SKIP_DNS_CHECK=true` bypasses this check).
 - `run_java_parity_layered_issue_scenarios.sh` runs in an isolated temporary directory by default (`JAVA_PARITY_EXTERNAL_ISOLATE=true`; git worktree first, temporary copy fallback).
-- `run_java_model_parity_export.sh` also defaults to isolated execution (`JAVA_PARITY_EXTERNAL_ISOLATE=true`) and restores/removes the injected Java class automatically.
-- `run_java_model_parity_export.sh` refuses to run when `external/elk` is dirty by default (`JAVA_PARITY_REQUIRE_CLEAN_EXTERNAL_ELK=true`); set it to `false` only when you intentionally want to include local Java changes.
+- `java_model_parity_trace.sh` also defaults to isolated execution (`JAVA_PARITY_EXTERNAL_ISOLATE=true`) and restores/removes the injected Java class automatically.
+- `java_model_parity_trace.sh` refuses to run when `external/elk` is dirty by default (`JAVA_PARITY_REQUIRE_CLEAN_EXTERNAL_ELK=true`); set it to `false` only when you intentionally want to include local Java changes.
 - `MODEL_PARITY_SKIP_JAVA_EXPORT=true` skips Java export and reuses the existing Java manifest/layout baseline (fails fast when `tests/model_parity/java/java_manifest.tsv` is missing).
 - `run_model_parity_elk_vs_rust.sh` reads Java manifest `tests/model_parity/java/java_manifest.tsv`, writes Rust manifest `tests/model_parity/rust_manifest.tsv`, and emits `tests/model_parity/report.md`.
 - Under defaults, the original `external/elk` worktree remains unchanged after runs (set `JAVA_PARITY_EXTERNAL_ISOLATE=false` for direct-in-place execution).
@@ -207,8 +213,22 @@ Notes:
 - Baseline candidate export/readiness checks can be tuned with `JAVA_CANDIDATE_MIN_ROWS`, `JAVA_CANDIDATE_REQUIRED_SCENARIOS`, `JAVA_CANDIDATE_REQUIRE_PARITY`, and `JAVA_CANDIDATE_STRICT`.
 
 Repeated-run tips:
-- On the first run, prepare local Maven/Tycho artifacts with `JAVA_PARITY_BUILD_PLUGINS=true`.
-- For repeated runs, use `JAVA_PARITY_BUILD_PLUGINS=false` to run only the test phase and refresh Java CSV much faster.
+- **Preferred**: Use `JAVA_PARITY_ISOLATION_DIR` (or `JAVA_TRACE_ISOLATION_DIR`) to cache the isolation directory.
+  The first run creates a worktree, applies patches, and builds (~90s). Subsequent runs with the same
+  git commit + patches automatically reuse the cached directory and skip the Maven build entirely.
+  ```sh
+  # First run: full worktree + build
+  JAVA_PARITY_ISOLATION_DIR=/tmp/elk-parity-cache \
+    sh scripts/java_model_parity_trace.sh external/elk-models tests/model_parity/java
+  # Second run: instant reuse (~90s saved)
+  JAVA_PARITY_ISOLATION_DIR=/tmp/elk-parity-cache \
+    sh scripts/java_model_parity_trace.sh external/elk-models tests/model_parity/java
+  ```
+- Even without `ISOLATION_DIR`, the build marker (`<commit>:<patches_checksum>`) in `ejc_mvn_build_plugins`
+  auto-skips Maven rebuild when `target/` is still present and the source hasn't changed.
+- Use `JAVA_PARITY_FORCE_REBUILD=true` to ignore the build marker and always rebuild.
+- Use `JAVA_PARITY_CLEAN_BUILD=true` to delete all `target/` directories and run `mvn clean install`.
+- Legacy approach: `JAVA_PARITY_BUILD_PLUGINS=false` still works to skip the build entirely (no marker check).
 - In CI, set `JAVA_PARITY_MVN_LOCAL_REPO` to a run-scoped temporary directory to avoid Tycho lock contention
   (example: `${RUNNER_TEMP}/m2-java-parity-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}`).
 

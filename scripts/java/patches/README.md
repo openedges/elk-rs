@@ -16,12 +16,19 @@ comparisons are stable and reproducible.
 
 ## How patches are applied
 
-`scripts/run_java_model_parity_export.sh` applies all `*.patch` files from
-this directory (in lexicographic order) to the isolation worktree immediately
-after creation and before the Java build. The isolation worktree is deleted
-during cleanup, so patches are automatically reverted.
+`scripts/java_model_parity_trace.sh` and `scripts/java_model_phase_step_trace.sh`
+apply all `*.patch` files from this directory (in lexicographic order) to the
+isolation worktree immediately after creation and before the Java build.
 
-Set `JAVA_PARITY_APPLY_PATCHES=false` to skip patch application.
+- **Ephemeral isolation** (default): The isolation worktree is deleted during
+  cleanup, so patches are automatically reverted.
+- **Persistent isolation** (`JAVA_PARITY_ISOLATION_DIR` / `JAVA_TRACE_ISOLATION_DIR`):
+  Patches are applied once and preserved across runs. The build cache key includes
+  a checksum of all patch files, so if patches change the cached isolation is
+  automatically invalidated and recreated.
+
+Set `JAVA_PARITY_APPLY_PATCHES=false` (or `JAVA_TRACE_APPLY_PATCHES=false` for
+the phase trace script) to skip patch application.
 
 ## Patch inventory
 
@@ -33,7 +40,7 @@ Set `JAVA_PARITY_APPLY_PATCHES=false` to skip patch application.
 
 1. Create a standard `git diff` or `git format-patch` output.
 2. Name it with a sequential prefix: `0002-short-description.patch`.
-3. Test: run `scripts/run_java_model_parity_export.sh` and verify the patch
+3. Test: run `scripts/java_model_parity_trace.sh` and verify the patch
    applies cleanly and the build succeeds.
 4. Add a row to the inventory table above.
 

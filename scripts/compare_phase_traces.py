@@ -169,6 +169,58 @@ class SnapshotComparator:
         self.max_diffs = max_diffs
 
     # ------------------------------------------------------------------
+    # Within-layer node sorting for deterministic comparison
+
+    @staticmethod
+    def _node_sort_key(node: dict) -> tuple:
+        """Composite key for deterministic within-layer node ordering.
+
+        Uses properties that are identical between Java and Rust traces:
+        label texts, node type, port count/sides, and geometry.
+        """
+        labels = tuple(l.get("text", "") for l in node.get("labels", []))
+        ports = node.get("ports", [])
+        port_sides = tuple(sorted(p.get("side", "") for p in ports))
+        return (
+            labels,
+            node.get("type", ""),
+            len(ports),
+            port_sides,
+            round(node.get("width", 0), 4),
+            round(node.get("height", 0), 4),
+            round(node.get("x", 0), 4),
+            round(node.get("y", 0), 4),
+        )
+
+    @staticmethod
+    def _sort_nodes_within_layers(all_nodes: list[dict]) -> list[dict]:
+        """Sort nodes within each layer group for deterministic positional matching.
+
+        Nodes are grouped by their ``layer`` field, sorted within each group
+        by :meth:`_node_sort_key`, and reassembled in layer order (layerless
+        nodes at the end).  This handles non-deterministic within-layer
+        ordering from processors like NetworkSimplexLayerer.
+        """
+        from collections import defaultdict
+        layer_groups: dict[int, list[dict]] = defaultdict(list)
+        layerless: list[dict] = []
+        for node in all_nodes:
+            layer_idx = node.get("layer", -1)
+            if isinstance(layer_idx, (int, float)) and layer_idx >= 0:
+                layer_groups[int(layer_idx)].append(node)
+            else:
+                layerless.append(node)
+
+        for idx in layer_groups:
+            layer_groups[idx].sort(key=SnapshotComparator._node_sort_key)
+
+        result: list[dict] = []
+        for idx in sorted(layer_groups):
+            result.extend(layer_groups[idx])
+        result.extend(layerless)
+        return result
+
+    # ------------------------------------------------------------------
     # Normalization: convert Java/Rust formats to common representation
 
     @staticmethod
@@ -227,6 +279,13 @@ class SnapshotComparator:
                 layer_ids.append(list(layer))
             else:
                 layer_ids.append([])
+
+        # Sort nodes within each layer for deterministic positional matching.
+        # Some processors (e.g. NetworkSimplexLayerer) produce non-deterministic
+        # within-layer ordering due to internal data-structure differences
+        # (HashMap in Java vs Vec in Rust).  Sorting by node properties ensures
+        # consistent matching regardless of implementation order.
+        all_nodes = SnapshotComparator._sort_nodes_within_layers(all_nodes)
 
         return {
             "all_nodes": all_nodes,
