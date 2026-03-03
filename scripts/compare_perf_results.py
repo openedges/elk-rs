@@ -28,6 +28,13 @@ from pathlib import Path
 SCENARIO_CATEGORIES = {
     "Size Scaling": ["layered_small", "layered_medium", "layered_large", "layered_xlarge"],
     "Algorithms": ["force_medium", "stress_medium", "mrtree_medium", "radial_medium", "rectpacking_medium"],
+    "Algorithm Scaling": [
+        "force_large", "force_xlarge",
+        "stress_large", "stress_xlarge",
+        "mrtree_large", "mrtree_xlarge",
+        "radial_large", "radial_xlarge",
+        "rectpacking_large", "rectpacking_xlarge",
+    ],
     "Edge Routing": ["routing_polyline", "routing_orthogonal", "routing_splines"],
     "Crossing Min": ["crossmin_layer_sweep", "crossmin_none"],
     "Hierarchy": ["hierarchy_flat", "hierarchy_nested"],

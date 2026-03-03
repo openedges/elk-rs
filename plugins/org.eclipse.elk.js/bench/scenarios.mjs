@@ -425,6 +425,114 @@ export function buildRectpackingMedium() {
 }
 
 // ---------------------------------------------------------------------------
+// Axis 2b — Algorithm Scaling (large / xlarge)
+// ---------------------------------------------------------------------------
+
+export function buildForceLarge() {
+  const g = generateGeneralGraph(200, 400, 100);
+  g.layoutOptions["org.eclipse.elk.algorithm"] = "org.eclipse.elk.force";
+  delete g.layoutOptions["org.eclipse.elk.direction"];
+  delete g.layoutOptions["org.eclipse.elk.edgeRouting"];
+  return g;
+}
+
+export function buildForceXlarge() {
+  const g = generateGeneralGraph(500, 1200, 100);
+  g.layoutOptions["org.eclipse.elk.algorithm"] = "org.eclipse.elk.force";
+  delete g.layoutOptions["org.eclipse.elk.direction"];
+  delete g.layoutOptions["org.eclipse.elk.edgeRouting"];
+  return g;
+}
+
+export function buildStressLarge() {
+  const g = generateGeneralGraph(200, 400, 100);
+  g.layoutOptions["org.eclipse.elk.algorithm"] = "org.eclipse.elk.stress";
+  delete g.layoutOptions["org.eclipse.elk.direction"];
+  delete g.layoutOptions["org.eclipse.elk.edgeRouting"];
+  return g;
+}
+
+export function buildStressXlarge() {
+  const g = generateGeneralGraph(500, 1200, 100);
+  g.layoutOptions["org.eclipse.elk.algorithm"] = "org.eclipse.elk.stress";
+  delete g.layoutOptions["org.eclipse.elk.direction"];
+  delete g.layoutOptions["org.eclipse.elk.edgeRouting"];
+  return g;
+}
+
+export function buildMrtreeLarge() {
+  const g = generateTree(200, 200);
+  g.layoutOptions["org.eclipse.elk.algorithm"] = "org.eclipse.elk.mrtree";
+  delete g.layoutOptions["org.eclipse.elk.direction"];
+  delete g.layoutOptions["org.eclipse.elk.edgeRouting"];
+  return g;
+}
+
+export function buildMrtreeXlarge() {
+  const g = generateTree(1000, 200);
+  g.layoutOptions["org.eclipse.elk.algorithm"] = "org.eclipse.elk.mrtree";
+  delete g.layoutOptions["org.eclipse.elk.direction"];
+  delete g.layoutOptions["org.eclipse.elk.edgeRouting"];
+  return g;
+}
+
+export function buildRadialLarge() {
+  const g = generateTree(200, 200);
+  g.layoutOptions["org.eclipse.elk.algorithm"] = "org.eclipse.elk.radial";
+  delete g.layoutOptions["org.eclipse.elk.direction"];
+  delete g.layoutOptions["org.eclipse.elk.edgeRouting"];
+  return g;
+}
+
+export function buildRadialXlarge() {
+  const g = generateTree(1000, 200);
+  g.layoutOptions["org.eclipse.elk.algorithm"] = "org.eclipse.elk.radial";
+  delete g.layoutOptions["org.eclipse.elk.direction"];
+  delete g.layoutOptions["org.eclipse.elk.edgeRouting"];
+  return g;
+}
+
+export function buildRectpackingLarge() {
+  const children = [];
+  let state = 100;
+  for (let i = 0; i < 200; i++) {
+    state = lcg(state);
+    const w = 20 + (state % 61);
+    state = lcg(state);
+    const h = 20 + (state % 61);
+    children.push({ id: `n${i}`, width: w, height: h });
+  }
+  return {
+    id: "root",
+    layoutOptions: {
+      "org.eclipse.elk.algorithm": "org.eclipse.elk.rectpacking"
+    },
+    children,
+    edges: []
+  };
+}
+
+export function buildRectpackingXlarge() {
+  const children = [];
+  let state = 100;
+  for (let i = 0; i < 1000; i++) {
+    state = lcg(state);
+    const w = 20 + (state % 61);
+    state = lcg(state);
+    const h = 20 + (state % 61);
+    children.push({ id: `n${i}`, width: w, height: h });
+  }
+  return {
+    id: "root",
+    layoutOptions: {
+      "org.eclipse.elk.algorithm": "org.eclipse.elk.rectpacking"
+    },
+    children,
+    edges: []
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Axis 3 — Edge Routing (50-node DAG, vary edgeRouting)
 // ---------------------------------------------------------------------------
 
@@ -546,6 +654,17 @@ export function allScenarios() {
     ["mrtree_medium", buildMrtreeMedium()],
     ["radial_medium", buildRadialMedium()],
     ["rectpacking_medium", buildRectpackingMedium()],
+    // Algorithm scaling
+    ["force_large", buildForceLarge()],
+    ["force_xlarge", buildForceXlarge()],
+    ["stress_large", buildStressLarge()],
+    ["stress_xlarge", buildStressXlarge()],
+    ["mrtree_large", buildMrtreeLarge()],
+    ["mrtree_xlarge", buildMrtreeXlarge()],
+    ["radial_large", buildRadialLarge()],
+    ["radial_xlarge", buildRadialXlarge()],
+    ["rectpacking_large", buildRectpackingLarge()],
+    ["rectpacking_xlarge", buildRectpackingXlarge()],
     // Edge routing
     ["routing_polyline", buildRoutingPolyline()],
     ["routing_orthogonal", buildRoutingOrthogonal()],

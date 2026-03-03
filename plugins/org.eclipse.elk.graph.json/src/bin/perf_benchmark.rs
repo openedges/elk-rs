@@ -43,7 +43,11 @@ use org_eclipse_elk_graph_json::org::eclipse::elk::graph::json::layout_api;
 
 const DEFAULT_SCENARIOS: &str =
     "layered_small,layered_medium,layered_large,layered_xlarge,\
-     force_medium,stress_medium,mrtree_medium,radial_medium,rectpacking_medium,\
+     force_medium,force_large,force_xlarge,\
+     stress_medium,stress_large,stress_xlarge,\
+     mrtree_medium,mrtree_large,mrtree_xlarge,\
+     radial_medium,radial_large,radial_xlarge,\
+     rectpacking_medium,rectpacking_large,rectpacking_xlarge,\
      routing_polyline,routing_orthogonal,routing_splines,\
      crossmin_layer_sweep,crossmin_none,hierarchy_flat,hierarchy_nested";
 
@@ -341,10 +345,20 @@ fn build_native_scenario(name: &str) -> Option<ElkNodeRef> {
             1000, 3000, 42, "org.eclipse.elk.layered", Direction::Right, EdgeRouting::Orthogonal,
         )),
         "force_medium" => Some(build_general_graph(50, 80, 100, "org.eclipse.elk.force")),
+        "force_large" => Some(build_general_graph(200, 400, 100, "org.eclipse.elk.force")),
+        "force_xlarge" => Some(build_general_graph(500, 1200, 100, "org.eclipse.elk.force")),
         "stress_medium" => Some(build_general_graph(50, 80, 100, "org.eclipse.elk.stress")),
+        "stress_large" => Some(build_general_graph(200, 400, 100, "org.eclipse.elk.stress")),
+        "stress_xlarge" => Some(build_general_graph(500, 1200, 100, "org.eclipse.elk.stress")),
         "mrtree_medium" => Some(build_tree(50, 200, "org.eclipse.elk.mrtree")),
+        "mrtree_large" => Some(build_tree(200, 200, "org.eclipse.elk.mrtree")),
+        "mrtree_xlarge" => Some(build_tree(1000, 200, "org.eclipse.elk.mrtree")),
         "radial_medium" => Some(build_tree(50, 200, "org.eclipse.elk.radial")),
+        "radial_large" => Some(build_tree(200, 200, "org.eclipse.elk.radial")),
+        "radial_xlarge" => Some(build_tree(1000, 200, "org.eclipse.elk.radial")),
         "rectpacking_medium" => Some(build_rectpacking(50, 100)),
+        "rectpacking_large" => Some(build_rectpacking(200, 100)),
+        "rectpacking_xlarge" => Some(build_rectpacking(1000, 100)),
         "routing_polyline" => Some(build_dag(
             50, 100, 42, "org.eclipse.elk.layered", Direction::Right, EdgeRouting::Polyline,
         )),
@@ -639,10 +653,20 @@ fn synthetic_scenarios_json() -> Vec<(&'static str, String)> {
         ("layered_large", generate_dag_json(200, 500, 42, "")),
         ("layered_xlarge", generate_dag_json(1000, 3000, 42, "")),
         ("force_medium", generate_general_graph_json(50, 80, 100, "org.eclipse.elk.force")),
+        ("force_large", generate_general_graph_json(200, 400, 100, "org.eclipse.elk.force")),
+        ("force_xlarge", generate_general_graph_json(500, 1200, 100, "org.eclipse.elk.force")),
         ("stress_medium", generate_general_graph_json(50, 80, 100, "org.eclipse.elk.stress")),
+        ("stress_large", generate_general_graph_json(200, 400, 100, "org.eclipse.elk.stress")),
+        ("stress_xlarge", generate_general_graph_json(500, 1200, 100, "org.eclipse.elk.stress")),
         ("mrtree_medium", generate_tree_json(50, 200, "org.eclipse.elk.mrtree")),
+        ("mrtree_large", generate_tree_json(200, 200, "org.eclipse.elk.mrtree")),
+        ("mrtree_xlarge", generate_tree_json(1000, 200, "org.eclipse.elk.mrtree")),
         ("radial_medium", generate_tree_json(50, 200, "org.eclipse.elk.radial")),
+        ("radial_large", generate_tree_json(200, 200, "org.eclipse.elk.radial")),
+        ("radial_xlarge", generate_tree_json(1000, 200, "org.eclipse.elk.radial")),
         ("rectpacking_medium", generate_rectpacking_json(50, 100)),
+        ("rectpacking_large", generate_rectpacking_json(200, 100)),
+        ("rectpacking_xlarge", generate_rectpacking_json(1000, 100)),
         ("routing_polyline", generate_dag_json(50, 100, 42, r#""org.eclipse.elk.edgeRouting": "POLYLINE""#)),
         ("routing_orthogonal", generate_dag_json(50, 100, 42, r#""org.eclipse.elk.edgeRouting": "ORTHOGONAL""#)),
         ("routing_splines", generate_dag_json(50, 100, 42, r#""org.eclipse.elk.edgeRouting": "SPLINES""#)),
