@@ -1122,15 +1122,43 @@
 - `calculate_port_ranks`는 current port ordering 의존으로 lock path 유지 (snap path 시 50모델 drift)
 - 전체 snap(362ms) vs 부분 snap(426ms): ~64ms 차이가 calculate_port_ranks lock 비용
 
+### 프로파일 분석 (301ms 기준, 2026-03-03)
+
+`macOS sample` 3717 samples, `layered_xlarge` 단독 실행.
+
+**Phase별 비율 (추정)**:
+| Phase | 비율 | ~시간 | 비고 |
+|-------|------|-------|------|
+| P3 CrossingMinimizer | ~55% | ~166ms | 여전히 지배적 |
+| P5 OrthogonalEdgeRouter | ~25% | ~75ms | |
+| P2 NetworkSimplexLayerer + Other | ~13% | ~39ms | |
+| P4 NodePlacement | ~3% | ~9ms | |
+| LabelAndNodeSize + Intermediate | ~4% | ~12ms | |
+
+**병목 유형 분류**:
+| 카테고리 | samples | 비율 | 설명 |
+|----------|---------|------|------|
+| malloc/free/realloc/memmove | ~451 | 12.1% | 아키텍처 수준, arena 필요 |
+| HashMap/Hash ops | ~183 | 4.9% | FxHash 적용 완료, TypeId SipHash 잔존 |
+| String::clone | ~36 | 1.0% | MapPropertyHolder 키 복사 |
+| calculate_port_ranks | 14 | 0.4% | Phase 17 snapshot 적용 후 |
+| compare_barycenter_order | 40 | 1.1% | P3 정렬 |
+| BKCompactor::place_block | 21 | 0.6% | P4 |
+
+**핵심 소견**:
+- 프로파일 극도로 flat: 최대 hotspot malloc/free 2.2%, 함수 단위 최적화 불가
+- SipHash 잔존은 `TypeId` 해싱 (stdlib, 변경 불가) — `ElkReflect::has_clone`에서 사용
+- `RawTable::clone` (24 samples): P4 `BKCompactor::new` HashMap 생성 + property 복사
+- code-level micro-optimization 한계 도달 확정
+- 잔여 개선은 **전면 arena 전환** (malloc/free 12% + Arc/Mutex overhead 제거) 또는 **property 시스템 개선** (String interning) 필요
+
 ### 차기 진행 계획
 
-1. **calculate_port_ranks CSR 전환 연구**: port ordering이 sweep 중 변경되는 점을 해결하면 추가 ~64ms 절감 가능
-   - 방안 A: sort_ports 후 snapshot의 port ordering을 업데이트하는 incremental CSR refresh
-   - 방안 B: calculate_port_ranks에서 current port ordering 대신 snapshot ordering 사용 가능하도록 알고리즘 조정
+1. ~~calculate_port_ranks CSR 전환~~ (Phase 17 완료 — snapshot fast path 적용, 측정 delta 없음)
 2. **Full Arena 전면 전환**: `HISTORY.md` "Full Arena 전환 상세 전략" 참조
    - 현재 Phase 0 (Arena Foundation) 구조체 존재, Phase 1 (P3 full arena) 미착수
-   - CSR snapshot 접근 방식이 이미 대부분의 이점을 달성 — 전면 전환의 추가 이득은 calculate_port_ranks + 잔여 lock overhead
-3. **프로파일 재측정**: 426ms 기준 새 병목 분석 필요
+   - 기대 효과: malloc/free 12% + Arc refcount + Mutex overhead 제거 → ~30-50ms 절감 가능
+3. **Property 시스템 개선** (선택): String 키 interning으로 clone 비용 제거 (~1% 절감)
 
 ## 완료: 성능 최적화 — Phase-Local Snapshot Approach (2026-03-01)
 
