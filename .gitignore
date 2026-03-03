@@ -2,6 +2,9 @@
 /target
 **/*.rs.bk
 
+# NAPI build artifacts (platform-specific binaries)
+*.node
+
 # Editor/OS noise
 .DS_Store
 .idea/
