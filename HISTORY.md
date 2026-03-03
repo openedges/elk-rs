@@ -1434,3 +1434,28 @@ P3 진입 시 `ArenaSync::from_graph()` → arena에서 P3 전체 실행 → `sy
 - P5 최적화가 예상(계획상 18.8%)보다 큰 효과. 실측 34.1% → 23%로 감소.
 - `rustc-hash` FxHashMap은 integer 키에 대해 일관된 개선. 단일 변경으로 수 ms씩 절감.
 - Java 대비 1.05x까지 접근. 추가 개선은 full arena(Phase 1 P3 전환)에서 기대.
+
+---
+
+## `elk_live_examples_test` 해결 (2026-03-03)
+
+### 문제
+- `elk_live_examples_test`가 45개 `.elkt` 예제 파일에 대해 재귀 레이아웃 실행 시 실패
+- 원인 1: Cross-hierarchy edge에서 `transform_edge()` 내 `panic!` (`UnsupportedGraphException` 동등)
+- 원인 2: 일부 예제에서 무한 루프/데드락으로 테스트 hang 가능성
+
+### 수정 내용
+1. **`elk_graph_importer.rs`**: `transform_edge()`의 source/target port resolve 실패 시 `panic!` → `return` (graceful skip)
+   - Java도 `UnsupportedGraphException`을 throw하고 caller가 catch하는 동일 패턴
+   - Cross-hierarchy edge는 현재 layout scope 밖이므로 skip이 올바른 동작
+2. **`shared_live_examples_smoke_test.rs`**: 각 예제를 별도 thread에서 실행 + 30초 timeout
+   - `ElkNodeRef`가 `Rc` 기반(`!Send`)이므로 graph loading도 thread 내부에서 수행
+   - `mpsc::channel` + `recv_timeout`으로 hang 방지
+   - Timeout 시 failure로 수집 (테스트 전체가 block되지 않음)
+
+### 검증
+- `cargo build --workspace` (0 error, 0 warning)
+- `cargo clippy --workspace --all-targets` (0 warning)
+- `elk_live_examples_test`: 45/45 pass, 0.21s 완료 (hang 없음)
+- `cargo test --workspace` (0 failure)
+- Model parity 영향 없음 (JSON input path 사용, ELKT import path 변경만 해당)

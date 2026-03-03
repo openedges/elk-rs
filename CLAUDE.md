@@ -64,7 +64,7 @@
   - 차기: 기능 개선/API 확장 등 비성능 작업으로 전환
 - **코드 품질**: `cargo build` warning 0건, `cargo clippy` warning 0건
 - **Parity 재검증 상태**: full parity 재실행 완료 — `compared=1438`, `matches=1438`, `drift=0`, `skipped=9`, `errors=0`
-- **알려진 실패**: `elk_live_examples_test` 1건 (cross-hierarchy edge resolution, `TESTING.md` § 4.2)
+- **알려진 실패**: 없음 (`elk_live_examples_test` 해결 완료 — cross-hierarchy edge graceful skip + 30s timeout)
 - `213_componentsCompaction.elkt`: `java_non_ok=nan_output`으로 분류 — Rust 출력이 더 정확
 
 ## Drift 분석 요약

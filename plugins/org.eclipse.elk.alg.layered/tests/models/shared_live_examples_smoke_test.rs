@@ -1,5 +1,8 @@
 use std::path::{Path, PathBuf};
+use std::sync::mpsc;
 use std::sync::{Arc, OnceLock};
+use std::thread;
+use std::time::Duration;
 
 use crate::common::elkt_test_loader::load_graph_from_elkt;
 
@@ -41,24 +44,43 @@ fn elk_live_examples_test() {
         examples_root.display()
     );
 
+    const EXAMPLE_TIMEOUT_SECS: u64 = 30;
+
     let mut failures = Vec::new();
     for path in &example_files {
         let path_str = path.to_string_lossy().to_string();
-        let graph = load_graph_from_elkt(path_str.as_str(), None).unwrap_or_else(|err| {
-            panic!("failed to load example '{}': {err}", path.display());
+
+        // Load + layout + validate inside a dedicated thread so we can enforce
+        // a timeout (the graph type is !Send, so we must construct it there).
+        let (tx, rx) = mpsc::channel();
+        let ps = path_str.clone();
+        thread::spawn(move || {
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let graph = load_graph_from_elkt(&ps, None)
+                    .unwrap_or_else(|err| panic!("failed to load example '{ps}': {err}"));
+                run_recursive_layout(&graph);
+                assert_graph_has_finite_node_geometry(&ps, &graph);
+            }));
+            let _ = tx.send(result);
         });
 
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            run_recursive_layout(&graph);
-            assert_graph_has_finite_node_geometry(path_str.as_str(), &graph);
-        }));
-        if let Err(e) = result {
-            let msg = e
-                .downcast_ref::<String>()
-                .map(|s| s.as_str())
-                .or_else(|| e.downcast_ref::<&str>().copied())
-                .unwrap_or("unknown panic");
-            failures.push(format!("{}: {}", path.display(), msg));
+        match rx.recv_timeout(Duration::from_secs(EXAMPLE_TIMEOUT_SECS)) {
+            Ok(Ok(())) => { /* pass */ }
+            Ok(Err(e)) => {
+                let msg = e
+                    .downcast_ref::<String>()
+                    .map(|s| s.as_str())
+                    .or_else(|| e.downcast_ref::<&str>().copied())
+                    .unwrap_or("unknown panic");
+                failures.push(format!("{}: {}", path.display(), msg));
+            }
+            Err(_) => {
+                failures.push(format!(
+                    "{}: TIMEOUT ({}s)",
+                    path.display(),
+                    EXAMPLE_TIMEOUT_SECS
+                ));
+            }
         }
     }
 

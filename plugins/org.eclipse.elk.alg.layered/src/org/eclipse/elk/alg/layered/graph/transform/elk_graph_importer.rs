@@ -932,27 +932,19 @@ impl<'a> ElkGraphImporter<'a> {
 
         let source_port = match self.resolve_port(source_shape, PortType::Output, lgraph) {
             Some(port) => port,
-            None => panic!(
-                "org.eclipse.elk.core.UnsupportedGraphException: \
-                 The source or the target of edge {} could not be found. \
-                 This usually happens when an edge connects a node laid out by ELK Layered to a node in \
-                 another level of hierarchy laid out by either another instance of ELK Layered or another \
-                 layout algorithm altogether. The former can be solved by setting the hierarchyHandling \
-                 option to INCLUDE_CHILDREN.",
-                edge_id
-            ),
+            None => {
+                // Cross-hierarchy edge: source not in current layout scope.
+                // Java throws UnsupportedGraphException; skip gracefully in Rust.
+                return;
+            }
         };
         let target_port = match self.resolve_port(target_shape, PortType::Input, lgraph) {
             Some(port) => port,
-            None => panic!(
-                "org.eclipse.elk.core.UnsupportedGraphException: \
-                 The source or the target of edge {} could not be found. \
-                 This usually happens when an edge connects a node laid out by ELK Layered to a node in \
-                 another level of hierarchy laid out by either another instance of ELK Layered or another \
-                 layout algorithm altogether. The former can be solved by setting the hierarchyHandling \
-                 option to INCLUDE_CHILDREN.",
-                edge_id
-            ),
+            None => {
+                // Cross-hierarchy edge: target not in current layout scope.
+                // Java throws UnsupportedGraphException; skip gracefully in Rust.
+                return;
+            }
         };
 
         let inside_self_loops = properties

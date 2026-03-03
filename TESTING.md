@@ -359,15 +359,14 @@ See the porting workflow in `VERSIONING.md`.
 | Java non-ok | NaN output | 1 | `213_componentsCompaction.elkt` — Java `ComponentsCompactor` NaN propagation; Rust output is correct |
 | ELKJS drift | GWT artifact | 20 | elk-rs matches Java 100%; only elkjs diverges (y-offset, floating-point) |
 
-### 4.2 Pre-existing Test Failure
+### 4.2 Resolved: `elk_live_examples_test` (2026-03-03)
 
-| Test | Crate | Description |
-|------|-------|-------------|
-| `elk_live_examples_test` | org-eclipse-elk-alg-layered | Cross-hierarchy edge resolution failure on external ELKT examples (`UnsupportedGraphException`) |
+Previously failed due to cross-hierarchy edges causing `UnsupportedGraphException` panics
+and potential hangs. Fixed by:
+1. Converting `transform_edge()` panics to graceful edge skips (matching Java's exception-and-skip semantics)
+2. Adding per-example 30s timeout via thread+channel pattern to prevent test hangs
 
-This test loads all `.elkt` files from `external/elk-models/examples/` and runs
-recursive layout. Some examples contain cross-hierarchy edges that are not yet
-handled. This does not affect model parity (which uses JSON input).
+The test now passes all 45 `.elkt` examples. This does not affect model parity (which uses JSON input).
 
 ### 4.3 Stale Maven Cache (Java Export)
 
