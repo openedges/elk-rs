@@ -1459,3 +1459,37 @@ P3 진입 시 `ArenaSync::from_graph()` → arena에서 P3 전체 실행 → `sy
 - `elk_live_examples_test`: 45/45 pass, 0.21s 완료 (hang 없음)
 - `cargo test --workspace` (0 failure)
 - Model parity 영향 없음 (JSON input path 사용, ELKT import path 변경만 해당)
+
+---
+
+## 최신-Phase Trace 전수 검증 (2026-03-03)
+
+### TRACE_DIR LazyLock 버그 수정
+- **문제**: `elk_layered.rs`의 `TRACE_DIR`가 `LazyLock`으로 구현되어 최초 1회만 env var를 읽음
+  - `model_parity_layout_runner`가 모델별로 `env::set_var("ELK_TRACE_DIR", ...)`로 변경해도 캐시된 값 사용
+  - 결과: 배치 모드에서 첫 모델의 trace만 생성 (1439개 중 2개 디렉토리만 생성)
+- **수정**: `LazyLock<Option<String>>` → `fn trace_dir() -> Option<String>` (매 호출 시 fresh read)
+- 수정 후 1503개 trace 디렉토리 정상 생성
+
+### Phase Trace 비교 결과
+- **1437 match, 2 drift out of 1439 models (99.86%)**
+- 이전 세션에서 86 drift로 보였던 것은 TRACE_DIR 버그로 인한 잘못된 trace 데이터 때문
+
+### Drift 분석
+
+#### 1. `examples/user-hints/layered/partitioning.elkt` (step 27, NetworkSimplexLayerer)
+- **차이 유형**: 동일 layer 내 노드 순서 — N13↔N15, N23↔N24 swap
+- **원인**: NetworkSimplex가 동일 layer 내 동등한 노드 순서를 다르게 배치 (equivalent permutation)
+- **자기 교정**: step 33 (LayerSweepCrossingMinimizer)에서 정렬 → 이후 전 step MATCH
+- **최종 출력**: 동일 (0 diffs)
+
+#### 2. `tickets/layered/368_selfLoopLabelsIOOBE.elkt` (step 23, OrthogonalEdgeRouter)
+- **차이 유형**: `nodes[0]/x: 10.0 vs 0.0` (delta: +10.0) — 중간 x 좌표
+- **원인**: Java는 edge routing 중 노드 x를 설정, Rust는 graph export 단계에서 반영
+- **자기 교정**: GraphTransformer export에서 최종 좌표 적용
+- **최종 출력**: 동일 (0 diffs)
+
+### 결론
+- 두 drift 모두 **소수점 차이가 아님** — 동등한 중간 표현(equivalent intermediate representation)
+- 최종 출력은 1438/1438 완전 일치 (100% parity 유지)
+- 코드 수정 불필요, phase trace 비교 정상 완료

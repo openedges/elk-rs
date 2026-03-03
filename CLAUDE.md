@@ -34,7 +34,7 @@
 1. 코드 변경 후 코드리뷰 실행
 2. `cargo build --workspace` (error/warning 0건)
 3. `cargo clippy --workspace --all-targets` (warning 0건)
-4. `cargo test --workspace` (failure 0건, 알려진 실패 제외 — `TESTING.md` § 4.2 참조)
+4. `cargo test --workspace` (failure 0건)
 5. Full parity 실행 및 통과률 확인 (상세 명령은 `TESTING.md` § 2.B 참조)
 6. 확인 후 문서에 진행상황(특히 parity 통과률)을 기록:
    - `AGENTS.md`의 `현재 핵심 스냅샷` 섹션의 parity 수치 갱신
@@ -49,7 +49,9 @@
 - **Model parity**: `matches=1438/1438`, `drift=0`, `java_non_ok=9`, `java_excluded=1` **(100%)**
   - Java 패치(`SelfHyperLoop` EnumMap 결정론) 적용 + stale Maven `0.12.0-SNAPSHOT` 캐시 제거로 달성
   - `213_componentsCompaction.elkt`는 Java ELK NaN 버그로 `java_exclude.txt`에서 제외
-- **Phase-step trace**: `1439/1439` 모델 전 step 일치, 초기 frontier/hotspot 없음
+- **Phase-step trace**: `1437/1439` match, `2` drift (equivalent intermediate — 최종 출력 동일)
+  - `partitioning.elkt`: NetworkSimplexLayerer 동일 layer 내 노드 순서 차이 → CrossingMinimizer에서 교정
+  - `368_selfLoopLabelsIOOBE.elkt`: OrthogonalEdgeRouter 중간 x좌표 차이 → GraphTransformer export에서 교정
 - **Tickets parity**: `matches=108/109`, `drift=1` (Java ELK 버그 동일 원인)
 - **JS parity**: 550/550 elk-rs vs Java 일치 (ELKJS_DRIFT 20건은 GWT 아티팩트)
 - **npm 패키지**: `elk-rs@0.11.0` WASM + NAPI 릴리즈 준비 완료 (35 Vitest 통과)

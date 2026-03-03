@@ -45,8 +45,11 @@ static TRACE_NODES: LazyLock<bool> =
 #[cfg(debug_assertions)]
 static TRACE_NODES_FILTER: LazyLock<Option<String>> =
     LazyLock::new(|| std::env::var("ELK_TRACE_NODES_FILTER").ok());
-static TRACE_DIR: LazyLock<Option<String>> =
-    LazyLock::new(|| std::env::var("ELK_TRACE_DIR").ok());
+/// Read ELK_TRACE_DIR fresh each time (not cached) so the parity runner
+/// can change it per model via `env::set_var`.
+fn trace_dir() -> Option<String> {
+    std::env::var("ELK_TRACE_DIR").ok()
+}
 static TRACE_CROSSMIN: LazyLock<bool> =
     LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN").is_some());
 static TRACE_RESIZE: LazyLock<bool> =
@@ -307,7 +310,7 @@ impl ElkLayered {
 
     /// Remove all `step_*.json` files from the ELK_TRACE_DIR directory.
     fn clear_trace_directory() {
-        if let Some(trace_dir) = TRACE_DIR.as_deref() {
+        if let Some(ref trace_dir) = trace_dir() {
             if let Ok(entries) = std::fs::read_dir(trace_dir) {
                 for entry in entries.flatten() {
                     let path = entry.path();
@@ -325,7 +328,7 @@ impl ElkLayered {
 
     /// Clear stale step snapshots once at the beginning of a traced model run.
     fn prepare_trace_directory_for_run() {
-        if TRACE_DIR.is_none() {
+        if trace_dir().is_none() {
             return;
         }
         if TRACE_STEP_COUNTER.load(Ordering::Relaxed) == 0 {
@@ -338,7 +341,7 @@ impl ElkLayered {
         if TRACE_LAYOUT_DEPTH.load(Ordering::Relaxed) != 1 || graph.parent_node().is_some() {
             return;
         }
-        let Some(trace_dir) = TRACE_DIR.as_deref() else {
+        let Some(ref trace_dir) = trace_dir() else {
             return;
         };
 
