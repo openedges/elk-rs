@@ -1089,6 +1089,48 @@
 - `perf_benchmark --engine rust_native --mode synthetic --iterations 10 --warmup 3` 재측정
 - full model parity 재실행하여 회귀 없음 확인
 
+## Phase 16 완료: Rust가 Java보다 빠름 — 마일스톤 달성 (2026-03-03)
+
+**성과 요약**: `layered_xlarge` 1,576ms → **426ms** (**-73.0%**), Java 463ms 대비 **0.92x** (Rust가 8% 빠름).
+
+### 전체 최적화 Phase 요약
+
+| Phase | 내용 | 성능 | Java 대비 |
+|-------|------|------|-----------|
+| 시작 | 최초 baseline | 1,576ms | 3.40x |
+| 1 | LazyLock (env::var 제거) | 972ms | 2.10x |
+| 2-4 | ports_by_side + Delta crossing + P5 routing | 794ms | 1.71x |
+| 5 | P3 crossing-min CSR snapshot (Phase-Local) | 975ms→553ms | 1.19x |
+| 6 | P3 hot-path Arc clone/alloc 제거 | 794ms | 1.71x |
+| 7 | NS lock batching + property cache | 702ms | 1.52x |
+| 8 | FxHashMap 전역 전환 | 672ms | 1.45x |
+| 9 | Arc-shared props + port_side array | 641ms | 1.38x |
+| 10 | NS iterative postorder | 620ms | 1.34x |
+| 11 | DFS iterative (REVERT) | — | — |
+| 12 | micro-opt 한계 확인 | 626ms | 1.35x |
+| 13 | P3 trace guard + P5 dep + downcast_ref | 574ms | 1.24x |
+| 14 | NGraph DFS + ComponentsProcessor adjacency | 572ms | 1.23x |
+| 15 | P2 adjacency + P5 Vec clone | 561ms | 1.21x |
+| **16** | **P3 CSR snapshot propagation fix** | **426ms** | **0.92x** |
+
+### Phase 16 핵심 발견
+
+- `SharedNodeRelativePortDistributor`/`SharedLayerTotalPortDistributor`의 `BarycenterPortDistributor::set_snapshot()` trait 메서드가 default no-op을 사용하여 CSR snapshot이 inner distributor에 전파되지 않았음
+- `distribute_ports`와 `sort_ports`가 항상 lock-based fallback을 사용하여 node→port→edge lock chain이 매 port마다 실행됨
+- 수정 후: distribute_ports/sort_ports는 CSR O(1) indexed lookup 사용
+- `calculate_port_ranks`는 current port ordering 의존으로 lock path 유지 (snap path 시 50모델 drift)
+- 전체 snap(362ms) vs 부분 snap(426ms): ~64ms 차이가 calculate_port_ranks lock 비용
+
+### 차기 진행 계획
+
+1. **calculate_port_ranks CSR 전환 연구**: port ordering이 sweep 중 변경되는 점을 해결하면 추가 ~64ms 절감 가능
+   - 방안 A: sort_ports 후 snapshot의 port ordering을 업데이트하는 incremental CSR refresh
+   - 방안 B: calculate_port_ranks에서 current port ordering 대신 snapshot ordering 사용 가능하도록 알고리즘 조정
+2. **Full Arena 전면 전환**: `HISTORY.md` "Full Arena 전환 상세 전략" 참조
+   - 현재 Phase 0 (Arena Foundation) 구조체 존재, Phase 1 (P3 full arena) 미착수
+   - CSR snapshot 접근 방식이 이미 대부분의 이점을 달성 — 전면 전환의 추가 이득은 calculate_port_ranks + 잔여 lock overhead
+3. **프로파일 재측정**: 426ms 기준 새 병목 분석 필요
+
 ## 완료: 성능 최적화 — Phase-Local Snapshot Approach (2026-03-01)
 
 **목표**: 972ms → ≤650ms (Java 463ms 대비 1.4x 이내)

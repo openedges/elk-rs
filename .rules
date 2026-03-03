@@ -42,7 +42,7 @@
 7. 커밋 (`<scope>: <summary>`)
 8. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
-## 현재 핵심 스냅샷 (2026-03-01, 100% parity)
+## 현재 핵심 스냅샷 (2026-03-03, 100% parity)
 - **elk-rs 버전**: `0.11.0` (ELK Java `v0.11.0` 기준 포팅 완료)
   - Cargo workspace 전체 + npm 동일 버전
   - 서브모듈 고정: `external/elk` → `v0.11.0` 태그, `external/elkjs` → `0.11.0` 태그
