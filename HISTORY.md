@@ -1195,6 +1195,36 @@
 
 **검증**: build 0 warning, clippy 0 warning, test 51/51 pass, parity 1438/1438 match (drift=0)
 
+### Phase 19 후 프로파일 분석 (248ms baseline)
+
+**macOS `sample` 프로파일** (layered_xlarge, 8초, 3630 samples):
+
+| 영역 | Samples | 비중 | 비고 |
+|------|---------|------|------|
+| P3 crossing minimization | 1878 | 52.2% | distribute_ports 768, calculate_port_ranks 566, break_non_critical_cycles 596 |
+| P5 edge routing | 1150 | 32.0% | OrthogonalEdgeRouter 전체 |
+| malloc/free (mimalloc) | 285 | 7.9% | 분산된 소규모 alloc |
+| hash ops | 153 | 4.3% | FxHash lookup/insert |
+| clone/Arc | 19 | 0.5% | 실질적 overhead 0 |
+| lock/mutex | 12 | 0.3% | BKCompactor만 — P3/P5 lock 사실상 0 |
+
+**분석 결론**:
+- 프로파일 극도로 평탄 — 단일 함수가 전체의 2% 이상인 hotspot 없음 (P3/P5 내부 수십 개 함수에 분산)
+- lock/Arc overhead 사실상 제거됨 (Phase 16 CSR snapshot 효과)
+- 잔여 overhead: malloc 7.9% + hash 4.3% ≈ 12% (인프라), 나머지 88%는 순수 알고리즘 연산
+- 추가 절감은 cache locality (arena SoA) 또는 알고리즘 개선으로만 가능
+
+**port_id_buf 최적화 시도** (`e404d9f`):
+- `calculate_port_ranks` snapshot path에서 `node.lock() + ports().clone()` (Vec<Arc> clone) → `port_id_buf: Vec<u32>` 재사용 버퍼로 전환
+- `std::mem::take` 패턴으로 borrow checker 해결
+- 결과: ~249ms — 측정 가능한 개선 없음 (노드당 port 수 2~8개로 Vec<Arc> clone 비용 미미)
+- 코드 정리 목적으로 유지
+
+**성능 최적화 현황 요약**:
+- 누적: 1,576ms → 248ms (**-84.3%**, 6.35x speedup)
+- Java 463ms 대비: **0.54x** (Rust **1.87x faster**)
+- 남은 절감 여지: arena 전면 전환으로 ~10-20ms (cache locality), 그 이상은 알고리즘 수준 개선 필요
+
 ### 차기 진행 계획
 
 1. ~~calculate_port_ranks CSR 전환~~ (Phase 17 완료)
@@ -1202,7 +1232,8 @@
 3. ~~Property key interning~~ (Phase 19 완료 — ~248ms, 0.54x Java)
 4. **Full Arena 전면 전환**: `HISTORY.md` "Full Arena 전환 상세 전략" 참조
    - 현재 Phase 0 (Arena Foundation) 구조체 존재, Phase 1 (P3 full arena) 미착수
-   - 기대 효과: Arc refcount + Mutex overhead 제거 → ~15-30ms 추가 절감 가능
+   - 프로파일 기준 lock/Arc overhead ~0% → arena 전환의 주요 이득은 cache locality (SoA 배치)
+   - 기대 효과: ~10-20ms (4-8%) — 구현 비용 대비 한계 수익 영역 진입
 
 ## 완료: 성능 최적화 — Phase-Local Snapshot Approach (2026-03-01)
 
