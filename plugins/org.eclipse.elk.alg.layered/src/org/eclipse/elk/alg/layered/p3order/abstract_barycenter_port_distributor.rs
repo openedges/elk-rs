@@ -47,6 +47,7 @@ pub struct AbstractBarycenterPortDistributor {
     south_ids: Vec<u32>,
     north_ids: Vec<u32>,
     in_layer_port_ids: Vec<u32>,
+    port_id_buf: Vec<u32>,
     pub(crate) snapshot: Option<Arc<CrossMinSnapshot>>,
 }
 
@@ -68,6 +69,7 @@ impl AbstractBarycenterPortDistributor {
             south_ids: Vec::new(),
             north_ids: Vec::new(),
             in_layer_port_ids: Vec::new(),
+            port_id_buf: Vec::new(),
             snapshot: None,
         }
     }
@@ -117,20 +119,25 @@ impl AbstractBarycenterPortDistributor {
         port_type: PortType,
     ) -> f64 {
         // Snapshot fast path: 1 node lock for current port ordering, 0 port locks.
-        // Port side and edge connectivity are immutable during sweeps — read from snapshot.
+        // Collect port IDs as u32 (no Arc clone) — port side/edge data from CSR snapshot.
         let snap = self.snapshot.clone();
         if let Some(snap) = &snap {
-            let ports = node
-                .lock()
-                .ok()
-                .map(|node_guard| node_guard.ports().clone())
-                .unwrap_or_default();
-            match port_type {
+            self.port_id_buf.clear();
+            if let Ok(node_guard) = node.lock() {
+                for port in node_guard.ports() {
+                    self.port_id_buf.push(snap.port_id(port));
+                }
+            }
+            // Pre-ensure capacity for all ports in this node
+            if let Some(&max_pid) = self.port_id_buf.iter().max() {
+                self.ensure_port_capacity(max_pid as usize);
+            }
+            let pids = std::mem::take(&mut self.port_id_buf);
+            let result = match port_type {
                 PortType::Input => {
                     let mut input_count = 0usize;
                     let mut north_input_count = 0usize;
-                    for port in &ports {
-                        let pid = snap.port_id(port);
+                    for &pid in &pids {
                         if !snap.port_predecessors(pid).is_empty() {
                             input_count += 1;
                             if snap.port_side_of(pid) == PortSide::North {
@@ -139,55 +146,52 @@ impl AbstractBarycenterPortDistributor {
                         }
                     }
                     if input_count == 0 {
-                        return 1.0;
-                    }
-                    let incr = 1.0 / (input_count as f64 + 1.0);
-                    let mut north_pos = rank_sum + (north_input_count as f64) * incr;
-                    let mut rest_pos = rank_sum + 1.0 - incr;
-                    for port in &ports {
-                        let pid = snap.port_id(port);
-                        if snap.port_predecessors(pid).is_empty() {
-                            continue;
+                        1.0
+                    } else {
+                        let incr = 1.0 / (input_count as f64 + 1.0);
+                        let mut north_pos = rank_sum + (north_input_count as f64) * incr;
+                        let mut rest_pos = rank_sum + 1.0 - incr;
+                        for &pid in &pids {
+                            if snap.port_predecessors(pid).is_empty() {
+                                continue;
+                            }
+                            if snap.port_side_of(pid) == PortSide::North {
+                                self.port_ranks[pid as usize] = f32t(north_pos);
+                                north_pos -= incr;
+                            } else {
+                                self.port_ranks[pid as usize] = f32t(rest_pos);
+                                rest_pos -= incr;
+                            }
                         }
-                        let pid_usize = pid as usize;
-                        self.ensure_port_capacity(pid_usize);
-                        if snap.port_side_of(pid) == PortSide::North {
-                            self.port_ranks[pid_usize] = f32t(north_pos);
-                            north_pos -= incr;
-                        } else {
-                            self.port_ranks[pid_usize] = f32t(rest_pos);
-                            rest_pos -= incr;
-                        }
+                        1.0
                     }
-                    return 1.0;
                 }
                 PortType::Output => {
                     let mut output_count = 0usize;
-                    for port in &ports {
-                        let pid = snap.port_id(port);
+                    for &pid in &pids {
                         if !snap.port_successors(pid).is_empty() {
                             output_count += 1;
                         }
                     }
                     if output_count == 0 {
-                        return 1.0;
-                    }
-                    let incr = 1.0 / (output_count as f64 + 1.0);
-                    let mut pos = rank_sum + incr;
-                    for port in &ports {
-                        let pid = snap.port_id(port);
-                        if snap.port_successors(pid).is_empty() {
-                            continue;
+                        1.0
+                    } else {
+                        let incr = 1.0 / (output_count as f64 + 1.0);
+                        let mut pos = rank_sum + incr;
+                        for &pid in &pids {
+                            if snap.port_successors(pid).is_empty() {
+                                continue;
+                            }
+                            self.port_ranks[pid as usize] = f32t(pos);
+                            pos += incr;
                         }
-                        let pid_usize = pid as usize;
-                        self.ensure_port_capacity(pid_usize);
-                        self.port_ranks[pid_usize] = f32t(pos);
-                        pos += incr;
+                        1.0
                     }
-                    return 1.0;
                 }
-                _ => return 1.0,
-            }
+                _ => 1.0,
+            };
+            self.port_id_buf = pids;
+            return result;
         }
 
         // Fallback lock path (no snapshot available)
@@ -287,20 +291,24 @@ impl AbstractBarycenterPortDistributor {
         rank_sum: f64,
         port_type: PortType,
     ) -> f64 {
-        // Snapshot fast path: 1 node lock for current port ordering, 0 port locks.
+        // Snapshot fast path: collect port IDs as u32 (no Arc clone).
         let snap = self.snapshot.clone();
         if let Some(snap) = &snap {
-            let ports = node
-                .lock()
-                .ok()
-                .map(|node_guard| node_guard.ports().clone())
-                .unwrap_or_default();
-            match port_type {
+            self.port_id_buf.clear();
+            if let Ok(node_guard) = node.lock() {
+                for port in node_guard.ports() {
+                    self.port_id_buf.push(snap.port_id(port));
+                }
+            }
+            if let Some(&max_pid) = self.port_id_buf.iter().max() {
+                self.ensure_port_capacity(max_pid as usize);
+            }
+            let pids = std::mem::take(&mut self.port_id_buf);
+            let result = match port_type {
                 PortType::Input => {
                     let mut input_count = 0usize;
                     let mut north_input_count = 0usize;
-                    for port in &ports {
-                        let pid = snap.port_id(port);
+                    for &pid in &pids {
                         if !snap.port_predecessors(pid).is_empty() {
                             input_count += 1;
                             if snap.port_side_of(pid) == PortSide::North {
@@ -309,43 +317,40 @@ impl AbstractBarycenterPortDistributor {
                         }
                     }
                     if input_count == 0 {
-                        return 0.0;
-                    }
-                    let mut north_pos = rank_sum + north_input_count as f64;
-                    let mut rest_pos = rank_sum + input_count as f64;
-                    for port in &ports {
-                        let pid = snap.port_id(port);
-                        if snap.port_predecessors(pid).is_empty() {
-                            continue;
+                        0.0
+                    } else {
+                        let mut north_pos = rank_sum + north_input_count as f64;
+                        let mut rest_pos = rank_sum + input_count as f64;
+                        for &pid in &pids {
+                            if snap.port_predecessors(pid).is_empty() {
+                                continue;
+                            }
+                            if snap.port_side_of(pid) == PortSide::North {
+                                self.port_ranks[pid as usize] = f32t(north_pos);
+                                north_pos -= 1.0;
+                            } else {
+                                self.port_ranks[pid as usize] = f32t(rest_pos);
+                                rest_pos -= 1.0;
+                            }
                         }
-                        let pid_usize = pid as usize;
-                        self.ensure_port_capacity(pid_usize);
-                        if snap.port_side_of(pid) == PortSide::North {
-                            self.port_ranks[pid_usize] = f32t(north_pos);
-                            north_pos -= 1.0;
-                        } else {
-                            self.port_ranks[pid_usize] = f32t(rest_pos);
-                            rest_pos -= 1.0;
-                        }
+                        input_count as f64
                     }
-                    return input_count as f64;
                 }
                 PortType::Output => {
                     let mut pos = 0.0;
-                    for port in &ports {
-                        let pid = snap.port_id(port);
+                    for &pid in &pids {
                         if snap.port_successors(pid).is_empty() {
                             continue;
                         }
                         pos += 1.0;
-                        let pid_usize = pid as usize;
-                        self.ensure_port_capacity(pid_usize);
-                        self.port_ranks[pid_usize] = f32t(rank_sum + pos);
+                        self.port_ranks[pid as usize] = f32t(rank_sum + pos);
                     }
-                    return pos;
+                    pos
                 }
-                _ => return 0.0,
-            }
+                _ => 0.0,
+            };
+            self.port_id_buf = pids;
+            return result;
         }
 
         // Fallback lock path (no snapshot available)
