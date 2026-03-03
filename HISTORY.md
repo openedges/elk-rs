@@ -1214,6 +1214,32 @@
 - 잔여 overhead: malloc 7.9% + hash 4.3% ≈ 12% (인프라), 나머지 88%는 순수 알고리즘 연산
 - 추가 절감은 cache locality (arena SoA) 또는 알고리즘 개선으로만 가능
 
+**시도 후 REVERT된 최적화**:
+- `snapshot.clone()` → `std::mem::take()` 패턴 (crossings_counter 7개소 + barycenter_heuristic 1개소): `self.snapshot`을 임시로 None으로 설정하여 Arc refcount 제거 시도. 그러나 내부 호출되는 `port_id_of()`, `position_of()`, `switch_nodes()` 등이 `self.snapshot` 존재 여부를 확인하여 None일 때 lock-based fallback으로 전환됨 → 256ms으로 ~8ms 회귀. 즉시 REVERT.
+- 원인: `snapshot.clone()`은 `self.snapshot`을 유지하면서 별도 참조를 제공하기 위해 필수. nested method 호출 체인이 snapshot 유무에 따라 분기하므로 take 패턴 불가.
+- `get_ports` in-place `.reverse()`: 코드는 올바르지만, `get_ports`는 non-snapshot fallback 경로에서만 호출됨. Snapshot 경로는 `init_port_positions_snap`을 사용하여 `get_ports`를 거치지 않음. 실질적 hot path 영향 없어 적용하지 않음.
+- crossings_counter 버퍼 재사용 (Vec 필드 추가): 동일하게 non-snapshot fallback 경로의 `edge_buf`, `targets_and_degrees`만 해당. Snapshot 경로는 CSR 배열을 직접 사용하여 Vec 할당 없음.
+
+**추가 조사한 최적화 방향 (미실행)**:
+- FxHashMap → Vec 직접 인덱싱 (hash 4.3% 제거): `CrossMinSnapshot::port_id()`/`node_flat_index()`의 HashMap 조회를 Vec[slot_id]로 대체하려면 `LPortRef`/`LNodeRef` 타입을 `Arc<LPortCell>` wrapper로 변경 필요 (slot_id를 Mutex 외부에 저장). `Arc::as_ptr` 사용처 299개 + `.lock()` 3078개 영향 → 구현 비용 대비 기대 이득 ~5ms로 비실용적.
+- Full Arena 전면 전환: lock/Arc overhead ~0%인 현재 상태에서 주요 이득은 cache locality (SoA 배치)뿐. 기대 효과 ~10-20ms (4-8%), 11개 파일 315개 lock site 변환 필요 → 한계 수익 영역.
+
+### 성능 최적화 결론 (Phase 1-19, 2026-03-03)
+
+**최종 성과**: `layered_xlarge` 1,576ms → **248ms** (**-84.3%**, 6.35x speedup)
+- Java 463ms 대비: **0.54x** (Rust **1.87x faster**)
+- 19단계 순차 최적화: CSR snapshot, SweepCopy u32, FxHashMap, BIT 재사용, batch lock, mimalloc, Cow property keys 등
+- 프로파일 상태: 88% 순수 알고리즘 연산, 12% 인프라 overhead (malloc 7.9% + hash 4.3%), lock/Arc ~0%
+
+**한계 도달 근거**:
+1. 프로파일 극도로 평탄 — 함수 단위 hotspot 부재
+2. lock/Arc overhead 이미 제거됨 (CSR snapshot)
+3. non-snapshot fallback 경로 최적화는 hot path에 영향 없음
+4. snapshot.clone() Arc refcount는 nested method 호출 구조상 제거 불가
+5. 남은 인프라 overhead (hash, malloc)는 타입 시스템 변경 또는 전면 arena 전환 필요 — 기대 이득 5-20ms vs 대규모 리팩토링 비용
+
+**권장 사항**: 성능 최적화는 Phase 19에서 실질적 완료. 추가 작업은 기능 확장, 안정성, 또는 새로운 알고리즘 최적화 방향으로 전환 권장.
+
 **port_id_buf 최적화 시도** (`e404d9f`):
 - `calculate_port_ranks` snapshot path에서 `node.lock() + ports().clone()` (Vec<Arc> clone) → `port_id_buf: Vec<u32>` 재사용 버퍼로 전환
 - `std::mem::take` 패턴으로 borrow checker 해결

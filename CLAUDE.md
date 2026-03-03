@@ -56,10 +56,10 @@
   - 향후: NAPI 플랫폼별 패키지 (`@elk-rs/darwin-arm64` 등) 추가 예정
 - **성능 기준선**: Rust **1.87x faster than Java** (`layered_xlarge` ~248ms vs 463.21ms, **0.54x** ratio, mimalloc, synthetic 25/8 baseline)
   - 이전 1,576ms → 972ms → 794ms → 702ms → 672ms → 641ms → 620ms → 626ms → 575ms → 572ms → 561ms → ~426ms → ~272ms → **~248ms** (**-84.3%** 누적), Phase 1-19 순차 최적화 반영 (상세: `HISTORY.md`)
-  - 최근 probe: `layered_xlarge` `~248ms`(mimalloc, rust_native 단독 25/8, Phase 19 Property key Cow interning)
+  - **성능 최적화 실질 완료** (Phase 1-19): profile 매우 flat (개별 함수 <2%), 88% 순수 연산, 12% 인프라(malloc 7.9%, hash 4.3%)
   - 완료: Phase 1-17 (이전 상세 내역), Phase 18 mimalloc + batch lock, Phase 19 Property key Cow<'static, str> interning
-  - 잔여 병목: malloc/free (~6.6%), Arc/Mutex overhead, profile 매우 flat (개별 함수 2-4%)
-  - 실행 계획: `HISTORY.md`의 `Full arena 전환 필수화 및 실행 계획 확정(2026-03-01)` 항목 기준 Phase 0~4 완료, Phase 5-19 완료, 차기 전면 arena 전환 진행
+  - 추가 최적화 조사 완료 (미실행): snapshot.clone() take 패턴 (회귀 확인 후 revert), FxHashMap→Vec 직접 인덱싱 (299+ 사이트 변경 필요), 전면 arena 전환 (~10-20ms 기대, 대규모 리팩토링 대비 효과 제한적)
+  - 차기: 기능 개선/API 확장 등 비성능 작업으로 전환
 - **코드 품질**: `cargo build` warning 0건, `cargo clippy` warning 0건
 - **Parity 재검증 상태**: full parity 재실행 완료 — `compared=1438`, `matches=1438`, `drift=0`, `skipped=9`, `errors=0`
 - **알려진 실패**: `elk_live_examples_test` 1건 (cross-hierarchy edge resolution, `TESTING.md` § 4.2)
