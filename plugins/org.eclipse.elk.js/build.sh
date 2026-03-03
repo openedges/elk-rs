@@ -30,7 +30,7 @@ echo "--- Building native addon ---"
 if command -v npx &> /dev/null && [ -f "$NAPI_DIR/Cargo.toml" ]; then
   (cd "$NAPI_DIR" && npx napi build --release --platform --output-dir "$DIST_DIR")
   # Copy to platform package directory for local dev/publish
-  PLATFORM_DIR="$SCRIPT_DIR/../../npm"
+  PLATFORM_DIR="$SCRIPT_DIR/npm"
   if [ -d "$PLATFORM_DIR" ]; then
     for f in "$DIST_DIR"/elk-rs.*.node; do
       [ -e "$f" ] || continue

@@ -72,8 +72,8 @@ jobs:
             for f in "$dir"*.node; do
               BASENAME=$(basename "$f" .node)
               TRIPLE=$(echo "$BASENAME" | sed 's/elk-rs\.//')
-              if [ -d "npm/$TRIPLE" ]; then
-                cp "$f" "npm/$TRIPLE/"
+              if [ -d "plugins/org.eclipse.elk.js/npm/$TRIPLE" ]; then
+                cp "$f" "plugins/org.eclipse.elk.js/npm/$TRIPLE/"
               fi
             done
           done
@@ -81,7 +81,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          for dir in npm/*/; do
+          for dir in plugins/org.eclipse.elk.js/npm/*/; do
             if [ -f "$dir/package.json" ]; then
               (cd "$dir" && npm publish --access public)
             fi
