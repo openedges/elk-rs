@@ -20,6 +20,10 @@
 //!   --manifest PATH        Java manifest TSV (models mode)
 //!   --limit N              Max models (default: 50)
 
+#[cfg(feature = "mimalloc-alloc")]
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 use std::env;
 use std::fs;
 use std::io::{BufRead, BufReader};

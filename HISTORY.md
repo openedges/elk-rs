@@ -1152,13 +1152,30 @@
 - code-level micro-optimization 한계 도달 확정
 - 잔여 개선은 **전면 arena 전환** (malloc/free 12% + Arc/Mutex overhead 제거) 또는 **property 시스템 개선** (String interning) 필요
 
+### Phase 18: mimalloc + graph_info_holder batch lock (2026-03-03)
+
+**mimalloc 적용**:
+- `perf_benchmark` 바이너리에 `mimalloc` optional feature 추가 (`#[global_allocator]`)
+- 벤치마크 결과 (layered_xlarge, 25/8):
+  - System allocator: ~290ms (avg of 288.7ms, 292.8ms)
+  - mimalloc: ~272ms (avg of 269.6ms, 275.6ms)
+  - **Delta: -18ms (-6.3%)**
+- malloc/free 12.1% 병목의 약 절반 해소 — mimalloc의 thread-local free list가 macOS system malloc 대비 효율적
+- Java 대비 ratio: 0.65x → **0.59x**
+
+**graph_info_holder::new() batch lock**:
+- 13개 별도 `graph.lock()` 호출 → 1개 단일 lock 블록으로 통합
+- hierarchical graph (child graph) 경로에만 영향 (root graph는 이미 `new_with_graph()` 사용)
+- 벤치마크 측정 delta 없음 (layered_xlarge는 flat graph)
+
 ### 차기 진행 계획
 
-1. ~~calculate_port_ranks CSR 전환~~ (Phase 17 완료 — snapshot fast path 적용, 측정 delta 없음)
-2. **Full Arena 전면 전환**: `HISTORY.md` "Full Arena 전환 상세 전략" 참조
+1. ~~calculate_port_ranks CSR 전환~~ (Phase 17 완료)
+2. ~~mimalloc + batch lock~~ (Phase 18 완료 — ~272ms, 0.59x Java)
+3. **Full Arena 전면 전환**: `HISTORY.md` "Full Arena 전환 상세 전략" 참조
    - 현재 Phase 0 (Arena Foundation) 구조체 존재, Phase 1 (P3 full arena) 미착수
-   - 기대 효과: malloc/free 12% + Arc refcount + Mutex overhead 제거 → ~30-50ms 절감 가능
-3. **Property 시스템 개선** (선택): String 키 interning으로 clone 비용 제거 (~1% 절감)
+   - 기대 효과: Arc refcount + Mutex overhead 제거 → ~15-30ms 추가 절감 가능
+4. **Property 시스템 개선** (선택): String 키 interning으로 clone 비용 제거 (~1% 절감)
 
 ## 완료: 성능 최적화 — Phase-Local Snapshot Approach (2026-03-01)
 

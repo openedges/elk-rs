@@ -18,3 +18,8 @@ org-eclipse-elk-alg-vertiflex = { path = "../org.eclipse.elk.alg.vertiflex" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 json5 = "0.4"
+mimalloc = { version = "0.1", optional = true }
+
+[features]
+default = []
+mimalloc-alloc = ["mimalloc"]

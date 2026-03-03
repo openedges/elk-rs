@@ -124,7 +124,7 @@ errors=0
 # Build unified Rust benchmark binary
 # -----------------------------------------------------------------------
 if [ "$PERF_SKIP_BUILD" != "true" ]; then
-  cargo build -p org-eclipse-elk-graph-json --release --bin perf_benchmark 2>&1 | tail -1
+  cargo build -p org-eclipse-elk-graph-json --release --bin perf_benchmark --features org-eclipse-elk-graph-json/mimalloc-alloc 2>&1 | tail -1
 fi
 
 # -----------------------------------------------------------------------
@@ -132,7 +132,7 @@ fi
 # -----------------------------------------------------------------------
 if [ "$MODE" = "synthetic" ]; then
   echo "--- [1/5] Rust native (direct ElkNode) ---"
-  if cargo run -p org-eclipse-elk-graph-json --release --bin perf_benchmark -- \
+  if cargo run -p org-eclipse-elk-graph-json --release --bin perf_benchmark --features org-eclipse-elk-graph-json/mimalloc-alloc -- \
     --engine rust_native --mode synthetic \
     --iterations "$ITERATIONS" --warmup "$WARMUP" --output "$OUTPUT_DIR/rust_native.csv"; then
     echo "  -> $OUTPUT_DIR/rust_native.csv"
@@ -157,7 +157,7 @@ if [ "$MODE" = "models" ]; then
 fi
 
 # shellcheck disable=SC2086
-if cargo run -p org-eclipse-elk-graph-json --release --bin perf_benchmark -- $RUST_API_ARGS; then
+if cargo run -p org-eclipse-elk-graph-json --release --bin perf_benchmark --features org-eclipse-elk-graph-json/mimalloc-alloc -- $RUST_API_ARGS; then
   echo "  -> $OUTPUT_DIR/rust_api.csv"
 else
   echo "  -> FAILED" >&2

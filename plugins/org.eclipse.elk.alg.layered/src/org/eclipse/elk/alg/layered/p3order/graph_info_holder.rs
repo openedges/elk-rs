@@ -63,103 +63,58 @@ pub struct GraphInfoHolder {
 
 impl GraphInfoHolder {
     pub fn new(graph: LGraphRef, cross_min_type: CrossMinType) -> Self {
-        let current_node_order = graph
-            .lock()
-            .ok()
-            .map(|graph_guard| graph_guard.to_node_array())
-            .unwrap_or_default();
-        let parent_node = graph
-            .lock()
-            .ok()
-            .and_then(|graph_guard| graph_guard.parent_node());
-        let graph_properties = graph
-            .lock()
-            .ok()
-            .and_then(|mut graph_guard| {
-                graph_guard.get_property(InternalProperties::GRAPH_PROPERTIES)
-            })
-            .unwrap_or_default();
-        let mut random = graph
-            .lock()
-            .ok()
-            .and_then(|mut graph_guard| graph_guard.get_property(InternalProperties::RANDOM))
-            .unwrap_or_default();
-        let force_model_order = graph
-            .lock()
-            .ok()
-            .and_then(|mut graph_guard| {
-                graph_guard
-                    .get_property(LayeredOptions::CROSSING_MINIMIZATION_FORCE_NODE_MODEL_ORDER)
-            })
-            .unwrap_or(false);
-        let max_model_order_nodes = graph
-            .lock()
-            .ok()
-            .and_then(|mut graph_guard| {
-                graph_guard.get_property(InternalProperties::MAX_MODEL_ORDER_NODES)
-            })
-            .unwrap_or(0);
-        let constraints_between_non_dummies = graph
-            .lock()
-            .ok()
-            .and_then(|mut graph_guard| {
-                graph_guard.get_property(
+        // Single lock to read all graph properties (was 13 separate locks).
+        let (
+            current_node_order,
+            parent_node,
+            graph_properties,
+            mut random,
+            force_model_order,
+            max_model_order_nodes,
+            constraints_between_non_dummies,
+            hierarchical_sweepiness,
+            consider_model_order_strategy,
+            group_order_strategy,
+            port_model_order,
+            node_influence,
+            port_influence,
+            thoroughness,
+        ) = {
+            let mut g = graph.lock().unwrap();
+            (
+                g.to_node_array(),
+                g.parent_node(),
+                g.get_property(InternalProperties::GRAPH_PROPERTIES)
+                    .unwrap_or_default(),
+                g.get_property(InternalProperties::RANDOM)
+                    .unwrap_or_default(),
+                g.get_property(LayeredOptions::CROSSING_MINIMIZATION_FORCE_NODE_MODEL_ORDER)
+                    .unwrap_or(false),
+                g.get_property(InternalProperties::MAX_MODEL_ORDER_NODES)
+                    .unwrap_or(0),
+                g.get_property(
                     InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS_BETWEEN_NON_DUMMIES,
                 )
-            })
-            .unwrap_or(false);
-        let hierarchical_sweepiness = graph
-            .lock()
-            .ok()
-            .and_then(|mut graph_guard| {
-                graph_guard
-                    .get_property(LayeredOptions::CROSSING_MINIMIZATION_HIERARCHICAL_SWEEPINESS)
-            })
-            .unwrap_or(0.0);
-        let consider_model_order_strategy = graph
-            .lock()
-            .ok()
-            .and_then(|mut graph_guard| {
-                graph_guard.get_property(LayeredOptions::CONSIDER_MODEL_ORDER_STRATEGY)
-            })
-            .unwrap_or(OrderingStrategy::None);
-        let group_order_strategy = graph
-            .lock()
-            .ok()
-            .and_then(|mut graph_guard| {
-                graph_guard.get_property(LayeredOptions::GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY)
-            })
-            .unwrap_or(GroupOrderStrategy::OnlyWithinGroup);
-        let port_model_order = graph
-            .lock()
-            .ok()
-            .and_then(|mut graph_guard| {
-                graph_guard.get_property(LayeredOptions::CONSIDER_MODEL_ORDER_PORT_MODEL_ORDER)
-            })
-            .unwrap_or(false);
-        let node_influence = graph
-            .lock()
-            .ok()
-            .and_then(|mut graph_guard| {
-                graph_guard.get_property(
+                .unwrap_or(false),
+                g.get_property(LayeredOptions::CROSSING_MINIMIZATION_HIERARCHICAL_SWEEPINESS)
+                    .unwrap_or(0.0),
+                g.get_property(LayeredOptions::CONSIDER_MODEL_ORDER_STRATEGY)
+                    .unwrap_or(OrderingStrategy::None),
+                g.get_property(LayeredOptions::GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY)
+                    .unwrap_or(GroupOrderStrategy::OnlyWithinGroup),
+                g.get_property(LayeredOptions::CONSIDER_MODEL_ORDER_PORT_MODEL_ORDER)
+                    .unwrap_or(false),
+                g.get_property(
                     LayeredOptions::CONSIDER_MODEL_ORDER_CROSSING_COUNTER_NODE_INFLUENCE,
                 )
-            })
-            .unwrap_or(0.0);
-        let port_influence = graph
-            .lock()
-            .ok()
-            .and_then(|mut graph_guard| {
-                graph_guard.get_property(
+                .unwrap_or(0.0),
+                g.get_property(
                     LayeredOptions::CONSIDER_MODEL_ORDER_CROSSING_COUNTER_PORT_INFLUENCE,
                 )
-            })
-            .unwrap_or(0.0);
-        let thoroughness = graph
-            .lock()
-            .ok()
-            .and_then(|mut graph_guard| graph_guard.get_property(LayeredOptions::THOROUGHNESS))
-            .unwrap_or(1);
+                .unwrap_or(0.0),
+                g.get_property(LayeredOptions::THOROUGHNESS).unwrap_or(1),
+            )
+        };
 
         Self::build(
             graph,
