@@ -54,12 +54,12 @@
 - **JS parity**: 550/550 elk-rs vs Java 일치 (ELKJS_DRIFT 20건은 GWT 아티팩트)
 - **npm 패키지**: `elk-rs@0.11.0` WASM-only 릴리즈 준비 완료 (32 Vitest 통과)
   - 향후: NAPI 플랫폼별 패키지 (`@elk-rs/darwin-arm64` 등) 추가 예정
-- **성능 기준선**: Rust ~1.23x slower than Java (`layered_xlarge` ~572ms vs 463.21ms, synthetic 25/8 baseline)
-  - 이전 1,576ms → 972ms → 794ms → 702ms → 672ms → 641ms → 620ms → 626ms → 575ms → **~572ms** (**-63.7%** 누적), Phase 1-14 순차 최적화 반영 (상세: `HISTORY.md`)
-  - 최근 probe: `layered_xlarge` `~571.6ms`(rust_native 단독 25/8, Phase 14 NGraph DFS + ComponentsProcessor adjacency)
-  - 완료: Phase 1-10 (LazyLock, ports_by_side, Delta crossing, P5 routing, P3 crossing-min, P3 hot-path, NS lock batching/cache, FxHashMap, Arc-shared props, NS iterative postorder), Phase 11 DFS iterative(REVERT), Phase 12 micro-opt 한계, Phase 13 P3 trace guard + P5 dep swap_remove/inline/borrow consolidation, Phase 14 NGraph DFS alloc + ComponentsProcessor adjacency pre-computation
-  - 잔여 병목: malloc/free(~11%), P3 port distributor(~2.9%), HashMap ops(~2.3%) — **Full arena 전면 전환 필수**
-  - 실행 계획: `HISTORY.md`의 `Full arena 전환 필수화 및 실행 계획 확정(2026-03-01)` 항목 기준 Phase 0~4 완료, Phase 5-14 완료, 차기 전면 arena 전환 진행
+- **성능 기준선**: Rust **faster than Java** (`layered_xlarge` ~426ms vs 463.21ms, **0.92x** ratio, synthetic 25/8 baseline)
+  - 이전 1,576ms → 972ms → 794ms → 702ms → 672ms → 641ms → 620ms → 626ms → 575ms → 572ms → 561ms → **~426ms** (**-73.0%** 누적), Phase 1-16 순차 최적화 반영 (상세: `HISTORY.md`)
+  - 최근 probe: `layered_xlarge` `~426ms`(rust_native 단독 25/8, Phase 16 P3 CSR snapshot propagation fix)
+  - 완료: Phase 1-15 (이전 상세 내역), Phase 16 P3 CSR snapshot propagation — SharedXxxPortDistributor `set_snapshot` 누락 수정, `calculate_port_ranks` snap path는 stale port ordering 이슈로 lock path 유지
+  - 잔여 병목: calculate_port_ranks lock path (~8%), malloc/free, Arc/Mutex overhead
+  - 실행 계획: `HISTORY.md`의 `Full arena 전환 필수화 및 실행 계획 확정(2026-03-01)` 항목 기준 Phase 0~4 완료, Phase 5-16 완료, 차기 전면 arena 전환 진행
 - **코드 품질**: `cargo build` warning 0건, `cargo clippy` warning 0건
 - **Parity 재검증 상태**: full parity 재실행 완료 — `compared=1438`, `matches=1438`, `drift=0`, `skipped=9`, `errors=0`
 - **알려진 실패**: `elk_live_examples_test` 1건 (cross-hierarchy edge resolution, `TESTING.md` § 4.2)

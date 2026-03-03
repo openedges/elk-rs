@@ -786,6 +786,12 @@ impl ISweepPortDistributor for SharedNodeRelativePortDistributor {
 }
 
 impl BarycenterPortDistributor for SharedNodeRelativePortDistributor {
+    fn set_snapshot(&mut self, snapshot: Arc<CrossMinSnapshot>) {
+        if let Ok(mut distributor) = self.inner.lock() {
+            BarycenterPortDistributor::set_snapshot(&mut *distributor, snapshot);
+        }
+    }
+
     fn calculate_port_ranks(
         &mut self,
         layer: &[LNodeRef],
@@ -875,6 +881,12 @@ impl ISweepPortDistributor for SharedLayerTotalPortDistributor {
 }
 
 impl BarycenterPortDistributor for SharedLayerTotalPortDistributor {
+    fn set_snapshot(&mut self, snapshot: Arc<CrossMinSnapshot>) {
+        if let Ok(mut distributor) = self.inner.lock() {
+            BarycenterPortDistributor::set_snapshot(&mut *distributor, snapshot);
+        }
+    }
+
     fn calculate_port_ranks(
         &mut self,
         layer: &[LNodeRef],
