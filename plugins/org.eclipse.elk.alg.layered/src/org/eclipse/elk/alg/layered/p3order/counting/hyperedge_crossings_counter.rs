@@ -1,6 +1,7 @@
-use std::collections::{BTreeMap, BTreeSet};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, LazyLock};
+
+use rustc_hash::FxHashMap;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 
@@ -42,12 +43,20 @@ impl HyperedgeCrossingsCounter {
                 .map(|node_guard| node_guard.ports().clone())
                 .unwrap_or_default();
             for port in ports {
-                let mut port_edges = 0;
-                let outgoing = port
+                let (outgoing, port_name) = port
                     .lock()
                     .ok()
-                    .map(|port_guard| port_guard.outgoing_edges().clone())
+                    .map(|mut port_guard| {
+                        let edges = port_guard.outgoing_edges().clone();
+                        let name = if trace_call.is_some_and(|c| c < 64) {
+                            Some(port_guard.to_string())
+                        } else {
+                            None
+                        };
+                        (edges, name)
+                    })
                     .unwrap_or_default();
+                let mut port_edges = 0;
                 for edge in outgoing {
                     if !edge_is_in_layer(&edge) {
                         port_edges += 1;
@@ -55,16 +64,11 @@ impl HyperedgeCrossingsCounter {
                 }
                 if port_edges > 0 {
                     set_port_position(&mut self.port_positions, &port, source_count);
-                    if let Some(call_idx) = trace_call {
+                    if let (Some(call_idx), Some(name)) = (trace_call, &port_name) {
                         if call_idx < 64 {
-                            let port_name = port
-                                .lock()
-                                .ok()
-                                .map(|mut port_guard| port_guard.to_string())
-                                .unwrap_or_else(|| "<poisoned-port>".to_owned());
                             eprintln!(
                                 "rust-hyper: call={} source_pos {} <- {}",
-                                call_idx, source_count, port_name
+                                call_idx, source_count, name
                             );
                         }
                     }
@@ -74,6 +78,7 @@ impl HyperedgeCrossingsCounter {
         }
 
         let mut target_count = 0i32;
+        let do_trace_name = trace_call.is_some_and(|c| c < 64);
         for node in right_layer {
             let ports = node
                 .lock()
@@ -81,19 +86,15 @@ impl HyperedgeCrossingsCounter {
                 .map(|node_guard| node_guard.ports().clone())
                 .unwrap_or_default();
 
+            // Single-lock extraction: (side, incoming_edges) per port
             let mut north_input_ports = 0i32;
             for port in &ports {
-                let side = port
+                let (side, incoming) = port
                     .lock()
                     .ok()
-                    .map(|port_guard| port_guard.side())
-                    .unwrap_or(PortSide::Undefined);
+                    .map(|port_guard| (port_guard.side(), port_guard.incoming_edges().clone()))
+                    .unwrap_or((PortSide::Undefined, Vec::new()));
                 if side == PortSide::North {
-                    let incoming = port
-                        .lock()
-                        .ok()
-                        .map(|port_guard| port_guard.incoming_edges().clone())
-                        .unwrap_or_default();
                     for edge in incoming {
                         if !edge_is_in_layer(&edge) {
                             north_input_ports += 1;
@@ -107,54 +108,45 @@ impl HyperedgeCrossingsCounter {
 
             let mut other_input_ports = 0i32;
             for port in ports.iter().rev() {
-                let mut port_edges = 0;
-                let incoming = port
+                // Single lock: extract side + incoming_edges + optional name
+                let (incoming, side, port_name) = port
                     .lock()
                     .ok()
-                    .map(|port_guard| port_guard.incoming_edges().clone())
-                    .unwrap_or_default();
+                    .map(|mut port_guard| {
+                        let inc = port_guard.incoming_edges().clone();
+                        let s = port_guard.side();
+                        let name = if do_trace_name {
+                            Some(port_guard.to_string())
+                        } else {
+                            None
+                        };
+                        (inc, s, name)
+                    })
+                    .unwrap_or((Vec::new(), PortSide::Undefined, None));
+                let mut port_edges = 0;
                 for edge in incoming {
                     if !edge_is_in_layer(&edge) {
                         port_edges += 1;
                     }
                 }
                 if port_edges > 0 {
-                    let side = port
-                        .lock()
-                        .ok()
-                        .map(|port_guard| port_guard.side())
-                        .unwrap_or(PortSide::Undefined);
                     if side == PortSide::North {
                         set_port_position(&mut self.port_positions, port, target_count);
-                        if let Some(call_idx) = trace_call {
-                            if call_idx < 64 {
-                                let port_name = port
-                                    .lock()
-                                    .ok()
-                                    .map(|mut port_guard| port_guard.to_string())
-                                    .unwrap_or_else(|| "<poisoned-port>".to_owned());
-                                eprintln!(
-                                    "rust-hyper: call={} target_pos {} <- {}",
-                                    call_idx, target_count, port_name
-                                );
-                            }
+                        if let (Some(call_idx), Some(name)) = (trace_call, &port_name) {
+                            eprintln!(
+                                "rust-hyper: call={} target_pos {} <- {}",
+                                call_idx, target_count, name
+                            );
                         }
                         target_count += 1;
                     } else {
                         let assigned = target_count + north_input_ports + other_input_ports;
                         set_port_position(&mut self.port_positions, port, assigned);
-                        if let Some(call_idx) = trace_call {
-                            if call_idx < 64 {
-                                let port_name = port
-                                    .lock()
-                                    .ok()
-                                    .map(|mut port_guard| port_guard.to_string())
-                                    .unwrap_or_else(|| "<poisoned-port>".to_owned());
-                                eprintln!(
-                                    "rust-hyper: call={} target_pos {} <- {}",
-                                    call_idx, assigned, port_name
-                                );
-                            }
+                        if let (Some(call_idx), Some(name)) = (trace_call, &port_name) {
+                            eprintln!(
+                                "rust-hyper: call={} target_pos {} <- {}",
+                                call_idx, assigned, name
+                            );
                         }
                         other_input_ports += 1;
                     }
@@ -163,9 +155,9 @@ impl HyperedgeCrossingsCounter {
             target_count += other_input_ports;
         }
 
-        let mut port_to_hyperedge: BTreeMap<usize, usize> = BTreeMap::new();
+        let mut port_to_hyperedge: FxHashMap<usize, usize> = FxHashMap::default();
         let mut hyperedges: Vec<Hyperedge> = Vec::new();
-        let mut active: BTreeSet<usize> = BTreeSet::new();
+        let mut active: Vec<bool> = Vec::new();
 
         for node in left_layer {
             let ports = node
@@ -199,7 +191,7 @@ impl HyperedgeCrossingsCounter {
                             hyperedge.ports.push(source_port.clone());
                             hyperedge.ports.push(target_port.clone());
                             hyperedges.push(hyperedge);
-                            active.insert(id);
+                            active.push(true);
                             port_to_hyperedge.insert(source_key, id);
                             port_to_hyperedge.insert(target_key, id);
                         }
@@ -236,7 +228,7 @@ impl HyperedgeCrossingsCounter {
                                 }
                                 source_he.edges.append(&mut target_he.edges);
                                 source_he.ports.append(&mut target_he.ports);
-                                active.remove(&target_id);
+                                active[target_id] = false;
                             }
                         }
                     }
@@ -245,8 +237,10 @@ impl HyperedgeCrossingsCounter {
         }
 
         let mut hyperedge_list: Vec<Hyperedge> = active
-            .into_iter()
-            .filter_map(|id| hyperedges.get(id).cloned())
+            .iter()
+            .enumerate()
+            .filter(|(_, &is_active)| is_active)
+            .filter_map(|(id, _)| hyperedges.get(id).cloned())
             .collect();
 
         let left_layer_ref = left_layer
@@ -328,18 +322,18 @@ impl HyperedgeCrossingsCounter {
 
         let mut left_corners: Vec<HyperedgeCorner> = Vec::with_capacity(hyperedge_list.len() * 2);
         for hyperedge in &hyperedge_list {
-            left_corners.push(HyperedgeCorner::new(
-                hyperedge.clone(),
-                hyperedge.upper_left,
-                hyperedge.lower_left,
-                CornerType::Upper,
-            ));
-            left_corners.push(HyperedgeCorner::new(
-                hyperedge.clone(),
-                hyperedge.lower_left,
-                hyperedge.upper_left,
-                CornerType::Lower,
-            ));
+            left_corners.push(HyperedgeCorner {
+                identity_hash: hyperedge.identity_hash,
+                position: hyperedge.upper_left,
+                opposite_position: hyperedge.lower_left,
+                corner_type: CornerType::Upper,
+            });
+            left_corners.push(HyperedgeCorner {
+                identity_hash: hyperedge.identity_hash,
+                position: hyperedge.lower_left,
+                opposite_position: hyperedge.upper_left,
+                corner_type: CornerType::Lower,
+            });
         }
         left_corners.sort_by(|a, b| a.compare(b));
 
@@ -358,18 +352,18 @@ impl HyperedgeCrossingsCounter {
 
         let mut right_corners: Vec<HyperedgeCorner> = Vec::with_capacity(hyperedge_list.len() * 2);
         for hyperedge in &hyperedge_list {
-            right_corners.push(HyperedgeCorner::new(
-                hyperedge.clone(),
-                hyperedge.upper_right,
-                hyperedge.lower_right,
-                CornerType::Upper,
-            ));
-            right_corners.push(HyperedgeCorner::new(
-                hyperedge.clone(),
-                hyperedge.lower_right,
-                hyperedge.upper_right,
-                CornerType::Lower,
-            ));
+            right_corners.push(HyperedgeCorner {
+                identity_hash: hyperedge.identity_hash,
+                position: hyperedge.upper_right,
+                opposite_position: hyperedge.lower_right,
+                corner_type: CornerType::Upper,
+            });
+            right_corners.push(HyperedgeCorner {
+                identity_hash: hyperedge.identity_hash,
+                position: hyperedge.lower_right,
+                opposite_position: hyperedge.upper_right,
+                corner_type: CornerType::Lower,
+            });
         }
         right_corners.sort_by(|a, b| a.compare(b));
 
@@ -457,38 +451,20 @@ enum CornerType {
     Lower,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 struct HyperedgeCorner {
-    hyperedge: Hyperedge,
+    identity_hash: usize,
     position: i32,
     opposite_position: i32,
     corner_type: CornerType,
 }
 
 impl HyperedgeCorner {
-    fn new(
-        hyperedge: Hyperedge,
-        position: i32,
-        opposite_position: i32,
-        corner_type: CornerType,
-    ) -> Self {
-        HyperedgeCorner {
-            hyperedge,
-            position,
-            opposite_position,
-            corner_type,
-        }
-    }
-
     fn compare(&self, other: &Self) -> std::cmp::Ordering {
         self.position
             .cmp(&other.position)
             .then_with(|| self.opposite_position.cmp(&other.opposite_position))
-            .then_with(|| {
-                self.hyperedge
-                    .identity_hash
-                    .cmp(&other.hyperedge.identity_hash)
-            })
+            .then_with(|| self.identity_hash.cmp(&other.identity_hash))
             .then_with(|| match (self.corner_type, other.corner_type) {
                 (CornerType::Upper, CornerType::Lower) => std::cmp::Ordering::Less,
                 (CornerType::Lower, CornerType::Upper) => std::cmp::Ordering::Greater,

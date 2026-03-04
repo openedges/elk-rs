@@ -1,7 +1,8 @@
 use std::any::Any;
 use std::cmp::Ordering;
-use std::collections::{btree_map::Entry, BTreeMap, BTreeSet};
 use std::sync::Arc;
+
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use org_eclipse_elk_core::org::eclipse::elk::core::util::Random;
 
@@ -19,8 +20,8 @@ use crate::org::eclipse::elk::alg::layered::p3order::i_crossing_minimization_heu
 
 pub struct ModelOrderBarycenterHeuristic {
     base: BarycenterHeuristic,
-    bigger_than: BTreeMap<usize, BTreeSet<usize>>,
-    smaller_than: BTreeMap<usize, BTreeSet<usize>>,
+    bigger_than: FxHashMap<usize, FxHashSet<usize>>,
+    smaller_than: FxHashMap<usize, FxHashSet<usize>>,
     force_model_order: bool,
     max_model_order_nodes: i32,
     group_order_strategy: GroupOrderStrategy,
@@ -36,8 +37,8 @@ impl ModelOrderBarycenterHeuristic {
     ) -> Self {
         ModelOrderBarycenterHeuristic {
             base: BarycenterHeuristic::new(constraint_resolver, port_distributor),
-            bigger_than: BTreeMap::new(),
-            smaller_than: BTreeMap::new(),
+            bigger_than: FxHashMap::default(),
+            smaller_than: FxHashMap::default(),
             force_model_order,
             max_model_order_nodes,
             group_order_strategy,
@@ -52,45 +53,24 @@ impl ModelOrderBarycenterHeuristic {
         let id1 = node_ptr_id(n1);
         let id2 = node_ptr_id(n2);
 
-        // Initialize empty sets if they don't exist (matching Java behavior)
-        match self.bigger_than.entry(id1) {
-            Entry::Vacant(entry) => {
-                entry.insert(BTreeSet::new());
-            }
-            Entry::Occupied(entry) => {
-                if entry.get().contains(&id2) {
-                    return 1;
-                }
+        if let Some(set) = self.bigger_than.get(&id1) {
+            if set.contains(&id2) {
+                return 1;
             }
         }
-        match self.bigger_than.entry(id2) {
-            Entry::Vacant(entry) => {
-                entry.insert(BTreeSet::new());
-            }
-            Entry::Occupied(entry) => {
-                if entry.get().contains(&id1) {
-                    return -1;
-                }
+        if let Some(set) = self.bigger_than.get(&id2) {
+            if set.contains(&id1) {
+                return -1;
             }
         }
-        match self.smaller_than.entry(id1) {
-            Entry::Vacant(entry) => {
-                entry.insert(BTreeSet::new());
-            }
-            Entry::Occupied(entry) => {
-                if entry.get().contains(&id2) {
-                    return -1;
-                }
+        if let Some(set) = self.smaller_than.get(&id1) {
+            if set.contains(&id2) {
+                return -1;
             }
         }
-        match self.smaller_than.entry(id2) {
-            Entry::Vacant(entry) => {
-                entry.insert(BTreeSet::new());
-            }
-            Entry::Occupied(entry) => {
-                if entry.get().contains(&id1) {
-                    return 1;
-                }
+        if let Some(set) = self.smaller_than.get(&id2) {
+            if set.contains(&id1) {
+                return 1;
             }
         }
         0

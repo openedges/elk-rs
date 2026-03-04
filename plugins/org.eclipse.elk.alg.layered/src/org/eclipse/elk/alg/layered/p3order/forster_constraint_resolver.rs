@@ -1,4 +1,6 @@
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::VecDeque;
+
+use rustc_hash::FxHashMap;
 use std::sync::{Arc, LazyLock};
 
 static TRACE_FORSTER_GROUPS: LazyLock<bool> =
@@ -12,7 +14,7 @@ use crate::org::eclipse::elk::alg::layered::p3order::cross_min_snapshot::CrossMi
 
 pub struct ForsterConstraintResolver {
     constraints_between_non_dummies: bool,
-    layout_units: BTreeMap<usize, Vec<LNodeRef>>,
+    layout_units: FxHashMap<usize, Vec<LNodeRef>>,
     pub barycenter_states: Vec<Vec<Option<BarycenterState>>>,
     constraint_groups: Vec<Vec<Option<ConstraintGroupId>>>,
     constraint_group_arena: Vec<ConstraintGroup>,
@@ -28,7 +30,7 @@ impl ForsterConstraintResolver {
     ) -> Self {
         ForsterConstraintResolver {
             constraints_between_non_dummies,
-            layout_units: BTreeMap::new(),
+            layout_units: FxHashMap::default(),
             barycenter_states: Vec::new(),
             constraint_groups: Vec::new(),
             constraint_group_arena: Vec::new(),
@@ -273,7 +275,7 @@ impl ForsterConstraintResolver {
         groups: &[ConstraintGroupId],
     ) -> Option<(ConstraintGroupId, ConstraintGroupId)> {
         let mut active_groups: VecDeque<ConstraintGroupId> = VecDeque::new();
-        let mut index_map: BTreeMap<ConstraintGroupId, usize> = BTreeMap::new();
+        let mut index_map: FxHashMap<ConstraintGroupId, usize> = FxHashMap::default();
         for (index, group_id) in groups.iter().copied().enumerate() {
             index_map.insert(group_id, index);
             if let Some(group) = self.group_mut(group_id) {
