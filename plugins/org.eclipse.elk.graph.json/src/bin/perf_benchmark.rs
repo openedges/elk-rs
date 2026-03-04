@@ -448,7 +448,7 @@ fn generate_dag_json(nodes: usize, edges: usize, seed: u32, layout_options: &str
     let mut edge_lines = Vec::new();
     let mut state = seed;
     let mut attempts = 0usize;
-    while edge_lines.len() < edges && attempts < edges * 20 {
+    while edge_lines.len() < edges && attempts < edges * 100 {
         attempts += 1;
         state = lcg(state);
         let src = (state as usize) % nodes;
@@ -463,6 +463,13 @@ fn generate_dag_json(nodes: usize, edges: usize, seed: u32, layout_options: &str
     }
     let edges_json = edge_lines.join(",\n");
 
+    let routing = if layout_options.contains("edgeRouting") {
+        String::new()
+    } else {
+        r#",
+    "org.eclipse.elk.edgeRouting":"ORTHOGONAL""#
+            .to_string()
+    };
     let extra = if layout_options.is_empty() {
         String::new()
     } else {
@@ -474,8 +481,7 @@ fn generate_dag_json(nodes: usize, edges: usize, seed: u32, layout_options: &str
   "id":"root",
   "layoutOptions":{{
     "org.eclipse.elk.algorithm":"org.eclipse.elk.layered",
-    "org.eclipse.elk.direction":"RIGHT",
-    "org.eclipse.elk.edgeRouting":"ORTHOGONAL"{extra}
+    "org.eclipse.elk.direction":"RIGHT"{routing}{extra}
   }},
   "children":[
 {children}

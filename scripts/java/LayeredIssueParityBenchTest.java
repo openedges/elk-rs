@@ -29,10 +29,10 @@ import org.eclipse.elk.alg.layered.options.GreedySwitchType;
 import org.eclipse.elk.alg.layered.options.LayeredOptions;
 import org.eclipse.elk.alg.test.PlainJavaInitialization;
 import org.eclipse.elk.core.RecursiveGraphLayoutEngine;
-import org.eclipse.elk.core.math.ElkPadding;
 import org.eclipse.elk.core.options.CoreOptions;
 import org.eclipse.elk.core.options.Direction;
 import org.eclipse.elk.core.options.EdgeRouting;
+import org.eclipse.elk.core.options.HierarchyHandling;
 import org.eclipse.elk.core.util.NullElkProgressMonitor;
 import org.eclipse.elk.graph.ElkNode;
 import org.eclipse.elk.graph.util.ElkGraphUtil;
@@ -48,7 +48,11 @@ public class LayeredIssueParityBenchTest {
 
     private static final String DEFAULT_SCENARIOS =
             "layered_small,layered_medium,layered_large,layered_xlarge,"
-            + "force_medium,stress_medium,mrtree_medium,radial_medium,rectpacking_medium,"
+            + "force_medium,force_large,force_xlarge,"
+            + "stress_medium,stress_large,stress_xlarge,"
+            + "mrtree_medium,mrtree_large,mrtree_xlarge,"
+            + "radial_medium,radial_large,radial_xlarge,"
+            + "rectpacking_medium,rectpacking_large,rectpacking_xlarge,"
             + "routing_polyline,routing_orthogonal,routing_splines,"
             + "crossmin_layer_sweep,crossmin_none,"
             + "hierarchy_flat,hierarchy_nested";
@@ -82,6 +86,12 @@ public class LayeredIssueParityBenchTest {
                 .filter(s -> !s.isEmpty())
                 .collect(Collectors.toCollection(LinkedHashSet::new));
 
+        // Write CSV header
+        Files.write(output,
+                "timestamp,engine,scenario,iterations,warmup,elapsed_nanos,avg_ms,ops_per_sec\n"
+                        .getBytes(StandardCharsets.UTF_8),
+                StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+
         int executed = 0;
         for (String scenario : scenarios) {
             if (!isSupportedScenario(scenario)) {
@@ -114,10 +124,20 @@ public class LayeredIssueParityBenchTest {
         case "layered_large":
         case "layered_xlarge":
         case "force_medium":
+        case "force_large":
+        case "force_xlarge":
         case "stress_medium":
+        case "stress_large":
+        case "stress_xlarge":
         case "mrtree_medium":
+        case "mrtree_large":
+        case "mrtree_xlarge":
         case "radial_medium":
+        case "radial_large":
+        case "radial_xlarge":
         case "rectpacking_medium":
+        case "rectpacking_large":
+        case "rectpacking_xlarge":
         case "routing_polyline":
         case "routing_orthogonal":
         case "routing_splines":
@@ -155,7 +175,7 @@ public class LayeredIssueParityBenchTest {
 
         final String line = String.format(
                 Locale.ROOT,
-                "%d,%s,%d,%d,%d,%.6f,%.2f%n",
+                "%d,java,%s,%d,%d,%d,%.6f,%.2f%n",
                 timestamp,
                 scenario,
                 iterations,
@@ -179,14 +199,34 @@ public class LayeredIssueParityBenchTest {
             return buildLayeredDagScenario(1000, 3000, 42);
         case "force_medium":
             return buildGeneralGraphScenario(50, 80, 100, "org.eclipse.elk.force");
+        case "force_large":
+            return buildGeneralGraphScenario(200, 400, 100, "org.eclipse.elk.force");
+        case "force_xlarge":
+            return buildGeneralGraphScenario(500, 1200, 100, "org.eclipse.elk.force");
         case "stress_medium":
             return buildGeneralGraphScenario(50, 80, 100, "org.eclipse.elk.stress");
+        case "stress_large":
+            return buildGeneralGraphScenario(200, 400, 100, "org.eclipse.elk.stress");
+        case "stress_xlarge":
+            return buildGeneralGraphScenario(500, 1200, 100, "org.eclipse.elk.stress");
         case "mrtree_medium":
             return buildTreeScenario(50, 200, "org.eclipse.elk.mrtree");
+        case "mrtree_large":
+            return buildTreeScenario(200, 200, "org.eclipse.elk.mrtree");
+        case "mrtree_xlarge":
+            return buildTreeScenario(1000, 200, "org.eclipse.elk.mrtree");
         case "radial_medium":
             return buildTreeScenario(50, 200, "org.eclipse.elk.radial");
+        case "radial_large":
+            return buildTreeScenario(200, 200, "org.eclipse.elk.radial");
+        case "radial_xlarge":
+            return buildTreeScenario(1000, 200, "org.eclipse.elk.radial");
         case "rectpacking_medium":
             return buildRectpackingScenario(50, 100);
+        case "rectpacking_large":
+            return buildRectpackingScenario(200, 100);
+        case "rectpacking_xlarge":
+            return buildRectpackingScenario(1000, 100);
         case "routing_polyline":
             return buildRoutingScenario(50, 100, 42, EdgeRouting.POLYLINE);
         case "routing_orthogonal":
@@ -241,13 +281,16 @@ public class LayeredIssueParityBenchTest {
 
         int state = seed;
         int created = 0;
-        while (created < edges) {
+        int attempts = 0;
+        int maxAttempts = edges * 100;
+        while (created < edges && attempts < maxAttempts) {
             state = lcg(state);
             int src = state % nodes;
             if (src < 0) src += nodes;
             state = lcg(state);
             int tgt = state % nodes;
             if (tgt < 0) tgt += nodes;
+            attempts++;
 
             int layerSrc = src * 5 / nodes;
             int layerTgt = tgt * 5 / nodes;
@@ -330,13 +373,16 @@ public class LayeredIssueParityBenchTest {
 
         int state = seed;
         int created = 0;
-        while (created < edges) {
+        int attempts = 0;
+        int maxAttempts = edges * 100;
+        while (created < edges && attempts < maxAttempts) {
             state = lcg(state);
             int src = state % nodes;
             if (src < 0) src += nodes;
             state = lcg(state);
             int tgt = state % nodes;
             if (tgt < 0) tgt += nodes;
+            attempts++;
 
             int layerSrc = src * 5 / nodes;
             int layerTgt = tgt * 5 / nodes;
@@ -373,13 +419,16 @@ public class LayeredIssueParityBenchTest {
 
         int state = seed;
         int created = 0;
-        while (created < edges) {
+        int attempts = 0;
+        int maxAttempts = edges * 100;
+        while (created < edges && attempts < maxAttempts) {
             state = lcg(state);
             int src = state % nodes;
             if (src < 0) src += nodes;
             state = lcg(state);
             int tgt = state % nodes;
             if (tgt < 0) tgt += nodes;
+            attempts++;
 
             int layerSrc = src * 5 / nodes;
             int layerTgt = tgt * 5 / nodes;
@@ -399,47 +448,33 @@ public class LayeredIssueParityBenchTest {
         graph.setProperty(CoreOptions.ALGORITHM, LayeredOptions.ALGORITHM_ID);
         graph.setProperty(CoreOptions.DIRECTION, Direction.RIGHT);
         graph.setProperty(CoreOptions.EDGE_ROUTING, EdgeRouting.ORTHOGONAL);
+        graph.setProperty(CoreOptions.HIERARCHY_HANDLING, HierarchyHandling.INCLUDE_CHILDREN);
 
         int state = seed;
 
-        // 3 compound children
-        ElkNode[] compounds = new ElkNode[3];
+        // 3 compound children, each with 9 leaves
+        ElkNode[][] allLeaves = new ElkNode[3][9];
         for (int c = 0; c < 3; c++) {
             ElkNode compound = ElkGraphUtil.createNode(graph);
-            compound.setIdentifier("mid" + c);
-            compound.setProperty(CoreOptions.ALGORITHM, LayeredOptions.ALGORITHM_ID);
-            compound.setProperty(CoreOptions.DIRECTION, Direction.RIGHT);
-            compound.setProperty(CoreOptions.EDGE_ROUTING, EdgeRouting.ORTHOGONAL);
-            compound.setProperty(CoreOptions.PADDING, new ElkPadding(10.0));
-            compounds[c] = compound;
+            compound.setIdentifier("compound" + c);
+            compound.setDimensions(0.0, 0.0);
 
-            // 9 leaf children per compound
-            ElkNode[] leaves = new ElkNode[9];
-            for (int i = 0; i < 9; i++) {
-                leaves[i] = newSizedNode(compound, "mid" + c + "_n" + i, 30.0, 20.0);
+            for (int l = 0; l < 9; l++) {
+                allLeaves[c][l] = newSizedNode(compound, "c" + c + "_l" + l, 40.0, 30.0);
             }
 
-            // internal edges within compound
-            state = lcg(state);
-            for (int i = 0; i < 8; i++) {
+            // Tree pattern: leaf i connects to random parent in [0, i)
+            for (int i = 1; i < 9; i++) {
                 state = lcg(state);
-                int src = state % 9;
-                if (src < 0) src += 9;
-                state = lcg(state);
-                int tgt = state % 9;
-                if (tgt < 0) tgt += 9;
-                int layerSrc = src * 3 / 9;
-                int layerTgt = tgt * 3 / 9;
-                if (layerSrc < layerTgt) {
-                    ElkGraphUtil.createSimpleEdge(leaves[src], leaves[tgt]);
-                }
+                int parent = state % i;
+                if (parent < 0) parent += i;
+                ElkGraphUtil.createSimpleEdge(allLeaves[c][parent], allLeaves[c][i]);
             }
         }
 
-        // cross-compound edges between consecutive compounds
+        // Cross-compound: leaf[c][0] -> leaf[c+1][0]
         for (int c = 0; c < 2; c++) {
-            state = lcg(state);
-            ElkGraphUtil.createSimpleEdge(compounds[c], compounds[c + 1]);
+            ElkGraphUtil.createSimpleEdge(allLeaves[c][0], allLeaves[c + 1][0]);
         }
 
         return graph;

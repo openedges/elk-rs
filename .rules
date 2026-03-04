@@ -63,11 +63,14 @@
   - NAPI 플랫폼별 패키지 6개 추가 완료: `@elk-rs/darwin-arm64`, `@elk-rs/darwin-x64`, `@elk-rs/linux-x64-gnu`, `@elk-rs/linux-x64-musl`, `@elk-rs/linux-arm64-gnu`, `@elk-rs/win32-x64-msvc`
   - 로딩 우선순위: 플랫폼 NAPI 패키지 → 로컬 `.node` → WASM 폴백
   - CI/CD: `.github/workflows/napi.yml` (태그 push 시 6 플랫폼 크로스 빌드 + npm publish)
-- **성능 기준선**: Rust **1.87x faster than Java** (`layered_xlarge` ~248ms vs 463.21ms, **0.54x** ratio, mimalloc, synthetic 25/8 baseline)
-  - 이전 1,576ms → 972ms → 794ms → 702ms → 672ms → 641ms → 620ms → 626ms → 575ms → 572ms → 561ms → ~426ms → ~272ms → **~248ms** (**-84.3%** 누적), Phase 1-19 순차 최적화 반영 (상세: `HISTORY.md`)
+- **성능 기준선 (6-way fair benchmark, synthetic 10/3)**:
+  - `layered_xlarge`: rust_native **235ms** vs java **355ms** → Rust **1.51x faster**
+  - 전체 26 시나리오 평균: java 88ms, rust_native 118ms, rust_api 119ms, napi 122ms, wasm 183ms, elkjs 1021ms
+  - Rust 우위: layered/mrtree/rectpacking/routing/hierarchy; Java 우위: force/stress/radial
+  - API 그룹: rust_api ~8-11x faster than elkjs (동일 JSON parse+layout+serialize 경로)
+  - 6-way 공정성: 동일 LCG seed + rejection sampling DAG + max_attempts=edges*100 + 동일 타이밍 범위
+  - 이전 기준선(synthetic 25/8, mimalloc): ~248ms vs 463ms (1.87x) — 조건 차이로 직접 비교 불가
   - **성능 최적화 실질 완료** (Phase 1-19): profile 매우 flat (개별 함수 <2%), 88% 순수 연산, 12% 인프라(malloc 7.9%, hash 4.3%)
-  - 완료: Phase 1-17 (이전 상세 내역), Phase 18 mimalloc + batch lock, Phase 19 Property key Cow<'static, str> interning
-  - 추가 최적화 조사 완료 (미실행): snapshot.clone() take 패턴 (회귀 확인 후 revert), FxHashMap→Vec 직접 인덱싱 (299+ 사이트 변경 필요), 전면 arena 전환 (~10-20ms 기대, 대규모 리팩토링 대비 효과 제한적)
   - 차기: 기능 개선/API 확장 등 비성능 작업으로 전환
 - **코드 품질**: `cargo build` warning 0건, `cargo clippy` warning 0건
 - **Parity 재검증 상태**: full parity 재실행 완료 — `total=1998`, `compared=1989`, `matches=1988`, `drift=1`, `skipped=9`, `errors=0`
@@ -90,7 +93,8 @@
 - **Full equivalence 검증 (두 가지 모두 필수)**:
   - Model parity (최종 출력): `MODEL_PARITY_SKIP_JAVA_EXPORT=true sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models tests/model_parity_full`
   - Phase-step trace (중간 상태): `python3 scripts/compare_phase_traces.py <java_trace_dir> <rust_trace_dir> --batch`
-- 5-way 성능 벤치마크: `sh scripts/run_perf_benchmark.sh synthetic 10 3 tests/perf`
+- 6-way 성능 벤치마크: `sh scripts/run_perf_benchmark.sh synthetic 10 3 tests/perf`
+  - 엔진: rust_native, rust_api, java, elkjs, napi, wasm (26 시나리오)
   - 통합 바이너리: `perf_benchmark --engine rust_native|rust_api --mode synthetic|models`
 
 ## 진행 기록 위치

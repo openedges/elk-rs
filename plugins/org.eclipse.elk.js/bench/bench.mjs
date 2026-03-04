@@ -73,7 +73,10 @@ async function loadEngine(name) {
         layout(graphJson) {
           // elkjs works with JS objects and mutates in place, so deep-clone each call.
           const graph = JSON.parse(graphJson);
-          return elk.layout(graph);
+          return elk.layout(graph).then(result => {
+            JSON.stringify(result);  // match rust_api/napi/wasm serialize scope
+            return result;
+          });
         },
       };
     }

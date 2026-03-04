@@ -217,7 +217,7 @@ export function buildIssue905() {
 // Same constants as glibc/Java's LCG for cross-implementation compatibility.
 // ---------------------------------------------------------------------------
 
-function lcg(state) { return ((state * 1103515245 + 12345) & 0x7fffffff); }
+function lcg(state) { return ((Math.imul(state, 1103515245) + 12345) & 0x7fffffff); }
 
 // ---------------------------------------------------------------------------
 // Graph generators
@@ -225,51 +225,34 @@ function lcg(state) { return ((state * 1103515245 + 12345) & 0x7fffffff); }
 
 /**
  * Generate a deterministic DAG with `nodes` nodes and up to `edges` edges.
- * Nodes are partitioned into layers (layer = floor(i * 5 / nodes)) to
- * guarantee all edges point strictly forward (layerIdx[src] < layerIdx[tgt]).
+ * Uses rejection sampling (matching Rust's build_dag / generate_dag_json):
+ *   src = lcg % nodes, tgt = lcg % nodes, accept if layer[src] < layer[tgt].
+ * No deduplication — multi-edges allowed (matches Rust behavior).
  */
 function generateDag(nodes, edges, seed) {
   const children = [];
   const layerIdx = [];
-  const maxLayer = 4; // floor((nodes-1) * 5 / nodes) <= 4
 
   for (let i = 0; i < nodes; i++) {
     layerIdx.push(Math.floor(i * 5 / nodes));
     children.push({ id: `n${i}`, width: 40, height: 30 });
   }
 
-  // Build per-layer node lists for fast lookup
-  const layers = [];
-  for (let l = 0; l <= maxLayer; l++) layers.push([]);
-  for (let i = 0; i < nodes; i++) layers[layerIdx[i]].push(i);
-
   const edgeList = [];
   let state = seed;
   let attempts = 0;
-  const maxAttempts = edges * 8;
+  const maxAttempts = edges * 100;
 
   while (edgeList.length < edges && attempts < maxAttempts) {
     state = lcg(state);
     const src = state % nodes;
+    state = lcg(state);
+    const tgt = state % nodes;
     attempts++;
 
-    // Nodes in the last layer have no forward targets — skip them
-    if (layerIdx[src] >= maxLayer) continue;
-
-    state = lcg(state);
-    const span = maxLayer - layerIdx[src]; // >= 1
-    const tgtLayer = layerIdx[src] + 1 + (state % span);
-
-    const tgtCandidates = layers[tgtLayer];
-    if (!tgtCandidates || tgtCandidates.length === 0) continue;
-
-    state = lcg(state);
-    const tgt = tgtCandidates[state % tgtCandidates.length];
-
-    // Deduplicate edges (simple check — good enough for bench graphs)
-    const eid = `e${src}_${tgt}`;
-    if (!edgeList.find(e => e.id === eid)) {
-      edgeList.push({ id: eid, sources: [`n${src}`], targets: [`n${tgt}`] });
+    if (layerIdx[src] < layerIdx[tgt]) {
+      const eid = edgeList.length;
+      edgeList.push({ id: `e${eid}`, sources: [`n${src}`], targets: [`n${tgt}`] });
     }
   }
 
@@ -299,7 +282,7 @@ function generateTree(nodes, seed) {
     if (i > 0) {
       state = lcg(state);
       const parent = state % i;
-      edgeList.push({ id: `e${parent}_${i}`, sources: [`n${parent}`], targets: [`n${i}`] });
+      edgeList.push({ id: `e${i}`, sources: [`n${parent}`], targets: [`n${i}`] });
     }
   }
 
@@ -406,7 +389,7 @@ export function buildRadialMedium() {
 
 export function buildRectpackingMedium() {
   const children = [];
-  let state = 999;
+  let state = 100;
   for (let i = 0; i < 50; i++) {
     state = lcg(state);
     const w = 20 + (state % 61); // range [20, 80]
@@ -581,55 +564,57 @@ export function buildHierarchyFlat() {
 }
 
 export function buildHierarchyNested() {
-  // 3-level nested graph: root -> 3 compounds -> ~9 leaves each (~30 total nodes)
-  // Uses LCG seed 300 for determinism.
+  // 3-level nested graph: root -> 3 compounds -> 9 leaves each (~27 total nodes)
+  // Matches Rust's build_hierarchy_nested: tree-pattern internal edges,
+  // cross-compound leaf[c][0] → leaf[c+1][0], INCLUDE_CHILDREN.
   let state = 300;
 
   const compounds = [];
   const rootEdges = [];
 
-  for (let m = 0; m < 3; m++) {
+  for (let c = 0; c < 3; c++) {
     const leaves = [];
     const compoundEdges = [];
 
-    // 9 leaf children per compound
     for (let l = 0; l < 9; l++) {
-      leaves.push({ id: `mid${m}_leaf${l}`, width: 40, height: 30 });
+      leaves.push({ id: `c${c}_l${l}`, width: 40, height: 30 });
     }
 
-    // ~4 edges within each compound (leaf-to-leaf, forward only)
-    for (let e = 0; e < 4; e++) {
+    // Tree pattern: leaf i connects to random parent in [0, i)
+    for (let i = 1; i < 9; i++) {
       state = lcg(state);
-      const src = state % 8; // [0,7]
-      state = lcg(state);
-      const tgt = src + 1 + (state % (8 - src)); // tgt > src
+      const parent = state % i;
       compoundEdges.push({
-        id: `mid${m}_ie${e}`,
-        sources: [`mid${m}_leaf${src}`],
-        targets: [`mid${m}_leaf${tgt}`]
+        id: `c${c}_ie${i}`,
+        sources: [`c${c}_l${parent}`],
+        targets: [`c${c}_l${i}`]
       });
     }
 
     compounds.push({
-      id: `mid${m}`,
-      layoutOptions: {
-        "org.eclipse.elk.algorithm": "org.eclipse.elk.layered",
-        "org.eclipse.elk.direction": "RIGHT"
-      },
+      id: `compound${c}`,
+      width: 0, height: 0,
       children: leaves,
       edges: compoundEdges
     });
   }
 
-  // Cross-compound edges: mid0->mid1, mid1->mid2
-  rootEdges.push({ id: "re0", sources: ["mid0"], targets: ["mid1"] });
-  rootEdges.push({ id: "re1", sources: ["mid1"], targets: ["mid2"] });
+  // Cross-compound: leaf[c][0] → leaf[c+1][0]
+  for (let c = 0; c < 2; c++) {
+    rootEdges.push({
+      id: `xe${c}`,
+      sources: [`c${c}_l0`],
+      targets: [`c${c + 1}_l0`]
+    });
+  }
 
   return {
     id: "root",
     layoutOptions: {
       "org.eclipse.elk.algorithm": "org.eclipse.elk.layered",
-      "org.eclipse.elk.direction": "RIGHT"
+      "org.eclipse.elk.direction": "RIGHT",
+      "org.eclipse.elk.edgeRouting": "ORTHOGONAL",
+      "org.eclipse.elk.hierarchyHandling": "INCLUDE_CHILDREN"
     },
     children: compounds,
     edges: rootEdges

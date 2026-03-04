@@ -175,8 +175,8 @@ else
   java_ok=false
   if [ "$MODE" = "synthetic" ]; then
     # Use existing layered issue scenario runner for synthetic mode
-    if JAVA_PARITY_BUILD_PLUGINS=false sh "$SCRIPT_DIR/run_java_parity_layered_issue_scenarios.sh" \
-        "layered_small,layered_medium,layered_large,layered_xlarge,force_medium,stress_medium,mrtree_medium,radial_medium,rectpacking_medium,routing_polyline,routing_orthogonal,routing_splines,crossmin_layer_sweep,crossmin_none,hierarchy_flat,hierarchy_nested" \
+    if sh "$SCRIPT_DIR/run_java_parity_layered_issue_scenarios.sh" \
+        "layered_small,layered_medium,layered_large,layered_xlarge,force_medium,force_large,force_xlarge,stress_medium,stress_large,stress_xlarge,mrtree_medium,mrtree_large,mrtree_xlarge,radial_medium,radial_large,radial_xlarge,rectpacking_medium,rectpacking_large,rectpacking_xlarge,routing_polyline,routing_orthogonal,routing_splines,crossmin_layer_sweep,crossmin_none,hierarchy_flat,hierarchy_nested" \
         "$ITERATIONS" "$WARMUP" "$OUTPUT_DIR/java.csv"; then
       java_ok=true
     fi

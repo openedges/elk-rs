@@ -136,18 +136,35 @@ Strict mode must be enabled for releases (e.g., `ALGORITHM_ID_PARITY_STRICT=true
 
 See `scripts/README.md` for default arguments and environment knobs.
 
-### E. Performance Benchmark — 5-Way Comparison (5 items)
+### E. Performance Benchmark — 6-Way Comparison
 
 | Item | Command | Description |
 |------|---------|-------------|
-| Synthetic 5-way | `sh scripts/run_perf_benchmark.sh synthetic` | All 5 engines on synthetic scenarios |
-| Model 5-way | `sh scripts/run_perf_benchmark.sh models` | All 5 engines on model JSON inputs |
+| Synthetic 6-way | `sh scripts/run_perf_benchmark.sh synthetic` | All 6 engines on 26 synthetic scenarios |
+| Model 6-way | `sh scripts/run_perf_benchmark.sh models` | All 6 engines on model JSON inputs |
 | JS benchmark | `cd plugins/org.eclipse.elk.js && npm run bench` | elkjs/NAPI/WASM only |
 | Comparison report | `python3 scripts/compare_perf_results.py tests/perf/` | Markdown report generation |
 | Report output | `tests/perf/report.md` | Per-engine and per-scenario comparison |
 
-Engines: Java (`RecursiveGraphLayoutEngine` via JSON), Rust native (direct `ElkNode`),
-Rust API (`layout_json`), NAPI (Node.js native addon), WASM, elkjs (GWT-compiled).
+**6 Engines — 2 Groups:**
+
+| Group | Engine | Timing Scope | Purpose |
+|-------|--------|-------------|---------|
+| **Native** | rust_native | graph construct + `layout()` | Pure layout engine performance ceiling |
+| **Native** | java | graph construct + `engine.layout()` | Direct comparison against Java ELK |
+| **API** | rust_api | JSON parse + import + `layout()` + export + JSON serialize | Rust JSON API baseline |
+| **API** | napi | Same code as rust_api + NAPI binding overhead | Node.js native addon path |
+| **API** | wasm | Same code as rust_api + WASM binding overhead | Browser/WASM path |
+| **API** | elkjs | `JSON.parse` + GWT layout + `JSON.stringify` | Comparison against existing elkjs |
+
+- **Native group** (rust_native, java): Each iteration constructs a fresh in-memory graph and runs layout. No JSON involved.
+- **API group** (rust_api, napi, wasm, elkjs): JSON string is pre-generated outside the loop; each iteration runs parse → layout → serialize end-to-end.
+- The gap between rust_native and rust_api = JSON serialization/deserialization overhead.
+- Only direct comparisons within the same group are meaningful.
+
+**Fairness guarantees:**
+- All 4 languages (Rust native, Rust API, Java, JS) use the same LCG, same rejection sampling algorithm, and same parameters to generate identical graphs.
+- All 26 scenarios produce identical input across Rust, Java, and JS.
 
 Prerequisite: NAPI/WASM builds must be complete (`cd plugins/org.eclipse.elk.js && sh build.sh`).
 
@@ -330,7 +347,7 @@ PARITY_COMPARE_MODE=baseline sh scripts/check_parity_regression.sh 5 3
 
 For detailed baseline operations, see `tests/baselines/POLICY.md`.
 
-### 3.7 Performance Benchmark (5-Way Comparison)
+### 3.7 Performance Benchmark (6-Way Comparison)
 
 Prerequisite: NAPI and WASM builds must be complete.
 
@@ -338,14 +355,20 @@ Prerequisite: NAPI and WASM builds must be complete.
 cd plugins/org.eclipse.elk.js && sh build.sh && cd -
 ```
 
-Quick synthetic benchmark (5 scenarios, no Java):
+Quick synthetic benchmark (26 scenarios, no Java):
 
 ```sh
 PERF_SKIP_JAVA=true sh scripts/run_perf_benchmark.sh synthetic 5 1 tests/perf
 python3 scripts/compare_perf_results.py tests/perf/
 ```
 
-Full model benchmark (all engines including Java):
+Full synthetic benchmark (all 6 engines including Java):
+
+```sh
+sh scripts/run_perf_benchmark.sh synthetic 20 3 tests/perf
+```
+
+Full model benchmark (all 6 engines including Java):
 
 ```sh
 sh scripts/run_perf_benchmark.sh models 20 3 tests/perf
