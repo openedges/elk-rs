@@ -73,6 +73,10 @@ impl AbstractForceModel {
         &mut self.random
     }
 
+    pub fn disp_bound(&self) -> f64 {
+        self.disp_bound
+    }
+
     pub fn initialize(&mut self, graph: &mut FGraph) {
         self.random = graph
             .get_property(InternalProperties::RANDOM)

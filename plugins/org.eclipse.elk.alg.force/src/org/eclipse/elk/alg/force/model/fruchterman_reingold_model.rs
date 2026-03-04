@@ -1,4 +1,7 @@
+use std::sync::Arc;
+
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
 use crate::org::eclipse::elk::alg::force::graph::{FGraph, FParticleRef};
 use crate::org::eclipse::elk::alg::force::model::abstract_force_model::{
@@ -118,5 +121,179 @@ impl ForceModel for FruchtermanReingoldModel {
 
     fn iteration_done(&mut self) {
         self.temperature -= self.threshold;
+    }
+
+    /// SoA-optimized layout: pre-extracts particle data into flat arrays,
+    /// runs the O(n²) force loop with zero locks, writes back after each iteration.
+    fn layout(&mut self, graph: &mut FGraph, monitor: &mut dyn IElkProgressMonitor) {
+        monitor.begin("Component Layout", 1.0);
+        self.base.initialize(graph);
+        self.initialize_model(graph);
+
+        // Pre-extract particle data into flat SoA arrays (one lock per particle)
+        let particles = graph.particles();
+        let n = particles.len();
+        let mut positions: Vec<KVector> = Vec::with_capacity(n);
+        let mut radii: Vec<f64> = Vec::with_capacity(n);
+        let mut priorities: Vec<i32> = Vec::with_capacity(n);
+
+        for p in &particles {
+            positions.push(
+                p.with_particle_ref(|part| *part.position_ref())
+                    .unwrap_or_default(),
+            );
+            radii.push(p.with_particle_ref(|part| part.radius()).unwrap_or(0.0));
+            priorities.push(
+                p.with_particle_mut(|part| part.get_property(ForceOptions::PRIORITY))
+                    .flatten()
+                    .unwrap_or(1),
+            );
+        }
+
+        // Pre-compute connection matrix for all particle pairs
+        let adjacency = graph.adjacency();
+        let mut connections = vec![0i32; n * n];
+        for i in 0..n {
+            for j in 0..n {
+                if i == j {
+                    continue;
+                }
+                connections[i * n + j] = match (&particles[i], &particles[j]) {
+                    (FParticleRef::Node(n1), FParticleRef::Node(n2)) => {
+                        let id1 = n1.lock().ok().map(|g| g.id());
+                        let id2 = n2.lock().ok().map(|g| g.id());
+                        match (id1, id2) {
+                            (Some(id1), Some(id2))
+                                if id1 < adjacency.len() && id2 < adjacency.len() =>
+                            {
+                                adjacency[id1][id2] + adjacency[id2][id1]
+                            }
+                            _ => 0,
+                        }
+                    }
+                    (FParticleRef::Bend(b1), FParticleRef::Bend(b2)) => {
+                        let edge1 = b1.lock().ok().and_then(|b| b.edge());
+                        let edge2 = b2.lock().ok().and_then(|b| b.edge());
+                        match (edge1, edge2) {
+                            (Some(e1), Some(e2)) if Arc::ptr_eq(&e1, &e2) => e2
+                                .lock()
+                                .ok()
+                                .and_then(|mut eg| eg.get_property(ForceOptions::PRIORITY))
+                                .unwrap_or(1),
+                            _ => 0,
+                        }
+                    }
+                    _ => 0,
+                };
+            }
+        }
+
+        let disp_bound = self.base.disp_bound();
+        let mut displacements = vec![KVector::new(); n];
+        let mut iterations = 0;
+
+        while self.more_iterations(iterations) && !monitor.is_canceled() {
+            // Write positions back to particles for iteration_done (label/bendpoint refresh)
+            for (i, p) in particles.iter().enumerate() {
+                let _ = p.with_particle_mut(|part| {
+                    *part.position() = positions[i];
+                });
+            }
+            self.base.iteration_done(graph);
+            self.iteration_done();
+
+            // Re-read positions after iteration_done (bendpoints may have moved)
+            for (i, p) in particles.iter().enumerate() {
+                if let Some(pos) = p.with_particle_ref(|part| *part.position_ref()) {
+                    positions[i] = pos;
+                }
+            }
+
+            // Reset displacements
+            for d in &mut displacements {
+                d.reset();
+            }
+
+            // O(n²) force computation — zero locks
+            let random = self.base.random_mut();
+            for vi in 0..n {
+                for ui in 0..n {
+                    if ui == vi {
+                        continue;
+                    }
+
+                    // Avoid same position (wiggle in SoA arrays)
+                    if positions[ui].x == positions[vi].x && positions[ui].y == positions[vi].y {
+                        // For bendpoints, fall back to lock-based version
+                        let u_is_bend = matches!(particles[ui], FParticleRef::Bend(_));
+                        let v_is_bend = matches!(particles[vi], FParticleRef::Bend(_));
+                        if u_is_bend || v_is_bend {
+                            AbstractForceModel::avoid_same_position(
+                                random,
+                                &particles[ui],
+                                &particles[vi],
+                            );
+                            if let Some(pos) =
+                                particles[ui].with_particle_ref(|p| *p.position_ref())
+                            {
+                                positions[ui] = pos;
+                            }
+                            if let Some(pos) =
+                                particles[vi].with_particle_ref(|p| *p.position_ref())
+                            {
+                                positions[vi] = pos;
+                            }
+                        } else {
+                            loop {
+                                positions[ui].wiggle(random, 1.0);
+                                positions[vi].wiggle(random, 1.0);
+                                if positions[ui].x != positions[vi].x
+                                    || positions[ui].y != positions[vi].y
+                                {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    // Compute displacement
+                    let mut displacement = KVector::from_vector(&positions[vi]);
+                    displacement.sub(&positions[ui]);
+                    let length = displacement.length();
+                    if length == 0.0 {
+                        continue;
+                    }
+
+                    let d = (length - radii[ui] - radii[vi]).max(0.0);
+                    let mut force = Self::repulsive(d, self.k) * (priorities[ui] as f64);
+
+                    let connection = connections[ui * n + vi];
+                    if connection > 0 {
+                        force -= Self::attractive(d, self.k) * (connection as f64);
+                    }
+
+                    displacement.scale(force * self.temperature / length);
+                    displacements[vi].add(&displacement);
+                }
+            }
+
+            // Apply displacements with bounds
+            for vi in 0..n {
+                displacements[vi].bound(-disp_bound, -disp_bound, disp_bound, disp_bound);
+                positions[vi].add(&displacements[vi]);
+            }
+
+            iterations += 1;
+        }
+
+        // Final write-back of positions
+        for (i, p) in particles.iter().enumerate() {
+            let _ = p.with_particle_mut(|part| {
+                *part.position() = positions[i];
+                part.displacement().reset();
+            });
+        }
+
+        monitor.done();
     }
 }

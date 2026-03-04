@@ -1,14 +1,14 @@
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
-use std::sync::Arc;
 use std::sync::LazyLock;
 
 static TRACE_STRESS: LazyLock<bool> =
     LazyLock::new(|| std::env::var_os("ELK_TRACE_STRESS").is_some());
 
-use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 
-use crate::org::eclipse::elk::alg::force::graph::{FEdgeRef, FGraph, FNodeRef};
+
+
+use crate::org::eclipse::elk::alg::force::graph::{FEdgeRef, FGraph};
 use crate::org::eclipse::elk::alg::force::options::StressOptions;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Default)]
@@ -82,6 +82,41 @@ impl StressMajorization {
             .get_property(StressOptions::DESIRED_EDGE_LENGTH)
             .unwrap_or(100.0);
 
+        // Pre-extract edge connectivity into flat adjacency list for lock-free Dijkstra
+        let mut adj: Vec<Vec<(usize, f64)>> = vec![Vec::new(); n];
+        for edge in graph.edges() {
+            let (source_id, target_id, edge_len) = {
+                let edge_guard = edge.lock().ok();
+                let Some(mut edge_guard) = edge_guard else {
+                    continue;
+                };
+                let source_id = edge_guard
+                    .source()
+                    .and_then(|node| node.lock().ok().map(|n| n.id()));
+                let target_id = edge_guard
+                    .target()
+                    .and_then(|node| node.lock().ok().map(|n| n.id()));
+                let edge_len = if edge_guard.has_property(StressOptions::DESIRED_EDGE_LENGTH) {
+                    edge_guard
+                        .get_property(StressOptions::DESIRED_EDGE_LENGTH)
+                        .unwrap_or(self.desired_edge_length)
+                } else {
+                    self.desired_edge_length
+                };
+                match (source_id, target_id) {
+                    (Some(source_id), Some(target_id)) => (source_id, target_id, edge_len),
+                    _ => continue,
+                }
+            };
+            if source_id < n {
+                adj[source_id].push((target_id, edge_len));
+            }
+            if target_id < n {
+                adj[target_id].push((source_id, edge_len));
+            }
+        }
+
+        // Also build connected_edges for backward compatibility (unused in optimized path)
         self.connected_edges.clear();
         self.connected_edges.resize_with(n, Vec::new);
         for edge in graph.edges() {
@@ -109,17 +144,10 @@ impl StressMajorization {
             }
         }
 
+        // APSP via Dijkstra using flat adjacency (zero locks)
         self.apsp = vec![vec![0.0; n]; n];
-        for node in graph.nodes() {
-            let node_id = node.lock().ok().map(|n| n.id());
-            let Some(node_id) = node_id else { continue };
-            Self::dijkstra(
-                &self.connected_edges,
-                graph,
-                self.desired_edge_length,
-                node_id,
-                &mut self.apsp[node_id],
-            );
+        for source_id in 0..n {
+            Self::dijkstra_flat(&adj, n, source_id, &mut self.apsp[source_id]);
         }
 
         self.w = vec![vec![0.0; n]; n];
@@ -143,13 +171,34 @@ impl StressMajorization {
         }
     }
 
+    /// SoA-optimized execute: pre-extracts node positions/ids/fixed flags into flat arrays,
+    /// runs the O(n²) stress iteration with zero locks.
     pub fn execute(&mut self, graph: &mut FGraph) {
-        if graph.nodes().len() <= 1 {
+        let n = graph.nodes().len();
+        if n <= 1 {
             return;
         }
 
+        // Pre-extract node data into flat arrays (one lock per node)
+        let nodes = graph.nodes();
+        let mut pos_x = vec![0.0f64; n];
+        let mut pos_y = vec![0.0f64; n];
+        let mut node_ids = vec![0usize; n];
+        let mut fixed = vec![false; n];
+
+        for (i, node) in nodes.iter().enumerate() {
+            if let Ok(mut node_guard) = node.lock() {
+                pos_x[i] = node_guard.position_ref().x;
+                pos_y[i] = node_guard.position_ref().y;
+                node_ids[i] = node_guard.id();
+                fixed[i] = node_guard
+                    .get_property(StressOptions::FIXED)
+                    .unwrap_or(false);
+            }
+        }
+
         let mut count = 0;
-        let mut prev_stress = self.compute_stress(graph);
+        let mut prev_stress = self.compute_stress_soa(&pos_x, &pos_y, &node_ids, n);
         let mut cur_stress = f64::INFINITY;
 
         loop {
@@ -157,23 +206,18 @@ impl StressMajorization {
                 prev_stress = cur_stress;
             }
 
-            for node in graph.nodes() {
-                let fixed = node
-                    .lock()
-                    .ok()
-                    .and_then(|mut node_guard| node_guard.get_property(StressOptions::FIXED))
-                    .unwrap_or(false);
-                if fixed {
+            for i in 0..n {
+                if fixed[i] {
                     continue;
                 }
-
-                let new_pos = self.compute_new_position(graph, node);
-                if let Ok(mut node_guard) = node.lock() {
-                    node_guard.position().reset().add(&new_pos);
-                }
+                let (nx, ny) = self.compute_new_position_soa(
+                    &pos_x, &pos_y, &node_ids, i, n,
+                );
+                pos_x[i] = nx;
+                pos_y[i] = ny;
             }
 
-            cur_stress = self.compute_stress(graph);
+            cur_stress = self.compute_stress_soa(&pos_x, &pos_y, &node_ids, n);
 
             if self.done(count, prev_stress, cur_stress) {
                 if *TRACE_STRESS {
@@ -186,16 +230,24 @@ impl StressMajorization {
             }
             count += 1;
         }
+
+        // Write back positions to nodes
+        for (i, node) in graph.nodes().iter().enumerate() {
+            if let Ok(mut node_guard) = node.lock() {
+                let pos = node_guard.position();
+                pos.x = pos_x[i];
+                pos.y = pos_y[i];
+            }
+        }
     }
 
-    fn dijkstra(
-        connected_edges: &[Vec<FEdgeRef>],
-        graph: &FGraph,
-        desired_edge_length: f64,
+    /// Lock-free Dijkstra using pre-computed flat adjacency list
+    fn dijkstra_flat(
+        adj: &[Vec<(usize, f64)>],
+        n: usize,
         source_id: usize,
         dist: &mut [f64],
     ) {
-        let n = graph.nodes().len();
         let mut heap = BinaryHeap::new();
         let mut visited = vec![false; n];
 
@@ -216,35 +268,7 @@ impl StressMajorization {
                 continue;
             }
 
-            for edge in &connected_edges[position] {
-                let (other_id, edge_len) = {
-                    let edge_guard = edge.lock().ok();
-                    let Some(mut edge_guard) = edge_guard else {
-                        continue;
-                    };
-                    let source_id = edge_guard
-                        .source()
-                        .and_then(|node| node.lock().ok().map(|n| n.id()));
-                    let target_id = edge_guard
-                        .target()
-                        .and_then(|node| node.lock().ok().map(|n| n.id()));
-                    let Some(source_id) = source_id else { continue };
-                    let Some(target_id) = target_id else { continue };
-                    let other_id = if source_id == position {
-                        target_id
-                    } else {
-                        source_id
-                    };
-                    let edge_len = if edge_guard.has_property(StressOptions::DESIRED_EDGE_LENGTH) {
-                        edge_guard
-                            .get_property(StressOptions::DESIRED_EDGE_LENGTH)
-                            .unwrap_or(desired_edge_length)
-                    } else {
-                        desired_edge_length
-                    };
-                    (other_id, edge_len)
-                };
-
+            for &(other_id, edge_len) in &adj[position] {
                 if visited[other_id] {
                     continue;
                 }
@@ -266,61 +290,73 @@ impl StressMajorization {
             || count >= self.iteration_limit
     }
 
-    fn compute_stress(&self, graph: &FGraph) -> f64 {
-        let nodes = graph.nodes();
+    /// SoA compute_stress: uses flat position arrays, zero locks
+    fn compute_stress_soa(
+        &self,
+        pos_x: &[f64],
+        pos_y: &[f64],
+        node_ids: &[usize],
+        n: usize,
+    ) -> f64 {
         let mut stress = 0.0;
-        for i in 0..nodes.len() {
-            let node_i = nodes.get(i).and_then(|node| node.lock().ok());
-            let Some(node_i) = node_i else { continue };
-            for j in (i + 1)..nodes.len() {
-                let node_j = nodes.get(j).and_then(|node| node.lock().ok());
-                let Some(node_j) = node_j else { continue };
-                let euc_dist = node_i.position_ref().distance(node_j.position_ref());
-                let euc_displacement = euc_dist - self.apsp[node_i.id()][node_j.id()];
-                stress += self.w[node_i.id()][node_j.id()] * euc_displacement * euc_displacement;
+        for i in 0..n {
+            let ui = node_ids[i];
+            for j in (i + 1)..n {
+                let uj = node_ids[j];
+                let dx = pos_x[i] - pos_x[j];
+                let dy = pos_y[i] - pos_y[j];
+                let euc_dist = (dx * dx + dy * dy).sqrt();
+                let euc_displacement = euc_dist - self.apsp[ui][uj];
+                stress += self.w[ui][uj] * euc_displacement * euc_displacement;
             }
         }
         stress
     }
 
-    fn compute_new_position(&self, graph: &FGraph, node: &FNodeRef) -> KVector {
-        let nodes = graph.nodes();
+    /// SoA compute_new_position: uses flat position arrays, zero locks
+    fn compute_new_position_soa(
+        &self,
+        pos_x: &[f64],
+        pos_y: &[f64],
+        node_ids: &[usize],
+        node_idx: usize,
+        n: usize,
+    ) -> (f64, f64) {
         let mut weight_sum = 0.0;
         let mut x_disp = 0.0;
         let mut y_disp = 0.0;
+        let u_id = node_ids[node_idx];
+        let ux = pos_x[node_idx];
+        let uy = pos_y[node_idx];
 
-        let Some(node_guard) = node.lock().ok() else {
-            return KVector::new();
-        };
-        let u_id = node_guard.id();
-        let u_pos = *node_guard.position_ref();
-
-        for v in nodes {
-            if Arc::ptr_eq(v, node) {
+        for j in 0..n {
+            if j == node_idx {
                 continue;
             }
-            let v_guard = v.lock().ok();
-            let Some(v_guard) = v_guard else { continue };
-            let v_id = v_guard.id();
-            let v_pos = *v_guard.position_ref();
+            let v_id = node_ids[j];
+            let vx = pos_x[j];
+            let vy = pos_y[j];
 
             let wij = self.w[u_id][v_id];
             weight_sum += wij;
 
-            let euc_dist = u_pos.distance(&v_pos);
+            let dx = ux - vx;
+            let dy = uy - vy;
+            let euc_dist = (dx * dx + dy * dy).sqrt();
+
             if euc_dist > 0.0 && self.dim != Dimension::Y {
-                x_disp += wij * (v_pos.x + self.apsp[u_id][v_id] * (u_pos.x - v_pos.x) / euc_dist);
+                x_disp += wij * (vx + self.apsp[u_id][v_id] * dx / euc_dist);
             }
 
             if euc_dist > 0.0 && self.dim != Dimension::X {
-                y_disp += wij * (v_pos.y + self.apsp[u_id][v_id] * (u_pos.y - v_pos.y) / euc_dist);
+                y_disp += wij * (vy + self.apsp[u_id][v_id] * dy / euc_dist);
             }
         }
 
         match self.dim {
-            Dimension::X => KVector::with_values(x_disp / weight_sum, u_pos.y),
-            Dimension::Y => KVector::with_values(u_pos.x, y_disp / weight_sum),
-            Dimension::XY => KVector::with_values(x_disp / weight_sum, y_disp / weight_sum),
+            Dimension::X => (x_disp / weight_sum, uy),
+            Dimension::Y => (ux, y_disp / weight_sum),
+            Dimension::XY => (x_disp / weight_sum, y_disp / weight_sum),
         }
     }
 }

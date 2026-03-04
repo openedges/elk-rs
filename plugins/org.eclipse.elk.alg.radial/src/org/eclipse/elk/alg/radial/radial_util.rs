@@ -144,6 +144,43 @@ impl RadialUtil {
         }
     }
 
+    /// Build successor cache and leaf count cache for the entire tree rooted at `root`.
+    /// Eliminates repeated O(n) `get_successors` and O(n²) `get_number_of_leaves` calls.
+    pub fn build_tree_caches(
+        root: &ElkNodeRef,
+    ) -> (
+        std::collections::HashMap<usize, Vec<ElkNodeRef>>,
+        std::collections::HashMap<usize, f64>,
+    ) {
+        let mut successor_cache = std::collections::HashMap::new();
+        let mut leaf_cache = std::collections::HashMap::new();
+        Self::build_caches_recursive(root, &mut successor_cache, &mut leaf_cache);
+        (successor_cache, leaf_cache)
+    }
+
+    fn build_caches_recursive(
+        node: &ElkNodeRef,
+        successor_cache: &mut std::collections::HashMap<usize, Vec<ElkNodeRef>>,
+        leaf_cache: &mut std::collections::HashMap<usize, f64>,
+    ) -> f64 {
+        let key = node_key(node);
+        if let Some(&count) = leaf_cache.get(&key) {
+            return count;
+        }
+        let successors = Self::get_successors(node);
+        let count = if successors.is_empty() {
+            1.0
+        } else {
+            successors
+                .iter()
+                .map(|s| Self::build_caches_recursive(s, successor_cache, leaf_cache))
+                .sum()
+        };
+        successor_cache.insert(key, successors);
+        leaf_cache.insert(key, count);
+        count
+    }
+
     pub fn compare_polar(
         node1: &ElkNodeRef,
         node2: &ElkNodeRef,

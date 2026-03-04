@@ -1,4 +1,6 @@
+use std::collections::HashMap;
 use std::f64::consts::PI;
+use std::rc::Rc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutPhase;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
@@ -29,6 +31,9 @@ impl EadesRadial {
         annulus: &dyn IAnnulusWedgeCriteria,
         optimizer: Option<&dyn IEvaluation>,
     ) {
+        // Pre-compute successor and leaf count caches (one traversal for the entire tree)
+        let (successor_cache, leaf_cache) = RadialUtil::build_tree_caches(root);
+
         let mut optimal_offset = 0.0;
         let mut optimal_value = f64::MAX;
 
@@ -41,6 +46,8 @@ impl EadesRadial {
                     radius,
                     sorter,
                     annulus,
+                    &successor_cache,
+                    &leaf_cache,
                     0.0,
                     0.0,
                     2.0 * PI,
@@ -59,6 +66,8 @@ impl EadesRadial {
             radius,
             sorter,
             annulus,
+            &successor_cache,
+            &leaf_cache,
             0.0,
             0.0,
             2.0 * PI,
@@ -73,6 +82,8 @@ impl EadesRadial {
         radius: f64,
         sorter: &mut Option<Box<dyn IRadialSorter>>,
         annulus: &dyn IAnnulusWedgeCriteria,
+        successor_cache: &HashMap<usize, Vec<ElkNodeRef>>,
+        leaf_cache: &HashMap<usize, f64>,
         current_radius: f64,
         min_alpha: f64,
         max_alpha: f64,
@@ -85,7 +96,14 @@ impl EadesRadial {
 
         RadialUtil::center_nodes_on_radi(node, x_pos, y_pos);
 
-        let number_of_leafs = annulus.calculate_wedge_space(node);
+        let node_key = Rc::as_ptr(node) as usize;
+
+        // Use cached leaf count (falls back to annulus trait for uncached nodes)
+        let number_of_leafs = leaf_cache
+            .get(&node_key)
+            .copied()
+            .unwrap_or_else(|| annulus.calculate_wedge_space(node));
+
         let ratio = if (current_radius + radius).abs() < f64::EPSILON {
             1.0
         } else {
@@ -98,20 +116,32 @@ impl EadesRadial {
             ((max_alpha - min_alpha) / number_of_leafs, min_alpha)
         };
 
-        let mut successors = RadialUtil::get_successors(node);
+        // Use cached successors (falls back to RadialUtil for uncached nodes)
+        let mut successors = successor_cache
+            .get(&node_key)
+            .cloned()
+            .unwrap_or_else(|| RadialUtil::get_successors(node));
+
         if let Some(sorter) = sorter.as_mut() {
             sorter.initialize(root);
             sorter.sort(&mut successors);
         }
 
         for child in successors {
-            let number_of_child_leafs = annulus.calculate_wedge_space(&child);
+            let child_key = Rc::as_ptr(&child) as usize;
+            let number_of_child_leafs = leaf_cache
+                .get(&child_key)
+                .copied()
+                .unwrap_or_else(|| annulus.calculate_wedge_space(&child));
+
             Self::position_nodes(
                 &child,
                 root,
                 radius,
                 sorter,
                 annulus,
+                successor_cache,
+                leaf_cache,
                 current_radius + radius,
                 alpha,
                 alpha + s * number_of_child_leafs,

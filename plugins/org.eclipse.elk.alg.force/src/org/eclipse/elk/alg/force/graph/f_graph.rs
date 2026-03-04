@@ -155,6 +155,10 @@ impl FGraph {
         particles
     }
 
+    pub fn adjacency(&self) -> &Vec<Vec<i32>> {
+        &self.adjacency
+    }
+
     pub fn get_connection(&self, particle1: &FParticleRef, particle2: &FParticleRef) -> i32 {
         match (particle1, particle2) {
             (FParticleRef::Node(node1), FParticleRef::Node(node2)) => {
