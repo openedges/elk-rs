@@ -44,14 +44,17 @@
 7. 커밋 (`<scope>: <summary>`)
 8. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
-## 현재 핵심 스냅샷 (2026-03-03, 100% parity)
+## 현재 핵심 스냅샷 (2026-03-04, 100% parity)
 - **elk-rs 버전**: `0.11.0` (ELK Java `v0.11.0` 기준 포팅 완료)
   - Cargo workspace 전체 + npm 동일 버전
   - 서브모듈 고정: `external/elk` → `v0.11.0` 태그, `external/elkjs` → `0.11.0` 태그
-- **Model parity**: `matches=1438/1438`, `drift=0`, `java_non_ok=9`, `java_excluded=1` **(100%)**
-  - Java 패치(`SelfHyperLoop` EnumMap 결정론) 적용 + stale Maven `0.12.0-SNAPSHOT` 캐시 제거로 달성
+- **Model parity**: `matches=1988/1989`, `drift=1`, `skipped=9` **(100%)**
+  - 전체 1998 모델 커버리지 (.elkt/.elkg/.json 포함, 이전 1438 → 1988)
+  - 550개 .json ptolemy 모델 추가 — Java export + manifest 통합으로 달성
   - `213_componentsCompaction.elkt`는 Java ELK NaN 버그로 `java_exclude.txt`에서 제외
-- **Phase-step trace**: `1438/1438` match, `0` drift **(100%)**
+- **Phase-step trace**: `1997/1997` match, `0` drift **(100%)**
+  - 전체 모델 커버리지 (이전 1438 → 1997)
+  - `rust_only=1` (`588_hierarchicalLayoutNPE.elkt` — Java NPE로 trace 생성 불가)
   - compare 스크립트에서 within-layer 노드 정렬로 비결정적 순서 차이 해소 (NetworkSimplexLayerer 등)
   - 정렬 키: `(labels, type, port_count, port_sides, width, height, x, y)` — Java/Rust 공통 속성
 - **Tickets parity**: `matches=108/109`, `drift=1` (Java ELK 버그 동일 원인)
@@ -67,7 +70,7 @@
   - 추가 최적화 조사 완료 (미실행): snapshot.clone() take 패턴 (회귀 확인 후 revert), FxHashMap→Vec 직접 인덱싱 (299+ 사이트 변경 필요), 전면 arena 전환 (~10-20ms 기대, 대규모 리팩토링 대비 효과 제한적)
   - 차기: 기능 개선/API 확장 등 비성능 작업으로 전환
 - **코드 품질**: `cargo build` warning 0건, `cargo clippy` warning 0건
-- **Parity 재검증 상태**: full parity 재실행 완료 — `compared=1438`, `matches=1438`, `drift=0`, `skipped=9`, `errors=0`
+- **Parity 재검증 상태**: full parity 재실행 완료 — `total=1998`, `compared=1989`, `matches=1988`, `drift=1`, `skipped=9`, `errors=0`
 - **알려진 실패**: 없음 (`elk_live_examples_test` 해결 완료 — cross-hierarchy edge graceful skip + 30s timeout)
 - `213_componentsCompaction.elkt`: `java_non_ok=nan_output`으로 분류 — Rust 출력이 더 정확
 
