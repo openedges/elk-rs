@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, VecDeque};
+use std::collections::VecDeque;
 use std::sync::{Arc, LazyLock};
 
 static TRACE_CROSSINGS_BREAKDOWN: LazyLock<bool> =
@@ -20,6 +20,10 @@ pub struct CrossingsCounter {
     ends: VecDeque<i32>,
     node_cardinalities: Vec<i32>,
     snapshot: Option<Arc<CrossMinSnapshot>>,
+    /// Reusable scratch buffer for port deduplication (replaces per-call BTreeSet)
+    scratch_seen: Vec<usize>,
+    /// Reusable scratch buffer for edge collection
+    scratch_edge_buf: Vec<LEdgeRef>,
 }
 
 impl CrossingsCounter {
@@ -30,6 +34,8 @@ impl CrossingsCounter {
             ends: VecDeque::new(),
             node_cardinalities: Vec::new(),
             snapshot: None,
+            scratch_seen: Vec::new(),
+            scratch_edge_buf: Vec::new(),
         }
     }
 
@@ -250,18 +256,18 @@ impl CrossingsCounter {
     }
 
     fn connected_in_layer_ports_sorted_by_position(
-        &self,
+        &mut self,
         upper_node: &LNodeRef,
         lower_node: &LNodeRef,
         side: PortSide,
     ) -> Vec<LPortRef> {
         let mut ports: Vec<LPortRef> = Vec::new();
-        let mut edge_buf = Vec::new();
-        let mut seen: BTreeSet<usize> = BTreeSet::new();
+        self.scratch_seen.clear();
+        self.scratch_edge_buf.clear();
         for node in [upper_node, lower_node] {
             for port in in_north_south_east_west_order(node, side) {
-                collect_connected_edges(&port, &mut edge_buf);
-                for edge in &edge_buf {
+                collect_connected_edges(&port, &mut self.scratch_edge_buf);
+                for edge in &self.scratch_edge_buf {
                     if edge
                         .lock()
                         .ok()
@@ -270,12 +276,16 @@ impl CrossingsCounter {
                     {
                         continue;
                     }
-                    if seen.insert(port_ptr_id(&port)) {
+                    let pid = port_ptr_id(&port);
+                    if !self.scratch_seen.contains(&pid) {
+                        self.scratch_seen.push(pid);
                         ports.push(port.clone());
                     }
                     if is_in_layer(edge) {
                         let other = other_end_of(edge, &port);
-                        if seen.insert(port_ptr_id(&other)) {
+                        let oid = port_ptr_id(&other);
+                        if !self.scratch_seen.contains(&oid) {
+                            self.scratch_seen.push(oid);
                             ports.push(other);
                         }
                     }
@@ -287,24 +297,28 @@ impl CrossingsCounter {
     }
 
     fn connected_ports_sorted_by_position(
-        &self,
+        &mut self,
         upper_port: &LPortRef,
         lower_port: &LPortRef,
     ) -> Vec<LPortRef> {
         let mut ports: Vec<LPortRef> = Vec::new();
-        let mut edge_buf = Vec::new();
-        let mut seen: BTreeSet<usize> = BTreeSet::new();
+        self.scratch_seen.clear();
+        self.scratch_edge_buf.clear();
         for port in [upper_port, lower_port] {
-            if seen.insert(port_ptr_id(port)) {
+            let pid = port_ptr_id(port);
+            if !self.scratch_seen.contains(&pid) {
+                self.scratch_seen.push(pid);
                 ports.push(port.clone());
             }
-            collect_connected_edges(port, &mut edge_buf);
-            for edge in &edge_buf {
+            collect_connected_edges(port, &mut self.scratch_edge_buf);
+            for edge in &self.scratch_edge_buf {
                 if is_port_self_loop(edge) {
                     continue;
                 }
                 let other = other_end_of(edge, port);
-                if seen.insert(port_ptr_id(&other)) {
+                let oid = port_ptr_id(&other);
+                if !self.scratch_seen.contains(&oid) {
+                    self.scratch_seen.push(oid);
                     ports.push(other);
                 }
             }
@@ -922,17 +936,19 @@ impl CrossingsCounter {
         lower_port: &LPortRef,
     ) -> Vec<u32> {
         let mut ports: Vec<u32> = Vec::new();
-        let mut seen: BTreeSet<u32> = BTreeSet::new();
+        let mut seen: Vec<u32> = Vec::new();
         for port in [upper_port, lower_port] {
             let pid = snap.port_id(port);
-            if seen.insert(pid) {
+            if !seen.contains(&pid) {
+                seen.push(pid);
                 ports.push(pid);
             }
             for &other_pid in snap.port_predecessors(pid) {
                 if other_pid == pid {
                     continue;
                 }
-                if seen.insert(other_pid) {
+                if !seen.contains(&other_pid) {
+                    seen.push(other_pid);
                     ports.push(other_pid);
                 }
             }
@@ -940,7 +956,8 @@ impl CrossingsCounter {
                 if other_pid == pid {
                     continue;
                 }
-                if seen.insert(other_pid) {
+                if !seen.contains(&other_pid) {
+                    seen.push(other_pid);
                     ports.push(other_pid);
                 }
             }
@@ -957,7 +974,7 @@ impl CrossingsCounter {
         side: PortSide,
     ) -> Vec<u32> {
         let mut ports: Vec<u32> = Vec::new();
-        let mut seen: BTreeSet<u32> = BTreeSet::new();
+        let mut seen: Vec<u32> = Vec::new();
         for node in [upper_node, lower_node] {
             let node_ports = self.nsew_ports_snap(snap, node, side);
             for pid in node_ports {
@@ -969,12 +986,14 @@ impl CrossingsCounter {
                     if snap.port_owner_flat(pid) == snap.port_owner_flat(other_pid) {
                         continue;
                     }
-                    if seen.insert(pid) {
+                    if !seen.contains(&pid) {
+                        seen.push(pid);
                         ports.push(pid);
                     }
                     if snap.port_owner_layer(pid) == snap.port_owner_layer(other_pid)
-                        && seen.insert(other_pid)
+                        && !seen.contains(&other_pid)
                     {
+                        seen.push(other_pid);
                         ports.push(other_pid);
                     }
                 }
