@@ -63,19 +63,25 @@
   - NAPI 플랫폼별 패키지 6개 추가 완료: `@elk-rs/darwin-arm64`, `@elk-rs/darwin-x64`, `@elk-rs/linux-x64-gnu`, `@elk-rs/linux-x64-musl`, `@elk-rs/linux-arm64-gnu`, `@elk-rs/win32-x64-msvc`
   - 로딩 우선순위: 플랫폼 NAPI 패키지 → 로컬 `.node` → WASM 폴백
   - CI/CD: `.github/workflows/napi.yml` (태그 push 시 6 플랫폼 크로스 빌드 + npm publish)
-- **성능 기준선 (6-way fair benchmark, synthetic 10/3)**:
-  - 전체 26 시나리오 평균: java 99.6ms, rust_native **26.3ms** → Rust **3.79x faster**
-  - `layered_xlarge`: rust_native **244ms** vs java **356ms** → Rust **1.46x faster**
-  - `force_xlarge`: rust_native **139ms** vs java **928ms** → Rust **6.7x faster** (SoA 최적화)
-  - `stress_xlarge`: rust_native **167ms** vs java **992ms** → Rust **5.9x faster** (SoA 최적화)
-  - `routing_orthogonal`: rust_native **2.51ms** vs java **2.74ms** → Rust **1.09x faster** (edge lock 배치)
-  - `radial_xlarge`: rust_native 27ms vs java 18ms → Java 1.5x faster (RefCell/Rc 아키텍처 제약)
-  - Rust 우위: layered/force/stress/mrtree/rectpacking/routing/crossing-min/hierarchy; Java 우위: radial
-  - API 그룹: rust_api ~8-11x faster than elkjs (동일 JSON parse+layout+serialize 경로)
+- **성능 기준선 (6-way fair benchmark, synthetic 10/3, 2026-03-04 측정)**:
+  - 측정 머신: Mac Studio, Apple M1 Ultra (20코어: 16P+4E), 128GB RAM, macOS 26.3
+  - 툴체인: Rust 1.91.1, OpenJDK 21.0.10, Node.js 20.19.2
+  - 전체 26 시나리오 평균: java 121.0ms, rust_native **33.1ms** → Rust **3.65x faster**
+  - Rust wins 18/26 시나리오, Java wins 8/26 시나리오
+  - `layered_xlarge`: rust_native **320ms** vs java **513ms** → Rust **1.60x faster**
+  - `force_xlarge`: rust_native **160ms** vs java **1110ms** → Rust **6.95x faster** (SoA 최적화)
+  - `stress_xlarge`: rust_native **196ms** vs java **1187ms** → Rust **6.06x faster** (SoA 최적화)
+  - `mrtree_xlarge`: rust_native 49ms vs java 31ms → Java 1.57x faster (Arc<Mutex> 아키텍처 제약)
+  - `radial_xlarge`: rust_native 36ms vs java 17ms → Java 2.12x faster (Rc<RefCell> 아키텍처 제약)
+  - `routing_orthogonal`: rust_native **3.66ms** vs java **3.80ms** → Rust **1.04x faster**
+  - Rust 우위: layered/force/stress/rectpacking/routing/crossmin/hierarchy; Java 우위: radial_xlarge/mrtree_xlarge
+  - API 그룹: rust_api ~9-64x faster than elkjs (동일 JSON parse+layout+serialize 경로)
   - 6-way 공정성: 동일 LCG seed + rejection sampling DAG + max_attempts=edges*100 + 동일 타이밍 범위
+  - **MRTree SoA 최적화** (Phase 24-25): Reingold-Tilford SoA + DirectionProc/NodePositionProc 인라인, direct_children 캐시, FanProc/LevelProc 제거
+  - **Radial SoA 최적화** (Phase 24-25): RadialSoA + PolarCoordinateSorter pre-computed arc sort, overlap removal 최적화 (root center 캐시 + bounds pre-extract)
   - **Edge routing 최적화** (Phase 23): 3개 routing strategy에서 edge lock 4+회 → 1회 배치, crossing-min에서 in-place reverse
   - **SoA 최적화** (Phase 20-21): Force/Stress 알고리즘에 SoA(Struct-of-Arrays) 패턴 적용, O(n²) hot loop에서 lock 제거
-  - Radial은 PolarCoordinateSorter + evaluator SoA 추가했으나 default config에서 미사용 경로
+  - 상세 리포트: `tests/perf/report.md`
 - **코드 품질**: `cargo build` warning 0건, `cargo clippy` warning 0건
 - **Parity 재검증 상태**: full parity 재실행 완료 — `total=1998`, `compared=1989`, `matches=1988`, `drift=1`, `skipped=9`, `errors=0`
 - **알려진 실패**: 없음 (`elk_live_examples_test` 해결 완료 — cross-hierarchy edge graceful skip + 30s timeout)
