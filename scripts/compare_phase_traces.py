@@ -721,7 +721,12 @@ def print_model_result(result: ModelResult, verbose: bool) -> None:
 # Output: batch (human-readable table)
 # ---------------------------------------------------------------------------
 
-def print_batch_results(results: list[ModelResult]) -> None:
+def print_batch_results(
+    results: list[ModelResult],
+    java_only: Optional[set] = None,
+    rust_only: Optional[set] = None,
+    report_missing: bool = False,
+) -> None:
     col_m = max((len(r.model) for r in results), default=5)
     col_m = max(col_m, 24)
     col_p = max((len(r.first_div_processor or "-") for r in results), default=10)
@@ -744,7 +749,26 @@ def print_batch_results(results: list[ModelResult]) -> None:
     print()
     n_match = sum(1 for r in results if r.first_div_step is None)
     n_drift = len(results) - n_match
-    print(bold(f"Batch summary: {n_match} match, {n_drift} drift out of {len(results)} models"))
+    n_java_only = len(java_only) if java_only else 0
+    n_rust_only = len(rust_only) if rust_only else 0
+    summary = (f"Batch summary: {n_match} match, {n_drift} drift out of {len(results)} models"
+               f" (java_only={n_java_only}, rust_only={n_rust_only})")
+    print(bold(summary))
+
+    if report_missing and (n_java_only > 0 or n_rust_only > 0):
+        print()
+        if java_only:
+            print(yellow(f"Java-only models ({n_java_only}):"))
+            for name in sorted(java_only)[:50]:
+                print(f"  {name}")
+            if n_java_only > 50:
+                print(f"  ... and {n_java_only - 50} more")
+        if rust_only:
+            print(yellow(f"Rust-only models ({n_rust_only}):"))
+            for name in sorted(rust_only)[:50]:
+                print(f"  {name}")
+            if n_rust_only > 50:
+                print(f"  ... and {n_rust_only - 50} more")
 
 
 # ---------------------------------------------------------------------------
@@ -778,12 +802,21 @@ def _find_trace_dirs(base: Path) -> dict[str, Path]:
     return result
 
 
-def iter_model_pairs(java_base: Path, rust_base: Path) -> Iterator[tuple[str, Path, Path]]:
-    """Yield (model_name, java_dir, rust_dir) for each common model trace directory."""
+def iter_model_pairs(
+    java_base: Path, rust_base: Path
+) -> tuple[Iterator[tuple[str, Path, Path]], set[str], set[str]]:
+    """Return (iterator of common pairs, java_only names, rust_only names)."""
     jmodels = _find_trace_dirs(java_base)
     rmodels = _find_trace_dirs(rust_base)
-    for name in sorted(set(jmodels) & set(rmodels)):
-        yield name, jmodels[name], rmodels[name]
+    common = sorted(set(jmodels) & set(rmodels))
+    java_only = set(jmodels) - set(rmodels)
+    rust_only = set(rmodels) - set(jmodels)
+
+    def _iter() -> Iterator[tuple[str, Path, Path]]:
+        for name in common:
+            yield name, jmodels[name], rmodels[name]
+
+    return _iter(), java_only, rust_only
 
 
 # ---------------------------------------------------------------------------
@@ -844,6 +877,8 @@ Examples:
                              "(auto-detected if sub-dirs contain step files)")
     parser.add_argument("--max-diffs", type=int, default=500, metavar="N",
                         help="Maximum diffs collected per step (default: 500)")
+    parser.add_argument("--report-missing", action="store_true",
+                        help="Report models present in only one trace directory (batch mode)")
     return parser
 
 
@@ -867,8 +902,9 @@ def main() -> int:
     # ------------------------------------------------------------------
     # Batch mode
     if batch_mode:
+        pairs_iter, java_only, rust_only = iter_model_pairs(java_base, rust_base)
         results: list[ModelResult] = []
-        for model_name, jdir, rdir in iter_model_pairs(java_base, rust_base):
+        for model_name, jdir, rdir in pairs_iter:
             r = compare_model(jdir, rdir, model_name, comparator,
                               stop_at_first=args.stop_at_first)
             results.append(r)
@@ -881,11 +917,14 @@ def main() -> int:
                     "total_models": len(results),
                     "all_match": sum(1 for r in results if r.first_div_step is None),
                     "diverged": sum(1 for r in results if r.first_div_step is not None),
+                    "java_only": len(java_only),
+                    "rust_only": len(rust_only),
                 },
             }
             print(json.dumps(out, indent=2))
         else:
-            print_batch_results(results)
+            print_batch_results(results, java_only=java_only, rust_only=rust_only,
+                                report_missing=args.report_missing)
 
         return 0 if all(r.first_div_step is None for r in results) else 1
 

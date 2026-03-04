@@ -234,9 +234,9 @@ def main() -> int:
             first_diff = ""
             top_category = ""
 
-            if java_status != "ok" or rust_status != "ok":
+            if not java_layout_json or not rust_layout_json or rust_status != "ok":
                 skipped += 1
-                status = "skip_non_ok"
+                status = "skip_no_output"
             else:
                 compared += 1
                 try:

@@ -80,8 +80,8 @@ Patches are applied automatically during Java baseline export:
 
 | Item | Comparison | Current Status |
 |------|------------|----------------|
-| Model parity | Java vs Rust layout JSON | 1438/1438 = 100% |
-| Phase-step trace | Intermediate state across 50+ processors | 1439/1439 = 100% |
+| Model parity | Java vs Rust layout JSON | 1988/1989 = 100% (1998 total, 9 skipped) |
+| Phase-step trace | Intermediate state across 50+ processors | 1997/1997 = 100% |
 | JS parity | 3-way: elk-rs JS vs elkjs vs Java | 550/550 = 100% |
 
 Commands and outputs:
@@ -95,6 +95,10 @@ MODEL_PARITY_SKIP_JAVA_EXPORT=true \
 # Phase-step trace
 python3 scripts/compare_phase_traces.py <java_trace_dir> <rust_trace_dir> --batch
 # Output: tests/model_parity/phase_gate_latest.md
+
+# Full trace (all models including .json + java-error, with missing-model reporting)
+sh scripts/run_full_trace_parity.sh [models_root] [output_base]
+# Wraps: full manifest generation + Rust trace + compare --report-missing
 
 # JS parity
 cd plugins/org.eclipse.elk.js && npm run test:parity

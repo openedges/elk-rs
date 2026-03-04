@@ -640,12 +640,12 @@ fn run(config: Config) -> Result<(), String> {
             env::set_var("ELK_TRACE_DIR", model_trace_dir.as_os_str());
         }
 
-        let (rust_layout_json, rust_status, rust_error) = if row.java_status != "ok" {
+        let (rust_layout_json, rust_status, rust_error) = if !Path::new(&row.input_json).exists() {
             skipped += 1;
             (
                 String::new(),
-                "skipped_java_non_ok".to_string(),
-                format!("java status was `{}`", row.java_status),
+                "skipped_no_input".to_string(),
+                format!("input file not found: {}", row.input_json),
             )
         } else {
             let output_json_path = config

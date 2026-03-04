@@ -83,8 +83,8 @@ cargo clippy --workspace --all-targets
 cargo test --workspace
 ```
 
-**Current status** (2026-02-28): 653 tests, 1 known failure
-(`elk_live_examples_test` — cross-hierarchy edge resolution, see `TESTING.md` § 4.2).
+**Current status** (2026-03-04): 653 tests, 0 known failures.
+(`elk_live_examples_test` resolved — cross-hierarchy edge graceful skip + 30s timeout).
 
 JS unit tests (Vitest):
 
@@ -97,8 +97,8 @@ npm test   # vitest run
 
 ### 2. Model Parity (Layout Output Comparison)
 
-The primary parity gate. Compares complete layout output of 1448 models
-(examples, tests, tickets, realworld) between Java ELK and elk-rs.
+The primary parity gate. Compares complete layout output of 1998 models
+(examples, tests, tickets, realworld including .json ptolemy models) between Java ELK and elk-rs.
 
 ```sh
 # Full run: Java export + Rust layout + comparison
@@ -110,15 +110,33 @@ MODEL_PARITY_SKIP_JAVA_EXPORT=true \
   sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models tests/model_parity
 ```
 
-**Current status** (2026-02-26):
-- Total: 1448 models, Compared: 1438, **Matched: 1438**, Drift: 0, Skipped: 10
-- Match rate: **100%**
-- Skipped: 9 Java exceptions + 1 Java NaN bug (`213_componentsCompaction.elkt`)
+**Current status** (2026-03-04):
+- Total: 1998 models, Compared: 1989, **Matched: 1988**, Drift: 1, Skipped: 9
+- Match rate: **100%** (drift is known `213_componentsCompaction` Java NaN bug)
+- Skipped: 9 Java exceptions/timeouts
+- Coverage expanded from 1438 → 1988 by including 550 .json ptolemy models
 
 Output reports:
 - `tests/model_parity/report.md` -- summary with drift classification
 - `tests/model_parity/diff_details.tsv` -- per-model detail rows
 - `tests/model_parity/rust_manifest.tsv` -- Rust runner results
+
+#### Comparison Algorithm (`compare_model_parity_layouts.py`)
+
+Byte 단위 비교가 아닌 **JSON 파싱 후 의미 기반(semantic) 비교**를 수행한다.
+
+- **숫자 비교**: `abs(java - rust) <= abs_tol` (기본 `1e-6`) 이내면 match.
+  `math.isfinite` 검사로 NaN/Infinity도 처리.
+- **배열 정규화**: 비교 전 `stable_array`로 정렬하여 순서 차이를 흡수한다.
+  - `id` 필드가 있는 객체 배열 → `id` 기준 정렬
+  - `sources`/`targets` 배열 → 문자열 기준 알파벳 정렬
+  - 기타 배열 → 원본 순서 유지
+- **재귀 비교**: dict는 키 집합 비교 후 공통 키에 대해 재귀, list는 길이 비교 후
+  원소별 재귀, 기타 스칼라는 `==` 동등 비교.
+- **diff 분류**: 각 diff를 `coordinate`, `label`, `section`, `property`, `ordering`,
+  `structure`, `other`로 자동 분류하여 report에 집계.
+- **skip-fields**: `--skip-fields` 옵션으로 Java identity hash 기반 참조 필드
+  (`id`, `incomingShape` 등)를 비교에서 제외 가능.
 
 ### 3. Phase-Step Verification (Layered Pipeline Trace)
 
@@ -144,9 +162,33 @@ python3 scripts/summarize_phase_gate.py \
   --compare-json ... --output-md tests/model_parity/phase_gate_latest.md
 ```
 
-**Current status**: gate_pass=**true**, 1439/1439 models match at all 50+ steps.
+**Current status** (2026-03-04): gate_pass=**true**, 1997/1997 models match at all 50+ steps.
+Coverage expanded from 1438 → 1997 by including .json models. `rust_only=1`
+(`588_hierarchicalLayoutNPE.elkt` — Java NPE prevents trace generation).
 
 Output: `tests/model_parity/phase_gate_latest.md`
+
+#### Comparison Algorithm (`compare_phase_traces.py`)
+
+Model parity와 마찬가지로 **JSON 파싱 후 의미 기반 비교**를 수행하지만, 중간 상태
+비교에 맞는 별도 전략을 사용한다.
+
+- **숫자 tolerance**: `0.001` (model parity의 `1e-6`보다 느슨함). 중간 단계에서는
+  부동소수점 연산 순서 차이로 미세한 오차가 누적될 수 있기 때문.
+- **ID 무시 + positional matching**: Java와 Rust는 서로 다른 ID 스킴을 사용한다
+  (Java: `N1`, Rust: `N0` 등). 따라서 ID로 매칭하지 않고 **배열 위치 기반**으로
+  대응 노드/엣지/포트를 비교한다.
+- **Within-layer 노드 정렬**: 일부 프로세서(예: `NetworkSimplexLayerer`)는 내부
+  자료구조 차이(Java `HashMap` vs Rust `Vec`)로 같은 레이어 내 노드 순서가
+  비결정적이다. 비교 전에 composite key로 정렬하여 순서 차이를 흡수한다:
+  `(labels, type, port_count, port_sides, width, height, x, y)`
+- **Java 0값 skip**: import 단계에서 Java `LNode`는 geometry를 0으로 초기화하지만,
+  Rust는 `ElkNode` 원본 값을 보존한다. `x, y, width, height` 필드에서
+  `java=0, rust≠0`인 경우는 diff에서 제외한다.
+- **포맷 정규화**: Java의 flat 포맷(`nodes`/`edges`/`layers`)과 component 포맷
+  (`components` 배열)을 공통 구조(`all_nodes`/`layer_ids`/`edges`)로 정규화한 뒤 비교.
+- **Cascade 표시**: 첫 divergence 이후 단계들은 `cascaded=true`로 표시하여,
+  원인 단계와 파생 단계를 구분한다.
 
 ### 4. API/Metadata Parity
 
@@ -294,7 +336,7 @@ python3 scripts/compare_model_parity_layouts.py \
   --skip-fields 'id,incomingShape,outgoingShape,sources,targets,container'
 ```
 
-**Verified**: 1439/1439 models produce identical coordinates across Java runs
+**Verified**: 1998/1998 models produce identical coordinates across Java runs
 (0 coordinate diffs when reference fields are excluded).
 
 ### Inside Self-Loop Node Compaction
@@ -303,16 +345,19 @@ Rust's `json_importer.rs` forces childless inside self-loop nodes to `width=4.0`
 (matching Java behavior). A `has_no_children` guard ensures nodes with children
 retain their correct width from recursive layout.
 
-### Skipped Models (10)
+### Skipped Models (9)
 
-Models where Java ELK itself reports a non-ok status (exception, timeout, NaN
-output) are excluded from comparison. These are tracked in the manifest as
-`java_status != ok`.
+Models where Java ELK itself fails are excluded from layout comparison.
+The manifest now covers all 1998 models (.elkt/.elkg/.json); skip is determined
+by Java layout output file existence (not a status field).
 
 | Count | Category | Description |
 |------:|----------|-------------|
 | 9 | exception/timeout | Java ELK throws or times out during layout |
-| 1 | nan_output | `213_componentsCompaction.elkt` — Java `ComponentsCompactor` produces NaN y-coordinates (73 fields) due to degenerate `∞ - ∞` bounding box computation with zero-size nodes. Rust output is correct. |
+
+`213_componentsCompaction.elkt` is in `java_exclude.txt` — Java `ComponentsCompactor`
+produces NaN y-coordinates (73 fields) due to degenerate `∞ - ∞` bounding box
+computation with zero-size nodes. Rust output is correct. Drift=1 in comparison.
 
 ## CI Integration
 
@@ -369,9 +414,12 @@ plugins/org.eclipse.elk.js/
 
 scripts/
   run_model_parity_elk_vs_rust.sh    # Full parity pipeline (Java+Rust+compare)
+  run_full_trace_parity.sh           # Full trace parity (Java trace+manifest+Rust trace+compare)
+  generate_full_trace_manifest.py    # Scan elk-models + Java output → unified manifest TSV
   java_model_parity_trace.sh         # Java-only export with patch support
   java_model_phase_step_trace.sh     # Java phase-step trace exporter
   compare_model_parity_layouts.py    # JSON diff tool (--skip-fields, --strict)
+  compare_phase_traces.py            # Phase-step trace comparator (--batch, --report-missing)
   check_*.sh                         # Individual parity gate checks
   java/patches/                      # Java determinism patches
     0001-deterministic-opposing-self-loop-routing.patch

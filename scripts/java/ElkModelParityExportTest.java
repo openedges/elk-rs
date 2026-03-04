@@ -129,16 +129,25 @@ public class ElkModelParityExportTest {
                     Files.createDirectories(inputJsonPath.getParent());
                     Files.createDirectories(javaLayoutJsonPath.getParent());
 
-                    ElkNode loadedGraph = loadGraph(modelFile);
-                    loadedGraph.setProperty(CoreOptions.RANDOM_SEED, randomSeed);
-                    String inputJson = ElkGraphJson.forGraph(loadedGraph)
-                            .prettyPrint(prettyPrint)
-                            .shortLayoutOptionKeys(false)
-                            .omitZeroPositions(false)
-                            .omitZeroDimension(false)
-                            .omitLayout(false)
-                            .omitUnknownLayoutOptions(false)
-                            .toJson();
+                    String inputJson;
+                    boolean isJsonModel = modelFile.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".json");
+
+                    if (isJsonModel) {
+                        // .json models are already valid ELK JSON — use directly
+                        inputJson = Files.readString(modelFile, StandardCharsets.UTF_8);
+                    } else {
+                        // .elkt/.elkg — load via EMF and convert to JSON
+                        ElkNode loadedGraph = loadGraph(modelFile);
+                        loadedGraph.setProperty(CoreOptions.RANDOM_SEED, randomSeed);
+                        inputJson = ElkGraphJson.forGraph(loadedGraph)
+                                .prettyPrint(prettyPrint)
+                                .shortLayoutOptionKeys(false)
+                                .omitZeroPositions(false)
+                                .omitZeroDimension(false)
+                                .omitLayout(false)
+                                .omitUnknownLayoutOptions(false)
+                                .toJson();
+                    }
                     Files.writeString(inputJsonPath, inputJson, StandardCharsets.UTF_8);
 
                     JsonObject jsonGraph = JsonParser.parseString(inputJson).getAsJsonObject();
@@ -147,6 +156,10 @@ public class ElkModelParityExportTest {
                             .rememberImporter(importerMaybe)
                             .lenient(false)
                             .toElk();
+
+                    if (!isJsonModel) {
+                        layoutGraph.setProperty(CoreOptions.RANDOM_SEED, randomSeed);
+                    }
 
                     new RecursiveGraphLayoutEngine().layout(layoutGraph, new BasicProgressMonitor());
                     importerMaybe.get().transferLayout(layoutGraph);
@@ -218,7 +231,7 @@ public class ElkModelParityExportTest {
 
     private static boolean isSupportedModelFile(final Path path) {
         String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
-        return name.endsWith(".elkt") || name.endsWith(".elkg");
+        return name.endsWith(".elkt") || name.endsWith(".elkg") || name.endsWith(".json");
     }
 
     private static boolean matchesIncludeTokens(

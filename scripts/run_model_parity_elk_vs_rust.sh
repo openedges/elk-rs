@@ -19,7 +19,7 @@ case "$OUTPUT_ROOT_INPUT" in
 esac
 
 JAVA_OUTPUT_DIR="$OUTPUT_ROOT/java"
-JAVA_MANIFEST="$JAVA_OUTPUT_DIR/java_manifest.tsv"
+MANIFEST="$JAVA_OUTPUT_DIR/java_manifest.tsv"
 RUST_LAYOUT_DIR="$OUTPUT_ROOT/rust/layout"
 RUST_MANIFEST="$OUTPUT_ROOT/rust_manifest.tsv"
 REPORT_FILE="$OUTPUT_ROOT/report.md"
@@ -46,23 +46,29 @@ if [ -z "$JAVA_PARITY_EXCLUDE_FILE" ] && [ -f "$OUTPUT_ROOT/java_exclude.txt" ];
 fi
 
 if [ "$MODEL_PARITY_SKIP_JAVA_EXPORT" = "true" ]; then
-  if [ ! -f "$JAVA_MANIFEST" ]; then
-    echo "MODEL_PARITY_SKIP_JAVA_EXPORT=true but Java manifest is missing: $JAVA_MANIFEST" >&2
+  if [ ! -f "$MANIFEST" ]; then
+    echo "MODEL_PARITY_SKIP_JAVA_EXPORT=true but manifest is missing: $MANIFEST" >&2
     echo "run once without MODEL_PARITY_SKIP_JAVA_EXPORT to create Java baseline first." >&2
     exit 1
   fi
-  echo "skipping Java parity export; reusing existing manifest: $JAVA_MANIFEST"
+  echo "skipping Java parity export; reusing existing manifest: $MANIFEST"
 else
   JAVA_PARITY_EXCLUDE_FILE="$JAVA_PARITY_EXCLUDE_FILE" \
   JAVA_PARITY_RANDOM_SEED="$MODEL_PARITY_RANDOM_SEED" \
     sh "$SCRIPT_DIR/java_model_parity_trace.sh" "$MODELS_ROOT" "$JAVA_OUTPUT_DIR"
 fi
 
+# Build unified manifest by scanning models directory + Java output
+python3 "$SCRIPT_DIR/generate_full_trace_manifest.py" \
+  --models-root "$MODELS_ROOT" \
+  --java-output-dir "$JAVA_OUTPUT_DIR" \
+  --output "$MANIFEST"
+
 MODEL_PARITY_RANDOM_SEED="$MODEL_PARITY_RANDOM_SEED" \
   cargo run -p org-eclipse-elk-graph-json --bin model_parity_layout_runner \
   $MODEL_PARITY_CARGO_FLAGS \
   -- \
-  --input-manifest "$JAVA_MANIFEST" \
+  --input-manifest "$MANIFEST" \
   --output-manifest "$RUST_MANIFEST" \
   --rust-layout-dir "$RUST_LAYOUT_DIR" \
   --pretty-print "$MODEL_PARITY_PRETTY_PRINT" \
@@ -85,7 +91,7 @@ python3 "$SCRIPT_DIR/compare_model_parity_layouts.py" \
 echo "model parity completed:"
 echo "  report : $REPORT_FILE"
 echo "  details: $DETAILS_FILE"
-echo "  rust manifest: $RUST_MANIFEST"
+echo "  manifest: $RUST_MANIFEST"
 echo "  progress log: $MODEL_PARITY_PROGRESS_LOG"
 
 # Print report summary (match/drift/error/timeout counts)
