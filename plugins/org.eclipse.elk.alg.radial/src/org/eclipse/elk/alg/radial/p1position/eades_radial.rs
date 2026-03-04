@@ -123,8 +123,7 @@ impl EadesRadial {
             .unwrap_or_else(|| RadialUtil::get_successors(node));
 
         if let Some(sorter) = sorter.as_mut() {
-            sorter.initialize(root);
-            sorter.sort(&mut successors);
+            sorter.sort_for_parent(&mut successors, node, root, current_radius == 0.0);
         }
 
         for child in successors {

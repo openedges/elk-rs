@@ -104,28 +104,31 @@ impl NodeOrderer {
             _ => InternalProperties::FAN,
         };
 
-        current_level.sort_by(|a, b| {
-            let a_val = a
-                .lock()
-                .ok()
-                .and_then(|mut node_guard| node_guard.get_property(sort_property))
-                .unwrap_or(0);
-            let b_val = b
-                .lock()
-                .ok()
-                .and_then(|mut node_guard| node_guard.get_property(sort_property))
-                .unwrap_or(0);
-            a_val.cmp(&b_val)
-        });
+        // Pre-extract sort keys to avoid locks in O(n log n) comparator
+        let mut sort_keys: Vec<i32> = current_level
+            .iter()
+            .map(|n| {
+                n.lock()
+                    .ok()
+                    .and_then(|mut g| g.get_property(sort_property))
+                    .unwrap_or(0)
+            })
+            .collect();
+        {
+            let keys = &sort_keys;
+            let mut indices: Vec<usize> = (0..current_level.len()).collect();
+            indices.sort_by(|&a, &b| keys[a].cmp(&keys[b]));
+            let orig: Vec<_> = current_level.to_vec();
+            let orig_keys = sort_keys.clone();
+            for (i, &idx) in indices.iter().enumerate() {
+                current_level[i] = orig[idx].clone();
+                sort_keys[i] = orig_keys[idx];
+            }
+        }
 
         let mut first_occ = current_level.len();
-        for node in current_level.iter().rev() {
-            let val = node
-                .lock()
-                .ok()
-                .and_then(|mut node_guard| node_guard.get_property(sort_property))
-                .unwrap_or(0);
-            if val == 0 {
+        for val in sort_keys.iter().rev() {
+            if *val == 0 {
                 first_occ = first_occ.saturating_sub(1);
             } else {
                 break;
@@ -162,23 +165,24 @@ impl NodeOrderer {
                     progress_monitor.sub_task(1.0 / size as f32),
                 );
 
-                children.sort_by(|a, b| {
-                    let a_pos = a
-                        .lock()
-                        .ok()
-                        .and_then(|mut node_guard| {
-                            node_guard.get_property(InternalProperties::POSITION)
+                // Pre-extract position keys to avoid locks in comparator
+                {
+                    let pos_keys: Vec<i32> = children
+                        .iter()
+                        .map(|c| {
+                            c.lock()
+                                .ok()
+                                .and_then(|mut g| g.get_property(InternalProperties::POSITION))
+                                .unwrap_or(0)
                         })
-                        .unwrap_or(0);
-                    let b_pos = b
-                        .lock()
-                        .ok()
-                        .and_then(|mut node_guard| {
-                            node_guard.get_property(InternalProperties::POSITION)
-                        })
-                        .unwrap_or(0);
-                    b_pos.cmp(&a_pos)
-                });
+                        .collect();
+                    let mut indices: Vec<usize> = (0..children.len()).collect();
+                    indices.sort_by(|&a, &b| pos_keys[b].cmp(&pos_keys[a]));
+                    let orig: Vec<_> = children.clone();
+                    for (i, &idx) in indices.iter().enumerate() {
+                        children[i] = orig[idx].clone();
+                    }
+                }
 
                 let sorted_edges = reorder_edges(parent, &children);
                 if let Ok(mut parent_guard) = parent.lock() {
@@ -306,23 +310,24 @@ impl NodeOrderer {
             }
         }
 
-        out_of_bound_nodes.sort_by(|a, b| {
-            let a_val = a
-                .lock()
-                .ok()
-                .and_then(|mut node_guard| {
-                    node_guard.get_property(MrTreeOptions::POSITION_CONSTRAINT)
+        // Pre-extract constraint keys to avoid locks in comparator
+        {
+            let keys: Vec<i32> = out_of_bound_nodes
+                .iter()
+                .map(|n| {
+                    n.lock()
+                        .ok()
+                        .and_then(|mut g| g.get_property(MrTreeOptions::POSITION_CONSTRAINT))
+                        .unwrap_or(0)
                 })
-                .unwrap_or(0);
-            let b_val = b
-                .lock()
-                .ok()
-                .and_then(|mut node_guard| {
-                    node_guard.get_property(MrTreeOptions::POSITION_CONSTRAINT)
-                })
-                .unwrap_or(0);
-            b_val.cmp(&a_val)
-        });
+                .collect();
+            let mut indices: Vec<usize> = (0..out_of_bound_nodes.len()).collect();
+            indices.sort_by(|&a, &b| keys[b].cmp(&keys[a]));
+            let orig = out_of_bound_nodes.clone();
+            for (i, &idx) in indices.iter().enumerate() {
+                out_of_bound_nodes[i] = orig[idx].clone();
+            }
+        }
 
         for slot in sorted_nodes.iter_mut().rev() {
             if slot.is_none() && !out_of_bound_nodes.is_empty() {
@@ -367,23 +372,24 @@ impl NodeOrderer {
                 &mut children,
                 progress_monitor.sub_task(1.0 / size as f32),
             );
-            children.sort_by(|a, b| {
-                let a_pos = a
-                    .lock()
-                    .ok()
-                    .and_then(|mut node_guard| {
-                        node_guard.get_property(InternalProperties::POSITION)
+            // Pre-extract position keys to avoid locks in comparator
+            {
+                let pos_keys: Vec<i32> = children
+                    .iter()
+                    .map(|c| {
+                        c.lock()
+                            .ok()
+                            .and_then(|mut g| g.get_property(InternalProperties::POSITION))
+                            .unwrap_or(0)
                     })
-                    .unwrap_or(0);
-                let b_pos = b
-                    .lock()
-                    .ok()
-                    .and_then(|mut node_guard| {
-                        node_guard.get_property(InternalProperties::POSITION)
-                    })
-                    .unwrap_or(0);
-                a_pos.cmp(&b_pos)
-            });
+                    .collect();
+                let mut indices: Vec<usize> = (0..children.len()).collect();
+                indices.sort_by(|&a, &b| pos_keys[a].cmp(&pos_keys[b]));
+                let orig: Vec<_> = children.clone();
+                for (i, &idx) in indices.iter().enumerate() {
+                    children[i] = orig[idx].clone();
+                }
+            }
 
             let sorted_edges = reorder_edges(&parent, &children);
             if let Ok(mut parent_guard) = parent.lock() {

@@ -10,6 +10,18 @@ pub struct EdgeLengthOptimization;
 
 impl IEvaluation for EdgeLengthOptimization {
     fn evaluate(&self, root: &ElkNodeRef) -> f64 {
+        // Pre-extract root geometry ONCE instead of per-edge
+        let (root_cx, root_cy, root_w, root_h) = {
+            let mut root_mut = root.borrow_mut();
+            let shape = root_mut.connectable().shape();
+            (
+                shape.x() + shape.width() / 2.0,
+                shape.y() + shape.height() / 2.0,
+                shape.width(),
+                shape.height(),
+            )
+        };
+
         let mut edge_length = 0.0;
         for edge in ElkGraphUtil::all_outgoing_edges(root) {
             let target_shape = {
@@ -23,29 +35,36 @@ impl IEvaluation for EdgeLengthOptimization {
                 continue;
             };
 
-            let (mut target_x, mut target_y) = node_center(&target);
-            let (mut root_x, mut root_y) = node_center(root);
+            // Single borrow for target geometry
+            let (target_cx, target_cy, target_w, target_h) = {
+                let mut target_mut = target.borrow_mut();
+                let shape = target_mut.connectable().shape();
+                (
+                    shape.x() + shape.width() / 2.0,
+                    shape.y() + shape.height() / 2.0,
+                    shape.width(),
+                    shape.height(),
+                )
+            };
 
             let mut vector = KVector::new();
-            vector.x = target_x - root_x;
-            vector.y = target_y - root_y;
-            let (root_width, root_height) = node_size(root);
+            vector.x = target_cx - root_cx;
+            vector.y = target_cy - root_cy;
             let mut source_clip = KVector::with_values(vector.x, vector.y);
-            ElkMath::clip_vector(&mut source_clip, root_width, root_height);
+            ElkMath::clip_vector(&mut source_clip, root_w, root_h);
             vector.x -= source_clip.x;
             vector.y -= source_clip.y;
 
-            root_x = target_x - vector.x;
-            root_y = target_y - vector.y;
+            let root_x = target_cx - vector.x;
+            let root_y = target_cy - vector.y;
 
-            let (target_width, target_height) = node_size(&target);
             let mut target_clip = KVector::with_values(vector.x, vector.y);
-            ElkMath::clip_vector(&mut target_clip, target_width, target_height);
+            ElkMath::clip_vector(&mut target_clip, target_w, target_h);
             vector.x -= target_clip.x;
             vector.y -= target_clip.y;
 
-            target_x = root_x + vector.x;
-            target_y = root_y + vector.y;
+            let target_x = root_x + vector.x;
+            let target_y = root_y + vector.y;
 
             let vector_x = target_x - root_x;
             let vector_y = target_y - root_y;
@@ -53,19 +72,4 @@ impl IEvaluation for EdgeLengthOptimization {
         }
         edge_length
     }
-}
-
-fn node_center(node: &ElkNodeRef) -> (f64, f64) {
-    let mut node_mut = node.borrow_mut();
-    let shape = node_mut.connectable().shape();
-    (
-        shape.x() + shape.width() / 2.0,
-        shape.y() + shape.height() / 2.0,
-    )
-}
-
-fn node_size(node: &ElkNodeRef) -> (f64, f64) {
-    let mut node_mut = node.borrow_mut();
-    let shape = node_mut.connectable().shape();
-    (shape.width(), shape.height())
 }

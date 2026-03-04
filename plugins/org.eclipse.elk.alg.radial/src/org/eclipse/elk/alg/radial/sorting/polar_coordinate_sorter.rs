@@ -86,4 +86,33 @@ impl IRadialSorter for PolarCoordinateSorter {
         Self::sort_with_offset(&mut successors, 0.0);
         Self::set_id_for_nodes(&mut successors, 0);
     }
+
+    /// Direct polar-angle sort: O(k log k) per call instead of O(N) tree traversal.
+    /// Computes sort offset from parent's arc, matching the offset logic in set_id_for_nodes.
+    fn sort_for_parent(
+        &mut self,
+        nodes: &mut Vec<ElkNodeRef>,
+        parent: &ElkNodeRef,
+        _root: &ElkNodeRef,
+        is_root_level: bool,
+    ) {
+        if nodes.is_empty() {
+            return;
+        }
+        let offset = if is_root_level {
+            0.0
+        } else {
+            let arc = Self::node_arc(parent);
+            if !(DEGREE_45..=DEGREE_315).contains(&arc) {
+                PI
+            } else if arc > DEGREE_225 {
+                DEGREE_270
+            } else if arc > DEGREE_135 {
+                0.0
+            } else {
+                DEGREE_90
+            }
+        };
+        Self::sort_with_offset(nodes, offset);
+    }
 }
