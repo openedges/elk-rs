@@ -21,11 +21,16 @@ impl IDSorter {
 
 impl IRadialSorter for IDSorter {
     fn sort(&mut self, nodes: &mut Vec<ElkNodeRef>) {
-        nodes.sort_by(|a, b| {
-            let a_id = Self::order_id(a);
-            let b_id = Self::order_id(b);
-            a_id.cmp(&b_id)
-        });
+        // Pre-extract ORDER_ID to avoid O(N log N) borrows in comparator
+        let mut keyed: Vec<(i32, ElkNodeRef)> = nodes
+            .drain(..)
+            .map(|n| {
+                let key = Self::order_id(&n);
+                (key, n)
+            })
+            .collect();
+        keyed.sort_by(|a, b| a.0.cmp(&b.0));
+        nodes.extend(keyed.into_iter().map(|(_, n)| n));
     }
 
     fn initialize(&mut self, _root: &ElkNodeRef) {

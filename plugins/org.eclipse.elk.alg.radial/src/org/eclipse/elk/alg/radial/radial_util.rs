@@ -248,14 +248,11 @@ impl RadialUtil {
     }
 
     pub fn center_nodes_on_radi(node: &ElkNodeRef, x_pos: f64, y_pos: f64) {
-        let (width, height) = {
-            let mut node_mut = node.borrow_mut();
-            let shape = node_mut.connectable().shape();
-            (shape.width(), shape.height())
-        };
         let mut node_mut = node.borrow_mut();
         let shape = node_mut.connectable().shape();
-        shape.set_location(x_pos - width / 2.0, y_pos - height / 2.0);
+        let w = shape.width();
+        let h = shape.height();
+        shape.set_location(x_pos - w / 2.0, y_pos - h / 2.0);
     }
 
     pub fn shift_closest_edge_to_radi(node: &ElkNodeRef, x_pos: f64, y_pos: f64) {

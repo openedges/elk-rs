@@ -77,16 +77,24 @@ impl ILayoutPhase<TreeLayoutPhases, TGraphRef> for NodeOrderer {
 
     fn get_layout_processor_configuration(
         &self,
-        _graph: &TGraphRef,
+        graph: &TGraphRef,
     ) -> Option<LayoutProcessorConfiguration<TreeLayoutPhases, TGraphRef>> {
         let mut config = LayoutProcessorConfiguration::create();
         config
             .before(TreeLayoutPhases::P2NodeOrdering)
-            .add(std::sync::Arc::new(IntermediateProcessorStrategy::RootProc))
-            .add(std::sync::Arc::new(IntermediateProcessorStrategy::FanProc))
-            .add(std::sync::Arc::new(
-                IntermediateProcessorStrategy::LevelProc,
-            ));
+            .add(std::sync::Arc::new(IntermediateProcessorStrategy::RootProc));
+
+        // FanProc only needed for Fan/Descendants/Constraint weighting (not ModelOrder)
+        let weighting = graph
+            .lock()
+            .ok()
+            .and_then(|mut g| g.get_property(MrTreeOptions::WEIGHTING))
+            .unwrap_or(OrderWeighting::ModelOrder);
+        if weighting != OrderWeighting::ModelOrder {
+            config.add(std::sync::Arc::new(IntermediateProcessorStrategy::FanProc));
+        }
+        // LevelProc removed — InternalProperties::LEVEL is unused
+
         Some(config)
     }
 }
@@ -186,8 +194,7 @@ impl NodeOrderer {
 
                 let sorted_edges = reorder_edges(parent, &children);
                 if let Ok(mut parent_guard) = parent.lock() {
-                    parent_guard.outgoing_edges_mut().clear();
-                    parent_guard.outgoing_edges_mut().extend(sorted_edges);
+                    parent_guard.replace_outgoing_edges(sorted_edges);
                 }
 
                 let mut fill_gap = parent
@@ -393,8 +400,7 @@ impl NodeOrderer {
 
             let sorted_edges = reorder_edges(&parent, &children);
             if let Ok(mut parent_guard) = parent.lock() {
-                parent_guard.outgoing_edges_mut().clear();
-                parent_guard.outgoing_edges_mut().extend(sorted_edges);
+                parent_guard.replace_outgoing_edges(sorted_edges);
             }
         }
 

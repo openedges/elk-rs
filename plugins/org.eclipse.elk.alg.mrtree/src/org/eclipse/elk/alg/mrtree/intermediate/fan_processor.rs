@@ -84,6 +84,9 @@ impl FanProcessor {
         let mut index: i32 = 0;
         let mut last_id = String::new();
 
+        // Cache IDs during main loop to avoid re-locking in prefix computation
+        let mut cached_ids: Vec<String> = Vec::with_capacity(current_level.len());
+
         for node in current_level {
             if let Ok(mut node_guard) = node.lock() {
                 let parent_id = node_guard
@@ -105,6 +108,7 @@ impl FanProcessor {
                 };
                 index += 1;
                 last_id = id.clone();
+                cached_ids.push(id.clone());
                 node_guard.set_property(InternalProperties::ID, Some(id));
 
                 let children = node_guard.children_copy();
@@ -114,21 +118,18 @@ impl FanProcessor {
                     }
                     next_level.push(child);
                 }
+            } else {
+                cached_ids.push(String::new());
             }
         }
 
+        // Prefix computation using cached IDs (zero locks)
         let mut local_fan_map: HashMap<String, i32> = HashMap::new();
         if digits > 0 && last_id.len() >= digits {
             for i in 0..(last_id.len().saturating_sub(digits)) {
-                for node in current_level {
-                    if let Ok(mut node_guard) = node.lock() {
-                        let key = node_guard
-                            .get_property(InternalProperties::ID)
-                            .unwrap_or_default();
-                        let prefix = key.chars().take(i + 1).collect::<String>();
-                        let value = local_fan_map.get(&prefix).cloned().unwrap_or(0) + 1;
-                        local_fan_map.insert(prefix, value);
-                    }
+                for id in &cached_ids {
+                    let prefix: String = id.chars().take(i + 1).collect();
+                    *local_fan_map.entry(prefix).or_insert(0) += 1;
                 }
             }
         }

@@ -26,8 +26,10 @@ impl TEdge {
             labels: Vec::new(),
             bend_points: KVectorChain::new(),
         }));
-        TEdge::set_source(&edge, Some(source.clone()));
+        // Set target before source so add_outgoing can extract the target
+        // for the direct_children cache.
         TEdge::set_target(&edge, Some(target.clone()));
+        TEdge::set_source(&edge, Some(source.clone()));
         edge
     }
 

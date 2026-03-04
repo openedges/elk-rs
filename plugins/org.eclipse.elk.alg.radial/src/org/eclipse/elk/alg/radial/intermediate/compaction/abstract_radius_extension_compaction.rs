@@ -20,26 +20,32 @@ impl AbstractRadiusExtensionCompaction {
         layer_nodes: &[ElkNodeRef],
         is_contracting: bool,
     ) {
+        // Cache root center — constant across all nodes
+        let (parent_x, parent_y) = node_center(root);
+        let step = self.compaction_step as f64;
+
         for node in layer_nodes {
-            let (mut x_pos, mut y_pos) = node_center(node);
-            let (parent_x, parent_y) = node_center(root);
+            let mut node_mut = node.borrow_mut();
+            let shape = node_mut.connectable().shape();
+            let half_w = shape.width() / 2.0;
+            let half_h = shape.height() / 2.0;
+            let x_pos = shape.x() + half_w;
+            let y_pos = shape.y() + half_h;
 
-            let mut x = x_pos - parent_x;
-            let mut y = y_pos - parent_y;
-            let length = (x * x + y * y).sqrt();
+            let dx = x_pos - parent_x;
+            let dy = y_pos - parent_y;
+            let length = (dx * dx + dy * dy).sqrt();
 
-            x *= (self.compaction_step as f64) / length;
-            y *= (self.compaction_step as f64) / length;
+            let ux = dx * step / length;
+            let uy = dy * step / length;
 
             if is_contracting {
-                x_pos -= x;
-                y_pos -= y;
+                shape.set_x(x_pos - ux - half_w);
+                shape.set_y(y_pos - uy - half_h);
             } else {
-                x_pos += x;
-                y_pos += y;
+                shape.set_x(x_pos + ux - half_w);
+                shape.set_y(y_pos + uy - half_h);
             }
-
-            set_node_center(node, x_pos, y_pos);
         }
     }
 
@@ -70,12 +76,16 @@ impl AbstractRadiusExtensionCompaction {
         if nodes.len() < 2 {
             return false;
         }
+        // Pre-extract bounds to avoid repeated borrows
+        let bounds: Vec<(f64, f64, f64, f64)> =
+            nodes.iter().map(|n| node_bounds(n, self.spacing)).collect();
         let mut overlapping = false;
-        for i in 0..nodes.len() {
-            if i < nodes.len() - 1 {
-                overlapping |= self.overlap(&nodes[i], &nodes[i + 1]);
-            } else {
-                overlapping |= self.overlap(&nodes[i], &nodes[0]);
+        for i in 0..bounds.len() {
+            let j = if i < bounds.len() - 1 { i + 1 } else { 0 };
+            let (x1, y1, w1, h1) = bounds[i];
+            let (x2, y2, w2, h2) = bounds[j];
+            if x1 < x2 + w2 && x2 < x1 + w1 && y1 < y2 + h2 && y2 < y1 + h1 {
+                overlapping = true;
             }
         }
         overlapping
@@ -105,18 +115,6 @@ fn node_center(node: &ElkNodeRef) -> (f64, f64) {
         shape.x() + shape.width() / 2.0,
         shape.y() + shape.height() / 2.0,
     )
-}
-
-fn set_node_center(node: &ElkNodeRef, x: f64, y: f64) {
-    let (width, height) = {
-        let mut node_mut = node.borrow_mut();
-        let shape = node_mut.connectable().shape();
-        (shape.width(), shape.height())
-    };
-    let mut node_mut = node.borrow_mut();
-    let shape = node_mut.connectable().shape();
-    shape.set_x(x - width / 2.0);
-    shape.set_y(y - height / 2.0);
 }
 
 fn node_bounds(node: &ElkNodeRef, spacing: f64) -> (f64, f64, f64, f64) {

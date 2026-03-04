@@ -17,6 +17,9 @@ pub struct TNode {
     label: Option<String>,
     outgoing_edges: Vec<TEdgeRef>,
     incoming_edges: Vec<TEdgeRef>,
+    /// Pre-computed children list maintained alongside outgoing_edges.
+    /// Avoids locking each edge in children() calls.
+    direct_children: Vec<TNodeRef>,
 }
 
 impl TNode {
@@ -27,6 +30,7 @@ impl TNode {
             label: None,
             outgoing_edges: Vec::new(),
             incoming_edges: Vec::new(),
+            direct_children: Vec::new(),
         }));
 
         if let Some(graph) = graph {
@@ -133,6 +137,12 @@ impl TNode {
         {
             return;
         }
+        // Pre-extract target to avoid edge locks in children()
+        if let Ok(guard) = edge.lock() {
+            if let Some(target) = guard.target() {
+                self.direct_children.push(target);
+            }
+        }
         self.outgoing_edges.push(edge);
     }
 
@@ -154,6 +164,18 @@ impl TNode {
             .position(|candidate| Arc::ptr_eq(candidate, edge))
         {
             self.outgoing_edges.remove(index);
+            // Keep direct_children in sync
+            if let Ok(guard) = edge.lock() {
+                if let Some(target) = guard.target() {
+                    if let Some(ci) = self
+                        .direct_children
+                        .iter()
+                        .position(|c| Arc::ptr_eq(c, &target))
+                    {
+                        self.direct_children.remove(ci);
+                    }
+                }
+            }
         }
     }
 
@@ -167,6 +189,20 @@ impl TNode {
         }
     }
 
+    /// Replace outgoing edges and rebuild direct_children cache.
+    /// Use instead of outgoing_edges_mut().clear() + extend().
+    pub fn replace_outgoing_edges(&mut self, edges: Vec<TEdgeRef>) {
+        self.direct_children.clear();
+        for edge in &edges {
+            if let Ok(guard) = edge.lock() {
+                if let Some(target) = guard.target() {
+                    self.direct_children.push(target);
+                }
+            }
+        }
+        self.outgoing_edges = edges;
+    }
+
     pub fn parent(&self) -> Option<TNodeRef> {
         self.incoming_edges
             .first()
@@ -174,14 +210,11 @@ impl TNode {
     }
 
     pub fn children(&self) -> Vec<TNodeRef> {
-        self.outgoing_edges
-            .iter()
-            .filter_map(|edge| edge.lock().ok().and_then(|edge_guard| edge_guard.target()))
-            .collect()
+        self.direct_children.clone()
     }
 
     pub fn children_copy(&self) -> Vec<TNodeRef> {
-        self.children()
+        self.direct_children.clone()
     }
 
     pub fn add_child(node: &TNodeRef, child: &TNodeRef) {

@@ -19,6 +19,87 @@ const DEGREE_TO_RAD: f64 = PI / 180.0;
 
 pub struct EadesRadial;
 
+/// SoA for radial layout — pre-extracts node sizes to avoid repeated borrows in position_nodes.
+struct RadialSoA {
+    nodes: Vec<ElkNodeRef>,
+    /// node_key → index mapping
+    key_to_idx: HashMap<usize, usize>,
+    /// Half-width per node (width / 2.0)
+    half_w: Vec<f64>,
+    /// Half-height per node (height / 2.0)
+    half_h: Vec<f64>,
+    /// Leaf count per node
+    leaf_count: Vec<f64>,
+}
+
+impl RadialSoA {
+    /// Build SoA from tree caches — one borrow per node to extract sizes.
+    fn build(
+        root: &ElkNodeRef,
+        successor_cache: &HashMap<usize, Vec<ElkNodeRef>>,
+        leaf_cache: &HashMap<usize, f64>,
+    ) -> Self {
+        // BFS to discover all nodes
+        let mut nodes: Vec<ElkNodeRef> = Vec::new();
+        let mut key_to_idx: HashMap<usize, usize> = HashMap::new();
+        let mut queue: std::collections::VecDeque<ElkNodeRef> = std::collections::VecDeque::new();
+
+        let root_key = Rc::as_ptr(root) as usize;
+        key_to_idx.insert(root_key, 0);
+        nodes.push(root.clone());
+        queue.push_back(root.clone());
+
+        while let Some(node) = queue.pop_front() {
+            let nk = Rc::as_ptr(&node) as usize;
+            if let Some(succs) = successor_cache.get(&nk) {
+                for child in succs {
+                    let ck = Rc::as_ptr(child) as usize;
+                    if let std::collections::hash_map::Entry::Vacant(e) = key_to_idx.entry(ck) {
+                        e.insert(nodes.len());
+                        nodes.push(child.clone());
+                        queue.push_back(child.clone());
+                    }
+                }
+            }
+        }
+
+        let n = nodes.len();
+        let mut half_w = vec![0.0; n];
+        let mut half_h = vec![0.0; n];
+        let mut leaf_count = vec![1.0; n];
+
+        for (i, node) in nodes.iter().enumerate() {
+            // Single borrow to extract sizes
+            let mut node_mut = node.borrow_mut();
+            let shape = node_mut.connectable().shape();
+            half_w[i] = shape.width() / 2.0;
+            half_h[i] = shape.height() / 2.0;
+            drop(node_mut);
+
+            let nk = Rc::as_ptr(node) as usize;
+            if let Some(&lc) = leaf_cache.get(&nk) {
+                leaf_count[i] = lc;
+            }
+        }
+
+        RadialSoA {
+            nodes,
+            key_to_idx,
+            half_w,
+            half_h,
+            leaf_count,
+        }
+    }
+
+    /// Set position for a node using pre-extracted sizes (single borrow for set_location).
+    #[inline]
+    fn center_node(&self, idx: usize, x_pos: f64, y_pos: f64) {
+        let mut node_mut = self.nodes[idx].borrow_mut();
+        let shape = node_mut.connectable().shape();
+        shape.set_location(x_pos - self.half_w[idx], y_pos - self.half_h[idx]);
+    }
+}
+
 impl EadesRadial {
     pub fn new() -> Self {
         EadesRadial
@@ -28,11 +109,14 @@ impl EadesRadial {
         root: &ElkNodeRef,
         radius: f64,
         sorter: &mut Option<Box<dyn IRadialSorter>>,
-        annulus: &dyn IAnnulusWedgeCriteria,
+        _annulus: &dyn IAnnulusWedgeCriteria,
         optimizer: Option<&dyn IEvaluation>,
     ) {
         // Pre-compute successor and leaf count caches (one traversal for the entire tree)
         let (successor_cache, leaf_cache) = RadialUtil::build_tree_caches(root);
+
+        // Build SoA for size data
+        let soa = RadialSoA::build(root, &successor_cache, &leaf_cache);
 
         let mut optimal_offset = 0.0;
         let mut optimal_value = f64::MAX;
@@ -40,14 +124,13 @@ impl EadesRadial {
         if let Some(optimizer) = optimizer {
             for i in 0..CIRCLE_DEGREES {
                 let offset = f64::from(i) * DEGREE_TO_RAD;
-                Self::position_nodes(
-                    root,
+                Self::position_nodes_soa(
+                    &soa,
+                    0,
                     root,
                     radius,
                     sorter,
-                    annulus,
                     &successor_cache,
-                    &leaf_cache,
                     0.0,
                     0.0,
                     2.0 * PI,
@@ -60,14 +143,13 @@ impl EadesRadial {
                 }
             }
         }
-        Self::position_nodes(
-            root,
+        Self::position_nodes_soa(
+            &soa,
+            0,
             root,
             radius,
             sorter,
-            annulus,
             &successor_cache,
-            &leaf_cache,
             0.0,
             0.0,
             2.0 * PI,
@@ -76,14 +158,13 @@ impl EadesRadial {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn position_nodes(
-        node: &ElkNodeRef,
+    fn position_nodes_soa(
+        soa: &RadialSoA,
+        idx: usize,
         root: &ElkNodeRef,
         radius: f64,
         sorter: &mut Option<Box<dyn IRadialSorter>>,
-        annulus: &dyn IAnnulusWedgeCriteria,
         successor_cache: &HashMap<usize, Vec<ElkNodeRef>>,
-        leaf_cache: &HashMap<usize, f64>,
         current_radius: f64,
         min_alpha: f64,
         max_alpha: f64,
@@ -94,15 +175,9 @@ impl EadesRadial {
         let x_pos = current_radius * alpha_point.cos();
         let y_pos = current_radius * alpha_point.sin();
 
-        RadialUtil::center_nodes_on_radi(node, x_pos, y_pos);
+        soa.center_node(idx, x_pos, y_pos);
 
-        let node_key = Rc::as_ptr(node) as usize;
-
-        // Use cached leaf count (falls back to annulus trait for uncached nodes)
-        let number_of_leafs = leaf_cache
-            .get(&node_key)
-            .copied()
-            .unwrap_or_else(|| annulus.calculate_wedge_space(node));
+        let number_of_leafs = soa.leaf_count[idx];
 
         let ratio = if (current_radius + radius).abs() < f64::EPSILON {
             1.0
@@ -116,7 +191,9 @@ impl EadesRadial {
             ((max_alpha - min_alpha) / number_of_leafs, min_alpha)
         };
 
-        // Use cached successors (falls back to RadialUtil for uncached nodes)
+        // Get successor ElkNodeRefs for sorting (sorter needs actual refs)
+        let node = &soa.nodes[idx];
+        let node_key = Rc::as_ptr(node) as usize;
         let mut successors = successor_cache
             .get(&node_key)
             .cloned()
@@ -126,21 +203,21 @@ impl EadesRadial {
             sorter.sort_for_parent(&mut successors, node, root, current_radius == 0.0);
         }
 
-        for child in successors {
-            let child_key = Rc::as_ptr(&child) as usize;
-            let number_of_child_leafs = leaf_cache
-                .get(&child_key)
-                .copied()
-                .unwrap_or_else(|| annulus.calculate_wedge_space(&child));
+        for child in &successors {
+            let child_key = Rc::as_ptr(child) as usize;
+            let child_idx = match soa.key_to_idx.get(&child_key) {
+                Some(&ci) => ci,
+                None => continue,
+            };
+            let number_of_child_leafs = soa.leaf_count[child_idx];
 
-            Self::position_nodes(
-                &child,
+            Self::position_nodes_soa(
+                soa,
+                child_idx,
                 root,
                 radius,
                 sorter,
-                annulus,
                 successor_cache,
-                leaf_cache,
                 current_radius + radius,
                 alpha,
                 alpha + s * number_of_child_leafs,
