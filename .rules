@@ -64,17 +64,18 @@
   - 로딩 우선순위: 플랫폼 NAPI 패키지 → 로컬 `.node` → WASM 폴백
   - CI/CD: `.github/workflows/napi.yml` (태그 push 시 6 플랫폼 크로스 빌드 + npm publish)
 - **성능 기준선 (6-way fair benchmark, synthetic 10/3)**:
-  - 전체 26 시나리오 평균: java 95.8ms, rust_native **26.5ms** → Rust **3.61x faster**
-  - `layered_xlarge`: rust_native **243ms** vs java **345ms** → Rust **1.42x faster**
-  - `force_xlarge`: rust_native **141ms** vs java **882ms** → Rust **6.3x faster** (SoA 최적화)
-  - `stress_xlarge`: rust_native **170ms** vs java **963ms** → Rust **5.7x faster** (SoA 최적화)
-  - `radial_xlarge`: rust_native 28ms vs java 17ms → Java 1.6x faster (sorter.initialize 병목)
+  - 전체 26 시나리오 평균: java 99.6ms, rust_native **26.3ms** → Rust **3.79x faster**
+  - `layered_xlarge`: rust_native **244ms** vs java **356ms** → Rust **1.46x faster**
+  - `force_xlarge`: rust_native **139ms** vs java **928ms** → Rust **6.7x faster** (SoA 최적화)
+  - `stress_xlarge`: rust_native **167ms** vs java **992ms** → Rust **5.9x faster** (SoA 최적화)
+  - `routing_orthogonal`: rust_native **2.51ms** vs java **2.74ms** → Rust **1.09x faster** (edge lock 배치)
+  - `radial_xlarge`: rust_native 27ms vs java 18ms → Java 1.5x faster (RefCell/Rc 아키텍처 제약)
   - Rust 우위: layered/force/stress/mrtree/rectpacking/routing/crossing-min/hierarchy; Java 우위: radial
   - API 그룹: rust_api ~8-11x faster than elkjs (동일 JSON parse+layout+serialize 경로)
   - 6-way 공정성: 동일 LCG seed + rejection sampling DAG + max_attempts=edges*100 + 동일 타이밍 범위
-  - 이전 기준선(synthetic 25/8, mimalloc): ~248ms vs 463ms (1.87x) — 조건 차이로 직접 비교 불가
+  - **Edge routing 최적화** (Phase 23): 3개 routing strategy에서 edge lock 4+회 → 1회 배치, crossing-min에서 in-place reverse
   - **SoA 최적화** (Phase 20-21): Force/Stress 알고리즘에 SoA(Struct-of-Arrays) 패턴 적용, O(n²) hot loop에서 lock 제거
-  - Radial은 leaf cache 추가했으나 `sorter.initialize()` per-node 병목으로 개선 제한적
+  - Radial은 PolarCoordinateSorter + evaluator SoA 추가했으나 default config에서 미사용 경로
 - **코드 품질**: `cargo build` warning 0건, `cargo clippy` warning 0건
 - **Parity 재검증 상태**: full parity 재실행 완료 — `total=1998`, `compared=1989`, `matches=1988`, `drift=1`, `skipped=9`, `errors=0`
 - **알려진 실패**: 없음 (`elk_live_examples_test` 해결 완료 — cross-hierarchy edge graceful skip + 30s timeout)
