@@ -1,10 +1,9 @@
 use rustc_hash::FxHashSet;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
-use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector_chain::KVectorChain;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LPortRef};
+use crate::org::eclipse::elk::alg::layered::graph::{LEdge, LPortRef};
 use crate::org::eclipse::elk::alg::layered::options::LayeredOptions;
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::hyper_edge_segment::HyperEdgeSegment;
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::orthogonal_routing_generator::OrthogonalRoutingGenerator;
@@ -24,9 +23,11 @@ impl BaseRoutingDirectionStrategy {
         }
     }
 
-    pub fn add_junction_point_if_necessary(
+    /// Checks whether a junction point should be added and, if so, adds it using
+    /// the already-held edge guard to avoid redundant lock acquisition.
+    pub fn add_junction_point_with_guard(
         &mut self,
-        edge: &LEdgeRef,
+        edge_guard: &mut LEdge,
         segment: &HyperEdgeSegment,
         pos: &KVector,
         vertical: bool,
@@ -53,13 +54,11 @@ impl BaseRoutingDirectionStrategy {
         }
 
         if point_inside_edge_segment || point_at_segment_boundary {
-            if let Ok(mut edge_guard) = edge.lock() {
-                let mut junction_points = edge_guard
-                    .get_property(LayeredOptions::JUNCTION_POINTS)
-                    .unwrap_or_else(KVectorChain::new);
-                junction_points.add_vector(*pos);
-                edge_guard.set_property(LayeredOptions::JUNCTION_POINTS, Some(junction_points));
-            }
+            let mut junction_points = edge_guard
+                .get_property(LayeredOptions::JUNCTION_POINTS)
+                .unwrap_or_default();
+            junction_points.add_vector(*pos);
+            edge_guard.set_property(LayeredOptions::JUNCTION_POINTS, Some(junction_points));
             self.created_junction_points.insert(*pos);
         }
     }

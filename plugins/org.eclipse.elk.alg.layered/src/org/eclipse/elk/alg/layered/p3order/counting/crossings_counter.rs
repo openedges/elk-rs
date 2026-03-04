@@ -783,7 +783,7 @@ impl CrossingsCounter {
             // Snapshot path: get port IDs filtered by side (no Arc clone of ports list),
             // then convert to LPortRef via reverse map. Still needs one node lock to get
             // current port order (port distributor may have reordered).
-            let port_refs: Vec<LPortRef> = node
+            let mut port_refs: Vec<LPortRef> = node
                 .lock()
                 .ok()
                 .map(|node_guard| {
@@ -801,34 +801,22 @@ impl CrossingsCounter {
                         .collect::<Vec<_>>()
                 })
                 .unwrap_or_default();
-            if side == PortSide::East {
-                if top_down {
-                    port_refs
-                } else {
-                    port_refs.into_iter().rev().collect()
-                }
-            } else if top_down {
-                port_refs.into_iter().rev().collect()
-            } else {
-                port_refs
+            let need_reverse = if side == PortSide::East { !top_down } else { top_down };
+            if need_reverse {
+                port_refs.reverse();
             }
+            port_refs
         } else {
-            let ports = node
+            let mut ports = node
                 .lock()
                 .ok()
                 .map(|mut node_guard| node_guard.port_side_view(side))
                 .unwrap_or_default();
-            if side == PortSide::East {
-                if top_down {
-                    ports
-                } else {
-                    ports.into_iter().rev().collect()
-                }
-            } else if top_down {
-                ports.into_iter().rev().collect()
-            } else {
-                ports
+            let need_reverse = if side == PortSide::East { !top_down } else { top_down };
+            if need_reverse {
+                ports.reverse();
             }
+            ports
         }
     }
 

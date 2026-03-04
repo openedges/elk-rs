@@ -54,7 +54,6 @@ impl SouthToNorthRoutingStrategy {
 
         let segment_y = start_pos - segment.routing_slot() as f64 * edge_spacing;
         for port in segment.ports() {
-            // Batch: single lock to get both anchor and outgoing edges
             let (source_x, outgoing_edges) = {
                 let Ok(port_guard) = port.lock() else {
                     continue;
@@ -68,36 +67,41 @@ impl SouthToNorthRoutingStrategy {
             };
 
             for edge in outgoing_edges {
-                // Batch: single lock to get is_self_loop + target
-                let target = {
+                let (is_self_loop, target_x) = {
                     let Ok(edge_guard) = edge.lock() else {
                         continue;
                     };
                     if edge_guard.is_self_loop() {
-                        continue;
+                        (true, 0.0)
+                    } else {
+                        let tx = edge_guard
+                            .target()
+                            .and_then(|t| {
+                                t.lock()
+                                    .ok()
+                                    .and_then(|port_guard| port_guard.absolute_anchor())
+                                    .map(|anchor| anchor.x)
+                            })
+                            .unwrap_or(0.0);
+                        (false, tx)
                     }
-                    edge_guard.target()
                 };
-                let Some(target) = target else {
+                if is_self_loop {
                     continue;
-                };
-                let target_x = target
-                    .lock()
-                    .ok()
-                    .and_then(|port_guard| port_guard.absolute_anchor())
-                    .map(|anchor| anchor.x)
-                    .unwrap_or(0.0);
+                }
 
                 if (source_x - target_x).abs() > OrthogonalRoutingGenerator::TOLERANCE {
+                    let Ok(mut edge_guard) = edge.lock() else {
+                        continue;
+                    };
+
                     let mut current_y = segment_y;
                     let mut current_segment = None;
 
-                    let mut bend = KVector::with_values(source_x, current_y);
-                    if let Ok(mut edge_guard) = edge.lock() {
-                        edge_guard.bend_points().add_vector(bend);
-                    }
+                    let bend = KVector::with_values(source_x, current_y);
+                    edge_guard.bend_points().add_vector(bend);
                     self.base
-                        .add_junction_point_if_necessary(&edge, segment, &bend, false);
+                        .add_junction_point_with_guard(&mut edge_guard, segment, &bend, false);
 
                     if let Some(split_partner_ref) = segment.split_partner() {
                         let (split_x, split_slot) = {
@@ -110,23 +114,19 @@ impl SouthToNorthRoutingStrategy {
                             (split_x, split_partner.routing_slot())
                         };
 
-                        bend = KVector::with_values(split_x, current_y);
-                        if let Ok(mut edge_guard) = edge.lock() {
-                            edge_guard.bend_points().add_vector(bend);
-                        }
+                        let bend = KVector::with_values(split_x, current_y);
+                        edge_guard.bend_points().add_vector(bend);
                         self.base
-                            .add_junction_point_if_necessary(&edge, segment, &bend, false);
+                            .add_junction_point_with_guard(&mut edge_guard, segment, &bend, false);
 
                         current_y = start_pos - split_slot as f64 * edge_spacing;
                         current_segment = Some(split_partner_ref.clone());
 
-                        bend = KVector::with_values(split_x, current_y);
-                        if let Ok(mut edge_guard) = edge.lock() {
-                            edge_guard.bend_points().add_vector(bend);
-                        }
+                        let bend = KVector::with_values(split_x, current_y);
+                        edge_guard.bend_points().add_vector(bend);
                         if let Some(split_partner) = current_segment.as_ref() {
-                            self.base.add_junction_point_if_necessary(
-                                &edge,
+                            self.base.add_junction_point_with_guard(
+                                &mut edge_guard,
                                 &split_partner.borrow(),
                                 &bend,
                                 false,
@@ -134,20 +134,18 @@ impl SouthToNorthRoutingStrategy {
                         }
                     }
 
-                    bend = KVector::with_values(target_x, current_y);
-                    if let Ok(mut edge_guard) = edge.lock() {
-                        edge_guard.bend_points().add_vector(bend);
-                    }
+                    let bend = KVector::with_values(target_x, current_y);
+                    edge_guard.bend_points().add_vector(bend);
                     if let Some(split_partner) = current_segment.as_ref() {
-                        self.base.add_junction_point_if_necessary(
-                            &edge,
+                        self.base.add_junction_point_with_guard(
+                            &mut edge_guard,
                             &split_partner.borrow(),
                             &bend,
                             false,
                         );
                     } else {
                         self.base
-                            .add_junction_point_if_necessary(&edge, segment, &bend, false);
+                            .add_junction_point_with_guard(&mut edge_guard, segment, &bend, false);
                     }
                 }
             }

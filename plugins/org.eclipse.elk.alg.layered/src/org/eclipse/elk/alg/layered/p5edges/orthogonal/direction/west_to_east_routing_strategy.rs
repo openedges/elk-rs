@@ -54,7 +54,7 @@ impl WestToEastRoutingStrategy {
 
         let segment_x = start_pos + segment.routing_slot() as f64 * edge_spacing;
         for port in segment.ports() {
-            // Batch: single lock to get both anchor and outgoing edges
+            // Single lock to get both anchor and outgoing edges
             let (source_y, outgoing_edges) = {
                 let Ok(port_guard) = port.lock() else {
                     continue;
@@ -68,36 +68,43 @@ impl WestToEastRoutingStrategy {
             };
 
             for edge in outgoing_edges {
-                // Batch: single lock to get is_self_loop + target
-                let target = {
+                // Single lock to get is_self_loop + target + absolute_anchor
+                let (is_self_loop, target_y) = {
                     let Ok(edge_guard) = edge.lock() else {
                         continue;
                     };
                     if edge_guard.is_self_loop() {
-                        continue;
+                        (true, 0.0)
+                    } else {
+                        let ty = edge_guard
+                            .target()
+                            .and_then(|t| {
+                                t.lock()
+                                    .ok()
+                                    .and_then(|port_guard| port_guard.absolute_anchor())
+                                    .map(|anchor| anchor.y)
+                            })
+                            .unwrap_or(0.0);
+                        (false, ty)
                     }
-                    edge_guard.target()
                 };
-                let Some(target) = target else {
+                if is_self_loop {
                     continue;
-                };
-                let target_y = target
-                    .lock()
-                    .ok()
-                    .and_then(|port_guard| port_guard.absolute_anchor())
-                    .map(|anchor| anchor.y)
-                    .unwrap_or(0.0);
+                }
 
                 if (source_y - target_y).abs() > OrthogonalRoutingGenerator::TOLERANCE {
+                    // Single edge lock for ALL bend points + junction points
+                    let Ok(mut edge_guard) = edge.lock() else {
+                        continue;
+                    };
+
                     let mut current_x = segment_x;
                     let mut current_segment = None;
 
-                    let mut bend = KVector::with_values(current_x, source_y);
-                    if let Ok(mut edge_guard) = edge.lock() {
-                        edge_guard.bend_points().add_vector(bend);
-                    }
+                    let bend = KVector::with_values(current_x, source_y);
+                    edge_guard.bend_points().add_vector(bend);
                     self.base
-                        .add_junction_point_if_necessary(&edge, segment, &bend, true);
+                        .add_junction_point_with_guard(&mut edge_guard, segment, &bend, true);
 
                     if let Some(split_partner_ref) = segment.split_partner() {
                         let (split_y, split_slot) = {
@@ -110,23 +117,19 @@ impl WestToEastRoutingStrategy {
                             (split_y, split_partner.routing_slot())
                         };
 
-                        bend = KVector::with_values(current_x, split_y);
-                        if let Ok(mut edge_guard) = edge.lock() {
-                            edge_guard.bend_points().add_vector(bend);
-                        }
+                        let bend = KVector::with_values(current_x, split_y);
+                        edge_guard.bend_points().add_vector(bend);
                         self.base
-                            .add_junction_point_if_necessary(&edge, segment, &bend, true);
+                            .add_junction_point_with_guard(&mut edge_guard, segment, &bend, true);
 
                         current_x = start_pos + split_slot as f64 * edge_spacing;
                         current_segment = Some(split_partner_ref.clone());
 
-                        bend = KVector::with_values(current_x, split_y);
-                        if let Ok(mut edge_guard) = edge.lock() {
-                            edge_guard.bend_points().add_vector(bend);
-                        }
+                        let bend = KVector::with_values(current_x, split_y);
+                        edge_guard.bend_points().add_vector(bend);
                         if let Some(split_partner) = current_segment.as_ref() {
-                            self.base.add_junction_point_if_necessary(
-                                &edge,
+                            self.base.add_junction_point_with_guard(
+                                &mut edge_guard,
                                 &split_partner.borrow(),
                                 &bend,
                                 true,
@@ -134,20 +137,18 @@ impl WestToEastRoutingStrategy {
                         }
                     }
 
-                    bend = KVector::with_values(current_x, target_y);
-                    if let Ok(mut edge_guard) = edge.lock() {
-                        edge_guard.bend_points().add_vector(bend);
-                    }
+                    let bend = KVector::with_values(current_x, target_y);
+                    edge_guard.bend_points().add_vector(bend);
                     if let Some(split_partner) = current_segment.as_ref() {
-                        self.base.add_junction_point_if_necessary(
-                            &edge,
+                        self.base.add_junction_point_with_guard(
+                            &mut edge_guard,
                             &split_partner.borrow(),
                             &bend,
                             true,
                         );
                     } else {
                         self.base
-                            .add_junction_point_if_necessary(&edge, segment, &bend, true);
+                            .add_junction_point_with_guard(&mut edge_guard, segment, &bend, true);
                     }
                 }
             }

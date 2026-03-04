@@ -10,7 +10,11 @@ pub fn in_north_south_east_west_order(node: &LNodeRef, side: PortSide) -> Vec<LP
         .unwrap_or_default();
     match side {
         PortSide::East | PortSide::North => ports,
-        PortSide::South | PortSide::West => ports.into_iter().rev().collect(),
+        PortSide::South | PortSide::West => {
+            let mut p = ports;
+            p.reverse();
+            p
+        }
         _ => Vec::new(),
     }
 }
