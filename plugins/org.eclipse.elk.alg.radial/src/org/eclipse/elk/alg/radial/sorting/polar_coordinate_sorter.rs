@@ -74,18 +74,26 @@ impl PolarCoordinateSorter {
         let mut id = id_offset;
         let mut next_layer_id = 0;
         for node in nodes.iter() {
-            let mut node_mut = node.borrow_mut();
-            node_mut
-                .connectable()
-                .shape()
-                .graph_element()
-                .properties_mut()
-                .set_property(RadialOptions::ORDER_ID, Some(id));
+            // Batch: set ORDER_ID + read node_arc in single borrow (was 2 separate borrows)
+            let arc = {
+                let mut node_mut = node.borrow_mut();
+                node_mut
+                    .connectable()
+                    .shape()
+                    .graph_element()
+                    .properties_mut()
+                    .set_property(RadialOptions::ORDER_ID, Some(id));
+                let shape = node_mut.connectable().shape();
+                let mut a =
+                    (shape.y() + shape.height() / 2.0).atan2(shape.x() + shape.width() / 2.0);
+                if a < 0.0 {
+                    a += TWO_PI;
+                }
+                a
+            };
             id += 1;
-            drop(node_mut);
 
             let mut node_successors = RadialUtil::get_successors(node);
-            let arc = Self::node_arc(node);
 
             if !(DEGREE_45..=DEGREE_315).contains(&arc) {
                 Self::sort_with_offset(&mut node_successors, PI);

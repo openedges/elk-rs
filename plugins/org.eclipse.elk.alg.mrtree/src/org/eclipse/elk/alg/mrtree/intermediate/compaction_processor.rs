@@ -20,7 +20,8 @@ impl ILayoutProcessor<TGraphRef> for CompactionProcessor {
     fn process(&mut self, graph: &mut TGraphRef, progress_monitor: &mut dyn IElkProgressMonitor) {
         progress_monitor.begin("Process compaction", 1.0);
 
-        let (enabled, direction, node_node_spacing) = {
+        // Batch all graph property reads in a single lock
+        let (enabled, direction, node_node_spacing, routing_mode) = {
             let mut graph_guard = match graph.lock() {
                 Ok(guard) => guard,
                 Err(_) => {
@@ -37,7 +38,10 @@ impl ILayoutProcessor<TGraphRef> for CompactionProcessor {
             let spacing = graph_guard
                 .get_property(MrTreeOptions::SPACING_NODE_NODE)
                 .unwrap_or(0.0);
-            (enabled, direction, spacing)
+            let routing = graph_guard
+                .get_property(MrTreeOptions::EDGE_ROUTING_MODE)
+                .unwrap_or(EdgeRoutingMode::AvoidOverlap);
+            (enabled, direction, spacing, routing)
         };
 
         if !enabled {
@@ -61,30 +65,34 @@ impl ILayoutProcessor<TGraphRef> for CompactionProcessor {
 
         let mut nodes_sorted = nodes.clone();
         let dir_vec = TreeUtil::get_direction_vector(direction);
+        // Pre-extract sort keys and node data — O(n) locks instead of O(n log n)
+        // Also pre-extract is_root and size to avoid per-node locks in main loop
+        let mut sort_keys: HashMap<usize, f64> = HashMap::with_capacity(nodes.len());
+        let mut node_is_root: HashMap<usize, bool> = HashMap::with_capacity(nodes.len());
+        let mut node_sizes: HashMap<usize, KVector> = HashMap::with_capacity(nodes.len());
+        for n in &nodes {
+            let key = node_key(n);
+            if let Ok(mut guard) = n.lock() {
+                let pos = *guard.position_ref();
+                sort_keys.insert(key, dir_vec.dot_product(&pos));
+                node_sizes.insert(key, *guard.size_ref());
+                node_is_root.insert(
+                    key,
+                    guard.get_property(InternalProperties::ROOT).unwrap_or(false),
+                );
+            }
+        }
         nodes_sorted.sort_by(|a, b| {
-            let a_pos = a
-                .lock()
-                .ok()
-                .map(|node| *node.position_ref())
-                .unwrap_or_default();
-            let b_pos = b
-                .lock()
-                .ok()
-                .map(|node| *node.position_ref())
-                .unwrap_or_default();
-            dir_vec
-                .dot_product(&a_pos)
-                .partial_cmp(&dir_vec.dot_product(&b_pos))
+            let a_key = sort_keys.get(&node_key(a)).copied().unwrap_or(0.0);
+            let b_key = sort_keys.get(&node_key(b)).copied().unwrap_or(0.0);
+            a_key
+                .partial_cmp(&b_key)
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
 
         for node in nodes_sorted {
-            let is_root = node
-                .lock()
-                .ok()
-                .and_then(|mut node_guard| node_guard.get_property(InternalProperties::ROOT))
-                .unwrap_or(false);
-            if is_root {
+            let nk = node_key(&node);
+            if node_is_root.get(&nk).copied().unwrap_or(false) {
                 continue;
             }
 
@@ -95,25 +103,21 @@ impl ILayoutProcessor<TGraphRef> for CompactionProcessor {
 
             let mut new_pos = 0.0;
             let mut new_pos_size = 0.0;
-            let size = node.lock().ok().map(|n| *n.size_ref()).unwrap_or_default();
+            let size = node_sizes.get(&nk).copied().unwrap_or_default();
 
             if let Some(dep) = dependent.clone() {
-                let dep_pos = dep
+                // Single lock for both pos and size
+                let (dep_pos, dep_size) = dep
                     .lock()
                     .ok()
-                    .map(|n| *n.position_ref())
+                    .map(|n| (*n.position_ref(), *n.size_ref()))
                     .unwrap_or_default();
-                let dep_size = dep.lock().ok().map(|n| *n.size_ref()).unwrap_or_default();
                 if let Some(parent) = parent.clone() {
-                    let parent_pos = parent
+                    // Single lock for both pos and size
+                    let (parent_pos, parent_size) = parent
                         .lock()
                         .ok()
-                        .map(|n| *n.position_ref())
-                        .unwrap_or_default();
-                    let parent_size = parent
-                        .lock()
-                        .ok()
-                        .map(|n| *n.size_ref())
+                        .map(|n| (*n.position_ref(), *n.size_ref()))
                         .unwrap_or_default();
                     match direction {
                         Direction::Left => {
@@ -151,15 +155,11 @@ impl ILayoutProcessor<TGraphRef> for CompactionProcessor {
                     }
                 }
             } else if let Some(parent) = parent.clone() {
-                let parent_pos = parent
+                // Single lock for both pos and size
+                let (parent_pos, parent_size) = parent
                     .lock()
                     .ok()
-                    .map(|n| *n.position_ref())
-                    .unwrap_or_default();
-                let parent_size = parent
-                    .lock()
-                    .ok()
-                    .map(|n| *n.size_ref())
+                    .map(|n| (*n.position_ref(), *n.size_ref()))
                     .unwrap_or_default();
                 match direction {
                     Direction::Left => {
@@ -180,12 +180,6 @@ impl ILayoutProcessor<TGraphRef> for CompactionProcessor {
                     }
                 }
             }
-
-            let routing_mode = graph
-                .lock()
-                .ok()
-                .and_then(|mut g| g.get_property(MrTreeOptions::EDGE_ROUTING_MODE))
-                .unwrap_or(EdgeRoutingMode::AvoidOverlap);
 
             if routing_mode == EdgeRoutingMode::AvoidOverlap {
                 let level = self
@@ -317,27 +311,29 @@ impl CompactionProcessor {
             })
             .collect();
 
-        let mut points: Vec<Triple<TNodeRef, KVector, bool>> = actual_nodes
-            .iter()
-            .filter_map(|node| {
-                node.lock().ok().map(|node_guard| {
-                    let mut pos = *node_guard.position_ref();
-                    pos.sub_values(node_node_spacing, node_node_spacing);
-                    Triple::new(node.clone(), pos, true)
-                })
-            })
-            .collect();
+        // Pre-extract positions into a map for insert_sorted — single lock per node
+        let mut pos_cache: HashMap<usize, KVector> = HashMap::with_capacity(actual_nodes.len());
+        let mut points: Vec<Triple<TNodeRef, KVector, bool>> = Vec::with_capacity(actual_nodes.len() * 2);
 
-        points.extend(actual_nodes.iter().filter_map(|node| {
-            node.lock().ok().map(|node_guard| {
-                let mut pos = *node_guard.position_ref();
-                pos.add_values(
-                    node_guard.size_ref().x + node_node_spacing,
-                    node_guard.size_ref().y + node_node_spacing,
+        for node in &actual_nodes {
+            if let Ok(node_guard) = node.lock() {
+                let pos = *node_guard.position_ref();
+                let size = *node_guard.size_ref();
+                let key = node_key(node);
+                pos_cache.insert(key, pos);
+
+                let mut start_pos = pos;
+                start_pos.sub_values(node_node_spacing, node_node_spacing);
+                points.push(Triple::new(node.clone(), start_pos, true));
+
+                let mut end_pos = pos;
+                end_pos.add_values(
+                    size.x + node_node_spacing,
+                    size.y + node_node_spacing,
                 );
-                Triple::new(node.clone(), pos, false)
-            })
-        }));
+                points.push(Triple::new(node.clone(), end_pos, false));
+            }
+        }
 
         let right_vec = TreeUtil::get_direction_vector(right);
         points.sort_by(|a, b| {
@@ -347,13 +343,14 @@ impl CompactionProcessor {
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
 
+        let dir_vec = TreeUtil::get_direction_vector(direction);
         let mut active: Vec<TNodeRef> = Vec::new();
         let mut candidates: HashMap<usize, TNodeRef> = HashMap::new();
 
         for point in points {
             let node = point.first().clone();
             if *point.third() {
-                insert_sorted(&mut active, &node, direction);
+                insert_sorted_cached(&mut active, &node, &dir_vec, &pos_cache);
                 if let Some(left) = left_neighbor(&active, &node) {
                     candidates.insert(node_key(&node), left);
                 }
@@ -397,16 +394,13 @@ impl CompactionProcessor {
         }
 
         let mut best: Option<TNodeRef> = None;
+        let mut best_value = 0.0_f64;
         for candidate in constraints {
-            let candidate_pos = candidate
+            // Single lock for both pos and size
+            let (candidate_pos, candidate_size) = candidate
                 .lock()
                 .ok()
-                .map(|n| *n.position_ref())
-                .unwrap_or_default();
-            let candidate_size = candidate
-                .lock()
-                .ok()
-                .map(|n| *n.size_ref())
+                .map(|n| (*n.position_ref(), *n.size_ref()))
                 .unwrap_or_default();
             let value = match direction {
                 Direction::Left => candidate_pos.x,
@@ -414,38 +408,21 @@ impl CompactionProcessor {
                 Direction::Up => candidate_pos.y,
                 Direction::Down | Direction::Undefined => candidate_pos.y + candidate_size.y,
             };
-            best = match best {
-                None => Some(candidate),
-                Some(current_best) => {
-                    let current_pos = current_best
-                        .lock()
-                        .ok()
-                        .map(|n| *n.position_ref())
-                        .unwrap_or_default();
-                    let current_size = current_best
-                        .lock()
-                        .ok()
-                        .map(|n| *n.size_ref())
-                        .unwrap_or_default();
-                    let current_value = match direction {
-                        Direction::Left => current_pos.x,
-                        Direction::Right => current_pos.x + current_size.x,
-                        Direction::Up => current_pos.y,
-                        Direction::Down | Direction::Undefined => current_pos.y + current_size.y,
-                    };
-                    if (direction == Direction::Left || direction == Direction::Up)
-                        && value < current_value
+            let is_better = match best {
+                None => true,
+                Some(_) => {
+                    (direction == Direction::Left || direction == Direction::Up)
+                        && value < best_value
                         || (direction == Direction::Right
                             || direction == Direction::Down
                             || direction == Direction::Undefined)
-                            && value > current_value
-                    {
-                        Some(candidate)
-                    } else {
-                        Some(current_best)
-                    }
+                            && value > best_value
                 }
             };
+            if is_better {
+                best_value = value;
+                best = Some(candidate);
+            }
         }
         best
     }
@@ -455,21 +432,24 @@ fn node_key(node: &TNodeRef) -> usize {
     std::sync::Arc::as_ptr(node) as usize
 }
 
-fn insert_sorted(active: &mut Vec<TNodeRef>, node: &TNodeRef, direction: Direction) {
-    let dir_vec = TreeUtil::get_direction_vector(direction);
-    let node_pos = node
-        .lock()
-        .ok()
-        .map(|n| *n.position_ref())
+/// Insert into sorted active list using pre-cached positions — zero locks.
+fn insert_sorted_cached(
+    active: &mut Vec<TNodeRef>,
+    node: &TNodeRef,
+    dir_vec: &KVector,
+    pos_cache: &HashMap<usize, KVector>,
+) {
+    let node_pos = pos_cache
+        .get(&node_key(node))
+        .copied()
         .unwrap_or_default();
     let node_proj = dir_vec.dot_product(&node_pos);
     let index = active
         .iter()
         .position(|other| {
-            let other_pos = other
-                .lock()
-                .ok()
-                .map(|n| *n.position_ref())
+            let other_pos = pos_cache
+                .get(&node_key(other))
+                .copied()
                 .unwrap_or_default();
             node_proj < dir_vec.dot_product(&other_pos)
         })

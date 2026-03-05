@@ -50,32 +50,26 @@ impl ILayoutProcessor<ElkNodeRef> for CalculateGraphSize {
             max_y_pos = max_y_pos.max(pos_y + height + margins.bottom);
         }
 
-        let padding = {
+        // Batch graph property reads in a single borrow
+        let (padding, center_on_root) = {
             let mut graph_mut = graph.borrow_mut();
-            graph_mut
+            let props = graph_mut
                 .connectable()
                 .shape()
                 .graph_element()
-                .properties_mut()
-                .get_property(CoreOptions::PADDING)
-        }
-        .unwrap_or_default();
+                .properties_mut();
+            (
+                props.get_property(CoreOptions::PADDING).unwrap_or_default(),
+                props.get_property(RadialOptions::CENTER_ON_ROOT).unwrap_or(false),
+            )
+        };
 
         let mut offset = KVector::with_values(min_x_pos - padding.left, min_y_pos - padding.top);
 
         let mut width = max_x_pos - min_x_pos + padding.left + padding.right;
         let mut height = max_y_pos - min_y_pos + padding.top + padding.bottom;
 
-        if {
-            let mut graph_mut = graph.borrow_mut();
-            graph_mut
-                .connectable()
-                .shape()
-                .graph_element()
-                .properties_mut()
-                .get_property(RadialOptions::CENTER_ON_ROOT)
-        }
-        .unwrap_or(false)
+        if center_on_root
         {
             if let Some(root) = RadialUtil::root_from_graph(graph) {
                 let (root_x, root_y) = {
@@ -129,26 +123,23 @@ impl ILayoutProcessor<ElkNodeRef> for CalculateGraphSize {
             shape.set_y(shape.y() - offset.y);
         }
 
-        let fixed_graph_size = {
+        // Combine fixed_graph_size read + size set + child area properties in single borrow
+        {
             let mut graph_mut = graph.borrow_mut();
-            graph_mut
+            let fixed_graph_size = graph_mut
                 .connectable()
                 .shape()
                 .graph_element()
                 .properties_mut()
                 .get_property(CoreOptions::NODE_SIZE_FIXED_GRAPH_SIZE)
-        }
-        .unwrap_or(false);
+                .unwrap_or(false);
 
-        if !fixed_graph_size {
-            let mut graph_mut = graph.borrow_mut();
-            let shape = graph_mut.connectable().shape();
-            shape.set_width(width);
-            shape.set_height(height);
-        }
+            if !fixed_graph_size {
+                let shape = graph_mut.connectable().shape();
+                shape.set_width(width);
+                shape.set_height(height);
+            }
 
-        {
-            let mut graph_mut = graph.borrow_mut();
             let props = graph_mut
                 .connectable()
                 .shape()

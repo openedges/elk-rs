@@ -49,6 +49,82 @@ impl AbstractRadiusExtensionCompaction {
         }
     }
 
+    /// SoA overlap check — operates on plain f64 slices, zero borrows.
+    pub fn overlap_layer_soa(x: &[f64], y: &[f64], w: &[f64], h: &[f64], spacing: f64) -> bool {
+        let n = x.len();
+        if n < 2 {
+            return false;
+        }
+        let half_s = spacing / 2.0;
+        for i in 0..n {
+            let j = if i < n - 1 { i + 1 } else { 0 };
+            let x1 = x[i] - half_s;
+            let y1 = y[i] - half_s;
+            let w1 = w[i] + spacing;
+            let h1 = h[i] + spacing;
+            let x2 = x[j] - half_s;
+            let y2 = y[j] - half_s;
+            let w2 = w[j] + spacing;
+            let h2 = h[j] + spacing;
+            if x1 < x2 + w2 && x2 < x1 + w1 && y1 < y2 + h2 && y2 < y1 + h1 {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// SoA contract/expand — modifies x/y arrays directly, zero borrows.
+    #[allow(clippy::too_many_arguments)]
+    pub fn contract_layer_soa(
+        parent_x: f64,
+        parent_y: f64,
+        x: &mut [f64],
+        y: &mut [f64],
+        w: &[f64],
+        h: &[f64],
+        step: f64,
+        is_contracting: bool,
+    ) {
+        for i in 0..x.len() {
+            let half_w = w[i] / 2.0;
+            let half_h = h[i] / 2.0;
+            let cx = x[i] + half_w;
+            let cy = y[i] + half_h;
+            let dx = cx - parent_x;
+            let dy = cy - parent_y;
+            let length = (dx * dx + dy * dy).sqrt();
+            let ux = dx * step / length;
+            let uy = dy * step / length;
+            if is_contracting {
+                x[i] = cx - ux - half_w;
+                y[i] = cy - uy - half_h;
+            } else {
+                x[i] = cx + ux - half_w;
+                y[i] = cy + uy - half_h;
+            }
+        }
+    }
+
+    /// Move node using pre-computed root center — avoids re-borrowing root.
+    pub fn move_node_with_center(
+        &self,
+        root_cx: f64,
+        root_cy: f64,
+        node: &ElkNodeRef,
+        distance: f64,
+    ) {
+        let (node_x, node_y) = node_center(node);
+        let dx = node_x - root_cx;
+        let dy = node_y - root_cy;
+        let length = (dx * dx + dy * dy).sqrt();
+        let ux = dx / length;
+        let uy = dy / length;
+        let mut node_mut = node.borrow_mut();
+        let shape = node_mut.connectable().shape();
+        shape.set_x(shape.x() + ux * distance);
+        shape.set_y(shape.y() + uy * distance);
+    }
+
     pub fn move_node(&self, root: &ElkNodeRef, node: &ElkNodeRef, distance: f64) {
         let (root_x, root_y) = node_center(root);
         let (node_x, node_y) = node_center(node);

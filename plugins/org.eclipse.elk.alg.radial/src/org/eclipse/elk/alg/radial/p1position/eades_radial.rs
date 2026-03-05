@@ -246,52 +246,24 @@ impl ILayoutPhase<RadialLayoutPhases, ElkNodeRef> for EadesRadial {
             return;
         };
 
-        let radius = {
+        // Batch all graph property reads in a single borrow
+        let (radius, sorter_opt, wedge_opt, optim_opt) = {
             let mut graph_mut = graph.borrow_mut();
-            graph_mut
+            let props = graph_mut
                 .connectable()
                 .shape()
                 .graph_element()
-                .properties_mut()
-                .get_property(RadialOptions::RADIUS)
-        }
-        .unwrap_or(0.0);
-
-        let mut sorter = {
-            let mut graph_mut = graph.borrow_mut();
-            graph_mut
-                .connectable()
-                .shape()
-                .graph_element()
-                .properties_mut()
-                .get_property(RadialOptions::SORTER)
-        }
-        .unwrap_or_default()
-        .create();
-
-        let annulus = {
-            let mut graph_mut = graph.borrow_mut();
-            graph_mut
-                .connectable()
-                .shape()
-                .graph_element()
-                .properties_mut()
-                .get_property(RadialOptions::WEDGE_CRITERIA)
-        }
-        .unwrap_or_default()
-        .create();
-
-        let optimizer = {
-            let mut graph_mut = graph.borrow_mut();
-            graph_mut
-                .connectable()
-                .shape()
-                .graph_element()
-                .properties_mut()
-                .get_property(RadialOptions::OPTIMIZATION_CRITERIA)
-        }
-        .unwrap_or_default()
-        .create();
+                .properties_mut();
+            (
+                props.get_property(RadialOptions::RADIUS).unwrap_or(0.0),
+                props.get_property(RadialOptions::SORTER),
+                props.get_property(RadialOptions::WEDGE_CRITERIA),
+                props.get_property(RadialOptions::OPTIMIZATION_CRITERIA),
+            )
+        };
+        let mut sorter = sorter_opt.unwrap_or_default().create();
+        let annulus = wedge_opt.unwrap_or_default().create();
+        let optimizer = optim_opt.unwrap_or_default().create();
 
         Self::translate(
             &root,

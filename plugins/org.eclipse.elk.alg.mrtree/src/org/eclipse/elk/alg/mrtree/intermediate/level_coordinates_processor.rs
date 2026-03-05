@@ -29,11 +29,14 @@ impl ILayoutProcessor<TGraphRef> for LevelCoordinatesProcessor {
 
         let mut levels: Vec<(f64, f64)> = Vec::new();
 
+        // Pass 1: extract level + bounds, cache levels to avoid re-reading property
+        let mut node_levels: Vec<usize> = Vec::with_capacity(nodes.len());
         for node in &nodes {
             if let Ok(mut node_guard) = node.lock() {
                 let level = node_guard
                     .get_property(MrTreeOptions::TREE_LEVEL)
                     .unwrap_or(0) as usize;
+                node_levels.push(level);
                 while level >= levels.len() {
                     levels.push((f64::MAX, -f64::MAX));
                 }
@@ -46,15 +49,16 @@ impl ILayoutProcessor<TGraphRef> for LevelCoordinatesProcessor {
                 };
                 let (min_val, max_val) = levels[level];
                 levels[level] = (min_val.min(start), max_val.max(end));
+            } else {
+                node_levels.push(0);
             }
         }
 
-        for node in &nodes {
-            if let Ok(mut node_guard) = node.lock() {
-                let level = node_guard
-                    .get_property(MrTreeOptions::TREE_LEVEL)
-                    .unwrap_or(0) as usize;
-                if level < levels.len() {
+        // Pass 2: write back using cached levels — skip property read
+        for (i, node) in nodes.iter().enumerate() {
+            let level = node_levels[i];
+            if level < levels.len() {
+                if let Ok(mut node_guard) = node.lock() {
                     let (min_val, max_val) = levels[level];
                     node_guard.set_property(InternalProperties::LEVELMIN, Some(min_val));
                     node_guard.set_property(InternalProperties::LEVELMAX, Some(max_val));

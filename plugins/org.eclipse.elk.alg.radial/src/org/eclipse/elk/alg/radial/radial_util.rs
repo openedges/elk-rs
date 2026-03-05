@@ -17,35 +17,37 @@ impl RadialUtil {
     const EPSILON: f64 = 1e-10;
 
     pub fn get_successors(node: &ElkNodeRef) -> Vec<ElkNodeRef> {
-        let children: Vec<ElkNodeRef> = {
+        // Build child_keys directly from iterator — avoid Vec<ElkNodeRef> allocation
+        let child_keys: HashSet<usize> = {
             let mut node_mut = node.borrow_mut();
-            node_mut.children().iter().cloned().collect()
+            let children = node_mut.children();
+            if children.is_empty() {
+                HashSet::new()
+            } else {
+                children.iter().map(node_key).collect()
+            }
         };
-        let mut child_keys = HashSet::new();
-        for child in &children {
-            child_keys.insert(node_key(child));
-        }
 
         let mut successors = Vec::new();
         for outgoing_edge in ElkGraphUtil::all_outgoing_edges(node) {
-            let source_shape = {
+            // Single edge borrow for both source and target
+            let (source_shape, target_shape) = {
                 let edge_borrow = outgoing_edge.borrow();
-                edge_borrow.sources_ro().get(0)
+                (
+                    edge_borrow.sources_ro().get(0),
+                    edge_borrow.targets_ro().get(0),
+                )
             };
             if let Some(ElkConnectableShapeRef::Port(_)) = source_shape {
                 continue;
             }
-            let target_shape = {
-                let edge_borrow = outgoing_edge.borrow();
-                edge_borrow.targets_ro().get(0)
-            };
             let Some(target_shape) = target_shape else {
                 continue;
             };
             let Some(target) = ElkGraphUtil::connectable_shape_to_node(&target_shape) else {
                 continue;
             };
-            if !child_keys.contains(&node_key(&target)) {
+            if child_keys.is_empty() || !child_keys.contains(&node_key(&target)) {
                 successors.push(target);
             }
         }
@@ -53,29 +55,31 @@ impl RadialUtil {
     }
 
     pub fn get_successor_set(node: &ElkNodeRef) -> Vec<ElkNodeRef> {
-        let children: Vec<ElkNodeRef> = {
+        // Build child_keys directly from iterator — avoid Vec<ElkNodeRef> allocation
+        let child_keys: HashSet<usize> = {
             let mut node_mut = node.borrow_mut();
-            node_mut.children().iter().cloned().collect()
+            let children = node_mut.children();
+            if children.is_empty() {
+                HashSet::new()
+            } else {
+                children.iter().map(node_key).collect()
+            }
         };
-        let mut child_keys = HashSet::new();
-        for child in &children {
-            child_keys.insert(node_key(child));
-        }
 
         let mut successors = Vec::new();
         let mut seen = HashSet::new();
         for outgoing_edge in ElkGraphUtil::all_outgoing_edges(node) {
-            let source_shape = {
+            // Single edge borrow for both source and target
+            let (source_shape, target_shape) = {
                 let edge_borrow = outgoing_edge.borrow();
-                edge_borrow.sources_ro().get(0)
+                (
+                    edge_borrow.sources_ro().get(0),
+                    edge_borrow.targets_ro().get(0),
+                )
             };
             if let Some(ElkConnectableShapeRef::Port(_)) = source_shape {
                 continue;
             }
-            let target_shape = {
-                let edge_borrow = outgoing_edge.borrow();
-                edge_borrow.targets_ro().get(0)
-            };
             let Some(target_shape) = target_shape else {
                 continue;
             };
@@ -83,7 +87,9 @@ impl RadialUtil {
                 continue;
             };
             let target_key = node_key(&target);
-            if !child_keys.contains(&target_key) && seen.insert(target_key) {
+            if (child_keys.is_empty() || !child_keys.contains(&target_key))
+                && seen.insert(target_key)
+            {
                 successors.push(target);
             }
         }
@@ -105,26 +111,22 @@ impl RadialUtil {
     }
 
     pub fn root_from_graph(graph: &ElkNodeRef) -> Option<ElkNodeRef> {
-        let root_id = {
-            let mut graph_mut = graph.borrow_mut();
-            graph_mut
-                .connectable()
-                .shape()
-                .graph_element()
-                .properties_mut()
-                .get_property(InternalProperties::ROOT_NODE)
-        };
+        // Single borrow: read root_id property and scan children together
+        let mut graph_mut = graph.borrow_mut();
+        let root_id = graph_mut
+            .connectable()
+            .shape()
+            .graph_element()
+            .properties_mut()
+            .get_property(InternalProperties::ROOT_NODE);
         if let Some(root_id) = root_id {
-            let children: Vec<ElkNodeRef> = {
-                let mut graph_mut = graph.borrow_mut();
-                graph_mut.children().iter().cloned().collect()
-            };
-            for child in children {
-                if node_key(&child) == root_id {
-                    return Some(child);
+            for child in graph_mut.children().iter() {
+                if node_key(child) == root_id {
+                    return Some(child.clone());
                 }
             }
         }
+        drop(graph_mut);
         Self::find_root(graph)
     }
 
@@ -193,17 +195,24 @@ impl RadialUtil {
     }
 
     pub fn find_largest_node_in_graph(graph: &ElkNodeRef) -> f64 {
-        let children: Vec<ElkNodeRef> = {
+        // Single borrow: get children + extract sizes in one pass
+        let children_with_sizes: Vec<(ElkNodeRef, f64, f64)> = {
             let mut graph_mut = graph.borrow_mut();
-            graph_mut.children().iter().cloned().collect()
+            graph_mut
+                .children()
+                .iter()
+                .map(|child| {
+                    let mut child_mut = child.borrow_mut();
+                    let shape = child_mut.connectable().shape();
+                    let w = shape.width();
+                    let h = shape.height();
+                    drop(child_mut);
+                    (child.clone(), w, h)
+                })
+                .collect()
         };
         let mut largest_child_size: f64 = 0.0;
-        for child in children {
-            let (width, height) = {
-                let mut child_mut = child.borrow_mut();
-                let shape = child_mut.connectable().shape();
-                (shape.width(), shape.height())
-            };
+        for (child, width, height) in children_with_sizes {
             let diameter = (width * width + height * height).sqrt();
             largest_child_size = largest_child_size.max(diameter);
 
@@ -256,28 +265,15 @@ impl RadialUtil {
     }
 
     pub fn shift_closest_edge_to_radi(node: &ElkNodeRef, x_pos: f64, y_pos: f64) {
-        if fuzzy_equals(x_pos, 0.0, Self::EPSILON) && fuzzy_equals(y_pos, 0.0, Self::EPSILON) {
-            let (width, height) = {
-                let mut node_mut = node.borrow_mut();
-                let shape = node_mut.connectable().shape();
-                (shape.width(), shape.height())
-            };
-            let mut node_mut = node.borrow_mut();
-            let shape = node_mut.connectable().shape();
-            shape.set_location(x_pos - width / 2.0, y_pos - height / 2.0);
-            return;
-        }
-
-        let (width, height) = {
-            let mut node_mut = node.borrow_mut();
-            let shape = node_mut.connectable().shape();
-            (shape.width(), shape.height())
-        };
-
+        // Single borrow for read + write (was 4 separate borrows)
         let mut node_mut = node.borrow_mut();
         let shape = node_mut.connectable().shape();
+        let width = shape.width();
+        let height = shape.height();
 
-        if x_pos < 0.0 {
+        if fuzzy_equals(x_pos, 0.0, Self::EPSILON) && fuzzy_equals(y_pos, 0.0, Self::EPSILON) {
+            shape.set_location(x_pos - width / 2.0, y_pos - height / 2.0);
+        } else if x_pos < 0.0 {
             if y_pos < 0.0 {
                 shape.set_location(x_pos - width, y_pos);
             } else {

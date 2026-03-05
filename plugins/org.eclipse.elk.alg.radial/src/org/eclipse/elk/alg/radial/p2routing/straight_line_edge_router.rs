@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::rc::Rc;
+
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutPhase;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::ElkMath;
@@ -12,6 +15,9 @@ use crate::org::eclipse::elk::alg::radial::p2routing::IRadialEdgeRouter;
 use crate::org::eclipse::elk::alg::radial::radial_layout_phases::RadialLayoutPhases;
 use crate::org::eclipse::elk::alg::radial::radial_util::RadialUtil;
 
+/// Pre-extracted node geometry: (center_x, center_y, width, height)
+type NodeGeom = (f64, f64, f64, f64);
+
 pub struct StraightLineEdgeRouter;
 
 impl StraightLineEdgeRouter {
@@ -19,7 +25,27 @@ impl StraightLineEdgeRouter {
         StraightLineEdgeRouter
     }
 
-    fn route_edges_internal(node: &ElkNodeRef) {
+    /// Pre-extract center and size for all graph children in a single pass.
+    fn build_node_geom(graph: &ElkNodeRef) -> HashMap<usize, NodeGeom> {
+        let children: Vec<ElkNodeRef> = {
+            let mut graph_mut = graph.borrow_mut();
+            graph_mut.children().iter().cloned().collect()
+        };
+        let mut geom = HashMap::with_capacity(children.len());
+        for child in &children {
+            let mut node_mut = child.borrow_mut();
+            let shape = node_mut.connectable().shape();
+            let w = shape.width();
+            let h = shape.height();
+            let cx = shape.x() + w / 2.0;
+            let cy = shape.y() + h / 2.0;
+            geom.insert(Rc::as_ptr(child) as usize, (cx, cy, w, h));
+        }
+        geom
+    }
+
+    fn route_edges_cached(node: &ElkNodeRef, geom: &HashMap<usize, NodeGeom>) {
+        let node_key = Rc::as_ptr(node) as usize;
         for edge in ElkGraphUtil::all_outgoing_edges(node) {
             let (source_shape, target_shape) = {
                 let edge_borrow = edge.borrow();
@@ -48,14 +74,18 @@ impl StraightLineEdgeRouter {
                 continue;
             }
 
-            let (mut source_x, mut source_y) = node_center(node);
-            let (mut target_x, mut target_y) = node_center(&target);
+            let target_key = Rc::as_ptr(&target) as usize;
+
+            // Use cached geometry — zero borrows for center/size
+            let (mut source_x, mut source_y, node_width, node_height) =
+                geom.get(&node_key).copied().unwrap_or_else(|| node_geom(node));
+            let (mut target_x, mut target_y, target_width, target_height) =
+                geom.get(&target_key).copied().unwrap_or_else(|| node_geom(&target));
 
             let mut vector = KVector::new();
             vector.x = target_x - source_x;
             vector.y = target_y - source_y;
 
-            let (node_width, node_height) = node_size(node);
             let mut source_clip = KVector::with_values(vector.x, vector.y);
             ElkMath::clip_vector(&mut source_clip, node_width, node_height);
             vector.x -= source_clip.x;
@@ -64,7 +94,6 @@ impl StraightLineEdgeRouter {
             source_x = target_x - vector.x;
             source_y = target_y - vector.y;
 
-            let (target_width, target_height) = node_size(&target);
             let mut target_clip = KVector::with_values(vector.x, vector.y);
             ElkMath::clip_vector(&mut target_clip, target_width, target_height);
             vector.x -= target_clip.x;
@@ -81,7 +110,7 @@ impl StraightLineEdgeRouter {
                 section_mut.set_end_y(target_y);
             }
 
-            Self::route_edges_internal(&target);
+            Self::route_edges_cached(&target, geom);
         }
     }
 }
@@ -94,7 +123,9 @@ impl Default for StraightLineEdgeRouter {
 
 impl IRadialEdgeRouter for StraightLineEdgeRouter {
     fn route_edges(&mut self, node: &ElkNodeRef) {
-        Self::route_edges_internal(node);
+        // Fallback path without pre-built cache — build one from node's parent
+        let geom = HashMap::new();
+        Self::route_edges_cached(node, &geom);
     }
 }
 
@@ -105,7 +136,8 @@ impl ILayoutPhase<RadialLayoutPhases, ElkNodeRef> for StraightLineEdgeRouter {
             progress_monitor.log_graph(graph, "Before");
         }
         if let Some(root) = RadialUtil::root_from_graph(graph) {
-            Self::route_edges_internal(&root);
+            let geom = Self::build_node_geom(graph);
+            Self::route_edges_cached(&root, &geom);
         }
         if progress_monitor.is_logging_enabled() {
             progress_monitor.log_graph(graph, "After");
@@ -121,18 +153,13 @@ impl ILayoutPhase<RadialLayoutPhases, ElkNodeRef> for StraightLineEdgeRouter {
     }
 }
 
-fn node_center(node: &ElkNodeRef) -> (f64, f64) {
+/// Fallback: extract geometry from a single node (used when cache miss).
+fn node_geom(node: &ElkNodeRef) -> NodeGeom {
     let mut node_mut = node.borrow_mut();
     let shape = node_mut.connectable().shape();
-    let x = shape.x() + shape.width() / 2.0;
-    let y = shape.y() + shape.height() / 2.0;
-    (x, y)
-}
-
-fn node_size(node: &ElkNodeRef) -> (f64, f64) {
-    let mut node_mut = node.borrow_mut();
-    let shape = node_mut.connectable().shape();
-    (shape.width(), shape.height())
+    let w = shape.width();
+    let h = shape.height();
+    (shape.x() + w / 2.0, shape.y() + h / 2.0, w, h)
 }
 
 fn first_edge_section(
