@@ -231,6 +231,21 @@ impl RadialUtil {
         successors
     }
 
+    /// Cached version of get_next_level_nodes — O(N) HashMap lookups, zero edge traversals.
+    pub fn get_next_level_nodes_cached(
+        nodes: &[ElkNodeRef],
+        cache: &std::collections::HashMap<usize, Vec<ElkNodeRef>>,
+    ) -> Vec<ElkNodeRef> {
+        let mut successors = Vec::new();
+        for node in nodes {
+            let key = node_key(node);
+            if let Some(cached) = cache.get(&key) {
+                successors.extend(cached.iter().cloned());
+            }
+        }
+        successors
+    }
+
     pub fn get_next_level_node_set(nodes: &[ElkNodeRef]) -> Vec<ElkNodeRef> {
         let mut successors = Vec::new();
         let mut seen = HashSet::new();

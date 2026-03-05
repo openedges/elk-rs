@@ -259,6 +259,129 @@ fn nd_is_super_root(nd: &HashMap<usize, NodeData>, node: &TNodeRef) -> bool {
         .unwrap_or(false)
 }
 
+/// Pre-extracted edge endpoint data for SoA access — single lock per edge.
+struct EdgeEndpoints {
+    source: TNodeRef,
+    target: TNodeRef,
+}
+
+/// Pre-built edge adjacency and classification maps.
+/// Built once at the start of avoid_overlap() — replaces O(N*E) per-node scans.
+struct EdgeMaps {
+    /// edge_key → (source, target) nodes
+    endpoints: HashMap<usize, EdgeEndpoints>,
+    /// node_key → outgoing edges (filtered: no same-level, no SUPER_ROOT source)
+    outgoing: HashMap<usize, Vec<TEdgeRef>>,
+    /// node_key → incoming edges (filtered: no same-level)
+    incoming: HashMap<usize, Vec<TEdgeRef>>,
+    /// Set of cycle-inducing edge keys
+    cycle_inducing: HashSet<usize>,
+}
+
+#[inline]
+fn edge_key(edge: &TEdgeRef) -> usize {
+    Arc::as_ptr(edge) as usize
+}
+
+/// Build edge adjacency maps in a single pass — O(E) locks total.
+/// Replaces per-node O(E) scans in TreeUtil::get_all_outgoing/incoming_edges.
+fn build_edge_maps(
+    edges: &[TEdgeRef],
+    nd: &HashMap<usize, NodeData>,
+    direction: Direction,
+) -> EdgeMaps {
+    let dir_vec = TreeUtil::get_direction_vector(direction);
+    let mut endpoints = HashMap::with_capacity(edges.len());
+    let mut outgoing: HashMap<usize, Vec<TEdgeRef>> = HashMap::new();
+    let mut incoming: HashMap<usize, Vec<TEdgeRef>> = HashMap::new();
+    let mut cycle_inducing = HashSet::new();
+    let mut seen = HashSet::new();
+
+    for edge in edges {
+        let ek = edge_key(edge);
+        if !seen.insert(ek) {
+            continue;
+        }
+        let (source, target) = match edge.lock().ok() {
+            Some(guard) => match (guard.source(), guard.target()) {
+                (Some(s), Some(t)) => (s, t),
+                _ => continue,
+            },
+            None => continue,
+        };
+        let source_key = Arc::as_ptr(&source) as usize;
+        let target_key = Arc::as_ptr(&target) as usize;
+        let source_nd = nd.get(&source_key);
+        let target_nd = nd.get(&target_key);
+        let source_level = source_nd.map(|d| d.level).unwrap_or(0);
+        let target_level = target_nd.map(|d| d.level).unwrap_or(0);
+        let source_is_super_root = source_nd.map(|d| d.is_super_root).unwrap_or(false);
+
+        // Check cycle inducing using pre-extracted positions
+        let source_pos = source_nd.map(|d| d.pos).unwrap_or_default();
+        let target_pos = target_nd.map(|d| d.pos).unwrap_or_default();
+        let edge_vec = KVector::with_values(
+            target_pos.x - source_pos.x,
+            target_pos.y - source_pos.y,
+        );
+        if dir_vec.dot_product(&edge_vec) <= 0.0 {
+            cycle_inducing.insert(ek);
+        }
+
+        endpoints.insert(ek, EdgeEndpoints {
+            source: source.clone(),
+            target: target.clone(),
+        });
+
+        // Build filtered adjacency (matches TreeUtil::get_all_outgoing/incoming_edges)
+        if source_level != target_level {
+            if !source_is_super_root {
+                outgoing.entry(source_key).or_default().push(edge.clone());
+            }
+            incoming.entry(target_key).or_default().push(edge.clone());
+        }
+    }
+
+    EdgeMaps { endpoints, outgoing, incoming, cycle_inducing }
+}
+
+/// Build level → nodes map, pre-sorted by position. O(N).
+/// Replaces O(N) filtering per level in avoid_overlap_special_edges.
+fn build_level_nodes(
+    nodes: &[TNodeRef],
+    nd: &HashMap<usize, NodeData>,
+    direction: Direction,
+) -> Vec<Vec<TNodeRef>> {
+    let max_level = nodes.iter().map(|n| nd_level(nd, n)).max().unwrap_or(0);
+    let len = (max_level + 1).max(0) as usize;
+    let mut levels: Vec<Vec<TNodeRef>> = vec![Vec::new(); len];
+    for node in nodes {
+        let level = nd_level(nd, node);
+        if level >= 0 && (level as usize) < len {
+            levels[level as usize].push(node.clone());
+        }
+    }
+    // Pre-sort each level by position
+    for level_vec in &mut levels {
+        if direction.is_horizontal() {
+            level_vec.sort_by(|a, b| {
+                nd_pos(nd, a)
+                    .y
+                    .partial_cmp(&nd_pos(nd, b).y)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+        } else {
+            level_vec.sort_by(|a, b| {
+                nd_pos(nd, a)
+                    .x
+                    .partial_cmp(&nd_pos(nd, b).x)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+        }
+    }
+    levels
+}
+
 impl EdgeRouter {
     fn middle_to_middle(&self, graph: &TGraphRef) {
         let edges = graph
@@ -331,146 +454,111 @@ impl EdgeRouter {
     }
 
     fn avoid_overlap(&self, graph: &TGraphRef) {
-        let (node_bendpoint_padding, edge_end_texture_padding, direction) = {
-            let mut graph_guard = match graph.lock() {
-                Ok(guard) => guard,
+        // Single graph lock: extract all properties + nodes + edges
+        let (nodes, edges, node_bendpoint_padding, edge_end_texture_padding, direction, graph_bounds) = {
+            let mut g = match graph.lock() {
+                Ok(g) => g,
                 Err(_) => return,
             };
             (
-                graph_guard
-                    .get_property(MrTreeOptions::SPACING_EDGE_NODE)
+                g.nodes().clone(),
+                g.edges().clone(),
+                g.get_property(MrTreeOptions::SPACING_EDGE_NODE)
                     .unwrap_or(0.0),
-                graph_guard
-                    .get_property(MrTreeOptions::EDGE_END_TEXTURE_LENGTH)
+                g.get_property(MrTreeOptions::EDGE_END_TEXTURE_LENGTH)
                     .unwrap_or(0.0),
-                graph_guard
-                    .get_property(MrTreeOptions::DIRECTION)
+                g.get_property(MrTreeOptions::DIRECTION)
                     .unwrap_or(Direction::Down),
+                (
+                    g.get_property(InternalProperties::GRAPH_XMIN).unwrap_or(0.0),
+                    g.get_property(InternalProperties::GRAPH_XMAX).unwrap_or(0.0),
+                    g.get_property(InternalProperties::GRAPH_YMIN).unwrap_or(0.0),
+                    g.get_property(InternalProperties::GRAPH_YMAX).unwrap_or(0.0),
+                ),
             )
         };
 
         // SoA: pre-extract all node data + graph stats in single pass
-        let nodes = graph
-            .lock()
-            .ok()
-            .map(|g| g.nodes().clone())
-            .unwrap_or_default();
         let (nd, stats) = build_node_data(&nodes);
+        // Edge adjacency maps: O(E) locks → replaces O(N*E) per-node scans
+        let em = build_edge_maps(&edges, &nd, direction);
+        // Level → nodes map, pre-sorted by position
+        let level_nodes = build_level_nodes(&nodes, &nd, direction);
 
-        // Cache graph bounds once
-        let graph_bounds = graph
-            .lock()
-            .ok()
-            .map(|mut guard| {
-                let xmin = guard
-                    .get_property(InternalProperties::GRAPH_XMIN)
-                    .unwrap_or(0.0);
-                let xmax = guard
-                    .get_property(InternalProperties::GRAPH_XMAX)
-                    .unwrap_or(0.0);
-                let ymin = guard
-                    .get_property(InternalProperties::GRAPH_YMIN)
-                    .unwrap_or(0.0);
-                let ymax = guard
-                    .get_property(InternalProperties::GRAPH_YMAX)
-                    .unwrap_or(0.0);
-                (xmin, xmax, ymin, ymax)
-            })
-            .unwrap_or((0.0, 0.0, 0.0, 0.0));
-
-        self.avoid_overlap_set_start_points(graph, direction, node_bendpoint_padding, &nd);
+        self.avoid_overlap_set_start_points(
+            direction, node_bendpoint_padding, &nd, &em, &nodes,
+        );
         self.avoid_overlap_special_edges(
-            graph,
             direction,
             node_bendpoint_padding,
             edge_end_texture_padding,
             &nd,
             &stats,
             graph_bounds,
+            &em,
+            &level_nodes,
+            &edges,
         );
         self.avoid_overlap_set_end_points(
-            graph,
             direction,
             node_bendpoint_padding,
             edge_end_texture_padding,
             &nd,
+            &em,
+            &nodes,
         );
     }
 
     #[allow(clippy::too_many_arguments)]
     fn avoid_overlap_special_edges(
         &self,
-        graph: &TGraphRef,
         direction: Direction,
         node_bendpoint_padding: f64,
         edge_end_texture_padding: f64,
         nd: &HashMap<usize, NodeData>,
         stats: &GraphStats,
         graph_bounds: (f64, f64, f64, f64),
+        em: &EdgeMaps,
+        level_nodes: &[Vec<TNodeRef>],
+        edges: &[TEdgeRef],
     ) {
         let mut side_one_edges = 0;
         let mut side_two_edges = 0;
         let mut node_gaps: HashMap<u64, MultiLevelEdgeNodeNodeGap> = HashMap::new();
 
-        let nodes = graph
-            .lock()
-            .ok()
-            .map(|g| g.nodes().clone())
-            .unwrap_or_default();
-        let max_level = nodes.iter().map(|n| nd_level(nd, n)).max().unwrap_or(0) + 1;
+        let max_level = level_nodes.len() as i32;
         let mut outs_per_level = vec![0_i32; max_level.max(0) as usize];
         let mut ins_per_level = vec![0_i32; max_level.max(0) as usize];
 
-        let edges = graph
-            .lock()
-            .ok()
-            .map(|g| g.edges().clone())
-            .unwrap_or_default();
         let mut seen: HashSet<usize> = HashSet::new();
         for edge in edges
-            .into_iter()
+            .iter()
             .filter(|edge| seen.insert(Arc::as_ptr(edge) as usize))
         {
-            let (source, target) = match edge.lock().ok() {
-                Some(guard) => (guard.source(), guard.target()),
-                None => (None, None),
-            };
-            let (Some(source), Some(target)) = (source, target) else {
+            // Use pre-built edge maps instead of edge.lock() for source/target
+            let ek = edge_key(edge);
+            let Some(ep) = em.endpoints.get(&ek) else {
                 continue;
             };
+            let source = &ep.source;
+            let target = &ep.target;
 
-            let source_level = nd_level(nd, &source);
-            let target_level = nd_level(nd, &target);
+            let source_level = nd_level(nd, source);
+            let target_level = nd_level(nd, target);
             let level_diff = target_level - source_level;
             if level_diff > 1 {
                 // Track last bend point locally to avoid re-locking edge per level
                 let mut has_bends = false;
-                let source_pos = nd_pos(nd, &source);
-                let target_pos = nd_pos(nd, &target);
+                let source_pos = nd_pos(nd, source);
+                let target_pos = nd_pos(nd, target);
                 for cur_level in (source_level + 1)..target_level {
-                    let mut next_level_nodes: Vec<TNodeRef> = nodes
-                        .iter()
-                        .filter(|node| nd_level(nd, node) == cur_level)
-                        .cloned()
-                        .collect();
-
-                    if direction.is_horizontal() {
-                        next_level_nodes
-                            .sort_by(|a, b| {
-                                nd_pos(nd, a)
-                                    .y
-                                    .partial_cmp(&nd_pos(nd, b).y)
-                                    .unwrap_or(std::cmp::Ordering::Equal)
-                            });
+                    // Use pre-built level→nodes map (already sorted by position)
+                    let empty_vec = Vec::new();
+                    let next_level_nodes = if cur_level >= 0 && (cur_level as usize) < level_nodes.len() {
+                        &level_nodes[cur_level as usize]
                     } else {
-                        next_level_nodes
-                            .sort_by(|a, b| {
-                                nd_pos(nd, a)
-                                    .x
-                                    .partial_cmp(&nd_pos(nd, b).x)
-                                    .unwrap_or(std::cmp::Ordering::Equal)
-                            });
-                    }
+                        &empty_vec
+                    };
 
                     let interpolation =
                         (cur_level - source_level) as f64 / (target_level - source_level) as f64;
@@ -577,7 +665,8 @@ impl EdgeRouter {
                             edge.clone(),
                             first_index,
                             second_index,
-                            graph.clone(),
+                            direction,
+                            node_bendpoint_padding,
                         );
                         node_gaps.insert(key, gap);
                     }
@@ -624,7 +713,7 @@ impl EdgeRouter {
                     }
                 }
             } else if level_diff == 0 {
-                self.middle_to_middle_edge_route(&edge);
+                self.middle_to_middle_edge_route(edge);
             } else if level_diff < 0 {
                 let source_level_usize = source_level.max(0) as usize;
                 let target_level_usize = target_level.max(0) as usize;
@@ -641,7 +730,7 @@ impl EdgeRouter {
                     outs_per_level.get(source_level_usize).copied().unwrap_or(0),
                 );
                 let updated = self.avoid_overlap_handle_cycle_inducing_edges(
-                    &edge,
+                    edge,
                     direction,
                     side_edges,
                     node_bendpoint_padding,
@@ -649,6 +738,7 @@ impl EdgeRouter {
                     in_outs,
                     nd,
                     stats,
+                    em,
                 );
                 side_one_edges = *updated.first();
                 side_two_edges = *updated.second();
@@ -667,23 +757,24 @@ impl EdgeRouter {
         in_outs: Pair<i32, i32>,
         nd: &HashMap<usize, NodeData>,
         stats: &GraphStats,
+        em: &EdgeMaps,
     ) -> Pair<i32, i32>
     {
         let mut side_one_edges = *side_edges.first();
         let mut side_two_edges = *side_edges.second();
 
-        let (source, target) = match edge.lock().ok() {
-            Some(guard) => (guard.source(), guard.target()),
-            None => (None, None),
-        };
-        let (Some(source), Some(target)) = (source, target) else {
+        // Use pre-built edge maps instead of edge.lock() for source/target
+        let ek = edge_key(edge);
+        let Some(ep) = em.endpoints.get(&ek) else {
             return Pair::of(side_one_edges, side_two_edges);
         };
+        let source = &ep.source;
+        let target = &ep.target;
 
-        let source_pos = nd_pos(nd, &source);
-        let source_size = nd_size(nd, &source);
-        let target_pos = nd_pos(nd, &target);
-        let target_size = nd_size(nd, &target);
+        let source_pos = nd_pos(nd, source);
+        let source_size = nd_size(nd, source);
+        let target_pos = nd_pos(nd, target);
+        let target_size = nd_size(nd, target);
 
         let bend_tmp = if direction.is_horizontal() {
             let middle_tree = stats.average_center(true);
@@ -708,7 +799,7 @@ impl EdgeRouter {
         if let Ok(mut edge_guard) = edge.lock() {
             let bends = edge_guard.bend_points();
             if direction == Direction::Left {
-                let level_min = nd_level_min(nd, &source);
+                let level_min = nd_level_min(nd, source);
                 bends.add_values(level_min - node_bendpoint_padding, bend_tmp);
                 bends.add_values(
                     target_pos.x
@@ -729,7 +820,7 @@ impl EdgeRouter {
                     target_pos.y + target_size.y / 2.0,
                 );
             } else if direction == Direction::Right {
-                let level_max = nd_level_max(nd, &source);
+                let level_max = nd_level_max(nd, source);
                 bends.add_values(
                     level_max + node_bendpoint_padding,
                     source_pos.y + source_size.y / 2.0,
@@ -748,7 +839,7 @@ impl EdgeRouter {
                 );
                 bends.add_values(target_pos.x, target_pos.y + target_size.y / 2.0);
             } else if direction == Direction::Up {
-                let level_min = nd_level_min(nd, &source);
+                let level_min = nd_level_min(nd, source);
                 bends.add_values(bend_tmp, level_min - node_bendpoint_padding);
                 bends.add_values(
                     bend_tmp,
@@ -772,12 +863,12 @@ impl EdgeRouter {
                 if !bends.is_empty() {
                     let mut last = bends.get_last();
                     last.y =
-                        nd_level_max(nd, &source) + node_bendpoint_padding * *in_outs.second() as f64;
+                        nd_level_max(nd, source) + node_bendpoint_padding * *in_outs.second() as f64;
                     bends.set(bends.len() - 1, last);
                 }
                 bends.add_values(
                     bend_tmp,
-                    nd_level_max(nd, &source) + node_bendpoint_padding * *in_outs.second() as f64,
+                    nd_level_max(nd, source) + node_bendpoint_padding * *in_outs.second() as f64,
                 );
                 bends.add_values(
                     bend_tmp,
@@ -793,35 +884,36 @@ impl EdgeRouter {
 
     fn avoid_overlap_set_start_points(
         &self,
-        graph: &TGraphRef,
         direction: Direction,
         node_bendpoint_padding: f64,
         nd: &HashMap<usize, NodeData>,
+        em: &EdgeMaps,
+        nodes: &[TNodeRef],
     ) {
-        let nodes = graph
-            .lock()
-            .ok()
-            .map(|g| g.nodes().clone())
-            .unwrap_or_default();
         for node in nodes {
-            if nd_is_super_root(nd, &node) {
+            if nd_is_super_root(nd, node) {
                 continue;
             }
 
-            let mut outs = TreeUtil::get_all_outgoing_edges(&node, graph);
+            // Use pre-built outgoing edge map — O(1) lookup vs O(E) scan
+            let node_k = Arc::as_ptr(node) as usize;
+            let mut outs = em.outgoing.get(&node_k).cloned().unwrap_or_default();
+            // Sort by target position (get_first_point returns target pos when bends empty)
             if direction.is_horizontal() {
                 outs.sort_by(|a, b| {
-                    TreeUtil::get_first_point(a)
-                        .y
-                        .partial_cmp(&TreeUtil::get_first_point(b).y)
-                        .unwrap_or(std::cmp::Ordering::Equal)
+                    let a_y = em.endpoints.get(&edge_key(a))
+                        .map(|ep| nd_pos(nd, &ep.target).y).unwrap_or(0.0);
+                    let b_y = em.endpoints.get(&edge_key(b))
+                        .map(|ep| nd_pos(nd, &ep.target).y).unwrap_or(0.0);
+                    a_y.partial_cmp(&b_y).unwrap_or(std::cmp::Ordering::Equal)
                 });
             } else {
                 outs.sort_by(|a, b| {
-                    TreeUtil::get_first_point(a)
-                        .x
-                        .partial_cmp(&TreeUtil::get_first_point(b).x)
-                        .unwrap_or(std::cmp::Ordering::Equal)
+                    let a_x = em.endpoints.get(&edge_key(a))
+                        .map(|ep| nd_pos(nd, &ep.target).x).unwrap_or(0.0);
+                    let b_x = em.endpoints.get(&edge_key(b))
+                        .map(|ep| nd_pos(nd, &ep.target).x).unwrap_or(0.0);
+                    a_x.partial_cmp(&b_x).unwrap_or(std::cmp::Ordering::Equal)
                 });
             }
 
@@ -835,7 +927,8 @@ impl EdgeRouter {
                 .unwrap_or(false);
             let num = outs.len();
             for (i, edge) in outs.iter().enumerate() {
-                if skip && !TreeUtil::is_cycle_inducing(edge, graph) {
+                // Use pre-computed cycle_inducing set — zero locks
+                if skip && !em.cycle_inducing.contains(&edge_key(edge)) {
                     continue;
                 }
 
@@ -844,10 +937,10 @@ impl EdgeRouter {
                 } else {
                     (i + 1) as f64 / (num + 1) as f64
                 };
-                let pos = nd_pos(nd, &node);
-                let size = nd_size(nd, &node);
-                let level_min = nd_level_min(nd, &node);
-                let level_max = nd_level_max(nd, &node);
+                let pos = nd_pos(nd, node);
+                let size = nd_size(nd, node);
+                let level_min = nd_level_min(nd, node);
+                let level_max = nd_level_max(nd, node);
 
                 if let Ok(mut edge_guard) = edge.lock() {
                     let bends = edge_guard.bend_points();
@@ -879,23 +972,22 @@ impl EdgeRouter {
 
     fn avoid_overlap_set_end_points(
         &self,
-        graph: &TGraphRef,
         direction: Direction,
         node_bendpoint_padding: f64,
         edge_end_texture_padding: f64,
         nd: &HashMap<usize, NodeData>,
+        em: &EdgeMaps,
+        nodes: &[TNodeRef],
     ) {
-        let nodes = graph
-            .lock()
-            .ok()
-            .map(|g| g.nodes().clone())
-            .unwrap_or_default();
         for node in nodes {
-            if nd_is_super_root(nd, &node) {
+            if nd_is_super_root(nd, node) {
                 continue;
             }
 
-            let mut ins = TreeUtil::get_all_incoming_edges(&node, graph);
+            // Use pre-built incoming edge map — O(1) lookup vs O(E) scan
+            let node_k = Arc::as_ptr(node) as usize;
+            let mut ins = em.incoming.get(&node_k).cloned().unwrap_or_default();
+            // Sort by last bend point (bends may exist from start_points/special_edges)
             if direction.is_horizontal() {
                 ins.sort_by(|a, b| {
                     TreeUtil::get_last_point(a)
@@ -914,18 +1006,18 @@ impl EdgeRouter {
 
             let num = ins.len();
             for (i, edge) in ins.iter().enumerate() {
-                // Avoid locking the same edge recursively inside the routing branch.
-                let is_cycle_inducing = TreeUtil::is_cycle_inducing(edge, graph);
+                // Use pre-computed cycle_inducing set — zero locks
+                let is_cycle_inducing = em.cycle_inducing.contains(&edge_key(edge));
                 let interpolation = if num == 1 {
                     Self::ONE_HALF
                 } else {
                     (i + 1) as f64 / (num + 1) as f64
                 };
 
-                let pos = nd_pos(nd, &node);
-                let size = nd_size(nd, &node);
-                let level_min = nd_level_min(nd, &node);
-                let level_max = nd_level_max(nd, &node);
+                let pos = nd_pos(nd, node);
+                let size = nd_size(nd, node);
+                let level_min = nd_level_min(nd, node);
+                let level_max = nd_level_max(nd, node);
 
                 if let Ok(mut edge_guard) = edge.lock() {
                     let bends = edge_guard.bend_points();

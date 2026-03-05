@@ -1,8 +1,8 @@
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::direction::Direction;
 
-use crate::org::eclipse::elk::alg::mrtree::graph::{TEdgeRef, TGraphRef, TNodeRef};
-use crate::org::eclipse::elk::alg::mrtree::options::{InternalProperties, MrTreeOptions};
+use crate::org::eclipse::elk::alg::mrtree::graph::{TEdgeRef, TNodeRef};
+use crate::org::eclipse::elk::alg::mrtree::options::InternalProperties;
 
 struct BendRef {
     edge: TEdgeRef,
@@ -37,19 +37,9 @@ impl MultiLevelEdgeNodeNodeGap {
         edge: TEdgeRef,
         first_index: usize,
         second_index: usize,
-        graph: TGraphRef,
+        direction: Direction,
+        node_bendpoint_padding: f64,
     ) -> Self {
-        let (direction, node_bendpoint_padding) = match graph.lock() {
-            Ok(mut graph_guard) => (
-                graph_guard
-                    .get_property(MrTreeOptions::DIRECTION)
-                    .unwrap_or(Direction::Down),
-                graph_guard
-                    .get_property(MrTreeOptions::SPACING_EDGE_NODE)
-                    .unwrap_or(0.0),
-            ),
-            Err(_) => (Direction::Down, 0.0),
-        };
         let mut gap = MultiLevelEdgeNodeNodeGap {
             neighbor_one,
             neighbor_two,
