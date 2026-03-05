@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::f64::consts::PI;
 use std::rc::Rc;
@@ -151,19 +152,19 @@ impl RadialUtil {
     pub fn build_tree_caches(
         root: &ElkNodeRef,
     ) -> (
-        std::collections::HashMap<usize, Vec<ElkNodeRef>>,
-        std::collections::HashMap<usize, f64>,
+        HashMap<usize, Vec<ElkNodeRef>>,
+        HashMap<usize, f64>,
     ) {
-        let mut successor_cache = std::collections::HashMap::new();
-        let mut leaf_cache = std::collections::HashMap::new();
+        let mut successor_cache = HashMap::new();
+        let mut leaf_cache = HashMap::new();
         Self::build_caches_recursive(root, &mut successor_cache, &mut leaf_cache);
         (successor_cache, leaf_cache)
     }
 
     fn build_caches_recursive(
         node: &ElkNodeRef,
-        successor_cache: &mut std::collections::HashMap<usize, Vec<ElkNodeRef>>,
-        leaf_cache: &mut std::collections::HashMap<usize, f64>,
+        successor_cache: &mut HashMap<usize, Vec<ElkNodeRef>>,
+        leaf_cache: &mut HashMap<usize, f64>,
     ) -> f64 {
         let key = node_key(node);
         if let Some(&count) = leaf_cache.get(&key) {
@@ -234,7 +235,7 @@ impl RadialUtil {
     /// Cached version of get_next_level_nodes — O(N) HashMap lookups, zero edge traversals.
     pub fn get_next_level_nodes_cached(
         nodes: &[ElkNodeRef],
-        cache: &std::collections::HashMap<usize, Vec<ElkNodeRef>>,
+        cache: &HashMap<usize, Vec<ElkNodeRef>>,
     ) -> Vec<ElkNodeRef> {
         let mut successors = Vec::new();
         for node in nodes {

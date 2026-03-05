@@ -166,7 +166,7 @@ impl IOverlapRemoval for RadiusExtensionOverlapRemoval {
         self.sorter = sorter_opt.unwrap_or_default().create();
         self.base.set_spacing(spacing);
 
-        // Build successor cache once for the entire tree (Part 4)
+        // Build successor cache once for the entire tree
         let (successor_cache, _leaf_cache) = RadialUtil::build_tree_caches(&root);
 
         // Pre-compute root center once

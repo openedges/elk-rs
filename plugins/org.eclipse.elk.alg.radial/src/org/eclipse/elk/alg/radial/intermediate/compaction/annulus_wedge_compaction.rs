@@ -224,7 +224,7 @@ impl IRadialCompactor for AnnulusWedgeCompaction {
         .unwrap_or(0.0);
         self.base.set_spacing(spacing);
 
-        let mut successors = RadialUtil::get_next_level_nodes(&[root.clone()]);
+        let mut successors = RadialUtil::get_next_level_nodes(std::slice::from_ref(&root));
         if let Some(sorter) = self.sorter.as_mut() {
             sorter.sort(&mut successors);
         }

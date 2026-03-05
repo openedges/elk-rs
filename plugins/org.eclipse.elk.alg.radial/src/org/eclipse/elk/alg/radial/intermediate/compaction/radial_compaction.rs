@@ -119,7 +119,7 @@ impl IRadialCompactor for RadialCompaction {
         .unwrap_or(0.0);
         self.base.set_spacing(spacing);
 
-        let mut first_level_nodes = RadialUtil::get_next_level_nodes(&[root.clone()]);
+        let mut first_level_nodes = RadialUtil::get_next_level_nodes(std::slice::from_ref(&root));
         if let Some(sorter) = self.sorter.as_mut() {
             sorter.sort(&mut first_level_nodes);
         }
