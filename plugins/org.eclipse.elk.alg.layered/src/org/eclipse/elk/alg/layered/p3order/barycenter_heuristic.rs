@@ -8,8 +8,6 @@ static TRACE_PORT_RANKS: LazyLock<bool> =
     LazyLock::new(|| std::env::var_os("ELK_TRACE_PORT_RANKS").is_some());
 static TRACE_CROSSMIN: LazyLock<bool> =
     LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN").is_some());
-static TRACE_BARYCENTER_NAN: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_BARYCENTER_NAN").is_some());
 static TRACE_CROSSMIN_TIMING: LazyLock<bool> =
     LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN_TIMING").is_some());
 static TRACE_BARYCENTER_LAYER_PATTERN: LazyLock<Option<String>> =
@@ -34,8 +32,6 @@ pub struct BarycenterHeuristic {
     snapshot: Option<Arc<CrossMinSnapshot>>,
     /// Reusable buffer for flat→node lookup in calculate_barycenters (avoids HashMap alloc per call).
     flat_to_node_buf: FxHashMap<u32, LNodeRef>,
-    /// Reusable buffer for barycenter snapshot in minimize_crossings_layer sort.
-    bary_snap_buf: FxHashMap<usize, Option<f64>>,
 }
 
 impl BarycenterHeuristic {
@@ -50,7 +46,6 @@ impl BarycenterHeuristic {
             sweep_iteration: 0,
             snapshot: None,
             flat_to_node_buf: FxHashMap::default(),
-            bary_snap_buf: FxHashMap::default(),
         }
     }
 
@@ -511,14 +506,6 @@ impl BarycenterHeuristic {
     }
 
 
-    fn fill_barycenter_snapshot(&mut self, nodes: &[LNodeRef]) {
-        self.bary_snap_buf.clear();
-        for node in nodes {
-            let barycenter = self.get_barycenter(node);
-            self.bary_snap_buf.insert(node_ptr_id(node), barycenter);
-        }
-    }
-
     fn minimize_crossings_layer(
         &mut self,
         layer: &mut Vec<LNodeRef>,
@@ -618,12 +605,18 @@ impl BarycenterHeuristic {
 
         if layer.len() > 1 {
             let sort_start = if trace { Some(Instant::now()) } else { None };
-            self.fill_barycenter_snapshot(layer);
-            let bary_snap = std::mem::take(&mut self.bary_snap_buf);
-            layer.sort_by(|left, right| {
-                compare_barycenter_order(left, right, &bary_snap)
+            // Pre-extract barycenters into parallel Vec (contiguous, no HashMap overhead)
+            let barys: Vec<Option<f64>> =
+                layer.iter().map(|node| self.get_barycenter(node)).collect();
+            let mut indices: Vec<usize> = (0..layer.len()).collect();
+            indices.sort_by(|&a, &b| match (barys[a], barys[b]) {
+                (Some(lb), Some(rb)) => lb.partial_cmp(&rb).unwrap_or(Ordering::Equal),
+                (Some(_), None) => Ordering::Less,
+                (None, Some(_)) => Ordering::Greater,
+                _ => Ordering::Equal,
             });
-            self.bary_snap_buf = bary_snap;
+            let sorted: Vec<LNodeRef> = indices.iter().map(|&i| layer[i].clone()).collect();
+            layer.clone_from_slice(&sorted);
             self.constraint_resolver.process_constraints(layer);
             if let Some(sort_start) = sort_start {
                 eprintln!(
@@ -896,10 +889,6 @@ fn layer_index(node: &LNodeRef) -> usize {
     0
 }
 
-fn node_ptr_id(node: &LNodeRef) -> usize {
-    Arc::as_ptr(node) as usize
-}
-
 fn same_layer(left: &LNodeRef, right: &LNodeRef) -> bool {
     let left_layer = left.lock().ok().and_then(|node_guard| node_guard.layer());
     let right_layer = right.lock().ok().and_then(|node_guard| node_guard.layer());
@@ -916,45 +905,3 @@ fn port_id(port: &LPortRef) -> usize {
         .unwrap_or(0)
 }
 
-/// Free-function barycenter comparator for stable sort (no &self needed).
-fn compare_barycenter_order(
-    left: &LNodeRef,
-    right: &LNodeRef,
-    barycenter_snapshot: &FxHashMap<usize, Option<f64>>,
-) -> Ordering {
-    let left_bary = barycenter_snapshot
-        .get(&node_ptr_id(left))
-        .copied()
-        .flatten();
-    let right_bary = barycenter_snapshot
-        .get(&node_ptr_id(right))
-        .copied()
-        .flatten();
-
-    match (left_bary, right_bary) {
-        (Some(lb), Some(rb)) => {
-            lb.partial_cmp(&rb).unwrap_or_else(|| {
-                if *TRACE_BARYCENTER_NAN {
-                    let left_name = left
-                        .lock()
-                        .ok()
-                        .map(|mut node_guard| node_guard.to_string())
-                        .unwrap_or_else(|| "<poisoned-node>".to_owned());
-                    let right_name = right
-                        .lock()
-                        .ok()
-                        .map(|mut node_guard| node_guard.to_string())
-                        .unwrap_or_else(|| "<poisoned-node>".to_owned());
-                    eprintln!(
-                        "crossmin: barycenter nan compare left={}({}) right={}({})",
-                        left_name, lb, right_name, rb
-                    );
-                }
-                Ordering::Equal
-            })
-        }
-        (Some(_), None) => Ordering::Less,
-        (None, Some(_)) => Ordering::Greater,
-        _ => Ordering::Equal,
-    }
-}
