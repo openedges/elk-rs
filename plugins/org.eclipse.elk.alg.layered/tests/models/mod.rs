@@ -1,3 +1,4 @@
+mod in_layer_edge_routing_integration_test;
 mod overall_layout_test;
 mod shared_direct_plain_layout_test;
 mod shared_layout_smoke_test;

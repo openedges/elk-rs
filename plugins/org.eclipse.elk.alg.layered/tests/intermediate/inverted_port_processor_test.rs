@@ -140,3 +140,61 @@ fn inverted_port_processor_ignores_self_loop() {
         NodeType::Normal
     );
 }
+
+#[test]
+fn inverted_port_processor_skips_dummy_for_same_layer_east_input() {
+    let (graph, layers) = graph_with_layers(1);
+    let layer = layers[0].clone();
+
+    // Two nodes in the same layer, source has EAST output, target has EAST input
+    let source_node = add_node(&graph, &layer, PortConstraints::FixedSide);
+    let target_node = add_node(&graph, &layer, PortConstraints::FixedSide);
+    let source_east = add_port(&source_node, PortSide::East);
+    let target_east = add_port(&target_node, PortSide::East);
+    connect(&source_east, &target_east);
+
+    run_processor(&graph);
+
+    // No dummy node should be created for same-layer EAST→EAST edge
+    let nodes = layer.lock().expect("layer lock").nodes().clone();
+    assert_eq!(nodes.len(), 2, "no dummy node should be added for same-layer edge");
+}
+
+#[test]
+fn inverted_port_processor_skips_dummy_for_same_layer_west_output() {
+    let (graph, layers) = graph_with_layers(1);
+    let layer = layers[0].clone();
+
+    // Two nodes in the same layer, source has WEST output, target has WEST input
+    let source_node = add_node(&graph, &layer, PortConstraints::FixedSide);
+    let target_node = add_node(&graph, &layer, PortConstraints::FixedSide);
+    let source_west = add_port(&source_node, PortSide::West);
+    let target_west = add_port(&target_node, PortSide::West);
+    connect(&source_west, &target_west);
+
+    run_processor(&graph);
+
+    // No dummy node should be created for same-layer WEST→WEST edge
+    let nodes = layer.lock().expect("layer lock").nodes().clone();
+    assert_eq!(nodes.len(), 2, "no dummy node should be added for same-layer edge");
+}
+
+#[test]
+fn inverted_port_processor_creates_dummy_for_cross_layer_east_input() {
+    let (graph, layers) = graph_with_layers(2);
+    let layer0 = layers[0].clone();
+    let layer1 = layers[1].clone();
+
+    // Source in layer0, target in layer1 with EAST input — should still create dummy
+    let source_node = add_node(&graph, &layer0, PortConstraints::FixedSide);
+    let target_node = add_node(&graph, &layer1, PortConstraints::FixedSide);
+    let source_east = add_port(&source_node, PortSide::East);
+    let target_east = add_port(&target_node, PortSide::East);
+    connect(&source_east, &target_east);
+
+    run_processor(&graph);
+
+    // Dummy should be created for cross-layer inverted port
+    let nodes = layer1.lock().expect("layer lock").nodes().clone();
+    assert!(nodes.len() > 1, "dummy node should be created for cross-layer inverted port");
+}

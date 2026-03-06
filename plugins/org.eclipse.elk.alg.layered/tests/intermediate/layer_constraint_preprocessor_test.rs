@@ -112,3 +112,55 @@ fn layer_constraint_preprocessor_does_not_force_layer_when_connected_to_both_hid
         .has_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT);
     assert!(!has_constraint);
 }
+
+#[test]
+fn preprocessor_does_not_panic_with_incoming_edge_on_first_separate() {
+    // With USE_ENSURE_NO_INACCEPTABLE_EDGES=false, this should not panic
+    let graph = LGraph::new();
+    let normal = add_layerless_node(&graph, LayerConstraint::None);
+    let first_sep = add_layerless_node(&graph, LayerConstraint::FirstSeparate);
+
+    let normal_port = add_port(&normal);
+    let first_sep_port = add_port(&first_sep);
+    // incoming edge to FIRST_SEPARATE (would have panicked before)
+    let _edge = connect(&normal_port, &first_sep_port);
+
+    // Should not panic
+    run_processor(&graph);
+
+    let hidden_nodes = graph
+        .lock()
+        .expect("graph lock")
+        .get_property(InternalProperties::HIDDEN_NODES)
+        .unwrap_or_default();
+    assert!(
+        hidden_nodes.iter().any(|n| Arc::ptr_eq(n, &first_sep)),
+        "first_separate node should be hidden"
+    );
+}
+
+#[test]
+fn preprocessor_does_not_panic_with_outgoing_edge_on_last_separate() {
+    // With USE_ENSURE_NO_INACCEPTABLE_EDGES=false, this should not panic
+    let graph = LGraph::new();
+    let last_sep = add_layerless_node(&graph, LayerConstraint::LastSeparate);
+    let normal = add_layerless_node(&graph, LayerConstraint::None);
+
+    let last_sep_port = add_port(&last_sep);
+    let normal_port = add_port(&normal);
+    // outgoing edge from LAST_SEPARATE (would have panicked before)
+    let _edge = connect(&last_sep_port, &normal_port);
+
+    // Should not panic
+    run_processor(&graph);
+
+    let hidden_nodes = graph
+        .lock()
+        .expect("graph lock")
+        .get_property(InternalProperties::HIDDEN_NODES)
+        .unwrap_or_default();
+    assert!(
+        hidden_nodes.iter().any(|n| Arc::ptr_eq(n, &last_sep)),
+        "last_separate node should be hidden"
+    );
+}

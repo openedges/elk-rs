@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::{
-    LEdge, LGraph, LGraphRef, LNode, LNodeRef, LPort, LPortRef, Layer, LayerRef,
+    LEdge, LGraph, LGraphRef, LNode, LNodeRef, LPort, LPortRef, Layer, LayerRef, NodeType,
 };
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::intermediate::LayerConstraintPostprocessor;
 use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::{
@@ -119,4 +119,109 @@ fn layer_constraint_postprocessor_restores_hidden_nodes_and_detached_edges() {
 
     let target = edge.lock().expect("edge lock").target().expect("target");
     assert!(Arc::ptr_eq(&target, &opposite_port));
+}
+
+fn add_hidden_node(
+    graph: &LGraphRef,
+    constraint: LayerConstraint,
+    node_type: NodeType,
+) -> LNodeRef {
+    let node = LNode::new(graph);
+    {
+        let mut ng = node.lock().expect("node lock");
+        ng.set_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT, Some(constraint));
+        ng.set_node_type(node_type);
+    }
+    node
+}
+
+#[test]
+fn postprocessor_separates_external_port_from_separate_layer() {
+    let (graph, layers) = new_graph_with_layers(1);
+    let main_layer = layers[0].clone();
+    let _anchor = add_node(&graph, &main_layer, LayerConstraint::None);
+
+    // Create a FIRST_SEPARATE normal node and a FIRST_SEPARATE external port node
+    let first_sep_normal = add_hidden_node(&graph, LayerConstraint::FirstSeparate, NodeType::Normal);
+    let first_sep_ext_port =
+        add_hidden_node(&graph, LayerConstraint::FirstSeparate, NodeType::ExternalPort);
+
+    // Create a LAST_SEPARATE normal node and a LAST_SEPARATE external port node
+    let last_sep_normal = add_hidden_node(&graph, LayerConstraint::LastSeparate, NodeType::Normal);
+    let last_sep_ext_port =
+        add_hidden_node(&graph, LayerConstraint::LastSeparate, NodeType::ExternalPort);
+
+    graph.lock().expect("graph lock").set_property(
+        InternalProperties::HIDDEN_NODES,
+        Some(vec![
+            first_sep_normal.clone(),
+            first_sep_ext_port.clone(),
+            last_sep_normal.clone(),
+            last_sep_ext_port.clone(),
+        ]),
+    );
+
+    run_processor(&graph);
+
+    let layers_after = graph.lock().expect("graph lock").layers().clone();
+
+    // Should have at least 5 layers:
+    // [first_ext_port_layer] [first_separate_layer] [main] [last_separate_layer] [last_ext_port_layer]
+    assert!(
+        layers_after.len() >= 5,
+        "expected at least 5 layers, got {}",
+        layers_after.len()
+    );
+
+    // First layer should contain the external port node
+    let first_layer_nodes = layers_after[0]
+        .lock()
+        .expect("first layer lock")
+        .nodes()
+        .clone();
+    assert!(
+        first_layer_nodes
+            .iter()
+            .any(|n| Arc::ptr_eq(n, &first_sep_ext_port)),
+        "first external port should be in outermost first layer"
+    );
+
+    // Second layer should contain the normal FIRST_SEPARATE node
+    let second_layer_nodes = layers_after[1]
+        .lock()
+        .expect("second layer lock")
+        .nodes()
+        .clone();
+    assert!(
+        second_layer_nodes
+            .iter()
+            .any(|n| Arc::ptr_eq(n, &first_sep_normal)),
+        "first separate normal node should be in second layer"
+    );
+
+    // Second-to-last layer should contain the normal LAST_SEPARATE node
+    let second_to_last_nodes = layers_after[layers_after.len() - 2]
+        .lock()
+        .expect("second to last layer lock")
+        .nodes()
+        .clone();
+    assert!(
+        second_to_last_nodes
+            .iter()
+            .any(|n| Arc::ptr_eq(n, &last_sep_normal)),
+        "last separate normal node should be in second-to-last layer"
+    );
+
+    // Last layer should contain the external port node
+    let last_layer_nodes = layers_after[layers_after.len() - 1]
+        .lock()
+        .expect("last layer lock")
+        .nodes()
+        .clone();
+    assert!(
+        last_layer_nodes
+            .iter()
+            .any(|n| Arc::ptr_eq(n, &last_sep_ext_port)),
+        "last external port should be in outermost last layer"
+    );
 }
