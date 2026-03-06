@@ -308,3 +308,22 @@ fn group_model_order_defaults() {
         .expect("default value");
     assert_eq!(&*default, &[1, 2, 6, 7, 10, 11]);
 }
+
+#[test]
+fn ignore_edge_in_layer_metadata() {
+    init_layered_options();
+
+    let option = LayoutMetaDataService::get_instance()
+        .get_option_data(LayeredOptions::LAYERING_IGNORE_EDGE_IN_LAYER.id())
+        .expect("ignoreEdgeInLayer option should be registered");
+
+    assert_eq!(option.group(), "layering");
+    assert!(option.targets().contains(&LayoutOptionTarget::Edges));
+    assert_eq!(option.visibility(), LayoutOptionVisibility::Advanced);
+
+    let default = option
+        .default_value()
+        .and_then(|value| value.downcast::<bool>().ok())
+        .expect("default value");
+    assert!(!*default, "default should be false");
+}
