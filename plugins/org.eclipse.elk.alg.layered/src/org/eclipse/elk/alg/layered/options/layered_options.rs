@@ -32,6 +32,12 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::IndividualSpacings;
 
 pub struct LayeredOptions;
 
+pub static GRID_SNAP_GRID_SIZE_PROPERTY: LazyLock<Property<f64>> =
+    LazyLock::new(|| {
+        ElkReflect::register(Some(|| 0_f64), Some(|v: &f64| *v));
+        Property::with_default("org.eclipse.elk.alg.layered.gridSnap.gridSize", 0.0)
+    });
+
 pub static SPACING_BASE_VALUE_PROPERTY: LazyLock<Property<f64>> =
     LazyLock::new(|| Property::new("org.eclipse.elk.alg.layered.spacing.baseValue"));
 
@@ -669,6 +675,9 @@ pub static GROUP_MODEL_ORDER_CM_ENFORCED_GROUP_ORDERS_PROPERTY: LazyLock<Propert
 
 impl LayeredOptions {
     pub const ALGORITHM_ID: &'static str = "org.eclipse.elk.layered";
+
+    pub const GRID_SNAP_GRID_SIZE: &'static LazyLock<Property<f64>> =
+        &GRID_SNAP_GRID_SIZE_PROPERTY;
 
     pub const SPACING_BASE_VALUE: &'static LazyLock<Property<f64>> = &SPACING_BASE_VALUE_PROPERTY;
     pub const SPACING_EDGE_NODE_BETWEEN_LAYERS: &'static LazyLock<Property<f64>> =

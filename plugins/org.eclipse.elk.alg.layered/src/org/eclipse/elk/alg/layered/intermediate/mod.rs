@@ -13,6 +13,7 @@ pub mod end_label_preprocessor;
 pub mod end_label_sorter;
 pub mod final_spline_bendpoints_calculator;
 pub mod graph_transformer;
+pub mod grid_snap_processor;
 pub mod greedyswitch;
 pub mod hierarchical_node_resizing_processor;
 pub mod hierarchical_port_constraint_processor;
@@ -72,6 +73,9 @@ pub use end_label_preprocessor::EndLabelPreprocessor;
 pub use end_label_sorter::EndLabelSorter;
 pub use final_spline_bendpoints_calculator::FinalSplineBendpointsCalculator;
 pub use graph_transformer::{GraphTransformer, Mode as GraphTransformerMode};
+pub use grid_snap_processor::{
+    GridSnapGraphSizeProcessor, GridSnapPositionProcessor, GridSnapSizeProcessor,
+};
 pub use greedyswitch::BetweenLayerEdgeTwoNodeCrossingsCounter;
 pub use hierarchical_node_resizing_processor::HierarchicalNodeResizingProcessor;
 pub use hierarchical_port_constraint_processor::HierarchicalPortConstraintProcessor;

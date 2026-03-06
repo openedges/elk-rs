@@ -450,6 +450,20 @@ impl GraphConfigurator {
             );
         }
 
+        // Grid snap — always registered, processors self-disable when grid_size <= 0
+        configuration.add_before(
+            LayeredPhases::P4NodePlacement,
+            Arc::new(IntermediateProcessorStrategy::GridSnapSizeProcessor),
+        );
+        configuration.add_after(
+            LayeredPhases::P4NodePlacement,
+            Arc::new(IntermediateProcessorStrategy::GridSnapPositionProcessor),
+        );
+        configuration.add_after(
+            LayeredPhases::P5EdgeRouting,
+            Arc::new(IntermediateProcessorStrategy::GridSnapGraphSizeProcessor),
+        );
+
         configuration
     }
 

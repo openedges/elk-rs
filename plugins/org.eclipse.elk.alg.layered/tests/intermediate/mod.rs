@@ -11,6 +11,8 @@ mod edge_and_layer_constraint_edge_reverser_test;
 mod elk_graph_importer_padding_test;
 mod end_label_graph_properties_test;
 mod end_label_sorter_test;
+mod grid_snap_integration_test;
+mod grid_snap_processor_test;
 mod hierarchical_edge_sections_test;
 mod hypernode_processor_test;
 mod in_layer_constraint_processor_test;

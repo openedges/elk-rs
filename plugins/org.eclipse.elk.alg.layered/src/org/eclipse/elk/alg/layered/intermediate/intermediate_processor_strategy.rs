@@ -10,6 +10,9 @@ use crate::org::eclipse::elk::alg::layered::intermediate::final_spline_bendpoint
 use crate::org::eclipse::elk::alg::layered::intermediate::graph_transformer::{
     GraphTransformer, Mode as GraphTransformerMode,
 };
+use crate::org::eclipse::elk::alg::layered::intermediate::grid_snap_processor::{
+    GridSnapGraphSizeProcessor, GridSnapPositionProcessor, GridSnapSizeProcessor,
+};
 use crate::org::eclipse::elk::alg::layered::intermediate::{
     AlternatingLayerUnzipper, BreakingPointInserter, BreakingPointProcessor, BreakingPointRemover,
     CommentNodeMarginCalculator, CommentPostprocessor, CommentPreprocessor,
@@ -90,12 +93,15 @@ pub enum IntermediateProcessorStrategy {
     ReversedEdgeRestorer,
     EndLabelPostprocessor,
     HierarchicalNodeResizer,
+    GridSnapGraphSizeProcessor,
     DirectionPostprocessor,
+    GridSnapSizeProcessor,
+    GridSnapPositionProcessor,
 }
 
 impl EnumSetType for IntermediateProcessorStrategy {
     fn variants() -> &'static [Self] {
-        static VARIANTS: [IntermediateProcessorStrategy; 58] = [
+        static VARIANTS: [IntermediateProcessorStrategy; 61] = [
             IntermediateProcessorStrategy::DirectionPreprocessor,
             IntermediateProcessorStrategy::CommentPreprocessor,
             IntermediateProcessorStrategy::EdgeAndLayerConstraintEdgeReverser,
@@ -153,7 +159,10 @@ impl EnumSetType for IntermediateProcessorStrategy {
             IntermediateProcessorStrategy::ReversedEdgeRestorer,
             IntermediateProcessorStrategy::EndLabelPostprocessor,
             IntermediateProcessorStrategy::HierarchicalNodeResizer,
+            IntermediateProcessorStrategy::GridSnapGraphSizeProcessor,
             IntermediateProcessorStrategy::DirectionPostprocessor,
+            IntermediateProcessorStrategy::GridSnapSizeProcessor,
+            IntermediateProcessorStrategy::GridSnapPositionProcessor,
         ];
         &VARIANTS
     }
@@ -285,6 +294,15 @@ impl ILayoutProcessorFactory<LGraph> for IntermediateProcessorStrategy {
             }
             IntermediateProcessorStrategy::HorizontalCompactor => {
                 Box::new(HorizontalGraphCompactor)
+            }
+            IntermediateProcessorStrategy::GridSnapSizeProcessor => {
+                Box::new(GridSnapSizeProcessor)
+            }
+            IntermediateProcessorStrategy::GridSnapPositionProcessor => {
+                Box::new(GridSnapPositionProcessor)
+            }
+            IntermediateProcessorStrategy::GridSnapGraphSizeProcessor => {
+                Box::new(GridSnapGraphSizeProcessor)
             }
         }
     }
