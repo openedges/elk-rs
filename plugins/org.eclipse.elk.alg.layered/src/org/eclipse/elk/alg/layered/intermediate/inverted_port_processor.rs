@@ -68,6 +68,28 @@ impl ILayoutProcessor<LGraph> for InvertedPortProcessor {
                         .map(|port_guard| port_guard.incoming_edges().clone())
                         .unwrap_or_default();
                     for edge in incoming {
+                        // Skip dummy creation for same-layer edges with EAST source port
+                        let source_same_layer = edge
+                            .lock()
+                            .ok()
+                            .and_then(|eg| eg.source())
+                            .and_then(|p| p.lock().ok().map(|pg| pg.side() == PortSide::East))
+                            .unwrap_or(false)
+                            && edge
+                                .lock()
+                                .ok()
+                                .and_then(|eg| eg.source())
+                                .and_then(|p| {
+                                    p.lock().ok().and_then(|pg| {
+                                        pg.node()
+                                            .and_then(|n| n.lock().ok().and_then(|ng| ng.layer()))
+                                    })
+                                })
+                                .map(|sl| Arc::ptr_eq(&sl, &layer))
+                                .unwrap_or(false);
+                        if source_same_layer {
+                            continue;
+                        }
                         create_east_port_side_dummy(&layer, &east_port, &edge);
                     }
                 }
@@ -86,6 +108,28 @@ impl ILayoutProcessor<LGraph> for InvertedPortProcessor {
                         .map(|port_guard| port_guard.outgoing_edges().clone())
                         .unwrap_or_default();
                     for edge in outgoing {
+                        // Skip dummy creation for same-layer edges with WEST target port
+                        let target_same_layer = edge
+                            .lock()
+                            .ok()
+                            .and_then(|eg| eg.target())
+                            .and_then(|p| p.lock().ok().map(|pg| pg.side() == PortSide::West))
+                            .unwrap_or(false)
+                            && edge
+                                .lock()
+                                .ok()
+                                .and_then(|eg| eg.target())
+                                .and_then(|p| {
+                                    p.lock().ok().and_then(|pg| {
+                                        pg.node()
+                                            .and_then(|n| n.lock().ok().and_then(|ng| ng.layer()))
+                                    })
+                                })
+                                .map(|tl| Arc::ptr_eq(&tl, &layer))
+                                .unwrap_or(false);
+                        if target_same_layer {
+                            continue;
+                        }
                         create_west_port_side_dummy(&layer, &west_port, &edge);
                     }
                 }
