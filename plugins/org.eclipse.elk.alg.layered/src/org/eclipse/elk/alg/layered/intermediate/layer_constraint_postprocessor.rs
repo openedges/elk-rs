@@ -63,11 +63,15 @@ impl ILayoutProcessor<LGraph> for LayerConstraintPostprocessor {
         if hidden_nodes.as_ref().is_some_and(|nodes| !nodes.is_empty()) {
             let first_separate_layer = Layer::new(&graph_ref);
             let last_separate_layer = Layer::new(&graph_ref);
+            let first_external_port_layer = Layer::new(&graph_ref);
+            let last_external_port_layer = Layer::new(&graph_ref);
 
             restore_hidden_nodes(
                 hidden_nodes.unwrap_or_default(),
                 &first_separate_layer,
                 &last_separate_layer,
+                &first_external_port_layer,
+                &last_external_port_layer,
             );
 
             if !first_separate_layer
@@ -85,6 +89,27 @@ impl ILayoutProcessor<LGraph> for LayerConstraintPostprocessor {
                 .unwrap_or(true)
             {
                 layered_graph.layers_mut().push(last_separate_layer);
+            }
+            // External port layers go outside separate layers
+            if !first_external_port_layer
+                .lock()
+                .ok()
+                .map(|layer_guard| layer_guard.nodes().is_empty())
+                .unwrap_or(true)
+            {
+                layered_graph
+                    .layers_mut()
+                    .insert(0, first_external_port_layer);
+            }
+            if !last_external_port_layer
+                .lock()
+                .ok()
+                .map(|layer_guard| layer_guard.nodes().is_empty())
+                .unwrap_or(true)
+            {
+                layered_graph
+                    .layers_mut()
+                    .push(last_external_port_layer);
             }
         }
 
@@ -194,14 +219,29 @@ fn restore_hidden_nodes(
     hidden_nodes: Vec<LNodeRef>,
     first_separate_layer: &LayerRef,
     last_separate_layer: &LayerRef,
+    first_external_port_layer: &LayerRef,
+    last_external_port_layer: &LayerRef,
 ) {
     for hidden_node in hidden_nodes {
+        let is_external_port = hidden_node
+            .lock()
+            .ok()
+            .map(|ng| ng.node_type() == NodeType::ExternalPort)
+            .unwrap_or(false);
         match layer_constraint_of(&hidden_node) {
             LayerConstraint::FirstSeparate => {
-                LNode::set_layer(&hidden_node, Some(first_separate_layer.clone()));
+                if is_external_port {
+                    LNode::set_layer(&hidden_node, Some(first_external_port_layer.clone()));
+                } else {
+                    LNode::set_layer(&hidden_node, Some(first_separate_layer.clone()));
+                }
             }
             LayerConstraint::LastSeparate => {
-                LNode::set_layer(&hidden_node, Some(last_separate_layer.clone()));
+                if is_external_port {
+                    LNode::set_layer(&hidden_node, Some(last_external_port_layer.clone()));
+                } else {
+                    LNode::set_layer(&hidden_node, Some(last_separate_layer.clone()));
+                }
             }
             LayerConstraint::None | LayerConstraint::First | LayerConstraint::Last => {}
         }

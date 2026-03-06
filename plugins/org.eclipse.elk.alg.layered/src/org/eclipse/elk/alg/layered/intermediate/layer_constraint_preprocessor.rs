@@ -10,6 +10,8 @@ use crate::org::eclipse::elk::alg::layered::options::{
     InternalProperties, LayerConstraint, LayeredOptions,
 };
 
+const USE_ENSURE_NO_INACCEPTABLE_EDGES: bool = false;
+
 pub struct LayerConstraintPreprocessor;
 
 impl ILayoutProcessor<LGraph> for LayerConstraintPreprocessor {
@@ -45,7 +47,9 @@ fn is_relevant_node(node: &LNodeRef) -> bool {
 }
 
 fn hide(node: &LNodeRef, hidden_connections: &mut FxHashMap<usize, HiddenNodeConnections>) {
-    ensure_no_inacceptable_edges(node);
+    if USE_ENSURE_NO_INACCEPTABLE_EDGES {
+        ensure_no_inacceptable_edges(node);
+    }
     let connected_edges = node
         .lock()
         .ok()
@@ -160,6 +164,7 @@ fn node_ptr_key(node: &LNodeRef) -> usize {
     Arc::as_ptr(node) as usize
 }
 
+#[allow(dead_code)]
 fn ensure_no_inacceptable_edges(node: &LNodeRef) {
     let layer_constraint = layer_constraint_of(node);
     match layer_constraint {
@@ -213,6 +218,7 @@ fn ensure_no_inacceptable_edges(node: &LNodeRef) {
     }
 }
 
+#[allow(dead_code)]
 fn is_acceptable_incident_edge(edge: &LEdgeRef) -> bool {
     let source_type = edge
         .lock()

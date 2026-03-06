@@ -257,7 +257,41 @@ fn can_reverse_outgoing_edge(source_constraint: LayerConstraint, edge: &LEdgeRef
         }
     }
 
-    layer_constraint_of(&target_node) != LayerConstraint::LastSeparate
+    let target_constraint = layer_constraint_of(&target_node);
+    if target_constraint == LayerConstraint::LastSeparate {
+        // Allow reversal if both source and target are NORMAL nodes with EAST→WEST direction
+        let source_node = edge
+            .lock()
+            .ok()
+            .and_then(|edge_guard| edge_guard.source())
+            .and_then(|source| source.lock().ok().and_then(|port_guard| port_guard.node()));
+        let source_is_normal = source_node
+            .as_ref()
+            .and_then(|n| n.lock().ok().map(|ng| ng.node_type() == NodeType::Normal))
+            .unwrap_or(false);
+        let target_is_normal = target_node
+            .lock()
+            .ok()
+            .map(|ng| ng.node_type() == NodeType::Normal)
+            .unwrap_or(false);
+        let source_side = edge
+            .lock()
+            .ok()
+            .and_then(|eg| eg.source())
+            .and_then(|p| p.lock().ok().map(|pg| pg.side()))
+            .unwrap_or(PortSide::Undefined);
+        let target_side = edge
+            .lock()
+            .ok()
+            .and_then(|eg| eg.target())
+            .and_then(|p| p.lock().ok().map(|pg| pg.side()))
+            .unwrap_or(PortSide::Undefined);
+        return source_is_normal
+            && target_is_normal
+            && source_side == PortSide::East
+            && target_side == PortSide::West;
+    }
+    true
 }
 
 fn can_reverse_incoming_edge(target_constraint: LayerConstraint, edge: &LEdgeRef) -> bool {
@@ -290,7 +324,41 @@ fn can_reverse_incoming_edge(target_constraint: LayerConstraint, edge: &LEdgeRef
         }
     }
 
-    layer_constraint_of(&source_node) != LayerConstraint::FirstSeparate
+    let source_constraint = layer_constraint_of(&source_node);
+    if source_constraint == LayerConstraint::FirstSeparate {
+        // Allow reversal if both source and target are NORMAL nodes with EAST→WEST direction
+        let target_node = edge
+            .lock()
+            .ok()
+            .and_then(|edge_guard| edge_guard.target())
+            .and_then(|target| target.lock().ok().and_then(|port_guard| port_guard.node()));
+        let source_is_normal = source_node
+            .lock()
+            .ok()
+            .map(|ng| ng.node_type() == NodeType::Normal)
+            .unwrap_or(false);
+        let target_is_normal = target_node
+            .as_ref()
+            .and_then(|n| n.lock().ok().map(|ng| ng.node_type() == NodeType::Normal))
+            .unwrap_or(false);
+        let source_side = edge
+            .lock()
+            .ok()
+            .and_then(|eg| eg.source())
+            .and_then(|p| p.lock().ok().map(|pg| pg.side()))
+            .unwrap_or(PortSide::Undefined);
+        let target_side = edge
+            .lock()
+            .ok()
+            .and_then(|eg| eg.target())
+            .and_then(|p| p.lock().ok().map(|pg| pg.side()))
+            .unwrap_or(PortSide::Undefined);
+        return source_is_normal
+            && target_is_normal
+            && source_side == PortSide::East
+            && target_side == PortSide::West;
+    }
+    true
 }
 
 fn layer_constraint_of(node: &LNodeRef) -> LayerConstraint {
