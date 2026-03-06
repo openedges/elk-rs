@@ -154,11 +154,11 @@ version.workspace = true
 
 ```
 main                        <- development branch (always build/test/parity green)
-├─ release/0.11.0           <- 0.11.0 stable release branch (tagged, published)
+├─ releases/0.11.0          <- 0.11.0 stable release branch (tagged, published)
 │   ├─ v0.11.0              <- release tag
 │   ├─ v0.11.0+rs.1         <- hotfix tag
 │   └─ v0.11.0+rs.2         <- hotfix tag
-├─ release/0.12.0           <- next release branch (future)
+├─ releases/0.12.0          <- next release branch (future)
 ├─ port/0.12.0              <- ELK 0.12.0 porting work branch
 ├─ feature/*                <- elk-rs feature development (NAPI, optimizations, etc.)
 └─ fix/*                    <- bug fixes
@@ -166,7 +166,7 @@ main                        <- development branch (always build/test/parity gree
 
 **Rules:**
 - `main` always passes build/test/parity — development happens here
-- `release/X.Y.Z` branches are created from `main` when ready to release
+- `releases/X.Y.Z` branches are created from `main` when ready to release
   - Release tags (`vX.Y.Z`) are placed on release branches
   - Hotfixes go to the release branch, then cherry-pick to `main` if needed
   - Release branches are long-lived (not deleted after release)
@@ -176,12 +176,12 @@ main                        <- development branch (always build/test/parity gree
 ### Tag Strategy
 
 ```
-release/0.11.0:
+releases/0.11.0:
   v0.11.0                 <- stable release (ELK 0.11.0 parity, npm publish)
   v0.11.0+rs.1            <- elk-rs hotfix (npm publish if critical)
   v0.11.0+rs.2            <- elk-rs hotfix (npm publish if critical)
 
-release/0.12.0:
+releases/0.12.0:
   v0.12.0                 <- stable release (ELK 0.12.0 parity, npm publish)
 ```
 
@@ -189,8 +189,8 @@ release/0.12.0:
 - Stable release tags: `v{ELK_VERSION}` — matches ELK version, accompanies npm publish
 - elk-rs hotfix tags: `v{ELK_VERSION}+rs.{N}` — on the release branch
 - Use annotated tags: `git tag -a v0.11.0 -m "elk-rs 0.11.0 (ELK 0.11.0 parity)"`
-- Stable release tags are only placed on `release/X.Y.Z` branches
-- `+rs.N` tags are placed on the corresponding release branch after hotfix commits
+- Stable release tags are only placed on `releases/X.Y.Z` branches
+- `+rs.N` tags are placed on the corresponding releases branch after hotfix commits
 
 ---
 
@@ -268,7 +268,7 @@ git checkout main
 git merge port/0.12.0
 
 # Create release branch from main
-git checkout -b release/0.12.0
+git checkout -b releases/0.12.0
 
 # (Optional) Release-specific adjustments (README badges, final checks)
 # git commit -m "release: elk-rs 0.12.0 final adjustments"
@@ -280,7 +280,7 @@ git tag -a v0.12.0 -m "elk-rs 0.12.0 (ELK 0.12.0 parity)"
 cd plugins/org.eclipse.elk.js && sh build.sh && npm publish
 
 # Push release branch and tags
-git push origin release/0.12.0 --tags
+git push origin releases/0.12.0 --tags
 
 # Return to main for continued development
 git checkout main
@@ -290,14 +290,14 @@ git checkout main
 
 ```sh
 # Work on the release branch
-git checkout release/0.11.0
+git checkout releases/0.11.0
 
 # Apply fix, commit
 git commit -m "fix: <description>"
 git tag -a v0.11.0+rs.1 -m "elk-rs 0.11.0+rs.1 hotfix"
 
 # Push
-git push origin release/0.11.0 --tags
+git push origin releases/0.11.0 --tags
 
 # Cherry-pick to main if applicable
 git checkout main
