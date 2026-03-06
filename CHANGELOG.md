@@ -5,6 +5,17 @@ All notable changes to elk-rs are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions correspond to the target ELK Java version (see `VERSIONING.md`).
 
+## [0.11.0+custom.1]
+
+### Added (Custom Features)
+
+- **`ignoreEdgeInLayer` 옵션**: Network Simplex layering에서 특정 엣지를 레이어 결정에서 제외하는 옵션. `ignoreEdgeInLayer=true`인 엣지는 delta=0으로 같은 레이어에 배치되며, 배치 후 same-layer EAST→WEST 엣지를 자동 역전.
+- **In-layer edge routing**: FIRST/LAST_SEPARATE 노드 간 EAST→WEST in-layer 엣지 역전 허용, `ensure_no_inacceptable_edges` 검증 비활성화, InvertedPortProcessor same-layer 더미 노드 생성 방지, External Port 노드 별도 레이어 분리.
+- 커스텀 기능 fixture 테스트 18개 (`plugins/org.eclipse.elk.graph.json/tests/fixtures/`)
+  - `ignore_edge_in_layer_fixtures_produce_expected_layout` (9 fixtures)
+  - `in_layer_edge_routing_fixtures_produce_expected_layout` (9 fixtures)
+- 커스텀 기능 단위/통합 테스트: `ignore_edge_in_layer_test`, `in_layer_edge_routing_integration_test`, `custom_cross_feature_integration_test` 등
+
 ## [0.11.0] - 2026-03-06
 
 First stable release. Full port of ELK Java 0.11.0 with layout-identical output.

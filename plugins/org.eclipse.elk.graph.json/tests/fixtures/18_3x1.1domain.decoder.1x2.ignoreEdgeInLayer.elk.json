@@ -1,0 +1,49 @@
+{
+  "id": "root",
+  "properties": { "algorithm": "layered", "strategy": "NETWORK_SIMPLEX", "hierarchyHandling": "INCLUDE_CHILDREN", "edgeRouting": "OTHOGONAL" },
+  "children": [
+    {
+      "id": "dom",
+      "properties": { "portConstraints": "FIXED_SIDE" },
+      "ports": [
+        { "id": "dom_si1", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+        { "id": "dom_mi1", "width": 5, "height": 5, "properties": { "side": "EAST" } },
+        { "id": "dom_mi2", "width": 5, "height": 5, "properties": { "side": "EAST" } }
+      ],
+      "children": [
+        {
+          "id": "n11", "width": 30, "height": 30, "labels": [{"text": "n11" }],
+          "properties": { "portConstraints": "FIXED_SIDE" },
+          "ports": [
+            { "id": "n11_msi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+            { "id": "n11_mi0", "width": 5, "height": 5, "properties": { "side": "EAST" } },
+            { "id": "n11_mi1", "width": 5, "height": 5, "properties": { "side": "EAST" } }
+          ]
+        },
+        {
+          "id": "n12", "width": 30, "height": 30, "labels": [{"text": "n12" }],
+          "properties": { "portConstraints": "FIXED_SIDE" },
+          "ports": [
+            { "id": "n12_msi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+            { "id": "n12_mmi", "width": 5, "height": 5, "properties": { "side": "EAST" } }
+          ]
+        },
+        {
+          "id": "n13", "width": 30, "height": 30, "labels": [{"text": "n13" }],
+          "properties": { "portConstraints": "FIXED_SIDE" },
+          "ports": [
+            { "id": "n13_msi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+            { "id": "n13_mmi", "width": 5, "height": 5, "properties": { "side": "EAST" } }
+          ]
+        }
+      ],
+      "edges": [
+        { "id": "e01", "sources": [ "dom_si1" ], "targets": [ "n11_msi" ] },
+        { "id": "e02", "sources": [ "n11_mi1" ], "targets": [ "dom_mi1" ] },
+        { "id": "e03", "sources": [ "n13_mmi" ], "targets": [ "dom_mi2" ] },
+        { "id": "e04", "sources": [ "n11_mi0" ], "targets": [ "n12_msi" ] },
+        { "id": "e05", "sources": [ "n12_mmi" ], "targets": [ "n13_msi" ], "properties": { "ignoreEdgeInLayer": true } }
+      ]
+    }
+  ]
+}

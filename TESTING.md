@@ -191,6 +191,30 @@ MODEL_PARITY_SKIP_JAVA_EXPORT=true \
   sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models tests/model_parity
 ```
 
+### 3.2.1 Custom Feature Testing
+
+커스텀 기능(ignoreEdgeInLayer, in-layer edge routing)에 대한 fixture 기반 검증.
+
+**Fixture 위치**: `plugins/org.eclipse.elk.graph.json/tests/fixtures/`
+
+| 테스트 | Fixture 수 | 대상 |
+|--------|-----------|------|
+| `ignore_edge_in_layer_fixtures_produce_expected_layout` | 9 | 파일명에 `ignoreEdgeInLayer` 포함 |
+| `in_layer_edge_routing_fixtures_produce_expected_layout` | 9 | 나머지 (FIRST/LAST_SEPARATE 등) |
+
+```sh
+# Fixture 레이아웃 검증
+cargo test -p org-eclipse-elk-graph-json --test all fixtures -- --nocapture
+
+# 개별 feature 단위/통합 테스트
+cargo test -p org-eclipse-elk-alg-layered --test p2_layers ignore_edge_in_layer
+cargo test -p org-eclipse-elk-alg-layered --test intermediate -- "edge_and_layer_constraint" "layer_constraint_preprocessor" "inverted_port" "layer_constraint_postprocessor"
+cargo test -p org-eclipse-elk-alg-layered --test models -- "ignore_edge_in_layer" "in_layer_edge_routing" "custom_cross_feature"
+```
+
+Fixture 입력(`*.elk.json`)과 기대 출력(`*.elk.layout.json`)을 `layout_json()` API로 비교한다.
+비교 시 Java 내부 프로퍼티(`$H` 등)를 제거하고, 부동소수점을 소수점 4자리로 반올림하여 정규화한다.
+
 ### 3.3 Option/Metadata Changes
 
 All of 3.1 + API/metadata parity (9 algorithm + 2 core checks):

@@ -1,0 +1,327 @@
+{
+  "id": "root",
+  "properties": { "algorithm": "layered", "strategy": "NETWORK_SIMPLEX", "hierarchyHandling": "INCLUDE_CHILDREN", "edgeRouting": "OTHOGONAL" },
+  "children": [
+    {
+      "id": "dom",
+      "properties": { "portConstraints": "FIXED_SIDE" },
+      "ports": [
+        { "id": "dom_si1", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+        { "id": "dom_si2", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+        { "id": "dom_si3", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+        { "id": "dom_mi1", "width": 5, "height": 5, "properties": { "side": "EAST" } },
+        { "id": "dom_mi2", "width": 5, "height": 5, "properties": { "side": "EAST" } },
+        { "id": "dom_mi3", "width": 5, "height": 5, "properties": { "side": "EAST" } }
+      ],
+      "children": [
+        {
+          "id": "n11", "width": 30, "height": 30, "labels": [{ "text": "n11" }],
+          "properties": { "portConstraints": "FIXED_SIDE" },
+          "ports": [
+            { "id": "n11_msi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+            { "id": "n11_mmi", "width": 5, "height": 5, "properties": { "side": "EAST" } },
+            { "id": "n11_rsi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+            { "id": "n11_rmi", "width": 5, "height": 5, "properties": { "side": "EAST" } }
+          ]
+        },
+        {
+          "id": "n12", "width": 30, "height": 30, "labels": [{ "text": "n12" }],
+          "properties": { "portConstraints": "FIXED_SIDE" },
+          "ports": [
+            { "id": "n12_msi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+            { "id": "n12_mmi", "width": 5, "height": 5, "properties": { "side": "EAST" } },
+            { "id": "n12_rsi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+            { "id": "n12_rmi", "width": 5, "height": 5, "properties": { "side": "EAST" } }
+          ]
+        },
+        {
+          "id": "n13", "width": 30, "height": 30, "labels": [{ "text": "n13" }],
+          "properties": { "portConstraints": "FIXED_SIDE" },
+          "ports": [
+            { "id": "n13_msi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+            { "id": "n13_mmi", "width": 5, "height": 5, "properties": { "side": "EAST" } },
+            { "id": "n13_rsi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+            { "id": "n13_rmi", "width": 5, "height": 5, "properties": { "side": "EAST" } }
+          ]
+        },
+        {
+          "id": "n14", "width": 30, "height": 30, "labels": [{ "text": "n14" }],
+          "properties": { "portConstraints": "FIXED_SIDE" },
+          "ports": [
+            { "id": "n14_msi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+            { "id": "n14_mmi", "width": 5, "height": 5, "properties": { "side": "EAST" } },
+            { "id": "n14_rsi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+            { "id": "n14_rmi", "width": 5, "height": 5, "properties": { "side": "EAST" } }
+          ]
+        },
+        {
+          "id": "n15", "width": 30, "height": 30, "labels": [{ "text": "n15" }],
+          "properties": { "portConstraints": "FIXED_SIDE" },
+          "ports": [
+            { "id": "n15_msi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+            { "id": "n15_mmi", "width": 5, "height": 5, "properties": { "side": "EAST" } },
+            { "id": "n15_rsi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+            { "id": "n15_rmi", "width": 5, "height": 5, "properties": { "side": "EAST" } }
+          ]
+        },
+        {
+          "id": "n16", "width": 30, "height": 30, "labels": [{ "text": "n16" }],
+          "properties": { "portConstraints": "FIXED_SIDE" },
+          "ports": [
+            { "id": "n16_msi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+            { "id": "n16_mmi", "width": 5, "height": 5, "properties": { "side": "EAST" } },
+            { "id": "n16_rsi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+            { "id": "n16_rmi", "width": 5, "height": 5, "properties": { "side": "EAST" } }
+          ]
+        },
+        {
+          "id": "group1",
+          "children": [
+            {
+              "id": "n21", "width": 30, "height": 30, "labels": [{ "text": "n21" }],
+              "properties": { "portConstraints": "FIXED_SIDE" },
+              "ports": [
+                { "id": "n21_msi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+                { "id": "n21_mmi", "width": 5, "height": 5, "properties": { "side": "EAST" } },
+                { "id": "n21_rsi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+                { "id": "n21_rmi", "width": 5, "height": 5, "properties": { "side": "EAST" } }
+              ]
+            },
+            {
+              "id": "n22", "width": 30, "height": 30, "labels": [{ "text": "n22" }],
+              "properties": { "portConstraints": "FIXED_SIDE" },
+              "ports": [
+                { "id": "n22_msi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+                { "id": "n22_mmi", "width": 5, "height": 5, "properties": { "side": "EAST" } },
+                { "id": "n22_rsi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+                { "id": "n22_rmi", "width": 5, "height": 5, "properties": { "side": "EAST" } }
+              ]
+            },
+            {
+              "id": "n23", "width": 30, "height": 30, "labels": [{ "text": "n23" }],
+              "properties": { "portConstraints": "FIXED_SIDE" },
+              "ports": [
+                { "id": "n23_msi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+                { "id": "n23_mmi", "width": 5, "height": 5, "properties": { "side": "EAST" } },
+                { "id": "n23_rsi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+                { "id": "n23_rmi", "width": 5, "height": 5, "properties": { "side": "EAST" } }
+              ]
+            },
+            {
+              "id": "n24", "width": 30, "height": 30, "labels": [{ "text": "n24" }],
+              "properties": { "portConstraints": "FIXED_SIDE" },
+              "ports": [
+                { "id": "n24_msi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+                { "id": "n24_mmi", "width": 5, "height": 5, "properties": { "side": "EAST" } },
+                { "id": "n24_rsi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+                { "id": "n24_rmi", "width": 5, "height": 5, "properties": { "side": "EAST" } }
+              ]
+            },
+            {
+              "id": "n25", "width": 30, "height": 30, "labels": [{ "text": "n25" }],
+              "properties": { "portConstraints": "FIXED_SIDE" },
+              "ports": [
+                { "id": "n25_msi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+                { "id": "n25_mmi", "width": 5, "height": 5, "properties": { "side": "EAST" } },
+                { "id": "n25_rsi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+                { "id": "n25_rmi", "width": 5, "height": 5, "properties": { "side": "EAST" } }
+              ]
+            },
+            {
+              "id": "n26", "width": 30, "height": 30, "labels": [{ "text": "n26" }],
+              "properties": { "portConstraints": "FIXED_SIDE" },
+              "ports": [
+                { "id": "n26_msi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+                { "id": "n26_mmi", "width": 5, "height": 5, "properties": { "side": "EAST" } },
+                { "id": "n26_rsi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+                { "id": "n26_rmi", "width": 5, "height": 5, "properties": { "side": "EAST" } }
+              ]
+            }
+          ],
+          "edges": [
+            { "id": "e21", "sources": [ "n21_mmi" ], "targets": [ "n24_msi" ] },
+            { "id": "e22", "sources": [ "n22_mmi" ], "targets": [ "n25_msi" ] },
+            { "id": "e23", "sources": [ "n23_mmi" ], "targets": [ "n26_msi" ] },
+            { "id": "e24", "sources": [ "n21_rmi" ], "targets": [ "n22_rsi" ], "properties": { "ignoreEdgeInLayer": true } },
+            { "id": "e25", "sources": [ "n22_rmi" ], "targets": [ "n23_rsi" ], "properties": { "ignoreEdgeInLayer": true } },
+            { "id": "e26", "sources": [ "n23_rmi" ], "targets": [ "n21_rsi" ], "properties": { "ignoreEdgeInLayer": true } },
+            { "id": "e2a", "sources": [ "n24_rmi" ], "targets": [ "n25_rsi" ], "properties": { "ignoreEdgeInLayer": true } },
+            { "id": "e2b", "sources": [ "n25_rmi" ], "targets": [ "n26_rsi" ], "properties": { "ignoreEdgeInLayer": true } },
+            { "id": "e2c", "sources": [ "n26_rmi" ], "targets": [ "n24_rsi" ], "properties": { "ignoreEdgeInLayer": true } }
+          ]
+        },
+        {
+          "id": "group2",
+          "children": [
+            {
+              "id": "n31", "width": 30, "height": 30, "labels": [{ "text": "n31" }],
+              "properties": { "portConstraints": "FIXED_SIDE" },
+              "ports": [
+                { "id": "n31_msi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+                { "id": "n31_mmi", "width": 5, "height": 5, "properties": { "side": "EAST" } },
+                { "id": "n31_rsi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+                { "id": "n31_rmi", "width": 5, "height": 5, "properties": { "side": "EAST" } }
+              ]
+            },
+            {
+              "id": "n32", "width": 30, "height": 30, "labels": [{ "text": "n32" }],
+              "properties": { "portConstraints": "FIXED_SIDE" },
+              "ports": [
+                { "id": "n32_msi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+                { "id": "n32_mmi", "width": 5, "height": 5, "properties": { "side": "EAST" } },
+                { "id": "n32_rsi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+                { "id": "n32_rmi", "width": 5, "height": 5, "properties": { "side": "EAST" } }
+              ]
+            },
+            {
+              "id": "n33", "width": 30, "height": 30, "labels": [{ "text": "n33" }],
+              "properties": { "portConstraints": "FIXED_SIDE" },
+              "ports": [
+                { "id": "n33_msi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+                { "id": "n33_mmi", "width": 5, "height": 5, "properties": { "side": "EAST" } },
+                { "id": "n33_rsi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+                { "id": "n33_rmi", "width": 5, "height": 5, "properties": { "side": "EAST" } }
+              ]
+            },
+            {
+              "id": "n34", "width": 30, "height": 30, "labels": [{ "text": "n34" }],
+              "properties": { "portConstraints": "FIXED_SIDE" },
+              "ports": [
+                { "id": "n34_msi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+                { "id": "n34_mmi", "width": 5, "height": 5, "properties": { "side": "EAST" } },
+                { "id": "n34_rsi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+                { "id": "n34_rmi", "width": 5, "height": 5, "properties": { "side": "EAST" } }
+              ]
+            },
+            {
+              "id": "n35", "width": 30, "height": 30, "labels": [{ "text": "n35" }],
+              "properties": { "portConstraints": "FIXED_SIDE" },
+              "ports": [
+                { "id": "n35_msi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+                { "id": "n35_mmi", "width": 5, "height": 5, "properties": { "side": "EAST" } },
+                { "id": "n35_rsi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+                { "id": "n35_rmi", "width": 5, "height": 5, "properties": { "side": "EAST" } }
+              ]
+            },
+            {
+              "id": "n36", "width": 30, "height": 30, "labels": [{ "text": "n36" }],
+              "properties": { "portConstraints": "FIXED_SIDE" },
+              "ports": [
+                { "id": "n36_msi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+                { "id": "n36_mmi", "width": 5, "height": 5, "properties": { "side": "EAST" } },
+                { "id": "n36_rsi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+                { "id": "n36_rmi", "width": 5, "height": 5, "properties": { "side": "EAST" } }
+              ]
+            }
+          ],
+          "edges": [
+            { "id": "e31", "sources": [ "n31_mmi" ], "targets": [ "n34_msi" ] },
+            { "id": "e32", "sources": [ "n32_mmi" ], "targets": [ "n35_msi" ] },
+            { "id": "e33", "sources": [ "n33_mmi" ], "targets": [ "n36_msi" ] },
+            { "id": "e34", "sources": [ "n31_rmi" ], "targets": [ "n32_rsi" ], "properties": { "ignoreEdgeInLayer": true } },
+            { "id": "e35", "sources": [ "n32_rmi" ], "targets": [ "n33_rsi" ], "properties": { "ignoreEdgeInLayer": true } },
+            { "id": "e36", "sources": [ "n33_rmi" ], "targets": [ "n31_rsi" ], "properties": { "ignoreEdgeInLayer": true } },
+            { "id": "e3a", "sources": [ "n34_rmi" ], "targets": [ "n35_rsi" ], "properties": { "ignoreEdgeInLayer": true } },
+            { "id": "e3b", "sources": [ "n35_rmi" ], "targets": [ "n36_rsi" ], "properties": { "ignoreEdgeInLayer": true } },
+            { "id": "e3c", "sources": [ "n36_rmi" ], "targets": [ "n34_rsi" ], "properties": { "ignoreEdgeInLayer": true } }
+          ]
+        },
+        {
+          "id": "n41", "width": 30, "height": 30, "labels": [{ "text": "n41" }],
+          "properties": { "portConstraints": "FIXED_SIDE" },
+          "ports": [
+            { "id": "n41_msi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+            { "id": "n41_mmi", "width": 5, "height": 5, "properties": { "side": "EAST" } },
+            { "id": "n41_rsi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+            { "id": "n41_rmi", "width": 5, "height": 5, "properties": { "side": "EAST" } }
+          ]
+        },
+        {
+          "id": "n42", "width": 30, "height": 30, "labels": [{ "text": "n42" }],
+          "properties": { "portConstraints": "FIXED_SIDE" },
+          "ports": [
+            { "id": "n42_msi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+            { "id": "n42_mmi", "width": 5, "height": 5, "properties": { "side": "EAST" } },
+            { "id": "n42_rsi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+            { "id": "n42_rmi", "width": 5, "height": 5, "properties": { "side": "EAST" } }
+          ]
+        },
+        {
+          "id": "n43", "width": 30, "height": 30, "labels": [{ "text": "n43" }],
+          "properties": { "portConstraints": "FIXED_SIDE" },
+          "ports": [
+            { "id": "n43_msi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+            { "id": "n43_mmi", "width": 5, "height": 5, "properties": { "side": "EAST" } },
+            { "id": "n43_rsi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+            { "id": "n43_rmi", "width": 5, "height": 5, "properties": { "side": "EAST" } }
+          ]
+        },
+        {
+          "id": "n44", "width": 30, "height": 30, "labels": [{ "text": "n44" }],
+          "properties": { "portConstraints": "FIXED_SIDE" },
+          "ports": [
+            { "id": "n44_msi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+            { "id": "n44_mmi", "width": 5, "height": 5, "properties": { "side": "EAST" } },
+            { "id": "n44_rsi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+            { "id": "n44_rmi", "width": 5, "height": 5, "properties": { "side": "EAST" } }
+          ]
+        },
+        {
+          "id": "n45", "width": 30, "height": 30, "labels": [{ "text": "n45" }],
+          "properties": { "portConstraints": "FIXED_SIDE" },
+          "ports": [
+            { "id": "n45_msi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+            { "id": "n45_mmi", "width": 5, "height": 5, "properties": { "side": "EAST" } },
+            { "id": "n45_rsi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+            { "id": "n45_rmi", "width": 5, "height": 5, "properties": { "side": "EAST" } }
+          ]
+        },
+        {
+          "id": "n46", "width": 30, "height": 30, "labels": [{ "text": "n46" }],
+          "properties": { "portConstraints": "FIXED_SIDE" },
+          "ports": [
+            { "id": "n46_msi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+            { "id": "n46_mmi", "width": 5, "height": 5, "properties": { "side": "EAST" } },
+            { "id": "n46_rsi", "width": 5, "height": 5, "properties": { "side": "WEST" } },
+            { "id": "n46_rmi", "width": 5, "height": 5, "properties": { "side": "EAST" } }
+          ]
+        }
+      ],
+      "edges": [
+        { "id": "e01", "sources": [ "dom_si1" ], "targets": [ "n11_msi" ] },  
+        { "id": "e02", "sources": [ "dom_si2" ], "targets": [ "n12_msi" ] },
+        { "id": "e03", "sources": [ "dom_si3" ], "targets": [ "n13_msi" ] },
+        { "id": "e11", "sources": [ "n11_mmi" ], "targets": [ "n14_msi" ] },
+        { "id": "e12", "sources": [ "n12_mmi" ], "targets": [ "n15_msi" ] },
+        { "id": "e13", "sources": [ "n13_mmi" ], "targets": [ "n16_msi" ] },
+        { "id": "e14", "sources": [ "n11_rmi" ], "targets": [ "n12_rsi" ], "properties": { "ignoreEdgeInLayer": true } },
+        { "id": "e15", "sources": [ "n12_rmi" ], "targets": [ "n13_rsi" ], "properties": { "ignoreEdgeInLayer": true } },
+        { "id": "e16", "sources": [ "n13_rmi" ], "targets": [ "n11_rsi" ], "properties": { "ignoreEdgeInLayer": true } },
+        { "id": "e17", "sources": [ "n14_mmi" ], "targets": [ "n21_msi" ] },
+        { "id": "e18", "sources": [ "n15_mmi" ], "targets": [ "n22_msi" ] },
+        { "id": "e19", "sources": [ "n16_mmi" ], "targets": [ "n23_msi" ] },
+        { "id": "e1a", "sources": [ "n14_rmi" ], "targets": [ "n15_rsi" ], "properties": { "ignoreEdgeInLayer": true } },
+        { "id": "e1b", "sources": [ "n15_rmi" ], "targets": [ "n16_rsi" ], "properties": { "ignoreEdgeInLayer": true } },
+        { "id": "e1c", "sources": [ "n16_rmi" ], "targets": [ "n14_rsi" ], "properties": { "ignoreEdgeInLayer": true } },
+        { "id": "e27", "sources": [ "n24_mmi" ], "targets": [ "n31_msi" ] },
+        { "id": "e28", "sources": [ "n25_mmi" ], "targets": [ "n32_msi" ] },
+        { "id": "e29", "sources": [ "n26_mmi" ], "targets": [ "n33_msi" ] },
+        { "id": "e37", "sources": [ "n34_mmi" ], "targets": [ "n41_msi" ] },
+        { "id": "e38", "sources": [ "n35_mmi" ], "targets": [ "n42_msi" ] },
+        { "id": "e39", "sources": [ "n36_mmi" ], "targets": [ "n43_msi" ] },
+        { "id": "e41", "sources": [ "n41_mmi" ], "targets": [ "n44_msi" ] },
+        { "id": "e42", "sources": [ "n42_mmi" ], "targets": [ "n45_msi" ] },
+        { "id": "e43", "sources": [ "n43_mmi" ], "targets": [ "n46_msi" ] },
+        { "id": "e44", "sources": [ "n41_rmi" ], "targets": [ "n42_rsi" ], "properties": { "ignoreEdgeInLayer": true } },
+        { "id": "e45", "sources": [ "n42_rmi" ], "targets": [ "n43_rsi" ], "properties": { "ignoreEdgeInLayer": true } },
+        { "id": "e46", "sources": [ "n43_rmi" ], "targets": [ "n41_rsi" ], "properties": { "ignoreEdgeInLayer": true } },
+        { "id": "e47", "sources": [ "n44_mmi" ], "targets": [ "dom_mi1" ] },
+        { "id": "e48", "sources": [ "n45_mmi" ], "targets": [ "dom_mi2" ] },
+        { "id": "e49", "sources": [ "n46_mmi" ], "targets": [ "dom_mi3" ] },
+        { "id": "e4a", "sources": [ "n44_rmi" ], "targets": [ "n46_rsi" ], "properties": { "ignoreEdgeInLayer": true } },
+        { "id": "e4b", "sources": [ "n45_rmi" ], "targets": [ "n44_rsi" ], "properties": { "ignoreEdgeInLayer": true } },
+        { "id": "e4c", "sources": [ "n46_rmi" ], "targets": [ "n45_rsi" ], "properties": { "ignoreEdgeInLayer": true } }
+      ]
+    }
+  ]
+}

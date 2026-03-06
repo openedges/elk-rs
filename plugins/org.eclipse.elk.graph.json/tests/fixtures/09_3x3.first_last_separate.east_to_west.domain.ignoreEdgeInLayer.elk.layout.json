@@ -1,0 +1,1231 @@
+{
+  "id": "root",
+  "properties": {
+    "algorithm": "layered",
+    "edgeRouting": "OTHOGONAL"
+  },
+  "children": [
+    {
+      "id": "dom",
+      "properties": {
+        "portConstraints": "FIXED_SIDE"
+      },
+      "ports": [
+        {
+          "id": "dom_si1",
+          "width": 5,
+          "height": 5,
+          "properties": {
+            "side": "WEST"
+          },
+          "x": -5,
+          "y": 18.666666666666657
+        },
+        {
+          "id": "dom_si2",
+          "width": 5,
+          "height": 5,
+          "properties": {
+            "side": "WEST"
+          },
+          "x": -5,
+          "y": 138.66666666666666
+        },
+        {
+          "id": "dom_si3",
+          "width": 5,
+          "height": 5,
+          "properties": {
+            "side": "WEST"
+          },
+          "x": -5,
+          "y": 78.66666666666666
+        },
+        {
+          "id": "dom_mi1",
+          "width": 5,
+          "height": 5,
+          "properties": {
+            "side": "EAST"
+          },
+          "x": 264,
+          "y": 18.666666666666657
+        },
+        {
+          "id": "dom_mi2",
+          "width": 5,
+          "height": 5,
+          "properties": {
+            "side": "EAST"
+          },
+          "x": 264,
+          "y": 162
+        },
+        {
+          "id": "dom_mi3",
+          "width": 5,
+          "height": 5,
+          "properties": {
+            "side": "EAST"
+          },
+          "x": 264,
+          "y": 101.99999999999999
+        }
+      ],
+      "children": [
+        {
+          "id": "n1",
+          "width": 30,
+          "height": 30,
+          "labels": [
+            {
+              "text": "n1",
+              "x": 0,
+              "y": 0,
+              "width": 0,
+              "height": 0
+            }
+          ],
+          "properties": {
+            "layerConstraint": "FIRST_SEPARATE",
+            "portConstraints": "FIXED_SIDE"
+          },
+          "ports": [
+            {
+              "id": "n1_msi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "WEST"
+              },
+              "x": -5,
+              "y": 6.666666666666666
+            },
+            {
+              "id": "n1_mmi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "EAST"
+              },
+              "x": 30,
+              "y": 6.666666666666666
+            },
+            {
+              "id": "n1_rsi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "WEST"
+              },
+              "x": -5,
+              "y": 18.333333333333332
+            },
+            {
+              "id": "n1_rmi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "EAST"
+              },
+              "x": 30,
+              "y": 18.333333333333332
+            }
+          ],
+          "$H": 286,
+          "x": 37,
+          "y": 12
+        },
+        {
+          "id": "n2",
+          "width": 30,
+          "height": 30,
+          "labels": [
+            {
+              "text": "n2",
+              "x": 0,
+              "y": 0,
+              "width": 0,
+              "height": 0
+            }
+          ],
+          "properties": {
+            "layerConstraint": "FIRST_SEPARATE",
+            "portConstraints": "FIXED_SIDE"
+          },
+          "ports": [
+            {
+              "id": "n2_msi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "WEST"
+              },
+              "x": -5,
+              "y": 6.666666666666666
+            },
+            {
+              "id": "n2_mmi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "EAST"
+              },
+              "x": 30,
+              "y": 18.333333333333332
+            },
+            {
+              "id": "n2_rsi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "WEST"
+              },
+              "x": -5,
+              "y": 18.333333333333332
+            },
+            {
+              "id": "n2_rmi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "EAST"
+              },
+              "x": 30,
+              "y": 6.666666666666666
+            }
+          ],
+          "$H": 294,
+          "x": 37,
+          "y": 132
+        },
+        {
+          "id": "n3",
+          "width": 30,
+          "height": 30,
+          "labels": [
+            {
+              "text": "n3",
+              "x": 0,
+              "y": 0,
+              "width": 0,
+              "height": 0
+            }
+          ],
+          "properties": {
+            "layerConstraint": "FIRST_SEPARATE",
+            "portConstraints": "FIXED_SIDE"
+          },
+          "ports": [
+            {
+              "id": "n3_msi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "WEST"
+              },
+              "x": -5,
+              "y": 6.666666666666666
+            },
+            {
+              "id": "n3_mmi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "EAST"
+              },
+              "x": 30,
+              "y": 18.333333333333332
+            },
+            {
+              "id": "n3_rsi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "WEST"
+              },
+              "x": -5,
+              "y": 18.333333333333332
+            },
+            {
+              "id": "n3_rmi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "EAST"
+              },
+              "x": 30,
+              "y": 6.666666666666666
+            }
+          ],
+          "$H": 301,
+          "x": 37,
+          "y": 71.99999999999999
+        },
+        {
+          "id": "n4",
+          "width": 30,
+          "height": 30,
+          "labels": [
+            {
+              "text": "n4",
+              "x": 0,
+              "y": 0,
+              "width": 0,
+              "height": 0
+            }
+          ],
+          "properties": {
+            "portConstraints": "FIXED_SIDE"
+          },
+          "ports": [
+            {
+              "id": "n4_msi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "WEST"
+              },
+              "x": -5,
+              "y": 6.666666666666666
+            },
+            {
+              "id": "n4_mmi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "EAST"
+              },
+              "x": 30,
+              "y": 6.666666666666666
+            },
+            {
+              "id": "n4_rsi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "WEST"
+              },
+              "x": -5,
+              "y": 18.333333333333332
+            },
+            {
+              "id": "n4_rmi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "EAST"
+              },
+              "x": 30,
+              "y": 18.333333333333332
+            }
+          ],
+          "$H": 308,
+          "x": 117,
+          "y": 12
+        },
+        {
+          "id": "n5",
+          "width": 30,
+          "height": 30,
+          "labels": [
+            {
+              "text": "n5",
+              "x": 0,
+              "y": 0,
+              "width": 0,
+              "height": 0
+            }
+          ],
+          "properties": {
+            "portConstraints": "FIXED_SIDE"
+          },
+          "ports": [
+            {
+              "id": "n5_msi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "WEST"
+              },
+              "x": -5,
+              "y": 6.666666666666666
+            },
+            {
+              "id": "n5_mmi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "EAST"
+              },
+              "x": 30,
+              "y": 18.333333333333332
+            },
+            {
+              "id": "n5_rsi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "WEST"
+              },
+              "x": -5,
+              "y": 18.333333333333332
+            },
+            {
+              "id": "n5_rmi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "EAST"
+              },
+              "x": 30,
+              "y": 6.666666666666666
+            }
+          ],
+          "$H": 315,
+          "x": 117,
+          "y": 143.66666666666666
+        },
+        {
+          "id": "n6",
+          "width": 30,
+          "height": 30,
+          "labels": [
+            {
+              "text": "n6",
+              "x": 0,
+              "y": 0,
+              "width": 0,
+              "height": 0
+            }
+          ],
+          "properties": {
+            "portConstraints": "FIXED_SIDE"
+          },
+          "ports": [
+            {
+              "id": "n6_msi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "WEST"
+              },
+              "x": -5,
+              "y": 18.333333333333332
+            },
+            {
+              "id": "n6_mmi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "EAST"
+              },
+              "x": 30,
+              "y": 18.333333333333332
+            },
+            {
+              "id": "n6_rsi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "WEST"
+              },
+              "x": -5,
+              "y": 6.666666666666666
+            },
+            {
+              "id": "n6_rmi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "EAST"
+              },
+              "x": 30,
+              "y": 6.666666666666666
+            }
+          ],
+          "$H": 322,
+          "x": 117,
+          "y": 71.99999999999999
+        },
+        {
+          "id": "n7",
+          "width": 30,
+          "height": 30,
+          "labels": [
+            {
+              "text": "n7",
+              "x": 0,
+              "y": 0,
+              "width": 0,
+              "height": 0
+            }
+          ],
+          "properties": {
+            "layerConstraint": "LAST_SEPARATE",
+            "portConstraints": "FIXED_SIDE"
+          },
+          "ports": [
+            {
+              "id": "n7_msi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "WEST"
+              },
+              "x": -5,
+              "y": 6.666666666666666
+            },
+            {
+              "id": "n7_mmi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "EAST"
+              },
+              "x": 30,
+              "y": 6.666666666666666
+            },
+            {
+              "id": "n7_rsi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "WEST"
+              },
+              "x": -5,
+              "y": 18.333333333333332
+            },
+            {
+              "id": "n7_rmi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "EAST"
+              },
+              "x": 30,
+              "y": 18.333333333333332
+            }
+          ],
+          "$H": 329,
+          "x": 187,
+          "y": 12
+        },
+        {
+          "id": "n8",
+          "width": 30,
+          "height": 30,
+          "labels": [
+            {
+              "text": "n8",
+              "x": 0,
+              "y": 0,
+              "width": 0,
+              "height": 0
+            }
+          ],
+          "properties": {
+            "layerConstraint": "LAST_SEPARATE",
+            "portConstraints": "FIXED_SIDE"
+          },
+          "ports": [
+            {
+              "id": "n8_msi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "WEST"
+              },
+              "x": -5,
+              "y": 18.333333333333332
+            },
+            {
+              "id": "n8_mmi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "EAST"
+              },
+              "x": 30,
+              "y": 18.333333333333332
+            },
+            {
+              "id": "n8_rsi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "WEST"
+              },
+              "x": -5,
+              "y": 6.666666666666666
+            },
+            {
+              "id": "n8_rmi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "EAST"
+              },
+              "x": 30,
+              "y": 6.666666666666666
+            }
+          ],
+          "$H": 336,
+          "x": 187,
+          "y": 143.66666666666666
+        },
+        {
+          "id": "n9",
+          "width": 30,
+          "height": 30,
+          "labels": [
+            {
+              "text": "n9",
+              "x": 0,
+              "y": 0,
+              "width": 0,
+              "height": 0
+            }
+          ],
+          "properties": {
+            "layerConstraint": "LAST_SEPARATE",
+            "portConstraints": "FIXED_SIDE"
+          },
+          "ports": [
+            {
+              "id": "n9_msi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "WEST"
+              },
+              "x": -5,
+              "y": 6.666666666666666
+            },
+            {
+              "id": "n9_mmi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "EAST"
+              },
+              "x": 30,
+              "y": 18.333333333333332
+            },
+            {
+              "id": "n9_rsi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "WEST"
+              },
+              "x": -5,
+              "y": 18.333333333333332
+            },
+            {
+              "id": "n9_rmi",
+              "width": 5,
+              "height": 5,
+              "properties": {
+                "side": "EAST"
+              },
+              "x": 30,
+              "y": 6.666666666666666
+            }
+          ],
+          "$H": 343,
+          "x": 187,
+          "y": 83.66666666666666
+        }
+      ],
+      "edges": [
+        {
+          "id": "e01",
+          "sources": [
+            "dom_si1"
+          ],
+          "targets": [
+            "n1_msi"
+          ],
+          "sections": [
+            {
+              "id": "e01_s0",
+              "startPoint": {
+                "x": 0,
+                "y": 21.166666666666657
+              },
+              "endPoint": {
+                "x": 32,
+                "y": 21.166666666666664
+              },
+              "incomingShape": "dom_si1",
+              "outgoingShape": "n1_msi"
+            }
+          ],
+          "container": "dom"
+        },
+        {
+          "id": "e02",
+          "sources": [
+            "dom_si2"
+          ],
+          "targets": [
+            "n2_msi"
+          ],
+          "sections": [
+            {
+              "id": "e02_s0",
+              "startPoint": {
+                "x": 0,
+                "y": 141.16666666666666
+              },
+              "endPoint": {
+                "x": 32,
+                "y": 141.16666666666669
+              },
+              "incomingShape": "dom_si2",
+              "outgoingShape": "n2_msi"
+            }
+          ],
+          "container": "dom"
+        },
+        {
+          "id": "e03",
+          "sources": [
+            "dom_si3"
+          ],
+          "targets": [
+            "n3_msi"
+          ],
+          "sections": [
+            {
+              "id": "e03_s0",
+              "startPoint": {
+                "x": 0,
+                "y": 81.16666666666666
+              },
+              "endPoint": {
+                "x": 32,
+                "y": 81.16666666666666
+              },
+              "incomingShape": "dom_si3",
+              "outgoingShape": "n3_msi"
+            }
+          ],
+          "container": "dom"
+        },
+        {
+          "id": "e04",
+          "sources": [
+            "n1_mmi"
+          ],
+          "targets": [
+            "n4_msi"
+          ],
+          "sections": [
+            {
+              "id": "e04_s0",
+              "startPoint": {
+                "x": 72,
+                "y": 21.166666666666664
+              },
+              "endPoint": {
+                "x": 112,
+                "y": 21.166666666666664
+              },
+              "incomingShape": "n1_mmi",
+              "outgoingShape": "n4_msi"
+            }
+          ],
+          "container": "dom"
+        },
+        {
+          "id": "e05",
+          "sources": [
+            "n2_mmi"
+          ],
+          "targets": [
+            "n5_msi"
+          ],
+          "sections": [
+            {
+              "id": "e05_s0",
+              "startPoint": {
+                "x": 72,
+                "y": 152.83333333333334
+              },
+              "endPoint": {
+                "x": 112,
+                "y": 152.83333333333331
+              },
+              "incomingShape": "n2_mmi",
+              "outgoingShape": "n5_msi"
+            }
+          ],
+          "container": "dom"
+        },
+        {
+          "id": "e06",
+          "sources": [
+            "n3_mmi"
+          ],
+          "targets": [
+            "n6_msi"
+          ],
+          "sections": [
+            {
+              "id": "e06_s0",
+              "startPoint": {
+                "x": 72,
+                "y": 92.83333333333331
+              },
+              "endPoint": {
+                "x": 112,
+                "y": 92.83333333333331
+              },
+              "incomingShape": "n3_mmi",
+              "outgoingShape": "n6_msi"
+            }
+          ],
+          "container": "dom"
+        },
+        {
+          "id": "e07",
+          "sources": [
+            "n4_mmi"
+          ],
+          "targets": [
+            "n7_msi"
+          ],
+          "sections": [
+            {
+              "id": "e07_s0",
+              "startPoint": {
+                "x": 152,
+                "y": 21.166666666666664
+              },
+              "endPoint": {
+                "x": 182,
+                "y": 21.166666666666664
+              },
+              "incomingShape": "n4_mmi",
+              "outgoingShape": "n7_msi"
+            }
+          ],
+          "container": "dom"
+        },
+        {
+          "id": "e08",
+          "sources": [
+            "n5_mmi"
+          ],
+          "targets": [
+            "n8_msi"
+          ],
+          "sections": [
+            {
+              "id": "e08_s0",
+              "startPoint": {
+                "x": 152,
+                "y": 164.5
+              },
+              "endPoint": {
+                "x": 182,
+                "y": 164.5
+              },
+              "incomingShape": "n5_mmi",
+              "outgoingShape": "n8_msi"
+            }
+          ],
+          "container": "dom"
+        },
+        {
+          "id": "e09",
+          "sources": [
+            "n6_mmi"
+          ],
+          "targets": [
+            "n9_msi"
+          ],
+          "sections": [
+            {
+              "id": "e09_s0",
+              "startPoint": {
+                "x": 152,
+                "y": 92.83333333333331
+              },
+              "endPoint": {
+                "x": 182,
+                "y": 92.83333333333333
+              },
+              "incomingShape": "n6_mmi",
+              "outgoingShape": "n9_msi"
+            }
+          ],
+          "container": "dom"
+        },
+        {
+          "id": "e10",
+          "sources": [
+            "n7_mmi"
+          ],
+          "targets": [
+            "dom_mi1"
+          ],
+          "sections": [
+            {
+              "id": "e10_s0",
+              "startPoint": {
+                "x": 222,
+                "y": 21.166666666666664
+              },
+              "endPoint": {
+                "x": 264,
+                "y": 21.166666666666657
+              },
+              "incomingShape": "n7_mmi",
+              "outgoingShape": "dom_mi1"
+            }
+          ],
+          "container": "dom"
+        },
+        {
+          "id": "e11",
+          "sources": [
+            "n8_mmi"
+          ],
+          "targets": [
+            "dom_mi2"
+          ],
+          "sections": [
+            {
+              "id": "e11_s0",
+              "startPoint": {
+                "x": 222,
+                "y": 164.5
+              },
+              "endPoint": {
+                "x": 264,
+                "y": 164.5
+              },
+              "incomingShape": "n8_mmi",
+              "outgoingShape": "dom_mi2"
+            }
+          ],
+          "container": "dom"
+        },
+        {
+          "id": "e12",
+          "sources": [
+            "n9_mmi"
+          ],
+          "targets": [
+            "dom_mi3"
+          ],
+          "sections": [
+            {
+              "id": "e12_s0",
+              "startPoint": {
+                "x": 222,
+                "y": 104.49999999999999
+              },
+              "endPoint": {
+                "x": 264,
+                "y": 104.49999999999999
+              },
+              "incomingShape": "n9_mmi",
+              "outgoingShape": "dom_mi3"
+            }
+          ],
+          "container": "dom"
+        },
+        {
+          "id": "e13",
+          "sources": [
+            "n1_rmi"
+          ],
+          "targets": [
+            "n2_rsi"
+          ],
+          "properties": {
+            "ignoreEdgeInLayer": true
+          },
+          "sections": [
+            {
+              "id": "e13_s0",
+              "startPoint": {
+                "x": 72,
+                "y": 32.83333333333333
+              },
+              "endPoint": {
+                "x": 32,
+                "y": 152.83333333333334
+              },
+              "bendPoints": [
+                {
+                  "x": 92,
+                  "y": 32.83333333333334
+                },
+                {
+                  "x": 92,
+                  "y": 172
+                },
+                {
+                  "x": 22,
+                  "y": 172
+                },
+                {
+                  "x": 22,
+                  "y": 152.83333333333334
+                }
+              ],
+              "incomingShape": "n1_rmi",
+              "outgoingShape": "n2_rsi"
+            }
+          ],
+          "container": "dom"
+        },
+        {
+          "id": "e14",
+          "sources": [
+            "n2_rmi"
+          ],
+          "targets": [
+            "n3_rsi"
+          ],
+          "properties": {
+            "ignoreEdgeInLayer": true
+          },
+          "sections": [
+            {
+              "id": "e14_s0",
+              "startPoint": {
+                "x": 72,
+                "y": 141.16666666666669
+              },
+              "endPoint": {
+                "x": 32,
+                "y": 92.83333333333331
+              },
+              "bendPoints": [
+                {
+                  "x": 82,
+                  "y": 141.16666666666666
+                },
+                {
+                  "x": 82,
+                  "y": 122
+                },
+                {
+                  "x": 22,
+                  "y": 122
+                },
+                {
+                  "x": 22,
+                  "y": 92.83333333333331
+                }
+              ],
+              "incomingShape": "n2_rmi",
+              "outgoingShape": "n3_rsi"
+            }
+          ],
+          "container": "dom"
+        },
+        {
+          "id": "e16",
+          "sources": [
+            "n4_rmi"
+          ],
+          "targets": [
+            "n6_rsi"
+          ],
+          "properties": {
+            "ignoreEdgeInLayer": true
+          },
+          "sections": [
+            {
+              "id": "e16_s0",
+              "startPoint": {
+                "x": 152,
+                "y": 32.83333333333333
+              },
+              "endPoint": {
+                "x": 112,
+                "y": 81.16666666666666
+              },
+              "bendPoints": [
+                {
+                  "x": 172,
+                  "y": 32.83333333333334
+                },
+                {
+                  "x": 172,
+                  "y": 61.999999999999986
+                },
+                {
+                  "x": 102,
+                  "y": 61.999999999999986
+                },
+                {
+                  "x": 102,
+                  "y": 81.16666666666666
+                }
+              ],
+              "incomingShape": "n4_rmi",
+              "outgoingShape": "n6_rsi"
+            }
+          ],
+          "container": "dom"
+        },
+        {
+          "id": "e17",
+          "sources": [
+            "n5_rmi"
+          ],
+          "targets": [
+            "n4_rsi"
+          ],
+          "properties": {
+            "ignoreEdgeInLayer": true
+          },
+          "sections": [
+            {
+              "id": "e17_s0",
+              "startPoint": {
+                "x": 152,
+                "y": 152.83333333333331
+              },
+              "endPoint": {
+                "x": 112,
+                "y": 32.83333333333333
+              },
+              "bendPoints": [
+                {
+                  "x": 162,
+                  "y": 152.83333333333331
+                },
+                {
+                  "x": 162,
+                  "y": 51.999999999999986
+                },
+                {
+                  "x": 102,
+                  "y": 51.999999999999986
+                },
+                {
+                  "x": 102,
+                  "y": 32.83333333333334
+                }
+              ],
+              "incomingShape": "n5_rmi",
+              "outgoingShape": "n4_rsi"
+            }
+          ],
+          "container": "dom"
+        },
+        {
+          "id": "e19",
+          "sources": [
+            "n7_rmi"
+          ],
+          "targets": [
+            "n8_rsi"
+          ],
+          "properties": {
+            "ignoreEdgeInLayer": true
+          },
+          "sections": [
+            {
+              "id": "e19_s0",
+              "startPoint": {
+                "x": 222,
+                "y": 32.83333333333333
+              },
+              "endPoint": {
+                "x": 182,
+                "y": 152.83333333333331
+              },
+              "bendPoints": [
+                {
+                  "x": 232,
+                  "y": 32.83333333333334
+                },
+                {
+                  "x": 232,
+                  "y": 133.66666666666666
+                },
+                {
+                  "x": 172,
+                  "y": 133.66666666666666
+                },
+                {
+                  "x": 172,
+                  "y": 152.83333333333331
+                }
+              ],
+              "incomingShape": "n7_rmi",
+              "outgoingShape": "n8_rsi"
+            }
+          ],
+          "container": "dom"
+        },
+        {
+          "id": "e20",
+          "sources": [
+            "n8_rmi"
+          ],
+          "targets": [
+            "n9_rsi"
+          ],
+          "properties": {
+            "ignoreEdgeInLayer": true
+          },
+          "sections": [
+            {
+              "id": "e20_s0",
+              "startPoint": {
+                "x": 222,
+                "y": 152.83333333333331
+              },
+              "endPoint": {
+                "x": 182,
+                "y": 104.49999999999999
+              },
+              "bendPoints": [
+                {
+                  "x": 242,
+                  "y": 152.83333333333331
+                },
+                {
+                  "x": 242,
+                  "y": 123.66666666666666
+                },
+                {
+                  "x": 172,
+                  "y": 123.66666666666666
+                },
+                {
+                  "x": 172,
+                  "y": 104.49999999999999
+                }
+              ],
+              "incomingShape": "n8_rmi",
+              "outgoingShape": "n9_rsi"
+            }
+          ],
+          "container": "dom"
+        }
+      ],
+      "$H": 277,
+      "x": 17,
+      "y": 12,
+      "width": 264,
+      "height": 185.66666666666666
+    }
+  ],
+  "$H": 13,
+  "x": 0,
+  "y": 0,
+  "width": 298,
+  "height": 209.66666666666666
+}
