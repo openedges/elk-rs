@@ -44,7 +44,7 @@
 7. 커밋 (`<scope>: <summary>`)
 8. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
-## 현재 핵심 스냅샷 (2026-03-05, 100% parity)
+## 현재 핵심 스냅샷 (2026-03-06, 100% parity)
 - **elk-rs 버전**: `0.11.0` (ELK Java `v0.11.0` 기준 포팅 완료)
   - Cargo workspace 전체 + npm 동일 버전
   - 서브모듈 고정: `external/elk` → `v0.11.0` 태그, `external/elkjs` → `0.11.0` 태그
@@ -63,18 +63,18 @@
   - NAPI 플랫폼별 패키지 6개 추가 완료: `@elk-rs/darwin-arm64`, `@elk-rs/darwin-x64`, `@elk-rs/linux-x64-gnu`, `@elk-rs/linux-x64-musl`, `@elk-rs/linux-arm64-gnu`, `@elk-rs/win32-x64-msvc`
   - 로딩 우선순위: 플랫폼 NAPI 패키지 → 로컬 `.node` → WASM 폴백
   - CI/CD: `.github/workflows/napi.yml` (태그 push 시 6 플랫폼 크로스 빌드 + npm publish)
-- **성능 기준선 (6-way fair benchmark, synthetic 10/3, 2026-03-05 측정, ~4.03x)**:
-  - 측정 머신: Mac Studio, Apple M1 Ultra (20코어: 16P+4E), 128GB RAM, macOS 26.3
-  - 툴체인: Rust 1.91.1, OpenJDK 21.0.10, Node.js 20.19.2
-  - 전체 26 시나리오 평균: java 121.8ms, rust_native **~30.3ms** → Rust **~4.03x faster**
-  - Rust wins 23/26 시나리오, Java wins 3/26 시나리오
-  - `layered_xlarge`: rust_native **308ms** vs java **516ms** → Rust **1.68x faster**
-  - `force_xlarge`: rust_native **164ms** vs java **1122ms** → Rust **6.86x faster** (SoA 최적화)
-  - `stress_xlarge`: rust_native **199ms** vs java **1192ms** → Rust **5.99x faster** (SoA 최적화)
-  - `mrtree_xlarge`: rust_native **7.90ms** vs java **32.1ms** → Rust **4.06x faster** (P4 EdgeRouter adjacency map 최적화)
-  - `radial_xlarge`: rust_native **15.4ms** vs java **17.0ms** → Rust **1.10x faster** (SoA + borrow batching)
-  - `routing_orthogonal`: rust_native **3.45ms** vs java **3.86ms** → Rust **1.12x faster**
-  - Rust 우위: layered/force/stress/mrtree/rectpacking/routing/crossmin_layer_sweep/hierarchy/radial_xlarge; Java 우위: radial_medium, radial_large, crossmin_none
+- **성능 기준선 (6-way fair benchmark, synthetic 10/3, 2026-03-06 측정, ~3.90x)**:
+  - 측정 머신: MacBook Pro (Mac15,6), Apple M3 Pro (11코어: 5P+6E), 36GB RAM, macOS 26.3
+  - 툴체인: Rust 1.93.1, OpenJDK 21.0.10, Node.js 22.16.0
+  - 전체 26 시나리오 평균: java 100.0ms, rust_native **25.6ms** → Rust **~3.90x faster**
+  - Rust wins 24/26 시나리오, Java wins 2/26 시나리오
+  - `layered_xlarge`: rust_native **245ms** vs java **360ms** → Rust **1.47x faster**
+  - `force_xlarge`: rust_native **157ms** vs java **947ms** → Rust **6.03x faster** (SoA 최적화)
+  - `stress_xlarge`: rust_native **173ms** vs java **981ms** → Rust **5.67x faster** (SoA 최적화)
+  - `mrtree_xlarge`: rust_native **5.82ms** vs java **26.6ms** → Rust **4.56x faster** (P4 EdgeRouter adjacency map 최적화)
+  - `radial_xlarge`: rust_native **11.8ms** vs java **17.4ms** → Rust **1.47x faster** (SoA + borrow batching)
+  - `routing_orthogonal`: rust_native **2.61ms** vs java **2.95ms** → Rust **1.13x faster**
+  - Rust 우위: layered/force/stress/mrtree/rectpacking/routing/crossmin/hierarchy/radial_xlarge; Java 우위: radial_medium, radial_large
   - API 그룹: rust_api ~9-64x faster than elkjs (동일 JSON parse+layout+serialize 경로)
   - 6-way 공정성: 동일 LCG seed + rejection sampling DAG + max_attempts=edges*100 + 동일 타이밍 범위
   - **MRTree P4 EdgeRouter adjacency map optimization** (Phase 28): edge adjacency maps (O(E) pre-build, O(N*E) → O(1) per-node lookup), level-node pre-sorted map, cycle_inducing pre-computed set, MultiLevelEdgeNodeNodeGap graph lock 제거. mrtree_xlarge 26.9ms → 6.58ms (4.09x speedup)
@@ -85,8 +85,8 @@
   - **Edge routing 최적화** (Phase 23): 3개 routing strategy에서 edge lock 4+회 → 1회 배치, crossing-min에서 in-place reverse
   - **SoA 최적화** (Phase 20-21): Force/Stress 알고리즘에 SoA(Struct-of-Arrays) 패턴 적용, O(n²) hot loop에서 lock 제거
   - 상세 리포트: `tests/perf/report.md`
-- **코드 품질**: `cargo build` warning 0건, `cargo clippy` warning 0건
-- **Parity 재검증 상태**: full parity 재실행 완료 — `total=1998`, `compared=1989`, `matches=1988`, `drift=1`, `skipped=9`, `errors=0`
+- **코드 품질**: `cargo build` warning 0건, `cargo clippy` warning 0건, `cargo test` 712 passed / 0 failed
+- **Parity 재검증 상태 (2026-03-06)**: 클린 재실행 완료 — `total=1998`, `compared=1989`, `matches=1988`, `drift=1`, `skipped=9`, `errors=0`
 - **알려진 실패**: 없음 (`elk_live_examples_test` 해결 완료 — cross-hierarchy edge graceful skip + 30s timeout)
 - `213_componentsCompaction.elkt`: `java_non_ok=nan_output`으로 분류 — Rust 출력이 더 정확
 
