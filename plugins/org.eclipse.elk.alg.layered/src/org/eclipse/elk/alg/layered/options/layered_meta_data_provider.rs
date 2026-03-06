@@ -538,6 +538,18 @@ fn register_layering_options(registry: &mut dyn LayoutMetaDataRegistry) {
         Some("layering.coffmanGraham"),
         None,
     );
+
+    register_option(
+        registry,
+        LayeredOptions::LAYERING_IGNORE_EDGE_IN_LAYER,
+        LayoutOptionType::Boolean,
+        "Ignore Edge In Layer",
+        "Whether this edge should be ignored during layer assignment.",
+        &TARGET_EDGES,
+        LayoutOptionVisibility::Advanced,
+        Some("layering"),
+        None,
+    );
 }
 
 fn register_crossing_minimization_options(registry: &mut dyn LayoutMetaDataRegistry) {
@@ -1981,6 +1993,11 @@ fn register_option_supports(registry: &mut dyn LayoutMetaDataRegistry) {
         algo,
         LayeredOptions::LAYERING_LAYER_ID.id(),
         property_default_any(LayeredOptions::LAYERING_LAYER_ID),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::LAYERING_IGNORE_EDGE_IN_LAYER.id(),
+        property_default_any(LayeredOptions::LAYERING_IGNORE_EDGE_IN_LAYER),
     );
     registry.add_option_support(
         algo,

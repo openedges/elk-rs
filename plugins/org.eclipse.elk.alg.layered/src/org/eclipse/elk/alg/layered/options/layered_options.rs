@@ -200,6 +200,13 @@ pub static LAYERING_LAYER_CHOICE_CONSTRAINT_PROPERTY: LazyLock<Property<i32>> =
 pub static LAYERING_LAYER_ID_PROPERTY: LazyLock<Property<i32>> =
     LazyLock::new(|| Property::with_default("org.eclipse.elk.alg.layered.layering.layerId", -1));
 
+pub static LAYERING_IGNORE_EDGE_IN_LAYER_PROPERTY: LazyLock<Property<bool>> = LazyLock::new(|| {
+    Property::with_default(
+        "org.eclipse.elk.alg.layered.layering.ignoreEdgeInLayer",
+        false,
+    )
+});
+
 pub static LAYERING_MIN_WIDTH_UPPER_BOUND_ON_WIDTH_PROPERTY: LazyLock<Property<i32>> =
     LazyLock::new(|| {
         Property::with_default(
@@ -763,6 +770,8 @@ impl LayeredOptions {
         &LAYERING_NODE_PROMOTION_MAX_ITERATIONS_PROPERTY;
     pub const LAYERING_COFFMAN_GRAHAM_LAYER_BOUND: &'static LazyLock<Property<i32>> =
         &LAYERING_COFFMAN_GRAHAM_LAYER_BOUND_PROPERTY;
+    pub const LAYERING_IGNORE_EDGE_IN_LAYER: &'static LazyLock<Property<bool>> =
+        &LAYERING_IGNORE_EDGE_IN_LAYER_PROPERTY;
 
     pub const CROSSING_MINIMIZATION_STRATEGY: &'static LazyLock<
         Property<CrossingMinimizationStrategy>,

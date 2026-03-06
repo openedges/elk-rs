@@ -9,8 +9,11 @@ use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutP
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LNodeRef, Layer};
+use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
+
+use crate::org::eclipse::elk::alg::layered::graph::{LEdge, LGraph, LNodeRef, Layer};
 use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorStrategy;
+use crate::org::eclipse::elk::alg::layered::options::InternalProperties;
 use crate::org::eclipse::elk::alg::layered::options::LayeredOptions;
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
 
@@ -194,18 +197,25 @@ impl NetworkSimplexLayerer {
                     None => continue,
                 };
 
-                let priority = edge
+                let (priority, ignore) = edge
                     .lock()
                     .ok()
-                    .and_then(|mut edge_guard| {
-                        edge_guard.get_property(LayeredOptions::PRIORITY_SHORTNESS)
+                    .map(|mut edge_guard| {
+                        let p = edge_guard
+                            .get_property(LayeredOptions::PRIORITY_SHORTNESS)
+                            .unwrap_or(1);
+                        let ig = edge_guard
+                            .get_property(LayeredOptions::LAYERING_IGNORE_EDGE_IN_LAYER)
+                            .unwrap_or(false);
+                        (p, ig)
                     })
-                    .unwrap_or(1);
+                    .unwrap_or((1, false));
                 let weight = (priority.max(1)) as f64;
+                let delta = if ignore { 0 } else { 1 };
                 let origin: Arc<dyn std::any::Any + Send + Sync> = Arc::new(edge.clone());
                 NEdge::of_origin(origin)
                     .weight(weight)
-                    .delta(1)
+                    .delta(delta)
                     .source(source_nnode)
                     .target(target_nnode)
                     .create();
@@ -294,6 +304,68 @@ impl ILayoutPhase<LayeredPhases, LGraph> for NetworkSimplexLayerer {
             if idx + 1 == connected_components.len() {
                 previous_layering_node_counts = None;
             }
+        }
+
+        // Reverse same-layer EAST→WEST edges with ignoreEdgeInLayer=true
+        let dummy_graph = LGraph::new();
+        let mut edges_to_reverse = Vec::new();
+        for layer in layered_graph.layers() {
+            if let Ok(layer_guard) = layer.lock() {
+                for node in layer_guard.nodes() {
+                    if let Ok(node_guard) = node.lock() {
+                        for port in node_guard.ports() {
+                            let port_guard = match port.lock() {
+                                Ok(pg) => pg,
+                                Err(_) => continue,
+                            };
+                            if port_guard.side() != PortSide::East {
+                                continue;
+                            }
+                            for edge in port_guard.outgoing_edges() {
+                                let should_reverse = edge
+                                    .lock()
+                                    .ok()
+                                    .map(|mut eg| {
+                                        let ignore = eg
+                                            .get_property(
+                                                LayeredOptions::LAYERING_IGNORE_EDGE_IN_LAYER,
+                                            )
+                                            .unwrap_or(false);
+                                        let reversed = eg
+                                            .get_property(InternalProperties::REVERSED)
+                                            .unwrap_or(false);
+                                        let target_side = eg
+                                            .target()
+                                            .and_then(|p| p.lock().ok().map(|pg| pg.side()))
+                                            .unwrap_or(PortSide::Undefined);
+                                        let same_layer = eg
+                                            .target()
+                                            .and_then(|p| {
+                                                p.lock().ok().and_then(|pg| {
+                                                    pg.node().and_then(|tn| {
+                                                        tn.lock().ok().and_then(|tng| tng.layer())
+                                                    })
+                                                })
+                                            })
+                                            .map(|tl| Arc::ptr_eq(&tl, layer))
+                                            .unwrap_or(false);
+                                        ignore
+                                            && !reversed
+                                            && same_layer
+                                            && target_side == PortSide::West
+                                    })
+                                    .unwrap_or(false);
+                                if should_reverse {
+                                    edges_to_reverse.push(edge.clone());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        for edge in &edges_to_reverse {
+            LEdge::reverse(edge, &dummy_graph, true);
         }
 
         layered_graph.layerless_nodes_mut().clear();
