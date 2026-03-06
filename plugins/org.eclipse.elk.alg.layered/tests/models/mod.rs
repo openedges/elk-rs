@@ -1,3 +1,4 @@
+mod custom_cross_feature_integration_test;
 mod ignore_edge_in_layer_integration_test;
 mod in_layer_edge_routing_integration_test;
 mod overall_layout_test;
