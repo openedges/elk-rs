@@ -12,7 +12,6 @@
 .omc/
 .auto-claude/
 /.cache/
-/plan/
 
 # Python cache
 __pycache__/
