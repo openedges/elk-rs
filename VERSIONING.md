@@ -57,6 +57,30 @@ npm: elk-rs@0.11.0       <- npm version unchanged (no re-publish)
   - Exception: critical fixes may be published as a prerelease: `0.11.0-rs.1`
 - **CHANGELOG.md**: elk-rs changes are grouped by ELK version
 
+#### Extension Releases: Pre-release Channel (`-ext.N`)
+
+Custom features (not in upstream ELK Java) are released via a pre-release channel:
+
+```
+npm: elk-rs@0.11.0           <- stable release (ELK 0.11.0 parity)
+npm: elk-rs@0.11.0-ext.1     <- extension release #1 (custom features)
+npm: elk-rs@0.11.0-ext.2     <- extension release #2
+```
+
+- **Version format**: `{ELK_VERSION}-ext.{N}` — semver pre-release label `ext` (extension)
+  - `ext` indicates the release is a superset of the stable version with additional features
+  - Examples: `0.11.0-ext.1`, `0.11.0-ext.2`
+- **Git tags**: `v{ELK_VERSION}-ext.{N}` on the `custom/{ELK_VERSION}` integration branch
+- **Cargo + npm**: Both use the same `-ext.N` version — publishable to registries
+  - `npm install elk-rs@0.11.0-ext.1` (explicit install; `npm install elk-rs` still gets stable)
+  - `elk-rs = "=0.11.0-ext.1"` in Cargo.toml (exact match required)
+- **Semver note**: Technically `0.11.0-ext.1 < 0.11.0` in semver ordering, but this is not a
+  problem in practice since extension releases are always installed via explicit version specifier
+- **Version bumping**: When `main` moves to the next ELK version, extension releases rebase and
+  restart numbering (e.g., `0.12.0-ext.1`)
+- **Branch**: Extension releases are tagged on `custom/{ELK_VERSION}` branches, not on `releases/*`
+- **Documentation**: Custom features are documented in `CUSTOM_FEATURES.md`
+
 #### CHANGELOG Rules
 
 The changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
@@ -106,11 +130,11 @@ conventions adapted for ELK version alignment.
 
 ### Version Sync Files
 
-| File | Version Field |
-|------|---------------|
-| `Cargo.toml` (workspace root) | `[workspace.package] version = "0.11.0"` |
-| `plugins/org.eclipse.elk.js/package.json` | `"version": "0.11.0"` |
-| `CHANGELOG.md` | Change history per ELK version |
+| File | Version Field | Stable | Extension |
+|------|---------------|--------|-----------|
+| `Cargo.toml` (workspace root) | `[workspace.package] version` | `"0.11.0"` | `"0.11.0-ext.1"` |
+| `plugins/org.eclipse.elk.js/package.json` | `"version"` | `"0.11.0"` | `"0.11.0-ext.1"` |
+| `CHANGELOG.md` | Change history per ELK version | `## [0.11.0]` | `## [0.11.0-ext.1]` |
 
 ### Cargo Workspace Version Unification
 
@@ -158,6 +182,10 @@ main                        <- development branch (always build/test/parity gree
 │   ├─ v0.11.0              <- release tag
 │   ├─ v0.11.0+rs.1         <- hotfix tag
 │   └─ v0.11.0+rs.2         <- hotfix tag
+├─ custom/0.11.0            <- extension integration branch (main + custom features)
+│   ├─ v0.11.0-ext.1        <- extension release tag
+│   └─ v0.11.0-ext.2        <- extension release tag
+├─ custom/{feature-name}    <- individual custom feature branches
 ├─ releases/0.12.0          <- next release branch (future)
 ├─ port/0.12.0              <- ELK 0.12.0 porting work branch
 ├─ feature/*                <- elk-rs feature development (NAPI, optimizations, etc.)
@@ -170,6 +198,10 @@ main                        <- development branch (always build/test/parity gree
   - Release tags (`vX.Y.Z`) are placed on release branches
   - Hotfixes go to the release branch, then cherry-pick to `main` if needed
   - Release branches are long-lived (not deleted after release)
+- `custom/X.Y.Z` branches integrate custom features on top of `main`
+  - Extension tags (`vX.Y.Z-ext.N`) are placed on custom integration branches
+  - Individual features are developed on `custom/{feature-name}` branches, merged into `custom/X.Y.Z`
+  - See `CUSTOM_FEATURES.md` for feature documentation
 - New ELK version porting happens on `port/X.Y.Z` branches, merged to `main`
 - Feature/fix branches fork from `main`, merge via PR
 
@@ -181,6 +213,10 @@ releases/0.11.0:
   v0.11.0+rs.1            <- elk-rs hotfix (npm publish if critical)
   v0.11.0+rs.2            <- elk-rs hotfix (npm publish if critical)
 
+custom/0.11.0:
+  v0.11.0-ext.1           <- extension release (custom features, npm/cargo publish)
+  v0.11.0-ext.2           <- extension release (custom features, npm/cargo publish)
+
 releases/0.12.0:
   v0.12.0                 <- stable release (ELK 0.12.0 parity, npm publish)
 ```
@@ -188,9 +224,11 @@ releases/0.12.0:
 **Rules:**
 - Stable release tags: `v{ELK_VERSION}` — matches ELK version, accompanies npm publish
 - elk-rs hotfix tags: `v{ELK_VERSION}+rs.{N}` — on the release branch
+- Extension tags: `v{ELK_VERSION}-ext.{N}` — on the `custom/X.Y.Z` integration branch
 - Use annotated tags: `git tag -a v0.11.0 -m "elk-rs 0.11.0 (ELK 0.11.0 parity)"`
 - Stable release tags are only placed on `releases/X.Y.Z` branches
 - `+rs.N` tags are placed on the corresponding releases branch after hotfix commits
+- `-ext.N` tags are placed on the corresponding `custom/X.Y.Z` branch after feature integration
 
 ---
 

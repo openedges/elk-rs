@@ -244,7 +244,7 @@ checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
 
 [[package]]
 name = "org-eclipse-elk-alg-common"
-version = "0.11.0"
+version = "0.11.0-ext.1"
 dependencies = [
  "org-eclipse-elk-alg-force",
  "org-eclipse-elk-alg-layered",
@@ -258,7 +258,7 @@ dependencies = [
 
 [[package]]
 name = "org-eclipse-elk-alg-disco"
-version = "0.11.0"
+version = "0.11.0-ext.1"
 dependencies = [
  "org-eclipse-elk-alg-common",
  "org-eclipse-elk-core",
@@ -267,7 +267,7 @@ dependencies = [
 
 [[package]]
 name = "org-eclipse-elk-alg-force"
-version = "0.11.0"
+version = "0.11.0-ext.1"
 dependencies = [
  "org-eclipse-elk-alg-common",
  "org-eclipse-elk-core",
@@ -276,11 +276,11 @@ dependencies = [
 
 [[package]]
 name = "org-eclipse-elk-alg-graphviz-dot"
-version = "0.11.0"
+version = "0.11.0-ext.1"
 
 [[package]]
 name = "org-eclipse-elk-alg-graphviz-layouter"
-version = "0.11.0"
+version = "0.11.0-ext.1"
 dependencies = [
  "org-eclipse-elk-alg-common",
  "org-eclipse-elk-alg-graphviz-dot",
@@ -290,7 +290,7 @@ dependencies = [
 
 [[package]]
 name = "org-eclipse-elk-alg-layered"
-version = "0.11.0"
+version = "0.11.0-ext.1"
 dependencies = [
  "org-eclipse-elk-alg-common",
  "org-eclipse-elk-alg-force",
@@ -303,7 +303,7 @@ dependencies = [
 
 [[package]]
 name = "org-eclipse-elk-alg-libavoid"
-version = "0.11.0"
+version = "0.11.0-ext.1"
 dependencies = [
  "org-eclipse-elk-alg-common",
  "org-eclipse-elk-core",
@@ -312,7 +312,7 @@ dependencies = [
 
 [[package]]
 name = "org-eclipse-elk-alg-mrtree"
-version = "0.11.0"
+version = "0.11.0-ext.1"
 dependencies = [
  "org-eclipse-elk-alg-common",
  "org-eclipse-elk-core",
@@ -321,7 +321,7 @@ dependencies = [
 
 [[package]]
 name = "org-eclipse-elk-alg-radial"
-version = "0.11.0"
+version = "0.11.0-ext.1"
 dependencies = [
  "org-eclipse-elk-alg-common",
  "org-eclipse-elk-core",
@@ -330,7 +330,7 @@ dependencies = [
 
 [[package]]
 name = "org-eclipse-elk-alg-rectpacking"
-version = "0.11.0"
+version = "0.11.0-ext.1"
 dependencies = [
  "org-eclipse-elk-alg-common",
  "org-eclipse-elk-core",
@@ -339,7 +339,7 @@ dependencies = [
 
 [[package]]
 name = "org-eclipse-elk-alg-spore"
-version = "0.11.0"
+version = "0.11.0-ext.1"
 dependencies = [
  "org-eclipse-elk-alg-common",
  "org-eclipse-elk-core",
@@ -348,7 +348,7 @@ dependencies = [
 
 [[package]]
 name = "org-eclipse-elk-alg-topdownpacking"
-version = "0.11.0"
+version = "0.11.0-ext.1"
 dependencies = [
  "org-eclipse-elk-alg-layered",
  "org-eclipse-elk-core",
@@ -357,7 +357,7 @@ dependencies = [
 
 [[package]]
 name = "org-eclipse-elk-alg-vertiflex"
-version = "0.11.0"
+version = "0.11.0-ext.1"
 dependencies = [
  "org-eclipse-elk-alg-common",
  "org-eclipse-elk-core",
@@ -366,7 +366,7 @@ dependencies = [
 
 [[package]]
 name = "org-eclipse-elk-conn-gmf"
-version = "0.11.0"
+version = "0.11.0-ext.1"
 dependencies = [
  "org-eclipse-elk-core",
  "org-eclipse-elk-graph",
@@ -374,7 +374,7 @@ dependencies = [
 
 [[package]]
 name = "org-eclipse-elk-core"
-version = "0.11.0"
+version = "0.11.0-ext.1"
 dependencies = [
  "org-eclipse-elk-alg-disco",
  "org-eclipse-elk-alg-force",
@@ -388,7 +388,7 @@ dependencies = [
 
 [[package]]
 name = "org-eclipse-elk-graph"
-version = "0.11.0"
+version = "0.11.0-ext.1"
 dependencies = [
  "parking_lot",
  "rustc-hash",
@@ -396,7 +396,7 @@ dependencies = [
 
 [[package]]
 name = "org-eclipse-elk-graph-json"
-version = "0.11.0"
+version = "0.11.0-ext.1"
 dependencies = [
  "json5",
  "mimalloc",
@@ -416,7 +416,7 @@ dependencies = [
 
 [[package]]
 name = "org-eclipse-elk-napi"
-version = "0.11.0"
+version = "0.11.0-ext.1"
 dependencies = [
  "napi",
  "napi-build",
@@ -426,7 +426,7 @@ dependencies = [
 
 [[package]]
 name = "org-eclipse-elk-wasm"
-version = "0.11.0"
+version = "0.11.0-ext.1"
 dependencies = [
  "org-eclipse-elk-graph-json",
  "wasm-bindgen",
