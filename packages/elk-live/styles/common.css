@@ -1,0 +1,297 @@
+/* ─── Variables ─────────────────────────────────────────────────────────── */
+:root {
+  --bg: #fff;
+  --text-color: #212529;
+  --border-color: #dee2e6;
+  --sidebar-bg: #f8f9fa;
+  --hover-bg: #e9ecef;
+  --active-bg: #ddf;
+  --card-bg: #fff;
+  --link-color: #007bff;
+  --btn-bg: #28a745;
+}
+
+/* ─── Reset (Bootstrap-compatible) ─────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  font-size: 1rem;
+  line-height: 1.5;
+  margin: 0;
+  background: var(--bg);
+  color: var(--text-color);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ─── Bootstrap-matching typography ────────────────────────────────────── */
+p { margin-top: 0; margin-bottom: 1rem; }
+h1, h2, h3, h4, h5, h6 { margin-top: 0; margin-bottom: .5rem; font-weight: 500; line-height: 1.2; }
+h1 { font-size: 2.5rem; }
+h2 { font-size: 2rem; }
+h3 { font-size: 1.75rem; }
+h4 { font-size: 1.5rem; }
+h5 { font-size: 1.25rem; }
+h6 { font-size: 1rem; }
+small { font-size: .875em; font-weight: 400; }
+code { font-size: 87.5%; color: #e83e8c; word-wrap: break-word; }
+pre { font-size: 87.5%; color: #212529; }
+pre code { font-size: inherit; color: inherit; word-break: normal; }
+dl { margin-top: 0; margin-bottom: 1rem; }
+dt { font-weight: 700; }
+dd { margin-bottom: .5rem; margin-left: 0; }
+ul, ol { margin: 0; padding: 0; }
+
+a { color: var(--link-color); text-decoration: none; }
+a:hover { color: #0056b3; text-decoration: underline; }
+
+/* ─── Navbar ────────────────────────────────────────────────────────────── */
+.navbar {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  padding: .5rem 1rem;
+  flex-shrink: 0;
+}
+.navbar-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  text-decoration: none;
+  color: #007bff;
+  font-size: 1.25rem;
+  white-space: nowrap;
+  padding-top: .3125rem;
+  padding-bottom: .3125rem;
+}
+.navbar-brand:hover { text-decoration: none; color: #0056b3; }
+.navbar-center {
+  width: 100%;
+  text-align: center;
+}
+.navbar-title {
+  font-size: 1.25rem;
+  font-weight: 500;
+  margin-bottom: 0;
+}
+.navbar-right {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* ─── Select ────────────────────────────────────────────────────────────── */
+.select {
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text-color);
+  font-size: 14px;
+}
+
+/* ─── Footer ────────────────────────────────────────────────────────────── */
+.footer {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+.footer .linkmodel { margin-right: 10px; }
+.footer .flex-grow-1 { flex-grow: 1; text-align: right; }
+.footer a { text-decoration: none; }
+
+/* ─── Index page ────────────────────────────────────────────────────────── */
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 24px 40px;
+}
+.hero {
+  text-align: center;
+  margin: 3rem 0 3rem;
+}
+.hero h1 { margin: 16px 0 12px; font-weight: 300; }
+.lead {
+  font-size: 1.25rem;
+  font-weight: 300;
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+.card-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+@media (max-width: 640px) {
+  .card-grid { grid-template-columns: 1fr; }
+}
+.card {
+  border: 1px solid rgba(0,0,0,.125);
+  border-radius: .25rem;
+  padding: 1.25rem;
+  background: var(--card-bg);
+}
+.card h3 { margin-bottom: 8px; }
+.card h3 a { text-decoration: underline; }
+.card p { font-size: 0.95rem; line-height: 1.5; }
+.format-row {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+}
+.format-col {
+  flex: 1;
+  padding: 8px;
+  border-right: 1px solid var(--border-color);
+}
+.format-col:last-child { border-right: none; }
+.format-col h5 { margin-bottom: 4px; }
+.format-col h5 a { text-decoration: underline; }
+.format-col p { font-size: 0.85rem; margin: 0; }
+
+.tech-section {
+  text-align: center;
+  margin-top: 40px;
+}
+.btn {
+  display: inline-block;
+  padding: .375rem .75rem;
+  background: var(--btn-bg);
+  color: #fff;
+  text-decoration: none;
+  border-radius: .25rem;
+  font-weight: 400;
+  margin-bottom: 24px;
+}
+.btn:hover { opacity: 0.9; color: #fff; text-decoration: none; }
+.tech-card {
+  text-align: left;
+}
+.tech-card h4 { margin-bottom: 12px; font-weight: 600; }
+.tech-card dt { margin-top: 8px; }
+.tech-card dd { margin-left: 0; margin-bottom: 1em; font-size: 0.95rem; }
+
+/* ─── ELK Logos ─────────────────────────────────────────────────────────── */
+.elk-logo-large {
+  width: 150px;
+  height: 88px;
+  display: inline-block;
+  background: url(../public/img/elk.svg) no-repeat;
+  background-size: contain;
+}
+.elk-logo-small {
+  width: 51px;
+  height: 30px;
+  display: inline-block;
+  background: url(../public/img/elk_small.svg) no-repeat;
+  background-size: contain;
+  vertical-align: top;
+  margin-right: .25rem;
+}
+
+/* ─── Dark mode toggle ──────────────────────────────────────────────────── */
+#darkModeToggle {
+  margin-left: 16px;
+  margin-right: 16px;
+}
+.dark-mode-btn {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 16px;
+}
+#darkModeToggle.front-page {
+  position: absolute;
+  top: 32px;
+  right: 32px;
+}
+
+/* ─── Dark mode ─────────────────────────────────────────────────────────── */
+body.elk-dark-mode {
+  --bg: #333;
+  --text-color: #ddd;
+  --border-color: #444;
+  --sidebar-bg: #333;
+  --hover-bg: #444;
+  --active-bg: #335;
+  --card-bg: #333;
+  --link-color: #60adff;
+}
+.elk-dark-mode a { color: #60adff; }
+.elk-dark-mode .btn { color: #fff; }
+.elk-dark-mode .lead { color: #aaa; }
+.elk-dark-mode .card p { color: #aaa; }
+.elk-dark-mode .tech-card dd { color: #aaa; }
+.elk-dark-mode .elk-logo-large {
+  background-image: url(../public/img/elk_light.svg);
+}
+.elk-dark-mode .elk-logo-small {
+  background-image: url(../public/img/elk_small_light.svg);
+}
+.error-bar {
+  display: none;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 8px 12px;
+  background: #fee;
+  color: #c00;
+  font-size: 13px;
+  border-top: 1px solid #fcc;
+  z-index: 10;
+}
+.elk-dark-mode .error-bar {
+  background: #3a1a1a;
+  color: #f88;
+  border-color: #522;
+}
+.elk-dark-mode #example-description pre { color: #ddd; }
+/* Match original elk-live: invert Monaco editor in dark mode instead of using vs-dark theme */
+.elk-dark-mode #monaco-editor,
+.elk-dark-mode .select,
+.elk-dark-mode div.sidebar,
+.elk-dark-mode .sidebar {
+  filter: invert(0.8) hue-rotate(180deg);
+}
+
+/* ─── Editor / diagram panes (shared by editor + examples) ─────────────── */
+.editor-pane, .diagram-pane {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+  padding: .25rem;
+}
+#monaco-editor, #diagram {
+  width: 100%;
+  height: 100%;
+}
+
+/* ─── Loading spinner (shared by editor + examples) ────────────────────── */
+.loading {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: block;
+  border: 8px solid #ddf;
+  border-top: 8px solid #448;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  animation: spin 2s linear infinite;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

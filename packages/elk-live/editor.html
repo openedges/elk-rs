@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ELK-RS Editor</title>
+  <link rel="icon" type="image/svg+xml" href="img/elk_fav.svg">
+  <link rel="stylesheet" href="./styles/common.css">
+  <link rel="stylesheet" href="./styles/diagram.css">
+  <style>
+    body { min-height: 100vh; }
+    .editor-wrap {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      border-top: 1px solid var(--border-color);
+      padding-top: 1.5rem;
+    }
+    .editor-pane {
+      border-right: 1px solid var(--border-color);
+    }
+  </style>
+</head>
+<body class="d-flex flex-column">
+  <nav class="navbar">
+    <a class="navbar-brand" href="index.html">
+      <span class="elk-logo-small"></span>
+      ELK-RS Demonstrators
+    </a>
+    <div class="navbar-center">
+      <span class="navbar-title" id="page-title">ELKT Editor</span>
+    </div>
+    <div class="navbar-right">
+      <select id="mode-select" class="select">
+        <option value="elkt">elkt</option>
+        <option value="json">json</option>
+      </select>
+      <div id="darkModeToggle"></div>
+    </div>
+  </nav>
+
+  <div class="editor-wrap">
+    <div class="editor-pane">
+      <div id="monaco-editor"></div>
+      <div id="loading-editor" class="loading" style="margin: 0 .5rem;"></div>
+    </div>
+    <div class="diagram-pane">
+      <div id="diagram"></div>
+      <div id="loading" class="loading" style="margin: 0 .5rem;"></div>
+      <div id="error-bar" class="error-bar"></div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="linkmodel"><a id="model-link" href="#">Link to this model</a></div>
+    <div class="flex-grow-1" style="text-align: right;">
+      Powered by <a href="https://github.com/openedges/elk-rs">elk-rs</a> <span id="app-version"></span> (WASM)
+    </div>
+  </footer>
+
+  <script type="module" src="./src/editor.ts"></script>
+</body>
+</html>

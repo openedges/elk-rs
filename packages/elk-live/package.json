@@ -1,0 +1,27 @@
+{
+  "name": "elk-rs-live",
+  "version": "0.11.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "setup": "node setup.mjs"
+  },
+  "dependencies": {
+    "json5": "^2.2.3",
+    "lz-string": "^1.5.0",
+    "monaco-editor": "^0.52.2",
+    "showdown": "^2.1.0"
+  },
+  "devDependencies": {
+    "@types/lz-string": "^1.5.0",
+    "@types/node": "^25.4.0",
+    "@types/showdown": "^2.0.6",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0",
+    "vitest": "^3.0.0"
+  }
+}
