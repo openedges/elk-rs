@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ELK-RS Demonstrators</title>
+  <link rel="icon" type="image/svg+xml" href="img/elk_fav.svg">
+  <link rel="stylesheet" href="./styles/common.css">
+</head>
+<body>
+  <div id="darkModeToggle" class="front-page"></div>
+  <div class="container">
+    <div class="hero">
+      <div class="elk-logo-large"></div>
+      <h1>ELK-RS Demonstrators</h1>
+      <p class="lead">
+        Automatic layout algorithms compute layouts for diagrams.
+        Powered by <strong>elk-rs</strong> — a pure Rust port of the Eclipse Layout Kernel,
+        running in your browser via WebAssembly.
+      </p>
+    </div>
+
+    <div class="card-grid">
+      <div class="card">
+        <h3><a href="editor.html">Interactive Editor</a></h3>
+        <p>
+          Interactively edit a textual description of a graph
+          while a corresponding diagram is generated on-the-fly.
+          Choose between two formats:
+        </p>
+        <div class="format-row">
+          <div class="format-col">
+            <h5><a href="editor.html?mode=elkt">elkt</a></h5>
+            <p>ELK's textual graph DSL. Layout is performed in-browser using elk-rs WASM.</p>
+          </div>
+          <div class="format-col">
+            <h5><a href="editor.html?mode=json">json</a></h5>
+            <p>ELK's JSON format. Layout is performed in-browser using elk-rs WASM.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3><a href="examples.html">Examples</a></h3>
+        <p>
+          An annotated collection of example graphs illustrating
+          various configuration possibilities.
+        </p>
+        <p>
+          Source: ELK's
+          <a href="https://github.com/eclipse/elk-models">models repository</a>.
+        </p>
+      </div>
+    </div>
+
+    <div class="tech-section">
+      <a href="https://github.com/openedges/elk-rs" class="btn">View source on GitHub</a>
+      <div class="card tech-card">
+        <h4>Technologies</h4>
+        <dl>
+          <dt><a href="https://github.com/openedges/elk-rs">elk-rs</a></dt>
+          <dd>Pure Rust port of ELK, compiled to WebAssembly for in-browser layout.</dd>
+          <dt><a href="https://microsoft.github.io/monaco-editor/">Monaco Editor</a></dt>
+          <dd>The code editor that powers VS Code.</dd>
+          <dt><a href="https://www.eclipse.org/elk/">Eclipse Layout Kernel</a></dt>
+          <dd>The original Java-based layout algorithms that elk-rs reimplements.</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./src/index.ts"></script>
+</body>
+</html>

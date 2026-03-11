@@ -7,3 +7,6 @@
 [submodule "external/elkjs"]
 	path = external/elkjs
 	url = https://github.com/kieler/elkjs
+[submodule "external/elk-live"]
+	path = external/elk-live
+	url = https://github.com/kieler/elk-live
