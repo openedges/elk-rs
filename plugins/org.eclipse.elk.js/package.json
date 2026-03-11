@@ -1,6 +1,6 @@
 {
   "name": "elk-rs",
-  "version": "0.11.0-ext.1",
+  "version": "0.11.0-ext.2",
   "description": "ELK layout engine in Rust — elkjs-compatible API with WASM and native Node.js addon",
   "license": "EPL-2.0",
   "main": "js/index.js",

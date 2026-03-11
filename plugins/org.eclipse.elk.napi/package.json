@@ -1,6 +1,6 @@
 {
   "name": "elk-rs-napi",
-  "version": "0.11.0-ext.1",
+  "version": "0.11.0-ext.2",
   "napi": {
     "binaryName": "elk-rs",
     "targets": [

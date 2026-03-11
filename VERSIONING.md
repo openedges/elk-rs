@@ -64,7 +64,7 @@ Custom features (not in upstream ELK Java) are released via a pre-release channe
 ```
 npm: elk-rs@0.11.0           <- stable release (ELK 0.11.0 parity)
 npm: elk-rs@0.11.0-ext.1     <- extension release #1 (custom features)
-npm: elk-rs@0.11.0-ext.2     <- extension release #2
+npm: elk-rs@0.11.0-ext.2     <- extension release #2 (+ elk-live)
 ```
 
 - **Version format**: `{ELK_VERSION}-ext.{N}` — semver pre-release label `ext` (extension)
@@ -72,9 +72,9 @@ npm: elk-rs@0.11.0-ext.2     <- extension release #2
   - Examples: `0.11.0-ext.1`, `0.11.0-ext.2`
 - **Git tags**: `v{ELK_VERSION}-ext.{N}` on the `custom/{ELK_VERSION}` integration branch
 - **Cargo + npm**: Both use the same `-ext.N` version — publishable to registries
-  - `npm install elk-rs@0.11.0-ext.1` (explicit install; `npm install elk-rs` still gets stable)
-  - `elk-rs = "=0.11.0-ext.1"` in Cargo.toml (exact match required)
-- **Semver note**: Technically `0.11.0-ext.1 < 0.11.0` in semver ordering, but this is not a
+  - `npm install elk-rs@0.11.0-ext.2` (explicit install; `npm install elk-rs` still gets stable)
+  - `elk-rs = "=0.11.0-ext.2"` in Cargo.toml (exact match required)
+- **Semver note**: Technically `0.11.0-ext.2 < 0.11.0` in semver ordering, but this is not a
   problem in practice since extension releases are always installed via explicit version specifier
 - **Version bumping**: When `main` moves to the next ELK version, extension releases rebase and
   restart numbering (e.g., `0.12.0-ext.1`)
@@ -132,9 +132,9 @@ conventions adapted for ELK version alignment.
 
 | File | Version Field | Stable | Extension |
 |------|---------------|--------|-----------|
-| `Cargo.toml` (workspace root) | `[workspace.package] version` | `"0.11.0"` | `"0.11.0-ext.1"` |
-| `plugins/org.eclipse.elk.js/package.json` | `"version"` | `"0.11.0"` | `"0.11.0-ext.1"` |
-| `CHANGELOG.md` | Change history per ELK version | `## [0.11.0]` | `## [0.11.0-ext.1]` |
+| `Cargo.toml` (workspace root) | `[workspace.package] version` | `"0.11.0"` | `"0.11.0-ext.2"` |
+| `plugins/org.eclipse.elk.js/package.json` | `"version"` | `"0.11.0"` | `"0.11.0-ext.2"` |
+| `CHANGELOG.md` | Change history per ELK version | `## [0.11.0]` | `## [0.11.0-ext.2]` |
 
 ### Cargo Workspace Version Unification
 
@@ -215,7 +215,7 @@ releases/0.11.0:
 
 custom/0.11.0:
   v0.11.0-ext.1           <- extension release (custom features, npm/cargo publish)
-  v0.11.0-ext.2           <- extension release (custom features, npm/cargo publish)
+  v0.11.0-ext.2           <- extension release (+ elk-live, npm/cargo publish)
 
 releases/0.12.0:
   v0.12.0                 <- stable release (ELK 0.12.0 parity, npm publish)
