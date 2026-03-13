@@ -266,8 +266,11 @@ impl RecursiveGraphLayoutEngine {
 
         let mut provider = pool.fetch();
         let guard = if let Some(controller) = test_controller {
+            // SAFETY: `controller` raw pointer is valid for the duration of this layout call.
+            // It is set from a mutable reference in `layout()` and not aliased concurrently.
             let should_install = unsafe { (&*controller).targets(algorithm_data) };
             if should_install {
+                // SAFETY: Same as above — exclusive access to controller during layout.
                 let install_result = unsafe { (&mut *controller).install(provider.as_mut()) };
                 if let Err(message) = install_result {
                     panic!("{message}");
@@ -850,6 +853,8 @@ struct TestControllerGuard {
 
 impl Drop for TestControllerGuard {
     fn drop(&mut self) {
+        // SAFETY: `controller` and `provider` raw pointers are valid for the lifetime of this
+        // guard, which is dropped before the layout call returns. No aliasing occurs.
         unsafe {
             (&mut *self.controller).uninstall_from(&mut *self.provider);
         }

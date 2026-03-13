@@ -89,6 +89,8 @@ fn grow_at(
         child.node.set_center_position(&new_center);
 
         if debug {
+            // SAFETY: `root_ptr` points to the tree root which outlives this traversal.
+            // `child_ptr` is derived from a valid mutable reference. Debug-only read access.
             let root = unsafe { &*root_ptr };
             let child_ptr: *const Tree<Node> = child;
             debug_out(svg, root, Some(unsafe { &*child_ptr }));
