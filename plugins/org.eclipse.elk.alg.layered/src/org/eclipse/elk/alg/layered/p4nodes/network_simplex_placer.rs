@@ -81,6 +81,8 @@ impl NetworkSimplexPlacer {
 
     fn graph_ref(&self) -> &LGraph {
         let ptr = self.graph_ptr.expect("graph pointer missing") as *const LGraph;
+        // SAFETY: `graph_ptr` is set from a valid reference to the LGraph at the start of
+        // `process()`. The graph outlives this processor and is not moved during layout.
         unsafe { &*ptr }
     }
 }

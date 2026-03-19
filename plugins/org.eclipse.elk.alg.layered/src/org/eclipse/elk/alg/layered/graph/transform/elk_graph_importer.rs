@@ -1465,6 +1465,33 @@ impl<'a> ElkGraphImporter<'a> {
             }
         }
 
+        // Also treat edgeless ports as external ports when the root graph has
+        // portConstraints >= FIXED_SIDE.  Without this, root-level ports
+        // that have no edges to internal nodes are never converted to
+        // external-port dummies and therefore never positioned by the
+        // layered pipeline.  Only apply at the root level — nested compound
+        // nodes use regular port placement for edgeless ports.
+        let is_root = elkgraph.borrow().parent().is_none();
+        let has_any_ports = {
+            let mut graph_mut = elkgraph.borrow_mut();
+            !graph_mut.ports().is_empty()
+        };
+        if is_root && !has_external_ports && has_any_ports {
+            let port_constraints = {
+                let mut graph_mut = elkgraph.borrow_mut();
+                graph_mut
+                    .connectable()
+                    .shape()
+                    .graph_element()
+                    .properties_mut()
+                    .get_property(CoreOptions::PORT_CONSTRAINTS)
+                    .unwrap_or(PortConstraints::Undefined)
+            };
+            if port_constraints.is_side_fixed() {
+                has_external_ports = true;
+            }
+        }
+
         if has_external_ports {
             graph_properties.insert(GraphProperties::ExternalPorts);
         }

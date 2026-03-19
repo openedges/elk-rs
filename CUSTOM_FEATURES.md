@@ -6,13 +6,14 @@ This document describes **elk-rs-specific custom features** that do not exist in
 
 elk-rs is a 1:1 port of ELK Java, and the `main` branch maintains 100% parity with Java. Custom features are developed on separate branches forked from `main` and merged into the `custom/0.11.0` integration branch.
 
-Three custom features are currently implemented:
+Four custom features are currently implemented:
 
 | # | Feature | Branch | Description |
 |---|---------|--------|-------------|
 | 1 | ignoreEdgeInLayer | `custom/ignore-edge-in-layer` | Bypasses layer separation for specific edges, allowing same-layer placement |
 | 2 | In-Layer Edge Routing | `custom/in-layer-edge-routing` | Enables edge routing between FIRST/LAST_SEPARATE nodes within the same layer |
 | 3 | elk-live Demonstrator | `custom/elk-live` | Standalone web demo (Vite + Monaco + WASM) replacing the original Sprotty-based elk-live |
+| 4 | Root External Port Placement | `custom/external-port` | Distributes edgeless root-level ports along their assigned sides (Java ELK improvement) |
 
 ## Branch and Version
 
@@ -382,6 +383,110 @@ Build-time version injection: `__APP_VERSION__` is defined from `package.json` v
 
 ---
 
+## Feature 4: Root External Port Placement
+
+### Branch
+
+`custom/external-port`
+
+### Description
+
+When external ports are declared on the root node without edges connecting them to internal child nodes, the layered algorithm now correctly distributes them along their assigned sides. This fixes a design limitation present in both Java ELK and elk-rs.
+
+**Before (buggy):**
+```
+Root: w=640, h=420
+  Port si0: x=0, y=0       <- All 3 WEST at (0, 0)
+  Port si1: x=0, y=0
+  Port si2: x=0, y=0
+  Port clk0: x=0, y=420    <- All 3 SOUTH at (0, 420)
+  Port clk1: x=0, y=420
+  Port clk2: x=0, y=420
+```
+
+**After (fixed):**
+```
+Root: w=640, h=420
+  Port si0: x=0, y=~100    <- WEST distributed vertically
+  Port si1: x=0, y=~200
+  Port si2: x=0, y=~300
+  Port clk0: x=~160, y=420 <- SOUTH distributed horizontally
+  Port clk1: x=~320, y=420
+  Port clk2: x=~480, y=420
+```
+
+### Root Cause
+
+`ElkGraphImporter::check_external_ports()` only recognized ports with edges (`externalPortEdges > 0`) as external ports. Edgeless root ports were never converted to external port dummies, leaving their coordinates at the input default (0, 0).
+
+This is not a Rust porting bug — Java ELK has the identical limitation in `ElkGraphImporter.checkExternalPorts()`. It was never discovered because:
+
+1. All ~1,998 test models in `external/elk-models/` have zero root-level ports
+2. Tools like `elk_advanced` pre-process graphs with edge hoisting, providing edges before ELK sees the graph
+3. The original elk-live uses a Java WebSocket server that may apply similar preprocessing
+
+### Fix
+
+**File**: `plugins/org.eclipse.elk.alg.layered/src/org/eclipse/elk/alg/layered/graph/transform/elk_graph_importer.rs`
+
+Added a root-only fallback at the end of `check_external_ports()` (~12 lines):
+
+```rust
+// When edge-based detection returns false and the node is root,
+// check if the graph has ports with portConstraints >= FIXED_SIDE
+// — if so, treat them as external ports to ensure dummy creation.
+let is_root = elkgraph.borrow().parent().is_none();
+if is_root && !has_external_ports && has_any_ports {
+    let port_constraints = elkgraph
+        .get_property(CoreOptions::PORT_CONSTRAINTS)
+        .unwrap_or(PortConstraints::Undefined);
+    if port_constraints.is_side_fixed() {
+        has_external_ports = true;
+    }
+}
+```
+
+Once `GraphProperties::ExternalPorts` is set, the existing layered pipeline handles distribution naturally:
+
+1. **Import**: External port dummies are created for each root port
+2. **LayerConstraintPreprocessor/Postprocessor**: W/E dummies placed in first/last layers
+3. **P3 Crossing Minimization**: Assigns distinct ordering to same-side dummies
+4. **P4 Node Placement**: Allocates distinct Y/X positions
+5. **HierarchicalPortOrthogonalEdgeRouter**: Handles N/S dummy coordinates
+
+### Differences from Java ELK
+
+| Aspect | Java ELK | elk-rs (this fix) |
+|--------|----------|-------------------|
+| Edgeless root ports | Dummy not created (bug) | Dummy created (fixed) |
+| Ports with edges | Dummy created (OK) | Dummy created (OK) |
+| Model parity impact | N/A (no root-port models) | No regression (0 affected models) |
+| `portConstraints` check | Not present | Added as fallback |
+
+### Changed Files
+
+| File | Description |
+|------|-------------|
+| `plugins/.../graph/transform/elk_graph_importer.rs` | Root-only fallback in `check_external_ports()` (~12 lines added) |
+| `plugins/org.eclipse.elk.graph.json/tests/all/root_external_ports_test.rs` | 9 new integration tests (new file) |
+| `plugins/org.eclipse.elk.graph.json/tests/all/mod.rs` | Module registration (1 line added) |
+
+### Test Coverage
+
+| Test | Scenario | Verification |
+|------|----------|-------------|
+| `root_ext_ports_west_distributed` | WEST 3 ports, no edges | Y coords distinct + within root height |
+| `root_ext_ports_south_distributed` | SOUTH 3 ports, no edges | X coords distinct + within root width |
+| `root_ext_ports_north_distributed` | NORTH 3 ports, no edges | X coords distinct + within root width |
+| `root_ext_ports_east_centered` | EAST 1 port | Y within root height |
+| `root_ext_ports_all_four_sides` | N/S/E/W 2 each | All 4 sides distinct + in range |
+| `root_ext_ports_with_domain_edges` | 7 ports + domain with internal edges | Root ports distributed even with child edges |
+| `root_ext_ports_fixed_order` | FIXED_ORDER + W 3 ports | Order preserved + distributed |
+| `root_ext_ports_multiple_children` | 2 children + 4 ports | Distributed with multiple children |
+| `root_ext_ports_single_per_side` | W 1 + E 1 | Single port per side placed correctly |
+
+---
+
 ## Cross-Feature Compatibility
 
 All features work independently and can be used together.
@@ -389,6 +494,7 @@ All features work independently and can be used together.
 - `ignoreEdgeInLayer` can place regular nodes in the same layer while in-layer edges connect `layerConstraint: FIRST_SEPARATE/LAST_SEPARATE` nodes
 - Validated by cross-feature integration test (`551be8d`) and combined fixtures (`09_*.ignoreEdgeInLayer.elk.json`, `10_*.ignoreEdgeInLayer.elk.json`)
 - elk-live demonstrates all custom features via the interactive editor (ELKT/JSON input with live WASM layout)
+- Root external port placement works independently of all other features — it only affects root-level edgeless ports
 
 ### Test Coverage Summary
 
@@ -403,3 +509,4 @@ All features work independently and can be used together.
 | elk-live ELKT parser | unit tests | `packages/elk-live/test/elkt-parser.test.ts` |
 | elk-live example parser | unit tests | `packages/elk-live/test/elkex-parser.test.ts` |
 | elk-live E2E parity | layout parity | `packages/elk-live/test/all-examples-wasm.test.ts` |
+| Root external port integration | 9 | `tests/all/root_external_ports_test.rs` |

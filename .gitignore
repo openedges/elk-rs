@@ -11,8 +11,13 @@
 .vscode/
 .omc/
 .auto-claude/
+.claude/
 /.cache/
 /plan/
+
+# Open-source review documents (internal only)
+OPENSOURCE_REVIEW.pdf
+OPENSOURCE_REVIEW.md
 
 # Python cache
 __pycache__/
