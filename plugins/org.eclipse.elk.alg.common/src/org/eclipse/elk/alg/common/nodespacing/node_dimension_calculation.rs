@@ -5,12 +5,13 @@ use std::sync::LazyLock;
 static NODE_DIM_FULL_FOR_FIXED: LazyLock<bool> =
     LazyLock::new(|| std::env::var_os("ELK_NODE_DIM_FULL_FOR_FIXED").is_some());
 static NODE_DIM_USE_FULL_PROCESS: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_NODE_DIM_USE_FULL_PROCESS").is_some());
+    LazyLock::new(|| std::env::var_os("ELK_NODE_DIM_SKIP_FULL_PROCESS").is_none());
 
 use org_eclipse_elk_core::org::eclipse::elk::core::math::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::{
     CoreOptions, Direction, NodeLabelPlacement, PortLabelPlacement, PortSide, SizeConstraint,
 };
+use org_eclipse_elk_core::org::eclipse::elk::core::util::EnumSet;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::adapters::{
     ElkGraphAdapter, ElkLabelAdapter, ElkNodeAdapter, ElkPortAdapter, GraphAdapter,
     GraphElementAdapter, NodeAdapter, PortAdapter,
@@ -442,7 +443,25 @@ impl NodeDimensionCalculation {
                 .get_property(CoreOptions::DIRECTION)
                 .unwrap_or(Direction::Undefined);
             for node in adapter.get_nodes() {
-                NodeLabelAndSizeCalculator::process(&node, layout_direction);
+                // process() with are_size_constraints_fixed keeps the current node size,
+                // which is correct for most nodes. However, compound nodes whose inner
+                // layout has already run may have a size that doesn't account for fixed
+                // port labels extending into the node (the inner layout doesn't know about
+                // parent-level port labels). In that case, process_node() is needed because
+                // it always computes the full size including port label space.
+                //
+                // Detect this case: size constraints are effectively fixed (empty or just
+                // PortLabels) AND ports have labels at non-zero positions (indicating they
+                // were placed by a prior layout pass and extend into the node).
+                if Self::needs_process_node_for_fixed_port_labels(&node) {
+                    // First compute the correct size (including port label space),
+                    // then run process() which will keep this size (fixed constraints)
+                    // but also place ports at the correct positions.
+                    NodeLabelAndSizeCalculator::process_node(&node, layout_direction);
+                    NodeLabelAndSizeCalculator::process(&node, layout_direction);
+                } else {
+                    NodeLabelAndSizeCalculator::process(&node, layout_direction);
+                }
             }
             return;
         }
@@ -2087,6 +2106,54 @@ impl NodeDimensionCalculation {
                 .fold(f64::INFINITY, f64::min);
             Some(baseline - gap_y)
         }
+    }
+
+    /// Returns true when a node needs `process_node()` instead of `process()` because
+    /// it has fixed size constraints AND ports with labels at non-zero positions that
+    /// extend into the node interior.
+    ///
+    /// This handles compound nodes whose inner layout has already set their size but
+    /// didn't account for fixed port labels placed by a prior ELK-level layout pass.
+    /// `process()` respects `are_size_constraints_fixed` and keeps the current size,
+    /// but `process_node()` always computes the full size including port label space.
+    ///
+    /// Nodes with port labels at default (0,0) positions (e.g., freshly parsed models)
+    /// don't need this fallback — `process()` handles them correctly.
+    fn needs_process_node_for_fixed_port_labels<N, T>(node: &N) -> bool
+    where
+        T: 'static,
+        N: NodeAdapter<T>,
+        N::Port: 'static,
+        N::PortAdapter: 'static,
+    {
+        let size_constraints = node
+            .get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)
+            .unwrap_or_default();
+        let is_fixed = size_constraints.is_empty()
+            || size_constraints == EnumSet::of(&[SizeConstraint::PortLabels]);
+        if !is_fixed {
+            return false;
+        }
+
+        let port_labels_placement = node
+            .get_property(CoreOptions::PORT_LABELS_PLACEMENT)
+            .unwrap_or_default();
+        if !PortLabelPlacement::is_fixed(&port_labels_placement) {
+            return false;
+        }
+
+        // Check if any port has labels at non-zero positions (indicating they were
+        // placed by a prior layout pass and may extend into the node).
+        for port in node.get_ports() {
+            for label in port.get_labels() {
+                let pos = label.get_position();
+                if pos.x.abs() > 0.01 || pos.y.abs() > 0.01 {
+                    return true;
+                }
+            }
+        }
+
+        false
     }
 }
 
