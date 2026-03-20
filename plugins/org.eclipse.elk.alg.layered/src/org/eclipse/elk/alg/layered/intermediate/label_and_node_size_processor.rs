@@ -29,6 +29,9 @@ pub struct LabelAndNodeSizeProcessor;
 static TRACE_NODE_SIZE: LazyLock<bool> =
     LazyLock::new(|| std::env::var("ELK_TRACE_NODE_SIZE").is_ok());
 static ENABLE_PHASE1_PORT_PLACEMENT: LazyLock<bool> = LazyLock::new(|| {
+    if std::env::var_os("ELK_NODE_DIM_SKIP_FULL_PROCESS").is_none() {
+        return false;
+    }
     std::env::var("ELK_LAYERED_ENABLE_LABEL_NODE_PHASE1")
         .map(|value| !(value == "0" || value.eq_ignore_ascii_case("false")))
         .unwrap_or(true)
@@ -59,17 +62,18 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
             .get_property(CoreOptions::NODE_SIZE_FIXED_GRAPH_SIZE)
             .unwrap_or(false);
 
-        // Step 1: Calculate node sizes and labels via NodeDimensionCalculation (matching Java)
-        // Java's LabelAndNodeSizeProcessor calls this FIRST, then port positions are set by
-        // the internal PortPlacementCalculator within process_node. Since Rust's process_node
-        // doesn't have PortPlacementCalculator, we do node sizing first, then port placement.
+        // Step 1: Calculate node sizes and labels via NodeDimensionCalculation (matching Java).
+        // Java's LabelAndNodeSizeProcessor calls NodeDimensionCalculation.calculateLabelAndNodeSizes()
+        // once, which internally uses the full 7-phase process(). No Step 2 in Java.
         if *TRACE_NODE_SIZE {
             eprintln!("label-node-size: step1 (node sizing) begin");
         }
+
         let adapter = LGraphAdapters::adapt(graph, true, true, |node| {
             node.node_type() == NodeType::Normal
         });
         NodeDimensionCalculation::calculate_label_and_node_sizes(&adapter);
+
         if *TRACE_NODE_SIZE {
             eprintln!("label-node-size: step1 (node sizing) done");
         }
@@ -418,11 +422,21 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
 // ============================================================
 
 fn should_apply_phase1_port_placement(node: &LNodeRef) -> bool {
-    !node
-        .lock()
-        .ok()
-        .and_then(|mut node_guard| node_guard.get_property(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE))
-        .unwrap_or(false)
+    let Ok(mut node_guard) = node.lock() else {
+        return true;
+    };
+    let activate = node_guard
+        .get_property(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE)
+        .unwrap_or(false);
+    if !activate {
+        return true;
+    }
+    // Skip port placement for all insideSelfLoops nodes in Step 2.
+    // Compound self-loop nodes are handled by a dedicated full process()
+    // pass after Step 1 (see Step 1b below), which matches Java's
+    // single-pass architecture.  Simple self-loop nodes keep the original
+    // skip behavior to preserve parity.
+    false
 }
 
 fn should_reposition_ports_after_phase2(

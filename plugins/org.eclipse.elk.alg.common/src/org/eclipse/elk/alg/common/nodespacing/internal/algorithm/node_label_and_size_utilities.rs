@@ -25,32 +25,42 @@ impl NodeLabelAndSizeUtilities {
     /// Sets up the padding of the main node cell to account for ports that extend inside
     /// the node.
     pub fn setup_node_padding_for_ports_with_offset(node_context: &mut NodeContext) {
-        // Collect all port contexts for iteration
-        let port_data: Vec<(PortSide, f64, bool, Vec<KVector>, KVector)> = node_context
+        // Snapshot per-port data needed for padding computation.
+        struct PortPaddingData {
+            side: PortSide,
+            border_offset: f64,
+            has_border_offset: bool,
+            label_sizes: Vec<KVector>,
+            label_positions: Vec<KVector>,
+            port_size: KVector,
+        }
+
+        let port_data: Vec<PortPaddingData> = node_context
             .port_contexts
             .values()
             .flat_map(|v| v.iter())
-            .map(|pc| {
-                (
-                    pc.port_side,
-                    pc.port_border_offset,
-                    pc.has_port_border_offset,
-                    pc.label_sizes.clone(),
-                    pc.port_size,
-                )
+            .map(|pc| PortPaddingData {
+                side: pc.port_side,
+                border_offset: pc.port_border_offset,
+                has_border_offset: pc.has_port_border_offset,
+                label_sizes: pc.label_sizes.clone(),
+                label_positions: pc.label_positions.clone(),
+                port_size: pc.port_size,
             })
             .collect();
 
         let is_fixed = PortLabelPlacement::is_fixed(&node_context.port_labels_placement);
         let symmetry = !node_context.size_options.contains(&SizeOptions::Asymmetrical);
 
-        for (port_side, port_border_offset, has_port_border_offset, label_sizes, port_size) in
-            &port_data
-        {
+        for pd in &port_data {
+            let (port_side, port_border_offset, has_port_border_offset) =
+                (&pd.side, pd.border_offset, pd.has_border_offset);
+            let (label_sizes, label_positions, port_size) =
+                (&pd.label_sizes, &pd.label_positions, &pd.port_size);
             let node_cell_padding = node_context.node_container.padding();
 
             // If the port extends into the node, ensure the inside port space is enough
-            if *has_port_border_offset && *port_border_offset < 0.0 {
+            if has_port_border_offset && port_border_offset < 0.0 {
                 match port_side {
                     PortSide::North => {
                         node_cell_padding.top =
@@ -75,16 +85,12 @@ impl NodeLabelAndSizeUtilities {
             if is_fixed {
                 // Compute the maximum inside part across all labels
                 let mut max_inside_part = 0.0_f64;
-                for label_size in label_sizes {
-                    // For fixed labels, compute the inside part using label data
-                    // We need label position but fixed labels store absolute positions
-                    // Use the single-label compute_inside_part
-                    let label_pos = KVector::new(); // Fixed labels would have explicit positions
+                for (label_pos, label_size) in label_positions.iter().zip(label_sizes.iter()) {
                     let inside = ElkUtil::compute_inside_part(
-                        &label_pos,
+                        label_pos,
                         label_size,
                         port_size,
-                        *port_border_offset,
+                        port_border_offset,
                         *port_side,
                     );
                     max_inside_part = max_inside_part.max(inside);

@@ -135,7 +135,28 @@ impl NodeLabelCellCreator {
         node_label_location: NodeLabelLocation,
         horizontal_layout_mode: bool,
     ) -> &mut DynLabelCell {
-        if !node_context.node_label_cells.contains_key(&node_label_location) {
+        // Check if a label cell already exists at this location in the container.
+        let cell_exists = if node_label_location.is_inside_location() {
+            let row = node_label_location.container_row().unwrap();
+            let col = node_label_location.container_column().unwrap();
+            node_context
+                .inside_node_label_container_mut()
+                .map(|grid| matches!(grid.get_cell(row, col), CellChild::Label(_)))
+                .unwrap_or(false)
+        } else {
+            let outside_side = node_label_location.outside_side();
+            let area = match outside_side {
+                PortSide::North | PortSide::South => node_label_location.container_column().unwrap(),
+                _ => node_label_location.container_row().unwrap(),
+            };
+            node_context
+                .outside_node_label_containers
+                .get(&outside_side)
+                .map(|c| matches!(c.get_cell(area), CellChild::Label(_)))
+                .unwrap_or(false)
+        };
+
+        if !cell_exists {
             // The node label cell doesn't exist yet, so create one and add it to the relevant
             // container
             let mut node_label_cell =
@@ -198,7 +219,6 @@ impl NodeLabelCellCreator {
         }
 
         // Cell already exists - find it and return a reference
-        // We need to look it up from the container where it was placed
         if node_label_location.is_inside_location() {
             let row = node_label_location.container_row().unwrap();
             let col = node_label_location.container_column().unwrap();
