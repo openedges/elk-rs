@@ -59,7 +59,6 @@ First stable release. Full port of ELK Java 0.11.0 with layout-identical output.
 
 ### Fixed
 
-- Root-level external port placement: edgeless ports on the root node now distribute along their assigned sides instead of clustering at (0, 0). This is an improvement over Java ELK, which has the same limitation. Relevant for elk-live (`external/elk-live/`) and direct `layout_json()` usage with root-level ports without edges.
 - Deterministic opposing self-loop routing matching Java enum-ordinal order
 - Negative graph size clamp in `ComponentGroupGraphPlacer` (`.max(0.0)` removed)
 - Inside self-loop node compaction guard for nodes with children

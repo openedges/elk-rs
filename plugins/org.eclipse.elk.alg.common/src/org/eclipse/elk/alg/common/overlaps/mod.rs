@@ -114,8 +114,6 @@ impl RectangleStripOverlapRemover {
         let rect = node.rectangle;
         let original = node.original_rectangle;
 
-        // SAFETY: `original_rectangle` raw pointer is set from a mutable reference to the
-        // node's original rect. Each node is processed exactly once, no aliasing occurs.
         unsafe {
             let original_rect = &mut *original;
             match self.overlap_removal_direction {

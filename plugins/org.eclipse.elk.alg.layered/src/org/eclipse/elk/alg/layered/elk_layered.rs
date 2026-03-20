@@ -785,8 +785,6 @@ impl ElkLayered {
         let is_root = graph.parent_node().is_none();
         let graph_any: &dyn std::any::Any = graph;
         let processor_any: &dyn std::any::Any = processor;
-        // SAFETY: `test_controller` raw pointer is set from a mutable reference at the start
-        // of the layout pass. Layout is single-threaded and the controller outlives the pass.
         unsafe {
             (*(controller as *mut TestController)).notify_processor_ready(
                 graph_any,
@@ -807,7 +805,6 @@ impl ElkLayered {
         let is_root = graph.parent_node().is_none();
         let graph_any: &dyn std::any::Any = graph;
         let processor_any: &dyn std::any::Any = processor;
-        // SAFETY: Same invariant as `notify_processor_ready` above.
         unsafe {
             (*(controller as *mut TestController)).notify_processor_finished(
                 graph_any,

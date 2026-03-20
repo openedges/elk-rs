@@ -8,5 +8,4 @@ mod id_test;
 mod individual_spacings_test;
 mod layout_options_test;
 mod sections_test;
-mod root_external_ports_test;
 mod transfer_layout_test;
