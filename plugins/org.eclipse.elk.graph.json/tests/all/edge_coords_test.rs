@@ -223,7 +223,7 @@ const OUTPUT_PC: &str = r#"{
                   "text": "p",
                   "width": 10,
                   "x": -11,
-                  "y": 11
+                  "y": -13
                 }
               ],
               "width": 10,
@@ -430,7 +430,7 @@ const OUTPUT_PP: &str = r#"{
                   "text": "p",
                   "width": 10,
                   "x": -11,
-                  "y": 11
+                  "y": -13
                 }
               ],
               "width": 10,
@@ -637,7 +637,7 @@ const OUTPUT_PR: &str = r#"{
                   "text": "p",
                   "width": 10,
                   "x": -11,
-                  "y": 11
+                  "y": -13
                 }
               ],
               "width": 10,
@@ -848,7 +848,7 @@ const OUTPUT_RC: &str = r#"{
                   "text": "p",
                   "width": 10,
                   "x": 134,
-                  "y": 102
+                  "y": 78
                 }
               ],
               "width": 10,
@@ -1055,7 +1055,7 @@ const OUTPUT_RP: &str = r#"{
                   "text": "p",
                   "width": 10,
                   "x": 134,
-                  "y": 102
+                  "y": 78
                 }
               ],
               "width": 10,
@@ -1262,7 +1262,7 @@ const OUTPUT_RR: &str = r#"{
                   "text": "p",
                   "width": 10,
                   "x": 134,
-                  "y": 102
+                  "y": 78
                 }
               ],
               "width": 10,
