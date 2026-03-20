@@ -1,5 +1,6 @@
 mod common;
 mod edge_coords_test;
+mod edgeless_hierarchy_integration_test;
 mod edges_test;
 mod export_test;
 mod fixtures_layout_test;
@@ -7,5 +8,6 @@ mod graph_test;
 mod id_test;
 mod individual_spacings_test;
 mod layout_options_test;
+mod root_external_ports_test;
 mod sections_test;
 mod transfer_layout_test;
