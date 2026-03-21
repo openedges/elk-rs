@@ -200,15 +200,16 @@ impl NetworkSimplexPlacer {
                 .map(|layer_guard| layer_guard.nodes().clone())
                 .unwrap_or_default();
             for node in nodes {
-                if let Some(mut node_guard) = node.lock_ok() {
+                let (outgoing_edges, ports) = if let Some(mut node_guard) = node.lock_ok() {
                     node_guard.shape().graph_element().id = node_idx as i32;
-                }
+                    let oe = node_guard.outgoing_edges();
+                    let p = node_guard.ports().clone();
+                    (oe, p)
+                } else {
+                    (Vec::new(), Vec::new())
+                };
                 node_idx += 1;
 
-                let outgoing_edges = node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.outgoing_edges())
-                    .unwrap_or_default();
                 for edge in outgoing_edges {
                     if let Some(mut edge_guard) = edge.lock_ok() {
                         edge_guard.graph_element().id = edge_idx as i32;
@@ -217,10 +218,6 @@ impl NetworkSimplexPlacer {
                 }
 
                 let anchor_must_be_integer = is_flexible_node(self.graph_ref(), &node);
-                let ports = node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.ports().clone())
-                    .unwrap_or_default();
                 for port in ports {
                     if let Some(mut port_guard) = port.lock_ok() {
                         if anchor_must_be_integer {
@@ -382,18 +379,18 @@ impl NetworkSimplexPlacer {
             self.flexible_where_space_permits_edges.push(node_size_edge);
         }
 
-        let west_ports = node
+        let (west_ports, east_ports) = node
             .lock_ok()
-            .map(|mut node_guard| node_guard.port_side_view(PortSide::West))
+            .map(|mut node_guard| {
+                (
+                    node_guard.port_side_view(PortSide::West),
+                    node_guard.port_side_view(PortSide::East),
+                )
+            })
             .unwrap_or_default();
         let mut west_ports_rev = west_ports;
         west_ports_rev.reverse();
         self.transform_ports(&west_ports_rev, &corners);
-
-        let east_ports = node
-            .lock_ok()
-            .map(|mut node_guard| node_guard.port_side_view(PortSide::East))
-            .unwrap_or_default();
         self.transform_ports(&east_ports, &corners);
 
         corners
@@ -487,8 +484,10 @@ impl NetworkSimplexPlacer {
     fn transform_edge(&mut self, edge: &LEdgeRef) {
         let dummy = NNode::of().type_label("edge").create(&mut self.n_graph);
 
-        let source_port = edge.lock_ok().and_then(|edge_guard| edge_guard.source());
-        let target_port = edge.lock_ok().and_then(|edge_guard| edge_guard.target());
+        let (source_port, target_port) = edge
+            .lock_ok()
+            .map(|edge_guard| (edge_guard.source(), edge_guard.target()))
+            .unwrap_or((None, None));
         let (Some(source_port), Some(target_port)) = (source_port, target_port) else {
             return;
         };
@@ -512,27 +511,26 @@ impl NetworkSimplexPlacer {
             .cloned()
             .expect("Missing node rep");
 
-        let mut src_offset = source_port
+        let src_offset = source_port
             .lock_ok()
-            .map(|port_guard| port_guard.anchor_ref().y)
+            .map(|mut port_guard| {
+                let mut offset = port_guard.anchor_ref().y;
+                if !src_rep.is_flexible {
+                    offset += port_guard.shape().position_ref().y;
+                }
+                offset
+            })
             .unwrap_or(0.0);
-        let mut tgt_offset = target_port
+        let tgt_offset = target_port
             .lock_ok()
-            .map(|port_guard| port_guard.anchor_ref().y)
+            .map(|mut port_guard| {
+                let mut offset = port_guard.anchor_ref().y;
+                if !tgt_rep.is_flexible {
+                    offset += port_guard.shape().position_ref().y;
+                }
+                offset
+            })
             .unwrap_or(0.0);
-
-        if !src_rep.is_flexible {
-            src_offset += source_port
-                .lock_ok()
-                .map(|mut port_guard| port_guard.shape().position_ref().y)
-                .unwrap_or(0.0);
-        }
-        if !tgt_rep.is_flexible {
-            tgt_offset += target_port
-                .lock_ok()
-                .map(|mut port_guard| port_guard.shape().position_ref().y)
-                .unwrap_or(0.0);
-        }
 
         debug_assert!(
             ((src_offset - tgt_offset) - (src_offset - tgt_offset).round()).abs() < EPSILON,
@@ -573,33 +571,29 @@ impl NetworkSimplexPlacer {
                 .map(|layer_guard| layer_guard.nodes().clone())
                 .unwrap_or_default();
             for node in nodes {
-                if node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.node_type() != NodeType::Normal)
-                    .unwrap_or(false)
-                {
-                    continue;
-                }
-
-                let edges = node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.connected_edges())
-                    .unwrap_or_default();
-                for edge in edges {
-                    let in_layer = {
-                        let (sp, tp) = edge
-                            .lock_ok()
-                            .map(|eg| (eg.source(), eg.target()))
-                            .unwrap_or((None, None));
-                        check_in_layer_edge_ports(&sp, &tp)
+                let edges = {
+                    let node_guard = match node.lock_ok() {
+                        Some(g) => g,
+                        None => continue,
                     };
+                    if node_guard.node_type() != NodeType::Normal {
+                        continue;
+                    }
+                    node_guard.connected_edges()
+                };
+                for edge in edges {
+                    let (sp, tp) = edge
+                        .lock_ok()
+                        .map(|eg| (eg.source(), eg.target()))
+                        .unwrap_or((None, None));
+
+                    let in_layer = check_in_layer_edge_ports(&sp, &tp);
                     if !in_layer {
                         continue;
                     }
 
-                    let src_is_dummy = edge
-                        .lock_ok()
-                        .and_then(|edge_guard| edge_guard.source())
+                    let src_is_dummy = sp
+                        .as_ref()
                         .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
                         .and_then(|node| {
                             node.lock_ok()
@@ -607,8 +601,7 @@ impl NetworkSimplexPlacer {
                         })
                         .unwrap_or(false);
 
-                    let source_port = edge.lock_ok().and_then(|edge_guard| edge_guard.source());
-                    let target_port = edge.lock_ok().and_then(|edge_guard| edge_guard.target());
+                    let (source_port, target_port) = (sp, tp);
                     let (Some(source_port), Some(target_port)) = (source_port, target_port) else {
                         continue;
                     };
@@ -746,20 +739,14 @@ impl NetworkSimplexPlacer {
             let Some(rep) = rep.as_ref() else {
                 continue;
             };
-            if rep
+            let should_skip = rep
                 .origin
                 .lock_ok()
-                .map(|node_guard| node_guard.node_type() != NodeType::Normal)
-                .unwrap_or(true)
-            {
-                continue;
-            }
-            let port_count = rep
-                .origin
-                .lock_ok()
-                .map(|node_guard| node_guard.ports().len())
-                .unwrap_or(0);
-            if port_count <= 1 {
+                .map(|node_guard| {
+                    node_guard.node_type() != NodeType::Normal || node_guard.ports().len() <= 1
+                })
+                .unwrap_or(true);
+            if should_skip {
                 continue;
             }
 
@@ -863,35 +850,30 @@ impl NetworkSimplexPlacer {
     }
 
     fn get_edge_weight(&self, edge: &LEdgeRef) -> f64 {
-        let priority = edge
+        let (priority, source_port, target_port) = edge
             .lock_ok()
-            .and_then(|mut edge_guard| {
-                edge_guard.get_property(LayeredOptions::PRIORITY_STRAIGHTNESS)
+            .map(|mut edge_guard| {
+                let p = edge_guard
+                    .get_property(LayeredOptions::PRIORITY_STRAIGHTNESS)
+                    .unwrap_or(1)
+                    .max(1);
+                (p, edge_guard.source(), edge_guard.target())
             })
-            .unwrap_or(1)
-            .max(1);
-        let (source_type, target_type) = edge
-            .lock_ok()
-            .and_then(|edge_guard| {
-                let source = edge_guard.source()?;
-                let target = edge_guard.target()?;
-                let source_node = source
-                    .lock_ok()
-                    .and_then(|port_guard| port_guard.node())?;
-                let target_node = target
-                    .lock_ok()
-                    .and_then(|port_guard| port_guard.node())?;
-                let source_type = source_node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.node_type())
-                    .unwrap_or(NodeType::Normal);
-                let target_type = target_node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.node_type())
-                    .unwrap_or(NodeType::Normal);
-                Some((source_type, target_type))
-            })
-            .unwrap_or((NodeType::Normal, NodeType::Normal));
+            .unwrap_or((1, None, None));
+        let (source_type, target_type) = (|| {
+            let source_node = source_port?.lock_ok().and_then(|port_guard| port_guard.node())?;
+            let target_node = target_port?.lock_ok().and_then(|port_guard| port_guard.node())?;
+            let source_type = source_node
+                .lock_ok()
+                .map(|node_guard| node_guard.node_type())
+                .unwrap_or(NodeType::Normal);
+            let target_type = target_node
+                .lock_ok()
+                .map(|node_guard| node_guard.node_type())
+                .unwrap_or(NodeType::Normal);
+            Some((source_type, target_type))
+        })()
+        .unwrap_or((NodeType::Normal, NodeType::Normal));
 
         priority as f64 * edge_type_weight(source_type, target_type)
     }
@@ -950,23 +932,11 @@ impl NetworkSimplexPlacer {
                     .get_mut(edge_id(edge))
                     .and_then(|rep| rep.as_mut())
                 {
-                    let mut left_weight = rep
-                        .left
-                        .lock_ok()
-                        .map(|edge_guard| edge_guard.weight)
-                        .unwrap_or(0.0);
-                    let mut right_weight = rep
-                        .right
-                        .lock_ok()
-                        .map(|edge_guard| edge_guard.weight)
-                        .unwrap_or(0.0);
-                    left_weight = left_weight.max(weight);
-                    right_weight = right_weight.max(weight);
                     if let Some(mut left_guard) = rep.left.lock_ok() {
-                        left_guard.weight = left_weight;
+                        left_guard.weight = left_guard.weight.max(weight);
                     }
                     if let Some(mut right_guard) = rep.right.lock_ok() {
-                        right_guard.weight = right_weight;
+                        right_guard.weight = right_guard.weight.max(weight);
                     }
                 }
             }
@@ -1020,13 +990,11 @@ impl NetworkSimplexPlacer {
         let mut above_dist = f64::INFINITY;
         let mut below_dist = f64::INFINITY;
 
-        let node_index = center_node
+        let (node_index, center_layer) = center_node
             .lock_ok()
-            .and_then(|node_guard| node_guard.index())
-            .unwrap_or(0);
-        let layer_nodes = center_node
-            .lock_ok()
-            .and_then(|node_guard| node_guard.layer())
+            .map(|node_guard| (node_guard.index().unwrap_or(0), node_guard.layer()))
+            .unwrap_or((0, None));
+        let layer_nodes = center_layer
             .and_then(|layer| {
                 layer
                     .lock_ok()
@@ -1034,6 +1002,11 @@ impl NetworkSimplexPlacer {
             })
             .unwrap_or_default();
 
+        let n_head_layer = n_node
+            .head
+            .lock_ok()
+            .map(|node_guard| node_guard.layer)
+            .unwrap_or(0) as f64;
         if node_index > 0 {
             let above = layer_nodes[node_index - 1].clone();
             let above_rep = self.node_reps[node_id(&above)].as_ref().cloned().unwrap();
@@ -1043,12 +1016,7 @@ impl NetworkSimplexPlacer {
                 .unwrap()
                 .get_vertical_spacing(&above, center_node)
                 .ceil();
-            above_dist = (n_node
-                .head
-                .lock_ok()
-                .map(|node_guard| node_guard.layer)
-                .unwrap_or(0) as f64
-                - node_margin_top(center_node))
+            above_dist = (n_head_layer - node_margin_top(center_node))
                 - (above_rep
                     .head
                     .lock_ok()
@@ -1073,11 +1041,7 @@ impl NetworkSimplexPlacer {
                 .map(|node_guard| node_guard.layer)
                 .unwrap_or(0) as f64
                 - node_margin_top(&below))
-                - (n_node
-                    .head
-                    .lock_ok()
-                    .map(|node_guard| node_guard.layer)
-                    .unwrap_or(0) as f64
+                - (n_head_layer
                     + node_size_y(center_node)
                     + node_margin_bottom(center_node))
                 - spacing;
@@ -1092,10 +1056,16 @@ impl NetworkSimplexPlacer {
         let c = -length(&right_edge.left) as i32;
         let d = length(&right_edge.right) as i32;
 
-        let case_d = left_edge.not_straight_by() > 0 && right_edge.not_straight_by() < 0;
-        let case_c = left_edge.not_straight_by() < 0 && right_edge.not_straight_by() > 0;
-        let left_value = left_edge.left_target_layer() + left_edge.right_delta();
-        let right_value = right_edge.right_target_layer() + right_edge.left_delta();
+        let (left_ltl, left_ld) = left_edge.left_target_layer_and_delta();
+        let (left_rtl, left_rd) = left_edge.right_target_layer_and_delta();
+        let (right_ltl, right_ld) = right_edge.left_target_layer_and_delta();
+        let (right_rtl, right_rd) = right_edge.right_target_layer_and_delta();
+        let left_nsb = (left_ltl - left_ld) - (left_rtl - left_rd);
+        let right_nsb = (right_ltl - right_ld) - (right_rtl - right_rd);
+        let case_d = left_nsb > 0 && right_nsb < 0;
+        let case_c = left_nsb < 0 && right_nsb > 0;
+        let left_value = left_ltl + left_rd;
+        let right_value = right_rtl + right_ld;
         let case_b = left_value < right_value;
         let case_a = left_value > right_value;
 
@@ -1362,54 +1332,46 @@ struct EdgeRep {
 }
 
 impl EdgeRep {
+    /// Returns (target_layer, delta) for the left edge in a single lock.
+    fn left_target_layer_and_delta(&self) -> (i32, i32) {
+        self.left
+            .lock_ok()
+            .map(|edge_guard| {
+                let target_layer = edge_guard
+                    .target
+                    .lock_ok()
+                    .map(|node_guard| node_guard.layer)
+                    .unwrap_or(0);
+                (target_layer, edge_guard.delta)
+            })
+            .unwrap_or((0, 0))
+    }
+
+    /// Returns (target_layer, delta) for the right edge in a single lock.
+    fn right_target_layer_and_delta(&self) -> (i32, i32) {
+        self.right
+            .lock_ok()
+            .map(|edge_guard| {
+                let target_layer = edge_guard
+                    .target
+                    .lock_ok()
+                    .map(|node_guard| node_guard.layer)
+                    .unwrap_or(0);
+                (target_layer, edge_guard.delta)
+            })
+            .unwrap_or((0, 0))
+    }
+
     fn is_straight(&self) -> bool {
         self.not_straight_by() == 0
     }
 
     fn not_straight_by(&self) -> i32 {
-        (self.left_target_layer() - self.left_delta())
-            - (self.right_target_layer() - self.right_delta())
+        let (left_tl, left_d) = self.left_target_layer_and_delta();
+        let (right_tl, right_d) = self.right_target_layer_and_delta();
+        (left_tl - left_d) - (right_tl - right_d)
     }
 
-    fn left_target_layer(&self) -> i32 {
-        self.left
-            .lock_ok()
-            .map(|edge_guard| {
-                edge_guard
-                    .target
-                    .lock_ok()
-                    .map(|node_guard| node_guard.layer)
-                    .unwrap_or(0)
-            })
-            .unwrap_or(0)
-    }
-
-    fn right_target_layer(&self) -> i32 {
-        self.right
-            .lock_ok()
-            .map(|edge_guard| {
-                edge_guard
-                    .target
-                    .lock_ok()
-                    .map(|node_guard| node_guard.layer)
-                    .unwrap_or(0)
-            })
-            .unwrap_or(0)
-    }
-
-    fn left_delta(&self) -> i32 {
-        self.left
-            .lock_ok()
-            .map(|edge_guard| edge_guard.delta)
-            .unwrap_or(0)
-    }
-
-    fn right_delta(&self) -> i32 {
-        self.right
-            .lock_ok()
-            .map(|edge_guard| edge_guard.delta)
-            .unwrap_or(0)
-    }
 }
 
 #[derive(Clone)]
@@ -1546,26 +1508,24 @@ fn get_node_flexibility(graph: &LGraph, node: &LNodeRef) -> NodeFlexibility {
 }
 
 fn is_flexible_node(graph: &LGraph, node: &LNodeRef) -> bool {
-    let node_type = node
+    let (node_type, port_count, port_constraints) = node
         .lock_ok()
-        .map(|node_guard| node_guard.node_type())
-        .unwrap_or(NodeType::Normal);
+        .map(|mut node_guard| {
+            (
+                node_guard.node_type(),
+                node_guard.ports().len(),
+                node_guard
+                    .get_property(LayeredOptions::PORT_CONSTRAINTS)
+                    .unwrap_or(PortConstraints::Undefined),
+            )
+        })
+        .unwrap_or((NodeType::Normal, 0, PortConstraints::Undefined));
     if node_type != NodeType::Normal {
         return false;
     }
-
-    let port_count = node
-        .lock_ok()
-        .map(|node_guard| node_guard.ports().len())
-        .unwrap_or(0);
     if port_count <= 1 {
         return false;
     }
-
-    let port_constraints = node
-        .lock_ok()
-        .and_then(|mut node_guard| node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS))
-        .unwrap_or(PortConstraints::Undefined);
     if port_constraints.is_pos_fixed() {
         return false;
     }
@@ -1591,24 +1551,25 @@ fn is_flexible_node(graph: &LGraph, node: &LNodeRef) -> bool {
             additional_port_spacing = ElkMargin::with_any(port_spacing);
         }
 
-        let west_ports = node
+        let (west_count, east_count) = node
             .lock_ok()
-            .map(|mut node_guard| node_guard.port_side_view(PortSide::West))
-            .unwrap_or_default();
+            .map(|mut node_guard| {
+                (
+                    node_guard.port_side_view(PortSide::West).len(),
+                    node_guard.port_side_view(PortSide::East).len(),
+                )
+            })
+            .unwrap_or((0, 0));
         let required_west_height = additional_port_spacing.top
             + additional_port_spacing.bottom
-            + (west_ports.len().saturating_sub(1) as f64) * port_spacing;
+            + (west_count.saturating_sub(1) as f64) * port_spacing;
         if required_west_height > node_size_y(node) {
             return false;
         }
 
-        let east_ports = node
-            .lock_ok()
-            .map(|mut node_guard| node_guard.port_side_view(PortSide::East))
-            .unwrap_or_default();
         let required_east_height = additional_port_spacing.top
             + additional_port_spacing.bottom
-            + (east_ports.len().saturating_sub(1) as f64) * port_spacing;
+            + (east_count.saturating_sub(1) as f64) * port_spacing;
         if required_east_height > node_size_y(node) {
             return false;
         }

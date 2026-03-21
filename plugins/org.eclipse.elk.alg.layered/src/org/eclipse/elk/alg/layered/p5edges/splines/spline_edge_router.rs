@@ -225,20 +225,22 @@ impl SplineEdgeRouter {
                         .map(|port_guard| port_guard.outgoing_edges().clone())
                         .unwrap_or_default();
                     for edge in outgoing {
-                        if edge
-                            .lock_ok()
-                            .map(|edge_guard| edge_guard.is_self_loop())
-                            .unwrap_or(false)
-                        {
+                        let (is_self_loop, source_port_for_node, target_port) = {
+                            let edge_guard = edge.lock();
+                            (
+                                edge_guard.is_self_loop(),
+                                edge_guard.source(),
+                                edge_guard.target(),
+                            )
+                        };
+                        if is_self_loop {
                             continue;
                         }
 
                         self.edges_remaining_layer.push(edge.clone());
                         self.find_and_add_successor(&edge);
 
-                        let source_node = edge
-                            .lock_ok()
-                            .and_then(|edge_guard| edge_guard.source())
+                        let source_node = source_port_for_node
                             .and_then(|port| {
                                 port.lock_ok().and_then(|port_guard| port_guard.node())
                             });
@@ -254,8 +256,6 @@ impl SplineEdgeRouter {
                             self.start_edges.push(edge.clone());
                         }
 
-                        let target_port =
-                            edge.lock_ok().and_then(|edge_guard| edge_guard.target());
                         let target_layer = target_port
                             .as_ref()
                             .and_then(|port| {
@@ -299,30 +299,23 @@ impl SplineEdgeRouter {
                 .map(|layer| layer.nodes().clone())
                 .unwrap_or_default();
             for node in nodes {
-                let ports = node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.ports().clone())
-                    .unwrap_or_default();
-                for port in ports {
+                let (all_ports, west_ports) = {
+                    let node_guard = node.lock();
+                    (node_guard.ports().clone(), node_guard.ports_by_side(PortSide::West))
+                };
+                for port in all_ports {
                     let outgoing = port
                         .lock_ok()
                         .map(|port_guard| port_guard.outgoing_edges().clone())
                         .unwrap_or_default();
                     for edge in outgoing {
-                        if edge
-                            .lock_ok()
-                            .map(|edge_guard| edge_guard.is_self_loop())
-                            .unwrap_or(false)
-                        {
+                        if edge.lock().is_self_loop() {
                             self.self_loops_layer.push(edge.clone());
                         }
                     }
                 }
 
-                let ports = node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.ports_by_side(PortSide::West))
-                    .unwrap_or_default();
+                let ports = west_ports;
                 for port in ports {
                     Self::insert_unique_port(&mut self.right_ports_layer, &port);
                     let outgoing = port
@@ -330,20 +323,22 @@ impl SplineEdgeRouter {
                         .map(|port_guard| port_guard.outgoing_edges().clone())
                         .unwrap_or_default();
                     for edge in outgoing {
-                        if edge
-                            .lock_ok()
-                            .map(|edge_guard| edge_guard.is_self_loop())
-                            .unwrap_or(false)
-                        {
+                        let (is_self_loop, source_port_for_node, target_port) = {
+                            let edge_guard = edge.lock();
+                            (
+                                edge_guard.is_self_loop(),
+                                edge_guard.source(),
+                                edge_guard.target(),
+                            )
+                        };
+                        if is_self_loop {
                             continue;
                         }
 
                         self.edges_remaining_layer.push(edge.clone());
                         self.find_and_add_successor(&edge);
 
-                        let source_node = edge
-                            .lock_ok()
-                            .and_then(|edge_guard| edge_guard.source())
+                        let source_node = source_port_for_node
                             .and_then(|port| {
                                 port.lock_ok().and_then(|port_guard| port_guard.node())
                             });
@@ -359,8 +354,6 @@ impl SplineEdgeRouter {
                             self.start_edges.push(edge.clone());
                         }
 
-                        let target_port =
-                            edge.lock_ok().and_then(|edge_guard| edge_guard.target());
                         let target_layer = target_port
                             .as_ref()
                             .and_then(|port| {
@@ -456,17 +449,13 @@ impl SplineEdgeRouter {
         let Some(target_node) = target_node else {
             return;
         };
-        let is_normal = target_node
-            .lock_ok()
-            .map(|node_guard| Self::is_normal_node(&node_guard))
-            .unwrap_or(false);
+        let (is_normal, outgoing_edges) = {
+            let node_guard = target_node.lock();
+            (Self::is_normal_node(&node_guard), node_guard.outgoing_edges())
+        };
         if is_normal {
             return;
         }
-        let outgoing_edges = target_node
-            .lock_ok()
-            .map(|node_guard| node_guard.outgoing_edges())
-            .unwrap_or_default();
         if let Some(first) = outgoing_edges.first() {
             self.successing_edge.insert(edge_key(edge), first.clone());
         }
@@ -475,8 +464,10 @@ impl SplineEdgeRouter {
     fn create_spline_segments(&mut self) {
         let edges = self.edges_remaining_layer.clone();
         for edge in edges {
-            let source_port = edge.lock_ok().and_then(|edge_guard| edge_guard.source());
-            let target_port = edge.lock_ok().and_then(|edge_guard| edge_guard.target());
+            let (source_port, target_port) = {
+                let edge_guard = edge.lock();
+                (edge_guard.source(), edge_guard.target())
+            };
 
             let (source_side, target_side, source_port, target_port) =
                 match (source_port, target_port) {
@@ -533,11 +524,15 @@ impl SplineEdgeRouter {
         };
 
         for single_port in ports_to_process {
-            let single_port_position = single_port
-                .lock_ok()
-                .and_then(|port_guard| port_guard.absolute_anchor())
-                .map(|anchor| anchor.y)
-                .unwrap_or(0.0);
+            let (single_port_position, connected_edges) = {
+                let port_guard = single_port.lock();
+                let pos = port_guard
+                    .absolute_anchor()
+                    .map(|anchor| anchor.y)
+                    .unwrap_or(0.0);
+                let edges = port_guard.connected_edges();
+                (pos, edges)
+            };
 
             let mut up_edges: Vec<
                 org_eclipse_elk_core::org::eclipse::elk::core::util::pair::Pair<
@@ -551,11 +546,6 @@ impl SplineEdgeRouter {
                     LEdgeRef,
                 >,
             > = Vec::new();
-
-            let connected_edges = single_port
-                .lock_ok()
-                .map(|port_guard| port_guard.connected_edges())
-                .unwrap_or_default();
             for edge in connected_edges {
                 let reversed_edge = edge
                     .lock_ok()
@@ -873,45 +863,38 @@ impl SplineEdgeRouter {
         sources: &mut VecDeque<SplineSegmentRef>,
         sinks: &mut VecDeque<SplineSegmentRef>,
     ) {
-        let outgoing = edge
-            .lock_ok()
-            .map(|seg| seg.outgoing.clone())
-            .unwrap_or_default();
+        let (outgoing, incoming) = {
+            let seg = edge.lock();
+            (seg.outgoing.clone(), seg.incoming.clone())
+        };
         for dep in outgoing {
-            let (target, weight, target_mark) = {
+            let (target, weight) = {
                 let dep_guard = dep.lock();
-                let target = dep_guard.target.clone();
-                let weight = dep_guard.weight;
-                let target_mark = target.lock_ok().map(|seg| seg.mark).unwrap_or(0);
-                (target, weight, target_mark)
+                (dep_guard.target.clone(), dep_guard.weight)
             };
-            if target_mark < 0 && weight > 0 {
+            if weight > 0 {
                 if let Some(mut guard) = target.lock_ok() {
-                    guard.inweight -= weight;
-                    if guard.inweight <= 0 && guard.outweight > 0 {
-                        sources.push_back(target.clone());
+                    if guard.mark < 0 {
+                        guard.inweight -= weight;
+                        if guard.inweight <= 0 && guard.outweight > 0 {
+                            sources.push_back(target.clone());
+                        }
                     }
                 }
             }
         }
-
-        let incoming = edge
-            .lock_ok()
-            .map(|seg| seg.incoming.clone())
-            .unwrap_or_default();
         for dep in incoming {
-            let (source, weight, source_mark) = {
+            let (source, weight) = {
                 let dep_guard = dep.lock();
-                let source = dep_guard.source.clone();
-                let weight = dep_guard.weight;
-                let source_mark = source.lock_ok().map(|seg| seg.mark).unwrap_or(0);
-                (source, weight, source_mark)
+                (dep_guard.source.clone(), dep_guard.weight)
             };
-            if source_mark < 0 && weight > 0 {
+            if weight > 0 {
                 if let Some(mut guard) = source.lock_ok() {
-                    guard.outweight -= weight;
-                    if guard.outweight <= 0 && guard.inweight > 0 {
-                        sinks.push_back(source.clone());
+                    if guard.mark < 0 {
+                        guard.outweight -= weight;
+                        if guard.outweight <= 0 && guard.inweight > 0 {
+                            sinks.push_back(source.clone());
+                        }
                     }
                 }
             }
@@ -938,17 +921,16 @@ impl SplineEdgeRouter {
 
         let mut max_rank = -1;
         while let Some(edge) = sources.pop_front() {
-            let outgoing = edge
-                .lock_ok()
-                .map(|seg| seg.outgoing.clone())
-                .unwrap_or_default();
+            let (outgoing, edge_rank) = {
+                let seg = edge.lock();
+                (seg.outgoing.clone(), seg.rank)
+            };
             for dep in outgoing {
                 let target = dep.lock_ok().map(|dep_guard| dep_guard.target.clone());
                 let Some(target) = target else {
                     continue;
                 };
                 let mut target_guard = target.lock();
-                let edge_rank = edge.lock_ok().map(|seg| seg.rank).unwrap_or(0);
                 target_guard.rank = target_guard.rank.max(edge_rank + 1);
                 max_rank = max_rank.max(target_guard.rank);
                 target_guard.inweight -= 1;
@@ -966,10 +948,10 @@ impl SplineEdgeRouter {
             }
 
             while let Some(edge) = rightward_targets.pop_front() {
-                let incoming = edge
-                    .lock_ok()
-                    .map(|seg| seg.incoming.clone())
-                    .unwrap_or_default();
+                let (incoming, edge_rank) = {
+                    let seg = edge.lock();
+                    (seg.incoming.clone(), seg.rank)
+                };
                 for dep in incoming {
                     let source = dep.lock_ok().map(|dep_guard| dep_guard.source.clone());
                     let Some(source) = source else {
@@ -979,7 +961,6 @@ impl SplineEdgeRouter {
                     if !source_guard.left_ports.is_empty() {
                         continue;
                     }
-                    let edge_rank = edge.lock_ok().map(|seg| seg.rank).unwrap_or(0);
                     source_guard.rank = source_guard.rank.min(edge_rank - 1);
                     source_guard.outweight -= 1;
                     if source_guard.outweight == 0 {
@@ -1263,14 +1244,10 @@ impl ILayoutPhase<LayeredPhases, LGraph> for SplineEdgeRouter {
 
         for edge in &self.start_edges {
             let edge_chain = self.get_edge_chain(edge);
-            if let Some(mut edge_guard) = edge.lock_ok() {
-                edge_guard.set_property(InternalProperties::SPLINE_EDGE_CHAIN, Some(edge_chain));
-            }
-
             let spline = self.get_spline_path(edge);
-            if let Some(mut edge_guard) = edge.lock_ok() {
-                edge_guard.set_property(InternalProperties::SPLINE_ROUTE_START, Some(spline));
-            }
+            let mut edge_guard = edge.lock();
+            edge_guard.set_property(InternalProperties::SPLINE_EDGE_CHAIN, Some(edge_chain));
+            edge_guard.set_property(InternalProperties::SPLINE_ROUTE_START, Some(spline));
         }
 
         layered_graph.size().x = xpos;
