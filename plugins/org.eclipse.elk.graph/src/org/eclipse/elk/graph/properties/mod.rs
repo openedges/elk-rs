@@ -332,6 +332,7 @@ impl MapPropertyHolder {
         self
     }
 
+    /// Primary property getter with default-caching behavior.
     pub fn get_property<T: Clone + Send + Sync + 'static>(
         &mut self,
         property: &Property<T>,
@@ -341,10 +342,6 @@ impl MapPropertyHolder {
                 PropertyValue::Resolved(value) => {
                     if let Some(typed_ref) = (**value).downcast_ref::<T>() {
                         return Some(typed_ref.clone());
-                    }
-                    if *TRACE_SIZING {
-                        eprintln!("TRACE get_property DOWNCAST FAIL: id={} expected_type={} actual_type_id={:?}",
-                            property.id(), std::any::type_name::<T>(), (**value).type_id());
                     }
                     return None;
                 }
@@ -368,7 +365,10 @@ impl MapPropertyHolder {
         default_value
     }
 
-    pub fn get_property_immut<T: Clone + Send + Sync + 'static>(
+    /// Read-only property getter — no mutation, no caching.
+    /// Use in `&self` contexts (Display impls, typed wrappers, comparators).
+    #[inline]
+    pub fn get_property_ref<T: Clone + Send + Sync + 'static>(
         &self,
         property: &Property<T>,
     ) -> Option<T> {

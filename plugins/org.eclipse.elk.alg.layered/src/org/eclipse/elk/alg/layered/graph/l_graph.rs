@@ -100,7 +100,7 @@ impl LGraph {
         &self,
         property: &Property<T>,
     ) -> Option<T> {
-        self.element.properties().get_property_immut(property)
+        self.element.properties().get_property_ref(property)
     }
 
     pub fn set_property<T: Clone + Send + Sync + 'static>(
