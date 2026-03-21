@@ -22,6 +22,10 @@ impl LShape {
         &mut self.element
     }
 
+    pub fn graph_element_ref(&self) -> &LGraphElement {
+        &self.element
+    }
+
     pub fn position(&mut self) -> &mut KVector {
         &mut self.position
     }

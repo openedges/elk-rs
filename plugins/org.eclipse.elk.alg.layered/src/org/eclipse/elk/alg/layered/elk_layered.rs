@@ -104,11 +104,11 @@ fn trace_edge_wiring(graph: &LGraph, stage: &str) {
 
                     let source_desc = source_port
                         .lock_ok()
-                        .map(|mut port_guard| port_guard.to_string())
+                        .map(|port_guard| port_guard.to_string())
                         .unwrap_or_else(|| "<poisoned-source-port>".to_owned());
                     let target_desc = target_port
                         .lock_ok()
-                        .map(|mut port_guard| port_guard.to_string())
+                        .map(|port_guard| port_guard.to_string())
                         .unwrap_or_else(|| "<poisoned-target-port>".to_owned());
 
                     eprintln!(

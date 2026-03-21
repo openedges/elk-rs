@@ -306,10 +306,10 @@ fn trace_long_edge_split(
         .map(|edge_guard| (edge_guard.source(), edge_guard.target()))
         .unwrap_or((None, None));
     let source_desc = source_ref
-        .and_then(|source| source.lock_ok().map(|mut guard| guard.to_string()))
+        .and_then(|source| source.lock_ok().map(|guard| guard.to_string()))
         .unwrap_or_else(|| "<no-source>".to_owned());
     let target_desc = target_ref
-        .and_then(|target| target.lock_ok().map(|mut guard| guard.to_string()))
+        .and_then(|target| target.lock_ok().map(|guard| guard.to_string()))
         .unwrap_or_else(|| "<no-target>".to_owned());
 
     eprintln!(

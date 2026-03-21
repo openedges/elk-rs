@@ -44,7 +44,7 @@ impl HyperedgeCrossingsCounter {
             for port in ports {
                 let (outgoing, port_name) = port
                     .lock_ok()
-                    .map(|mut port_guard| {
+                    .map(|port_guard| {
                         let edges = port_guard.outgoing_edges().clone();
                         let name = if trace_call.is_some_and(|c| c < 64) {
                             Some(port_guard.to_string())
@@ -107,7 +107,7 @@ impl HyperedgeCrossingsCounter {
                 // Single lock: extract side + incoming_edges + optional name
                 let (incoming, side, port_name) = port
                     .lock_ok()
-                    .map(|mut port_guard| {
+                    .map(|port_guard| {
                         let inc = port_guard.incoming_edges().clone();
                         let s = port_guard.side();
                         let name = if do_trace_name {

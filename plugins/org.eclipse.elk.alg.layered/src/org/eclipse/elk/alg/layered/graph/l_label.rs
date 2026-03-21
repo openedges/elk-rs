@@ -1,3 +1,5 @@
+use std::fmt;
+
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 
 use super::LShape;
@@ -46,19 +48,20 @@ impl LLabel {
         self.shape.set_property(property, value);
     }
 
-    pub fn get_designation(&mut self) -> Option<String> {
+    pub fn get_designation(&self) -> Option<String> {
         if !self.text.is_empty() {
             return Some(self.text.clone());
         }
-        self.shape.graph_element().get_designation()
+        self.shape.graph_element_ref().get_designation()
     }
+}
 
-    #[allow(clippy::inherent_to_string)]
-    pub fn to_string(&mut self) -> String {
+impl fmt::Display for LLabel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(designation) = self.get_designation() {
-            format!("l_{designation}")
+            write!(f, "l_{designation}")
         } else {
-            "label".to_owned()
+            f.write_str("label")
         }
     }
 }

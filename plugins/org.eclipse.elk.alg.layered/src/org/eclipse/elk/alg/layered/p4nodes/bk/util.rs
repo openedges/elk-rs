@@ -37,7 +37,7 @@ pub(crate) fn node_size_y(node: &LNodeRef) -> f64 {
 
 pub(crate) fn node_to_string(node: &LNodeRef) -> String {
     node.lock_ok()
-        .map(|mut node_guard| node_guard.to_string())
+        .map(|node_guard| node_guard.to_string())
         .unwrap_or_else(|| "n_".to_string())
 }
 

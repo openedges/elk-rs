@@ -1,3 +1,4 @@
+use std::fmt;
 use std::sync::{Arc, Weak};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
@@ -438,7 +439,7 @@ impl LNode {
         self.shape.set_property(property, value);
     }
 
-    pub fn designation(&mut self) -> String {
+    pub fn designation(&self) -> String {
         if let Some(label) = self.labels.first() {
             if let Some(label_guard) = label.lock_ok() {
                 if !label_guard.text().is_empty() {
@@ -447,7 +448,7 @@ impl LNode {
             }
         }
 
-        if let Some(id) = self.shape.graph_element().get_designation() {
+        if let Some(id) = self.shape.graph_element_ref().get_designation() {
             return id;
         }
 
@@ -474,17 +475,15 @@ impl LNode {
         })
     }
 
-    #[allow(clippy::inherent_to_string)]
-    pub fn to_string(&mut self) -> String {
-        let mut result = String::new();
-        result.push('n');
+}
+
+impl fmt::Display for LNode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("n")?;
         if self.node_type != NodeType::Normal {
-            result.push('(');
-            result.push_str(&self.node_type.name().to_lowercase());
-            result.push(')');
+            write!(f, "({})", self.node_type.name().to_lowercase())?;
         }
-        result.push('_');
-        result.push_str(&self.designation());
-        result
+        f.write_str("_")?;
+        f.write_str(&self.designation())
     }
 }

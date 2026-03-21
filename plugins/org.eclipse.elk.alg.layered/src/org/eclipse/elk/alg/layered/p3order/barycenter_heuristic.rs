@@ -562,7 +562,7 @@ impl BarycenterHeuristic {
         if trace_layer_pattern.as_ref().is_some_and(|pattern| {
             layer.iter().any(|node| {
                 node.lock_ok()
-                    .map(|mut node_guard| node_guard.to_string().contains(pattern))
+                    .map(|node_guard| node_guard.to_string().contains(pattern))
                     .unwrap_or(false)
             })
         }) {
@@ -573,7 +573,7 @@ impl BarycenterHeuristic {
             for (index, node) in layer.iter().enumerate() {
                 let name = node
                     .lock_ok()
-                    .map(|mut node_guard| node_guard.to_string())
+                    .map(|node_guard| node_guard.to_string())
                     .unwrap_or_else(|| "<poisoned-node>".to_owned());
                 let tli = self.layer_index_of(node);
                 let tni = self.node_id_of(node);

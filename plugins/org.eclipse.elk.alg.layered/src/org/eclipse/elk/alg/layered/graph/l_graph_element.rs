@@ -36,7 +36,7 @@ impl LGraphElement {
         self.properties.set_property(property, value);
     }
 
-    pub fn get_designation(&mut self) -> Option<String> {
+    pub fn get_designation(&self) -> Option<String> {
         None
     }
 }

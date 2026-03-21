@@ -698,7 +698,7 @@ fn trace_in_layer_constraints(node_order: &[Vec<LNodeRef>]) {
 
 fn node_debug_name(node: &LNodeRef) -> String {
     node.lock_ok()
-        .map(|mut node_guard| node_guard.to_string())
+        .map(|node_guard| node_guard.to_string())
         .unwrap_or_else(|| "<poisoned-node>".to_owned())
 }
 

@@ -260,7 +260,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
                     let node_id = node_id(&node);
                     let (name, label_opt) = node
                         .lock_ok()
-                        .map(|mut node_guard| {
+                        .map(|node_guard| {
                             let name = node_guard.designation().to_string();
                             let label_opt = node_guard.labels().first().and_then(|label| {
                                 label
@@ -442,7 +442,7 @@ impl BKNodePlacer {
                                             let src_name = source
                                                 .as_ref()
                                                 .and_then(|node| {
-                                                    node.lock_ok().map(|mut node_guard| {
+                                                    node.lock_ok().map(|node_guard| {
                                                         node_guard.designation().to_string()
                                                     })
                                                 })
@@ -450,7 +450,7 @@ impl BKNodePlacer {
                                             let tgt_name = target
                                                 .as_ref()
                                                 .and_then(|node| {
-                                                    node.lock_ok().map(|mut node_guard| {
+                                                    node.lock_ok().map(|node_guard| {
                                                         node_guard.designation().to_string()
                                                     })
                                                 })

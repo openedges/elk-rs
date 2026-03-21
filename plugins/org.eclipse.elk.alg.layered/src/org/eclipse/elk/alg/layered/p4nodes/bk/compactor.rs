@@ -183,11 +183,11 @@ impl BKCompactor {
                             let neighbor_root_y = bal.y[neighbor_root].unwrap_or(0.0);
                             let current_name = current_node
                                 .lock_ok()
-                                .map(|mut node_guard| node_guard.designation().to_string())
+                                .map(|node_guard| node_guard.designation().to_string())
                                 .unwrap_or_else(|| "<poisoned>".to_string());
                             let neighbor_name = neighbor
                                 .lock_ok()
-                                .map(|mut node_guard| node_guard.designation().to_string())
+                                .map(|node_guard| node_guard.designation().to_string())
                                 .unwrap_or_else(|| "<poisoned>".to_string());
                             eprintln!(
                                 "bk-place-block: root={root_id} current={current}({current_name}) neighbor_id={neighbor_id}({neighbor_name}) neighbor_root={neighbor_root} new={new_position:.3} thresh={thresh:.3} updated={updated:.3} spacing={spacing:.3} down comp=(y_nr={neighbor_root_y:.3},inner_n={neighbor_inner:.3},size_n={neighbor_size:.3},mb_n={neighbor_margin_bottom:.3},mt_c={current_margin_top:.3},inner_c={current_inner:.3})"

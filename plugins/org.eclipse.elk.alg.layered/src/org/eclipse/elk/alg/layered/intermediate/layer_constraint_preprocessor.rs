@@ -167,7 +167,7 @@ fn ensure_no_inacceptable_edges(node: &LNodeRef) {
                 if !is_acceptable_incident_edge(&edge) {
                     let designation = node
                         .lock_ok()
-                        .map(|mut node_guard| node_guard.designation())
+                        .map(|node_guard| node_guard.designation())
                         .unwrap_or_else(|| "<unknown>".to_owned());
                     panic!(
                         "{}",
@@ -188,7 +188,7 @@ fn ensure_no_inacceptable_edges(node: &LNodeRef) {
                 if !is_acceptable_incident_edge(&edge) {
                     let designation = node
                         .lock_ok()
-                        .map(|mut node_guard| node_guard.designation())
+                        .map(|node_guard| node_guard.designation())
                         .unwrap_or_else(|| "<unknown>".to_owned());
                     panic!(
                         "{}",

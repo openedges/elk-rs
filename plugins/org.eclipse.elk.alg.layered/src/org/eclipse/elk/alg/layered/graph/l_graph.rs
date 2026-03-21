@@ -1,3 +1,4 @@
+use std::fmt;
 use std::sync::Arc;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
@@ -118,27 +119,29 @@ impl LGraph {
         result
     }
 
-    #[allow(clippy::inherent_to_string)]
-    pub fn to_string(&self) -> String {
+}
+
+impl fmt::Display for LGraph {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let layerless = self
             .layerless_nodes
             .iter()
-            .map(|node| node.lock_ok().map(|mut n| n.to_string()).unwrap_or_default())
+            .map(|node| node.lock_ok().map(|n| n.to_string()).unwrap_or_default())
             .collect::<Vec<_>>()
             .join(", ");
         let layers = self
             .layers
             .iter()
-            .map(|layer| layer.lock_ok().map(|mut l| l.to_string()).unwrap_or_default())
+            .map(|layer| layer.lock_ok().map(|l| l.to_string()).unwrap_or_default())
             .collect::<Vec<_>>()
             .join(", ");
 
         if self.layers.is_empty() {
-            format!("G-unlayered[{}]", layerless)
+            write!(f, "G-unlayered[{}]", layerless)
         } else if self.layerless_nodes.is_empty() {
-            format!("G-layered[{}]", layers)
+            write!(f, "G-layered[{}]", layers)
         } else {
-            format!("G[layerless[{}], layers[{}]]", layerless, layers)
+            write!(f, "G[layerless[{}], layers[{}]]", layerless, layers)
         }
     }
 }

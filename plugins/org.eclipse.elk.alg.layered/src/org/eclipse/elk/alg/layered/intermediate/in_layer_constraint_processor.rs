@@ -40,7 +40,7 @@ impl ILayoutProcessor<LGraph> for InLayerConstraintProcessor {
                 if ElkTrace::global().ilc {
                     let node_name = node
                         .lock_ok()
-                        .map(|mut node_guard| node_guard.to_string())
+                        .map(|node_guard| node_guard.to_string())
                         .unwrap_or_else(|| "<poisoned-node>".to_owned());
                     eprintln!(
                         "rust-ilc: layer_node_index={i} node={node_name} constraint={constraint:?}"

@@ -245,7 +245,7 @@ fn throw_up_unless_no_incoming_edges(node: &LNodeRef) {
         if source_type != NodeType::Label {
             let designation = node
                 .lock_ok()
-                .map(|mut node_guard| node_guard.designation())
+                .map(|node_guard| node_guard.designation())
                 .unwrap_or_else(|| "<unknown>".to_owned());
             panic!(
                 "{}",
@@ -273,7 +273,7 @@ fn throw_up_unless_no_outgoing_edges(node: &LNodeRef) {
         if target_type != NodeType::Label {
             let designation = node
                 .lock_ok()
-                .map(|mut node_guard| node_guard.designation())
+                .map(|node_guard| node_guard.designation())
                 .unwrap_or_else(|| "<unknown>".to_owned());
             panic!(
                 "{}",

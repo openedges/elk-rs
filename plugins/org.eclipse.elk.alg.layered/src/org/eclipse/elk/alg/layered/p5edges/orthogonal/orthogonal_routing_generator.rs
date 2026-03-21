@@ -147,7 +147,7 @@ impl OrthogonalRoutingGenerator {
                             .node()
                             .and_then(|node| {
                                 node.lock_ok()
-                                    .map(|mut node_guard| node_guard.designation())
+                                    .map(|node_guard| node_guard.designation())
                             })
                             .unwrap_or_else(|| "?".to_string());
                         let anchor = port_guard.absolute_anchor().map(|a| a.y).unwrap_or(0.0);

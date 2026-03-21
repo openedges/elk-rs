@@ -657,7 +657,7 @@ fn group_contains_pump(resolver: &ForsterConstraintResolver, group_id: Constrain
     resolver.group(group_id).is_some_and(|group_data| {
         group_data.nodes.iter().any(|node| {
             node.lock_ok()
-                .map(|mut node_guard| node_guard.to_string().contains("pumpOutletPressure"))
+                .map(|node_guard| node_guard.to_string().contains("pumpOutletPressure"))
                 .unwrap_or(false)
         })
     })
@@ -684,7 +684,7 @@ fn format_group(resolver: &ForsterConstraintResolver, group: ConstraintGroupId) 
                 .iter()
                 .map(|node| {
                     node.lock_ok()
-                        .map(|mut node_guard| node_guard.to_string())
+                        .map(|node_guard| node_guard.to_string())
                         .unwrap_or_else(|| "<poisoned-node>".to_owned())
                 })
                 .collect::<Vec<_>>()

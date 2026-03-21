@@ -1475,7 +1475,7 @@ fn format_layer_nodes(layer: &[LNodeRef]) -> String {
         .iter()
         .map(|node| {
             node.lock_ok()
-                .map(|mut guard| guard.to_string())
+                .map(|guard| guard.to_string())
                 .unwrap_or_else(|| String::from("<poisoned-node>"))
         })
         .collect::<Vec<_>>()

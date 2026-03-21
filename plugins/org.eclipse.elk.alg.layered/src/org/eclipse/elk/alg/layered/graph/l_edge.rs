@@ -1,3 +1,4 @@
+use std::fmt;
 use std::sync::Arc;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
@@ -294,7 +295,7 @@ impl LEdge {
         self.element.set_property(property, value);
     }
 
-    pub fn designation(&mut self) -> Option<String> {
+    pub fn designation(&self) -> Option<String> {
         if let Some(label) = self.labels.first() {
             if let Some(label_guard) = label.lock_ok() {
                 if !label_guard.text().is_empty() {
@@ -305,37 +306,34 @@ impl LEdge {
         self.element.get_designation()
     }
 
-    #[allow(clippy::inherent_to_string)]
-    pub fn to_string(&mut self) -> String {
-        let mut result = String::new();
-        result.push_str("e_");
+}
+
+impl fmt::Display for LEdge {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("e_")?;
         if let Some(designation) = self.designation() {
-            result.push_str(&designation);
+            f.write_str(&designation)?;
         }
         if let (Some(source), Some(target)) = (self.source(), self.target()) {
-            if let Some(mut source_guard) = source.lock_ok() {
-                result.push(' ');
-                result.push_str(&source_guard.designation());
+            if let Some(source_guard) = source.lock_ok() {
+                f.write_str(" ")?;
+                f.write_str(&source_guard.designation())?;
                 if let Some(source_node) = source_guard.node() {
-                    if let Some(mut source_node_guard) = source_node.lock_ok() {
-                        result.push('[');
-                        result.push_str(&source_node_guard.to_string());
-                        result.push(']');
+                    if let Some(source_node_guard) = source_node.lock_ok() {
+                        write!(f, "[{}]", source_node_guard)?;
                     }
                 }
             }
-            result.push_str(" -> ");
-            if let Some(mut target_guard) = target.lock_ok() {
-                result.push_str(&target_guard.designation());
+            f.write_str(" -> ")?;
+            if let Some(target_guard) = target.lock_ok() {
+                f.write_str(&target_guard.designation())?;
                 if let Some(target_node) = target_guard.node() {
-                    if let Some(mut target_node_guard) = target_node.lock_ok() {
-                        result.push('[');
-                        result.push_str(&target_node_guard.to_string());
-                        result.push(']');
+                    if let Some(target_node_guard) = target_node.lock_ok() {
+                        write!(f, "[{}]", target_node_guard)?;
                     }
                 }
             }
         }
-        result
+        Ok(())
     }
 }

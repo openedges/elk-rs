@@ -167,7 +167,7 @@ fn node_names(layer: &[LNodeRef]) -> String {
         .iter()
         .map(|node| {
             node.lock_ok()
-                .map(|mut node_guard| node_guard.to_string())
+                .map(|node_guard| node_guard.to_string())
                 .unwrap_or_else(|| String::from("<poisoned-node>"))
         })
         .collect::<Vec<_>>()
