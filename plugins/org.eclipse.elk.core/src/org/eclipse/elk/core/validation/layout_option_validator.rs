@@ -103,7 +103,7 @@ impl IGraphElementVisitor for LayoutOptionValidator {
                 let resolved = match value {
                     PropertyValue::Resolved(value) => Some(value),
                     PropertyValue::Proxy(proxy) => {
-                        let resolved = proxy.resolve_value(&property_id);
+                        let resolved = proxy.resolve_value(property_id.as_str());
                         if let Some(value) = &resolved {
                             properties.set_property_any(property_id.clone(), Some(value.clone()));
                         }
@@ -116,7 +116,7 @@ impl IGraphElementVisitor for LayoutOptionValidator {
                 };
 
                 let option_data =
-                    LayoutMetaDataService::get_instance().get_option_data(&property_id);
+                    LayoutMetaDataService::get_instance().get_option_data(property_id.as_str());
                 let Some(option_data) = option_data else {
                     continue;
                 };

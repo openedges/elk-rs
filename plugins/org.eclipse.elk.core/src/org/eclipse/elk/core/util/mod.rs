@@ -504,7 +504,7 @@ impl std::fmt::Display for IndividualSpacings {
             .get_all_properties()
             .iter()
             .filter_map(|(id, value)| {
-                property_value_to_string(id, value).map(|serialized| format!("{id}:{serialized}"))
+                property_value_to_string(id.as_str(), value).map(|serialized| format!("{id}:{serialized}"))
             })
             .collect::<Vec<_>>()
             .join(Self::SERIALIZED_OPTION_SEPARATOR);

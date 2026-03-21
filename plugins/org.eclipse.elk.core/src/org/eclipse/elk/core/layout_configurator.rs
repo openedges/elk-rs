@@ -185,7 +185,7 @@ impl LayoutConfigurator {
             let accept = self
                 .option_filters
                 .iter()
-                .all(|filter| filter.accept(element, &property_id));
+                .all(|filter| filter.accept(element, property_id.as_str()));
             if !accept {
                 continue;
             }
