@@ -3,17 +3,16 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::LazyLock;
 
-static TRACE_CYCLE_CHOICES: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_CYCLE_CHOICES").is_some());
-static TRACE_CYCLE_REVERSALS: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_CYCLE_REVERSALS").is_some());
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
+
 static DEBUG_CYCLE_RANDOM_PREFETCH: LazyLock<Option<usize>> = LazyLock::new(|| {
-    std::env::var("ELK_DEBUG_CYCLE_RANDOM_PREFETCH")
-        .ok()
+    ElkTrace::global()
+        .debug_cycle_random_prefetch
+        .as_ref()
         .and_then(|value| value.parse::<usize>().ok())
 });
 static DEBUG_CYCLE_FORCE_REVERSE_ORIGINS: LazyLock<Option<HashSet<usize>>> = LazyLock::new(|| {
-    let raw = std::env::var("ELK_DEBUG_CYCLE_FORCE_REVERSE_ORIGINS").ok()?;
+    let raw = ElkTrace::global().debug_cycle_force_reverse_origins.as_ref()?;
     let values = raw
         .split(',')
         .filter_map(|token| token.trim().parse::<usize>().ok())
@@ -136,7 +135,7 @@ impl GreedyCycleBreaker {
             }
         }
 
-        let trace_choices = *TRACE_CYCLE_CHOICES;
+        let trace_choices = ElkTrace::global().cycle_choices;
         let index = self.random.next_int(nodes.len() as i32) as usize;
         if trace_choices {
             let candidates = nodes
@@ -233,7 +232,7 @@ impl GreedyCycleBreaker {
             .first()
             .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.graph()))
             .unwrap_or_default();
-        let trace_reversals = *TRACE_CYCLE_REVERSALS;
+        let trace_reversals = ElkTrace::global().cycle_reversals;
         let forced_reversed = DEBUG_CYCLE_FORCE_REVERSE_ORIGINS.as_ref();
         let mut reversed_edges = Vec::new();
         for node in nodes {
@@ -333,7 +332,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for GreedyCycleBreaker {
             for _ in 0..prefetch {
                 let _ = self.random.next_int(2);
             }
-            if *TRACE_CYCLE_CHOICES {
+            if ElkTrace::global().cycle_choices {
                 eprintln!("[cycle-breaker-choice] random_prefetch={prefetch}");
             }
         }

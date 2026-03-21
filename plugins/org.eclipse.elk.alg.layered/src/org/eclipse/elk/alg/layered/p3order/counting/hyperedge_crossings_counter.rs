@@ -1,5 +1,5 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 
 use rustc_hash::FxHashMap;
 
@@ -11,9 +11,9 @@ pub struct HyperedgeCrossingsCounter {
     port_positions: Vec<i32>,
 }
 
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
+
 static TRACE_HYPER_CALLS: AtomicUsize = AtomicUsize::new(0);
-static TRACE_CROSSINGS_BREAKDOWN: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSINGS_BREAKDOWN").is_some());
 
 impl HyperedgeCrossingsCounter {
     pub fn new(
@@ -25,7 +25,7 @@ impl HyperedgeCrossingsCounter {
     }
 
     pub fn count_crossings(&mut self, left_layer: &[LNodeRef], right_layer: &[LNodeRef]) -> i32 {
-        let trace = *TRACE_CROSSINGS_BREAKDOWN;
+        let trace = ElkTrace::global().crossings_breakdown;
         let trace_call = if trace {
             Some(TRACE_HYPER_CALLS.fetch_add(1, Ordering::SeqCst))
         } else {
@@ -484,7 +484,7 @@ fn edge_is_in_layer(edge: &LEdgeRef) -> bool {
     if let (Some(source_layer), Some(target_layer)) = (source_layer, target_layer) {
         Arc::ptr_eq(&source_layer, &target_layer)
     } else {
-        if *TRACE_CROSSINGS_BREAKDOWN {
+        if ElkTrace::global().crossings_breakdown {
             eprintln!("rust-crossings: edge_is_in_layer missing layer endpoint");
         }
         false

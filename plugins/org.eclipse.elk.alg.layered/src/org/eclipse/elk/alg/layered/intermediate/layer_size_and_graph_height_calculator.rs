@@ -1,21 +1,17 @@
-use std::sync::LazyLock;
-
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::elk_margin::ElkMargin;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LGraph, NodeType};
 use crate::org::eclipse::elk::alg::layered::options::LayeredOptions;
-
-static TRACE_LAYER_HEIGHT: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_LAYER_HEIGHT").is_some());
 
 pub struct LayerSizeAndGraphHeightCalculator;
 
 impl ILayoutProcessor<LGraph> for LayerSizeAndGraphHeightCalculator {
     fn process(&mut self, layered_graph: &mut LGraph, monitor: &mut dyn IElkProgressMonitor) {
         monitor.begin("Layer size calculation", 1.0);
-        let trace_layer_height = *TRACE_LAYER_HEIGHT;
+        let trace_layer_height = ElkTrace::global().layer_height;
 
         let mut min_y = f64::INFINITY;
         let mut max_y = f64::NEG_INFINITY;

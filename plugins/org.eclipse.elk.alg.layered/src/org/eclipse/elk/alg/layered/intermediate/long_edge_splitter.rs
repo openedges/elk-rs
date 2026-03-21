@@ -1,6 +1,4 @@
 use std::sync::Arc;
-#[cfg(debug_assertions)]
-use std::sync::LazyLock;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector_chain::KVectorChain;
@@ -14,10 +12,7 @@ use crate::org::eclipse::elk::alg::layered::graph::{
     LEdge, LEdgeRef, LGraph, LNode, LNodeRef, LPort, LayerRef, NodeType,
 };
 use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions, Origin};
-
-#[cfg(debug_assertions)]
-static TRACE_LONG_EDGE_SPLIT: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_LONG_EDGE_SPLIT").is_some());
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 pub struct LongEdgeSplitter;
 
@@ -302,7 +297,7 @@ fn trace_long_edge_split(
     target_layer_index: usize,
     edge: &LEdgeRef,
 ) {
-    if !*TRACE_LONG_EDGE_SPLIT {
+    if !ElkTrace::global().long_edge_split {
         return;
     }
 

@@ -1,12 +1,9 @@
-use std::sync::LazyLock;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LGraphRef, LNodeRef};
 use crate::org::eclipse::elk::alg::layered::options::{
     GroupOrderStrategy, InternalProperties, LayeredOptions,
 };
-
-static TRACE_CROSSMIN: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN").is_some());
 
 pub struct CMGroupModelOrderCalculator;
 
@@ -24,7 +21,7 @@ impl CMGroupModelOrderCalculator {
                     == GroupOrderStrategy::Enforced
             }
             None => {
-                if *TRACE_CROSSMIN {
+                if ElkTrace::global().crossmin {
                     eprintln!("cm_group: graph lock busy, skipping group order");
                 }
                 false
@@ -34,7 +31,7 @@ impl CMGroupModelOrderCalculator {
                 .get_property(LayeredOptions::GROUP_MODEL_ORDER_CM_ENFORCED_GROUP_ORDERS)
                 .unwrap_or_default(),
             None => {
-                if *TRACE_CROSSMIN {
+                if ElkTrace::global().crossmin {
                     eprintln!("cm_group: graph lock busy, using empty enforced orders");
                 }
                 Vec::new()

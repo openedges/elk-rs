@@ -1,7 +1,6 @@
 #![allow(clippy::mutable_key_type)]
 
 use std::collections::{HashMap, HashSet};
-use std::sync::LazyLock;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::alignment::Alignment;
@@ -15,11 +14,11 @@ use crate::org::eclipse::elk::alg::layered::graph::{
 use crate::org::eclipse::elk::alg::layered::options::{
     CenterEdgeLabelPlacementStrategy, InternalProperties, LayeredOptions, PortType,
 };
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
+use std::sync::LazyLock;
 
 pub static INCLUDE_LABEL: LazyLock<Property<bool>> =
     LazyLock::new(|| Property::with_default("edgelabelcenterednessanalysis.includelabel", false));
-static TRACE_LABEL_DUMMY_SWITCHER: LazyLock<bool> =
-    LazyLock::new(|| std::env::var("ELK_TRACE_LABEL_DUMMY_SWITCHER").is_ok());
 
 const STRATEGIES: [CenterEdgeLabelPlacementStrategy; 6] = [
     CenterEdgeLabelPlacementStrategy::MedianLayer,
@@ -49,7 +48,7 @@ impl Default for LabelDummySwitcher {
 impl ILayoutProcessor<LGraph> for LabelDummySwitcher {
     fn process(&mut self, layered_graph: &mut LGraph, monitor: &mut dyn IElkProgressMonitor) {
         monitor.begin("Label dummy switching", 1.0);
-        if *TRACE_LABEL_DUMMY_SWITCHER {
+        if ElkTrace::global().label_dummy_switcher {
             eprintln!(
                 "label-dummy-switcher: start layers={}",
                 layered_graph.layers().len()
@@ -73,12 +72,12 @@ impl ILayoutProcessor<LGraph> for LabelDummySwitcher {
         self.min_space_between_layers = edge_node_spacing.max(node_node_spacing);
 
         assign_ids_to_layers(layered_graph);
-        if *TRACE_LABEL_DUMMY_SWITCHER {
+        if ElkTrace::global().label_dummy_switcher {
             eprintln!("label-dummy-switcher: assigned layer ids");
         }
 
         let mut label_dummy_infos = gather_label_dummy_infos(layered_graph, default_strategy);
-        if *TRACE_LABEL_DUMMY_SWITCHER {
+        if ElkTrace::global().label_dummy_switcher {
             let total: usize = label_dummy_infos.values().map(|list| list.len()).sum();
             eprintln!(
                 "label-dummy-switcher: gathered label dummies total={}",
@@ -92,7 +91,7 @@ impl ILayoutProcessor<LGraph> for LabelDummySwitcher {
             if strategy.uses_label_size_information() {
                 if let Some(infos) = label_dummy_infos.get(&strategy) {
                     if !infos.is_empty() {
-                        if *TRACE_LABEL_DUMMY_SWITCHER {
+                        if ElkTrace::global().label_dummy_switcher {
                             eprintln!(
                                 "label-dummy-switcher: calculating layer widths for {:?}",
                                 strategy
@@ -177,21 +176,21 @@ impl LabelDummySwitcher {
                 .lock_ok()
                 .map(|mut layer_guard| (layer_guard.graph_element().id, layer_guard.nodes().len()))
                 .unwrap_or((0, 0));
-            if *TRACE_LABEL_DUMMY_SWITCHER {
+            if ElkTrace::global().label_dummy_switcher {
                 eprintln!(
                     "label-dummy-switcher: layer id={} nodes={}",
                     layer_id, node_count
                 );
             }
             if layer_id >= 0 {
-                if *TRACE_LABEL_DUMMY_SWITCHER {
+                if ElkTrace::global().label_dummy_switcher {
                     eprintln!(
                         "label-dummy-switcher: layer id={} width calc start",
                         layer_id
                     );
                 }
                 let width = LGraphUtil::find_max_non_dummy_node_width(layer, direction, false);
-                if *TRACE_LABEL_DUMMY_SWITCHER {
+                if ElkTrace::global().label_dummy_switcher {
                     eprintln!(
                         "label-dummy-switcher: layer id={} width calc done width={}",
                         layer_id, width
@@ -208,7 +207,7 @@ impl LabelDummySwitcher {
         if label_dummy_infos.is_empty() {
             return;
         }
-        if *TRACE_LABEL_DUMMY_SWITCHER {
+        if ElkTrace::global().label_dummy_switcher {
             eprintln!(
                 "label-dummy-switcher: strategy {:?} count={}",
                 label_dummy_infos[0].placement_strategy,
@@ -224,7 +223,7 @@ impl LabelDummySwitcher {
         }
 
         for label_dummy_info in label_dummy_infos.iter() {
-            if *TRACE_LABEL_DUMMY_SWITCHER {
+            if ElkTrace::global().label_dummy_switcher {
                 eprintln!(
                     "label-dummy-switcher: label left={} right={} left_dummies={} right_dummies={}",
                     label_dummy_info.leftmost_layer_id,
@@ -487,7 +486,7 @@ impl LabelDummySwitcher {
         let current_layer_index =
             label_dummy_info.leftmost_layer_id + label_dummy_info.left_long_edge_dummies.len();
 
-        if *TRACE_LABEL_DUMMY_SWITCHER {
+        if ElkTrace::global().label_dummy_switcher {
             eprintln!(
                 "label-dummy-switcher: assign target={} current={} left={} right={}",
                 target_layer_index,
@@ -523,7 +522,7 @@ impl LabelDummySwitcher {
                 label_guard.set_property(&INCLUDE_LABEL, Some(true));
             }
         }
-        if *TRACE_LABEL_DUMMY_SWITCHER {
+        if ElkTrace::global().label_dummy_switcher {
             eprintln!(
                 "label-dummy-switcher: assign done target={}",
                 target_layer_index
@@ -532,7 +531,7 @@ impl LabelDummySwitcher {
     }
 
     fn swap_nodes(&self, label_dummy: &LNodeRef, long_edge_dummy: &LNodeRef) {
-        if *TRACE_LABEL_DUMMY_SWITCHER {
+        if ElkTrace::global().label_dummy_switcher {
             eprintln!("label-dummy-switcher: swap start");
         }
         let (layer1, layer2) = match (
@@ -610,7 +609,7 @@ impl LabelDummySwitcher {
         for edge in outgoing_edges1 {
             LEdge::set_source(&edge, Some(output2.clone()));
         }
-        if *TRACE_LABEL_DUMMY_SWITCHER {
+        if ElkTrace::global().label_dummy_switcher {
             eprintln!("label-dummy-switcher: swap done");
         }
     }

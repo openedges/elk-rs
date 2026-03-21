@@ -1,9 +1,7 @@
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
-use std::sync::LazyLock;
 
-static TRACE_STRESS: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_STRESS").is_some());
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 
 
@@ -154,7 +152,7 @@ impl StressMajorization {
             }
         }
 
-        if *TRACE_STRESS {
+        if ElkTrace::global().stress {
             let edge_count = graph.edges().len();
             let apsp01 = if n > 1 { self.apsp[0][1] } else { 0.0 };
             let w01 = if n > 1 { self.w[0][1] } else { 0.0 };
@@ -214,7 +212,7 @@ impl StressMajorization {
             cur_stress = self.compute_stress_soa(&pos_x, &pos_y, &node_ids, n);
 
             if self.done(count, prev_stress, cur_stress) {
-                if *TRACE_STRESS {
+                if ElkTrace::global().stress {
                     eprintln!(
                         "stress-majorization: iterations={} prev_stress={} cur_stress={}",
                         count, prev_stress, cur_stress

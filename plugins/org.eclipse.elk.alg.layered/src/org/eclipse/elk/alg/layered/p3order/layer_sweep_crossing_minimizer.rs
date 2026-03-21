@@ -3,14 +3,7 @@
 use std::collections::{BTreeSet, HashSet, VecDeque};
 use std::sync::{Arc, LazyLock};
 
-static TRACE_CROSSMIN: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN").is_some());
-static TRACE_CROSSMIN_TIMING: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN_TIMING").is_some());
-static TRACE_CROSSMIN_STATS: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN_STATS").is_some());
-static DEBUG_CROSSMIN_FORCE_SWEEP: LazyLock<Option<String>> =
-    LazyLock::new(|| std::env::var("ELK_DEBUG_CROSSMIN_FORCE_SWEEP").ok());
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutPhase;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
@@ -117,7 +110,7 @@ impl LayerSweepCrossingMinimizer {
             if !has_layers {
                 continue;
             }
-            if *TRACE_CROSSMIN {
+            if ElkTrace::global().crossmin {
                 eprintln!("crossmin: sweep graph {}", index);
             }
 
@@ -158,7 +151,7 @@ impl LayerSweepCrossingMinimizer {
     }
 
     fn compare_different_randomized_layouts(&mut self, index: usize) {
-        let trace = *TRACE_CROSSMIN;
+        let trace = ElkTrace::global().crossmin;
         self.reset_random_for_all_graphs();
         self.graphs_whose_node_order_changed.clear();
 
@@ -241,7 +234,7 @@ impl LayerSweepCrossingMinimizer {
     }
 
     fn minimize_crossings_with_counter(&mut self, index: usize) -> i32 {
-        let trace = *TRACE_CROSSMIN;
+        let trace = ElkTrace::global().crossmin;
         let mut is_forward_sweep = self.next_boolean_for_graph(index);
 
         let initial_crossings = self.count_current_number_of_crossings(index) as f64;
@@ -326,7 +319,7 @@ impl LayerSweepCrossingMinimizer {
     }
 
     fn minimize_crossings_node_port_order_with_counter(&mut self, index: usize) -> f64 {
-        let trace = *TRACE_CROSSMIN;
+        let trace = ElkTrace::global().crossmin;
         let mut is_forward_sweep = self.next_boolean_for_graph(index);
 
         let initial_crossings = self.count_current_number_of_crossings_node_port_order(index);
@@ -510,7 +503,7 @@ impl LayerSweepCrossingMinimizer {
     }
 
     fn count_current_number_of_crossings(&mut self, start_index: usize) -> i32 {
-        let trace = *TRACE_CROSSMIN_TIMING;
+        let trace = ElkTrace::global().crossmin_timing;
         let start = if trace {
             Some(std::time::Instant::now())
         } else {
@@ -575,7 +568,7 @@ impl LayerSweepCrossingMinimizer {
     }
 
     fn count_current_number_of_crossings_node_port_order(&mut self, start_index: usize) -> f64 {
-        let trace = *TRACE_CROSSMIN_TIMING;
+        let trace = ElkTrace::global().crossmin_timing;
         let start = if trace {
             Some(std::time::Instant::now())
         } else {
@@ -636,13 +629,13 @@ impl LayerSweepCrossingMinimizer {
     }
 
     fn sweep_reducing_crossings(&mut self, index: usize, forward: bool, first_sweep: bool) -> bool {
-        let trace = *TRACE_CROSSMIN;
+        let trace = ElkTrace::global().crossmin;
         let length = self.graph_info_holders[index].current_node_order().len();
         if length == 0 {
             return false;
         }
         self.prepare_cross_minimizer(index);
-        let timing = *TRACE_CROSSMIN_TIMING;
+        let timing = ElkTrace::global().crossmin_timing;
         let mut improved = {
             let graph_data = &mut self.graph_info_holders[index];
             if trace {
@@ -957,7 +950,7 @@ impl LayerSweepCrossingMinimizer {
     }
 
     fn reset_random_for_all_graphs(&mut self) {
-        if *TRACE_CROSSMIN {
+        if ElkTrace::global().crossmin {
             eprintln!("crossmin: reset_random_for_all_graphs");
         }
         // Java only resets the shared random object, NOT individual heuristic seeds
@@ -965,7 +958,7 @@ impl LayerSweepCrossingMinimizer {
     }
 
     fn next_boolean_for_graph(&mut self, _index: usize) -> bool {
-        if let Some(force) = DEBUG_CROSSMIN_FORCE_SWEEP.as_deref() {
+        if let Some(force) = ElkTrace::global().debug_crossmin_force_sweep.as_deref() {
             match force {
                 "forward" => return true,
                 "backward" => return false,
@@ -982,7 +975,7 @@ impl LayerSweepCrossingMinimizer {
         self.graphs_whose_node_order_changed.clear();
         self.graphs_dirty_for_crossing_count.clear();
         self.cached_crossings_by_graph.clear();
-        let trace = *TRACE_CROSSMIN;
+        let trace = ElkTrace::global().crossmin;
 
         self.random = root_graph_guard
             .get_property(InternalProperties::RANDOM)
@@ -1029,7 +1022,7 @@ impl LayerSweepCrossingMinimizer {
             } else {
                 GraphInfoHolder::new(graph.clone(), self.cross_min_type)
             };
-            if *TRACE_CROSSMIN_STATS {
+            if ElkTrace::global().crossmin_stats {
                 Self::log_graph_stats(index, &g_data);
             }
             let parent_index = g_data.parent_graph_ref().and_then(|parent_graph| {
@@ -1141,7 +1134,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for LayerSweepCrossingMinimizer {
             &format!("Minimize Crossings {:?}", self.cross_min_type),
             1.0,
         );
-        let trace = *TRACE_CROSSMIN;
+        let trace = ElkTrace::global().crossmin;
         if trace {
             eprintln!("crossmin: start");
         }

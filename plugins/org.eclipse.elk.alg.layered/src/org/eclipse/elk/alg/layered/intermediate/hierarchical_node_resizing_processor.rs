@@ -15,18 +15,11 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::size_constraint::Siz
 use org_eclipse_elk_core::org::eclipse::elk::core::options::size_options::SizeOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_util::ElkUtil;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, IElkProgressMonitor};
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 use std::collections::HashSet;
-use std::sync::LazyLock;
-
-static TRACE: LazyLock<bool> = LazyLock::new(|| std::env::var("ELK_TRACE").is_ok());
-static TRACE_EXTERNAL_PORTS: LazyLock<bool> =
-    LazyLock::new(|| std::env::var("ELK_TRACE_EXTERNAL_PORTS").is_ok());
-static TRACE_HN: LazyLock<bool> = LazyLock::new(|| std::env::var("ELK_TRACE_HN").is_ok());
-static TRACE_SIZING: LazyLock<bool> =
-    LazyLock::new(|| std::env::var("ELK_TRACE_SIZING").is_ok());
 
 fn trace_resize(message: &str) {
-    if *TRACE {
+    if ElkTrace::global().trace {
         eprintln!("[hierarchical-resize] {message}");
     }
 }
@@ -99,7 +92,7 @@ impl ILayoutProcessor<LGraph> for HierarchicalNodeResizingProcessor {
 /// * `node` - a compound node
 /// * `lgraph` - the graph nested in the compound node
 fn graph_layout_to_node(node: &LNodeRef, lgraph: &mut LGraph) {
-    let trace_external_ports = *TRACE_EXTERNAL_PORTS;
+    let trace_external_ports = ElkTrace::global().external_ports;
     let (graph_padding, graph_offset) = if trace_external_ports {
         (lgraph.padding_ref().clone(), *lgraph.offset_ref())
     } else {
@@ -245,7 +238,7 @@ fn graph_layout_to_node(node: &LNodeRef, lgraph: &mut LGraph) {
     // Setup the parent node
     trace_resize("setup parent node");
     let actual_graph_size = lgraph.actual_size();
-    if *TRACE_HN {
+    if ElkTrace::global().hn {
         if let Some(mut node_guard) = node.lock_ok() {
             let size_constraints = node_guard
                 .get_property(LayeredOptions::NODE_SIZE_CONSTRAINTS)
@@ -488,7 +481,7 @@ fn resize_graph(lgraph: &mut LGraph) {
         adjusted_size.y = adjusted_size.y.max(min_size.y);
     }
 
-    if *TRACE_SIZING {
+    if ElkTrace::global().sizing {
         let min_size = lgraph.get_property_ref(LayeredOptions::NODE_SIZE_MINIMUM).unwrap_or_default();
         let padding = lgraph.padding_ref().clone();
         eprintln!("TRACE resize_graph: constraints={:?} calculated_size=({:.1},{:.1}) adjusted_size=({:.1},{:.1}) min_size=({:.1},{:.1}) padding=({:.1},{:.1},{:.1},{:.1})",

@@ -1,13 +1,9 @@
 use std::cmp::Ordering;
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
-
-static TRACE_PORT_RANKS: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_PORT_RANKS").is_some());
-static TRACE_CROSSMIN_TIMING: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN_TIMING").is_some());
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LNodeRef, LPortRef};
 use crate::org::eclipse::elk::alg::layered::options::{
@@ -429,7 +425,7 @@ impl AbstractBarycenterPortDistributor {
             return;
         }
         // Lock-based fallback
-        let timing = *TRACE_CROSSMIN_TIMING;
+        let timing = ElkTrace::global().crossmin_timing;
         let (node_id, constraints, ports_snapshot) = if let Some(mut node_guard) = node.lock_ok() {
             (
                 node_guard.shape().graph_element().id,
@@ -494,7 +490,7 @@ impl AbstractBarycenterPortDistributor {
         layer_index: usize,
         layer_size: usize,
     ) {
-        let timing = *TRACE_CROSSMIN_TIMING;
+        let timing = ElkTrace::global().crossmin_timing;
         let flat = snap.node_flat_index(node);
         let node_id = snap.node_graph_id_of(flat) as i32;
 
@@ -560,7 +556,7 @@ impl AbstractBarycenterPortDistributor {
         layer_index: usize,
         layer_size: usize,
     ) {
-        let timing = *TRACE_CROSSMIN_TIMING;
+        let timing = ElkTrace::global().crossmin_timing;
         if timing {
             eprintln!(
                 "crossmin: distribute_ports_for_iter node={} layer={} ports={}",
@@ -726,7 +722,7 @@ impl AbstractBarycenterPortDistributor {
         layer_index: usize,
         layer_size: usize,
     ) {
-        let timing = *TRACE_CROSSMIN_TIMING;
+        let timing = ElkTrace::global().crossmin_timing;
         if timing {
             eprintln!(
                 "crossmin: distribute_ports_for_iter node={} layer={} ports={}",
@@ -754,7 +750,7 @@ impl AbstractBarycenterPortDistributor {
         self.max_barycenter = 0.0;
         // Java: final float absurdlyLargeFloat = 2 * layer.getNodes().size() + 1;
         let absurdly_large_float: f32 = (2 * self.layer_size(node) + 1) as f32;
-        let timing = *TRACE_CROSSMIN_TIMING;
+        let timing = ElkTrace::global().crossmin_timing;
 
         if self.snapshot.is_some() {
             let snap = self.snapshot.take().unwrap();
@@ -1018,7 +1014,7 @@ impl AbstractBarycenterPortDistributor {
         port: &LPortRef,
         port_dummy: &LNodeRef,
     ) -> f64 {
-        let timing = *TRACE_CROSSMIN_TIMING;
+        let timing = ElkTrace::global().crossmin_timing;
         let mut input = false;
         let mut output = false;
 
@@ -1397,7 +1393,7 @@ impl ISweepPortDistributor for AbstractBarycenterPortDistributor {
         current_index: usize,
         is_forward_sweep: bool,
     ) -> bool {
-        let timing = *TRACE_CROSSMIN_TIMING;
+        let timing = ElkTrace::global().crossmin_timing;
         self.update_node_positions(node_order, current_index);
         let free_layer = &node_order[current_index];
         let side = if is_forward_sweep {
@@ -1523,7 +1519,7 @@ impl AbstractBarycenterPortDistributor {
         for node in layer {
             consumed_rank += self.calculate_port_ranks_for_node(node, consumed_rank, port_type);
         }
-        if *TRACE_PORT_RANKS {
+        if ElkTrace::global().port_ranks {
             self.trace_port_ranks(layer);
         }
     }

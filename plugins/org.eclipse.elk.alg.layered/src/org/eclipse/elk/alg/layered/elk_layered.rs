@@ -2,7 +2,7 @@ use std::any::TypeId;
 use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::SharedProcessor;
@@ -16,6 +16,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::testing::TestController;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{
     BasicProgressMonitor, ElkUtil, EnumSet, IElkProgressMonitor,
 };
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 use crate::org::eclipse::elk::alg::layered::components::ComponentsProcessor;
 use crate::org::eclipse::elk::alg::layered::compound::{
@@ -34,30 +35,15 @@ use crate::org::eclipse::elk::alg::layered::trace_recorder;
 static TRACE_STEP_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static TRACE_LAYOUT_DEPTH: AtomicUsize = AtomicUsize::new(0);
 
-#[cfg(debug_assertions)]
-static TRACE: LazyLock<bool> = LazyLock::new(|| std::env::var("ELK_TRACE").is_ok());
-#[cfg(debug_assertions)]
-static TRACE_EDGE_WIRING: LazyLock<bool> =
-    LazyLock::new(|| std::env::var("ELK_TRACE_EDGE_WIRING").is_ok());
-#[cfg(debug_assertions)]
-static TRACE_NODES: LazyLock<bool> =
-    LazyLock::new(|| std::env::var("ELK_TRACE_NODES").is_ok());
-#[cfg(debug_assertions)]
-static TRACE_NODES_FILTER: LazyLock<Option<String>> =
-    LazyLock::new(|| std::env::var("ELK_TRACE_NODES_FILTER").ok());
 /// Read ELK_TRACE_DIR fresh each time (not cached) so the parity runner
 /// can change it per model via `env::set_var`.
 fn trace_dir() -> Option<String> {
     std::env::var("ELK_TRACE_DIR").ok()
 }
-static TRACE_CROSSMIN: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN").is_some());
-static TRACE_RESIZE: LazyLock<bool> =
-    LazyLock::new(|| std::env::var("ELK_TRACE_RESIZE").is_ok());
 
 #[cfg(debug_assertions)]
 fn trace_step(message: &str) {
-    if *TRACE {
+    if ElkTrace::global().trace {
         eprintln!("[elk-layered] {message}");
     }
 }
@@ -67,7 +53,7 @@ fn trace_step(_message: &str) {}
 
 #[cfg(debug_assertions)]
 fn trace_edge_wiring(graph: &LGraph, stage: &str) {
-    if !*TRACE_EDGE_WIRING {
+    if !ElkTrace::global().edge_wiring {
         return;
     }
 
@@ -140,11 +126,11 @@ fn trace_edge_wiring(_graph: &LGraph, _stage: &str) {}
 
 #[cfg(debug_assertions)]
 fn trace_node_positions(graph: &LGraph, stage: &str) {
-    if !*TRACE_NODES {
+    if !ElkTrace::global().nodes {
         return;
     }
 
-    let filter = TRACE_NODES_FILTER.clone();
+    let filter = ElkTrace::global().nodes_filter.clone();
     let mut nodes: Vec<(Option<usize>, usize, _)> = graph
         .layerless_nodes()
         .iter()
@@ -667,7 +653,7 @@ impl ElkLayered {
             if let Some(mut proc_guard) = processor.lock_ok() {
                 let proc_name = proc_guard.type_name();
                 let is_root = graph_guard.parent_node().is_none();
-                if *TRACE_CROSSMIN {
+                if ElkTrace::global().crossmin {
                     eprintln!(
                         "crossmin: processor start graph_ptr={:p} is_root={} proc={}",
                         Arc::as_ptr(lgraph),
@@ -687,7 +673,7 @@ impl ElkLayered {
                 if is_root {
                     Self::record_trace_snapshot_for_root(&graph_guard, proc_name);
                 }
-                if *TRACE_CROSSMIN {
+                if ElkTrace::global().crossmin {
                     eprintln!(
                         "crossmin: processor done graph_ptr={:p} is_root={} proc={}",
                         Arc::as_ptr(lgraph),
@@ -846,7 +832,7 @@ impl ElkLayered {
             adjusted_size.y = adjusted_size.y.max(min_size.y);
         }
 
-        if *TRACE_RESIZE {
+        if ElkTrace::global().resize {
             if let Some(graph_guard) = lgraph.lock_ok() {
                 let parent_id = graph_guard
                     .parent_node()

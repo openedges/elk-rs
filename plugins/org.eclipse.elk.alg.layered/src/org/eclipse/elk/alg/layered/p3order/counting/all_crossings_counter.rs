@@ -1,5 +1,5 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 
 use crate::org::eclipse::elk::alg::layered::p3order::cross_min_snapshot::CrossMinSnapshot;
 
@@ -20,9 +20,9 @@ pub struct AllCrossingsCounter {
     n_ports: i32,
 }
 
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
+
 static TRACE_CROSSINGS_CALLS: AtomicUsize = AtomicUsize::new(0);
-static TRACE_CROSSINGS_BREAKDOWN: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSINGS_BREAKDOWN").is_some());
 
 impl AllCrossingsCounter {
     pub fn new(graph: &[Vec<LNodeRef>]) -> Self {
@@ -45,7 +45,7 @@ impl AllCrossingsCounter {
         if current_order.is_empty() {
             return 0;
         }
-        let trace = *TRACE_CROSSINGS_BREAKDOWN;
+        let trace = ElkTrace::global().crossings_breakdown;
         let trace_this_call = if trace {
             let _ = TRACE_CROSSINGS_CALLS.fetch_add(1, Ordering::SeqCst);
             true

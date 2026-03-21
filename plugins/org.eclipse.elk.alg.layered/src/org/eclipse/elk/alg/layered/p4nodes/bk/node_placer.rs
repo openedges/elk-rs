@@ -1,6 +1,8 @@
 use std::collections::{BTreeMap, HashSet};
 use std::sync::{Arc, LazyLock};
 
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
+
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutPhase;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
@@ -32,16 +34,6 @@ static HIERARCHY_PROCESSING_ADDITIONS: LazyLock<
     config
 });
 
-static TRACE_BK: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_BK").is_some());
-static TRACE_BK_LAYOUTS: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_BK_LAYOUTS").is_some());
-static TRACE_BK_NODE_STATE: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_BK_NODE_STATE").is_some());
-static TRACE_BK_NODE_FILTER: LazyLock<Option<String>> =
-    LazyLock::new(|| std::env::var("ELK_TRACE_BK_NODE_FILTER").ok());
-static TRACE_BK_CONFLICTS: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_BK_CONFLICTS").is_some());
 
 pub struct BKNodePlacer {
     marked_edges: HashSet<usize>,
@@ -64,7 +56,7 @@ impl Default for BKNodePlacer {
 impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
     fn process(&mut self, graph: &mut LGraph, monitor: &mut dyn IElkProgressMonitor) {
         monitor.begin("Brandes & Koepf node placement", 1.0);
-        let trace = *TRACE_BK;
+        let trace = ElkTrace::global().bk;
         if trace {
             eprintln!("bk: start");
         }
@@ -171,7 +163,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
         if trace {
             eprintln!("bk: compaction done");
         }
-        if *TRACE_BK_LAYOUTS {
+        if ElkTrace::global().bk_layouts {
             for bal in &layouts {
                 eprintln!("bk-layout: {}", bal);
                 for layer in &layers {
@@ -257,8 +249,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
         let chosen_layout = chosen_layout
             .unwrap_or_else(|| layouts.first().expect("At least one BK layout must exist"));
 
-        if *TRACE_BK_NODE_STATE {
-            let filter = TRACE_BK_NODE_FILTER.as_deref();
+        if ElkTrace::global().bk_node_state {
+            let filter = ElkTrace::global().bk_node_filter.as_deref();
             for layer in &layers {
                 let nodes = layer
                     .lock_ok()
@@ -379,7 +371,7 @@ fn build_nodes_by_id(layers: &[LayerRef], node_count: usize) -> Vec<LNodeRef> {
 impl BKNodePlacer {
     fn mark_conflicts(&mut self, layers: &[LayerRef], ni: &NeighborhoodInformation) {
         const MIN_LAYERS_FOR_CONFLICTS: usize = 3;
-        let trace_conflicts = *TRACE_BK_CONFLICTS;
+        let trace_conflicts = ElkTrace::global().bk_conflicts;
         if layers.len() < MIN_LAYERS_FOR_CONFLICTS {
             return;
         }

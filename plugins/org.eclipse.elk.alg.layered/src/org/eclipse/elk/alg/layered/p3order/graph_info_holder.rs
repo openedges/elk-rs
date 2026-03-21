@@ -1,10 +1,7 @@
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
-static TRACE_CROSSMIN: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN").is_some());
-static TRACE_CROSSMIN_CONSTRAINTS: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN_CONSTRAINTS").is_some());
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, Random};
 use crate::org::eclipse::elk::alg::layered::p3order::random_trace;
@@ -141,7 +138,7 @@ impl GraphInfoHolder {
         cross_min_type: CrossMinType,
         shared_random: &mut Random,
     ) -> Self {
-        let trace = *TRACE_CROSSMIN;
+        let trace = ElkTrace::global().crossmin;
         if trace {
             eprintln!("crossmin: graph_info_holder new_with_graph start");
         }
@@ -226,7 +223,7 @@ impl GraphInfoHolder {
         port_influence: f64,
         thoroughness: i32,
     ) -> Self {
-        let trace = *TRACE_CROSSMIN;
+        let trace = ElkTrace::global().crossmin;
         if trace {
             eprintln!("crossmin: graph_info_holder build start");
         }
@@ -661,7 +658,7 @@ impl IInitializable for GraphInfoHolder {
 }
 
 fn trace_in_layer_constraints(node_order: &[Vec<LNodeRef>]) {
-    if !*TRACE_CROSSMIN_CONSTRAINTS {
+    if !ElkTrace::global().crossmin_constraints {
         return;
     }
 
@@ -899,7 +896,7 @@ fn create_port_distributors(
     Box<dyn ISweepPortDistributor>,
     Option<Box<dyn BarycenterPortDistributor>>,
 ) {
-    let trace = *TRACE_CROSSMIN;
+    let trace = ElkTrace::global().crossmin;
     if cross_min_type == CrossMinType::TwoSidedGreedySwitch {
         if trace {
             eprintln!("crossmin: port_distributor=GreedySwitch");

@@ -1,10 +1,6 @@
-use std::sync::LazyLock;
-
-static TRACE_GREEDY_PORTS: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_GREEDY_PORTS").is_some());
-
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LNodeRef, LPortRef};
 use crate::org::eclipse::elk::alg::layered::intermediate::greedyswitch::BetweenLayerEdgeTwoNodeCrossingsCounter;
@@ -126,7 +122,7 @@ impl GreedyPortDistributor {
 
         let mut improved = false;
         let mut continue_switching;
-        let trace = *TRACE_GREEDY_PORTS;
+        let trace = ElkTrace::global().greedy_ports;
         let mut iterations = 0usize;
         loop {
             continue_switching = false;

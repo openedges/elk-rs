@@ -18,6 +18,7 @@ pub mod algorithm_factory;
 pub mod box_layout_provider;
 pub mod default_factory;
 pub mod elk_spacings;
+pub mod elk_trace;
 pub mod elk_util;
 pub mod exclusive_bounds;
 pub mod fixed_layout_provider;

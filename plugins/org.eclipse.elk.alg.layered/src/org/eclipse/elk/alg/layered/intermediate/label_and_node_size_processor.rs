@@ -13,6 +13,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::size_constraint::SizeConstraint;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::size_options::SizeOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, IElkProgressMonitor};
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::nodespacing::node_dimension_calculation::NodeDimensionCalculation;
@@ -25,9 +26,6 @@ use crate::org::eclipse::elk::alg::layered::options::graph_properties::GraphProp
 use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions};
 
 pub struct LabelAndNodeSizeProcessor;
-
-static TRACE_NODE_SIZE: LazyLock<bool> =
-    LazyLock::new(|| std::env::var("ELK_TRACE_NODE_SIZE").is_ok());
 static ENABLE_PHASE1_PORT_PLACEMENT: LazyLock<bool> = LazyLock::new(|| {
     if std::env::var_os("ELK_NODE_DIM_SKIP_FULL_PROCESS").is_none() {
         return false;
@@ -65,7 +63,7 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
         // Step 1: Calculate node sizes and labels via NodeDimensionCalculation (matching Java).
         // Java's LabelAndNodeSizeProcessor calls NodeDimensionCalculation.calculateLabelAndNodeSizes()
         // once, which internally uses the full 7-phase process(). No Step 2 in Java.
-        if *TRACE_NODE_SIZE {
+        if ElkTrace::global().node_size {
             eprintln!("label-node-size: step1 (node sizing) begin");
         }
 
@@ -74,14 +72,14 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
         });
         NodeDimensionCalculation::calculate_label_and_node_sizes(&adapter);
 
-        if *TRACE_NODE_SIZE {
+        if ElkTrace::global().node_size {
             eprintln!("label-node-size: step1 (node sizing) done");
         }
 
         // Step 2: Port placement workaround (not present in Java).
         // Keep enabled by default for current behavior; allow disabling for parity experiments.
         if *ENABLE_PHASE1_PORT_PLACEMENT {
-            if *TRACE_NODE_SIZE {
+            if ElkTrace::global().node_size {
                 eprintln!("label-node-size: step2 (port placement) begin");
             }
             let mut phase2_resized_nodes = 0usize;
@@ -123,7 +121,7 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
                     }
                 }
             }
-            if *TRACE_NODE_SIZE {
+            if ElkTrace::global().node_size {
                 eprintln!(
                     "label-node-size: step2 (port placement) done, resized_nodes={}",
                     phase2_resized_nodes
@@ -133,30 +131,30 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
             let should_run_phase2a =
                 phase2_resized_nodes > 0 && graph_has_any_port_labels(graph);
             if should_run_phase2a {
-                if *TRACE_NODE_SIZE {
+                if ElkTrace::global().node_size {
                     eprintln!(
                         "label-node-size: phase2a (reflow labels after phase1 node resize) begin"
                     );
                 }
                 NodeDimensionCalculation::calculate_label_and_node_sizes(&adapter);
-                if *TRACE_NODE_SIZE {
+                if ElkTrace::global().node_size {
                     eprintln!(
                         "label-node-size: phase2a (reflow labels after phase1 node resize) done"
                     );
                 }
-            } else if *TRACE_NODE_SIZE && phase2_resized_nodes > 0 {
+            } else if ElkTrace::global().node_size && phase2_resized_nodes > 0 {
                 eprintln!("label-node-size: phase2a skipped (no port labels)");
             }
             let should_run_phase2b = graph_needs_phase2b_inside_port_label_restack(graph);
             if should_run_phase2b {
-                if *TRACE_NODE_SIZE {
+                if ElkTrace::global().node_size {
                     eprintln!("label-node-size: phase2b (inside port label restack) begin");
                 }
                 NodeDimensionCalculation::calculate_label_and_node_sizes(&adapter);
-                if *TRACE_NODE_SIZE {
+                if ElkTrace::global().node_size {
                     eprintln!("label-node-size: phase2b (inside port label restack) done");
                 }
-            } else if *TRACE_NODE_SIZE {
+            } else if ElkTrace::global().node_size {
                 eprintln!("label-node-size: phase2b skipped (no inside port labels)");
             }
 
@@ -207,7 +205,7 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
                     }
                 }
             }
-            if *TRACE_NODE_SIZE {
+            if ElkTrace::global().node_size {
                 eprintln!(
                     "label-node-size: phase2c (self-loop port sizing reapply) nodes={}",
                     phase2c_reapplied_nodes
@@ -215,13 +213,13 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
             }
 
             if phase2c_reapplied_nodes > 0 {
-                if *TRACE_NODE_SIZE {
+                if ElkTrace::global().node_size {
                     eprintln!(
                         "label-node-size: phase2d (reflow labels after phase2c node resize) begin"
                     );
                 }
                 NodeDimensionCalculation::calculate_label_and_node_sizes(&adapter);
-                if *TRACE_NODE_SIZE {
+                if ElkTrace::global().node_size {
                     eprintln!(
                         "label-node-size: phase2d (reflow labels after phase2c node resize) done"
                     );
@@ -272,7 +270,7 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
                     }
                 }
             }
-            if *TRACE_NODE_SIZE {
+            if ElkTrace::global().node_size {
                 eprintln!(
                     "label-node-size: phase2e (final port sizing stabilization) nodes={}",
                     phase2e_reapplied_nodes
@@ -346,18 +344,18 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
                     }
                 }
             }
-            if *TRACE_NODE_SIZE {
+            if ElkTrace::global().node_size {
                 eprintln!(
                     "label-node-size: phase2f (final port reposition) nodes={}",
                     phase2f_repositioned_nodes
                 );
             }
-        } else if *TRACE_NODE_SIZE {
+        } else if ElkTrace::global().node_size {
             eprintln!("label-node-size: step2 skipped (experiment)");
         }
 
         // Phase 3: If the graph has external ports, handle labels of external port dummies
-        if *TRACE_NODE_SIZE {
+        if ElkTrace::global().node_size {
             eprintln!("label-node-size: phase3 begin");
         }
         let has_external_ports = graph
@@ -402,7 +400,7 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
                 }
             }
         }
-        if *TRACE_NODE_SIZE {
+        if ElkTrace::global().node_size {
             eprintln!("label-node-size: phase3 done");
         }
 
@@ -643,7 +641,7 @@ fn place_ports_on_node(
             None => return false,
     };
     let initial_size = node_size;
-    if *TRACE_NODE_SIZE {
+    if ElkTrace::global().node_size {
         let (
             id,
             identifier,
@@ -742,7 +740,7 @@ fn place_ports_on_node(
         update_node_margin(node);
         let size_changed = (node_size.x - initial_size.x).abs() > f64::EPSILON
             || (node_size.y - initial_size.y).abs() > f64::EPSILON;
-        if *TRACE_NODE_SIZE && size_changed
+        if ElkTrace::global().node_size && size_changed
         {
             let id = node
                 .lock_ok()
@@ -811,7 +809,7 @@ fn place_ports_on_node(
         graph_ports_surrounding,
     );
     update_node_margin(node);
-    if *TRACE_NODE_SIZE && ((node_size.x - initial_size.x).abs() > f64::EPSILON
+    if ElkTrace::global().node_size && ((node_size.x - initial_size.x).abs() > f64::EPSILON
         || (node_size.y - initial_size.y).abs() > f64::EPSILON)
     {
         let id = node

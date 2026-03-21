@@ -1,7 +1,6 @@
 #![allow(clippy::mutable_key_type)]
 
 use std::collections::HashSet;
-use std::sync::LazyLock;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
@@ -22,16 +21,14 @@ use crate::org::eclipse::elk::alg::layered::graph::{
 use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions};
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::orthogonal_routing_generator::OrthogonalRoutingGenerator;
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::direction::routing_direction::RoutingDirection;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 pub struct HierarchicalPortOrthogonalEdgeRouter {
     northern_ext_port_edge_routing_height: f64,
 }
 
-static TRACE_HIER_PORT_ORTHO: LazyLock<bool> =
-    LazyLock::new(|| std::env::var("ELK_TRACE_HIER_PORT_ORTHO").is_ok());
-
 fn trace_step(message: &str) {
-    if *TRACE_HIER_PORT_ORTHO {
+    if ElkTrace::global().hier_port_ortho {
         eprintln!("[hier-port-ortho] {message}");
     }
 }
@@ -544,7 +541,7 @@ impl HierarchicalPortOrthogonalEdgeRouter {
         let edge_spacing = layered_graph
             .get_property(LayeredOptions::SPACING_EDGE_EDGE)
             .unwrap_or(0.0);
-        if *TRACE_HIER_PORT_ORTHO {
+        if ElkTrace::global().hier_port_ortho {
             eprintln!(
                 "[hier-port-ortho] route_edges prep north(src={},tgt={}) south(src={},tgt={}) spacing(node={},edge={}) graph(size=({:.1},{:.1}) offset=({:.1},{:.1}))",
                 northern_source_layer.len(),
@@ -635,7 +632,7 @@ impl HierarchicalPortOrthogonalEdgeRouter {
                 layered_graph.offset().y += self.northern_ext_port_edge_routing_height;
                 layered_graph.size().y += self.northern_ext_port_edge_routing_height;
             }
-            if *TRACE_HIER_PORT_ORTHO {
+            if ElkTrace::global().hier_port_ortho {
                 eprintln!(
                     "[hier-port-ortho] north slots={} added_height={:.1} graph(size=({:.1},{:.1}) offset=({:.1},{:.1}))",
                     slots,
@@ -665,7 +662,7 @@ impl HierarchicalPortOrthogonalEdgeRouter {
             if slots > 0 {
                 layered_graph.size().y += node_spacing + (slots as f64 - 1.0) * edge_spacing;
             }
-            if *TRACE_HIER_PORT_ORTHO {
+            if ElkTrace::global().hier_port_ortho {
                 eprintln!(
                     "[hier-port-ortho] south slots={} graph(size=({:.1},{:.1}) offset=({:.1},{:.1}))",
                     slots,

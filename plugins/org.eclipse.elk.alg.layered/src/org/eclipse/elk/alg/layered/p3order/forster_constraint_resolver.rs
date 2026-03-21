@@ -1,10 +1,9 @@
 use std::collections::VecDeque;
 
 use rustc_hash::FxHashMap;
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 
-static TRACE_FORSTER_GROUPS: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_FORSTER_GROUPS").is_some());
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LNodeRef, NodeType};
 use crate::org::eclipse::elk::alg::layered::options::InternalProperties;
@@ -106,7 +105,7 @@ impl ForsterConstraintResolver {
             groups.push(group);
         }
 
-        let trace = *TRACE_FORSTER_GROUPS
+        let trace = ElkTrace::global().forster_groups
             && groups
                 .iter()
                 .copied()
@@ -162,7 +161,7 @@ impl ForsterConstraintResolver {
         groups: &[ConstraintGroupId],
         only_between_normal_nodes: bool,
     ) {
-        let trace = *TRACE_FORSTER_GROUPS
+        let trace = ElkTrace::global().forster_groups
             && groups
                 .iter()
                 .copied()

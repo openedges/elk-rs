@@ -1,7 +1,7 @@
 use std::any::Any;
-use std::sync::LazyLock;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::util::Random;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LNodeRef, NodeType};
 use crate::org::eclipse::elk::alg::layered::intermediate::greedyswitch::crossing_matrix_filler::CrossingMatrixFiller;
@@ -11,9 +11,6 @@ use crate::org::eclipse::elk::alg::layered::intermediate::greedyswitch::switch_d
 use crate::org::eclipse::elk::alg::layered::p3order::counting::IInitializable;
 use crate::org::eclipse::elk::alg::layered::p3order::i_crossing_minimization_heuristic::ICrossingMinimizationHeuristic;
 use crate::org::eclipse::elk::alg::layered::p3order::layer_sweep_crossing_minimizer::CrossMinType;
-
-static TRACE_GREEDY_SWITCH: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_GREEDY_SWITCH").is_some());
 
 pub struct ParentContext {
     parent_node_order: Vec<Vec<LNodeRef>>,
@@ -123,7 +120,7 @@ impl GreedySwitchHeuristic {
         switch_decider: &mut SwitchDecider,
     ) -> bool {
         let mut improved = false;
-        let trace = *TRACE_GREEDY_SWITCH;
+        let trace = ElkTrace::global().greedy_switch;
         let mut iterations = 0usize;
         loop {
             let continue_switching =

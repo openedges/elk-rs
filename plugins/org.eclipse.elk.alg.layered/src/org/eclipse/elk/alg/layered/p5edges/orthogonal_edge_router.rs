@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use std::sync::LazyLock;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutPhase;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
@@ -14,9 +13,9 @@ use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::direction::Rout
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::OrthogonalRoutingGenerator;
 use crate::org::eclipse::elk::alg::layered::p5edges::polyline_edge_router::PolylineEdgeRouter;
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
+use std::sync::LazyLock;
 
-static TRACE_COMPOUND_WIDTH: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_COMPOUND_WIDTH").is_some());
 static DISABLE_NS: LazyLock<bool> =
     LazyLock::new(|| std::env::var("ELK_DISABLE_NS").is_ok());
 
@@ -189,7 +188,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
         );
 
         let layers = layered_graph.layers().clone();
-        if *TRACE_COMPOUND_WIDTH {
+        if ElkTrace::global().compound_width {
             let layer_info: Vec<String> = layers.iter().enumerate().map(|(i, layer)| {
                 let node_count = layer.lock_ok().map(|g| g.nodes().len()).unwrap_or(0);
                 let nodes_str = layer.lock_ok().map(|g| {
@@ -288,7 +287,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
             } else if !is_left_layer_external && !is_right_layer_external {
                 xpos = (xpos + node_node_spacing) as f32 as f64;
             }
-            if *TRACE_COMPOUND_WIDTH {
+            if ElkTrace::global().compound_width {
                 eprintln!("[compound-width] edge_router: layer_index={} xpos={} slots={} left_ext={} right_ext={}",
                     layer_index, xpos, slots_count, is_left_layer_external, is_right_layer_external);
             }
@@ -306,7 +305,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
             }
         }
 
-        if *TRACE_COMPOUND_WIDTH {
+        if ElkTrace::global().compound_width {
             eprintln!("[compound-width] edge_router: FINAL xpos={} graph_size_x={}", xpos, xpos as f32 as f64);
         }
         layered_graph.size().x = xpos as f32 as f64;

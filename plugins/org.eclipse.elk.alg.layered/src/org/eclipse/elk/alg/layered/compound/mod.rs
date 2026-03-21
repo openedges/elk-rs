@@ -1,7 +1,7 @@
 #![allow(clippy::mutable_key_type)]
 
 use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
@@ -13,6 +13,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::Po
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_label_placement::PortLabelPlacement;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{ElkUtil, EnumSet, IElkProgressMonitor};
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::MapPropertyHolder;
 
 use crate::org::eclipse::elk::alg::layered::graph::{
@@ -23,10 +24,6 @@ use crate::org::eclipse::elk::alg::layered::options::{
     GraphProperties, InternalProperties, LayeredOptions, PortType,
 };
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::OrthogonalRoutingGenerator;
-
-static TRACE: LazyLock<bool> = LazyLock::new(|| std::env::var_os("ELK_TRACE").is_some());
-static TRACE_INSIDE_YO: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_INSIDE_YO").is_some());
 
 #[derive(Clone)]
 pub struct CrossHierarchyEdge {
@@ -212,7 +209,7 @@ impl CompoundGraphPreprocessor {
 
         self.transform_hierarchy_edges(graph, None, &mut cross_hierarchy_map, &mut dummy_node_map);
 
-        if *TRACE {
+        if ElkTrace::global().trace {
             for orig_edge in cross_hierarchy_map.keys() {
                 let label_count = orig_edge
                     .lock_ok()
@@ -224,7 +221,7 @@ impl CompoundGraphPreprocessor {
         self.move_labels_and_remove_original_edges(graph, &cross_hierarchy_map);
         self.set_sides_of_ports_to_sides_of_dummy_nodes(&dummy_node_map);
 
-        if *TRACE {
+        if ElkTrace::global().trace {
             eprintln!(
                 "[compound-pre] cross_hierarchy_map entries={}",
                 cross_hierarchy_map.keys().len()
@@ -529,7 +526,7 @@ impl CompoundGraphPreprocessor {
 
                         label_moves.push((label_ref.clone(), target_index));
                         if let Some(mut label_guard) = label_ref.lock_ok() {
-                            if *TRACE && label_guard.text() == "e2" {
+                            if ElkTrace::global().trace && label_guard.text() == "e2" {
                                 eprintln!(
                                     "[compound-pre] moving e2 label (segments={})",
                                     edge_segments.len()
@@ -813,7 +810,7 @@ impl CompoundGraphPreprocessor {
                 .map(|node_guard| node_guard.ports().clone())
                 .unwrap_or_default();
 
-            if *TRACE {
+            if ElkTrace::global().trace {
                 let origin_id = child_node
                     .lock_ok()
                     .and_then(|mut node_guard| node_guard.get_property(InternalProperties::ORIGIN))
@@ -898,7 +895,7 @@ impl CompoundGraphPreprocessor {
                             Some(g) => g,
                             None => continue,
                         };
-                        let has_e2 = if *TRACE {
+                        let has_e2 = if ElkTrace::global().trace {
                             edge_guard.labels().iter().any(|label_ref| {
                                 label_ref
                                     .lock_ok()
@@ -917,7 +914,7 @@ impl CompoundGraphPreprocessor {
                         None => continue,
                     };
 
-                    if *TRACE && has_e2_label {
+                    if ElkTrace::global().trace && has_e2_label {
                         let is_desc = LGraphUtil::is_descendant(&source_node, parent_node);
                         eprintln!("[compound-pre] saw e2 incoming, source_descendant={is_desc}");
                     }
@@ -973,7 +970,7 @@ impl CompoundGraphPreprocessor {
         cross_hierarchy_map: &mut CrossHierarchyMap,
         dummy_node_map: &mut HashMap<PortRefKey, LNodeRef>,
     ) {
-        let trace_inside = *TRACE_INSIDE_YO;
+        let trace_inside = ElkTrace::global().inside_yo;
         let (inside_self_loops_active, ports) = node
             .lock_ok()
             .map(|mut node_guard| {
@@ -1216,7 +1213,7 @@ impl CompoundGraphPreprocessor {
                         port_type,
                     ),
                 );
-                if *TRACE
+                if ElkTrace::global().trace
                     && orig_edge
                         .lock_ok()
                         .map(|edge_guard| {
@@ -1303,7 +1300,7 @@ impl CompoundGraphPreprocessor {
             orig_edge,
             CrossHierarchyEdge::new(dummy_edge, graph.clone(), port_type),
         );
-        if *TRACE
+        if ElkTrace::global().trace
             && orig_edge
                 .lock_ok()
                 .map(|edge_guard| {
@@ -1636,7 +1633,7 @@ impl CompoundGraphPostprocessor {
             }
             sort_cross_hierarchy_edges(&mut cross_edges, graph);
 
-            let trace_edge = *TRACE
+            let trace_edge = ElkTrace::global().trace
                 && (cross_edges.iter().any(|edge| {
                     edge.edge()
                         .lock_ok()

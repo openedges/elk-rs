@@ -1,5 +1,3 @@
-use std::sync::LazyLock;
-
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::labels::LabelManagementOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
@@ -18,9 +16,7 @@ use crate::org::eclipse::elk::alg::layered::intermediate::loops::{
 };
 use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions};
 use crate::org::eclipse::elk::alg::layered::p5edges::splines::{NubSpline, SplinesMath};
-
-static TRACE_INSIDE_YO: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_INSIDE_YO").is_some());
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 const EPSILON: f64 = 1e-3;
 const POLYLINE_SELF_LOOP_CORNER_DISTANCE: f64 = 10.0;
@@ -163,7 +159,7 @@ fn route_node(
                 .lock_ok()
                 .and_then(|mut edge_guard| edge_guard.get_property(CoreOptions::INSIDE_SELF_LOOPS_YO))
                 .unwrap_or(false);
-            if *TRACE_INSIDE_YO {
+            if ElkTrace::global().inside_yo {
                 let edge_key = std::sync::Arc::as_ptr(&l_edge) as usize;
                 eprintln!(
                     "[self-loop-router] edge={} inside_self_loop_yo={}",

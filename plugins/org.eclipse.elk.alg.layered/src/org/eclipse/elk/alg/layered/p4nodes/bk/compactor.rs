@@ -1,6 +1,8 @@
 use std::collections::{BTreeMap, VecDeque};
 use std::sync::LazyLock;
 
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
+
 use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LNodeRef};
 use crate::org::eclipse::elk::alg::layered::options::{
     EdgeStraighteningStrategy, InternalProperties, LayeredOptions, Spacings,
@@ -14,14 +16,8 @@ use super::threshold_strategy::{
 };
 use super::util::{node_id, node_margin_bottom, node_margin_top, node_size_y};
 
-static TRACE_BK_PLACE_BLOCK: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_BK_PLACE_BLOCK").is_some());
-static TRACE_BK_GUARD: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_BK_GUARD").is_some());
 static BK_REVERSE_SINK_QUEUE: LazyLock<bool> =
     LazyLock::new(|| std::env::var_os("ELK_BK_REVERSE_SINK_QUEUE").is_some());
-static TRACE_BK_CLASSES: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_BK_CLASSES").is_some());
 
 pub struct BKCompactor {
     spacings: Spacings,
@@ -65,7 +61,7 @@ impl BKCompactor {
         bal: &mut BKAlignedLayout,
         ni: &NeighborhoodInformation,
     ) {
-        let trace_place_block = *TRACE_BK_PLACE_BLOCK;
+        let trace_place_block = ElkTrace::global().bk_place_block;
         if bal.y[root_id].is_some() {
             return;
         }
@@ -246,7 +242,7 @@ impl BKCompactor {
 
             current = bal.align[current];
             if current == root_id || steps >= max_steps {
-                if steps >= max_steps && *TRACE_BK_GUARD {
+                if steps >= max_steps && ElkTrace::global().bk_guard {
                     eprintln!(
                         "bk-guard: place_block loop hit max_steps root_id={} current={} max_steps={}",
                         root_id, current, max_steps
@@ -292,7 +288,7 @@ impl BKCompactor {
         if *BK_REVERSE_SINK_QUEUE {
             queue_order.reverse();
         }
-        if *TRACE_BK_CLASSES {
+        if ElkTrace::global().bk_classes {
             for id in &queue_order {
                 if let Some(node) = self.sink_nodes.get(id) {
                     eprintln!(

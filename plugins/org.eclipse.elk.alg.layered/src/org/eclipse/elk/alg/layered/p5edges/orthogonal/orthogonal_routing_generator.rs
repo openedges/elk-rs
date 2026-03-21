@@ -1,13 +1,10 @@
 use std::collections::VecDeque;
 
 use rustc_hash::FxHashMap;
-use std::sync::LazyLock;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{IElkProgressMonitor, Random};
-
-static TRACE_ORTHO: LazyLock<bool> =
-    LazyLock::new(|| std::env::var("ELK_TRACE_ORTHO").is_ok());
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LNodeRef};
 use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, PortType};
@@ -127,7 +124,7 @@ impl OrthogonalRoutingGenerator {
     }
 
     fn trace_segments(&self, label: &str, edge_segments: &[HyperEdgeSegmentRef]) {
-        if !*TRACE_ORTHO {
+        if !ElkTrace::global().ortho {
             return;
         }
 

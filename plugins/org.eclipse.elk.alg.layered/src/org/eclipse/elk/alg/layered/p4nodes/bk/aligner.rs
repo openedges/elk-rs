@@ -1,5 +1,6 @@
 use std::collections::HashSet;
-use std::sync::LazyLock;
+
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 use crate::org::eclipse::elk::alg::layered::graph::NodeType;
 
@@ -10,13 +11,6 @@ use super::util::{
     edge_between, edge_key, node_id, node_margin_bottom, node_margin_top, node_size_y, node_type,
     port_offset_y,
 };
-
-static TRACE_BK_ALIGN: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_BK_ALIGN").is_some());
-static TRACE_BK_INNER: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_BK_INNER").is_some());
-static TRACE_BK_GUARD: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_BK_GUARD").is_some());
 
 pub struct BKAligner;
 
@@ -31,7 +25,7 @@ impl BKAligner {
         ni: &NeighborhoodInformation,
         marked_edges: &HashSet<usize>,
     ) {
-        let trace_align = *TRACE_BK_ALIGN;
+        let trace_align = ElkTrace::global().bk_align;
         for layer in &bal.layers {
             let nodes = layer
                 .lock_ok()
@@ -190,7 +184,7 @@ impl BKAligner {
         let hdir = bal
             .hdir
             .expect("BK aligner requires a horizontal direction");
-        let trace_inner = *TRACE_BK_INNER;
+        let trace_inner = ElkTrace::global().bk_inner;
 
         for (root_id, _block) in blocks {
             let root_node = bal.nodes_by_id[root_id].clone();
@@ -212,7 +206,7 @@ impl BKAligner {
             loop {
                 let next = bal.align[current];
                 if next == root_id || steps >= max_steps {
-                    if steps >= max_steps && *TRACE_BK_GUARD {
+                    if steps >= max_steps && ElkTrace::global().bk_guard {
                         eprintln!(
                             "bk-guard: inside_block_shift loop1 hit max_steps root_id={} current={} next={} max_steps={}",
                             root_id, current, next, max_steps
@@ -315,7 +309,7 @@ impl BKAligner {
                 }
                 current = bal.align[current];
                 if current == root_id || steps >= max_steps {
-                    if steps >= max_steps && *TRACE_BK_GUARD {
+                    if steps >= max_steps && ElkTrace::global().bk_guard {
                         eprintln!(
                             "bk-guard: inside_block_shift loop2 hit max_steps root_id={} current={} max_steps={}",
                             root_id, current, max_steps

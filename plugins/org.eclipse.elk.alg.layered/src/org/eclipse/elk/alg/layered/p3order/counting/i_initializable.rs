@@ -1,7 +1,4 @@
-use std::sync::LazyLock;
-
-static TRACE_CROSSMIN: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN").is_some());
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LNodeRef};
 
@@ -40,7 +37,7 @@ pub trait IInitializable {
 }
 
 pub fn init(initializables: &mut [&mut dyn IInitializable], order: &[Vec<LNodeRef>]) {
-    let trace = *TRACE_CROSSMIN;
+    let trace = ElkTrace::global().crossmin;
     if trace {
         eprintln!("crossmin:init_initializables layers={}", order.len());
     }

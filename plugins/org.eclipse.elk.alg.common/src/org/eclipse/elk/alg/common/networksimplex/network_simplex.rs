@@ -1,10 +1,7 @@
 use std::collections::VecDeque;
 use std::sync::Arc;
-use std::sync::LazyLock;
 
-static TRACE_NETWORK_SIMPLEX: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_NETWORK_SIMPLEX").is_some());
-
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::pair::Pair;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::progress_monitor::BasicProgressMonitor;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
@@ -127,7 +124,7 @@ impl<'a> NetworkSimplex<'a> {
             if let Some(enter_id) = self.enter_edge(leave_id) {
                 self.exchange(leave_id, enter_id);
             } else {
-                if *TRACE_NETWORK_SIMPLEX {
+                if ElkTrace::global().network_simplex {
                     eprintln!(
                         "[network-simplex] break: missing entering edge at iter={iter} leave_edge_id={}",
                         leave_id

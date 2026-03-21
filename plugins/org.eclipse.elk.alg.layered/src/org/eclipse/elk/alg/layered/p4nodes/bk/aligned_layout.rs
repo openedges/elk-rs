@@ -1,5 +1,6 @@
 use std::fmt;
-use std::sync::LazyLock;
+
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LNodeRef, LPortRef, LayerRef};
 use crate::org::eclipse::elk::alg::layered::options::Spacings;
@@ -8,9 +9,6 @@ use super::neighborhood_information::NeighborhoodInformation;
 use super::util::{
     node_id, node_margin_bottom, node_margin_top, node_size_y, port_node_id, port_offset_y,
 };
-
-static TRACE_BK_GUARD: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_BK_GUARD").is_some());
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum VDirection {
@@ -134,7 +132,7 @@ impl BKAlignedLayout {
             self.y[current] = Some(new_pos);
             current = self.align[current];
             if current == root || steps >= max_steps {
-                if steps >= max_steps && *TRACE_BK_GUARD {
+                if steps >= max_steps && ElkTrace::global().bk_guard {
                     eprintln!(
                         "bk-guard: shift_block loop hit max_steps root={} current={} max_steps={}",
                         root, current, max_steps
@@ -173,7 +171,7 @@ impl BKAlignedLayout {
             }
             steps += 1;
             if steps >= max_steps {
-                if *TRACE_BK_GUARD {
+                if ElkTrace::global().bk_guard {
                     eprintln!(
                         "bk-guard: check_space_above loop hit max_steps root={} current={} max_steps={}",
                         root, current, max_steps
@@ -213,7 +211,7 @@ impl BKAlignedLayout {
             }
             steps += 1;
             if steps >= max_steps {
-                if *TRACE_BK_GUARD {
+                if ElkTrace::global().bk_guard {
                     eprintln!(
                         "bk-guard: check_space_below loop hit max_steps root={} current={} max_steps={}",
                         root, current, max_steps

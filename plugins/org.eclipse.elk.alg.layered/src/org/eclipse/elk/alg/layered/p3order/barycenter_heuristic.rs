@@ -1,17 +1,10 @@
 use std::any::Any;
 use std::cmp::Ordering;
 use rustc_hash::FxHashMap;
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 use std::time::Instant;
 
-static TRACE_PORT_RANKS: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_PORT_RANKS").is_some());
-static TRACE_CROSSMIN: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN").is_some());
-static TRACE_CROSSMIN_TIMING: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN_TIMING").is_some());
-static TRACE_BARYCENTER_LAYER_PATTERN: LazyLock<Option<String>> =
-    LazyLock::new(|| std::env::var("ELK_TRACE_BARYCENTER_LAYER_PATTERN").ok());
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::util::Random;
 use crate::org::eclipse::elk::alg::layered::p3order::random_trace;
@@ -276,7 +269,7 @@ impl BarycenterHeuristic {
             state.barycenter = None;
         }
 
-        let trace_cm = *TRACE_CROSSMIN;
+        let trace_cm = ElkTrace::global().crossmin;
         let node_name = if trace_cm {
             flat_to_node.get(&flat)
                 .and_then(|n| n.lock_ok().map(|mut g| format!("id:{}", g.shape().graph_element().id)))
@@ -382,7 +375,7 @@ impl BarycenterHeuristic {
 
     /// Lock-based barycenter calculation — fallback when snapshot is not available.
     fn calculate_barycenter_lock(&mut self, node: &LNodeRef, forward: bool, port_ranks: &[f64], random: &mut Random) {
-        let trace_cm = *TRACE_CROSSMIN;
+        let trace_cm = ElkTrace::global().crossmin;
         let li = self.layer_index_of(node);
         let ni = self.node_id_of(node);
 
@@ -510,8 +503,8 @@ impl BarycenterHeuristic {
         forward: bool,
         random: &mut Random,
     ) {
-        let trace = *TRACE_CROSSMIN_TIMING;
-        let trace_pr = *TRACE_PORT_RANKS && self.sweep_iteration == 0;
+        let trace = ElkTrace::global().crossmin_timing;
+        let trace_pr = ElkTrace::global().port_ranks && self.sweep_iteration == 0;
         let start = if trace { Some(Instant::now()) } else { None };
         if randomize {
             self.randomize_barycenters(layer, random);
@@ -565,7 +558,7 @@ impl BarycenterHeuristic {
             );
         }
 
-        let trace_layer_pattern = TRACE_BARYCENTER_LAYER_PATTERN.clone();
+        let trace_layer_pattern = ElkTrace::global().barycenter_layer_pattern.clone();
         if trace_layer_pattern.as_ref().is_some_and(|pattern| {
             layer.iter().any(|node| {
                 node.lock_ok()
@@ -638,7 +631,7 @@ impl BarycenterHeuristic {
             );
         }
 
-        if *TRACE_CROSSMIN {
+        if ElkTrace::global().crossmin {
             let li = layer
                 .first()
                 .and_then(|n| n.lock_ok().and_then(|ng| ng.layer()))
