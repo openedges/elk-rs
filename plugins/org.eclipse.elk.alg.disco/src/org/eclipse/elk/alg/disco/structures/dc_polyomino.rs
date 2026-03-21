@@ -19,8 +19,7 @@ pub struct DCPolyomino {
 
 impl DCPolyomino {
     pub fn new(comp: DCComponentRef, cell_size_x: f64, cell_size_y: f64) -> Self {
-        let mut comp_guard = comp.lock().expect("component lock");
-        let comp_dims = comp_guard.get_dimensions_of_bounding_rectangle();
+        let mut comp_guard = comp.lock();        let comp_dims = comp_guard.get_dimensions_of_bounding_rectangle();
         let p_width = compute_low_res_dimension(comp_dims.x, cell_size_x);
         let p_height = compute_low_res_dimension(comp_dims.y, cell_size_y);
         drop(comp_guard);
@@ -42,8 +41,7 @@ impl DCPolyomino {
     }
 
     pub fn get_offset(&self) -> KVector {
-        let mut comp_guard = self.representee.lock().expect("component lock");
-        let mut offset = comp_guard.get_dimensions_of_bounding_rectangle();
+        let mut comp_guard = self.representee.lock();        let mut offset = comp_guard.get_dimensions_of_bounding_rectangle();
         offset.sub_values(
             self.p_width as f64 * self.cell_size_x,
             self.p_height as f64 * self.cell_size_y,
@@ -53,8 +51,7 @@ impl DCPolyomino {
     }
 
     pub fn get_min_corner_on_canvas(&self) -> KVector {
-        let mut comp_guard = self.representee.lock().expect("component lock");
-        let mut corner = comp_guard.get_min_corner();
+        let mut comp_guard = self.representee.lock();        let mut corner = comp_guard.get_min_corner();
         corner.sub(&self.get_offset());
         corner
     }
@@ -68,13 +65,11 @@ impl DCPolyomino {
     }
 
     pub fn get_id(&self) -> i32 {
-        let comp_guard = self.representee.lock().expect("component lock");
-        comp_guard.get_id()
+        let comp_guard = self.representee.lock();        comp_guard.get_id()
     }
 
     pub fn set_id(&mut self, id: i32) {
-        let mut comp_guard = self.representee.lock().expect("component lock");
-        comp_guard.set_id(id);
+        let mut comp_guard = self.representee.lock();        comp_guard.set_id(id);
     }
 
     pub fn get_representee(&self) -> &DCComponentRef {
@@ -84,8 +79,7 @@ impl DCPolyomino {
     fn fill_cells(&mut self) {
         let mut blocked_cells: Vec<(usize, usize)> = Vec::new();
         {
-            let mut comp_guard = self.representee.lock().expect("component lock");
-            let comp_corner = comp_guard.get_min_corner();
+            let mut comp_guard = self.representee.lock();            let comp_corner = comp_guard.get_min_corner();
             let mut polyo_offset = comp_guard.get_dimensions_of_bounding_rectangle();
             polyo_offset.sub_values(
                 self.p_width as f64 * self.cell_size_x,
@@ -116,21 +110,18 @@ impl DCPolyomino {
     }
 
     fn add_extensions(&mut self) {
-        let comp_guard = self.representee.lock().expect("component lock");
-        let elements = comp_guard.get_elements().clone();
+        let comp_guard = self.representee.lock();        let elements = comp_guard.get_elements().clone();
         drop(comp_guard);
 
         for elem_ref in elements {
-            let elem_guard = elem_ref.lock().expect("element lock");
-            if !elem_guard.get_extensions().is_empty() {
+            let elem_guard = elem_ref.lock();            if !elem_guard.get_extensions().is_empty() {
                 self.add_extensions_to_poly(&elem_guard);
             }
         }
     }
 
     fn add_extensions_to_poly(&mut self, elem: &DCElement) {
-        let mut comp_guard = self.representee.lock().expect("component lock");
-        let comp_corner = comp_guard.get_min_corner();
+        let mut comp_guard = self.representee.lock();        let comp_corner = comp_guard.get_min_corner();
         drop(comp_guard);
 
         let polyo_offset = self.get_offset();

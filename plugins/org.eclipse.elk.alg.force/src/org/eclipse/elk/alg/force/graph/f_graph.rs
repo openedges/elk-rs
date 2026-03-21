@@ -26,28 +26,24 @@ impl FParticleRef {
     pub fn with_particle_mut<R>(&self, f: impl FnOnce(&mut FParticle) -> R) -> Option<R> {
         match self {
             FParticleRef::Node(node) => node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|mut node_guard| f(node_guard.particle_mut())),
             FParticleRef::Label(label) => label
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|mut label_guard| f(label_guard.particle_mut())),
             FParticleRef::Bend(bend) => bend
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|mut bend_guard| f(bend_guard.particle_mut())),
         }
     }
 
     pub fn with_particle_ref<R>(&self, f: impl FnOnce(&FParticle) -> R) -> Option<R> {
         match self {
-            FParticleRef::Node(node) => node.lock().ok().map(|node_guard| f(node_guard.particle())),
+            FParticleRef::Node(node) => node.lock_ok().map(|node_guard| f(node_guard.particle())),
             FParticleRef::Label(label) => label
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|label_guard| f(label_guard.particle())),
-            FParticleRef::Bend(bend) => bend.lock().ok().map(|bend_guard| f(bend_guard.particle())),
+            FParticleRef::Bend(bend) => bend.lock_ok().map(|bend_guard| f(bend_guard.particle())),
         }
     }
 
@@ -163,14 +159,9 @@ impl FGraph {
         match (particle1, particle2) {
             (FParticleRef::Node(node1), FParticleRef::Node(node2)) => {
                 let (id1, id2) = {
-                    let node1_guard = node1.lock().ok();
-                    let node2_guard = node2.lock().ok();
-                    match (node1_guard, node2_guard) {
-                        (Some(node1_guard), Some(node2_guard)) => {
-                            (node1_guard.id(), node2_guard.id())
-                        }
-                        _ => return 0,
-                    }
+                    let node1_guard = node1.lock();
+                    let node2_guard = node2.lock();
+                    (node1_guard.id(), node2_guard.id())
                 };
                 if id1 >= self.adjacency.len() || id2 >= self.adjacency.len() {
                     return 0;
@@ -178,12 +169,11 @@ impl FGraph {
                 self.adjacency[id1][id2] + self.adjacency[id2][id1]
             }
             (FParticleRef::Bend(b1), FParticleRef::Bend(b2)) => {
-                let edge1 = b1.lock().ok().and_then(|b| b.edge());
-                let edge2 = b2.lock().ok().and_then(|b| b.edge());
+                let edge1 = b1.lock_ok().and_then(|b| b.edge());
+                let edge2 = b2.lock_ok().and_then(|b| b.edge());
                 match (edge1, edge2) {
                     (Some(edge1), Some(edge2)) if Arc::ptr_eq(&edge1, &edge2) => edge2
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .and_then(|mut edge_guard| edge_guard.get_property(ForceOptions::PRIORITY))
                         .unwrap_or(1),
                     _ => 0,
@@ -198,16 +188,13 @@ impl FGraph {
         self.adjacency = vec![vec![0; n]; n];
         for edge in &self.edges {
             let (source_id, target_id, priority) = {
-                let edge_guard = edge.lock().ok();
-                let Some(mut edge_guard) = edge_guard else {
-                    continue;
-                };
+                let mut edge_guard = edge.lock();
                 let source_id = edge_guard
                     .source()
-                    .and_then(|node| node.lock().ok().map(|n| n.id()));
+                    .and_then(|node| node.lock_ok().map(|n| n.id()));
                 let target_id = edge_guard
                     .target()
-                    .and_then(|node| node.lock().ok().map(|n| n.id()));
+                    .and_then(|node| node.lock_ok().map(|n| n.id()));
                 let priority = edge_guard.get_property(ForceOptions::PRIORITY).unwrap_or(1);
                 match (source_id, target_id) {
                     (Some(source_id), Some(target_id)) => (source_id, target_id, priority),

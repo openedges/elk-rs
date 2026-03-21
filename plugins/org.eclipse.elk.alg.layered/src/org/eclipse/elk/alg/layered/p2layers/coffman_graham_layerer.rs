@@ -58,16 +58,14 @@ impl CoffmanGrahamLayerer {
         for start in nodes {
             self.node_mark.fill(false);
             let outgoing = start
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.outgoing_edges())
                 .unwrap_or_default();
             for edge in outgoing {
                 let target = edge
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|edge_guard| edge_guard.target())
-                    .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                    .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
                 if let Some(target) = target {
                     self.dfs(start, &target);
                 }
@@ -82,30 +80,26 @@ impl CoffmanGrahamLayerer {
         }
 
         let outgoing = node
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|node_guard| node_guard.outgoing_edges())
             .unwrap_or_default();
         for edge in outgoing {
             let target = edge
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|edge_guard| edge_guard.target())
-                .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
             let Some(target) = target else {
                 continue;
             };
             let incoming = target
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.incoming_edges())
                 .unwrap_or_default();
             for transitive in incoming {
                 let source = transitive
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|edge_guard| edge_guard.source())
-                    .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                    .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
                 if let Some(source) = source {
                     if Arc::ptr_eq(&source, start) {
                         let edge_index = edge_id(&transitive);
@@ -159,25 +153,22 @@ impl CoffmanGrahamLayerer {
     fn is_layer_full(&self, layer: &LayerRef, bound: i32) -> bool {
         let bound = if bound < 0 { 0 } else { bound as usize };
         layer
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|layer_guard| layer_guard.nodes().len() >= bound)
             .unwrap_or(false)
     }
 
     fn can_add(&self, node: &LNodeRef, layer: &LayerRef) -> bool {
         let outgoing = node
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|node_guard| node_guard.outgoing_edges())
             .unwrap_or_default();
         for edge in outgoing {
             let target_layer = edge
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|edge_guard| edge_guard.target())
-                .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
-                .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.layer()));
+                .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
+                .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.layer()));
             if let Some(target_layer) = target_layer {
                 if Arc::ptr_eq(&target_layer, layer) {
                     return false;
@@ -206,7 +197,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for CoffmanGrahamLayerer {
 
         let graph_ref = nodes
             .first()
-            .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.graph()))
+            .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.graph()))
             .unwrap_or_default();
 
         let bound = graph
@@ -217,8 +208,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for CoffmanGrahamLayerer {
         for (index, node) in nodes.iter().enumerate() {
             set_node_id(node, index as i32);
             let outgoing = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.outgoing_edges())
                 .unwrap_or_default();
             for edge in outgoing {
@@ -240,8 +230,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for CoffmanGrahamLayerer {
         let mut sources: Vec<LNodeRef> = Vec::new();
         for node in &nodes {
             let incoming = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.incoming_edges())
                 .unwrap_or_default();
             let node_index = node_id(node);
@@ -263,8 +252,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for CoffmanGrahamLayerer {
             topo_index += 1;
 
             let outgoing = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.outgoing_edges())
                 .unwrap_or_default();
             for edge in outgoing {
@@ -273,10 +261,9 @@ impl ILayoutPhase<LayeredPhases, LGraph> for CoffmanGrahamLayerer {
                     continue;
                 }
                 let target = edge
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|edge_guard| edge_guard.target())
-                    .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                    .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
                 let Some(target) = target else {
                     continue;
                 };
@@ -292,8 +279,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for CoffmanGrahamLayerer {
         let mut sinks: Vec<LNodeRef> = Vec::new();
         for node in &nodes {
             let outgoing = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.outgoing_edges())
                 .unwrap_or_default();
             let node_index = node_id(node);
@@ -322,8 +308,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for CoffmanGrahamLayerer {
             LNode::set_layer(&node, Some(current_layer.clone()));
 
             let incoming = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.incoming_edges())
                 .unwrap_or_default();
             for edge in incoming {
@@ -332,10 +317,9 @@ impl ILayoutPhase<LayeredPhases, LGraph> for CoffmanGrahamLayerer {
                     continue;
                 }
                 let source = edge
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|edge_guard| edge_guard.source())
-                    .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                    .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
                 let Some(source) = source else {
                     continue;
                 };
@@ -379,27 +363,25 @@ fn pop_best_by<T>(items: &mut Vec<T>, cmp: impl Fn(&T, &T) -> Ordering) -> Optio
 }
 
 fn node_id(node: &LNodeRef) -> usize {
-    node.lock()
-        .ok()
+    node.lock_ok()
         .map(|mut node_guard| node_guard.shape().graph_element().id as usize)
         .unwrap_or(0)
 }
 
 fn set_node_id(node: &LNodeRef, value: i32) {
-    if let Ok(mut node_guard) = node.lock() {
+    if let Some(mut node_guard) = node.lock_ok() {
         node_guard.shape().graph_element().id = value;
     }
 }
 
 fn edge_id(edge: &LEdgeRef) -> usize {
-    edge.lock()
-        .ok()
+    edge.lock_ok()
         .map(|mut edge_guard| edge_guard.graph_element().id as usize)
         .unwrap_or(0)
 }
 
 fn set_edge_id(edge: &LEdgeRef, value: i32) {
-    if let Ok(mut edge_guard) = edge.lock() {
+    if let Some(mut edge_guard) = edge.lock_ok() {
         edge_guard.graph_element().id = value;
     }
 }

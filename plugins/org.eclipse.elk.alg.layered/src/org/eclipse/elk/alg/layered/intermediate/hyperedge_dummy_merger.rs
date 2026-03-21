@@ -23,7 +23,7 @@ impl ILayoutProcessor<LGraph> for HyperedgeDummyMerger {
             let mut node_index = 1usize;
             loop {
                 let pair = {
-                    let Ok(layer_guard) = layer.lock() else {
+                    let Some(layer_guard) = layer.lock_ok() else {
                         break;
                     };
                     if node_index >= layer_guard.nodes().len() {
@@ -65,8 +65,7 @@ struct MergeState {
 }
 
 fn is_long_edge_dummy(node: &LNodeRef) -> bool {
-    node.lock()
-        .ok()
+    node.lock_ok()
         .map(|node_guard| node_guard.node_type() == NodeType::LongEdge)
         .unwrap_or(false)
 }
@@ -81,35 +80,29 @@ fn check_merge_allowed(
     hyperedge_ids: &FxHashMap<usize, i32>,
 ) -> MergeState {
     let curr_has_label_dummies = curr_node
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|mut node_guard| {
             node_guard.get_property(InternalProperties::LONG_EDGE_HAS_LABEL_DUMMIES)
         })
         .unwrap_or(false);
     let last_has_label_dummies = last_node
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|mut node_guard| {
             node_guard.get_property(InternalProperties::LONG_EDGE_HAS_LABEL_DUMMIES)
         })
         .unwrap_or(false);
 
     let curr_source = curr_node
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|mut node_guard| node_guard.get_property(InternalProperties::LONG_EDGE_SOURCE));
     let last_source = last_node
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|mut node_guard| node_guard.get_property(InternalProperties::LONG_EDGE_SOURCE));
     let curr_target = curr_node
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|mut node_guard| node_guard.get_property(InternalProperties::LONG_EDGE_TARGET));
     let last_target = last_node
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|mut node_guard| node_guard.get_property(InternalProperties::LONG_EDGE_TARGET));
 
     let same_source = match (curr_source.as_ref(), last_source.as_ref()) {
@@ -123,12 +116,10 @@ fn check_merge_allowed(
 
     if !curr_has_label_dummies && !last_has_label_dummies {
         let curr_first_port = curr_node
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|node_guard| node_guard.ports().first().cloned());
         let last_first_port = last_node
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|node_guard| node_guard.ports().first().cloned());
 
         let allow_merge = match (curr_first_port, last_first_port) {
@@ -148,15 +139,13 @@ fn check_merge_allowed(
     }
 
     let curr_before_label_dummy = curr_node
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|mut node_guard| {
             node_guard.get_property(InternalProperties::LONG_EDGE_BEFORE_LABEL_DUMMY)
         })
         .unwrap_or(false);
     let last_before_label_dummy = last_node
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|mut node_guard| {
             node_guard.get_property(InternalProperties::LONG_EDGE_BEFORE_LABEL_DUMMY)
         })
@@ -182,12 +171,10 @@ fn merge_nodes(
     keep_target_port: bool,
 ) {
     let merge_target_input_port = merge_target
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|node_guard| node_guard.ports_by_side(PortSide::West).first().cloned());
     let merge_target_output_port = merge_target
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|node_guard| node_guard.ports_by_side(PortSide::East).first().cloned());
     let (Some(merge_target_input_port), Some(merge_target_output_port)) =
         (merge_target_input_port, merge_target_output_port)
@@ -196,16 +183,14 @@ fn merge_nodes(
     };
 
     let ports = merge_source
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|node_guard| node_guard.ports().clone())
         .unwrap_or_default();
 
     for port in ports {
         loop {
             let edge = port
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|port_guard| port_guard.incoming_edges().first().cloned());
             let Some(edge) = edge else {
                 break;
@@ -215,8 +200,7 @@ fn merge_nodes(
 
         loop {
             let edge = port
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|port_guard| port_guard.outgoing_edges().first().cloned());
             let Some(edge) = edge else {
                 break;
@@ -226,12 +210,12 @@ fn merge_nodes(
     }
 
     if !keep_source_port {
-        if let Ok(mut target_guard) = merge_target.lock() {
+        if let Some(mut target_guard) = merge_target.lock_ok() {
             target_guard.set_property(InternalProperties::LONG_EDGE_SOURCE, None::<LPortRef>);
         }
     }
     if !keep_target_port {
-        if let Ok(mut target_guard) = merge_target.lock() {
+        if let Some(mut target_guard) = merge_target.lock_ok() {
             target_guard.set_property(InternalProperties::LONG_EDGE_TARGET, None::<LPortRef>);
         }
     }
@@ -241,15 +225,13 @@ fn identify_hyperedges(layered_graph: &LGraph) -> FxHashMap<usize, i32> {
     let mut ports: Vec<LPortRef> = Vec::new();
     for layer in layered_graph.layers() {
         let layer_ports = layer
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|layer_guard| {
                 layer_guard
                     .nodes()
                     .iter()
                     .flat_map(|node| {
-                        node.lock()
-                            .ok()
+                        node.lock_ok()
                             .map(|node_guard| node_guard.ports().clone())
                             .unwrap_or_default()
                     })
@@ -285,8 +267,7 @@ fn mark_hyperedge_component(
         component_ids.insert(key, component_id);
 
         let connected_ports = port
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|port_guard| port_guard.connected_ports())
             .unwrap_or_default();
         for connected in connected_ports {
@@ -296,11 +277,10 @@ fn mark_hyperedge_component(
         }
 
         let (is_long_edge, node_ports) = port
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|port_guard| port_guard.node())
             .and_then(|node| {
-                node.lock().ok().map(|node_guard| {
+                node.lock_ok().map(|node_guard| {
                     (
                         node_guard.node_type() == NodeType::LongEdge,
                         node_guard.ports().clone(),

@@ -120,13 +120,13 @@ impl IGraphLayoutEngine for OverlapRemovalLayoutProvider {
             )
             .unwrap_or(true)
             {
-                if let Ok(mut guard) = overlap_edges.lock() {
+                if let Some(mut guard) = overlap_edges.lock_ok() {
                     guard.clear();
                 }
                 let handler_edges = overlap_edges.clone();
                 let handler = move |n1: &org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::spore::node::Node,
                                     n2: &org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::spore::node::Node| {
-                    if let Ok(mut guard) = handler_edges.lock() {
+                    if let Some(mut guard) = handler_edges.lock_ok() {
                         guard.insert(TEdge::new(n1.original_vertex, n2.original_vertex));
                     }
                 };
@@ -135,7 +135,7 @@ impl IGraphLayoutEngine for OverlapRemovalLayoutProvider {
                 scanline.sweep(&graph.vertices);
 
                 let edges = overlap_edges
-                    .lock()
+                    .lock_ok()
                     .map(|guard| guard.clone())
                     .unwrap_or_default();
                 if edges.is_empty() {
@@ -170,7 +170,7 @@ impl IGraphLayoutEngine for OverlapRemovalLayoutProvider {
                 if progress_monitor.is_canceled() {
                     return;
                 }
-                if let Ok(mut processor_guard) = processor.lock() {
+                if let Some(mut processor_guard) = processor.lock_ok() {
                     let mut sub = progress_monitor.sub_task(step);
                     processor_guard.process(&mut graph, sub.as_mut());
                 }

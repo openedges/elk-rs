@@ -39,11 +39,10 @@ impl LGraphAdapters {
         // Collect nodes from layers only (Java: "We completely ignore layerless nodes here")
         let mut node_adapters: Vec<LNodeAdapter> = Vec::new();
         for layer in graph.layers().clone() {
-            if let Ok(layer_guard) = layer.lock() {
+            if let Some(layer_guard) = layer.lock_ok() {
                 for node in layer_guard.nodes() {
                     let passes_filter = node
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .map(|node_guard| node_filter(&node_guard))
                         .unwrap_or(false);
                     if passes_filter {
@@ -55,7 +54,7 @@ impl LGraphAdapters {
 
                         if transparent_comment_nodes {
                             // Include TOP_COMMENTS
-                            if let Ok(mut node_guard) = node.lock() {
+                            if let Some(mut node_guard) = node.lock_ok() {
                                 if node_guard
                                     .shape()
                                     .graph_element()
@@ -75,7 +74,7 @@ impl LGraphAdapters {
                             }
 
                             // Include BOTTOM_COMMENTS
-                            if let Ok(mut node_guard) = node.lock() {
+                            if let Some(mut node_guard) = node.lock_ok() {
                                 if node_guard
                                     .shape()
                                     .graph_element()
@@ -196,7 +195,7 @@ impl LNodeAdapter {
 
 impl GraphElementAdapter<LNodeRef> for LNodeAdapter {
     fn get_size(&self) -> KVector {
-        if let Ok(mut node) = self.node.lock() {
+        if let Some(mut node) = self.node.lock_ok() {
             *node.shape().size_ref()
         } else {
             KVector::new()
@@ -204,7 +203,7 @@ impl GraphElementAdapter<LNodeRef> for LNodeAdapter {
     }
 
     fn set_size(&self, size: KVector) {
-        if let Ok(mut node) = self.node.lock() {
+        if let Some(mut node) = self.node.lock_ok() {
             let s = node.shape().size();
             s.x = size.x;
             s.y = size.y;
@@ -212,7 +211,7 @@ impl GraphElementAdapter<LNodeRef> for LNodeAdapter {
     }
 
     fn get_position(&self) -> KVector {
-        if let Ok(mut node) = self.node.lock() {
+        if let Some(mut node) = self.node.lock_ok() {
             *node.shape().position_ref()
         } else {
             KVector::new()
@@ -220,7 +219,7 @@ impl GraphElementAdapter<LNodeRef> for LNodeAdapter {
     }
 
     fn set_position(&self, pos: KVector) {
-        if let Ok(mut node) = self.node.lock() {
+        if let Some(mut node) = self.node.lock_ok() {
             let p = node.shape().position();
             p.x = pos.x;
             p.y = pos.y;
@@ -228,7 +227,7 @@ impl GraphElementAdapter<LNodeRef> for LNodeAdapter {
     }
 
     fn get_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> Option<P> {
-        if let Ok(mut node) = self.node.lock() {
+        if let Some(mut node) = self.node.lock_ok() {
             node.get_property(prop)
         } else {
             None
@@ -236,7 +235,7 @@ impl GraphElementAdapter<LNodeRef> for LNodeAdapter {
     }
 
     fn has_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> bool {
-        if let Ok(mut node) = self.node.lock() {
+        if let Some(mut node) = self.node.lock_ok() {
             node.shape().graph_element().properties().has_property(prop)
         } else {
             false
@@ -270,7 +269,7 @@ impl NodeAdapter<LNodeRef> for LNodeAdapter {
     }
 
     fn get_labels(&self) -> Vec<Self::LabelAdapter> {
-        if let Ok(node) = self.node.lock() {
+        if let Some(node) = self.node.lock_ok() {
             node.labels()
                 .iter()
                 .map(|l| LLabelAdapter::new(l.clone()))
@@ -281,7 +280,7 @@ impl NodeAdapter<LNodeRef> for LNodeAdapter {
     }
 
     fn get_ports(&self) -> Vec<Self::PortAdapter> {
-        if let Ok(node) = self.node.lock() {
+        if let Some(node) = self.node.lock_ok() {
             node.ports()
                 .iter()
                 .map(|p| LPortAdapter::new(p.clone(), self.transparent_north_south_edges))
@@ -302,25 +301,23 @@ impl NodeAdapter<LNodeRef> for LNodeAdapter {
     }
 
     fn sort_port_list(&self) {
-        if let Ok(mut node) = self.node.lock() {
+        if let Some(mut node) = self.node.lock_ok() {
             let constraints = node
                 .get_property(CoreOptions::PORT_CONSTRAINTS)
                 .unwrap_or(PortConstraints::Undefined);
             if constraints.is_order_fixed() {
                 node.ports_mut().sort_by(|a, b| {
-                    let side_a = a.lock().map(|p| p.side()).unwrap_or(PortSide::Undefined);
-                    let side_b = b.lock().map(|p| p.side()).unwrap_or(PortSide::Undefined);
+                    let side_a = a.lock_ok().map(|p| p.side()).unwrap_or(PortSide::Undefined);
+                    let side_b = b.lock_ok().map(|p| p.side()).unwrap_or(PortSide::Undefined);
                     let side_cmp = (side_a as i32).cmp(&(side_b as i32));
                     if side_cmp != Ordering::Equal {
                         return side_cmp;
                     }
                     let idx_a = a
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .and_then(|mut p| p.get_property(CoreOptions::PORT_INDEX));
                     let idx_b = b
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .and_then(|mut p| p.get_property(CoreOptions::PORT_INDEX));
                     if let (Some(ia), Some(ib)) = (idx_a, idx_b) {
                         let idx_cmp = ia.cmp(&ib);
@@ -332,44 +329,44 @@ impl NodeAdapter<LNodeRef> for LNodeAdapter {
                     match side_a {
                         PortSide::North => {
                             let x_a = a
-                                .lock()
+                                .lock_ok()
                                 .map(|mut p| p.shape().position_ref().x)
                                 .unwrap_or(0.0);
                             let x_b = b
-                                .lock()
+                                .lock_ok()
                                 .map(|mut p| p.shape().position_ref().x)
                                 .unwrap_or(0.0);
                             x_a.partial_cmp(&x_b).unwrap_or(Ordering::Equal)
                         }
                         PortSide::East => {
                             let y_a = a
-                                .lock()
+                                .lock_ok()
                                 .map(|mut p| p.shape().position_ref().y)
                                 .unwrap_or(0.0);
                             let y_b = b
-                                .lock()
+                                .lock_ok()
                                 .map(|mut p| p.shape().position_ref().y)
                                 .unwrap_or(0.0);
                             y_a.partial_cmp(&y_b).unwrap_or(Ordering::Equal)
                         }
                         PortSide::South => {
                             let x_a = a
-                                .lock()
+                                .lock_ok()
                                 .map(|mut p| p.shape().position_ref().x)
                                 .unwrap_or(0.0);
                             let x_b = b
-                                .lock()
+                                .lock_ok()
                                 .map(|mut p| p.shape().position_ref().x)
                                 .unwrap_or(0.0);
                             x_b.partial_cmp(&x_a).unwrap_or(Ordering::Equal)
                         }
                         PortSide::West => {
                             let y_a = a
-                                .lock()
+                                .lock_ok()
                                 .map(|mut p| p.shape().position_ref().y)
                                 .unwrap_or(0.0);
                             let y_b = b
-                                .lock()
+                                .lock_ok()
                                 .map(|mut p| p.shape().position_ref().y)
                                 .unwrap_or(0.0);
                             y_b.partial_cmp(&y_a).unwrap_or(Ordering::Equal)
@@ -385,7 +382,7 @@ impl NodeAdapter<LNodeRef> for LNodeAdapter {
     where
         F: FnMut(&Self::Port, &Self::Port) -> Ordering,
     {
-        if let Ok(mut node) = self.node.lock() {
+        if let Some(mut node) = self.node.lock_ok() {
             let constraints = node
                 .get_property(CoreOptions::PORT_CONSTRAINTS)
                 .unwrap_or(PortConstraints::Undefined);
@@ -396,7 +393,7 @@ impl NodeAdapter<LNodeRef> for LNodeAdapter {
     }
 
     fn is_compound_node(&self) -> bool {
-        if let Ok(mut node) = self.node.lock() {
+        if let Some(mut node) = self.node.lock_ok() {
             // Java only checks COMPOUND_NODE property
             node.get_property(InternalProperties::COMPOUND_NODE)
                 .unwrap_or(false)
@@ -406,7 +403,7 @@ impl NodeAdapter<LNodeRef> for LNodeAdapter {
     }
 
     fn get_padding(&self) -> ElkPadding {
-        if let Ok(mut node) = self.node.lock() {
+        if let Some(mut node) = self.node.lock_ok() {
             let p = node.padding();
             ElkPadding::with_values(p.top, p.right, p.bottom, p.left)
         } else {
@@ -415,7 +412,7 @@ impl NodeAdapter<LNodeRef> for LNodeAdapter {
     }
 
     fn set_padding(&self, padding: ElkPadding) {
-        if let Ok(mut node) = self.node.lock() {
+        if let Some(mut node) = self.node.lock_ok() {
             let p = node.padding();
             p.top = padding.top;
             p.right = padding.right;
@@ -425,7 +422,7 @@ impl NodeAdapter<LNodeRef> for LNodeAdapter {
     }
 
     fn get_margin(&self) -> ElkMargin {
-        if let Ok(mut node) = self.node.lock() {
+        if let Some(mut node) = self.node.lock_ok() {
             let m = node.margin();
             ElkMargin::with_values(m.top, m.right, m.bottom, m.left)
         } else {
@@ -434,7 +431,7 @@ impl NodeAdapter<LNodeRef> for LNodeAdapter {
     }
 
     fn set_margin(&self, margin: ElkMargin) {
-        if let Ok(mut node) = self.node.lock() {
+        if let Some(mut node) = self.node.lock_ok() {
             let m = node.margin();
             m.top = margin.top;
             m.right = margin.right;
@@ -464,7 +461,7 @@ impl LPortAdapter {
 
 impl GraphElementAdapter<LPortRef> for LPortAdapter {
     fn get_size(&self) -> KVector {
-        if let Ok(mut port) = self.port.lock() {
+        if let Some(mut port) = self.port.lock_ok() {
             *port.shape().size_ref()
         } else {
             KVector::new()
@@ -472,7 +469,7 @@ impl GraphElementAdapter<LPortRef> for LPortAdapter {
     }
 
     fn set_size(&self, size: KVector) {
-        if let Ok(mut port) = self.port.lock() {
+        if let Some(mut port) = self.port.lock_ok() {
             let s = port.shape().size();
             s.x = size.x;
             s.y = size.y;
@@ -480,7 +477,7 @@ impl GraphElementAdapter<LPortRef> for LPortAdapter {
     }
 
     fn get_position(&self) -> KVector {
-        if let Ok(mut port) = self.port.lock() {
+        if let Some(mut port) = self.port.lock_ok() {
             *port.shape().position_ref()
         } else {
             KVector::new()
@@ -488,7 +485,7 @@ impl GraphElementAdapter<LPortRef> for LPortAdapter {
     }
 
     fn set_position(&self, pos: KVector) {
-        if let Ok(mut port) = self.port.lock() {
+        if let Some(mut port) = self.port.lock_ok() {
             let p = port.shape().position();
             p.x = pos.x;
             p.y = pos.y;
@@ -496,7 +493,7 @@ impl GraphElementAdapter<LPortRef> for LPortAdapter {
     }
 
     fn get_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> Option<P> {
-        if let Ok(mut port) = self.port.lock() {
+        if let Some(mut port) = self.port.lock_ok() {
             port.get_property(prop)
         } else {
             None
@@ -504,7 +501,7 @@ impl GraphElementAdapter<LPortRef> for LPortAdapter {
     }
 
     fn has_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> bool {
-        if let Ok(mut port) = self.port.lock() {
+        if let Some(mut port) = self.port.lock_ok() {
             port.shape().graph_element().properties().has_property(prop)
         } else {
             false
@@ -527,7 +524,7 @@ impl PortAdapter<LPortRef> for LPortAdapter {
     type EdgeAdapter = LEdgeAdapter;
 
     fn get_side(&self) -> PortSide {
-        if let Ok(port) = self.port.lock() {
+        if let Some(port) = self.port.lock_ok() {
             port.side()
         } else {
             PortSide::Undefined
@@ -535,7 +532,7 @@ impl PortAdapter<LPortRef> for LPortAdapter {
     }
 
     fn get_labels(&self) -> Vec<Self::LabelAdapter> {
-        if let Ok(port) = self.port.lock() {
+        if let Some(port) = self.port.lock_ok() {
             port.labels()
                 .iter()
                 .map(|l| LLabelAdapter::new(l.clone()))
@@ -546,7 +543,7 @@ impl PortAdapter<LPortRef> for LPortAdapter {
     }
 
     fn get_margin(&self) -> ElkMargin {
-        if let Ok(mut port) = self.port.lock() {
+        if let Some(mut port) = self.port.lock_ok() {
             let m = port.margin();
             ElkMargin::with_values(m.top, m.right, m.bottom, m.left)
         } else {
@@ -555,7 +552,7 @@ impl PortAdapter<LPortRef> for LPortAdapter {
     }
 
     fn set_margin(&self, margin: ElkMargin) {
-        if let Ok(mut port) = self.port.lock() {
+        if let Some(mut port) = self.port.lock_ok() {
             let m = port.margin();
             m.top = margin.top;
             m.right = margin.right;
@@ -569,12 +566,10 @@ impl PortAdapter<LPortRef> for LPortAdapter {
         if self.transparent_north_south_edges {
             let is_ns_port = self
                 .port
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|port| port.node())
                 .and_then(|node| {
-                    node.lock()
-                        .ok()
+                    node.lock_ok()
                         .map(|n| n.node_type() == NodeType::NorthSouthPort)
                 })
                 .unwrap_or(false);
@@ -586,7 +581,7 @@ impl PortAdapter<LPortRef> for LPortAdapter {
         let mut edges = Vec::new();
 
         // 1. Normal incoming edges
-        if let Ok(port) = self.port.lock() {
+        if let Some(port) = self.port.lock_ok() {
             for e in port.incoming_edges() {
                 edges.push(LEdgeAdapter::new(e.clone()));
             }
@@ -594,12 +589,12 @@ impl PortAdapter<LPortRef> for LPortAdapter {
 
         // 2. If transparent N/S edges, include edges from PORT_DUMMY
         if self.transparent_north_south_edges {
-            if let Ok(mut port) = self.port.lock() {
+            if let Some(mut port) = self.port.lock_ok() {
                 if let Some(port_dummy) = port.get_property(InternalProperties::PORT_DUMMY) {
                     // Get ALL incoming edges of the port dummy NODE (iterate all its ports)
-                    if let Ok(dummy_guard) = port_dummy.lock() {
+                    if let Some(dummy_guard) = port_dummy.lock_ok() {
                         for dummy_port in dummy_guard.ports() {
-                            if let Ok(dp) = dummy_port.lock() {
+                            if let Some(dp) = dummy_port.lock_ok() {
                                 for e in dp.incoming_edges() {
                                     edges.push(LEdgeAdapter::new(e.clone()));
                                 }
@@ -611,9 +606,9 @@ impl PortAdapter<LPortRef> for LPortAdapter {
         }
 
         // 3. Self-loop holder edges
-        let node = self.port.lock().ok().and_then(|port| port.node());
+        let node = self.port.lock_ok().and_then(|port| port.node());
         if let Some(node) = node {
-            if let Ok(mut node_guard) = node.lock() {
+            if let Some(mut node_guard) = node.lock_ok() {
                 if node_guard
                     .shape()
                     .graph_element()
@@ -623,13 +618,13 @@ impl PortAdapter<LPortRef> for LPortAdapter {
                     if let Some(holder) =
                         node_guard.get_property(InternalProperties::SELF_LOOP_HOLDER)
                     {
-                        if let Ok(holder_guard) = holder.lock() {
+                        if let Some(holder_guard) = holder.lock_ok() {
                             // Find the SelfLoopPort matching this port
                             for (lport_ref, sl_port_ref) in holder_guard.sl_port_map() {
                                 if Arc::ptr_eq(lport_ref, &self.port) {
-                                    if let Ok(sl_port) = sl_port_ref.lock() {
+                                    if let Some(sl_port) = sl_port_ref.lock_ok() {
                                         for sle in sl_port.incoming_sl_edges() {
-                                            if let Ok(sle_guard) = sle.lock() {
+                                            if let Some(sle_guard) = sle.lock_ok() {
                                                 edges.push(LEdgeAdapter::new(
                                                     sle_guard.l_edge().clone(),
                                                 ));
@@ -653,12 +648,10 @@ impl PortAdapter<LPortRef> for LPortAdapter {
         if self.transparent_north_south_edges {
             let is_ns_port = self
                 .port
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|port| port.node())
                 .and_then(|node| {
-                    node.lock()
-                        .ok()
+                    node.lock_ok()
                         .map(|n| n.node_type() == NodeType::NorthSouthPort)
                 })
                 .unwrap_or(false);
@@ -670,7 +663,7 @@ impl PortAdapter<LPortRef> for LPortAdapter {
         let mut edges = Vec::new();
 
         // 1. Normal outgoing edges
-        if let Ok(port) = self.port.lock() {
+        if let Some(port) = self.port.lock_ok() {
             for e in port.outgoing_edges() {
                 edges.push(LEdgeAdapter::new(e.clone()));
             }
@@ -678,12 +671,12 @@ impl PortAdapter<LPortRef> for LPortAdapter {
 
         // 2. If transparent N/S edges, include edges from PORT_DUMMY
         if self.transparent_north_south_edges {
-            if let Ok(mut port) = self.port.lock() {
+            if let Some(mut port) = self.port.lock_ok() {
                 if let Some(port_dummy) = port.get_property(InternalProperties::PORT_DUMMY) {
                     // Get ALL outgoing edges of the port dummy NODE (iterate all its ports)
-                    if let Ok(dummy_guard) = port_dummy.lock() {
+                    if let Some(dummy_guard) = port_dummy.lock_ok() {
                         for dummy_port in dummy_guard.ports() {
-                            if let Ok(dp) = dummy_port.lock() {
+                            if let Some(dp) = dummy_port.lock_ok() {
                                 for e in dp.outgoing_edges() {
                                     edges.push(LEdgeAdapter::new(e.clone()));
                                 }
@@ -695,9 +688,9 @@ impl PortAdapter<LPortRef> for LPortAdapter {
         }
 
         // 3. Self-loop holder edges
-        let node = self.port.lock().ok().and_then(|port| port.node());
+        let node = self.port.lock_ok().and_then(|port| port.node());
         if let Some(node) = node {
-            if let Ok(mut node_guard) = node.lock() {
+            if let Some(mut node_guard) = node.lock_ok() {
                 if node_guard
                     .shape()
                     .graph_element()
@@ -707,12 +700,12 @@ impl PortAdapter<LPortRef> for LPortAdapter {
                     if let Some(holder) =
                         node_guard.get_property(InternalProperties::SELF_LOOP_HOLDER)
                     {
-                        if let Ok(holder_guard) = holder.lock() {
+                        if let Some(holder_guard) = holder.lock_ok() {
                             for (lport_ref, sl_port_ref) in holder_guard.sl_port_map() {
                                 if Arc::ptr_eq(lport_ref, &self.port) {
-                                    if let Ok(sl_port) = sl_port_ref.lock() {
+                                    if let Some(sl_port) = sl_port_ref.lock_ok() {
                                         for sle in sl_port.outgoing_sl_edges() {
-                                            if let Ok(sle_guard) = sle.lock() {
+                                            if let Some(sle_guard) = sle.lock_ok() {
                                                 edges.push(LEdgeAdapter::new(
                                                     sle_guard.l_edge().clone(),
                                                 ));
@@ -734,7 +727,7 @@ impl PortAdapter<LPortRef> for LPortAdapter {
     fn has_compound_connections(&self) -> bool {
         // In the layered algorithm, compound connections are determined by the INSIDE_CONNECTIONS
         // property which is set during graph import.
-        if let Ok(mut port) = self.port.lock() {
+        if let Some(mut port) = self.port.lock_ok() {
             port.get_property(InternalProperties::INSIDE_CONNECTIONS)
                 .unwrap_or(false)
         } else {
@@ -761,7 +754,7 @@ impl LLabelAdapter {
 
 impl GraphElementAdapter<LLabelRef> for LLabelAdapter {
     fn get_size(&self) -> KVector {
-        if let Ok(mut label) = self.label.lock() {
+        if let Some(mut label) = self.label.lock_ok() {
             *label.shape().size_ref()
         } else {
             KVector::new()
@@ -769,7 +762,7 @@ impl GraphElementAdapter<LLabelRef> for LLabelAdapter {
     }
 
     fn set_size(&self, size: KVector) {
-        if let Ok(mut label) = self.label.lock() {
+        if let Some(mut label) = self.label.lock_ok() {
             let s = label.shape().size();
             s.x = size.x;
             s.y = size.y;
@@ -777,7 +770,7 @@ impl GraphElementAdapter<LLabelRef> for LLabelAdapter {
     }
 
     fn get_position(&self) -> KVector {
-        if let Ok(mut label) = self.label.lock() {
+        if let Some(mut label) = self.label.lock_ok() {
             *label.shape().position_ref()
         } else {
             KVector::new()
@@ -785,7 +778,7 @@ impl GraphElementAdapter<LLabelRef> for LLabelAdapter {
     }
 
     fn set_position(&self, pos: KVector) {
-        if let Ok(mut label) = self.label.lock() {
+        if let Some(mut label) = self.label.lock_ok() {
             let p = label.shape().position();
             p.x = pos.x;
             p.y = pos.y;
@@ -793,7 +786,7 @@ impl GraphElementAdapter<LLabelRef> for LLabelAdapter {
     }
 
     fn get_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> Option<P> {
-        if let Ok(mut label) = self.label.lock() {
+        if let Some(mut label) = self.label.lock_ok() {
             label.get_property(prop)
         } else {
             None
@@ -801,7 +794,7 @@ impl GraphElementAdapter<LLabelRef> for LLabelAdapter {
     }
 
     fn has_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> bool {
-        if let Ok(mut label) = self.label.lock() {
+        if let Some(mut label) = self.label.lock_ok() {
             label
                 .shape()
                 .graph_element()
@@ -823,7 +816,7 @@ impl GraphElementAdapter<LLabelRef> for LLabelAdapter {
 
 impl LabelAdapter<LLabelRef> for LLabelAdapter {
     fn get_side(&self) -> LabelSide {
-        if let Ok(mut label) = self.label.lock() {
+        if let Some(mut label) = self.label.lock_ok() {
             label
                 .get_property(LabelSide::LABEL_SIDE)
                 .unwrap_or(LabelSide::Unknown)
@@ -833,7 +826,7 @@ impl LabelAdapter<LLabelRef> for LLabelAdapter {
     }
 
     fn get_text(&self) -> String {
-        if let Ok(label) = self.label.lock() {
+        if let Some(label) = self.label.lock_ok() {
             label.text().to_string()
         } else {
             String::new()
@@ -858,7 +851,7 @@ impl EdgeAdapter<LEdgeRef> for LEdgeAdapter {
     type LabelAdapter = LLabelAdapter;
 
     fn get_labels(&self) -> Vec<Self::LabelAdapter> {
-        if let Ok(edge) = self.edge.lock() {
+        if let Some(edge) = self.edge.lock_ok() {
             edge.labels()
                 .iter()
                 .map(|l| LLabelAdapter::new(l.clone()))

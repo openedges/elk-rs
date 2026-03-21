@@ -80,37 +80,33 @@ fn trace_edge_wiring(graph: &LGraph, stage: &str) {
         let current_layer = layers[layer_index].clone();
         let next_layer = layers[layer_index + 1].clone();
         let nodes = current_layer
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|layer_guard| layer_guard.nodes().clone())
             .unwrap_or_default();
 
         for node in nodes {
             let ports = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.ports().clone())
                 .unwrap_or_default();
 
             for source_port in ports {
                 let outgoing = source_port
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|port_guard| port_guard.outgoing_edges().clone())
                     .unwrap_or_default();
 
                 for edge in outgoing {
-                    let target_port = edge.lock().ok().and_then(|edge_guard| edge_guard.target());
+                    let target_port = edge.lock_ok().and_then(|edge_guard| edge_guard.target());
                     let Some(target_port) = target_port else {
                         continue;
                     };
 
                     let target_layer = target_port
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .and_then(|port_guard| port_guard.node())
                         .and_then(|node| {
-                            node.lock().ok().and_then(|node_guard| node_guard.layer())
+                            node.lock_ok().and_then(|node_guard| node_guard.layer())
                         });
                     let Some(target_layer) = target_layer else {
                         continue;
@@ -121,13 +117,11 @@ fn trace_edge_wiring(graph: &LGraph, stage: &str) {
                     }
 
                     let source_desc = source_port
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .map(|mut port_guard| port_guard.to_string())
                         .unwrap_or_else(|| "<poisoned-source-port>".to_owned());
                     let target_desc = target_port
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .map(|mut port_guard| port_guard.to_string())
                         .unwrap_or_else(|| "<poisoned-target-port>".to_owned());
 
@@ -158,7 +152,7 @@ fn trace_node_positions(graph: &LGraph, stage: &str) {
         .map(|node| (None, 0, node))
         .collect();
     for (layer_idx, layer) in graph.layers().iter().enumerate() {
-        if let Ok(layer_guard) = layer.lock() {
+        if let Some(layer_guard) = layer.lock_ok() {
             nodes.extend(
                 layer_guard
                     .nodes()
@@ -181,9 +175,9 @@ fn trace_node_positions(graph: &LGraph, stage: &str) {
             label_opt,
             has_in_layer_unit,
         ) = {
-            let mut node_guard = match node.lock() {
-                Ok(guard) => guard,
-                Err(_) => continue,
+            let mut node_guard = match node.lock_ok() {
+            Some(guard) => guard,
+            None => continue,
             };
             let designation = node_guard.designation();
             let node_id = node_guard.shape().graph_element().id;
@@ -197,8 +191,7 @@ fn trace_node_positions(graph: &LGraph, stage: &str) {
                 .is_some();
             let label_opt = node_guard.labels().first().and_then(|label| {
                 label
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|label_guard| label_guard.text().to_string())
             });
             (
@@ -406,12 +399,12 @@ impl ElkLayered {
 
         let mut pre_monitor = monitor.sub_task(1.0);
         trace_step("compound layout: preprocessor start");
-        if let Ok(graph_guard) = lgraph.lock() {
+        if let Some(graph_guard) = lgraph.lock_ok() {
             self.notify_processor_ready_with_graph(&graph_guard, &self.compound_graph_preprocessor);
         }
         self.compound_graph_preprocessor
             .process_with_ref(lgraph, pre_monitor.as_mut());
-        if let Ok(graph_guard) = lgraph.lock() {
+        if let Some(graph_guard) = lgraph.lock_ok() {
             self.notify_processor_finished_with_graph(
                 &graph_guard,
                 &self.compound_graph_preprocessor,
@@ -427,7 +420,7 @@ impl ElkLayered {
 
         let mut post_monitor = monitor.sub_task(1.0);
         trace_step("compound layout: postprocessor start");
-        if let Ok(graph_guard) = lgraph.lock() {
+        if let Some(graph_guard) = lgraph.lock_ok() {
             self.notify_processor_ready_with_graph(
                 &graph_guard,
                 &self.compound_graph_postprocessor,
@@ -435,7 +428,7 @@ impl ElkLayered {
         }
         self.compound_graph_postprocessor
             .process_with_ref(lgraph, post_monitor.as_mut());
-        if let Ok(graph_guard) = lgraph.lock() {
+        if let Some(graph_guard) = lgraph.lock_ok() {
             self.notify_processor_finished_with_graph(
                 &graph_guard,
                 &self.compound_graph_postprocessor,
@@ -477,8 +470,7 @@ impl ElkLayered {
         let mut phase_index = state.step;
         while phase_index < processors.len() {
             let matches = processors[phase_index]
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|proc_guard| proc_guard.as_ref().type_id() == target_id)
                 .unwrap_or(false);
             if matches {
@@ -538,8 +530,7 @@ impl ElkLayered {
         for graph in &graphs {
             self.graph_configurator.prepare_graph_for_layout(graph);
             let processors = graph
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|mut guard| guard.get_property(InternalProperties::PROCESSORS))
                 .unwrap_or_default();
             total_work += processors.len() as f32;
@@ -561,8 +552,7 @@ impl ElkLayered {
             .position(|entry| {
                 entry
                     .graph
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|graph_guard| graph_guard.parent_node())
                     .is_none()
             })
@@ -580,15 +570,13 @@ impl ElkLayered {
 
                         let graph = entry.graph.clone();
                         let is_root = graph
-                            .lock()
-                            .ok()
+                            .lock_ok()
                             .and_then(|graph_guard| graph_guard.parent_node())
                             .is_none();
                         let processor = entry.processors[entry.index].clone();
                         entry.index += 1;
                         let hierarchy_aware = processor
-                            .lock()
-                            .ok()
+                            .lock_ok()
                             .map(|processor_guard| processor_guard.is_hierarchy_aware())
                             .unwrap_or(false);
                         (graph, processor, is_root, hierarchy_aware)
@@ -625,14 +613,12 @@ impl ElkLayered {
 
         while let Some(graph) = continue_searching.pop_front() {
             let nodes = graph
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|guard| guard.layerless_nodes().clone())
                 .unwrap_or_default();
             for node in nodes {
                 if let Some(nested) = node
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|node_guard| node_guard.nested_graph())
                 {
                     collected.push_front(nested.clone());
@@ -646,9 +632,9 @@ impl ElkLayered {
 
     fn layout_component(&mut self, lgraph: &LGraphRef, monitor: &mut dyn IElkProgressMonitor) {
         let processors = {
-            let mut graph_guard = match lgraph.lock() {
-                Ok(guard) => guard,
-                Err(_) => return,
+            let mut graph_guard = match lgraph.lock_ok() {
+            Some(guard) => guard,
+            None => return,
             };
             graph_guard
                 .get_property(InternalProperties::PROCESSORS)
@@ -677,8 +663,8 @@ impl ElkLayered {
         processor: &SharedProcessor<LGraph>,
         monitor: &mut dyn IElkProgressMonitor,
     ) {
-        if let Ok(mut graph_guard) = lgraph.lock() {
-            if let Ok(mut proc_guard) = processor.lock() {
+        if let Some(mut graph_guard) = lgraph.lock_ok() {
+            if let Some(mut proc_guard) = processor.lock_ok() {
                 let proc_name = proc_guard.type_name();
                 let is_root = graph_guard.parent_node().is_none();
                 if *TRACE_CROSSMIN {
@@ -715,8 +701,8 @@ impl ElkLayered {
 
     fn layout_test(&mut self, graphs: &[LGraphRef], processor: &SharedProcessor<LGraph>) {
         for graph in graphs {
-            if let Ok(mut graph_guard) = graph.lock() {
-                if let Ok(mut proc_guard) = processor.lock() {
+            if let Some(mut graph_guard) = graph.lock_ok() {
+                if let Some(mut proc_guard) = processor.lock_ok() {
                     let mut monitor = BasicProgressMonitor::new();
                     proc_guard.process(&mut *graph_guard, &mut monitor);
                 }
@@ -729,7 +715,7 @@ impl ElkLayered {
         state: &TestExecutionState,
     ) -> Option<Vec<SharedProcessor<LGraph>>> {
         let graph = state.graphs.first()?.clone();
-        let mut graph_guard = graph.lock().ok()?;
+        let mut graph_guard = graph.lock_ok()?;
         Some(
             graph_guard
                 .get_property(InternalProperties::PROCESSORS)
@@ -739,9 +725,9 @@ impl ElkLayered {
 
     fn review_and_correct_hierarchical_processors(&self, root: &LGraphRef, graphs: &[LGraphRef]) {
         let (root_crossing_minimization, root_greedy_switch_type) = {
-            let mut root_guard = match root.lock() {
-                Ok(guard) => guard,
-                Err(_) => return,
+            let mut root_guard = match root.lock_ok() {
+            Some(guard) => guard,
+            None => return,
             };
             (
                 root_guard
@@ -756,7 +742,7 @@ impl ElkLayered {
         };
 
         for graph in graphs {
-            if let Ok(mut graph_guard) = graph.lock() {
+            if let Some(mut graph_guard) = graph.lock_ok() {
                 let child_crossing_minimization = graph_guard
                     .get_property(LayeredOptions::CROSSING_MINIMIZATION_STRATEGY)
                     .unwrap_or(CrossingMinimizationStrategy::LayerSweep);
@@ -819,9 +805,9 @@ impl ElkLayered {
 
     fn resize_graph(&self, lgraph: &LGraphRef) {
         let (size_constraints, size_options, min_size, fixed_graph_size, calculated_size) = {
-            let mut graph_guard = match lgraph.lock() {
-                Ok(guard) => guard,
-                Err(_) => return,
+            let mut graph_guard = match lgraph.lock_ok() {
+            Some(guard) => guard,
+            None => return,
             };
             let size_constraints = graph_guard
                 .get_property(LayeredOptions::NODE_SIZE_CONSTRAINTS)
@@ -861,10 +847,10 @@ impl ElkLayered {
         }
 
         if *TRACE_RESIZE {
-            if let Ok(graph_guard) = lgraph.lock() {
+            if let Some(graph_guard) = lgraph.lock_ok() {
                 let parent_id = graph_guard
                     .parent_node()
-                    .and_then(|node| node.lock().ok().map(|mut n| n.shape().graph_element().id))
+                    .and_then(|node| node.lock_ok().map(|mut n| n.shape().graph_element().id))
                     .unwrap_or(-1);
                 let size = *graph_guard.size_ref();
                 let padding = graph_guard.padding_ref().clone();
@@ -900,9 +886,9 @@ impl ElkLayered {
 
     fn resize_graph_no_really(&self, lgraph: &LGraphRef, old_size: KVector, new_size: KVector) {
         let (content_alignment, graph_properties) = {
-            let mut graph_guard = match lgraph.lock() {
-                Ok(guard) => guard,
-                Err(_) => return,
+            let mut graph_guard = match lgraph.lock_ok() {
+            Some(guard) => guard,
+            None => return,
             };
             let content_alignment = graph_guard
                 .get_property(CoreOptions::CONTENT_ALIGNMENT)
@@ -915,11 +901,11 @@ impl ElkLayered {
 
         if new_size.x > old_size.x {
             if content_alignment.contains(&ContentAlignment::HCenter) {
-                if let Ok(mut graph_guard) = lgraph.lock() {
+                if let Some(mut graph_guard) = lgraph.lock_ok() {
                     graph_guard.offset().x += (new_size.x - old_size.x) / 2.0;
                 }
             } else if content_alignment.contains(&ContentAlignment::HRight) {
-                if let Ok(mut graph_guard) = lgraph.lock() {
+                if let Some(mut graph_guard) = lgraph.lock_ok() {
                     graph_guard.offset().x += new_size.x - old_size.x;
                 }
             }
@@ -927,11 +913,11 @@ impl ElkLayered {
 
         if new_size.y > old_size.y {
             if content_alignment.contains(&ContentAlignment::VCenter) {
-                if let Ok(mut graph_guard) = lgraph.lock() {
+                if let Some(mut graph_guard) = lgraph.lock_ok() {
                     graph_guard.offset().y += (new_size.y - old_size.y) / 2.0;
                 }
             } else if content_alignment.contains(&ContentAlignment::VBottom) {
-                if let Ok(mut graph_guard) = lgraph.lock() {
+                if let Some(mut graph_guard) = lgraph.lock_ok() {
                     graph_guard.offset().y += new_size.y - old_size.y;
                 }
             }
@@ -941,14 +927,13 @@ impl ElkLayered {
             && (new_size.x > old_size.x || new_size.y > old_size.y)
         {
             let nodes = lgraph
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|guard| guard.layerless_nodes().clone())
                 .unwrap_or_default();
             for node in nodes {
-                let mut node_guard = match node.lock() {
-                    Ok(guard) => guard,
-                    Err(_) => continue,
+                let mut node_guard = match node.lock_ok() {
+            Some(guard) => guard,
+            None => continue,
                 };
                 if node_guard.node_type() != NodeType::ExternalPort {
                     continue;
@@ -964,7 +949,7 @@ impl ElkLayered {
             }
         }
 
-        if let Ok(mut graph_guard) = lgraph.lock() {
+        if let Some(mut graph_guard) = lgraph.lock_ok() {
             let padding = graph_guard.padding_ref().clone();
             graph_guard.size().x = new_size.x - padding.left - padding.right;
             graph_guard.size().y = new_size.y - padding.top - padding.bottom;

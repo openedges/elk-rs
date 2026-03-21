@@ -57,8 +57,7 @@ impl DfsNodeOrderCycleBreaker {
             .unwrap_or(0);
 
         let outgoing_edges = node
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|node_guard| node_guard.outgoing_edges())
             .unwrap_or_default();
 
@@ -68,20 +67,18 @@ impl DfsNodeOrderCycleBreaker {
         > = BTreeMap::new();
         for edge in outgoing_edges {
             let target_node = edge
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|edge_guard| edge_guard.target())
                 .and_then(|target| {
                     target
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .and_then(|target_guard| target_guard.node())
                 });
             let Some(target_node) = target_node else {
                 continue;
             };
 
-            let has_model_order = target_node.lock().ok().is_some_and(|mut node_guard| {
+            let has_model_order = target_node.lock_ok().is_some_and(|mut node_guard| {
                 node_guard
                     .shape()
                     .graph_element()
@@ -97,8 +94,7 @@ impl DfsNodeOrderCycleBreaker {
 
             let target_model_order = if enforce_group_model_order {
                 let (group_id, model_order) = target_node
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|mut node_guard| {
                         (
                             node_guard
@@ -113,8 +109,7 @@ impl DfsNodeOrderCycleBreaker {
                 max_model_order_nodes * group_id + model_order
             } else {
                 target_node
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|mut node_guard| {
                         node_guard.get_property(InternalProperties::MODEL_ORDER)
                     })
@@ -133,7 +128,7 @@ impl DfsNodeOrderCycleBreaker {
             };
 
             let is_self_loop = representative
-                .lock()
+                .lock_ok()
                 .map(|edge_guard| edge_guard.is_self_loop())
                 .unwrap_or(false);
             if is_self_loop {
@@ -141,13 +136,11 @@ impl DfsNodeOrderCycleBreaker {
             }
 
             let target_node = representative
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|edge_guard| edge_guard.target())
                 .and_then(|target| {
                     target
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .and_then(|target_guard| target_guard.node())
                 });
             let Some(target_node) = target_node else {
@@ -183,12 +176,12 @@ impl ILayoutPhase<LayeredPhases, LGraph> for DfsNodeOrderCycleBreaker {
 
         let mut sources: Vec<LNodeRef> = Vec::new();
         for (index, node) in nodes.iter().enumerate() {
-            let is_source = match node.lock() {
-                Ok(mut node_guard) => {
+            let is_source = match node.lock_ok() {
+            Some(mut node_guard) => {
                     node_guard.shape().graph_element().id = index as i32;
                     node_guard.incoming_edges().is_empty()
                 }
-                Err(_) => false,
+            None => false,
             };
             if is_source {
                 sources.push(node.clone());
@@ -226,8 +219,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for DfsNodeOrderCycleBreaker {
 }
 
 fn node_index(node: &LNodeRef) -> usize {
-    node.lock()
-        .ok()
+    node.lock_ok()
         .map(|mut node_guard| node_guard.shape().graph_element().id as usize)
         .unwrap_or(0)
 }

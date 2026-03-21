@@ -436,8 +436,7 @@ impl LayerSweepCrossingMinimizer {
             active_indices.clear();
             for (index, node) in layer.iter().enumerate() {
                 let has_model_order = node
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|mut node_guard| {
                         node_guard.get_property(InternalProperties::MODEL_ORDER)
                     })
@@ -483,8 +482,7 @@ impl LayerSweepCrossingMinimizer {
             comp.reset_for_previous_layer_slice(prev_layer);
             for node in layer {
                 let maybe_ports = node
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|node_guard| {
                         if node_guard.ports().len() < 2 {
                             None
@@ -867,7 +865,7 @@ impl LayerSweepCrossingMinimizer {
 
             sort_ports_by_dummy_positions_in_last_layer_snap(nodes, &parent, true, snapshot);
             sort_ports_by_dummy_positions_in_last_layer_snap(nodes, &parent, false, snapshot);
-            if let Ok(mut parent_guard) = parent.lock() {
+            if let Some(mut parent_guard) = parent.lock_ok() {
                 parent_guard.set_property(
                     LayeredOptions::PORT_CONSTRAINTS,
                     Some(PortConstraints::FixedOrder),
@@ -1018,7 +1016,7 @@ impl LayerSweepCrossingMinimizer {
             }
             if Arc::ptr_eq(&graph, root_graph) {
                 root_graph_guard.graph_element().id = index as i32;
-            } else if let Ok(mut graph_guard) = graph.lock() {
+            } else if let Some(mut graph_guard) = graph.lock_ok() {
                 graph_guard.graph_element().id = index as i32;
             }
             let mut g_data = if Arc::ptr_eq(&graph, root_graph) {
@@ -1069,15 +1067,13 @@ impl LayerSweepCrossingMinimizer {
         for layer in layers {
             for node in layer {
                 let ports = node
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|node_guard| node_guard.ports().clone())
                     .unwrap_or_default();
                 port_count += ports.len();
                 for port in ports {
                     let connected = port
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .map(|port_guard| port_guard.connected_edges().clone())
                         .unwrap_or_default();
                     for edge in connected {
@@ -1156,8 +1152,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for LayerSweepCrossingMinimizer {
         let empty_graph = graph.layers().is_empty()
             || graph.layers().iter().all(|layer| {
                 layer
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|layer_guard| layer_guard.nodes().is_empty())
                     .unwrap_or(true)
             });
@@ -1168,7 +1163,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for LayerSweepCrossingMinimizer {
             && graph
                 .layers()
                 .first()
-                .and_then(|layer| layer.lock().ok())
+                .and_then(|layer| layer.lock_ok())
                 .map(|layer_guard| layer_guard.nodes().len())
                 .unwrap_or(0)
                 == 1;
@@ -1215,8 +1210,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for LayerSweepCrossingMinimizer {
                     let node_ids: Vec<String> = layer
                         .iter()
                         .map(|n| {
-                            n.lock()
-                                .ok()
+                            n.lock_ok()
                                 .map(|mut g| {
                                     format!("id:{}", g.shape().graph_element().id)
                                 })
@@ -1316,22 +1310,19 @@ fn side_opposed_sweep_direction(is_forward: bool) -> PortSide {
 }
 
 fn is_external_port_dummy(node: &LNodeRef) -> bool {
-    node.lock()
-        .ok()
+    node.lock_ok()
         .map(|node_guard| node_guard.node_type() == NodeType::ExternalPort)
         .unwrap_or(false)
 }
 
 fn is_hierarchical(port: &LPortRef) -> bool {
-    port.lock()
-        .ok()
+    port.lock_ok()
         .and_then(|mut port_guard| port_guard.get_property(InternalProperties::INSIDE_CONNECTIONS))
         .unwrap_or(false)
 }
 
 fn origin_port(node: &LNodeRef) -> Option<LPortRef> {
-    node.lock()
-        .ok()
+    node.lock_ok()
         .and_then(|mut node_guard| node_guard.get_property(InternalProperties::ORIGIN))
         .and_then(|origin| match origin {
             crate::org::eclipse::elk::alg::layered::options::Origin::LPort(port) => Some(port),
@@ -1340,15 +1331,13 @@ fn origin_port(node: &LNodeRef) -> Option<LPortRef> {
 }
 
 fn dummy_node_for(port: &LPortRef) -> Option<LNodeRef> {
-    port.lock()
-        .ok()
+    port.lock_ok()
         .and_then(|mut port_guard| port_guard.get_property(InternalProperties::PORT_DUMMY))
 }
 
 fn is_on_end_of_sweep_side(port: &LPortRef, on_right_most_layer: bool) -> bool {
     let side = port
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|port_guard| port_guard.side())
         .unwrap_or(PortSide::Undefined);
     if on_right_most_layer {
@@ -1373,7 +1362,7 @@ fn sort_ports_by_dummy_positions_in_last_layer(
         return;
     }
 
-    if let Ok(mut parent_guard) = parent.lock() {
+    if let Some(mut parent_guard) = parent.lock_ok() {
         let ports = parent_guard.ports_mut();
         for i in 0..ports.len() {
             let port = ports.get(i).cloned();
@@ -1410,7 +1399,7 @@ fn sort_ports_by_dummy_positions_in_last_layer_snap(
         return;
     }
 
-    if let Ok(mut parent_guard) = parent.lock() {
+    if let Some(mut parent_guard) = parent.lock_ok() {
         let ports = parent_guard.ports_mut();
         for i in 0..ports.len() {
             let port = ports.get(i).cloned();
@@ -1454,8 +1443,7 @@ fn sort_port_dummies_by_port_positions(
 
 fn graph_id(graph: &LGraphRef) -> Option<usize> {
     graph
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|mut graph_guard| graph_guard.graph_element().id as usize)
 }
 
@@ -1463,8 +1451,7 @@ fn collect_hierarchical_targets(layer: &[LNodeRef], out: &mut Vec<(LNodeRef, usi
     out.clear();
     for node in layer {
         let Some(nested_graph) = node
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|node_guard| node_guard.nested_graph())
         else {
             continue;
@@ -1478,12 +1465,12 @@ fn collect_hierarchical_targets(layer: &[LNodeRef], out: &mut Vec<(LNodeRef, usi
 
 fn root_graph_ref(graph: &mut LGraph) -> Option<LGraphRef> {
     if let Some(layer) = graph.layers().first() {
-        if let Ok(layer_guard) = layer.lock() {
+        if let Some(layer_guard) = layer.lock_ok() {
             return layer_guard.graph();
         }
     }
     if let Some(node) = graph.layerless_nodes().first() {
-        if let Ok(node_guard) = node.lock() {
+        if let Some(node_guard) = node.lock_ok() {
             return node_guard.graph();
         }
     }
@@ -1494,8 +1481,7 @@ fn format_layer_nodes(layer: &[LNodeRef]) -> String {
     layer
         .iter()
         .map(|node| {
-            node.lock()
-                .ok()
+            node.lock_ok()
                 .map(|mut guard| guard.to_string())
                 .unwrap_or_else(|| String::from("<poisoned-node>"))
         })

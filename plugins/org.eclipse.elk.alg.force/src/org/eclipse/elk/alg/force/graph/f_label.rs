@@ -25,7 +25,7 @@ impl FLabel {
             edge: Some(Arc::downgrade(edge)),
             text: Some(text.into()),
         }));
-        if let Ok(mut edge_guard) = edge.lock() {
+        if let Some(mut edge_guard) = edge.lock_ok() {
             edge_guard.labels_mut().push(label.clone());
         }
         label
@@ -92,14 +92,13 @@ impl FLabel {
             .get_property(ForceOptions::EDGE_LABELS_INLINE)
             .unwrap_or(false);
         let (src, tgt) = {
-            let edge_guard = edge.lock().ok();
-            let Some(edge_guard) = edge_guard else { return };
+            let edge_guard = edge.lock();
             let source = edge_guard
                 .source()
-                .and_then(|node| node.lock().ok().map(|n| *n.position_ref()));
+                .and_then(|node| node.lock_ok().map(|n| *n.position_ref()));
             let target = edge_guard
                 .target()
-                .and_then(|node| node.lock().ok().map(|n| *n.position_ref()));
+                .and_then(|node| node.lock_ok().map(|n| *n.position_ref()));
             match (source, target) {
                 (Some(source), Some(target)) => (source, target),
                 _ => return,
@@ -119,8 +118,7 @@ impl FLabel {
         }
 
         let spacing = edge
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|mut edge_guard| edge_guard.get_property(ForceOptions::SPACING_EDGE_LABEL))
             .unwrap_or(0.0);
         let pos = self.position();
@@ -151,10 +149,8 @@ impl fmt::Display for FLabel {
         }
         let edge = self.edge();
         if let Some(edge) = edge {
-            let edge_guard = edge.lock().ok();
-            if let Some(edge_guard) = edge_guard {
-                return write!(f, "l[{}]", edge_guard);
-            }
+            let edge_guard = edge.lock();
+            return write!(f, "l[{}]", edge_guard);
         }
         write!(f, "l_{:p}", self)
     }

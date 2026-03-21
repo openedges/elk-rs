@@ -45,8 +45,7 @@ impl NubsSelfLoop {
         let target_pos = port_position(target);
 
         let direction = source
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|port_guard| SplinesMath::port_side_to_direction(port_guard.side()))
             .unwrap_or(0.0);
         let mut first_cp = KVector::from_angle(direction);
@@ -77,13 +76,11 @@ impl NubsSelfLoop {
         target_height: f64,
     ) -> NubsSelfLoop {
         let source_dir = source
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|port_guard| SplinesMath::port_side_to_direction(port_guard.side()))
             .unwrap_or(0.0);
         let target_dir = target
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|port_guard| SplinesMath::port_side_to_direction(port_guard.side()))
             .unwrap_or(0.0);
 
@@ -99,7 +96,7 @@ impl NubsSelfLoop {
 
         let mut corner_x = 0.0;
         let mut corner_y = 0.0;
-        if let Ok(port_guard) = source.lock() {
+        if let Some(port_guard) = source.lock_ok() {
             match port_guard.side() {
                 org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide::West => {
                     corner_x = 2.0 * (source_pos.x - source_height)
@@ -121,7 +118,7 @@ impl NubsSelfLoop {
             }
         }
 
-        if let Ok(port_guard) = target.lock() {
+        if let Some(port_guard) = target.lock_ok() {
             match port_guard.side() {
                 org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide::West => {
                     corner_x = 2.0 * (target_pos.x - target_height)
@@ -259,7 +256,7 @@ impl std::ops::DerefMut for NubsSelfLoop {
 }
 
 fn port_position(port: &LPortRef) -> KVector {
-    let Ok(mut port_guard) = port.lock() else {
+    let Some(mut port_guard) = port.lock_ok() else {
         return KVector::new();
     };
     let mut pos = *port_guard.shape().position_ref();

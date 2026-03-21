@@ -35,15 +35,13 @@ fn fix_coordinates(layer: &LayerRef, layered_graph: &mut LGraph) {
     let graph_height = layered_graph.actual_size().y;
 
     let nodes = layer
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|layer_guard| layer_guard.nodes().clone())
         .unwrap_or_default();
 
     for node in nodes {
         let (node_type, ext_side, ratio_or_pos, anchor) = node
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|mut node_guard| {
                 (
                     node_guard.node_type(),
@@ -77,7 +75,7 @@ fn fix_coordinates(layer: &LayerRef, layered_graph: &mut LGraph) {
             final_y *= graph_height;
         }
 
-        if let Ok(mut node_guard) = node.lock() {
+        if let Some(mut node_guard) = node.lock_ok() {
             let padding_top = layered_graph.padding_ref().top;
             let offset_y = layered_graph.offset_ref().y;
             node_guard.shape().position().y = final_y - anchor.y - padding_top - offset_y;
@@ -101,7 +99,7 @@ mod tests {
         let graph = LGraph::new();
         let layer = Layer::new(&graph);
 
-        if let Ok(mut graph_guard) = graph.lock() {
+        if let Some(mut graph_guard) = graph.lock_ok() {
             graph_guard.layers_mut().push(layer.clone());
             graph_guard.set_property(
                 LayeredOptions::PORT_CONSTRAINTS,
@@ -114,18 +112,18 @@ mod tests {
 
         let node = LNode::new(&graph);
         LNode::set_layer(&node, Some(layer.clone()));
-        if let Ok(mut node_guard) = node.lock() {
+        if let Some(mut node_guard) = node.lock_ok() {
             node_guard.set_node_type(NodeType::ExternalPort);
             node_guard.set_property(InternalProperties::EXT_PORT_SIDE, Some(PortSide::East));
             node_guard.set_property(InternalProperties::PORT_RATIO_OR_POSITION, Some(0.5));
             node_guard.set_property(LayeredOptions::PORT_ANCHOR, Some(KVector::new()));
         }
-        if let Ok(mut layer_guard) = layer.lock() {
+        if let Some(mut layer_guard) = layer.lock_ok() {
             layer_guard.nodes_mut().push(node);
         }
 
         let mut processor = HierarchicalPortPositionProcessor;
-        if let Ok(mut graph_guard) = graph.lock() {
+        if let Some(mut graph_guard) = graph.lock_ok() {
             let mut monitor = BasicProgressMonitor::new();
             processor.process(&mut graph_guard, &mut monitor);
         };

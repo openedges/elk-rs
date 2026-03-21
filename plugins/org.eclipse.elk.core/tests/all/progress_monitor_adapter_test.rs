@@ -22,23 +22,23 @@ struct TestMonitor {
 
 impl IProgressMonitor for TestMonitor {
     fn begin_task(&self, _name: &str, _total_work: i32) {
-        self.state.lock().unwrap().begin_calls += 1;
+        self.state.lock().begin_calls += 1;
     }
 
     fn sub_task(&self, _name: &str) {
-        self.state.lock().unwrap().sub_tasks += 1;
+        self.state.lock().sub_tasks += 1;
     }
 
     fn worked(&self, work: i32) {
-        self.state.lock().unwrap().worked += work;
+        self.state.lock().worked += work;
     }
 
     fn done(&self) {
-        self.state.lock().unwrap().done_calls += 1;
+        self.state.lock().done_calls += 1;
     }
 
     fn is_canceled(&self) -> bool {
-        self.state.lock().unwrap().canceled
+        self.state.lock().canceled
     }
 }
 
@@ -55,8 +55,7 @@ fn progress_monitor_adapter_reports_work() {
     adapter.worked(3.0);
     adapter.done();
 
-    let snapshot = state.lock().unwrap();
-    assert_eq!(snapshot.begin_calls, 1);
+    let snapshot = state.lock();    assert_eq!(snapshot.begin_calls, 1);
     assert_eq!(snapshot.worked, 5);
     assert_eq!(snapshot.done_calls, 1);
 }
@@ -73,6 +72,5 @@ fn progress_monitor_adapter_subtask_reports_sub_task() {
     let mut child = adapter.sub_task(1.0);
     child.begin("child", 1.0);
 
-    let snapshot = state.lock().unwrap();
-    assert_eq!(snapshot.sub_tasks, 1);
+    let snapshot = state.lock();    assert_eq!(snapshot.sub_tasks, 1);
 }

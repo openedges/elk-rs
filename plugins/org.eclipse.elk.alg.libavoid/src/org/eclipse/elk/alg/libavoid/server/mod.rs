@@ -74,18 +74,15 @@ impl LibavoidServerPool {
     }
 
     pub fn fetch(&self) -> LibavoidServer {
-        let mut servers = self.servers.lock().expect("libavoid server pool");
-        servers.pop().unwrap_or_default()
+        let mut servers = self.servers.lock();        servers.pop().unwrap_or_default()
     }
 
     pub fn release(&self, server: LibavoidServer) {
-        let mut servers = self.servers.lock().expect("libavoid server pool");
-        servers.push(server);
+        let mut servers = self.servers.lock();        servers.push(server);
     }
 
     pub fn dispose(&self) {
-        let mut servers = self.servers.lock().expect("libavoid server pool");
-        servers.clear();
+        let mut servers = self.servers.lock();        servers.clear();
     }
 }
 

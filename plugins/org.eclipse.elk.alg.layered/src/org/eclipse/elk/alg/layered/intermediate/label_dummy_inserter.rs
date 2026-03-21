@@ -32,14 +32,13 @@ impl ILayoutProcessor<LGraph> for LabelDummyInserter {
         let mut new_dummy_nodes = Vec::new();
 
         for node in nodes {
-            let graph = node.lock().ok().and_then(|node_guard| node_guard.graph());
+            let graph = node.lock_ok().and_then(|node_guard| node_guard.graph());
             let Some(graph) = graph else {
                 continue;
             };
 
             let outgoing_edges = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.outgoing_edges())
                 .unwrap_or_default();
             for edge in outgoing_edges {
@@ -59,7 +58,7 @@ impl ILayoutProcessor<LGraph> for LabelDummyInserter {
                     label_label_spacing,
                 );
 
-                if let Ok(mut dummy_guard) = dummy_node.lock() {
+                if let Some(mut dummy_guard) = dummy_node.lock_ok() {
                     let size = dummy_guard.shape().size();
                     size.x = dummy_size.x;
                     size.y = dummy_size.y;
@@ -78,8 +77,7 @@ impl ILayoutProcessor<LGraph> for LabelDummyInserter {
 
 fn edge_needs_processing(edge: &LEdgeRef) -> bool {
     let (is_self_loop, labels) = edge
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|edge_guard| (edge_guard.is_self_loop(), edge_guard.labels().clone()))
         .unwrap_or((true, Vec::new()));
     if is_self_loop {
@@ -90,8 +88,7 @@ fn edge_needs_processing(edge: &LEdgeRef) -> bool {
 
 fn label_is_center(label: &LLabelRef) -> bool {
     label
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|mut label_guard| label_guard.get_property(LayeredOptions::EDGE_LABELS_PLACEMENT))
         .unwrap_or(EdgeLabelPlacement::Center)
         == EdgeLabelPlacement::Center
@@ -99,8 +96,7 @@ fn label_is_center(label: &LLabelRef) -> bool {
 
 fn retrieve_thickness(edge: &LEdgeRef) -> f64 {
     let thickness = edge
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|mut edge_guard| {
             if edge_guard
                 .graph_element()
@@ -115,7 +111,7 @@ fn retrieve_thickness(edge: &LEdgeRef) -> f64 {
         .unwrap_or(1.0);
 
     if thickness < 0.0 {
-        if let Ok(mut edge_guard) = edge.lock() {
+        if let Some(mut edge_guard) = edge.lock_ok() {
             edge_guard.set_property(CoreOptions::EDGE_THICKNESS, Some(0.0));
         }
         0.0
@@ -130,9 +126,9 @@ fn create_label_dummy(
     thickness: f64,
 ) -> LNodeRef {
     let dummy_node = LNode::new(graph);
-    let source = edge.lock().ok().and_then(|edge_guard| edge_guard.source());
-    let target = edge.lock().ok().and_then(|edge_guard| edge_guard.target());
-    if let Ok(mut dummy_guard) = dummy_node.lock() {
+    let source = edge.lock_ok().and_then(|edge_guard| edge_guard.source());
+    let target = edge.lock_ok().and_then(|edge_guard| edge_guard.target());
+    if let Some(mut dummy_guard) = dummy_node.lock_ok() {
         dummy_guard.set_node_type(NodeType::Label);
         dummy_guard.set_property(
             InternalProperties::ORIGIN,
@@ -153,10 +149,10 @@ fn create_label_dummy(
     LongEdgeSplitter::split_edge(edge, &dummy_node);
 
     let port_pos = (thickness / 2.0).floor();
-    if let Ok(dummy_guard) = dummy_node.lock() {
+    if let Some(dummy_guard) = dummy_node.lock_ok() {
         let ports = dummy_guard.ports().clone();
         for port in ports {
-            if let Ok(mut port_guard) = port.lock() {
+            if let Some(mut port_guard) = port.lock_ok() {
                 port_guard.shape().position().y = port_pos;
             }
         }
@@ -173,8 +169,7 @@ fn collect_center_labels_and_size(
     label_label_spacing: f64,
 ) -> (Vec<LLabelRef>, KVector) {
     let labels = edge
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|edge_guard| edge_guard.labels().clone())
         .unwrap_or_default();
 
@@ -183,15 +178,15 @@ fn collect_center_labels_and_size(
     let mut dummy_size = KVector::with_values(0.0, thickness);
 
     for label in labels {
-        let (placement, label_size) = match label.lock() {
-            Ok(mut label_guard) => {
+        let (placement, label_size) = match label.lock_ok() {
+            Some(mut label_guard) => {
                 let placement = label_guard
                     .get_property(LayeredOptions::EDGE_LABELS_PLACEMENT)
                     .unwrap_or(EdgeLabelPlacement::Center);
                 let size = *label_guard.shape().size_ref();
                 (placement, size)
             }
-            Err(_) => {
+            None => {
                 remaining_labels.push(label.clone());
                 continue;
             }
@@ -220,7 +215,7 @@ fn collect_center_labels_and_size(
         }
     }
 
-    if let Ok(mut edge_guard) = edge.lock() {
+    if let Some(mut edge_guard) = edge.lock_ok() {
         *edge_guard.labels_mut() = remaining_labels;
     }
 

@@ -103,8 +103,7 @@ impl ElkGraphTransformer {
 
         let element_ref = Arc::new(Mutex::new(DCElement::new(coords)));
         {
-            let mut element_guard = element_ref.lock().expect("dc element lock");
-            element_guard.copy_properties(&props);
+            let mut element_guard = element_ref.lock();            element_guard.copy_properties(&props);
         }
 
         if consider_when_applying_offset {
@@ -131,8 +130,7 @@ impl ElkGraphTransformer {
                 let mut edge_mut = edge.borrow_mut();
                 edge_mut.element().properties().clone()
             };
-            let mut shape_guard = shape.lock().expect("dc element lock");
-            shape_guard.copy_properties(&props);
+            let mut shape_guard = shape.lock();            shape_guard.copy_properties(&props);
         }
         self.element_mapping.insert(
             edge_id(edge),
@@ -181,8 +179,7 @@ impl ElkGraphTransformer {
                     let mut edge_mut = edge.borrow_mut();
                     edge_mut.element().properties().clone()
                 };
-                let mut shape_guard = shape.lock().expect("dc element lock");
-                shape_guard.copy_properties(&props);
+                let mut shape_guard = shape.lock();                shape_guard.copy_properties(&props);
             }
             new_component.push(shape.clone());
         } else {
@@ -216,11 +213,10 @@ impl ElkGraphTransformer {
             KVector::with_values((inner_point.x + outer_point.x) / 2.0, inner_point.y)
         };
 
-        let bounds = { shape.lock().expect("dc element lock").get_bounds() };
+        let bounds = { shape.lock().get_bounds() };
         let extension = DCExtension::new(&bounds, dir, &middle_pos, extension_width);
         {
-            let mut shape_guard = shape.lock().expect("dc element lock");
-            shape_guard.add_extension(extension.clone());
+            let mut shape_guard = shape.lock();            shape_guard.add_extension(extension.clone());
         }
 
         if outgoing_extension {
@@ -333,8 +329,7 @@ impl IGraphTransformer<ElkNodeRef> for ElkGraphTransformer {
                     (shape.x(), shape.y())
                 };
                 {
-                    let mut elem_guard = component_node.lock().expect("dc element lock");
-                    elem_guard.set_parent_coords(KVector::with_values(node_x, node_y));
+                    let mut elem_guard = component_node.lock();                    elem_guard.set_parent_coords(KVector::with_values(node_x, node_y));
                 }
 
                 let labels = {
@@ -488,7 +483,7 @@ impl IGraphTransformer<ElkNodeRef> for ElkGraphTransformer {
         }
 
         for (_id, (elem, poly)) in self.element_mapping.iter() {
-            let offset = { poly.lock().expect("dc element lock").get_offset() };
+            let offset = { poly.lock().get_offset() };
             match elem {
                 ElkGraphElementRef::Edge(edge) => {
                     let edge_section = first_edge_section(edge, false, false);

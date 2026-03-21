@@ -42,7 +42,7 @@ static PROCESSOR_FACTORIES: LazyLock<[ProcessorFactory; 3]> = LazyLock::new(|| {
 });
 
 pub fn lock_tests() -> MutexGuard<'static, ()> {
-    TEST_LOCK.lock().unwrap()
+    TEST_LOCK.lock()
 }
 
 pub fn reset_create_counts() {

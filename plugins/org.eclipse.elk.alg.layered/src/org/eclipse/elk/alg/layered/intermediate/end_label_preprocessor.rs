@@ -48,8 +48,7 @@ impl ILayoutProcessor<LGraph> for EndLabelPreprocessor {
         let layers = layered_graph.layers().clone();
         for layer in layers {
             let nodes = layer
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|layer_guard| layer_guard.nodes().clone())
                 .unwrap_or_default();
             for node in nodes {
@@ -73,8 +72,7 @@ fn process_node(
     vertical_layout: bool,
 ) {
     let ports = node
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|node_guard| node_guard.ports().clone())
         .unwrap_or_default();
     let port_count = ports.len();
@@ -107,7 +105,7 @@ fn process_node(
     }
 
     if !port_to_label_cell.is_empty() {
-        if let Ok(mut node_guard) = node.lock() {
+        if let Some(mut node_guard) = node.lock_ok() {
             node_guard.set_property(InternalProperties::END_LABELS, Some(port_to_label_cell));
         }
         update_node_margins(node, &port_label_cells);
@@ -149,19 +147,16 @@ pub(crate) fn gather_labels(port: &LPortRef) -> Option<Vec<LLabelRef>> {
     let mut max_edge_thickness = gather_labels_from_port(port, &mut labels);
 
     let dummy_node = port
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|mut port_guard| port_guard.get_property(InternalProperties::PORT_DUMMY));
     if let Some(dummy_node) = dummy_node {
         let dummy_ports = dummy_node
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|dummy_guard| dummy_guard.ports().clone())
             .unwrap_or_default();
         for dummy_port in dummy_ports {
             let origin = dummy_port
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|mut port_guard| port_guard.get_property(InternalProperties::ORIGIN));
             let matches_origin = matches!(origin, Some(Origin::LPort(origin_port)) if Arc::ptr_eq(&origin_port, port));
             if matches_origin {
@@ -172,7 +167,7 @@ pub(crate) fn gather_labels(port: &LPortRef) -> Option<Vec<LLabelRef>> {
     }
 
     if !labels.is_empty() {
-        if let Ok(mut port_guard) = port.lock() {
+        if let Some(mut port_guard) = port.lock_ok() {
             port_guard.set_property(
                 InternalProperties::MAX_EDGE_THICKNESS,
                 Some(max_edge_thickness),
@@ -191,14 +186,13 @@ fn gather_labels_from_port(port: &LPortRef, target_list: &mut Vec<LLabelRef>) ->
     let mut max_edge_thickness = NO_INCIDENT_EDGE_THICKNESS;
 
     let edges = port
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|port_guard| port_guard.connected_edges())
         .unwrap_or_default();
 
     for edge in edges {
-        let (edge_thickness, is_source, labels) = match edge.lock() {
-            Ok(mut edge_guard) => {
+        let (edge_thickness, is_source, labels) = match edge.lock_ok() {
+            Some(mut edge_guard) => {
                 let thickness = edge_guard
                     .get_property(CoreOptions::EDGE_THICKNESS)
                     .unwrap_or(0.0);
@@ -208,17 +202,17 @@ fn gather_labels_from_port(port: &LPortRef, target_list: &mut Vec<LLabelRef>) ->
                     .unwrap_or(false);
                 (thickness, is_source, edge_guard.labels().clone())
             }
-            Err(_) => continue,
+            None => continue,
         };
 
         max_edge_thickness = max_edge_thickness.max(edge_thickness);
 
         for label in labels {
-            let placement = match label.lock() {
-                Ok(mut label_guard) => label_guard
+            let placement = match label.lock_ok() {
+            Some(mut label_guard) => label_guard
                     .get_property(LayeredOptions::EDGE_LABELS_PLACEMENT)
                     .unwrap_or(EdgeLabelPlacement::Center),
-                Err(_) => EdgeLabelPlacement::Center,
+            None => EdgeLabelPlacement::Center,
             };
 
             let is_end_label = if is_source {
@@ -228,7 +222,7 @@ fn gather_labels_from_port(port: &LPortRef, target_list: &mut Vec<LLabelRef>) ->
             };
 
             if is_end_label {
-                if let Ok(mut label_guard) = label.lock() {
+                if let Some(mut label_guard) = label.lock_ok() {
                     if label_guard
                         .get_property(InternalProperties::END_LABEL_EDGE)
                         .is_none()
@@ -301,17 +295,17 @@ fn place_labels(
 
 fn place_labels_for_port(port: &LPortRef, label_cell: &EndLabelCell, edge_label_spacing: f64) {
     let (node_size, node_margin, port_pos, port_anchor, port_side, max_edge_thickness) = {
-        let mut port_guard = match port.lock() {
-            Ok(guard) => guard,
-            Err(_) => return,
+        let mut port_guard = match port.lock_ok() {
+            Some(guard) => guard,
+            None => return,
         };
         let node = match port_guard.node() {
             Some(node) => node,
             None => return,
         };
-        let mut node_guard = match node.lock() {
-            Ok(guard) => guard,
-            Err(_) => return,
+        let mut node_guard = match node.lock_ok() {
+            Some(guard) => guard,
+            None => return,
         };
         (
             *node_guard.shape().size_ref(),
@@ -327,9 +321,9 @@ fn place_labels_for_port(port: &LPortRef, label_cell: &EndLabelCell, edge_label_
 
     let port_anchor = KVector::with_values(port_pos.x + port_anchor.x, port_pos.y + port_anchor.y);
 
-    let mut cell_guard = match label_cell.lock() {
-        Ok(guard) => guard,
-        Err(_) => return,
+    let mut cell_guard = match label_cell.lock_ok() {
+            Some(guard) => guard,
+            None => return,
     };
     let label_side = get_label_side(&cell_guard);
     let (rect_width, rect_height) = {
@@ -421,8 +415,7 @@ fn remove_label_overlaps(
 
     for (index, port) in ports.iter().enumerate() {
         let matches_side = port
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|port_guard| port_guard.side() == port_side)
             .unwrap_or(false);
         if !matches_side {
@@ -431,7 +424,7 @@ fn remove_label_overlaps(
         let Some(cell) = &port_label_cells[index] else {
             continue;
         };
-        if let Ok(mut cell_guard) = cell.lock() {
+        if let Some(mut cell_guard) = cell.lock_ok() {
             let label_cell_rect = cell_guard.cell_rectangle();
             overlap_remover.add_rectangle(label_cell_rect);
             label_guards.push(cell_guard);
@@ -446,9 +439,9 @@ fn calculate_overlap_start_coordinate(
     port_side: PortSide,
     edge_label_spacing: f64,
 ) -> f64 {
-    let (node_size, node_margin) = match node.lock() {
-        Ok(mut guard) => (*guard.shape().size_ref(), guard.margin().clone()),
-        Err(_) => (KVector::new(), Default::default()),
+    let (node_size, node_margin) = match node.lock_ok() {
+            Some(mut guard) => (*guard.shape().size_ref(), guard.margin().clone()),
+            None => (KVector::new(), Default::default()),
     };
 
     match port_side {
@@ -463,9 +456,9 @@ fn calculate_overlap_start_coordinate(
 // Node margins
 
 fn update_node_margins(node: &LNodeRef, label_cells: &[Option<EndLabelCell>]) {
-    let (node_size, node_margin) = match node.lock() {
-        Ok(mut guard) => (*guard.shape().size_ref(), guard.margin().clone()),
-        Err(_) => return,
+    let (node_size, node_margin) = match node.lock_ok() {
+            Some(mut guard) => (*guard.shape().size_ref(), guard.margin().clone()),
+            None => return,
     };
 
     let mut node_margin_rect = ElkRectangle::with_values(
@@ -476,12 +469,12 @@ fn update_node_margins(node: &LNodeRef, label_cells: &[Option<EndLabelCell>]) {
     );
 
     for cell in label_cells.iter().flatten() {
-        if let Ok(cell_guard) = cell.lock() {
+        if let Some(cell_guard) = cell.lock_ok() {
             node_margin_rect.union(cell_guard.cell_rectangle_ref());
         }
     }
 
-    if let Ok(mut node_guard) = node.lock() {
+    if let Some(mut node_guard) = node.lock_ok() {
         let margin = node_guard.margin();
         margin.left = -node_margin_rect.x;
         margin.top = -node_margin_rect.y;

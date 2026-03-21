@@ -75,7 +75,7 @@ impl SelfHyperLoop {
 
     pub fn add_self_loop_edge(sl_loop: &SelfHyperLoopRef, sl_edge: &SelfLoopEdgeRef) {
         {
-            if let Ok(loop_guard) = sl_loop.lock() {
+            if let Some(loop_guard) = sl_loop.lock_ok() {
                 if loop_guard
                     .sl_edges
                     .iter()
@@ -86,24 +86,22 @@ impl SelfHyperLoop {
             }
         }
 
-        if let Ok(mut edge_guard) = sl_edge.lock() {
+        if let Some(mut edge_guard) = sl_edge.lock_ok() {
             edge_guard.set_sl_hyper_loop(sl_loop);
         }
 
-        if let Ok(mut loop_guard) = sl_loop.lock() {
+        if let Some(mut loop_guard) = sl_loop.lock_ok() {
             loop_guard.sl_edges.push(sl_edge.clone());
 
             let (sl_source, sl_target, edge_labels) = sl_edge
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|edge_guard| {
                     (
                         edge_guard.sl_source().clone(),
                         edge_guard.sl_target().clone(),
                         edge_guard
                             .l_edge()
-                            .lock()
-                            .ok()
+                            .lock_ok()
                             .map(|edge| edge.labels().clone())
                             .unwrap_or_default(),
                     )
@@ -230,13 +228,11 @@ impl SelfHyperLoop {
 
     pub fn port_id(sl_port: &SelfLoopPortRef) -> i32 {
         sl_port
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|port_guard| {
                 port_guard
                     .l_port()
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|mut l_port_guard| l_port_guard.shape().graph_element().id)
             })
             .unwrap_or(i32::MAX)
@@ -245,13 +241,11 @@ impl SelfHyperLoop {
 
 fn sl_port_side(sl_port: &SelfLoopPortRef) -> PortSide {
     sl_port
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|port_guard| {
             port_guard
                 .l_port()
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|l_port_guard| l_port_guard.side())
         })
         .unwrap_or(PortSide::Undefined)

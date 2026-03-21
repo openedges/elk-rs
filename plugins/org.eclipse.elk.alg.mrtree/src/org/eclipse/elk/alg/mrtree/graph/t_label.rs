@@ -19,7 +19,7 @@ impl TLabel {
             edge: Arc::downgrade(edge),
             text: Some(text.into()),
         }));
-        if let Ok(mut edge_guard) = edge.lock() {
+        if let Some(mut edge_guard) = edge.lock_ok() {
             edge_guard.labels_mut().push(label.clone());
         }
         label
@@ -47,7 +47,7 @@ impl fmt::Display for TLabel {
         if let Some(text) = self.text.as_ref() {
             if text.is_empty() {
                 if let Some(edge) = self.edge() {
-                    if let Ok(edge_guard) = edge.lock() {
+                    if let Some(edge_guard) = edge.lock_ok() {
                         return write!(f, "l[{}]", *edge_guard);
                     }
                 }
@@ -55,7 +55,7 @@ impl fmt::Display for TLabel {
             }
             write!(f, "l_{text}")
         } else if let Some(edge) = self.edge() {
-            if let Ok(edge_guard) = edge.lock() {
+            if let Some(edge_guard) = edge.lock_ok() {
                 write!(f, "l[{}]", *edge_guard)
             } else {
                 write!(f, "l[]")

@@ -20,7 +20,7 @@ impl NeighborhoodInformation {
 
         let layers = graph.layers().clone();
         for layer in layers.iter() {
-            if let Ok(layer_guard) = layer.lock() {
+            if let Some(layer_guard) = layer.lock_ok() {
                 ni.node_count += layer_guard.nodes().len();
             }
         }
@@ -31,13 +31,13 @@ impl NeighborhoodInformation {
         let mut layer_id = 0usize;
         let mut node_counter = 0usize;
         for (layer_idx, layer) in layers.iter().enumerate() {
-            if let Ok(mut layer_guard) = layer.lock() {
+            if let Some(mut layer_guard) = layer.lock_ok() {
                 layer_guard.graph_element().id = layer_id as i32;
                 ni.layer_index[layer_id] = layer_idx;
                 layer_id += 1;
                 let nodes = layer_guard.nodes().clone();
                 for (local_index, node) in nodes.into_iter().enumerate() {
-                    if let Ok(mut node_guard) = node.lock() {
+                    if let Some(mut node_guard) = node.lock_ok() {
                         node_guard.shape().graph_element().id = node_counter as i32;
                     }
                     if node_counter >= ni.node_index.len() {
@@ -54,8 +54,7 @@ impl NeighborhoodInformation {
 
         for layer in layers {
             let nodes = layer
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|layer_guard| layer_guard.nodes().clone())
                 .unwrap_or_default();
             for node in nodes {
@@ -66,14 +65,12 @@ impl NeighborhoodInformation {
                 let mut right: Vec<Pair<LNodeRef, LEdgeRef>> = Vec::new();
                 let mut max_priority = 0;
                 let outgoing_edges = node
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|node_guard| node_guard.outgoing_edges().clone())
                     .unwrap_or_default();
                 for edge in outgoing_edges {
                     let skip = edge
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .map(|edge_guard| {
                             edge_guard.is_self_loop() || edge_guard.is_in_layer_edge()
                         })
@@ -82,8 +79,7 @@ impl NeighborhoodInformation {
                         continue;
                     }
                     let prio = edge
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .and_then(|mut edge_guard| {
                             edge_guard.get_property(LayeredOptions::PRIORITY_STRAIGHTNESS)
                         })
@@ -94,11 +90,10 @@ impl NeighborhoodInformation {
                     }
                     if prio == max_priority {
                         let target_node = edge
-                            .lock()
-                            .ok()
+                            .lock_ok()
                             .and_then(|edge_guard| edge_guard.target())
                             .and_then(|port| {
-                                port.lock().ok().and_then(|port_guard| port_guard.node())
+                                port.lock_ok().and_then(|port_guard| port_guard.node())
                             });
                         if let Some(target_node) = target_node {
                             let target_id = node_id(&target_node);
@@ -114,14 +109,12 @@ impl NeighborhoodInformation {
                 let mut left: Vec<Pair<LNodeRef, LEdgeRef>> = Vec::new();
                 let mut max_priority = 0;
                 let incoming_edges = node
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|node_guard| node_guard.incoming_edges().clone())
                     .unwrap_or_default();
                 for edge in incoming_edges {
                     let skip = edge
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .map(|edge_guard| {
                             edge_guard.is_self_loop() || edge_guard.is_in_layer_edge()
                         })
@@ -130,8 +123,7 @@ impl NeighborhoodInformation {
                         continue;
                     }
                     let prio = edge
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .and_then(|mut edge_guard| {
                             edge_guard.get_property(LayeredOptions::PRIORITY_STRAIGHTNESS)
                         })
@@ -142,11 +134,10 @@ impl NeighborhoodInformation {
                     }
                     if prio == max_priority {
                         let source_node = edge
-                            .lock()
-                            .ok()
+                            .lock_ok()
                             .and_then(|edge_guard| edge_guard.source())
                             .and_then(|port| {
-                                port.lock().ok().and_then(|port_guard| port_guard.node())
+                                port.lock_ok().and_then(|port_guard| port_guard.node())
                             });
                         if let Some(source_node) = source_node {
                             let source_id = node_id(&source_node);
@@ -186,8 +177,7 @@ fn neighbor_cmp(
 }
 
 fn node_id(node: &LNodeRef) -> usize {
-    node.lock()
-        .ok()
+    node.lock_ok()
         .map(|mut node_guard| node_guard.shape().graph_element().id as usize)
         .unwrap_or(0)
 }

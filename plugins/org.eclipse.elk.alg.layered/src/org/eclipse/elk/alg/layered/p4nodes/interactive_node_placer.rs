@@ -50,8 +50,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveNodePlacer {
         let layers = graph.layers().clone();
         for layer_ref in layers {
             let nodes = layer_ref
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|layer_guard| layer_guard.nodes().clone())
                 .unwrap_or_default();
             place_nodes(&nodes, &spacings);
@@ -82,7 +81,7 @@ fn place_nodes(nodes: &[LNodeRef], spacings: &Spacings) {
     let mut prev_node_type = NodeType::Normal;
 
     for node in nodes {
-        if let Ok(mut node_guard) = node.lock() {
+        if let Some(mut node_guard) = node.lock_ok() {
             let node_type = node_guard.node_type();
             let spacing = spacings.get_vertical_spacing_for_types(node_type, prev_node_type);
 

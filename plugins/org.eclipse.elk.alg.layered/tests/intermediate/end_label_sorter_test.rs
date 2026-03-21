@@ -14,7 +14,7 @@ fn graph_with_single_layer() -> (LGraphRef, Arc<Mutex<Layer>>) {
     let layer = Layer::new(&graph);
     graph
         .lock()
-        .expect("graph lock")
+        
         .layers_mut()
         .push(layer.clone());
     (graph, layer)
@@ -23,8 +23,7 @@ fn graph_with_single_layer() -> (LGraphRef, Arc<Mutex<Layer>>) {
 fn add_label_dummy(graph: &LGraphRef, layer: &Arc<Mutex<Layer>>) -> LNodeRef {
     let node = LNode::new(graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.set_node_type(NodeType::Label);
+        let mut node_guard = node.lock();        node_guard.set_node_type(NodeType::Label);
     }
     LNode::set_layer(&node, Some(layer.clone()));
     node
@@ -39,22 +38,22 @@ fn test_correct_order() {
     let label_a = Arc::new(Mutex::new(LLabel::with_text("a")));
     let label_b = Arc::new(Mutex::new(LLabel::with_text("b")));
 
-    label_dummy.lock().expect("label dummy lock").set_property(
+    label_dummy.lock().set_property(
         InternalProperties::REPRESENTED_LABELS,
         Some(vec![label_c, label_a, label_b]),
     );
 
     let mut sorter = EndLabelSorter;
     let mut monitor = NullElkProgressMonitor;
-    sorter.process(&mut graph.lock().expect("graph lock"), &mut monitor);
+    sorter.process(&mut graph.lock(), &mut monitor);
 
     let ordered = label_dummy
         .lock()
-        .expect("label dummy lock")
+        
         .get_property(InternalProperties::REPRESENTED_LABELS)
         .unwrap_or_default()
         .iter()
-        .map(|label| label.lock().expect("label lock").text().to_owned())
+        .map(|label| label.lock().text().to_owned())
         .collect::<Vec<_>>();
 
     assert_eq!(

@@ -142,26 +142,23 @@ impl ModelOrderPortComparator {
                 p1_snapshot
                     .incoming_first
                     .as_ref()
-                    .and_then(|edge| edge.lock().ok().and_then(|edge_guard| edge_guard.source()));
+                    .and_then(|edge| edge.lock_ok().and_then(|edge_guard| edge_guard.source()));
             let p2_source_port =
                 p2_snapshot
                     .incoming_first
                     .as_ref()
-                    .and_then(|edge| edge.lock().ok().and_then(|edge_guard| edge_guard.source()));
+                    .and_then(|edge| edge.lock_ok().and_then(|edge_guard| edge_guard.source()));
             if let (Some(p1_source_port), Some(p2_source_port)) = (p1_source_port, p2_source_port) {
                 let p1_node = p1_source_port
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|port_guard| port_guard.node());
                 let p2_node = p2_source_port
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|port_guard| port_guard.node());
                 if let (Some(p1_node), Some(p2_node)) = (p1_node, p2_node) {
                     if std::sync::Arc::ptr_eq(&p1_node, &p2_node) {
                         let ports = p1_node
-                            .lock()
-                            .ok()
+                            .lock_ok()
                             .map(|node_guard| node_guard.ports().clone())
                             .unwrap_or_default();
                         for port in ports {
@@ -186,11 +183,10 @@ impl ModelOrderPortComparator {
                             == layer_id(p1_snapshot.node.as_ref().unwrap_or(&p1_node))
                     {
                         let in_previous = p1_node
-                            .lock()
-                            .ok()
+                            .lock_ok()
                             .and_then(|node_guard| node_guard.layer())
                             .and_then(|layer| {
-                                layer.lock().ok().map(|layer_guard| {
+                                layer.lock_ok().map(|layer_guard| {
                                     self.check_reference_layer(
                                         layer_guard.nodes(),
                                         &p1_node,
@@ -263,11 +259,10 @@ impl ModelOrderPortComparator {
                     (&p1_target_node, &p2_target_node)
                 {
                     if has_model_order(p1_target_node) && has_model_order(p2_target_node) {
-                        let max_nodes = match self.graph.try_lock() {
-                            Ok(mut graph_guard) => graph_guard
+                        let max_nodes = match self.graph.try_lock() {            Some(mut graph_guard) => graph_guard
                                 .get_property(InternalProperties::MAX_MODEL_ORDER_NODES)
                                 .unwrap_or(0),
-                            Err(_) => {
+            None => {
                                 if *TRACE_CROSSMIN {
                                     eprintln!(
                                         "port_compare: graph lock busy, using default max_nodes"
@@ -370,7 +365,7 @@ impl ModelOrderPortComparator {
             let number_of_ports = p1_snapshot
                 .node
                 .as_ref()
-                .and_then(|node| node.lock().ok().map(|node_guard| node_guard.ports().len()))
+                .and_then(|node| node.lock_ok().map(|node_guard| node_guard.ports().len()))
                 .unwrap_or(0) as i32;
             let p1_order = port_model_order(p1, &self.graph, number_of_ports);
             let p2_order = port_model_order(p2, &self.graph, number_of_ports);
@@ -427,7 +422,7 @@ impl ModelOrderPortComparator {
     ) -> i32 {
         if p1_has_model_order && p2_has_model_order {
             let number_of_ports = port_node(p1)
-                .and_then(|node| node.lock().ok().map(|node_guard| node_guard.ports().len()))
+                .and_then(|node| node.lock_ok().map(|node_guard| node_guard.ports().len()))
                 .unwrap_or(0) as i32;
             let p1_order = port_model_order(p1, &self.graph, number_of_ports);
             let p2_order = port_model_order(p2, &self.graph, number_of_ports);
@@ -543,47 +538,42 @@ impl ModelOrderPortComparator {
 }
 
 fn port_node(port: &LPortRef) -> Option<LNodeRef> {
-    port.lock().ok().and_then(|port_guard| port_guard.node())
+    port.lock_ok().and_then(|port_guard| port_guard.node())
 }
 
 fn node_type(node: &LNodeRef) -> crate::org::eclipse::elk::alg::layered::graph::NodeType {
-    node.lock()
-        .ok()
+    node.lock_ok()
         .map(|node_guard| node_guard.node_type())
         .unwrap_or(crate::org::eclipse::elk::alg::layered::graph::NodeType::Normal)
 }
 
 fn layer_id(node: &LNodeRef) -> usize {
-    node.lock()
-        .ok()
+    node.lock_ok()
         .and_then(|node_guard| node_guard.layer())
         .and_then(|layer| {
             layer
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|mut layer_guard| layer_guard.graph_element().id as usize)
         })
         .unwrap_or(0)
 }
 
 fn has_model_order(node: &LNodeRef) -> bool {
-    node.lock()
-        .ok()
+    node.lock_ok()
         .and_then(|mut node_guard| node_guard.get_property(InternalProperties::MODEL_ORDER))
         .is_some()
 }
 
 fn port_model_order(port: &LPortRef, graph: &LGraphRef, offset: i32) -> i32 {
     let order = port
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|mut port_guard| port_guard.get_property(InternalProperties::MODEL_ORDER));
     let Some(order) = order else {
         return -1;
     };
     let enforce_group_model_order = graph
         .try_lock()
-        .ok()
+        
         .and_then(|mut graph_guard| {
             graph_guard.get_property(LayeredOptions::GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY)
         })
@@ -594,14 +584,13 @@ fn port_model_order(port: &LPortRef, graph: &LGraphRef, offset: i32) -> i32 {
     if enforce_group_model_order {
         let enforced_orders = graph
             .try_lock()
-            .ok()
+            
             .and_then(|mut graph_guard| {
                 graph_guard.get_property(LayeredOptions::GROUP_MODEL_ORDER_CM_ENFORCED_GROUP_ORDERS)
             })
             .unwrap_or_default();
         let group_id = port
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|mut port_guard| {
                 port_guard.get_property(LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID)
             })
@@ -615,15 +604,14 @@ fn port_model_order(port: &LPortRef, graph: &LGraphRef, offset: i32) -> i32 {
 
 fn edge_model_order(edge: &LEdgeRef, graph: &LGraphRef, offset: usize) -> i32 {
     let order = edge
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|mut edge_guard| edge_guard.get_property(InternalProperties::MODEL_ORDER));
     let Some(order) = order else {
         return 0;
     };
     let enforce_group_model_order = graph
         .try_lock()
-        .ok()
+        
         .and_then(|mut graph_guard| {
             graph_guard.get_property(LayeredOptions::GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY)
         })
@@ -634,14 +622,13 @@ fn edge_model_order(edge: &LEdgeRef, graph: &LGraphRef, offset: usize) -> i32 {
     if enforce_group_model_order {
         let enforced_orders = graph
             .try_lock()
-            .ok()
+            
             .and_then(|mut graph_guard| {
                 graph_guard.get_property(LayeredOptions::GROUP_MODEL_ORDER_CM_ENFORCED_GROUP_ORDERS)
             })
             .unwrap_or_default();
         let group_id = edge
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|mut edge_guard| {
                 edge_guard.get_property(LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID)
             })
@@ -680,7 +667,7 @@ fn to_target_node_position_map(
 }
 
 fn port_snapshot(port: &LPortRef) -> PortSnapshot {
-    if let Ok(mut port_guard) = port.lock() {
+    if let Some(mut port_guard) = port.lock_ok() {
         let (incoming_first, incoming_len) = {
             let incoming = port_guard.incoming_edges();
             (incoming.first().cloned(), incoming.len())

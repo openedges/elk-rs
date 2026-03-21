@@ -86,9 +86,9 @@ impl GraphConfigurator {
     pub fn prepare_graph_for_layout(&mut self, graph: &LGraphRef) {
         self.configure_graph_properties(graph);
 
-        let mut graph_guard = match graph.lock() {
-            Ok(guard) => guard,
-            Err(_) => return,
+        let mut graph_guard = match graph.lock_ok() {
+            Some(guard) => guard,
+            None => return,
         };
 
         let cycle_breaking = graph_guard
@@ -134,7 +134,7 @@ impl GraphConfigurator {
 
     fn configure_graph_properties(&mut self, graph: &LGraphRef) {
         let (edge_spacing, direction, random_seed, edge_routing, favor_straightness) =
-            if let Ok(mut graph_guard) = graph.lock() {
+            if let Some(mut graph_guard) = graph.lock_ok() {
                 (
                     graph_guard
                         .get_property(LayeredOptions::SPACING_EDGE_EDGE)
@@ -155,14 +155,14 @@ impl GraphConfigurator {
             };
 
         if edge_spacing < MIN_EDGE_SPACING {
-            if let Ok(mut graph_guard) = graph.lock() {
+            if let Some(mut graph_guard) = graph.lock_ok() {
                 graph_guard.set_property(LayeredOptions::SPACING_EDGE_EDGE, Some(MIN_EDGE_SPACING));
             }
         }
 
         if direction == Direction::Undefined {
             let inferred = LGraphUtil::get_direction(graph);
-            if let Ok(mut graph_guard) = graph.lock() {
+            if let Some(mut graph_guard) = graph.lock_ok() {
                 graph_guard.set_property(LayeredOptions::DIRECTION, Some(inferred));
             }
         }
@@ -172,7 +172,7 @@ impl GraphConfigurator {
         } else {
             Random::new(random_seed as u64)
         };
-        if let Ok(mut graph_guard) = graph.lock() {
+        if let Some(mut graph_guard) = graph.lock_ok() {
             graph_guard.set_property(InternalProperties::RANDOM, Some(random));
         }
 
@@ -182,7 +182,7 @@ impl GraphConfigurator {
             // while phase selection already falls back to Orthogonal for Undefined.
             // Treat Undefined as Orthogonal here as well so the BK favor-straight default is consistent.
             let favor = matches!(edge_routing, EdgeRouting::Orthogonal | EdgeRouting::Undefined);
-            if let Ok(mut graph_guard) = graph.lock() {
+            if let Some(mut graph_guard) = graph.lock_ok() {
                 graph_guard.set_property(
                     LayeredOptions::NODE_PLACEMENT_FAVOR_STRAIGHT_EDGES,
                     Some(favor),
@@ -193,16 +193,16 @@ impl GraphConfigurator {
         self.copy_port_constraints(graph);
 
         let spacings = Spacings::new(graph);
-        if let Ok(mut graph_guard) = graph.lock() {
+        if let Some(mut graph_guard) = graph.lock_ok() {
             graph_guard.set_property(InternalProperties::SPACINGS, Some(spacings));
         }
     }
 
     fn copy_port_constraints(&self, graph: &LGraphRef) {
-        let nodes: Vec<LNodeRef> = if let Ok(graph_guard) = graph.lock() {
+        let nodes: Vec<LNodeRef> = if let Some(graph_guard) = graph.lock_ok() {
             let mut result = graph_guard.layerless_nodes().clone();
             for layer in graph_guard.layers() {
-                if let Ok(layer_guard) = layer.lock() {
+                if let Some(layer_guard) = layer.lock_ok() {
                     result.extend(layer_guard.nodes().clone());
                 }
             }
@@ -217,7 +217,7 @@ impl GraphConfigurator {
     }
 
     fn copy_port_constraints_node(&self, node: &LNodeRef) {
-        let nested = if let Ok(mut node_guard) = node.lock() {
+        let nested = if let Some(mut node_guard) = node.lock_ok() {
             let original = node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS);
             node_guard.set_property(InternalProperties::ORIGINAL_PORT_CONSTRAINTS, original);
             node_guard.nested_graph()

@@ -51,9 +51,9 @@ impl ILayoutProcessor<LGraph> for SelfLoopPreProcessor {
 }
 
 fn set_hyper_loop_label_properties(holder: &SelfLoopHolderRef, spacing: f64, horizontal: bool) {
-    if let Ok(holder_guard) = holder.lock() {
+    if let Some(holder_guard) = holder.lock_ok() {
         for hyper_loop in holder_guard.sl_hyper_loops() {
-            if let Ok(mut loop_guard) = hyper_loop.lock() {
+            if let Some(mut loop_guard) = hyper_loop.lock_ok() {
                 if let Some(sl_labels) = loop_guard.sl_labels_mut() {
                     sl_labels.set_layout_direction_horizontal(horizontal);
                     sl_labels.set_label_label_spacing(spacing);
@@ -67,8 +67,7 @@ fn hide_self_loops(
     holder: &crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfLoopHolderRef,
 ) {
     let edges = holder
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|holder_guard| holder_guard.all_self_loop_edges())
         .unwrap_or_default();
 
@@ -82,16 +81,14 @@ fn hide_ports(
     holder: &crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfLoopHolderRef,
 ) {
     let node = holder
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|holder_guard| holder_guard.l_node().clone());
     let Some(node) = node else {
         return;
     };
 
     let (order_fixed, nested_graph) = node
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|mut node_guard| {
             let constraints = node_guard
                 .get_property(LayeredOptions::PORT_CONSTRAINTS)
@@ -102,7 +99,7 @@ fn hide_ports(
 
     let hierarchy_mode = nested_graph
         .and_then(|graph| {
-            graph.lock().ok().and_then(|mut graph_guard| {
+            graph.lock_ok().and_then(|mut graph_guard| {
                 graph_guard.get_property(InternalProperties::GRAPH_PROPERTIES)
             })
         })
@@ -113,15 +110,13 @@ fn hide_ports(
     }
 
     let sl_ports = holder
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|holder_guard| holder_guard.sl_port_values())
         .unwrap_or_default();
 
     for sl_port in sl_ports {
         let (had_only_self_loops, l_port) = sl_port
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|port_guard| {
                 (
                     port_guard.had_only_self_loops(),
@@ -136,16 +131,15 @@ fn hide_ports(
 
         LPort::set_node(&l_port, None);
 
-        if let Ok(mut sl_port_guard) = sl_port.lock() {
+        if let Some(mut sl_port_guard) = sl_port.lock_ok() {
             sl_port_guard.set_hidden(true);
         }
-        if let Ok(mut holder_guard) = holder.lock() {
+        if let Some(mut holder_guard) = holder.lock_ok() {
             holder_guard.set_ports_hidden(true);
         }
 
         debug_assert!(l_port
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|mut port_guard| port_guard.get_property(InternalProperties::PORT_DUMMY))
             .is_none());
     }

@@ -122,10 +122,9 @@ struct CompactionContext {
 impl CompactionContext {
     fn new(graph: &LGraph, edge_routing: EdgeRouting) -> Self {
         let has_edges = graph.layers().iter().any(|layer| {
-            layer.lock().ok().is_some_and(|layer| {
+            layer.lock_ok().is_some_and(|layer| {
                 layer.nodes().iter().any(|node| {
-                    node.lock()
-                        .ok()
+                    node.lock_ok()
                         .is_some_and(|node| !node.connected_edges().is_empty())
                 })
             })
@@ -138,7 +137,7 @@ impl CompactionContext {
 
         let mut nodes = Vec::new();
         for layer in graph.layers() {
-            if let Ok(layer_guard) = layer.lock() {
+            if let Some(layer_guard) = layer.lock_ok() {
                 nodes.extend(layer_guard.nodes().iter().cloned());
             }
         }
@@ -165,7 +164,7 @@ impl CompactionContext {
             }
 
             let (hitbox, incoming_count, outgoing_count, node_type) =
-                if let Ok(mut node_guard) = node.lock() {
+                if let Some(mut node_guard) = node.lock_ok() {
                     let margin = node_guard.margin().clone();
                     let shape = node_guard.shape();
                     let pos = *shape.position_ref();
@@ -258,7 +257,7 @@ impl CompactionContext {
             let mut incoming_ports: HashSet<usize> = HashSet::new();
             let mut outgoing_ports: HashSet<usize> = HashSet::new();
             for edge in &segment.represented_edges {
-                if let Ok(edge_guard) = edge.lock() {
+                if let Some(edge_guard) = edge.lock_ok() {
                     if let Some(source) = edge_guard.source() {
                         incoming_ports.insert(arc_key(&source));
                     }
@@ -397,7 +396,7 @@ impl CompactionContext {
         for c_node in &self.c_graph.borrow().c_nodes {
             let key = rc_key(c_node);
             if let Some(CNodeOrigin::Node(node)) = self.cnode_origin.get(&key) {
-                if let Ok(mut node_guard) = node.lock() {
+                if let Some(mut node_guard) = node.lock_ok() {
                     let left_margin = node_guard.margin().left;
                     node_guard.shape().position().x = c_node.borrow().hitbox.x + left_margin;
                 }
@@ -418,11 +417,10 @@ impl CompactionContext {
         for item in &self.comment_offsets {
             let anchor_position = item
                 .anchor
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|mut anchor| *anchor.shape().position_ref());
-            if let (Some(anchor_position), Ok(mut comment)) = (anchor_position, item.comment.lock())
-            {
+            if let Some(anchor_position) = anchor_position {
+                let mut comment = item.comment.lock();
                 comment.shape().position().x = anchor_position.x + item.offset.x;
                 comment.shape().position().y = anchor_position.y + item.offset.y;
             }
@@ -450,7 +448,7 @@ impl CompactionContext {
                 if !adjusted.insert((edge_key, *bend_index)) {
                     continue;
                 }
-                if let Ok(mut edge_guard) = edge.lock() {
+                if let Some(mut edge_guard) = edge.lock_ok() {
                     let chain = edge_guard.bend_points();
                     if *bend_index >= chain.len() {
                         continue;
@@ -466,7 +464,7 @@ impl CompactionContext {
                 if !adjusted_spline_segments.insert(spline_key) {
                     continue;
                 }
-                if let Ok(mut segment_guard) = spline_segment.lock() {
+                if let Some(mut segment_guard) = spline_segment.lock_ok() {
                     segment_guard.bounding_box.x += delta_x;
                 }
             }
@@ -488,19 +486,17 @@ impl CompactionContext {
             }
 
             let outgoing = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.outgoing_edges())
                 .unwrap_or_default();
             for edge in outgoing {
                 let is_self_loop = edge
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .is_some_and(|edge_guard| edge_guard.is_self_loop());
                 if !is_self_loop {
                     continue;
                 }
-                if let Ok(mut edge_guard) = edge.lock() {
+                if let Some(mut edge_guard) = edge.lock_ok() {
                     edge_guard.bend_points().offset(delta_x, 0.0);
                 }
             }
@@ -510,12 +506,11 @@ impl CompactionContext {
     fn adjust_straight_spline_segments(&self) {
         for node in self.layer_nodes() {
             let outgoing = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.outgoing_edges())
                 .unwrap_or_default();
             for edge in outgoing {
-                let spline = edge.lock().ok().and_then(|mut edge_guard| {
+                let spline = edge.lock_ok().and_then(|mut edge_guard| {
                     edge_guard.get_property(InternalProperties::SPLINE_ROUTE_START)
                 });
                 if let Some(spline) = spline {
@@ -539,8 +534,7 @@ impl CompactionContext {
         let mut index = 1usize;
         while index < spline.len() {
             let process = last_segment
-                .lock()
-                .ok()
+                .lock_ok()
                 .is_some_and(|segment| segment.initial_segment || !segment.is_straight);
             if process {
                 if let Some((next_index, next_segment)) =
@@ -572,8 +566,7 @@ impl CompactionContext {
         }
         for (i, segment) in spline.iter().enumerate().skip(index) {
             let is_match = segment
-                .lock()
-                .ok()
+                .lock_ok()
                 .is_some_and(|guard| i == spline.len() - 1 || !guard.is_straight);
             if is_match {
                 return Some((i, segment.clone()));
@@ -591,8 +584,7 @@ impl CompactionContext {
         spline: &[SplineSegmentRef],
     ) {
         let (left_initial, left_straight, left_bbox_x, left_bbox_w, left_source_node) = left
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|segment| {
                 (
                     segment.initial_segment,
@@ -619,8 +611,7 @@ impl CompactionContext {
         };
 
         let (right_last, right_straight, right_bbox_x, right_target_node) = right
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|segment| {
                 (
                     segment.last_segment,
@@ -649,7 +640,7 @@ impl CompactionContext {
         start_x += chunk;
         for idx in idx1..idx2 {
             if let Some(segment_ref) = spline.get(idx) {
-                if let Ok(mut segment) = segment_ref.lock() {
+                if let Some(mut segment) = segment_ref.lock_ok() {
                     let width = segment.bounding_box.width;
                     segment.bounding_box.x = start_x - width / 2.0;
                 }
@@ -675,25 +666,22 @@ impl CompactionContext {
             }
 
             let outgoing = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.outgoing_edges())
                 .unwrap_or_default();
             for edge in outgoing {
                 let is_self_loop = edge
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .is_some_and(|edge_guard| edge_guard.is_self_loop());
                 if !is_self_loop {
                     continue;
                 }
                 let labels = edge
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|edge_guard| edge_guard.labels().clone())
                     .unwrap_or_default();
                 for label in labels {
-                    if let Ok(mut label_guard) = label.lock() {
+                    if let Some(mut label_guard) = label.lock_ok() {
                         label_guard.shape().position().x += delta_x;
                     }
                 }
@@ -731,7 +719,7 @@ impl CompactionContext {
             let CNodeOrigin::Node(node) = origin else {
                 continue;
             };
-            if let Ok(mut node_guard) = node.lock() {
+            if let Some(mut node_guard) = node.lock_ok() {
                 if node_guard.node_type() != NodeType::ExternalPort {
                     continue;
                 }
@@ -767,7 +755,7 @@ impl CompactionContext {
                 continue;
             };
 
-            let (outgoing, incoming, node_hitbox) = if let Ok(node_guard) = node.lock() {
+            let (outgoing, incoming, node_hitbox) = if let Some(node_guard) = node.lock_ok() {
                 (
                     node_guard.outgoing_edges(),
                     node_guard.incoming_edges(),
@@ -778,7 +766,7 @@ impl CompactionContext {
             };
 
             for edge in outgoing {
-                let (source_port, target_port, bend_points) = if let Ok(edge_guard) = edge.lock() {
+                let (source_port, target_port, bend_points) = if let Some(edge_guard) = edge.lock_ok() {
                     (
                         edge_guard.source(),
                         edge_guard.target(),
@@ -794,7 +782,7 @@ impl CompactionContext {
 
                 let source_side = source_port
                     .as_ref()
-                    .and_then(|source| source.lock().ok().map(|port| port.side()))
+                    .and_then(|source| source.lock_ok().map(|port| port.side()))
                     .unwrap_or(PortSide::Undefined);
                 let first_bend = bend_points[0];
                 match source_side {
@@ -854,7 +842,7 @@ impl CompactionContext {
                 if let Some(index) = last_regular_segment_index {
                     let target_hitbox = target_port
                         .as_ref()
-                        .and_then(|target| target.lock().ok().and_then(|port| port.node()))
+                        .and_then(|target| target.lock_ok().and_then(|port| port.node()))
                         .and_then(|target_node| {
                             self.node_to_cnode.get(&arc_key(&target_node)).cloned()
                         })
@@ -873,7 +861,7 @@ impl CompactionContext {
             }
 
             for edge in incoming {
-                let (target_port, bend_points) = if let Ok(edge_guard) = edge.lock() {
+                let (target_port, bend_points) = if let Some(edge_guard) = edge.lock_ok() {
                     (edge_guard.target(), edge_guard.bend_points_ref().to_array())
                 } else {
                     continue;
@@ -883,7 +871,7 @@ impl CompactionContext {
                 }
                 let target_side = target_port
                     .as_ref()
-                    .and_then(|target| target.lock().ok().map(|port| port.side()))
+                    .and_then(|target| target.lock_ok().map(|port| port.side()))
                     .unwrap_or(PortSide::Undefined);
                 let last_idx = bend_points.len() - 1;
                 let bend = bend_points[last_idx];
@@ -926,12 +914,11 @@ impl CompactionContext {
 
         for node in self.layer_nodes() {
             let outgoing = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.outgoing_edges())
                 .unwrap_or_default();
             for edge in outgoing {
-                let spline_chain = edge.lock().ok().and_then(|mut edge_guard| {
+                let spline_chain = edge.lock_ok().and_then(|mut edge_guard| {
                     edge_guard.get_property(InternalProperties::SPLINE_ROUTE_START)
                 });
                 let Some(spline_chain) = spline_chain else {
@@ -1029,7 +1016,7 @@ impl CompactionContext {
         spline_segment: &SplineSegmentRef,
     ) -> Option<VerticalSegment> {
         let (is_straight, hitbox, representative_edge) =
-            spline_segment.lock().ok().and_then(|segment| {
+            spline_segment.lock_ok().and_then(|segment| {
                 let edge = segment.edges.first().cloned()?;
                 Some((segment.is_straight, segment.bounding_box, edge))
             })?;
@@ -1068,7 +1055,7 @@ impl CompactionContext {
     }
 
     fn capture_comment_offset_if_needed(&mut self, node: &LNodeRef) -> bool {
-        let (is_comment, connected_edges) = if let Ok(mut node_guard) = node.lock() {
+        let (is_comment, connected_edges) = if let Some(mut node_guard) = node.lock_ok() {
             (
                 node_guard
                     .get_property(LayeredOptions::COMMENT_BOX)
@@ -1084,13 +1071,13 @@ impl CompactionContext {
         }
 
         let edge = connected_edges[0].clone();
-        let other = if let Ok(edge_guard) = edge.lock() {
+        let other = if let Some(edge_guard) = edge.lock_ok() {
             let source_node = edge_guard
                 .source()
-                .and_then(|source| source.lock().ok().and_then(|port| port.node()));
+                .and_then(|source| source.lock_ok().and_then(|port| port.node()));
             let target_node = edge_guard
                 .target()
-                .and_then(|target| target.lock().ok().and_then(|port| port.node()));
+                .and_then(|target| target.lock_ok().and_then(|port| port.node()));
             match (source_node, target_node) {
                 (Some(source), Some(target)) if Arc::ptr_eq(&source, node) => Some(target),
                 (Some(source), Some(target)) if Arc::ptr_eq(&target, node) => Some(source),
@@ -1107,12 +1094,10 @@ impl CompactionContext {
         };
 
         let comment_pos = node
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|mut node_guard| *node_guard.shape().position_ref());
         let other_pos = other
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|mut node_guard| *node_guard.shape().position_ref());
         if let (Some(comment_pos), Some(other_pos)) = (comment_pos, other_pos) {
             self.comment_offsets.push(CommentOffset {
@@ -1223,8 +1208,7 @@ impl CompactionMetadata {
 
     fn is_external_port_node(&self, c_node: &CNodeRef) -> bool {
         self.node_origin(c_node).is_some_and(|node| {
-            node.lock()
-                .ok()
+            node.lock_ok()
                 .is_some_and(|node_guard| node_guard.node_type() == NodeType::ExternalPort)
         })
     }
@@ -1707,7 +1691,7 @@ impl NetworkSimplexCompaction {
                 }
                 if let Some(port) = port {
                     alter_offset_node.borrow_mut().c_group_offset.x -= adjust;
-                    if let Ok(mut port_guard) = port.lock() {
+                    if let Some(mut port_guard) = port.lock_ok() {
                         port_guard.shape().position().x -= adjust;
                     }
                 }
@@ -1764,12 +1748,11 @@ impl NetworkSimplexCompaction {
                 continue;
             };
             let outgoing = l_node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.outgoing_edges())
                 .unwrap_or_default();
             for l_edge in outgoing {
-                let (is_self_loop, source_port, target_port) = if let Ok(edge_guard) = l_edge.lock()
+                let (is_self_loop, source_port, target_port) = if let Some(edge_guard) = l_edge.lock_ok()
                 {
                     (
                         edge_guard.is_self_loop(),
@@ -1787,20 +1770,18 @@ impl NetworkSimplexCompaction {
                 };
 
                 let source_side = source_port
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|port| port.side())
                     .unwrap_or(PortSide::Undefined);
                 let target_side = target_port
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|port| port.side())
                     .unwrap_or(PortSide::Undefined);
                 if is_north_south_side(source_side) && is_north_south_side(target_side) {
                     continue;
                 }
 
-                let Some(target_node) = target_port.lock().ok().and_then(|port| port.node()) else {
+                let Some(target_node) = target_port.lock_ok().and_then(|port| port.node()) else {
                     continue;
                 };
                 let Some(target_c_node) = lnode_map.get(&arc_key(&target_node)).cloned() else {
@@ -1823,8 +1804,7 @@ impl NetworkSimplexCompaction {
 
                 if source_side == PortSide::West
                     && source_port
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .is_some_and(|port| !port.outgoing_edges().is_empty())
                 {
                     if let Some(segment_nodes) = ledge_map.get(&arc_key(&l_edge)) {
@@ -1847,8 +1827,7 @@ impl NetworkSimplexCompaction {
 
                 if target_side == PortSide::East
                     && target_port
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .is_some_and(|port| !port.incoming_edges().is_empty())
                 {
                     if let Some(segment_nodes) = ledge_map.get(&arc_key(&l_edge)) {
@@ -1876,8 +1855,7 @@ impl NetworkSimplexCompaction {
         let mut sources = Vec::new();
         for node in &network_simplex_graph.nodes {
             if node
-                .lock()
-                .ok()
+                .lock_ok()
                 .is_some_and(|node_guard| node_guard.incoming_edges().is_empty())
             {
                 sources.push(node.clone());
@@ -1924,7 +1902,7 @@ impl ICompactionAlgorithm for NetworkSimplexCompaction {
             let Some(n_node) = group_to_nnode.get(&group_key(&group)) else {
                 continue;
             };
-            let layer = n_node.lock().ok().map(|node| node.layer).unwrap_or(0);
+            let layer = n_node.lock_ok().map(|node| node.layer).unwrap_or(0);
             let offset = c_node.borrow().c_group_offset.x;
             c_node.borrow_mut().hitbox.x = layer as f64 + offset;
         }
@@ -1987,8 +1965,7 @@ impl SpecialSpacingsHandler {
     fn node_type_or_long_edge(&self, c_node: &CNodeRef) -> NodeType {
         let key = rc_key(c_node);
         if let Some(node) = self.node_origins.get(&key) {
-            node.lock()
-                .ok()
+            node.lock_ok()
                 .map(|node_guard| node_guard.node_type())
                 .unwrap_or(NodeType::Normal)
         } else {
@@ -1999,8 +1976,7 @@ impl SpecialSpacingsHandler {
     fn is_external_port_node(&self, c_node: &CNodeRef) -> bool {
         let key = rc_key(c_node);
         self.node_origins.get(&key).is_some_and(|node| {
-            node.lock()
-                .ok()
+            node.lock_ok()
                 .is_some_and(|node_guard| node_guard.node_type() == NodeType::ExternalPort)
         })
     }

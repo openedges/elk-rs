@@ -21,10 +21,10 @@ impl DCGraph {
             let component = Arc::new(Mutex::new(DCComponent::new()));
             let weak: DCComponentWeak = Arc::downgrade(&component);
             for elem in elements {
-                if let Ok(mut elem_guard) = elem.lock() {
+                if let Some(mut elem_guard) = elem.lock_ok() {
                     elem_guard.set_component(weak.clone());
                 }
-                if let Ok(mut comp_guard) = component.lock() {
+                if let Some(mut comp_guard) = component.lock_ok() {
                     comp_guard.add_element(elem.clone());
                 }
             }

@@ -86,16 +86,13 @@ impl StressMajorization {
         let mut adj: Vec<Vec<(usize, f64)>> = vec![Vec::new(); n];
         for edge in graph.edges() {
             let (source_id, target_id, edge_len) = {
-                let edge_guard = edge.lock().ok();
-                let Some(mut edge_guard) = edge_guard else {
-                    continue;
-                };
+                let mut edge_guard = edge.lock();
                 let source_id = edge_guard
                     .source()
-                    .and_then(|node| node.lock().ok().map(|n| n.id()));
+                    .and_then(|node| node.lock_ok().map(|n| n.id()));
                 let target_id = edge_guard
                     .target()
-                    .and_then(|node| node.lock().ok().map(|n| n.id()));
+                    .and_then(|node| node.lock_ok().map(|n| n.id()));
                 let edge_len = if edge_guard.has_property(StressOptions::DESIRED_EDGE_LENGTH) {
                     edge_guard
                         .get_property(StressOptions::DESIRED_EDGE_LENGTH)
@@ -121,16 +118,13 @@ impl StressMajorization {
         self.connected_edges.resize_with(n, Vec::new);
         for edge in graph.edges() {
             let (source_id, target_id) = {
-                let edge_guard = edge.lock().ok();
-                let Some(edge_guard) = edge_guard else {
-                    continue;
-                };
+                let edge_guard = edge.lock();
                 let source_id = edge_guard
                     .source()
-                    .and_then(|node| node.lock().ok().map(|n| n.id()));
+                    .and_then(|node| node.lock_ok().map(|n| n.id()));
                 let target_id = edge_guard
                     .target()
-                    .and_then(|node| node.lock().ok().map(|n| n.id()));
+                    .and_then(|node| node.lock_ok().map(|n| n.id()));
                 match (source_id, target_id) {
                     (Some(source_id), Some(target_id)) => (source_id, target_id),
                     _ => continue,
@@ -187,7 +181,7 @@ impl StressMajorization {
         let mut fixed = vec![false; n];
 
         for (i, node) in nodes.iter().enumerate() {
-            if let Ok(mut node_guard) = node.lock() {
+            if let Some(mut node_guard) = node.lock_ok() {
                 pos_x[i] = node_guard.position_ref().x;
                 pos_y[i] = node_guard.position_ref().y;
                 node_ids[i] = node_guard.id();
@@ -233,7 +227,7 @@ impl StressMajorization {
 
         // Write back positions to nodes
         for (i, node) in graph.nodes().iter().enumerate() {
-            if let Ok(mut node_guard) = node.lock() {
+            if let Some(mut node_guard) = node.lock_ok() {
                 let pos = node_guard.position();
                 pos.x = pos_x[i];
                 pos.y = pos_y[i];

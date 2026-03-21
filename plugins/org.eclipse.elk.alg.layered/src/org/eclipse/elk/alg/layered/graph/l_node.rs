@@ -122,22 +122,22 @@ impl LNode {
     }
 
     pub fn set_layer(node: &LNodeRef, layer: Option<LayerRef>) {
-        let current_layer = node.lock().ok().and_then(|node| node.layer());
+        let current_layer = node.lock_ok().and_then(|node| node.layer());
 
         if let Some(current_layer) = current_layer {
-            if let Ok(mut layer) = current_layer.lock() {
+            if let Some(mut layer) = current_layer.lock_ok() {
                 remove_arc(layer.nodes_mut(), node);
             }
         }
 
         {
-            if let Ok(mut node_guard) = node.lock() {
+            if let Some(mut node_guard) = node.lock_ok() {
                 node_guard.layer = layer.as_ref().map(Arc::downgrade);
             }
         }
 
         if let Some(layer) = layer {
-            if let Ok(mut layer_guard) = layer.lock() {
+            if let Some(mut layer_guard) = layer.lock_ok() {
                 layer_guard.nodes_mut().push(node.clone());
             }
         }
@@ -146,7 +146,7 @@ impl LNode {
     pub fn set_layer_at_index(node: &LNodeRef, index: usize, layer: Option<LayerRef>) {
         if let Some(layer_ref) = &layer {
             let size = layer_ref
-                .lock()
+                .lock_ok()
                 .map(|layer| layer.nodes().len())
                 .unwrap_or(0);
             if index > size {
@@ -154,21 +154,21 @@ impl LNode {
             }
         }
 
-        let current_layer = node.lock().ok().and_then(|node| node.layer());
+        let current_layer = node.lock_ok().and_then(|node| node.layer());
         if let Some(current_layer) = current_layer {
-            if let Ok(mut layer) = current_layer.lock() {
+            if let Some(mut layer) = current_layer.lock_ok() {
                 remove_arc(layer.nodes_mut(), node);
             }
         }
 
         {
-            if let Ok(mut node_guard) = node.lock() {
+            if let Some(mut node_guard) = node.lock_ok() {
                 node_guard.layer = layer.as_ref().map(Arc::downgrade);
             }
         }
 
         if let Some(layer) = layer {
-            if let Ok(mut layer_guard) = layer.lock() {
+            if let Some(mut layer_guard) = layer.lock_ok() {
                 if index > layer_guard.nodes().len() {
                     panic!("index must be >= 0 and <= layer node count");
                 }
@@ -182,7 +182,7 @@ impl LNode {
             return Some(graph);
         }
         self.layer()
-            .and_then(|layer| layer.lock().ok().and_then(|layer| layer.graph()))
+            .and_then(|layer| layer.lock_ok().and_then(|layer| layer.graph()))
     }
 
     pub fn set_graph(&mut self, graph: &LGraphRef) {
@@ -214,7 +214,7 @@ impl LNode {
                 .ports
                 .iter()
                 .filter(|port| {
-                    port.lock()
+                    port.lock_ok()
                         .map(|port| !port.incoming_edges().is_empty())
                         .unwrap_or(false)
                 })
@@ -224,7 +224,7 @@ impl LNode {
                 .ports
                 .iter()
                 .filter(|port| {
-                    port.lock()
+                    port.lock_ok()
                         .map(|port| !port.outgoing_edges().is_empty())
                         .unwrap_or(false)
                 })
@@ -237,7 +237,7 @@ impl LNode {
     pub fn ports_by_side(&self, side: PortSide) -> Vec<LPortRef> {
         self.ports
             .iter()
-            .filter(|port| port.lock().map(|port| port.side() == side).unwrap_or(false))
+            .filter(|port| port.lock_ok().map(|port| port.side() == side).unwrap_or(false))
             .cloned()
             .collect()
     }
@@ -254,7 +254,7 @@ impl LNode {
             {
                 let slice = &self.ports[indices.first..indices.second];
                 let matches = slice.iter().all(|port| {
-                    port.lock()
+                    port.lock_ok()
                         .map(|port_guard| port_guard.side() == side)
                         .unwrap_or(false)
                 });
@@ -267,7 +267,7 @@ impl LNode {
         // Cache can be stale if port sides changed after caching.
         self.ports
             .iter()
-            .filter(|port| port.lock().map(|port| port.side() == side).unwrap_or(false))
+            .filter(|port| port.lock_ok().map(|port| port.side() == side).unwrap_or(false))
             .cloned()
             .collect()
     }
@@ -276,7 +276,7 @@ impl LNode {
         self.ports
             .iter()
             .filter(|port| {
-                if let Ok(port_guard) = port.lock() {
+                if let Some(port_guard) = port.lock_ok() {
                     if port_guard.side() != side {
                         return false;
                     }
@@ -295,7 +295,7 @@ impl LNode {
     pub fn incoming_edges(&self) -> Vec<LEdgeRef> {
         let mut edges = Vec::new();
         for port in &self.ports {
-            if let Ok(port_guard) = port.lock() {
+            if let Some(port_guard) = port.lock_ok() {
                 edges.extend(port_guard.incoming_edges().iter().cloned());
             }
         }
@@ -305,7 +305,7 @@ impl LNode {
     pub fn outgoing_edges(&self) -> Vec<LEdgeRef> {
         let mut edges = Vec::new();
         for port in &self.ports {
-            if let Ok(port_guard) = port.lock() {
+            if let Some(port_guard) = port.lock_ok() {
                 edges.extend(port_guard.outgoing_edges().iter().cloned());
             }
         }
@@ -315,7 +315,7 @@ impl LNode {
     pub fn connected_edges(&self) -> Vec<LEdgeRef> {
         let mut edges = Vec::new();
         for port in &self.ports {
-            if let Ok(port_guard) = port.lock() {
+            if let Some(port_guard) = port.lock_ok() {
                 edges.extend(port_guard.connected_edges().iter().cloned());
             }
         }
@@ -349,14 +349,13 @@ impl LNode {
     pub fn index(&self) -> Option<usize> {
         let node_ref = self.self_ref.upgrade()?;
         let layer = self.layer()?;
-        let layer_guard = layer.lock().ok()?;
+        let layer_guard = layer.lock_ok()?;
         index_of_arc(layer_guard.nodes(), &node_ref)
     }
 
     pub fn border_to_content_area_coordinates(&mut self, horizontal: bool, vertical: bool) {
         let graph = self.graph().expect("node must be assigned to a graph");
-        let graph_guard = graph.lock().expect("graph lock");
-        let padding = graph_guard.padding_ref();
+        let graph_guard = graph.lock();        let padding = graph_guard.padding_ref();
         let offset = graph_guard.offset_ref();
         let pos = self.shape.position();
 
@@ -371,7 +370,7 @@ impl LNode {
 
     pub fn interactive_reference_point(&mut self) -> Option<KVector> {
         let graph = self.graph()?;
-        let mut graph_guard = graph.lock().ok()?;
+        let mut graph_guard = graph.lock_ok()?;
         let reference = graph_guard
             .get_property(LayeredOptions::INTERACTIVE_REFERENCE_POINT)
             .unwrap_or(InteractiveReferencePoint::Center);
@@ -408,7 +407,7 @@ impl LNode {
         let mut current_index = 0usize;
         for port in &self.ports {
             let side = port
-                .lock()
+                .lock_ok()
                 .map(|port| port.side())
                 .unwrap_or(PortSide::Undefined);
             if side != current_side {
@@ -441,7 +440,7 @@ impl LNode {
 
     pub fn designation(&mut self) -> String {
         if let Some(label) = self.labels.first() {
-            if let Ok(label_guard) = label.lock() {
+            if let Some(label_guard) = label.lock_ok() {
                 if !label_guard.text().is_empty() {
                     return label_guard.text().to_owned();
                 }
@@ -469,8 +468,7 @@ impl LNode {
         }
         labels.iter().all(|label| {
             label
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|mut label| label.get_property(LayeredOptions::EDGE_LABELS_INLINE))
                 .unwrap_or(false)
         })

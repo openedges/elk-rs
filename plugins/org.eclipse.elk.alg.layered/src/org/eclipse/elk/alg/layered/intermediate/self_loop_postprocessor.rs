@@ -15,15 +15,14 @@ impl ILayoutProcessor<LGraph> for SelfLoopPostProcessor {
             .iter()
             .flat_map(|layer| {
                 layer
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|layer_guard| layer_guard.nodes().clone())
                     .unwrap_or_default()
             })
             .collect();
 
         for lnode in nodes {
-            let has_self_loop_holder = lnode.lock().ok().is_some_and(|mut node_guard| {
+            let has_self_loop_holder = lnode.lock_ok().is_some_and(|mut node_guard| {
                 node_guard.node_type() == NodeType::Normal
                     && node_guard
                         .get_property(InternalProperties::SELF_LOOP_HOLDER)
@@ -41,27 +40,24 @@ impl ILayoutProcessor<LGraph> for SelfLoopPostProcessor {
 
 fn process_node(node: &LNodeRef) {
     let holder = node
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|mut node_guard| node_guard.get_property(InternalProperties::SELF_LOOP_HOLDER));
     let Some(holder) = holder else {
         return;
     };
 
     let node_pos = node
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|mut node_guard| *node_guard.shape().position_ref())
         .unwrap_or_default();
 
     let loops = holder
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|holder_guard| holder_guard.sl_hyper_loops().clone())
         .unwrap_or_default();
 
     for sl_loop in loops {
-        let label_refs = if let Ok(mut loop_guard) = sl_loop.lock() {
+        let label_refs = if let Some(mut loop_guard) = sl_loop.lock_ok() {
             if let Some(labels) = loop_guard.sl_labels_mut() {
                 let pos = labels.position_mut();
                 pos.x += node_pos.x;
@@ -76,7 +72,7 @@ fn process_node(node: &LNodeRef) {
 
         if let Some(label_refs) = label_refs {
             for label in label_refs {
-                if let Ok(mut label_guard) = label.lock() {
+                if let Some(mut label_guard) = label.lock_ok() {
                     label_guard.shape().position().x += node_pos.x;
                     label_guard.shape().position().y += node_pos.y;
                 }
@@ -84,15 +80,13 @@ fn process_node(node: &LNodeRef) {
         }
 
         let sl_edges = sl_loop
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|loop_guard| loop_guard.sl_edges().clone())
             .unwrap_or_default();
 
         for sl_edge in sl_edges {
             let (l_edge, source_port, target_port) = sl_edge
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|sl_edge_guard| {
                     (
                         sl_edge_guard.l_edge().clone(),
@@ -103,20 +97,18 @@ fn process_node(node: &LNodeRef) {
                 .unwrap_or_else(|| panic!("self loop edge lock poisoned"));
 
             let source_port = source_port
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|port_guard| port_guard.l_port().clone())
                 .unwrap_or_else(|| panic!("self loop source port lock poisoned"));
             let target_port = target_port
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|port_guard| port_guard.l_port().clone())
                 .unwrap_or_else(|| panic!("self loop target port lock poisoned"));
 
             LEdge::set_source(&l_edge, Some(source_port));
             LEdge::set_target(&l_edge, Some(target_port));
 
-            if let Ok(mut edge_guard) = l_edge.lock() {
+            if let Some(mut edge_guard) = l_edge.lock_ok() {
                 edge_guard.bend_points().offset(node_pos.x, node_pos.y);
             };
         }

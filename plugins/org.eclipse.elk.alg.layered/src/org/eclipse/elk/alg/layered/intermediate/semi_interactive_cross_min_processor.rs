@@ -20,15 +20,14 @@ impl ILayoutProcessor<LGraph> for SemiInteractiveCrossMinProcessor {
         for layer in layered_graph.layers().clone() {
             let mut ordered_nodes: Vec<(f64, LNodeRef)> = Vec::new();
             let nodes = layer
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|layer_guard| layer_guard.nodes().clone())
                 .unwrap_or_default();
 
             for node in nodes {
-                let mut node_guard = match node.lock() {
-                    Ok(guard) => guard,
-                    Err(_) => continue,
+                let mut node_guard = match node.lock_ok() {
+            Some(guard) => guard,
+            None => continue,
                 };
                 if node_guard.node_type() != NodeType::Normal {
                     continue;
@@ -52,7 +51,7 @@ impl ILayoutProcessor<LGraph> for SemiInteractiveCrossMinProcessor {
             for window in ordered_nodes.windows(2) {
                 let prev = &window[0].1;
                 let cur = &window[1].1;
-                if let Ok(mut prev_guard) = prev.lock() {
+                if let Some(mut prev_guard) = prev.lock_ok() {
                     let mut constraints = prev_guard
                         .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
                         .unwrap_or_default();

@@ -39,15 +39,13 @@ impl ILayoutProcessor<LGraph> for LabelDummyRemover {
         let layers = layered_graph.layers().clone();
         for layer in layers {
             let nodes = layer
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|layer_guard| layer_guard.nodes().clone())
                 .unwrap_or_default();
 
             for node in nodes {
                 let is_label_dummy = node
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|node_guard| node_guard.node_type() == NodeType::Label)
                     .unwrap_or(false);
                 if !is_label_dummy {
@@ -91,9 +89,9 @@ impl LabelDummyRemover {
             labels_below_edge,
             inline_labels,
         ) = {
-            let mut node_guard = match node.lock() {
-                Ok(guard) => guard,
-                Err(_) => return,
+            let mut node_guard = match node.lock_ok() {
+            Some(guard) => guard,
+            None => return,
             };
 
             let origin_edge = match node_guard.get_property(InternalProperties::ORIGIN) {
@@ -172,7 +170,7 @@ impl LabelDummyRemover {
             );
         }
 
-        if let Ok(mut edge_guard) = origin_edge.lock() {
+        if let Some(mut edge_guard) = origin_edge.lock_ok() {
             edge_guard.labels_mut().extend(represented_labels);
         };
     }
@@ -196,12 +194,11 @@ impl LabelDummyRemover {
             return;
         };
 
-        let source_right = source_node.lock().ok().map(|mut source_guard| {
+        let source_right = source_node.lock_ok().map(|mut source_guard| {
             source_guard.shape().position_ref().x + source_guard.shape().size_ref().x
         });
         let target_left = target_node
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|mut target_guard| target_guard.shape().position_ref().x);
         let (Some(source_right), Some(target_left)) = (source_right, target_left) else {
             return;
@@ -228,33 +225,29 @@ impl LabelDummyRemover {
 
     fn adjacent_source_and_target_nodes(node: &LNodeRef) -> Option<(LNodeRef, LNodeRef)> {
         let (west_port, east_port) = {
-            let node_guard = node.lock().ok()?;
+            let node_guard = node.lock_ok()?;
             (
                 node_guard.ports_by_side(PortSide::West).first().cloned(),
                 node_guard.ports_by_side(PortSide::East).first().cloned(),
             )
         };
         let incoming_edge = west_port.and_then(|port| {
-            port.lock()
-                .ok()
+            port.lock_ok()
                 .and_then(|port_guard| port_guard.incoming_edges().first().cloned())
         })?;
         let outgoing_edge = east_port.and_then(|port| {
-            port.lock()
-                .ok()
+            port.lock_ok()
                 .and_then(|port_guard| port_guard.outgoing_edges().first().cloned())
         })?;
 
         let source_node = incoming_edge
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|edge_guard| edge_guard.source())
-            .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))?;
+            .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))?;
         let target_node = outgoing_edge
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|edge_guard| edge_guard.target())
-            .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))?;
+            .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))?;
 
         Some((source_node, target_node))
     }
@@ -266,7 +259,7 @@ impl LabelDummyRemover {
         label_space: &KVector,
     ) {
         for label in labels {
-            if let Ok(mut label_guard) = label.lock() {
+            if let Some(mut label_guard) = label.lock_ok() {
                 let label_size_x = label_guard.shape().size_ref().x;
                 let label_size_y = label_guard.shape().size_ref().y;
 
@@ -324,7 +317,7 @@ impl LabelDummyRemover {
         inline: bool,
         left_aligned: bool,
     ) {
-        if let Ok(mut label_guard) = label.lock() {
+        if let Some(mut label_guard) = label.lock_ok() {
             let label_size_x = label_guard.shape().size_ref().x;
             let label_size_y = label_guard.shape().size_ref().y;
 
@@ -343,8 +336,7 @@ impl LabelDummyRemover {
     }
 
     fn edge_thickness(edge: &crate::org::eclipse::elk::alg::layered::graph::LEdgeRef) -> f64 {
-        edge.lock()
-            .ok()
+        edge.lock_ok()
             .and_then(|mut edge_guard| {
                 if edge_guard
                     .graph_element()
@@ -361,8 +353,7 @@ impl LabelDummyRemover {
 
     fn label_inline_property(label: &LLabelRef) -> bool {
         label
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|mut label_guard| {
                 if label_guard
                     .shape()

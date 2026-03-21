@@ -84,8 +84,7 @@ impl NorthSouthEdgeNeighbouringNodeCrossingsCounter {
             self.upper_lower_crossings = closer_east_ports
                 .first()
                 .and_then(|port| {
-                    port.lock()
-                        .ok()
+                    port.lock_ok()
                         .map(|port_guard| port_guard.degree() as i32)
                 })
                 .unwrap_or(0);
@@ -93,8 +92,7 @@ impl NorthSouthEdgeNeighbouringNodeCrossingsCounter {
             self.lower_upper_crossings = further_west_ports
                 .first()
                 .and_then(|port| {
-                    port.lock()
-                        .ok()
+                    port.lock_ok()
                         .map(|port_guard| port_guard.degree() as i32)
                 })
                 .unwrap_or(0);
@@ -103,8 +101,7 @@ impl NorthSouthEdgeNeighbouringNodeCrossingsCounter {
             self.upper_lower_crossings = closer_west_ports
                 .first()
                 .and_then(|port| {
-                    port.lock()
-                        .ok()
+                    port.lock_ok()
                         .map(|port_guard| port_guard.degree() as i32)
                 })
                 .unwrap_or(0);
@@ -112,8 +109,7 @@ impl NorthSouthEdgeNeighbouringNodeCrossingsCounter {
             self.lower_upper_crossings = further_east_ports
                 .first()
                 .and_then(|port| {
-                    port.lock()
-                        .ok()
+                    port.lock_ok()
                         .map(|port_guard| port_guard.degree() as i32)
                 })
                 .unwrap_or(0);
@@ -170,8 +166,7 @@ impl NorthSouthEdgeNeighbouringNodeCrossingsCounter {
     }
 
     fn has_connected_north_south_edge(&self, port: &LPortRef) -> bool {
-        port.lock()
-            .ok()
+        port.lock_ok()
             .and_then(|mut port_guard| port_guard.get_property(InternalProperties::PORT_DUMMY))
             .is_some()
     }
@@ -192,13 +187,11 @@ impl NorthSouthEdgeNeighbouringNodeCrossingsCounter {
 
     fn origin_port_of(&self, node: &LNodeRef) -> Option<LPortRef> {
         let port = node
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|node_guard| node_guard.ports().first().cloned());
         let port = port?;
         let origin = port
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|mut port_guard| port_guard.get_property(InternalProperties::ORIGIN));
         match origin {
             Some(Origin::LPort(origin_port)) => Some(origin_port),
@@ -208,14 +201,13 @@ impl NorthSouthEdgeNeighbouringNodeCrossingsCounter {
 
     fn is_north_of_normal_node(&self, node: &LNodeRef) -> bool {
         self.origin_port_of(node)
-            .and_then(|port| port.lock().ok().map(|port_guard| port_guard.side()))
+            .and_then(|port| port.lock_ok().map(|port_guard| port_guard.side()))
             .map(|side| side == PortSide::North)
             .unwrap_or(false)
     }
 
     fn origin_of(&self, node: &LNodeRef) -> Option<LNodeRef> {
-        node.lock()
-            .ok()
+        node.lock_ok()
             .and_then(|mut node_guard| node_guard.get_property(InternalProperties::ORIGIN))
             .and_then(|origin| match origin {
                 Origin::LNode(node_ref) => Some(node_ref),
@@ -224,30 +216,26 @@ impl NorthSouthEdgeNeighbouringNodeCrossingsCounter {
     }
 
     fn is_long_edge_dummy(&self, node: &LNodeRef) -> bool {
-        node.lock()
-            .ok()
+        node.lock_ok()
             .map(|node_guard| node_guard.node_type() == NodeType::LongEdge)
             .unwrap_or(false)
     }
 
     fn is_north_south(&self, node: &LNodeRef) -> bool {
-        node.lock()
-            .ok()
+        node.lock_ok()
             .map(|node_guard| node_guard.node_type() == NodeType::NorthSouthPort)
             .unwrap_or(false)
     }
 
     fn is_normal(&self, node: &LNodeRef) -> bool {
-        node.lock()
-            .ok()
+        node.lock_ok()
             .map(|node_guard| node_guard.node_type() == NodeType::Normal)
             .unwrap_or(false)
     }
 }
 
 fn ports_on_side(node: &LNodeRef, side: PortSide) -> Vec<LPortRef> {
-    node.lock()
-        .ok()
+    node.lock_ok()
         .map(|mut node_guard| node_guard.port_side_view(side))
         .unwrap_or_default()
 }

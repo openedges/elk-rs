@@ -19,8 +19,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::NullElkProgressMonitor;
 fn inserts_label_dummy_and_moves_center_labels() {
     let graph = LGraph::new();
     {
-        let mut graph_guard = graph.lock().expect("graph lock");
-        graph_guard.set_property(LayeredOptions::DIRECTION, Some(Direction::Right));
+        let mut graph_guard = graph.lock();        graph_guard.set_property(LayeredOptions::DIRECTION, Some(Direction::Right));
         graph_guard.set_property(LayeredOptions::SPACING_EDGE_LABEL, Some(2.0));
         graph_guard.set_property(LayeredOptions::SPACING_LABEL_LABEL, Some(1.0));
     }
@@ -28,22 +27,19 @@ fn inserts_label_dummy_and_moves_center_labels() {
     let source = LNode::new(&graph);
     let target = LNode::new(&graph);
     {
-        let mut graph_guard = graph.lock().expect("graph lock");
-        graph_guard.layerless_nodes_mut().push(source.clone());
+        let mut graph_guard = graph.lock();        graph_guard.layerless_nodes_mut().push(source.clone());
         graph_guard.layerless_nodes_mut().push(target.clone());
     }
 
     let source_port = LPort::new();
     {
-        let mut port_guard = source_port.lock().expect("source port lock");
-        port_guard.set_side(PortSide::East);
+        let mut port_guard = source_port.lock();        port_guard.set_side(PortSide::East);
     }
     LPort::set_node(&source_port, Some(source.clone()));
 
     let target_port = LPort::new();
     {
-        let mut port_guard = target_port.lock().expect("target port lock");
-        port_guard.set_side(PortSide::West);
+        let mut port_guard = target_port.lock();        port_guard.set_side(PortSide::West);
     }
     LPort::set_node(&target_port, Some(target.clone()));
 
@@ -51,14 +47,12 @@ fn inserts_label_dummy_and_moves_center_labels() {
     LEdge::set_source(&edge, Some(source_port));
     LEdge::set_target(&edge, Some(target_port));
     {
-        let mut edge_guard = edge.lock().expect("edge lock");
-        edge_guard.set_property(CoreOptions::EDGE_THICKNESS, Some(2.0));
+        let mut edge_guard = edge.lock();        edge_guard.set_property(CoreOptions::EDGE_THICKNESS, Some(2.0));
     }
 
     let label = Arc::new(Mutex::new(LLabel::with_text("center")));
     {
-        let mut label_guard = label.lock().expect("label lock");
-        label_guard.shape().size().x = 10.0;
+        let mut label_guard = label.lock();        label_guard.shape().size().x = 10.0;
         label_guard.shape().size().y = 5.0;
         label_guard.set_property(
             LayeredOptions::EDGE_LABELS_PLACEMENT,
@@ -66,43 +60,39 @@ fn inserts_label_dummy_and_moves_center_labels() {
         );
     }
     {
-        let mut edge_guard = edge.lock().expect("edge lock");
-        edge_guard.labels_mut().push(label.clone());
+        let mut edge_guard = edge.lock();        edge_guard.labels_mut().push(label.clone());
     }
 
     let mut processor = LabelDummyInserter;
     let mut monitor = NullElkProgressMonitor;
-    processor.process(&mut graph.lock().expect("graph lock"), &mut monitor);
+    processor.process(&mut graph.lock(), &mut monitor);
 
-    let layerless_nodes = graph.lock().expect("graph lock").layerless_nodes().clone();
+    let layerless_nodes = graph.lock().layerless_nodes().clone();
     assert_eq!(layerless_nodes.len(), 3, "label dummy should be added");
 
     let dummy = layerless_nodes
         .iter()
         .find(|node| {
-            node.lock()
-                .ok()
+            node.lock_ok()
                 .map(|node_guard| node_guard.node_type() == NodeType::Label)
                 .unwrap_or(false)
         })
         .expect("label dummy node");
 
     let represented = {
-        let mut dummy_guard = dummy.lock().expect("dummy lock");
-        dummy_guard
+        let mut dummy_guard = dummy.lock();        dummy_guard
             .get_property(InternalProperties::REPRESENTED_LABELS)
             .unwrap_or_default()
     };
     assert_eq!(represented.len(), 1, "center label must move to dummy");
 
     let dummy_size = {
-        let mut dummy_guard = dummy.lock().expect("dummy lock");
-        *dummy_guard.shape().size_ref()
+        let mut dummy_guard = dummy.lock();        *dummy_guard.shape().size_ref()
     };
     assert_eq!(dummy_size.x, 10.0);
     assert_eq!(dummy_size.y, 11.0);
 
-    let edge_labels = edge.lock().expect("edge lock").labels().clone();
+    let edge_labels = edge.lock().labels().clone();
     assert!(
         edge_labels.is_empty(),
         "center label must be removed from edge"

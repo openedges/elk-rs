@@ -77,15 +77,14 @@ fn manage_non_center_labels(
 ) {
     for layer in graph.layers().clone() {
         let nodes = layer
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|layer_guard| layer_guard.nodes().clone())
             .unwrap_or_default();
 
         for node in nodes {
             let (node_type, node_labels, ports, top_comments, bottom_comments, outgoing_edges) =
-                match node.lock() {
-                    Ok(mut node_guard) => (
+                match node.lock_ok() {
+            Some(mut node_guard) => (
                         node_guard.node_type(),
                         node_guard.labels().clone(),
                         node_guard.ports().clone(),
@@ -97,7 +96,7 @@ fn manage_non_center_labels(
                             .unwrap_or_default(),
                         node_guard.outgoing_edges(),
                     ),
-                    Err(_) => continue,
+            None => continue,
                 };
 
             if node_type == NodeType::Normal {
@@ -111,8 +110,7 @@ fn manage_non_center_labels(
 
                 for port in ports {
                     let labels = port
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .map(|port_guard| port_guard.labels().clone())
                         .unwrap_or_default();
                     do_manage_labels(
@@ -140,8 +138,7 @@ fn manage_non_center_labels(
 
             for edge in outgoing_edges {
                 let labels = edge
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|edge_guard| edge_guard.labels().clone())
                     .unwrap_or_default();
                 do_manage_labels(
@@ -164,8 +161,7 @@ fn do_manage_attached_comment_labels(
 ) {
     for comment_node in comment_nodes {
         let labels = comment_node
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|comment_guard| comment_guard.labels().clone())
             .unwrap_or_default();
         if labels.is_empty() {
@@ -196,14 +192,13 @@ fn manage_center_labels(
         );
 
         let nodes = layer
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|layer_guard| layer_guard.nodes().clone())
             .unwrap_or_default();
 
         for node in nodes {
-            let (node_type, connected_edges, represented_labels, node_labels) = match node.lock() {
-                Ok(mut node_guard) => (
+            let (node_type, connected_edges, represented_labels, node_labels) = match node.lock_ok() {
+            Some(mut node_guard) => (
                     node_guard.node_type(),
                     node_guard.connected_edges(),
                     node_guard
@@ -211,7 +206,7 @@ fn manage_center_labels(
                         .unwrap_or_default(),
                     node_guard.labels().clone(),
                 ),
-                Err(_) => continue,
+            None => continue,
             };
 
             if node_type != NodeType::Label {
@@ -221,7 +216,7 @@ fn manage_center_labels(
             let edge_thickness = connected_edges
                 .first()
                 .and_then(|edge| {
-                    edge.lock().ok().and_then(|mut edge_guard| {
+                    edge.lock_ok().and_then(|mut edge_guard| {
                         edge_guard.get_property(CoreOptions::EDGE_THICKNESS)
                     })
                 })
@@ -240,7 +235,7 @@ fn manage_center_labels(
                 vertical_layout,
             );
 
-            if let Ok(mut node_guard) = node.lock() {
+            if let Some(mut node_guard) = node.lock_ok() {
                 node_guard.shape().size().x = required.x;
                 node_guard.shape().size().y = required.y + edge_thickness + edge_label_spacing;
             }
@@ -261,7 +256,7 @@ fn do_manage_labels(
     }
 
     for label in labels {
-        let Ok(mut label_guard) = label.lock() else {
+        let Some(mut label_guard) = label.lock_ok() else {
             continue;
         };
 

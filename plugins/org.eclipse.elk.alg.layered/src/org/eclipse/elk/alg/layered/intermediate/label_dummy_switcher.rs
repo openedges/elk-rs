@@ -130,7 +130,7 @@ impl ILayoutProcessor<LGraph> for LabelDummySwitcher {
 
 fn assign_ids_to_layers(layered_graph: &LGraph) {
     for (index, layer) in layered_graph.layers().iter().enumerate() {
-        if let Ok(mut layer_guard) = layer.lock() {
+        if let Some(mut layer_guard) = layer.lock_ok() {
             layer_guard.graph_element().id = index as i32;
         }
     }
@@ -148,14 +148,12 @@ fn gather_label_dummy_infos(
 
     for layer in layered_graph.layers() {
         let nodes = layer
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|layer_guard| layer_guard.nodes().clone())
             .unwrap_or_default();
         for node in nodes {
             let is_label = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.node_type() == NodeType::Label)
                 .unwrap_or(false);
             if !is_label {
@@ -176,8 +174,7 @@ impl LabelDummySwitcher {
     fn calculate_layer_widths(&mut self, direction: Direction) {
         for layer in &self.layers {
             let (layer_id, node_count) = layer
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|mut layer_guard| (layer_guard.graph_element().id, layer_guard.nodes().len()))
                 .unwrap_or((0, 0));
             if *TRACE_LABEL_DUMMY_SWITCHER {
@@ -360,7 +357,7 @@ impl LabelDummySwitcher {
             Alignment::Left
         };
 
-        if let Ok(mut node_guard) = label_dummy_info.label_dummy.lock() {
+        if let Some(mut node_guard) = label_dummy_info.label_dummy.lock_ok() {
             node_guard.set_property(LayeredOptions::ALIGNMENT, Some(alignment));
         }
     }
@@ -368,19 +365,17 @@ impl LabelDummySwitcher {
     fn is_part_of_reversed_edge(&self, label_dummy_info: &LabelDummyInfo) -> bool {
         let incoming = label_dummy_info
             .label_dummy
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|node_guard| node_guard.incoming_edges().first().cloned());
         let outgoing = label_dummy_info
             .label_dummy
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|node_guard| node_guard.outgoing_edges().first().cloned());
 
         let incoming_reversed = incoming
             .as_ref()
             .and_then(|edge| {
-                edge.lock().ok().and_then(|mut edge_guard| {
+                edge.lock_ok().and_then(|mut edge_guard| {
                     edge_guard.get_property(InternalProperties::REVERSED)
                 })
             })
@@ -388,7 +383,7 @@ impl LabelDummySwitcher {
         let outgoing_reversed = outgoing
             .as_ref()
             .and_then(|edge| {
-                edge.lock().ok().and_then(|mut edge_guard| {
+                edge.lock_ok().and_then(|mut edge_guard| {
                     edge_guard.get_property(InternalProperties::REVERSED)
                 })
             })
@@ -437,8 +432,7 @@ impl LabelDummySwitcher {
         {
             if let Some(layer) = self.layers.get(layer_index) {
                 let layer_width = layer
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|layer_guard| layer_guard.size_ref().x)
                     .unwrap_or(0.0);
                 if layer_width >= dummy_width {
@@ -519,14 +513,13 @@ impl LabelDummySwitcher {
 
         let labels = label_dummy_info
             .label_dummy
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|mut node_guard| {
                 node_guard.get_property(InternalProperties::REPRESENTED_LABELS)
             })
             .unwrap_or_default();
         for label in labels {
-            if let Ok(mut label_guard) = label.lock() {
+            if let Some(mut label_guard) = label.lock_ok() {
                 label_guard.set_property(&INCLUDE_LABEL, Some(true));
             }
         }
@@ -544,12 +537,10 @@ impl LabelDummySwitcher {
         }
         let (layer1, layer2) = match (
             label_dummy
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|node_guard| node_guard.layer()),
             long_edge_dummy
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|node_guard| node_guard.layer()),
         ) {
             (Some(layer1), Some(layer2)) => (layer1, layer2),
@@ -557,19 +548,17 @@ impl LabelDummySwitcher {
         };
 
         let dummy1_pos = layer1
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|layer_guard| index_of_arc(layer_guard.nodes(), label_dummy));
         let dummy2_pos = layer2
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|layer_guard| index_of_arc(layer_guard.nodes(), long_edge_dummy));
         let (dummy1_pos, dummy2_pos) = match (dummy1_pos, dummy2_pos) {
             (Some(pos1), Some(pos2)) => (pos1, pos2),
             _ => return,
         };
 
-        let (input1, output1) = match label_dummy.lock().ok() {
+        let (input1, output1) = match label_dummy.lock_ok() {
             Some(node_guard) => {
                 let input = node_guard.ports_by_type(PortType::Input).first().cloned();
                 let output = node_guard.ports_by_type(PortType::Output).first().cloned();
@@ -577,7 +566,7 @@ impl LabelDummySwitcher {
             }
             None => (None, None),
         };
-        let (input2, output2) = match long_edge_dummy.lock().ok() {
+        let (input2, output2) = match long_edge_dummy.lock_ok() {
             Some(node_guard) => {
                 let input = node_guard.ports_by_type(PortType::Input).first().cloned();
                 let output = node_guard.ports_by_type(PortType::Output).first().cloned();
@@ -652,7 +641,7 @@ impl LabelDummySwitcher {
             if !visited.insert(NodeRefKey(long_edge_dummy.clone())) {
                 break;
             }
-            if let Ok(mut node_guard) = long_edge_dummy.lock() {
+            if let Some(mut node_guard) = long_edge_dummy.lock_ok() {
                 node_guard.set_property(
                     InternalProperties::LONG_EDGE_BEFORE_LABEL_DUMMY,
                     Some(value),
@@ -670,8 +659,7 @@ impl LabelDummySwitcher {
 fn port_incoming_edges(
     port: &LPortRef,
 ) -> Vec<crate::org::eclipse::elk::alg::layered::graph::LEdgeRef> {
-    port.lock()
-        .ok()
+    port.lock_ok()
         .map(|port_guard| LGraphUtil::to_edge_array(port_guard.incoming_edges()))
         .unwrap_or_default()
 }
@@ -679,37 +667,32 @@ fn port_incoming_edges(
 fn port_outgoing_edges(
     port: &LPortRef,
 ) -> Vec<crate::org::eclipse::elk::alg::layered::graph::LEdgeRef> {
-    port.lock()
-        .ok()
+    port.lock_ok()
         .map(|port_guard| LGraphUtil::to_edge_array(port_guard.outgoing_edges()))
         .unwrap_or_default()
 }
 
 fn node_layer_id(node: &LNodeRef) -> Option<usize> {
-    node.lock()
-        .ok()
+    node.lock_ok()
         .and_then(|node_guard| node_guard.layer())
         .and_then(|layer| {
             layer
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|mut layer_guard| layer_guard.graph_element().id as usize)
         })
 }
 
 fn node_type(node: &LNodeRef) -> NodeType {
-    node.lock()
-        .ok()
+    node.lock_ok()
         .map(|node_guard| node_guard.node_type())
         .unwrap_or(NodeType::Normal)
 }
 
 fn previous_long_edge_node(node: &LNodeRef) -> Option<LNodeRef> {
-    node.lock()
-        .ok()
+    node.lock_ok()
         .and_then(|node_guard| node_guard.incoming_edges().first().cloned())
-        .and_then(|edge| edge.lock().ok().and_then(|edge_guard| edge_guard.source()))
-        .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
+        .and_then(|edge| edge.lock_ok().and_then(|edge_guard| edge_guard.source()))
+        .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
 }
 
 #[derive(Clone)]
@@ -751,14 +734,13 @@ impl LabelDummyInfo {
 
         let represented_labels = info
             .label_dummy
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|mut node_guard| {
                 node_guard.get_property(InternalProperties::REPRESENTED_LABELS)
             })
             .unwrap_or_default();
         for label in represented_labels {
-            let override_strategy = label.lock().ok().and_then(|mut label_guard| {
+            let override_strategy = label.lock_ok().and_then(|mut label_guard| {
                 if label_guard
                     .shape()
                     .graph_element()
@@ -802,11 +784,10 @@ impl LabelDummyInfo {
         let mut visited: HashSet<NodeRefKey> = HashSet::new();
         loop {
             let next = target
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|node_guard| node_guard.outgoing_edges().first().cloned())
-                .and_then(|edge| edge.lock().ok().and_then(|edge_guard| edge_guard.target()))
-                .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                .and_then(|edge| edge.lock_ok().and_then(|edge_guard| edge_guard.target()))
+                .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
             let Some(next) = next else {
                 break;
             };
@@ -841,8 +822,7 @@ impl LabelDummyInfo {
 
     fn label_dummy_width(&self) -> f64 {
         self.label_dummy
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|mut node_guard| node_guard.shape().size_ref().x)
             .unwrap_or(0.0)
     }

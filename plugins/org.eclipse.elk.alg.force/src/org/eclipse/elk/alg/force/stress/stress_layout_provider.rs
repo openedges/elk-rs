@@ -110,7 +110,7 @@ impl IGraphLayoutEngine for StressLayoutProvider {
             self.stress_majorization.execute(subgraph);
 
             for label in subgraph.labels() {
-                if let Ok(mut label_guard) = label.lock() {
+                if let Some(mut label_guard) = label.lock_ok() {
                     label_guard.refresh_position();
                 }
             }

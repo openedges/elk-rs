@@ -58,7 +58,7 @@ pub(crate) fn process_scc_model_order_cycle_breaking<F>(
     let big_offset = offset * model_order_group_count;
 
     let tarjan_graph = LGraph::new();
-    if let Ok(mut graph_guard) = tarjan_graph.lock() {
+    if let Some(mut graph_guard) = tarjan_graph.lock_ok() {
         graph_guard
             .layerless_nodes_mut()
             .extend(layered_graph.layerless_nodes().iter().cloned());
@@ -119,8 +119,7 @@ pub(crate) fn constraint_model_order(
 }
 
 pub(crate) fn node_group_model_order_id(node: &LNodeRef) -> i32 {
-    node.lock()
-        .ok()
+    node.lock_ok()
         .and_then(|mut node_guard| {
             node_guard.get_property(LayeredOptions::GROUP_MODEL_ORDER_CYCLE_BREAKING_ID)
         })
@@ -135,20 +134,18 @@ pub(crate) fn contains_node(component: &[LNodeRef], node: &LNodeRef) -> bool {
 
 fn increment_source_layer_id(edge: &crate::org::eclipse::elk::alg::layered::graph::LEdgeRef) {
     let source_node = edge
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|edge_guard| edge_guard.source())
         .and_then(|source_port| {
             source_port
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|source_guard| source_guard.node())
         });
     let Some(source_node) = source_node else {
         return;
     };
 
-    if let Ok(mut source_guard) = source_node.lock() {
+    if let Some(mut source_guard) = source_node.lock_ok() {
         let current = source_guard
             .get_property(LayeredOptions::LAYERING_LAYER_ID)
             .unwrap_or(-1);

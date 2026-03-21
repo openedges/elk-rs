@@ -47,8 +47,7 @@ struct ShiftContext<'a> {
 impl RoutingSlotAssigner {
     pub fn assign_routing_slots(&self, holder: &SelfLoopHolderRef, random: &mut Random) {
         let loops = holder
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|holder_guard| holder_guard.sl_hyper_loops().clone())
             .unwrap_or_default();
 
@@ -92,7 +91,7 @@ impl RoutingSlotAssigner {
 
 fn reset_routing_slots(loops: &[SelfHyperLoopRef]) {
     for sl_loop in loops {
-        if let Ok(mut sl_loop_guard) = sl_loop.lock() {
+        if let Some(mut sl_loop_guard) = sl_loop.lock_ok() {
             sl_loop_guard.clear_routing_slots();
         }
     }
@@ -145,7 +144,7 @@ fn labels_overlap(sl_loop1: &SelfHyperLoopRef, sl_loop2: &SelfHyperLoopRef) -> b
 }
 
 fn loop_label_span(sl_loop: &SelfHyperLoopRef) -> Option<(PortSide, f64, f64)> {
-    sl_loop.lock().ok().and_then(|sl_loop_guard| {
+    sl_loop.lock_ok().and_then(|sl_loop_guard| {
         let sl_labels = sl_loop_guard.sl_labels()?;
         let side = sl_labels.side();
         let start = sl_labels.position().x;
@@ -157,8 +156,7 @@ fn loop_label_span(sl_loop: &SelfHyperLoopRef) -> Option<(PortSide, f64, f64)> {
 fn loop_has_labels(sl_loop: &SelfHyperLoopRef) -> bool {
     // Java parity: match `getSLLabels() != null` — don't check if labels list is empty
     sl_loop
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|sl_loop_guard| sl_loop_guard.sl_labels().is_some())
         .unwrap_or(false)
 }
@@ -206,8 +204,7 @@ fn compute_loop_activity(port_count: usize, loops: &[SelfHyperLoopRef]) -> LoopA
         let mut loop_activity = vec![false; port_count];
 
         let (Some(leftmost_port), Some(rightmost_port)) = sl_loop
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|sl_loop_guard| {
                 (
                     sl_loop_guard.leftmost_port(),
@@ -297,8 +294,7 @@ fn count_crossings(
     };
 
     let sl_upper_ports = sl_upper_loop
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|sl_loop_guard| sl_loop_guard.sl_ports().clone())
         .unwrap_or_default();
 
@@ -398,7 +394,7 @@ fn assign_raw_routing_slots_to_loops(
             .unwrap_or(0);
         let mut state = LoopRoutingState::new();
 
-        if let Ok(mut sl_loop_guard) = sl_loop.lock() {
+        if let Some(mut sl_loop_guard) = sl_loop.lock_ok() {
             let occupied_port_sides = sl_loop_guard
                 .occupied_port_sides()
                 .iter()
@@ -500,7 +496,7 @@ fn shift_towards_node_on_side(
             if let Some(state) = loop_routing_state.get_mut(&loop_key) {
                 state.routing_slots[side_idx] = slot as i32;
             }
-            if let Ok(mut sl_loop_guard) = sl_loop.lock() {
+            if let Some(mut sl_loop_guard) = sl_loop.lock_ok() {
                 sl_loop_guard.set_routing_slot(side, slot as i32);
             }
         }
@@ -551,7 +547,7 @@ fn shift_towards_node_on_side(
         if let Some(state) = loop_routing_state.get_mut(&loop_key) {
             state.routing_slots[side_idx] = lowest_available_slot;
         }
-        if let Ok(mut sl_loop_guard) = sl_loop.lock() {
+        if let Some(mut sl_loop_guard) = sl_loop.lock_ok() {
             sl_loop_guard.set_routing_slot(side, lowest_available_slot);
         }
 
@@ -578,13 +574,11 @@ fn shift_towards_node_on_side(
 
 fn collect_port_side_ranges(holder: &SelfLoopHolderRef) -> (usize, SidePortRanges) {
     let ports = holder
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|holder_guard| {
             holder_guard
                 .l_node()
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.ports().clone())
         })
         .unwrap_or_default();
@@ -592,8 +586,7 @@ fn collect_port_side_ranges(holder: &SelfLoopHolderRef) -> (usize, SidePortRange
     let mut side_port_ranges: SidePortRanges = [None; 5];
     for l_port in &ports {
         let Some((port_side, port_id)) = l_port
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|mut port_guard| (port_guard.side(), port_guard.shape().graph_element().id))
         else {
             continue;
@@ -628,7 +621,7 @@ fn update_holder_routing_slot_count(
         }
     }
 
-    if let Ok(mut holder_guard) = holder.lock() {
+    if let Some(mut holder_guard) = holder.lock_ok() {
         *holder_guard.routing_slot_count_mut() = routing_slot_count;
     }
 }

@@ -15,7 +15,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, Random};
 
 fn new_graph() -> LGraphRef {
     let graph = LGraph::new();
-    if let Ok(mut graph_guard) = graph.lock() {
+    if let Some(mut graph_guard) = graph.lock_ok() {
         graph_guard.set_property(LayeredOptions::EDGE_ROUTING, Some(EdgeRouting::Orthogonal));
         graph_guard.set_property(
             LayeredOptions::HIERARCHY_HANDLING,
@@ -28,7 +28,7 @@ fn new_graph() -> LGraphRef {
 
 fn make_layer(graph: &LGraphRef) -> LayerRef {
     let layer = Layer::new(graph);
-    if let Ok(mut graph_guard) = graph.lock() {
+    if let Some(mut graph_guard) = graph.lock_ok() {
         graph_guard.layers_mut().push(layer.clone());
     }
     layer
@@ -48,7 +48,7 @@ fn add_nodes_to_layer(graph: &LGraphRef, layer: &LayerRef, count: usize) -> Vec<
 
 fn add_port_on_side(node: &LNodeRef, side: PortSide) -> LPortRef {
     let port = LPort::new();
-    if let Ok(mut port_guard) = port.lock() {
+    if let Some(mut port_guard) = port.lock_ok() {
         port_guard.set_side(side);
     }
     LPort::set_node(&port, Some(node.clone()));
@@ -90,13 +90,13 @@ fn self_loop_on(node: &LNodeRef, side: PortSide) {
 }
 
 fn set_fixed_order_constraint(node: &LNodeRef) {
-    if let Ok(mut node_guard) = node.lock() {
+    if let Some(mut node_guard) = node.lock_ok() {
         node_guard.set_property(
             LayeredOptions::PORT_CONSTRAINTS,
             Some(PortConstraints::FixedOrder),
         );
         if let Some(graph) = node_guard.graph() {
-            if let Ok(mut graph_guard) = graph.lock() {
+            if let Some(mut graph_guard) = graph.lock_ok() {
                 let mut props = graph_guard
                     .get_property(InternalProperties::GRAPH_PROPERTIES)
                     .unwrap_or_else(EnumSet::none_of);
@@ -197,8 +197,8 @@ fn graph_cross_with_many_self_loops() -> LGraphRef {
     let top_left_port = add_port_on_side(&left_nodes[0], PortSide::East);
     let bottom_left_port = add_port_on_side(&left_nodes[1], PortSide::East);
 
-    for layer in graph.lock().expect("graph lock").layers().clone() {
-        let nodes = layer.lock().expect("layer lock").nodes().clone();
+    for layer in graph.lock().layers().clone() {
+        let nodes = layer.lock().nodes().clone();
         for node in nodes {
             self_loop_on(&node, PortSide::East);
             self_loop_on(&node, PortSide::East);
@@ -337,7 +337,7 @@ fn setup_counter(
     upper_index: usize,
     lower_index: usize,
 ) -> (BetweenLayerEdgeTwoNodeCrossingsCounter, LNodeRef, LNodeRef) {
-    let node_order = graph.lock().expect("graph lock").to_node_array();
+    let node_order = graph.lock().to_node_array();
     let layer_nodes = node_order
         .get(free_layer_index)
         .cloned()

@@ -18,14 +18,13 @@ impl WestToEastRoutingStrategy {
     }
 
     pub fn get_port_position_on_hyper_node(&self, port: &LPortRef) -> f64 {
-        let Ok(mut port_guard) = port.lock() else {
+        let Some(mut port_guard) = port.lock_ok() else {
             return 0.0;
         };
         let node_pos_y = port_guard
             .node()
             .and_then(|node| {
-                node.lock()
-                    .ok()
+                node.lock_ok()
                     .map(|mut node_guard| node_guard.shape().position_ref().y)
             })
             .unwrap_or(0.0);
@@ -56,7 +55,7 @@ impl WestToEastRoutingStrategy {
         for port in segment.ports() {
             // Single lock to get both anchor and outgoing edges
             let (source_y, outgoing_edges) = {
-                let Ok(port_guard) = port.lock() else {
+                let Some(port_guard) = port.lock_ok() else {
                     continue;
                 };
                 let anchor_y = port_guard
@@ -70,7 +69,7 @@ impl WestToEastRoutingStrategy {
             for edge in outgoing_edges {
                 // Single lock to get is_self_loop + target + absolute_anchor
                 let (is_self_loop, target_y) = {
-                    let Ok(edge_guard) = edge.lock() else {
+                    let Some(edge_guard) = edge.lock_ok() else {
                         continue;
                     };
                     if edge_guard.is_self_loop() {
@@ -79,8 +78,7 @@ impl WestToEastRoutingStrategy {
                         let ty = edge_guard
                             .target()
                             .and_then(|t| {
-                                t.lock()
-                                    .ok()
+                                t.lock_ok()
                                     .and_then(|port_guard| port_guard.absolute_anchor())
                                     .map(|anchor| anchor.y)
                             })
@@ -94,7 +92,7 @@ impl WestToEastRoutingStrategy {
 
                 if (source_y - target_y).abs() > OrthogonalRoutingGenerator::TOLERANCE {
                     // Single edge lock for ALL bend points + junction points
-                    let Ok(mut edge_guard) = edge.lock() else {
+                    let Some(mut edge_guard) = edge.lock_ok() else {
                         continue;
                     };
 

@@ -20,7 +20,7 @@ fn graph_with_single_layer() -> (LGraphRef, Arc<Mutex<Layer>>) {
     let layer = Layer::new(&graph);
     graph
         .lock()
-        .expect("graph lock")
+        
         .layers_mut()
         .push(layer.clone());
     (graph, layer)
@@ -29,8 +29,7 @@ fn graph_with_single_layer() -> (LGraphRef, Arc<Mutex<Layer>>) {
 fn add_node(graph: &LGraphRef, layer: &Arc<Mutex<Layer>>, node_type: NodeType) -> LNodeRef {
     let node = LNode::new(graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.set_node_type(node_type);
+        let mut node_guard = node.lock();        node_guard.set_node_type(node_type);
     }
     LNode::set_layer(&node, Some(layer.clone()));
     node
@@ -39,8 +38,7 @@ fn add_node(graph: &LGraphRef, layer: &Arc<Mutex<Layer>>, node_type: NodeType) -
 fn add_port(node: &LNodeRef, side: PortSide) -> LPortRef {
     let port = LPort::new();
     {
-        let mut port_guard = port.lock().expect("port lock");
-        port_guard.set_side(side);
+        let mut port_guard = port.lock();        port_guard.set_side(side);
     }
     LPort::set_node(&port, Some(node.clone()));
     port
@@ -57,8 +55,7 @@ fn connect(source: &LPortRef, target: &LPortRef) -> LEdgeRef {
 fn test_removed_nodes() {
     let (graph, layer) = graph_with_single_layer();
     {
-        let mut graph_guard = graph.lock().expect("graph lock");
-        graph_guard.set_property(LayeredOptions::DIRECTION, Some(Direction::Right));
+        let mut graph_guard = graph.lock();        graph_guard.set_property(LayeredOptions::DIRECTION, Some(Direction::Right));
         graph_guard.set_property(LayeredOptions::EDGE_ROUTING, Some(EdgeRouting::Orthogonal));
         graph_guard.set_property(LayeredOptions::SPACING_EDGE_LABEL, Some(2.0));
         graph_guard.set_property(LayeredOptions::SPACING_LABEL_LABEL, Some(1.0));
@@ -69,8 +66,7 @@ fn test_removed_nodes() {
     let target = add_node(&graph, &layer, NodeType::Normal);
 
     {
-        let mut dummy_guard = dummy.lock().expect("dummy lock");
-        dummy_guard.shape().position().x = 10.0;
+        let mut dummy_guard = dummy.lock();        dummy_guard.shape().position().x = 10.0;
         dummy_guard.shape().position().y = 20.0;
         dummy_guard.shape().size().x = 60.0;
         dummy_guard.shape().size().y = 30.0;
@@ -86,13 +82,11 @@ fn test_removed_nodes() {
 
     let represented_label = Arc::new(Mutex::new(LLabel::with_text("edge-label")));
     {
-        let mut label_guard = represented_label.lock().expect("label lock");
-        label_guard.shape().size().x = 20.0;
+        let mut label_guard = represented_label.lock();        label_guard.shape().size().x = 20.0;
         label_guard.shape().size().y = 6.0;
     }
     {
-        let mut dummy_guard = dummy.lock().expect("dummy lock");
-        dummy_guard.set_property(
+        let mut dummy_guard = dummy.lock();        dummy_guard.set_property(
             InternalProperties::ORIGIN,
             Some(Origin::LEdge(surviving_edge.clone())),
         );
@@ -105,12 +99,12 @@ fn test_removed_nodes() {
 
     let mut remover = LabelDummyRemover;
     let mut monitor = NullElkProgressMonitor;
-    remover.process(&mut graph.lock().expect("graph lock"), &mut monitor);
+    remover.process(&mut graph.lock(), &mut monitor);
 
-    let nodes = layer.lock().expect("layer lock").nodes().clone();
+    let nodes = layer.lock().nodes().clone();
     assert!(
         nodes.iter().all(|node| {
-            node.lock()
+            node.lock_ok()
                 .map(|node_guard| node_guard.node_type() != NodeType::Label)
                 .unwrap_or(false)
         }),
@@ -119,7 +113,7 @@ fn test_removed_nodes() {
 
     let has_label = surviving_edge
         .lock()
-        .expect("edge lock")
+        
         .labels()
         .iter()
         .any(|label| Arc::ptr_eq(label, &represented_label));
@@ -130,7 +124,7 @@ fn test_removed_nodes() {
 
     let target_after_join = surviving_edge
         .lock()
-        .expect("edge lock")
+        
         .target()
         .expect("edge target after join");
     assert!(
@@ -140,7 +134,7 @@ fn test_removed_nodes() {
 
     let label_y = represented_label
         .lock()
-        .expect("label lock")
+        
         .shape()
         .position_ref()
         .y;
@@ -154,8 +148,7 @@ fn test_removed_nodes() {
 fn test_vertical_up_reverses_label_iteration_order() {
     let (graph, layer) = graph_with_single_layer();
     {
-        let mut graph_guard = graph.lock().expect("graph lock");
-        graph_guard.set_property(LayeredOptions::DIRECTION, Some(Direction::Up));
+        let mut graph_guard = graph.lock();        graph_guard.set_property(LayeredOptions::DIRECTION, Some(Direction::Up));
         graph_guard.set_property(LayeredOptions::EDGE_ROUTING, Some(EdgeRouting::Orthogonal));
         graph_guard.set_property(LayeredOptions::SPACING_EDGE_LABEL, Some(2.0));
         graph_guard.set_property(LayeredOptions::SPACING_LABEL_LABEL, Some(1.0));
@@ -166,8 +159,7 @@ fn test_vertical_up_reverses_label_iteration_order() {
     let target = add_node(&graph, &layer, NodeType::Normal);
 
     {
-        let mut dummy_guard = dummy.lock().expect("dummy lock");
-        dummy_guard.shape().position().x = 5.0;
+        let mut dummy_guard = dummy.lock();        dummy_guard.shape().position().x = 5.0;
         dummy_guard.shape().position().y = 7.0;
         dummy_guard.shape().size().x = 40.0;
         dummy_guard.shape().size().y = 20.0;
@@ -184,19 +176,16 @@ fn test_vertical_up_reverses_label_iteration_order() {
     let label_a = Arc::new(Mutex::new(LLabel::with_text("a")));
     let label_b = Arc::new(Mutex::new(LLabel::with_text("b")));
     {
-        let mut label_a_guard = label_a.lock().expect("label a lock");
-        label_a_guard.shape().size().x = 10.0;
+        let mut label_a_guard = label_a.lock();        label_a_guard.shape().size().x = 10.0;
         label_a_guard.shape().size().y = 6.0;
     }
     {
-        let mut label_b_guard = label_b.lock().expect("label b lock");
-        label_b_guard.shape().size().x = 10.0;
+        let mut label_b_guard = label_b.lock();        label_b_guard.shape().size().x = 10.0;
         label_b_guard.shape().size().y = 6.0;
     }
 
     {
-        let mut dummy_guard = dummy.lock().expect("dummy lock");
-        dummy_guard.set_property(InternalProperties::ORIGIN, Some(Origin::LEdge(origin_edge)));
+        let mut dummy_guard = dummy.lock();        dummy_guard.set_property(InternalProperties::ORIGIN, Some(Origin::LEdge(origin_edge)));
         dummy_guard.set_property(
             InternalProperties::REPRESENTED_LABELS,
             Some(vec![label_a.clone(), label_b.clone()]),
@@ -206,17 +195,17 @@ fn test_vertical_up_reverses_label_iteration_order() {
 
     let mut remover = LabelDummyRemover;
     let mut monitor = NullElkProgressMonitor;
-    remover.process(&mut graph.lock().expect("graph lock"), &mut monitor);
+    remover.process(&mut graph.lock(), &mut monitor);
 
     let label_a_x = label_a
         .lock()
-        .expect("label a lock")
+        
         .shape()
         .position_ref()
         .x;
     let label_b_x = label_b
         .lock()
-        .expect("label b lock")
+        
         .shape()
         .position_ref()
         .x;

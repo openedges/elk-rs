@@ -28,9 +28,9 @@ impl ILayoutPhase<TreeLayoutPhases, TGraphRef> for NodeOrderer {
         progress_monitor.begin("Processor arrange node", 1.0);
 
         let (debug, weighting, root) = {
-            let mut graph_guard = match graph.lock() {
-                Ok(guard) => guard,
-                Err(_) => {
+            let mut graph_guard = match graph.lock_ok() {
+            Some(guard) => guard,
+            None => {
                     progress_monitor.done();
                     return;
                 }
@@ -45,8 +45,7 @@ impl ILayoutPhase<TreeLayoutPhases, TGraphRef> for NodeOrderer {
                 .nodes()
                 .iter()
                 .find(|node| {
-                    node.lock()
-                        .ok()
+                    node.lock_ok()
                         .and_then(|mut node_guard| {
                             node_guard.get_property(InternalProperties::ROOT)
                         })
@@ -86,8 +85,7 @@ impl ILayoutPhase<TreeLayoutPhases, TGraphRef> for NodeOrderer {
 
         // FanProc only needed for Fan/Descendants/Constraint weighting (not ModelOrder)
         let weighting = graph
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|mut g| g.get_property(MrTreeOptions::WEIGHTING))
             .unwrap_or(OrderWeighting::ModelOrder);
         if weighting != OrderWeighting::ModelOrder {
@@ -116,8 +114,7 @@ impl NodeOrderer {
         let mut sort_keys: Vec<i32> = current_level
             .iter()
             .map(|n| {
-                n.lock()
-                    .ok()
+                n.lock_ok()
                     .and_then(|mut g| g.get_property(sort_property))
                     .unwrap_or(0)
             })
@@ -150,7 +147,7 @@ impl NodeOrderer {
 
         if inners.is_empty() {
             for leaf in leaves {
-                if let Ok(mut node_guard) = leaf.lock() {
+                if let Some(mut node_guard) = leaf.lock_ok() {
                     node_guard.set_property(InternalProperties::POSITION, Some(pos));
                 }
                 pos += 1;
@@ -158,14 +155,13 @@ impl NodeOrderer {
         } else {
             let size = inners.len().max(1);
             for parent in &inners {
-                if let Ok(mut parent_guard) = parent.lock() {
+                if let Some(mut parent_guard) = parent.lock_ok() {
                     parent_guard.set_property(InternalProperties::POSITION, Some(pos));
                 }
                 pos += 1;
 
                 let mut children = parent
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|node_guard| node_guard.children_copy())
                     .unwrap_or_default();
                 self.order_level_fan_descendants(
@@ -178,8 +174,7 @@ impl NodeOrderer {
                     let pos_keys: Vec<i32> = children
                         .iter()
                         .map(|c| {
-                            c.lock()
-                                .ok()
+                            c.lock_ok()
                                 .and_then(|mut g| g.get_property(InternalProperties::POSITION))
                                 .unwrap_or(0)
                         })
@@ -193,24 +188,22 @@ impl NodeOrderer {
                 }
 
                 let sorted_edges = reorder_edges(parent, &children);
-                if let Ok(mut parent_guard) = parent.lock() {
+                if let Some(mut parent_guard) = parent.lock_ok() {
                     parent_guard.replace_outgoing_edges(sorted_edges);
                 }
 
                 let mut fill_gap = parent
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|node_guard| node_guard.outgoing_edges().len())
                     .unwrap_or(0);
                 while fill_gap > 0 && !leaves.is_empty() {
                     if let Some(leaf) = leaves.pop() {
                         let val = leaf
-                            .lock()
-                            .ok()
+                            .lock_ok()
                             .and_then(|mut node_guard| node_guard.get_property(sort_property))
                             .unwrap_or(0);
                         if val == 0 {
-                            if let Ok(mut node_guard) = leaf.lock() {
+                            if let Some(mut node_guard) = leaf.lock_ok() {
                                 node_guard.set_property(InternalProperties::POSITION, Some(pos));
                             }
                             pos += 1;
@@ -245,8 +238,7 @@ impl NodeOrderer {
 
         for node in current_level.iter() {
             let constraint = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|mut node_guard| {
                     node_guard.get_property(MrTreeOptions::POSITION_CONSTRAINT)
                 })
@@ -266,8 +258,7 @@ impl NodeOrderer {
         while idx < in_bound_nodes.len() {
             let node = in_bound_nodes[idx].clone();
             let target_pos = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|mut node_guard| {
                     node_guard.get_property(MrTreeOptions::POSITION_CONSTRAINT)
                 })
@@ -287,8 +278,7 @@ impl NodeOrderer {
         while idx < in_bound_nodes.len() {
             let node = in_bound_nodes[idx].clone();
             let target_pos = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|mut node_guard| {
                     node_guard.get_property(MrTreeOptions::POSITION_CONSTRAINT)
                 })
@@ -322,8 +312,7 @@ impl NodeOrderer {
             let keys: Vec<i32> = out_of_bound_nodes
                 .iter()
                 .map(|n| {
-                    n.lock()
-                        .ok()
+                    n.lock_ok()
                         .and_then(|mut g| g.get_property(MrTreeOptions::POSITION_CONSTRAINT))
                         .unwrap_or(0)
                 })
@@ -350,7 +339,7 @@ impl NodeOrderer {
 
         for (index, node) in sorted_nodes.iter().enumerate() {
             if let Some(node) = node {
-                if let Ok(mut node_guard) = node.lock() {
+                if let Some(mut node_guard) = node.lock_ok() {
                     node_guard.set_property(InternalProperties::POSITION, Some(index as i32));
                 }
             }
@@ -359,8 +348,7 @@ impl NodeOrderer {
         let inners: Vec<TNodeRef> = current_level
             .iter()
             .filter(|node| {
-                node.lock()
-                    .ok()
+                node.lock_ok()
                     .and_then(|mut node_guard| node_guard.get_property(InternalProperties::FAN))
                     .unwrap_or(0)
                     != 0
@@ -371,8 +359,7 @@ impl NodeOrderer {
         let size = inners.len().max(1);
         for parent in inners {
             let mut children = parent
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.children_copy())
                 .unwrap_or_default();
             self.order_level_constraint(
@@ -384,8 +371,7 @@ impl NodeOrderer {
                 let pos_keys: Vec<i32> = children
                     .iter()
                     .map(|c| {
-                        c.lock()
-                            .ok()
+                        c.lock_ok()
                             .and_then(|mut g| g.get_property(InternalProperties::POSITION))
                             .unwrap_or(0)
                     })
@@ -399,7 +385,7 @@ impl NodeOrderer {
             }
 
             let sorted_edges = reorder_edges(&parent, &children);
-            if let Ok(mut parent_guard) = parent.lock() {
+            if let Some(mut parent_guard) = parent.lock_ok() {
                 parent_guard.replace_outgoing_edges(sorted_edges);
             }
         }
@@ -410,8 +396,7 @@ impl NodeOrderer {
 
 fn reorder_edges(parent: &TNodeRef, children: &[TNodeRef]) -> Vec<TEdgeRef> {
     let outgoing = parent
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|node_guard| node_guard.outgoing_edges().clone())
         .unwrap_or_default();
 
@@ -419,8 +404,7 @@ fn reorder_edges(parent: &TNodeRef, children: &[TNodeRef]) -> Vec<TEdgeRef> {
     for child in children {
         for edge in &outgoing {
             if edge
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|edge_guard| edge_guard.target())
                 .map(|target| std::sync::Arc::ptr_eq(&target, child))
                 .unwrap_or(false)

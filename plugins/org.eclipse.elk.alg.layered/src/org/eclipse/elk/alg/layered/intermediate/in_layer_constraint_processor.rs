@@ -18,8 +18,7 @@ impl ILayoutProcessor<LGraph> for InLayerConstraintProcessor {
         let layers = layered_graph.layers().clone();
         for layer in layers {
             let nodes = layer
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|layer_guard| layer_guard.nodes().clone())
                 .unwrap_or_default();
             let mut top_insertion_index: Option<usize> = None;
@@ -27,8 +26,7 @@ impl ILayoutProcessor<LGraph> for InLayerConstraintProcessor {
 
             for (i, node) in nodes.iter().enumerate() {
                 let constraint = node
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|mut node_guard| {
                         if node_guard
                             .shape()
@@ -45,8 +43,7 @@ impl ILayoutProcessor<LGraph> for InLayerConstraintProcessor {
 
                 if *TRACE_ILC {
                     let node_name = node
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .map(|mut node_guard| node_guard.to_string())
                         .unwrap_or_else(|| "<poisoned-node>".to_owned());
                     eprintln!(

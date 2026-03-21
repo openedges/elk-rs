@@ -20,9 +20,9 @@ impl ILayoutProcessor<TGraphRef> for FanProcessor {
         self.glo_desc_map.clear();
 
         let root = {
-            let graph_guard = match graph.lock() {
-                Ok(guard) => guard,
-                Err(_) => {
+            let graph_guard = match graph.lock_ok() {
+            Some(guard) => guard,
+            None => {
                     progress_monitor.done();
                     return;
                 }
@@ -31,8 +31,7 @@ impl ILayoutProcessor<TGraphRef> for FanProcessor {
                 .nodes()
                 .iter()
                 .find(|node| {
-                    node.lock()
-                        .ok()
+                    node.lock_ok()
                         .and_then(|mut node_guard| {
                             node_guard.get_property(InternalProperties::ROOT)
                         })
@@ -46,9 +45,9 @@ impl ILayoutProcessor<TGraphRef> for FanProcessor {
         }
 
         let nodes = {
-            let graph_guard = match graph.lock() {
-                Ok(guard) => guard,
-                Err(_) => {
+            let graph_guard = match graph.lock_ok() {
+            Some(guard) => guard,
+            None => {
                     progress_monitor.done();
                     return;
                 }
@@ -57,7 +56,7 @@ impl ILayoutProcessor<TGraphRef> for FanProcessor {
         };
 
         for node in nodes {
-            if let Ok(mut node_guard) = node.lock() {
+            if let Some(mut node_guard) = node.lock_ok() {
                 let key = node_guard
                     .get_property(InternalProperties::ID)
                     .unwrap_or_default();
@@ -88,7 +87,7 @@ impl FanProcessor {
         let mut cached_ids: Vec<String> = Vec::with_capacity(current_level.len());
 
         for node in current_level {
-            if let Ok(mut node_guard) = node.lock() {
+            if let Some(mut node_guard) = node.lock_ok() {
                 let parent_id = node_guard
                     .get_property(InternalProperties::ID)
                     .unwrap_or_default();
@@ -113,7 +112,7 @@ impl FanProcessor {
 
                 let children = node_guard.children_copy();
                 for child in children {
-                    if let Ok(mut child_guard) = child.lock() {
+                    if let Some(mut child_guard) = child.lock_ok() {
                         child_guard.set_property(InternalProperties::ID, Some(last_id.clone()));
                     }
                     next_level.push(child);

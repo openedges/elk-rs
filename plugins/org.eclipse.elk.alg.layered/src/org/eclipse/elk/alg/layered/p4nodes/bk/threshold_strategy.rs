@@ -81,27 +81,23 @@ impl SimpleThresholdStrategy {
         let edges = if pp.is_root {
             if bal.hdir == Some(HDirection::Right) {
                 free_node
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|node_guard| node_guard.incoming_edges())
                     .unwrap_or_default()
             } else {
                 free_node
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|node_guard| node_guard.outgoing_edges())
                     .unwrap_or_default()
             }
         } else if bal.hdir == Some(HDirection::Left) {
             free_node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.incoming_edges())
                 .unwrap_or_default()
         } else {
             free_node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.outgoing_edges())
                 .unwrap_or_default()
         };
@@ -111,8 +107,7 @@ impl SimpleThresholdStrategy {
             let only_dummies = bal.od[bal.root[pp.free]];
             if !only_dummies {
                 let in_layer = edge
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|edge_guard| edge_guard.is_in_layer_edge())
                     .unwrap_or(false);
                 if in_layer {
@@ -127,8 +122,7 @@ impl SimpleThresholdStrategy {
             has_edges = true;
 
             let other_node_id = edge
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|edge_guard| edge_guard.other_node(free_node))
                 .map(|node| node_id(&node));
             if let Some(other_node_id) = other_node_id {
@@ -174,8 +168,7 @@ impl SimpleThresholdStrategy {
         };
 
         let (left_port, right_port) = edge
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|edge_guard| Some((edge_guard.source()?, edge_guard.target()?)))
             .unwrap();
 
@@ -262,8 +255,7 @@ impl SimpleThresholdStrategy {
         let trace = *TRACE_BK_THRESH;
         let edge = pp.edge.as_ref().expect("processable edge missing");
         let (source_port, target_port) = edge
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|edge_guard| Some((edge_guard.source()?, edge_guard.target()?)))
             .unwrap();
 
@@ -370,8 +362,7 @@ impl ThresholdStrategy for SimpleThresholdStrategy {
 
             let only_dummies = bal.od[bal.root[pick.free]];
             let in_layer = edge
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|edge_guard| edge_guard.is_in_layer_edge())
                 .unwrap_or(false);
             if !only_dummies && in_layer {

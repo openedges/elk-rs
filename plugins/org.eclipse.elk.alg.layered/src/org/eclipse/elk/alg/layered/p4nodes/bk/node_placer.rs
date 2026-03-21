@@ -176,8 +176,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
                 eprintln!("bk-layout: {}", bal);
                 for layer in &layers {
                     let nodes = layer
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .map(|layer_guard| layer_guard.nodes().clone())
                         .unwrap_or_default();
                     for node in nodes {
@@ -262,21 +261,18 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
             let filter = TRACE_BK_NODE_FILTER.as_deref();
             for layer in &layers {
                 let nodes = layer
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|layer_guard| layer_guard.nodes().clone())
                     .unwrap_or_default();
                 for node in nodes {
                     let node_id = node_id(&node);
                     let (name, label_opt) = node
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .map(|mut node_guard| {
                             let name = node_guard.designation().to_string();
                             let label_opt = node_guard.labels().first().and_then(|label| {
                                 label
-                                    .lock()
-                                    .ok()
+                                    .lock_ok()
                                     .map(|label_guard| label_guard.text().to_string())
                             });
                             (name, label_opt)
@@ -310,13 +306,12 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
 
         for layer in &layers {
             let nodes = layer
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|layer_guard| layer_guard.nodes().clone())
                 .unwrap_or_default();
             for node in nodes {
                 let node_id = node_id(&node);
-                if let Ok(mut node_guard) = node.lock() {
+                if let Some(mut node_guard) = node.lock_ok() {
                     node_guard.shape().position().y = chosen_layout.y[node_id].unwrap_or(0.0)
                         + chosen_layout.inner_shift[node_id];
                 }
@@ -365,8 +360,7 @@ fn build_nodes_by_id(layers: &[LayerRef], node_count: usize) -> Vec<LNodeRef> {
     let mut nodes: Vec<Option<LNodeRef>> = vec![None; node_count];
     for layer in layers {
         let layer_nodes = layer
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|layer_guard| layer_guard.nodes().clone())
             .unwrap_or_default();
         for node in layer_nodes {
@@ -394,8 +388,7 @@ impl BKNodePlacer {
             .iter()
             .map(|layer| {
                 layer
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|layer_guard| layer_guard.nodes().len())
                     .unwrap_or(0)
             })
@@ -404,8 +397,7 @@ impl BKNodePlacer {
         for i in 1..layers.len() - 1 {
             let current_layer = layers[i + 1].clone();
             let nodes = current_layer
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|layer_guard| layer_guard.nodes().clone())
                 .unwrap_or_default();
 
@@ -441,28 +433,24 @@ impl BKNodePlacer {
                                         if trace_conflicts {
                                             let source = neighbor
                                                 .second
-                                                .lock()
-                                                .ok()
+                                                .lock_ok()
                                                 .and_then(|edge_guard| edge_guard.source())
                                                 .and_then(|port| {
-                                                    port.lock()
-                                                        .ok()
+                                                    port.lock_ok()
                                                         .and_then(|port_guard| port_guard.node())
                                                 });
                                             let target = neighbor
                                                 .second
-                                                .lock()
-                                                .ok()
+                                                .lock_ok()
                                                 .and_then(|edge_guard| edge_guard.target())
                                                 .and_then(|port| {
-                                                    port.lock()
-                                                        .ok()
+                                                    port.lock_ok()
                                                         .and_then(|port_guard| port_guard.node())
                                                 });
                                             let src_name = source
                                                 .as_ref()
                                                 .and_then(|node| {
-                                                    node.lock().ok().map(|mut node_guard| {
+                                                    node.lock_ok().map(|mut node_guard| {
                                                         node_guard.designation().to_string()
                                                     })
                                                 })
@@ -470,7 +458,7 @@ impl BKNodePlacer {
                                             let tgt_name = target
                                                 .as_ref()
                                                 .and_then(|node| {
-                                                    node.lock().ok().map(|mut node_guard| {
+                                                    node.lock_ok().map(|mut node_guard| {
                                                         node_guard.designation().to_string()
                                                     })
                                                 })
@@ -505,8 +493,7 @@ impl BKNodePlacer {
         ni: &NeighborhoodInformation,
     ) -> bool {
         if node
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|node_guard| node_guard.node_type())
             .unwrap_or(NodeType::Normal)
             != NodeType::LongEdge
@@ -515,20 +502,17 @@ impl BKNodePlacer {
         }
 
         let incoming_edges = node
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|node_guard| node_guard.incoming_edges())
             .unwrap_or_default();
         for edge in incoming_edges {
             let source_node = edge
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|edge_guard| edge_guard.source())
-                .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
             if let Some(source_node) = source_node {
                 let is_long_edge = source_node
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|node_guard| node_guard.node_type() == NodeType::LongEdge)
                     .unwrap_or(false);
                 if !is_long_edge {
@@ -536,24 +520,20 @@ impl BKNodePlacer {
                 }
 
                 let source_layer_id = source_node
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|node_guard| node_guard.layer())
                     .and_then(|layer| {
                         layer
-                            .lock()
-                            .ok()
+                            .lock_ok()
                             .map(|mut layer_guard| layer_guard.graph_element().id as usize)
                     })
                     .unwrap_or(0);
                 let node_layer_id = node
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|node_guard| node_guard.layer())
                     .and_then(|layer| {
                         layer
-                            .lock()
-                            .ok()
+                            .lock_ok()
                             .map(|mut layer_guard| layer_guard.graph_element().id as usize)
                     })
                     .unwrap_or(0);
@@ -595,8 +575,7 @@ fn create_balanced_layout(
 
         for layer in layers {
             let nodes = layer
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|layer_guard| layer_guard.nodes().clone())
                 .unwrap_or_default();
             for node in nodes {
@@ -620,8 +599,7 @@ fn create_balanced_layout(
     let mut calculated = vec![0.0; no_of_layouts];
     for layer in layers {
         let nodes = layer
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|layer_guard| layer_guard.nodes().clone())
             .unwrap_or_default();
         for node in nodes {
@@ -653,8 +631,7 @@ fn check_order_constraint(
 
     for layer in layers {
         let nodes = layer
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|layer_guard| layer_guard.nodes().clone())
             .unwrap_or_default();
         let mut pos = f64::NEG_INFINITY;

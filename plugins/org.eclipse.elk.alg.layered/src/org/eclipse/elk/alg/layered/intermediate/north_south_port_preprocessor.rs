@@ -39,8 +39,7 @@ impl ILayoutProcessor<LGraph> for NorthSouthPortPreprocessor {
         trace_ns(&format!("layers={}", layers.len()));
         for layer in layers {
             let node_array = layer
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|layer_guard| LGraphUtil::to_node_array(layer_guard.nodes()))
                 .unwrap_or_default();
             trace_ns(&format!("layer_nodes={}", node_array.len()));
@@ -52,9 +51,8 @@ impl ILayoutProcessor<LGraph> for NorthSouthPortPreprocessor {
                 trace_ns(&format!("node={node_key} pointer={pointer} begin"));
 
                 let (node_type, port_constraints, north_ports, south_ports, graph_ref) = {
-                    let mut node_guard = match node.try_lock() {
-                        Ok(guard) => guard,
-                        Err(_) => continue,
+                    let mut node_guard = match node.try_lock() {            Some(guard) => guard,
+            None => continue,
                     };
                     let node_type = node_guard.node_type();
                     let port_constraints = node_guard
@@ -63,7 +61,7 @@ impl ILayoutProcessor<LGraph> for NorthSouthPortPreprocessor {
                     let model_order_strategy = node_guard
                         .graph()
                         .as_ref()
-                        .and_then(|graph_ref| graph_ref.try_lock().ok())
+                        .and_then(|graph_ref| graph_ref.try_lock())
                         .and_then(|mut graph_guard| {
                             graph_guard.get_property(LayeredOptions::CONSIDER_MODEL_ORDER_STRATEGY)
                         })
@@ -110,7 +108,7 @@ impl ILayoutProcessor<LGraph> for NorthSouthPortPreprocessor {
                     continue;
                 };
 
-                if let Ok(mut node_guard) = node.try_lock() {
+                if let Some(mut node_guard) = node.try_lock() {
                     node_guard
                         .set_property(InternalProperties::IN_LAYER_LAYOUT_UNIT, Some(node.clone()));
                 }
@@ -164,7 +162,7 @@ impl ILayoutProcessor<LGraph> for NorthSouthPortPreprocessor {
                     LNode::set_layer_at_index(dummy, insert_point, Some(layer.clone()));
                     pointer += 1;
 
-                    if let Ok(mut dummy_guard) = dummy.try_lock() {
+                    if let Some(mut dummy_guard) = dummy.try_lock() {
                         dummy_guard.set_property(
                             InternalProperties::IN_LAYER_LAYOUT_UNIT,
                             Some(node.clone()),
@@ -172,7 +170,7 @@ impl ILayoutProcessor<LGraph> for NorthSouthPortPreprocessor {
                     }
 
                     if !origin_port_allows_switch(dummy) {
-                        if let Ok(mut dummy_guard) = dummy.try_lock() {
+                        if let Some(mut dummy_guard) = dummy.try_lock() {
                             let mut constraints = dummy_guard
                                 .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
                                 .unwrap_or_default();
@@ -192,7 +190,7 @@ impl ILayoutProcessor<LGraph> for NorthSouthPortPreprocessor {
                     LNode::set_layer_at_index(dummy, (pointer + 1) as usize, Some(layer.clone()));
                     pointer += 1;
 
-                    if let Ok(mut dummy_guard) = dummy.try_lock() {
+                    if let Some(mut dummy_guard) = dummy.try_lock() {
                         dummy_guard.set_property(
                             InternalProperties::IN_LAYER_LAYOUT_UNIT,
                             Some(node.clone()),
@@ -200,7 +198,7 @@ impl ILayoutProcessor<LGraph> for NorthSouthPortPreprocessor {
                     }
 
                     if !origin_port_allows_switch(dummy) {
-                        if let Ok(mut pred_guard) = predecessor.try_lock() {
+                        if let Some(mut pred_guard) = predecessor.try_lock() {
                             let mut constraints = pred_guard
                                 .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
                                 .unwrap_or_default();
@@ -215,7 +213,7 @@ impl ILayoutProcessor<LGraph> for NorthSouthPortPreprocessor {
                 trace_ns(&format!("node={node_key} south insertion:done"));
 
                 if !barycenter_associates.is_empty() {
-                    if let Ok(mut node_guard) = node.try_lock() {
+                    if let Some(mut node_guard) = node.try_lock() {
                         node_guard.set_property(
                             InternalProperties::BARYCENTER_ASSOCIATES,
                             Some(barycenter_associates),
@@ -243,15 +241,12 @@ fn sort_port_list(node: &mut LNode) {
     let mut out_ports = 2 * ports.len() as i32;
     for (index, port) in ports.drain(..).enumerate() {
         let (side, incoming, outgoing) = {
-            let port_guard = port.lock().ok();
-            match port_guard {
-                Some(guard) => (
-                    guard.side(),
-                    !guard.incoming_edges().is_empty(),
-                    !guard.outgoing_edges().is_empty(),
-                ),
-                None => (PortSide::Undefined, false, false),
-            }
+            let guard = port.lock();
+            (
+                guard.side(),
+                !guard.incoming_edges().is_empty(),
+                !guard.outgoing_edges().is_empty(),
+            )
         };
 
         let id = match side {
@@ -311,8 +306,7 @@ fn model_order_north_south_input_reversing(ports: &[LPortRef]) -> Vec<LPortRef> 
 
     for port in ports {
         let is_incoming = port
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|port_guard| !port_guard.incoming_edges().is_empty())
             .unwrap_or(false);
         if is_incoming {
@@ -342,31 +336,27 @@ fn create_dummy_nodes(
 
     for port in ports {
         let port_side = port
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|port_guard| port_guard.side())
             .unwrap_or(PortSide::Undefined);
         let outgoing = port
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|port_guard| LGraphUtil::to_edge_array(port_guard.outgoing_edges()))
             .unwrap_or_default();
 
         for edge in outgoing {
-            let (source_port, target_port) = match edge.lock() {
-                Ok(edge_guard) => (edge_guard.source(), edge_guard.target()),
-                Err(_) => (None, None),
+            let (source_port, target_port) = match edge.lock_ok() {
+            Some(edge_guard) => (edge_guard.source(), edge_guard.target()),
+            None => (None, None),
             };
             let (Some(source_port), Some(target_port)) = (source_port, target_port) else {
                 continue;
             };
             let source_node = source_port
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|port_guard| port_guard.node());
             let target_node = target_port
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|port_guard| port_guard.node());
             let (Some(source_node), Some(target_node)) = (source_node, target_node) else {
                 continue;
@@ -377,8 +367,7 @@ fn create_dummy_nodes(
             }
 
             let target_side = target_port
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|port_guard| port_guard.side())
                 .unwrap_or(PortSide::Undefined);
             if port_side == target_side {
@@ -406,12 +395,12 @@ fn create_dummy_nodes(
     }
 
     for port in ports {
-        let (has_in, has_out) = match port.lock() {
-            Ok(port_guard) => (
+        let (has_in, has_out) = match port.lock_ok() {
+            Some(port_guard) => (
                 !port_guard.incoming_edges().is_empty(),
                 !port_guard.outgoing_edges().is_empty(),
             ),
-            Err(_) => (false, false),
+            None => (false, false),
         };
         if has_in && has_out {
             in_out_ports.push(port.clone());
@@ -445,7 +434,7 @@ fn create_dummy_node(
     dummy_nodes: &mut Vec<LNodeRef>,
 ) -> LNodeRef {
     let dummy = LNode::new(graph);
-    if let Ok(mut dummy_guard) = dummy.lock() {
+    if let Some(mut dummy_guard) = dummy.lock_ok() {
         dummy_guard.set_node_type(NodeType::NorthSouthPort);
         dummy_guard.set_property(
             LayeredOptions::PORT_CONSTRAINTS,
@@ -455,7 +444,7 @@ fn create_dummy_node(
 
     if let Some(in_port) = in_port {
         let dummy_input_port = LPort::new();
-        if let Ok(mut port_guard) = dummy_input_port.lock() {
+        if let Some(mut port_guard) = dummy_input_port.lock_ok() {
             port_guard.set_property(
                 InternalProperties::ORIGIN,
                 Some(Origin::LPort(in_port.clone())),
@@ -465,8 +454,7 @@ fn create_dummy_node(
         LPort::set_node(&dummy_input_port, Some(dummy.clone()));
 
         let edges = in_port
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|port_guard| LGraphUtil::to_edge_array(port_guard.incoming_edges()))
             .unwrap_or_default();
         for edge in edges {
@@ -476,10 +464,10 @@ fn create_dummy_node(
             );
         }
 
-        if let Ok(mut port_guard) = in_port.lock() {
+        if let Some(mut port_guard) = in_port.lock_ok() {
             port_guard.set_property(InternalProperties::PORT_DUMMY, Some(dummy.clone()));
             if let Some(node) = port_guard.node() {
-                if let Ok(mut dummy_guard) = dummy.lock() {
+                if let Some(mut dummy_guard) = dummy.lock_ok() {
                     dummy_guard.set_property(InternalProperties::ORIGIN, Some(Origin::LNode(node)));
                 }
             }
@@ -488,7 +476,7 @@ fn create_dummy_node(
 
     if let Some(out_port) = out_port {
         let dummy_output_port = LPort::new();
-        if let Ok(mut port_guard) = dummy_output_port.lock() {
+        if let Some(mut port_guard) = dummy_output_port.lock_ok() {
             port_guard.set_property(
                 InternalProperties::ORIGIN,
                 Some(Origin::LPort(out_port.clone())),
@@ -498,8 +486,7 @@ fn create_dummy_node(
         LPort::set_node(&dummy_output_port, Some(dummy.clone()));
 
         let edges = out_port
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|port_guard| LGraphUtil::to_edge_array(port_guard.outgoing_edges()))
             .unwrap_or_default();
         for edge in edges {
@@ -509,10 +496,10 @@ fn create_dummy_node(
             );
         }
 
-        if let Ok(mut port_guard) = out_port.lock() {
+        if let Some(mut port_guard) = out_port.lock_ok() {
             port_guard.set_property(InternalProperties::PORT_DUMMY, Some(dummy.clone()));
             if let Some(node) = port_guard.node() {
-                if let Ok(mut dummy_guard) = dummy.lock() {
+                if let Some(mut dummy_guard) = dummy.lock_ok() {
                     dummy_guard.set_property(InternalProperties::ORIGIN, Some(Origin::LNode(node)));
                 }
             }
@@ -529,19 +516,17 @@ fn create_same_side_self_loop_dummy_node(
     dummy_nodes: &mut Vec<LNodeRef>,
 ) {
     let source_port = self_loop
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|edge_guard| edge_guard.source());
     let target_port = self_loop
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|edge_guard| edge_guard.target());
     let (Some(source_port), Some(target_port)) = (source_port, target_port) else {
         return;
     };
 
     let dummy = LNode::new(graph);
-    if let Ok(mut dummy_guard) = dummy.lock() {
+    if let Some(mut dummy_guard) = dummy.lock_ok() {
         dummy_guard.set_node_type(NodeType::NorthSouthPort);
         dummy_guard.set_property(
             LayeredOptions::PORT_CONSTRAINTS,
@@ -554,7 +539,7 @@ fn create_same_side_self_loop_dummy_node(
     }
 
     let dummy_input_port = LPort::new();
-    if let Ok(mut dummy_input_port_guard) = dummy_input_port.lock() {
+    if let Some(mut dummy_input_port_guard) = dummy_input_port.lock_ok() {
         dummy_input_port_guard.set_property(
             InternalProperties::ORIGIN,
             Some(Origin::LPort(target_port.clone())),
@@ -564,7 +549,7 @@ fn create_same_side_self_loop_dummy_node(
     LPort::set_node(&dummy_input_port, Some(dummy.clone()));
 
     let dummy_output_port = LPort::new();
-    if let Ok(mut dummy_output_port_guard) = dummy_output_port.lock() {
+    if let Some(mut dummy_output_port_guard) = dummy_output_port.lock_ok() {
         dummy_output_port_guard.set_property(
             InternalProperties::ORIGIN,
             Some(Origin::LPort(source_port.clone())),
@@ -573,10 +558,10 @@ fn create_same_side_self_loop_dummy_node(
     }
     LPort::set_node(&dummy_output_port, Some(dummy.clone()));
 
-    if let Ok(mut source_port_guard) = source_port.lock() {
+    if let Some(mut source_port_guard) = source_port.lock_ok() {
         source_port_guard.set_property(InternalProperties::PORT_DUMMY, Some(dummy.clone()));
     }
-    if let Ok(mut target_port_guard) = target_port.lock() {
+    if let Some(mut target_port_guard) = target_port.lock_ok() {
         target_port_guard.set_property(InternalProperties::PORT_DUMMY, Some(dummy.clone()));
     }
 
@@ -594,27 +579,24 @@ fn create_north_south_self_loop_dummy_nodes(
     side: PortSide,
 ) {
     let source_port = self_loop
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|edge_guard| edge_guard.source());
     let target_port = self_loop
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|edge_guard| edge_guard.target());
     let (Some(source_port), Some(target_port)) = (source_port, target_port) else {
         return;
     };
 
     let north_dummy = LNode::new(graph);
-    if let Ok(mut north_dummy_guard) = north_dummy.lock() {
+    if let Some(mut north_dummy_guard) = north_dummy.lock_ok() {
         north_dummy_guard.set_node_type(NodeType::NorthSouthPort);
         north_dummy_guard.set_property(
             LayeredOptions::PORT_CONSTRAINTS,
             Some(PortConstraints::FixedPos),
         );
         if let Some(source_node) = source_port
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|port_guard| port_guard.node())
         {
             north_dummy_guard
@@ -623,7 +605,7 @@ fn create_north_south_self_loop_dummy_nodes(
     }
 
     let north_dummy_output_port = LPort::new();
-    if let Ok(mut north_dummy_output_port_guard) = north_dummy_output_port.lock() {
+    if let Some(mut north_dummy_output_port_guard) = north_dummy_output_port.lock_ok() {
         north_dummy_output_port_guard.set_property(
             InternalProperties::ORIGIN,
             Some(Origin::LPort(source_port.clone())),
@@ -631,20 +613,19 @@ fn create_north_south_self_loop_dummy_nodes(
         north_dummy_output_port_guard.set_side(side);
     }
     LPort::set_node(&north_dummy_output_port, Some(north_dummy.clone()));
-    if let Ok(mut source_port_guard) = source_port.lock() {
+    if let Some(mut source_port_guard) = source_port.lock_ok() {
         source_port_guard.set_property(InternalProperties::PORT_DUMMY, Some(north_dummy.clone()));
     }
 
     let south_dummy = LNode::new(graph);
-    if let Ok(mut south_dummy_guard) = south_dummy.lock() {
+    if let Some(mut south_dummy_guard) = south_dummy.lock_ok() {
         south_dummy_guard.set_node_type(NodeType::NorthSouthPort);
         south_dummy_guard.set_property(
             LayeredOptions::PORT_CONSTRAINTS,
             Some(PortConstraints::FixedPos),
         );
         if let Some(target_node) = target_port
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|port_guard| port_guard.node())
         {
             south_dummy_guard
@@ -653,7 +634,7 @@ fn create_north_south_self_loop_dummy_nodes(
     }
 
     let south_dummy_input_port = LPort::new();
-    if let Ok(mut south_dummy_input_port_guard) = south_dummy_input_port.lock() {
+    if let Some(mut south_dummy_input_port_guard) = south_dummy_input_port.lock_ok() {
         south_dummy_input_port_guard.set_property(
             InternalProperties::ORIGIN,
             Some(Origin::LPort(target_port.clone())),
@@ -661,7 +642,7 @@ fn create_north_south_self_loop_dummy_nodes(
         south_dummy_input_port_guard.set_side(side);
     }
     LPort::set_node(&south_dummy_input_port, Some(south_dummy.clone()));
-    if let Ok(mut target_port_guard) = target_port.lock() {
+    if let Some(mut target_port_guard) = target_port.lock_ok() {
         target_port_guard.set_property(InternalProperties::PORT_DUMMY, Some(south_dummy.clone()));
     }
 
@@ -680,12 +661,10 @@ fn create_north_south_self_loop_dummy_nodes(
 
 fn origin_port_allows_switch(dummy: &LNodeRef) -> bool {
     let origin_port = dummy
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|dummy_guard| dummy_guard.ports().first().cloned())
         .and_then(|port| {
-            port.lock()
-                .ok()
+            port.lock_ok()
                 .and_then(|mut port_guard| port_guard.get_property(InternalProperties::ORIGIN))
         });
     let Some(Origin::LPort(origin_port)) = origin_port else {
@@ -693,7 +672,7 @@ fn origin_port_allows_switch(dummy: &LNodeRef) -> bool {
     };
 
     let (allows_switch, port_constraints, origin_node) = {
-        let Ok(mut port_guard) = origin_port.lock() else {
+        let Some(mut port_guard) = origin_port.lock_ok() else {
             return false;
         };
         (
@@ -708,7 +687,7 @@ fn origin_port_allows_switch(dummy: &LNodeRef) -> bool {
     let port_constraints = port_constraints
         .or_else(|| {
             origin_node.and_then(|node| {
-                node.lock().ok().and_then(|mut node_guard| {
+                node.lock_ok().and_then(|mut node_guard| {
                     node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
                 })
             })

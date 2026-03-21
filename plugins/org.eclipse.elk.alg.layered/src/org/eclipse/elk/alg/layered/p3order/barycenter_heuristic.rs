@@ -114,8 +114,7 @@ impl BarycenterHeuristic {
             let raw = random.next_double();
             let value = if random_trace::is_enabled() {
                 let node_label = node
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|mut g| format!("id:{}", g.shape().graph_element().id))
                     .unwrap_or_else(|| "<locked>".into());
                 random_trace::trace_next_double(
@@ -188,8 +187,7 @@ impl BarycenterHeuristic {
                     let raw_f = random.next_float();
                     let raw_f = if random_trace::is_enabled() {
                         let node_label = node
-                            .lock()
-                            .ok()
+                            .lock_ok()
                             .map(|mut g| format!("id:{}", g.shape().graph_element().id))
                             .unwrap_or_else(|| "<locked>".into());
                         random_trace::trace_next_float(
@@ -281,7 +279,7 @@ impl BarycenterHeuristic {
         let trace_cm = *TRACE_CROSSMIN;
         let node_name = if trace_cm {
             flat_to_node.get(&flat)
-                .and_then(|n| n.lock().ok().map(|mut g| format!("id:{}", g.shape().graph_element().id)))
+                .and_then(|n| n.lock_ok().map(|mut g| format!("id:{}", g.shape().graph_element().id)))
                 .unwrap_or_else(|| "<unknown>".into())
         } else {
             String::new()
@@ -331,7 +329,7 @@ impl BarycenterHeuristic {
 
         // Handle BARYCENTER_ASSOCIATES (requires one lock per node, not per port)
         let associates = flat_to_node.get(&flat).and_then(|node| {
-            node.lock().ok().and_then(|mut node_guard| {
+            node.lock_ok().and_then(|mut node_guard| {
                 node_guard.get_property(InternalProperties::BARYCENTER_ASSOCIATES)
             })
         });
@@ -399,8 +397,7 @@ impl BarycenterHeuristic {
         }
 
         let node_name = if trace_cm {
-            node.lock()
-                .ok()
+            node.lock_ok()
                 .map(|mut g| format!("id:{}", g.shape().graph_element().id))
                 .unwrap_or_else(|| "<locked>".into())
         } else {
@@ -408,20 +405,19 @@ impl BarycenterHeuristic {
         };
 
         let ports = node
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|node_guard| node_guard.ports().clone())
             .unwrap_or_default();
 
         for free_port in ports {
             let port_iter = if forward {
-                free_port.lock().ok().map(|port_guard| port_guard.predecessor_ports()).unwrap_or_default()
+                free_port.lock_ok().map(|port_guard| port_guard.predecessor_ports()).unwrap_or_default()
             } else {
-                free_port.lock().ok().map(|port_guard| port_guard.successor_ports()).unwrap_or_default()
+                free_port.lock_ok().map(|port_guard| port_guard.successor_ports()).unwrap_or_default()
             };
 
             for fixed_port in port_iter {
-                let fixed_node = fixed_port.lock().ok().and_then(|port_guard| port_guard.node());
+                let fixed_node = fixed_port.lock_ok().and_then(|port_guard| port_guard.node());
                 let Some(fixed_node) = fixed_node else { continue; };
 
                 if self.same_layer_check(&fixed_node, node) {
@@ -441,7 +437,7 @@ impl BarycenterHeuristic {
                     let pid = self.port_id_of(&fixed_port);
                     let rank = port_ranks.get(pid).copied().unwrap_or(0.0);
                     if trace_cm {
-                        let fp_name = fixed_port.lock().ok()
+                        let fp_name = fixed_port.lock_ok()
                             .map(|mut g| format!("pid:{}", g.shape().graph_element().id))
                             .unwrap_or_else(|| "<locked>".into());
                         eprintln!(
@@ -457,7 +453,7 @@ impl BarycenterHeuristic {
             }
         }
 
-        let associates = node.lock().ok().and_then(|mut node_guard| {
+        let associates = node.lock_ok().and_then(|mut node_guard| {
             node_guard.get_property(InternalProperties::BARYCENTER_ASSOCIATES)
         });
         if let Some(associates) = associates {
@@ -536,8 +532,7 @@ impl BarycenterHeuristic {
             let layer_idx = self.layer_index_of(layer.first().unwrap());
             for node in layer.iter() {
                 let node_id = node
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|mut g| g.shape().graph_element().id)
                     .unwrap_or(-1);
                 let tli = self.layer_index_of(node);
@@ -556,8 +551,7 @@ impl BarycenterHeuristic {
             let node_ids_before: Vec<i32> = layer
                 .iter()
                 .map(|n| {
-                    n.lock()
-                        .ok()
+                    n.lock_ok()
                         .map(|mut g| g.shape().graph_element().id)
                         .unwrap_or(-1)
                 })
@@ -574,8 +568,7 @@ impl BarycenterHeuristic {
         let trace_layer_pattern = TRACE_BARYCENTER_LAYER_PATTERN.clone();
         if trace_layer_pattern.as_ref().is_some_and(|pattern| {
             layer.iter().any(|node| {
-                node.lock()
-                    .ok()
+                node.lock_ok()
                     .map(|mut node_guard| node_guard.to_string().contains(pattern))
                     .unwrap_or(false)
             })
@@ -586,8 +579,7 @@ impl BarycenterHeuristic {
             );
             for (index, node) in layer.iter().enumerate() {
                 let name = node
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|mut node_guard| node_guard.to_string())
                     .unwrap_or_else(|| "<poisoned-node>".to_owned());
                 let tli = self.layer_index_of(node);
@@ -632,8 +624,7 @@ impl BarycenterHeuristic {
             let node_ids_after: Vec<i32> = layer
                 .iter()
                 .map(|n| {
-                    n.lock()
-                        .ok()
+                    n.lock_ok()
                         .map(|mut g| g.shape().graph_element().id)
                         .unwrap_or(-1)
                 })
@@ -650,8 +641,8 @@ impl BarycenterHeuristic {
         if *TRACE_CROSSMIN {
             let li = layer
                 .first()
-                .and_then(|n| n.lock().ok().and_then(|ng| ng.layer()))
-                .and_then(|l| l.lock().ok().map(|mut lg| lg.graph_element().id))
+                .and_then(|n| n.lock_ok().and_then(|ng| ng.layer()))
+                .and_then(|l| l.lock_ok().map(|mut lg| lg.graph_element().id))
                 .unwrap_or(-1);
             eprintln!(
                 "[CROSSMIN] minimize_crossings_layer: layer={} forward={} nodes={}",
@@ -666,8 +657,7 @@ impl BarycenterHeuristic {
                     .bary_state(tli, tni)
                     .map(|sg| {
                         let nm = node
-                            .lock()
-                            .ok()
+                            .lock_ok()
                             .map(|mut g| {
                                 format!("id:{}", g.shape().graph_element().id)
                             })
@@ -687,8 +677,7 @@ impl BarycenterHeuristic {
         if let Some(ref snap) = self.snapshot {
             snap.node_type_of(snap.node_flat_index(node)) == NodeType::ExternalPort
         } else {
-            node.lock()
-                .ok()
+            node.lock_ok()
                 .map(|node_guard| node_guard.node_type() == NodeType::ExternalPort)
                 .unwrap_or(false)
         }
@@ -792,11 +781,10 @@ impl IInitializable for BarycenterHeuristic {
             .init_at_layer_level(layer_index, node_order);
         if let Some(first_node) = node_order[layer_index].first() {
             if let Some(layer) = first_node
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|node_guard| node_guard.layer())
             {
-                if let Ok(mut layer_guard) = layer.lock() {
+                if let Some(mut layer_guard) = layer.lock_ok() {
                     layer_guard.graph_element().id = layer_index as i32;
                 }
             }
@@ -873,16 +861,15 @@ impl BarycenterState {
 const RANDOM_AMOUNT: f64 = 0.07_f32 as f64;
 
 fn node_id(node: &LNodeRef) -> usize {
-    node.lock()
-        .ok()
+    node.lock_ok()
         .map(|mut node_guard| node_guard.shape().graph_element().id as usize)
         .unwrap_or(0)
 }
 
 fn layer_index(node: &LNodeRef) -> usize {
-    let layer = node.lock().ok().and_then(|node_guard| node_guard.layer());
+    let layer = node.lock_ok().and_then(|node_guard| node_guard.layer());
     if let Some(layer) = layer {
-        if let Ok(mut layer_guard) = layer.lock() {
+        if let Some(mut layer_guard) = layer.lock_ok() {
             return layer_guard.graph_element().id as usize;
         }
     }
@@ -890,8 +877,8 @@ fn layer_index(node: &LNodeRef) -> usize {
 }
 
 fn same_layer(left: &LNodeRef, right: &LNodeRef) -> bool {
-    let left_layer = left.lock().ok().and_then(|node_guard| node_guard.layer());
-    let right_layer = right.lock().ok().and_then(|node_guard| node_guard.layer());
+    let left_layer = left.lock_ok().and_then(|node_guard| node_guard.layer());
+    let right_layer = right.lock_ok().and_then(|node_guard| node_guard.layer());
     match (left_layer, right_layer) {
         (Some(left_layer), Some(right_layer)) => Arc::ptr_eq(&left_layer, &right_layer),
         _ => false,
@@ -899,8 +886,7 @@ fn same_layer(left: &LNodeRef, right: &LNodeRef) -> bool {
 }
 
 fn port_id(port: &LPortRef) -> usize {
-    port.lock()
-        .ok()
+    port.lock_ok()
         .map(|mut port_guard| port_guard.shape().graph_element().id as usize)
         .unwrap_or(0)
 }

@@ -46,23 +46,22 @@ impl LongestPathLayerer {
             return self.node_heights[index];
         }
 
-        let ports = match node.lock() {
-            Ok(node_guard) => node_guard.ports().clone(),
-            Err(_) => Vec::new(),
+        let ports = match node.lock_ok() {
+            Some(node_guard) => node_guard.ports().clone(),
+            None => Vec::new(),
         };
 
         let mut max_height = 1;
         for port in ports {
-            let outgoing = match port.lock() {
-                Ok(port_guard) => port_guard.outgoing_edges().clone(),
-                Err(_) => Vec::new(),
+            let outgoing = match port.lock_ok() {
+            Some(port_guard) => port_guard.outgoing_edges().clone(),
+            None => Vec::new(),
             };
             for edge in outgoing {
                 let target_node = edge
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|edge_guard| edge_guard.target())
-                    .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                    .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
                 let Some(target_node) = target_node else {
                     continue;
                 };
@@ -121,12 +120,12 @@ impl ILayoutPhase<LayeredPhases, LGraph> for LongestPathLayerer {
 
         let graph_ref = nodes
             .first()
-            .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.graph()))
+            .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.graph()))
             .unwrap_or_default();
 
         self.node_heights = vec![-1; nodes.len()];
         for (index, node) in nodes.iter().enumerate() {
-            if let Ok(mut node_guard) = node.lock() {
+            if let Some(mut node_guard) = node.lock_ok() {
                 node_guard.shape().graph_element().id = index as i32;
             }
         }
@@ -150,8 +149,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for LongestPathLayerer {
 }
 
 fn node_index(node: &LNodeRef) -> usize {
-    node.lock()
-        .ok()
+    node.lock_ok()
         .map(|mut node_guard| node_guard.shape().graph_element().id as usize)
         .unwrap_or(0)
 }

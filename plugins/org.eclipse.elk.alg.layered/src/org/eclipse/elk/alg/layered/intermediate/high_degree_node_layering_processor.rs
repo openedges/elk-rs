@@ -93,8 +93,7 @@ impl ILayoutProcessor<LGraph> for HighDegreeNodeLayeringProcessor {
 
         layered_graph.layers_mut().retain(|layer| {
             !layer
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|layer_guard| layer_guard.nodes().is_empty())
                 .unwrap_or(true)
         });
@@ -135,8 +134,7 @@ impl HighDegreeNodeLayeringProcessor {
         layer: &LayerRef,
     ) -> (Vec<(LNodeRef, HighDegreeNodeInformation)>, i32, i32) {
         let nodes = layer
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|layer_guard| layer_guard.nodes().clone())
             .unwrap_or_default();
 
@@ -170,8 +168,7 @@ impl HighDegreeNodeLayeringProcessor {
 
         for incoming_edge in selected_edges(high_degree_node, EdgeSelector::Incoming) {
             let is_self_loop = incoming_edge
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|edge_guard| edge_guard.is_self_loop())
                 .unwrap_or(false);
             if is_self_loop {
@@ -195,8 +192,7 @@ impl HighDegreeNodeLayeringProcessor {
 
         for outgoing_edge in selected_edges(high_degree_node, EdgeSelector::Outgoing) {
             let is_self_loop = outgoing_edge
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|edge_guard| edge_guard.is_self_loop())
                 .unwrap_or(false);
             if is_self_loop {
@@ -300,7 +296,7 @@ fn move_tree(root: &LNodeRef, edges: EdgeSelector, layers: &[LayerRef]) {
 }
 
 fn selected_edges(node: &LNodeRef, selector: EdgeSelector) -> Vec<LEdgeRef> {
-    let Ok(node_guard) = node.lock() else {
+    let Some(node_guard) = node.lock_ok() else {
         return Vec::new();
     };
 
@@ -312,17 +308,15 @@ fn selected_edges(node: &LNodeRef, selector: EdgeSelector) -> Vec<LEdgeRef> {
 }
 
 fn source_node(edge: &LEdgeRef) -> Option<LNodeRef> {
-    edge.lock()
-        .ok()
+    edge.lock_ok()
         .and_then(|edge_guard| edge_guard.source())
-        .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
+        .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
 }
 
 fn target_node(edge: &LEdgeRef) -> Option<LNodeRef> {
-    edge.lock()
-        .ok()
+    edge.lock_ok()
         .and_then(|edge_guard| edge_guard.target())
-        .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
+        .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
 }
 
 fn other_node(edge: &LEdgeRef, node: &LNodeRef) -> Option<LNodeRef> {
@@ -340,15 +334,14 @@ fn other_node(edge: &LEdgeRef, node: &LNodeRef) -> Option<LNodeRef> {
 fn graph_ref_for(layered_graph: &LGraph) -> LGraphRef {
     if let Some(layer) = layered_graph.layers().first() {
         if let Some(graph_ref) = layer
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|layer_guard| layer_guard.graph())
         {
             return graph_ref;
         }
     }
     if let Some(node) = layered_graph.layerless_nodes().first() {
-        if let Some(graph_ref) = node.lock().ok().and_then(|node_guard| node_guard.graph()) {
+        if let Some(graph_ref) = node.lock_ok().and_then(|node_guard| node_guard.graph()) {
             return graph_ref;
         }
     }

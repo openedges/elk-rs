@@ -22,23 +22,19 @@ fn network_simplex_deltas() {
 
                     for node in &graph.nodes {
                         let outgoing = node
-                            .lock()
-                            .ok()
+                            .lock_ok()
                             .map(|guard| guard.outgoing_edges().clone())
                             .unwrap_or_default();
                         for edge in outgoing {
                             let (source_layer, target_layer, delta) = {
-                                let edge_guard = edge.lock().expect("edge lock");
-                                let source_layer = edge_guard
+                                let edge_guard = edge.lock();                                let source_layer = edge_guard
                                     .source
-                                    .lock()
-                                    .ok()
+                                    .lock_ok()
                                     .map(|node_guard| node_guard.layer)
                                     .unwrap_or(0);
                                 let target_layer = edge_guard
                                     .target
-                                    .lock()
-                                    .ok()
+                                    .lock_ok()
                                     .map(|node_guard| node_guard.layer)
                                     .unwrap_or(0);
                                 (source_layer, target_layer, edge_guard.delta)
@@ -88,23 +84,19 @@ fn generate_random_graph(random: &mut Random) -> NGraph {
 
     for node in &graph.nodes {
         let outgoing = node
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|guard| guard.outgoing_edges().clone())
             .unwrap_or_default();
         for edge in outgoing {
             let (source_id, target_id) = {
-                let edge_guard = edge.lock().expect("edge lock");
-                let source_id = edge_guard
+                let edge_guard = edge.lock();                let source_id = edge_guard
                     .source
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|node_guard| node_guard.id)
                     .unwrap_or(0);
                 let target_id = edge_guard
                     .target
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|node_guard| node_guard.id)
                     .unwrap_or(0);
                 (source_id, target_id)

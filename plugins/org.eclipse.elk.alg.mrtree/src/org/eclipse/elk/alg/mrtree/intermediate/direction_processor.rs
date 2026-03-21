@@ -13,9 +13,9 @@ impl ILayoutProcessor<TGraphRef> for DirectionProcessor {
         progress_monitor.begin("Process directions", 1.0);
 
         let direction = {
-            let mut graph_guard = match graph.lock() {
-                Ok(guard) => guard,
-                Err(_) => {
+            let mut graph_guard = match graph.lock_ok() {
+            Some(guard) => guard,
+            None => {
                     progress_monitor.done();
                     return;
                 }
@@ -27,9 +27,9 @@ impl ILayoutProcessor<TGraphRef> for DirectionProcessor {
 
         if direction != Direction::Down {
             let nodes = {
-                let graph_guard = match graph.lock() {
-                    Ok(guard) => guard,
-                    Err(_) => {
+                let graph_guard = match graph.lock_ok() {
+            Some(guard) => guard,
+            None => {
                         progress_monitor.done();
                         return;
                     }
@@ -38,7 +38,7 @@ impl ILayoutProcessor<TGraphRef> for DirectionProcessor {
             };
 
             for node in nodes {
-                if let Ok(mut node_guard) = node.lock() {
+                if let Some(mut node_guard) = node.lock_ok() {
                     let mut x = node_guard
                         .get_property(InternalProperties::XCOOR)
                         .unwrap_or(0);

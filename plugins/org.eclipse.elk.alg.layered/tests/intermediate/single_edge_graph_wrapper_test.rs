@@ -15,7 +15,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::NullElkProgressMonitor;
 fn new_graph_with_layers(count: usize) -> (LGraphRef, Vec<LayerRef>) {
     let graph = LGraph::new();
     let mut layers = Vec::with_capacity(count);
-    if let Ok(mut graph_guard) = graph.lock() {
+    if let Some(mut graph_guard) = graph.lock_ok() {
         for _ in 0..count {
             let layer = Layer::new(&graph);
             graph_guard.layers_mut().push(layer.clone());
@@ -33,13 +33,13 @@ fn add_node(graph: &LGraphRef, layer: &LayerRef) -> LNodeRef {
 
 fn connect(source_node: &LNodeRef, target_node: &LNodeRef) {
     let source_port = LPort::new();
-    if let Ok(mut source_guard) = source_port.lock() {
+    if let Some(mut source_guard) = source_port.lock_ok() {
         source_guard.set_side(PortSide::East);
     }
     LPort::set_node(&source_port, Some(source_node.clone()));
 
     let target_port = LPort::new();
-    if let Ok(mut target_guard) = target_port.lock() {
+    if let Some(mut target_guard) = target_port.lock_ok() {
         target_guard.set_side(PortSide::West);
     }
     LPort::set_node(&target_port, Some(target_node.clone()));
@@ -67,8 +67,7 @@ fn validify_indexes_greedily_keeps_valid_cuts_for_simple_path() {
 
     let graph = build_path_graph(5);
     let graph_stats = graph
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|mut graph_guard| GraphStats::new(&mut graph_guard))
         .expect("graph stats");
 
@@ -82,7 +81,7 @@ fn manual_cut_process_marks_graph_as_cyclic() {
     init_layered_options();
 
     let graph = build_path_graph(5);
-    if let Ok(mut graph_guard) = graph.lock() {
+    if let Some(mut graph_guard) = graph.lock_ok() {
         graph_guard.set_property(
             LayeredOptions::WRAPPING_CUTTING_STRATEGY,
             Some(CuttingStrategy::Manual),
@@ -96,13 +95,12 @@ fn manual_cut_process_marks_graph_as_cyclic() {
 
     let mut wrapper = SingleEdgeGraphWrapper;
     let mut monitor = NullElkProgressMonitor;
-    if let Ok(mut graph_guard) = graph.lock() {
+    if let Some(mut graph_guard) = graph.lock_ok() {
         wrapper.process(&mut graph_guard, &mut monitor);
     }
 
     let cyclic = graph
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|mut graph_guard| graph_guard.get_property(InternalProperties::CYCLIC))
         .unwrap_or(false);
     assert!(cyclic);

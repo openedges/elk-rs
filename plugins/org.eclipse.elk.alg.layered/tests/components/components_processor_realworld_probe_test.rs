@@ -30,8 +30,7 @@ fn split_sizes(lgraph: &org_eclipse_elk_alg_layered::org::eclipse::elk::alg::lay
         .iter()
         .map(|component| {
             component
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|component_guard| component_guard.layerless_nodes().len())
                 .unwrap_or_default()
         })
@@ -48,8 +47,7 @@ fn split_sizes_via_layout_prepare(
         .iter()
         .map(|component| {
             component
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|component_guard| component_guard.layerless_nodes().len())
                 .unwrap_or_default()
         })
@@ -64,13 +62,12 @@ fn edge_bend_stats_after_layout(
     layered.do_layout(&lgraph, None);
 
     let (layerless_nodes, layers) = lgraph
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|graph_guard| (graph_guard.layerless_nodes().clone(), graph_guard.layers().clone()))
         .unwrap_or_default();
     let mut nodes = layerless_nodes;
     for layer in layers {
-        if let Ok(layer_guard) = layer.lock() {
+        if let Some(layer_guard) = layer.lock_ok() {
             nodes.extend(layer_guard.nodes().iter().cloned());
         }
     }
@@ -78,8 +75,7 @@ fn edge_bend_stats_after_layout(
     let mut edges = Vec::new();
     for node in nodes {
         let outgoing = node
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|node_guard| node_guard.outgoing_edges())
             .unwrap_or_default();
         for edge in outgoing {
@@ -93,16 +89,14 @@ fn edge_bend_stats_after_layout(
     let edges_with_bends = edges
         .iter()
         .filter(|edge| {
-            edge.lock()
-                .ok()
+            edge.lock_ok()
                 .is_some_and(|edge_guard| !edge_guard.bend_points_ref().is_empty())
         })
         .count();
     let max_bends = edges
         .iter()
         .filter_map(|edge| {
-            edge.lock()
-                .ok()
+            edge.lock_ok()
                 .map(|edge_guard| edge_guard.bend_points_ref().len())
         })
         .max()
@@ -116,15 +110,14 @@ fn dump_node_positions_after_layout(rel_path: &str) {
     layered.do_layout(&lgraph, None);
 
     let layers = lgraph
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|graph_guard| graph_guard.layers().clone())
         .unwrap_or_default();
 
     for (layer_index, layer) in layers.iter().enumerate() {
-        if let Ok(layer_guard) = layer.lock() {
+        if let Some(layer_guard) = layer.lock_ok() {
             for node in layer_guard.nodes() {
-                if let Ok(mut node_guard) = node.lock() {
+                if let Some(mut node_guard) = node.lock_ok() {
                     if node_guard.node_type()
                         == org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::NodeType::Normal
                     {
@@ -152,8 +145,7 @@ fn ptolemy_flattened_models_remain_single_component_after_import() {
     for model in models {
         let lgraph = import_lgraph(model);
         let (node_count, has_external_ports, edge_routing_before, edge_routing_prepared) = {
-            let mut graph_guard = lgraph.lock().expect("graph lock");
-            let graph_props = graph_guard
+            let mut graph_guard = lgraph.lock();            let graph_props = graph_guard
                 .get_property(InternalProperties::GRAPH_PROPERTIES)
                 .unwrap_or_else(EnumSet::none_of);
             let edge_routing_before = graph_guard
@@ -164,8 +156,7 @@ fn ptolemy_flattened_models_remain_single_component_after_import() {
             let mut graph_configurator = GraphConfigurator::new();
             graph_configurator.prepare_graph_for_layout(&lgraph);
 
-            let mut graph_guard = lgraph.lock().expect("graph lock after prepare");
-            let edge_routing_prepared = graph_guard
+            let mut graph_guard = lgraph.lock();            let edge_routing_prepared = graph_guard
                 .get_property(LayeredOptions::EDGE_ROUTING)
                 .unwrap_or(EdgeRouting::Undefined);
             (

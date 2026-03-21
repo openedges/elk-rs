@@ -17,25 +17,23 @@ impl CMGroupModelOrderCalculator {
         parent: &LGraphRef,
         offset: i32,
     ) -> i32 {
-        let enforce_group_model_order = match parent.try_lock() {
-            Ok(mut graph_guard) => {
+        let enforce_group_model_order = match parent.try_lock() {            Some(mut graph_guard) => {
                 graph_guard
                     .get_property(LayeredOptions::GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY)
                     .unwrap_or(GroupOrderStrategy::OnlyWithinGroup)
                     == GroupOrderStrategy::Enforced
             }
-            Err(_) => {
+            None => {
                 if *TRACE_CROSSMIN {
                     eprintln!("cm_group: graph lock busy, skipping group order");
                 }
                 false
             }
         };
-        let enforced_orders = match parent.try_lock() {
-            Ok(mut graph_guard) => graph_guard
+        let enforced_orders = match parent.try_lock() {            Some(mut graph_guard) => graph_guard
                 .get_property(LayeredOptions::GROUP_MODEL_ORDER_CM_ENFORCED_GROUP_ORDERS)
                 .unwrap_or_default(),
-            Err(_) => {
+            None => {
                 if *TRACE_CROSSMIN {
                     eprintln!("cm_group: graph lock busy, using empty enforced orders");
                 }
@@ -44,8 +42,7 @@ impl CMGroupModelOrderCalculator {
         };
 
         let element_model_order = element
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|mut node_guard| node_guard.get_property(InternalProperties::MODEL_ORDER));
         if element_model_order.is_none() {
             return -1;
@@ -54,16 +51,14 @@ impl CMGroupModelOrderCalculator {
 
         if enforce_group_model_order {
             let element_group_id = element
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|mut node_guard| {
                     node_guard
                         .get_property(LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID)
                 })
                 .unwrap_or(0);
             let other_group_id = other
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|mut node_guard| {
                     node_guard
                         .get_property(LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID)

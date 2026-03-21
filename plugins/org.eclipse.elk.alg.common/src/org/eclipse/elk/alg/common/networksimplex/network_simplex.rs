@@ -106,9 +106,8 @@ impl<'a> NetworkSimplex<'a> {
         }
 
         for node in &self.graph.nodes {
-            if let Ok(mut node_guard) = node.lock() {
-                node_guard.layer = 0;
-            }
+            let mut node_guard = node.lock();
+            node_guard.layer = 0;
         }
 
         let remove_subtrees = self.graph.nodes.len() >= REMOVE_SUBTREES_THRESH;
@@ -164,13 +163,12 @@ impl<'a> NetworkSimplex<'a> {
 
         let mut edges = Vec::new();
         for (index, node) in self.graph.nodes.iter().enumerate() {
-            if let Ok(mut node_guard) = node.lock() {
-                node_guard.internal_id = index;
-                if node_guard.incoming_edges().is_empty() {
-                    self.sources.push(node.clone());
-                }
-                edges.extend(node_guard.outgoing_edges().clone());
+            let mut node_guard = node.lock();
+            node_guard.internal_id = index;
+            if node_guard.incoming_edges().is_empty() {
+                self.sources.push(node.clone());
             }
+            edges.extend(node_guard.outgoing_edges().clone());
         }
 
         // Build edge property cache (one lock per edge, all properties extracted)
@@ -191,31 +189,24 @@ impl<'a> NetworkSimplex<'a> {
         self.e_tree.resize(num_edges, false);
 
         for (index, edge) in edges.iter().enumerate() {
-            if let Ok(mut edge_guard) = edge.lock() {
-                edge_guard.internal_id = index;
-                self.e_src.push(edge_guard.source.clone());
-                self.e_tgt.push(edge_guard.target.clone());
-                self.e_delta[index] = edge_guard.delta;
-                self.e_weight[index] = edge_guard.weight;
-                self.e_tree[index] = false;
-                // source/target internal_ids are already set above
-                let src_id = edge_guard
-                    .source
-                    .lock()
-                    .map(|g| g.internal_id)
-                    .unwrap_or(0);
-                let tgt_id = edge_guard
-                    .target
-                    .lock()
-                    .map(|g| g.internal_id)
-                    .unwrap_or(0);
-                self.e_src_id[index] = src_id;
-                self.e_tgt_id[index] = tgt_id;
-            } else {
-                // Fallback: push empty refs (shouldn't happen)
-                self.e_src.push(self.graph.nodes[0].clone());
-                self.e_tgt.push(self.graph.nodes[0].clone());
-            }
+            let mut edge_guard = edge.lock();
+            edge_guard.internal_id = index;
+            self.e_src.push(edge_guard.source.clone());
+            self.e_tgt.push(edge_guard.target.clone());
+            self.e_delta[index] = edge_guard.delta;
+            self.e_weight[index] = edge_guard.weight;
+            self.e_tree[index] = false;
+            // source/target internal_ids are already set above
+            let src_id = edge_guard
+                .source
+                .lock()
+                .internal_id;
+            let tgt_id = edge_guard
+                .target
+                .lock()
+                .internal_id;
+            self.e_src_id[index] = src_id;
+            self.e_tgt_id[index] = tgt_id;
         }
 
         // Build node property cache (layers are all 0 at this point, tree_node all false)
@@ -291,9 +282,8 @@ impl<'a> NetworkSimplex<'a> {
             }
             for (i, node) in self.graph.nodes.iter().enumerate() {
                 if self.n_tree_node[i] {
-                    if let Ok(mut node_guard) = node.lock() {
-                        node_guard.layer += slack;
-                    }
+                    let mut node_guard = node.lock();
+                    node_guard.layer += slack;
                     self.n_layer[i] += slack;
                 }
             }
@@ -344,9 +334,8 @@ impl<'a> NetworkSimplex<'a> {
         }
         // Sync n_layer cache to underlying nodes
         for (i, node) in self.graph.nodes.iter().enumerate() {
-            if let Ok(mut node_guard) = node.lock() {
-                node_guard.layer = self.n_layer[i];
-            }
+            let mut node_guard = node.lock();
+            node_guard.layer = self.n_layer[i];
         }
     }
 
@@ -358,9 +347,8 @@ impl<'a> NetworkSimplex<'a> {
         // because those functions lock edge→target/source which may be `node` itself
         // (incoming edges: target == node; outgoing edges: source == node).
         // parking_lot::Mutex is non-reentrant → deadlock if re-locked.
-        let edges = match node.lock() {
-            Ok(node_guard) => node_guard.connected_edges(),
-            Err(_) => Vec::new(),
+        let edges = {
+            let node_guard = node.lock();            node_guard.connected_edges()
         };
 
         for edge in &edges {
@@ -502,7 +490,8 @@ impl<'a> NetworkSimplex<'a> {
         let mut leafs: Vec<NNodeRef> = Vec::new();
         for node in &self.graph.nodes {
             let mut tree_edge_count = 0;
-            if let Ok(mut node_guard) = node.lock() {
+            {
+                let mut node_guard = node.lock();
                 let nid = node_guard.internal_id;
                 node_guard.unknown_cutvalues.clear();
                 // Use cached adjacency list + e_tree to avoid per-edge locks
@@ -521,17 +510,14 @@ impl<'a> NetworkSimplex<'a> {
         for mut node in leafs {
             loop {
                 let to_determine = {
-                    let guard = node.lock().ok();
-                    let Some(guard) = guard else {
-                        break;
-                    };
+                    let guard = node.lock();
                     if guard.unknown_cutvalues.len() != 1 {
                         break;
                     }
                     guard.unknown_cutvalues[0].clone()
                 };
 
-                let td_id = to_determine.lock().map(|g| g.internal_id).unwrap_or(0);
+                let td_id = to_determine.lock().internal_id;
                 if td_id >= self.cutvalue.len() {
                     break;
                 }
@@ -542,7 +528,7 @@ impl<'a> NetworkSimplex<'a> {
                 self.cutvalue[td_id] = td_weight;
 
                 // Use cached adjacency list for connected edges
-                let nid = node.lock().map(|g| g.internal_id).unwrap_or(0);
+                let nid = node.lock().internal_id;
                 let num_adj = self.node_edges[nid].len();
                 for i in 0..num_adj {
                     let eid = self.node_edges[nid][i];
@@ -650,9 +636,8 @@ impl<'a> NetworkSimplex<'a> {
 
         for (nid, node) in self.graph.nodes.iter().enumerate() {
             if !self.is_in_head_by_id(nid, leave_src_id, leave_tgt_id) {
-                if let Ok(mut node_guard) = node.lock() {
-                    node_guard.layer += delta;
-                }
+                let mut node_guard = node.lock();
+                node_guard.layer += delta;
                 self.n_layer[nid] += delta;
             }
         }
@@ -669,21 +654,19 @@ impl<'a> NetworkSimplex<'a> {
         let mut highest = i32::MIN;
         let mut lowest = i32::MAX;
         for node in &self.graph.nodes {
-            if let Ok(node_guard) = node.lock() {
-                highest = highest.max(node_guard.layer);
-                lowest = lowest.min(node_guard.layer);
-            }
+            let node_guard = node.lock();
+            highest = highest.max(node_guard.layer);
+            lowest = lowest.min(node_guard.layer);
         }
 
         let size = (highest - lowest + 1).max(1) as usize;
         let mut filling = vec![0i32; size];
         for node in &self.graph.nodes {
-            if let Ok(mut node_guard) = node.lock() {
-                node_guard.layer -= lowest;
-                let idx = node_guard.layer.max(0) as usize;
-                if idx < filling.len() {
-                    filling[idx] += 1;
-                }
+            let mut node_guard = node.lock();
+            node_guard.layer -= lowest;
+            let idx = node_guard.layer.max(0) as usize;
+            if idx < filling.len() {
+                filling[idx] += 1;
             }
         }
 
@@ -701,13 +684,12 @@ impl<'a> NetworkSimplex<'a> {
     fn balance_layers(&mut self, filling: &[i32]) {
         let mut filling = filling.to_vec();
         for node in &self.graph.nodes {
-            let (incoming_count, outgoing_count, current_layer) = match node.lock() {
-                Ok(node_guard) => (
+            let (incoming_count, outgoing_count, current_layer) = {
+                let node_guard = node.lock();                (
                     node_guard.incoming_edges().len(),
                     node_guard.outgoing_edges().len(),
                     node_guard.layer,
-                ),
-                Err(_) => continue,
+                )
             };
 
             if incoming_count != outgoing_count {
@@ -730,9 +712,8 @@ impl<'a> NetworkSimplex<'a> {
             {
                 filling[current_layer as usize] -= 1;
                 filling[new_layer as usize] += 1;
-                if let Ok(mut node_guard) = node.lock() {
-                    node_guard.layer = new_layer;
-                }
+                let mut node_guard = node.lock();
+                node_guard.layer = new_layer;
             }
         }
     }
@@ -740,10 +721,7 @@ impl<'a> NetworkSimplex<'a> {
     fn remove_subtrees(&mut self) {
         let mut leafs: VecDeque<NNodeRef> = VecDeque::new();
         for node in &self.graph.nodes {
-            let edge_count = node
-                .lock()
-                .map(|guard| guard.connected_edge_count())
-                .unwrap_or(0);
+            let edge_count = node.lock().connected_edge_count();
             if edge_count == 1 {
                 leafs.push_back(node.clone());
             }
@@ -751,35 +729,26 @@ impl<'a> NetworkSimplex<'a> {
 
         let mut stack: VecDeque<Pair<NNodeRef, NEdgeRef>> = VecDeque::new();
         while let Some(node) = leafs.pop_front() {
-            let (edge, is_out_edge) = match node.lock() {
-                Ok(node_guard) => {
-                    if node_guard.connected_edge_count() == 0 {
-                        continue;
-                    }
-                    // First connected edge: incoming first, then outgoing (Java parity)
-                    let is_out = node_guard.incoming_edges().is_empty();
-                    let e = if !node_guard.incoming_edges().is_empty() {
-                        node_guard.incoming_edges()[0].clone()
-                    } else {
-                        node_guard.outgoing_edges()[0].clone()
-                    };
-                    (e, is_out)
+            let (edge, is_out_edge) = {
+                let node_guard = node.lock();                if node_guard.connected_edge_count() == 0 {
+                    continue;
                 }
-                Err(_) => continue,
+                // First connected edge: incoming first, then outgoing (Java parity)
+                let is_out = node_guard.incoming_edges().is_empty();
+                let e = if !node_guard.incoming_edges().is_empty() {
+                    node_guard.incoming_edges()[0].clone()
+                } else {
+                    node_guard.outgoing_edges()[0].clone()
+                };
+                (e, is_out)
             };
-            let other = edge.lock().ok().map(|edge_guard| edge_guard.other(&node));
-            let Some(other) = other else {
-                continue;
-            };
+            let other = edge.lock().other(&node);
             if is_out_edge {
                 remove_edge_from_node(&other, &edge, false);
             } else {
                 remove_edge_from_node(&other, &edge, true);
             }
-            let other_edges = other
-                .lock()
-                .map(|guard| guard.connected_edge_count())
-                .unwrap_or(0);
+            let other_edges = other.lock().connected_edge_count();
             if other_edges == 1 {
                 leafs.push_back(other);
             }
@@ -798,21 +767,18 @@ impl<'a> NetworkSimplex<'a> {
         while let Some(pair) = stack.pop_back() {
             let node = pair.first;
             let edge = pair.second;
-            let placed = edge.lock().ok().map(|edge_guard| edge_guard.other(&node));
-            let Some(placed) = placed else {
-                continue;
-            };
+            let placed = edge.lock().other(&node);
 
             let node_is_target = edge_target_is(&edge, &node);
             if node_is_target {
                 add_edge_to_node(&placed, &edge, true);
-                if let (Ok(mut node_guard), Ok(placed_guard)) = (node.lock(), placed.lock()) {
-                    node_guard.layer = placed_guard.layer + edge_delta(&edge);
+                {
+                    let mut node_guard = node.lock();                    let placed_guard = placed.lock();                    node_guard.layer = placed_guard.layer + edge_delta(&edge);
                 }
             } else {
                 add_edge_to_node(&placed, &edge, false);
-                if let (Ok(mut node_guard), Ok(placed_guard)) = (node.lock(), placed.lock()) {
-                    node_guard.layer = placed_guard.layer - edge_delta(&edge);
+                {
+                    let mut node_guard = node.lock();                    let placed_guard = placed.lock();                    node_guard.layer = placed_guard.layer - edge_delta(&edge);
                 }
             }
             self.graph.nodes.push(node);
@@ -821,29 +787,23 @@ impl<'a> NetworkSimplex<'a> {
 }
 
 fn edge_delta(edge: &NEdgeRef) -> i32 {
-    edge.lock().map(|guard| guard.delta).unwrap_or(0)
+    edge.lock().delta
 }
 
 fn edge_source(edge: &NEdgeRef) -> NNodeRef {
-    edge.lock().map(|guard| guard.source.clone()).unwrap()
+    edge.lock().source.clone()
 }
 
 fn edge_target(edge: &NEdgeRef) -> NNodeRef {
-    edge.lock().map(|guard| guard.target.clone()).unwrap()
+    edge.lock().target.clone()
 }
 
 fn edge_source_layer(edge: &NEdgeRef) -> i32 {
-    edge_source(edge)
-        .lock()
-        .map(|guard| guard.layer)
-        .unwrap_or(0)
+    edge_source(edge).lock().layer
 }
 
 fn edge_target_layer(edge: &NEdgeRef) -> i32 {
-    edge_target(edge)
-        .lock()
-        .map(|guard| guard.layer)
-        .unwrap_or(0)
+    edge_target(edge).lock().layer
 }
 
 fn edge_target_is(edge: &NEdgeRef, node: &NNodeRef) -> bool {
@@ -851,33 +811,30 @@ fn edge_target_is(edge: &NEdgeRef, node: &NNodeRef) -> bool {
 }
 
 fn remove_unknown_cutvalue(node: &NNodeRef, edge: &NEdgeRef) {
-    if let Ok(mut node_guard) = node.lock() {
+    let mut node_guard = node.lock();
+    node_guard
+        .unknown_cutvalues
+        .retain(|candidate| !Arc::ptr_eq(candidate, edge));
+}
+
+fn remove_edge_from_node(node: &NNodeRef, edge: &NEdgeRef, outgoing: bool) {
+    let mut node_guard = node.lock();
+    if outgoing {
         node_guard
-            .unknown_cutvalues
+            .outgoing_edges_mut()
+            .retain(|candidate| !Arc::ptr_eq(candidate, edge));
+    } else {
+        node_guard
+            .incoming_edges_mut()
             .retain(|candidate| !Arc::ptr_eq(candidate, edge));
     }
 }
 
-fn remove_edge_from_node(node: &NNodeRef, edge: &NEdgeRef, outgoing: bool) {
-    if let Ok(mut node_guard) = node.lock() {
-        if outgoing {
-            node_guard
-                .outgoing_edges_mut()
-                .retain(|candidate| !Arc::ptr_eq(candidate, edge));
-        } else {
-            node_guard
-                .incoming_edges_mut()
-                .retain(|candidate| !Arc::ptr_eq(candidate, edge));
-        }
-    }
-}
-
 fn add_edge_to_node(node: &NNodeRef, edge: &NEdgeRef, outgoing: bool) {
-    if let Ok(mut node_guard) = node.lock() {
-        if outgoing {
-            node_guard.outgoing_edges_mut().push(edge.clone());
-        } else {
-            node_guard.incoming_edges_mut().push(edge.clone());
-        }
+    let mut node_guard = node.lock();
+    if outgoing {
+        node_guard.outgoing_edges_mut().push(edge.clone());
+    } else {
+        node_guard.incoming_edges_mut().push(edge.clone());
     }
 }

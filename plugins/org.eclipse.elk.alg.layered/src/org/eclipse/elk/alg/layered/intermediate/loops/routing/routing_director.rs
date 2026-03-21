@@ -17,13 +17,12 @@ impl RoutingDirector {
         let port_penalties = compute_port_penalties(holder);
 
         let loops = holder
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|holder_guard| holder_guard.sl_hyper_loops().clone())
             .unwrap_or_default();
 
         for sl_loop in loops {
-            if let Ok(mut sl_loop_guard) = sl_loop.lock() {
+            if let Some(mut sl_loop_guard) = sl_loop.lock_ok() {
                 sl_loop_guard.sort_ports_by_id();
                 sl_loop_guard.compute_ports_per_side();
                 determine_loop_route(&mut sl_loop_guard, holder, &port_penalties);
@@ -39,18 +38,16 @@ fn assign_port_ids(holder: &SelfLoopHolderRef) {
     // Rust MUST NOT sort by PORT_INDEX here - that changes which "column" each port occupies
     // in nextFreeRoutingSlotAtPort, causing incorrect slot assignments in shiftTowardsNode.
     let ports = holder
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|holder_guard| holder_guard.l_node().clone())
         .and_then(|node| {
-            node.lock()
-                .ok()
+            node.lock_ok()
                 .map(|node_guard| node_guard.ports().clone())
         })
         .unwrap_or_default();
 
     for (index, port) in ports.into_iter().enumerate() {
-        if let Ok(mut port_guard) = port.lock() {
+        if let Some(mut port_guard) = port.lock_ok() {
             port_guard.shape().graph_element().id = index as i32;
         }
     }
@@ -368,13 +365,11 @@ fn loop_sides(
 
 fn compute_port_penalties(holder: &SelfLoopHolderRef) -> Vec<i32> {
     let ports = holder
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|holder_guard| {
             holder_guard
                 .l_node()
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.ports().clone())
         })
         .unwrap_or_default();
@@ -385,8 +380,7 @@ fn compute_port_penalties(holder: &SelfLoopHolderRef) -> Vec<i32> {
 
     for (index, port) in ports.iter().enumerate() {
         let (port_id, penalty) = port
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|mut port_guard| {
                 let penalty =
                     if port_guard.incoming_edges().is_empty() && port_guard.outgoing_edges().is_empty() {
@@ -435,13 +429,11 @@ fn compute_edge_penalty(
     rightmost_port: &SelfLoopPortRef,
 ) -> i32 {
     let port_count = holder
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|holder_guard| {
             holder_guard
                 .l_node()
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.ports().len())
         })
         .unwrap_or_default();
@@ -481,13 +473,11 @@ fn compute_edge_penalty(
 
 fn sl_port_side(sl_port: &SelfLoopPortRef) -> PortSide {
     sl_port
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|port_guard| {
             port_guard
                 .l_port()
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|l_port_guard| l_port_guard.side())
         })
         .unwrap_or(PortSide::Undefined)

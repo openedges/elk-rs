@@ -34,8 +34,7 @@ impl ILayoutProcessor<LGraph> for PartitionPreprocessor {
                 continue;
             };
             let outgoing_edges = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.outgoing_edges())
                 .unwrap_or_default();
             for edge in outgoing_edges {
@@ -54,8 +53,7 @@ impl ILayoutProcessor<LGraph> for PartitionPreprocessor {
 }
 
 fn node_partition(node: &LNodeRef) -> Option<i32> {
-    node.lock()
-        .ok()
+    node.lock_ok()
         .and_then(|mut node_guard| node_guard.get_property(CoreOptions::PARTITIONING_PARTITION))
 }
 
@@ -65,10 +63,9 @@ fn must_be_reversed(
     partitioned_nodes: &[LNodeRef],
 ) -> bool {
     let target_node = edge
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|edge_guard| edge_guard.target())
-        .and_then(|target| target.lock().ok().and_then(|port_guard| port_guard.node()));
+        .and_then(|target| target.lock_ok().and_then(|port_guard| port_guard.node()));
     let Some(target_node) = target_node else {
         return false;
     };
@@ -94,10 +91,9 @@ fn must_be_reversed(
     }
 
     let source_node = edge
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|edge_guard| edge_guard.source())
-        .and_then(|source| source.lock().ok().and_then(|port_guard| port_guard.node()));
+        .and_then(|source| source.lock_ok().and_then(|port_guard| port_guard.node()));
     let Some(source_node) = source_node else {
         return false;
     };
@@ -115,16 +111,14 @@ fn must_be_reversed(
         }
 
         let outgoing = current_node
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|node_guard| node_guard.outgoing_edges())
             .unwrap_or_default();
         for outgoing_edge in outgoing {
             let target = outgoing_edge
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|edge_guard| edge_guard.target())
-                .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
             let Some(target) = target else {
                 continue;
             };
@@ -146,18 +140,17 @@ fn must_be_reversed(
 
 fn reverse_edge(edge: &LEdgeRef) {
     let graph_ref = edge
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|edge_guard| edge_guard.source())
-        .and_then(|source| source.lock().ok().and_then(|port_guard| port_guard.node()))
-        .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.graph()));
+        .and_then(|source| source.lock_ok().and_then(|port_guard| port_guard.node()))
+        .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.graph()));
     let Some(graph_ref) = graph_ref else {
         return;
     };
 
     LEdge::reverse(edge, &graph_ref, true);
 
-    if let Ok(mut edge_guard) = edge.lock() {
+    if let Some(mut edge_guard) = edge.lock_ok() {
         let mut priority = PARTITION_CONSTRAINT_EDGE_PRIORITY;
         if let Some(existing_priority) = edge_guard.get_property(LayeredOptions::PRIORITY_DIRECTION)
         {

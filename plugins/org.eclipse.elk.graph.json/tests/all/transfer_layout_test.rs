@@ -64,8 +64,8 @@ fn transfer_layout_fail_when_graph_changes() {
     let _ = ElkGraphUtil::create_node(Some(root.clone()));
 
     match importer.get_mut().expect("importer").transfer_layout(&root) {
-        Err(_) => {}
-        Ok(_) => panic!("expected transfer layout error"),
+            Err(_) => {}
+            Ok(_) => panic!("expected transfer layout error"),
     }
 }
 

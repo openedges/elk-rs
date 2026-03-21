@@ -38,14 +38,12 @@ impl HyperedgeCrossingsCounter {
         let mut source_count = 0i32;
         for node in left_layer {
             let ports = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.ports().clone())
                 .unwrap_or_default();
             for port in ports {
                 let (outgoing, port_name) = port
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|mut port_guard| {
                         let edges = port_guard.outgoing_edges().clone();
                         let name = if trace_call.is_some_and(|c| c < 64) {
@@ -81,8 +79,7 @@ impl HyperedgeCrossingsCounter {
         let do_trace_name = trace_call.is_some_and(|c| c < 64);
         for node in right_layer {
             let ports = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.ports().clone())
                 .unwrap_or_default();
 
@@ -90,8 +87,7 @@ impl HyperedgeCrossingsCounter {
             let mut north_input_ports = 0i32;
             for port in &ports {
                 let (side, incoming) = port
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|port_guard| (port_guard.side(), port_guard.incoming_edges().clone()))
                     .unwrap_or((PortSide::Undefined, Vec::new()));
                 if side == PortSide::North {
@@ -110,8 +106,7 @@ impl HyperedgeCrossingsCounter {
             for port in ports.iter().rev() {
                 // Single lock: extract side + incoming_edges + optional name
                 let (incoming, side, port_name) = port
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|mut port_guard| {
                         let inc = port_guard.incoming_edges().clone();
                         let s = port_guard.side();
@@ -161,18 +156,16 @@ impl HyperedgeCrossingsCounter {
 
         for node in left_layer {
             let ports = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.ports().clone())
                 .unwrap_or_default();
             for source_port in ports {
                 let outgoing = source_port
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|port_guard| port_guard.outgoing_edges().clone())
                     .unwrap_or_default();
                 for edge in outgoing {
-                    let target_port = edge.lock().ok().and_then(|edge_guard| edge_guard.target());
+                    let target_port = edge.lock_ok().and_then(|edge_guard| edge_guard.target());
                     let Some(target_port) = target_port else {
                         continue;
                     };
@@ -245,10 +238,10 @@ impl HyperedgeCrossingsCounter {
 
         let left_layer_ref = left_layer
             .first()
-            .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.layer()));
+            .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.layer()));
         let right_layer_ref = right_layer
             .first()
-            .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.layer()));
+            .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.layer()));
 
         for hyperedge in &mut hyperedge_list {
             hyperedge.upper_left = source_count;
@@ -475,17 +468,16 @@ impl HyperedgeCorner {
 
 fn edge_is_in_layer(edge: &LEdgeRef) -> bool {
     let (source_layer, target_layer) = edge
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|edge_guard| {
             let source_layer = edge_guard
                 .source()
-                .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
-                .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.layer()));
+                .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
+                .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.layer()));
             let target_layer = edge_guard
                 .target()
-                .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
-                .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.layer()));
+                .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
+                .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.layer()));
             (source_layer, target_layer)
         })
         .unwrap_or((None, None));
@@ -504,8 +496,7 @@ fn port_ptr_id(port: &LPortRef) -> usize {
 }
 
 fn port_id(port: &LPortRef) -> usize {
-    port.lock()
-        .ok()
+    port.lock_ok()
         .map(|mut port_guard| port_guard.shape().graph_element().id as usize)
         .unwrap_or(0)
 }
@@ -524,8 +515,7 @@ fn port_position(port_positions: &[i32], port: &LPortRef) -> i32 {
 }
 
 fn port_layer(port: &LPortRef) -> Option<LayerRef> {
-    port.lock()
-        .ok()
+    port.lock_ok()
         .and_then(|port_guard| port_guard.node())
-        .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.layer()))
+        .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.layer()))
 }

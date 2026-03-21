@@ -65,8 +65,7 @@ impl ForsterConstraintResolver {
         if let Some(ref snap) = self.snapshot {
             snap.node_type_of(snap.node_flat_index(node))
         } else {
-            node.lock()
-                .ok()
+            node.lock_ok()
                 .map(|node_guard| node_guard.node_type())
                 .unwrap_or(NodeType::Normal)
         }
@@ -190,8 +189,7 @@ impl ForsterConstraintResolver {
             }
 
             let successors = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|mut node_guard| {
                     node_guard.get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
                 })
@@ -510,7 +508,7 @@ impl ForsterConstraintResolver {
                 layer_states[node_index] = Some(BarycenterState::new(node.clone()));
             }
 
-            let layout_unit = node.lock().ok().and_then(|mut node_guard| {
+            let layout_unit = node.lock_ok().and_then(|mut node_guard| {
                 node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
             });
             if let Some(layout_unit) = layout_unit {
@@ -542,11 +540,10 @@ impl IInitializable for ForsterConstraintResolver {
 
         if let Some(first_node) = node_order[layer_index].first() {
             if let Some(layer) = first_node
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|node_guard| node_guard.layer())
             {
-                if let Ok(mut layer_guard) = layer.lock() {
+                if let Some(mut layer_guard) = layer.lock_ok() {
                     layer_guard.graph_element().id = layer_index as i32;
                 }
             }
@@ -563,7 +560,7 @@ impl IInitializable for ForsterConstraintResolver {
             .get(layer_index)
             .and_then(|layer| layer.get(node_index))
         {
-            if let Ok(mut node_guard) = node.lock() {
+            if let Some(mut node_guard) = node.lock_ok() {
                 node_guard.shape().graph_element().id = node_index as i32;
             }
             self.init_node_level(node, true);
@@ -638,16 +635,15 @@ fn remove_group(list: &mut Vec<ConstraintGroupId>, target: ConstraintGroupId) ->
 }
 
 fn node_id(node: &LNodeRef) -> usize {
-    node.lock()
-        .ok()
+    node.lock_ok()
         .map(|mut node_guard| node_guard.shape().graph_element().id as usize)
         .unwrap_or(0)
 }
 
 fn layer_index(node: &LNodeRef) -> usize {
-    let layer = node.lock().ok().and_then(|node_guard| node_guard.layer());
+    let layer = node.lock_ok().and_then(|node_guard| node_guard.layer());
     if let Some(layer) = layer {
-        if let Ok(mut layer_guard) = layer.lock() {
+        if let Some(mut layer_guard) = layer.lock_ok() {
             return layer_guard.graph_element().id as usize;
         }
     }
@@ -661,8 +657,7 @@ fn node_ptr_id(node: &LNodeRef) -> usize {
 fn group_contains_pump(resolver: &ForsterConstraintResolver, group_id: ConstraintGroupId) -> bool {
     resolver.group(group_id).is_some_and(|group_data| {
         group_data.nodes.iter().any(|node| {
-            node.lock()
-                .ok()
+            node.lock_ok()
                 .map(|mut node_guard| node_guard.to_string().contains("pumpOutletPressure"))
                 .unwrap_or(false)
         })
@@ -689,8 +684,7 @@ fn format_group(resolver: &ForsterConstraintResolver, group: ConstraintGroupId) 
                 .nodes
                 .iter()
                 .map(|node| {
-                    node.lock()
-                        .ok()
+                    node.lock_ok()
                         .map(|mut node_guard| node_guard.to_string())
                         .unwrap_or_else(|| "<poisoned-node>".to_owned())
                 })

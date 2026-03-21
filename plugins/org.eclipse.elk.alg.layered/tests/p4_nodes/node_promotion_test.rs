@@ -107,8 +107,7 @@ fn assert_layering_invariants(
     lgraph: &org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LGraphRef,
     check_forward_edges: bool,
 ) {
-    let graph_guard = lgraph.lock().expect("lgraph lock");
-    let layers = graph_guard.layers().clone();
+    let graph_guard = lgraph.lock();    let layers = graph_guard.layers().clone();
     if layers.is_empty() {
         return;
     }
@@ -116,21 +115,18 @@ fn assert_layering_invariants(
     drop(graph_guard);
 
     for layer in &layers {
-        let layer_guard = layer.lock().expect("layer lock");
-        assert!(!layer_guard.nodes().is_empty());
+        let layer_guard = layer.lock();        assert!(!layer_guard.nodes().is_empty());
     }
 
     for layer in &layers {
         let source_layer_index = layer
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|layer_guard| layer_guard.index())
             .unwrap_or(0);
-        let nodes = layer.lock().expect("layer lock").nodes().clone();
+        let nodes = layer.lock().nodes().clone();
         for node in nodes {
             let outgoing = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.outgoing_edges())
                 .unwrap_or_default();
             for edge in outgoing {
@@ -138,27 +134,23 @@ fn assert_layering_invariants(
                     continue;
                 }
                 let reversed = edge
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|mut edge_guard| {
                         edge_guard.get_property(InternalProperties::REVERSED)
                     })
                     .unwrap_or(false);
                 let target_layer_index = edge
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|edge_guard| edge_guard.target())
-                    .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
+                    .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
                     .and_then(|target_node| {
                         target_node
-                            .lock()
-                            .ok()
+                            .lock_ok()
                             .and_then(|node_guard| node_guard.layer())
                     })
                     .and_then(|layer_ref| {
                         layer_ref
-                            .lock()
-                            .ok()
+                            .lock_ok()
                             .and_then(|layer_guard| layer_guard.index())
                     })
                     .unwrap_or(source_layer_index);

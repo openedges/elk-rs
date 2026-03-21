@@ -14,8 +14,7 @@ impl ILayoutProcessor<LGraph> for CommentNodeMarginCalculator {
 
         for layer in layered_graph.layers().clone() {
             let nodes = layer
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|layer_guard| layer_guard.nodes().clone())
                 .unwrap_or_default();
             for node in nodes {
@@ -28,7 +27,7 @@ impl ILayoutProcessor<LGraph> for CommentNodeMarginCalculator {
 }
 
 fn process_comments(layered_graph: &LGraph, node: &LNodeRef) {
-    let (top_boxes, bottom_boxes, node_width) = if let Ok(mut node_guard) = node.lock() {
+    let (top_boxes, bottom_boxes, node_width) = if let Some(mut node_guard) = node.lock_ok() {
         let top_boxes = if node_guard
             .shape()
             .graph_element()
@@ -75,7 +74,7 @@ fn process_comments(layered_graph: &LGraph, node: &LNodeRef) {
         if !top_boxes.is_empty() {
             let mut max_height: f64 = 0.0;
             for comment_box in &top_boxes {
-                if let Ok(mut comment_guard) = comment_box.lock() {
+                if let Some(mut comment_guard) = comment_box.lock_ok() {
                     let size = comment_guard.shape().size_ref();
                     max_height = max_height.max(size.y);
                     top_width += size.x;
@@ -92,7 +91,7 @@ fn process_comments(layered_graph: &LGraph, node: &LNodeRef) {
         if !bottom_boxes.is_empty() {
             let mut max_height: f64 = 0.0;
             for comment_box in &bottom_boxes {
-                if let Ok(mut comment_guard) = comment_box.lock() {
+                if let Some(mut comment_guard) = comment_box.lock_ok() {
                     let size = comment_guard.shape().size_ref();
                     max_height = max_height.max(size.y);
                     bottom_width += size.x;
@@ -103,7 +102,7 @@ fn process_comments(layered_graph: &LGraph, node: &LNodeRef) {
         }
     }
 
-    if let Ok(mut node_guard) = node.lock() {
+    if let Some(mut node_guard) = node.lock_ok() {
         let margin = node_guard.margin();
         margin.top += top_extra_margin;
         margin.bottom += bottom_extra_margin;

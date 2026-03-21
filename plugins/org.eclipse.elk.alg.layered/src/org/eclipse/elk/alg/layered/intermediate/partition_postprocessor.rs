@@ -15,22 +15,19 @@ impl ILayoutProcessor<LGraph> for PartitionPostprocessor {
         let layers = lgraph.layers().clone();
         for layer in layers {
             let nodes = layer
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|layer_guard| layer_guard.nodes().clone())
                 .unwrap_or_default();
             for node in nodes {
                 let partition_ports: Vec<LPortRef> = node
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|node_guard| {
                         node_guard
                             .ports()
                             .iter()
                             .filter_map(|port| {
                                 let is_partition_dummy = port
-                                    .lock()
-                                    .ok()
+                                    .lock_ok()
                                     .and_then(|mut port_guard| {
                                         port_guard.get_property(InternalProperties::PARTITION_DUMMY)
                                     })
@@ -57,15 +54,13 @@ impl ILayoutProcessor<LGraph> for PartitionPostprocessor {
 
 fn detach_partition_port(port: &LPortRef) {
     let connected_edges = port
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|port_guard| port_guard.connected_edges())
         .unwrap_or_default();
 
     for edge in connected_edges {
         let source_is_port = edge
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|edge_guard| edge_guard.source())
             .map(|source| Arc::ptr_eq(&source, port))
             .unwrap_or(false);
@@ -74,8 +69,7 @@ fn detach_partition_port(port: &LPortRef) {
         }
 
         let target_is_port = edge
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|edge_guard| edge_guard.target())
             .map(|target| Arc::ptr_eq(&target, port))
             .unwrap_or(false);

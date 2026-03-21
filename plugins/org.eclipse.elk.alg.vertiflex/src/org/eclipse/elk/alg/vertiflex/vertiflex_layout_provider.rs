@@ -198,8 +198,7 @@ impl IGraphLayoutEngine for VertiFlexLayoutProvider {
 
         let mut graph_ref = layout_graph.clone();
         for processor in &algorithm {
-            let mut processor_guard = processor.lock().expect("processor lock");
-            let mut sub = progress_monitor.sub_task(1.0);
+            let mut processor_guard = processor.lock();            let mut sub = progress_monitor.sub_task(1.0);
             processor_guard.process(&mut graph_ref, sub.as_mut());
         }
 

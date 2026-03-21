@@ -53,8 +53,7 @@ impl InteractiveCrossingMinimizer {
     }
 
     fn has_successor_constraint(node: &LNodeRef, successor: &LNodeRef) -> bool {
-        node.lock()
-            .ok()
+        node.lock_ok()
             .and_then(|mut node_guard| {
                 node_guard.get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
             })
@@ -101,8 +100,7 @@ impl InteractiveCrossingMinimizer {
         interactive_reference_point: InteractiveReferencePoint,
     ) -> f64 {
         let node_type = node
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|node_guard| node_guard.node_type())
             .unwrap_or(NodeType::Normal);
 
@@ -120,8 +118,7 @@ impl InteractiveCrossingMinimizer {
             _ => {}
         }
 
-        node.lock()
-            .ok()
+        node.lock_ok()
             .map(|mut node_guard| {
                 let (pos_y, size_y) = {
                     let shape = node_guard.shape();
@@ -137,8 +134,7 @@ impl InteractiveCrossingMinimizer {
 
     fn long_edge_position(node: &LNodeRef, horiz_pos: f64) -> Option<f64> {
         let edge = node
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|mut node_guard| node_guard.get_property(InternalProperties::ORIGIN))
             .and_then(|origin| match origin {
                 Origin::LEdge(edge) => Some(edge),
@@ -146,26 +142,23 @@ impl InteractiveCrossingMinimizer {
             })?;
 
         let mut bend_points = edge
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|edge_guard| edge_guard.bend_points_ref().clone())
             .unwrap_or_default();
         let reversed = edge
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|mut edge_guard| edge_guard.get_property(InternalProperties::REVERSED))
             .unwrap_or(false);
         if reversed {
             bend_points = KVectorChain::reverse(&bend_points);
         }
 
-        let source = node.lock().ok().and_then(|mut node_guard| {
+        let source = node.lock_ok().and_then(|mut node_guard| {
             node_guard.get_property(InternalProperties::LONG_EDGE_SOURCE)
         });
         if let Some(source_point) = source.and_then(|source_port| {
             source_port
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|source_guard| source_guard.absolute_anchor())
         }) {
             if horiz_pos <= source_point.x {
@@ -174,13 +167,12 @@ impl InteractiveCrossingMinimizer {
             bend_points.insert(0, source_point);
         }
 
-        let target = node.lock().ok().and_then(|mut node_guard| {
+        let target = node.lock_ok().and_then(|mut node_guard| {
             node_guard.get_property(InternalProperties::LONG_EDGE_TARGET)
         });
         if let Some(target_point) = target.and_then(|target_port| {
             target_port
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|target_guard| target_guard.absolute_anchor())
         }) {
             if target_point.x <= horiz_pos {
@@ -214,12 +206,10 @@ impl InteractiveCrossingMinimizer {
 
     fn north_south_port_position(node: &LNodeRef) -> Option<f64> {
         let dummy_port = node
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|node_guard| node_guard.ports().first().cloned())?;
         let origin_port = dummy_port
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|mut dummy_port_guard| {
                 dummy_port_guard.get_property(InternalProperties::ORIGIN)
             })
@@ -229,15 +219,13 @@ impl InteractiveCrossingMinimizer {
             })?;
 
         let side = origin_port
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|origin_port_guard| origin_port_guard.side())
             .unwrap_or(PortSide::Undefined);
         let origin_node = origin_port
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|origin_port_guard| origin_port_guard.node())?;
-        let (node_y, node_height) = origin_node.lock().ok().map(|mut origin_node_guard| {
+        let (node_y, node_height) = origin_node.lock_ok().map(|mut origin_node_guard| {
             (
                 origin_node_guard.shape().position_ref().y,
                 origin_node_guard.shape().size_ref().y,
@@ -264,7 +252,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveCrossingMinimizer {
 
         let layers = layered_graph.layers().clone();
         for (layer_index, layer_ref) in layers.iter().enumerate() {
-            if let Ok(mut layer_guard) = layer_ref.lock() {
+            if let Some(mut layer_guard) = layer_ref.lock_ok() {
                 layer_guard.graph_element().id = layer_index as i32;
             }
         }
@@ -280,22 +268,21 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveCrossingMinimizer {
         let mut port_count = 0i32;
         for (layer_index, layer_ref) in layers.iter().enumerate() {
             let layer_nodes = layer_ref
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|layer_guard| layer_guard.nodes().clone())
                 .unwrap_or_default();
 
             let mut horiz_pos = 0.0;
             let mut positioned_nodes = 0usize;
             for node in &layer_nodes {
-                if let Ok(mut node_guard) = node.lock() {
+                if let Some(mut node_guard) = node.lock_ok() {
                     if node_guard.shape().position_ref().x > 0.0 {
                         horiz_pos += node_guard.shape().position_ref().x
                             + node_guard.shape().size_ref().x / 2.0;
                         positioned_nodes += 1;
                     }
                     for port in node_guard.ports() {
-                        if let Ok(mut port_guard) = port.lock() {
+                        if let Some(mut port_guard) = port.lock_ok() {
                             port_guard.shape().graph_element().id = port_count;
                         }
                         port_count += 1;
@@ -309,7 +296,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveCrossingMinimizer {
             let mut positions: FxHashMap<usize, f64> = FxHashMap::with_capacity_and_hasher(layer_nodes.len(), Default::default());
             for (node_index, node) in layer_nodes.iter().enumerate() {
                 let pos = Self::get_pos(node, horiz_pos, interactive_reference_point);
-                if let Ok(mut node_guard) = node.lock() {
+                if let Some(mut node_guard) = node.lock_ok() {
                     node_guard.shape().graph_element().id = node_index as i32;
                     if node_guard.node_type() == NodeType::LongEdge {
                         node_guard.set_property(
@@ -321,7 +308,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveCrossingMinimizer {
                 positions.insert(Self::node_ptr_id(node), pos);
             }
 
-            if let Ok(mut layer_guard) = layer_ref.lock() {
+            if let Some(mut layer_guard) = layer_ref.lock_ok() {
                 layer_guard
                     .nodes_mut()
                     .sort_by(|node1, node2| Self::compare_nodes_by_pos(node1, node2, &positions));

@@ -17,14 +17,12 @@ pub struct SelfLoopPort {
 impl SelfLoopPort {
     pub fn new(l_port: &LPortRef) -> SelfLoopPortRef {
         let connected = l_port
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|port_guard| port_guard.connected_edges())
             .unwrap_or_default();
         let had_only_self_loops = !connected.is_empty()
             && connected.iter().all(|edge| {
-                edge.lock()
-                    .ok()
+                edge.lock_ok()
                     .map(|edge_guard| edge_guard.is_self_loop())
                     .unwrap_or(false)
             });

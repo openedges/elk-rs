@@ -35,7 +35,7 @@ fn init_layered_metadata() {
 
 fn run_processor(processor: &mut dyn ILayoutProcessor<LGraph>, graph: &Arc<Mutex<LGraph>>) {
     let mut monitor = NullElkProgressMonitor;
-    processor.process(&mut graph.lock().expect("graph lock"), &mut monitor);
+    processor.process(&mut graph.lock(), &mut monitor);
 }
 
 /// Build a graph that matches the N12 scenario in ptides_actuatorpattern:
@@ -61,8 +61,7 @@ fn opposing_east_west_self_loop_fixedpos_extends_west_margin() {
     // Create the compound node (N12 analog)
     let node = LNode::new(&graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        // Node size: approximate N12 from ptides model
+        let mut node_guard = node.lock();        // Node size: approximate N12 from ptides model
         node_guard.shape().size().x = 121.0;
         node_guard.shape().size().y = 30.0;
         node_guard.shape().position().x = 0.0;
@@ -78,7 +77,7 @@ fn opposing_east_west_self_loop_fixedpos_extends_west_margin() {
     }
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(node.clone());
 
@@ -86,8 +85,7 @@ fn opposing_east_west_self_loop_fixedpos_extends_west_margin() {
     // Position: x=113, y=7 inside node, size=8x8
     let p33 = LPort::new();
     {
-        let mut p = p33.lock().expect("p33 lock");
-        p.set_side(PortSide::East);
+        let mut p = p33.lock();        p.set_side(PortSide::East);
         p.shape().position().x = 113.0;
         p.shape().position().y = 7.0;
         p.shape().size().x = 8.0;
@@ -101,8 +99,7 @@ fn opposing_east_west_self_loop_fixedpos_extends_west_margin() {
     // Position: x=-8, y=7, size=8x8; has external connection
     let p32 = LPort::new();
     {
-        let mut p = p32.lock().expect("p32 lock");
-        p.set_side(PortSide::West);
+        let mut p = p32.lock();        p.set_side(PortSide::West);
         p.shape().position().x = -8.0;
         p.shape().position().y = 7.0;
         p.shape().size().x = 8.0;
@@ -115,8 +112,7 @@ fn opposing_east_west_self_loop_fixedpos_extends_west_margin() {
     // Position: x=-8, y=15, size=8x8
     let p34 = LPort::new();
     {
-        let mut p = p34.lock().expect("p34 lock");
-        p.set_side(PortSide::West);
+        let mut p = p34.lock();        p.set_side(PortSide::West);
         p.shape().position().x = -8.0;
         p.shape().position().y = 15.0;
         p.shape().size().x = 8.0;
@@ -129,8 +125,7 @@ fn opposing_east_west_self_loop_fixedpos_extends_west_margin() {
     // Position: x=113, y=15, size=8x8; has external connection
     let p35 = LPort::new();
     {
-        let mut p = p35.lock().expect("p35 lock");
-        p.set_side(PortSide::East);
+        let mut p = p35.lock();        p.set_side(PortSide::East);
         p.shape().position().x = 113.0;
         p.shape().position().y = 15.0;
         p.shape().size().x = 8.0;
@@ -147,19 +142,17 @@ fn opposing_east_west_self_loop_fixedpos_extends_west_margin() {
     // Add external node to give P32 and P35 connected edges (so they get CONNECTED penalty)
     let external = LNode::new(&graph);
     {
-        let mut ext_guard = external.lock().expect("ext lock");
-        ext_guard.shape().size().x = 20.0;
+        let mut ext_guard = external.lock();        ext_guard.shape().size().x = 20.0;
         ext_guard.shape().size().y = 20.0;
     }
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(external.clone());
     let ext_east = LPort::new();
     {
-        let mut p = ext_east.lock().expect("ext_east lock");
-        p.set_side(PortSide::East);
+        let mut p = ext_east.lock();        p.set_side(PortSide::East);
         p.shape().position().x = 20.0;
         p.shape().position().y = 10.0;
         p.shape().size().x = 8.0;
@@ -168,8 +161,7 @@ fn opposing_east_west_self_loop_fixedpos_extends_west_margin() {
     LPort::set_node(&ext_east, Some(external.clone()));
     let ext_west = LPort::new();
     {
-        let mut p = ext_west.lock().expect("ext_west lock");
-        p.set_side(PortSide::West);
+        let mut p = ext_west.lock();        p.set_side(PortSide::West);
         p.shape().position().x = 0.0;
         p.shape().position().y = 10.0;
         p.shape().size().x = 8.0;
@@ -200,7 +192,7 @@ fn opposing_east_west_self_loop_fixedpos_extends_west_margin() {
         use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::InternalProperties;
         let has_holder = node
             .lock()
-            .expect("node lock")
+            
             .get_property(InternalProperties::SELF_LOOP_HOLDER)
             .is_some();
         assert!(has_holder, "SelfLoopHolder should be installed for N12 analog (FixedPos with self-loop)");
@@ -210,13 +202,13 @@ fn opposing_east_west_self_loop_fixedpos_extends_west_margin() {
     let layer = Layer::new(&graph);
     graph
         .lock()
-        .expect("graph lock")
+        
         .layers_mut()
         .push(layer.clone());
     LNode::set_layer(&node, Some(layer));
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .retain(|candidate| !Arc::ptr_eq(candidate, &node));
 
@@ -234,8 +226,7 @@ fn opposing_east_west_self_loop_fixedpos_extends_west_margin() {
     // slot 1 position = -18 - edge_edge_distance(10) = -28
     // update_margins_with_point(-28) -> margin.left = max(8, 28) = 28
     let margin_left = {
-        let mut node_guard = node.lock().expect("node lock after routing");
-        node_guard.margin().left
+        let mut node_guard = node.lock();        node_guard.margin().left
     };
 
     assert!(
@@ -252,8 +243,7 @@ fn east_west_fixedpos_self_loop_detected_as_two_sides_opposing() {
     let graph = LGraph::new();
     let node = LNode::new(&graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.shape().size().x = 121.0;
+        let mut node_guard = node.lock();        node_guard.shape().size().x = 121.0;
         node_guard.shape().size().y = 30.0;
         node_guard.set_property(
             LayeredOptions::PORT_CONSTRAINTS,
@@ -263,14 +253,13 @@ fn east_west_fixedpos_self_loop_detected_as_two_sides_opposing() {
     }
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(node.clone());
 
     let p_east = LPort::new();
     {
-        let mut p = p_east.lock().expect("p_east lock");
-        p.set_side(PortSide::East);
+        let mut p = p_east.lock();        p.set_side(PortSide::East);
         p.shape().position().x = 113.0;
         p.shape().position().y = 7.0;
         p.shape().size().x = 8.0;
@@ -281,8 +270,7 @@ fn east_west_fixedpos_self_loop_detected_as_two_sides_opposing() {
 
     let p_west = LPort::new();
     {
-        let mut p = p_west.lock().expect("p_west lock");
-        p.set_side(PortSide::West);
+        let mut p = p_west.lock();        p.set_side(PortSide::West);
         p.shape().position().x = -8.0;
         p.shape().position().y = 15.0;
         p.shape().size().x = 8.0;
@@ -304,13 +292,13 @@ fn east_west_fixedpos_self_loop_detected_as_two_sides_opposing() {
     let layer = Layer::new(&graph);
     graph
         .lock()
-        .expect("graph lock")
+        
         .layers_mut()
         .push(layer.clone());
     LNode::set_layer(&node, Some(layer));
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .retain(|candidate| !Arc::ptr_eq(candidate, &node));
 
@@ -323,18 +311,16 @@ fn east_west_fixedpos_self_loop_detected_as_two_sides_opposing() {
     // After SelfLoopPortRestorer, check sl_loop type
     let sl_loop_type = node
         .lock()
-        .expect("node lock")
+        
         .get_property(InternalProperties::SELF_LOOP_HOLDER)
         .and_then(|holder| {
             holder
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|holder_guard| holder_guard.sl_hyper_loops().first().cloned())
         })
         .and_then(|sl_loop| {
             sl_loop
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|sl_loop_guard| sl_loop_guard.self_loop_type())
         });
 
@@ -353,19 +339,17 @@ fn debug_trace_margin_extension() {
     let graph = LGraph::new();
     let node = LNode::new(&graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.shape().size().x = 121.0;
+        let mut node_guard = node.lock();        node_guard.shape().size().x = 121.0;
         node_guard.shape().size().y = 30.0;
         node_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(PortConstraints::FixedPos));
         node_guard.set_property(LayeredOptions::EDGE_ROUTING, Some(EdgeRouting::Orthogonal));
         node_guard.margin().left = 8.0;
     }
-    graph.lock().expect("graph lock").layerless_nodes_mut().push(node.clone());
+    graph.lock().layerless_nodes_mut().push(node.clone());
 
     let p33 = LPort::new();
     {
-        let mut p = p33.lock().expect("p33 lock");
-        p.set_side(PortSide::East);
+        let mut p = p33.lock();        p.set_side(PortSide::East);
         p.shape().position().x = 113.0;
         p.shape().position().y = 7.0;
         p.shape().size().x = 8.0;
@@ -376,8 +360,7 @@ fn debug_trace_margin_extension() {
 
     let p32 = LPort::new();
     {
-        let mut p = p32.lock().expect("p32 lock");
-        p.set_side(PortSide::West);
+        let mut p = p32.lock();        p.set_side(PortSide::West);
         p.shape().position().x = -8.0;
         p.shape().position().y = 7.0;
         p.shape().size().x = 8.0;
@@ -388,8 +371,7 @@ fn debug_trace_margin_extension() {
 
     let p34 = LPort::new();
     {
-        let mut p = p34.lock().expect("p34 lock");
-        p.set_side(PortSide::West);
+        let mut p = p34.lock();        p.set_side(PortSide::West);
         p.shape().position().x = -8.0;
         p.shape().position().y = 15.0;
         p.shape().size().x = 8.0;
@@ -400,8 +382,7 @@ fn debug_trace_margin_extension() {
 
     let p35 = LPort::new();
     {
-        let mut p = p35.lock().expect("p35 lock");
-        p.set_side(PortSide::East);
+        let mut p = p35.lock();        p.set_side(PortSide::East);
         p.shape().position().x = 113.0;
         p.shape().position().y = 15.0;
         p.shape().size().x = 8.0;
@@ -416,16 +397,14 @@ fn debug_trace_margin_extension() {
 
     let external = LNode::new(&graph);
     {
-        let mut ext_guard = external.lock().expect("ext lock");
-        ext_guard.shape().size().x = 20.0;
+        let mut ext_guard = external.lock();        ext_guard.shape().size().x = 20.0;
         ext_guard.shape().size().y = 20.0;
     }
-    graph.lock().expect("graph lock").layerless_nodes_mut().push(external.clone());
+    graph.lock().layerless_nodes_mut().push(external.clone());
 
     let ext_east = LPort::new();
     {
-        let mut p = ext_east.lock().expect("ext_east lock");
-        p.set_side(PortSide::East);
+        let mut p = ext_east.lock();        p.set_side(PortSide::East);
         p.shape().position().x = 20.0;
         p.shape().position().y = 10.0;
         p.shape().size().x = 8.0;
@@ -434,8 +413,7 @@ fn debug_trace_margin_extension() {
     LPort::set_node(&ext_east, Some(external.clone()));
     let ext_west = LPort::new();
     {
-        let mut p = ext_west.lock().expect("ext_west lock");
-        p.set_side(PortSide::West);
+        let mut p = ext_west.lock();        p.set_side(PortSide::West);
         p.shape().position().x = 0.0;
         p.shape().position().y = 10.0;
         p.shape().size().x = 8.0;
@@ -458,10 +436,9 @@ fn debug_trace_margin_extension() {
 
     // Check initial state
     {
-        let is_self_loop = e21.lock().expect("e21 lock").is_self_loop();
+        let is_self_loop = e21.lock().is_self_loop();
         eprintln!("[DIAG] e21.is_self_loop() before preprocessor = {}", is_self_loop);
-        let node_guard = node.lock().expect("node lock");
-        eprintln!("[DIAG] node.outgoing_edges().len() = {}", node_guard.outgoing_edges().len());
+        let node_guard = node.lock();        eprintln!("[DIAG] node.outgoing_edges().len() = {}", node_guard.outgoing_edges().len());
         eprintln!("[DIAG] node.ports().len() = {}", node_guard.ports().len());
     }
 
@@ -470,15 +447,13 @@ fn debug_trace_margin_extension() {
 
     {
         use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::InternalProperties;
-        let holder = node.lock().expect("node lock").get_property(InternalProperties::SELF_LOOP_HOLDER);
+        let holder = node.lock().get_property(InternalProperties::SELF_LOOP_HOLDER);
         eprintln!("[DIAG] After preprocessor: has_holder = {}", holder.is_some());
         if let Some(holder) = holder {
-            let holder_guard = holder.lock().expect("holder lock");
-            let loops = holder_guard.sl_hyper_loops();
+            let holder_guard = holder.lock();            let loops = holder_guard.sl_hyper_loops();
             eprintln!("[DIAG] sl_hyper_loops.len() = {}", loops.len());
             for (i, sl_loop) in loops.iter().enumerate() {
-                let loop_guard = sl_loop.lock().expect("loop lock");
-                eprintln!("[DIAG] loop[{}]: sl_edges.len()={}, sl_ports.len()={}, self_loop_type={:?}",
+                let loop_guard = sl_loop.lock();                eprintln!("[DIAG] loop[{}]: sl_edges.len()={}, sl_ports.len()={}, self_loop_type={:?}",
                     i, loop_guard.sl_edges().len(), loop_guard.sl_ports().len(), loop_guard.self_loop_type());
                 eprintln!("[DIAG] loop[{}]: occupied_port_sides={:?}", i, loop_guard.occupied_port_sides());
             }
@@ -486,23 +461,21 @@ fn debug_trace_margin_extension() {
     }
 
     let layer = Layer::new(&graph);
-    graph.lock().expect("graph lock").layers_mut().push(layer.clone());
+    graph.lock().layers_mut().push(layer.clone());
     LNode::set_layer(&node, Some(layer));
-    graph.lock().expect("graph lock").layerless_nodes_mut().retain(|candidate| !Arc::ptr_eq(candidate, &node));
+    graph.lock().layerless_nodes_mut().retain(|candidate| !Arc::ptr_eq(candidate, &node));
 
     let mut restorer = SelfLoopPortRestorer;
     run_processor(&mut restorer, &graph);
 
     {
         use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::InternalProperties;
-        let holder = node.lock().expect("node lock").get_property(InternalProperties::SELF_LOOP_HOLDER);
+        let holder = node.lock().get_property(InternalProperties::SELF_LOOP_HOLDER);
         if let Some(holder) = holder {
-            let holder_guard = holder.lock().expect("holder lock");
-            let loops = holder_guard.sl_hyper_loops();
+            let holder_guard = holder.lock();            let loops = holder_guard.sl_hyper_loops();
             eprintln!("[DIAG] After restorer: sl_hyper_loops.len() = {}", loops.len());
             for (i, sl_loop) in loops.iter().enumerate() {
-                let loop_guard = sl_loop.lock().expect("loop lock");
-                eprintln!("[DIAG] loop[{}]: self_loop_type={:?}, sl_edges.len()={}", i, loop_guard.self_loop_type(), loop_guard.sl_edges().len());
+                let loop_guard = sl_loop.lock();                eprintln!("[DIAG] loop[{}]: self_loop_type={:?}, sl_edges.len()={}", i, loop_guard.self_loop_type(), loop_guard.sl_edges().len());
             }
             eprintln!("[DIAG] holder.routing_slot_count = {:?}", holder_guard.routing_slot_count());
         }
@@ -514,14 +487,12 @@ fn debug_trace_margin_extension() {
     {
         use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::options::InternalProperties;
         use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide as PS;
-        let holder = node.lock().expect("node lock after router").get_property(InternalProperties::SELF_LOOP_HOLDER);
+        let holder = node.lock().get_property(InternalProperties::SELF_LOOP_HOLDER);
         if let Some(holder) = holder {
-            let holder_guard = holder.lock().expect("holder lock after router");
-            eprintln!("[DIAG] After router: holder.routing_slot_count = {:?}", holder_guard.routing_slot_count());
+            let holder_guard = holder.lock();            eprintln!("[DIAG] After router: holder.routing_slot_count = {:?}", holder_guard.routing_slot_count());
             let loops = holder_guard.sl_hyper_loops();
             for (i, sl_loop) in loops.iter().enumerate() {
-                let loop_guard = sl_loop.lock().expect("loop lock after router");
-                eprintln!("[DIAG2] loop[{}]: occupied_port_sides={:?}", i, loop_guard.occupied_port_sides());
+                let loop_guard = sl_loop.lock();                eprintln!("[DIAG2] loop[{}]: occupied_port_sides={:?}", i, loop_guard.occupied_port_sides());
                 eprintln!("[DIAG2] loop[{}]: routing_slots N={} E={} S={} W={}",
                     i,
                     loop_guard.routing_slot(PS::North),
@@ -530,18 +501,18 @@ fn debug_trace_margin_extension() {
                     loop_guard.routing_slot(PS::West),
                 );
                 if let Some(lp) = loop_guard.leftmost_port() {
-                    let side = lp.lock().ok().and_then(|pg| pg.l_port().lock().ok().map(|l| l.side())).unwrap_or(PS::Undefined);
+                    let side = lp.lock_ok().and_then(|pg| pg.l_port().lock_ok().map(|l| l.side())).unwrap_or(PS::Undefined);
                     eprintln!("[DIAG2] loop[{}]: leftmost_side={:?}", i, side);
                 }
                 if let Some(rp) = loop_guard.rightmost_port() {
-                    let side = rp.lock().ok().and_then(|pg| pg.l_port().lock().ok().map(|l| l.side())).unwrap_or(PS::Undefined);
+                    let side = rp.lock_ok().and_then(|pg| pg.l_port().lock_ok().map(|l| l.side())).unwrap_or(PS::Undefined);
                     eprintln!("[DIAG2] loop[{}]: rightmost_side={:?}", i, side);
                 }
             }
         }
     }
 
-    let margin_left = node.lock().expect("node lock").margin().left;
+    let margin_left = node.lock().margin().left;
     eprintln!("[DIAG] After router: margin.left = {}", margin_left);
 
     // Just print, don't assert, to see full trace

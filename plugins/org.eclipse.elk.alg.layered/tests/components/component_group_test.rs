@@ -102,7 +102,7 @@ fn test_model_order_constraints() {
 
 fn generate_graph(connections: EnumSet<PortSide>) -> LGraphRef {
     let graph = LGraph::new();
-    if let Ok(mut graph_guard) = graph.lock() {
+    if let Some(mut graph_guard) = graph.lock_ok() {
         graph_guard.set_property(InternalProperties::EXT_PORT_CONNECTIONS, Some(connections));
     }
     graph

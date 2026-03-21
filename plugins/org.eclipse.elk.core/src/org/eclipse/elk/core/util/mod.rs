@@ -118,7 +118,7 @@ impl Random {
 
     pub fn set_seed(&mut self, seed: u64) {
         let scrambled = (seed ^ Self::MULTIPLIER) & Self::MASK;
-        if let Ok(mut state) = self.state.lock() {
+        if let Some(mut state) = self.state.lock_ok() {
             *state = scrambled;
             if random_trace_enabled() {
                 eprintln!("RANDOM_TRACE set_seed({seed}) -> state=0x{scrambled:012x}");
@@ -127,7 +127,7 @@ impl Random {
     }
 
     pub fn next_double(&mut self) -> f64 {
-        if let Ok(mut sequence) = self.mock_double_sequence.lock() {
+        if let Some(mut sequence) = self.mock_double_sequence.lock_ok() {
             if let Some(sequence) = sequence.as_mut() {
                 sequence.current += sequence.step;
                 let value = sequence.current;
@@ -147,11 +147,7 @@ impl Random {
     }
 
     pub fn next_float(&mut self) -> f64 {
-        let use_mock = self
-            .mock_double_sequence
-            .lock()
-            .map(|sequence| sequence.is_some())
-            .unwrap_or(false);
+        let use_mock = self.mock_double_sequence.lock().is_some();
         if use_mock {
             let value = self.next_double();
             // next_double already printed the trace; re-print at next_float level
@@ -183,7 +179,7 @@ impl Random {
     }
 
     pub fn next_boolean(&mut self) -> bool {
-        if let Ok(next_boolean) = self.mock_next_boolean.lock() {
+        if let Some(next_boolean) = self.mock_next_boolean.lock_ok() {
             if let Some(value) = *next_boolean {
                 if random_trace_enabled() {
                     eprintln!("RANDOM_TRACE next_boolean -> {value}");
@@ -220,8 +216,7 @@ impl Random {
     }
 
     fn next(&mut self, bits: u32) -> u32 {
-        let mut state = self.state.lock().expect("random lock poisoned");
-        *state = (state
+        let mut state = self.state.lock();        *state = (state
             .wrapping_mul(Self::MULTIPLIER)
             .wrapping_add(Self::ADDEND))
             & Self::MASK;
@@ -234,19 +229,19 @@ impl Random {
     }
 
     pub fn set_mock_next_boolean(&mut self, value: bool) {
-        if let Ok(mut next_boolean) = self.mock_next_boolean.lock() {
+        if let Some(mut next_boolean) = self.mock_next_boolean.lock_ok() {
             *next_boolean = Some(value);
         }
     }
 
     pub fn clear_mock_next_boolean(&mut self) {
-        if let Ok(mut next_boolean) = self.mock_next_boolean.lock() {
+        if let Some(mut next_boolean) = self.mock_next_boolean.lock_ok() {
             *next_boolean = None;
         }
     }
 
     pub fn set_mock_double_sequence(&mut self, start: f64, step: f64) {
-        if let Ok(mut sequence) = self.mock_double_sequence.lock() {
+        if let Some(mut sequence) = self.mock_double_sequence.lock_ok() {
             *sequence = Some(MockDoubleSequence {
                 current: start,
                 step,
@@ -255,7 +250,7 @@ impl Random {
     }
 
     pub fn clear_mock_double_sequence(&mut self) {
-        if let Ok(mut sequence) = self.mock_double_sequence.lock() {
+        if let Some(mut sequence) = self.mock_double_sequence.lock_ok() {
             *sequence = None;
         }
     }

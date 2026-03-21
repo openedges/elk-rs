@@ -166,8 +166,7 @@ fn node_names(layer: &[LNodeRef]) -> String {
     layer
         .iter()
         .map(|node| {
-            node.lock()
-                .ok()
+            node.lock_ok()
                 .map(|mut node_guard| node_guard.to_string())
                 .unwrap_or_else(|| String::from("<poisoned-node>"))
         })
@@ -184,8 +183,7 @@ impl IInitializable for AllCrossingsCounter {
     ) {
         let node = &node_order[layer_index][node_index];
         let node_type = node
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|node_guard| node_guard.node_type())
             .unwrap_or(NodeType::Normal);
         if node_type == NodeType::NorthSouthPort {
@@ -203,8 +201,7 @@ impl IInitializable for AllCrossingsCounter {
         node_order: &[Vec<LNodeRef>],
     ) {
         let port = node_order[layer_index][node_index]
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|node_guard| node_guard.ports().get(port_index).cloned());
         let Some(port) = port else {
             return;
@@ -213,14 +210,12 @@ impl IInitializable for AllCrossingsCounter {
         self.n_ports += 1;
 
         let degree = port
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|port_guard| port_guard.outgoing_edges().len() + port_guard.incoming_edges().len())
             .unwrap_or(0);
         if degree > 1 {
             let side = port
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|port_guard| port_guard.side())
                 .unwrap_or(PortSide::Undefined);
             if side == PortSide::East {
@@ -245,26 +240,23 @@ impl IInitializable for AllCrossingsCounter {
         node_order: &[Vec<LNodeRef>],
     ) {
         let port = node_order[layer_index][node_index]
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|node_guard| node_guard.ports().get(port_index).cloned());
         let Some(port) = port else {
             return;
         };
-        let source = edge.lock().ok().and_then(|edge_guard| edge_guard.source());
+        let source = edge.lock_ok().and_then(|edge_guard| edge_guard.source());
         if let Some(source) = source {
             if Arc::ptr_eq(&source, &port) {
                 let source_layer = source
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|port_guard| port_guard.node())
-                    .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.layer()));
+                    .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.layer()));
                 let target_layer = edge
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|edge_guard| edge_guard.target())
-                    .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
-                    .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.layer()));
+                    .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
+                    .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.layer()));
                 if let (Some(source_layer), Some(target_layer)) = (source_layer, target_layer) {
                     if Arc::ptr_eq(&source_layer, &target_layer) {
                         if let Some(count) = self.in_layer_edge_counts.get_mut(layer_index) {
@@ -289,7 +281,7 @@ impl IInitializable for AllCrossingsCounter {
 }
 
 fn set_port_id(port: &LPortRef, value: i32) {
-    if let Ok(mut port_guard) = port.lock() {
+    if let Some(mut port_guard) = port.lock_ok() {
         port_guard.shape().graph_element().id = value;
     }
 }

@@ -14,8 +14,7 @@ fn graph_with_layers(count: usize) -> (LGraphRef, Vec<LayerRef>) {
     let graph = LGraph::new();
     let mut layers = Vec::with_capacity(count);
     {
-        let mut graph_guard = graph.lock().expect("graph lock");
-        for _ in 0..count {
+        let mut graph_guard = graph.lock();        for _ in 0..count {
             let layer = Layer::new(&graph);
             graph_guard.layers_mut().push(layer.clone());
             layers.push(layer);
@@ -27,8 +26,7 @@ fn graph_with_layers(count: usize) -> (LGraphRef, Vec<LayerRef>) {
 fn add_node(graph: &LGraphRef, layer: &LayerRef, constraints: PortConstraints) -> LNodeRef {
     let node = LNode::new(graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(constraints));
+        let mut node_guard = node.lock();        node_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(constraints));
     }
     LNode::set_layer(&node, Some(layer.clone()));
     node
@@ -36,7 +34,7 @@ fn add_node(graph: &LGraphRef, layer: &LayerRef, constraints: PortConstraints) -
 
 fn add_port(node: &LNodeRef, side: PortSide) -> LPortRef {
     let port = LPort::new();
-    if let Ok(mut guard) = port.lock() {
+    if let Some(mut guard) = port.lock_ok() {
         guard.set_side(side);
     }
     LPort::set_node(&port, Some(node.clone()));
@@ -53,8 +51,7 @@ fn connect(source: &LPortRef, target: &LPortRef) -> LEdgeRef {
 fn run_processor(graph: &LGraphRef) {
     let mut processor = InvertedPortProcessor;
     let mut monitor = NullElkProgressMonitor;
-    let mut graph_guard = graph.lock().expect("graph lock");
-    processor.process(&mut graph_guard, &mut monitor);
+    let mut graph_guard = graph.lock();    processor.process(&mut graph_guard, &mut monitor);
 }
 
 #[test]
@@ -79,21 +76,21 @@ fn inverted_port_processor_inserts_dummy_for_inverted_ports() {
 
     let west_first_edge = west_source
         .lock()
-        .expect("west source lock")
+        
         .outgoing_edges()
         .first()
         .cloned()
         .expect("west source edge");
     let west_dummy = west_first_edge
         .lock()
-        .expect("west edge lock")
+        
         .target()
-        .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
+        .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
         .expect("west dummy node");
-    let west_dummy_type = west_dummy.lock().expect("west dummy lock").node_type();
+    let west_dummy_type = west_dummy.lock().node_type();
     let west_dummy_layer = west_dummy
         .lock()
-        .expect("west dummy lock")
+        
         .layer()
         .expect("west dummy layer");
     assert_eq!(west_dummy_type, NodeType::LongEdge);
@@ -101,21 +98,21 @@ fn inverted_port_processor_inserts_dummy_for_inverted_ports() {
 
     let east_first_edge = east_target
         .lock()
-        .expect("east target lock")
+        
         .incoming_edges()
         .first()
         .cloned()
         .expect("east target edge");
     let east_dummy = east_first_edge
         .lock()
-        .expect("east edge lock")
+        
         .source()
-        .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
+        .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
         .expect("east dummy node");
-    let east_dummy_type = east_dummy.lock().expect("east dummy lock").node_type();
+    let east_dummy_type = east_dummy.lock().node_type();
     let east_dummy_layer = east_dummy
         .lock()
-        .expect("east dummy lock")
+        
         .layer()
         .expect("east dummy layer");
     assert_eq!(east_dummy_type, NodeType::LongEdge);
@@ -133,10 +130,10 @@ fn inverted_port_processor_ignores_self_loop() {
 
     run_processor(&graph);
 
-    let nodes = layer.lock().expect("layer lock").nodes().clone();
+    let nodes = layer.lock().nodes().clone();
     assert_eq!(nodes.len(), 1);
     assert_eq!(
-        nodes[0].lock().expect("node lock").node_type(),
+        nodes[0].lock().node_type(),
         NodeType::Normal
     );
 }

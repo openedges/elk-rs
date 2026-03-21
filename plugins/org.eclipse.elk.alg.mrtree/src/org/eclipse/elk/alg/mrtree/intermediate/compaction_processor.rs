@@ -22,9 +22,9 @@ impl ILayoutProcessor<TGraphRef> for CompactionProcessor {
 
         // Batch all graph property reads in a single lock
         let (enabled, direction, node_node_spacing, routing_mode) = {
-            let mut graph_guard = match graph.lock() {
-                Ok(guard) => guard,
-                Err(_) => {
+            let mut graph_guard = match graph.lock_ok() {
+            Some(guard) => guard,
+            None => {
                     progress_monitor.done();
                     return;
                 }
@@ -53,9 +53,9 @@ impl ILayoutProcessor<TGraphRef> for CompactionProcessor {
         self.compute_node_constraints(graph, node_node_spacing / 4.0);
 
         let nodes = {
-            let graph_guard = match graph.lock() {
-                Ok(guard) => guard,
-                Err(_) => {
+            let graph_guard = match graph.lock_ok() {
+            Some(guard) => guard,
+            None => {
                     progress_monitor.done();
                     return;
                 }
@@ -72,7 +72,7 @@ impl ILayoutProcessor<TGraphRef> for CompactionProcessor {
         let mut node_sizes: HashMap<usize, KVector> = HashMap::with_capacity(nodes.len());
         for n in &nodes {
             let key = node_key(n);
-            if let Ok(mut guard) = n.lock() {
+            if let Some(mut guard) = n.lock_ok() {
                 let pos = *guard.position_ref();
                 sort_keys.insert(key, dir_vec.dot_product(&pos));
                 node_sizes.insert(key, *guard.size_ref());
@@ -108,15 +108,13 @@ impl ILayoutProcessor<TGraphRef> for CompactionProcessor {
             if let Some(dep) = dependent.clone() {
                 // Single lock for both pos and size
                 let (dep_pos, dep_size) = dep
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|n| (*n.position_ref(), *n.size_ref()))
                     .unwrap_or_default();
                 if let Some(parent) = parent.clone() {
                     // Single lock for both pos and size
                     let (parent_pos, parent_size) = parent
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .map(|n| (*n.position_ref(), *n.size_ref()))
                         .unwrap_or_default();
                     match direction {
@@ -157,8 +155,7 @@ impl ILayoutProcessor<TGraphRef> for CompactionProcessor {
             } else if let Some(parent) = parent.clone() {
                 // Single lock for both pos and size
                 let (parent_pos, parent_size) = parent
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|n| (*n.position_ref(), *n.size_ref()))
                     .unwrap_or_default();
                 match direction {
@@ -206,7 +203,7 @@ impl ILayoutProcessor<TGraphRef> for CompactionProcessor {
                 };
 
                 if let Some((index, level_pair)) = chosen_level {
-                    if let Ok(mut node_guard) = node.lock() {
+                    if let Some(mut node_guard) = node.lock_ok() {
                         if direction.is_horizontal() {
                             node_guard.position().x = *level_pair.first();
                         } else {
@@ -224,7 +221,7 @@ impl ILayoutProcessor<TGraphRef> for CompactionProcessor {
                         }
                     }
                 }
-            } else if let Ok(mut node_guard) = node.lock() {
+            } else if let Some(mut node_guard) = node.lock_ok() {
                 if direction.is_horizontal() {
                     node_guard.position().x = new_pos;
                 } else {
@@ -242,15 +239,15 @@ impl CompactionProcessor {
         self.levels.clear();
 
         let nodes = {
-            let graph_guard = match graph.lock() {
-                Ok(guard) => guard,
-                Err(_) => return,
+            let graph_guard = match graph.lock_ok() {
+            Some(guard) => guard,
+            None => return,
             };
             graph_guard.nodes().clone()
         };
 
         for node in nodes {
-            if let Ok(mut node_guard) = node.lock() {
+            if let Some(mut node_guard) = node.lock_ok() {
                 let level = node_guard
                     .get_property(MrTreeOptions::TREE_LEVEL)
                     .unwrap_or(0) as usize;
@@ -280,8 +277,7 @@ impl CompactionProcessor {
 
     fn compute_node_constraints(&mut self, graph: &TGraphRef, node_node_spacing: f64) {
         let direction = graph
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|mut g| g.get_property(MrTreeOptions::DIRECTION))
             .unwrap_or(Direction::Undefined);
         let right = if direction.is_horizontal() {
@@ -291,9 +287,9 @@ impl CompactionProcessor {
         };
 
         let nodes = {
-            let graph_guard = match graph.lock() {
-                Ok(guard) => guard,
-                Err(_) => return,
+            let graph_guard = match graph.lock_ok() {
+            Some(guard) => guard,
+            None => return,
             };
             graph_guard.nodes().clone()
         };
@@ -301,8 +297,7 @@ impl CompactionProcessor {
         let actual_nodes: Vec<TNodeRef> = nodes
             .into_iter()
             .filter(|node| {
-                node.lock()
-                    .ok()
+                node.lock_ok()
                     .and_then(|node_guard| {
                         node_guard.label().map(|label| label.contains("SUPER_ROOT"))
                     })
@@ -316,7 +311,7 @@ impl CompactionProcessor {
         let mut points: Vec<Triple<TNodeRef, KVector, bool>> = Vec::with_capacity(actual_nodes.len() * 2);
 
         for node in &actual_nodes {
-            if let Ok(node_guard) = node.lock() {
+            if let Some(node_guard) = node.lock_ok() {
                 let pos = *node_guard.position_ref();
                 let size = *node_guard.size_ref();
                 let key = node_key(node);
@@ -382,7 +377,7 @@ impl CompactionProcessor {
     }
 
     fn get_lowest_dependent_node(&self, node: &TNodeRef, direction: Direction) -> Option<TNodeRef> {
-        let constraints = node.lock().ok().and_then(|mut node_guard| {
+        let constraints = node.lock_ok().and_then(|mut node_guard| {
             node_guard.get_property(InternalProperties::COMPACT_CONSTRAINTS)
         });
         let constraints = constraints.unwrap_or_default();
@@ -398,8 +393,7 @@ impl CompactionProcessor {
         for candidate in constraints {
             // Single lock for both pos and size
             let (candidate_pos, candidate_size) = candidate
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|n| (*n.position_ref(), *n.size_ref()))
                 .unwrap_or_default();
             let value = match direction {
@@ -480,7 +474,7 @@ fn right_neighbor(active: &[TNodeRef], node: &TNodeRef) -> Option<TNodeRef> {
 }
 
 fn push_constraint(node: &TNodeRef, constraint: &TNodeRef) {
-    if let Ok(mut node_guard) = node.lock() {
+    if let Some(mut node_guard) = node.lock_ok() {
         let mut list = node_guard
             .get_property(InternalProperties::COMPACT_CONSTRAINTS)
             .unwrap_or_else(Vec::new);

@@ -30,10 +30,10 @@ impl SelfLoopEdge {
             sl_target: sl_target.clone(),
         }));
 
-        if let Ok(mut source_guard) = sl_source.lock() {
+        if let Some(mut source_guard) = sl_source.lock_ok() {
             source_guard.outgoing_sl_edges_mut().push(edge_ref.clone());
         }
-        if let Ok(mut target_guard) = sl_target.lock() {
+        if let Some(mut target_guard) = sl_target.lock_ok() {
             target_guard.incoming_sl_edges_mut().push(edge_ref.clone());
         }
 

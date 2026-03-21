@@ -147,8 +147,7 @@ where
 
         let mut processor_configuration = LayoutProcessorConfiguration::create();
         for phase in phases.iter().flatten() {
-            let phase_guard = phase.lock().expect("phase lock");
-            if let Some(config) = phase_guard.get_layout_processor_configuration(graph) {
+            let phase_guard = phase.lock();            if let Some(config) = phase_guard.get_layout_processor_configuration(graph) {
                 processor_configuration.add_all(&config);
             }
         }
@@ -245,8 +244,7 @@ struct SharedProcessorAdapter<G> {
 
 impl<G: 'static> ILayoutProcessor<G> for SharedProcessorAdapter<G> {
     fn process(&mut self, graph: &mut G, progress_monitor: &mut dyn IElkProgressMonitor) {
-        let mut processor = self.processor.lock().expect("processor lock");
-        let trace_processors = *TRACE_PROCESSORS;
+        let mut processor = self.processor.lock();        let trace_processors = *TRACE_PROCESSORS;
         let trace_timing = *TRACE_PROCESSOR_TIMING;
         if trace_processors {
             eprintln!("processor: {}", processor.type_name());
@@ -269,16 +267,14 @@ impl<G: 'static> ILayoutProcessor<G> for SharedProcessorAdapter<G> {
 
     fn type_name(&self) -> &'static str {
         self.processor
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|processor| processor.type_name())
             .unwrap_or_else(|| std::any::type_name::<Self>())
     }
 
     fn is_hierarchy_aware(&self) -> bool {
         self.processor
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|processor| processor.is_hierarchy_aware())
             .unwrap_or(false)
     }
@@ -293,8 +289,7 @@ where
     P: EnumSetType,
 {
     fn process(&mut self, graph: &mut G, progress_monitor: &mut dyn IElkProgressMonitor) {
-        let mut phase = self.phase.lock().expect("phase lock");
-        let trace_phases = *TRACE_PHASES;
+        let mut phase = self.phase.lock();        let trace_phases = *TRACE_PHASES;
         let trace_timing = *TRACE_PHASE_TIMING;
         if trace_phases {
             eprintln!("phase: {}", phase.type_name());
@@ -313,16 +308,14 @@ where
 
     fn type_name(&self) -> &'static str {
         self.phase
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|phase| phase.type_name())
             .unwrap_or_else(|| std::any::type_name::<Self>())
     }
 
     fn is_hierarchy_aware(&self) -> bool {
         self.phase
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|phase| phase.is_hierarchy_aware())
             .unwrap_or(false)
     }

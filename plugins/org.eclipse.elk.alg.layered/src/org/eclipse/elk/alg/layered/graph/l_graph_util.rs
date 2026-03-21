@@ -35,8 +35,8 @@ impl LGraphUtil {
     }
 
     pub fn resize_node(node: &LNodeRef, new_size: &KVector, move_ports: bool, move_labels: bool) {
-        let (old_size, ports, labels, fixed_ports) = match node.lock() {
-            Ok(mut node_guard) => (
+        let (old_size, ports, labels, fixed_ports) = match node.lock_ok() {
+            Some(mut node_guard) => (
                 *node_guard.shape().size_ref(),
                 node_guard.ports().clone(),
                 node_guard.labels().clone(),
@@ -45,7 +45,7 @@ impl LGraphUtil {
                     .unwrap_or(PortConstraints::Undefined)
                     == PortConstraints::FixedPos,
             ),
-            Err(_) => return,
+            None => return,
         };
 
         // Java uses float (f32) for these variables. Truncate to match.
@@ -56,7 +56,7 @@ impl LGraphUtil {
 
         if move_ports {
             for port in ports {
-                if let Ok(mut port_guard) = port.lock() {
+                if let Some(mut port_guard) = port.lock_ok() {
                     let side = port_guard.side();
                     let pos = port_guard.shape().position();
                     match side {
@@ -90,7 +90,7 @@ impl LGraphUtil {
 
         if move_labels {
             for label in labels {
-                if let Ok(mut label_guard) = label.lock() {
+                if let Some(mut label_guard) = label.lock_ok() {
                     let (pos_x, pos_y, size_x, size_y) = {
                         let shape = label_guard.shape();
                         let pos = *shape.position_ref();
@@ -116,7 +116,7 @@ impl LGraphUtil {
             }
         }
 
-        if let Ok(mut node_guard) = node.lock() {
+        if let Some(mut node_guard) = node.lock_ok() {
             let size = node_guard.shape().size();
             size.x = new_size.x;
             size.y = new_size.y;
@@ -136,12 +136,12 @@ impl LGraphUtil {
     pub fn offset_graph(graph: &LGraphRef, offsetx: f64, offsety: f64) {
         let graph_offset = KVector::with_values(offsetx, offsety);
         let layerless_nodes = graph
-            .lock()
+            .lock_ok()
             .map(|graph_guard| graph_guard.layerless_nodes().clone())
             .unwrap_or_default();
 
         for node in layerless_nodes {
-            let ports = if let Ok(mut node_guard) = node.lock() {
+            let ports = if let Some(mut node_guard) = node.lock_ok() {
                 node_guard.shape().position().add(&graph_offset);
                 node_guard.ports().clone()
             } else {
@@ -150,12 +150,12 @@ impl LGraphUtil {
 
             for port in ports {
                 let outgoing_edges = port
-                    .lock()
+                    .lock_ok()
                     .map(|port_guard| port_guard.outgoing_edges().clone())
                     .unwrap_or_default();
 
                 for edge in outgoing_edges {
-                    let labels = if let Ok(mut edge_guard) = edge.lock() {
+                    let labels = if let Some(mut edge_guard) = edge.lock_ok() {
                         edge_guard.bend_points().offset(offsetx, offsety);
 
                         if let Some(mut junction_points) =
@@ -174,7 +174,7 @@ impl LGraphUtil {
                     };
 
                     for label in labels {
-                        if let Ok(mut label_guard) = label.lock() {
+                        if let Some(mut label_guard) = label.lock_ok() {
                             label_guard.shape().position().add(&graph_offset);
                         }
                     }
@@ -184,11 +184,11 @@ impl LGraphUtil {
     }
 
     pub fn place_nodes_horizontally(layer: &LayerRef, xoffset: f64) {
-        let (nodes, layer_size) = if let Ok(mut layer_guard) = layer.lock() {
+        let (nodes, layer_size) = if let Some(mut layer_guard) = layer.lock_ok() {
             if layer_guard.size_ref().x <= 0.0 {
                 let mut max_width = 0.0;
                 for node in layer_guard.nodes() {
-                    if let Ok(mut node_guard) = node.lock() {
+                    if let Some(mut node_guard) = node.lock_ok() {
                         let size_x = node_guard.shape().size_ref().x;
                         let margin = node_guard.margin();
                         let width = size_x + margin.left + margin.right;
@@ -207,7 +207,7 @@ impl LGraphUtil {
         let mut max_left_margin: f64 = 0.0;
         let mut max_right_margin: f64 = 0.0;
         for node in &nodes {
-            if let Ok(mut node_guard) = node.lock() {
+            if let Some(mut node_guard) = node.lock_ok() {
                 let margin = node_guard.margin();
                 max_left_margin = max_left_margin.max(margin.left);
                 max_right_margin = max_right_margin.max(margin.right);
@@ -215,7 +215,7 @@ impl LGraphUtil {
         }
 
         for node in nodes {
-            let (alignment, node_size, margin, ports) = if let Ok(mut node_guard) = node.lock() {
+            let (alignment, node_size, margin, ports) = if let Some(mut node_guard) = node.lock_ok() {
                 (
                     node_guard
                         .get_property(LayeredOptions::ALIGNMENT)
@@ -236,7 +236,7 @@ impl LGraphUtil {
                     let mut inports = 0;
                     let mut outports = 0;
                     for port in ports {
-                        if let Ok(port_guard) = port.lock() {
+                        if let Some(port_guard) = port.lock_ok() {
                             if !port_guard.incoming_edges().is_empty() {
                                 inports += 1;
                             }
@@ -268,7 +268,7 @@ impl LGraphUtil {
                 xpos = max_x;
             }
 
-            if let Ok(mut node_guard) = node.lock() {
+            if let Some(mut node_guard) = node.lock_ok() {
                 node_guard.shape().position().x = xoffset + xpos;
             }
         }
@@ -279,7 +279,7 @@ impl LGraphUtil {
         direction: Direction,
         respect_node_margins: bool,
     ) -> f64 {
-        let nodes = if let Ok(layer_guard) = layer.lock() {
+        let nodes = if let Some(layer_guard) = layer.lock_ok() {
             layer_guard.nodes().clone()
         } else {
             return 0.0;
@@ -291,7 +291,7 @@ impl LGraphUtil {
 
         let mut max_width = 0.0;
         for node in nodes {
-            if let Ok(mut node_guard) = node.lock() {
+            if let Some(mut node_guard) = node.lock_ok() {
                 if node_guard.node_type() == NodeType::Normal {
                     let mut width = node_guard.shape().size_ref().x;
                     if respect_node_margins {
@@ -311,13 +311,12 @@ impl LGraphUtil {
     pub fn compute_graph_properties(layered_graph: &LGraphRef) {
         let direction = LGraphUtil::get_direction(layered_graph);
         let nodes = layered_graph
-            .lock()
+            .lock_ok()
             .map(|graph_guard| graph_guard.layerless_nodes().clone())
             .unwrap_or_default();
 
         let mut props = layered_graph
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|mut graph_guard| {
                 graph_guard.get_property(InternalProperties::GRAPH_PROPERTIES)
             })
@@ -325,7 +324,7 @@ impl LGraphUtil {
 
         for node in nodes {
             let (node_type, is_comment, is_hypernode, ports, port_constraints) =
-                if let Ok(mut node_guard) = node.lock() {
+                if let Some(mut node_guard) = node.lock_ok() {
                     (
                         node_guard.node_type(),
                         node_guard
@@ -353,7 +352,7 @@ impl LGraphUtil {
             }
 
             let normalized_constraints = if port_constraints == PortConstraints::Undefined {
-                if let Ok(mut node_guard) = node.lock() {
+                if let Some(mut node_guard) = node.lock_ok() {
                     node_guard.set_property(
                         LayeredOptions::PORT_CONSTRAINTS,
                         Some(PortConstraints::Free),
@@ -370,7 +369,7 @@ impl LGraphUtil {
 
             for port in ports {
                 let (port_side, outgoing_edges, incident_edges) =
-                    if let Ok(port_guard) = port.lock() {
+                    if let Some(port_guard) = port.lock_ok() {
                         (
                             port_guard.side(),
                             port_guard.outgoing_edges().clone(),
@@ -398,9 +397,9 @@ impl LGraphUtil {
                 }
 
                 for edge in outgoing_edges {
-                    let labels = if let Ok(edge_guard) = edge.lock() {
+                    let labels = if let Some(edge_guard) = edge.lock_ok() {
                         if let Some(target) = edge_guard.target() {
-                            if let Ok(target_guard) = target.lock() {
+                            if let Some(target_guard) = target.lock_ok() {
                                 if let Some(target_node) = target_guard.node() {
                                     if Arc::ptr_eq(&target_node, &node) {
                                         props.insert(GraphProperties::SelfLoops);
@@ -415,7 +414,7 @@ impl LGraphUtil {
                     };
 
                     for label in labels {
-                        if let Ok(mut label_guard) = label.lock() {
+                        if let Some(mut label_guard) = label.lock_ok() {
                             match label_guard
                                 .get_property(LayeredOptions::EDGE_LABELS_PLACEMENT)
                                 .unwrap_or(EdgeLabelPlacement::Center)
@@ -433,7 +432,7 @@ impl LGraphUtil {
             }
         }
 
-        if let Ok(mut graph_guard) = layered_graph.lock() {
+        if let Some(mut graph_guard) = layered_graph.lock_ok() {
             graph_guard.set_property(InternalProperties::GRAPH_PROPERTIES, Some(props));
         }
     }
@@ -446,18 +445,15 @@ impl LGraphUtil {
     ) -> LPortRef {
         let direction = LGraphUtil::get_direction(layered_graph);
         let merge_ports = layered_graph
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|mut graph_guard| graph_guard.get_property(LayeredOptions::MERGE_EDGES))
             .unwrap_or(false);
         let node_is_hyper = node
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|mut node_guard| node_guard.get_property(LayeredOptions::HYPERNODE))
             .unwrap_or(false);
         let port_constraints = node
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|mut node_guard| node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS))
             .unwrap_or(PortConstraints::Undefined);
 
@@ -475,8 +471,8 @@ impl LGraphUtil {
         LPort::set_node(&port, Some(node.clone()));
 
         if let Some(end_point) = end_point {
-            if let Ok(mut port_guard) = port.lock() {
-                if let Ok(mut node_guard) = node.lock() {
+            if let Some(mut port_guard) = port.lock_ok() {
+                if let Some(mut node_guard) = node.lock_ok() {
                     let node_pos = *node_guard.shape().position_ref();
                     let node_size = *node_guard.shape().size_ref();
                     let pos = port_guard.shape().position();
@@ -486,7 +482,7 @@ impl LGraphUtil {
                 }
             }
             let side = LGraphUtil::calc_port_side(&port, direction);
-            if let Ok(mut port_guard) = port.lock() {
+            if let Some(mut port_guard) = port.lock_ok() {
                 port_guard.set_side(side);
             }
         } else {
@@ -496,17 +492,17 @@ impl LGraphUtil {
                 PortType::Input => default_side.opposed(),
                 PortType::Undefined => default_side,
             };
-            if let Ok(mut port_guard) = port.lock() {
+            if let Some(mut port_guard) = port.lock_ok() {
                 port_guard.set_side(side);
             }
         }
 
-        if let Ok(mut graph_guard) = layered_graph.lock() {
+        if let Some(mut graph_guard) = layered_graph.lock_ok() {
             let mut graph_props = graph_guard
                 .get_property(InternalProperties::GRAPH_PROPERTIES)
                 .unwrap_or(EnumSet::none_of());
 
-            if let Ok(port_guard) = port.lock() {
+            if let Some(port_guard) = port.lock_ok() {
                 let port_side = port_guard.side();
                 match direction {
                     Direction::Left | Direction::Right => {
@@ -530,7 +526,7 @@ impl LGraphUtil {
     }
 
     pub fn calc_port_side(port: &LPortRef, direction: Direction) -> PortSide {
-        let (node, pos, size) = if let Ok(mut port_guard) = port.lock() {
+        let (node, pos, size) = if let Some(mut port_guard) = port.lock_ok() {
             (
                 port_guard.node(),
                 *port_guard.shape().position_ref(),
@@ -545,7 +541,7 @@ impl LGraphUtil {
             None => return PortSide::Undefined,
         };
 
-        let node_size = if let Ok(mut node_guard) = node.lock() {
+        let node_size = if let Some(mut node_guard) = node.lock_ok() {
             *node_guard.shape().size_ref()
         } else {
             return PortSide::Undefined;
@@ -589,7 +585,7 @@ impl LGraphUtil {
     }
 
     pub fn calc_port_offset(port: &LPortRef, side: PortSide) -> f64 {
-        let (node, pos, size) = if let Ok(mut port_guard) = port.lock() {
+        let (node, pos, size) = if let Some(mut port_guard) = port.lock_ok() {
             (
                 port_guard.node(),
                 *port_guard.shape().position_ref(),
@@ -604,7 +600,7 @@ impl LGraphUtil {
             None => return 0.0,
         };
 
-        let node_size = if let Ok(mut node_guard) = node.lock() {
+        let node_size = if let Some(mut node_guard) = node.lock_ok() {
             *node_guard.shape().size_ref()
         } else {
             return 0.0;
@@ -651,11 +647,10 @@ impl LGraphUtil {
 
         match port_type {
             PortType::Input => {
-                if let Ok(node_guard) = node.lock() {
+                if let Some(node_guard) = node.lock_ok() {
                     for candidate in node_guard.ports() {
                         if candidate
-                            .lock()
-                            .ok()
+                            .lock_ok()
                             .and_then(|mut port| {
                                 port.get_property(InternalProperties::INPUT_COLLECT)
                             })
@@ -666,17 +661,16 @@ impl LGraphUtil {
                     }
                 }
                 let created = LPort::new();
-                if let Ok(mut port) = created.lock() {
+                if let Some(mut port) = created.lock_ok() {
                     port.set_property(InternalProperties::INPUT_COLLECT, Some(true));
                 }
                 port = Some(created);
             }
             PortType::Output => {
-                if let Ok(node_guard) = node.lock() {
+                if let Some(node_guard) = node.lock_ok() {
                     for candidate in node_guard.ports() {
                         if candidate
-                            .lock()
-                            .ok()
+                            .lock_ok()
                             .and_then(|mut port| {
                                 port.get_property(InternalProperties::OUTPUT_COLLECT)
                             })
@@ -687,7 +681,7 @@ impl LGraphUtil {
                     }
                 }
                 let created = LPort::new();
-                if let Ok(mut port) = created.lock() {
+                if let Some(mut port) = created.lock_ok() {
                     port.set_property(InternalProperties::OUTPUT_COLLECT, Some(true));
                 }
                 port = Some(created);
@@ -697,10 +691,10 @@ impl LGraphUtil {
 
         if let Some(port_ref) = port {
             LPort::set_node(&port_ref, Some(node.clone()));
-            if let Ok(mut port_guard) = port_ref.lock() {
+            if let Some(mut port_guard) = port_ref.lock_ok() {
                 port_guard.set_side(side);
                 let size = node
-                    .lock()
+                    .lock_ok()
                     .map(|mut node| *node.shape().size_ref())
                     .unwrap_or_default();
                 let mut pos = KVector::new();
@@ -720,14 +714,13 @@ impl LGraphUtil {
         anchor_pos: Option<KVector>,
     ) {
         let mut port_side = port
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|port_guard| port_guard.side())
             .unwrap_or(PortSide::Undefined);
 
         if port_side == PortSide::Undefined && port_constraints.is_side_fixed() {
             port_side = LGraphUtil::calc_port_side(port, direction);
-            let should_set_border_offset = if let Ok(mut port_guard) = port.lock() {
+            let should_set_border_offset = if let Some(mut port_guard) = port.lock_ok() {
                 port_guard.set_side(port_side);
 
                 let has_border_offset = port_guard
@@ -745,17 +738,17 @@ impl LGraphUtil {
             if should_set_border_offset {
                 // Avoid re-locking the same port mutex while already held above.
                 let offset = LGraphUtil::calc_port_offset(port, port_side);
-                if let Ok(mut port_guard) = port.lock() {
+                if let Some(mut port_guard) = port.lock_ok() {
                     port_guard.set_property(LayeredOptions::PORT_BORDER_OFFSET, Some(offset));
                 }
             }
         }
 
         if port_constraints.is_ratio_fixed() {
-            let ratio = if let Ok(mut port_guard) = port.lock() {
+            let ratio = if let Some(mut port_guard) = port.lock_ok() {
                 let node_size = port_guard
                     .node()
-                    .and_then(|node| node.lock().ok().map(|mut node| *node.shape().size_ref()))
+                    .and_then(|node| node.lock_ok().map(|mut node| *node.shape().size_ref()))
                     .unwrap_or(KVector::new());
                 let pos = *port_guard.shape().position_ref();
                 match port_side {
@@ -779,12 +772,12 @@ impl LGraphUtil {
                 0.0
             };
 
-            if let Ok(mut port_guard) = port.lock() {
+            if let Some(mut port_guard) = port.lock_ok() {
                 port_guard.set_property(InternalProperties::PORT_RATIO_OR_POSITION, Some(ratio));
             }
         }
 
-        if let Ok(mut port_guard) = port.lock() {
+        if let Some(mut port_guard) = port.lock_ok() {
             let port_size = *port_guard.shape().size_ref();
             let port_anchor = port_guard.anchor();
 
@@ -832,7 +825,7 @@ impl LGraphUtil {
         let mut final_external_port_side = port_side;
 
         let dummy = super::LNode::new(layered_graph);
-        if let Ok(mut dummy_guard) = dummy.lock() {
+        if let Some(mut dummy_guard) = dummy.lock_ok() {
             dummy_guard.set_node_type(NodeType::ExternalPort);
             dummy_guard.set_property(InternalProperties::EXT_PORT_SIZE, Some(*port_size));
             dummy_guard.set_property(
@@ -844,7 +837,7 @@ impl LGraphUtil {
         let port_border_offset = property_holder
             .get_property(LayeredOptions::PORT_BORDER_OFFSET)
             .unwrap_or(0.0);
-        if let Ok(mut dummy_guard) = dummy.lock() {
+        if let Some(mut dummy_guard) = dummy.lock_ok() {
             dummy_guard.set_property(LayeredOptions::PORT_BORDER_OFFSET, Some(port_border_offset));
         }
 
@@ -871,7 +864,7 @@ impl LGraphUtil {
 
         match final_external_port_side {
             PortSide::West => {
-                if let Ok(mut dummy_guard) = dummy.lock() {
+                if let Some(mut dummy_guard) = dummy.lock_ok() {
                     dummy_guard.set_property(
                         LayeredOptions::LAYERING_LAYER_CONSTRAINT,
                         Some(LayerConstraint::FirstSeparate),
@@ -885,7 +878,7 @@ impl LGraphUtil {
                         dummy_guard.shape().size().x = -port_border_offset;
                     }
                 }
-                if let Ok(mut dummy_port_guard) = dummy_port.lock() {
+                if let Some(mut dummy_port_guard) = dummy_port.lock_ok() {
                     dummy_port_guard.set_side(PortSide::East);
                 }
                 if !explicit_anchor {
@@ -894,7 +887,7 @@ impl LGraphUtil {
                 anchor.x -= port_size.x;
             }
             PortSide::East => {
-                if let Ok(mut dummy_guard) = dummy.lock() {
+                if let Some(mut dummy_guard) = dummy.lock_ok() {
                     dummy_guard.set_property(
                         LayeredOptions::LAYERING_LAYER_CONSTRAINT,
                         Some(LayerConstraint::LastSeparate),
@@ -908,7 +901,7 @@ impl LGraphUtil {
                         dummy_guard.shape().size().x = -port_border_offset;
                     }
                 }
-                if let Ok(mut dummy_port_guard) = dummy_port.lock() {
+                if let Some(mut dummy_port_guard) = dummy_port.lock_ok() {
                     dummy_port_guard.set_side(PortSide::West);
                 }
                 if !explicit_anchor {
@@ -916,7 +909,7 @@ impl LGraphUtil {
                 }
             }
             PortSide::North => {
-                if let Ok(mut dummy_guard) = dummy.lock() {
+                if let Some(mut dummy_guard) = dummy.lock_ok() {
                     dummy_guard.set_property(
                         InternalProperties::IN_LAYER_CONSTRAINT,
                         Some(InLayerConstraint::Top),
@@ -926,7 +919,7 @@ impl LGraphUtil {
                         dummy_guard.shape().size().y = -port_border_offset;
                     }
                 }
-                if let Ok(mut dummy_port_guard) = dummy_port.lock() {
+                if let Some(mut dummy_port_guard) = dummy_port.lock_ok() {
                     dummy_port_guard.set_side(PortSide::South);
                 }
                 if !explicit_anchor {
@@ -935,7 +928,7 @@ impl LGraphUtil {
                 anchor.y -= port_size.y;
             }
             PortSide::South => {
-                if let Ok(mut dummy_guard) = dummy.lock() {
+                if let Some(mut dummy_guard) = dummy.lock_ok() {
                     dummy_guard.set_property(
                         InternalProperties::IN_LAYER_CONSTRAINT,
                         Some(InLayerConstraint::Bottom),
@@ -945,7 +938,7 @@ impl LGraphUtil {
                         dummy_guard.shape().size().y = -port_border_offset;
                     }
                 }
-                if let Ok(mut dummy_port_guard) = dummy_port.lock() {
+                if let Some(mut dummy_port_guard) = dummy_port.lock_ok() {
                     dummy_port_guard.set_side(PortSide::North);
                 }
                 if !explicit_anchor {
@@ -955,10 +948,10 @@ impl LGraphUtil {
             PortSide::Undefined => {}
         }
 
-        if let Ok(mut dummy_port_guard) = dummy_port.lock() {
+        if let Some(mut dummy_port_guard) = dummy_port.lock_ok() {
             dummy_port_guard.shape().position().set(&anchor);
         }
-        if let Ok(mut dummy_guard) = dummy.lock() {
+        if let Some(mut dummy_guard) = dummy.lock_ok() {
             dummy_guard.set_property(LayeredOptions::PORT_ANCHOR, Some(anchor));
         }
 
@@ -993,13 +986,13 @@ impl LGraphUtil {
                 }
             }
 
-            if let Ok(mut dummy_guard) = dummy.lock() {
+            if let Some(mut dummy_guard) = dummy.lock_ok() {
                 dummy_guard
                     .set_property(InternalProperties::PORT_RATIO_OR_POSITION, Some(info_value));
             }
         }
 
-        if let Ok(mut dummy_guard) = dummy.lock() {
+        if let Some(mut dummy_guard) = dummy.lock_ok() {
             dummy_guard.set_property(
                 InternalProperties::EXT_PORT_SIDE,
                 Some(final_external_port_side),
@@ -1016,7 +1009,7 @@ impl LGraphUtil {
         port_height: f64,
     ) -> KVector {
         let (mut port_pos, port_offset, _, ext_side) =
-            if let Ok(mut dummy_guard) = port_dummy.lock() {
+            if let Some(mut dummy_guard) = port_dummy.lock_ok() {
                 let pos = *dummy_guard.shape().position_ref();
                 let size = *dummy_guard.shape().size_ref();
                 let mut port_pos = KVector::from_vector(&pos);
@@ -1042,7 +1035,7 @@ impl LGraphUtil {
             graph_offset,
             connected_components_compaction,
         ) =
-            if let Ok(graph_guard) = graph.lock() {
+            if let Some(graph_guard) = graph.lock_ok() {
                 (
                     *graph_guard.size_ref(),
                     graph_guard.padding_ref().clone(),
@@ -1067,7 +1060,7 @@ impl LGraphUtil {
                     port_pos.x += 0.5;
                 }
                 port_pos.y = -port_height - port_offset;
-                if let Ok(mut dummy_guard) = port_dummy.lock() {
+                if let Some(mut dummy_guard) = port_dummy.lock_ok() {
                     dummy_guard.shape().position().y =
                         -(padding.top + port_offset + graph_offset.y);
                 }
@@ -1076,7 +1069,7 @@ impl LGraphUtil {
                 port_pos.x =
                     graph_size.x + padding.left + padding.right + port_offset;
                 port_pos.y += padding.top + graph_offset.y - (port_height / 2.0);
-                if let Ok(mut dummy_guard) = port_dummy.lock() {
+                if let Some(mut dummy_guard) = port_dummy.lock_ok() {
                     dummy_guard.shape().position().x =
                         graph_size.x + padding.right + port_offset - graph_offset.x;
                 }
@@ -1084,7 +1077,7 @@ impl LGraphUtil {
             PortSide::South => {
                 port_pos.x += padding.left + graph_offset.x - (port_width / 2.0);
                 port_pos.y = graph_size.y + padding.top + padding.bottom + port_offset;
-                if let Ok(mut dummy_guard) = port_dummy.lock() {
+                if let Some(mut dummy_guard) = port_dummy.lock_ok() {
                     dummy_guard.shape().position().y =
                         graph_size.y + padding.bottom + port_offset - graph_offset.y;
                 }
@@ -1092,7 +1085,7 @@ impl LGraphUtil {
             PortSide::West => {
                 port_pos.x = -port_width - port_offset;
                 port_pos.y += padding.top + graph_offset.y - (port_height / 2.0);
-                if let Ok(mut dummy_guard) = port_dummy.lock() {
+                if let Some(mut dummy_guard) = port_dummy.lock_ok() {
                     dummy_guard.shape().position().x =
                         -(padding.left + port_offset + graph_offset.x);
                 }
@@ -1107,10 +1100,9 @@ impl LGraphUtil {
         let mut current = child.clone();
         loop {
             let next = current
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|node| node.graph())
-                .and_then(|graph| graph.lock().ok().and_then(|graph| graph.parent_node()));
+                .and_then(|graph| graph.lock_ok().and_then(|graph| graph.parent_node()));
 
             let next = match next {
                 Some(next) => next,
@@ -1131,7 +1123,7 @@ impl LGraphUtil {
 
         let mut graph = old_graph.clone();
         loop {
-            let (offset, padding, parent_node) = if let Ok(graph_guard) = graph.lock() {
+            let (offset, padding, parent_node) = if let Some(graph_guard) = graph.lock_ok() {
                 (
                     *graph_guard.offset_ref(),
                     graph_guard.padding_ref().clone(),
@@ -1144,7 +1136,7 @@ impl LGraphUtil {
             point.add(&offset);
             if let Some(node) = parent_node {
                 point.add_values(padding.left, padding.top);
-                if let Ok(mut node_guard) = node.lock() {
+                if let Some(mut node_guard) = node.lock_ok() {
                     let pos = *node_guard.shape().position_ref();
                     point.add(&pos);
                     if let Some(parent_graph) = node_guard.graph() {
@@ -1158,7 +1150,7 @@ impl LGraphUtil {
 
         graph = new_graph.clone();
         loop {
-            let (offset, padding, parent_node) = if let Ok(graph_guard) = graph.lock() {
+            let (offset, padding, parent_node) = if let Some(graph_guard) = graph.lock_ok() {
                 (
                     *graph_guard.offset_ref(),
                     graph_guard.padding_ref().clone(),
@@ -1171,7 +1163,7 @@ impl LGraphUtil {
             point.sub(&offset);
             if let Some(node) = parent_node {
                 point.sub_values(padding.left, padding.top);
-                if let Ok(mut node_guard) = node.lock() {
+                if let Some(mut node_guard) = node.lock_ok() {
                     let pos = *node_guard.shape().position_ref();
                     point.sub(&pos);
                     if let Some(parent_graph) = node_guard.graph() {
@@ -1188,7 +1180,7 @@ impl LGraphUtil {
         node: &LNodeRef,
         property: &Property<T>,
     ) -> Option<T> {
-        let (mut result, graph) = if let Ok(mut node_guard) = node.lock() {
+        let (mut result, graph) = if let Some(mut node_guard) = node.lock_ok() {
             let has_individual = node_guard
                 .shape()
                 .graph_element()
@@ -1212,7 +1204,7 @@ impl LGraphUtil {
 
         if result.is_none() {
             if let Some(graph) = graph {
-                if let Ok(mut graph_guard) = graph.lock() {
+                if let Some(mut graph_guard) = graph.lock_ok() {
                     result = graph_guard.get_property(property);
                 }
             }
@@ -1222,7 +1214,7 @@ impl LGraphUtil {
     }
 
     pub fn get_direction(graph: &LGraphRef) -> Direction {
-        let (direction, aspect_ratio) = if let Ok(mut graph_guard) = graph.lock() {
+        let (direction, aspect_ratio) = if let Some(mut graph_guard) = graph.lock_ok() {
             (
                 graph_guard
                     .get_property(LayeredOptions::DIRECTION)
@@ -1248,13 +1240,13 @@ impl LGraphUtil {
 
     pub fn get_minimal_model_order(graph: &LGraphRef) -> i32 {
         let nodes = graph
-            .lock()
+            .lock_ok()
             .map(|graph_guard| graph_guard.layerless_nodes().clone())
             .unwrap_or_default();
 
         let mut order = i32::MAX;
         for node in nodes {
-            if let Ok(mut node_guard) = node.lock() {
+            if let Some(mut node_guard) = node.lock_ok() {
                 if let Some(value) = node_guard.get_property(InternalProperties::MODEL_ORDER) {
                     if value < order {
                         order = value;

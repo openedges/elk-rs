@@ -31,7 +31,7 @@ impl FNode {
 
     pub fn new_with_label(label: impl Into<String>) -> FNodeRef {
         let node = Self::new();
-        if let Ok(mut node_guard) = node.lock() {
+        if let Some(mut node_guard) = node.lock_ok() {
             node_guard.label = Some(label.into());
         }
         node
@@ -125,7 +125,7 @@ impl FNode {
         let mut current = self.parent();
         while let Some(node) = current {
             depth += 1;
-            current = node.lock().ok().and_then(|node_guard| node_guard.parent());
+            current = node.lock_ok().and_then(|node_guard| node_guard.parent());
         }
         depth
     }

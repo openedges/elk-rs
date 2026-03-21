@@ -26,7 +26,7 @@ fn init_layered_options() {
 fn new_graph() -> LGraphRef {
     init_layered_options();
     let graph = LGraph::new();
-    if let Ok(mut graph_guard) = graph.lock() {
+    if let Some(mut graph_guard) = graph.lock_ok() {
         graph_guard.set_property(InternalProperties::RANDOM, Some(mock_random(true)));
         graph_guard.set_property(LayeredOptions::EDGE_ROUTING, Some(EdgeRouting::Orthogonal));
         graph_guard.set_property(
@@ -46,7 +46,7 @@ fn mock_random(next_boolean: bool) -> Random {
 
 fn make_layer(graph: &LGraphRef) -> Arc<Mutex<Layer>> {
     let layer = Layer::new(graph);
-    if let Ok(mut graph_guard) = graph.lock() {
+    if let Some(mut graph_guard) = graph.lock_ok() {
         graph_guard.layers_mut().push(layer.clone());
     }
     layer
@@ -58,7 +58,7 @@ fn make_layers(graph: &LGraphRef, count: usize) -> Vec<Arc<Mutex<Layer>>> {
 
 fn add_node(graph: &LGraphRef, layer: &Arc<Mutex<Layer>>) -> LNodeRef {
     let node = LNode::new(graph);
-    if let Ok(mut node_guard) = node.lock() {
+    if let Some(mut node_guard) = node.lock_ok() {
         node_guard.set_node_type(NodeType::Normal);
         node_guard.set_property(InternalProperties::IN_LAYER_LAYOUT_UNIT, Some(node.clone()));
     }
@@ -77,10 +77,10 @@ fn add_east_west_edge(source: &LNodeRef, target: &LNodeRef) {
 fn add_port_on_side(node: &LNodeRef, side: PortSide) -> LPortRef {
     let port = LPort::new();
     LPort::set_node(&port, Some(node.clone()));
-    if let Ok(mut port_guard) = port.lock() {
+    if let Some(mut port_guard) = port.lock_ok() {
         port_guard.set_side(side);
     }
-    if let Ok(mut node_guard) = node.lock() {
+    if let Some(mut node_guard) = node.lock_ok() {
         let constraints = node_guard
             .get_property(LayeredOptions::PORT_CONSTRAINTS)
             .unwrap_or(PortConstraints::Undefined);
@@ -95,13 +95,13 @@ fn add_port_on_side(node: &LNodeRef, side: PortSide) -> LPortRef {
 }
 
 fn set_fixed_order_constraint(node: &LNodeRef) {
-    if let Ok(mut node_guard) = node.lock() {
+    if let Some(mut node_guard) = node.lock_ok() {
         node_guard.set_property(
             LayeredOptions::PORT_CONSTRAINTS,
             Some(PortConstraints::FixedOrder),
         );
         if let Some(graph) = node_guard.graph() {
-            if let Ok(mut graph_guard) = graph.lock() {
+            if let Some(mut graph_guard) = graph.lock_ok() {
                 let mut props = graph_guard
                     .get_property(InternalProperties::GRAPH_PROPERTIES)
                     .unwrap_or_else(EnumSet::none_of);
@@ -129,11 +129,11 @@ fn same_port_order(actual: &[LPortRef], expected: &[LPortRef]) -> bool {
 }
 
 fn clone_layer_nodes(layer: &Arc<Mutex<Layer>>) -> Vec<LNodeRef> {
-    layer.lock().expect("layer lock").nodes().clone()
+    layer.lock().nodes().clone()
 }
 
 fn count_all_crossings(graph: &LGraphRef) -> i32 {
-    let node_order = graph.lock().expect("graph lock").to_node_array();
+    let node_order = graph.lock().to_node_array();
     let mut counter = AllCrossingsCounter::new(&node_order);
     counter.count_all_crossings(&node_order)
 }
@@ -142,21 +142,21 @@ fn set_up_ids(graph: &LGraphRef) {
     let mut graphs = vec![graph.clone()];
     while let Some(current_graph) = graphs.pop() {
         let layers = current_graph
-            .lock()
+            .lock_ok()
             .map(|graph_guard| graph_guard.layers().clone())
             .unwrap_or_default();
         let mut port_id = 0_i32;
         for (layer_id, layer) in layers.iter().enumerate() {
-            if let Ok(mut layer_guard) = layer.lock() {
+            if let Some(mut layer_guard) = layer.lock_ok() {
                 layer_guard.graph_element().id = layer_id as i32;
             }
 
             let nodes = layer
-                .lock()
+                .lock_ok()
                 .map(|layer_guard| layer_guard.nodes().clone())
                 .unwrap_or_default();
             for (node_id, node) in nodes.iter().enumerate() {
-                let (ports, nested) = if let Ok(mut node_guard) = node.lock() {
+                let (ports, nested) = if let Some(mut node_guard) = node.lock_ok() {
                     node_guard.shape().graph_element().id = node_id as i32;
                     (node_guard.ports().clone(), node_guard.nested_graph())
                 } else {
@@ -168,7 +168,7 @@ fn set_up_ids(graph: &LGraphRef) {
                 }
 
                 for port in ports {
-                    if let Ok(mut port_guard) = port.lock() {
+                    if let Some(mut port_guard) = port.lock_ok() {
                         port_guard.shape().graph_element().id = port_id;
                     }
                     port_id += 1;
@@ -181,24 +181,24 @@ fn set_up_ids(graph: &LGraphRef) {
 fn run_crossmin(graph: &LGraphRef, cross_min_type: CrossMinType) {
     set_up_ids(graph);
     if cross_min_type == CrossMinType::Barycenter {
-        if let Ok(mut graph_guard) = graph.lock() {
+        if let Some(mut graph_guard) = graph.lock_ok() {
             graph_guard.set_property(LayeredOptions::THOROUGHNESS, Some(1));
         }
     }
     let mut minimizer = LayerSweepCrossingMinimizer::new(cross_min_type);
     let mut monitor = BasicProgressMonitor::new();
-    minimizer.process(&mut graph.lock().expect("graph lock"), &mut monitor);
+    minimizer.process(&mut graph.lock(), &mut monitor);
 }
 
 fn nested_graph(node: &LNodeRef) -> LGraphRef {
-    if let Some(existing) = node.lock().ok().and_then(|guard| guard.nested_graph()) {
+    if let Some(existing) = node.lock_ok().and_then(|guard| guard.nested_graph()) {
         return existing;
     }
     let nested = LGraph::new();
     let parent_random = {
-        let parent_graph = node.lock().ok().and_then(|node_guard| node_guard.graph());
+        let parent_graph = node.lock_ok().and_then(|node_guard| node_guard.graph());
         if let Some(parent_graph) = parent_graph {
-            if let Ok(mut graph_guard) = parent_graph.lock() {
+            if let Some(mut graph_guard) = parent_graph.lock_ok() {
                 graph_guard.get_property(InternalProperties::RANDOM)
             } else {
                 None
@@ -207,7 +207,7 @@ fn nested_graph(node: &LNodeRef) -> LGraphRef {
             None
         }
     };
-    if let Ok(mut nested_guard) = nested.lock() {
+    if let Some(mut nested_guard) = nested.lock_ok() {
         nested_guard.set_parent_node(Some(node.clone()));
         nested_guard.set_property(LayeredOptions::EDGE_ROUTING, Some(EdgeRouting::Orthogonal));
         nested_guard.set_property(
@@ -218,7 +218,7 @@ fn nested_graph(node: &LNodeRef) -> LGraphRef {
             nested_guard.set_property(InternalProperties::RANDOM, Some(random));
         }
     }
-    if let Ok(mut node_guard) = node.lock() {
+    if let Some(mut node_guard) = node.lock_ok() {
         node_guard.set_nested_graph(Some(nested.clone()));
     }
     nested
@@ -250,18 +250,16 @@ fn add_external_port_dummy_node_to_layer(
     port: &LPortRef,
 ) -> LNodeRef {
     let graph = layer
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|layer_guard| layer_guard.graph())
         .expect("layer graph");
     let node = add_node(&graph, layer);
     let port_side = port
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|port_guard| port_guard.side())
         .unwrap_or(PortSide::Undefined);
 
-    if let Ok(mut node_guard) = node.lock() {
+    if let Some(mut node_guard) = node.lock_ok() {
         node_guard.set_node_type(NodeType::ExternalPort);
         node_guard.set_property(
             InternalProperties::ORIGIN,
@@ -269,11 +267,11 @@ fn add_external_port_dummy_node_to_layer(
         );
         node_guard.set_property(InternalProperties::EXT_PORT_SIDE, Some(port_side));
     }
-    if let Ok(mut port_guard) = port.lock() {
+    if let Some(mut port_guard) = port.lock_ok() {
         port_guard.set_property(InternalProperties::PORT_DUMMY, Some(node.clone()));
         port_guard.set_property(InternalProperties::INSIDE_CONNECTIONS, Some(true));
     }
-    if let Ok(mut graph_guard) = graph.lock() {
+    if let Some(mut graph_guard) = graph.lock_ok() {
         let mut props = graph_guard
             .get_property(InternalProperties::GRAPH_PROPERTIES)
             .unwrap_or_else(EnumSet::none_of);
@@ -292,8 +290,7 @@ fn add_external_port_dummies_to_layer(
         return Vec::new();
     }
     let side = ports[0]
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|port_guard| port_guard.side())
         .unwrap_or(PortSide::Undefined);
     let mut nodes = Vec::with_capacity(ports.len());
@@ -350,7 +347,7 @@ fn make_nested_two_node_graph_with_western_ports(
 fn set_hierarchical_sweepiness_on_all_graphs(graph: &LGraphRef, value: f64) {
     let mut graphs = vec![graph.clone()];
     while let Some(current_graph) = graphs.pop() {
-        let layers = if let Ok(mut graph_guard) = current_graph.lock() {
+        let layers = if let Some(mut graph_guard) = current_graph.lock_ok() {
             graph_guard.set_property(
                 LayeredOptions::CROSSING_MINIMIZATION_HIERARCHICAL_SWEEPINESS,
                 Some(value),
@@ -362,13 +359,12 @@ fn set_hierarchical_sweepiness_on_all_graphs(graph: &LGraphRef, value: f64) {
 
         for layer in layers {
             let nodes = layer
-                .lock()
+                .lock_ok()
                 .map(|layer_guard| layer_guard.nodes().clone())
                 .unwrap_or_default();
             for node in nodes {
                 if let Some(nested) = node
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|node_guard| node_guard.nested_graph())
                 {
                     graphs.push(nested);
@@ -434,19 +430,18 @@ fn simple_cross_graph_runs_and_keeps_layer_structure() {
 
     run_crossmin(&graph, CrossMinType::Barycenter);
 
-    let graph_guard = graph.lock().expect("graph lock");
-    assert_eq!(graph_guard.layers().len(), 2);
+    let graph_guard = graph.lock();    assert_eq!(graph_guard.layers().len(), 2);
     assert_eq!(
         graph_guard.layers()[0]
             .lock()
-            .expect("layer lock")
+            
             .nodes()
             .len(),
         2
     );
     let right_nodes = graph_guard.layers()[1]
         .lock()
-        .expect("layer lock")
+        
         .nodes()
         .clone();
     assert_eq!(right_nodes.len(), 2);
@@ -470,15 +465,14 @@ fn simple_cross_graph_one_sided_switch_reorders_right_layer() {
 
     run_crossmin(&graph, CrossMinType::OneSidedGreedySwitch);
 
-    let graph_guard = graph.lock().expect("graph lock");
-    let left_nodes = graph_guard.layers()[0]
+    let graph_guard = graph.lock();    let left_nodes = graph_guard.layers()[0]
         .lock()
-        .expect("layer lock")
+        
         .nodes()
         .clone();
     let right_nodes = graph_guard.layers()[1]
         .lock()
-        .expect("layer lock")
+        
         .nodes()
         .clone();
     let left_delta = node_index(&left_nodes, &n1) as isize - node_index(&left_nodes, &n2) as isize;
@@ -492,7 +486,7 @@ fn simple_cross_graph_one_sided_switch_reorders_right_layer() {
 
 fn assert_single_hierarchical_cross_removed(cross_min_type: CrossMinType) {
     let graph = new_graph();
-    if let Ok(mut graph_guard) = graph.lock() {
+    if let Some(mut graph_guard) = graph.lock_ok() {
         graph_guard.set_property(
             LayeredOptions::HIERARCHY_HANDLING,
             Some(HierarchyHandling::IncludeChildren),
@@ -513,14 +507,14 @@ fn assert_single_hierarchical_cross_removed(cross_min_type: CrossMinType) {
 
     run_crossmin(&graph, cross_min_type);
 
-    let left_nodes = inner.lock().expect("inner graph lock").layers()[0]
+    let left_nodes = inner.lock().layers()[0]
         .lock()
-        .expect("inner left layer lock")
+        
         .nodes()
         .clone();
-    let right_nodes = inner.lock().expect("inner graph lock").layers()[1]
+    let right_nodes = inner.lock().layers()[1]
         .lock()
-        .expect("inner right layer lock")
+        
         .nodes()
         .clone();
 
@@ -562,7 +556,7 @@ fn assert_simple_hierarchical_cross_results_in_no_crossing(cross_min_type: Cross
 
     let right_inner_layers = right_inner_graph
         .lock()
-        .expect("right inner graph lock")
+        
         .layers()
         .clone();
     let right_dummy_nodes = clone_layer_nodes(&right_inner_layers[0]);
@@ -581,7 +575,7 @@ fn assert_simple_hierarchical_cross_results_in_no_crossing(cross_min_type: Cross
     let actual_normal_order_right = clone_layer_nodes(&right_inner_layers[1]);
     let actual_port_order_right = right_outer_node
         .lock()
-        .expect("right outer node lock")
+        
         .ports()
         .clone();
 
@@ -624,7 +618,7 @@ fn assert_simple_hierarchical_cross_sweeping_right_to_left_results_in_no_crossin
     cross_min_type: CrossMinType,
 ) {
     let graph = new_graph();
-    if let Ok(mut graph_guard) = graph.lock() {
+    if let Some(mut graph_guard) = graph.lock_ok() {
         graph_guard.set_property(InternalProperties::RANDOM, Some(mock_random(false)));
     }
     let left_layer = make_layer(&graph);
@@ -644,7 +638,7 @@ fn assert_simple_hierarchical_cross_sweeping_right_to_left_results_in_no_crossin
 
     let left_inner_layer_zero = left_inner_graph
         .lock()
-        .expect("left inner graph lock")
+        
         .layers()
         .first()
         .cloned()
@@ -657,7 +651,7 @@ fn assert_simple_hierarchical_cross_sweeping_right_to_left_results_in_no_crossin
 
     let actual_left_port_order = left_outer_node
         .lock()
-        .expect("left outer node lock")
+        
         .ports()
         .clone();
     let actual_left_inner_order = clone_layer_nodes(&left_inner_layer_zero);
@@ -724,7 +718,7 @@ fn assert_backward_sweep_not_taken_still_corrects_port_order(
 
     let middle_bottom_ports = middle_nodes[2]
         .lock()
-        .expect("middle bottom node lock")
+        
         .ports()
         .clone();
     let expected_port_order_bottom_middle = vec![
@@ -735,7 +729,7 @@ fn assert_backward_sweep_not_taken_still_corrects_port_order(
     run_crossmin(&graph, cross_min_type);
     let actual_port_order_bottom_middle = middle_nodes[2]
         .lock()
-        .expect("middle bottom node lock")
+        
         .ports()
         .clone();
     assert!(
@@ -788,7 +782,7 @@ fn assert_resolves_in_layer_port_order_crossings_after_switch(cross_min_type: Cr
     add_east_west_edge(&left_nodes[1], &middle_nodes[0]);
     let middle_top_ports = middle_nodes[0]
         .lock()
-        .expect("middle top node lock")
+        
         .ports()
         .clone();
     let expected_middle_node_order = vec![middle_nodes[1].clone(), middle_nodes[0].clone()];
@@ -801,7 +795,7 @@ fn assert_resolves_in_layer_port_order_crossings_after_switch(cross_min_type: Cr
         let actual_middle_node_order = clone_layer_nodes(&middle_layer);
         let actual_port_order_middle_top = middle_nodes[0]
             .lock()
-            .expect("middle top node lock")
+            
             .ports()
             .clone();
         assert!(
@@ -830,7 +824,7 @@ fn resolves_in_layer_port_order_crossings_after_switch_one_sided() {
 
 fn assert_compound_graph_forward_sweep_case_removes_crossing(cross_min_type: CrossMinType) {
     let graph = new_graph();
-    if let Ok(mut graph_guard) = graph.lock() {
+    if let Some(mut graph_guard) = graph.lock_ok() {
         graph_guard.set_property(
             LayeredOptions::HIERARCHY_HANDLING,
             Some(HierarchyHandling::IncludeChildren),
@@ -851,7 +845,7 @@ fn assert_compound_graph_forward_sweep_case_removes_crossing(cross_min_type: Cro
 
     let expected_ports_left = left_inner
         .lock()
-        .expect("left inner node lock")
+        
         .ports()
         .clone();
     let expected_right_order = vec![right_one.clone(), right_zero.clone()];
@@ -860,12 +854,12 @@ fn assert_compound_graph_forward_sweep_case_removes_crossing(cross_min_type: Cro
 
     let actual_ports_left = left_inner
         .lock()
-        .expect("left inner node lock")
+        
         .ports()
         .clone();
     let actual_right_order = right_layer
         .lock()
-        .expect("right layer lock")
+        
         .nodes()
         .clone();
 
@@ -893,7 +887,7 @@ fn given_compound_graph_where_order_is_only_corrected_on_forward_sweep_removes_c
 
 fn assert_graph_without_nesting_improves_on_backward_sweep(cross_min_type: CrossMinType) {
     let graph = new_graph();
-    if let Ok(mut graph_guard) = graph.lock() {
+    if let Some(mut graph_guard) = graph.lock_ok() {
         // Match Java MockRandom: force backward sweep.
         graph_guard.set_property(InternalProperties::RANDOM, Some(mock_random(false)));
     }
@@ -1003,7 +997,7 @@ fn given_graph_which_worsens_on_backward_sweep_should_take_result_of_forward_swe
 
 fn assert_cross_between_compound_and_non_compound_nodes_removed(cross_min_type: CrossMinType) {
     let graph = new_graph();
-    if let Ok(mut graph_guard) = graph.lock() {
+    if let Some(mut graph_guard) = graph.lock_ok() {
         graph_guard.set_property(
             LayeredOptions::HIERARCHY_HANDLING,
             Some(HierarchyHandling::IncludeChildren),
@@ -1035,7 +1029,7 @@ fn assert_cross_between_compound_and_non_compound_nodes_removed(cross_min_type: 
     } else {
         let left_ports = left_outer_node
             .lock()
-            .expect("left outer node lock")
+            
             .ports()
             .clone();
         let left_delta = port_index(&left_ports, &left_outer_ports[0]) as isize
@@ -1063,7 +1057,7 @@ fn given_cross_between_compound_and_non_compound_nodes_should_remove_crossing_on
 
 fn assert_cross_in_first_level_compound_node_removed(cross_min_type: CrossMinType) {
     let graph = new_graph();
-    if let Ok(mut graph_guard) = graph.lock() {
+    if let Some(mut graph_guard) = graph.lock_ok() {
         graph_guard.set_property(
             LayeredOptions::HIERARCHY_HANDLING,
             Some(HierarchyHandling::IncludeChildren),
@@ -1112,7 +1106,7 @@ fn assert_cross_in_first_level_compound_node_removed(cross_min_type: CrossMinTyp
     } else {
         let left_ports = left_outer_node
             .lock()
-            .expect("left outer node lock")
+            
             .ports()
             .clone();
         let left_delta = port_index(&left_ports, &left_outer_ports[0]) as isize
@@ -1141,7 +1135,7 @@ fn assert_graph_with_normal_and_hierarchical_cross_removed(
     with_unused_port: bool,
 ) {
     let graph = new_graph();
-    if let Ok(mut graph_guard) = graph.lock() {
+    if let Some(mut graph_guard) = graph.lock_ok() {
         graph_guard.set_property(
             LayeredOptions::HIERARCHY_HANDLING,
             Some(HierarchyHandling::IncludeChildren),
@@ -1175,7 +1169,7 @@ fn assert_graph_with_normal_and_hierarchical_cross_removed(
 
     let left_ports = left_outer_node
         .lock()
-        .expect("left outer node lock")
+        
         .ports()
         .clone();
     let right_order = clone_layer_nodes(&layers[1]);
@@ -1219,7 +1213,7 @@ fn assert_cross_with_no_external_port_dummies_on_one_nested_graph_removed(
     cross_min_type: CrossMinType,
 ) {
     let graph = new_graph();
-    if let Ok(mut graph_guard) = graph.lock() {
+    if let Some(mut graph_guard) = graph.lock_ok() {
         graph_guard.set_property(
             LayeredOptions::HIERARCHY_HANDLING,
             Some(HierarchyHandling::IncludeChildren),
@@ -1276,7 +1270,7 @@ fn assert_nested_graph_with_wrongly_sorted_dummy_nodes_sorted_and_resolves(
     cross_min_type: CrossMinType,
 ) {
     let graph = new_graph();
-    if let Ok(mut graph_guard) = graph.lock() {
+    if let Some(mut graph_guard) = graph.lock_ok() {
         graph_guard.set_property(
             LayeredOptions::HIERARCHY_HANDLING,
             Some(HierarchyHandling::IncludeChildren),
@@ -1314,7 +1308,7 @@ fn assert_nested_graph_with_wrongly_sorted_dummy_nodes_sorted_and_resolves(
     let actual_dummy_order = clone_layer_nodes(&right_inner_dummy_layer);
     let actual_right_port_order = right_outer_node
         .lock()
-        .expect("right outer node lock")
+        
         .ports()
         .clone();
     let actual_normal_order = clone_layer_nodes(&right_inner_normal_layer);

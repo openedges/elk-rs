@@ -15,9 +15,9 @@ impl ILayoutProcessor<TGraphRef> for NodePositionProcessor {
         progress_monitor.begin("Processor set coordinates", 1.0);
 
         let (nodes, root) = {
-            let graph_guard = match graph.lock() {
-                Ok(guard) => guard,
-                Err(_) => {
+            let graph_guard = match graph.lock_ok() {
+            Some(guard) => guard,
+            None => {
                     progress_monitor.done();
                     return;
                 }
@@ -26,8 +26,7 @@ impl ILayoutProcessor<TGraphRef> for NodePositionProcessor {
             let root = nodes
                 .iter()
                 .find(|node| {
-                    node.lock()
-                        .ok()
+                    node.lock_ok()
                         .and_then(|mut node_guard| {
                             node_guard.get_property(InternalProperties::ROOT)
                         })
@@ -40,7 +39,7 @@ impl ILayoutProcessor<TGraphRef> for NodePositionProcessor {
         self.number_of_nodes = if nodes.is_empty() { 1 } else { nodes.len() };
 
         if let Some(root) = root {
-            if let Ok(mut root_guard) = root.lock() {
+            if let Some(mut root_guard) = root.lock_ok() {
                 let x = root_guard
                     .get_property(InternalProperties::XCOOR)
                     .unwrap_or(0) as f64;
@@ -53,8 +52,7 @@ impl ILayoutProcessor<TGraphRef> for NodePositionProcessor {
             }
 
             let mut next_level = root
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.children_copy())
                 .unwrap_or_default();
             let mut sub_tasks = 1.0f32;
@@ -66,9 +64,9 @@ impl ILayoutProcessor<TGraphRef> for NodePositionProcessor {
         }
 
         let nodes = {
-            let graph_guard = match graph.lock() {
-                Ok(guard) => guard,
-                Err(_) => {
+            let graph_guard = match graph.lock_ok() {
+            Some(guard) => guard,
+            None => {
                     progress_monitor.done();
                     return;
                 }
@@ -76,7 +74,7 @@ impl ILayoutProcessor<TGraphRef> for NodePositionProcessor {
             graph_guard.nodes().clone()
         };
         for node in nodes {
-            if let Ok(mut node_guard) = node.lock() {
+            if let Some(mut node_guard) = node.lock_ok() {
                 let size = node_guard.size_ref();
                 let offset = KVector::with_values(size.x / 2.0, size.y / 2.0);
                 node_guard.position().sub(&offset);
@@ -101,7 +99,7 @@ impl NodePositionProcessor {
         let mut next_level: Vec<TNodeRef> = Vec::new();
 
         for node in current_level {
-            if let Ok(mut node_guard) = node.lock() {
+            if let Some(mut node_guard) = node.lock_ok() {
                 next_level.extend(node_guard.children_copy());
                 let x = node_guard
                     .get_property(InternalProperties::XCOOR)

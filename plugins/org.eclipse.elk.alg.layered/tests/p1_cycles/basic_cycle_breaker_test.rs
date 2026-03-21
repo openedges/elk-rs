@@ -134,8 +134,7 @@ fn run_cycle_breaker_test(strategy: CycleBreakingStrategy, root: ElkNodeRef) {
 
     let lgraph = import_lgraph(&root);
     let mut monitor = NullElkProgressMonitor;
-    let mut graph_guard = lgraph.lock().expect("graph lock");
-    match strategy {
+    let mut graph_guard = lgraph.lock();    match strategy {
         CycleBreakingStrategy::Greedy => {
             let mut breaker = GreedyCycleBreaker::new();
             breaker.process(&mut graph_guard, &mut monitor);
@@ -281,10 +280,9 @@ fn assert_acyclic(
 fn collect_nodes(
     lgraph: &org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LGraphRef,
 ) -> Vec<org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LNodeRef> {
-    let graph_guard = lgraph.lock().expect("lgraph lock");
-    let mut nodes = graph_guard.layerless_nodes().clone();
+    let graph_guard = lgraph.lock();    let mut nodes = graph_guard.layerless_nodes().clone();
     for layer in graph_guard.layers() {
-        if let Ok(layer_guard) = layer.lock() {
+        if let Some(layer_guard) = layer.lock_ok() {
             nodes.extend(layer_guard.nodes().clone());
         }
     }
@@ -311,16 +309,14 @@ fn dfs(
     visit.insert(id, VisitState::Visiting);
 
     let outgoing = node
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|node_guard| node_guard.outgoing_edges())
         .unwrap_or_default();
     for edge in outgoing {
         let target_node = edge
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|edge_guard| edge_guard.target())
-            .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+            .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
         if let Some(target) = target_node {
             dfs(&target, visit);
         }

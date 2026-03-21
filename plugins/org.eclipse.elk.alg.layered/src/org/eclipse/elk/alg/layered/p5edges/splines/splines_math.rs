@@ -101,12 +101,12 @@ impl SplinesMath {
     }
 
     pub fn dist_port_to_node_edge(port: &LPortRef, side: PortSide) -> f64 {
-        let Ok(mut port_guard) = port.lock() else {
+        let Some(mut port_guard) = port.lock_ok() else {
             return 0.0;
         };
         let node = port_guard.node();
         let node_size = node
-            .and_then(|node| node.lock().ok().map(|mut n| *n.shape().size_ref()))
+            .and_then(|node| node.lock_ok().map(|mut n| *n.shape().size_ref()))
             .unwrap_or_default();
         let mut port_pos = *port_guard.shape().position_ref();
         let anchor = *port_guard.anchor_ref();
@@ -141,7 +141,7 @@ impl SplinesMath {
     }
 
     pub fn get_margin_on_port_side(node: &LNodeRef, side: PortSide) -> f64 {
-        let Ok(mut node_guard) = node.lock() else {
+        let Some(mut node_guard) = node.lock_ok() else {
             return 0.0;
         };
         let margin = node_guard.margin();

@@ -122,7 +122,7 @@ impl PolylineEdgeRouter {
     }
 
     pub(crate) fn is_external_west_or_east_port(node: &LNodeRef) -> bool {
-        let Ok(mut node_guard) = node.lock() else {
+        let Some(mut node_guard) = node.lock_ok() else {
             return false;
         };
         if node_guard.node_type() != NodeType::ExternalPort {
@@ -136,10 +136,10 @@ impl PolylineEdgeRouter {
 
     fn process_node(&mut self, node: &LNodeRef, layer_left_x_pos: f64, max_acceptable_x_diff: f64) {
         // Batch-extract node data in a single lock
-        let (layer_right_x_pos, ports, is_ns_port) = if let Ok(node_guard) = node.lock() {
+        let (layer_right_x_pos, ports, is_ns_port) = if let Some(node_guard) = node.lock_ok() {
             let layer_size_x = node_guard
                 .layer()
-                .and_then(|layer| layer.lock().ok().map(|lg| lg.size_ref().x))
+                .and_then(|layer| layer.lock_ok().map(|lg| lg.size_ref().x))
                 .unwrap_or(0.0);
             (
                 layer_left_x_pos + layer_size_x,
@@ -155,7 +155,7 @@ impl PolylineEdgeRouter {
         for port in ports {
             // Batch-extract port data in a single lock
             let (absolute_port_anchor, port_side, add_junction_point, origin, connected_edges) =
-                if let Ok(mut port_guard) = port.lock() {
+                if let Some(mut port_guard) = port.lock_ok() {
                     let anchor = port_guard.absolute_anchor();
                     let side = port_guard.side();
                     let multi = port_guard.incoming_edges().len()
@@ -179,10 +179,10 @@ impl PolylineEdgeRouter {
             if is_ns_port {
                 if let Some(Origin::LPort(origin_port)) = origin {
                     if let Some(origin_anchor) =
-                        origin_port.lock().ok().and_then(|p| p.absolute_anchor())
+                        origin_port.lock_ok().and_then(|p| p.absolute_anchor())
                     {
                         absolute_port_anchor.x = origin_anchor.x;
-                        if let Ok(mut node_guard) = node.lock() {
+                        if let Some(mut node_guard) = node.lock_ok() {
                             node_guard.shape().position().x = absolute_port_anchor.x;
                         }
                     }
@@ -204,16 +204,14 @@ impl PolylineEdgeRouter {
 
             for edge in connected_edges {
                 let other_port = edge
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|edge_guard| edge_guard.other_port(&port));
 
                 let Some(other_port) = other_port else {
                     continue;
                 };
                 let other_anchor_y = other_port
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|port_guard| port_guard.absolute_anchor())
                     .map(|anchor| anchor.y)
                     .unwrap_or(absolute_port_anchor.y);
@@ -226,8 +224,7 @@ impl PolylineEdgeRouter {
 
     fn process_in_layer_edge(&self, edge: &LEdgeRef, layer_x_pos: f64, edge_spacing: f64) {
         let Some((source_port, target_port)) = edge
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|edge_guard| Some((edge_guard.source()?, edge_guard.target()?)))
         else {
             return;
@@ -235,13 +232,13 @@ impl PolylineEdgeRouter {
 
         // Batch-extract source port data in a single lock
         let (source_anchor_y, source_side, source_layer_width) =
-            if let Ok(port_guard) = source_port.lock() {
+            if let Some(port_guard) = source_port.lock_ok() {
                 let anchor_y = port_guard.absolute_anchor().map(|a| a.y).unwrap_or(0.0);
                 let side = port_guard.side();
                 let layer_width = port_guard
                     .node()
-                    .and_then(|node| node.lock().ok().and_then(|ng| ng.layer()))
-                    .and_then(|layer| layer.lock().ok().map(|lg| lg.size_ref().x))
+                    .and_then(|node| node.lock_ok().and_then(|ng| ng.layer()))
+                    .and_then(|layer| layer.lock_ok().map(|lg| lg.size_ref().x))
                     .unwrap_or(0.0);
                 (anchor_y, side, layer_width)
             } else {
@@ -249,8 +246,7 @@ impl PolylineEdgeRouter {
             };
 
         let target_anchor_y = target_port
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|port_guard| port_guard.absolute_anchor())
             .map(|anchor| anchor.y)
             .unwrap_or(0.0);
@@ -262,7 +258,7 @@ impl PolylineEdgeRouter {
             KVector::with_values(layer_x_pos - edge_spacing, mid_y)
         };
 
-        if let Ok(mut edge_guard) = edge.lock() {
+        if let Some(mut edge_guard) = edge.lock_ok() {
             edge_guard
                 .bend_points()
                 .add_first_values(bend_point.x, bend_point.y);
@@ -274,28 +270,25 @@ impl PolylineEdgeRouter {
         layer: &crate::org::eclipse::elk::alg::layered::graph::LayerRef,
     ) -> f64 {
         let nodes = layer
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|layer_guard| layer_guard.nodes().clone())
             .unwrap_or_default();
         let mut max_y_diff: f64 = 0.0;
         for node in nodes {
             let outgoing_edges = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.outgoing_edges())
                 .unwrap_or_default();
             for edge in outgoing_edges {
                 let Some((source_port, target_port)) = edge
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|edge_guard| Some((edge_guard.source()?, edge_guard.target()?)))
                 else {
                     continue;
                 };
                 // Batch-extract source port data in a single lock
                 let (source_side, source_anchor_y) =
-                    if let Ok(port_guard) = source_port.lock() {
+                    if let Some(port_guard) = source_port.lock_ok() {
                         (
                             port_guard.side(),
                             port_guard.absolute_anchor().map(|a| a.y).unwrap_or(0.0),
@@ -305,10 +298,10 @@ impl PolylineEdgeRouter {
                     };
                 // Batch-extract target port data in a single lock
                 let (target_in_same_layer, target_anchor_y) =
-                    if let Ok(port_guard) = target_port.lock() {
+                    if let Some(port_guard) = target_port.lock_ok() {
                         let in_same_layer = port_guard
                             .node()
-                            .and_then(|n| n.lock().ok().and_then(|ng| ng.layer()))
+                            .and_then(|n| n.lock_ok().and_then(|ng| ng.layer()))
                             .map(|tl| Arc::ptr_eq(&tl, layer))
                             .unwrap_or(false);
                         (
@@ -336,7 +329,7 @@ impl PolylineEdgeRouter {
         // We already have curr_port's absolute_anchor from the caller's batch extraction,
         // but the port ref is still needed to check Arc::ptr_eq for source detection.
         // Single lock on edge for all operations.
-        let Ok(mut edge_guard) = edge.lock() else {
+        let Some(mut edge_guard) = edge.lock_ok() else {
             return;
         };
 
@@ -347,8 +340,7 @@ impl PolylineEdgeRouter {
         }
         if !is_in_layer {
             let anchor_ne_bend = curr_port
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|port_guard| port_guard.absolute_anchor())
                 .map(|anchor| anchor != *bend_point)
                 .unwrap_or(true);
@@ -381,7 +373,7 @@ impl PolylineEdgeRouter {
     }
 
     fn is_in_layer_dummy(node: &LNodeRef) -> bool {
-        let Ok(node_guard) = node.lock() else {
+        let Some(node_guard) = node.lock_ok() else {
             return false;
         };
         if node_guard.node_type() != NodeType::LongEdge {
@@ -390,8 +382,7 @@ impl PolylineEdgeRouter {
         let edges = node_guard.connected_edges();
         drop(node_guard);
         edges.iter().any(|edge| {
-            edge.lock()
-                .ok()
+            edge.lock_ok()
                 .map(|edge_guard| edge_guard.is_in_layer_edge())
                 .unwrap_or(false)
         })
@@ -434,8 +425,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for PolylineEdgeRouter {
         while layer_index < layers.len() {
             let layer = &layers[layer_index];
             let nodes = layer
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|layer_guard| layer_guard.nodes().clone())
                 .unwrap_or_default();
             let external_layer = nodes
@@ -452,7 +442,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for PolylineEdgeRouter {
 
             for node in nodes {
                 // Batch-extract node data in a single lock
-                let (outgoing_edges, node_type) = if let Ok(node_guard) = node.lock() {
+                let (outgoing_edges, node_type) = if let Some(node_guard) = node.lock_ok() {
                     (node_guard.outgoing_edges(), node_guard.node_type())
                 } else {
                     continue;
@@ -461,8 +451,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for PolylineEdgeRouter {
                 let mut max_curr_output_y_diff: f64 = 0.0;
                 for edge in outgoing_edges {
                     let Some((source_port, target_port, is_self_loop)) = edge
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .and_then(|edge_guard| {
                             Some((
                                 edge_guard.source()?,
@@ -475,7 +464,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for PolylineEdgeRouter {
                     };
                     // Batch-extract source port data
                     let (source_pos, source_side) =
-                        if let Ok(port_guard) = source_port.lock() {
+                        if let Some(port_guard) = source_port.lock_ok() {
                             (
                                 port_guard.absolute_anchor().map(|a| a.y).unwrap_or(0.0),
                                 port_guard.side(),
@@ -485,12 +474,12 @@ impl ILayoutPhase<LayeredPhases, LGraph> for PolylineEdgeRouter {
                         };
                     // Batch-extract target port data
                     let (target_pos, target_in_same_layer) =
-                        if let Ok(port_guard) = target_port.lock() {
+                        if let Some(port_guard) = target_port.lock_ok() {
                             let anchor_y =
                                 port_guard.absolute_anchor().map(|a| a.y).unwrap_or(0.0);
                             let in_same_layer = port_guard
                                 .node()
-                                .and_then(|n| n.lock().ok().and_then(|ng| ng.layer()))
+                                .and_then(|n| n.lock_ok().and_then(|ng| ng.layer()))
                                 .map(|tl| Arc::ptr_eq(&tl, layer))
                                 .unwrap_or(false);
                             (anchor_y, in_same_layer)
@@ -540,8 +529,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for PolylineEdgeRouter {
             }
 
             let layer_width = layer
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|layer_guard| layer_guard.size_ref().x)
                 .unwrap_or(0.0);
             xpos += layer_width + layer_spacing;

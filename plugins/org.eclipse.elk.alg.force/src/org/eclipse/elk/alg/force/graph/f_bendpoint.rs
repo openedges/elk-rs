@@ -21,7 +21,7 @@ impl FBendpoint {
             particle: FParticle::new(),
             edge: Some(Arc::downgrade(edge)),
         }));
-        if let Ok(mut edge_guard) = edge.lock() {
+        if let Some(mut edge_guard) = edge.lock_ok() {
             edge_guard.bendpoints_mut().push(bend.clone());
         }
         bend
@@ -82,7 +82,7 @@ impl FBendpoint {
 impl fmt::Display for FBendpoint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(edge) = self.edge() {
-            if let Ok(edge_guard) = edge.lock() {
+            if let Some(edge_guard) = edge.lock_ok() {
                 return write!(f, "b[{}]", edge_guard);
             }
         }

@@ -29,16 +29,15 @@ impl ILayoutProcessor<LGraph> for NorthSouthPortPostprocessor {
         let layers = graph.layers().clone();
         for layer in layers {
             let node_array = layer
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|layer_guard| LGraphUtil::to_node_array(layer_guard.nodes()))
                 .unwrap_or_default();
 
             for node in node_array {
                 let (node_type, ports, dummy_pos) = {
-                    let mut node_guard = match node.lock() {
-                        Ok(guard) => guard,
-                        Err(_) => continue,
+                    let mut node_guard = match node.lock_ok() {
+            Some(guard) => guard,
+            None => continue,
                     };
                     let node_type = node_guard.node_type();
                     let ports = node_guard.ports().clone();
@@ -55,13 +54,11 @@ impl ILayoutProcessor<LGraph> for NorthSouthPortPostprocessor {
                     // but do NOT add bend points (Java: processSplineInput/OutputPort)
                     for port in &ports {
                         let has_in = port
-                            .lock()
-                            .ok()
+                            .lock_ok()
                             .map(|port_guard| !port_guard.incoming_edges().is_empty())
                             .unwrap_or(false);
                         let has_out = port
-                            .lock()
-                            .ok()
+                            .lock_ok()
                             .map(|port_guard| !port_guard.outgoing_edges().is_empty())
                             .unwrap_or(false);
 
@@ -81,13 +78,11 @@ impl ILayoutProcessor<LGraph> for NorthSouthPortPostprocessor {
 
                 for port in &ports {
                     let has_in = port
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .map(|port_guard| !port_guard.incoming_edges().is_empty())
                         .unwrap_or(false);
                     let has_out = port
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .map(|port_guard| !port_guard.outgoing_edges().is_empty())
                         .unwrap_or(false);
 
@@ -114,8 +109,7 @@ fn ports_same_origin(ports: &[LPortRef]) -> bool {
     let mut origin_port: Option<crate::org::eclipse::elk::alg::layered::graph::LPortRef> = None;
     for port in ports {
         let origin = port
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|mut port_guard| port_guard.get_property(InternalProperties::ORIGIN));
         let Some(Origin::LPort(origin_ref)) = origin else {
             return false;
@@ -134,29 +128,26 @@ fn ports_same_origin(ports: &[LPortRef]) -> bool {
 
 fn process_input_port(port: &LPortRef, dummy_y: f64, add_junction: bool) {
     let origin_port = port
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|mut port_guard| port_guard.get_property(InternalProperties::ORIGIN));
     let Some(Origin::LPort(origin_port)) = origin_port else {
         return;
     };
 
     let x = origin_port
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|port_guard| port_guard.absolute_anchor())
         .unwrap_or_else(KVector::new)
         .x;
 
     let edges = port
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|port_guard| LGraphUtil::to_edge_array(port_guard.incoming_edges()))
         .unwrap_or_default();
 
     for edge in edges {
         LEdge::set_target(&edge, Some(origin_port.clone()));
-        if let Ok(mut edge_guard) = edge.lock() {
+        if let Some(mut edge_guard) = edge.lock_ok() {
             edge_guard.bend_points().add_last_values(x, dummy_y);
             if add_junction {
                 let mut junction_points = edge_guard
@@ -171,29 +162,26 @@ fn process_input_port(port: &LPortRef, dummy_y: f64, add_junction: bool) {
 
 fn process_output_port(port: &LPortRef, dummy_y: f64, add_junction: bool) {
     let origin_port = port
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|mut port_guard| port_guard.get_property(InternalProperties::ORIGIN));
     let Some(Origin::LPort(origin_port)) = origin_port else {
         return;
     };
 
     let x = origin_port
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|port_guard| port_guard.absolute_anchor())
         .unwrap_or_else(KVector::new)
         .x;
 
     let edges = port
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|port_guard| LGraphUtil::to_edge_array(port_guard.outgoing_edges()))
         .unwrap_or_default();
 
     for edge in edges {
         LEdge::set_source(&edge, Some(origin_port.clone()));
-        if let Ok(mut edge_guard) = edge.lock() {
+        if let Some(mut edge_guard) = edge.lock_ok() {
             edge_guard.bend_points().add_first_values(x, dummy_y);
             if add_junction {
                 let mut junction_points = edge_guard
@@ -210,22 +198,20 @@ fn process_output_port(port: &LPortRef, dummy_y: f64, add_junction: bool) {
 /// SPLINE_NS_PORT_Y_COORD, but do NOT add bend points (Java: processSplineInputPort)
 fn process_spline_input_port(port: &LPortRef, dummy_y: f64) {
     let origin_port = port
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|mut port_guard| port_guard.get_property(InternalProperties::ORIGIN));
     let Some(Origin::LPort(origin_port)) = origin_port else {
         return;
     };
 
     // Set SPLINE_NS_PORT_Y_COORD on the origin port
-    if let Ok(mut origin_guard) = origin_port.lock() {
+    if let Some(mut origin_guard) = origin_port.lock_ok() {
         origin_guard.set_property(InternalProperties::SPLINE_NS_PORT_Y_COORD, Some(dummy_y));
     }
 
     // Reroute edges to origin port (no bend points added)
     let edges = port
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|port_guard| LGraphUtil::to_edge_array(port_guard.incoming_edges()))
         .unwrap_or_default();
 
@@ -238,22 +224,20 @@ fn process_spline_input_port(port: &LPortRef, dummy_y: f64) {
 /// SPLINE_NS_PORT_Y_COORD, but do NOT add bend points (Java: processSplineOutputPort)
 fn process_spline_output_port(port: &LPortRef, dummy_y: f64) {
     let origin_port = port
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|mut port_guard| port_guard.get_property(InternalProperties::ORIGIN));
     let Some(Origin::LPort(origin_port)) = origin_port else {
         return;
     };
 
     // Set SPLINE_NS_PORT_Y_COORD on the origin port
-    if let Ok(mut origin_guard) = origin_port.lock() {
+    if let Some(mut origin_guard) = origin_port.lock_ok() {
         origin_guard.set_property(InternalProperties::SPLINE_NS_PORT_Y_COORD, Some(dummy_y));
     }
 
     // Reroute edges to origin port (no bend points added)
     let edges = port
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|port_guard| LGraphUtil::to_edge_array(port_guard.outgoing_edges()))
         .unwrap_or_default();
 

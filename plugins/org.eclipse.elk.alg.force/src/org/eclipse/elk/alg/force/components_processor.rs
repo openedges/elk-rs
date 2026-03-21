@@ -27,7 +27,7 @@ impl ComponentsProcessor {
 
         let mut components = Vec::new();
         for node in graph.nodes() {
-            let node_id = node.lock().ok().map(|n| n.id());
+            let node_id = node.lock_ok().map(|n| n.id());
             let Some(node_id) = node_id else { continue };
             if visited[node_id] {
                 continue;
@@ -43,7 +43,7 @@ impl ComponentsProcessor {
             for comp in &components {
                 let mut id = 0_usize;
                 for node in comp.nodes() {
-                    if let Ok(mut node_guard) = node.lock() {
+                    if let Some(mut node_guard) = node.lock_ok() {
                         node_guard.set_id(id);
                         id += 1;
                     }
@@ -70,7 +70,7 @@ impl ComponentsProcessor {
             let mut max_y = f64::MIN;
 
             for node in graph.nodes() {
-                if let Ok(mut node_guard) = node.lock() {
+                if let Some(mut node_guard) = node.lock_ok() {
                     priority += node_guard.get_property(ForceOptions::PRIORITY).unwrap_or(1);
                     let pos = node_guard.position_ref();
                     let size = node_guard.size_ref();
@@ -181,7 +181,7 @@ impl ComponentsProcessor {
         let mut incidence = vec![Vec::new(); n];
 
         for node in graph.nodes() {
-            if let Ok(node_guard) = node.lock() {
+            if let Some(node_guard) = node.lock_ok() {
                 if node_guard.id() < n {
                     incidence[node_guard.id()] = Vec::new();
                 }
@@ -190,16 +190,13 @@ impl ComponentsProcessor {
 
         for edge in graph.edges() {
             let (source_id, target_id) = {
-                let edge_guard = edge.lock().ok();
-                let Some(edge_guard) = edge_guard else {
-                    continue;
-                };
+                let edge_guard = edge.lock();
                 let source_id = edge_guard
                     .source()
-                    .and_then(|node| node.lock().ok().map(|n| n.id()));
+                    .and_then(|node| node.lock_ok().map(|n| n.id()));
                 let target_id = edge_guard
                     .target()
-                    .and_then(|node| node.lock().ok().map(|n| n.id()));
+                    .and_then(|node| node.lock_ok().map(|n| n.id()));
                 match (source_id, target_id) {
                     (Some(source_id), Some(target_id)) => (source_id, target_id),
                     _ => continue,
@@ -223,7 +220,7 @@ impl ComponentsProcessor {
         visited: &mut [bool],
         incidence: &[Vec<FEdgeRef>],
     ) {
-        let node_id = node.lock().ok().map(|n| n.id());
+        let node_id = node.lock_ok().map(|n| n.id());
         let Some(node_id) = node_id else { return };
         if visited[node_id] {
             return;
@@ -233,10 +230,7 @@ impl ComponentsProcessor {
 
         for edge in &incidence[node_id] {
             let (source, target, labels) = {
-                let edge_guard = edge.lock().ok();
-                let Some(edge_guard) = edge_guard else {
-                    continue;
-                };
+                let edge_guard = edge.lock();
                 let source = edge_guard.source();
                 let target = edge_guard.target();
                 let labels: Vec<FLabelRef> = edge_guard.labels().to_vec();
@@ -297,16 +291,16 @@ impl ComponentsProcessor {
         };
 
         for node in source.nodes() {
-            if let Ok(mut node_guard) = node.lock() {
+            if let Some(mut node_guard) = node.lock_ok() {
                 node_guard.position().add(&offset);
             }
             dest.nodes_mut().push(node.clone());
         }
 
         for edge in source.edges() {
-            if let Ok(mut edge_guard) = edge.lock() {
+            if let Some(mut edge_guard) = edge.lock_ok() {
                 for bend in edge_guard.bendpoints_mut() {
-                    if let Ok(mut bend_guard) = bend.lock() {
+                    if let Some(mut bend_guard) = bend.lock_ok() {
                         bend_guard.position().add(&offset);
                     }
                 }
@@ -315,7 +309,7 @@ impl ComponentsProcessor {
         }
 
         for label in source.labels() {
-            if let Ok(mut label_guard) = label.lock() {
+            if let Some(mut label_guard) = label.lock_ok() {
                 label_guard.position().add(&offset);
             }
             dest.labels_mut().push(label.clone());

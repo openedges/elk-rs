@@ -13,8 +13,7 @@ fn new_graph_with_layers(count: usize) -> (LGraphRef, Vec<LayerRef>) {
     let graph = LGraph::new();
     let mut layers = Vec::with_capacity(count);
     {
-        let mut graph_guard = graph.lock().expect("graph lock");
-        for _ in 0..count {
+        let mut graph_guard = graph.lock();        for _ in 0..count {
             let layer = Layer::new(&graph);
             graph_guard.layers_mut().push(layer.clone());
             layers.push(layer);
@@ -26,8 +25,7 @@ fn new_graph_with_layers(count: usize) -> (LGraphRef, Vec<LayerRef>) {
 fn add_layered_node(graph: &LGraphRef, layer: &LayerRef, partition: i32) -> LNodeRef {
     let node = LNode::new(graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.set_property(CoreOptions::PARTITIONING_PARTITION, Some(partition));
+        let mut node_guard = node.lock();        node_guard.set_property(CoreOptions::PARTITIONING_PARTITION, Some(partition));
         node_guard.set_node_type(NodeType::Normal);
     }
     LNode::set_layer(&node, Some(layer.clone()));
@@ -40,8 +38,7 @@ fn add_partition_dummy_port(
 ) -> LPortRef {
     let port = LPort::new();
     {
-        let mut port_guard = port.lock().expect("port lock");
-        port_guard.set_side(side);
+        let mut port_guard = port.lock();        port_guard.set_side(side);
         port_guard.set_property(InternalProperties::PARTITION_DUMMY, Some(true));
     }
     LPort::set_node(&port, Some(node.clone()));
@@ -51,7 +48,7 @@ fn add_partition_dummy_port(
 fn connect(source: &LPortRef, target: &LPortRef) {
     let edge = LEdge::new();
     edge.lock()
-        .expect("edge lock")
+        
         .set_property(InternalProperties::PARTITION_DUMMY, Some(true));
     LEdge::set_source(&edge, Some(source.clone()));
     LEdge::set_target(&edge, Some(target.clone()));
@@ -75,11 +72,11 @@ fn no_empty_layer_test() {
 
     let mut post = PartitionPostprocessor;
     let mut monitor = NullElkProgressMonitor;
-    post.process(&mut graph.lock().expect("graph lock"), &mut monitor);
+    post.process(&mut graph.lock(), &mut monitor);
 
-    for layer in graph.lock().expect("graph lock").layers().iter() {
+    for layer in graph.lock().layers().iter() {
         assert!(
-            !layer.lock().expect("layer lock").nodes().is_empty(),
+            !layer.lock().nodes().is_empty(),
             "no empty layers must remain"
         );
     }
@@ -92,39 +89,37 @@ fn test_partition_order() {
 
     let left = LNode::new(&graph);
     left.lock()
-        .expect("left node lock")
+        
         .set_property(CoreOptions::PARTITIONING_PARTITION, Some(0));
     let right = LNode::new(&graph);
     right
         .lock()
-        .expect("right node lock")
+        
         .set_property(CoreOptions::PARTITIONING_PARTITION, Some(1));
 
     {
-        let mut graph_guard = graph.lock().expect("graph lock");
-        graph_guard.layerless_nodes_mut().push(left.clone());
+        let mut graph_guard = graph.lock();        graph_guard.layerless_nodes_mut().push(left.clone());
         graph_guard.layerless_nodes_mut().push(right.clone());
     }
 
-    PartitionMidprocessor.process(&mut graph.lock().expect("graph lock"), &mut monitor);
+    PartitionMidprocessor.process(&mut graph.lock(), &mut monitor);
 
     let layer_a = Layer::new(&graph);
     let layer_b = Layer::new(&graph);
     {
-        let mut graph_guard = graph.lock().expect("graph lock");
-        graph_guard.layers_mut().push(layer_a.clone());
+        let mut graph_guard = graph.lock();        graph_guard.layers_mut().push(layer_a.clone());
         graph_guard.layers_mut().push(layer_b.clone());
     }
     LNode::set_layer(&left, Some(layer_a.clone()));
     LNode::set_layer(&right, Some(layer_b.clone()));
 
-    PartitionPostprocessor.process(&mut graph.lock().expect("graph lock"), &mut monitor);
+    PartitionPostprocessor.process(&mut graph.lock(), &mut monitor);
 
     let mut last_partition = -1;
-    for layer in graph.lock().expect("graph lock").layers().iter() {
+    for layer in graph.lock().layers().iter() {
         let mut current_partition = -1;
-        for node in layer.lock().expect("layer lock").nodes().iter() {
-            let node_partition = node.lock().ok().and_then(|mut node_guard| {
+        for node in layer.lock().nodes().iter() {
+            let node_partition = node.lock_ok().and_then(|mut node_guard| {
                 node_guard.get_property(CoreOptions::PARTITIONING_PARTITION)
             });
             if let Some(node_partition) = node_partition {

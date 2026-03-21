@@ -191,10 +191,10 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
         let layers = layered_graph.layers().clone();
         if *TRACE_COMPOUND_WIDTH {
             let layer_info: Vec<String> = layers.iter().enumerate().map(|(i, layer)| {
-                let node_count = layer.lock().ok().map(|g| g.nodes().len()).unwrap_or(0);
-                let nodes_str = layer.lock().ok().map(|g| {
+                let node_count = layer.lock_ok().map(|g| g.nodes().len()).unwrap_or(0);
+                let nodes_str = layer.lock_ok().map(|g| {
                     g.nodes().iter().map(|n| {
-                        n.lock().ok().map(|ng| format!("{:?}",
+                        n.lock_ok().map(|ng| format!("{:?}",
                             ng.node_type()
                         )).unwrap_or("?".to_string())
                     }).collect::<Vec<_>>().join(", ")
@@ -219,8 +219,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
 
             let right_layer_nodes = right_layer.as_ref().and_then(|layer| {
                 layer
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|layer_guard| layer_guard.nodes().clone())
             });
             let right_layer_index = if right_layer.is_some() {
@@ -232,8 +231,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
             if let Some(left_layer_ref) = &left_layer {
                 LGraphUtil::place_nodes_horizontally(left_layer_ref, xpos);
                 let left_width = left_layer_ref
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|layer_guard| layer_guard.size_ref().x)
                     .unwrap_or(0.0);
                 xpos = (xpos + left_width) as f32 as f64;

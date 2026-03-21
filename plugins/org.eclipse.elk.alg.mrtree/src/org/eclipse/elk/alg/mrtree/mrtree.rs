@@ -42,8 +42,7 @@ impl MrTree {
         monitor.begin("Tree layout", 1.0);
 
         let debug = graph
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|mut g| g.get_property(MrTreeOptions::DEBUG_MODE))
             .unwrap_or(false);
         if debug {
@@ -84,8 +83,7 @@ impl MrTree {
         monitor.begin("Layout", total);
 
         let debug = graph
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|mut g| g.get_property(MrTreeOptions::DEBUG_MODE))
             .unwrap_or(false);
         if debug {
@@ -102,7 +100,7 @@ impl MrTree {
             if debug {
                 monitor.log(&format!("   Slot {}: processor", idx));
             }
-            if let Ok(mut processor_guard) = processor.lock() {
+            if let Some(mut processor_guard) = processor.lock_ok() {
                 let mut sub = monitor.sub_task(1.0);
                 processor_guard.process(graph, sub.as_mut());
             }

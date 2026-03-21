@@ -34,8 +34,7 @@ impl BKAligner {
         let trace_align = *TRACE_BK_ALIGN;
         for layer in &bal.layers {
             let nodes = layer
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|layer_guard| layer_guard.nodes().clone())
                 .unwrap_or_default();
             for node in nodes {
@@ -59,8 +58,7 @@ impl BKAligner {
         for layer in layers {
             let mut r: isize = -1;
             let mut nodes = layer
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|layer_guard| layer_guard.nodes().clone())
                 .unwrap_or_default();
 
@@ -95,8 +93,7 @@ impl BKAligner {
                 let high = d / 2;
                 if trace_align {
                     let node_name = node
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .map(|mut node_guard| node_guard.designation().to_string())
                         .unwrap_or_else(|| "<poisoned>".to_string());
                     eprintln!(
@@ -119,8 +116,7 @@ impl BKAligner {
                             let edge_marked = marked_edges.contains(&edge_key(edge));
                             if trace_align {
                                 let neighbor_name = neighbor
-                                    .lock()
-                                    .ok()
+                                    .lock_ok()
                                     .map(|mut node_guard| node_guard.designation().to_string())
                                     .unwrap_or_else(|| "<poisoned>".to_string());
                                 eprintln!(
@@ -159,8 +155,7 @@ impl BKAligner {
                             let edge_marked = marked_edges.contains(&edge_key(edge));
                             if trace_align {
                                 let neighbor_name = neighbor
-                                    .lock()
-                                    .ok()
+                                    .lock_ok()
                                     .map(|mut node_guard| node_guard.designation().to_string())
                                     .unwrap_or_else(|| "<poisoned>".to_string());
                                 eprintln!(
@@ -200,8 +195,7 @@ impl BKAligner {
         for (root_id, _block) in blocks {
             let root_node = bal.nodes_by_id[root_id].clone();
             let root_name = root_node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|mut node_guard| node_guard.designation().to_string())
                 .unwrap_or_else(|| "<poisoned>".to_string());
             if trace_inner {
@@ -233,21 +227,19 @@ impl BKAligner {
                     let current_id = node_id(&bal.nodes_by_id[current]);
                     let next_id = node_id(&bal.nodes_by_id[next]);
                     let candidate_count = bal.nodes_by_id[current]
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .map(|node_guard| node_guard.connected_edges())
                         .unwrap_or_default()
                         .into_iter()
                         .filter(|candidate| {
                             candidate
-                                .lock()
-                                .ok()
+                                .lock_ok()
                                 .map(|edge_guard| {
                                     let src = edge_guard.source().and_then(|port| {
-                                        port.lock().ok().and_then(|port_guard| port_guard.node())
+                                        port.lock_ok().and_then(|port_guard| port_guard.node())
                                     });
                                     let tgt = edge_guard.target().and_then(|port| {
-                                        port.lock().ok().and_then(|port_guard| port_guard.node())
+                                        port.lock_ok().and_then(|port_guard| port_guard.node())
                                     });
                                     (src, tgt)
                                 })
@@ -271,8 +263,7 @@ impl BKAligner {
                     }
                 }
                 let (source_port, target_port) = edge
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|edge_guard| Some((edge_guard.source()?, edge_guard.target()?)))
                     .unwrap();
 
@@ -286,13 +277,11 @@ impl BKAligner {
                 bal.inner_shift[next] = next_inner_shift;
                 if trace_inner {
                     let current_name = bal.nodes_by_id[current]
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .map(|mut node_guard| node_guard.designation().to_string())
                         .unwrap_or_else(|| "<poisoned>".to_string());
                     let next_name = bal.nodes_by_id[next]
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .map(|mut node_guard| node_guard.designation().to_string())
                         .unwrap_or_else(|| "<poisoned>".to_string());
                     eprintln!(
@@ -316,8 +305,7 @@ impl BKAligner {
                 bal.inner_shift[current] += space_above;
                 if trace_inner {
                     let current_name = bal.nodes_by_id[current]
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .map(|mut node_guard| node_guard.designation().to_string())
                         .unwrap_or_else(|| "<poisoned>".to_string());
                     eprintln!(

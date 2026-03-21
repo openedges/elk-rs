@@ -18,14 +18,13 @@ impl NorthToSouthRoutingStrategy {
     }
 
     pub fn get_port_position_on_hyper_node(&self, port: &LPortRef) -> f64 {
-        let Ok(mut port_guard) = port.lock() else {
+        let Some(mut port_guard) = port.lock_ok() else {
             return 0.0;
         };
         let node_pos_x = port_guard
             .node()
             .and_then(|node| {
-                node.lock()
-                    .ok()
+                node.lock_ok()
                     .map(|mut node_guard| node_guard.shape().position_ref().x)
             })
             .unwrap_or(0.0);
@@ -55,7 +54,7 @@ impl NorthToSouthRoutingStrategy {
         let segment_y = start_pos + segment.routing_slot() as f64 * edge_spacing;
         for port in segment.ports() {
             let (source_x, outgoing_edges) = {
-                let Ok(port_guard) = port.lock() else {
+                let Some(port_guard) = port.lock_ok() else {
                     continue;
                 };
                 let anchor_x = port_guard
@@ -68,7 +67,7 @@ impl NorthToSouthRoutingStrategy {
 
             for edge in outgoing_edges {
                 let (is_self_loop, target_x) = {
-                    let Ok(edge_guard) = edge.lock() else {
+                    let Some(edge_guard) = edge.lock_ok() else {
                         continue;
                     };
                     if edge_guard.is_self_loop() {
@@ -77,8 +76,7 @@ impl NorthToSouthRoutingStrategy {
                         let tx = edge_guard
                             .target()
                             .and_then(|t| {
-                                t.lock()
-                                    .ok()
+                                t.lock_ok()
                                     .and_then(|port_guard| port_guard.absolute_anchor())
                                     .map(|anchor| anchor.x)
                             })
@@ -91,7 +89,7 @@ impl NorthToSouthRoutingStrategy {
                 }
 
                 if (source_x - target_x).abs() > OrthogonalRoutingGenerator::TOLERANCE {
-                    let Ok(mut edge_guard) = edge.lock() else {
+                    let Some(mut edge_guard) = edge.lock_ok() else {
                         continue;
                     };
 

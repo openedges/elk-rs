@@ -16,8 +16,7 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 #[test]
 fn white_box_test_no_layerless_nodes() {
     let lgraph = run_network_simplex_layerer();
-    let graph_guard = lgraph.lock().expect("lgraph lock");
-    assert!(
+    let graph_guard = lgraph.lock();    assert!(
         graph_guard.layerless_nodes().is_empty(),
         "There are layerless nodes left!"
     );
@@ -26,26 +25,23 @@ fn white_box_test_no_layerless_nodes() {
 #[test]
 fn white_box_test_proper_layering() {
     let lgraph = run_network_simplex_layerer();
-    let graph_guard = lgraph.lock().expect("lgraph lock");
-    let layers = graph_guard.layers().clone();
+    let graph_guard = lgraph.lock();    let layers = graph_guard.layers().clone();
     drop(graph_guard);
 
     for layer in &layers {
         let source_layer_index = layer_index(layer);
-        let nodes = layer.lock().expect("layer lock").nodes().clone();
+        let nodes = layer.lock().nodes().clone();
         for node in nodes {
             let outgoing = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.outgoing_edges())
                 .unwrap_or_default();
             for edge in outgoing {
                 let target_layer_index = edge
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|edge_guard| edge_guard.target())
-                    .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
-                    .and_then(|target_node| target_node.lock().ok().and_then(|n| n.layer()))
+                    .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
+                    .and_then(|target_node| target_node.lock_ok().and_then(|n| n.layer()))
                     .map(|layer_ref| layer_index(&layer_ref))
                     .unwrap_or(source_layer_index);
                 assert!(
@@ -83,7 +79,7 @@ fn run_network_simplex_layerer(
 
     let mut layerer = NetworkSimplexLayerer::new();
     let mut monitor = BasicProgressMonitor::new();
-    if let Ok(mut graph_guard) = lgraph.lock() {
+    if let Some(mut graph_guard) = lgraph.lock_ok() {
         layerer.process(&mut *graph_guard, &mut monitor);
     }
 
@@ -105,8 +101,7 @@ fn layer_index(
     layer: &org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LayerRef,
 ) -> usize {
     layer
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|layer_guard| layer_guard.index())
         .unwrap_or(0)
 }

@@ -63,7 +63,7 @@ impl NetworkSimplexLayerer {
             FxHashMap::with_capacity_and_hasher(num_nodes, Default::default());
         for (index, node) in nodes.iter().enumerate() {
             ptr_to_idx.insert(Arc::as_ptr(node) as usize, index);
-            if let Ok(mut node_guard) = node.lock() {
+            if let Some(mut node_guard) = node.lock_ok() {
                 node_guard.shape().graph_element().id = index as i32;
             }
         }
@@ -71,15 +71,14 @@ impl NetworkSimplexLayerer {
         // Pre-build adjacency list — one lock chain per node, then DFS is lock-free
         let mut adjacency: Vec<Vec<usize>> = vec![Vec::new(); num_nodes];
         for (i, node) in nodes.iter().enumerate() {
-            if let Ok(node_guard) = node.lock() {
+            if let Some(node_guard) = node.lock_ok() {
                 for port in node_guard.ports() {
-                    if let Ok(port_guard) = port.lock() {
+                    if let Some(port_guard) = port.lock_ok() {
                         for edge in port_guard.incoming_edges() {
                             if let Some(src_node) = edge
-                                .lock()
-                                .ok()
+                                .lock_ok()
                                 .and_then(|e| e.source())
-                                .and_then(|p| p.lock().ok().and_then(|pg| pg.node()))
+                                .and_then(|p| p.lock_ok().and_then(|pg| pg.node()))
                             {
                                 if let Some(&j) =
                                     ptr_to_idx.get(&(Arc::as_ptr(&src_node) as usize))
@@ -90,10 +89,9 @@ impl NetworkSimplexLayerer {
                         }
                         for edge in port_guard.outgoing_edges() {
                             if let Some(tgt_node) = edge
-                                .lock()
-                                .ok()
+                                .lock_ok()
                                 .and_then(|e| e.target())
-                                .and_then(|p| p.lock().ok().and_then(|pg| pg.node()))
+                                .and_then(|p| p.lock_ok().and_then(|pg| pg.node()))
                             {
                                 if let Some(&j) =
                                     ptr_to_idx.get(&(Arc::as_ptr(&tgt_node) as usize))
@@ -160,28 +158,26 @@ impl NetworkSimplexLayerer {
         }
 
         for node in nodes {
-            let outgoing = match node.lock() {
-                Ok(node_guard) => node_guard.outgoing_edges(),
-                Err(_) => Vec::new(),
+            let outgoing = match node.lock_ok() {
+            Some(node_guard) => node_guard.outgoing_edges(),
+            None => Vec::new(),
             };
             for edge in outgoing {
                 let is_self_loop = edge
-                    .lock()
+                    .lock_ok()
                     .map(|edge_guard| edge_guard.is_self_loop())
                     .unwrap_or(false);
                 if is_self_loop {
                     continue;
                 }
                 let source_node = edge
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|edge_guard| edge_guard.source())
-                    .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                    .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
                 let target_node = edge
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|edge_guard| edge_guard.target())
-                    .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                    .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
                 let (Some(source_node), Some(target_node)) = (source_node, target_node) else {
                     continue;
                 };
@@ -195,8 +191,7 @@ impl NetworkSimplexLayerer {
                 };
 
                 let priority = edge
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|mut edge_guard| {
                         edge_guard.get_property(LayeredOptions::PRIORITY_SHORTNESS)
                     })
@@ -253,9 +248,9 @@ impl ILayoutPhase<LayeredPhases, LGraph> for NetworkSimplexLayerer {
             simplex.execute_with_monitor(sub_monitor.as_mut());
 
             for nnode in &graph.nodes {
-                let (layer, origin) = match nnode.lock() {
-                    Ok(node_guard) => (node_guard.layer, node_guard.origin.clone()),
-                    Err(_) => continue,
+                let (layer, origin) = match nnode.lock_ok() {
+            Some(node_guard) => (node_guard.layer, node_guard.origin.clone()),
+            None => continue,
                 };
                 let Some(origin) = origin else {
                     continue;
@@ -266,8 +261,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for NetworkSimplexLayerer {
 
                 while layered_graph.layers().len() <= layer as usize {
                     let graph_ref = l_node
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .and_then(|node_guard| node_guard.graph())
                         .unwrap_or_default();
                     layered_graph.layers_mut().push(Layer::new(&graph_ref));
@@ -284,7 +278,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for NetworkSimplexLayerer {
             if connected_components.len() > 1 {
                 let mut counts = vec![0i32; layered_graph.layers().len()];
                 for (layer_idx, layer) in layered_graph.layers().iter().enumerate() {
-                    if let Ok(layer_guard) = layer.lock() {
+                    if let Some(layer_guard) = layer.lock_ok() {
                         counts[layer_idx] = layer_guard.nodes().len() as i32;
                     }
                 }

@@ -12,9 +12,9 @@ impl ILayoutProcessor<TGraphRef> for GraphBoundsProcessor {
         progress_monitor.begin("Process graph bounds", 1.0);
 
         let nodes = {
-            let graph_guard = match graph.lock() {
-                Ok(guard) => guard,
-                Err(_) => {
+            let graph_guard = match graph.lock_ok() {
+            Some(guard) => guard,
+            None => {
                     progress_monitor.done();
                     return;
                 }
@@ -28,7 +28,7 @@ impl ILayoutProcessor<TGraphRef> for GraphBoundsProcessor {
         let mut ymax = f64::MIN;
 
         for node in nodes {
-            if let Ok(node_guard) = node.lock() {
+            if let Some(node_guard) = node.lock_ok() {
                 let pos = node_guard.position_ref();
                 let size = node_guard.size_ref();
                 xmin = xmin.min(pos.x);
@@ -38,7 +38,7 @@ impl ILayoutProcessor<TGraphRef> for GraphBoundsProcessor {
             }
         }
 
-        if let Ok(mut graph_guard) = graph.lock() {
+        if let Some(mut graph_guard) = graph.lock_ok() {
             graph_guard.set_property(InternalProperties::GRAPH_XMIN, Some(xmin));
             graph_guard.set_property(InternalProperties::GRAPH_YMIN, Some(ymin));
             graph_guard.set_property(InternalProperties::GRAPH_XMAX, Some(xmax));

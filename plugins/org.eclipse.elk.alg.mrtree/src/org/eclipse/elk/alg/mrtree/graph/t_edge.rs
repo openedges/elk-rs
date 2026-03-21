@@ -65,7 +65,7 @@ impl TEdge {
     }
 
     pub fn set_source(edge: &TEdgeRef, source: Option<TNodeRef>) {
-        let current = edge.lock().ok().and_then(|edge_guard| edge_guard.source());
+        let current = edge.lock_ok().and_then(|edge_guard| edge_guard.source());
         if let (Some(current), Some(source)) = (&current, &source) {
             if Arc::ptr_eq(current, source) {
                 return;
@@ -73,24 +73,24 @@ impl TEdge {
         }
 
         if let Some(current) = current {
-            if let Ok(mut node_guard) = current.lock() {
+            if let Some(mut node_guard) = current.lock_ok() {
                 node_guard.remove_outgoing(edge);
             }
         }
 
         if let Some(source) = &source {
-            if let Ok(mut node_guard) = source.lock() {
+            if let Some(mut node_guard) = source.lock_ok() {
                 node_guard.add_outgoing(edge.clone());
             }
         }
 
-        if let Ok(mut edge_guard) = edge.lock() {
+        if let Some(mut edge_guard) = edge.lock_ok() {
             edge_guard.source = source.map(|node| Arc::downgrade(&node));
         }
     }
 
     pub fn set_target(edge: &TEdgeRef, target: Option<TNodeRef>) {
-        let current = edge.lock().ok().and_then(|edge_guard| edge_guard.target());
+        let current = edge.lock_ok().and_then(|edge_guard| edge_guard.target());
         if let (Some(current), Some(target)) = (&current, &target) {
             if Arc::ptr_eq(current, target) {
                 return;
@@ -98,18 +98,18 @@ impl TEdge {
         }
 
         if let Some(current) = current {
-            if let Ok(mut node_guard) = current.lock() {
+            if let Some(mut node_guard) = current.lock_ok() {
                 node_guard.remove_incoming(edge);
             }
         }
 
         if let Some(target) = &target {
-            if let Ok(mut node_guard) = target.lock() {
+            if let Some(mut node_guard) = target.lock_ok() {
                 node_guard.add_incoming(edge.clone());
             }
         }
 
-        if let Ok(mut edge_guard) = edge.lock() {
+        if let Some(mut edge_guard) = edge.lock_ok() {
             edge_guard.target = target.map(|node| Arc::downgrade(&node));
         }
     }
@@ -134,8 +134,8 @@ impl TEdge {
 impl fmt::Display for TEdge {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let (Some(source), Some(target)) = (self.source(), self.target()) {
-            let source_label = source.lock().ok().map(|node| node.to_string());
-            let target_label = target.lock().ok().map(|node| node.to_string());
+            let source_label = source.lock_ok().map(|node| node.to_string());
+            let target_label = target.lock_ok().map(|node| node.to_string());
             if let (Some(source_label), Some(target_label)) = (source_label, target_label) {
                 return write!(f, "{}->{}", source_label, target_label);
             }

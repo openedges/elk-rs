@@ -63,54 +63,53 @@ impl LEdge {
     }
 
     pub fn set_source(edge: &LEdgeRef, source: Option<LPortRef>) {
-        let current_source = edge.lock().ok().and_then(|edge| edge.source());
+        let current_source = edge.lock_ok().and_then(|edge| edge.source());
         if let Some(current_source) = current_source {
-            if let Ok(mut port) = current_source.lock() {
+            if let Some(mut port) = current_source.lock_ok() {
                 remove_arc(port.outgoing_edges_mut(), edge);
             }
         }
 
         if let Some(source_ref) = &source {
-            if let Ok(mut port) = source_ref.lock() {
+            if let Some(mut port) = source_ref.lock_ok() {
                 port.outgoing_edges_mut().push(edge.clone());
             }
         }
 
-        if let Ok(mut edge_guard) = edge.lock() {
+        if let Some(mut edge_guard) = edge.lock_ok() {
             edge_guard.source = source.as_ref().map(Arc::downgrade);
         }
     }
 
     pub fn set_target(edge: &LEdgeRef, target: Option<LPortRef>) {
-        let current_target = edge.lock().ok().and_then(|edge| edge.target());
+        let current_target = edge.lock_ok().and_then(|edge| edge.target());
         if let Some(current_target) = current_target {
-            if let Ok(mut port) = current_target.lock() {
+            if let Some(mut port) = current_target.lock_ok() {
                 remove_arc(port.incoming_edges_mut(), edge);
             }
         }
 
         if let Some(target_ref) = &target {
-            if let Ok(mut port) = target_ref.lock() {
+            if let Some(mut port) = target_ref.lock_ok() {
                 port.incoming_edges_mut().push(edge.clone());
             }
         }
 
-        if let Ok(mut edge_guard) = edge.lock() {
+        if let Some(mut edge_guard) = edge.lock_ok() {
             edge_guard.target = target.as_ref().map(Arc::downgrade);
         }
     }
 
     pub fn set_target_and_insert_at_index(edge: &LEdgeRef, target: Option<LPortRef>, index: usize) {
-        let current_target = edge.lock().ok().and_then(|edge| edge.target());
+        let current_target = edge.lock_ok().and_then(|edge| edge.target());
         if let Some(current_target) = current_target {
             current_target
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|mut port| remove_arc(port.incoming_edges_mut(), edge));
         }
 
         if let Some(target_ref) = &target {
-            if let Ok(mut port) = target_ref.lock() {
+            if let Some(mut port) = target_ref.lock_ok() {
                 if index > port.incoming_edges().len() {
                     panic!("index out of bounds");
                 }
@@ -118,7 +117,7 @@ impl LEdge {
             }
         }
 
-        if let Ok(mut edge_guard) = edge.lock() {
+        if let Some(mut edge_guard) = edge.lock_ok() {
             edge_guard.target = target.as_ref().map(Arc::downgrade);
         }
     }
@@ -126,8 +125,8 @@ impl LEdge {
     pub fn is_self_loop(&self) -> bool {
         match (self.source(), self.target()) {
             (Some(source), Some(target)) => {
-                let source_node = source.lock().ok().and_then(|port| port.node());
-                let target_node = target.lock().ok().and_then(|port| port.node());
+                let source_node = source.lock_ok().and_then(|port| port.node());
+                let target_node = target.lock_ok().and_then(|port| port.node());
                 if let (Some(source_node), Some(target_node)) = (source_node, target_node) {
                     Arc::ptr_eq(&source_node, &target_node)
                 } else {
@@ -146,15 +145,13 @@ impl LEdge {
         let target = self.target();
         if let (Some(source), Some(target)) = (source, target) {
             let source_layer = source
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|port| port.node())
-                .and_then(|node| node.lock().ok().and_then(|node| node.layer()));
+                .and_then(|node| node.lock_ok().and_then(|node| node.layer()));
             let target_layer = target
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|port| port.node())
-                .and_then(|node| node.lock().ok().and_then(|node| node.layer()));
+                .and_then(|node| node.lock_ok().and_then(|node| node.layer()));
             if let (Some(source_layer), Some(target_layer)) = (source_layer, target_layer) {
                 return Arc::ptr_eq(&source_layer, &target_layer);
             }
@@ -179,10 +176,10 @@ impl LEdge {
     pub fn other_node(&self, node: &LNodeRef) -> LNodeRef {
         let source = self
             .source()
-            .and_then(|port| port.lock().ok().and_then(|port| port.node()));
+            .and_then(|port| port.lock_ok().and_then(|port| port.node()));
         let target = self
             .target()
-            .and_then(|port| port.lock().ok().and_then(|port| port.node()));
+            .and_then(|port| port.lock_ok().and_then(|port| port.node()));
         if let Some(ref source) = source {
             if Arc::ptr_eq(source, node) {
                 return target.clone().expect("target missing");
@@ -198,10 +195,10 @@ impl LEdge {
 
     pub fn reverse(edge: &LEdgeRef, layered_graph: &LGraphRef, adapt_ports: bool) {
         let (old_source, old_target) = {
-            let edge_guard = edge.lock().ok();
+            let edge_guard = edge.lock();
             (
-                edge_guard.as_ref().and_then(|edge| edge.source()),
-                edge_guard.as_ref().and_then(|edge| edge.target()),
+                edge_guard.source(),
+                edge_guard.target(),
             )
         };
 
@@ -211,12 +208,11 @@ impl LEdge {
         if let Some(old_target) = old_target {
             let use_collector = adapt_ports
                 && old_target
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|mut port| port.get_property(InternalProperties::INPUT_COLLECT))
                     .unwrap_or(false);
             if use_collector {
-                if let Some(node) = old_target.lock().ok().and_then(|port| port.node()) {
+                if let Some(node) = old_target.lock_ok().and_then(|port| port.node()) {
                     let port = LGraphUtil::provide_collector_port(
                         layered_graph,
                         &node,
@@ -233,12 +229,11 @@ impl LEdge {
         if let Some(old_source) = old_source {
             let use_collector = adapt_ports
                 && old_source
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|mut port| port.get_property(InternalProperties::OUTPUT_COLLECT))
                     .unwrap_or(false);
             if use_collector {
-                if let Some(node) = old_source.lock().ok().and_then(|port| port.node()) {
+                if let Some(node) = old_source.lock_ok().and_then(|port| port.node()) {
                     let port = LGraphUtil::provide_collector_port(
                         layered_graph,
                         &node,
@@ -252,9 +247,9 @@ impl LEdge {
             }
         }
 
-        if let Ok(mut edge_guard) = edge.lock() {
+        if let Some(mut edge_guard) = edge.lock_ok() {
             for label in &edge_guard.labels {
-                if let Ok(mut label_guard) = label.lock() {
+                if let Some(mut label_guard) = label.lock_ok() {
                     let placement = label_guard
                         .get_property(LayeredOptions::EDGE_LABELS_PLACEMENT)
                         .unwrap_or(EdgeLabelPlacement::Center);
@@ -301,7 +296,7 @@ impl LEdge {
 
     pub fn designation(&mut self) -> Option<String> {
         if let Some(label) = self.labels.first() {
-            if let Ok(label_guard) = label.lock() {
+            if let Some(label_guard) = label.lock_ok() {
                 if !label_guard.text().is_empty() {
                     return Some(label_guard.text().to_owned());
                 }
@@ -318,11 +313,11 @@ impl LEdge {
             result.push_str(&designation);
         }
         if let (Some(source), Some(target)) = (self.source(), self.target()) {
-            if let Ok(mut source_guard) = source.lock() {
+            if let Some(mut source_guard) = source.lock_ok() {
                 result.push(' ');
                 result.push_str(&source_guard.designation());
                 if let Some(source_node) = source_guard.node() {
-                    if let Ok(mut source_node_guard) = source_node.lock() {
+                    if let Some(mut source_node_guard) = source_node.lock_ok() {
                         result.push('[');
                         result.push_str(&source_node_guard.to_string());
                         result.push(']');
@@ -330,10 +325,10 @@ impl LEdge {
                 }
             }
             result.push_str(" -> ");
-            if let Ok(mut target_guard) = target.lock() {
+            if let Some(mut target_guard) = target.lock_ok() {
                 result.push_str(&target_guard.designation());
                 if let Some(target_node) = target_guard.node() {
-                    if let Ok(mut target_node_guard) = target_node.lock() {
+                    if let Some(mut target_node_guard) = target_node.lock_ok() {
                         result.push('[');
                         result.push_str(&target_node_guard.to_string());
                         result.push(']');

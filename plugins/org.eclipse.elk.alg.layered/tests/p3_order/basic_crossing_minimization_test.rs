@@ -34,7 +34,7 @@ fn ensure_layer_assignment_unchanged_for(cross_min_type: CrossMinType) {
 
     let mut minimizer = LayerSweepCrossingMinimizer::new(cross_min_type);
     let mut monitor = BasicProgressMonitor::new();
-    if let Ok(mut graph_guard) = graph.lock() {
+    if let Some(mut graph_guard) = graph.lock_ok() {
         minimizer.process(&mut graph_guard, &mut monitor);
     }
 
@@ -53,7 +53,7 @@ fn create_test_graph() -> LGraphRef {
     init_layered_options();
 
     let graph = LGraph::new();
-    if let Ok(mut graph_guard) = graph.lock() {
+    if let Some(mut graph_guard) = graph.lock_ok() {
         graph_guard.set_property(LayeredOptions::EDGE_ROUTING, Some(EdgeRouting::Orthogonal));
         graph_guard.set_property(
             LayeredOptions::HIERARCHY_HANDLING,
@@ -87,7 +87,7 @@ fn create_test_graph() -> LGraphRef {
 
 fn make_layer(graph: &LGraphRef) -> LayerRef {
     let layer = Layer::new(graph);
-    if let Ok(mut graph_guard) = graph.lock() {
+    if let Some(mut graph_guard) = graph.lock_ok() {
         graph_guard.layers_mut().push(layer.clone());
     }
     layer
@@ -95,7 +95,7 @@ fn make_layer(graph: &LGraphRef) -> LayerRef {
 
 fn add_node_to_layer(graph: &LGraphRef, layer: &LayerRef) -> LNodeRef {
     let node = LNode::new(graph);
-    if let Ok(mut node_guard) = node.lock() {
+    if let Some(mut node_guard) = node.lock_ok() {
         node_guard.set_node_type(NodeType::Normal);
         node_guard.set_property(InternalProperties::IN_LAYER_LAYOUT_UNIT, Some(node.clone()));
     }
@@ -105,12 +105,12 @@ fn add_node_to_layer(graph: &LGraphRef, layer: &LayerRef) -> LNodeRef {
 
 fn add_port_on_side(node: &LNodeRef, side: PortSide) -> LPortRef {
     let port = LPort::new();
-    if let Ok(mut port_guard) = port.lock() {
+    if let Some(mut port_guard) = port.lock_ok() {
         port_guard.set_side(side);
     }
     LPort::set_node(&port, Some(node.clone()));
 
-    if let Ok(mut node_guard) = node.lock() {
+    if let Some(mut node_guard) = node.lock_ok() {
         let constraints = node_guard
             .get_property(LayeredOptions::PORT_CONSTRAINTS)
             .unwrap_or(PortConstraints::Undefined);
@@ -133,19 +133,19 @@ fn east_west_edge_from_to(left: &LNodeRef, right: &LNodeRef) {
 }
 
 fn set_up_ids(graph: &LGraphRef) {
-    if let Ok(graph_guard) = graph.lock() {
+    if let Some(graph_guard) = graph.lock_ok() {
         let layers = graph_guard.layers().clone();
         drop(graph_guard);
 
         let mut port_id = 0i32;
         for (layer_index, layer) in layers.iter().enumerate() {
-            if let Ok(mut layer_guard) = layer.lock() {
+            if let Some(mut layer_guard) = layer.lock_ok() {
                 layer_guard.graph_element().id = layer_index as i32;
                 for (node_index, node) in layer_guard.nodes().iter().enumerate() {
-                    if let Ok(mut node_guard) = node.lock() {
+                    if let Some(mut node_guard) = node.lock_ok() {
                         node_guard.shape().graph_element().id = node_index as i32;
                         for port in node_guard.ports_mut() {
-                            if let Ok(mut port_guard) = port.lock() {
+                            if let Some(mut port_guard) = port.lock_ok() {
                                 port_guard.shape().graph_element().id = port_id;
                             }
                             port_id += 1;
@@ -159,12 +159,11 @@ fn set_up_ids(graph: &LGraphRef) {
 
 fn record_layer_assignment(graph: &LGraphRef) -> HashMap<usize, HashSet<usize>> {
     let mut assignment = HashMap::new();
-    if let Ok(graph_guard) = graph.lock() {
+    if let Some(graph_guard) = graph.lock_ok() {
         for layer in graph_guard.layers() {
             let layer_key = Arc::as_ptr(layer) as usize;
             let nodes = layer
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|layer_guard| layer_guard.nodes().clone())
                 .unwrap_or_default();
             let node_keys = nodes
@@ -178,13 +177,12 @@ fn record_layer_assignment(graph: &LGraphRef) -> HashMap<usize, HashSet<usize>> 
 }
 
 fn verify_layer_assignment(graph: &LGraphRef, expected: &HashMap<usize, HashSet<usize>>) {
-    if let Ok(graph_guard) = graph.lock() {
+    if let Some(graph_guard) = graph.lock_ok() {
         for layer in graph_guard.layers() {
             let layer_key = Arc::as_ptr(layer) as usize;
             let expected_nodes = expected.get(&layer_key).expect("missing expected layer");
             let actual_nodes: HashSet<usize> = layer
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|layer_guard| {
                     layer_guard
                         .nodes()

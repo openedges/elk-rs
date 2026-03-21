@@ -108,7 +108,7 @@ impl GreedyCycleBreaker {
             let mut model_order_calculator = GroupModelOrderCalculator::new();
 
             for node in nodes {
-                let has_model_order = node.lock().ok().is_some_and(|mut node_guard| {
+                let has_model_order = node.lock_ok().is_some_and(|mut node_guard| {
                     node_guard
                         .shape()
                         .graph_element()
@@ -156,20 +156,20 @@ impl GreedyCycleBreaker {
     }
 
     fn update_neighbors(&mut self, node: &LNodeRef) {
-        let ports = match node.lock() {
-            Ok(node_guard) => node_guard.ports().clone(),
-            Err(_) => return,
+        let ports = match node.lock_ok() {
+            Some(node_guard) => node_guard.ports().clone(),
+            None => return,
         };
 
         for port in ports {
-            let edges = match port.lock() {
-                Ok(port_guard) => port_guard.connected_edges(),
-                Err(_) => Vec::new(),
+            let edges = match port.lock_ok() {
+            Some(port_guard) => port_guard.connected_edges(),
+            None => Vec::new(),
             };
 
             for edge in edges {
-                let (connected_port, is_target, priority) = match edge.lock() {
-                    Ok(mut edge_guard) => {
+                let (connected_port, is_target, priority) = match edge.lock_ok() {
+            Some(mut edge_guard) => {
                         let source = edge_guard.source();
                         let target = edge_guard.target();
                         let Some(source_port) = source else {
@@ -189,12 +189,11 @@ impl GreedyCycleBreaker {
                             .unwrap_or(0);
                         (connected_port, is_target, priority)
                     }
-                    Err(_) => continue,
+            None => continue,
                 };
 
                 let endpoint = connected_port
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|port_guard| port_guard.node());
                 let Some(endpoint) = endpoint else {
                     continue;
@@ -232,32 +231,31 @@ impl GreedyCycleBreaker {
     fn reverse_edges(&mut self, graph: &mut LGraph, nodes: &[LNodeRef]) {
         let reverse_graph = nodes
             .first()
-            .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.graph()))
+            .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.graph()))
             .unwrap_or_default();
         let trace_reversals = *TRACE_CYCLE_REVERSALS;
         let forced_reversed = DEBUG_CYCLE_FORCE_REVERSE_ORIGINS.as_ref();
         let mut reversed_edges = Vec::new();
         for node in nodes {
-            let (ports, node_idx) = match node.lock() {
-                Ok(mut node_guard) => {
+            let (ports, node_idx) = match node.lock_ok() {
+            Some(mut node_guard) => {
                     let node_idx = node_guard.shape().graph_element().id as usize;
                     (node_guard.ports().clone(), node_idx)
                 }
-                Err(_) => continue,
+            None => continue,
             };
 
             for port in LGraphUtil::to_port_array(&ports) {
-                let edges = match port.lock() {
-                    Ok(port_guard) => port_guard.outgoing_edges().clone(),
-                    Err(_) => Vec::new(),
+                let edges = match port.lock_ok() {
+            Some(port_guard) => port_guard.outgoing_edges().clone(),
+            None => Vec::new(),
                 };
 
                 for edge in LGraphUtil::to_edge_array(&edges) {
                     let target_node = edge
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .and_then(|edge_guard| edge_guard.target())
-                        .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                        .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
                     let Some(target_node) = target_node else {
                         continue;
                     };
@@ -341,30 +339,29 @@ impl ILayoutPhase<LayeredPhases, LGraph> for GreedyCycleBreaker {
         }
 
         for (index, node) in nodes.iter().enumerate() {
-            if let Ok(mut node_guard) = node.lock() {
+            if let Some(mut node_guard) = node.lock_ok() {
                 node_guard.shape().graph_element().id = index as i32;
             }
 
-            let ports = match node.lock() {
-                Ok(node_guard) => node_guard.ports().clone(),
-                Err(_) => continue,
+            let ports = match node.lock_ok() {
+            Some(node_guard) => node_guard.ports().clone(),
+            None => continue,
             };
 
             for port in ports {
-                let (incoming, outgoing) = match port.lock() {
-                    Ok(port_guard) => (
+                let (incoming, outgoing) = match port.lock_ok() {
+            Some(port_guard) => (
                         port_guard.incoming_edges().clone(),
                         port_guard.outgoing_edges().clone(),
                     ),
-                    Err(_) => (Vec::new(), Vec::new()),
+            None => (Vec::new(), Vec::new()),
                 };
 
                 for edge in incoming {
                     let source_node = edge
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .and_then(|edge_guard| edge_guard.source())
-                        .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                        .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
                     if source_node
                         .as_ref()
                         .is_some_and(|source| Arc::ptr_eq(source, node))
@@ -372,8 +369,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for GreedyCycleBreaker {
                         continue;
                     }
                     let priority = edge
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .and_then(|mut edge_guard| {
                             edge_guard.get_property(LayeredOptions::PRIORITY_DIRECTION)
                         })
@@ -383,10 +379,9 @@ impl ILayoutPhase<LayeredPhases, LGraph> for GreedyCycleBreaker {
 
                 for edge in outgoing {
                     let target_node = edge
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .and_then(|edge_guard| edge_guard.target())
-                        .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                        .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
                     if target_node
                         .as_ref()
                         .is_some_and(|target| Arc::ptr_eq(target, node))
@@ -394,8 +389,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for GreedyCycleBreaker {
                         continue;
                     }
                     let priority = edge
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .and_then(|mut edge_guard| {
                             edge_guard.get_property(LayeredOptions::PRIORITY_DIRECTION)
                         })
@@ -489,8 +483,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for GreedyCycleBreaker {
 }
 
 fn node_index(node: &LNodeRef) -> usize {
-    node.lock()
-        .ok()
+    node.lock_ok()
         .map(|mut node_guard| node_guard.shape().graph_element().id as usize)
         .unwrap_or(0)
 }
@@ -503,8 +496,7 @@ fn trace_reversal_entry(
     target_mark: i32,
 ) -> String {
     let (edge_origin, source_port_origin, target_port_origin) = edge
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|mut edge_guard| {
             let edge_origin = edge_guard
                 .get_property(InternalProperties::ORIGIN)
@@ -531,8 +523,7 @@ fn trace_reversal_entry(
 }
 
 fn trace_port_origin(port: &LPortRef) -> Option<usize> {
-    port.lock()
-        .ok()
+    port.lock_ok()
         .and_then(|mut port_guard| port_guard.get_property(InternalProperties::ORIGIN))
         .and_then(|origin| match origin {
             Origin::ElkPort(origin_id) => Some(origin_id),
@@ -542,8 +533,7 @@ fn trace_port_origin(port: &LPortRef) -> Option<usize> {
 
 
 fn edge_origin_id(edge: &LEdgeRef) -> Option<usize> {
-    edge.lock()
-        .ok()
+    edge.lock_ok()
         .and_then(|mut edge_guard| edge_guard.get_property(InternalProperties::ORIGIN))
         .and_then(|origin| match origin {
             Origin::ElkEdge(origin_id) => Some(origin_id),

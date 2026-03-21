@@ -20,8 +20,7 @@ impl GroupModelOrderCalculator {
         let mut model_order = self.constraint_base_model_order(node, offset * 2, offset);
 
         if let Some(node_model_order) = node
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|mut node_guard| node_guard.get_property(InternalProperties::MODEL_ORDER))
         {
             model_order += node_model_order;
@@ -39,15 +38,13 @@ impl GroupModelOrderCalculator {
         let mut model_order = self.constraint_base_model_order(node, offset * 2, offset);
 
         let group_id = node
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|mut node_guard| {
                 node_guard.get_property(LayeredOptions::GROUP_MODEL_ORDER_CYCLE_BREAKING_ID)
             })
             .unwrap_or(0);
         if let Some(node_model_order) = node
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|mut node_guard| node_guard.get_property(InternalProperties::MODEL_ORDER))
         {
             model_order += group_id * small_offset + node_model_order;
@@ -68,8 +65,7 @@ impl GroupModelOrderCalculator {
         offset: i32,
     ) -> i32 {
         let constraint = node
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|mut node_guard| {
                 if node_guard
                     .shape()

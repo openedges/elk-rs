@@ -25,7 +25,7 @@ fn graph_with_single_layer() -> (LGraphRef, Arc<Mutex<Layer>>) {
     let layer = Layer::new(&graph);
     graph
         .lock()
-        .expect("graph lock")
+        
         .layers_mut()
         .push(layer.clone());
     (graph, layer)
@@ -40,8 +40,7 @@ fn add_node(graph: &LGraphRef, layer: &Arc<Mutex<Layer>>) -> LNodeRef {
 fn add_port(node: &LNodeRef, side: PortSide) -> LPortRef {
     let port = LPort::new();
     {
-        let mut port_guard = port.lock().expect("port lock");
-        port_guard.set_side(side);
+        let mut port_guard = port.lock();        port_guard.set_side(side);
     }
     LPort::set_node(&port, Some(node.clone()));
     port
@@ -59,7 +58,7 @@ fn north_south_postprocessor_removes_all_north_south_dummy_nodes() {
     let (graph, layer) = graph_with_single_layer();
 
     let owner = add_node(&graph, &layer);
-    owner.lock().expect("owner lock").set_property(
+    owner.lock().set_property(
         LayeredOptions::PORT_CONSTRAINTS,
         Some(PortConstraints::FixedSide),
     );
@@ -74,25 +73,24 @@ fn north_south_postprocessor_removes_all_north_south_dummy_nodes() {
     connect(&south, &other_west);
 
     let mut monitor = NullElkProgressMonitor;
-    NorthSouthPortPreprocessor.process(&mut graph.lock().expect("graph lock"), &mut monitor);
-    NorthSouthPortPostprocessor.process(&mut graph.lock().expect("graph lock"), &mut monitor);
+    NorthSouthPortPreprocessor.process(&mut graph.lock(), &mut monitor);
+    NorthSouthPortPostprocessor.process(&mut graph.lock(), &mut monitor);
 
     let has_ns_dummy = graph
         .lock()
-        .expect("graph lock")
+        
         .layers()
         .iter()
         .flat_map(|layer| {
             layer
                 .lock()
-                .expect("layer lock")
+                
                 .nodes()
                 .clone()
                 .into_iter()
         })
         .any(|node| {
-            node.lock()
-                .ok()
+            node.lock_ok()
                 .map(|node_guard| node_guard.node_type() == NodeType::NorthSouthPort)
                 .unwrap_or(false)
         });

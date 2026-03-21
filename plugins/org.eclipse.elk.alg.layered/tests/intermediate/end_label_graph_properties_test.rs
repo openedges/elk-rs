@@ -39,8 +39,7 @@ fn graph_properties_include_end_labels() {
     let lgraph = importer.import_graph(&root);
 
     let graph_props = lgraph
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|mut guard| guard.get_property(InternalProperties::GRAPH_PROPERTIES))
         .unwrap_or_else(EnumSet::none_of);
 

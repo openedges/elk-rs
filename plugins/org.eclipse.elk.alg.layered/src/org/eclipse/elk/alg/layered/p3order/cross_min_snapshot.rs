@@ -95,7 +95,7 @@ impl CrossMinSnapshot {
                 node_map.insert(node_ptr, flat_node_idx);
                 node_refs_vec.push(node_ref.clone());
 
-                if let Ok(mut node_guard) = node_ref.lock() {
+                if let Some(mut node_guard) = node_ref.lock_ok() {
                     node_graph_id.push(node_guard.shape().graph_element().id as u32);
                     node_layer.push(layer_index as u32);
                     node_type_vec.push(node_guard.node_type());
@@ -105,7 +105,7 @@ impl CrossMinSnapshot {
                     for port_ref in node_guard.ports() {
                         let port_ptr = Arc::as_ptr(port_ref) as usize;
 
-                        if let Ok(mut port_guard) = port_ref.lock() {
+                        if let Some(mut port_guard) = port_ref.lock_ok() {
                             let pid = port_guard.shape().graph_element().id as u32;
                             let pid_usize = pid as usize;
 
@@ -119,9 +119,9 @@ impl CrossMinSnapshot {
 
                                 // Collect incoming edge source ports
                                 for edge in port_guard.incoming_edges() {
-                                    if let Ok(edge_guard) = edge.lock() {
+                                    if let Some(edge_guard) = edge.lock_ok() {
                                         if let Some(src_port) = edge_guard.source() {
-                                            if let Ok(mut src_guard) = src_port.lock() {
+                                            if let Some(mut src_guard) = src_port.lock_ok() {
                                                 let src_pid =
                                                     src_guard.shape().graph_element().id as u32;
                                                 port_in_lists[pid_usize].push(src_pid);
@@ -132,9 +132,9 @@ impl CrossMinSnapshot {
 
                                 // Collect outgoing edge target ports
                                 for edge in port_guard.outgoing_edges() {
-                                    if let Ok(edge_guard) = edge.lock() {
+                                    if let Some(edge_guard) = edge.lock_ok() {
                                         if let Some(tgt_port) = edge_guard.target() {
-                                            if let Ok(mut tgt_guard) = tgt_port.lock() {
+                                            if let Some(mut tgt_guard) = tgt_port.lock_ok() {
                                                 let tgt_pid =
                                                     tgt_guard.shape().graph_element().id as u32;
                                                 port_out_lists[pid_usize].push(tgt_pid);

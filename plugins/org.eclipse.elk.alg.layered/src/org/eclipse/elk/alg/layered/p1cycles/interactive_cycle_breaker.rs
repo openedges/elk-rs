@@ -35,8 +35,7 @@ impl InteractiveCycleBreaker {
     }
 
     fn reference_x(node: &LNodeRef, reference: InteractiveReferencePoint) -> f64 {
-        node.lock()
-            .ok()
+        node.lock_ok()
             .map(|mut node_guard| {
                 let shape = node_guard.shape();
                 let pos_x = shape.position_ref().x;
@@ -55,7 +54,7 @@ impl InteractiveCycleBreaker {
         let mut stack: Vec<StackEntry> = Vec::new();
 
         let start_edges = Self::get_outgoing(start);
-        if let Ok(mut guard) = start.lock() {
+        if let Some(mut guard) = start.lock_ok() {
             guard.shape().graph_element().id = -1;
         }
         stack.push((start.clone(), start_edges, 0));
@@ -65,7 +64,7 @@ impl InteractiveCycleBreaker {
             if idx >= top.1.len() {
                 // Done with this node - mark as finished
                 let node = top.0.clone();
-                if let Ok(mut guard) = node.lock() {
+                if let Some(mut guard) = node.lock_ok() {
                     guard.shape().graph_element().id = 0;
                 }
                 stack.pop();
@@ -77,8 +76,7 @@ impl InteractiveCycleBreaker {
             let target = top.1[idx].1.clone();
 
             let target_id = target
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|mut g| g.shape().graph_element().id)
                 .unwrap_or(0);
 
@@ -88,7 +86,7 @@ impl InteractiveCycleBreaker {
             } else if target_id > 0 {
                 // unvisited - cache edges, mark as visiting, push
                 let target_edges = Self::get_outgoing(&target);
-                if let Ok(mut guard) = target.lock() {
+                if let Some(mut guard) = target.lock_ok() {
                     guard.shape().graph_element().id = -1;
                 }
                 stack.push((target, target_edges, 0));
@@ -97,17 +95,15 @@ impl InteractiveCycleBreaker {
     }
 
     fn get_outgoing(node: &LNodeRef) -> Vec<(LEdgeRef, LNodeRef)> {
-        node.lock()
-            .ok()
+        node.lock_ok()
             .map(|g| g.outgoing_edges())
             .unwrap_or_default()
             .into_iter()
             .filter_map(|edge| {
                 let target = edge
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|eg| eg.target())
-                    .and_then(|p| p.lock().ok().and_then(|pg| pg.node()))?;
+                    .and_then(|p| p.lock_ok().and_then(|pg| pg.node()))?;
                 if Arc::ptr_eq(node, &target) {
                     return None; // skip self-loops
                 }
@@ -135,7 +131,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveCycleBreaker {
 
         // Phase 1: reverse edges that go backwards based on interactive reference point
         for node in &nodes {
-            if let Ok(mut guard) = node.lock() {
+            if let Some(mut guard) = node.lock_ok() {
                 guard.shape().graph_element().id = 1;
             }
         }
@@ -144,17 +140,15 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveCycleBreaker {
             let source_x = Self::reference_x(source, reference_point);
 
             let outgoing = source
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|g| g.outgoing_edges())
                 .unwrap_or_default();
 
             for edge in outgoing {
                 let target = edge
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|eg| eg.target())
-                    .and_then(|p| p.lock().ok().and_then(|pg| pg.node()));
+                    .and_then(|p| p.lock_ok().and_then(|pg| pg.node()));
                 let Some(target) = target else { continue };
 
                 let is_same = Arc::ptr_eq(source, &target);
@@ -181,15 +175,14 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveCycleBreaker {
 
         // Re-initialize all nodes to id = 1 (unvisited) for Phase 2
         for node in &nodes {
-            if let Ok(mut guard) = node.lock() {
+            if let Some(mut guard) = node.lock_ok() {
                 guard.shape().graph_element().id = 1;
             }
         }
 
         for node in &nodes {
             let is_unvisited = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|mut g| g.shape().graph_element().id > 0)
                 .unwrap_or(false);
 

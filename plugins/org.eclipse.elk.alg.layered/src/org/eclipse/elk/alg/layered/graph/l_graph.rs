@@ -113,8 +113,7 @@ impl LGraph {
     pub fn to_node_array(&self) -> Vec<Vec<LNodeRef>> {
         let mut result = Vec::with_capacity(self.layers.len());
         for layer in &self.layers {
-            let layer_guard = layer.lock().expect("layer lock");
-            result.push(layer_guard.nodes().clone());
+            let layer_guard = layer.lock();            result.push(layer_guard.nodes().clone());
         }
         result
     }
@@ -124,13 +123,13 @@ impl LGraph {
         let layerless = self
             .layerless_nodes
             .iter()
-            .map(|node| node.lock().map(|mut n| n.to_string()).unwrap_or_default())
+            .map(|node| node.lock_ok().map(|mut n| n.to_string()).unwrap_or_default())
             .collect::<Vec<_>>()
             .join(", ");
         let layers = self
             .layers
             .iter()
-            .map(|layer| layer.lock().map(|mut l| l.to_string()).unwrap_or_default())
+            .map(|layer| layer.lock_ok().map(|mut l| l.to_string()).unwrap_or_default())
             .collect::<Vec<_>>()
             .join(", ");
 

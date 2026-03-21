@@ -33,16 +33,14 @@ impl ILayoutProcessor<LGraph> for LayerConstraintPostprocessor {
                 );
 
                 if !first_label_layer
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|layer_guard| layer_guard.nodes().is_empty())
                     .unwrap_or(true)
                 {
                     layered_graph.layers_mut().insert(0, first_label_layer);
                 }
                 if !last_label_layer
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|layer_guard| layer_guard.nodes().is_empty())
                     .unwrap_or(true)
                 {
@@ -71,16 +69,14 @@ impl ILayoutProcessor<LGraph> for LayerConstraintPostprocessor {
             );
 
             if !first_separate_layer
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|layer_guard| layer_guard.nodes().is_empty())
                 .unwrap_or(true)
             {
                 layered_graph.layers_mut().insert(0, first_separate_layer);
             }
             if !last_separate_layer
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|layer_guard| layer_guard.nodes().is_empty())
                 .unwrap_or(true)
             {
@@ -95,15 +91,14 @@ impl ILayoutProcessor<LGraph> for LayerConstraintPostprocessor {
 fn graph_ref_for(layered_graph: &LGraph) -> LGraphRef {
     if let Some(layer) = layered_graph.layers().first() {
         if let Some(graph_ref) = layer
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|layer_guard| layer_guard.graph())
         {
             return graph_ref;
         }
     }
     if let Some(node) = layered_graph.layerless_nodes().first() {
-        if let Some(graph_ref) = node.lock().ok().and_then(|node_guard| node_guard.graph()) {
+        if let Some(graph_ref) = node.lock_ok().and_then(|node_guard| node_guard.graph()) {
             return graph_ref;
         }
     }
@@ -119,8 +114,7 @@ fn move_first_and_last_nodes(
 ) {
     for layer in layered_graph.layers().clone() {
         let nodes = layer
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|layer_guard| layer_guard.nodes().clone())
             .unwrap_or_default();
         for node in nodes {
@@ -144,8 +138,7 @@ fn move_first_and_last_nodes(
 
     layered_graph.layers_mut().retain(|layer| {
         !layer
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|layer_guard| layer_guard.nodes().is_empty())
             .unwrap_or(true)
     });
@@ -153,35 +146,30 @@ fn move_first_and_last_nodes(
 
 fn move_labels_to_label_layer(node: &LNodeRef, incoming: bool, label_layer: &LayerRef) {
     let edges = if incoming {
-        node.lock()
-            .ok()
+        node.lock_ok()
             .map(|node_guard| node_guard.incoming_edges())
             .unwrap_or_default()
     } else {
-        node.lock()
-            .ok()
+        node.lock_ok()
             .map(|node_guard| node_guard.outgoing_edges())
             .unwrap_or_default()
     };
 
     for edge in edges {
         let possible_label_dummy = if incoming {
-            edge.lock()
-                .ok()
+            edge.lock_ok()
                 .and_then(|edge_guard| edge_guard.source())
-                .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
+                .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
         } else {
-            edge.lock()
-                .ok()
+            edge.lock_ok()
                 .and_then(|edge_guard| edge_guard.target())
-                .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
+                .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
         };
         let Some(possible_label_dummy) = possible_label_dummy else {
             continue;
         };
         let is_label = possible_label_dummy
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|node_guard| node_guard.node_type() == NodeType::Label)
             .unwrap_or(false);
         if is_label {
@@ -207,19 +195,16 @@ fn restore_hidden_nodes(
         }
 
         let connected_edges = hidden_node
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|node_guard| node_guard.connected_edges())
             .unwrap_or_default();
         for hidden_edge in connected_edges {
             let source_set = hidden_edge
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|edge_guard| edge_guard.source())
                 .is_some();
             let target_set = hidden_edge
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|edge_guard| edge_guard.target())
                 .is_some();
             if source_set && target_set {
@@ -227,11 +212,10 @@ fn restore_hidden_nodes(
             }
 
             let is_outgoing = hidden_edge
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|edge_guard| edge_guard.target())
                 .is_none();
-            let opposite = hidden_edge.lock().ok().and_then(|mut edge_guard| {
+            let opposite = hidden_edge.lock_ok().and_then(|mut edge_guard| {
                 edge_guard.get_property(InternalProperties::ORIGINAL_OPPOSITE_PORT)
             });
             let Some(opposite) = opposite else {
@@ -248,22 +232,19 @@ fn restore_hidden_nodes(
 
 fn throw_up_unless_no_incoming_edges(node: &LNodeRef) {
     let incoming = node
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|node_guard| node_guard.incoming_edges())
         .unwrap_or_default();
     for incoming_edge in incoming {
         let source_type = incoming_edge
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|edge_guard| edge_guard.source())
-            .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
-            .and_then(|source| source.lock().ok().map(|node_guard| node_guard.node_type()))
+            .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
+            .and_then(|source| source.lock_ok().map(|node_guard| node_guard.node_type()))
             .unwrap_or(NodeType::Normal);
         if source_type != NodeType::Label {
             let designation = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|mut node_guard| node_guard.designation())
                 .unwrap_or_else(|| "<unknown>".to_owned());
             panic!(
@@ -279,22 +260,19 @@ fn throw_up_unless_no_incoming_edges(node: &LNodeRef) {
 
 fn throw_up_unless_no_outgoing_edges(node: &LNodeRef) {
     let outgoing = node
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|node_guard| node_guard.outgoing_edges())
         .unwrap_or_default();
     for outgoing_edge in outgoing {
         let target_type = outgoing_edge
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|edge_guard| edge_guard.target())
-            .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
-            .and_then(|target| target.lock().ok().map(|node_guard| node_guard.node_type()))
+            .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
+            .and_then(|target| target.lock_ok().map(|node_guard| node_guard.node_type()))
             .unwrap_or(NodeType::Normal);
         if target_type != NodeType::Label {
             let designation = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|mut node_guard| node_guard.designation())
                 .unwrap_or_else(|| "<unknown>".to_owned());
             panic!(
@@ -309,8 +287,7 @@ fn throw_up_unless_no_outgoing_edges(node: &LNodeRef) {
 }
 
 fn layer_constraint_of(node: &LNodeRef) -> LayerConstraint {
-    node.lock()
-        .ok()
+    node.lock_ok()
         .and_then(|mut node_guard| {
             if node_guard
                 .shape()

@@ -48,16 +48,14 @@ impl ArenaSync {
 
         // Collect layer and node refs under a single graph lock
         let (layer_refs, layerless_refs) = {
-            let graph_guard = graph.lock().unwrap();
-            (graph_guard.layers().clone(), graph_guard.layerless_nodes().clone())
+            let graph_guard = graph.lock();            (graph_guard.layers().clone(), graph_guard.layerless_nodes().clone())
         };
 
         // ── Pass 1: layers, nodes, ports, labels ────────────────────
 
         for layer_ref in &layer_refs {
             let (layer_size, layer_eid, node_refs) = {
-                let mut layer_guard = layer_ref.lock().unwrap();
-                let size = *layer_guard.size_ref();
+                let mut layer_guard = layer_ref.lock();                let size = *layer_guard.size_ref();
                 let eid = layer_guard.graph_element().id;
                 let nodes = layer_guard.nodes().clone();
                 (size, eid, nodes)
@@ -98,8 +96,7 @@ impl ArenaSync {
 
         for port_ref in &port_id_to_arc {
             let outgoing = {
-                let port_guard = port_ref.lock().unwrap();
-                port_guard.outgoing_edges().clone()
+                let port_guard = port_ref.lock();                port_guard.outgoing_edges().clone()
             };
 
             for edge_ref in &outgoing {
@@ -109,8 +106,7 @@ impl ArenaSync {
                 }
 
                 let (src_port_ref, tgt_port_ref, bend_points, eid, props, edge_label_refs) = {
-                    let mut edge_guard = edge_ref.lock().unwrap();
-                    let src = edge_guard.source().unwrap();
+                    let mut edge_guard = edge_ref.lock();                    let src = edge_guard.source().unwrap();
                     let tgt = edge_guard.target().unwrap();
                     let bp = edge_guard.bend_points_ref().clone();
                     let eid = edge_guard.graph_element().id;
@@ -229,8 +225,7 @@ impl ArenaSync {
         // Nodes
         for (i, node_ref) in self.node_id_to_arc.iter().enumerate() {
             let id = NodeId(i as u32);
-            let mut guard = node_ref.lock().unwrap();
-            let pos = guard.shape().position();
+            let mut guard = node_ref.lock();            let pos = guard.shape().position();
             let arena_pos = self.arena.node_pos(id);
             pos.x = arena_pos.x;
             pos.y = arena_pos.y;
@@ -243,8 +238,7 @@ impl ArenaSync {
         // Ports
         for (i, port_ref) in self.port_id_to_arc.iter().enumerate() {
             let id = PortId(i as u32);
-            let mut guard = port_ref.lock().unwrap();
-            let pos = guard.shape().position();
+            let mut guard = port_ref.lock();            let pos = guard.shape().position();
             let arena_pos = self.arena.port_pos(id);
             pos.x = arena_pos.x;
             pos.y = arena_pos.y;
@@ -257,8 +251,7 @@ impl ArenaSync {
         // Labels
         for (i, label_ref) in self.label_id_to_arc.iter().enumerate() {
             let id = LabelId(i as u32);
-            let mut guard = label_ref.lock().unwrap();
-            let pos = guard.shape().position();
+            let mut guard = label_ref.lock();            let pos = guard.shape().position();
             let arena_pos = self.arena.label_pos(id);
             pos.x = arena_pos.x;
             pos.y = arena_pos.y;
@@ -276,8 +269,7 @@ impl ArenaSync {
         for (i, layer_ref) in self.layer_id_to_arc.iter().enumerate() {
             let layer_id = LayerId(i as u32);
             let arena_node_ids = self.arena.layer_nodes(layer_id);
-            let mut layer_guard = layer_ref.lock().unwrap();
-            let nodes = layer_guard.nodes_mut();
+            let mut layer_guard = layer_ref.lock();            let nodes = layer_guard.nodes_mut();
             nodes.clear();
             nodes.reserve(arena_node_ids.len());
             for &nid in arena_node_ids {
@@ -290,8 +282,7 @@ impl ArenaSync {
     pub fn sync_bend_points_to_graph(&self) {
         for (i, edge_ref) in self.edge_id_to_arc.iter().enumerate() {
             let id = EdgeId(i as u32);
-            let mut guard = edge_ref.lock().unwrap();
-            let bp = guard.bend_points();
+            let mut guard = edge_ref.lock();            let bp = guard.bend_points();
             let arena_bp = self.arena.edge_bend_points(id);
             *bp = arena_bp.clone();
         }
@@ -313,8 +304,7 @@ fn add_node_to_builder(
     let node_ptr = Arc::as_ptr(node_ref) as usize;
 
     let (pos, size, node_type, margin, padding, eid, props, port_refs, label_refs) = {
-        let mut guard = node_ref.lock().unwrap();
-        let pos = *guard.shape().position_ref();
+        let mut guard = node_ref.lock();        let pos = *guard.shape().position_ref();
         let size = *guard.shape().size_ref();
         let nt = guard.node_type();
         let margin = guard.margin().clone();
@@ -335,8 +325,7 @@ fn add_node_to_builder(
         let port_ptr = Arc::as_ptr(port_ref) as usize;
 
         let (p_pos, p_size, p_side, p_anchor, p_margin, p_eid, p_props, p_label_refs) = {
-            let mut guard = port_ref.lock().unwrap();
-            let pos = *guard.shape().position_ref();
+            let mut guard = port_ref.lock();            let pos = *guard.shape().position_ref();
             let size = *guard.shape().size_ref();
             let side = guard.side();
             let anchor = *guard.anchor_ref();
@@ -375,8 +364,7 @@ fn add_label_to_builder(
     label_id_to_arc: &mut Vec<LLabelRef>,
 ) -> LabelId {
     let (pos, size, text, eid, props) = {
-        let mut guard = label_ref.lock().unwrap();
-        let pos = *guard.shape().position_ref();
+        let mut guard = label_ref.lock();        let pos = *guard.shape().position_ref();
         let size = *guard.shape().size_ref();
         let text = guard.text().to_owned();
         let eid = guard.shape().graph_element().id;

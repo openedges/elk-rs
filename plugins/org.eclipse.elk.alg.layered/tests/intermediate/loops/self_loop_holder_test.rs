@@ -12,7 +12,7 @@ fn node(graph: &LGraphRef) -> LNodeRef {
     let lnode = LNode::new(graph);
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(lnode.clone());
     lnode
@@ -28,22 +28,22 @@ fn edge(source: &LPortRef, target: &LPortRef) -> LEdgeRef {
 fn ports(node: &LNodeRef, north: usize, east: usize, south: usize, west: usize) {
     for _ in 0..north {
         let port = LPort::new();
-        port.lock().expect("port lock").set_side(PortSide::North);
+        port.lock().set_side(PortSide::North);
         LPort::set_node(&port, Some(node.clone()));
     }
     for _ in 0..east {
         let port = LPort::new();
-        port.lock().expect("port lock").set_side(PortSide::East);
+        port.lock().set_side(PortSide::East);
         LPort::set_node(&port, Some(node.clone()));
     }
     for _ in 0..south {
         let port = LPort::new();
-        port.lock().expect("port lock").set_side(PortSide::South);
+        port.lock().set_side(PortSide::South);
         LPort::set_node(&port, Some(node.clone()));
     }
     for _ in 0..west {
         let port = LPort::new();
-        port.lock().expect("port lock").set_side(PortSide::West);
+        port.lock().set_side(PortSide::West);
         LPort::set_node(&port, Some(node.clone()));
     }
 }
@@ -57,8 +57,8 @@ fn basic_graph_without_self_loops() -> LGraphRef {
     let n2 = node(&graph);
     ports(&n2, 0, 0, 0, 1);
 
-    let n1_port = n1.lock().expect("n1 lock").ports()[0].clone();
-    let n2_port = n2.lock().expect("n2 lock").ports()[0].clone();
+    let n1_port = n1.lock().ports()[0].clone();
+    let n2_port = n2.lock().ports()[0].clone();
     let _ = edge(&n1_port, &n2_port);
 
     graph
@@ -67,10 +67,10 @@ fn basic_graph_without_self_loops() -> LGraphRef {
 fn basic_graph_with_self_loops() -> LGraphRef {
     let graph = basic_graph_without_self_loops();
 
-    let lnode = graph.lock().expect("graph lock").layerless_nodes()[1].clone();
+    let lnode = graph.lock().layerless_nodes()[1].clone();
     ports(&lnode, 2, 2, 2, 1);
 
-    let port_list = lnode.lock().expect("node lock").ports().clone();
+    let port_list = lnode.lock().ports().clone();
     for i in (1..port_list.len()).step_by(2) {
         let _ = edge(&port_list[i - 1], &port_list[i]);
     }
@@ -85,7 +85,7 @@ fn edge_key(edge: &LEdgeRef) -> usize {
 #[test]
 fn test_non_self_loop_graph() {
     let graph = basic_graph_without_self_loops();
-    for lnode in graph.lock().expect("graph lock").layerless_nodes().clone() {
+    for lnode in graph.lock().layerless_nodes().clone() {
         assert!(!SelfLoopHolder::needs_self_loop_processing(&lnode));
 
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -98,37 +98,37 @@ fn test_non_self_loop_graph() {
 #[test]
 fn test_basic_self_loops() {
     let graph = basic_graph_with_self_loops();
-    let lnode = graph.lock().expect("graph lock").layerless_nodes()[1].clone();
+    let lnode = graph.lock().layerless_nodes()[1].clone();
 
     assert!(SelfLoopHolder::needs_self_loop_processing(&lnode));
 
     let holder = SelfLoopHolder::install(&lnode);
     let holder_property = lnode
         .lock()
-        .expect("node lock")
+        
         .get_property(InternalProperties::SELF_LOOP_HOLDER)
         .expect("self loop holder property");
     assert!(Arc::ptr_eq(&holder, &holder_property));
 
-    let node_port_count = lnode.lock().expect("node lock").ports().len();
+    let node_port_count = lnode.lock().ports().len();
     assert_eq!(
         node_port_count,
-        holder.lock().expect("holder lock").sl_port_map().len()
+        holder.lock().sl_port_map().len()
     );
     assert_eq!(
         node_port_count / 2,
-        holder.lock().expect("holder lock").sl_hyper_loops().len()
+        holder.lock().sl_hyper_loops().len()
     );
 }
 
 #[test]
 fn test_different_self_hyper_loops() {
     let graph = basic_graph_without_self_loops();
-    let lnode = graph.lock().expect("graph lock").layerless_nodes()[1].clone();
+    let lnode = graph.lock().layerless_nodes()[1].clone();
 
     ports(&lnode, 2, 2, 2, 1);
 
-    let port_list = lnode.lock().expect("node lock").ports().clone();
+    let port_list = lnode.lock().ports().clone();
     let mut first_loops = BTreeSet::new();
     for i in 1..(port_list.len() / 2) {
         let ledge = edge(&port_list[i - 1], &port_list[i]);
@@ -142,18 +142,18 @@ fn test_different_self_hyper_loops() {
     }
 
     let holder = SelfLoopHolder::install(&lnode);
-    let hyper_loops = holder.lock().expect("holder lock").sl_hyper_loops().clone();
+    let hyper_loops = holder.lock().sl_hyper_loops().clone();
     assert_eq!(2, hyper_loops.len());
 
     let first_hyper_loop_edges: BTreeSet<usize> = hyper_loops[0]
         .lock()
-        .expect("hyper loop lock")
+        
         .sl_edges()
         .iter()
         .map(|sl_edge| {
             let edge = sl_edge
                 .lock()
-                .expect("self loop edge lock")
+                
                 .l_edge()
                 .clone();
             edge_key(&edge)
@@ -161,13 +161,13 @@ fn test_different_self_hyper_loops() {
         .collect();
     let second_hyper_loop_edges: BTreeSet<usize> = hyper_loops[1]
         .lock()
-        .expect("hyper loop lock")
+        
         .sl_edges()
         .iter()
         .map(|sl_edge| {
             let edge = sl_edge
                 .lock()
-                .expect("self loop edge lock")
+                
                 .l_edge()
                 .clone();
             edge_key(&edge)

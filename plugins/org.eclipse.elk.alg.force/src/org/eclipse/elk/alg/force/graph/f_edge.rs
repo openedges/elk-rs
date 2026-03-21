@@ -66,13 +66,13 @@ impl FEdge {
     }
 
     pub fn set_source(edge: &FEdgeRef, source: Option<FNodeRef>) {
-        if let Ok(mut edge_guard) = edge.lock() {
+        if let Some(mut edge_guard) = edge.lock_ok() {
             edge_guard.source = source.map(|node| Arc::downgrade(&node));
         }
     }
 
     pub fn set_target(edge: &FEdgeRef, target: Option<FNodeRef>) {
-        if let Ok(mut edge_guard) = edge.lock() {
+        if let Some(mut edge_guard) = edge.lock_ok() {
             edge_guard.target = target.map(|node| Arc::downgrade(&node));
         }
     }
@@ -97,8 +97,8 @@ impl FEdge {
         let source = self.source()?;
         let target = self.target()?;
         let (source_pos, source_size, target_pos) = {
-            let source_guard = source.lock().ok()?;
-            let target_guard = target.lock().ok()?;
+            let source_guard = source.lock_ok()?;
+            let target_guard = target.lock_ok()?;
             (
                 *source_guard.position_ref(),
                 *source_guard.size_ref(),
@@ -116,8 +116,8 @@ impl FEdge {
         let source = self.source()?;
         let target = self.target()?;
         let (source_pos, target_pos, target_size) = {
-            let source_guard = source.lock().ok()?;
-            let target_guard = target.lock().ok()?;
+            let source_guard = source.lock_ok()?;
+            let target_guard = target.lock_ok()?;
             (
                 *source_guard.position_ref(),
                 *target_guard.position_ref(),
@@ -137,7 +137,7 @@ impl FEdge {
         let target = self.target_point()?;
         chain.add_vector(source);
         for bend in &self.bendpoints {
-            if let Ok(bend_guard) = bend.lock() {
+            if let Some(bend_guard) = bend.lock_ok() {
                 chain.add_vector(*bend_guard.position_ref());
             }
         }
@@ -152,14 +152,9 @@ impl FEdge {
         }
         let (source_pos, target_pos) = match (self.source(), self.target()) {
             (Some(source), Some(target)) => {
-                let source_guard = source.lock().ok();
-                let target_guard = target.lock().ok();
-                match (source_guard, target_guard) {
-                    (Some(source_guard), Some(target_guard)) => {
-                        (*source_guard.position_ref(), *target_guard.position_ref())
-                    }
-                    _ => return,
-                }
+                let source_guard = source.lock();
+                let target_guard = target.lock();
+                (*source_guard.position_ref(), *target_guard.position_ref())
             }
             _ => return,
         };
@@ -169,7 +164,7 @@ impl FEdge {
         incr.scale(1.0 / ((count + 1) as f64));
         let mut pos = KVector::from_vector(&source_pos);
         for bend in &self.bendpoints {
-            if let Ok(mut bend_guard) = bend.lock() {
+            if let Some(mut bend_guard) = bend.lock_ok() {
                 bend_guard.position().x = pos.x + incr.x;
                 bend_guard.position().y = pos.y + incr.y;
                 pos.add(&incr);
@@ -182,10 +177,10 @@ impl fmt::Display for FEdge {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let source_label = self
             .source()
-            .and_then(|node| node.lock().ok().map(|node_guard| node_guard.to_string()));
+            .and_then(|node| node.lock_ok().map(|node_guard| node_guard.to_string()));
         let target_label = self
             .target()
-            .and_then(|node| node.lock().ok().map(|node_guard| node_guard.to_string()));
+            .and_then(|node| node.lock_ok().map(|node_guard| node_guard.to_string()));
         match (source_label, target_label) {
             (Some(source_label), Some(target_label)) => {
                 write!(f, "{}->{}", source_label, target_label)

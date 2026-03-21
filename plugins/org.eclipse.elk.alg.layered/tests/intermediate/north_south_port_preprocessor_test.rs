@@ -23,7 +23,7 @@ fn graph_with_single_layer() -> (LGraphRef, Arc<Mutex<Layer>>) {
     let layer = Layer::new(&graph);
     graph
         .lock()
-        .expect("graph lock")
+        
         .layers_mut()
         .push(layer.clone());
     (graph, layer)
@@ -38,8 +38,7 @@ fn add_node(graph: &LGraphRef, layer: &Arc<Mutex<Layer>>) -> LNodeRef {
 fn add_port(node: &LNodeRef, side: PortSide) -> LPortRef {
     let port = LPort::new();
     {
-        let mut port_guard = port.lock().expect("port lock");
-        port_guard.set_side(side);
+        let mut port_guard = port.lock();        port_guard.set_side(side);
     }
     LPort::set_node(&port, Some(node.clone()));
     port
@@ -57,7 +56,7 @@ fn north_south_preprocessor_isolates_north_south_ports() {
     let (graph, layer) = graph_with_single_layer();
 
     let owner = add_node(&graph, &layer);
-    owner.lock().expect("owner lock").set_property(
+    owner.lock().set_property(
         LayeredOptions::PORT_CONSTRAINTS,
         Some(PortConstraints::FixedSide),
     );
@@ -73,13 +72,12 @@ fn north_south_preprocessor_isolates_north_south_ports() {
 
     let mut processor = NorthSouthPortPreprocessor;
     let mut monitor = NullElkProgressMonitor;
-    processor.process(&mut graph.lock().expect("graph lock"), &mut monitor);
+    processor.process(&mut graph.lock(), &mut monitor);
 
-    let owner_ports = owner.lock().expect("owner lock").ports().clone();
+    let owner_ports = owner.lock().ports().clone();
     for port in owner_ports {
         let (side, connected) = port
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|port_guard| (port_guard.side(), !port_guard.connected_edges().is_empty()))
             .unwrap_or((PortSide::Undefined, false));
         if side == PortSide::North || side == PortSide::South {
@@ -97,7 +95,7 @@ fn north_south_preprocessor_sets_layout_unit_for_fixed_side_node_without_north_s
     let (graph, layer) = graph_with_single_layer();
 
     let owner = add_node(&graph, &layer);
-    owner.lock().expect("owner lock").set_property(
+    owner.lock().set_property(
         LayeredOptions::PORT_CONSTRAINTS,
         Some(PortConstraints::FixedSide),
     );
@@ -106,11 +104,11 @@ fn north_south_preprocessor_sets_layout_unit_for_fixed_side_node_without_north_s
 
     let mut processor = NorthSouthPortPreprocessor;
     let mut monitor = NullElkProgressMonitor;
-    processor.process(&mut graph.lock().expect("graph lock"), &mut monitor);
+    processor.process(&mut graph.lock(), &mut monitor);
 
     let layout_unit = owner
         .lock()
-        .expect("owner lock")
+        
         .get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
         .expect("layout unit should be set");
     assert!(

@@ -27,8 +27,7 @@ impl DisCoPolyominoCompactor {
         let num_of_comps = comps.len() as f64;
 
         for comp in comps {
-            let mut comp_guard = comp.lock().expect("component lock");
-            let bounds = comp_guard.get_dimensions_of_bounding_rectangle();
+            let mut comp_guard = comp.lock();            let bounds = comp_guard.get_dimensions_of_bounding_rectangle();
             let width = bounds.x;
             let height = bounds.y;
             sum_term += width + height;
@@ -103,8 +102,7 @@ impl DisCoPolyominoCompactor {
             absolute_position.scale_values(poly.get_cell_size_x(), poly.get_cell_size_y());
             absolute_position.add(&poly.get_offset());
 
-            let mut comp_guard = poly.get_representee().lock().expect("component lock");
-            let original_coordinates = comp_guard.get_min_corner();
+            let mut comp_guard = poly.get_representee().lock();            let original_coordinates = comp_guard.get_min_corner();
             let mut offset = KVector::from_vector(&absolute_position);
             offset.sub(&original_coordinates);
             comp_guard.set_offset(offset);

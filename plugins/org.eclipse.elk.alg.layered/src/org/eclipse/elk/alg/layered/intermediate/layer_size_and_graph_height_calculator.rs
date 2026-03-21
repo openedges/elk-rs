@@ -24,12 +24,11 @@ impl ILayoutProcessor<LGraph> for LayerSizeAndGraphHeightCalculator {
         let layers = layered_graph.layers().clone();
         for layer in layers {
             let nodes = layer
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|layer_guard| layer_guard.nodes().clone())
                 .unwrap_or_default();
 
-            if let Ok(mut layer_guard) = layer.lock() {
+            if let Some(mut layer_guard) = layer.lock_ok() {
                 layer_guard.size().x = 0.0;
                 layer_guard.size().y = 0.0;
             }
@@ -42,7 +41,7 @@ impl ILayoutProcessor<LGraph> for LayerSizeAndGraphHeightCalculator {
 
             let mut layer_width: f64 = 0.0;
             for node in &nodes {
-                if let Ok(mut node_guard) = node.lock() {
+                if let Some(mut node_guard) = node.lock_ok() {
                     let size_x = node_guard.shape().size_ref().x;
                     let margin = node_guard.margin().clone();
                     layer_width = layer_width.max(size_x + margin.left + margin.right);
@@ -50,7 +49,7 @@ impl ILayoutProcessor<LGraph> for LayerSizeAndGraphHeightCalculator {
             }
 
             let mut top = 0.0;
-            if let Ok(mut first_node_guard) = nodes[0].lock() {
+            if let Some(mut first_node_guard) = nodes[0].lock_ok() {
                 let pos_y = first_node_guard.shape().position_ref().y;
                 let margin_top = first_node_guard.margin().top;
                 top = pos_y - margin_top;
@@ -62,7 +61,7 @@ impl ILayoutProcessor<LGraph> for LayerSizeAndGraphHeightCalculator {
 
             let mut bottom = 0.0;
             if let Some(last_node) = nodes.last() {
-                if let Ok(mut last_node_guard) = last_node.lock() {
+                if let Some(mut last_node_guard) = last_node.lock_ok() {
                     let pos_y = last_node_guard.shape().position_ref().y;
                     let size_y = last_node_guard.shape().size_ref().y;
                     let margin_bottom = last_node_guard.margin().bottom;
@@ -74,14 +73,14 @@ impl ILayoutProcessor<LGraph> for LayerSizeAndGraphHeightCalculator {
                 }
             }
 
-            if let Ok(mut layer_guard) = layer.lock() {
+            if let Some(mut layer_guard) = layer.lock_ok() {
                 layer_guard.size().x = layer_width;
                 layer_guard.size().y = bottom - top;
             }
 
             if trace_layer_height {
                 let first = nodes.first().and_then(|node| {
-                    node.lock().ok().map(|mut g| {
+                    node.lock_ok().map(|mut g| {
                         (
                             g.shape().graph_element().id,
                             g.node_type(),
@@ -93,7 +92,7 @@ impl ILayoutProcessor<LGraph> for LayerSizeAndGraphHeightCalculator {
                     })
                 });
                 let last = nodes.last().and_then(|node| {
-                    node.lock().ok().map(|mut g| {
+                    node.lock_ok().map(|mut g| {
                         (
                             g.shape().graph_element().id,
                             g.node_type(),

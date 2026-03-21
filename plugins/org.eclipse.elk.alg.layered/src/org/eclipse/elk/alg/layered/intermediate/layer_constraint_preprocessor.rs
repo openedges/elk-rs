@@ -47,8 +47,7 @@ fn is_relevant_node(node: &LNodeRef) -> bool {
 fn hide(node: &LNodeRef, hidden_connections: &mut FxHashMap<usize, HiddenNodeConnections>) {
     ensure_no_inacceptable_edges(node);
     let connected_edges = node
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|node_guard| node_guard.connected_edges())
         .unwrap_or_default();
     for edge in connected_edges {
@@ -62,17 +61,16 @@ fn hide_edge(
     hidden_connections: &mut FxHashMap<usize, HiddenNodeConnections>,
 ) {
     let is_outgoing = edge
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|edge_guard| edge_guard.source())
-        .and_then(|source| source.lock().ok().and_then(|port_guard| port_guard.node()))
+        .and_then(|source| source.lock_ok().and_then(|port_guard| port_guard.node()))
         .map(|source_node| Arc::ptr_eq(&source_node, hidden_node))
         .unwrap_or(false);
 
     let opposite_port = if is_outgoing {
-        edge.lock().ok().and_then(|edge_guard| edge_guard.target())
+        edge.lock_ok().and_then(|edge_guard| edge_guard.target())
     } else {
-        edge.lock().ok().and_then(|edge_guard| edge_guard.source())
+        edge.lock_ok().and_then(|edge_guard| edge_guard.source())
     };
     let Some(opposite_port) = opposite_port else {
         return;
@@ -83,7 +81,7 @@ fn hide_edge(
     } else {
         crate::org::eclipse::elk::alg::layered::graph::LEdge::set_source(edge, None);
     }
-    if let Ok(mut edge_guard) = edge.lock() {
+    if let Some(mut edge_guard) = edge.lock_ok() {
         edge_guard.set_property(
             InternalProperties::ORIGINAL_OPPOSITE_PORT,
             Some(opposite_port.clone()),
@@ -91,8 +89,7 @@ fn hide_edge(
     }
 
     if let Some(opposite_node) = opposite_port
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|port_guard| port_guard.node())
     {
         update_opposite_node_layer_constraints(hidden_node, &opposite_node, hidden_connections);
@@ -105,8 +102,7 @@ fn update_opposite_node_layer_constraints(
     hidden_connections: &mut FxHashMap<usize, HiddenNodeConnections>,
 ) {
     let has_constraint = opposite_node
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|mut node_guard| {
             node_guard
                 .shape()
@@ -129,15 +125,14 @@ fn update_opposite_node_layer_constraints(
     hidden_connections.insert(key, next_connection);
 
     let has_edges = opposite_node
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|node_guard| !node_guard.connected_edges().is_empty())
         .unwrap_or(true);
     if has_edges {
         return;
     }
 
-    if let Ok(mut opposite_guard) = opposite_node.lock() {
+    if let Some(mut opposite_guard) = opposite_node.lock_ok() {
         match next_connection {
             HiddenNodeConnections::FirstSeparate => {
                 opposite_guard.set_property(
@@ -165,15 +160,13 @@ fn ensure_no_inacceptable_edges(node: &LNodeRef) {
     match layer_constraint {
         LayerConstraint::FirstSeparate => {
             let incoming = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.incoming_edges())
                 .unwrap_or_default();
             for edge in incoming {
                 if !is_acceptable_incident_edge(&edge) {
                     let designation = node
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .map(|mut node_guard| node_guard.designation())
                         .unwrap_or_else(|| "<unknown>".to_owned());
                     panic!(
@@ -188,15 +181,13 @@ fn ensure_no_inacceptable_edges(node: &LNodeRef) {
         }
         LayerConstraint::LastSeparate => {
             let outgoing = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.outgoing_edges())
                 .unwrap_or_default();
             for edge in outgoing {
                 if !is_acceptable_incident_edge(&edge) {
                     let designation = node
-                        .lock()
-                        .ok()
+                        .lock_ok()
                         .map(|mut node_guard| node_guard.designation())
                         .unwrap_or_else(|| "<unknown>".to_owned());
                     panic!(
@@ -215,24 +206,21 @@ fn ensure_no_inacceptable_edges(node: &LNodeRef) {
 
 fn is_acceptable_incident_edge(edge: &LEdgeRef) -> bool {
     let source_type = edge
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|edge_guard| edge_guard.source())
-        .and_then(|source| source.lock().ok().and_then(|port_guard| port_guard.node()))
-        .and_then(|node| node.lock().ok().map(|node_guard| node_guard.node_type()));
+        .and_then(|source| source.lock_ok().and_then(|port_guard| port_guard.node()))
+        .and_then(|node| node.lock_ok().map(|node_guard| node_guard.node_type()));
     let target_type = edge
-        .lock()
-        .ok()
+        .lock_ok()
         .and_then(|edge_guard| edge_guard.target())
-        .and_then(|target| target.lock().ok().and_then(|port_guard| port_guard.node()))
-        .and_then(|node| node.lock().ok().map(|node_guard| node_guard.node_type()));
+        .and_then(|target| target.lock_ok().and_then(|port_guard| port_guard.node()))
+        .and_then(|node| node.lock_ok().map(|node_guard| node_guard.node_type()));
 
     source_type == Some(NodeType::ExternalPort) && target_type == Some(NodeType::ExternalPort)
 }
 
 fn layer_constraint_of(node: &LNodeRef) -> LayerConstraint {
-    node.lock()
-        .ok()
+    node.lock_ok()
         .and_then(|mut node_guard| {
             if node_guard
                 .shape()

@@ -18,7 +18,7 @@ fn graph_with_layer() -> (LGraphRef, LayerRef) {
     let layer = Layer::new(&graph);
     graph
         .lock()
-        .expect("graph lock")
+        
         .layers_mut()
         .push(layer.clone());
     (graph, layer)
@@ -33,14 +33,12 @@ fn add_node(graph: &LGraphRef, layer: &LayerRef) -> LNodeRef {
 fn add_comment_box(graph: &LGraphRef, w: f64, h: f64, side: PortSide) -> (LNodeRef, LPortRef) {
     let box_node = LNode::new(graph);
     {
-        let mut box_guard = box_node.lock().expect("box lock");
-        box_guard.shape().size().x = w;
+        let mut box_guard = box_node.lock();        box_guard.shape().size().x = w;
         box_guard.shape().size().y = h;
     }
     let box_port = LPort::new();
     {
-        let mut box_port_guard = box_port.lock().expect("box port lock");
-        box_port_guard.set_side(side);
+        let mut box_port_guard = box_port.lock();        box_port_guard.set_side(side);
     }
     LPort::set_node(&box_port, Some(box_node.clone()));
     (box_node, box_port)
@@ -49,8 +47,7 @@ fn add_comment_box(graph: &LGraphRef, w: f64, h: f64, side: PortSide) -> (LNodeR
 fn run_processor(graph: &LGraphRef) {
     let mut processor = CommentPostprocessor;
     let mut monitor = NullElkProgressMonitor;
-    let mut graph_guard = graph.lock().expect("graph lock");
-    processor.process(&mut graph_guard, &mut monitor);
+    let mut graph_guard = graph.lock();    processor.process(&mut graph_guard, &mut monitor);
 }
 
 #[test]
@@ -58,13 +55,12 @@ fn comment_postprocessor_reinserts_boxes_and_reconnects_edges() {
     let (graph, layer) = graph_with_layer();
     graph
         .lock()
-        .expect("graph lock")
+        
         .set_property(LayeredOptions::SPACING_COMMENT_COMMENT, Some(5.0));
 
     let node = add_node(&graph, &layer);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.shape().position().x = 100.0;
+        let mut node_guard = node.lock();        node_guard.shape().position().x = 100.0;
         node_guard.shape().position().y = 100.0;
         node_guard.shape().size().x = 60.0;
         node_guard.shape().size().y = 40.0;
@@ -80,15 +76,15 @@ fn comment_postprocessor_reinserts_boxes_and_reconnects_edges() {
     let node_top_port_2 = LPort::new();
     let node_bottom_port = LPort::new();
     {
-        top_box_1.lock().expect("top box 1 lock").set_property(
+        top_box_1.lock().set_property(
             InternalProperties::COMMENT_CONN_PORT,
             Some(node_top_port_1.clone()),
         );
-        top_box_2.lock().expect("top box 2 lock").set_property(
+        top_box_2.lock().set_property(
             InternalProperties::COMMENT_CONN_PORT,
             Some(node_top_port_2.clone()),
         );
-        bottom_box.lock().expect("bottom box lock").set_property(
+        bottom_box.lock().set_property(
             InternalProperties::COMMENT_CONN_PORT,
             Some(node_bottom_port.clone()),
         );
@@ -102,11 +98,11 @@ fn comment_postprocessor_reinserts_boxes_and_reconnects_edges() {
     LEdge::set_target(&edge_bottom, Some(bottom_port.clone()));
 
     {
-        node.lock().expect("node lock").set_property(
+        node.lock().set_property(
             InternalProperties::TOP_COMMENTS,
             Some(vec![top_box_1.clone(), top_box_2.clone()]),
         );
-        node.lock().expect("node lock").set_property(
+        node.lock().set_property(
             InternalProperties::BOTTOM_COMMENTS,
             Some(vec![bottom_box.clone()]),
         );
@@ -114,24 +110,24 @@ fn comment_postprocessor_reinserts_boxes_and_reconnects_edges() {
 
     run_processor(&graph);
 
-    let layer_nodes = layer.lock().expect("layer lock").nodes().clone();
+    let layer_nodes = layer.lock().nodes().clone();
     assert!(layer_nodes.iter().any(|n| Arc::ptr_eq(n, &top_box_1)));
     assert!(layer_nodes.iter().any(|n| Arc::ptr_eq(n, &top_box_2)));
     assert!(layer_nodes.iter().any(|n| Arc::ptr_eq(n, &bottom_box)));
 
     let top_1_pos = *top_box_1
         .lock()
-        .expect("top box 1 lock")
+        
         .shape()
         .position_ref();
     let top_2_pos = *top_box_2
         .lock()
-        .expect("top box 2 lock")
+        
         .shape()
         .position_ref();
     let bottom_pos = *bottom_box
         .lock()
-        .expect("bottom box lock")
+        
         .shape()
         .position_ref();
 
@@ -144,33 +140,33 @@ fn comment_postprocessor_reinserts_boxes_and_reconnects_edges() {
 
     assert!(edge_top_1
         .lock()
-        .expect("edge top 1 lock")
+        
         .target()
         .is_some_and(|p| Arc::ptr_eq(&p, &node_top_port_1)));
     assert!(edge_top_2
         .lock()
-        .expect("edge top 2 lock")
+        
         .target()
         .is_some_and(|p| Arc::ptr_eq(&p, &node_top_port_2)));
     assert!(edge_bottom
         .lock()
-        .expect("edge bottom lock")
+        
         .source()
         .is_some_and(|p| Arc::ptr_eq(&p, &node_bottom_port)));
 
     assert!(node_top_port_1
         .lock()
-        .expect("node top port 1 lock")
+        
         .node()
         .is_some_and(|n| Arc::ptr_eq(&n, &node)));
     assert!(node_top_port_2
         .lock()
-        .expect("node top port 2 lock")
+        
         .node()
         .is_some_and(|n| Arc::ptr_eq(&n, &node)));
     assert!(node_bottom_port
         .lock()
-        .expect("node bottom port lock")
+        
         .node()
         .is_some_and(|n| Arc::ptr_eq(&n, &node)));
 }
@@ -182,7 +178,7 @@ fn comment_postprocessor_leaves_layer_unchanged_without_comment_properties() {
 
     run_processor(&graph);
 
-    let layer_nodes = layer.lock().expect("layer lock").nodes().clone();
+    let layer_nodes = layer.lock().nodes().clone();
     assert_eq!(layer_nodes.len(), 1);
     assert!(Arc::ptr_eq(&layer_nodes[0], &node));
 }

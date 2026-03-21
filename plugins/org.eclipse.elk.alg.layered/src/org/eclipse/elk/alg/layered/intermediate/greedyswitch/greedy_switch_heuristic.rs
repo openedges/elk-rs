@@ -79,7 +79,7 @@ impl GreedySwitchHeuristic {
         let free_layer = &order[free_layer_index];
         let free_layer_first_is_external_port = free_layer
             .first()
-            .and_then(|node| node.lock().ok().map(|node_guard| node_guard.node_type()))
+            .and_then(|node| node.lock_ok().map(|node_guard| node_guard.node_type()))
             .map(|node_type| node_type == NodeType::ExternalPort)
             .unwrap_or(false);
 
@@ -281,8 +281,8 @@ impl IInitializable for GreedySwitchHeuristic {
 
     fn init_at_layer_level(&mut self, layer_index: usize, node_order: &[Vec<LNodeRef>]) {
         if let Some(node) = node_order.get(layer_index).and_then(|layer| layer.first()) {
-            if let Some(layer_ref) = node.lock().ok().and_then(|node_guard| node_guard.layer()) {
-                if let Ok(mut layer_guard) = layer_ref.lock() {
+            if let Some(layer_ref) = node.lock_ok().and_then(|node_guard| node_guard.layer()) {
+                if let Some(mut layer_guard) = layer_ref.lock_ok() {
                     layer_guard.graph_element().id = layer_index as i32;
                 }
             }
@@ -295,13 +295,11 @@ impl IInitializable for GreedySwitchHeuristic {
 }
 
 fn layer_index_of(node: &LNodeRef) -> Option<usize> {
-    node.lock()
-        .ok()
+    node.lock_ok()
         .and_then(|node_guard| node_guard.layer())
         .and_then(|layer| {
             layer
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|mut layer_guard| layer_guard.graph_element().id as usize)
         })
 }

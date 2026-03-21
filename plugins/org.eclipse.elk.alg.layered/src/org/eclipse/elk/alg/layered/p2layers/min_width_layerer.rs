@@ -40,24 +40,21 @@ impl MinWidthLayerer {
         for node in nodes {
             let mut out_nodes: BTreeSet<usize> = BTreeSet::new();
             let outgoing = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.outgoing_edges())
                 .unwrap_or_default();
             for edge in outgoing {
                 if edge
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|edge_guard| edge_guard.is_self_loop())
                     .unwrap_or(false)
                 {
                     continue;
                 }
                 let target = edge
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .and_then(|edge_guard| edge_guard.target())
-                    .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                    .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
                 if let Some(target) = target {
                     out_nodes.insert(node_id_usize(&target));
                 }
@@ -180,16 +177,14 @@ impl ILayoutPhase<LayeredPhases, LGraph> for MinWidthLayerer {
         self.minimum_node_size = f64::INFINITY;
         for node in &not_inserted {
             let node_type = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|node_guard| node_guard.node_type())
                 .unwrap_or(NodeType::Normal);
             if node_type != NodeType::Normal {
                 continue;
             }
             let size = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|mut node_guard| node_guard.shape().size_ref().y)
                 .unwrap_or(0.0);
             self.minimum_node_size = self.minimum_node_size.min(size);
@@ -207,8 +202,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for MinWidthLayerer {
             self.in_degree[index] = count_edges_except_self_loops(node, true);
             self.out_degree[index] = count_edges_except_self_loops(node, false);
             let size = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|mut node_guard| node_guard.shape().size_ref().y)
                 .unwrap_or(0.0);
             self.norm_size[index] = size / self.minimum_node_size;
@@ -265,7 +259,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for MinWidthLayerer {
 
         let graph_ref = not_inserted
             .first()
-            .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.graph()))
+            .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.graph()))
             .unwrap_or_default();
 
         if let Some(candidate_layering) = candidate_layering {
@@ -326,8 +320,7 @@ fn select_node(
 
 fn count_edges_except_self_loops(node: &LNodeRef, incoming: bool) -> i32 {
     let edges = node
-        .lock()
-        .ok()
+        .lock_ok()
         .map(|node_guard| {
             if incoming {
                 node_guard.incoming_edges()
@@ -339,8 +332,7 @@ fn count_edges_except_self_loops(node: &LNodeRef, incoming: bool) -> i32 {
     let mut count = 0;
     for edge in edges {
         if edge
-            .lock()
-            .ok()
+            .lock_ok()
             .map(|edge_guard| edge_guard.is_self_loop())
             .unwrap_or(false)
         {
@@ -352,14 +344,13 @@ fn count_edges_except_self_loops(node: &LNodeRef, incoming: bool) -> i32 {
 }
 
 fn node_id_usize(node: &LNodeRef) -> usize {
-    node.lock()
-        .ok()
+    node.lock_ok()
         .map(|mut node_guard| node_guard.shape().graph_element().id as usize)
         .unwrap_or(0)
 }
 
 fn set_node_id(node: &LNodeRef, value: i32) {
-    if let Ok(mut node_guard) = node.lock() {
+    if let Some(mut node_guard) = node.lock_ok() {
         node_guard.shape().graph_element().id = value;
     }
 }

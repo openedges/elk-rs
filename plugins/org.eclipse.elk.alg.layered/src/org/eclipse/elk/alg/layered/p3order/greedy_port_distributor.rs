@@ -72,8 +72,7 @@ impl GreedyPortDistributor {
 
         for node in &node_order[current_index] {
             let port_constraints = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|mut node_guard| {
                     node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
                 })
@@ -83,20 +82,18 @@ impl GreedyPortDistributor {
             }
 
             let ports_on_side = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .map(|mut node_guard| node_guard.port_side_view(side))
                 .unwrap_or_default();
             let nested_graph = node
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|node_guard| node_guard.nested_graph());
             let use_hierarchical = !ports_on_side.is_empty() && nested_graph.is_some();
 
             let mut hierarchical_counter = if use_hierarchical {
                 nested_graph
                     .as_ref()
-                    .and_then(|graph| graph.lock().ok())
+                    .and_then(|graph| graph.lock_ok())
                     .map(|graph_guard| graph_guard.to_node_array())
                     .map(|inner_graph| {
                         let free_layer_index = if is_forward_sweep {
@@ -148,8 +145,7 @@ impl GreedyPortDistributor {
             }
             if trace {
                 let node_id = node
-                    .lock()
-                    .ok()
+                    .lock_ok()
                     .map(|mut node_guard| node_guard.shape().graph_element().id)
                     .unwrap_or(-1);
                 eprintln!(
@@ -169,15 +165,14 @@ impl GreedyPortDistributor {
     fn ports_for_side(&self, node: &LNodeRef, side: PortSide) -> (Vec<LPortRef>, Vec<usize>) {
         let mut ports = Vec::new();
         let mut indices = Vec::new();
-        if let Ok(mut node_guard) = node.lock() {
+        if let Some(mut node_guard) = node.lock_ok() {
             ports = node_guard.port_side_view(side);
             indices = node_guard
                 .ports()
                 .iter()
                 .enumerate()
                 .filter(|(_, port)| {
-                    port.lock()
-                        .ok()
+                    port.lock_ok()
                         .map(|port_guard| port_guard.side() == side)
                         .unwrap_or(false)
                 })
@@ -207,12 +202,10 @@ impl GreedyPortDistributor {
 
         if let Some(counter) = hierarchical_counter {
             let upper_node = upper_port
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|mut port_guard| port_guard.get_property(InternalProperties::PORT_DUMMY));
             let lower_node = lower_port
-                .lock()
-                .ok()
+                .lock_ok()
                 .and_then(|mut port_guard| port_guard.get_property(InternalProperties::PORT_DUMMY));
             if let (Some(upper_node), Some(lower_node)) = (upper_node, lower_node) {
                 counter.count_both_side_crossings(&upper_node, &lower_node);
@@ -245,7 +238,7 @@ impl GreedyPortDistributor {
         indices.swap(top_index, bottom_index);
 
         if let (Some(top_pos), Some(bottom_pos)) = (top_pos, bottom_pos) {
-            if let Ok(mut node_guard) = node.lock() {
+            if let Some(mut node_guard) = node.lock_ok() {
                 let node_ports = node_guard.ports_mut();
                 if top_pos < node_ports.len() && bottom_pos < node_ports.len() {
                     node_ports.swap(top_pos, bottom_pos);
@@ -281,7 +274,7 @@ impl IInitializable for GreedyPortDistributor {
         node_order: &[Vec<LNodeRef>],
     ) {
         let node = &node_order[layer_index][node_index];
-        if let Ok(mut node_guard) = node.lock() {
+        if let Some(mut node_guard) = node.lock_ok() {
             node_guard.shape().graph_element().id = node_index as i32;
         }
     }
@@ -294,11 +287,10 @@ impl IInitializable for GreedyPortDistributor {
         node_order: &[Vec<LNodeRef>],
     ) {
         let port = node_order[layer_index][node_index]
-            .lock()
-            .ok()
+            .lock_ok()
             .and_then(|node_guard| node_guard.ports().get(port_index).cloned());
         if let Some(port) = port {
-            if let Ok(mut port_guard) = port.lock() {
+            if let Some(mut port_guard) = port.lock_ok() {
                 port_guard.shape().graph_element().id = self.n_ports as i32;
             }
             self.n_ports += 1;

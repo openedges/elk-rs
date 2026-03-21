@@ -36,7 +36,7 @@ impl ILayoutProcessor<LGraph> for InteractiveExternalPortPositioner {
 
         let nodes = graph.layerless_nodes();
         for node_ref in nodes {
-            if let Ok(mut node) = node_ref.lock() {
+            if let Some(mut node) = node_ref.lock_ok() {
                 if node.node_type() == LNodeType::Normal {
                     let pos = *node.shape().position();
                     let size = *node.shape().size();
@@ -56,7 +56,7 @@ impl ILayoutProcessor<LGraph> for InteractiveExternalPortPositioner {
         // Assign reasonable coordinates to external port dummies
         let nodes = graph.layerless_nodes().clone();
         for node_ref in &nodes {
-            if let Ok(mut node) = node_ref.lock() {
+            if let Some(mut node) = node_ref.lock_ok() {
                 if node.node_type() != LNodeType::ExternalPort {
                     continue;
                 }
@@ -116,13 +116,13 @@ impl InteractiveExternalPortPositioner {
     fn find_y_from_targets(
         node_ref: &crate::org::eclipse::elk::alg::layered::graph::LNodeRef,
     ) -> Option<f64> {
-        if let Ok(node) = node_ref.lock() {
+        if let Some(node) = node_ref.lock_ok() {
             for edge_ref in node.outgoing_edges() {
-                if let Ok(edge) = edge_ref.lock() {
+                if let Some(edge) = edge_ref.lock_ok() {
                     if let Some(target_port) = edge.target() {
-                        if let Ok(port) = target_port.lock() {
+                        if let Some(port) = target_port.lock_ok() {
                             if let Some(target_node_ref) = port.node() {
-                                if let Ok(mut target_node) = target_node_ref.lock() {
+                                if let Some(mut target_node) = target_node_ref.lock_ok() {
                                     let pos = *target_node.shape().position();
                                     let size = *target_node.shape().size();
                                     return Some(pos.y + size.y / 2.0);
@@ -140,13 +140,13 @@ impl InteractiveExternalPortPositioner {
     fn find_y_from_sources(
         node_ref: &crate::org::eclipse::elk::alg::layered::graph::LNodeRef,
     ) -> Option<f64> {
-        if let Ok(node) = node_ref.lock() {
+        if let Some(node) = node_ref.lock_ok() {
             for edge_ref in node.incoming_edges() {
-                if let Ok(edge) = edge_ref.lock() {
+                if let Some(edge) = edge_ref.lock_ok() {
                     if let Some(source_port) = edge.source() {
-                        if let Ok(port) = source_port.lock() {
+                        if let Some(port) = source_port.lock_ok() {
                             if let Some(source_node_ref) = port.node() {
-                                if let Ok(mut source_node) = source_node_ref.lock() {
+                                if let Some(mut source_node) = source_node_ref.lock_ok() {
                                     let pos = *source_node.shape().position();
                                     let size = *source_node.shape().size();
                                     return Some(pos.y + size.y / 2.0);
@@ -164,7 +164,7 @@ impl InteractiveExternalPortPositioner {
     fn find_north_south_x(
         node_ref: &crate::org::eclipse::elk::alg::layered::graph::LNodeRef,
     ) -> Option<f64> {
-        if let Ok(node) = node_ref.lock() {
+        if let Some(node) = node_ref.lock_ok() {
             let ports = node.ports();
             if ports.is_empty() {
                 return None;
@@ -172,7 +172,7 @@ impl InteractiveExternalPortPositioner {
 
             // External port dummies should have exactly one port
             let port_ref = &ports[0];
-            if let Ok(port) = port_ref.lock() {
+            if let Some(port) = port_ref.lock_ok() {
                 let has_outgoing = !port.outgoing_edges().is_empty();
                 let has_incoming = !port.incoming_edges().is_empty();
 
@@ -180,11 +180,11 @@ impl InteractiveExternalPortPositioner {
                     // Find minimum position of target nodes
                     let mut min = f64::INFINITY;
                     for edge_ref in port.outgoing_edges() {
-                        if let Ok(edge) = edge_ref.lock() {
+                        if let Some(edge) = edge_ref.lock_ok() {
                             if let Some(target_port) = edge.target() {
-                                if let Ok(tp) = target_port.lock() {
+                                if let Some(tp) = target_port.lock_ok() {
                                     if let Some(target_node_ref) = tp.node() {
-                                        if let Ok(mut target_node) = target_node_ref.lock() {
+                                        if let Some(mut target_node) = target_node_ref.lock_ok() {
                                             let pos = *target_node.shape().position();
                                             let margins = target_node
                                                 .get_property(CoreOptions::MARGINS)
@@ -205,11 +205,11 @@ impl InteractiveExternalPortPositioner {
                     // Find maximum position of source nodes
                     let mut max = f64::NEG_INFINITY;
                     for edge_ref in port.incoming_edges() {
-                        if let Ok(edge) = edge_ref.lock() {
+                        if let Some(edge) = edge_ref.lock_ok() {
                             if let Some(source_port) = edge.source() {
-                                if let Ok(sp) = source_port.lock() {
+                                if let Some(sp) = source_port.lock_ok() {
                                     if let Some(source_node_ref) = sp.node() {
-                                        if let Ok(mut source_node) = source_node_ref.lock() {
+                                        if let Some(mut source_node) = source_node_ref.lock_ok() {
                                             let pos = *source_node.shape().position();
                                             let size = *source_node.shape().size();
                                             let margins = source_node
