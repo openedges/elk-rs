@@ -101,10 +101,10 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
             }
 
             for layer in graph.layers().clone() {
-                let nodes = layer
-                    .lock_ok()
-                    .map(|layer_guard| LGraphUtil::to_node_array(layer_guard.nodes()))
-                    .unwrap_or_default();
+                let nodes = {
+                    let layer_guard = layer.lock();
+                    LGraphUtil::to_node_array(layer_guard.nodes())
+                };
                 for node in nodes {
                     let key = Arc::as_ptr(&node) as usize;
                     if seen.insert(key)
@@ -183,10 +183,10 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
             }
 
             for layer in graph.layers().clone() {
-                let nodes = layer
-                    .lock_ok()
-                    .map(|layer_guard| LGraphUtil::to_node_array(layer_guard.nodes()))
-                .unwrap_or_default();
+                let nodes = {
+                    let layer_guard = layer.lock();
+                    LGraphUtil::to_node_array(layer_guard.nodes())
+                };
                 for node in nodes {
                     let key = Arc::as_ptr(&node) as usize;
                     if seen.insert(key)
@@ -248,10 +248,10 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
                 }
             }
             for layer in graph.layers().clone() {
-                let nodes = layer
-                    .lock_ok()
-                    .map(|layer_guard| LGraphUtil::to_node_array(layer_guard.nodes()))
-                    .unwrap_or_default();
+                let nodes = {
+                    let layer_guard = layer.lock();
+                    LGraphUtil::to_node_array(layer_guard.nodes())
+                };
                 for node in nodes {
                     let key = Arc::as_ptr(&node) as usize;
                     if seen.insert(key)
@@ -290,10 +290,10 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
                 }
             }
             for layer in graph.layers().clone() {
-                let nodes = layer
-                    .lock_ok()
-                    .map(|layer_guard| LGraphUtil::to_node_array(layer_guard.nodes()))
-                    .unwrap_or_default();
+                let nodes = {
+                    let layer_guard = layer.lock();
+                    LGraphUtil::to_node_array(layer_guard.nodes())
+                };
                 for node in nodes {
                     let key = Arc::as_ptr(&node) as usize;
                     if seen.insert(key) && node_has_non_zero_border_offset(&node) {
@@ -323,10 +323,10 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
                 }
             }
             for layer in graph.layers().clone() {
-                let nodes = layer
-                    .lock_ok()
-                    .map(|layer_guard| LGraphUtil::to_node_array(layer_guard.nodes()))
-                    .unwrap_or_default();
+                let nodes = {
+                    let layer_guard = layer.lock();
+                    LGraphUtil::to_node_array(layer_guard.nodes())
+                };
                 for node in nodes {
                     let key = Arc::as_ptr(&node) as usize;
                     if seen.insert(key)
@@ -374,21 +374,18 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
                 .unwrap_or(true);
 
             for layer in graph.layers().clone() {
-                let nodes: Vec<LNodeRef> = layer
-                    .lock_ok()
-                    .map(|layer_guard| {
-                        layer_guard
-                            .nodes()
-                            .iter()
-                            .filter(|node| {
-                                node.lock_ok()
-                                    .map(|g| g.node_type() == NodeType::ExternalPort)
-                                    .unwrap_or(false)
-                            })
-                            .cloned()
-                            .collect()
-                    })
-                    .unwrap_or_default();
+                let nodes: Vec<LNodeRef> = {
+                    let layer_guard = layer.lock();
+                    layer_guard
+                        .nodes()
+                        .iter()
+                        .filter(|node| {
+                            let g = node.lock();
+                            g.node_type() == NodeType::ExternalPort
+                        })
+                        .cloned()
+                        .collect()
+                };
 
                 for dummy in nodes {
                     place_external_port_dummy_labels(
@@ -413,9 +410,7 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
 // ============================================================
 
 fn should_apply_phase1_port_placement(node: &LNodeRef) -> bool {
-    let Some(mut node_guard) = node.lock_ok() else {
-        return true;
-    };
+    let mut node_guard = node.lock();
     let activate = node_guard
         .get_property(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE)
         .unwrap_or(false);
@@ -438,41 +433,35 @@ fn should_reposition_ports_after_phase2(
         return false;
     }
 
-    node.lock_ok().is_some_and(|mut node_guard| {
-        let Some(graph) = node_guard.graph() else {
-            return false;
-        };
-        let graph_key = Arc::as_ptr(&graph) as usize;
-        if !graphs_with_non_zero_border_offset.contains(&graph_key) {
-            return false;
-        }
+    let mut node_guard = node.lock();
+    let Some(graph) = node_guard.graph() else {
+        return false;
+    };
+    let graph_key = Arc::as_ptr(&graph) as usize;
+    if !graphs_with_non_zero_border_offset.contains(&graph_key) {
+        return false;
+    }
 
-        let constraints = node_guard
-            .get_property(LayeredOptions::PORT_CONSTRAINTS)
-            .unwrap_or(PortConstraints::Undefined);
-        !constraints.is_pos_fixed() && !constraints.is_ratio_fixed()
-    })
+    let constraints = node_guard
+        .get_property(LayeredOptions::PORT_CONSTRAINTS)
+        .unwrap_or(PortConstraints::Undefined);
+    !constraints.is_pos_fixed() && !constraints.is_ratio_fixed()
 }
 
 fn graph_key_for_node(node: &LNodeRef) -> Option<usize> {
-    node.lock_ok()
-        .and_then(|node_guard| node_guard.graph())
-        .map(|graph| Arc::as_ptr(&graph) as usize)
+    let node_guard = node.lock();
+    node_guard.graph().map(|graph| Arc::as_ptr(&graph) as usize)
 }
 
 fn node_has_non_zero_border_offset(node: &LNodeRef) -> bool {
-    node.lock_ok().is_some_and(|node_guard| {
-        node_guard.ports().iter().any(|port| {
-            port.lock_ok()
-                .map(|mut port_guard| {
-                    port_guard
-                        .get_property(CoreOptions::PORT_BORDER_OFFSET)
-                        .unwrap_or(0.0)
-                        .abs()
-                        > f64::EPSILON
-                })
-                .unwrap_or(false)
-        })
+    let node_guard = node.lock();
+    node_guard.ports().iter().any(|port| {
+        let mut port_guard = port.lock();
+        port_guard
+            .get_property(CoreOptions::PORT_BORDER_OFFSET)
+            .unwrap_or(0.0)
+            .abs()
+            > f64::EPSILON
     })
 }
 
@@ -480,15 +469,14 @@ fn should_reapply_phase2_self_loop_port_sizing(node: &LNodeRef) -> bool {
     if !should_apply_phase1_port_placement(node) {
         return false;
     }
-    node.lock_ok().is_some_and(|mut node_guard| {
-        let has_self_loop_holder = node_guard
-            .get_property(InternalProperties::SELF_LOOP_HOLDER)
-            .is_some();
-        let size_constraints = node_guard
-            .get_property(LayeredOptions::NODE_SIZE_CONSTRAINTS)
-            .unwrap_or_default();
-        has_self_loop_holder && size_constraints.contains(&SizeConstraint::Ports)
-    })
+    let mut node_guard = node.lock();
+    let has_self_loop_holder = node_guard
+        .get_property(InternalProperties::SELF_LOOP_HOLDER)
+        .is_some();
+    let size_constraints = node_guard
+        .get_property(LayeredOptions::NODE_SIZE_CONSTRAINTS)
+        .unwrap_or_default();
+    has_self_loop_holder && size_constraints.contains(&SizeConstraint::Ports)
 }
 
 fn should_reapply_phase2_port_axis_overflow_sizing(node: &LNodeRef) -> bool {
@@ -496,8 +484,9 @@ fn should_reapply_phase2_port_axis_overflow_sizing(node: &LNodeRef) -> bool {
         return false;
     }
 
-    let (node_size, size_constraints, port_constraints, ports) = match node.lock_ok() {
-            Some(mut node_guard) => (
+    let (node_size, size_constraints, port_constraints, ports) = {
+        let mut node_guard = node.lock();
+        (
             *node_guard.shape().size_ref(),
             node_guard
                 .get_property(LayeredOptions::NODE_SIZE_CONSTRAINTS)
@@ -506,8 +495,7 @@ fn should_reapply_phase2_port_axis_overflow_sizing(node: &LNodeRef) -> bool {
                 .get_property(LayeredOptions::PORT_CONSTRAINTS)
                 .unwrap_or(PortConstraints::Undefined),
             node_guard.ports().clone(),
-        ),
-            None => return false,
+        )
     };
 
     if !size_constraints.contains(&SizeConstraint::Ports)
@@ -522,13 +510,13 @@ fn should_reapply_phase2_port_axis_overflow_sizing(node: &LNodeRef) -> bool {
 
     const EPS: f64 = 1e-6;
     for port in ports {
-        let (side, pos, size) = match port.lock_ok() {
-            Some(mut port_guard) => (
+        let (side, pos, size) = {
+            let mut port_guard = port.lock();
+            (
                 port_guard.side(),
                 *port_guard.shape().position_ref(),
                 *port_guard.shape().size_ref(),
-            ),
-            None => continue,
+            )
         };
 
         let overflows = match side {
@@ -553,8 +541,9 @@ fn should_reapply_phase2_inside_north_south_label_sizing(node: &LNodeRef) -> boo
         return false;
     }
 
-    let (size_constraints, placement, ports) = match node.lock_ok() {
-            Some(mut node_guard) => (
+    let (size_constraints, placement, ports) = {
+        let mut node_guard = node.lock();
+        (
             node_guard
                 .get_property(LayeredOptions::NODE_SIZE_CONSTRAINTS)
                 .unwrap_or_default(),
@@ -562,8 +551,7 @@ fn should_reapply_phase2_inside_north_south_label_sizing(node: &LNodeRef) -> boo
                 .get_property(CoreOptions::PORT_LABELS_PLACEMENT)
                 .unwrap_or_default(),
             node_guard.ports().clone(),
-        ),
-            None => return false,
+        )
     };
 
     if !size_constraints.contains(&SizeConstraint::PortLabels)
@@ -573,11 +561,10 @@ fn should_reapply_phase2_inside_north_south_label_sizing(node: &LNodeRef) -> boo
     }
 
     ports.into_iter().any(|port| {
-        port.lock_ok().is_some_and(|port_guard| {
-            let side = port_guard.side();
-            (side == PortSide::North || side == PortSide::South)
-                && !port_guard.labels().is_empty()
-        })
+        let port_guard = port.lock();
+        let side = port_guard.side();
+        (side == PortSide::North || side == PortSide::South)
+            && !port_guard.labels().is_empty()
     })
 }
 
@@ -597,48 +584,45 @@ fn place_ports_on_node(
         has_inside_north_south_port_labels,
         topdown_layout,
         node_size_fixed_graph_size,
-    ) = match node.lock_ok() {
-            Some(mut node_guard) => {
-            let port_labels_placement = node_guard
-                .get_property(CoreOptions::PORT_LABELS_PLACEMENT)
-                .unwrap_or_default();
-            let has_inside_north_south_port_labels = port_labels_placement
-                .contains(&PortLabelPlacement::Inside)
-                && node_guard.ports().iter().any(|port| {
-                    port.lock_ok().is_some_and(|port_guard| {
-                        let side = port_guard.side();
-                        (side == PortSide::North || side == PortSide::South)
-                            && !port_guard.labels().is_empty()
-                    })
-                });
-            let topdown_layout = node_property_or_graph_default(
-                &mut node_guard,
-                CoreOptions::TOPDOWN_LAYOUT,
-                graph_topdown_layout,
-            );
-            let node_size_fixed_graph_size = node_property_or_graph_default(
-                &mut node_guard,
-                CoreOptions::NODE_SIZE_FIXED_GRAPH_SIZE,
-                graph_node_size_fixed_graph_size,
-            );
-            (
-                node_guard.node_type(),
-                *node_guard.shape().size_ref(),
-                node_guard
-                    .get_property(LayeredOptions::PORT_CONSTRAINTS)
-                    .unwrap_or(PortConstraints::Undefined),
-                node_guard
-                    .get_property(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE)
-                    .unwrap_or(false),
-                node_guard
-                    .get_property(LayeredOptions::NODE_SIZE_CONSTRAINTS)
-                    .unwrap_or_default(),
-                has_inside_north_south_port_labels,
-                topdown_layout,
-                node_size_fixed_graph_size,
-            )
-        }
-            None => return false,
+    ) = {
+        let mut node_guard = node.lock();
+        let port_labels_placement = node_guard
+            .get_property(CoreOptions::PORT_LABELS_PLACEMENT)
+            .unwrap_or_default();
+        let has_inside_north_south_port_labels = port_labels_placement
+            .contains(&PortLabelPlacement::Inside)
+            && node_guard.ports().iter().any(|port| {
+                let port_guard = port.lock();
+                let side = port_guard.side();
+                (side == PortSide::North || side == PortSide::South)
+                    && !port_guard.labels().is_empty()
+            });
+        let topdown_layout = node_property_or_graph_default(
+            &mut node_guard,
+            CoreOptions::TOPDOWN_LAYOUT,
+            graph_topdown_layout,
+        );
+        let node_size_fixed_graph_size = node_property_or_graph_default(
+            &mut node_guard,
+            CoreOptions::NODE_SIZE_FIXED_GRAPH_SIZE,
+            graph_node_size_fixed_graph_size,
+        );
+        (
+            node_guard.node_type(),
+            *node_guard.shape().size_ref(),
+            node_guard
+                .get_property(LayeredOptions::PORT_CONSTRAINTS)
+                .unwrap_or(PortConstraints::Undefined),
+            node_guard
+                .get_property(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE)
+                .unwrap_or(false),
+            node_guard
+                .get_property(LayeredOptions::NODE_SIZE_CONSTRAINTS)
+                .unwrap_or_default(),
+            has_inside_north_south_port_labels,
+            topdown_layout,
+            node_size_fixed_graph_size,
+        )
     };
     let initial_size = node_size;
     if ElkTrace::global().node_size {
@@ -651,35 +635,24 @@ fn place_ports_on_node(
             s_count,
             w_count,
             u_count,
-        ) = node
-            .lock_ok()
-            .map(|mut node_guard| {
-                let id = node_guard.shape().graph_element().id;
-                let identifier = node_guard.designation();
-                let port_labels_placement = node_guard
-                    .get_property(CoreOptions::PORT_LABELS_PLACEMENT)
-                    .unwrap_or_default();
-                (
-                    id,
-                    identifier,
-                    port_labels_placement,
-                    node_guard.port_side_view(PortSide::North).len(),
-                    node_guard.port_side_view(PortSide::East).len(),
-                    node_guard.port_side_view(PortSide::South).len(),
-                    node_guard.port_side_view(PortSide::West).len(),
-                    node_guard.port_side_view(PortSide::Undefined).len(),
-                )
-            })
-            .unwrap_or((
-                -1,
-                "<no-id>".to_owned(),
-                EnumSet::none_of(),
-                0,
-                0,
-                0,
-                0,
-                0,
-            ));
+        ) = {
+            let mut node_guard = node.lock();
+            let id = node_guard.shape().graph_element().id;
+            let identifier = node_guard.designation();
+            let port_labels_placement = node_guard
+                .get_property(CoreOptions::PORT_LABELS_PLACEMENT)
+                .unwrap_or_default();
+            (
+                id,
+                identifier,
+                port_labels_placement,
+                node_guard.port_side_view(PortSide::North).len(),
+                node_guard.port_side_view(PortSide::East).len(),
+                node_guard.port_side_view(PortSide::South).len(),
+                node_guard.port_side_view(PortSide::West).len(),
+                node_guard.port_side_view(PortSide::Undefined).len(),
+            )
+        };
         eprintln!(
             "label-node-size: node id={} ident={} size=({}, {}) constraints={:?} port_constraints={:?} placement={:?} sides(N/E/S/W/U)=({}/{}/{}/{}/{})",
             id,
@@ -742,10 +715,10 @@ fn place_ports_on_node(
             || (node_size.y - initial_size.y).abs() > f64::EPSILON;
         if ElkTrace::global().node_size && size_changed
         {
-            let id = node
-                .lock_ok()
-                .map(|mut node_guard| node_guard.shape().graph_element().id)
-                .unwrap_or(-1);
+            let id = {
+                let mut node_guard = node.lock();
+                node_guard.shape().graph_element().id
+            };
             eprintln!(
                 "label-node-size: node id={} resized by phase1 from ({}, {}) -> ({}, {}) [inside-self-loop path]",
                 id, initial_size.x, initial_size.y, node_size.x, node_size.y
@@ -812,10 +785,10 @@ fn place_ports_on_node(
     if ElkTrace::global().node_size && ((node_size.x - initial_size.x).abs() > f64::EPSILON
         || (node_size.y - initial_size.y).abs() > f64::EPSILON)
     {
-        let id = node
-            .lock_ok()
-            .map(|mut node_guard| node_guard.shape().graph_element().id)
-            .unwrap_or(-1);
+        let id = {
+            let mut node_guard = node.lock();
+            node_guard.shape().graph_element().id
+        };
         eprintln!(
             "label-node-size: node id={} resized by phase1 from ({}, {}) -> ({}, {})",
             id, initial_size.x, initial_size.y, node_size.x, node_size.y
@@ -830,8 +803,9 @@ fn reposition_ports_only_on_node(
     graph_port_spacing: f64,
     graph_ports_surrounding: &ElkMargin,
 ) {
-    let (node_type, node_size, port_constraints, inside_self_loops_active) = match node.lock_ok() {
-            Some(mut node_guard) => (
+    let (node_type, node_size, port_constraints, inside_self_loops_active) = {
+        let mut node_guard = node.lock();
+        (
             node_guard.node_type(),
             *node_guard.shape().size_ref(),
             node_guard
@@ -840,8 +814,7 @@ fn reposition_ports_only_on_node(
             node_guard
                 .get_property(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE)
                 .unwrap_or(false),
-        ),
-            None => return,
+        )
     };
 
     if node_type != NodeType::Normal {
@@ -925,9 +898,9 @@ fn apply_inside_north_south_label_post_resize_adjustments(
         return;
     }
 
-    let (node_labels, ports) = match node.lock_ok() {
-            Some(node_guard) => (node_guard.labels().clone(), node_guard.ports().clone()),
-            None => return,
+    let (node_labels, ports) = {
+        let node_guard = node.lock();
+        (node_guard.labels().clone(), node_guard.ports().clone())
     };
 
     let label_shift_x = if delta_width.abs() > f64::EPSILON {
@@ -942,7 +915,8 @@ fn apply_inside_north_south_label_post_resize_adjustments(
     };
     if label_shift_x.abs() > f64::EPSILON || label_shift_y.abs() > f64::EPSILON {
         for label in node_labels {
-            if let Some(mut label_guard) = label.lock_ok() {
+            {
+                let mut label_guard = label.lock();
                 let pos = label_guard.shape().position();
                 pos.x += label_shift_x;
                 pos.y += label_shift_y;
@@ -955,19 +929,20 @@ fn apply_inside_north_south_label_post_resize_adjustments(
     }
 
     for port in ports {
-        let (side, port_size, labels) = match port.lock_ok() {
-            Some(mut port_guard) => (
+        let (side, port_size, labels) = {
+            let mut port_guard = port.lock();
+            (
                 port_guard.side(),
                 *port_guard.shape().size_ref(),
                 port_guard.labels().clone(),
-            ),
-            None => continue,
+            )
         };
         if side != PortSide::North && side != PortSide::South {
             continue;
         }
         for label in labels {
-            if let Some(mut label_guard) = label.lock_ok() {
+            {
+                let mut label_guard = label.lock();
                 let label_width = label_guard.shape().size_ref().x;
                 label_guard.shape().position().x = (port_size.x - label_width) / 2.0;
             }
@@ -980,12 +955,13 @@ fn place_inside_self_loop_ports(node: &LNodeRef, width: f64, height: f64) {
     adjust_ports_on_side(node, PortSide::South, width, height);
 
     let center_y = height / 2.0;
-    let west_ports = node
-        .lock_ok()
-        .map(|mut node_guard| node_guard.port_side_view(PortSide::West))
-        .unwrap_or_default();
+    let west_ports = {
+        let mut node_guard = node.lock();
+        node_guard.port_side_view(PortSide::West)
+    };
     for port in west_ports {
-        if let Some(mut port_guard) = port.lock_ok() {
+        {
+            let mut port_guard = port.lock();
             let port_size = *port_guard.shape().size_ref();
             let pos = port_guard.shape().position();
             pos.x = -port_size.x;
@@ -993,12 +969,13 @@ fn place_inside_self_loop_ports(node: &LNodeRef, width: f64, height: f64) {
         }
     }
 
-    let east_ports = node
-        .lock_ok()
-        .map(|mut node_guard| node_guard.port_side_view(PortSide::East))
-        .unwrap_or_default();
+    let east_ports = {
+        let mut node_guard = node.lock();
+        node_guard.port_side_view(PortSide::East)
+    };
     for port in east_ports {
-        if let Some(mut port_guard) = port.lock_ok() {
+        {
+            let mut port_guard = port.lock();
             let port_size = *port_guard.shape().size_ref();
             let pos = port_guard.shape().position();
             pos.x = width;
@@ -1017,10 +994,10 @@ fn graph_needs_phase2b_inside_port_label_restack(graph: &LGraph) -> bool {
     }
 
     for layer in graph.layers().clone() {
-        let nodes = layer
-            .lock_ok()
-            .map(|layer_guard| LGraphUtil::to_node_array(layer_guard.nodes()))
-            .unwrap_or_default();
+        let nodes = {
+            let layer_guard = layer.lock();
+            LGraphUtil::to_node_array(layer_guard.nodes())
+        };
         for node in nodes {
             let key = Arc::as_ptr(&node) as usize;
             if seen.insert(key) && node_has_inside_port_label_constraints(&node) {
@@ -1033,28 +1010,25 @@ fn graph_needs_phase2b_inside_port_label_restack(graph: &LGraph) -> bool {
 }
 
 fn node_has_inside_port_label_constraints(node: &LNodeRef) -> bool {
-    node.lock_ok().is_some_and(|mut node_guard| {
-        let placement = node_guard
-            .get_property(CoreOptions::PORT_LABELS_PLACEMENT)
-            .unwrap_or_default();
-        let size_constraints = node_guard
-            .get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)
-            .unwrap_or_default();
-        placement.contains(&PortLabelPlacement::Inside)
-            && size_constraints.contains(&SizeConstraint::PortLabels)
-    })
+    let mut node_guard = node.lock();
+    let placement = node_guard
+        .get_property(CoreOptions::PORT_LABELS_PLACEMENT)
+        .unwrap_or_default();
+    let size_constraints = node_guard
+        .get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)
+        .unwrap_or_default();
+    placement.contains(&PortLabelPlacement::Inside)
+        && size_constraints.contains(&SizeConstraint::PortLabels)
 }
 
 fn graph_has_any_port_labels(graph: &LGraph) -> bool {
     let mut seen = HashSet::new();
     let node_has_port_labels = |node: &LNodeRef| -> bool {
-        if let Some(node_guard) = node.lock_ok() {
-            return node_guard.ports().iter().any(|port| {
-                port.lock_ok()
-                    .is_some_and(|port_guard| !port_guard.labels().is_empty())
-            });
-        }
-        false
+        let node_guard = node.lock();
+        return node_guard.ports().iter().any(|port| {
+            let port_guard = port.lock();
+            !port_guard.labels().is_empty()
+        });
     };
 
     for node in graph.layerless_nodes().clone() {
@@ -1065,10 +1039,10 @@ fn graph_has_any_port_labels(graph: &LGraph) -> bool {
     }
 
     for layer in graph.layers().clone() {
-        let nodes = layer
-            .lock_ok()
-            .map(|layer_guard| LGraphUtil::to_node_array(layer_guard.nodes()))
-            .unwrap_or_default();
+        let nodes = {
+            let layer_guard = layer.lock();
+            LGraphUtil::to_node_array(layer_guard.nodes())
+        };
         for node in nodes {
             let key = Arc::as_ptr(&node) as usize;
             if seen.insert(key) && node_has_port_labels(&node) {
@@ -1081,14 +1055,14 @@ fn graph_has_any_port_labels(graph: &LGraph) -> bool {
 }
 
 fn update_node_margin(node: &LNodeRef) {
-    let (node_width, node_height, labels, ports) = match node.lock_ok() {
-            Some(mut node_guard) => (
+    let (node_width, node_height, labels, ports) = {
+        let mut node_guard = node.lock();
+        (
             node_guard.shape().size_ref().x,
             node_guard.shape().size_ref().y,
             node_guard.labels().clone(),
             node_guard.ports().clone(),
-        ),
-            None => return,
+        )
     };
 
     let mut margin_top = 0.0_f64;
@@ -1114,7 +1088,8 @@ fn update_node_margin(node: &LNodeRef) {
     };
 
     for label in labels {
-        if let Some(mut label_guard) = label.lock_ok() {
+        {
+            let mut label_guard = label.lock();
             let pos = *label_guard.shape().position_ref();
             let size = *label_guard.shape().size_ref();
             include_rect(pos.x, pos.y, size.x, size.y);
@@ -1122,13 +1097,15 @@ fn update_node_margin(node: &LNodeRef) {
     }
 
     for port in ports {
-        if let Some(mut port_guard) = port.lock_ok() {
+        {
+            let mut port_guard = port.lock();
             let port_pos = *port_guard.shape().position_ref();
             let port_size = *port_guard.shape().size_ref();
             include_rect(port_pos.x, port_pos.y, port_size.x, port_size.y);
 
             for label in port_guard.labels().clone() {
-                if let Some(mut label_guard) = label.lock_ok() {
+                {
+                    let mut label_guard = label.lock();
                     let label_pos = *label_guard.shape().position_ref();
                     let label_size = *label_guard.shape().size_ref();
                     include_rect(
@@ -1142,7 +1119,8 @@ fn update_node_margin(node: &LNodeRef) {
         }
     }
 
-    if let Some(mut node_guard) = node.lock_ok() {
+    {
+        let mut node_guard = node.lock();
         let margin = node_guard.margin();
         margin.top = margin_top;
         margin.right = margin_right;
@@ -1169,10 +1147,10 @@ fn port_label_min_size(
         return (KVector::new(), 0);
     }
 
-    let labels = port
-        .lock_ok()
-        .map(|port_guard| port_guard.labels().clone())
-        .unwrap_or_default();
+    let labels = {
+        let port_guard = port.lock();
+        port_guard.labels().clone()
+    };
     if labels.is_empty() {
         return (KVector::new(), 0);
     }
@@ -1181,7 +1159,8 @@ fn port_label_min_size(
     let mut total_height = 0.0_f64;
     let mut count = 0_usize;
     for label in labels {
-        if let Some(mut label_guard) = label.lock_ok() {
+        {
+            let mut label_guard = label.lock();
             let size = *label_guard.shape().size_ref();
             max_width = max_width.max(size.x);
             total_height += size.y;
@@ -1196,10 +1175,10 @@ fn port_label_min_size(
 }
 
 fn labels_bounds_for_port(port: &LPortRef) -> Option<ElkRectangle> {
-    let labels = port
-        .lock_ok()
-        .map(|port_guard| port_guard.labels().clone())
-        .unwrap_or_default();
+    let labels = {
+        let port_guard = port.lock();
+        port_guard.labels().clone()
+    };
     if labels.is_empty() {
         return None;
     }
@@ -1210,7 +1189,8 @@ fn labels_bounds_for_port(port: &LPortRef) -> Option<ElkRectangle> {
     let mut max_y = f64::NEG_INFINITY;
 
     for label in labels {
-        if let Some(mut label_guard) = label.lock_ok() {
+        {
+            let mut label_guard = label.lock();
             let pos = *label_guard.shape().position_ref();
             let size = *label_guard.shape().size_ref();
             min_x = min_x.min(pos.x);
@@ -1274,7 +1254,8 @@ fn setup_horizontal_port_margins(
         let label_width = ctx.label_size.x;
         if label_width > 0.0 {
             if ctx.labels_next_to_port {
-                if let Some(mut port_guard) = ctx.port.lock_ok() {
+                {
+                    let mut port_guard = ctx.port.lock();
                     let port_width = port_guard.shape().size_ref().x;
                     if label_width > port_width {
                         let overhang = (label_width - port_width) / 2.0;
@@ -1287,7 +1268,8 @@ fn setup_horizontal_port_margins(
             }
         } else if port_labels_fixed {
             if let Some(bounds) = labels_bounds_for_port(&ctx.port) {
-                if let Some(mut port_guard) = ctx.port.lock_ok() {
+                {
+                    let mut port_guard = ctx.port.lock();
                     let port_width = port_guard.shape().size_ref().x;
                     if bounds.x < 0.0 {
                         ctx.margin.left = -bounds.x;
@@ -1351,7 +1333,8 @@ fn setup_vertical_port_margins(
         let label_height = ctx.label_size.y;
         if label_height > 0.0 {
             if ctx.labels_next_to_port {
-                if let Some(mut port_guard) = ctx.port.lock_ok() {
+                {
+                    let mut port_guard = ctx.port.lock();
                     let port_height = port_guard.shape().size_ref().y;
                     if label_height > port_height {
                         if port_labels_treat_as_group || ctx.label_count <= 1 {
@@ -1359,17 +1342,13 @@ fn setup_vertical_port_margins(
                             ctx.margin.top = overhang;
                             ctx.margin.bottom = overhang;
                         } else {
-                            let first_label_height =
-                                ctx.port
-                                    .lock_ok()
-                                    .and_then(|port_guard| {
-                                        port_guard.labels().first().and_then(|label| {
-                                            label.lock_ok().map(|mut label_guard| {
-                                                label_guard.shape().size_ref().y
-                                            })
-                                        })
-                                    })
-                                    .unwrap_or(0.0);
+                            let first_label_height = {
+                                let port_guard2 = ctx.port.lock();
+                                port_guard2.labels().first().map(|label| {
+                                    let mut label_guard = label.lock();
+                                    label_guard.shape().size_ref().y
+                                }).unwrap_or(0.0)
+                            };
                             let first_overhang = (first_label_height - port_height) / 2.0;
                             ctx.margin.top = first_overhang.max(0.0);
                             ctx.margin.bottom = label_height - first_overhang - port_height;
@@ -1381,7 +1360,8 @@ fn setup_vertical_port_margins(
             }
         } else if port_labels_fixed {
             if let Some(bounds) = labels_bounds_for_port(&ctx.port) {
-                if let Some(mut port_guard) = ctx.port.lock_ok() {
+                {
+                    let mut port_guard = ctx.port.lock();
                     let port_height = port_guard.shape().size_ref().y;
                     if bounds.y < 0.0 {
                         ctx.margin.top = -bounds.y;
@@ -1448,70 +1428,52 @@ fn place_ports_on_side(
         label_port_spacing_horizontal,
         label_port_spacing_vertical,
         node_is_compound,
-    ) = node
-        .lock_ok()
-        .map(|mut node_guard| {
-            (
-                node_guard.port_side_view(side),
-                port_alignment_for_side(&mut node_guard, side),
-                property_with_graph_default(
-                    &mut node_guard,
-                    CoreOptions::SPACING_PORT_PORT,
-                    graph_port_spacing,
-                ),
-                property_with_graph_default(
-                    &mut node_guard,
-                    CoreOptions::SPACING_PORTS_SURROUNDING,
-                    graph_ports_surrounding.clone(),
-                ),
-                node_guard
-                    .get_property(CoreOptions::PORT_CONSTRAINTS)
-                    .unwrap_or(PortConstraints::Undefined),
-                node_guard
-                    .get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)
-                    .unwrap_or_default(),
-                node_guard
-                    .get_property(CoreOptions::NODE_SIZE_OPTIONS)
-                    .unwrap_or_default(),
-                node_guard
-                    .get_property(CoreOptions::PORT_LABELS_PLACEMENT)
-                    .unwrap_or_default(),
-                node_guard
-                    .get_property(CoreOptions::PORT_LABELS_TREAT_AS_GROUP)
-                    .unwrap_or(true),
-                property_with_graph_default(&mut node_guard, CoreOptions::SPACING_LABEL_LABEL, 0.0),
-                property_with_graph_default(
-                    &mut node_guard,
-                    CoreOptions::SPACING_LABEL_PORT_HORIZONTAL,
-                    0.0,
-                ),
-                property_with_graph_default(
-                    &mut node_guard,
-                    CoreOptions::SPACING_LABEL_PORT_VERTICAL,
-                    0.0,
-                ),
-                node_guard
-                    .get_property(InternalProperties::COMPOUND_NODE)
-                    .unwrap_or(false),
-            )
-        })
-        .unwrap_or_else(|| {
-            (
-                Vec::new(),
-                PortAlignment::Distributed,
+    ) = {
+        let mut node_guard = node.lock();
+        (
+            node_guard.port_side_view(side),
+            port_alignment_for_side(&mut node_guard, side),
+            property_with_graph_default(
+                &mut node_guard,
+                CoreOptions::SPACING_PORT_PORT,
                 graph_port_spacing,
+            ),
+            property_with_graph_default(
+                &mut node_guard,
+                CoreOptions::SPACING_PORTS_SURROUNDING,
                 graph_ports_surrounding.clone(),
-                PortConstraints::Undefined,
-                EnumSet::none_of(),
-                EnumSet::none_of(),
-                EnumSet::none_of(),
-                true,
+            ),
+            node_guard
+                .get_property(CoreOptions::PORT_CONSTRAINTS)
+                .unwrap_or(PortConstraints::Undefined),
+            node_guard
+                .get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)
+                .unwrap_or_default(),
+            node_guard
+                .get_property(CoreOptions::NODE_SIZE_OPTIONS)
+                .unwrap_or_default(),
+            node_guard
+                .get_property(CoreOptions::PORT_LABELS_PLACEMENT)
+                .unwrap_or_default(),
+            node_guard
+                .get_property(CoreOptions::PORT_LABELS_TREAT_AS_GROUP)
+                .unwrap_or(true),
+            property_with_graph_default(&mut node_guard, CoreOptions::SPACING_LABEL_LABEL, 0.0),
+            property_with_graph_default(
+                &mut node_guard,
+                CoreOptions::SPACING_LABEL_PORT_HORIZONTAL,
                 0.0,
+            ),
+            property_with_graph_default(
+                &mut node_guard,
+                CoreOptions::SPACING_LABEL_PORT_VERTICAL,
                 0.0,
-                0.0,
-                false,
-            )
-        });
+            ),
+            node_guard
+                .get_property(InternalProperties::COMPOUND_NODE)
+                .unwrap_or(false),
+        )
+    };
     let count = ports.len();
     if count == 0 {
         return;
@@ -1565,19 +1527,16 @@ fn place_ports_on_side(
     let mut contexts: Vec<PortPlacementContext> = ordered_ports
         .iter()
         .map(|port| {
-            let has_edges = port
-                .lock_ok()
-                .map(|port_guard| {
-                    !(port_guard.incoming_edges().is_empty()
-                        && port_guard.outgoing_edges().is_empty())
-                })
-                .unwrap_or(false);
-            let has_compound_connections = port
-                .lock_ok()
-                .and_then(|mut port_guard| {
-                    port_guard.get_property(InternalProperties::INSIDE_CONNECTIONS)
-                })
-                .unwrap_or(false);
+            let has_edges = {
+                let port_guard = port.lock();
+                !(port_guard.incoming_edges().is_empty()
+                    && port_guard.outgoing_edges().is_empty())
+            };
+            let has_compound_connections = {
+                let mut port_guard = port.lock();
+                port_guard.get_property(InternalProperties::INSIDE_CONNECTIONS)
+            }
+            .unwrap_or(false);
             let labels_next = labels_next_to_port(
                 &port_label_placement,
                 port_labels_next_to_port,
@@ -1631,11 +1590,10 @@ fn place_ports_on_side(
     let ports_overhang = size_options.contains(&SizeOptions::PortsOverhang);
     let mut placement_size = 0.0_f64;
     for (index, ctx) in contexts.iter().enumerate() {
-        let port_size = ctx
-            .port
-            .lock_ok()
-            .map(|mut port_guard| *port_guard.shape().size_ref())
-            .unwrap_or_else(KVector::new);
+        let port_size = {
+            let mut port_guard = ctx.port.lock();
+            *port_guard.shape().size_ref()
+        };
         let (margin_start, margin_end) = match side {
             PortSide::North | PortSide::South => (ctx.margin.left, ctx.margin.right),
             PortSide::East | PortSide::West => (ctx.margin.top, ctx.margin.bottom),
@@ -1708,7 +1666,8 @@ fn place_ports_on_side(
     }
 
     for ctx in contexts.iter() {
-        if let Some(mut port_guard) = ctx.port.lock_ok() {
+        {
+            let mut port_guard = ctx.port.lock();
             let port_size = *port_guard.shape().size_ref();
             let border_offset = port_guard
                 .get_property(CoreOptions::PORT_BORDER_OFFSET)
@@ -1755,14 +1714,14 @@ fn should_skip_clockwise_reorder_for_phase2f(node: &LNodeRef) -> bool {
     }
 
     let (mut has_south, mut has_west) = (false, false);
-    if let Some(node_guard) = node.lock_ok() {
+    {
+        let node_guard = node.lock();
         for port in node_guard.ports() {
-            if let Some(port_guard) = port.lock_ok() {
-                match port_guard.side() {
-                    PortSide::South => has_south = true,
-                    PortSide::West => has_west = true,
-                    _ => {}
-                }
+            let port_guard = port.lock();
+            match port_guard.side() {
+                PortSide::South => has_south = true,
+                PortSide::West => has_west = true,
+                _ => {}
             }
         }
     }
@@ -1775,28 +1734,23 @@ fn ensure_clockwise_port_order(node: &LNodeRef, port_constraints: PortConstraint
         return;
     }
 
-    let mut ports = if let Some(node_guard) = node.lock_ok() {
+    let mut ports = {
+        let node_guard = node.lock();
         node_guard.ports().clone()
-    } else {
-        Vec::new()
     };
     if ports.len() <= 1 {
         return;
     }
 
     let has_dummy_edges = ports.iter().any(|port| {
-        if let Some(port_guard) = port.lock_ok() {
-            return port_guard.connected_edges().iter().any(|edge| {
-                edge.lock_ok()
-                    .and_then(|mut edge_guard| {
-                        edge_guard
-                            .graph_element()
-                            .get_property(InternalProperties::ORIGIN)
-                    })
-                    .is_none()
-            });
-        }
-        false
+        let port_guard = port.lock();
+        port_guard.connected_edges().iter().any(|edge| {
+            let mut edge_guard = edge.lock();
+            edge_guard
+                .graph_element()
+                .get_property(InternalProperties::ORIGIN)
+                .is_none()
+        })
     });
     if has_dummy_edges {
         return;
@@ -1804,14 +1758,14 @@ fn ensure_clockwise_port_order(node: &LNodeRef, port_constraints: PortConstraint
 
     let mut indexed: Vec<(usize, LPortRef)> = ports.drain(..).enumerate().collect();
     indexed.sort_by(|(idx_a, port_a), (idx_b, port_b)| {
-        let side_a = port_a
-            .lock_ok()
-            .map(|port_guard| port_guard.side())
-            .unwrap_or(PortSide::Undefined);
-        let side_b = port_b
-            .lock_ok()
-            .map(|port_guard| port_guard.side())
-            .unwrap_or(PortSide::Undefined);
+        let side_a = {
+            let port_guard = port_a.lock();
+            port_guard.side()
+        };
+        let side_b = {
+            let port_guard = port_b.lock();
+            port_guard.side()
+        };
         let ord = side_a.cmp(&side_b);
         if ord == std::cmp::Ordering::Equal {
             idx_a.cmp(idx_b)
@@ -1823,7 +1777,8 @@ fn ensure_clockwise_port_order(node: &LNodeRef, port_constraints: PortConstraint
     let mut sorted_ports: Vec<LPortRef> = indexed.into_iter().map(|(_, port)| port).collect();
     reverse_west_and_south_side(&mut sorted_ports);
 
-    if let Some(mut node_guard) = node.lock_ok() {
+    {
+        let mut node_guard = node.lock();
         *node_guard.ports_mut() = sorted_ports;
         node_guard.cache_port_sides();
     }
@@ -1876,9 +1831,8 @@ fn reverse_range(ports: &mut [LPortRef], low_idx: usize, high_idx: usize) {
 }
 
 fn port_side(port: &LPortRef) -> PortSide {
-    port.lock_ok()
-        .map(|port_guard| port_guard.side())
-        .unwrap_or(PortSide::Undefined)
+    let port_guard = port.lock();
+    port_guard.side()
 }
 
 fn side_ordinal(side: PortSide) -> i32 {
@@ -1914,7 +1868,8 @@ fn enforce_port_driven_minimum_size(
     include_port_labels: bool,
     allow_shrink: bool,
 ) -> org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector {
-    let (required_width, required_height) = if let Some(mut node_guard) = node.lock_ok() {
+    let (required_width, required_height) = {
+        let mut node_guard = node.lock();
         let fixed_port_labels = include_port_labels
             && PortLabelPlacement::is_fixed(
                 &node_guard
@@ -1951,8 +1906,6 @@ fn enforce_port_driven_minimum_size(
                 fixed_port_labels,
             )),
         )
-    } else {
-        (0.0, 0.0)
     };
 
     let mut adjusted = node_size;
@@ -1971,10 +1924,9 @@ fn enforce_port_driven_minimum_size(
     if (adjusted.x - node_size.x).abs() > f64::EPSILON
         || (adjusted.y - node_size.y).abs() > f64::EPSILON
     {
-        if let Some(mut node_guard) = node.lock_ok() {
-            node_guard.shape().size().x = adjusted.x;
-            node_guard.shape().size().y = adjusted.y;
-        }
+        let mut node_guard = node.lock();
+        node_guard.shape().size().x = adjusted.x;
+        node_guard.shape().size().y = adjusted.y;
     }
 
     adjusted
@@ -1993,40 +1945,39 @@ fn enforce_inside_port_label_minimum_size(
         label_gap_vertical,
         ports,
         keep_current_size_on_shrink,
-    ) = match node.lock_ok() {
-            Some(mut node_guard) => {
-            let placement = node_guard
-                .get_property(CoreOptions::PORT_LABELS_PLACEMENT)
-                .unwrap_or_default();
-            if !placement.contains(&PortLabelPlacement::Inside) {
-                return node_size;
-            }
-            let size_constraints = node_guard
-                .get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)
-                .unwrap_or_default();
-            let padding = node_guard.padding().clone();
-            let label_gap_horizontal = node_guard
-                .get_property(CoreOptions::SPACING_LABEL_PORT_HORIZONTAL)
-                .unwrap_or(1.0);
-            let label_gap_vertical = node_guard
-                .get_property(CoreOptions::SPACING_LABEL_PORT_VERTICAL)
-                .unwrap_or(1.0);
-            let ports = node_guard.ports().clone();
-            let keep_current_size_on_shrink =
-                size_constraints.contains(&SizeConstraint::NodeLabels);
-            (
-                padding,
-                label_gap_horizontal,
-                label_gap_vertical,
-                ports,
-                keep_current_size_on_shrink,
-            )
+    ) = {
+        let mut node_guard = node.lock();
+        let placement = node_guard
+            .get_property(CoreOptions::PORT_LABELS_PLACEMENT)
+            .unwrap_or_default();
+        if !placement.contains(&PortLabelPlacement::Inside) {
+            return node_size;
         }
-            None => return node_size,
+        let size_constraints = node_guard
+            .get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)
+            .unwrap_or_default();
+        let padding = node_guard.padding().clone();
+        let label_gap_horizontal = node_guard
+            .get_property(CoreOptions::SPACING_LABEL_PORT_HORIZONTAL)
+            .unwrap_or(1.0);
+        let label_gap_vertical = node_guard
+            .get_property(CoreOptions::SPACING_LABEL_PORT_VERTICAL)
+            .unwrap_or(1.0);
+        let ports = node_guard.ports().clone();
+        let keep_current_size_on_shrink =
+            size_constraints.contains(&SizeConstraint::NodeLabels);
+        (
+            padding,
+            label_gap_horizontal,
+            label_gap_vertical,
+            ports,
+            keep_current_size_on_shrink,
+        )
     };
 
-    let (required_width_from_port_layout, required_height_from_port_layout) = match node.lock_ok() {
-            Some(mut node_guard) => (
+    let (required_width_from_port_layout, required_height_from_port_layout) = {
+        let mut node_guard = node.lock();
+        (
             required_inside_port_axis_for_side(
                 &mut node_guard,
                 PortSide::North,
@@ -2051,8 +2002,7 @@ fn enforce_inside_port_label_minimum_size(
                 graph_port_spacing,
                 graph_ports_surrounding,
             )),
-        ),
-            None => (0.0, 0.0),
+        )
     };
 
     let mut max_west = 0.0_f64;
@@ -2071,13 +2021,13 @@ fn enforce_inside_port_label_minimum_size(
     let mut east_port_count: usize = 0;
 
     for port in ports {
-        let (side, port_size, labels) = match port.lock_ok() {
-            Some(mut port_guard) => (
+        let (side, port_size, labels) = {
+            let mut port_guard = port.lock();
+            (
                 port_guard.side(),
                 *port_guard.shape().size_ref(),
                 port_guard.labels().clone(),
-            ),
-            None => continue,
+            )
         };
 
         match side {
@@ -2095,9 +2045,9 @@ fn enforce_inside_port_label_minimum_size(
         }
 
         for label in labels {
-            let label_size = match label.lock_ok() {
-            Some(mut label_guard) => *label_guard.shape().size_ref(),
-            None => continue,
+            let label_size = {
+                let mut label_guard = label.lock();
+                *label_guard.shape().size_ref()
             };
             match side {
                 PortSide::West | PortSide::Undefined => {
@@ -2182,10 +2132,9 @@ fn enforce_inside_port_label_minimum_size(
     if (adjusted.x - node_size.x).abs() > f64::EPSILON
         || (adjusted.y - node_size.y).abs() > f64::EPSILON
     {
-        if let Some(mut node_guard) = node.lock_ok() {
-            node_guard.shape().size().x = adjusted.x;
-            node_guard.shape().size().y = adjusted.y;
-        }
+        let mut node_guard = node.lock();
+        node_guard.shape().size().x = adjusted.x;
+        node_guard.shape().size().y = adjusted.y;
     }
 
     adjusted
@@ -2233,34 +2182,28 @@ fn required_axis_length_for_side(
 
     let mut base = surrounding_start.max(0.0) + surrounding_end.max(0.0);
     for port in &ports {
-        let extent = port
-            .lock_ok()
-            .map(|mut port_guard| {
-                let port_size = *port_guard.shape().size_ref();
-                let axis_size = match side {
-                    PortSide::North | PortSide::South => port_size.x,
-                    PortSide::East | PortSide::West => port_size.y,
-                    PortSide::Undefined => 0.0,
-                };
-                if !include_fixed_label_margins {
-                    return axis_size;
-                }
-
+        let extent = {
+            let mut port_guard = port.lock();
+            let port_size = *port_guard.shape().size_ref();
+            let axis_size = match side {
+                PortSide::North | PortSide::South => port_size.x,
+                PortSide::East | PortSide::West => port_size.y,
+                PortSide::Undefined => 0.0,
+            };
+            if !include_fixed_label_margins {
+                axis_size
+            } else {
                 let mut min_x = 0.0_f64;
                 let mut min_y = 0.0_f64;
                 let mut max_x = 0.0_f64;
                 let mut max_y = 0.0_f64;
                 let mut has_label = false;
                 for label in port_guard.labels().iter() {
-                    let Some(label_bounds) = label
-                        .lock_ok()
-                        .map(|mut label_guard| {
-                            let pos = *label_guard.shape().position_ref();
-                            let size = *label_guard.shape().size_ref();
-                            (pos.x, pos.y, pos.x + size.x, pos.y + size.y)
-                        })
-                    else {
-                        continue;
+                    let label_bounds = {
+                        let mut label_guard = label.lock();
+                        let pos = *label_guard.shape().position_ref();
+                        let size = *label_guard.shape().size_ref();
+                        (pos.x, pos.y, pos.x + size.x, pos.y + size.y)
                     };
 
                     if !has_label {
@@ -2277,24 +2220,24 @@ fn required_axis_length_for_side(
                     }
                 }
                 if !has_label {
-                    return axis_size;
-                }
-
-                match side {
-                    PortSide::North | PortSide::South => {
-                        let left = (-min_x).max(0.0);
-                        let right = (max_x - port_size.x).max(0.0);
-                        axis_size + left + right
+                    axis_size
+                } else {
+                    match side {
+                        PortSide::North | PortSide::South => {
+                            let left = (-min_x).max(0.0);
+                            let right = (max_x - port_size.x).max(0.0);
+                            axis_size + left + right
+                        }
+                        PortSide::East | PortSide::West => {
+                            let top = (-min_y).max(0.0);
+                            let bottom = (max_y - port_size.y).max(0.0);
+                            axis_size + top + bottom
+                        }
+                        PortSide::Undefined => axis_size,
                     }
-                    PortSide::East | PortSide::West => {
-                        let top = (-min_y).max(0.0);
-                        let bottom = (max_y - port_size.y).max(0.0);
-                        axis_size + top + bottom
-                    }
-                    PortSide::Undefined => axis_size,
                 }
-            })
-            .unwrap_or(0.0);
+            }
+        };
         base += extent;
     }
     if count > 1 {
@@ -2350,32 +2293,29 @@ fn required_inside_port_axis_for_side(
 
     let mut required = surrounding_start.max(0.0) + surrounding_end.max(0.0);
     for port in &ports {
-        let port_extent = port
-            .lock_ok()
-            .map(|mut port_guard| {
-                let port_size = *port_guard.shape().size_ref();
-                let label_extent = port_guard
-                    .labels()
-                    .iter()
-                    .filter_map(|label| {
-                        label
-                            .lock_ok()
-                            .map(|mut label_guard| *label_guard.shape().size_ref())
-                    })
-                    .map(|label_size| match side {
+        let port_extent = {
+            let mut port_guard = port.lock();
+            let port_size = *port_guard.shape().size_ref();
+            let label_extent = port_guard
+                .labels()
+                .iter()
+                .map(|label| {
+                    let mut label_guard = label.lock();
+                    let label_size = *label_guard.shape().size_ref();
+                    match side {
                         PortSide::North | PortSide::South => label_size.x,
                         PortSide::East | PortSide::West => label_size.y,
                         PortSide::Undefined => 0.0,
-                    })
-                    .fold(0.0, f64::max);
-                let axis_size = match side {
-                    PortSide::North | PortSide::South => port_size.x,
-                    PortSide::East | PortSide::West => port_size.y,
-                    PortSide::Undefined => 0.0,
-                };
-                axis_size.max(label_extent)
-            })
-            .unwrap_or(0.0);
+                    }
+                })
+                .fold(0.0, f64::max);
+            let axis_size = match side {
+                PortSide::North | PortSide::South => port_size.x,
+                PortSide::East | PortSide::West => port_size.y,
+                PortSide::Undefined => 0.0,
+            };
+            axis_size.max(label_extent)
+        };
         required += port_extent;
     }
 
@@ -2442,16 +2382,17 @@ fn node_property_or_graph_default<T: Clone + Send + Sync + 'static>(
 }
 
 fn adjust_ports_on_side(node: &LNodeRef, side: PortSide, width: f64, height: f64) {
-    let ports = node
-        .lock_ok()
-        .map(|mut node_guard| node_guard.port_side_view(side))
-        .unwrap_or_default();
+    let ports = {
+        let mut node_guard = node.lock();
+        node_guard.port_side_view(side)
+    };
     if ports.is_empty() {
         return;
     }
 
     for port in ports {
-        if let Some(mut port_guard) = port.lock_ok() {
+        {
+            let mut port_guard = port.lock();
             let port_size = *port_guard.shape().size_ref();
             let border_offset = port_guard
                 .get_property(CoreOptions::PORT_BORDER_OFFSET)
@@ -2477,16 +2418,17 @@ fn adjust_ports_on_side(node: &LNodeRef, side: PortSide, width: f64, height: f64
 }
 
 fn place_ports_fixed_ratio_on_side(node: &LNodeRef, side: PortSide, width: f64, height: f64) {
-    let ports = node
-        .lock_ok()
-        .map(|mut node_guard| node_guard.port_side_view(side))
-        .unwrap_or_default();
+    let ports = {
+        let mut node_guard = node.lock();
+        node_guard.port_side_view(side)
+    };
     if ports.is_empty() {
         return;
     }
 
     for port in ports {
-        if let Some(mut port_guard) = port.lock_ok() {
+        {
+            let mut port_guard = port.lock();
             let port_size = *port_guard.shape().size_ref();
             let border_offset = port_guard
                 .get_property(CoreOptions::PORT_BORDER_OFFSET)
@@ -2536,8 +2478,9 @@ fn place_external_port_dummy_labels(
         label_port_spacing_vertical,
         label_label_spacing,
         dummy_size,
-    ) = match dummy.lock_ok() {
-            Some(mut guard) => (
+    ) = {
+        let mut guard = dummy.lock();
+        (
             guard
                 .get_property(LayeredOptions::SPACING_LABEL_PORT_HORIZONTAL)
                 .unwrap_or(0.0),
@@ -2548,36 +2491,36 @@ fn place_external_port_dummy_labels(
                 .get_property(LayeredOptions::SPACING_LABEL_LABEL)
                 .unwrap_or(0.0),
             *guard.shape().size_ref(),
-        ),
-            None => return,
+        )
     };
 
     // External port dummies have exactly one port
-    let dummy_port = match dummy.lock_ok() {
-            Some(guard) => match guard.ports().first() {
+    let dummy_port = {
+        let guard = dummy.lock();
+        match guard.ports().first() {
             Some(p) => p.clone(),
             None => return,
-        },
-            None => return,
+        }
     };
 
-    let dummy_port_pos = dummy_port
-        .lock_ok()
-        .map(|mut g| *g.shape().position_ref())
-        .unwrap_or_default();
+    let dummy_port_pos = {
+        let mut g = dummy_port.lock();
+        *g.shape().position_ref()
+    };
 
     // Compute port label box
-    let port_labels: Vec<_> = dummy_port
-        .lock_ok()
-        .map(|g| g.labels().clone())
-        .unwrap_or_default();
+    let port_labels: Vec<_> = {
+        let g = dummy_port.lock();
+        g.labels().clone()
+    };
     if port_labels.is_empty() {
         return;
     }
 
     let mut label_box = ElkRectangle::default();
     for label in &port_labels {
-        if let Some(mut g) = label.lock_ok() {
+        {
+            let mut g = label.lock();
             let sz = g.shape().size_ref();
             label_box.width = label_box.width.max(sz.x);
             label_box.height += sz.y;
@@ -2585,10 +2528,11 @@ fn place_external_port_dummy_labels(
     }
     label_box.height += (port_labels.len() as f64 - 1.0) * label_label_spacing;
 
-    let ext_port_side = dummy
-        .lock_ok()
-        .and_then(|mut g| g.get_property(InternalProperties::EXT_PORT_SIDE))
-        .unwrap_or(PortSide::Undefined);
+    let ext_port_side = {
+        let mut g = dummy.lock();
+        g.get_property(InternalProperties::EXT_PORT_SIDE)
+            .unwrap_or(PortSide::Undefined)
+    };
 
     // Determine the position of the label box
     if graph_port_label_placement.contains(&PortLabelPlacement::Inside) {
@@ -2608,7 +2552,10 @@ fn place_external_port_dummy_labels(
                     } else {
                         port_labels
                             .first()
-                            .and_then(|l| l.lock_ok().map(|mut g| g.shape().size_ref().y))
+                            .map(|l| {
+                                let mut g = l.lock();
+                                g.shape().size_ref().y
+                            })
                             .unwrap_or(0.0)
                     };
                     label_box.y = (dummy_size.y - label_height) / 2.0 - dummy_port_pos.y;
@@ -2624,7 +2571,10 @@ fn place_external_port_dummy_labels(
                     } else {
                         port_labels
                             .first()
-                            .and_then(|l| l.lock_ok().map(|mut g| g.shape().size_ref().y))
+                            .map(|l| {
+                                let mut g = l.lock();
+                                g.shape().size_ref().y
+                            })
                             .unwrap_or(0.0)
                     };
                     label_box.y = (dummy_size.y - label_height) / 2.0 - dummy_port_pos.y;
@@ -2647,7 +2597,10 @@ fn place_external_port_dummy_labels(
                     } else {
                         port_labels
                             .first()
-                            .and_then(|l| l.lock_ok().map(|mut g| g.shape().size_ref().y))
+                            .map(|l| {
+                                let mut g = l.lock();
+                                g.shape().size_ref().y
+                            })
                             .unwrap_or(0.0)
                     };
                     label_box.y = (dummy_size.y - label_height) / 2.0 - dummy_port_pos.y;
@@ -2662,7 +2615,8 @@ fn place_external_port_dummy_labels(
     // Place the labels
     let mut current_y = label_box.y;
     for label in &port_labels {
-        if let Some(mut g) = label.lock_ok() {
+        {
+            let mut g = label.lock();
             let label_size_y = g.shape().size_ref().y;
             let pos = g.shape().position();
             pos.x = label_box.x;
@@ -2683,19 +2637,13 @@ fn label_next_to_port(
     }
 
     if inside_labels {
-        return dummy_port
-            .lock_ok()
-            .map(|port_guard| {
-                port_guard.incoming_edges().is_empty() && port_guard.outgoing_edges().is_empty()
-            })
-            .unwrap_or(false);
+        let port_guard = dummy_port.lock();
+        return port_guard.incoming_edges().is_empty() && port_guard.outgoing_edges().is_empty();
     }
 
     // Java: !dummyPort.isConnectedToExternalNodes()
-    !dummy_port
-        .lock_ok()
-        .map(|port_guard| port_guard.is_connected_to_external_nodes())
-        .unwrap_or(false)
+    let port_guard = dummy_port.lock();
+    !port_guard.is_connected_to_external_nodes()
 }
 
 #[cfg(test)]
