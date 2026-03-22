@@ -77,12 +77,14 @@ impl ILayoutProcessor<LGraph> for SelfLoopPortRestorer {
             .collect::<Vec<_>>();
 
         for node in nodes {
-            let holder = node.lock_ok().and_then(|mut node_guard| {
+            let holder = {
+                let mut node_guard = node.lock();
                 if node_guard.node_type() != NodeType::Normal {
-                    return None;
+                    None
+                } else {
+                    node_guard.get_property(InternalProperties::SELF_LOOP_HOLDER)
                 }
-                node_guard.get_property(InternalProperties::SELF_LOOP_HOLDER)
-            });
+            };
             let Some(holder) = holder else {
                 continue;
             };
@@ -95,26 +97,24 @@ impl ILayoutProcessor<LGraph> for SelfLoopPortRestorer {
 }
 
 fn process_node(holder: &SelfLoopHolderRef) {
-    let ports_hidden = holder
-        .lock_ok()
-        .is_some_and(|holder_guard| holder_guard.are_ports_hidden());
+    let ports_hidden = {
+        let holder_guard = holder.lock();
+        holder_guard.are_ports_hidden()
+    };
 
     if !ports_hidden {
         compute_self_loop_types(holder);
         return;
     }
 
-    let original_constraints = holder
-        .lock_ok()
-        .and_then(|holder_guard| {
-            holder_guard
-                .l_node()
-                .lock_ok()
-                .and_then(|mut node_guard| {
-                    node_guard.get_property(InternalProperties::ORIGINAL_PORT_CONSTRAINTS)
-                })
-        })
-        .unwrap_or(PortConstraints::Undefined);
+    let original_constraints = {
+        let holder_guard = holder.lock();
+        let l_node = holder_guard.l_node().clone();
+        let mut node_guard = l_node.lock();
+        node_guard
+            .get_property(InternalProperties::ORIGINAL_PORT_CONSTRAINTS)
+            .unwrap_or(PortConstraints::Undefined)
+    };
 
     match original_constraints {
         PortConstraints::Undefined | PortConstraints::Free => {
@@ -149,20 +149,18 @@ fn compute_self_loop_types(holder: &SelfLoopHolderRef) {
 }
 
 fn assign_hidden_port_sides(holder: &SelfLoopHolderRef) {
-    let (distribution, loops) = holder
-        .lock_ok()
-        .map(|holder_guard| {
-            let l_node = holder_guard.l_node().clone();
-            let loops = holder_guard.sl_hyper_loops().clone();
-            let distribution = l_node
-                .lock_ok()
-                .and_then(|mut node_guard| {
-                    node_guard.get_property(LayeredOptions::EDGE_ROUTING_SELF_LOOP_DISTRIBUTION)
-                })
-                .unwrap_or(SelfLoopDistributionStrategy::North);
-            (distribution, loops)
-        })
-        .unwrap_or((SelfLoopDistributionStrategy::North, Vec::new()));
+    let (distribution, loops) = {
+        let holder_guard = holder.lock();
+        let l_node = holder_guard.l_node().clone();
+        let loops = holder_guard.sl_hyper_loops().clone();
+        let distribution = {
+            let mut node_guard = l_node.lock();
+            node_guard
+                .get_property(LayeredOptions::EDGE_ROUTING_SELF_LOOP_DISTRIBUTION)
+                .unwrap_or(SelfLoopDistributionStrategy::North)
+        };
+        (distribution, loops)
+    };
 
     match distribution {
         SelfLoopDistributionStrategy::North => assign_to_north_side(&loops),
@@ -206,14 +204,14 @@ fn assign_to_north_or_south_side(loops: &[SelfHyperLoopRef]) {
 fn assign_to_all_sides(loops: &[SelfHyperLoopRef]) {
     let mut sorted_loops = loops.to_vec();
     sorted_loops.sort_by(|left, right| {
-        let left_size = left
-            .lock_ok()
-            .map(|loop_guard| loop_guard.sl_ports().len())
-            .unwrap_or_default();
-        let right_size = right
-            .lock_ok()
-            .map(|loop_guard| loop_guard.sl_ports().len())
-            .unwrap_or_default();
+        let left_size = {
+            let loop_guard = left.lock();
+            loop_guard.sl_ports().len()
+        };
+        let right_size = {
+            let loop_guard = right.lock();
+            loop_guard.sl_ports().len()
+        };
         right_size.cmp(&left_size)
     });
 
@@ -241,13 +239,14 @@ fn assign_to_target(sl_loop: &SelfHyperLoopRef, target: Target) {
 }
 
 fn set_hidden_port_side(sl_port: &SelfLoopPortRef, side: PortSide) {
-    let l_port = sl_port.lock_ok().and_then(|port_guard| {
+    let l_port = {
+        let port_guard = sl_port.lock();
         if port_guard.is_hidden() {
             Some(port_guard.l_port().clone())
         } else {
             None
         }
-    });
+    };
     if let Some(l_port) = l_port {
         {
             let mut l_port_guard = l_port.lock();
@@ -267,17 +266,14 @@ fn hidden_ports_of_loop(sl_loop: &SelfHyperLoopRef) -> Vec<SelfLoopPortRef> {
 fn restore_ports(holder: &SelfLoopHolderRef) {
     let mut target_areas = init_target_areas();
     let mut loops_by_type = gather_self_loops_by_type(holder);
-    let ordering = holder
-        .lock_ok()
-        .and_then(|holder_guard| {
-            holder_guard
-                .l_node()
-                .lock_ok()
-                .and_then(|mut node_guard| {
-                    node_guard.get_property(LayeredOptions::EDGE_ROUTING_SELF_LOOP_ORDERING)
-                })
-        })
-        .unwrap_or(SelfLoopOrderingStrategy::Stacked);
+    let ordering = {
+        let holder_guard = holder.lock();
+        let l_node = holder_guard.l_node().clone();
+        let mut node_guard = l_node.lock();
+        node_guard
+            .get_property(LayeredOptions::EDGE_ROUTING_SELF_LOOP_ORDERING)
+            .unwrap_or(SelfLoopOrderingStrategy::Stacked)
+    };
 
     process_one_side_loops(ordering, &mut loops_by_type, &mut target_areas);
     process_two_side_corner_loops(&loops_by_type, &mut target_areas);
@@ -354,11 +350,14 @@ fn process_one_side_loops(
     }
 
     for sl_loop in one_side_loops {
-        let side = sl_loop
-            .lock_ok()
-            .and_then(|loop_guard| loop_guard.sl_ports().first().cloned())
-            .map(|sl_port| sl_port_side(&sl_port))
-            .unwrap_or(PortSide::Undefined);
+        let side = {
+            let loop_guard = sl_loop.lock();
+            loop_guard
+                .sl_ports()
+                .first()
+                .map(|sl_port| sl_port_side(sl_port))
+                .unwrap_or(PortSide::Undefined)
+        };
         if side == PortSide::Undefined {
             continue;
         }
@@ -568,10 +567,10 @@ fn add_to_target_area_loop(
     add_mode: AddMode,
     target_areas: &mut TargetAreas,
 ) {
-    let ports = sl_loop
-        .lock_ok()
-        .map(|loop_guard| loop_guard.ports_on_side(port_side))
-        .unwrap_or_default();
+    let ports = {
+        let loop_guard = sl_loop.lock();
+        loop_guard.ports_on_side(port_side)
+    };
     add_to_target_area_from_ports(&ports, port_side, area, add_mode, target_areas);
 }
 
@@ -598,11 +597,9 @@ fn add_to_target_area_from_ports(
 }
 
 fn restore_ports_to_node(holder: &SelfLoopHolderRef, target_areas: &TargetAreas) {
-    let l_node = holder
-        .lock_ok()
-        .map(|holder_guard| holder_guard.l_node().clone());
-    let Some(l_node) = l_node else {
-        return;
+    let l_node = {
+        let holder_guard = holder.lock();
+        holder_guard.l_node().clone()
     };
 
     let old_port_list = l_node
@@ -691,15 +688,14 @@ fn add_all(
 ) {
     let sl_ports = target_areas.get(&(side, area)).cloned().unwrap_or_default();
     for sl_port in sl_ports {
-        let l_port = sl_port
-            .lock_ok()
-            .map(|sl_port_guard| sl_port_guard.l_port().clone());
-        if let Some(l_port) = l_port {
-            crate::org::eclipse::elk::alg::layered::graph::LPort::set_node(
-                &l_port,
-                Some(l_node.clone()),
-            );
-        }
+        let l_port = {
+            let sl_port_guard = sl_port.lock();
+            sl_port_guard.l_port().clone()
+        };
+        crate::org::eclipse::elk::alg::layered::graph::LPort::set_node(
+            &l_port,
+            Some(l_node.clone()),
+        );
     }
 }
 
@@ -738,9 +734,10 @@ fn is_north_south_port_with_east_connections(l_port: &LPortRef) -> bool {
 
 fn north_south_port_connection_sides(l_port: &LPortRef) -> HashSet<PortSide> {
     let mut connection_sides = HashSet::new();
-    let port_dummy = l_port
-        .lock_ok()
-        .and_then(|mut l_port_guard| l_port_guard.get_property(InternalProperties::PORT_DUMMY));
+    let port_dummy = {
+        let mut l_port_guard = l_port.lock();
+        l_port_guard.get_property(InternalProperties::PORT_DUMMY)
+    };
     let Some(port_dummy) = port_dummy else {
         return connection_sides;
     };
@@ -748,9 +745,10 @@ fn north_south_port_connection_sides(l_port: &LPortRef) -> HashSet<PortSide> {
     let dummy_ports = port_dummy
         .lock().ports().clone();
     for dummy_l_port in dummy_ports {
-        let origin = dummy_l_port.lock_ok().and_then(|mut dummy_port_guard| {
+        let origin = {
+            let mut dummy_port_guard = dummy_l_port.lock();
             dummy_port_guard.get_property(InternalProperties::ORIGIN)
-        });
+        };
         let Some(Origin::LPort(origin_port)) = origin else {
             continue;
         };
@@ -758,15 +756,13 @@ fn north_south_port_connection_sides(l_port: &LPortRef) -> HashSet<PortSide> {
             continue;
         }
 
-        let (side, has_edges) = dummy_l_port
-            .lock_ok()
-            .map(|dummy_port_guard| {
-                (
-                    dummy_port_guard.side(),
-                    !dummy_port_guard.connected_edges().is_empty(),
-                )
-            })
-            .unwrap_or((PortSide::Undefined, false));
+        let (side, has_edges) = {
+            let dummy_port_guard = dummy_l_port.lock();
+            (
+                dummy_port_guard.side(),
+                !dummy_port_guard.connected_edges().is_empty(),
+            )
+        };
         if has_edges {
             connection_sides.insert(side);
         }
@@ -786,27 +782,15 @@ fn l_port_side(l_port: &LPortRef) -> PortSide {
 }
 
 fn sl_port_side(sl_port: &SelfLoopPortRef) -> PortSide {
-    sl_port
-        .lock_ok()
-        .and_then(|port_guard| {
-            port_guard
-                .l_port()
-                .lock_ok()
-                .map(|l_port_guard| l_port_guard.side())
-        })
-        .unwrap_or(PortSide::Undefined)
+    let port_guard = sl_port.lock();
+    let l_port_guard = port_guard.l_port().lock();
+    l_port_guard.side()
 }
 
 fn sl_port_net_flow(sl_port: &SelfLoopPortRef) -> isize {
-    sl_port
-        .lock_ok()
-        .and_then(|port_guard| {
-            port_guard
-                .l_port()
-                .lock_ok()
-                .map(|l_port_guard| l_port_guard.net_flow())
-        })
-        .unwrap_or_default()
+    let port_guard = sl_port.lock();
+    let l_port_guard = port_guard.l_port().lock();
+    l_port_guard.net_flow()
 }
 
 fn loop_port_sides(sl_loop: &SelfHyperLoopRef) -> Vec<PortSide> {
