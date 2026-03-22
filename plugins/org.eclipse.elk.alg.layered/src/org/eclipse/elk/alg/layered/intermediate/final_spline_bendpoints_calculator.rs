@@ -3,9 +3,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::math::elk_math::ElkMath;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::elk_rectangle::ElkRectangle;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector_chain::KVectorChain;
-use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::{
-    PortSide, SIDES_NORTH_SOUTH,
-};
+use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::SIDES_NORTH_SOUTH;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LGraph, LNodeRef};
@@ -45,24 +43,17 @@ impl FinalSplineBendpointsCalculator {
     fn index_nodes_per_layer(graph: &mut LGraph) {
         let layers = graph.layers().clone();
         for layer in layers {
-            let nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+            let nodes = layer.lock().nodes().clone();
             for (index, node) in nodes.iter().enumerate() {
-                if let Some(mut node_guard) = node.lock_ok() {
-                    node_guard.shape().graph_element().id = index as i32;
-                }
+                let mut node_guard = node.lock();
+                node_guard.shape().graph_element().id = index as i32;
             }
         }
     }
 
     fn calculate_control_points(&mut self, segment: &SplineSegmentRef) {
         let snapshot = {
-            let mut segment_guard = match segment.lock_ok() {
-            Some(guard) => guard,
-            None => return,
-            };
+            let mut segment_guard = segment.lock();
             if segment_guard.handled {
                 return;
             }
@@ -103,11 +94,10 @@ impl FinalSplineBendpointsCalculator {
 
         if snapshot.inverse_order {
             for edge in &snapshot.edges {
-                if let Some(mut edge_guard) = edge.lock_ok() {
-                    let reversed = KVectorChain::reverse(edge_guard.bend_points_ref());
-                    edge_guard.bend_points().clear();
-                    edge_guard.bend_points().add_all(&reversed.to_array());
-                }
+                let mut edge_guard = edge.lock();
+                let reversed = KVectorChain::reverse(edge_guard.bend_points_ref());
+                edge_guard.bend_points().clear();
+                edge_guard.bend_points().add_all(&reversed.to_array());
             }
         }
     }
@@ -120,9 +110,8 @@ impl FinalSplineBendpointsCalculator {
             segment.center_control_point_y,
         );
         if let Some(edge) = segment.edges.first() {
-            if let Some(mut edge_guard) = edge.lock_ok() {
-                edge_guard.bend_points().add_vector(halfway);
-            }
+            let mut edge_guard = edge.lock();
+            edge_guard.bend_points().add_vector(halfway);
         }
     }
 
@@ -157,7 +146,8 @@ impl FinalSplineBendpointsCalculator {
         let source_vertical_cp = KVector::with_values(center_x_pos, y_source_anchor);
         let target_vertical_cp = KVector::with_values(center_x_pos, y_target_anchor);
 
-        if let Some(mut edge_guard) = edge.lock_ok() {
+        {
+            let mut edge_guard = edge.lock();
             edge_guard.bend_points().add_vector(source_straight_cp);
             edge_guard.bend_points().add_vector(source_vertical_cp);
             if segment.is_hyper_edge {
@@ -192,7 +182,8 @@ impl FinalSplineBendpointsCalculator {
         let source_vertical_cp = KVector::with_values(center_x_pos, y_source_anchor);
         let target_vertical_cp = KVector::with_values(center_x_pos, y_target_anchor);
 
-        if let Some(mut edge_guard) = edge.lock_ok() {
+        {
+            let mut edge_guard = edge.lock();
             edge_guard.bend_points().add_vector(source_straight_cp);
             edge_guard.bend_points().add_vector(source_vertical_cp);
             if segment.is_hyper_edge {
@@ -226,44 +217,27 @@ impl FinalSplineBendpointsCalculator {
         let v1 = segment
             .source_port
             .as_ref()
-            .and_then(|port| {
-                port.lock_ok()
-                    .and_then(|port_guard| port_guard.absolute_anchor())
-            })
+            .and_then(|port| port.lock().absolute_anchor())
             .unwrap_or_default();
         let v2 = KVector::with_values(center_x_pos, center_y_pos);
         let v3 = segment
             .target_port
             .as_ref()
-            .and_then(|port| {
-                port.lock_ok()
-                    .and_then(|port_guard| port_guard.absolute_anchor())
-            })
+            .and_then(|port| port.lock().absolute_anchor())
             .unwrap_or_default();
         let approx = ElkMath::approximate_bezier_segment(2, &[v1, v2, v3]);
         let approx_center = approx.first().copied().unwrap_or(v2);
 
         let mut short_cut_source = false;
         if let Some(source_port) = segment.source_port.as_ref() {
-            let src_node = source_port
-                .lock_ok()
-                .and_then(|port_guard| port_guard.node());
+            let src_node = source_port.lock().node();
             if let Some(src_node) = src_node {
-                let src_layer = src_node
-                    .lock_ok()
-                    .and_then(|node_guard| node_guard.layer());
+                let src_layer = src_node.lock().layer();
                 if src_layer.is_some() && edge_info.normal_source_node {
-                    let node_id = src_node
-                        .lock_ok()
-                        .map(|mut node_guard| node_guard.shape().graph_element().id)
-                        .unwrap_or(0) as isize;
+                    let node_id = src_node.lock().shape().graph_element().id as isize;
                     let layer_nodes = src_layer
                         .as_ref()
-                        .and_then(|layer| {
-                            layer
-                                .lock_ok()
-                                .map(|layer_guard| layer_guard.nodes().clone())
-                        })
+                        .map(|layer| layer.lock().nodes().clone())
                         .unwrap_or_default();
                     let need_to_check_src = (edge_points_downwards
                         && node_id < (layer_nodes.len() as isize - 1))
@@ -290,25 +264,14 @@ impl FinalSplineBendpointsCalculator {
 
         let mut short_cut_target = false;
         if let Some(target_port) = segment.target_port.as_ref() {
-            let tgt_node = target_port
-                .lock_ok()
-                .and_then(|port_guard| port_guard.node());
+            let tgt_node = target_port.lock().node();
             if let Some(tgt_node) = tgt_node {
-                let tgt_layer = tgt_node
-                    .lock_ok()
-                    .and_then(|node_guard| node_guard.layer());
+                let tgt_layer = tgt_node.lock().layer();
                 if tgt_layer.is_some() && edge_info.normal_target_node {
-                    let node_id = tgt_node
-                        .lock_ok()
-                        .map(|mut node_guard| node_guard.shape().graph_element().id)
-                        .unwrap_or(0) as isize;
+                    let node_id = tgt_node.lock().shape().graph_element().id as isize;
                     let layer_nodes = tgt_layer
                         .as_ref()
-                        .and_then(|layer| {
-                            layer
-                                .lock_ok()
-                                .map(|layer_guard| layer_guard.nodes().clone())
-                        })
+                        .map(|layer| layer.lock().nodes().clone())
                         .unwrap_or_default();
                     let need_to_check_tgt = (edge_points_downwards && node_id > 0)
                         || (!edge_points_downwards && node_id < (layer_nodes.len() as isize - 1));
@@ -332,7 +295,8 @@ impl FinalSplineBendpointsCalculator {
             }
         }
 
-        if let Some(mut edge_guard) = edge.lock_ok() {
+        {
+            let mut edge_guard = edge.lock();
             if short_cut_source && short_cut_target {
                 edge_guard.bend_points().add_vector(v2);
             }
@@ -356,23 +320,14 @@ impl FinalSplineBendpointsCalculator {
         let mut indegree = 0i32;
         let mut outdegree = 0i32;
 
-        let source_port = edge.lock_ok().and_then(|edge_guard| edge_guard.source());
-        let target_port = edge.lock_ok().and_then(|edge_guard| edge_guard.target());
+        let source_port = edge.lock().source();
+        let target_port = edge.lock().target();
 
         if let Some(target_port) = target_port {
-            if let Some(node) = target_port
-                .lock_ok()
-                .and_then(|port_guard| port_guard.node())
-            {
-                let ports = node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.ports().clone())
-                    .unwrap_or_default();
+            if let Some(node) = target_port.lock().node() {
+                let ports = node.lock().ports().clone();
                 for port in ports {
-                    indegree += port
-                        .lock_ok()
-                        .map(|port_guard| port_guard.incoming_edges().len() as i32)
-                        .unwrap_or(0);
+                    indegree += port.lock().incoming_edges().len() as i32;
                 }
             }
         } else {
@@ -380,19 +335,10 @@ impl FinalSplineBendpointsCalculator {
         }
 
         if let Some(source_port) = source_port {
-            if let Some(node) = source_port
-                .lock_ok()
-                .and_then(|port_guard| port_guard.node())
-            {
-                let ports = node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.ports().clone())
-                    .unwrap_or_default();
+            if let Some(node) = source_port.lock().node() {
+                let ports = node.lock().ports().clone();
                 for port in ports {
-                    outdegree += port
-                        .lock_ok()
-                        .map(|port_guard| port_guard.outgoing_edges().len() as i32)
-                        .unwrap_or(0);
+                    outdegree += port.lock().outgoing_edges().len() as i32;
                 }
             }
         } else {
@@ -416,32 +362,28 @@ impl FinalSplineBendpointsCalculator {
 
         let mut all_cp = KVectorChain::new();
         let edge = surviving_edge.unwrap_or_else(|| edge_chain[0].clone());
-        let source_port = edge.lock_ok().and_then(|edge_guard| edge_guard.source());
+        let source_port = edge.lock().source();
         let Some(source_port) = source_port else {
             return;
         };
 
-        let source_node = source_port
-            .lock_ok()
-            .and_then(|port_guard| port_guard.node());
+        let source_node = source_port.lock().node();
         let qualified = source_node
             .as_ref()
-            .and_then(|node| {
-                node.lock_ok()
-                    .map(|node_guard| SplineEdgeRouter::is_qualified_as_starting_node(&node_guard))
-            })
+            .map(|node| SplineEdgeRouter::is_qualified_as_starting_node(&node.lock()))
             .unwrap_or(false);
         if !qualified {
             panic!("The target node of the edge must be a normal node or a northSouthPort.");
         }
 
         let source_anchor = source_port
-            .lock_ok()
-            .and_then(|port_guard| port_guard.absolute_anchor())
+            .lock()
+            .absolute_anchor()
             .unwrap_or_else(KVector::new);
         all_cp.add_vector(source_anchor);
 
-        if let Some(mut port_guard) = source_port.lock_ok() {
+        {
+            let mut port_guard = source_port.lock();
             if SIDES_NORTH_SOUTH.contains(&port_guard.side()) {
                 let y = port_guard
                     .get_property(InternalProperties::SPLINE_NS_PORT_Y_COORD)
@@ -454,10 +396,7 @@ impl FinalSplineBendpointsCalculator {
         let mut last_cp: Option<KVector> = None;
         let mut add_mid_point = false;
         for current_edge in edge_chain {
-            let mut edge_guard = match current_edge.lock_ok() {
-            Some(guard) => guard,
-            None => continue,
-            };
+            let mut edge_guard = current_edge.lock();
             let current_bend_points = edge_guard.bend_points();
             if !current_bend_points.is_empty() {
                 if add_mid_point {
@@ -477,16 +416,17 @@ impl FinalSplineBendpointsCalculator {
             }
         }
 
-        let target_port = edge.lock_ok().and_then(|edge_guard| edge_guard.target());
+        let target_port = edge.lock().target();
         let Some(target_port) = target_port else {
             return;
         };
         let target_anchor = target_port
-            .lock_ok()
-            .and_then(|port_guard| port_guard.absolute_anchor())
+            .lock()
+            .absolute_anchor()
             .unwrap_or_else(KVector::new);
 
-        if let Some(mut port_guard) = target_port.lock_ok() {
+        {
+            let mut port_guard = target_port.lock();
             if SIDES_NORTH_SOUTH.contains(&port_guard.side()) {
                 let y = port_guard
                     .get_property(InternalProperties::SPLINE_NS_PORT_Y_COORD)
@@ -504,9 +444,7 @@ impl FinalSplineBendpointsCalculator {
 
         let mut nub_spline = NubSpline::new(true, SplineEdgeRouter::SPLINE_DIMENSION, all_cp);
         let bezier = nub_spline.get_bezier_cp_default();
-        if let Some(mut edge_guard) = edge.lock_ok() {
-            edge_guard.bend_points().add_all(&bezier.to_array());
-        };
+        edge.lock().bend_points().add_all(&bezier.to_array());
     }
 
     fn insert_straightening_control_points(
@@ -518,10 +456,7 @@ impl FinalSplineBendpointsCalculator {
         let first = all_cps.get_first();
         let second = all_cps.get(1);
 
-        let src_side = src_port
-            .lock_ok()
-            .map(|port_guard| port_guard.side())
-            .unwrap_or(PortSide::Undefined);
+        let src_side = src_port.lock().side();
         let mut v = KVector::from_angle(SplinesMath::port_side_to_direction(src_side));
         v.scale(Self::NODE_TO_STRAIGHTENING_CP_GAP);
         let mut v2 = second;
@@ -534,10 +469,7 @@ impl FinalSplineBendpointsCalculator {
         let last = all_cps.get_last();
         let second_last = all_cps.get(all_cps.size() - 2);
 
-        let tgt_side = tgt_port
-            .lock_ok()
-            .map(|port_guard| port_guard.side())
-            .unwrap_or(PortSide::Undefined);
+        let tgt_side = tgt_port.lock().side();
         let mut v = KVector::from_angle(SplinesMath::port_side_to_direction(tgt_side));
         v.scale(Self::NODE_TO_STRAIGHTENING_CP_GAP);
         let mut v2 = second_last;
@@ -559,14 +491,10 @@ impl FinalSplineBendpointsCalculator {
         if segment.initial_segment {
             if let Some(node) = segment.source_node.as_ref() {
                 let threshold = segment_node_distance_threshold(node);
-                let node_pos_x = node
-                    .lock_ok()
-                    .map(|mut node_guard| node_guard.shape().position_ref().x)
-                    .unwrap_or(0.0);
-                let node_size_x = node
-                    .lock_ok()
-                    .map(|mut node_guard| node_guard.shape().size_ref().x)
-                    .unwrap_or(0.0);
+                let mut node_guard = node.lock();
+                let node_pos_x = node_guard.shape().position_ref().x;
+                let node_size_x = node_guard.shape().size_ref().x;
+                drop(node_guard);
                 let node_segment_distance = start_x_pos - (node_pos_x + node_size_x);
                 if node_segment_distance > threshold {
                     return false;
@@ -576,10 +504,7 @@ impl FinalSplineBendpointsCalculator {
         if segment.last_segment {
             if let Some(node) = segment.target_node.as_ref() {
                 let threshold = segment_node_distance_threshold(node);
-                let node_pos_x = node
-                    .lock_ok()
-                    .map(|mut node_guard| node_guard.shape().position_ref().x)
-                    .unwrap_or(0.0);
+                let node_pos_x = node.lock().shape().position_ref().x;
                 let node_segment_distance = node_pos_x - end_x_pos;
                 if node_segment_distance > threshold {
                     return false;
@@ -611,28 +536,16 @@ impl ILayoutProcessor<LGraph> for FinalSplineBendpointsCalculator {
         let mut start_edges: Vec<LEdgeRef> = Vec::new();
         let layers = graph.layers().clone();
         for layer in layers {
-            let nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+            let nodes = layer.lock().nodes().clone();
             for node in nodes {
-                let outgoing_edges = node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.outgoing_edges())
-                    .unwrap_or_default();
+                let outgoing_edges = node.lock().outgoing_edges();
                 for edge in outgoing_edges {
-                    if edge
-                        .lock_ok()
-                        .map(|edge_guard| edge_guard.is_self_loop())
-                        .unwrap_or(false)
-                    {
+                    if edge.lock().is_self_loop() {
                         continue;
                     }
                     let has_spline = edge
-                        .lock_ok()
-                        .and_then(|mut edge_guard| {
-                            edge_guard.get_property(InternalProperties::SPLINE_ROUTE_START)
-                        })
+                        .lock()
+                        .get_property(InternalProperties::SPLINE_ROUTE_START)
                         .is_some();
                     if has_spline {
                         start_edges.push(edge.clone());
@@ -642,37 +555,31 @@ impl ILayoutProcessor<LGraph> for FinalSplineBendpointsCalculator {
         }
 
         for edge in &start_edges {
-            let spline_segments = edge.lock_ok().and_then(|mut edge_guard| {
-                edge_guard.get_property(InternalProperties::SPLINE_ROUTE_START)
-            });
+            let spline_segments = edge
+                .lock()
+                .get_property(InternalProperties::SPLINE_ROUTE_START);
             if let Some(spline) = spline_segments {
                 for segment in &spline {
                     self.calculate_control_points(segment);
                 }
-                if let Some(mut edge_guard) = edge.lock_ok() {
-                    edge_guard.set_property::<Vec<SplineSegmentRef>>(
-                        InternalProperties::SPLINE_ROUTE_START,
-                        None,
-                    );
-                }
+                edge.lock().set_property::<Vec<SplineSegmentRef>>(
+                    InternalProperties::SPLINE_ROUTE_START,
+                    None,
+                );
             }
         }
 
         for edge in &start_edges {
-            let surviving_edge = edge.lock_ok().and_then(|mut edge_guard| {
-                edge_guard.get_property(InternalProperties::SPLINE_SURVIVING_EDGE)
-            });
+            let surviving_edge = edge
+                .lock()
+                .get_property(InternalProperties::SPLINE_SURVIVING_EDGE);
             let edge_chain = edge
-                .lock_ok()
-                .and_then(|mut edge_guard| {
-                    edge_guard.get_property(InternalProperties::SPLINE_EDGE_CHAIN)
-                })
+                .lock()
+                .get_property(InternalProperties::SPLINE_EDGE_CHAIN)
                 .unwrap_or_default();
             self.calculate_bezier_bend_points(edge_chain, surviving_edge);
-            if let Some(mut edge_guard) = edge.lock_ok() {
-                edge_guard
-                    .set_property::<Vec<LEdgeRef>>(InternalProperties::SPLINE_EDGE_CHAIN, None);
-            }
+            edge.lock()
+                .set_property::<Vec<LEdgeRef>>(InternalProperties::SPLINE_EDGE_CHAIN, None);
         }
     }
 }
@@ -704,18 +611,11 @@ fn edge_key(edge: &LEdgeRef) -> usize {
 
 fn segment_node_distance_threshold(node: &LNodeRef) -> f64 {
     let layer_size = node
-        .lock_ok()
-        .and_then(|node_guard| node_guard.layer())
-        .and_then(|layer| {
-            layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.size_ref().x)
-        })
+        .lock()
+        .layer()
+        .map(|layer| layer.lock().size_ref().x)
         .unwrap_or(0.0);
-    let node_size = node
-        .lock_ok()
-        .map(|mut node_guard| node_guard.shape().size_ref().x)
-        .unwrap_or(0.0);
+    let node_size = node.lock().shape().size_ref().x;
     layer_size - node_size / 2.0
 }
 
