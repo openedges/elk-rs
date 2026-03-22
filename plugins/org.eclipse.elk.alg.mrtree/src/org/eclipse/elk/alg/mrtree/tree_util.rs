@@ -11,13 +11,10 @@ pub struct TreeUtil;
 
 impl TreeUtil {
     pub fn get_root(graph: &TGraphRef) -> Option<TNodeRef> {
-        let nodes = graph
-            .lock_ok()
-            .map(|g| g.nodes().clone())
-            .unwrap_or_default();
+        let nodes = graph.lock().nodes().clone();
         nodes.into_iter().find(|node| {
-            node.lock_ok()
-                .and_then(|mut guard| guard.get_property(InternalProperties::ROOT))
+            node.lock()
+                .get_property(InternalProperties::ROOT)
                 .unwrap_or(false)
         })
     }
@@ -34,12 +31,10 @@ impl TreeUtil {
     pub fn get_children(node: &TNodeRef) -> Vec<TNodeRef> {
         let mut seen: HashSet<usize> = HashSet::new();
         let mut children = Vec::new();
-        let outgoing = node
-            .lock_ok()
-            .map(|guard| guard.outgoing_edges().clone())
-            .unwrap_or_default();
+        let outgoing = node.lock().outgoing_edges().clone();
         for edge in outgoing {
-            if let Some(target) = edge.lock_ok().and_then(|guard| guard.target()) {
+            let target = edge.lock().target();
+            if let Some(target) = target {
                 let key = Arc::as_ptr(&target) as usize;
                 if seen.insert(key) {
                     children.push(target);
@@ -53,7 +48,7 @@ impl TreeUtil {
         if Arc::ptr_eq(node, root) {
             return 0;
         }
-        let parent = node.lock_ok().and_then(|guard| guard.parent());
+        let parent = node.lock().parent();
         if let Some(parent) = parent {
             return Self::root_distance(&parent, root) + 1;
         }
@@ -61,32 +56,29 @@ impl TreeUtil {
     }
 
     pub fn get_all_incoming_edges(node: &TNodeRef, graph: &TGraphRef) -> Vec<TEdgeRef> {
-        let node_id = node.lock_ok().map(|guard| guard.id()).unwrap_or(-1);
-        let edges = graph
-            .lock_ok()
-            .map(|g| g.edges().clone())
-            .unwrap_or_default();
+        let node_id = node.lock().id();
+        let edges = graph.lock().edges().clone();
         let mut seen: HashSet<usize> = HashSet::new();
         let mut result = Vec::new();
         for edge in edges {
-            let (source, target) = match edge.lock_ok() {
-                Some(guard) => (guard.source(), guard.target()),
-                None => (None, None),
+            let (source, target) = {
+                let guard = edge.lock();
+                (guard.source(), guard.target())
             };
             let (Some(source), Some(target)) = (source, target) else {
                 continue;
             };
-            let target_id = target.lock_ok().map(|guard| guard.id()).unwrap_or(-1);
+            let target_id = target.lock().id();
             if target_id != node_id {
                 continue;
             }
             let source_level = source
-                .lock_ok()
-                .and_then(|mut guard| guard.get_property(MrTreeOptions::TREE_LEVEL))
+                .lock()
+                .get_property(MrTreeOptions::TREE_LEVEL)
                 .unwrap_or(0);
             let target_level = target
-                .lock_ok()
-                .and_then(|mut guard| guard.get_property(MrTreeOptions::TREE_LEVEL))
+                .lock()
+                .get_property(MrTreeOptions::TREE_LEVEL)
                 .unwrap_or(0);
             if source_level == target_level {
                 continue;
@@ -97,16 +89,20 @@ impl TreeUtil {
             }
         }
         result.sort_by(|a, b| {
-            let a_pos = a
-                .lock_ok()
-                .and_then(|guard| guard.source())
-                .and_then(|node| node.lock_ok().map(|g| *g.position_ref()))
-                .unwrap_or_default();
-            let b_pos = b
-                .lock_ok()
-                .and_then(|guard| guard.source())
-                .and_then(|node| node.lock_ok().map(|g| *g.position_ref()))
-                .unwrap_or_default();
+            let a_pos = {
+                let a_guard = a.lock();
+                a_guard
+                    .source()
+                    .map(|node| *node.lock().position_ref())
+                    .unwrap_or_default()
+            };
+            let b_pos = {
+                let b_guard = b.lock();
+                b_guard
+                    .source()
+                    .map(|node| *node.lock().position_ref())
+                    .unwrap_or_default()
+            };
             a_pos
                 .x
                 .partial_cmp(&b_pos.x)
@@ -129,40 +125,35 @@ impl TreeUtil {
     }
 
     pub fn get_all_outgoing_edges(node: &TNodeRef, graph: &TGraphRef) -> Vec<TEdgeRef> {
-        let node_id = node.lock_ok().map(|guard| guard.id()).unwrap_or(-1);
-        let edges = graph
-            .lock_ok()
-            .map(|g| g.edges().clone())
-            .unwrap_or_default();
+        let node_id = node.lock().id();
+        let edges = graph.lock().edges().clone();
         let mut seen: HashSet<usize> = HashSet::new();
         let mut result = Vec::new();
         for edge in edges {
-            let (source, target) = match edge.lock_ok() {
-                Some(guard) => (guard.source(), guard.target()),
-                None => (None, None),
+            let (source, target) = {
+                let guard = edge.lock();
+                (guard.source(), guard.target())
             };
             let (Some(source), Some(target)) = (source, target) else {
                 continue;
             };
-            let source_id = source.lock_ok().map(|guard| guard.id()).unwrap_or(-1);
+            let source_id = source.lock().id();
             if source_id != node_id {
                 continue;
             }
-            let source_label = source
-                .lock_ok()
-                .and_then(|guard| guard.label().map(|l| l.to_string()));
+            let source_label = source.lock().label().map(|l| l.to_string());
             if let Some(label) = source_label {
                 if label == "SUPER_ROOT" {
                     continue;
                 }
             }
             let source_level = source
-                .lock_ok()
-                .and_then(|mut guard| guard.get_property(MrTreeOptions::TREE_LEVEL))
+                .lock()
+                .get_property(MrTreeOptions::TREE_LEVEL)
                 .unwrap_or(0);
             let target_level = target
-                .lock_ok()
-                .and_then(|mut guard| guard.get_property(MrTreeOptions::TREE_LEVEL))
+                .lock()
+                .get_property(MrTreeOptions::TREE_LEVEL)
                 .unwrap_or(0);
             if source_level == target_level {
                 continue;
@@ -173,16 +164,20 @@ impl TreeUtil {
             }
         }
         result.sort_by(|a, b| {
-            let a_pos = a
-                .lock_ok()
-                .and_then(|guard| guard.target())
-                .and_then(|node| node.lock_ok().map(|g| *g.position_ref()))
-                .unwrap_or_default();
-            let b_pos = b
-                .lock_ok()
-                .and_then(|guard| guard.target())
-                .and_then(|node| node.lock_ok().map(|g| *g.position_ref()))
-                .unwrap_or_default();
+            let a_pos = {
+                let a_guard = a.lock();
+                a_guard
+                    .target()
+                    .map(|node| *node.lock().position_ref())
+                    .unwrap_or_default()
+            };
+            let b_pos = {
+                let b_guard = b.lock();
+                b_guard
+                    .target()
+                    .map(|node| *node.lock().position_ref())
+                    .unwrap_or_default()
+            };
             a_pos
                 .x
                 .partial_cmp(&b_pos.x)
@@ -192,16 +187,10 @@ impl TreeUtil {
     }
 
     pub fn get_first_point(edge: &TEdgeRef) -> KVector {
-        let edge_guard = match edge.lock_ok() {
-            Some(guard) => guard,
-            None => return KVector::new(),
-        };
+        let edge_guard = edge.lock();
         if edge_guard.bend_points_ref().is_empty() {
             if let Some(target) = edge_guard.target() {
-                return target
-                    .lock_ok()
-                    .map(|node| *node.position_ref())
-                    .unwrap_or_default();
+                return *target.lock().position_ref();
             }
             KVector::new()
         } else {
@@ -210,16 +199,10 @@ impl TreeUtil {
     }
 
     pub fn get_last_point(edge: &TEdgeRef) -> KVector {
-        let edge_guard = match edge.lock_ok() {
-            Some(guard) => guard,
-            None => return KVector::new(),
-        };
+        let edge_guard = edge.lock();
         if edge_guard.bend_points_ref().is_empty() {
             if let Some(source) = edge_guard.source() {
-                return source
-                    .lock_ok()
-                    .map(|node| *node.position_ref())
-                    .unwrap_or_default();
+                return *source.lock().position_ref();
             }
             KVector::new()
         } else {
@@ -229,8 +212,8 @@ impl TreeUtil {
 
     pub fn get_direction(graph: &TGraphRef) -> Direction {
         graph
-            .lock_ok()
-            .and_then(|mut g| g.get_property(MrTreeOptions::DIRECTION))
+            .lock()
+            .get_property(MrTreeOptions::DIRECTION)
             .unwrap_or(Direction::Down)
     }
 
@@ -244,10 +227,7 @@ impl TreeUtil {
     }
 
     pub fn get_node_size_in_direction(node: &TNodeRef, direction: Direction) -> f64 {
-        let size = node
-            .lock_ok()
-            .map(|guard| *guard.size_ref())
-            .unwrap_or_default();
+        let size = *node.lock().size_ref();
         match direction {
             Direction::Left => -size.x / 2.0,
             Direction::Up => -size.y / 2.0,
@@ -257,10 +237,7 @@ impl TreeUtil {
     }
 
     pub fn get_node_size_vector_in_direction(node: &TNodeRef, direction: Direction) -> KVector {
-        let size = node
-            .lock_ok()
-            .map(|guard| *guard.size_ref())
-            .unwrap_or_default();
+        let size = *node.lock().size_ref();
         match direction {
             Direction::Left => KVector::with_values(-size.x / 2.0, 0.0),
             Direction::Up => KVector::with_values(0.0, -size.y / 2.0),
@@ -308,17 +285,14 @@ impl TreeUtil {
     pub fn is_cycle_inducing(edge: &TEdgeRef, graph: &TGraphRef) -> bool {
         let dir_vec = Self::get_direction_vector(Self::get_direction(graph));
         let (source_pos, target_pos) = {
-            let edge_guard = match edge.lock_ok() {
-            Some(guard) => guard,
-            None => return false,
-            };
+            let edge_guard = edge.lock();
             let source_pos = edge_guard
                 .source()
-                .and_then(|node| node.lock_ok().map(|guard| *guard.position_ref()))
+                .map(|node| *node.lock().position_ref())
                 .unwrap_or_default();
             let target_pos = edge_guard
                 .target()
-                .and_then(|node| node.lock_ok().map(|guard| *guard.position_ref()))
+                .map(|node| *node.lock().position_ref())
                 .unwrap_or_default();
             (source_pos, target_pos)
         };
@@ -337,11 +311,11 @@ impl TreeUtil {
         direction: Direction,
     ) -> Option<TNodeRef> {
         let parents: Vec<TNodeRef> = node
-            .lock_ok()
-            .map(|guard| guard.incoming_edges().clone())
-            .unwrap_or_default()
+            .lock()
+            .incoming_edges()
+            .clone()
             .into_iter()
-            .filter_map(|edge| edge.lock_ok().and_then(|guard| guard.source()))
+            .filter_map(|edge| edge.lock().source())
             .collect();
         if parents.is_empty() {
             return None;
@@ -349,14 +323,12 @@ impl TreeUtil {
         let dir_vec = Self::get_direction_vector(direction);
         let mut best: Option<(f64, TNodeRef)> = None;
         for parent in parents {
-            let center = parent
-                .lock_ok()
-                .map(|guard| {
-                    let pos = guard.position_ref();
-                    let size = guard.size_ref();
-                    KVector::with_values(pos.x + size.x / 2.0, pos.y + size.y / 2.0)
-                })
-                .unwrap_or_default();
+            let center = {
+                let guard = parent.lock();
+                let pos = guard.position_ref();
+                let size = guard.size_ref();
+                KVector::with_values(pos.x + size.x / 2.0, pos.y + size.y / 2.0)
+            };
             let score = center.dot_product(&dir_vec);
             let replace = match &best {
                 Some((best_score, _)) => score > *best_score,
@@ -377,9 +349,8 @@ impl TreeUtil {
         if depth > 1 {
             let mut next_level: Vec<TNodeRef> = Vec::new();
             for node in current_level {
-                if let Some(guard) = node.lock_ok() {
-                    next_level.extend(guard.children_copy());
-                }
+                let guard = node.lock();
+                next_level.extend(guard.children_copy());
             }
             return Self::get_left_most(&next_level, depth - 1);
         }
@@ -387,9 +358,8 @@ impl TreeUtil {
         if depth < 0 {
             let mut next_level: Vec<TNodeRef> = Vec::new();
             for node in current_level {
-                if let Some(guard) = node.lock_ok() {
-                    next_level.extend(guard.children_copy());
-                }
+                let guard = node.lock();
+                next_level.extend(guard.children_copy());
             }
             if !next_level.is_empty() {
                 return Self::get_left_most(&next_level, depth);
