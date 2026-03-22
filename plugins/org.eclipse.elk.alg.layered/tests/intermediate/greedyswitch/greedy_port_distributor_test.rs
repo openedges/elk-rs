@@ -523,8 +523,10 @@ fn distribute_ports_two_nodes_in_one_layer_no_switch() {
     }
 
     let left_outer_node = left_layer
-        .lock_ok()
-        .and_then(|layer_guard| layer_guard.nodes().first().cloned())
+        .lock()
+        .nodes()
+        .first()
+        .cloned()
         .expect("left layer node");
 
     let mut distributor = GreedyPortDistributor::new();

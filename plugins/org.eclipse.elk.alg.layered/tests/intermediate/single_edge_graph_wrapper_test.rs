@@ -69,10 +69,7 @@ fn validify_indexes_greedily_keeps_valid_cuts_for_simple_path() {
     init_layered_options();
 
     let graph = build_path_graph(5);
-    let graph_stats = graph
-        .lock_ok()
-        .map(|mut graph_guard| GraphStats::new(&mut graph_guard))
-        .expect("graph stats");
+    let graph_stats = GraphStats::new(&mut graph.lock());
 
     let desired = vec![1, 3];
     let valid = SingleEdgeGraphWrapper::validify_indexes_greedily(&graph_stats, desired.clone());
@@ -105,8 +102,8 @@ fn manual_cut_process_marks_graph_as_cyclic() {
     }
 
     let cyclic = graph
-        .lock_ok()
-        .and_then(|mut graph_guard| graph_guard.get_property(InternalProperties::CYCLIC))
+        .lock()
+        .get_property(InternalProperties::CYCLIC)
         .unwrap_or(false);
     assert!(cyclic);
 }

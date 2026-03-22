@@ -1086,8 +1086,10 @@ fn given_polyline_routing_when_more_than_one_edge_into_ns_node_counts_these_too(
     );
 
     let middle_node_port = middle_nodes[1]
-        .lock_ok()
-        .and_then(|node_guard| node_guard.ports().first().cloned())
+        .lock()
+        .ports()
+        .first()
+        .cloned()
         .expect("north/south dummy port");
     east_west_edge_from_port(&middle_node_port, &right_nodes[1]);
 
@@ -1127,8 +1129,10 @@ fn given_multiple_edges_in_one_ns_node_counts_crossings() {
     let dummy_node_port = add_port_on_side(&middle_nodes[1], PortSide::East);
     add_edge_between_ports(&dummy_node_port, &normal_node_port);
     let origin_port = middle_nodes[2]
-        .lock_ok()
-        .and_then(|node_guard| node_guard.ports().first().cloned())
+        .lock()
+        .ports()
+        .first()
+        .cloned()
         .expect("origin port");
     {
         let mut dummy_port_guard = dummy_node_port.lock();
@@ -1174,8 +1178,10 @@ fn edges_in_both_directions() {
     let dummy_node_port = add_port_on_side(&middle_nodes[1], PortSide::East);
     add_edge_between_ports(&dummy_node_port, &normal_node_port);
     let origin_port = middle_nodes[2]
-        .lock_ok()
-        .and_then(|node_guard| node_guard.ports().first().cloned())
+        .lock()
+        .ports()
+        .first()
+        .cloned()
         .expect("origin port");
     {
         let mut dummy_port_guard = dummy_node_port.lock();
@@ -1194,8 +1200,10 @@ fn edges_in_both_directions() {
     let dummy_node_port = add_port_on_side(&middle_nodes[0], PortSide::East);
     add_edge_between_ports(&dummy_node_port, &normal_node_port);
     let origin_port = middle_nodes[2]
-        .lock_ok()
-        .and_then(|node_guard| node_guard.ports().get(1).cloned())
+        .lock()
+        .ports()
+        .get(1)
+        .cloned()
         .expect("origin port");
     {
         let mut dummy_port_guard = dummy_node_port.lock();
@@ -1234,8 +1242,10 @@ fn multiple_edges_in_both_directions_ns_node() {
     add_edge_between_ports(&dummy_node_port, &normal_node_port);
     add_edge_between_ports(&dummy_node_port, &normal_node_port);
     let origin_port = middle_nodes[2]
-        .lock_ok()
-        .and_then(|node_guard| node_guard.ports().first().cloned())
+        .lock()
+        .ports()
+        .first()
+        .cloned()
         .expect("origin port");
     {
         let mut dummy_port_guard = dummy_node_port.lock();
@@ -1255,8 +1265,10 @@ fn multiple_edges_in_both_directions_ns_node() {
     add_edge_between_ports(&dummy_node_port, &normal_node_port);
     add_edge_between_ports(&dummy_node_port, &normal_node_port);
     let origin_port = middle_nodes[2]
-        .lock_ok()
-        .and_then(|node_guard| node_guard.ports().get(1).cloned())
+        .lock()
+        .ports()
+        .get(1)
+        .cloned()
         .expect("origin port");
     {
         let mut dummy_port_guard = dummy_node_port.lock();

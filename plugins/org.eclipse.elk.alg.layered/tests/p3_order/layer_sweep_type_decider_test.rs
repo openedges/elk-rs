@@ -295,23 +295,15 @@ fn set_on_all_graphs<T: Clone + Send + Sync + 'static>(
     property: &Property<T>,
     value: T,
 ) {
-    let nested_graphs: Vec<LGraphRef> = if let Some(mut graph_guard) = graph.lock_ok() {
+    let nested_graphs: Vec<LGraphRef> = {
+        let mut graph_guard = graph.lock();
         graph_guard.set_property(property, Some(value.clone()));
         graph_guard
             .layers()
             .iter()
-            .filter_map(|layer| {
-                layer
-                    .lock_ok()
-                    .map(|layer_guard| layer_guard.nodes().clone())
-            })
-            .flatten()
-            .filter_map(|node| {
-                node.lock().nested_graph()
-            })
+            .flat_map(|layer| layer.lock().nodes().clone())
+            .filter_map(|node| node.lock().nested_graph())
             .collect()
-    } else {
-        Vec::new()
     };
 
     for nested in nested_graphs {

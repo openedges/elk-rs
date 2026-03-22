@@ -90,9 +90,7 @@ fn north_south_postprocessor_removes_all_north_south_dummy_nodes() {
                 .into_iter()
         })
         .any(|node| {
-            node.lock_ok()
-                .map(|node_guard| node_guard.node_type() == NodeType::NorthSouthPort)
-                .unwrap_or(false)
+            node.lock().node_type() == NodeType::NorthSouthPort
         });
 
     assert!(

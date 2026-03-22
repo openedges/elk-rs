@@ -103,7 +103,7 @@ fn long_edge_splitter_inserts_long_edge_dummy_nodes() {
     assert!(
         middle_nodes
             .iter()
-            .any(|node| node.lock_ok().map(|n| n.node_type()) == Some(NodeType::LongEdge)),
+            .any(|node| node.lock().node_type() == NodeType::LongEdge),
         "middle layer should contain a long edge dummy",
     );
 }

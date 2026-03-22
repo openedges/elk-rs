@@ -104,9 +104,7 @@ fn test_removed_nodes() {
     let nodes = layer.lock().nodes().clone();
     assert!(
         nodes.iter().all(|node| {
-            node.lock_ok()
-                .map(|node_guard| node_guard.node_type() != NodeType::Label)
-                .unwrap_or(false)
+            node.lock().node_type() != NodeType::Label
         }),
         "all label dummy nodes must be removed"
     );

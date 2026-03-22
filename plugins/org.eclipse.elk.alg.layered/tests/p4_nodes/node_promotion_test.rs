@@ -131,10 +131,8 @@ fn assert_layering_invariants(
                     continue;
                 }
                 let reversed = edge
-                    .lock_ok()
-                    .and_then(|mut edge_guard| {
-                        edge_guard.get_property(InternalProperties::REVERSED)
-                    })
+                    .lock()
+                    .get_property(InternalProperties::REVERSED)
                     .unwrap_or(false);
                 let target_layer_index = edge
                     .lock().target()

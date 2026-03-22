@@ -119,9 +119,7 @@ fn test_partition_order() {
     for layer in graph.lock().layers().iter() {
         let mut current_partition = -1;
         for node in layer.lock().nodes().iter() {
-            let node_partition = node.lock_ok().and_then(|mut node_guard| {
-                node_guard.get_property(CoreOptions::PARTITIONING_PARTITION)
-            });
+            let node_partition = node.lock().get_property(CoreOptions::PARTITIONING_PARTITION);
             if let Some(node_partition) = node_partition {
                 if current_partition == -1 {
                     current_partition = node_partition;

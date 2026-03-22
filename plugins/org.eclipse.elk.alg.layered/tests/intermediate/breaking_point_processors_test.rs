@@ -58,31 +58,19 @@ fn connect(source_node: &LNodeRef, target_node: &LNodeRef) -> LEdgeRef {
 }
 
 fn count_nodes_by_type(graph: &LGraphRef, node_type: NodeType) -> usize {
-    graph
-        .lock_ok()
-        .map(|graph_guard| {
-            graph_guard
-                .layers()
+    let graph_guard = graph.lock();
+    graph_guard
+        .layers()
+        .iter()
+        .map(|layer| {
+            layer
+                .lock()
+                .nodes()
                 .iter()
-                .map(|layer| {
-                    layer
-                        .lock_ok()
-                        .map(|layer_guard| {
-                            layer_guard
-                                .nodes()
-                                .iter()
-                                .filter(|node| {
-                                    node.lock_ok()
-                                        .map(|node_guard| node_guard.node_type() == node_type)
-                                        .unwrap_or(false)
-                                })
-                                .count()
-                        })
-                        .unwrap_or(0)
-                })
-                .sum()
+                .filter(|node| node.lock().node_type() == node_type)
+                .count()
         })
-        .unwrap_or(0)
+        .sum()
 }
 
 fn setup_multi_edge_graph() -> (LGraphRef, LNodeRef, LNodeRef, LEdgeRef) {
@@ -123,10 +111,7 @@ fn breaking_point_inserter_splits_edge_and_creates_breaking_points() {
         inserter.process(&mut graph_guard, &mut monitor);
     }
 
-    let layer_count = graph
-        .lock_ok()
-        .map(|graph_guard| graph_guard.layers().len())
-        .unwrap_or(0);
+    let layer_count = graph.lock().layers().len();
     assert_eq!(layer_count, 6);
 
     assert_eq!(count_nodes_by_type(&graph, NodeType::BreakingPoint), 2);
@@ -139,26 +124,19 @@ fn breaking_point_inserter_splits_edge_and_creates_breaking_points() {
         .lock().node_type();
     assert_eq!(source_node_type, NodeType::BreakingPoint);
 
-    let bp_info_count = graph
-        .lock_ok()
-        .map(|graph_guard| {
-            graph_guard
-                .layers()
-                .iter()
-                .flat_map(|layer| {
-                    layer
-                        .lock().nodes().clone()
-                })
-                .filter(|node| {
-                    node.lock_ok()
-                        .and_then(|mut node_guard| {
-                            node_guard.get_property(InternalProperties::BREAKING_POINT_INFO)
-                        })
-                        .is_some()
-                })
-                .count()
-        })
-        .unwrap_or(0);
+    let bp_info_count = {
+        let graph_guard = graph.lock();
+        graph_guard
+            .layers()
+            .iter()
+            .flat_map(|layer| layer.lock().nodes().clone())
+            .filter(|node| {
+                node.lock()
+                    .get_property(InternalProperties::BREAKING_POINT_INFO)
+                    .is_some()
+            })
+            .count()
+    };
     assert_eq!(bp_info_count, 2);
 }
 
@@ -185,24 +163,18 @@ fn breaking_point_processor_wraps_layers_and_marks_graph_cyclic() {
     }
 
     let cyclic = graph
-        .lock_ok()
-        .and_then(|mut graph_guard| graph_guard.get_property(InternalProperties::CYCLIC))
+        .lock()
+        .get_property(InternalProperties::CYCLIC)
         .unwrap_or(false);
     assert!(cyclic);
 
     assert!(count_nodes_by_type(&graph, NodeType::LongEdge) > 0);
 
     let has_empty_layer = graph
-        .lock_ok()
-        .map(|graph_guard| {
-            graph_guard.layers().iter().any(|layer| {
-                layer
-                    .lock_ok()
-                    .map(|layer_guard| layer_guard.nodes().is_empty())
-                    .unwrap_or(false)
-            })
-        })
-        .unwrap_or(false);
+        .lock()
+        .layers()
+        .iter()
+        .any(|layer| layer.lock().nodes().is_empty());
     assert!(!has_empty_layer);
 }
 

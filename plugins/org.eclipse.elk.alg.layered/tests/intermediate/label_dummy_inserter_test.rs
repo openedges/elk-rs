@@ -73,9 +73,7 @@ fn inserts_label_dummy_and_moves_center_labels() {
     let dummy = layerless_nodes
         .iter()
         .find(|node| {
-            node.lock_ok()
-                .map(|node_guard| node_guard.node_type() == NodeType::Label)
-                .unwrap_or(false)
+            node.lock().node_type() == NodeType::Label
         })
         .expect("label dummy node");
 

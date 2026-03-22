@@ -76,10 +76,10 @@ fn north_south_preprocessor_isolates_north_south_ports() {
 
     let owner_ports = owner.lock().ports().clone();
     for port in owner_ports {
-        let (side, connected) = port
-            .lock_ok()
-            .map(|port_guard| (port_guard.side(), !port_guard.connected_edges().is_empty()))
-            .unwrap_or((PortSide::Undefined, false));
+        let (side, connected) = {
+            let port_guard = port.lock();
+            (port_guard.side(), !port_guard.connected_edges().is_empty())
+        };
         if side == PortSide::North || side == PortSide::South {
             assert!(
                 !connected,

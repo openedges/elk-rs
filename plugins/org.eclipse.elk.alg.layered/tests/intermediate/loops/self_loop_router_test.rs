@@ -723,17 +723,15 @@ fn self_loop_router_creates_outside_bend_points_for_hidden_loops() {
     let mut post = SelfLoopPostProcessor;
     run_processor(&mut post, &graph);
 
-    let (node_x, node_y, node_w, node_h) = node
-        .lock_ok()
-        .map(|mut node_guard| {
-            (
-                node_guard.shape().position_ref().x,
-                node_guard.shape().position_ref().y,
-                node_guard.shape().size_ref().x,
-                node_guard.shape().size_ref().y,
-            )
-        })
-        .unwrap_or((0.0, 0.0, 0.0, 0.0));
+    let (node_x, node_y, node_w, node_h) = {
+        let mut node_guard = node.lock();
+        (
+            node_guard.shape().position_ref().x,
+            node_guard.shape().position_ref().y,
+            node_guard.shape().size_ref().x,
+            node_guard.shape().size_ref().y,
+        )
+    };
 
     for edge in edges {
         let edge_guard = edge.lock();        assert!(edge_guard.source().is_some());
@@ -1008,19 +1006,16 @@ fn self_loop_router_offsets_corner_for_inline_label_clearance() {
     let (inline_graph, inline_node, inline_edge) =
         build_north_south_self_loop_graph_with_label(true);
 
-    let inline_flag_before = {
-        let edge_guard = inline_edge.lock();        let label = edge_guard
-            .labels()
-            .first()
-            .expect("inline edge label")
-            .clone();
-        label
-            .lock_ok()
-            .and_then(|mut label_guard| {
-                label_guard.get_property(LayeredOptions::EDGE_LABELS_INLINE)
-            })
-            .unwrap_or(false)
-    };
+    let inline_label = inline_edge
+        .lock()
+        .labels()
+        .first()
+        .expect("inline edge label")
+        .clone();
+    let inline_flag_before = inline_label
+        .lock()
+        .get_property(LayeredOptions::EDGE_LABELS_INLINE)
+        .unwrap_or(false);
     assert!(
         inline_flag_before,
         "inline label flag must be set before routing"
@@ -1058,18 +1053,14 @@ fn self_loop_router_offsets_corner_for_inline_label_clearance() {
         .lock()
         
         .get_property(InternalProperties::SELF_LOOP_HOLDER)
-        .and_then(|holder| {
-            holder
-                .lock_ok()
-                .and_then(|holder_guard| holder_guard.sl_hyper_loops().first().cloned())
+        .and_then(|holder| holder.lock().sl_hyper_loops().first().cloned())
+        .map(|sl_loop| {
+            let sl_loop_guard = sl_loop.lock();
+            sl_loop_guard
+                .sl_labels()
+                .map(|labels| (sl_loop_guard.self_loop_type(), labels.side()))
         })
-        .and_then(|sl_loop| {
-            sl_loop.lock_ok().and_then(|sl_loop_guard| {
-                sl_loop_guard
-                    .sl_labels()
-                    .map(|labels| (sl_loop_guard.self_loop_type(), labels.side()))
-            })
-        })
+        .flatten()
         .unwrap_or((None, PortSide::Undefined));
 
     assert_eq!(

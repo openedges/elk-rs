@@ -192,15 +192,11 @@ fn verify_layer_assignment(graph: &LGraphRef, expected: &HashMap<usize, HashSet<
             let layer_key = Arc::as_ptr(layer) as usize;
             let expected_nodes = expected.get(&layer_key).expect("missing expected layer");
             let actual_nodes: HashSet<usize> = layer
-                .lock_ok()
-                .map(|layer_guard| {
-                    layer_guard
-                        .nodes()
-                        .iter()
-                        .map(|node| Arc::as_ptr(node) as usize)
-                        .collect()
-                })
-                .unwrap_or_default();
+                .lock()
+                .nodes()
+                .iter()
+                .map(|node| Arc::as_ptr(node) as usize)
+                .collect();
             assert_eq!(actual_nodes, *expected_nodes);
         }
     }

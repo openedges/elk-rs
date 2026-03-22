@@ -89,9 +89,8 @@ fn moves_hypernode_to_first_join_point_and_rewrites_source_port() {
     }
 
     let moved_x = hypernode
-        .lock_ok()
-        .map(|mut node_guard| node_guard.shape().position_ref().x)
-        .unwrap_or(f64::NAN);
+        .lock()
+        .shape().position_ref().x;
     assert!((moved_x - 90.0).abs() < 1e-9);
 
     let ports = hypernode
@@ -107,15 +106,14 @@ fn moves_hypernode_to_first_join_point_and_rewrites_source_port() {
     assert!(matches!(new_source_side, PortSide::North | PortSide::South));
 
     let bend_points = edge
-        .lock_ok()
-        .map(|edge_guard| edge_guard.bend_points_ref().to_array())
-        .unwrap_or_default();
+        .lock()
+        .bend_points_ref().to_array();
     assert_eq!(bend_points.len(), 1);
     assert_eq!(bend_points[0], KVector::with_values(130.0, 140.0));
 
     let junction_points = edge
-        .lock_ok()
-        .and_then(|mut edge_guard| edge_guard.get_property(LayeredOptions::JUNCTION_POINTS))
+        .lock()
+        .get_property(LayeredOptions::JUNCTION_POINTS)
         .map(|chain| chain.to_array())
         .unwrap_or_default();
     assert_eq!(junction_points.len(), 1);

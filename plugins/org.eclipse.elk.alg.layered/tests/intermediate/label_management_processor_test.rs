@@ -129,18 +129,9 @@ fn non_center_mode_manages_node_port_and_edge_labels() {
         processor.process(&mut graph_guard, &mut monitor);
     }
 
-    let node_size = node_label
-        .lock_ok()
-        .map(|mut label_guard| *label_guard.shape().size_ref())
-        .unwrap_or_default();
-    let port_size = port_label
-        .lock_ok()
-        .map(|mut label_guard| *label_guard.shape().size_ref())
-        .unwrap_or_default();
-    let edge_size = edge_label
-        .lock_ok()
-        .map(|mut label_guard| *label_guard.shape().size_ref())
-        .unwrap_or_default();
+    let node_size = *node_label.lock().shape().size_ref();
+    let port_size = *port_label.lock().shape().size_ref();
+    let edge_size = *edge_label.lock().shape().size_ref();
 
     assert!((node_size.x - 20.0).abs() < 1e-9);
     assert!((node_size.y - 5.0).abs() < 1e-9);
@@ -226,10 +217,7 @@ fn center_mode_updates_label_dummy_size_with_spacing_and_edge_thickness() {
         processor.process(&mut graph_guard, &mut monitor);
     }
 
-    let dummy_size = dummy
-        .lock_ok()
-        .map(|mut node_guard| *node_guard.shape().size_ref())
-        .unwrap_or_default();
+    let dummy_size = *dummy.lock().shape().size_ref();
 
     // targetWidth=max(60, maxNormalWidth=200) => manager width=100, height=5 for each label.
     // required.x=100, required.y=5 + 1 + 5 = 11, then + edgeThickness(4) + edgeLabelSpacing(2) = 17.
@@ -277,10 +265,7 @@ fn vertical_layout_swaps_label_dimensions_from_manager_output() {
         processor.process(&mut graph_guard, &mut monitor);
     }
 
-    let size = label
-        .lock_ok()
-        .map(|mut label_guard| *label_guard.shape().size_ref())
-        .unwrap_or_default();
+    let size = *label.lock().shape().size_ref();
     // Manager returns (20,5) for node labels; vertical layout swaps to (5,20).
     assert!((size.x - 5.0).abs() < 1e-9);
     assert!((size.y - 20.0).abs() < 1e-9);

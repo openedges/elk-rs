@@ -93,8 +93,8 @@ fn assert_node_order(orders: [i32; 4]) {
     let nodes = layer.lock().nodes().clone();
     let mut sorted = inserted.to_vec();
     sorted.sort_by_key(|node| {
-        node.lock_ok()
-            .and_then(|mut node_guard| node_guard.get_property(InternalProperties::MODEL_ORDER))
+        node.lock()
+            .get_property(InternalProperties::MODEL_ORDER)
             .unwrap_or(i32::MAX)
     });
 
@@ -152,12 +152,11 @@ fn assert_port_order(edge_orders: [i32; 3], constraints: PortConstraints) {
     } else {
         let mut expected = ports.to_vec();
         expected.sort_by_key(|port| {
-            port.lock_ok()
-                .and_then(|port_guard| port_guard.outgoing_edges().first().cloned())
+            port.lock()
+                .outgoing_edges()
+                .first()
                 .and_then(|edge| {
-                    edge.lock_ok().and_then(|mut edge_guard| {
-                        edge_guard.get_property(InternalProperties::MODEL_ORDER)
-                    })
+                    edge.lock().get_property(InternalProperties::MODEL_ORDER)
                 })
                 .unwrap_or(i32::MAX)
         });

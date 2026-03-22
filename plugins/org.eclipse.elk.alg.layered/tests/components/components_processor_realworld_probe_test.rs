@@ -28,12 +28,7 @@ fn split_sizes(lgraph: &org_eclipse_elk_alg_layered::org::eclipse::elk::alg::lay
     ComponentsProcessor::new()
         .split(lgraph)
         .iter()
-        .map(|component| {
-            component
-                .lock_ok()
-                .map(|component_guard| component_guard.layerless_nodes().len())
-                .unwrap_or_default()
-        })
+        .map(|component| component.lock().layerless_nodes().len())
         .collect()
 }
 
@@ -45,12 +40,7 @@ fn split_sizes_via_layout_prepare(
     ComponentsProcessor::new()
         .split(lgraph)
         .iter()
-        .map(|component| {
-            component
-                .lock_ok()
-                .map(|component_guard| component_guard.layerless_nodes().len())
-                .unwrap_or_default()
-        })
+        .map(|component| component.lock().layerless_nodes().len())
         .collect()
 }
 
@@ -61,10 +51,10 @@ fn edge_bend_stats_after_layout(
     let mut layered = ElkLayered::new();
     layered.do_layout(&lgraph, None);
 
-    let (layerless_nodes, layers) = lgraph
-        .lock_ok()
-        .map(|graph_guard| (graph_guard.layerless_nodes().clone(), graph_guard.layers().clone()))
-        .unwrap_or_default();
+    let (layerless_nodes, layers) = {
+        let graph_guard = lgraph.lock();
+        (graph_guard.layerless_nodes().clone(), graph_guard.layers().clone())
+    };
     let mut nodes = layerless_nodes;
     for layer in layers {
         {
@@ -88,15 +78,13 @@ fn edge_bend_stats_after_layout(
     let edges_with_bends = edges
         .iter()
         .filter(|edge| {
-            edge.lock_ok()
-                .is_some_and(|edge_guard| !edge_guard.bend_points_ref().is_empty())
+            !edge.lock().bend_points_ref().is_empty()
         })
         .count();
     let max_bends = edges
         .iter()
         .filter_map(|edge| {
-            edge.lock_ok()
-                .map(|edge_guard| edge_guard.bend_points_ref().len())
+            Some(edge.lock().bend_points_ref().len())
         })
         .max()
         .unwrap_or(0);

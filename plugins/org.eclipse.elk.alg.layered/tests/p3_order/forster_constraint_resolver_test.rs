@@ -104,10 +104,8 @@ fn assert_successor_constraints_respected(nodes: &[LNodeRef]) {
 
     for node in nodes {
         let successors = node
-            .lock_ok()
-            .and_then(|mut node_guard| {
-                node_guard.get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
-            })
+            .lock()
+            .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
             .unwrap_or_default();
 
         let has_violation = successors
@@ -125,10 +123,8 @@ fn assert_non_overlapping_layout_units(nodes: &[LNodeRef]) {
 
     for node in nodes {
         let layout_unit = node
-            .lock_ok()
-            .and_then(|mut node_guard| {
-                node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
-            })
+            .lock()
+            .get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
             .map(|layout_unit| node_ptr_id(&layout_unit));
 
         if let Some(layout_unit) = layout_unit {

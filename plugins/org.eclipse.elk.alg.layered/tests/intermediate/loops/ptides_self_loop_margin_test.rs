@@ -314,9 +314,7 @@ fn east_west_fixedpos_self_loop_detected_as_two_sides_opposing() {
         
         .get_property(InternalProperties::SELF_LOOP_HOLDER)
         .and_then(|holder| {
-            holder
-                .lock_ok()
-                .and_then(|holder_guard| holder_guard.sl_hyper_loops().first().cloned())
+            holder.lock().sl_hyper_loops().first().cloned()
         })
         .and_then(|sl_loop| {
             sl_loop
@@ -500,11 +498,13 @@ fn debug_trace_margin_extension() {
                     loop_guard.routing_slot(PS::West),
                 );
                 if let Some(lp) = loop_guard.leftmost_port() {
-                    let side = lp.lock_ok().and_then(|pg| pg.l_port().lock_ok().map(|l| l.side())).unwrap_or(PS::Undefined);
+                    let lport = lp.lock().l_port().clone();
+                    let side = lport.lock().side();
                     eprintln!("[DIAG2] loop[{}]: leftmost_side={:?}", i, side);
                 }
                 if let Some(rp) = loop_guard.rightmost_port() {
-                    let side = rp.lock_ok().and_then(|pg| pg.l_port().lock_ok().map(|l| l.side())).unwrap_or(PS::Undefined);
+                    let lport = rp.lock().l_port().clone();
+                    let side = lport.lock().side();
                     eprintln!("[DIAG2] loop[{}]: rightmost_side={:?}", i, side);
                 }
             }

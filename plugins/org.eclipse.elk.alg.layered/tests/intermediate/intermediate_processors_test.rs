@@ -124,8 +124,8 @@ fn dummy_nodes_in_layer(layer: &LayerRef) -> Vec<LNodeRef> {
         .nodes()
         .iter()
         .filter_map(|node| {
-            let node_type = node.lock_ok().map(|node_guard| node_guard.node_type());
-            if node_type == Some(NodeType::NorthSouthPort) {
+            let node_type = node.lock().node_type();
+            if node_type == NodeType::NorthSouthPort {
                 Some(node.clone())
             } else {
                 None
@@ -139,11 +139,7 @@ fn snapshot(graph: &LGraphRef) -> (usize, usize, usize, usize) {
     let first_layer_nodes = graph_guard
         .layers()
         .first()
-        .and_then(|layer| {
-            layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().len())
-        })
+        .map(|layer| layer.lock().nodes().len())
         .unwrap_or(0);
     let layerless_count = graph_guard.layerless_nodes().len();
     let normal_nodes = graph_guard
@@ -155,9 +151,7 @@ fn snapshot(graph: &LGraphRef) -> (usize, usize, usize, usize) {
                 .nodes()
                 .iter()
                 .filter(|node| {
-                    node.lock_ok()
-                        .map(|node_guard| node_guard.node_type() == NodeType::Normal)
-                        .unwrap_or(false)
+                    node.lock().node_type() == NodeType::Normal
                 })
                 .count()
         })

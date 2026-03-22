@@ -59,13 +59,10 @@ fn node_layer(node: &LNodeRef) -> LayerRef {
 fn node_layer_index(graph: &LGraphRef, node: &LNodeRef) -> usize {
     let layer = node_layer(node);
     graph
-        .lock_ok()
-        .and_then(|graph_guard| {
-            graph_guard
-                .layers()
-                .iter()
-                .position(|candidate| Arc::ptr_eq(candidate, &layer))
-        })
+        .lock()
+        .layers()
+        .iter()
+        .position(|candidate| Arc::ptr_eq(candidate, &layer))
         .expect("layer index")
 }
 
@@ -103,10 +100,7 @@ fn moves_incoming_and_outgoing_leaf_trees_to_inserted_layers() {
     assert!(!Arc::ptr_eq(&outgoing_after, &outgoing_before));
     assert!(Arc::ptr_eq(&node_layer(&high_degree), &layers[1]));
 
-    let layer_count = graph
-        .lock_ok()
-        .map(|g| g.layers().len())
-        .unwrap_or_default();
+    let layer_count = graph.lock().layers().len();
     assert_eq!(layer_count, 3);
     assert_eq!(node_layer_index(&graph, &incoming_root), 0);
     assert_eq!(node_layer_index(&graph, &high_degree), 1);
