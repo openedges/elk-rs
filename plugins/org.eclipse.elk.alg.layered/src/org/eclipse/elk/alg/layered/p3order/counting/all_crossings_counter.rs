@@ -166,9 +166,8 @@ fn node_names(layer: &[LNodeRef]) -> String {
     layer
         .iter()
         .map(|node| {
-            node.lock_ok()
-                .map(|node_guard| node_guard.to_string())
-                .unwrap_or_else(|| String::from("<poisoned-node>"))
+            let node_guard = node.lock();
+            node_guard.to_string()
         })
         .collect::<Vec<_>>()
         .join(", ")
@@ -198,19 +197,20 @@ impl IInitializable for AllCrossingsCounter {
         port_index: usize,
         node_order: &[Vec<LNodeRef>],
     ) {
-        let port = node_order[layer_index][node_index]
-            .lock_ok()
-            .and_then(|node_guard| node_guard.ports().get(port_index).cloned());
+        let port = {
+            let node_guard = node_order[layer_index][node_index].lock();
+            node_guard.ports().get(port_index).cloned()
+        };
         let Some(port) = port else {
             return;
         };
         set_port_id(&port, self.n_ports);
         self.n_ports += 1;
 
-        let degree = port
-            .lock_ok()
-            .map(|port_guard| port_guard.outgoing_edges().len() + port_guard.incoming_edges().len())
-            .unwrap_or(0);
+        let degree = {
+            let port_guard = port.lock();
+            port_guard.outgoing_edges().len() + port_guard.incoming_edges().len()
+        };
         if degree > 1 {
             let side = port
                 .lock().side();
@@ -235,9 +235,10 @@ impl IInitializable for AllCrossingsCounter {
         edge: &LEdgeRef,
         node_order: &[Vec<LNodeRef>],
     ) {
-        let port = node_order[layer_index][node_index]
-            .lock_ok()
-            .and_then(|node_guard| node_guard.ports().get(port_index).cloned());
+        let port = {
+            let node_guard = node_order[layer_index][node_index].lock();
+            node_guard.ports().get(port_index).cloned()
+        };
         let Some(port) = port else {
             return;
         };

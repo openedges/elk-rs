@@ -83,34 +83,34 @@ impl NorthSouthEdgeNeighbouringNodeCrossingsCounter {
             let closer_east_ports = ports_on_side(closer_to_normal, PortSide::East);
             self.upper_lower_crossings = closer_east_ports
                 .first()
-                .and_then(|port| {
-                    port.lock_ok()
-                        .map(|port_guard| port_guard.degree() as i32)
+                .map(|port| {
+                    let port_guard = port.lock();
+                    port_guard.degree() as i32
                 })
                 .unwrap_or(0);
             let further_west_ports = ports_on_side(further_from_normal, PortSide::West);
             self.lower_upper_crossings = further_west_ports
                 .first()
-                .and_then(|port| {
-                    port.lock_ok()
-                        .map(|port_guard| port_guard.degree() as i32)
+                .map(|port| {
+                    let port_guard = port.lock();
+                    port_guard.degree() as i32
                 })
                 .unwrap_or(0);
         } else {
             let closer_west_ports = ports_on_side(closer_to_normal, PortSide::West);
             self.upper_lower_crossings = closer_west_ports
                 .first()
-                .and_then(|port| {
-                    port.lock_ok()
-                        .map(|port_guard| port_guard.degree() as i32)
+                .map(|port| {
+                    let port_guard = port.lock();
+                    port_guard.degree() as i32
                 })
                 .unwrap_or(0);
             let further_east_ports = ports_on_side(further_from_normal, PortSide::East);
             self.lower_upper_crossings = further_east_ports
                 .first()
-                .and_then(|port| {
-                    port.lock_ok()
-                        .map(|port_guard| port_guard.degree() as i32)
+                .map(|port| {
+                    let port_guard = port.lock();
+                    port_guard.degree() as i32
                 })
                 .unwrap_or(0);
         }
@@ -166,17 +166,19 @@ impl NorthSouthEdgeNeighbouringNodeCrossingsCounter {
     }
 
     fn has_connected_north_south_edge(&self, port: &LPortRef) -> bool {
-        port.lock_ok()
-            .and_then(|mut port_guard| port_guard.get_property(InternalProperties::PORT_DUMMY))
+        let mut port_guard = port.lock();
+        port_guard
+            .get_property(InternalProperties::PORT_DUMMY)
             .is_some()
     }
 
     fn have_different_origins(&self, upper_node: &LNodeRef, lower_node: &LNodeRef) -> bool {
-        !self.origin_of(upper_node).is_some_and(|origin| {
-            self.origin_of(lower_node)
-                .map(|other| Arc::ptr_eq(&origin, &other))
-                .unwrap_or(false)
-        })
+        let upper_origin = self.origin_of(upper_node);
+        let lower_origin = self.origin_of(lower_node);
+        match (&upper_origin, &lower_origin) {
+            (Some(u), Some(l)) => !Arc::ptr_eq(u, l),
+            _ => true,
+        }
     }
 
     fn origin_port_position_of(&self, node: &LNodeRef) -> i32 {
@@ -186,13 +188,15 @@ impl NorthSouthEdgeNeighbouringNodeCrossingsCounter {
     }
 
     fn origin_port_of(&self, node: &LNodeRef) -> Option<LPortRef> {
-        let port = node
-            .lock_ok()
-            .and_then(|node_guard| node_guard.ports().first().cloned());
+        let port = {
+            let node_guard = node.lock();
+            node_guard.ports().first().cloned()
+        };
         let port = port?;
-        let origin = port
-            .lock_ok()
-            .and_then(|mut port_guard| port_guard.get_property(InternalProperties::ORIGIN));
+        let origin = {
+            let mut port_guard = port.lock();
+            port_guard.get_property(InternalProperties::ORIGIN)
+        };
         match origin {
             Some(Origin::LPort(origin_port)) => Some(origin_port),
             _ => None,
@@ -207,37 +211,35 @@ impl NorthSouthEdgeNeighbouringNodeCrossingsCounter {
     }
 
     fn origin_of(&self, node: &LNodeRef) -> Option<LNodeRef> {
-        node.lock_ok()
-            .and_then(|mut node_guard| node_guard.get_property(InternalProperties::ORIGIN))
-            .and_then(|origin| match origin {
-                Origin::LNode(node_ref) => Some(node_ref),
-                _ => None,
-            })
+        let origin = {
+            let mut node_guard = node.lock();
+            node_guard.get_property(InternalProperties::ORIGIN)
+        };
+        match origin {
+            Some(Origin::LNode(node_ref)) => Some(node_ref),
+            _ => None,
+        }
     }
 
     fn is_long_edge_dummy(&self, node: &LNodeRef) -> bool {
-        node.lock_ok()
-            .map(|node_guard| node_guard.node_type() == NodeType::LongEdge)
-            .unwrap_or(false)
+        let node_guard = node.lock();
+        node_guard.node_type() == NodeType::LongEdge
     }
 
     fn is_north_south(&self, node: &LNodeRef) -> bool {
-        node.lock_ok()
-            .map(|node_guard| node_guard.node_type() == NodeType::NorthSouthPort)
-            .unwrap_or(false)
+        let node_guard = node.lock();
+        node_guard.node_type() == NodeType::NorthSouthPort
     }
 
     fn is_normal(&self, node: &LNodeRef) -> bool {
-        node.lock_ok()
-            .map(|node_guard| node_guard.node_type() == NodeType::Normal)
-            .unwrap_or(false)
+        let node_guard = node.lock();
+        node_guard.node_type() == NodeType::Normal
     }
 }
 
 fn ports_on_side(node: &LNodeRef, side: PortSide) -> Vec<LPortRef> {
-    node.lock_ok()
-        .map(|mut node_guard| node_guard.port_side_view(side))
-        .unwrap_or_default()
+    let mut node_guard = node.lock();
+    node_guard.port_side_view(side)
 }
 
 fn port_ptr_id(port: &LPortRef) -> usize {

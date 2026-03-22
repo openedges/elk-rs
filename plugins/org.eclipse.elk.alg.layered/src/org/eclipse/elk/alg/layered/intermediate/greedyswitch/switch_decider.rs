@@ -185,12 +185,12 @@ impl SwitchDecider {
     }
 
     fn have_successor_constraints(&self, upper_node: &LNodeRef, lower_node: &LNodeRef) -> bool {
-        let constraints = upper_node
-            .lock_ok()
-            .and_then(|mut node_guard| {
-                node_guard.get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
-            })
-            .unwrap_or_default();
+        let constraints = {
+            let mut node_guard = upper_node.lock();
+            node_guard
+                .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
+                .unwrap_or_default()
+        };
         !constraints.is_empty()
             && constraints
                 .iter()
@@ -205,12 +205,14 @@ impl SwitchDecider {
         let neither_long_edge =
             upper_type != NodeType::LongEdge && lower_type != NodeType::LongEdge;
 
-        let upper_layout_unit = upper_node.lock_ok().and_then(|mut node_guard| {
+        let upper_layout_unit = {
+            let mut node_guard = upper_node.lock();
             node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
-        });
-        let lower_layout_unit = lower_node.lock_ok().and_then(|mut node_guard| {
+        };
+        let lower_layout_unit = {
+            let mut node_guard = lower_node.lock();
             node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
-        });
+        };
 
         let are_in_different_layout_units = match (&upper_layout_unit, &lower_layout_unit) {
             (Some(upper), Some(lower)) => !std::sync::Arc::ptr_eq(upper, lower),
@@ -237,19 +239,19 @@ impl SwitchDecider {
     }
 
     fn has_edges_on_side(&self, node: &LNodeRef, side: PortSide) -> bool {
-        let ports = node
-            .lock_ok()
-            .map(|mut node_guard| node_guard.port_side_view(side))
-            .unwrap_or_default();
+        let ports = {
+            let mut node_guard = node.lock();
+            node_guard.port_side_view(side)
+        };
         for port in ports {
-            let has_dummy = port
-                .lock_ok()
-                .and_then(|mut port_guard| port_guard.get_property(InternalProperties::PORT_DUMMY))
-                .is_some();
-            let has_edges = port
-                .lock_ok()
-                .map(|port_guard| !port_guard.connected_edges().is_empty())
-                .unwrap_or(false);
+            let (has_dummy, has_edges) = {
+                let mut port_guard = port.lock();
+                let dummy = port_guard
+                    .get_property(InternalProperties::PORT_DUMMY)
+                    .is_some();
+                let edges = !port_guard.connected_edges().is_empty();
+                (dummy, edges)
+            };
             if has_dummy || has_edges {
                 return true;
             }
@@ -277,23 +279,23 @@ impl SwitchDecider {
     }
 
     fn is_normal_node(&self, node: &LNodeRef) -> bool {
-        node.lock_ok()
-            .map(|node_guard| node_guard.node_type() == NodeType::Normal)
-            .unwrap_or(false)
+        let node_guard = node.lock();
+        node_guard.node_type() == NodeType::Normal
     }
 
     fn is_north_south_port_node(&self, node: &LNodeRef) -> bool {
-        node.lock_ok()
-            .map(|node_guard| node_guard.node_type() == NodeType::NorthSouthPort)
-            .unwrap_or(false)
+        let node_guard = node.lock();
+        node_guard.node_type() == NodeType::NorthSouthPort
     }
 }
 
 fn origin_port_of(node: &LNodeRef) -> Option<LPortRef> {
-    node.lock_ok()
-        .and_then(|mut node_guard| node_guard.get_property(InternalProperties::ORIGIN))
-        .and_then(|origin| match origin {
-            Origin::LPort(port) => Some(port),
-            _ => None,
-        })
+    let origin = {
+        let mut node_guard = node.lock();
+        node_guard.get_property(InternalProperties::ORIGIN)
+    };
+    match origin {
+        Some(Origin::LPort(port)) => Some(port),
+        _ => None,
+    }
 }

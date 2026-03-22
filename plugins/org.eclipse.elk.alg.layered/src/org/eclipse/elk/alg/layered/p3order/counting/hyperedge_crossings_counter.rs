@@ -40,18 +40,16 @@ impl HyperedgeCrossingsCounter {
             let ports = node
                 .lock().ports().clone();
             for port in ports {
-                let (outgoing, port_name) = port
-                    .lock_ok()
-                    .map(|port_guard| {
-                        let edges = port_guard.outgoing_edges().clone();
-                        let name = if trace_call.is_some_and(|c| c < 64) {
-                            Some(port_guard.to_string())
-                        } else {
-                            None
-                        };
-                        (edges, name)
-                    })
-                    .unwrap_or_default();
+                let (outgoing, port_name) = {
+                    let port_guard = port.lock();
+                    let edges = port_guard.outgoing_edges().clone();
+                    let name = if trace_call.is_some_and(|c| c < 64) {
+                        Some(port_guard.to_string())
+                    } else {
+                        None
+                    };
+                    (edges, name)
+                };
                 let mut port_edges = 0;
                 for edge in outgoing {
                     if !edge_is_in_layer(&edge) {
@@ -82,10 +80,10 @@ impl HyperedgeCrossingsCounter {
             // Single-lock extraction: (side, incoming_edges) per port
             let mut north_input_ports = 0i32;
             for port in &ports {
-                let (side, incoming) = port
-                    .lock_ok()
-                    .map(|port_guard| (port_guard.side(), port_guard.incoming_edges().clone()))
-                    .unwrap_or((PortSide::Undefined, Vec::new()));
+                let (side, incoming) = {
+                    let port_guard = port.lock();
+                    (port_guard.side(), port_guard.incoming_edges().clone())
+                };
                 if side == PortSide::North {
                     for edge in incoming {
                         if !edge_is_in_layer(&edge) {
@@ -101,19 +99,17 @@ impl HyperedgeCrossingsCounter {
             let mut other_input_ports = 0i32;
             for port in ports.iter().rev() {
                 // Single lock: extract side + incoming_edges + optional name
-                let (incoming, side, port_name) = port
-                    .lock_ok()
-                    .map(|port_guard| {
-                        let inc = port_guard.incoming_edges().clone();
-                        let s = port_guard.side();
-                        let name = if do_trace_name {
-                            Some(port_guard.to_string())
-                        } else {
-                            None
-                        };
-                        (inc, s, name)
-                    })
-                    .unwrap_or((Vec::new(), PortSide::Undefined, None));
+                let (incoming, side, port_name) = {
+                    let port_guard = port.lock();
+                    let inc = port_guard.incoming_edges().clone();
+                    let s = port_guard.side();
+                    let name = if do_trace_name {
+                        Some(port_guard.to_string())
+                    } else {
+                        None
+                    };
+                    (inc, s, name)
+                };
                 let mut port_edges = 0;
                 for edge in incoming {
                     if !edge_is_in_layer(&edge) {
@@ -459,20 +455,18 @@ impl HyperedgeCorner {
 }
 
 fn edge_is_in_layer(edge: &LEdgeRef) -> bool {
-    let (source_layer, target_layer) = edge
-        .lock_ok()
-        .map(|edge_guard| {
-            let source_layer = edge_guard
-                .source()
-                .and_then(|port| port.lock().node())
-                .and_then(|node| node.lock().layer());
-            let target_layer = edge_guard
-                .target()
-                .and_then(|port| port.lock().node())
-                .and_then(|node| node.lock().layer());
-            (source_layer, target_layer)
-        })
-        .unwrap_or((None, None));
+    let (source_layer, target_layer) = {
+        let edge_guard = edge.lock();
+        let source_layer = edge_guard
+            .source()
+            .and_then(|port| port.lock().node())
+            .and_then(|node| node.lock().layer());
+        let target_layer = edge_guard
+            .target()
+            .and_then(|port| port.lock().node())
+            .and_then(|node| node.lock().layer());
+        (source_layer, target_layer)
+    };
     if let (Some(source_layer), Some(target_layer)) = (source_layer, target_layer) {
         Arc::ptr_eq(&source_layer, &target_layer)
     } else {
@@ -488,9 +482,8 @@ fn port_ptr_id(port: &LPortRef) -> usize {
 }
 
 fn port_id(port: &LPortRef) -> usize {
-    port.lock_ok()
-        .map(|mut port_guard| port_guard.shape().graph_element().id as usize)
-        .unwrap_or(0)
+    let mut port_guard = port.lock();
+    port_guard.shape().graph_element().id as usize
 }
 
 fn set_port_position(port_positions: &mut Vec<i32>, port: &LPortRef, position: i32) {
