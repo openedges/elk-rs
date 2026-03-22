@@ -21,10 +21,10 @@ impl ILayoutProcessor<LGraph> for BreakingPointRemover {
             .unwrap_or(EdgeRouting::Orthogonal);
 
         for layer in graph.layers().clone() {
-            let nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+            let nodes = {
+                let layer_guard = layer.lock();
+                layer_guard.nodes().clone()
+            };
 
             for node in nodes {
                 if !is_end(&node) {
@@ -34,10 +34,10 @@ impl ILayoutProcessor<LGraph> for BreakingPointRemover {
                 let Some(bp_info) = breaking_point_info(&node) else {
                     continue;
                 };
-                let has_next = bp_info
-                    .lock_ok()
-                    .map(|bp_info_guard| bp_info_guard.next.is_some())
-                    .unwrap_or(false);
+                let has_next = {
+                    let bp_info_guard = bp_info.lock();
+                    bp_info_guard.next.is_some()
+                };
                 if !has_next {
                     Self::remove(&bp_info, edge_routing);
                 }
@@ -50,66 +50,63 @@ impl ILayoutProcessor<LGraph> for BreakingPointRemover {
 
 impl BreakingPointRemover {
     fn remove(bp_info: &BreakingPointInfoRef, edge_routing: EdgeRouting) {
-        let (start, end, node_start_edge, start_end_edge, original_edge, prev) =
-            if let Some(bp_info_guard) = bp_info.lock_ok() {
-                (
-                    bp_info_guard.start.clone(),
-                    bp_info_guard.end.clone(),
-                    bp_info_guard.node_start_edge.clone(),
-                    bp_info_guard.start_end_edge.clone(),
-                    bp_info_guard.original_edge.clone(),
-                    bp_info_guard.prev.clone(),
-                )
-            } else {
-                return;
-            };
+        let (start, end, node_start_edge, start_end_edge, original_edge, prev) = {
+            let bp_info_guard = bp_info.lock();
+            (
+                bp_info_guard.start.clone(),
+                bp_info_guard.end.clone(),
+                bp_info_guard.node_start_edge.clone(),
+                bp_info_guard.start_end_edge.clone(),
+                bp_info_guard.original_edge.clone(),
+                bp_info_guard.prev.clone(),
+            )
+        };
 
         let mut new_bends = KVectorChain::new();
 
         match edge_routing {
             EdgeRouting::Splines => {
-                let s1 = node_start_edge
-                    .lock_ok()
-                    .and_then(|mut edge_guard| {
-                        edge_guard.get_property(InternalProperties::SPLINE_ROUTE_START)
-                    })
-                    .unwrap_or_default();
-                let mut s2 = start_end_edge
-                    .lock_ok()
-                    .and_then(|mut edge_guard| {
-                        edge_guard.get_property(InternalProperties::SPLINE_ROUTE_START)
-                    })
-                    .unwrap_or_default();
-                let s3 = original_edge
-                    .lock_ok()
-                    .and_then(|mut edge_guard| {
-                        edge_guard.get_property(InternalProperties::SPLINE_ROUTE_START)
-                    })
-                    .unwrap_or_default();
+                let s1 = {
+                    let mut edge_guard = node_start_edge.lock();
+                    edge_guard
+                        .get_property(InternalProperties::SPLINE_ROUTE_START)
+                        .unwrap_or_default()
+                };
+                let mut s2 = {
+                    let mut edge_guard = start_end_edge.lock();
+                    edge_guard
+                        .get_property(InternalProperties::SPLINE_ROUTE_START)
+                        .unwrap_or_default()
+                };
+                let s3 = {
+                    let mut edge_guard = original_edge.lock();
+                    edge_guard
+                        .get_property(InternalProperties::SPLINE_ROUTE_START)
+                        .unwrap_or_default()
+                };
 
-                let e1 = node_start_edge
-                    .lock_ok()
-                    .and_then(|mut edge_guard| {
-                        edge_guard.get_property(InternalProperties::SPLINE_EDGE_CHAIN)
-                    })
-                    .unwrap_or_default();
-                let e2 = start_end_edge
-                    .lock_ok()
-                    .and_then(|mut edge_guard| {
-                        edge_guard.get_property(InternalProperties::SPLINE_EDGE_CHAIN)
-                    })
-                    .unwrap_or_default();
-                let e3 = original_edge
-                    .lock_ok()
-                    .and_then(|mut edge_guard| {
-                        edge_guard.get_property(InternalProperties::SPLINE_EDGE_CHAIN)
-                    })
-                    .unwrap_or_default();
+                let e1 = {
+                    let mut edge_guard = node_start_edge.lock();
+                    edge_guard
+                        .get_property(InternalProperties::SPLINE_EDGE_CHAIN)
+                        .unwrap_or_default()
+                };
+                let e2 = {
+                    let mut edge_guard = start_end_edge.lock();
+                    edge_guard
+                        .get_property(InternalProperties::SPLINE_EDGE_CHAIN)
+                        .unwrap_or_default()
+                };
+                let e3 = {
+                    let mut edge_guard = original_edge.lock();
+                    edge_guard
+                        .get_property(InternalProperties::SPLINE_EDGE_CHAIN)
+                        .unwrap_or_default()
+                };
 
                 for segment in &mut s2 {
-                    if let Some(mut segment_guard) = segment.lock_ok() {
-                        segment_guard.inverse_order = true;
-                    }
+                    let mut segment_guard = segment.lock();
+                    segment_guard.inverse_order = true;
                 }
 
                 let mut joined_segments: Vec<SplineSegmentRef> = Vec::new();
@@ -122,7 +119,8 @@ impl BreakingPointRemover {
                 joined_edges.extend(e2.into_iter().rev());
                 joined_edges.extend(e3);
 
-                if let Some(mut original_edge_guard) = original_edge.lock_ok() {
+                {
+                    let mut original_edge_guard = original_edge.lock();
                     original_edge_guard.set_property(
                         InternalProperties::SPLINE_ROUTE_START,
                         Some(joined_segments),
@@ -135,7 +133,8 @@ impl BreakingPointRemover {
                     );
                 }
 
-                if let Some(mut node_start_edge_guard) = node_start_edge.lock_ok() {
+                {
+                    let mut node_start_edge_guard = node_start_edge.lock();
                     node_start_edge_guard.set_property(
                         InternalProperties::SPLINE_ROUTE_START,
                         None::<Vec<SplineSegmentRef>>,
@@ -143,7 +142,8 @@ impl BreakingPointRemover {
                     node_start_edge_guard
                         .set_property(InternalProperties::SPLINE_EDGE_CHAIN, None::<Vec<_>>);
                 }
-                if let Some(mut start_end_edge_guard) = start_end_edge.lock_ok() {
+                {
+                    let mut start_end_edge_guard = start_end_edge.lock();
                     start_end_edge_guard.set_property(
                         InternalProperties::SPLINE_ROUTE_START,
                         None::<Vec<SplineSegmentRef>>,
@@ -153,43 +153,45 @@ impl BreakingPointRemover {
                 }
             }
             EdgeRouting::Polyline => {
-                let node_start_bends = node_start_edge
-                    .lock_ok()
-                    .map(|edge_guard| edge_guard.bend_points_ref().to_array())
-                    .unwrap_or_default();
-                let start_end_bends = start_end_edge
-                    .lock_ok()
-                    .map(|edge_guard| edge_guard.bend_points_ref().to_array())
-                    .unwrap_or_default();
-                let original_bends = original_edge
-                    .lock_ok()
-                    .map(|edge_guard| edge_guard.bend_points_ref().to_array())
-                    .unwrap_or_default();
+                let node_start_bends = {
+                    let edge_guard = node_start_edge.lock();
+                    edge_guard.bend_points_ref().to_array()
+                };
+                let start_end_bends = {
+                    let edge_guard = start_end_edge.lock();
+                    edge_guard.bend_points_ref().to_array()
+                };
+                let original_bends = {
+                    let edge_guard = original_edge.lock();
+                    edge_guard.bend_points_ref().to_array()
+                };
 
                 new_bends.add_all(&node_start_bends);
-                if let Some(mut start_guard) = start.lock_ok() {
+                {
+                    let mut start_guard = start.lock();
                     new_bends.add_vector(*start_guard.shape().position_ref());
                 }
                 let reversed = KVectorChain::reverse(&KVectorChain::from_vectors(&start_end_bends));
                 new_bends.add_all(&reversed.to_array());
-                if let Some(mut end_guard) = end.lock_ok() {
+                {
+                    let mut end_guard = end.lock();
                     new_bends.add_vector(*end_guard.shape().position_ref());
                 }
                 new_bends.add_all(&original_bends);
             }
             _ => {
-                let node_start_bends = node_start_edge
-                    .lock_ok()
-                    .map(|edge_guard| edge_guard.bend_points_ref().to_array())
-                    .unwrap_or_default();
-                let start_end_bends = start_end_edge
-                    .lock_ok()
-                    .map(|edge_guard| edge_guard.bend_points_ref().to_array())
-                    .unwrap_or_default();
-                let original_bends = original_edge
-                    .lock_ok()
-                    .map(|edge_guard| edge_guard.bend_points_ref().to_array())
-                    .unwrap_or_default();
+                let node_start_bends = {
+                    let edge_guard = node_start_edge.lock();
+                    edge_guard.bend_points_ref().to_array()
+                };
+                let start_end_bends = {
+                    let edge_guard = start_end_edge.lock();
+                    edge_guard.bend_points_ref().to_array()
+                };
+                let original_bends = {
+                    let edge_guard = original_edge.lock();
+                    edge_guard.bend_points_ref().to_array()
+                };
 
                 new_bends.add_all(&node_start_bends);
                 let reversed = KVectorChain::reverse(&KVectorChain::from_vectors(&start_end_bends));
@@ -199,28 +201,31 @@ impl BreakingPointRemover {
         }
 
         if edge_routing != EdgeRouting::Splines {
-            if let Some(mut original_edge_guard) = original_edge.lock_ok() {
-                original_edge_guard.bend_points().clear();
-                original_edge_guard
-                    .bend_points()
-                    .add_all(&new_bends.to_array());
-            }
+            let mut original_edge_guard = original_edge.lock();
+            original_edge_guard.bend_points().clear();
+            original_edge_guard
+                .bend_points()
+                .add_all(&new_bends.to_array());
         }
 
-        let restored_source = node_start_edge
-            .lock_ok()
-            .and_then(|edge_guard| edge_guard.source());
+        let restored_source = {
+            let edge_guard = node_start_edge.lock();
+            edge_guard.source()
+        };
         LEdge::set_source(&original_edge, restored_source);
 
-        let junction_points_one = node_start_edge
-            .lock_ok()
-            .and_then(|mut edge_guard| edge_guard.get_property(LayeredOptions::JUNCTION_POINTS));
-        let junction_points_two = start_end_edge
-            .lock_ok()
-            .and_then(|mut edge_guard| edge_guard.get_property(LayeredOptions::JUNCTION_POINTS));
-        let junction_points_three = original_edge
-            .lock_ok()
-            .and_then(|mut edge_guard| edge_guard.get_property(LayeredOptions::JUNCTION_POINTS));
+        let junction_points_one = {
+            let mut edge_guard = node_start_edge.lock();
+            edge_guard.get_property(LayeredOptions::JUNCTION_POINTS)
+        };
+        let junction_points_two = {
+            let mut edge_guard = start_end_edge.lock();
+            edge_guard.get_property(LayeredOptions::JUNCTION_POINTS)
+        };
+        let junction_points_three = {
+            let mut edge_guard = original_edge.lock();
+            edge_guard.get_property(LayeredOptions::JUNCTION_POINTS)
+        };
 
         if junction_points_one.is_some()
             || junction_points_two.is_some()
@@ -230,10 +235,9 @@ impl BreakingPointRemover {
             add_null_safe(&mut new_junction_points, junction_points_three);
             add_null_safe(&mut new_junction_points, junction_points_two);
             add_null_safe(&mut new_junction_points, junction_points_one);
-            if let Some(mut original_edge_guard) = original_edge.lock_ok() {
-                original_edge_guard
-                    .set_property(LayeredOptions::JUNCTION_POINTS, Some(new_junction_points));
-            }
+            let mut original_edge_guard = original_edge.lock();
+            original_edge_guard
+                .set_property(LayeredOptions::JUNCTION_POINTS, Some(new_junction_points));
         }
 
         LEdge::set_source(&start_end_edge, None);
@@ -250,18 +254,16 @@ impl BreakingPointRemover {
 }
 
 fn breaking_point_info(node: &LNodeRef) -> Option<BreakingPointInfoRef> {
-    node.lock_ok()
-        .and_then(|mut node_guard| node_guard.get_property(InternalProperties::BREAKING_POINT_INFO))
+    let mut node_guard = node.lock();
+    node_guard.get_property(InternalProperties::BREAKING_POINT_INFO)
 }
 
 fn is_end(node: &LNodeRef) -> bool {
     let Some(bp_info) = breaking_point_info(node) else {
         return false;
     };
-    bp_info
-        .lock_ok()
-        .map(|bp_info_guard| Arc::ptr_eq(&bp_info_guard.end, node))
-        .unwrap_or(false)
+    let bp_info_guard = bp_info.lock();
+    Arc::ptr_eq(&bp_info_guard.end, node)
 }
 
 fn add_null_safe(container: &mut KVectorChain, to_add: Option<KVectorChain>) -> bool {
