@@ -110,9 +110,8 @@ impl LEdge {
     pub fn set_target_and_insert_at_index(edge: &LEdgeRef, target: Option<LPortRef>, index: usize) {
         let current_target = edge.lock().target();
         if let Some(current_target) = current_target {
-            current_target
-                .lock_ok()
-                .map(|mut port| remove_arc(port.incoming_edges_mut(), edge));
+            let mut port = current_target.lock();
+            remove_arc(port.incoming_edges_mut(), edge);
         }
 
         if let Some(target_ref) = &target {
@@ -215,8 +214,8 @@ impl LEdge {
         if let Some(old_target) = old_target {
             let use_collector = adapt_ports
                 && old_target
-                    .lock_ok()
-                    .and_then(|mut port| port.get_property(InternalProperties::INPUT_COLLECT))
+                    .lock()
+                    .get_property(InternalProperties::INPUT_COLLECT)
                     .unwrap_or(false);
             if use_collector {
                 if let Some(node) = old_target.lock().node() {
@@ -236,8 +235,8 @@ impl LEdge {
         if let Some(old_source) = old_source {
             let use_collector = adapt_ports
                 && old_source
-                    .lock_ok()
-                    .and_then(|mut port| port.get_property(InternalProperties::OUTPUT_COLLECT))
+                    .lock()
+                    .get_property(InternalProperties::OUTPUT_COLLECT)
                     .unwrap_or(false);
             if use_collector {
                 if let Some(node) = old_source.lock().node() {
