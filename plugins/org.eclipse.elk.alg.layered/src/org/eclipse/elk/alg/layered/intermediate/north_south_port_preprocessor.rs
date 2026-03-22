@@ -674,9 +674,7 @@ fn origin_port_allows_switch(dummy: &LNodeRef) -> bool {
     };
 
     let (allows_switch, port_constraints, origin_node) = {
-        let Some(mut port_guard) = origin_port.lock_ok() else {
-            return false;
-        };
+        let mut port_guard = origin_port.lock();
         (
             port_guard
                 .get_property(LayeredOptions::ALLOW_NON_FLOW_PORTS_TO_SWITCH_SIDES)

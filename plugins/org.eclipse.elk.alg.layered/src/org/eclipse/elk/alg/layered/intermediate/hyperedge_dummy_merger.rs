@@ -23,9 +23,7 @@ impl ILayoutProcessor<LGraph> for HyperedgeDummyMerger {
             let mut node_index = 1usize;
             loop {
                 let pair = {
-                    let Some(layer_guard) = layer.lock_ok() else {
-                        break;
-                    };
+                    let layer_guard = layer.lock();
                     if node_index >= layer_guard.nodes().len() {
                         None
                     } else {

@@ -290,9 +290,7 @@ fn move_tree(root: &LNodeRef, edges: EdgeSelector, layers: &[LayerRef]) {
 }
 
 fn selected_edges(node: &LNodeRef, selector: EdgeSelector) -> Vec<LEdgeRef> {
-    let Some(node_guard) = node.lock_ok() else {
-        return Vec::new();
-    };
+    let node_guard = node.lock();
 
     match selector {
         EdgeSelector::Incoming => node_guard.incoming_edges(),

@@ -18,9 +18,7 @@ impl WestToEastRoutingStrategy {
     }
 
     pub fn get_port_position_on_hyper_node(&self, port: &LPortRef) -> f64 {
-        let Some(mut port_guard) = port.lock_ok() else {
-            return 0.0;
-        };
+        let mut port_guard = port.lock();
         let node_pos_y = port_guard
             .node()
             .and_then(|node| {
@@ -55,9 +53,7 @@ impl WestToEastRoutingStrategy {
         for port in segment.ports() {
             // Single lock to get both anchor and outgoing edges
             let (source_y, outgoing_edges) = {
-                let Some(port_guard) = port.lock_ok() else {
-                    continue;
-                };
+                let port_guard = port.lock();
                 let anchor_y = port_guard
                     .absolute_anchor()
                     .map(|a| a.y)
@@ -69,9 +65,7 @@ impl WestToEastRoutingStrategy {
             for edge in outgoing_edges {
                 // Single lock to get is_self_loop + target + absolute_anchor
                 let (is_self_loop, target_y) = {
-                    let Some(edge_guard) = edge.lock_ok() else {
-                        continue;
-                    };
+                    let edge_guard = edge.lock();
                     if edge_guard.is_self_loop() {
                         (true, 0.0)
                     } else {
@@ -91,9 +85,7 @@ impl WestToEastRoutingStrategy {
 
                 if (source_y - target_y).abs() > OrthogonalRoutingGenerator::TOLERANCE {
                     // Single edge lock for ALL bend points + junction points
-                    let Some(mut edge_guard) = edge.lock_ok() else {
-                        continue;
-                    };
+                    let mut edge_guard = edge.lock();
 
                     let mut current_x = segment_x;
                     let mut current_segment = None;

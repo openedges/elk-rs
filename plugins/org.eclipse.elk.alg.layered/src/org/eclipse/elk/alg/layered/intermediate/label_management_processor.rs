@@ -247,9 +247,7 @@ fn do_manage_labels(
     }
 
     for label in labels {
-        let Some(mut label_guard) = label.lock_ok() else {
-            continue;
-        };
+        let mut label_guard = label.lock();
 
         let origin = label_guard.get_property(InternalProperties::ORIGIN);
         if let Some(origin) = origin {

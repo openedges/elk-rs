@@ -90,9 +90,7 @@ impl HyperEdgeSegment {
     }
 
     fn get_port_position_on_hyper_node(&self, port: &LPortRef) -> f64 {
-        let Some(mut port_guard) = port.lock_ok() else {
-            return 0.0;
-        };
+        let mut port_guard = port.lock();
         let node_pos = port_guard
             .node()
             .and_then(|node| {

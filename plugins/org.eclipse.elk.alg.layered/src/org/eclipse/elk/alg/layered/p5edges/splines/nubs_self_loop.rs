@@ -258,9 +258,7 @@ impl std::ops::DerefMut for NubsSelfLoop {
 }
 
 fn port_position(port: &LPortRef) -> KVector {
-    let Some(mut port_guard) = port.lock_ok() else {
-        return KVector::new();
-    };
+    let mut port_guard = port.lock();
     let mut pos = *port_guard.shape().position_ref();
     pos.add(port_guard.anchor_ref());
     pos

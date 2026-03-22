@@ -19,9 +19,7 @@ impl ILayoutProcessor<LGraph> for ConstraintsPostprocessor {
             let mut has_normal_node = false;
 
             for node in nodes {
-                let Some(mut node_guard) = node.lock_ok() else {
-                    continue;
-                };
+                let mut node_guard = node.lock();
                 if node_guard.node_type() != NodeType::Normal {
                     continue;
                 }

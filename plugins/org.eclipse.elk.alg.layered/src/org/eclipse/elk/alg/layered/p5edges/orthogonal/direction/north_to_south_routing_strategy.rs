@@ -18,9 +18,7 @@ impl NorthToSouthRoutingStrategy {
     }
 
     pub fn get_port_position_on_hyper_node(&self, port: &LPortRef) -> f64 {
-        let Some(mut port_guard) = port.lock_ok() else {
-            return 0.0;
-        };
+        let mut port_guard = port.lock();
         let node_pos_x = port_guard
             .node()
             .and_then(|node| {
@@ -54,9 +52,7 @@ impl NorthToSouthRoutingStrategy {
         let segment_y = start_pos + segment.routing_slot() as f64 * edge_spacing;
         for port in segment.ports() {
             let (source_x, outgoing_edges) = {
-                let Some(port_guard) = port.lock_ok() else {
-                    continue;
-                };
+                let port_guard = port.lock();
                 let anchor_x = port_guard
                     .absolute_anchor()
                     .map(|a| a.x)
@@ -67,9 +63,7 @@ impl NorthToSouthRoutingStrategy {
 
             for edge in outgoing_edges {
                 let (is_self_loop, target_x) = {
-                    let Some(edge_guard) = edge.lock_ok() else {
-                        continue;
-                    };
+                    let edge_guard = edge.lock();
                     if edge_guard.is_self_loop() {
                         (true, 0.0)
                     } else {
@@ -88,9 +82,7 @@ impl NorthToSouthRoutingStrategy {
                 }
 
                 if (source_x - target_x).abs() > OrthogonalRoutingGenerator::TOLERANCE {
-                    let Some(mut edge_guard) = edge.lock_ok() else {
-                        continue;
-                    };
+                    let mut edge_guard = edge.lock();
 
                     let mut current_y = segment_y;
                     let mut current_segment = None;

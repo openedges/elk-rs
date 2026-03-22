@@ -35,9 +35,7 @@ fn add_node_to_layer(graph: &LGraphRef, layer: &LayerRef, node_type: NodeType) -
 }
 
 fn node_ids(node: &LNodeRef) -> (i32, i32) {
-    let Some(mut node_guard) = node.lock_ok() else {
-        return (-1, -1);
-    };
+    let mut node_guard = node.lock();
 
     let layer_id = node_guard
         .get_property(LayeredOptions::LAYERING_LAYER_ID)
