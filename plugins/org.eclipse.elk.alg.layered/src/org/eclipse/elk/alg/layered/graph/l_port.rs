@@ -6,6 +6,8 @@ use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 
+use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, Origin};
+
 use super::{
     index_of_arc, remove_arc, LEdgeRef, LLabelRef, LMargin, LNodeRef, LNodeWeak, LPortRef, LShape,
 };
@@ -226,12 +228,29 @@ impl LPort {
         self.shape.get_property(property)
     }
 
+    pub fn get_property_ref<T: Clone + Send + Sync + 'static>(
+        &self,
+        property: &Property<T>,
+    ) -> Option<T> {
+        self.shape.get_property_ref(property)
+    }
+
     pub fn set_property<T: Clone + Send + Sync + 'static>(
         &mut self,
         property: &Property<T>,
         value: Option<T>,
     ) {
         self.shape.set_property(property, value);
+    }
+
+    // --- Typed property accessors (read-only, &self) ---
+
+    pub fn origin(&self) -> Option<Origin> {
+        self.shape.get_property_ref(InternalProperties::ORIGIN)
+    }
+
+    pub fn port_dummy(&self) -> Option<LNodeRef> {
+        self.shape.get_property_ref(InternalProperties::PORT_DUMMY)
     }
 
     pub fn designation(&self) -> String {

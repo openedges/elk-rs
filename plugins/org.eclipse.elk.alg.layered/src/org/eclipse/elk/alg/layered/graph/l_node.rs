@@ -7,8 +7,11 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::pair::Pair;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 
+use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
+
 use crate::org::eclipse::elk::alg::layered::options::{
-    InteractiveReferencePoint, InternalProperties, LayeredOptions, PortType,
+    InteractiveReferencePoint, InternalProperties, LayerConstraint, LayeredOptions, Origin,
+    PortType,
 };
 
 use super::{
@@ -431,12 +434,57 @@ impl LNode {
         self.shape.get_property(property)
     }
 
+    pub fn get_property_ref<T: Clone + Send + Sync + 'static>(
+        &self,
+        property: &Property<T>,
+    ) -> Option<T> {
+        self.shape.get_property_ref(property)
+    }
+
     pub fn set_property<T: Clone + Send + Sync + 'static>(
         &mut self,
         property: &Property<T>,
         value: Option<T>,
     ) {
         self.shape.set_property(property, value);
+    }
+
+    // --- Typed property accessors (read-only, &self) ---
+
+    pub fn origin(&self) -> Option<Origin> {
+        self.shape.get_property_ref(InternalProperties::ORIGIN)
+    }
+
+    pub fn port_constraints_prop(&self) -> PortConstraints {
+        self.shape
+            .get_property_ref(LayeredOptions::PORT_CONSTRAINTS)
+            .unwrap_or(PortConstraints::Undefined)
+    }
+
+    pub fn ext_port_side(&self) -> PortSide {
+        self.shape
+            .get_property_ref(InternalProperties::EXT_PORT_SIDE)
+            .unwrap_or(PortSide::Undefined)
+    }
+
+    pub fn model_order(&self) -> Option<i32> {
+        self.shape.get_property_ref(InternalProperties::MODEL_ORDER)
+    }
+
+    pub fn layer_constraint(&self) -> LayerConstraint {
+        self.shape
+            .get_property_ref(LayeredOptions::LAYERING_LAYER_CONSTRAINT)
+            .unwrap_or(LayerConstraint::None)
+    }
+
+    pub fn port_ratio_or_position(&self) -> Option<f64> {
+        self.shape
+            .get_property_ref(InternalProperties::PORT_RATIO_OR_POSITION)
+    }
+
+    pub fn in_layer_layout_unit(&self) -> Option<LNodeRef> {
+        self.shape
+            .get_property_ref(InternalProperties::IN_LAYER_LAYOUT_UNIT)
     }
 
     pub fn designation(&self) -> String {

@@ -8,7 +8,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 
 use crate::org::eclipse::elk::alg::layered::options::{
-    InternalProperties, LayeredOptions, PortType,
+    InternalProperties, LayeredOptions, Origin, PortType,
 };
 
 use super::LGraphUtil;
@@ -287,12 +287,43 @@ impl LEdge {
         self.element.get_property(property)
     }
 
+    pub fn get_property_ref<T: Clone + Send + Sync + 'static>(
+        &self,
+        property: &Property<T>,
+    ) -> Option<T> {
+        self.element.properties().get_property_ref(property)
+    }
+
     pub fn set_property<T: Clone + Send + Sync + 'static>(
         &mut self,
         property: &Property<T>,
         value: Option<T>,
     ) {
         self.element.set_property(property, value);
+    }
+
+    // --- Typed property accessors (read-only, &self) ---
+
+    pub fn origin(&self) -> Option<Origin> {
+        self.element.properties().get_property_ref(InternalProperties::ORIGIN)
+    }
+
+    pub fn junction_points(&self) -> Option<KVectorChain> {
+        self.element.properties().get_property_ref(LayeredOptions::JUNCTION_POINTS)
+    }
+
+    pub fn is_reversed(&self) -> bool {
+        self.element
+            .properties()
+            .get_property_ref(InternalProperties::REVERSED)
+            .unwrap_or(false)
+    }
+
+    pub fn priority_straightness(&self) -> i32 {
+        self.element
+            .properties()
+            .get_property_ref(LayeredOptions::PRIORITY_STRAIGHTNESS)
+            .unwrap_or(0)
     }
 
     pub fn designation(&self) -> Option<String> {

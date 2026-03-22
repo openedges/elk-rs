@@ -49,6 +49,13 @@ impl LShape {
         self.element.get_property(property)
     }
 
+    pub fn get_property_ref<T: Clone + Send + Sync + 'static>(
+        &self,
+        property: &Property<T>,
+    ) -> Option<T> {
+        self.element.properties().get_property_ref(property)
+    }
+
     pub fn set_property<T: Clone + Send + Sync + 'static>(
         &mut self,
         property: &Property<T>,
