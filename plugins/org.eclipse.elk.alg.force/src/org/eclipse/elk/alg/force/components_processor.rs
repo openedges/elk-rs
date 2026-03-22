@@ -27,8 +27,7 @@ impl ComponentsProcessor {
 
         let mut components = Vec::new();
         for node in graph.nodes() {
-            let node_id = node.lock_ok().map(|n| n.id());
-            let Some(node_id) = node_id else { continue };
+            let node_id = node.lock().id();
             if visited[node_id] {
                 continue;
             }
@@ -43,7 +42,8 @@ impl ComponentsProcessor {
             for comp in &components {
                 let mut id = 0_usize;
                 for node in comp.nodes() {
-                    if let Some(mut node_guard) = node.lock_ok() {
+                    {
+                        let mut node_guard = node.lock();
                         node_guard.set_id(id);
                         id += 1;
                     }
@@ -70,7 +70,8 @@ impl ComponentsProcessor {
             let mut max_y = f64::MIN;
 
             for node in graph.nodes() {
-                if let Some(mut node_guard) = node.lock_ok() {
+                {
+                    let mut node_guard = node.lock();
                     priority += node_guard.get_property(ForceOptions::PRIORITY).unwrap_or(1);
                     let pos = node_guard.position_ref();
                     let size = node_guard.size_ref();
@@ -181,7 +182,8 @@ impl ComponentsProcessor {
         let mut incidence = vec![Vec::new(); n];
 
         for node in graph.nodes() {
-            if let Some(node_guard) = node.lock_ok() {
+            {
+                let node_guard = node.lock();
                 if node_guard.id() < n {
                     incidence[node_guard.id()] = Vec::new();
                 }
@@ -191,12 +193,8 @@ impl ComponentsProcessor {
         for edge in graph.edges() {
             let (source_id, target_id) = {
                 let edge_guard = edge.lock();
-                let source_id = edge_guard
-                    .source()
-                    .and_then(|node| node.lock_ok().map(|n| n.id()));
-                let target_id = edge_guard
-                    .target()
-                    .and_then(|node| node.lock_ok().map(|n| n.id()));
+                let source_id = edge_guard.source().map(|node| node.lock().id());
+                let target_id = edge_guard.target().map(|node| node.lock().id());
                 match (source_id, target_id) {
                     (Some(source_id), Some(target_id)) => (source_id, target_id),
                     _ => continue,
@@ -220,8 +218,7 @@ impl ComponentsProcessor {
         visited: &mut [bool],
         incidence: &[Vec<FEdgeRef>],
     ) {
-        let node_id = node.lock_ok().map(|n| n.id());
-        let Some(node_id) = node_id else { return };
+        let node_id = node.lock().id();
         if visited[node_id] {
             return;
         }
@@ -291,16 +288,19 @@ impl ComponentsProcessor {
         };
 
         for node in source.nodes() {
-            if let Some(mut node_guard) = node.lock_ok() {
+            {
+                let mut node_guard = node.lock();
                 node_guard.position().add(&offset);
             }
             dest.nodes_mut().push(node.clone());
         }
 
         for edge in source.edges() {
-            if let Some(mut edge_guard) = edge.lock_ok() {
+            {
+                let mut edge_guard = edge.lock();
                 for bend in edge_guard.bendpoints_mut() {
-                    if let Some(mut bend_guard) = bend.lock_ok() {
+                    {
+                        let mut bend_guard = bend.lock();
                         bend_guard.position().add(&offset);
                     }
                 }
@@ -309,7 +309,8 @@ impl ComponentsProcessor {
         }
 
         for label in source.labels() {
-            if let Some(mut label_guard) = label.lock_ok() {
+            {
+                let mut label_guard = label.lock();
                 label_guard.position().add(&offset);
             }
             dest.labels_mut().push(label.clone());
