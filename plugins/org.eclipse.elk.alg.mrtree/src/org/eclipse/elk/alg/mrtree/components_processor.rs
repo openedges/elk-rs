@@ -18,10 +18,7 @@ impl ComponentsProcessor {
 
     pub fn split(&self, graph: &TGraphRef) -> Vec<TGraphRef> {
         let (separate, nodes, edges, properties) = {
-            let mut graph_guard = match graph.lock_ok() {
-            Some(guard) => guard,
-            None => return vec![graph.clone()],
-            };
+            let mut graph_guard = graph.lock();
             let separate = graph_guard
                 .get_property(MrTreeOptions::SEPARATE_CONNECTED_COMPONENTS)
                 .unwrap_or(true);
@@ -39,31 +36,29 @@ impl ComponentsProcessor {
 
         let mut id_to_index: HashMap<i32, usize> = HashMap::new();
         for (idx, node) in nodes.iter().enumerate() {
-            let id = node
-                .lock_ok()
-                .map(|guard| guard.id())
-                .unwrap_or(idx as i32);
+            let id = {
+                let guard = node.lock();
+                guard.id()
+            };
             id_to_index.insert(id, idx);
         }
 
         let mut adjacency: Vec<Vec<usize>> = vec![Vec::new(); nodes.len()];
         for edge in &edges {
-            let (source, target) = match edge.lock_ok() {
-                Some(guard) => (guard.source(), guard.target()),
-                None => (None, None),
+            let (source, target) = {
+                let guard = edge.lock();
+                (guard.source(), guard.target())
             };
             let (Some(source), Some(target)) = (source, target) else {
                 continue;
             };
-            let source_id = source.lock_ok().map(|guard| guard.id());
-            let target_id = target.lock_ok().map(|guard| guard.id());
-            if let (Some(source_id), Some(target_id)) = (source_id, target_id) {
-                if let (Some(&s_idx), Some(&t_idx)) =
-                    (id_to_index.get(&source_id), id_to_index.get(&target_id))
-                {
-                    adjacency[s_idx].push(t_idx);
-                    adjacency[t_idx].push(s_idx);
-                }
+            let source_id = { let guard = source.lock(); guard.id() };
+            let target_id = { let guard = target.lock(); guard.id() };
+            if let (Some(&s_idx), Some(&t_idx)) =
+                (id_to_index.get(&source_id), id_to_index.get(&target_id))
+            {
+                adjacency[s_idx].push(t_idx);
+                adjacency[t_idx].push(s_idx);
             }
         }
 
@@ -90,7 +85,8 @@ impl ComponentsProcessor {
             }
 
             let comp_graph = TGraph::new();
-            if let Some(mut comp_guard) = comp_graph.lock_ok() {
+            {
+                let mut comp_guard = comp_graph.lock();
                 comp_guard.properties_mut().copy_properties(&properties);
                 for &idx in &comp_indices {
                     comp_guard.nodes_mut().push(nodes[idx].clone());
@@ -104,9 +100,9 @@ impl ComponentsProcessor {
             let mut comp_edges: Vec<TEdgeRef> = Vec::new();
             let mut seen_edges: HashSet<usize> = HashSet::new();
             for edge in &edges {
-                let (source, target) = match edge.lock_ok() {
-                    Some(guard) => (guard.source(), guard.target()),
-                    None => (None, None),
+                let (source, target) = {
+                    let guard = edge.lock();
+                    (guard.source(), guard.target())
                 };
                 let (Some(source), Some(target)) = (source, target) else {
                     continue;
@@ -121,7 +117,8 @@ impl ComponentsProcessor {
                 }
             }
 
-            if let Some(mut comp_guard) = comp_graph.lock_ok() {
+            {
+                let mut comp_guard = comp_graph.lock();
                 comp_guard.edges_mut().extend(comp_edges);
             }
 
@@ -130,14 +127,12 @@ impl ComponentsProcessor {
 
         if components.len() > 1 {
             for comp in &components {
-                if let Some(comp_guard) = comp.lock_ok() {
-                    let mut next_id = 0;
-                    for node in comp_guard.nodes().iter() {
-                        if let Some(mut node_guard) = node.lock_ok() {
-                            node_guard.set_id(next_id);
-                            next_id += 1;
-                        }
-                    }
+                let comp_guard = comp.lock();
+                let mut next_id = 0;
+                for node in comp_guard.nodes().iter() {
+                    let mut node_guard = node.lock();
+                    node_guard.set_id(next_id);
+                    next_id += 1;
                 }
             }
         }
@@ -155,29 +150,29 @@ impl ComponentsProcessor {
         }
 
         for graph in components {
-            let nodes = graph
-                .lock_ok()
-                .map(|g| g.nodes().clone())
-                .unwrap_or_default();
+            let nodes = {
+                let g = graph.lock();
+                g.nodes().clone()
+            };
             let mut priority = 0;
             let mut minx = f64::MAX;
             let mut miny = f64::MAX;
             let mut maxx = f64::MIN;
             let mut maxy = f64::MIN;
             for node in nodes {
-                if let Some(mut node_guard) = node.lock_ok() {
-                    priority += node_guard
-                        .get_property(MrTreeOptions::PRIORITY)
-                        .unwrap_or(0);
-                    let pos = node_guard.position_ref();
-                    let size = node_guard.size_ref();
-                    minx = minx.min(pos.x);
-                    miny = miny.min(pos.y);
-                    maxx = maxx.max(pos.x + size.x);
-                    maxy = maxy.max(pos.y + size.y);
-                }
+                let mut node_guard = node.lock();
+                priority += node_guard
+                    .get_property(MrTreeOptions::PRIORITY)
+                    .unwrap_or(0);
+                let pos = node_guard.position_ref();
+                let size = node_guard.size_ref();
+                minx = minx.min(pos.x);
+                miny = miny.min(pos.y);
+                maxx = maxx.max(pos.x + size.x);
+                maxy = maxy.max(pos.y + size.y);
             }
-            if let Some(mut graph_guard) = graph.lock_ok() {
+            {
+                let mut graph_guard = graph.lock();
                 graph_guard.set_property(MrTreeOptions::PRIORITY, Some(priority));
                 graph_guard.set_property(
                     InternalProperties::BB_UPLEFT,
@@ -205,40 +200,39 @@ impl ComponentsProcessor {
         });
 
         let result = TGraph::new();
-        if let Some(mut result_guard) = result.lock_ok() {
-            if let Some(first_guard) = components_sorted[0].lock_ok() {
-                result_guard
-                    .properties_mut()
-                    .copy_properties(first_guard.properties());
-            }
+        {
+            let mut result_guard = result.lock();
+            let first_guard = components_sorted[0].lock();
+            result_guard
+                .properties_mut()
+                .copy_properties(first_guard.properties());
         }
 
         let (max_row_width, spacing) = {
             let mut max_row_width: f64 = 0.0;
             let mut total_area: f64 = 0.0;
             for graph in &components_sorted {
-                if let Some(mut graph_guard) = graph.lock_ok() {
-                    let size = graph_guard
-                        .get_property(InternalProperties::BB_LOWRIGHT)
-                        .unwrap_or_default();
-                    let min = graph_guard
-                        .get_property(InternalProperties::BB_UPLEFT)
-                        .unwrap_or_default();
-                    let mut diff = size;
-                    diff.sub(&min);
-                    max_row_width = max_row_width.max(diff.x);
-                    total_area += diff.x * diff.y;
-                }
+                let mut graph_guard = graph.lock();
+                let size = graph_guard
+                    .get_property(InternalProperties::BB_LOWRIGHT)
+                    .unwrap_or_default();
+                let min = graph_guard
+                    .get_property(InternalProperties::BB_UPLEFT)
+                    .unwrap_or_default();
+                let mut diff = size;
+                diff.sub(&min);
+                max_row_width = max_row_width.max(diff.x);
+                total_area += diff.x * diff.y;
             }
-            let aspect = result
-                .lock_ok()
-                .and_then(|mut g| g.get_property(MrTreeOptions::ASPECT_RATIO))
-                .unwrap_or(1.0);
+            let aspect = {
+                let mut g = result.lock();
+                g.get_property(MrTreeOptions::ASPECT_RATIO).unwrap_or(1.0)
+            };
             max_row_width = max_row_width.max(total_area.sqrt() * aspect);
-            let spacing = result
-                .lock_ok()
-                .and_then(|mut g| g.get_property(MrTreeOptions::SPACING_NODE_NODE))
-                .unwrap_or(0.0);
+            let spacing = {
+                let mut g = result.lock();
+                g.get_property(MrTreeOptions::SPACING_NODE_NODE).unwrap_or(0.0)
+            };
             (max_row_width, spacing)
         };
 
@@ -246,7 +240,8 @@ impl ComponentsProcessor {
         let mut ypos = 0.0;
         let mut highest_box = 0.0;
         for graph in &components_sorted {
-            let (size, min) = if let Some(mut graph_guard) = graph.lock_ok() {
+            let (size, min) = {
+                let mut graph_guard = graph.lock();
                 let mut size = graph_guard
                     .get_property(InternalProperties::BB_LOWRIGHT)
                     .unwrap_or_default();
@@ -255,8 +250,6 @@ impl ComponentsProcessor {
                     .unwrap_or_default();
                 size.sub(&min);
                 (size, min)
-            } else {
-                (KVector::default(), KVector::default())
             };
             if xpos + size.x > max_row_width {
                 xpos = 0.0;
@@ -278,26 +271,27 @@ impl ComponentsProcessor {
     }
 
     fn apply_padding_and_normalize_positions(&self, graph: &TGraphRef) {
-        let padding = graph
-            .lock_ok()
-            .and_then(|mut g| g.get_property(MrTreeOptions::PADDING))
-            .unwrap_or_default();
+        let padding = {
+            let mut g = graph.lock();
+            g.get_property(MrTreeOptions::PADDING).unwrap_or_default()
+        };
 
-        if let Some(mut graph_guard) = graph.lock_ok() {
+        {
+            let mut graph_guard = graph.lock();
             graph_guard.set_property(
                 InternalProperties::BB_UPLEFT,
                 Some(KVector::with_values(0.0, 0.0)),
             );
         }
 
-        let xmin = graph
-            .lock_ok()
-            .and_then(|mut g| g.get_property(InternalProperties::GRAPH_XMIN))
-            .unwrap_or(0.0);
-        let ymin = graph
-            .lock_ok()
-            .and_then(|mut g| g.get_property(InternalProperties::GRAPH_YMIN))
-            .unwrap_or(0.0);
+        let xmin = {
+            let mut g = graph.lock();
+            g.get_property(InternalProperties::GRAPH_XMIN).unwrap_or(0.0)
+        };
+        let ymin = {
+            let mut g = graph.lock();
+            g.get_property(InternalProperties::GRAPH_YMIN).unwrap_or(0.0)
+        };
 
         let offset_x = padding.left - xmin;
         let offset_y = padding.top - ymin;
@@ -312,10 +306,7 @@ impl ComponentsProcessor {
         offsety: f64,
     ) {
         let (nodes, edges, source_min) = {
-            let mut source_guard = match source_graph.lock_ok() {
-            Some(guard) => guard,
-            None => return,
-            };
+            let mut source_guard = source_graph.lock();
             let nodes = source_guard.nodes().clone();
             let edges = source_guard.edges().clone();
             let source_min = source_guard
@@ -327,9 +318,11 @@ impl ComponentsProcessor {
         let mut graph_offset = KVector::with_values(offsetx, offsety);
         graph_offset.sub(&source_min);
 
-        if let Some(mut dest_guard) = dest_graph.lock_ok() {
+        {
+            let mut dest_guard = dest_graph.lock();
             for node in &nodes {
-                if let Some(mut node_guard) = node.lock_ok() {
+                {
+                    let mut node_guard = node.lock();
                     node_guard.position().add(&graph_offset);
                 }
                 dest_guard.nodes_mut().push(node.clone());
@@ -341,7 +334,8 @@ impl ComponentsProcessor {
                 if !seen_edges.insert(edge_key) {
                     continue;
                 }
-                if let Some(mut edge_guard) = edge.lock_ok() {
+                {
+                    let mut edge_guard = edge.lock();
                     for bendpoint in edge_guard.bend_points().iter_mut() {
                         bendpoint.add(&graph_offset);
                     }
@@ -359,17 +353,14 @@ impl Default for ComponentsProcessor {
 }
 
 fn component_sort_values(graph: &TGraphRef) -> (i32, f64) {
-    if let Some(mut guard) = graph.lock_ok() {
-        let priority = guard.get_property(MrTreeOptions::PRIORITY).unwrap_or(0);
-        let mut size = guard
-            .get_property(InternalProperties::BB_LOWRIGHT)
-            .unwrap_or_else(KVector::new);
-        let min = guard
-            .get_property(InternalProperties::BB_UPLEFT)
-            .unwrap_or_else(KVector::new);
-        size.sub(&min);
-        (priority, size.x * size.y)
-    } else {
-        (0, 0.0)
-    }
+    let mut guard = graph.lock();
+    let priority = guard.get_property(MrTreeOptions::PRIORITY).unwrap_or(0);
+    let mut size = guard
+        .get_property(InternalProperties::BB_LOWRIGHT)
+        .unwrap_or_else(KVector::new);
+    let min = guard
+        .get_property(InternalProperties::BB_UPLEFT)
+        .unwrap_or_else(KVector::new);
+    size.sub(&min);
+    (priority, size.x * size.y)
 }
