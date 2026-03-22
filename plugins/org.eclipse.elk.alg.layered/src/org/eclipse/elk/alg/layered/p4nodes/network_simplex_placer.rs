@@ -140,7 +140,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for NetworkSimplexPlacer {
 
             self.insert_flexible_where_space_auxiliary_edges();
             for edge in &self.flexible_where_space_permits_edges {
-                if let Some(mut edge_guard) = edge.lock_ok() {
+                {
+                    let mut edge_guard = edge.lock();
                     edge_guard.weight = NODE_SIZE_WEIGHT_FLEXIBLE;
                 }
             }
@@ -195,23 +196,23 @@ impl NetworkSimplexPlacer {
         let mut edge_idx = 0usize;
 
         for layer in &layers {
-            let nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+            let nodes = {
+                let layer_guard = layer.lock();
+                layer_guard.nodes().clone()
+            };
             for node in nodes {
-                let (outgoing_edges, ports) = if let Some(mut node_guard) = node.lock_ok() {
+                let (outgoing_edges, ports) = {
+                    let mut node_guard = node.lock();
                     node_guard.shape().graph_element().id = node_idx as i32;
                     let oe = node_guard.outgoing_edges();
                     let p = node_guard.ports().clone();
                     (oe, p)
-                } else {
-                    (Vec::new(), Vec::new())
                 };
                 node_idx += 1;
 
                 for edge in outgoing_edges {
-                    if let Some(mut edge_guard) = edge.lock_ok() {
+                    {
+                        let mut edge_guard = edge.lock();
                         edge_guard.graph_element().id = edge_idx as i32;
                     }
                     edge_idx += 1;
@@ -219,7 +220,8 @@ impl NetworkSimplexPlacer {
 
                 let anchor_must_be_integer = is_flexible_node(self.graph_ref(), &node);
                 for port in ports {
-                    if let Some(mut port_guard) = port.lock_ok() {
+                    {
+                        let mut port_guard = port.lock();
                         if anchor_must_be_integer {
                             let y = port_guard.anchor_ref().y;
                             if y != y.floor() {
@@ -272,10 +274,10 @@ impl NetworkSimplexPlacer {
 
     fn transform_layer(&mut self, layer: &LayerRef) {
         let mut last_rep: Option<NodeRep> = None;
-        let nodes = layer
-            .lock_ok()
-            .map(|layer_guard| layer_guard.nodes().clone())
-            .unwrap_or_default();
+        let nodes = {
+            let layer_guard = layer.lock();
+            layer_guard.nodes().clone()
+        };
 
         for node in nodes {
             let rep = if is_flexible_node(self.graph_ref(), &node) {
@@ -324,13 +326,13 @@ impl NetworkSimplexPlacer {
             .type_label("non-flexible")
             .create(&mut self.n_graph);
 
-        let ports = node
-            .lock_ok()
-            .map(|node_guard| node_guard.ports().clone())
-            .unwrap_or_default();
+        let ports = {
+            let node_guard = node.lock();
+            node_guard.ports().clone()
+        };
         for port in ports {
-            let side = port.lock_ok().map(|port_guard| port_guard.side());
-            if matches!(side, Some(PortSide::East | PortSide::West)) {
+            let side = { port.lock().side() };
+            if matches!(side, PortSide::East | PortSide::West) {
                 self.port_map.insert(port_key(&port), single.clone());
             }
         }
@@ -379,15 +381,13 @@ impl NetworkSimplexPlacer {
             self.flexible_where_space_permits_edges.push(node_size_edge);
         }
 
-        let (west_ports, east_ports) = node
-            .lock_ok()
-            .map(|mut node_guard| {
-                (
-                    node_guard.port_side_view(PortSide::West),
-                    node_guard.port_side_view(PortSide::East),
-                )
-            })
-            .unwrap_or_default();
+        let (west_ports, east_ports) = {
+            let mut node_guard = node.lock();
+            (
+                node_guard.port_side_view(PortSide::West),
+                node_guard.port_side_view(PortSide::East),
+            )
+        };
         let mut west_ports_rev = west_ports;
         west_ports_rev.reverse();
         self.transform_ports(&west_ports_rev, &corners);
@@ -418,10 +418,10 @@ impl NetworkSimplexPlacer {
 
         for port in ports {
             let spacing = if let Some(ref last) = last_port {
-                let last_size = last
-                    .lock_ok()
-                    .map(|mut port_guard| port_guard.shape().size_ref().y)
-                    .unwrap_or(0.0);
+                let last_size = {
+                    let mut port_guard = last.lock();
+                    port_guard.shape().size_ref().y
+                };
                 port_spacing + last_size
             } else {
                 port_surrounding.top
@@ -446,10 +446,10 @@ impl NetworkSimplexPlacer {
         }
 
         if let Some(last_port) = last_port {
-            let last_size = last_port
-                .lock_ok()
-                .map(|mut port_guard| port_guard.shape().size_ref().y)
-                .unwrap_or(0.0);
+            let last_size = {
+                let mut port_guard = last_port.lock();
+                port_guard.shape().size_ref().y
+            };
             NEdge::of()
                 .weight(0.0)
                 .delta((port_surrounding.bottom + last_size).ceil() as i32)
@@ -462,15 +462,15 @@ impl NetworkSimplexPlacer {
     fn transform_edges(&mut self, graph: &LGraph) {
         let layers = graph.layers().clone();
         for layer in layers {
-            let nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+            let nodes = {
+                let layer_guard = layer.lock();
+                layer_guard.nodes().clone()
+            };
             for node in nodes {
-                let outgoing_edges = node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.outgoing_edges())
-                    .unwrap_or_default();
+                let outgoing_edges = {
+                    let node_guard = node.lock();
+                    node_guard.outgoing_edges()
+                };
                 for edge in outgoing_edges {
                     if !is_handled_edge(&edge) {
                         continue;
@@ -484,20 +484,22 @@ impl NetworkSimplexPlacer {
     fn transform_edge(&mut self, edge: &LEdgeRef) {
         let dummy = NNode::of().type_label("edge").create(&mut self.n_graph);
 
-        let (source_port, target_port) = edge
-            .lock_ok()
-            .map(|edge_guard| (edge_guard.source(), edge_guard.target()))
-            .unwrap_or((None, None));
+        let (source_port, target_port) = {
+            let edge_guard = edge.lock();
+            (edge_guard.source(), edge_guard.target())
+        };
         let (Some(source_port), Some(target_port)) = (source_port, target_port) else {
             return;
         };
 
-        let source_node = source_port
-            .lock_ok()
-            .and_then(|port_guard| port_guard.node());
-        let target_node = target_port
-            .lock_ok()
-            .and_then(|port_guard| port_guard.node());
+        let source_node = {
+            let port_guard = source_port.lock();
+            port_guard.node()
+        };
+        let target_node = {
+            let port_guard = target_port.lock();
+            port_guard.node()
+        };
         let (Some(source_node), Some(target_node)) = (source_node, target_node) else {
             return;
         };
@@ -511,26 +513,22 @@ impl NetworkSimplexPlacer {
             .cloned()
             .expect("Missing node rep");
 
-        let src_offset = source_port
-            .lock_ok()
-            .map(|mut port_guard| {
-                let mut offset = port_guard.anchor_ref().y;
-                if !src_rep.is_flexible {
-                    offset += port_guard.shape().position_ref().y;
-                }
-                offset
-            })
-            .unwrap_or(0.0);
-        let tgt_offset = target_port
-            .lock_ok()
-            .map(|mut port_guard| {
-                let mut offset = port_guard.anchor_ref().y;
-                if !tgt_rep.is_flexible {
-                    offset += port_guard.shape().position_ref().y;
-                }
-                offset
-            })
-            .unwrap_or(0.0);
+        let src_offset = {
+            let mut port_guard = source_port.lock();
+            let mut offset = port_guard.anchor_ref().y;
+            if !src_rep.is_flexible {
+                offset += port_guard.shape().position_ref().y;
+            }
+            offset
+        };
+        let tgt_offset = {
+            let mut port_guard = target_port.lock();
+            let mut offset = port_guard.anchor_ref().y;
+            if !tgt_rep.is_flexible {
+                offset += port_guard.shape().position_ref().y;
+            }
+            offset
+        };
 
         debug_assert!(
             ((src_offset - tgt_offset) - (src_offset - tgt_offset).round()).abs() < EPSILON,
@@ -566,26 +564,23 @@ impl NetworkSimplexPlacer {
     fn insert_in_layer_edge_auxiliary_edges(&mut self, graph: &LGraph) {
         let layers = graph.layers().clone();
         for layer in layers {
-            let nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+            let nodes = {
+                let layer_guard = layer.lock();
+                layer_guard.nodes().clone()
+            };
             for node in nodes {
                 let edges = {
-                    let node_guard = match node.lock_ok() {
-                        Some(g) => g,
-                        None => continue,
-                    };
+                    let node_guard = node.lock();
                     if node_guard.node_type() != NodeType::Normal {
                         continue;
                     }
                     node_guard.connected_edges()
                 };
                 for edge in edges {
-                    let (sp, tp) = edge
-                        .lock_ok()
-                        .map(|eg| (eg.source(), eg.target()))
-                        .unwrap_or((None, None));
+                    let (sp, tp) = {
+                        let eg = edge.lock();
+                        (eg.source(), eg.target())
+                    };
 
                     let in_layer = check_in_layer_edge_ports(&sp, &tp);
                     if !in_layer {
@@ -594,10 +589,12 @@ impl NetworkSimplexPlacer {
 
                     let src_is_dummy = sp
                         .as_ref()
-                        .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
+                        .map(|port| { let port_guard = port.lock(); port_guard.node() })
                         .and_then(|node| {
-                            node.lock_ok()
-                                .map(|node_guard| node_guard.node_type() != NodeType::Normal)
+                            node.map(|node| {
+                                let node_guard = node.lock();
+                                node_guard.node_type() != NodeType::Normal
+                            })
                         })
                         .unwrap_or(false);
 
@@ -611,15 +608,14 @@ impl NetworkSimplexPlacer {
                     } else {
                         source_port
                     };
-                    let dummy_port = edge
-                        .lock_ok()
-                        .map(|edge_guard| edge_guard.other_port(&port));
-                    let Some(dummy_port) = dummy_port else {
-                        continue;
+                    let dummy_port = {
+                        let edge_guard = edge.lock();
+                        edge_guard.other_port(&port)
                     };
-                    let dummy_node = dummy_port
-                        .lock_ok()
-                        .and_then(|port_guard| port_guard.node());
+                    let dummy_node = {
+                        let port_guard = dummy_port.lock();
+                        port_guard.node()
+                    };
                     let Some(dummy_node) = dummy_node else {
                         continue;
                     };
@@ -632,15 +628,17 @@ impl NetworkSimplexPlacer {
                         continue;
                     };
 
-                    let port_index = port
-                        .lock_ok()
-                        .and_then(|port_guard| port_guard.node())
-                        .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.index()))
-                        .unwrap_or(0);
-                    let dummy_index = dummy_node
-                        .lock_ok()
-                        .and_then(|node_guard| node_guard.index())
-                        .unwrap_or(0);
+                    let port_index = {
+                        let port_guard = port.lock();
+                        port_guard.node()
+                    }
+                    .and_then(|node| { let node_guard = node.lock(); node_guard.index() })
+                    .unwrap_or(0);
+                    let dummy_index = {
+                        let node_guard = dummy_node.lock();
+                        node_guard.index()
+                    }
+                    .unwrap_or(0);
 
                     let (src, tgt) = if port_index < dummy_index {
                         (port_rep, dummy_rep)
@@ -662,22 +660,20 @@ impl NetworkSimplexPlacer {
     fn insert_north_south_auxiliary_edges(&mut self, graph: &LGraph) {
         let layers = graph.layers().clone();
         for layer in layers {
-            let nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+            let nodes = {
+                let layer_guard = layer.lock();
+                layer_guard.nodes().clone()
+            };
             for node in nodes {
                 let node_id_val = node_id(&node);
-                let mut node_guard = match node.lock_ok() {
-            Some(guard) => guard,
-            None => continue,
-                };
+                let mut node_guard = node.lock();
 
                 let south_ports = node_guard.port_side_view(PortSide::South);
                 for port in south_ports {
-                    let dummy = port.lock_ok().and_then(|mut port_guard| {
+                    let dummy = {
+                        let mut port_guard = port.lock();
                         port_guard.get_property(InternalProperties::PORT_DUMMY)
-                    });
+                    };
                     if let Some(dummy) = dummy {
                         let dummy_id = node_id(&dummy);
                         NEdge::of()
@@ -691,9 +687,10 @@ impl NetworkSimplexPlacer {
 
                 let north_ports = node_guard.port_side_view(PortSide::North);
                 for port in north_ports {
-                    let dummy = port.lock_ok().and_then(|mut port_guard| {
+                    let dummy = {
+                        let mut port_guard = port.lock();
                         port_guard.get_property(InternalProperties::PORT_DUMMY)
-                    });
+                    };
                     if let Some(dummy) = dummy {
                         let dummy_id = node_id(&dummy);
                         NEdge::of()
@@ -713,14 +710,14 @@ impl NetworkSimplexPlacer {
             .n_graph
             .nodes
             .iter()
-            .filter_map(|node| node.lock_ok().map(|node_guard| node_guard.layer))
+            .map(|node| { let node_guard = node.lock(); node_guard.layer })
             .min()
             .unwrap_or(0);
         let max_layer = self
             .n_graph
             .nodes
             .iter()
-            .filter_map(|node| node.lock_ok().map(|node_guard| node_guard.layer))
+            .map(|node| { let node_guard = node.lock(); node_guard.layer })
             .max()
             .unwrap_or(0);
         let used_layers = max_layer - min_layer;
@@ -739,27 +736,22 @@ impl NetworkSimplexPlacer {
             let Some(rep) = rep.as_ref() else {
                 continue;
             };
-            let should_skip = rep
-                .origin
-                .lock_ok()
-                .map(|node_guard| {
-                    node_guard.node_type() != NodeType::Normal || node_guard.ports().len() <= 1
-                })
-                .unwrap_or(true);
+            let should_skip = {
+                let node_guard = rep.origin.lock();
+                node_guard.node_type() != NodeType::Normal || node_guard.ports().len() <= 1
+            };
             if should_skip {
                 continue;
             }
 
-            let tail_layer = rep
-                .tail
-                .lock_ok()
-                .map(|node_guard| node_guard.layer)
-                .unwrap_or(0);
-            let head_layer = rep
-                .head
-                .lock_ok()
-                .map(|node_guard| node_guard.layer)
-                .unwrap_or(0);
+            let tail_layer = {
+                let node_guard = rep.tail.lock();
+                node_guard.layer
+            };
+            let head_layer = {
+                let node_guard = rep.head.lock();
+                node_guard.layer
+            };
 
             NEdge::of()
                 .weight(0.0)
@@ -779,27 +771,26 @@ impl NetworkSimplexPlacer {
     fn apply_positions(&mut self, graph: &LGraph) {
         let layers = graph.layers().clone();
         for layer in layers {
-            let nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+            let nodes = {
+                let layer_guard = layer.lock();
+                layer_guard.nodes().clone()
+            };
             for node in nodes {
                 let node_id_val = node_id(&node);
                 let rep = self.node_reps[node_id_val].as_ref().cloned().unwrap();
-                let min_y = rep
-                    .head
-                    .lock_ok()
-                    .map(|node_guard| node_guard.layer)
-                    .unwrap_or(0) as f64;
-                let max_y = rep
-                    .tail
-                    .lock_ok()
-                    .map(|node_guard| node_guard.layer)
-                    .unwrap_or(0) as f64;
+                let min_y = {
+                    let node_guard = rep.head.lock();
+                    node_guard.layer
+                } as f64;
+                let max_y = {
+                    let node_guard = rep.tail.lock();
+                    node_guard.layer
+                } as f64;
                 let nf = get_node_flexibility(self.graph_ref(), &node);
                 let flexible_node = is_flexible_node(self.graph_ref(), &node);
 
-                if let Some(mut node_guard) = node.lock_ok() {
+                {
+                    let mut node_guard = node.lock();
                     node_guard.shape().position().y = min_y;
 
                     let size_delta = (max_y - min_y) - node_guard.shape().size_ref().y;
@@ -811,15 +802,15 @@ impl NetworkSimplexPlacer {
                     if flexible_node && nf.is_flexible_ports() {
                         let ports = node_guard.ports().clone();
                         for port in ports {
-                            let side = port.lock_ok().map(|port_guard| port_guard.side());
-                            if matches!(side, Some(PortSide::East | PortSide::West)) {
+                            let side = { port.lock().side() };
+                            if matches!(side, PortSide::East | PortSide::West) {
                                 if let Some(n_node) = self.port_map.get(&port_key(&port)) {
-                                    let layer_val = n_node
-                                        .lock_ok()
-                                        .map(|node_guard| node_guard.layer)
-                                        .unwrap_or(0)
-                                        as f64;
-                                    if let Some(mut port_guard) = port.lock_ok() {
+                                    let layer_val = {
+                                        let node_guard = n_node.lock();
+                                        node_guard.layer
+                                    } as f64;
+                                    {
+                                        let mut port_guard = port.lock();
                                         port_guard.shape().position().y = layer_val - min_y;
                                     }
                                 }
@@ -838,7 +829,8 @@ impl NetworkSimplexPlacer {
                             let south_ports = node_guard.port_side_view(PortSide::South);
                             drop(node_guard);
                             for port in south_ports {
-                                if let Some(mut port_guard) = port.lock_ok() {
+                                {
+                                    let mut port_guard = port.lock();
                                     port_guard.shape().position().y += size_delta;
                                 }
                             }
@@ -850,27 +842,25 @@ impl NetworkSimplexPlacer {
     }
 
     fn get_edge_weight(&self, edge: &LEdgeRef) -> f64 {
-        let (priority, source_port, target_port) = edge
-            .lock_ok()
-            .map(|mut edge_guard| {
-                let p = edge_guard
-                    .get_property(LayeredOptions::PRIORITY_STRAIGHTNESS)
-                    .unwrap_or(1)
-                    .max(1);
-                (p, edge_guard.source(), edge_guard.target())
-            })
-            .unwrap_or((1, None, None));
+        let (priority, source_port, target_port) = {
+            let mut edge_guard = edge.lock();
+            let p = edge_guard
+                .get_property(LayeredOptions::PRIORITY_STRAIGHTNESS)
+                .unwrap_or(1)
+                .max(1);
+            (p, edge_guard.source(), edge_guard.target())
+        };
         let (source_type, target_type) = (|| {
-            let source_node = source_port?.lock_ok().and_then(|port_guard| port_guard.node())?;
-            let target_node = target_port?.lock_ok().and_then(|port_guard| port_guard.node())?;
-            let source_type = source_node
-                .lock_ok()
-                .map(|node_guard| node_guard.node_type())
-                .unwrap_or(NodeType::Normal);
-            let target_type = target_node
-                .lock_ok()
-                .map(|node_guard| node_guard.node_type())
-                .unwrap_or(NodeType::Normal);
+            let source_node = { let port_guard = source_port.as_ref()?.lock(); port_guard.node() }?;
+            let target_node = { let port_guard = target_port.as_ref()?.lock(); port_guard.node() }?;
+            let source_type = {
+                let node_guard = source_node.lock();
+                node_guard.node_type()
+            };
+            let target_type = {
+                let node_guard = target_node.lock();
+                node_guard.node_type()
+            };
             Some((source_type, target_type))
         })()
         .unwrap_or((NodeType::Normal, NodeType::Normal));
@@ -884,10 +874,10 @@ impl NetworkSimplexPlacer {
 
         let layers = graph.layers().clone();
         for layer in layers {
-            let nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+            let nodes = {
+                let layer_guard = layer.lock();
+                layer_guard.nodes().clone()
+            };
             for node in nodes {
                 let id = node_id(&node);
                 if id < self.node_state.len() {
@@ -932,10 +922,12 @@ impl NetworkSimplexPlacer {
                     .get_mut(edge_id(edge))
                     .and_then(|rep| rep.as_mut())
                 {
-                    if let Some(mut left_guard) = rep.left.lock_ok() {
+                    {
+                        let mut left_guard = rep.left.lock();
                         left_guard.weight = left_guard.weight.max(weight);
                     }
-                    if let Some(mut right_guard) = rep.right.lock_ok() {
+                    {
+                        let mut right_guard = rep.right.lock();
                         right_guard.weight = right_guard.weight.max(weight);
                     }
                 }
@@ -972,12 +964,11 @@ impl NetworkSimplexPlacer {
             return false;
         }
 
-        let center_origin = left_edge.right.lock_ok().and_then(|edge_guard| {
-            edge_guard
-                .target
-                .lock_ok()
-                .and_then(|node_guard| node_guard.origin.clone())
-        });
+        let center_origin = {
+            let edge_guard = left_edge.right.lock();
+            let node_guard = edge_guard.target.lock();
+            node_guard.origin.clone()
+        };
         let Some(center_origin) = center_origin else {
             return false;
         };
@@ -990,23 +981,21 @@ impl NetworkSimplexPlacer {
         let mut above_dist = f64::INFINITY;
         let mut below_dist = f64::INFINITY;
 
-        let (node_index, center_layer) = center_node
-            .lock_ok()
-            .map(|node_guard| (node_guard.index().unwrap_or(0), node_guard.layer()))
-            .unwrap_or((0, None));
+        let (node_index, center_layer) = {
+            let node_guard = center_node.lock();
+            (node_guard.index().unwrap_or(0), node_guard.layer())
+        };
         let layer_nodes = center_layer
-            .and_then(|layer| {
-                layer
-                    .lock_ok()
-                    .map(|layer_guard| layer_guard.nodes().clone())
+            .map(|layer| {
+                let layer_guard = layer.lock();
+                layer_guard.nodes().clone()
             })
             .unwrap_or_default();
 
-        let n_head_layer = n_node
-            .head
-            .lock_ok()
-            .map(|node_guard| node_guard.layer)
-            .unwrap_or(0) as f64;
+        let n_head_layer = {
+            let node_guard = n_node.head.lock();
+            node_guard.layer
+        } as f64;
         if node_index > 0 {
             let above = layer_nodes[node_index - 1].clone();
             let above_rep = self.node_reps[node_id(&above)].as_ref().cloned().unwrap();
@@ -1017,11 +1006,10 @@ impl NetworkSimplexPlacer {
                 .get_vertical_spacing(&above, center_node)
                 .ceil();
             above_dist = (n_head_layer - node_margin_top(center_node))
-                - (above_rep
-                    .head
-                    .lock_ok()
-                    .map(|node_guard| node_guard.layer)
-                    .unwrap_or(0) as f64
+                - ({
+                    let node_guard = above_rep.head.lock();
+                    node_guard.layer
+                } as f64
                     + node_size_y(&above)
                     + node_margin_bottom(&above))
                 - spacing;
@@ -1035,11 +1023,10 @@ impl NetworkSimplexPlacer {
                 .unwrap()
                 .get_vertical_spacing(&below, center_node)
                 .ceil();
-            below_dist = (below_rep
-                .head
-                .lock_ok()
-                .map(|node_guard| node_guard.layer)
-                .unwrap_or(0) as f64
+            below_dist = ({
+                let node_guard = below_rep.head.lock();
+                node_guard.layer
+            } as f64
                 - node_margin_top(&below))
                 - (n_head_layer
                     + node_size_y(center_node)
@@ -1086,11 +1073,13 @@ impl NetworkSimplexPlacer {
             }
         }
 
-        if let Some(mut head_guard) = n_node.head.lock_ok() {
+        {
+            let mut head_guard = n_node.head.lock();
             head_guard.layer += move_by;
         }
         if n_node.is_flexible {
-            if let Some(mut tail_guard) = n_node.tail.lock_ok() {
+            {
+                let mut tail_guard = n_node.tail.lock();
                 tail_guard.layer += move_by;
             }
         }
@@ -1102,18 +1091,18 @@ impl NetworkSimplexPlacer {
         let mut paths = Vec::new();
         let layers = graph.layers().clone();
         for layer in layers {
-            let nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+            let nodes = {
+                let layer_guard = layer.lock();
+                layer_guard.nodes().clone()
+            };
             for node in nodes {
                 if self.node_state[node_id(&node)] != JUNCTION {
                     continue;
                 }
-                let edges = node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.connected_edges())
-                    .unwrap_or_default();
+                let edges = {
+                    let node_guard = node.lock();
+                    node_guard.connected_edges()
+                };
                 for edge in edges {
                     if !is_handled_edge(&edge) {
                         continue;
@@ -1132,12 +1121,12 @@ impl NetworkSimplexPlacer {
         // Extract ports first, drop edge lock, then resolve other_node
         // (other_node locks ports which could deadlock if edge lock is held)
         let other = {
-            let (sp, tp) = edge
-                .lock_ok()
-                .map(|eg| (eg.source(), eg.target()))
-                .unwrap_or((None, None));
-            let source_node = sp.and_then(|p| p.lock_ok().and_then(|p| p.node()));
-            let target_node = tp.and_then(|p| p.lock_ok().and_then(|p| p.node()));
+            let (sp, tp) = {
+                let eg = edge.lock();
+                (eg.source(), eg.target())
+            };
+            let source_node = sp.and_then(|p| { let p = p.lock(); p.node() });
+            let target_node = tp.and_then(|p| { let p = p.lock(); p.node() });
             if source_node
                 .as_ref()
                 .is_some_and(|n| Arc::ptr_eq(n, current))
@@ -1165,10 +1154,10 @@ impl NetworkSimplexPlacer {
             self.node_state[other_id] = VISITED;
         }
 
-        let incident_edges = other
-            .lock_ok()
-            .map(|node_guard| node_guard.connected_edges())
-            .unwrap_or_default();
+        let incident_edges = {
+            let node_guard = other.lock();
+            node_guard.connected_edges()
+        };
         for incident in incident_edges {
             if !is_handled_edge(&incident) {
                 continue;
@@ -1195,29 +1184,24 @@ impl NetworkSimplexPlacer {
     fn mark_crossing_edges(&mut self, left: &LayerRef, right: &LayerRef) {
         let mut open_edges: Vec<LEdgeRef> = Vec::new();
 
-        let left_nodes = left
-            .lock_ok()
-            .map(|layer_guard| layer_guard.nodes().clone())
-            .unwrap_or_default();
+        let left_nodes = {
+            let layer_guard = left.lock();
+            layer_guard.nodes().clone()
+        };
         for node in &left_nodes {
-            let east_ports = node
-                .lock_ok()
-                .map(|mut node_guard| node_guard.port_side_view(PortSide::East))
-                .unwrap_or_default();
+            let east_ports = {
+                let mut node_guard = node.lock();
+                node_guard.port_side_view(PortSide::East)
+            };
             for port in east_ports {
-                let outgoing = port
-                    .lock_ok()
-                    .map(|port_guard| port_guard.outgoing_edges().clone())
-                    .unwrap_or_default();
+                let outgoing = {
+                    let port_guard = port.lock();
+                    port_guard.outgoing_edges().clone()
+                };
                 for edge in outgoing {
                     // Extract ports WITHOUT holding edge lock during property checks
                     let (source_port, target_port) = {
-                        let edge_guard = match edge.lock_ok() {
-            Some(g) => g,
-            None => {
-                                continue;
-                            }
-                        };
+                        let edge_guard = edge.lock();
                         (edge_guard.source(), edge_guard.target())
                         // edge_guard (MutexGuard) dropped here
                     };
@@ -1231,9 +1215,9 @@ impl NetworkSimplexPlacer {
                     };
                     let target_not_in_right = target_port
                         .as_ref()
-                        .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
-                        .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.layer()))
-                        .map(|layer| !Arc::ptr_eq(&layer, right))
+                        .map(|port| { let port_guard = port.lock(); port_guard.node() })
+                        .and_then(|node| node.map(|node| { let node_guard = node.lock(); node_guard.layer() }))
+                        .and_then(|layer| layer.map(|layer| !Arc::ptr_eq(&layer, right)))
                         .unwrap_or(true);
 
                     if is_self || is_in_layer || target_not_in_right {
@@ -1244,29 +1228,24 @@ impl NetworkSimplexPlacer {
             }
         }
 
-        let right_nodes = right
-            .lock_ok()
-            .map(|layer_guard| layer_guard.nodes().clone())
-            .unwrap_or_default();
+        let right_nodes = {
+            let layer_guard = right.lock();
+            layer_guard.nodes().clone()
+        };
         for node in right_nodes.into_iter().rev() {
-            let west_ports = node
-                .lock_ok()
-                .map(|mut node_guard| node_guard.port_side_view(PortSide::West))
-                .unwrap_or_default();
+            let west_ports = {
+                let mut node_guard = node.lock();
+                node_guard.port_side_view(PortSide::West)
+            };
             for port in west_ports {
-                let incoming = port
-                    .lock_ok()
-                    .map(|port_guard| port_guard.incoming_edges().clone())
-                    .unwrap_or_default();
+                let incoming = {
+                    let port_guard = port.lock();
+                    port_guard.incoming_edges().clone()
+                };
                 for edge in incoming {
                     // Extract ports WITHOUT holding edge lock during property checks
                     let (source_port, target_port) = {
-                        let edge_guard = match edge.lock_ok() {
-            Some(g) => g,
-            None => {
-                                continue;
-                            }
-                        };
+                        let edge_guard = edge.lock();
                         (edge_guard.source(), edge_guard.target())
                         // edge_guard (MutexGuard) dropped here
                     };
@@ -1280,9 +1259,9 @@ impl NetworkSimplexPlacer {
                     };
                     let source_not_in_left = source_port
                         .as_ref()
-                        .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
-                        .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.layer()))
-                        .map(|layer| !Arc::ptr_eq(&layer, left))
+                        .map(|port| { let port_guard = port.lock(); port_guard.node() })
+                        .and_then(|node| node.map(|node| { let node_guard = node.lock(); node_guard.layer() }))
+                        .and_then(|layer| layer.map(|layer| !Arc::ptr_eq(&layer, left)))
                         .unwrap_or(true);
 
                     if is_self || is_in_layer || source_not_in_left {
@@ -1334,32 +1313,22 @@ struct EdgeRep {
 impl EdgeRep {
     /// Returns (target_layer, delta) for the left edge in a single lock.
     fn left_target_layer_and_delta(&self) -> (i32, i32) {
-        self.left
-            .lock_ok()
-            .map(|edge_guard| {
-                let target_layer = edge_guard
-                    .target
-                    .lock_ok()
-                    .map(|node_guard| node_guard.layer)
-                    .unwrap_or(0);
-                (target_layer, edge_guard.delta)
-            })
-            .unwrap_or((0, 0))
+        let edge_guard = self.left.lock();
+        let target_layer = {
+            let node_guard = edge_guard.target.lock();
+            node_guard.layer
+        };
+        (target_layer, edge_guard.delta)
     }
 
     /// Returns (target_layer, delta) for the right edge in a single lock.
     fn right_target_layer_and_delta(&self) -> (i32, i32) {
-        self.right
-            .lock_ok()
-            .map(|edge_guard| {
-                let target_layer = edge_guard
-                    .target
-                    .lock_ok()
-                    .map(|node_guard| node_guard.layer)
-                    .unwrap_or(0);
-                (target_layer, edge_guard.delta)
-            })
-            .unwrap_or((0, 0))
+        let edge_guard = self.right.lock();
+        let target_layer = {
+            let node_guard = edge_guard.target.lock();
+            node_guard.layer
+        };
+        (target_layer, edge_guard.delta)
     }
 
     fn is_straight(&self) -> bool {
@@ -1389,30 +1358,30 @@ impl Path {
             return false;
         }
         let first = &self.edges[0];
-        let first_source = first
-            .lock_ok()
-            .and_then(|edge_guard| edge_guard.source())
-            .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
+        let first_source = {
+            let edge_guard = first.lock();
+            edge_guard.source()
+        }
+        .and_then(|port| { let port_guard = port.lock(); port_guard.node() });
         if let Some(node) = first_source {
-            if node
-                .lock_ok()
-                .map(|node_guard| node_guard.node_type() == NodeType::LongEdge)
-                .unwrap_or(false)
-            {
+            if {
+                let node_guard = node.lock();
+                node_guard.node_type() == NodeType::LongEdge
+            } {
                 return true;
             }
         }
         for edge in &self.edges {
-            let target_node = edge
-                .lock_ok()
-                .and_then(|edge_guard| edge_guard.target())
-                .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
+            let target_node = {
+                let edge_guard = edge.lock();
+                edge_guard.target()
+            }
+            .and_then(|port| { let port_guard = port.lock(); port_guard.node() });
             if let Some(node) = target_node {
-                if node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.node_type() == NodeType::LongEdge)
-                    .unwrap_or(false)
-                {
+                if {
+                    let node_guard = node.lock();
+                    node_guard.node_type() == NodeType::LongEdge
+                } {
                     return true;
                 }
             }
@@ -1427,20 +1396,22 @@ impl Path {
         if self.edges.is_empty() {
             return false;
         }
-        let first_source = self.edges[0]
-            .lock_ok()
-            .and_then(|edge_guard| edge_guard.source())
-            .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
+        let first_source = {
+            let edge_guard = self.edges[0].lock();
+            edge_guard.source()
+        }
+        .and_then(|port| { let port_guard = port.lock(); port_guard.node() });
         if let Some(node) = first_source {
             if predicate(get_node_flexibility(graph, &node)) {
                 return true;
             }
         }
         for edge in &self.edges {
-            let target_node = edge
-                .lock_ok()
-                .and_then(|edge_guard| edge_guard.target())
-                .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
+            let target_node = {
+                let edge_guard = edge.lock();
+                edge_guard.target()
+            }
+            .and_then(|port| { let port_guard = port.lock(); port_guard.node() });
             if let Some(node) = target_node {
                 if predicate(get_node_flexibility(graph, &node)) {
                     return true;
@@ -1456,14 +1427,16 @@ impl Path {
         }
         let first = self.edges[0].clone();
         let second = self.edges[1].clone();
-        let first_target = first
-            .lock_ok()
-            .and_then(|edge_guard| edge_guard.target())
-            .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
-        let second_source = second
-            .lock_ok()
-            .and_then(|edge_guard| edge_guard.source())
-            .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
+        let first_target = {
+            let edge_guard = first.lock();
+            edge_guard.target()
+        }
+        .and_then(|port| { let port_guard = port.lock(); port_guard.node() });
+        let second_source = {
+            let edge_guard = second.lock();
+            edge_guard.source()
+        }
+        .and_then(|port| { let port_guard = port.lock(); port_guard.node() });
         if first_target
             .zip(second_source)
             .map(|(a, b)| !Arc::ptr_eq(&a, &b))
@@ -1479,10 +1452,11 @@ impl Path {
         if self.edges.len() != 2 {
             return false;
         }
-        let target = self.edges[0]
-            .lock_ok()
-            .and_then(|edge_guard| edge_guard.target())
-            .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
+        let target = {
+            let edge_guard = self.edges[0].lock();
+            edge_guard.target()
+        }
+        .and_then(|port| { let port_guard = port.lock(); port_guard.node() });
         target
             .map(|node| is_flexible_node(graph, &node))
             .unwrap_or(false)
@@ -1490,7 +1464,8 @@ impl Path {
 }
 
 fn get_node_flexibility(graph: &LGraph, node: &LNodeRef) -> NodeFlexibility {
-    if let Some(mut node_guard) = node.lock_ok() {
+    {
+        let mut node_guard = node.lock();
         if let Some(value) =
             node_guard.get_property(LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY)
         {
@@ -1508,18 +1483,16 @@ fn get_node_flexibility(graph: &LGraph, node: &LNodeRef) -> NodeFlexibility {
 }
 
 fn is_flexible_node(graph: &LGraph, node: &LNodeRef) -> bool {
-    let (node_type, port_count, port_constraints) = node
-        .lock_ok()
-        .map(|mut node_guard| {
-            (
-                node_guard.node_type(),
-                node_guard.ports().len(),
-                node_guard
-                    .get_property(LayeredOptions::PORT_CONSTRAINTS)
-                    .unwrap_or(PortConstraints::Undefined),
-            )
-        })
-        .unwrap_or((NodeType::Normal, 0, PortConstraints::Undefined));
+    let (node_type, port_count, port_constraints) = {
+        let mut node_guard = node.lock();
+        (
+            node_guard.node_type(),
+            node_guard.ports().len(),
+            node_guard
+                .get_property(LayeredOptions::PORT_CONSTRAINTS)
+                .unwrap_or(PortConstraints::Undefined),
+        )
+    };
     if node_type != NodeType::Normal {
         return false;
     }
@@ -1551,15 +1524,13 @@ fn is_flexible_node(graph: &LGraph, node: &LNodeRef) -> bool {
             additional_port_spacing = ElkMargin::with_any(port_spacing);
         }
 
-        let (west_count, east_count) = node
-            .lock_ok()
-            .map(|mut node_guard| {
-                (
-                    node_guard.port_side_view(PortSide::West).len(),
-                    node_guard.port_side_view(PortSide::East).len(),
-                )
-            })
-            .unwrap_or((0, 0));
+        let (west_count, east_count) = {
+            let mut node_guard = node.lock();
+            (
+                node_guard.port_side_view(PortSide::West).len(),
+                node_guard.port_side_view(PortSide::East).len(),
+            )
+        };
         let required_west_height = additional_port_spacing.top
             + additional_port_spacing.bottom
             + (west_count.saturating_sub(1) as f64) * port_spacing;
@@ -1589,52 +1560,49 @@ fn edge_type_weight(node_type1: NodeType, node_type2: NodeType) -> f64 {
 }
 
 fn is_handled_edge(edge: &LEdgeRef) -> bool {
-    // Extract ports first, drop edge lock, then check (avoids edge→port nested locking)
-    let (sp, tp) = edge
-        .lock_ok()
-        .map(|eg| (eg.source(), eg.target()))
-        .unwrap_or((None, None));
+    // Extract ports first, drop edge lock, then check (avoids edge->port nested locking)
+    let (sp, tp) = {
+        let eg = edge.lock();
+        (eg.source(), eg.target())
+    };
     !check_self_loop_ports(&sp, &tp) && !check_in_layer_edge_ports(&sp, &tp)
 }
 
 fn get_node_state(node: &LNodeRef) -> i32 {
-    let ports = node
-        .lock_ok()
-        .map(|node_guard| node_guard.ports().clone())
-        .unwrap_or_default();
+    let ports = {
+        let node_guard = node.lock();
+        node_guard.ports().clone()
+    };
     let mut inco = 0usize;
     let mut ouco = 0usize;
     for port in ports {
         // Extract edge lists, then DROP port lock before checking is_self_loop
         // (is_self_loop locks source/target ports, which would deadlock if this port is held)
         let (incoming, outgoing) = {
-            if let Some(port_guard) = port.lock_ok() {
-                (
-                    port_guard.incoming_edges().clone(),
-                    port_guard.outgoing_edges().clone(),
-                )
-            } else {
-                continue;
-            }
+            let port_guard = port.lock();
+            (
+                port_guard.incoming_edges().clone(),
+                port_guard.outgoing_edges().clone(),
+            )
             // port lock dropped here
         };
         inco += incoming
             .iter()
             .filter(|edge| {
-                let (sp, tp) = edge
-                    .lock_ok()
-                    .map(|eg| (eg.source(), eg.target()))
-                    .unwrap_or((None, None));
+                let (sp, tp) = {
+                    let eg = edge.lock();
+                    (eg.source(), eg.target())
+                };
                 !check_self_loop_ports(&sp, &tp)
             })
             .count();
         ouco += outgoing
             .iter()
             .filter(|edge| {
-                let (sp, tp) = edge
-                    .lock_ok()
-                    .map(|eg| (eg.source(), eg.target()))
-                    .unwrap_or((None, None));
+                let (sp, tp) = {
+                    let eg = edge.lock();
+                    (eg.source(), eg.target())
+                };
                 !check_self_loop_ports(&sp, &tp)
             })
             .count();
@@ -1650,16 +1618,14 @@ fn get_node_state(node: &LNodeRef) -> i32 {
 
 fn length(edge: &NEdgeRef) -> i32 {
     let edge_guard = edge.lock();
-    let src_layer = edge_guard
-        .source
-        .lock_ok()
-        .map(|node_guard| node_guard.layer)
-        .unwrap_or(0);
-    let tgt_layer = edge_guard
-        .target
-        .lock_ok()
-        .map(|node_guard| node_guard.layer)
-        .unwrap_or(0);
+    let src_layer = {
+        let node_guard = edge_guard.source.lock();
+        node_guard.layer
+    };
+    let tgt_layer = {
+        let node_guard = edge_guard.target.lock();
+        node_guard.layer
+    };
     (src_layer - tgt_layer).abs() - edge_guard.delta
 }
 
@@ -1669,33 +1635,33 @@ fn adjust_label_position(
     size_delta: f64,
 ) {
     if placement.contains(&NodeLabelPlacement::VBottom) {
-        if let Some(mut label_guard) = label.lock_ok() {
+        {
+            let mut label_guard = label.lock();
             label_guard.shape().position().y += size_delta;
         }
     } else if placement.contains(&NodeLabelPlacement::VCenter) {
-        if let Some(mut label_guard) = label.lock_ok() {
+        {
+            let mut label_guard = label.lock();
             label_guard.shape().position().y += size_delta / 2.0;
         }
     }
 }
 
 fn node_id(node: &LNodeRef) -> usize {
-    node.lock_ok()
-        .map(|mut node_guard| node_guard.shape().graph_element().id as usize)
-        .unwrap_or(0)
+    let mut node_guard = node.lock();
+    node_guard.shape().graph_element().id as usize
 }
 
 fn edge_id(edge: &LEdgeRef) -> usize {
-    edge.lock_ok()
-        .map(|mut edge_guard| edge_guard.graph_element().id as usize)
-        .unwrap_or(0)
+    let mut edge_guard = edge.lock();
+    edge_guard.graph_element().id as usize
 }
 
 fn check_self_loop_ports(source: &Option<LPortRef>, target: &Option<LPortRef>) -> bool {
     match (source, target) {
         (Some(source), Some(target)) => {
-            let source_node = source.lock_ok().and_then(|port| port.node());
-            let target_node = target.lock_ok().and_then(|port| port.node());
+            let source_node = { let port = source.lock(); port.node() };
+            let target_node = { let port = target.lock(); port.node() };
             if let (Some(source_node), Some(target_node)) = (source_node, target_node) {
                 Arc::ptr_eq(&source_node, &target_node)
             } else {
@@ -1711,14 +1677,10 @@ fn check_in_layer_edge_ports(source: &Option<LPortRef>, target: &Option<LPortRef
         return false;
     }
     if let (Some(source), Some(target)) = (source, target) {
-        let source_layer = source
-            .lock_ok()
-            .and_then(|port| port.node())
-            .and_then(|node| node.lock_ok().and_then(|node| node.layer()));
-        let target_layer = target
-            .lock_ok()
-            .and_then(|port| port.node())
-            .and_then(|node| node.lock_ok().and_then(|node| node.layer()));
+        let source_layer = { let port = source.lock(); port.node() }
+            .and_then(|node| { let node = node.lock(); node.layer() });
+        let target_layer = { let port = target.lock(); port.node() }
+            .and_then(|node| { let node = node.lock(); node.layer() });
         if let (Some(source_layer), Some(target_layer)) = (source_layer, target_layer) {
             return Arc::ptr_eq(&source_layer, &target_layer);
         }
@@ -1731,19 +1693,16 @@ fn port_key(port: &LPortRef) -> usize {
 }
 
 fn node_margin_top(node: &LNodeRef) -> f64 {
-    node.lock_ok()
-        .map(|mut node_guard| node_guard.margin().top)
-        .unwrap_or(0.0)
+    let mut node_guard = node.lock();
+    node_guard.margin().top
 }
 
 fn node_margin_bottom(node: &LNodeRef) -> f64 {
-    node.lock_ok()
-        .map(|mut node_guard| node_guard.margin().bottom)
-        .unwrap_or(0.0)
+    let mut node_guard = node.lock();
+    node_guard.margin().bottom
 }
 
 fn node_size_y(node: &LNodeRef) -> f64 {
-    node.lock_ok()
-        .map(|mut node_guard| node_guard.shape().size_ref().y)
-        .unwrap_or(0.0)
+    let mut node_guard = node.lock();
+    node_guard.shape().size_ref().y
 }
