@@ -17,12 +17,11 @@ impl RoutingDirector {
         let port_penalties = compute_port_penalties(holder);
 
         let loops = holder
-            .lock_ok()
-            .map(|holder_guard| holder_guard.sl_hyper_loops().clone())
-            .unwrap_or_default();
+            .lock().sl_hyper_loops().clone();
 
         for sl_loop in loops {
-            if let Some(mut sl_loop_guard) = sl_loop.lock_ok() {
+            {
+                let mut sl_loop_guard = sl_loop.lock();
                 sl_loop_guard.sort_ports_by_id();
                 sl_loop_guard.compute_ports_per_side();
                 determine_loop_route(&mut sl_loop_guard, holder, &port_penalties);
@@ -47,7 +46,8 @@ fn assign_port_ids(holder: &SelfLoopHolderRef) {
         .unwrap_or_default();
 
     for (index, port) in ports.into_iter().enumerate() {
-        if let Some(mut port_guard) = port.lock_ok() {
+        {
+            let mut port_guard = port.lock();
             port_guard.shape().graph_element().id = index as i32;
         }
     }

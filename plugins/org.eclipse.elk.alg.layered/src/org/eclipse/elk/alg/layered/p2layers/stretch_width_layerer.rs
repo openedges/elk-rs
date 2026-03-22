@@ -71,14 +71,11 @@ impl StretchWidthLayerer {
             .unwrap_or(0);
         let mut max_rank = outgoing_count;
         let incoming = node
-            .lock_ok()
-            .map(|node_guard| node_guard.incoming_edges())
-            .unwrap_or_default();
+            .lock().incoming_edges();
         for edge in incoming {
             let predecessor = edge
-                .lock_ok()
-                .and_then(|edge_guard| edge_guard.source())
-                .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
+                .lock().source()
+                .and_then(|port| port.lock().node());
             if let Some(predecessor) = predecessor {
                 let pre_out = predecessor
                     .lock_ok()
@@ -96,14 +93,11 @@ impl StretchWidthLayerer {
             set_node_id(node, index as i32);
             let mut out_nodes: BTreeSet<usize> = BTreeSet::new();
             let outgoing = node
-                .lock_ok()
-                .map(|node_guard| node_guard.outgoing_edges())
-                .unwrap_or_default();
+                .lock().outgoing_edges();
             for edge in outgoing {
                 let target = edge
-                    .lock_ok()
-                    .and_then(|edge_guard| edge_guard.target())
-                    .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
+                    .lock().target()
+                    .and_then(|port| port.lock().node());
                 if let Some(target) = target {
                     out_nodes.insert(node_id_usize(&target));
                 }
@@ -136,9 +130,7 @@ impl StretchWidthLayerer {
     fn min_max_node_size(&mut self) {
         for node in &self.sorted_layerless_nodes {
             let node_type = node
-                .lock_ok()
-                .map(|node_guard| node_guard.node_type())
-                .unwrap_or(NodeType::Normal);
+                .lock().node_type();
             if node_type != NodeType::Normal {
                 continue;
             }
@@ -203,19 +195,14 @@ impl StretchWidthLayerer {
 
     fn update_outgoing(&mut self, current_layer: &LayerRef) {
         let nodes = current_layer
-            .lock_ok()
-            .map(|layer_guard| layer_guard.nodes().clone())
-            .unwrap_or_default();
+            .lock().nodes().clone();
         for node in nodes {
             let incoming = node
-                .lock_ok()
-                .map(|node_guard| node_guard.incoming_edges())
-                .unwrap_or_default();
+                .lock().incoming_edges();
             for edge in incoming {
                 let source = edge
-                    .lock_ok()
-                    .and_then(|edge_guard| edge_guard.source())
-                    .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
+                    .lock().source()
+                    .and_then(|port| port.lock().node());
                 if let Some(source) = source {
                     let pos = node_id_usize(&source);
                     if pos < self.remaining_outgoing.len() {
@@ -266,7 +253,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for StretchWidthLayerer {
         let graph_ref = self
             .sorted_layerless_nodes
             .first()
-            .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.graph()))
+            .and_then(|node| node.lock().graph())
             .unwrap_or_default();
 
         let mut current_layer = Layer::new(&graph_ref);
@@ -364,7 +351,8 @@ fn node_id_usize(node: &LNodeRef) -> usize {
 }
 
 fn set_node_id(node: &LNodeRef, value: i32) {
-    if let Some(mut node_guard) = node.lock_ok() {
+    {
+        let mut node_guard = node.lock();
         node_guard.shape().graph_element().id = value;
     }
 }

@@ -44,10 +44,12 @@ impl Dependency {
             target: target.clone(),
             weight,
         }));
-        if let Some(mut source_guard) = source.lock_ok() {
+        {
+            let mut source_guard = source.lock();
             source_guard.outgoing.push(dependency.clone());
         }
-        if let Some(mut target_guard) = target.lock_ok() {
+        {
+            let mut target_guard = target.lock();
             target_guard.incoming.push(dependency.clone());
         }
         dependency
@@ -239,11 +241,9 @@ impl SplineSegment {
             info.end_y = Self::anchor_y(&target_port);
 
             let source_node = source_port
-                .lock_ok()
-                .and_then(|port_guard| port_guard.node());
+                .lock().node();
             let target_node = target_port
-                .lock_ok()
-                .and_then(|port_guard| port_guard.node());
+                .lock().node();
             info.normal_source_node = source_node
                 .as_ref()
                 .and_then(|node| node.lock_ok())

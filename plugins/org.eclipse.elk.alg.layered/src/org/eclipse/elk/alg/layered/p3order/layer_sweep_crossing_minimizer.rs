@@ -858,7 +858,8 @@ impl LayerSweepCrossingMinimizer {
 
             sort_ports_by_dummy_positions_in_last_layer_snap(nodes, &parent, true, snapshot);
             sort_ports_by_dummy_positions_in_last_layer_snap(nodes, &parent, false, snapshot);
-            if let Some(mut parent_guard) = parent.lock_ok() {
+            {
+                let mut parent_guard = parent.lock();
                 parent_guard.set_property(
                     LayeredOptions::PORT_CONSTRAINTS,
                     Some(PortConstraints::FixedOrder),
@@ -1009,7 +1010,8 @@ impl LayerSweepCrossingMinimizer {
             }
             if Arc::ptr_eq(&graph, root_graph) {
                 root_graph_guard.graph_element().id = index as i32;
-            } else if let Some(mut graph_guard) = graph.lock_ok() {
+            } else {
+                let mut graph_guard = graph.lock();
                 graph_guard.graph_element().id = index as i32;
             }
             let mut g_data = if Arc::ptr_eq(&graph, root_graph) {
@@ -1060,15 +1062,11 @@ impl LayerSweepCrossingMinimizer {
         for layer in layers {
             for node in layer {
                 let ports = node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.ports().clone())
-                    .unwrap_or_default();
+                    .lock().ports().clone();
                 port_count += ports.len();
                 for port in ports {
                     let connected = port
-                        .lock_ok()
-                        .map(|port_guard| port_guard.connected_edges().clone())
-                        .unwrap_or_default();
+                        .lock().connected_edges().clone();
                     for edge in connected {
                         edges.insert(Arc::as_ptr(&edge) as usize);
                     }
@@ -1330,9 +1328,7 @@ fn dummy_node_for(port: &LPortRef) -> Option<LNodeRef> {
 
 fn is_on_end_of_sweep_side(port: &LPortRef, on_right_most_layer: bool) -> bool {
     let side = port
-        .lock_ok()
-        .map(|port_guard| port_guard.side())
-        .unwrap_or(PortSide::Undefined);
+        .lock().side();
     if on_right_most_layer {
         side == PortSide::East
     } else {
@@ -1355,7 +1351,8 @@ fn sort_ports_by_dummy_positions_in_last_layer(
         return;
     }
 
-    if let Some(mut parent_guard) = parent.lock_ok() {
+    {
+        let mut parent_guard = parent.lock();
         let ports = parent_guard.ports_mut();
         for i in 0..ports.len() {
             let port = ports.get(i).cloned();
@@ -1392,7 +1389,8 @@ fn sort_ports_by_dummy_positions_in_last_layer_snap(
         return;
     }
 
-    if let Some(mut parent_guard) = parent.lock_ok() {
+    {
+        let mut parent_guard = parent.lock();
         let ports = parent_guard.ports_mut();
         for i in 0..ports.len() {
             let port = ports.get(i).cloned();
@@ -1444,8 +1442,7 @@ fn collect_hierarchical_targets(layer: &[LNodeRef], out: &mut Vec<(LNodeRef, usi
     out.clear();
     for node in layer {
         let Some(nested_graph) = node
-            .lock_ok()
-            .and_then(|node_guard| node_guard.nested_graph())
+            .lock().nested_graph()
         else {
             continue;
         };
@@ -1458,12 +1455,14 @@ fn collect_hierarchical_targets(layer: &[LNodeRef], out: &mut Vec<(LNodeRef, usi
 
 fn root_graph_ref(graph: &mut LGraph) -> Option<LGraphRef> {
     if let Some(layer) = graph.layers().first() {
-        if let Some(layer_guard) = layer.lock_ok() {
+        {
+            let layer_guard = layer.lock();
             return layer_guard.graph();
         }
     }
     if let Some(node) = graph.layerless_nodes().first() {
-        if let Some(node_guard) = node.lock_ok() {
+        {
+            let node_guard = node.lock();
             return node_guard.graph();
         }
     }

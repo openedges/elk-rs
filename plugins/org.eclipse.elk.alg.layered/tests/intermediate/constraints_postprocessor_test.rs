@@ -12,7 +12,8 @@ fn new_graph_with_layers(count: usize) -> (LGraphRef, Vec<LayerRef>) {
     let graph = LGraph::new();
     let mut layers = Vec::with_capacity(count);
 
-    if let Some(mut graph_guard) = graph.lock_ok() {
+    {
+        let mut graph_guard = graph.lock();
         for _ in 0..count {
             let layer = Layer::new(&graph);
             graph_guard.layers_mut().push(layer.clone());
@@ -25,7 +26,8 @@ fn new_graph_with_layers(count: usize) -> (LGraphRef, Vec<LayerRef>) {
 
 fn add_node_to_layer(graph: &LGraphRef, layer: &LayerRef, node_type: NodeType) -> LNodeRef {
     let node = LNode::new(graph);
-    if let Some(mut node_guard) = node.lock_ok() {
+    {
+        let mut node_guard = node.lock();
         node_guard.set_node_type(node_type);
     }
     LNode::set_layer(&node, Some(layer.clone()));
@@ -59,7 +61,8 @@ fn assigns_layer_and_position_ids_only_to_normal_nodes() {
 
     let mut processor = ConstraintsPostprocessor;
     let mut monitor = NullElkProgressMonitor;
-    if let Some(mut graph_guard) = graph.lock_ok() {
+    {
+        let mut graph_guard = graph.lock();
         processor.process(&mut graph_guard, &mut monitor);
     }
 

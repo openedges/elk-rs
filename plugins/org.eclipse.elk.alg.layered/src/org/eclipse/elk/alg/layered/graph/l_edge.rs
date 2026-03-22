@@ -64,45 +64,51 @@ impl LEdge {
     }
 
     pub fn set_source(edge: &LEdgeRef, source: Option<LPortRef>) {
-        let current_source = edge.lock_ok().and_then(|edge| edge.source());
+        let current_source = edge.lock().source();
         if let Some(current_source) = current_source {
-            if let Some(mut port) = current_source.lock_ok() {
+            {
+                let mut port = current_source.lock();
                 remove_arc(port.outgoing_edges_mut(), edge);
             }
         }
 
         if let Some(source_ref) = &source {
-            if let Some(mut port) = source_ref.lock_ok() {
+            {
+                let mut port = source_ref.lock();
                 port.outgoing_edges_mut().push(edge.clone());
             }
         }
 
-        if let Some(mut edge_guard) = edge.lock_ok() {
+        {
+            let mut edge_guard = edge.lock();
             edge_guard.source = source.as_ref().map(Arc::downgrade);
         }
     }
 
     pub fn set_target(edge: &LEdgeRef, target: Option<LPortRef>) {
-        let current_target = edge.lock_ok().and_then(|edge| edge.target());
+        let current_target = edge.lock().target();
         if let Some(current_target) = current_target {
-            if let Some(mut port) = current_target.lock_ok() {
+            {
+                let mut port = current_target.lock();
                 remove_arc(port.incoming_edges_mut(), edge);
             }
         }
 
         if let Some(target_ref) = &target {
-            if let Some(mut port) = target_ref.lock_ok() {
+            {
+                let mut port = target_ref.lock();
                 port.incoming_edges_mut().push(edge.clone());
             }
         }
 
-        if let Some(mut edge_guard) = edge.lock_ok() {
+        {
+            let mut edge_guard = edge.lock();
             edge_guard.target = target.as_ref().map(Arc::downgrade);
         }
     }
 
     pub fn set_target_and_insert_at_index(edge: &LEdgeRef, target: Option<LPortRef>, index: usize) {
-        let current_target = edge.lock_ok().and_then(|edge| edge.target());
+        let current_target = edge.lock().target();
         if let Some(current_target) = current_target {
             current_target
                 .lock_ok()
@@ -110,7 +116,8 @@ impl LEdge {
         }
 
         if let Some(target_ref) = &target {
-            if let Some(mut port) = target_ref.lock_ok() {
+            {
+                let mut port = target_ref.lock();
                 if index > port.incoming_edges().len() {
                     panic!("index out of bounds");
                 }
@@ -118,7 +125,8 @@ impl LEdge {
             }
         }
 
-        if let Some(mut edge_guard) = edge.lock_ok() {
+        {
+            let mut edge_guard = edge.lock();
             edge_guard.target = target.as_ref().map(Arc::downgrade);
         }
     }
@@ -126,8 +134,8 @@ impl LEdge {
     pub fn is_self_loop(&self) -> bool {
         match (self.source(), self.target()) {
             (Some(source), Some(target)) => {
-                let source_node = source.lock_ok().and_then(|port| port.node());
-                let target_node = target.lock_ok().and_then(|port| port.node());
+                let source_node = source.lock().node();
+                let target_node = target.lock().node();
                 if let (Some(source_node), Some(target_node)) = (source_node, target_node) {
                     Arc::ptr_eq(&source_node, &target_node)
                 } else {
@@ -146,13 +154,11 @@ impl LEdge {
         let target = self.target();
         if let (Some(source), Some(target)) = (source, target) {
             let source_layer = source
-                .lock_ok()
-                .and_then(|port| port.node())
-                .and_then(|node| node.lock_ok().and_then(|node| node.layer()));
+                .lock().node()
+                .and_then(|node| node.lock().layer());
             let target_layer = target
-                .lock_ok()
-                .and_then(|port| port.node())
-                .and_then(|node| node.lock_ok().and_then(|node| node.layer()));
+                .lock().node()
+                .and_then(|node| node.lock().layer());
             if let (Some(source_layer), Some(target_layer)) = (source_layer, target_layer) {
                 return Arc::ptr_eq(&source_layer, &target_layer);
             }
@@ -177,10 +183,10 @@ impl LEdge {
     pub fn other_node(&self, node: &LNodeRef) -> LNodeRef {
         let source = self
             .source()
-            .and_then(|port| port.lock_ok().and_then(|port| port.node()));
+            .and_then(|port| port.lock().node());
         let target = self
             .target()
-            .and_then(|port| port.lock_ok().and_then(|port| port.node()));
+            .and_then(|port| port.lock().node());
         if let Some(ref source) = source {
             if Arc::ptr_eq(source, node) {
                 return target.clone().expect("target missing");
@@ -213,7 +219,7 @@ impl LEdge {
                     .and_then(|mut port| port.get_property(InternalProperties::INPUT_COLLECT))
                     .unwrap_or(false);
             if use_collector {
-                if let Some(node) = old_target.lock_ok().and_then(|port| port.node()) {
+                if let Some(node) = old_target.lock().node() {
                     let port = LGraphUtil::provide_collector_port(
                         layered_graph,
                         &node,
@@ -234,7 +240,7 @@ impl LEdge {
                     .and_then(|mut port| port.get_property(InternalProperties::OUTPUT_COLLECT))
                     .unwrap_or(false);
             if use_collector {
-                if let Some(node) = old_source.lock_ok().and_then(|port| port.node()) {
+                if let Some(node) = old_source.lock().node() {
                     let port = LGraphUtil::provide_collector_port(
                         layered_graph,
                         &node,
@@ -248,9 +254,11 @@ impl LEdge {
             }
         }
 
-        if let Some(mut edge_guard) = edge.lock_ok() {
+        {
+            let mut edge_guard = edge.lock();
             for label in &edge_guard.labels {
-                if let Some(mut label_guard) = label.lock_ok() {
+                {
+                    let mut label_guard = label.lock();
                     let placement = label_guard
                         .get_property(LayeredOptions::EDGE_LABELS_PLACEMENT)
                         .unwrap_or(EdgeLabelPlacement::Center);
@@ -328,7 +336,8 @@ impl LEdge {
 
     pub fn designation(&self) -> Option<String> {
         if let Some(label) = self.labels.first() {
-            if let Some(label_guard) = label.lock_ok() {
+            {
+                let label_guard = label.lock();
                 if !label_guard.text().is_empty() {
                     return Some(label_guard.text().to_owned());
                 }
@@ -346,20 +355,24 @@ impl fmt::Display for LEdge {
             f.write_str(&designation)?;
         }
         if let (Some(source), Some(target)) = (self.source(), self.target()) {
-            if let Some(source_guard) = source.lock_ok() {
+            {
+                let source_guard = source.lock();
                 f.write_str(" ")?;
                 f.write_str(&source_guard.designation())?;
                 if let Some(source_node) = source_guard.node() {
-                    if let Some(source_node_guard) = source_node.lock_ok() {
+                    {
+                        let source_node_guard = source_node.lock();
                         write!(f, "[{}]", source_node_guard)?;
                     }
                 }
             }
             f.write_str(" -> ")?;
-            if let Some(target_guard) = target.lock_ok() {
+            {
+                let target_guard = target.lock();
                 f.write_str(&target_guard.designation())?;
                 if let Some(target_node) = target_guard.node() {
-                    if let Some(target_node_guard) = target_node.lock_ok() {
+                    {
+                        let target_node_guard = target_node.lock();
                         write!(f, "[{}]", target_node_guard)?;
                     }
                 }

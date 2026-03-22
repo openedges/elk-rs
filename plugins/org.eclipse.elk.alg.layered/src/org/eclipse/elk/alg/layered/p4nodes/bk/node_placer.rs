@@ -168,9 +168,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
                 eprintln!("bk-layout: {}", bal);
                 for layer in &layers {
                     let nodes = layer
-                        .lock_ok()
-                        .map(|layer_guard| layer_guard.nodes().clone())
-                        .unwrap_or_default();
+                        .lock().nodes().clone();
                     for node in nodes {
                         let id = node_id(&node);
                         eprintln!(
@@ -253,9 +251,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
             let filter = ElkTrace::global().bk_node_filter.as_deref();
             for layer in &layers {
                 let nodes = layer
-                    .lock_ok()
-                    .map(|layer_guard| layer_guard.nodes().clone())
-                    .unwrap_or_default();
+                    .lock().nodes().clone();
                 for node in nodes {
                     let node_id = node_id(&node);
                     let (name, label_opt) = node
@@ -298,12 +294,11 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
 
         for layer in &layers {
             let nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
             for node in nodes {
                 let node_id = node_id(&node);
-                if let Some(mut node_guard) = node.lock_ok() {
+                {
+                    let mut node_guard = node.lock();
                     node_guard.shape().position().y = chosen_layout.y[node_id].unwrap_or(0.0)
                         + chosen_layout.inner_shift[node_id];
                 }
@@ -352,9 +347,7 @@ fn build_nodes_by_id(layers: &[LayerRef], node_count: usize) -> Vec<LNodeRef> {
     let mut nodes: Vec<Option<LNodeRef>> = vec![None; node_count];
     for layer in layers {
         let layer_nodes = layer
-            .lock_ok()
-            .map(|layer_guard| layer_guard.nodes().clone())
-            .unwrap_or_default();
+            .lock().nodes().clone();
         for node in layer_nodes {
             let id = node_id(&node);
             if id < nodes.len() {
@@ -389,9 +382,7 @@ impl BKNodePlacer {
         for i in 1..layers.len() - 1 {
             let current_layer = layers[i + 1].clone();
             let nodes = current_layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
 
             let mut k_0 = 0usize;
             let mut l = 0usize;
@@ -425,19 +416,15 @@ impl BKNodePlacer {
                                         if trace_conflicts {
                                             let source = neighbor
                                                 .second
-                                                .lock_ok()
-                                                .and_then(|edge_guard| edge_guard.source())
+                                                .lock().source()
                                                 .and_then(|port| {
-                                                    port.lock_ok()
-                                                        .and_then(|port_guard| port_guard.node())
+                                                    port.lock().node()
                                                 });
                                             let target = neighbor
                                                 .second
-                                                .lock_ok()
-                                                .and_then(|edge_guard| edge_guard.target())
+                                                .lock().target()
                                                 .and_then(|port| {
-                                                    port.lock_ok()
-                                                        .and_then(|port_guard| port_guard.node())
+                                                    port.lock().node()
                                                 });
                                             let src_name = source
                                                 .as_ref()
@@ -485,23 +472,18 @@ impl BKNodePlacer {
         ni: &NeighborhoodInformation,
     ) -> bool {
         if node
-            .lock_ok()
-            .map(|node_guard| node_guard.node_type())
-            .unwrap_or(NodeType::Normal)
+            .lock().node_type()
             != NodeType::LongEdge
         {
             return false;
         }
 
         let incoming_edges = node
-            .lock_ok()
-            .map(|node_guard| node_guard.incoming_edges())
-            .unwrap_or_default();
+            .lock().incoming_edges();
         for edge in incoming_edges {
             let source_node = edge
-                .lock_ok()
-                .and_then(|edge_guard| edge_guard.source())
-                .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
+                .lock().source()
+                .and_then(|port| port.lock().node());
             if let Some(source_node) = source_node {
                 let is_long_edge = source_node
                     .lock_ok()
@@ -512,8 +494,7 @@ impl BKNodePlacer {
                 }
 
                 let source_layer_id = source_node
-                    .lock_ok()
-                    .and_then(|node_guard| node_guard.layer())
+                    .lock().layer()
                     .and_then(|layer| {
                         layer
                             .lock_ok()
@@ -521,8 +502,7 @@ impl BKNodePlacer {
                     })
                     .unwrap_or(0);
                 let node_layer_id = node
-                    .lock_ok()
-                    .and_then(|node_guard| node_guard.layer())
+                    .lock().layer()
                     .and_then(|layer| {
                         layer
                             .lock_ok()
@@ -567,9 +547,7 @@ fn create_balanced_layout(
 
         for layer in layers {
             let nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
             for node in nodes {
                 let node_id = node_id(&node);
                 let node_pos = layout.y[node_id].unwrap_or(0.0) + layout.inner_shift[node_id];
@@ -591,9 +569,7 @@ fn create_balanced_layout(
     let mut calculated = vec![0.0; no_of_layouts];
     for layer in layers {
         let nodes = layer
-            .lock_ok()
-            .map(|layer_guard| layer_guard.nodes().clone())
-            .unwrap_or_default();
+            .lock().nodes().clone();
         for node in nodes {
             let node_id = node_id(&node);
             for i in 0..no_of_layouts {
@@ -623,9 +599,7 @@ fn check_order_constraint(
 
     for layer in layers {
         let nodes = layer
-            .lock_ok()
-            .map(|layer_guard| layer_guard.nodes().clone())
-            .unwrap_or_default();
+            .lock().nodes().clone();
         let mut pos = f64::NEG_INFINITY;
         let mut previous: Option<LNodeRef> = None;
 

@@ -29,9 +29,7 @@ impl ILayoutProcessor<LGraph> for LongEdgeJoiner {
         let layers = layered_graph.layers().clone();
         for layer in layers {
             let nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
             for node in nodes {
                 let is_long_edge_dummy = node
                     .lock_ok()
@@ -62,21 +60,16 @@ impl LongEdgeJoiner {
         };
 
         let mut input_edges = west_port
-            .lock_ok()
-            .map(|port_guard| port_guard.incoming_edges().clone())
-            .unwrap_or_default();
+            .lock().incoming_edges().clone();
         let mut output_edges = east_port
-            .lock_ok()
-            .map(|port_guard| port_guard.outgoing_edges().clone())
-            .unwrap_or_default();
+            .lock().outgoing_edges().clone();
         let mut edge_count = input_edges.len().min(output_edges.len());
 
         let unnecessary_bendpoint = long_edge_dummy
             .lock_ok()
             .and_then(|node_guard| node_guard.ports().first().cloned())
             .and_then(|port| {
-                port.lock_ok()
-                    .and_then(|port_guard| port_guard.absolute_anchor())
+                port.lock().absolute_anchor()
             });
 
         while edge_count > 0 {
@@ -85,8 +78,7 @@ impl LongEdgeJoiner {
             let dropped_edge = output_edges.remove(0);
 
             let dropped_target = dropped_edge
-                .lock_ok()
-                .and_then(|edge_guard| edge_guard.target());
+                .lock().target();
             let Some(dropped_target) = dropped_target else {
                 continue;
             };
@@ -110,7 +102,8 @@ impl LongEdgeJoiner {
 
             if add_unnecessary_bendpoints {
                 if let Some(unnecessary_bendpoint) = unnecessary_bendpoint {
-                    if let Some(mut surviving_guard) = surviving_edge.lock_ok() {
+                    {
+                        let mut surviving_guard = surviving_edge.lock();
                         surviving_guard
                             .bend_points()
                             .add_vector(KVector::from_vector(&unnecessary_bendpoint));
@@ -122,18 +115,19 @@ impl LongEdgeJoiner {
                 .lock_ok()
                 .map(|edge_guard| edge_guard.bend_points_ref().to_array())
                 .unwrap_or_default();
-            if let Some(mut surviving_guard) = surviving_edge.lock_ok() {
+            {
+                let mut surviving_guard = surviving_edge.lock();
                 surviving_guard.bend_points().add_all(&dropped_bend_points);
             }
 
             let dropped_labels = dropped_edge
-                .lock_ok()
-                .map(|edge_guard| edge_guard.labels().clone())
-                .unwrap_or_default();
-            if let Some(mut dropped_guard) = dropped_edge.lock_ok() {
+                .lock().labels().clone();
+            {
+                let mut dropped_guard = dropped_edge.lock();
                 dropped_guard.labels_mut().clear();
             }
-            if let Some(mut surviving_guard) = surviving_edge.lock_ok() {
+            {
+                let mut surviving_guard = surviving_edge.lock();
                 surviving_guard.labels_mut().extend(dropped_labels);
             }
 
@@ -149,7 +143,8 @@ impl LongEdgeJoiner {
                 }
             });
             if let Some(dropped_junction_points) = dropped_junction_points {
-                if let Some(mut surviving_guard) = surviving_edge.lock_ok() {
+                {
+                    let mut surviving_guard = surviving_edge.lock();
                     let mut surviving_junctions = if surviving_guard
                         .graph_element()
                         .properties()

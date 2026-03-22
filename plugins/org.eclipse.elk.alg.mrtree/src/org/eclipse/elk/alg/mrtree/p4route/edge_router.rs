@@ -77,13 +77,7 @@ impl ILayoutPhase<TreeLayoutPhases, TGraphRef> for EdgeRouter {
         progress_monitor.begin("Edge routing", 1.0);
 
         let mode = {
-            let mut graph_guard = match graph.lock_ok() {
-            Some(guard) => guard,
-            None => {
-                    progress_monitor.done();
-                    return;
-                }
-            };
+            let mut graph_guard = graph.lock();
             graph_guard
                 .get_property(MrTreeOptions::EDGE_ROUTING_MODE)
                 .unwrap_or(EdgeRoutingMode::AvoidOverlap)
@@ -95,9 +89,7 @@ impl ILayoutPhase<TreeLayoutPhases, TGraphRef> for EdgeRouter {
             EdgeRoutingMode::AvoidOverlap => {
                 self.avoid_overlap(graph);
                 let edges = graph
-                    .lock_ok()
-                    .map(|g| g.edges().clone())
-                    .unwrap_or_default();
+                    .lock().edges().clone();
                 for edge in edges {
                     if edge
                         .lock_ok()
@@ -143,7 +135,8 @@ fn build_node_data(
 
     for node in nodes {
         let key = Arc::as_ptr(node) as usize;
-        if let Some(mut guard) = node.lock_ok() {
+        {
+            let mut guard = node.lock();
             let level = guard
                 .get_property(MrTreeOptions::TREE_LEVEL)
                 .unwrap_or(0);
@@ -383,9 +376,7 @@ fn build_level_nodes(
 impl EdgeRouter {
     fn middle_to_middle(&self, graph: &TGraphRef) {
         let edges = graph
-            .lock_ok()
-            .map(|g| g.edges().clone())
-            .unwrap_or_default();
+            .lock().edges().clone();
         for edge in edges {
             self.middle_to_middle_edge_route(&edge);
         }
@@ -393,10 +384,7 @@ impl EdgeRouter {
 
     fn middle_to_middle_edge_route(&self, edge: &TEdgeRef) {
         let (source, target) = {
-            let edge_guard = match edge.lock_ok() {
-            Some(guard) => guard,
-            None => return,
-            };
+            let edge_guard = edge.lock();
             (edge_guard.source(), edge_guard.target())
         };
         let (Some(source), Some(target)) = (source, target) else {
@@ -424,7 +412,8 @@ impl EdgeRouter {
             )
         };
 
-        if let Some(mut edge_guard) = edge.lock_ok() {
+        {
+            let mut edge_guard = edge.lock();
             let bend_points = edge_guard.bend_points();
             bend_points.insert(0, source_point);
             bend_points.add_vector(target_point);
@@ -447,10 +436,7 @@ impl EdgeRouter {
     fn avoid_overlap(&self, graph: &TGraphRef) {
         // Single graph lock: extract all properties + nodes + edges
         let (nodes, edges, node_bendpoint_padding, edge_end_texture_padding, direction, graph_bounds) = {
-            let mut g = match graph.lock_ok() {
-            Some(g) => g,
-            None => return,
-            };
+            let mut g = graph.lock();
             (
                 g.nodes().clone(),
                 g.edges().clone(),
@@ -787,7 +773,8 @@ impl EdgeRouter {
             }
         };
 
-        if let Some(mut edge_guard) = edge.lock_ok() {
+        {
+            let mut edge_guard = edge.lock();
             let bends = edge_guard.bend_points();
             if direction == Direction::Left {
                 let level_min = nd_level_min(nd, source);
@@ -932,7 +919,8 @@ impl EdgeRouter {
                 let level_min = nd_level_min(nd, node);
                 let level_max = nd_level_max(nd, node);
 
-                if let Some(mut edge_guard) = edge.lock_ok() {
+                {
+                    let mut edge_guard = edge.lock();
                     let bends = edge_guard.bend_points();
                     if direction == Direction::Left {
                         let y = pos.y + size.y * interpolation;
@@ -1009,7 +997,8 @@ impl EdgeRouter {
                 let level_min = nd_level_min(nd, node);
                 let level_max = nd_level_max(nd, node);
 
-                if let Some(mut edge_guard) = edge.lock_ok() {
+                {
+                    let mut edge_guard = edge.lock();
                     let bends = edge_guard.bend_points();
                     if direction == Direction::Left {
                         if pos.x + size.x + edge_end_texture_padding < level_max {

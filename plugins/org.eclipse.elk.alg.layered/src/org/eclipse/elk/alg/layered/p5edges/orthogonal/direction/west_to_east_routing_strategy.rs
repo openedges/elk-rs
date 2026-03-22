@@ -78,8 +78,7 @@ impl WestToEastRoutingStrategy {
                         let ty = edge_guard
                             .target()
                             .and_then(|t| {
-                                t.lock_ok()
-                                    .and_then(|port_guard| port_guard.absolute_anchor())
+                                t.lock().absolute_anchor()
                                     .map(|anchor| anchor.y)
                             })
                             .unwrap_or(0.0);

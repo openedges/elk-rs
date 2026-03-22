@@ -45,10 +45,7 @@ impl ILayoutPhase<TreeLayoutPhases, TGraphRef> for DFSTreeifyer {
 impl DFSTreeifyer {
     fn init(&mut self, graph: &TGraphRef) {
         let nodes = {
-            let graph_guard = match graph.lock_ok() {
-            Some(guard) => guard,
-            None => return,
-            };
+            let graph_guard = graph.lock();
             graph_guard.nodes().clone()
         };
 
@@ -56,7 +53,8 @@ impl DFSTreeifyer {
         self.visited = vec![0; nodes.len()];
 
         for (id, node) in nodes.into_iter().enumerate() {
-            if let Some(mut node_guard) = node.lock_ok() {
+            {
+                let mut node_guard = node.lock();
                 node_guard.set_id(id as i32);
             }
         }
@@ -69,15 +67,12 @@ impl DFSTreeifyer {
             .unwrap_or(TreeifyingOrder::Dfs);
 
         let nodes = {
-            let graph_guard = match graph.lock_ok() {
-            Some(guard) => guard,
-            None => return,
-            };
+            let graph_guard = graph.lock();
             graph_guard.nodes().clone()
         };
 
         for node in nodes {
-            let id = node.lock_ok().map(|n| n.id()).unwrap_or(0) as usize;
+            let id = node.lock().id() as usize;
             if self.visited.get(id).copied().unwrap_or(0) == 0 {
                 match treeifying_order {
                     TreeifyingOrder::Dfs => self.dfs(&node),
@@ -91,25 +86,25 @@ impl DFSTreeifyer {
 
         for edge in &self.eliminated {
             let (source, target) = {
-                let edge_guard = match edge.lock_ok() {
-            Some(guard) => guard,
-            None => continue,
-                };
+                let edge_guard = edge.lock();
                 (edge_guard.source(), edge_guard.target())
             };
             if let Some(source) = source {
-                if let Some(mut node_guard) = source.lock_ok() {
+                {
+                    let mut node_guard = source.lock();
                     node_guard.remove_outgoing(edge);
                 }
             }
             if let Some(target) = target {
-                if let Some(mut node_guard) = target.lock_ok() {
+                {
+                    let mut node_guard = target.lock();
                     node_guard.remove_incoming(edge);
                 }
             }
         }
 
-        if let Some(mut graph_guard) = graph.lock_ok() {
+        {
+            let mut graph_guard = graph.lock();
             graph_guard.set_property(
                 InternalProperties::REMOVABLE_EDGES,
                 Some(self.eliminated.clone()),
@@ -118,21 +113,19 @@ impl DFSTreeifyer {
     }
 
     fn dfs(&mut self, node: &TNodeRef) {
-        let id = node.lock_ok().map(|n| n.id()).unwrap_or(0) as usize;
+        let id = node.lock().id() as usize;
         if let Some(slot) = self.visited.get_mut(id) {
             *slot = 1;
         }
 
         let outgoing = node
-            .lock_ok()
-            .map(|n| n.outgoing_edges().clone())
-            .unwrap_or_default();
+            .lock().outgoing_edges().clone();
         for edge in outgoing {
-            let target = edge.lock_ok().and_then(|e| e.target());
+            let target = edge.lock().target();
             let Some(target) = target else {
                 continue;
             };
-            let target_id = target.lock_ok().map(|n| n.id()).unwrap_or(0) as usize;
+            let target_id = target.lock().id() as usize;
             let visited = *self.visited.get(target_id).unwrap_or(&0);
             if visited == 1 {
                 self.eliminated.push(edge.clone());
@@ -151,21 +144,19 @@ impl DFSTreeifyer {
         queue.push_back(start_node.clone());
 
         while let Some(node) = queue.pop_front() {
-            let id = node.lock_ok().map(|n| n.id()).unwrap_or(0) as usize;
+            let id = node.lock().id() as usize;
             if let Some(slot) = self.visited.get_mut(id) {
                 *slot = 1;
             }
 
             let outgoing = node
-                .lock_ok()
-                .map(|n| n.outgoing_edges().clone())
-                .unwrap_or_default();
+                .lock().outgoing_edges().clone();
             for edge in outgoing {
-                let target = edge.lock_ok().and_then(|e| e.target());
+                let target = edge.lock().target();
                 let Some(target) = target else {
                     continue;
                 };
-                let target_id = target.lock_ok().map(|n| n.id()).unwrap_or(0) as usize;
+                let target_id = target.lock().id() as usize;
                 let visited = *self.visited.get(target_id).unwrap_or(&0);
                 if visited == 1 {
                     self.eliminated.push(edge.clone());

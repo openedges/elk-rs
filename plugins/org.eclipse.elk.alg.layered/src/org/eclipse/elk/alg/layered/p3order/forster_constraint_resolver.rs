@@ -64,9 +64,7 @@ impl ForsterConstraintResolver {
         if let Some(ref snap) = self.snapshot {
             snap.node_type_of(snap.node_flat_index(node))
         } else {
-            node.lock_ok()
-                .map(|node_guard| node_guard.node_type())
-                .unwrap_or(NodeType::Normal)
+            node.lock().node_type()
         }
     }
 
@@ -539,10 +537,10 @@ impl IInitializable for ForsterConstraintResolver {
 
         if let Some(first_node) = node_order[layer_index].first() {
             if let Some(layer) = first_node
-                .lock_ok()
-                .and_then(|node_guard| node_guard.layer())
+                .lock().layer()
             {
-                if let Some(mut layer_guard) = layer.lock_ok() {
+                {
+                    let mut layer_guard = layer.lock();
                     layer_guard.graph_element().id = layer_index as i32;
                 }
             }
@@ -559,7 +557,8 @@ impl IInitializable for ForsterConstraintResolver {
             .get(layer_index)
             .and_then(|layer| layer.get(node_index))
         {
-            if let Some(mut node_guard) = node.lock_ok() {
+            {
+                let mut node_guard = node.lock();
                 node_guard.shape().graph_element().id = node_index as i32;
             }
             self.init_node_level(node, true);
@@ -640,9 +639,10 @@ fn node_id(node: &LNodeRef) -> usize {
 }
 
 fn layer_index(node: &LNodeRef) -> usize {
-    let layer = node.lock_ok().and_then(|node_guard| node_guard.layer());
+    let layer = node.lock().layer();
     if let Some(layer) = layer {
-        if let Some(mut layer_guard) = layer.lock_ok() {
+        {
+            let mut layer_guard = layer.lock();
             return layer_guard.graph_element().id as usize;
         }
     }

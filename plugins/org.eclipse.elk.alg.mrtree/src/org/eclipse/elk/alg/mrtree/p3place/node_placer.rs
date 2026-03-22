@@ -214,13 +214,7 @@ impl ILayoutPhase<TreeLayoutPhases, TGraphRef> for NodePlacer {
         progress_monitor.begin("Processor order nodes", 2.0);
 
         let (spacing, direction, root) = {
-            let mut graph_guard = match graph.lock_ok() {
-            Some(guard) => guard,
-            None => {
-                    progress_monitor.done();
-                    return;
-                }
-            };
+            let mut graph_guard = graph.lock();
             let spacing = graph_guard
                 .get_property(MrTreeOptions::SPACING_NODE_NODE)
                 .unwrap_or(0.0);
@@ -434,7 +428,8 @@ impl NodePlacer {
         let pos_y = ycoor as f64 - soa.half_size_y[idx];
 
         // Write final position directly — no intermediate XCOOR/YCOOR/PRELIM/MODIFIER
-        if let Some(mut guard) = soa.nodes[idx].lock_ok() {
+        {
+            let mut guard = soa.nodes[idx].lock();
             let pos = guard.position();
             pos.x = pos_x;
             pos.y = pos_y;

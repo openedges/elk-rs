@@ -30,20 +30,14 @@ impl ILayoutProcessor<LGraph> for LongEdgeSplitter {
             let layer = layers[layer_index].clone();
             let next_layer = layers[layer_index + 1].clone();
             let nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
 
             for node in nodes {
                 let ports = node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.ports().clone())
-                    .unwrap_or_default();
+                    .lock().ports().clone();
                 for port in ports {
                     let outgoing = port
-                        .lock_ok()
-                        .map(|port_guard| port_guard.outgoing_edges().clone())
-                        .unwrap_or_default();
+                        .lock().outgoing_edges().clone();
                     for edge in outgoing {
                         let target_layer_index = target_layer_index(&edge, &layers);
                         if target_layer_index != layer_index
@@ -65,7 +59,7 @@ impl ILayoutProcessor<LGraph> for LongEdgeSplitter {
 
 impl LongEdgeSplitter {
     pub fn split_edge(edge: &LEdgeRef, dummy_node: &LNodeRef) -> LEdgeRef {
-        let old_edge_target = edge.lock_ok().and_then(|edge_guard| edge_guard.target());
+        let old_edge_target = edge.lock().target();
         let mut thickness = edge
             .lock_ok()
             .and_then(|mut edge_guard| {
@@ -82,25 +76,29 @@ impl LongEdgeSplitter {
             .unwrap_or(1.0);
         if thickness < 0.0 {
             thickness = 0.0;
-            if let Some(mut edge_guard) = edge.lock_ok() {
+            {
+                let mut edge_guard = edge.lock();
                 edge_guard.set_property(CoreOptions::EDGE_THICKNESS, Some(thickness));
             }
         }
 
-        if let Some(mut dummy_guard) = dummy_node.lock_ok() {
+        {
+            let mut dummy_guard = dummy_node.lock();
             dummy_guard.shape().size().y = thickness;
         }
         let port_pos = (thickness / 2.0).floor();
 
         let dummy_input = LPort::new();
-        if let Some(mut input_guard) = dummy_input.lock_ok() {
+        {
+            let mut input_guard = dummy_input.lock();
             input_guard.set_side(PortSide::West);
             input_guard.shape().position().y = port_pos;
         }
         LPort::set_node(&dummy_input, Some(dummy_node.clone()));
 
         let dummy_output = LPort::new();
-        if let Some(mut output_guard) = dummy_output.lock_ok() {
+        {
+            let mut output_guard = dummy_output.lock();
             output_guard.set_side(PortSide::East);
             output_guard.shape().position().y = port_pos;
         }
@@ -128,11 +126,11 @@ impl LongEdgeSplitter {
 
 fn create_dummy_node(target_layer: &LayerRef, edge_to_split: &LEdgeRef) -> LNodeRef {
     let graph = target_layer
-        .lock_ok()
-        .and_then(|layer_guard| layer_guard.graph())
+        .lock().graph()
         .unwrap_or_default();
     let dummy = LNode::new(&graph);
-    if let Some(mut dummy_guard) = dummy.lock_ok() {
+    {
+        let mut dummy_guard = dummy.lock();
         dummy_guard.set_node_type(NodeType::LongEdge);
         dummy_guard.set_property(
             InternalProperties::ORIGIN,
@@ -149,10 +147,9 @@ fn create_dummy_node(target_layer: &LayerRef, edge_to_split: &LEdgeRef) -> LNode
 
 fn target_layer_index(edge: &LEdgeRef, layers: &[LayerRef]) -> usize {
     let target_layer = edge
-        .lock_ok()
-        .and_then(|edge_guard| edge_guard.target())
-        .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
-        .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.layer()));
+        .lock().target()
+        .and_then(|port| port.lock().node())
+        .and_then(|node| node.lock().layer());
     let Some(target_layer) = target_layer else {
         return 0;
     };
@@ -164,9 +161,7 @@ fn target_layer_index(edge: &LEdgeRef, layers: &[LayerRef]) -> usize {
 
 fn move_head_labels(old_edge: &LEdgeRef, new_edge: &LEdgeRef) {
     let labels = old_edge
-        .lock_ok()
-        .map(|edge_guard| edge_guard.labels().clone())
-        .unwrap_or_default();
+        .lock().labels().clone();
     for label in labels {
         let placement = label
             .lock_ok()
@@ -187,15 +182,18 @@ fn move_head_labels(old_edge: &LEdgeRef, new_edge: &LEdgeRef) {
             continue;
         }
 
-        if let Some(mut old_edge_guard) = old_edge.lock_ok() {
+        {
+            let mut old_edge_guard = old_edge.lock();
             old_edge_guard
                 .labels_mut()
                 .retain(|candidate| !Arc::ptr_eq(candidate, &label));
         }
-        if let Some(mut new_edge_guard) = new_edge.lock_ok() {
+        {
+            let mut new_edge_guard = new_edge.lock();
             new_edge_guard.labels_mut().push(label.clone());
         }
-        if let Some(mut label_guard) = label.lock_ok() {
+        {
+            let mut label_guard = label.lock();
             if !label_guard
                 .shape()
                 .graph_element()
@@ -211,25 +209,23 @@ fn move_head_labels(old_edge: &LEdgeRef, new_edge: &LEdgeRef) {
 
 fn set_dummy_node_properties(dummy_node: &LNodeRef, in_edge: &LEdgeRef, out_edge: &LEdgeRef) {
     let in_edge_source = in_edge
-        .lock_ok()
-        .and_then(|edge_guard| edge_guard.source());
+        .lock().source();
     let out_edge_target = out_edge
-        .lock_ok()
-        .and_then(|edge_guard| edge_guard.target());
+        .lock().target();
 
     let in_edge_source_node = in_edge_source
         .as_ref()
-        .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
+        .and_then(|port| port.lock().node());
     let out_edge_target_node = out_edge_target
         .as_ref()
-        .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
+        .and_then(|port| port.lock().node());
 
     let in_source_type = in_edge_source_node
         .as_ref()
-        .and_then(|node| node.lock_ok().map(|node_guard| node_guard.node_type()));
+        .map(|node| node.lock().node_type());
     let out_target_type = out_edge_target_node
         .as_ref()
-        .and_then(|node| node.lock_ok().map(|node_guard| node_guard.node_type()));
+        .map(|node| node.lock().node_type());
 
     if in_source_type == Some(NodeType::LongEdge) {
         if let Some(in_source_node) = in_edge_source_node {
@@ -284,7 +280,8 @@ fn set_dummy_node_properties(dummy_node: &LNodeRef, in_edge: &LEdgeRef, out_edge
                     .set_property(InternalProperties::LONG_EDGE_HAS_LABEL_DUMMIES, Some(true));
             }
         }
-    } else if let Some(mut dummy_guard) = dummy_node.lock_ok() {
+    } else {
+        let mut dummy_guard = dummy_node.lock();
         dummy_guard.set_property(InternalProperties::LONG_EDGE_SOURCE, in_edge_source);
         dummy_guard.set_property(InternalProperties::LONG_EDGE_TARGET, out_edge_target);
     }
@@ -306,10 +303,10 @@ fn trace_long_edge_split(
         .map(|edge_guard| (edge_guard.source(), edge_guard.target()))
         .unwrap_or((None, None));
     let source_desc = source_ref
-        .and_then(|source| source.lock_ok().map(|guard| guard.to_string()))
+        .map(|source| source.lock().to_string())
         .unwrap_or_else(|| "<no-source>".to_owned());
     let target_desc = target_ref
-        .and_then(|target| target.lock_ok().map(|guard| guard.to_string()))
+        .map(|target| target.lock().to_string())
         .unwrap_or_else(|| "<no-target>".to_owned());
 
     eprintln!(

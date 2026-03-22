@@ -56,7 +56,8 @@ impl ILayoutProcessor<LGraph> for PartitionMidprocessor {
 fn connect_partitions(first_partition: &[LNodeRef], second_partition: &[LNodeRef]) {
     for node in first_partition {
         let source_port = LPort::new();
-        if let Some(mut source_guard) = source_port.lock_ok() {
+        {
+            let mut source_guard = source_port.lock();
             source_guard.set_side(PortSide::East);
             source_guard.set_property(InternalProperties::PARTITION_DUMMY, Some(true));
         }
@@ -64,14 +65,16 @@ fn connect_partitions(first_partition: &[LNodeRef], second_partition: &[LNodeRef
 
         for other_node in second_partition {
             let target_port = LPort::new();
-            if let Some(mut target_guard) = target_port.lock_ok() {
+            {
+                let mut target_guard = target_port.lock();
                 target_guard.set_side(PortSide::West);
                 target_guard.set_property(InternalProperties::PARTITION_DUMMY, Some(true));
             }
             LPort::set_node(&target_port, Some(other_node.clone()));
 
             let edge = LEdge::new();
-            if let Some(mut edge_guard) = edge.lock_ok() {
+            {
+                let mut edge_guard = edge.lock();
                 edge_guard.set_property(InternalProperties::PARTITION_DUMMY, Some(true));
             }
             LEdge::set_source(&edge, Some(source_port.clone()));

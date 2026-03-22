@@ -54,7 +54,8 @@ impl InteractiveCycleBreaker {
         let mut stack: Vec<StackEntry> = Vec::new();
 
         let start_edges = Self::get_outgoing(start);
-        if let Some(mut guard) = start.lock_ok() {
+        {
+            let mut guard = start.lock();
             guard.shape().graph_element().id = -1;
         }
         stack.push((start.clone(), start_edges, 0));
@@ -64,7 +65,8 @@ impl InteractiveCycleBreaker {
             if idx >= top.1.len() {
                 // Done with this node - mark as finished
                 let node = top.0.clone();
-                if let Some(mut guard) = node.lock_ok() {
+                {
+                    let mut guard = node.lock();
                     guard.shape().graph_element().id = 0;
                 }
                 stack.pop();
@@ -86,7 +88,8 @@ impl InteractiveCycleBreaker {
             } else if target_id > 0 {
                 // unvisited - cache edges, mark as visiting, push
                 let target_edges = Self::get_outgoing(&target);
-                if let Some(mut guard) = target.lock_ok() {
+                {
+                    let mut guard = target.lock();
                     guard.shape().graph_element().id = -1;
                 }
                 stack.push((target, target_edges, 0));
@@ -95,15 +98,12 @@ impl InteractiveCycleBreaker {
     }
 
     fn get_outgoing(node: &LNodeRef) -> Vec<(LEdgeRef, LNodeRef)> {
-        node.lock_ok()
-            .map(|g| g.outgoing_edges())
-            .unwrap_or_default()
+        node.lock().outgoing_edges()
             .into_iter()
             .filter_map(|edge| {
                 let target = edge
-                    .lock_ok()
-                    .and_then(|eg| eg.target())
-                    .and_then(|p| p.lock_ok().and_then(|pg| pg.node()))?;
+                    .lock().target()
+                    .and_then(|p| p.lock().node())?;
                 if Arc::ptr_eq(node, &target) {
                     return None; // skip self-loops
                 }
@@ -131,7 +131,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveCycleBreaker {
 
         // Phase 1: reverse edges that go backwards based on interactive reference point
         for node in &nodes {
-            if let Some(mut guard) = node.lock_ok() {
+            {
+                let mut guard = node.lock();
                 guard.shape().graph_element().id = 1;
             }
         }
@@ -140,15 +141,12 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveCycleBreaker {
             let source_x = Self::reference_x(source, reference_point);
 
             let outgoing = source
-                .lock_ok()
-                .map(|g| g.outgoing_edges())
-                .unwrap_or_default();
+                .lock().outgoing_edges();
 
             for edge in outgoing {
                 let target = edge
-                    .lock_ok()
-                    .and_then(|eg| eg.target())
-                    .and_then(|p| p.lock_ok().and_then(|pg| pg.node()));
+                    .lock().target()
+                    .and_then(|p| p.lock().node());
                 let Some(target) = target else { continue };
 
                 let is_same = Arc::ptr_eq(source, &target);
@@ -175,7 +173,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveCycleBreaker {
 
         // Re-initialize all nodes to id = 1 (unvisited) for Phase 2
         for node in &nodes {
-            if let Some(mut guard) = node.lock_ok() {
+            {
+                let mut guard = node.lock();
                 guard.shape().graph_element().id = 1;
             }
         }

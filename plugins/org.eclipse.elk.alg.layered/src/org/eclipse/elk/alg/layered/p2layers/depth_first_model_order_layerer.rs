@@ -53,30 +53,24 @@ impl DepthFirstModelOrderLayerer {
 
     fn is_connected_to_current_layer(&self, node: &LNodeRef) -> bool {
         let incoming_edges = node
-            .lock_ok()
-            .map(|node_guard| node_guard.incoming_edges())
-            .unwrap_or_default();
+            .lock().incoming_edges();
 
         for edge in incoming_edges {
             let source_node = edge
-                .lock_ok()
-                .and_then(|edge_guard| edge_guard.source())
-                .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
+                .lock().source()
+                .and_then(|port| port.lock().node());
             let Some(source_node) = source_node else {
                 continue;
             };
             let source_type = source_node
-                .lock_ok()
-                .map(|node_guard| node_guard.node_type())
-                .unwrap_or(NodeType::Normal);
+                .lock().node_type();
 
             let mut directly_connected = false;
             let mut connected_via_label_dummy = false;
             if self.nodes_to_place.is_empty() {
                 if source_type == NodeType::Normal {
                     if let Some(layer) = source_node
-                        .lock_ok()
-                        .and_then(|node_guard| node_guard.layer())
+                        .lock().layer()
                     {
                         directly_connected = layer
                             .lock_ok()
@@ -89,18 +83,15 @@ impl DepthFirstModelOrderLayerer {
 
                 if source_type == NodeType::Label {
                     let label_incoming = source_node
-                        .lock_ok()
-                        .map(|node_guard| node_guard.incoming_edges())
-                        .unwrap_or_default();
+                        .lock().incoming_edges();
                     if let Some(label_edge) = label_incoming.first() {
                         if let Some(layer) = label_edge
-                            .lock_ok()
-                            .and_then(|edge_guard| edge_guard.source())
+                            .lock().source()
                             .and_then(|port| {
-                                port.lock_ok().and_then(|port_guard| port_guard.node())
+                                port.lock().node()
                             })
                             .and_then(|node| {
-                                node.lock_ok().and_then(|node_guard| node_guard.layer())
+                                node.lock().layer()
                             })
                         {
                             connected_via_label_dummy = layer
@@ -119,15 +110,12 @@ impl DepthFirstModelOrderLayerer {
 
                 if source_type == NodeType::Label {
                     let label_incoming = source_node
-                        .lock_ok()
-                        .map(|node_guard| node_guard.incoming_edges())
-                        .unwrap_or_default();
+                        .lock().incoming_edges();
                     if let Some(label_edge) = label_incoming.first() {
                         if let Some(label_source) = label_edge
-                            .lock_ok()
-                            .and_then(|edge_guard| edge_guard.source())
+                            .lock().source()
                             .and_then(|port| {
-                                port.lock_ok().and_then(|port_guard| port_guard.node())
+                                port.lock().node()
                             })
                         {
                             connected_via_label_dummy =
@@ -159,13 +147,15 @@ impl DepthFirstModelOrderLayerer {
             self.current_layer_id = layer_id;
         } else {
             let dummy_layer = Layer::new(graph_ref);
-            if let Some(mut dummy_guard) = dummy_layer.lock_ok() {
+            {
+                let mut dummy_guard = dummy_layer.lock();
                 dummy_guard.graph_element().id = layer_id - 1;
             }
             graph.layers_mut().push(dummy_layer.clone());
 
             let new_layer = Layer::new(graph_ref);
-            if let Some(mut new_guard) = new_layer.lock_ok() {
+            {
+                let mut new_guard = new_layer.lock();
                 new_guard.graph_element().id = layer_id;
             }
             graph.layers_mut().push(new_layer.clone());
@@ -180,25 +170,19 @@ impl DepthFirstModelOrderLayerer {
         }
 
         let incoming_edges = node
-            .lock_ok()
-            .map(|node_guard| node_guard.incoming_edges())
-            .unwrap_or_default();
+            .lock().incoming_edges();
         for edge in incoming_edges {
             let source_node = edge
-                .lock_ok()
-                .and_then(|edge_guard| edge_guard.source())
-                .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
+                .lock().source()
+                .and_then(|port| port.lock().node());
             let Some(source_node) = source_node else {
                 continue;
             };
             let source_type = source_node
-                .lock_ok()
-                .map(|node_guard| node_guard.node_type())
-                .unwrap_or(NodeType::Normal);
+                .lock().node_type();
             if source_type == NodeType::Label
                 && source_node
-                    .lock_ok()
-                    .and_then(|node_guard| node_guard.layer())
+                    .lock().layer()
                     .is_none()
             {
                 if let Some(dummy_layer) = self.current_dummy_layer.clone() {
@@ -211,17 +195,15 @@ impl DepthFirstModelOrderLayerer {
     fn get_max_connected_layer(&self, layer_id: i32, node: &LNodeRef) -> i32 {
         let mut max_layer = layer_id;
         let incoming_edges = node
-            .lock_ok()
-            .map(|node_guard| node_guard.incoming_edges())
-            .unwrap_or_default();
+            .lock().incoming_edges();
         for edge in incoming_edges {
             if let Some(source_layer) = edge
-                .lock_ok()
-                .and_then(|edge_guard| edge_guard.source())
-                .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
-                .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.layer()))
+                .lock().source()
+                .and_then(|port| port.lock().node())
+                .and_then(|node| node.lock().layer())
             {
-                if let Some(mut layer_guard) = source_layer.lock_ok() {
+                {
+                    let mut layer_guard = source_layer.lock();
                     max_layer = max_layer.max(layer_guard.graph_element().id);
                 }
             }
@@ -235,13 +217,15 @@ impl DepthFirstModelOrderLayerer {
             let desired_layer = node_id(node_to_place);
             if desired_layer as usize >= graph.layers().len() {
                 let dummy_layer = Layer::new(graph_ref);
-                if let Some(mut dummy_guard) = dummy_layer.lock_ok() {
+                {
+                    let mut dummy_guard = dummy_layer.lock();
                     dummy_guard.graph_element().id = desired_layer - 1;
                 }
                 graph.layers_mut().push(dummy_layer);
 
                 let new_layer = Layer::new(graph_ref);
-                if let Some(mut new_guard) = new_layer.lock_ok() {
+                {
+                    let mut new_guard = new_layer.lock();
                     new_guard.graph_element().id = desired_layer;
                 }
                 graph.layers_mut().push(new_layer);
@@ -271,7 +255,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for DepthFirstModelOrderLayerer {
 
         let graph_ref = nodes
             .first()
-            .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.graph()))
+            .and_then(|node| node.lock().graph())
             .unwrap_or_default();
 
         let mut real_nodes: Vec<(i32, LNodeRef)> = Vec::new();
@@ -295,7 +279,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for DepthFirstModelOrderLayerer {
         real_nodes.sort_by(|(a, _), (b, _)| a.cmp(b));
 
         let first_layer = Layer::new(&graph_ref);
-        if let Some(mut layer_guard) = first_layer.lock_ok() {
+        {
+            let mut layer_guard = first_layer.lock();
             layer_guard.graph_element().id = 0;
         }
         graph.layers_mut().push(first_layer.clone());
@@ -336,27 +321,21 @@ impl ILayoutPhase<LayeredPhases, LGraph> for DepthFirstModelOrderLayerer {
                         self.max_to_place = self.max_to_place.max(desired_layer);
 
                         let incoming_edges = node
-                            .lock_ok()
-                            .map(|node_guard| node_guard.incoming_edges())
-                            .unwrap_or_default();
+                            .lock().incoming_edges();
                         for edge in incoming_edges {
                             let source_node = edge
-                                .lock_ok()
-                                .and_then(|edge_guard| edge_guard.source())
+                                .lock().source()
                                 .and_then(|port| {
-                                    port.lock_ok().and_then(|port_guard| port_guard.node())
+                                    port.lock().node()
                                 });
                             let Some(source_node) = source_node else {
                                 continue;
                             };
                             let source_type = source_node
-                                .lock_ok()
-                                .map(|node_guard| node_guard.node_type())
-                                .unwrap_or(NodeType::Normal);
+                                .lock().node_type();
                             if source_type == NodeType::Label
                                 && source_node
-                                    .lock_ok()
-                                    .and_then(|node_guard| node_guard.layer())
+                                    .lock().layer()
                                     .is_none()
                             {
                                 self.nodes_to_place.push(source_node.clone());
@@ -404,7 +383,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for DepthFirstModelOrderLayerer {
                 .unwrap_or(false)
         });
         for (index, layer) in graph.layers().iter().enumerate() {
-            if let Some(mut layer_guard) = layer.lock_ok() {
+            {
+                let mut layer_guard = layer.lock();
                 layer_guard.graph_element().id = index as i32;
             }
         }
@@ -429,7 +409,8 @@ fn node_id(node: &LNodeRef) -> i32 {
 }
 
 fn set_node_id(node: &LNodeRef, value: i32) {
-    if let Some(mut node_guard) = node.lock_ok() {
+    {
+        let mut node_guard = node.lock();
         node_guard.shape().graph_element().id = value;
     }
 }

@@ -65,7 +65,7 @@ impl TEdge {
     }
 
     pub fn set_source(edge: &TEdgeRef, source: Option<TNodeRef>) {
-        let current = edge.lock_ok().and_then(|edge_guard| edge_guard.source());
+        let current = edge.lock().source();
         if let (Some(current), Some(source)) = (&current, &source) {
             if Arc::ptr_eq(current, source) {
                 return;
@@ -73,24 +73,27 @@ impl TEdge {
         }
 
         if let Some(current) = current {
-            if let Some(mut node_guard) = current.lock_ok() {
+            {
+                let mut node_guard = current.lock();
                 node_guard.remove_outgoing(edge);
             }
         }
 
         if let Some(source) = &source {
-            if let Some(mut node_guard) = source.lock_ok() {
+            {
+                let mut node_guard = source.lock();
                 node_guard.add_outgoing(edge.clone());
             }
         }
 
-        if let Some(mut edge_guard) = edge.lock_ok() {
+        {
+            let mut edge_guard = edge.lock();
             edge_guard.source = source.map(|node| Arc::downgrade(&node));
         }
     }
 
     pub fn set_target(edge: &TEdgeRef, target: Option<TNodeRef>) {
-        let current = edge.lock_ok().and_then(|edge_guard| edge_guard.target());
+        let current = edge.lock().target();
         if let (Some(current), Some(target)) = (&current, &target) {
             if Arc::ptr_eq(current, target) {
                 return;
@@ -98,18 +101,21 @@ impl TEdge {
         }
 
         if let Some(current) = current {
-            if let Some(mut node_guard) = current.lock_ok() {
+            {
+                let mut node_guard = current.lock();
                 node_guard.remove_incoming(edge);
             }
         }
 
         if let Some(target) = &target {
-            if let Some(mut node_guard) = target.lock_ok() {
+            {
+                let mut node_guard = target.lock();
                 node_guard.add_incoming(edge.clone());
             }
         }
 
-        if let Some(mut edge_guard) = edge.lock_ok() {
+        {
+            let mut edge_guard = edge.lock();
             edge_guard.target = target.map(|node| Arc::downgrade(&node));
         }
     }

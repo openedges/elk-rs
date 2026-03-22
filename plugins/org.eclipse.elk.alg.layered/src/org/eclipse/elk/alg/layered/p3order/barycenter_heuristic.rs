@@ -398,19 +398,17 @@ impl BarycenterHeuristic {
         };
 
         let ports = node
-            .lock_ok()
-            .map(|node_guard| node_guard.ports().clone())
-            .unwrap_or_default();
+            .lock().ports().clone();
 
         for free_port in ports {
             let port_iter = if forward {
-                free_port.lock_ok().map(|port_guard| port_guard.predecessor_ports()).unwrap_or_default()
+                free_port.lock().predecessor_ports()
             } else {
-                free_port.lock_ok().map(|port_guard| port_guard.successor_ports()).unwrap_or_default()
+                free_port.lock().successor_ports()
             };
 
             for fixed_port in port_iter {
-                let fixed_node = fixed_port.lock_ok().and_then(|port_guard| port_guard.node());
+                let fixed_node = fixed_port.lock().node();
                 let Some(fixed_node) = fixed_node else { continue; };
 
                 if self.same_layer_check(&fixed_node, node) {
@@ -634,7 +632,7 @@ impl BarycenterHeuristic {
         if ElkTrace::global().crossmin {
             let li = layer
                 .first()
-                .and_then(|n| n.lock_ok().and_then(|ng| ng.layer()))
+                .and_then(|n| n.lock().layer())
                 .and_then(|l| l.lock_ok().map(|mut lg| lg.graph_element().id))
                 .unwrap_or(-1);
             eprintln!(
@@ -774,10 +772,10 @@ impl IInitializable for BarycenterHeuristic {
             .init_at_layer_level(layer_index, node_order);
         if let Some(first_node) = node_order[layer_index].first() {
             if let Some(layer) = first_node
-                .lock_ok()
-                .and_then(|node_guard| node_guard.layer())
+                .lock().layer()
             {
-                if let Some(mut layer_guard) = layer.lock_ok() {
+                {
+                    let mut layer_guard = layer.lock();
                     layer_guard.graph_element().id = layer_index as i32;
                 }
             }
@@ -860,9 +858,10 @@ fn node_id(node: &LNodeRef) -> usize {
 }
 
 fn layer_index(node: &LNodeRef) -> usize {
-    let layer = node.lock_ok().and_then(|node_guard| node_guard.layer());
+    let layer = node.lock().layer();
     if let Some(layer) = layer {
-        if let Some(mut layer_guard) = layer.lock_ok() {
+        {
+            let mut layer_guard = layer.lock();
             return layer_guard.graph_element().id as usize;
         }
     }
@@ -870,8 +869,8 @@ fn layer_index(node: &LNodeRef) -> usize {
 }
 
 fn same_layer(left: &LNodeRef, right: &LNodeRef) -> bool {
-    let left_layer = left.lock_ok().and_then(|node_guard| node_guard.layer());
-    let right_layer = right.lock_ok().and_then(|node_guard| node_guard.layer());
+    let left_layer = left.lock().layer();
+    let right_layer = right.lock().layer();
     match (left_layer, right_layer) {
         (Some(left_layer), Some(right_layer)) => Arc::ptr_eq(&left_layer, &right_layer),
         _ => false,

@@ -67,7 +67,8 @@ fn edge_bend_stats_after_layout(
         .unwrap_or_default();
     let mut nodes = layerless_nodes;
     for layer in layers {
-        if let Some(layer_guard) = layer.lock_ok() {
+        {
+            let layer_guard = layer.lock();
             nodes.extend(layer_guard.nodes().iter().cloned());
         }
     }
@@ -75,9 +76,7 @@ fn edge_bend_stats_after_layout(
     let mut edges = Vec::new();
     for node in nodes {
         let outgoing = node
-            .lock_ok()
-            .map(|node_guard| node_guard.outgoing_edges())
-            .unwrap_or_default();
+            .lock().outgoing_edges();
         for edge in outgoing {
             if !edges.iter().any(|existing| Arc::ptr_eq(existing, &edge)) {
                 edges.push(edge);
@@ -110,14 +109,14 @@ fn dump_node_positions_after_layout(rel_path: &str) {
     layered.do_layout(&lgraph, None);
 
     let layers = lgraph
-        .lock_ok()
-        .map(|graph_guard| graph_guard.layers().clone())
-        .unwrap_or_default();
+        .lock().layers().clone();
 
     for (layer_index, layer) in layers.iter().enumerate() {
-        if let Some(layer_guard) = layer.lock_ok() {
+        {
+            let layer_guard = layer.lock();
             for node in layer_guard.nodes() {
-                if let Some(mut node_guard) = node.lock_ok() {
+                {
+                    let mut node_guard = node.lock();
                     if node_guard.node_type()
                         == org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::NodeType::Normal
                     {

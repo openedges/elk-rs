@@ -231,7 +231,7 @@ impl GraphInfoHolder {
         let has_parent = parent_node.is_some();
         let parent_graph_ref = parent_node
             .as_ref()
-            .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.graph()));
+            .and_then(|node| node.lock().graph());
         // Parent graph indices are resolved by the caller once graph holders are collected.
         let parent_graph_index = None;
 
@@ -632,7 +632,8 @@ impl IInitializable for GraphInfoHolder {
             .and_then(|layer| layer.get(node_index))
             .cloned();
         if let Some(node) = node {
-            if let Some(mut node_guard) = node.lock_ok() {
+            {
+                let mut node_guard = node.lock();
                 // p3-order repeatedly queries side-filtered ports; cache side ranges once.
                 node_guard.cache_port_sides();
                 if let Some(nested_graph) = node_guard.nested_graph() {
@@ -735,7 +736,8 @@ impl ISweepPortDistributor for SharedNodeRelativePortDistributor {
 
 impl BarycenterPortDistributor for SharedNodeRelativePortDistributor {
     fn set_snapshot(&mut self, snapshot: Arc<CrossMinSnapshot>) {
-        if let Some(mut distributor) = self.inner.lock_ok() {
+        {
+            let mut distributor = self.inner.lock();
             BarycenterPortDistributor::set_snapshot(&mut *distributor, snapshot);
         }
     }
@@ -745,22 +747,22 @@ impl BarycenterPortDistributor for SharedNodeRelativePortDistributor {
         layer: &[LNodeRef],
         port_type: crate::org::eclipse::elk::alg::layered::options::PortType,
     ) {
-        if let Some(mut distributor) = self.inner.lock_ok() {
+        {
+            let mut distributor = self.inner.lock();
             distributor.calculate_port_ranks(layer, port_type);
         }
     }
 
     fn port_ranks(&self) -> Vec<f64> {
         self.inner
-            .lock_ok()
-            .map(|distributor| distributor.port_ranks().clone())
-            .unwrap_or_default()
+            .lock().port_ranks().clone()
     }
 }
 
 impl IInitializable for SharedNodeRelativePortDistributor {
     fn init_at_layer_level(&mut self, layer_index: usize, node_order: &[Vec<LNodeRef>]) {
-        if let Some(mut distributor) = self.inner.lock_ok() {
+        {
+            let mut distributor = self.inner.lock();
             distributor.init_at_layer_level(layer_index, node_order);
         }
     }
@@ -771,7 +773,8 @@ impl IInitializable for SharedNodeRelativePortDistributor {
         node_index: usize,
         node_order: &[Vec<LNodeRef>],
     ) {
-        if let Some(mut distributor) = self.inner.lock_ok() {
+        {
+            let mut distributor = self.inner.lock();
             distributor.init_at_node_level(layer_index, node_index, node_order);
         }
     }
@@ -783,13 +786,15 @@ impl IInitializable for SharedNodeRelativePortDistributor {
         port_index: usize,
         node_order: &[Vec<LNodeRef>],
     ) {
-        if let Some(mut distributor) = self.inner.lock_ok() {
+        {
+            let mut distributor = self.inner.lock();
             distributor.init_at_port_level(layer_index, node_index, port_index, node_order);
         }
     }
 
     fn init_after_traversal(&mut self) {
-        if let Some(mut distributor) = self.inner.lock_ok() {
+        {
+            let mut distributor = self.inner.lock();
             distributor.init_after_traversal();
         }
     }
@@ -828,7 +833,8 @@ impl ISweepPortDistributor for SharedLayerTotalPortDistributor {
 
 impl BarycenterPortDistributor for SharedLayerTotalPortDistributor {
     fn set_snapshot(&mut self, snapshot: Arc<CrossMinSnapshot>) {
-        if let Some(mut distributor) = self.inner.lock_ok() {
+        {
+            let mut distributor = self.inner.lock();
             BarycenterPortDistributor::set_snapshot(&mut *distributor, snapshot);
         }
     }
@@ -838,22 +844,22 @@ impl BarycenterPortDistributor for SharedLayerTotalPortDistributor {
         layer: &[LNodeRef],
         port_type: crate::org::eclipse::elk::alg::layered::options::PortType,
     ) {
-        if let Some(mut distributor) = self.inner.lock_ok() {
+        {
+            let mut distributor = self.inner.lock();
             distributor.calculate_port_ranks(layer, port_type);
         }
     }
 
     fn port_ranks(&self) -> Vec<f64> {
         self.inner
-            .lock_ok()
-            .map(|distributor| distributor.port_ranks().clone())
-            .unwrap_or_default()
+            .lock().port_ranks().clone()
     }
 }
 
 impl IInitializable for SharedLayerTotalPortDistributor {
     fn init_at_layer_level(&mut self, layer_index: usize, node_order: &[Vec<LNodeRef>]) {
-        if let Some(mut distributor) = self.inner.lock_ok() {
+        {
+            let mut distributor = self.inner.lock();
             distributor.init_at_layer_level(layer_index, node_order);
         }
     }
@@ -864,7 +870,8 @@ impl IInitializable for SharedLayerTotalPortDistributor {
         node_index: usize,
         node_order: &[Vec<LNodeRef>],
     ) {
-        if let Some(mut distributor) = self.inner.lock_ok() {
+        {
+            let mut distributor = self.inner.lock();
             distributor.init_at_node_level(layer_index, node_index, node_order);
         }
     }
@@ -876,13 +883,15 @@ impl IInitializable for SharedLayerTotalPortDistributor {
         port_index: usize,
         node_order: &[Vec<LNodeRef>],
     ) {
-        if let Some(mut distributor) = self.inner.lock_ok() {
+        {
+            let mut distributor = self.inner.lock();
             distributor.init_at_port_level(layer_index, node_index, port_index, node_order);
         }
     }
 
     fn init_after_traversal(&mut self) {
-        if let Some(mut distributor) = self.inner.lock_ok() {
+        {
+            let mut distributor = self.inner.lock();
             distributor.init_after_traversal();
         }
     }

@@ -14,13 +14,7 @@ impl ILayoutProcessor<TGraphRef> for NeighborsProcessor {
         progress_monitor.begin("Processor set neighbors", 1.0);
 
         let (nodes, root) = {
-            let graph_guard = match graph.lock_ok() {
-            Some(guard) => guard,
-            None => {
-                    progress_monitor.done();
-                    return;
-                }
-            };
+            let graph_guard = graph.lock();
             let nodes = graph_guard.nodes().clone();
             let root = nodes
                 .iter()
@@ -39,9 +33,7 @@ impl ILayoutProcessor<TGraphRef> for NeighborsProcessor {
 
         if let Some(root) = root {
             let children = root
-                .lock_ok()
-                .map(|node| node.children())
-                .unwrap_or_default();
+                .lock().children();
             self.set_neighbors(&children, progress_monitor);
         }
 
@@ -67,10 +59,12 @@ impl NeighborsProcessor {
         let mut left_neighbor: Option<TNodeRef> = None;
 
         for node in current_level {
-            if let Some(mut node_guard) = node.lock_ok() {
+            {
+                let mut node_guard = node.lock();
                 next_level.extend(node_guard.children());
                 if let Some(left_node) = left_neighbor.as_ref() {
-                    if let Some(mut left_guard) = left_node.lock_ok() {
+                    {
+                        let mut left_guard = left_node.lock();
                         left_guard.set_property(
                             InternalProperties::RIGHTNEIGHBOR,
                             Some(Some(node.clone())),

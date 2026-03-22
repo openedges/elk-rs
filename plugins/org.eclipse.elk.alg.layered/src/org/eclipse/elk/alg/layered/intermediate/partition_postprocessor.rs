@@ -15,9 +15,7 @@ impl ILayoutProcessor<LGraph> for PartitionPostprocessor {
         let layers = lgraph.layers().clone();
         for layer in layers {
             let nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
             for node in nodes {
                 let partition_ports: Vec<LPortRef> = node
                     .lock_ok()
@@ -54,14 +52,11 @@ impl ILayoutProcessor<LGraph> for PartitionPostprocessor {
 
 fn detach_partition_port(port: &LPortRef) {
     let connected_edges = port
-        .lock_ok()
-        .map(|port_guard| port_guard.connected_edges())
-        .unwrap_or_default();
+        .lock().connected_edges();
 
     for edge in connected_edges {
         let source_is_port = edge
-            .lock_ok()
-            .and_then(|edge_guard| edge_guard.source())
+            .lock().source()
             .map(|source| Arc::ptr_eq(&source, port))
             .unwrap_or(false);
         if source_is_port {
@@ -69,8 +64,7 @@ fn detach_partition_port(port: &LPortRef) {
         }
 
         let target_is_port = edge
-            .lock_ok()
-            .and_then(|edge_guard| edge_guard.target())
+            .lock().target()
             .map(|target| Arc::ptr_eq(&target, port))
             .unwrap_or(false);
         if target_is_port {

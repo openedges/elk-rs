@@ -210,7 +210,8 @@ impl MultiLevelEdgeNodeNodeGap {
                 }
             };
 
-            if let Some(mut edge_guard) = bend_ref.edge.lock_ok() {
+            {
+                let mut edge_guard = bend_ref.edge.lock();
                 let bend_points = edge_guard.bend_points();
                 if bend_ref.first_index < bend_points.len() {
                     bend_points.set(bend_ref.first_index, bend1);
@@ -224,8 +225,7 @@ impl MultiLevelEdgeNodeNodeGap {
 }
 
 fn edge_target_pos(edge: &TEdgeRef) -> KVector {
-    edge.lock_ok()
-        .and_then(|guard| guard.target())
+    edge.lock().target()
         .and_then(|node| {
             node.lock_ok()
                 .map(|node_guard| *node_guard.position_ref())
@@ -234,7 +234,7 @@ fn edge_target_pos(edge: &TEdgeRef) -> KVector {
 }
 
 fn node_data(node: &TNodeRef) -> Option<(KVector, KVector, f64, f64)> {
-    let mut guard = node.lock_ok()?;
+    let mut guard = node.lock();
     let pos = *guard.position_ref();
     let size = *guard.size_ref();
     let level_min = guard

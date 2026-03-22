@@ -105,9 +105,7 @@ impl LayerSweepTypeDecider {
                 };
 
                 let outgoing_edges = node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.outgoing_edges())
-                    .unwrap_or_default();
+                    .lock().outgoing_edges();
                 for edge in outgoing_edges {
                     paths_to_random += current_info.random_influence;
                     paths_to_hierarchical += current_info.hierarchical_influence;
@@ -115,7 +113,8 @@ impl LayerSweepTypeDecider {
                 }
 
                 let mut north_south_ports = Vec::new();
-                if let Some(mut node_guard) = node.lock_ok() {
+                {
+                    let mut node_guard = node.lock();
                     north_south_ports.extend(node_guard.port_side_view(PortSide::North));
                     north_south_ports.extend(node_guard.port_side_view(PortSide::South));
                 }
@@ -136,9 +135,7 @@ impl LayerSweepTypeDecider {
                     current_info.clone()
                 };
                 let outgoing_edges = node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.outgoing_edges())
-                    .unwrap_or_default();
+                    .lock().outgoing_edges();
                 for edge in outgoing_edges {
                     paths_to_random += current_info.random_influence;
                     paths_to_hierarchical += current_info.hierarchical_influence;
@@ -242,7 +239,7 @@ impl LayerSweepTypeDecider {
 
     fn is_eastern_dummy(&self, node: &LNodeRef) -> bool {
         origin_port(node)
-            .and_then(|port| port.lock_ok().map(|port_guard| port_guard.side()))
+            .map(|port| port.lock().side())
             .map(|side| side == PortSide::East)
             .unwrap_or(false)
     }
@@ -264,10 +261,10 @@ impl IInitializable for LayerSweepTypeDecider {
     fn init_at_layer_level(&mut self, layer_index: usize, node_order: &[Vec<LNodeRef>]) {
         if let Some(first_node) = node_order.get(layer_index).and_then(|layer| layer.first()) {
             if let Some(layer) = first_node
-                .lock_ok()
-                .and_then(|node_guard| node_guard.layer())
+                .lock().layer()
             {
-                if let Some(mut layer_guard) = layer.lock_ok() {
+                {
+                    let mut layer_guard = layer.lock();
                     layer_guard.graph_element().id = layer_index as i32;
                 }
             }
@@ -292,7 +289,8 @@ impl IInitializable for LayerSweepTypeDecider {
         else {
             return;
         };
-        if let Some(mut node_guard) = node.lock_ok() {
+        {
+            let mut node_guard = node.lock();
             node_guard.shape().graph_element().id = node_index as i32;
         }
         if self.node_info.len() <= layer_index {
@@ -306,9 +304,8 @@ impl IInitializable for LayerSweepTypeDecider {
 }
 
 fn target_node(edge: &LEdgeRef) -> Option<LNodeRef> {
-    edge.lock_ok()
-        .and_then(|edge_guard| edge_guard.target())
-        .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
+    edge.lock().target()
+        .and_then(|port| port.lock().node())
 }
 
 fn origin_port(node: &LNodeRef) -> Option<LPortRef> {
@@ -321,8 +318,7 @@ fn origin_port(node: &LNodeRef) -> Option<LPortRef> {
 }
 
 fn layer_id(node: &LNodeRef) -> Option<usize> {
-    node.lock_ok()
-        .and_then(|node_guard| node_guard.layer())
+    node.lock().layer()
         .and_then(|layer| {
             layer
                 .lock_ok()

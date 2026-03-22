@@ -13,9 +13,7 @@ impl ILayoutProcessor<LGraph> for ConstraintsPostprocessor {
         let mut layer_index: i32 = 0;
         for layer in graph.layers().clone() {
             let nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
 
             let mut position_index: i32 = 0;
             let mut has_normal_node = false;

@@ -70,16 +70,12 @@ fn same_side(graph: &LGraph, label_side: LabelSide, edge_label_spacing: f64) {
     let layers = graph.layers().clone();
     for layer in layers {
         let nodes = layer
-            .lock_ok()
-            .map(|layer_guard| layer_guard.nodes().clone())
-            .unwrap_or_default();
+            .lock().nodes().clone();
         for node in nodes {
             apply_label_side_to_dummy(&node, label_side, edge_label_spacing);
 
             let outgoing = node
-                .lock_ok()
-                .map(|node_guard| node_guard.outgoing_edges())
-                .unwrap_or_default();
+                .lock().outgoing_edges();
             for edge in outgoing {
                 apply_label_side_to_edge(&edge, label_side);
             }
@@ -96,9 +92,7 @@ fn based_on_direction(
     let layers = graph.layers().clone();
     for layer in layers {
         let nodes = layer
-            .lock_ok()
-            .map(|layer_guard| layer_guard.nodes().clone())
-            .unwrap_or_default();
+            .lock().nodes().clone();
         for node in nodes {
             let is_label = node
                 .lock_ok()
@@ -114,9 +108,7 @@ fn based_on_direction(
             }
 
             let outgoing = node
-                .lock_ok()
-                .map(|node_guard| node_guard.outgoing_edges())
-                .unwrap_or_default();
+                .lock().outgoing_edges();
             for edge in outgoing {
                 let side = if does_edge_point_right_edge(&edge) {
                     side_for_rightward_edges
@@ -143,15 +135,11 @@ fn smart(graph: &LGraph, default_side: LabelSide, edge_label_spacing: f64) {
         let mut label_dummies_in_queue = 0;
 
         let nodes = layer
-            .lock_ok()
-            .map(|layer_guard| layer_guard.nodes().clone())
-            .unwrap_or_default();
+            .lock().nodes().clone();
 
         for node in &nodes {
             let node_type = node
-                .lock_ok()
-                .map(|ng| ng.node_type())
-                .unwrap_or(NodeType::Normal);
+                .lock().node_type();
 
             match node_type {
                 NodeType::Label => {
@@ -314,7 +302,7 @@ fn get_long_edge_end_node(dummy: &LNodeRef, source: bool) -> Option<LNodeRef> {
         }
     });
 
-    port.and_then(|p| p.lock_ok().and_then(|pg| pg.node()))
+    port.and_then(|p| p.lock().node())
 }
 
 /// Applies label sides to the given list of consecutive dummy nodes and empties the list.
@@ -339,18 +327,14 @@ fn apply_label_sides_to_label_dummy_run(
 /// Assigns label sides to all end labels incident to this node.
 fn smart_for_regular_node(node: &LNodeRef, default_side: LabelSide) {
     let ports = node
-        .lock_ok()
-        .map(|ng| ng.ports().clone())
-        .unwrap_or_default();
+        .lock().ports().clone();
 
     let mut end_label_queue: VecDeque<Vec<LLabelRef>> = VecDeque::with_capacity(ports.len());
     let mut current_port_side: Option<PortSide> = None;
 
     for port in &ports {
         let port_side = port
-            .lock_ok()
-            .map(|pg| pg.side())
-            .unwrap_or(PortSide::Undefined);
+            .lock().side();
 
         if Some(port_side) != current_port_side {
             if !end_label_queue.is_empty() {
@@ -433,13 +417,15 @@ fn apply_label_side_to_dummy(node: &LNodeRef, side: LabelSide, edge_label_spacin
         })
         .unwrap_or(side);
 
-    if let Some(mut node_guard) = node.lock_ok() {
+    {
+        let mut node_guard = node.lock();
         node_guard.set_property(InternalProperties::LABEL_SIDE, Some(effective_side));
         let represented = node_guard
             .get_property(InternalProperties::REPRESENTED_LABELS)
             .unwrap_or_default();
         for label in represented {
-            if let Some(mut label_guard) = label.lock_ok() {
+            {
+                let mut label_guard = label.lock();
                 label_guard.set_property(InternalProperties::LABEL_SIDE, Some(effective_side));
             }
         }
@@ -466,7 +452,8 @@ fn apply_label_side_to_dummy(node: &LNodeRef, side: LabelSide, edge_label_spacin
             port_pos = (node_height - edge_label_spacing - thickness).ceil() / 2.0;
 
             // Reduce size of the label dummy
-            if let Some(mut ng) = node.lock_ok() {
+            {
+                let mut ng = node.lock();
                 let new_y = ng.shape().size_ref().y - edge_label_spacing - thickness;
                 ng.shape().size().y = new_y;
             }
@@ -474,11 +461,10 @@ fn apply_label_side_to_dummy(node: &LNodeRef, side: LabelSide, edge_label_spacin
 
         // Move all ports
         let ports = node
-            .lock_ok()
-            .map(|ng| ng.ports().clone())
-            .unwrap_or_default();
+            .lock().ports().clone();
         for port in ports {
-            if let Some(mut pg) = port.lock_ok() {
+            {
+                let mut pg = port.lock();
                 pg.shape().position().y = port_pos;
             }
         }
@@ -491,21 +477,19 @@ fn apply_label_side_to_dummy(node: &LNodeRef, side: LabelSide, edge_label_spacin
 fn get_origin_edge_thickness(label_dummy: &LNodeRef) -> f64 {
     // Try to get the edge from the incoming edges
     let incoming = label_dummy
-        .lock_ok()
-        .map(|ng| ng.incoming_edges())
-        .unwrap_or_default();
+        .lock().incoming_edges();
     if let Some(edge) = incoming.first() {
-        if let Some(mut eg) = edge.lock_ok() {
+        {
+            let mut eg = edge.lock();
             return eg.get_property(CoreOptions::EDGE_THICKNESS).unwrap_or(0.0);
         }
     }
     // Fall back to outgoing
     let outgoing = label_dummy
-        .lock_ok()
-        .map(|ng| ng.outgoing_edges())
-        .unwrap_or_default();
+        .lock().outgoing_edges();
     if let Some(edge) = outgoing.first() {
-        if let Some(mut eg) = edge.lock_ok() {
+        {
+            let mut eg = edge.lock();
             return eg.get_property(CoreOptions::EDGE_THICKNESS).unwrap_or(0.0);
         }
     }
@@ -515,11 +499,10 @@ fn get_origin_edge_thickness(label_dummy: &LNodeRef) -> f64 {
 /// Applies the given label side to all labels of the given edge.
 fn apply_label_side_to_edge(edge: &LEdgeRef, side: LabelSide) {
     let labels = edge
-        .lock_ok()
-        .map(|edge_guard| edge_guard.labels().clone())
-        .unwrap_or_default();
+        .lock().labels().clone();
     for label in labels {
-        if let Some(mut label_guard) = label.lock_ok() {
+        {
+            let mut label_guard = label.lock();
             label_guard.set_property(InternalProperties::LABEL_SIDE, Some(side));
         }
     }
@@ -528,7 +511,8 @@ fn apply_label_side_to_edge(edge: &LEdgeRef, side: LabelSide) {
 /// Applies the given label side to all labels in the list.
 fn apply_label_side_to_labels(labels: &[LLabelRef], side: LabelSide) {
     for label in labels {
-        if let Some(mut label_guard) = label.lock_ok() {
+        {
+            let mut label_guard = label.lock();
             label_guard.set_property(InternalProperties::LABEL_SIDE, Some(side));
         }
     }
@@ -545,13 +529,9 @@ fn does_edge_point_right_edge(edge: &LEdgeRef) -> bool {
 /// Checks if the given label dummy node is part of an edge segment that will point right.
 fn does_edge_point_right_node(label_dummy: &LNodeRef) -> bool {
     let incoming = label_dummy
-        .lock_ok()
-        .map(|ng| ng.incoming_edges())
-        .unwrap_or_default();
+        .lock().incoming_edges();
     let outgoing = label_dummy
-        .lock_ok()
-        .map(|ng| ng.outgoing_edges())
-        .unwrap_or_default();
+        .lock().outgoing_edges();
 
     let incoming_right = incoming
         .first()

@@ -58,7 +58,8 @@ pub(crate) fn process_scc_model_order_cycle_breaking<F>(
     let big_offset = offset * model_order_group_count;
 
     let tarjan_graph = LGraph::new();
-    if let Some(mut graph_guard) = tarjan_graph.lock_ok() {
+    {
+        let mut graph_guard = tarjan_graph.lock();
         graph_guard
             .layerless_nodes_mut()
             .extend(layered_graph.layerless_nodes().iter().cloned());
@@ -134,18 +135,17 @@ pub(crate) fn contains_node(component: &[LNodeRef], node: &LNodeRef) -> bool {
 
 fn increment_source_layer_id(edge: &crate::org::eclipse::elk::alg::layered::graph::LEdgeRef) {
     let source_node = edge
-        .lock_ok()
-        .and_then(|edge_guard| edge_guard.source())
+        .lock().source()
         .and_then(|source_port| {
             source_port
-                .lock_ok()
-                .and_then(|source_guard| source_guard.node())
+                .lock().node()
         });
     let Some(source_node) = source_node else {
         return;
     };
 
-    if let Some(mut source_guard) = source_node.lock_ok() {
+    {
+        let mut source_guard = source_node.lock();
         let current = source_guard
             .get_property(LayeredOptions::LAYERING_LAYER_ID)
             .unwrap_or(-1);

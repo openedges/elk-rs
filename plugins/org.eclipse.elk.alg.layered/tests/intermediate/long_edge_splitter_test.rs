@@ -75,8 +75,8 @@ fn long_edge_splitter_makes_edges_connect_adjacent_layers() {
                     .lock()
                     
                     .target()
-                    .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
-                    .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.layer()))
+                    .and_then(|port| port.lock().node())
+                    .and_then(|node| node.lock().layer())
                     .expect("target layer");
                 let t_idx = layer_index(&layers, &target_layer);
                 assert!(t_idx > i, "edge must point forward");

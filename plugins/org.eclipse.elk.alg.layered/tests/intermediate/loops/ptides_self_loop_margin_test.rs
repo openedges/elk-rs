@@ -320,8 +320,7 @@ fn east_west_fixedpos_self_loop_detected_as_two_sides_opposing() {
         })
         .and_then(|sl_loop| {
             sl_loop
-                .lock_ok()
-                .and_then(|sl_loop_guard| sl_loop_guard.self_loop_type())
+                .lock().self_loop_type()
         });
 
     assert_eq!(

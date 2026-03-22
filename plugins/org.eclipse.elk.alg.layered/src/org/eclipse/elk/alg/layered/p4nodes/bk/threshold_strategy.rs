@@ -79,25 +79,17 @@ impl SimpleThresholdStrategy {
         let edges = if pp.is_root {
             if bal.hdir == Some(HDirection::Right) {
                 free_node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.incoming_edges())
-                    .unwrap_or_default()
+                    .lock().incoming_edges()
             } else {
                 free_node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.outgoing_edges())
-                    .unwrap_or_default()
+                    .lock().outgoing_edges()
             }
         } else if bal.hdir == Some(HDirection::Left) {
             free_node
-                .lock_ok()
-                .map(|node_guard| node_guard.incoming_edges())
-                .unwrap_or_default()
+                .lock().incoming_edges()
         } else {
             free_node
-                .lock_ok()
-                .map(|node_guard| node_guard.outgoing_edges())
-                .unwrap_or_default()
+                .lock().outgoing_edges()
         };
 
         let mut has_edges = false;
@@ -105,9 +97,7 @@ impl SimpleThresholdStrategy {
             let only_dummies = bal.od[bal.root[pp.free]];
             if !only_dummies {
                 let in_layer = edge
-                    .lock_ok()
-                    .map(|edge_guard| edge_guard.is_in_layer_edge())
-                    .unwrap_or(false);
+                    .lock().is_in_layer_edge();
                 if in_layer {
                     continue;
                 }
@@ -360,9 +350,7 @@ impl ThresholdStrategy for SimpleThresholdStrategy {
 
             let only_dummies = bal.od[bal.root[pick.free]];
             let in_layer = edge
-                .lock_ok()
-                .map(|edge_guard| edge_guard.is_in_layer_edge())
-                .unwrap_or(false);
+                .lock().is_in_layer_edge();
             if !only_dummies && in_layer {
                 continue;
             }

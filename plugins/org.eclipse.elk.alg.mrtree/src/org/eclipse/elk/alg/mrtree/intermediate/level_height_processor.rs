@@ -15,13 +15,7 @@ impl ILayoutProcessor<TGraphRef> for LevelHeightProcessor {
         progress_monitor.begin("Processor determine the height for each level", 1.0);
 
         let (nodes, root, direction) = {
-            let mut graph_guard = match graph.lock_ok() {
-            Some(guard) => guard,
-            None => {
-                    progress_monitor.done();
-                    return;
-                }
-            };
+            let mut graph_guard = graph.lock();
             let nodes = graph_guard.nodes().clone();
             let root = nodes
                 .iter()
@@ -69,7 +63,8 @@ impl LevelHeightProcessor {
         let mut height: f64 = 0.0;
 
         for node in current_level.iter() {
-            if let Some(node_guard) = node.lock_ok() {
+            {
+                let node_guard = node.lock();
                 next_level.extend(node_guard.children());
                 let size = node_guard.size_ref();
                 if direction.is_horizontal() {
@@ -81,7 +76,8 @@ impl LevelHeightProcessor {
         }
 
         for node in current_level.iter() {
-            if let Some(mut node_guard) = node.lock_ok() {
+            {
+                let mut node_guard = node.lock();
                 node_guard.set_property(InternalProperties::LEVELHEIGHT, Some(height));
             }
         }

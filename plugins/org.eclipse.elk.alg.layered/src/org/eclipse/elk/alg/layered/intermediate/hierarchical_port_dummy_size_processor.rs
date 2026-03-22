@@ -19,9 +19,7 @@ impl ILayoutProcessor<LGraph> for HierarchicalPortDummySizeProcessor {
 
         for layer in layered_graph.layers().clone() {
             let nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
 
             let mut northern_dummies: Vec<LNodeRef> = Vec::new();
             let mut southern_dummies: Vec<LNodeRef> = Vec::new();
@@ -78,7 +76,8 @@ fn set_widths(nodes: &[LNodeRef], top_down: bool, delta: f64) {
         };
 
         for port in east_ports {
-            if let Some(mut port_guard) = port.lock_ok() {
+            {
+                let mut port_guard = port.lock();
                 port_guard.shape().position().x = current_width;
             }
         }

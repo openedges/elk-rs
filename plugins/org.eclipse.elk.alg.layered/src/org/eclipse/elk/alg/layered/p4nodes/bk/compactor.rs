@@ -89,8 +89,7 @@ impl BKCompactor {
             let current_index = *ni.node_index.get(current).unwrap_or(&0);
             // Extract only the needed neighbor — avoid cloning entire layer Vec<LNodeRef>
             let neighbor_opt = current_node
-                .lock_ok()
-                .and_then(|node_guard| node_guard.layer())
+                .lock().layer()
                 .and_then(|layer| {
                     layer.lock_ok().and_then(|layer_guard| {
                         let nodes = layer_guard.nodes();
@@ -413,9 +412,7 @@ impl ICompactor for BKCompactor {
 
         for layer in &layers {
             let mut nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
             if vdir == VDirection::Up {
                 nodes.reverse();
             }
@@ -431,9 +428,7 @@ impl ICompactor for BKCompactor {
 
         for layer in &layers {
             let nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
             self.apply_final_coordinates(bal, vdir, &nodes);
         }
 

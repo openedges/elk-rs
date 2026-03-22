@@ -27,9 +27,7 @@ impl ILayoutProcessor<LGraph> for BreakingPointProcessor {
         {
             for layer in graph.layers().clone() {
                 let nodes = layer
-                    .lock_ok()
-                    .map(|layer_guard| layer_guard.nodes().clone())
-                    .unwrap_or_default();
+                    .lock().nodes().clone();
                 for (index, node) in nodes.iter().enumerate() {
                     set_node_id(node, index as i32);
                 }
@@ -67,9 +65,7 @@ impl BreakingPointProcessor {
             let new_layer = graph.layers()[new_layer_index].clone();
 
             let nodes_to_move = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
 
             let offset = nodes_to_move.len();
 
@@ -80,9 +76,7 @@ impl BreakingPointProcessor {
             if reverse {
                 for node in nodes_to_move.iter().rev() {
                     let incoming_edges = node
-                        .lock_ok()
-                        .map(|node_guard| node_guard.incoming_edges())
-                        .unwrap_or_default();
+                        .lock().incoming_edges();
 
                     for edge in incoming_edges {
                         LEdge::reverse(&edge, &graph_ref, true);
@@ -99,16 +93,14 @@ impl BreakingPointProcessor {
                         };
 
                         let start_in_layer_dummy = start_in_layer_edge
-                            .lock_ok()
-                            .and_then(|edge_guard| edge_guard.source())
+                            .lock().source()
                             .and_then(|port| {
-                                port.lock_ok().and_then(|port_guard| port_guard.node())
+                                port.lock().node()
                             });
                         let end_in_layer_dummy = edge
-                            .lock_ok()
-                            .and_then(|edge_guard| edge_guard.target())
+                            .lock().target()
                             .and_then(|port| {
-                                port.lock_ok().and_then(|port_guard| port_guard.node())
+                                port.lock().node()
                             });
 
                         let lock_result = bp_info.lock_ok();                        if let Some(mut bp_info_guard) = lock_result {
@@ -147,9 +139,7 @@ impl BreakingPointProcessor {
     fn improve_multi_cut_index_edges(&self, graph: &mut LGraph) {
         for layer in graph.layers().clone() {
             let nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
 
             for node in nodes {
                 if !is_start(&node) {
@@ -265,8 +255,7 @@ impl BreakingPointProcessor {
                     update_indexes_after(&next_end_in_layer_dummy);
 
                     let reconnect_target = current_end_in_layer_edge
-                        .lock_ok()
-                        .and_then(|edge_guard| edge_guard.target());
+                        .lock().target();
                     LEdge::set_target(&next_end_in_layer_edge, reconnect_target);
                     LEdge::set_target(&current_end_in_layer_edge, None);
 
@@ -282,7 +271,8 @@ impl BreakingPointProcessor {
                         next_start_end_edge,
                         next_original_edge,
                     );
-                    if let Some(mut new_info_guard) = new_info.lock_ok() {
+                    {
+                        let mut new_info_guard = new_info.lock();
                         new_info_guard.start_in_layer_dummy = Some(current_start_in_layer_dummy);
                         new_info_guard.start_in_layer_edge = Some(current_start_in_layer_edge);
                         new_info_guard.end_in_layer_dummy = current_end_in_layer_dummy;
@@ -291,13 +281,15 @@ impl BreakingPointProcessor {
                         new_info_guard.next = next_next;
                     }
 
-                    if let Some(mut start_guard) = current_start.lock_ok() {
+                    {
+                        let mut start_guard = current_start.lock();
                         start_guard.set_property(
                             InternalProperties::BREAKING_POINT_INFO,
                             Some(new_info.clone()),
                         );
                     }
-                    if let Some(mut end_guard) = next_end.lock_ok() {
+                    {
+                        let mut end_guard = next_end.lock();
                         end_guard.set_property(
                             InternalProperties::BREAKING_POINT_INFO,
                             Some(new_info.clone()),
@@ -308,7 +300,8 @@ impl BreakingPointProcessor {
                         .lock_ok()
                         .and_then(|new_info_guard| new_info_guard.prev.clone());
                     if let Some(prev_ref) = prev_ref {
-                        if let Some(mut prev_guard) = prev_ref.lock_ok() {
+                        {
+                            let mut prev_guard = prev_ref.lock();
                             prev_guard.next = Some(new_info.clone());
                         }
                     }
@@ -316,7 +309,8 @@ impl BreakingPointProcessor {
                         .lock_ok()
                         .and_then(|new_info_guard| new_info_guard.next.clone());
                     if let Some(next_ref) = next_ref {
-                        if let Some(mut next_guard) = next_ref.lock_ok() {
+                        {
+                            let mut next_guard = next_ref.lock();
                             next_guard.prev = Some(new_info.clone());
                         }
                     }
@@ -343,9 +337,7 @@ impl BreakingPointProcessor {
 
             for layer in layers {
                 let mut nodes = layer
-                    .lock_ok()
-                    .map(|layer_guard| layer_guard.nodes().clone())
-                    .unwrap_or_default();
+                    .lock().nodes().clone();
                 if !forwards {
                     nodes.reverse();
                 }
@@ -404,8 +396,7 @@ impl BreakingPointProcessor {
                 update_indexes_after(bp_node);
 
                 let new_layer = pred_one_node
-                    .lock_ok()
-                    .and_then(|node_guard| node_guard.layer());
+                    .lock().layer();
 
                 LongEdgeJoiner::join_at(&pred_one_node, false);
                 LongEdgeJoiner::join_at(&pred_two_node, false);
@@ -452,7 +443,7 @@ impl BreakingPointProcessor {
         dummy2: &LNodeRef,
         forwards: bool,
     ) -> bool {
-        let layer = dummy1.lock_ok().and_then(|node_guard| node_guard.layer());
+        let layer = dummy1.lock().layer();
         let Some(layer) = layer else {
             return false;
         };
@@ -467,9 +458,7 @@ impl BreakingPointProcessor {
         }
 
         let nodes = layer
-            .lock_ok()
-            .map(|layer_guard| layer_guard.nodes().clone())
-            .unwrap_or_default();
+            .lock().nodes().clone();
 
         for i in (start_id + 1)..end_id {
             let Some(node) = nodes.get(i as usize) else {
@@ -490,17 +479,13 @@ impl BreakingPointProcessor {
     fn next_long_edge_dummy(&self, start: &LNodeRef, forwards: bool) -> Option<LNodeRef> {
         let edges = if forwards {
             start
-                .lock_ok()
-                .map(|node_guard| node_guard.outgoing_edges())
-                .unwrap_or_default()
+                .lock().outgoing_edges()
         } else {
             start
-                .lock_ok()
-                .map(|node_guard| node_guard.incoming_edges())
-                .unwrap_or_default()
+                .lock().incoming_edges()
         };
 
-        let start_layer = start.lock_ok().and_then(|node_guard| node_guard.layer());
+        let start_layer = start.lock().layer();
 
         for edge in edges {
             let other = edge
@@ -518,7 +503,7 @@ impl BreakingPointProcessor {
                 continue;
             }
 
-            let other_layer = other.lock_ok().and_then(|node_guard| node_guard.layer());
+            let other_layer = other.lock().layer();
             if let (Some(start_layer), Some(other_layer)) = (&start_layer, &other_layer) {
                 if !Arc::ptr_eq(start_layer, other_layer) {
                     return Some(other);
@@ -538,17 +523,13 @@ impl BreakingPointProcessor {
             return false;
         }
 
-        let node_layer = node.lock_ok().and_then(|node_guard| node_guard.layer());
+        let node_layer = node.lock().layer();
 
         let connected_edges = node
-            .lock_ok()
-            .map(|node_guard| node_guard.connected_edges())
-            .unwrap_or_default();
+            .lock().connected_edges();
         for edge in connected_edges {
             let is_self_loop = edge
-                .lock_ok()
-                .map(|edge_guard| edge_guard.is_self_loop())
-                .unwrap_or(false);
+                .lock().is_self_loop();
             if is_self_loop {
                 continue;
             }
@@ -558,7 +539,7 @@ impl BreakingPointProcessor {
             let Some(other) = other else {
                 continue;
             };
-            let other_layer = other.lock_ok().and_then(|node_guard| node_guard.layer());
+            let other_layer = other.lock().layer();
             if let (Some(node_layer), Some(other_layer)) = (&node_layer, &other_layer) {
                 if Arc::ptr_eq(node_layer, other_layer) {
                     return true;
@@ -597,15 +578,13 @@ fn is_end(node: &LNodeRef) -> bool {
 
 fn update_indexes_after(node: &LNodeRef) {
     let current_id = node_id(node);
-    let layer = node.lock_ok().and_then(|node_guard| node_guard.layer());
+    let layer = node.lock().layer();
     let Some(layer) = layer else {
         return;
     };
 
     let nodes = layer
-        .lock_ok()
-        .map(|layer_guard| layer_guard.nodes().clone())
-        .unwrap_or_default();
+        .lock().nodes().clone();
 
     for candidate in nodes.into_iter().skip((current_id + 1).max(0) as usize) {
         let old_id = node_id(&candidate);
@@ -620,7 +599,8 @@ fn node_id(node: &LNodeRef) -> i32 {
 }
 
 fn set_node_id(node: &LNodeRef, value: i32) {
-    if let Some(mut node_guard) = node.lock_ok() {
+    {
+        let mut node_guard = node.lock();
         node_guard.shape().graph_element().id = value;
     }
 }
@@ -637,14 +617,13 @@ fn set_layer_at_index_clamped(node: &LNodeRef, index: i32, layer: &LayerRef) {
 fn graph_ref_for(layered_graph: &LGraph) -> LGraphRef {
     if let Some(layer) = layered_graph.layers().first() {
         if let Some(graph_ref) = layer
-            .lock_ok()
-            .and_then(|layer_guard| layer_guard.graph())
+            .lock().graph()
         {
             return graph_ref;
         }
     }
     if let Some(node) = layered_graph.layerless_nodes().first() {
-        if let Some(graph_ref) = node.lock_ok().and_then(|node_guard| node_guard.graph()) {
+        if let Some(graph_ref) = node.lock().graph() {
             return graph_ref;
         }
     }

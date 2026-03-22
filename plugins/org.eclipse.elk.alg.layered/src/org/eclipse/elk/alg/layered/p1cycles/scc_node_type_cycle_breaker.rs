@@ -67,17 +67,13 @@ impl SccNodeTypeCycleBreaker {
 
             if node_group_model_order_id(&min_node) == preferred_source {
                 let incoming_edges = min_node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.incoming_edges())
-                    .unwrap_or_default();
+                    .lock().incoming_edges();
                 for edge in incoming_edges {
                     let source_node = edge
-                        .lock_ok()
-                        .and_then(|edge_guard| edge_guard.source())
+                        .lock().source()
                         .and_then(|source| {
                             source
-                                .lock_ok()
-                                .and_then(|source_guard| source_guard.node())
+                                .lock().node()
                         });
                     let Some(source_node) = source_node else {
                         continue;
@@ -91,17 +87,13 @@ impl SccNodeTypeCycleBreaker {
 
             if node_group_model_order_id(&max_node) == preferred_target {
                 let outgoing_edges = max_node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.outgoing_edges())
-                    .unwrap_or_default();
+                    .lock().outgoing_edges();
                 for edge in outgoing_edges {
                     let source_node = edge
-                        .lock_ok()
-                        .and_then(|edge_guard| edge_guard.source())
+                        .lock().source()
                         .and_then(|source| {
                             source
-                                .lock_ok()
-                                .and_then(|source_guard| source_guard.node())
+                                .lock().node()
                         });
                     let Some(source_node) = source_node else {
                         continue;
@@ -124,17 +116,13 @@ impl SccNodeTypeCycleBreaker {
 
             if min_in_degree > max_out_degree {
                 let incoming_edges = min_node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.incoming_edges())
-                    .unwrap_or_default();
+                    .lock().incoming_edges();
                 for edge in incoming_edges {
                     let source_node = edge
-                        .lock_ok()
-                        .and_then(|edge_guard| edge_guard.source())
+                        .lock().source()
                         .and_then(|source| {
                             source
-                                .lock_ok()
-                                .and_then(|source_guard| source_guard.node())
+                                .lock().node()
                         });
                     let Some(source_node) = source_node else {
                         continue;
@@ -145,17 +133,13 @@ impl SccNodeTypeCycleBreaker {
                 }
             } else {
                 let outgoing_edges = max_node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.outgoing_edges())
-                    .unwrap_or_default();
+                    .lock().outgoing_edges();
                 for edge in outgoing_edges {
                     let target_node = edge
-                        .lock_ok()
-                        .and_then(|edge_guard| edge_guard.target())
+                        .lock().target()
                         .and_then(|target| {
                             target
-                                .lock_ok()
-                                .and_then(|target_guard| target_guard.node())
+                                .lock().node()
                         });
                     let Some(target_node) = target_node else {
                         continue;

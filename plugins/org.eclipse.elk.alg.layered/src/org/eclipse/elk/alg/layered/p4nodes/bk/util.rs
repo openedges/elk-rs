@@ -12,9 +12,7 @@ pub(crate) fn node_id(node: &LNodeRef) -> usize {
 }
 
 pub(crate) fn node_type(node: &LNodeRef) -> NodeType {
-    node.lock_ok()
-        .map(|node_guard| node_guard.node_type())
-        .unwrap_or(NodeType::Normal)
+    node.lock().node_type()
 }
 
 pub(crate) fn node_margin_top(node: &LNodeRef) -> f64 {
@@ -48,8 +46,7 @@ pub(crate) fn port_offset_y(port: &LPortRef) -> f64 {
 }
 
 pub(crate) fn port_node_id(port: &LPortRef) -> usize {
-    port.lock_ok()
-        .and_then(|port_guard| port_guard.node())
+    port.lock().node()
         .map(|node| node_id(&node))
         .unwrap_or(0)
 }
@@ -65,10 +62,10 @@ pub(crate) fn edge_between(source: &LNodeRef, target: &LNodeRef) -> Option<LEdge
             .map(|edge_guard| {
                 let src = edge_guard
                     .source()
-                    .and_then(|port| port.lock_ok().and_then(|port| port.node()));
+                    .and_then(|port| port.lock().node());
                 let tgt = edge_guard
                     .target()
-                    .and_then(|port| port.lock_ok().and_then(|port| port.node()));
+                    .and_then(|port| port.lock().node());
                 (src, tgt)
             })
             .unwrap_or((None, None));
@@ -85,9 +82,7 @@ pub(crate) fn edge_between(source: &LNodeRef, target: &LNodeRef) -> Option<LEdge
     let target_id = node_id(target);
 
     let source_edges = source
-        .lock_ok()
-        .map(|node_guard| node_guard.connected_edges())
-        .unwrap_or_default();
+        .lock().connected_edges();
     if let Some(edge) = source_edges
         .into_iter()
         .find(|edge| edge_matches(edge, source_id, target_id))
@@ -96,9 +91,7 @@ pub(crate) fn edge_between(source: &LNodeRef, target: &LNodeRef) -> Option<LEdge
     }
 
     let target_edges = target
-        .lock_ok()
-        .map(|node_guard| node_guard.connected_edges())
-        .unwrap_or_default();
+        .lock().connected_edges();
     target_edges
         .into_iter()
         .find(|edge| edge_matches(edge, source_id, target_id))
@@ -109,9 +102,7 @@ pub(crate) fn get_blocks(bal: &BKAlignedLayout) -> BTreeMap<usize, Vec<LNodeRef>
 
     for layer in &bal.layers {
         let nodes = layer
-            .lock_ok()
-            .map(|layer_guard| layer_guard.nodes().clone())
-            .unwrap_or_default();
+            .lock().nodes().clone();
         for node in nodes {
             let id = node_id(&node);
             let root_id = bal.root[id];

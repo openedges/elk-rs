@@ -42,7 +42,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveLayerer {
 
         let graph_ref = nodes
             .first()
-            .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.graph()))
+            .and_then(|node| node.lock().graph())
             .unwrap_or_default();
 
         let mut current_spans: Vec<LayerSpan> = Vec::new();
@@ -94,7 +94,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveLayerer {
 
         for (next_index, span) in current_spans.into_iter().enumerate() {
             let layer = Layer::new(&graph_ref);
-            if let Some(mut layer_guard) = layer.lock_ok() {
+            {
+                let mut layer_guard = layer.lock();
                 layer_guard.graph_element().id = next_index as i32;
             }
             graph.layers_mut().push(layer.clone());
@@ -158,7 +159,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveLayerer {
 
 fn check_node(node: &LNodeRef, graph: &mut LGraph, graph_ref: &LGraphRef) -> Vec<LNodeRef> {
     set_node_id(node, 1);
-    let layer1 = node.lock_ok().and_then(|node_guard| node_guard.layer());
+    let layer1 = node.lock().layer();
     let Some(layer1) = layer1 else {
         return Vec::new();
     };
@@ -176,14 +177,11 @@ fn check_node(node: &LNodeRef, graph: &mut LGraph, graph_ref: &LGraphRef) -> Vec
         .unwrap_or_default();
     for port in ports {
         let outgoing = port
-            .lock_ok()
-            .map(|port_guard| port_guard.outgoing_edges().clone())
-            .unwrap_or_default();
+            .lock().outgoing_edges().clone();
         for edge in outgoing {
             let target_node = edge
-                .lock_ok()
-                .and_then(|edge_guard| edge_guard.target())
-                .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
+                .lock().target()
+                .and_then(|port| port.lock().node());
             let Some(target_node) = target_node else {
                 continue;
             };
@@ -191,8 +189,7 @@ fn check_node(node: &LNodeRef, graph: &mut LGraph, graph_ref: &LGraphRef) -> Vec
                 continue;
             }
             let layer2 = target_node
-                .lock_ok()
-                .and_then(|node_guard| node_guard.layer());
+                .lock().layer();
             let layer2_id = layer2
                 .as_ref()
                 .and_then(|layer| {
@@ -205,7 +202,8 @@ fn check_node(node: &LNodeRef, graph: &mut LGraph, graph_ref: &LGraphRef) -> Vec
                 let new_index = (layer1_id + 1).max(0) as usize;
                 if new_index == graph.layers().len() {
                     let new_layer = Layer::new(graph_ref);
-                    if let Some(mut layer_guard) = new_layer.lock_ok() {
+                    {
+                        let mut layer_guard = new_layer.lock();
                         layer_guard.graph_element().id = layer1_id + 1;
                     }
                     graph.layers_mut().push(new_layer.clone());
@@ -232,7 +230,8 @@ fn node_id(node: &LNodeRef) -> i32 {
 }
 
 fn set_node_id(node: &LNodeRef, value: i32) {
-    if let Some(mut node_guard) = node.lock_ok() {
+    {
+        let mut node_guard = node.lock();
         node_guard.shape().graph_element().id = value;
     }
 }

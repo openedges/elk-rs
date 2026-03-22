@@ -56,12 +56,14 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
                 .properties()
                 .clone()
         };
-        if let Some(mut graph_guard) = t_graph.lock_ok() {
+        {
+            let mut graph_guard = t_graph.lock();
             graph_guard.properties_mut().copy_properties(&graph_props);
         }
 
         let origin_id = Self::origin_id(&ElkGraphElementRef::Node(elkgraph.clone()));
-        if let Some(mut graph_guard) = t_graph.lock_ok() {
+        {
+            let mut graph_guard = t_graph.lock();
             graph_guard.set_property(InternalProperties::ORIGIN, Some(Origin::ElkNode(origin_id)));
         }
         self.node_map.insert(origin_id, elkgraph.clone());
@@ -104,7 +106,8 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
                     .clone()
             };
 
-            if let Some(mut node_guard) = t_node.lock_ok() {
+            {
+                let mut node_guard = t_node.lock();
                 node_guard.properties_mut().copy_properties(&node_props);
                 let (x, y, w, h) = {
                     let mut node_mut = elknode.borrow_mut();
@@ -124,7 +127,8 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
             }
 
             let node_origin = Self::origin_id(&ElkGraphElementRef::Node(elknode.clone()));
-            if let Some(mut node_guard) = t_node.lock_ok() {
+            {
+                let mut node_guard = t_node.lock();
                 node_guard.set_property(
                     InternalProperties::ORIGIN,
                     Some(Origin::ElkNode(node_origin)),
@@ -171,7 +175,8 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
                         let mut edge_mut = elkedge.borrow_mut();
                         edge_mut.element().properties().clone()
                     };
-                    if let Some(mut edge_guard) = t_edge.lock_ok() {
+                    {
+                        let mut edge_guard = t_edge.lock();
                         edge_guard
                             .element_mut()
                             .properties_mut()
@@ -182,7 +187,8 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
                         );
                     }
 
-                    if let Some(mut graph_guard) = t_graph.lock_ok() {
+                    {
+                        let mut graph_guard = t_graph.lock();
                         graph_guard.edges_mut().push(t_edge);
                     }
 
@@ -207,15 +213,14 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
         };
 
         let nodes = tgraph
-            .lock_ok()
-            .map(|g| g.nodes().clone())
-            .unwrap_or_default();
+            .lock().nodes().clone();
         let mut min_x = f64::MAX;
         let mut min_y = f64::MAX;
         let mut max_x = f64::MIN;
         let mut max_y = f64::MIN;
         for node in &nodes {
-            if let Some(node_guard) = node.lock_ok() {
+            {
+                let node_guard = node.lock();
                 let pos = node_guard.position_ref();
                 let size = node_guard.size_ref();
                 min_x = min_x.min(pos.x - size.x / 2.0);
@@ -247,7 +252,8 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
             let Some(elk_node) = self.node_map.get(&node_id) else {
                 continue;
             };
-            if let Some(node_guard) = node.lock_ok() {
+            {
+                let node_guard = node.lock();
                 let pos = node_guard.position_ref();
                 let props = node_guard.properties().clone();
                 let mut elk_node_mut = elk_node.borrow_mut();
@@ -265,9 +271,7 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
         }
 
         let edges = tgraph
-            .lock_ok()
-            .map(|g| g.edges().clone())
-            .unwrap_or_default();
+            .lock().edges().clone();
         for edge in edges {
             let origin = edge
                 .lock_ok()

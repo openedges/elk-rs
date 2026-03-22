@@ -77,9 +77,7 @@ fn manage_non_center_labels(
 ) {
     for layer in graph.layers().clone() {
         let nodes = layer
-            .lock_ok()
-            .map(|layer_guard| layer_guard.nodes().clone())
-            .unwrap_or_default();
+            .lock().nodes().clone();
 
         for node in nodes {
             let (node_type, node_labels, ports, top_comments, bottom_comments, outgoing_edges) =
@@ -110,9 +108,7 @@ fn manage_non_center_labels(
 
                 for port in ports {
                     let labels = port
-                        .lock_ok()
-                        .map(|port_guard| port_guard.labels().clone())
-                        .unwrap_or_default();
+                        .lock().labels().clone();
                     do_manage_labels(
                         label_manager,
                         &labels,
@@ -138,9 +134,7 @@ fn manage_non_center_labels(
 
             for edge in outgoing_edges {
                 let labels = edge
-                    .lock_ok()
-                    .map(|edge_guard| edge_guard.labels().clone())
-                    .unwrap_or_default();
+                    .lock().labels().clone();
                 do_manage_labels(
                     label_manager,
                     &labels,
@@ -161,9 +155,7 @@ fn do_manage_attached_comment_labels(
 ) {
     for comment_node in comment_nodes {
         let labels = comment_node
-            .lock_ok()
-            .map(|comment_guard| comment_guard.labels().clone())
-            .unwrap_or_default();
+            .lock().labels().clone();
         if labels.is_empty() {
             continue;
         }
@@ -192,9 +184,7 @@ fn manage_center_labels(
         );
 
         let nodes = layer
-            .lock_ok()
-            .map(|layer_guard| layer_guard.nodes().clone())
-            .unwrap_or_default();
+            .lock().nodes().clone();
 
         for node in nodes {
             let (node_type, connected_edges, represented_labels, node_labels) = match node.lock_ok() {
@@ -235,7 +225,8 @@ fn manage_center_labels(
                 vertical_layout,
             );
 
-            if let Some(mut node_guard) = node.lock_ok() {
+            {
+                let mut node_guard = node.lock();
                 node_guard.shape().size().x = required.x;
                 node_guard.shape().size().y = required.y + edge_thickness + edge_label_spacing;
             }

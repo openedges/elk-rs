@@ -199,13 +199,9 @@ impl SwitchDecider {
 
     fn have_layout_unit_constraints(&self, upper_node: &LNodeRef, lower_node: &LNodeRef) -> bool {
         let upper_type = upper_node
-            .lock_ok()
-            .map(|node_guard| node_guard.node_type())
-            .unwrap_or(NodeType::Normal);
+            .lock().node_type();
         let lower_type = lower_node
-            .lock_ok()
-            .map(|node_guard| node_guard.node_type())
-            .unwrap_or(NodeType::Normal);
+            .lock().node_type();
         let neither_long_edge =
             upper_type != NodeType::LongEdge && lower_type != NodeType::LongEdge;
 

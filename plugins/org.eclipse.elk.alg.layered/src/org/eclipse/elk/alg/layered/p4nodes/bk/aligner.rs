@@ -28,9 +28,7 @@ impl BKAligner {
         let trace_align = ElkTrace::global().bk_align;
         for layer in &bal.layers {
             let nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
             for node in nodes {
                 let id = node_id(&node);
                 bal.root[id] = id;
@@ -52,9 +50,7 @@ impl BKAligner {
         for layer in layers {
             let mut r: isize = -1;
             let mut nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
 
             if vdir == VDirection::Up {
                 r = isize::MAX;
@@ -221,19 +217,17 @@ impl BKAligner {
                     let current_id = node_id(&bal.nodes_by_id[current]);
                     let next_id = node_id(&bal.nodes_by_id[next]);
                     let candidate_count = bal.nodes_by_id[current]
-                        .lock_ok()
-                        .map(|node_guard| node_guard.connected_edges())
-                        .unwrap_or_default()
+                        .lock().connected_edges()
                         .into_iter()
                         .filter(|candidate| {
                             candidate
                                 .lock_ok()
                                 .map(|edge_guard| {
                                     let src = edge_guard.source().and_then(|port| {
-                                        port.lock_ok().and_then(|port_guard| port_guard.node())
+                                        port.lock().node()
                                     });
                                     let tgt = edge_guard.target().and_then(|port| {
-                                        port.lock_ok().and_then(|port_guard| port_guard.node())
+                                        port.lock().node()
                                     });
                                     (src, tgt)
                                 })

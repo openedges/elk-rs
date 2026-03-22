@@ -14,9 +14,7 @@ impl ILayoutProcessor<LGraph> for EndLabelPostprocessor {
         let layers = layered_graph.layers().clone();
         for layer in layers {
             let nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
             for node in nodes {
                 let should_process = node
                     .lock_ok()
@@ -55,21 +53,24 @@ fn process_node(node: &crate::org::eclipse::elk::alg::layered::graph::LNodeRef) 
         return;
     };
     if end_label_cells.is_empty() {
-        if let Some(mut guard) = node.lock_ok() {
+        {
+            let mut guard = node.lock();
             guard.set_property::<EndLabelMap>(InternalProperties::END_LABELS, None);
         }
         return;
     }
 
     for label_cell in end_label_cells.values() {
-        if let Some(mut cell_guard) = label_cell.lock_ok() {
+        {
+            let mut cell_guard = label_cell.lock();
             let rect = cell_guard.cell_rectangle();
             rect.move_by(&node_pos);
             cell_guard.apply_label_layout();
         }
     }
 
-    if let Some(mut guard) = node.lock_ok() {
+    {
+        let mut guard = node.lock();
         guard.set_property::<EndLabelMap>(InternalProperties::END_LABELS, None);
     }
 }

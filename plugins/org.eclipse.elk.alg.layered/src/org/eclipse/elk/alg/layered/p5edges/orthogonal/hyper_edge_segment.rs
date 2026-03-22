@@ -77,9 +77,7 @@ impl HyperEdgeSegment {
         drop(segment);
 
         let connected_ports = port
-            .lock_ok()
-            .map(|port_guard| port_guard.connected_ports())
-            .unwrap_or_default();
+            .lock().connected_ports();
         for other_port in connected_ports {
             if !hyper_edge_segment_map.contains_key(&port_key(&other_port)) {
                 HyperEdgeSegment::add_port_positions(

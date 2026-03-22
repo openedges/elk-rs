@@ -51,9 +51,7 @@ fn process_eastern_and_western_port_dummies(layered_graph: &mut LGraph) {
 
 fn process_eastern_and_western_port_dummies_layer(layer: &LayerRef) {
     let nodes = layer
-        .lock_ok()
-        .map(|layer_guard| layer_guard.nodes().clone())
-        .unwrap_or_default();
+        .lock().nodes().clone();
 
     let mut nodes_sorted = nodes;
     nodes_sorted.sort_by(|node1, node2| {
@@ -123,7 +121,8 @@ fn process_eastern_and_western_port_dummies_layer(layer: &LayerRef) {
         }
 
         if let Some(last_dummy) = &last_hierarchical_dummy {
-            if let Some(mut last_guard) = last_dummy.lock_ok() {
+            {
+                let mut last_guard = last_dummy.lock();
                 let mut constraints = last_guard
                     .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
                     .unwrap_or_default();
@@ -155,8 +154,7 @@ fn process_northern_and_southern_port_dummies(layered_graph: &mut LGraph) {
 
     let graph_ref = layers.first().and_then(|layer| {
         layer
-            .lock_ok()
-            .and_then(|layer_guard| layer_guard.graph())
+            .lock().graph()
     });
     let Some(graph_ref) = graph_ref else {
         return;
@@ -178,9 +176,7 @@ fn process_northern_and_southern_port_dummies(layered_graph: &mut LGraph) {
         let next_new_nodes = &mut right_lists[0];
 
         let layer_nodes = current_layer
-            .lock_ok()
-            .map(|layer_guard| layer_guard.nodes().clone())
-            .unwrap_or_default();
+            .lock().nodes().clone();
 
         for current_node in layer_nodes {
             if is_northern_or_southern_dummy(&current_node) {
@@ -189,15 +185,12 @@ fn process_northern_and_southern_port_dummies(layered_graph: &mut LGraph) {
             }
 
             let incoming_edges = current_node
-                .lock_ok()
-                .map(|node_guard| node_guard.incoming_edges())
-                .unwrap_or_default();
+                .lock().incoming_edges();
 
             for edge in incoming_edges {
                 let source_node = edge
-                    .lock_ok()
-                    .and_then(|edge_guard| edge_guard.source())
-                    .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
+                    .lock().source()
+                    .and_then(|port| port.lock().node());
                 let Some(source_node) = source_node else {
                     continue;
                 };
@@ -228,15 +221,12 @@ fn process_northern_and_southern_port_dummies(layered_graph: &mut LGraph) {
             }
 
             let outgoing_edges = current_node
-                .lock_ok()
-                .map(|node_guard| node_guard.outgoing_edges())
-                .unwrap_or_default();
+                .lock().outgoing_edges();
 
             for edge in outgoing_edges {
                 let target_node = edge
-                    .lock_ok()
-                    .and_then(|edge_guard| edge_guard.target())
-                    .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
+                    .lock().target()
+                    .and_then(|port| port.lock().node());
                 let Some(target_node) = target_node else {
                     continue;
                 };
@@ -343,7 +333,8 @@ fn create_dummy(graph: &LGraphRef, original_dummy: &LNodeRef) -> LNodeRef {
             .copy_properties(&props);
     }
 
-    if let Some(mut new_guard) = new_dummy.lock_ok() {
+    {
+        let mut new_guard = new_dummy.lock();
         new_guard.set_property(
             InternalProperties::EXT_PORT_REPLACED_DUMMY,
             Some(original_dummy.clone()),
@@ -358,13 +349,15 @@ fn create_dummy(graph: &LGraphRef, original_dummy: &LNodeRef) -> LNodeRef {
 
     let input_port = LPort::new();
     LPort::set_node(&input_port, Some(new_dummy.clone()));
-    if let Some(mut port_guard) = input_port.lock_ok() {
+    {
+        let mut port_guard = input_port.lock();
         port_guard.set_side(PortSide::West);
     }
 
     let output_port = LPort::new();
     LPort::set_node(&output_port, Some(new_dummy.clone()));
-    if let Some(mut port_guard) = output_port.lock_ok() {
+    {
+        let mut port_guard = output_port.lock();
         port_guard.set_side(PortSide::East);
     }
 

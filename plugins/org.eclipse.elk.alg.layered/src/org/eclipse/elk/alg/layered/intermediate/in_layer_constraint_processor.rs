@@ -14,9 +14,7 @@ impl ILayoutProcessor<LGraph> for InLayerConstraintProcessor {
         let layers = layered_graph.layers().clone();
         for layer in layers {
             let nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
             let mut top_insertion_index: Option<usize> = None;
             let mut bottom_constrained_nodes = Vec::new();
 

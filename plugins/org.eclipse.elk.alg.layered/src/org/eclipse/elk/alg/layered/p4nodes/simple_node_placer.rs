@@ -49,9 +49,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for SimpleNodePlacer {
 
         for layer_ref in layers.iter() {
             let nodes = layer_ref
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
 
             let mut layer_height = 0.0;
             let mut last_node = None;
@@ -59,7 +57,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for SimpleNodePlacer {
                 if let Some(prev) = &last_node {
                     layer_height += spacings.get_vertical_spacing(node, prev);
                 }
-                if let Some(mut node_guard) = node.lock_ok() {
+                {
+                    let mut node_guard = node.lock();
                     let size_y = node_guard.shape().size_ref().y;
                     let margin_top = node_guard.margin().top;
                     let margin_bottom = node_guard.margin().bottom;
@@ -68,7 +67,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for SimpleNodePlacer {
                 last_node = Some(node.clone());
             }
 
-            if let Some(mut layer_guard) = layer_ref.lock_ok() {
+            {
+                let mut layer_guard = layer_ref.lock();
                 layer_guard.size().y = layer_height;
             }
             if layer_height > max_height {
@@ -88,7 +88,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for SimpleNodePlacer {
                 if let Some(prev) = &last_node {
                     pos += spacings.get_vertical_spacing(&node, prev);
                 }
-                if let Some(mut node_guard) = node.lock_ok() {
+                {
+                    let mut node_guard = node.lock();
                     let margin_top = node_guard.margin().top;
                     let margin_bottom = node_guard.margin().bottom;
                     let size_y = node_guard.shape().size_ref().y;

@@ -80,7 +80,8 @@ impl ILayoutProcessor<LGraph> for SortByInputModelProcessor {
 
             pre_ports_node_comparator.reset_for_previous_layer_slice(&previous_layer_nodes);
             Self::insertion_sort(nodes.as_mut_slice(), &mut pre_ports_node_comparator);
-            if let Some(mut layer_guard) = layer.lock_ok() {
+            {
+                let mut layer_guard = layer.lock();
                 layer_guard.nodes_mut().clone_from(&nodes);
             }
 
@@ -102,11 +103,10 @@ impl ILayoutProcessor<LGraph> for SortByInputModelProcessor {
                 let long_edge_targets = Self::long_edge_target_node_preprocessing(node);
                 port_comparator.reset_for_node_target_model_order(Some(long_edge_targets));
                 let mut ports = node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.ports().clone())
-                    .unwrap_or_default();
+                    .lock().ports().clone();
                 Self::insertion_sort_port(ports.as_mut_slice(), &mut port_comparator);
-                if let Some(mut node_guard) = node.lock_ok() {
+                {
+                    let mut node_guard = node.lock();
                     *node_guard.ports_mut() = ports;
                     node_guard.cache_port_sides();
                 }
@@ -114,7 +114,8 @@ impl ILayoutProcessor<LGraph> for SortByInputModelProcessor {
 
             post_ports_node_comparator.reset_for_previous_layer_slice(&previous_layer_nodes);
             Self::insertion_sort(nodes.as_mut_slice(), &mut post_ports_node_comparator);
-            if let Some(mut layer_guard) = layer.lock_ok() {
+            {
+                let mut layer_guard = layer.lock();
                 layer_guard.nodes_mut().clone_from(&nodes);
             }
             previous_layer_nodes = nodes;
@@ -173,7 +174,8 @@ impl SortByInputModelProcessor {
 
             let target_node = get_target_node_from_edge(first_edge.clone());
             if let Some(target_node) = &target_node {
-                if let Some(mut port_guard) = port.lock_ok() {
+                {
+                    let mut port_guard = port.lock();
                     port_guard.set_property(
                         InternalProperties::LONG_EDGE_TARGET_NODE,
                         Some(target_node.clone()),
@@ -203,7 +205,8 @@ impl SortByInputModelProcessor {
             }
         }
 
-        if let Some(mut node_guard) = node.lock_ok() {
+        {
+            let mut node_guard = node.lock();
             node_guard.set_property(
                 InternalProperties::TARGET_NODE_MODEL_ORDER,
                 Some(target_node_model_order.clone()),
@@ -223,17 +226,16 @@ pub fn get_target_node(port: &LPortRef) -> Option<LNodeRef> {
 fn get_target_node_from_edge(mut edge: LEdgeRef) -> Option<LNodeRef> {
     loop {
         let target_node = edge
-            .lock_ok()
-            .and_then(|edge_guard| edge_guard.target())
-            .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))?;
+            .lock().target()
+            .and_then(|port| port.lock().node())?;
 
-        if let Some(mut node_guard) = target_node.lock_ok() {
+        {
+            let mut node_guard = target_node.lock();
             if let Some(long_edge_target) =
                 node_guard.get_property(InternalProperties::LONG_EDGE_TARGET)
             {
                 if let Some(target) = long_edge_target
-                    .lock_ok()
-                    .and_then(|port_guard| port_guard.node())
+                    .lock().node()
                 {
                     return Some(target);
                 }
@@ -254,7 +256,8 @@ fn get_target_node_from_edge(mut edge: LEdgeRef) -> Option<LNodeRef> {
 
 fn build_ordering_context_graph(graph: &mut LGraph) -> LGraphRef {
     let context = LGraph::new();
-    if let Some(mut context_guard) = context.lock_ok() {
+    {
+        let mut context_guard = context.lock();
         if let Some(max_model_order_nodes) =
             graph.get_property(InternalProperties::MAX_MODEL_ORDER_NODES)
         {

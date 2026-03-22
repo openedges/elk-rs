@@ -201,7 +201,7 @@ impl NorthSouthEdgeNeighbouringNodeCrossingsCounter {
 
     fn is_north_of_normal_node(&self, node: &LNodeRef) -> bool {
         self.origin_port_of(node)
-            .and_then(|port| port.lock_ok().map(|port_guard| port_guard.side()))
+            .map(|port| port.lock().side())
             .map(|side| side == PortSide::North)
             .unwrap_or(false)
     }

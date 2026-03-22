@@ -45,9 +45,7 @@ impl LayerNodeMap {
 
         for (layer_id, layer_ref) in graph.layers().iter().enumerate() {
             let mut nodes = layer_ref
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
             nodes.sort_by(|left, right| model_order_compare(left, right, left_to_right));
 
             for node in &nodes {
@@ -307,24 +305,18 @@ fn promote_node_by_model_order(
     let mut nodes_to_promote = Vec::new();
     let mut seen = HashSet::new();
     let connected_edges = if left_to_right {
-        node.lock_ok()
-            .map(|node_guard| node_guard.outgoing_edges())
-            .unwrap_or_default()
+        node.lock().outgoing_edges()
     } else {
-        node.lock_ok()
-            .map(|node_guard| node_guard.incoming_edges())
-            .unwrap_or_default()
+        node.lock().incoming_edges()
     };
 
     for edge in connected_edges {
         let next_node = if left_to_right {
-            edge.lock_ok()
-                .and_then(|edge_guard| edge_guard.target())
-                .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
+            edge.lock().target()
+                .and_then(|port| port.lock().node())
         } else {
-            edge.lock_ok()
-                .and_then(|edge_guard| edge_guard.source())
-                .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
+            edge.lock().source()
+                .and_then(|port| port.lock().node())
         };
 
         let Some(next_node) = next_node else {
@@ -345,8 +337,7 @@ fn apply_model_order_layers(graph: &mut LGraph, layer_map: &LayerNodeMap) {
     let existing_layers = graph.layers().clone();
     let graph_ref = existing_layers.first().and_then(|layer| {
         layer
-            .lock_ok()
-            .and_then(|layer_guard| layer_guard.graph())
+            .lock().graph()
     });
 
     let mut layer_refs_by_key: BTreeMap<i32, _> = BTreeMap::new();
@@ -365,7 +356,8 @@ fn apply_model_order_layers(graph: &mut LGraph, layer_map: &LayerNodeMap) {
     }
 
     for layer_ref in layer_refs_by_key.values() {
-        if let Some(mut layer_guard) = layer_ref.lock_ok() {
+        {
+            let mut layer_guard = layer_ref.lock();
             layer_guard.nodes_mut().clear();
         }
     }
@@ -394,23 +386,21 @@ fn model_order(node: &LNodeRef) -> Option<i32> {
 }
 
 fn node_type(node: &LNodeRef) -> NodeType {
-    node.lock_ok()
-        .map(|node_guard| node_guard.node_type())
-        .unwrap_or(NodeType::Normal)
+    node.lock().node_type()
 }
 
 fn first_incoming_source_node(node: &LNodeRef) -> Option<LNodeRef> {
     node.lock_ok()
         .and_then(|node_guard| node_guard.incoming_edges().first().cloned())
-        .and_then(|edge| edge.lock_ok().and_then(|edge_guard| edge_guard.source()))
-        .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
+        .and_then(|edge| edge.lock().source())
+        .and_then(|port| port.lock().node())
 }
 
 fn first_outgoing_target_node(node: &LNodeRef) -> Option<LNodeRef> {
     node.lock_ok()
         .and_then(|node_guard| node_guard.outgoing_edges().first().cloned())
-        .and_then(|edge| edge.lock_ok().and_then(|edge_guard| edge_guard.target()))
-        .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
+        .and_then(|edge| edge.lock().target())
+        .and_then(|port| port.lock().node())
 }
 
 fn node_key(node: &LNodeRef) -> usize {

@@ -29,9 +29,7 @@ impl ILayoutProcessor<LGraph> for PortListSorter {
         let layers = graph.layers().clone();
         for layer in layers {
             let nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
 
             for node in nodes {
                 let constraints = node
@@ -41,7 +39,8 @@ impl ILayoutProcessor<LGraph> for PortListSorter {
                     })
                     .unwrap_or(PortConstraints::Undefined);
 
-                if let Some(mut node_guard) = node.lock_ok() {
+                {
+                    let mut node_guard = node.lock();
                     if constraints.is_order_fixed() {
                         stable_sort_by(node_guard.ports_mut(), |p1, p2| {
                             compare_ports_combined(p1, p2, constraints)
@@ -227,9 +226,7 @@ fn real_degree(port: &LPortRef, outgoing: bool) -> i32 {
 }
 
 fn port_side(port: &LPortRef) -> PortSide {
-    port.lock_ok()
-        .map(|port_guard| port_guard.side())
-        .unwrap_or(PortSide::Undefined)
+    port.lock().side()
 }
 
 fn side_ordinal(side: PortSide) -> i32 {

@@ -102,17 +102,13 @@ impl ModelOrderNodeComparator {
             if let (Some(p1_source_port), Some(p2_source_port)) = (&p1_source_port, &p2_source_port)
             {
                 let p1_node = p1_source_port
-                    .lock_ok()
-                    .and_then(|port_guard| port_guard.node());
+                    .lock().node();
                 let p2_node = p2_source_port
-                    .lock_ok()
-                    .and_then(|port_guard| port_guard.node());
+                    .lock().node();
                 if let (Some(p1_node), Some(p2_node)) = (&p1_node, &p2_node) {
                     if ArcPtr::eq_nodes(p1_node, p2_node) {
                         let ports = p1_node
-                            .lock_ok()
-                            .map(|node_guard| node_guard.ports().clone())
-                            .unwrap_or_default();
+                            .lock().ports().clone();
                         for port in ports {
                             if ArcPtr::eq_ports(&port, p1_source_port) {
                                 self.update_bigger_and_smaller(n2, n1);
@@ -345,14 +341,12 @@ impl ModelOrderNodeComparator {
                 return 0;
             };
             let Some(dummy_source_node) = dummy_source_port
-                .lock_ok()
-                .and_then(|port_guard| port_guard.node())
+                .lock().node()
             else {
                 return 0;
             };
             let Some(dummy_target_node) = dummy_target_port
-                .lock_ok()
-                .and_then(|port_guard| port_guard.node())
+                .lock().node()
             else {
                 return 0;
             };
@@ -379,14 +373,12 @@ impl ModelOrderNodeComparator {
                 return 0;
             };
             let Some(dummy_source_node) = dummy_source_port
-                .lock_ok()
-                .and_then(|port_guard| port_guard.node())
+                .lock().node()
             else {
                 return 0;
             };
             let Some(dummy_target_node) = dummy_target_port
-                .lock_ok()
-                .and_then(|port_guard| port_guard.node())
+                .lock().node()
             else {
                 return 0;
             };
@@ -413,14 +405,12 @@ impl ModelOrderNodeComparator {
                 return 0;
             };
             let Some(n1_source_node) = n1_source_port
-                .lock_ok()
-                .and_then(|port_guard| port_guard.node())
+                .lock().node()
             else {
                 return 0;
             };
             let Some(n1_target_node) = n1_target_port
-                .lock_ok()
-                .and_then(|port_guard| port_guard.node())
+                .lock().node()
             else {
                 return 0;
             };
@@ -444,14 +434,12 @@ impl ModelOrderNodeComparator {
                 return 0;
             };
             let Some(n2_source_node) = n2_source_port
-                .lock_ok()
-                .and_then(|port_guard| port_guard.node())
+                .lock().node()
             else {
                 return 0;
             };
             let Some(n2_target_node) = n2_target_port
-                .lock_ok()
-                .and_then(|port_guard| port_guard.node())
+                .lock().node()
             else {
                 return 0;
             };
@@ -496,9 +484,7 @@ impl ModelOrderNodeComparator {
                     }
                 } else {
                     let ports = n1_reference
-                        .lock_ok()
-                        .map(|node_guard| node_guard.ports().clone())
-                        .unwrap_or_default();
+                        .lock().ports().clone();
                     for port in ports {
                         if ArcPtr::eq_ports(&port, &n1_source_port) {
                             self.update_bigger_and_smaller(n2, n1);
@@ -541,7 +527,7 @@ fn first_incoming_source_port(node: &LNodeRef) -> Option<LPortRef> {
     let port = first_incoming_port(node)?;
     port.lock_ok()
         .and_then(|port_guard| port_guard.incoming_edges().first().cloned())
-        .and_then(|edge| edge.lock_ok().and_then(|edge_guard| edge_guard.source()))
+        .and_then(|edge| edge.lock().source())
 }
 
 fn first_outgoing_port(node: &LNodeRef) -> Option<LPortRef> {
@@ -562,27 +548,22 @@ fn first_outgoing_target_port(node: &LNodeRef) -> Option<LPortRef> {
     let port = first_outgoing_port(node)?;
     port.lock_ok()
         .and_then(|port_guard| port_guard.outgoing_edges().first().cloned())
-        .and_then(|edge| edge.lock_ok().and_then(|edge_guard| edge_guard.target()))
+        .and_then(|edge| edge.lock().target())
 }
 
 fn first_source_port_to_previous_layer(node: &LNodeRef) -> Option<LPortRef> {
     let node_layer = layer_id(node);
     let prev_layer = node_layer.checked_sub(1)?;
     let ports = node
-        .lock_ok()
-        .map(|node_guard| node_guard.ports().clone())
-        .unwrap_or_default();
+        .lock().ports().clone();
     for port in ports {
         let incoming = port
-            .lock_ok()
-            .map(|port_guard| port_guard.incoming_edges().clone())
-            .unwrap_or_default();
+            .lock().incoming_edges().clone();
         if let Some(edge) = incoming.first() {
-            let source_port = edge.lock_ok().and_then(|edge_guard| edge_guard.source());
+            let source_port = edge.lock().source();
             if let Some(source_port) = source_port {
                 let source_node = source_port
-                    .lock_ok()
-                    .and_then(|port_guard| port_guard.node());
+                    .lock().node();
                 if let Some(source_node) = source_node {
                     if layer_id(&source_node) == prev_layer {
                         return Some(source_port);
@@ -595,8 +576,7 @@ fn first_source_port_to_previous_layer(node: &LNodeRef) -> Option<LPortRef> {
 }
 
 fn layer_id(node: &LNodeRef) -> usize {
-    node.lock_ok()
-        .and_then(|node_guard| node_guard.layer())
+    node.lock().layer()
         .and_then(|layer| {
             layer
                 .lock_ok()
@@ -606,9 +586,7 @@ fn layer_id(node: &LNodeRef) -> usize {
 }
 
 fn node_type(node: &LNodeRef) -> NodeType {
-    node.lock_ok()
-        .map(|node_guard| node_guard.node_type())
-        .unwrap_or(NodeType::Normal)
+    node.lock().node_type()
 }
 
 struct ArcPtr;

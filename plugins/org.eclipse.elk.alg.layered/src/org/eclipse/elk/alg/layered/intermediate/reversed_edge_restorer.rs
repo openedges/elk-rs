@@ -14,19 +14,13 @@ impl ILayoutProcessor<LGraph> for ReversedEdgeRestorer {
         let layers = layered_graph.layers().clone();
         for layer in layers {
             let nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
             for node in nodes {
                 let ports = node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.ports().clone())
-                    .unwrap_or_default();
+                    .lock().ports().clone();
                 for port in ports {
                     let outgoing = port
-                        .lock_ok()
-                        .map(|port_guard| port_guard.outgoing_edges().clone())
-                        .unwrap_or_default();
+                        .lock().outgoing_edges().clone();
                     for edge in outgoing {
                         let reversed = edge
                             .lock_ok()

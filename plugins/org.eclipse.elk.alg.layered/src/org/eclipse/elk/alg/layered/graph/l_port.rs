@@ -54,7 +54,7 @@ impl LPort {
     }
 
     pub fn set_node(port: &LPortRef, node: Option<LNodeRef>) {
-        let current_owner = port.lock_ok().and_then(|port| port.node());
+        let current_owner = port.lock().node();
         if let (Some(current_owner), Some(new_owner)) = (&current_owner, &node) {
             if Arc::ptr_eq(current_owner, new_owner) {
                 return;
@@ -62,19 +62,22 @@ impl LPort {
         }
 
         if let Some(current_owner) = current_owner {
-            if let Some(mut owner) = current_owner.lock_ok() {
+            {
+                let mut owner = current_owner.lock();
                 remove_arc(owner.ports_mut(), port);
             }
         }
 
         {
-            if let Some(mut port_guard) = port.lock_ok() {
+            {
+                let mut port_guard = port.lock();
                 port_guard.owner = node.as_ref().map(Arc::downgrade);
             }
         }
 
         if let Some(new_owner) = node {
-            if let Some(mut owner) = new_owner.lock_ok() {
+            {
+                let mut owner = new_owner.lock();
                 owner.ports_mut().push(port.clone());
             }
         }
@@ -128,7 +131,7 @@ impl LPort {
 
     pub fn absolute_anchor(&self) -> Option<KVector> {
         let owner = self.node()?;
-        let mut owner_guard = owner.lock_ok()?;
+        let mut owner_guard = owner.lock();
         let mut sum = KVector::new();
         let owner_pos = owner_guard.shape().position_ref();
         let port_pos = self.shape.position_ref();
@@ -197,14 +200,14 @@ impl LPort {
     pub fn predecessor_ports(&self) -> Vec<LPortRef> {
         self.incoming_edges
             .iter()
-            .filter_map(|edge| edge.lock_ok().and_then(|edge| edge.source()))
+            .filter_map(|edge| edge.lock().source())
             .collect()
     }
 
     pub fn successor_ports(&self) -> Vec<LPortRef> {
         self.outgoing_edges
             .iter()
-            .filter_map(|edge| edge.lock_ok().and_then(|edge| edge.target()))
+            .filter_map(|edge| edge.lock().target())
             .collect()
     }
 
@@ -217,7 +220,7 @@ impl LPort {
     pub fn index(&self) -> Option<usize> {
         let port_ref = self.self_ref.upgrade()?;
         let owner = self.owner.as_ref()?.upgrade()?;
-        let owner_guard = owner.lock_ok()?;
+        let owner_guard = owner.lock();
         index_of_arc(owner_guard.ports(), &port_ref)
     }
 
@@ -255,7 +258,8 @@ impl LPort {
 
     pub fn designation(&self) -> String {
         if let Some(label) = self.labels.first() {
-            if let Some(label_guard) = label.lock_ok() {
+            {
+                let label_guard = label.lock();
                 if !label_guard.text().is_empty() {
                     return label_guard.text().to_owned();
                 }
@@ -278,25 +282,29 @@ impl fmt::Display for LPort {
 
         let self_ref = self.self_ref.upgrade();
         if let Some(owner) = self.node() {
-            if let Some(owner_guard) = owner.lock_ok() {
+            {
+                let owner_guard = owner.lock();
                 write!(f, "[{}]", owner_guard)?;
             }
         }
 
         if self.incoming_edges.len() == 1 && self.outgoing_edges.is_empty() {
             if let Some(edge) = self.incoming_edges.first() {
-                if let Some(edge_guard) = edge.lock_ok() {
+                {
+                    let edge_guard = edge.lock();
                     if let Some(source) = edge_guard.source() {
                         if self_ref
                             .as_ref()
                             .map(|self_ref| !Arc::ptr_eq(&source, self_ref))
                             .unwrap_or(true)
                         {
-                            if let Some(source_guard) = source.lock_ok() {
+                            {
+                                let source_guard = source.lock();
                                 f.write_str(" << ")?;
                                 f.write_str(&source_guard.designation())?;
                                 if let Some(source_owner) = source_guard.node() {
-                                    if let Some(source_owner_guard) = source_owner.lock_ok() {
+                                    {
+                                        let source_owner_guard = source_owner.lock();
                                         write!(f, "[{}]", source_owner_guard)?;
                                     }
                                 }
@@ -309,18 +317,21 @@ impl fmt::Display for LPort {
 
         if self.incoming_edges.is_empty() && self.outgoing_edges.len() == 1 {
             if let Some(edge) = self.outgoing_edges.first() {
-                if let Some(edge_guard) = edge.lock_ok() {
+                {
+                    let edge_guard = edge.lock();
                     if let Some(target) = edge_guard.target() {
                         if self_ref
                             .as_ref()
                             .map(|self_ref| !Arc::ptr_eq(&target, self_ref))
                             .unwrap_or(true)
                         {
-                            if let Some(target_guard) = target.lock_ok() {
+                            {
+                                let target_guard = target.lock();
                                 f.write_str(" >> ")?;
                                 f.write_str(&target_guard.designation())?;
                                 if let Some(target_owner) = target_guard.node() {
-                                    if let Some(target_owner_guard) = target_owner.lock_ok() {
+                                    {
+                                        let target_owner_guard = target_owner.lock();
                                         write!(f, "[{}]", target_owner_guard)?;
                                     }
                                 }

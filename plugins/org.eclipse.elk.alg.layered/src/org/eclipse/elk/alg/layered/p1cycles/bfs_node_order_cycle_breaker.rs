@@ -65,9 +65,7 @@ impl BfsNodeOrderCycleBreaker {
             .unwrap_or(0);
 
         let outgoing_edges = node
-            .lock_ok()
-            .map(|node_guard| node_guard.outgoing_edges())
-            .unwrap_or_default();
+            .lock().outgoing_edges();
 
         let mut model_order_map: BTreeMap<
             i32,
@@ -75,12 +73,10 @@ impl BfsNodeOrderCycleBreaker {
         > = BTreeMap::new();
         for edge in outgoing_edges {
             let target_node = edge
-                .lock_ok()
-                .and_then(|edge_guard| edge_guard.target())
+                .lock().target()
                 .and_then(|target| {
                     target
-                        .lock_ok()
-                        .and_then(|target_guard| target_guard.node())
+                        .lock().node()
                 });
             let Some(target_node) = target_node else {
                 continue;
@@ -136,20 +132,16 @@ impl BfsNodeOrderCycleBreaker {
             };
 
             let is_self_loop = representative
-                .lock_ok()
-                .map(|edge_guard| edge_guard.is_self_loop())
-                .unwrap_or(false);
+                .lock().is_self_loop();
             if is_self_loop {
                 continue;
             }
 
             let target_node = representative
-                .lock_ok()
-                .and_then(|edge_guard| edge_guard.target())
+                .lock().target()
                 .and_then(|target| {
                     target
-                        .lock_ok()
-                        .and_then(|target_guard| target_guard.node())
+                        .lock().node()
                 });
             let Some(target_node) = target_node else {
                 continue;

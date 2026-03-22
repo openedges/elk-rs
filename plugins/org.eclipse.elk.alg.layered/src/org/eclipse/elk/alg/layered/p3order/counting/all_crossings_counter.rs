@@ -183,9 +183,7 @@ impl IInitializable for AllCrossingsCounter {
     ) {
         let node = &node_order[layer_index][node_index];
         let node_type = node
-            .lock_ok()
-            .map(|node_guard| node_guard.node_type())
-            .unwrap_or(NodeType::Normal);
+            .lock().node_type();
         if node_type == NodeType::NorthSouthPort {
             if let Some(flag) = self.has_north_south_ports.get_mut(layer_index) {
                 *flag = true;
@@ -215,9 +213,7 @@ impl IInitializable for AllCrossingsCounter {
             .unwrap_or(0);
         if degree > 1 {
             let side = port
-                .lock_ok()
-                .map(|port_guard| port_guard.side())
-                .unwrap_or(PortSide::Undefined);
+                .lock().side();
             if side == PortSide::East {
                 if let Some(flag) = self.has_hyper_edges_east_of_index.get_mut(layer_index) {
                     *flag = true;
@@ -245,18 +241,16 @@ impl IInitializable for AllCrossingsCounter {
         let Some(port) = port else {
             return;
         };
-        let source = edge.lock_ok().and_then(|edge_guard| edge_guard.source());
+        let source = edge.lock().source();
         if let Some(source) = source {
             if Arc::ptr_eq(&source, &port) {
                 let source_layer = source
-                    .lock_ok()
-                    .and_then(|port_guard| port_guard.node())
-                    .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.layer()));
+                    .lock().node()
+                    .and_then(|node| node.lock().layer());
                 let target_layer = edge
-                    .lock_ok()
-                    .and_then(|edge_guard| edge_guard.target())
-                    .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
-                    .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.layer()));
+                    .lock().target()
+                    .and_then(|port| port.lock().node())
+                    .and_then(|node| node.lock().layer());
                 if let (Some(source_layer), Some(target_layer)) = (source_layer, target_layer) {
                     if Arc::ptr_eq(&source_layer, &target_layer) {
                         if let Some(count) = self.in_layer_edge_counts.get_mut(layer_index) {
@@ -281,7 +275,8 @@ impl IInitializable for AllCrossingsCounter {
 }
 
 fn set_port_id(port: &LPortRef, value: i32) {
-    if let Some(mut port_guard) = port.lock_ok() {
+    {
+        let mut port_guard = port.lock();
         port_guard.shape().graph_element().id = value;
     }
 }

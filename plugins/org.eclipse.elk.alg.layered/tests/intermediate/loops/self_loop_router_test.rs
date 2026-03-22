@@ -449,7 +449,8 @@ fn build_south_middle_with_east_dummy_graph() -> (LGraphRef, LNodeRef, LPortRef,
     // Simulate a north/south dummy that records an EAST connection for the visible south port.
     let port_dummy = LNode::new(&graph);
     let dummy_port = create_port(&port_dummy, PortSide::East, 0.0, 0.0);
-    if let Some(mut dummy_port_guard) = dummy_port.lock_ok() {
+    {
+        let mut dummy_port_guard = dummy_port.lock();
         dummy_port_guard.set_property(
             InternalProperties::ORIGIN,
             Some(Origin::LPort(visible_south.clone())),
@@ -458,7 +459,8 @@ fn build_south_middle_with_east_dummy_graph() -> (LGraphRef, LNodeRef, LPortRef,
     let dummy_external = LNode::new(&graph);
     let dummy_target = create_port(&dummy_external, PortSide::West, 0.0, 0.0);
     let _ = add_edge(&dummy_port, &dummy_target);
-    if let Some(mut visible_guard) = visible_south.lock_ok() {
+    {
+        let mut visible_guard = visible_south.lock();
         visible_guard.set_property(InternalProperties::PORT_DUMMY, Some(port_dummy));
     }
 
@@ -506,7 +508,8 @@ fn build_north_middle_with_west_dummy_graph() -> (LGraphRef, LNodeRef, LPortRef,
     // Simulate a north/south dummy that records a WEST connection for the visible north port.
     let port_dummy = LNode::new(&graph);
     let dummy_port = create_port(&port_dummy, PortSide::West, 0.0, 0.0);
-    if let Some(mut dummy_port_guard) = dummy_port.lock_ok() {
+    {
+        let mut dummy_port_guard = dummy_port.lock();
         dummy_port_guard.set_property(
             InternalProperties::ORIGIN,
             Some(Origin::LPort(visible_north.clone())),
@@ -515,7 +518,8 @@ fn build_north_middle_with_west_dummy_graph() -> (LGraphRef, LNodeRef, LPortRef,
     let dummy_external = LNode::new(&graph);
     let dummy_source = create_port(&dummy_external, PortSide::East, 0.0, 0.0);
     let _ = add_edge(&dummy_source, &dummy_port);
-    if let Some(mut visible_guard) = visible_north.lock_ok() {
+    {
+        let mut visible_guard = visible_north.lock();
         visible_guard.set_property(InternalProperties::PORT_DUMMY, Some(port_dummy));
     }
 
@@ -573,7 +577,8 @@ fn build_corner_and_dummy_combined_graph() -> CornerDummyCombinedGraph {
 
     let north_dummy = LNode::new(&graph);
     let north_dummy_port = create_port(&north_dummy, PortSide::West, 0.0, 0.0);
-    if let Some(mut dummy_port_guard) = north_dummy_port.lock_ok() {
+    {
+        let mut dummy_port_guard = north_dummy_port.lock();
         dummy_port_guard.set_property(
             InternalProperties::ORIGIN,
             Some(Origin::LPort(visible_north.clone())),
@@ -582,7 +587,8 @@ fn build_corner_and_dummy_combined_graph() -> CornerDummyCombinedGraph {
     let north_dummy_external = LNode::new(&graph);
     let north_dummy_source = create_port(&north_dummy_external, PortSide::East, 0.0, 0.0);
     let _ = add_edge(&north_dummy_source, &north_dummy_port);
-    if let Some(mut visible_guard) = visible_north.lock_ok() {
+    {
+        let mut visible_guard = visible_north.lock();
         visible_guard.set_property(InternalProperties::PORT_DUMMY, Some(north_dummy));
     }
 
@@ -598,7 +604,8 @@ fn build_corner_and_dummy_combined_graph() -> CornerDummyCombinedGraph {
 
     let south_dummy = LNode::new(&graph);
     let south_dummy_port = create_port(&south_dummy, PortSide::East, 0.0, 0.0);
-    if let Some(mut dummy_port_guard) = south_dummy_port.lock_ok() {
+    {
+        let mut dummy_port_guard = south_dummy_port.lock();
         dummy_port_guard.set_property(
             InternalProperties::ORIGIN,
             Some(Origin::LPort(visible_south.clone())),
@@ -607,7 +614,8 @@ fn build_corner_and_dummy_combined_graph() -> CornerDummyCombinedGraph {
     let south_dummy_external = LNode::new(&graph);
     let south_dummy_target = create_port(&south_dummy_external, PortSide::West, 0.0, 0.0);
     let _ = add_edge(&south_dummy_port, &south_dummy_target);
-    if let Some(mut visible_guard) = visible_south.lock_ok() {
+    {
+        let mut visible_guard = visible_south.lock();
         visible_guard.set_property(InternalProperties::PORT_DUMMY, Some(south_dummy));
     }
 

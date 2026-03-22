@@ -15,7 +15,8 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::NullElkProgressMonitor;
 fn new_graph_with_layers(count: usize) -> (LGraphRef, Vec<LayerRef>) {
     let graph = LGraph::new();
     let mut layers = Vec::with_capacity(count);
-    if let Some(mut graph_guard) = graph.lock_ok() {
+    {
+        let mut graph_guard = graph.lock();
         for _ in 0..count {
             let layer = Layer::new(&graph);
             graph_guard.layers_mut().push(layer.clone());
@@ -33,13 +34,15 @@ fn add_node(graph: &LGraphRef, layer: &LayerRef) -> LNodeRef {
 
 fn connect(source_node: &LNodeRef, target_node: &LNodeRef) {
     let source_port = LPort::new();
-    if let Some(mut source_guard) = source_port.lock_ok() {
+    {
+        let mut source_guard = source_port.lock();
         source_guard.set_side(PortSide::East);
     }
     LPort::set_node(&source_port, Some(source_node.clone()));
 
     let target_port = LPort::new();
-    if let Some(mut target_guard) = target_port.lock_ok() {
+    {
+        let mut target_guard = target_port.lock();
         target_guard.set_side(PortSide::West);
     }
     LPort::set_node(&target_port, Some(target_node.clone()));
@@ -81,7 +84,8 @@ fn manual_cut_process_marks_graph_as_cyclic() {
     init_layered_options();
 
     let graph = build_path_graph(5);
-    if let Some(mut graph_guard) = graph.lock_ok() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.set_property(
             LayeredOptions::WRAPPING_CUTTING_STRATEGY,
             Some(CuttingStrategy::Manual),
@@ -95,7 +99,8 @@ fn manual_cut_process_marks_graph_as_cyclic() {
 
     let mut wrapper = SingleEdgeGraphWrapper;
     let mut monitor = NullElkProgressMonitor;
-    if let Some(mut graph_guard) = graph.lock_ok() {
+    {
+        let mut graph_guard = graph.lock();
         wrapper.process(&mut graph_guard, &mut monitor);
     }
 

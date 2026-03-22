@@ -183,9 +183,7 @@ fn merge_nodes(
     };
 
     let ports = merge_source
-        .lock_ok()
-        .map(|node_guard| node_guard.ports().clone())
-        .unwrap_or_default();
+        .lock().ports().clone();
 
     for port in ports {
         loop {
@@ -210,12 +208,14 @@ fn merge_nodes(
     }
 
     if !keep_source_port {
-        if let Some(mut target_guard) = merge_target.lock_ok() {
+        {
+            let mut target_guard = merge_target.lock();
             target_guard.set_property(InternalProperties::LONG_EDGE_SOURCE, None::<LPortRef>);
         }
     }
     if !keep_target_port {
-        if let Some(mut target_guard) = merge_target.lock_ok() {
+        {
+            let mut target_guard = merge_target.lock();
             target_guard.set_property(InternalProperties::LONG_EDGE_TARGET, None::<LPortRef>);
         }
     }
@@ -231,9 +231,7 @@ fn identify_hyperedges(layered_graph: &LGraph) -> FxHashMap<usize, i32> {
                     .nodes()
                     .iter()
                     .flat_map(|node| {
-                        node.lock_ok()
-                            .map(|node_guard| node_guard.ports().clone())
-                            .unwrap_or_default()
+                        node.lock().ports().clone()
                     })
                     .collect::<Vec<_>>()
             })
@@ -267,9 +265,7 @@ fn mark_hyperedge_component(
         component_ids.insert(key, component_id);
 
         let connected_ports = port
-            .lock_ok()
-            .map(|port_guard| port_guard.connected_ports())
-            .unwrap_or_default();
+            .lock().connected_ports();
         for connected in connected_ports {
             if !component_ids.contains_key(&port_key(&connected)) {
                 stack.push(connected);
@@ -277,8 +273,7 @@ fn mark_hyperedge_component(
         }
 
         let (is_long_edge, node_ports) = port
-            .lock_ok()
-            .and_then(|port_guard| port_guard.node())
+            .lock().node()
             .and_then(|node| {
                 node.lock_ok().map(|node_guard| {
                     (

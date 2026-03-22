@@ -75,7 +75,8 @@ impl SelfHyperLoop {
 
     pub fn add_self_loop_edge(sl_loop: &SelfHyperLoopRef, sl_edge: &SelfLoopEdgeRef) {
         {
-            if let Some(loop_guard) = sl_loop.lock_ok() {
+            {
+                let loop_guard = sl_loop.lock();
                 if loop_guard
                     .sl_edges
                     .iter()
@@ -86,11 +87,13 @@ impl SelfHyperLoop {
             }
         }
 
-        if let Some(mut edge_guard) = sl_edge.lock_ok() {
+        {
+            let mut edge_guard = sl_edge.lock();
             edge_guard.set_sl_hyper_loop(sl_loop);
         }
 
-        if let Some(mut loop_guard) = sl_loop.lock_ok() {
+        {
+            let mut loop_guard = sl_loop.lock();
             loop_guard.sl_edges.push(sl_edge.clone());
 
             let (sl_source, sl_target, edge_labels) = sl_edge
@@ -101,9 +104,7 @@ impl SelfHyperLoop {
                         edge_guard.sl_target().clone(),
                         edge_guard
                             .l_edge()
-                            .lock_ok()
-                            .map(|edge| edge.labels().clone())
-                            .unwrap_or_default(),
+                            .lock().labels().clone(),
                     )
                 })
                 .unwrap_or_else(|| panic!("self loop edge lock poisoned"));

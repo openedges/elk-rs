@@ -15,9 +15,7 @@ impl ILayoutProcessor<LGraph> for SelfLoopPostProcessor {
             .iter()
             .flat_map(|layer| {
                 layer
-                    .lock_ok()
-                    .map(|layer_guard| layer_guard.nodes().clone())
-                    .unwrap_or_default()
+                    .lock().nodes().clone()
             })
             .collect();
 
@@ -52,9 +50,7 @@ fn process_node(node: &LNodeRef) {
         .unwrap_or_default();
 
     let loops = holder
-        .lock_ok()
-        .map(|holder_guard| holder_guard.sl_hyper_loops().clone())
-        .unwrap_or_default();
+        .lock().sl_hyper_loops().clone();
 
     for sl_loop in loops {
         let label_refs = if let Some(mut loop_guard) = sl_loop.lock_ok() {
@@ -72,7 +68,8 @@ fn process_node(node: &LNodeRef) {
 
         if let Some(label_refs) = label_refs {
             for label in label_refs {
-                if let Some(mut label_guard) = label.lock_ok() {
+                {
+                    let mut label_guard = label.lock();
                     label_guard.shape().position().x += node_pos.x;
                     label_guard.shape().position().y += node_pos.y;
                 }
@@ -80,9 +77,7 @@ fn process_node(node: &LNodeRef) {
         }
 
         let sl_edges = sl_loop
-            .lock_ok()
-            .map(|loop_guard| loop_guard.sl_edges().clone())
-            .unwrap_or_default();
+            .lock().sl_edges().clone();
 
         for sl_edge in sl_edges {
             let (l_edge, source_port, target_port) = sl_edge
@@ -108,7 +103,8 @@ fn process_node(node: &LNodeRef) {
             LEdge::set_source(&l_edge, Some(source_port));
             LEdge::set_target(&l_edge, Some(target_port));
 
-            if let Some(mut edge_guard) = l_edge.lock_ok() {
+            {
+                let mut edge_guard = l_edge.lock();
                 edge_guard.bend_points().offset(node_pos.x, node_pos.y);
             };
         }

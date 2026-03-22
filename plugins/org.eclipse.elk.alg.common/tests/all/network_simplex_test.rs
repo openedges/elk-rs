@@ -22,9 +22,7 @@ fn network_simplex_deltas() {
 
                     for node in &graph.nodes {
                         let outgoing = node
-                            .lock_ok()
-                            .map(|guard| guard.outgoing_edges().clone())
-                            .unwrap_or_default();
+                            .lock().outgoing_edges().clone();
                         for edge in outgoing {
                             let (source_layer, target_layer, delta) = {
                                 let edge_guard = edge.lock();                                let source_layer = edge_guard
@@ -84,9 +82,7 @@ fn generate_random_graph(random: &mut Random) -> NGraph {
 
     for node in &graph.nodes {
         let outgoing = node
-            .lock_ok()
-            .map(|guard| guard.outgoing_edges().clone())
-            .unwrap_or_default();
+            .lock().outgoing_edges().clone();
         for edge in outgoing {
             let (source_id, target_id) = {
                 let edge_guard = edge.lock();                let source_id = edge_guard

@@ -120,15 +120,12 @@ fn assert_layering_invariants(
 
     for layer in &layers {
         let source_layer_index = layer
-            .lock_ok()
-            .and_then(|layer_guard| layer_guard.index())
+            .lock().index()
             .unwrap_or(0);
         let nodes = layer.lock().nodes().clone();
         for node in nodes {
             let outgoing = node
-                .lock_ok()
-                .map(|node_guard| node_guard.outgoing_edges())
-                .unwrap_or_default();
+                .lock().outgoing_edges();
             for edge in outgoing {
                 if !check_forward_edges {
                     continue;
@@ -140,18 +137,15 @@ fn assert_layering_invariants(
                     })
                     .unwrap_or(false);
                 let target_layer_index = edge
-                    .lock_ok()
-                    .and_then(|edge_guard| edge_guard.target())
-                    .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
+                    .lock().target()
+                    .and_then(|port| port.lock().node())
                     .and_then(|target_node| {
                         target_node
-                            .lock_ok()
-                            .and_then(|node_guard| node_guard.layer())
+                            .lock().layer()
                     })
                     .and_then(|layer_ref| {
                         layer_ref
-                            .lock_ok()
-                            .and_then(|layer_guard| layer_guard.index())
+                            .lock().index()
                     })
                     .unwrap_or(source_layer_index);
                 if !reversed {

@@ -268,9 +268,7 @@ impl CrossingsCounter {
                 collect_connected_edges(&port, &mut self.scratch_edge_buf);
                 for edge in &self.scratch_edge_buf {
                     if edge
-                        .lock_ok()
-                        .map(|edge_guard| edge_guard.is_self_loop())
-                        .unwrap_or(false)
+                        .lock().is_self_loop()
                     {
                         continue;
                     }
@@ -386,9 +384,8 @@ impl CrossingsCounter {
                 let pid = snap.port_id(port);
                 snap.node_type_of(snap.port_owner_flat(pid))
             } else {
-                port.lock_ok()
-                    .and_then(|port_guard| port_guard.node())
-                    .and_then(|node| node.lock_ok().map(|node_guard| node_guard.node_type()))
+                port.lock().node()
+                    .map(|node| node.lock().node_type())
                     .unwrap_or(NodeType::Normal)
             };
 
@@ -412,9 +409,7 @@ impl CrossingsCounter {
                             }
                         } else {
                             let dummy_ports = dummy
-                                .lock_ok()
-                                .map(|node_guard| node_guard.ports().clone())
-                                .unwrap_or_default();
+                                .lock().ports().clone();
                             for dummy_port in dummy_ports {
                                 let degree = dummy_port
                                     .lock_ok()
@@ -445,8 +440,7 @@ impl CrossingsCounter {
                         }
                     } else {
                         let other_port = port
-                            .lock_ok()
-                            .and_then(|port_guard| port_guard.node())
+                            .lock().node()
                             .and_then(|node| {
                                 node.lock_ok()
                                     .map(|node_guard| node_guard.ports().clone())
@@ -621,7 +615,8 @@ impl CrossingsCounter {
             // Lock node once to get port IDs in current order, filtered by side.
             // Reuse buffer — no per-node allocation.
             filtered.clear();
-            if let Some(node_guard) = node.lock_ok() {
+            {
+                let node_guard = node.lock();
                 for p in node_guard.ports() {
                     let pid = snap.port_id(p);
                     if snap.port_side_of(pid) == side {
@@ -692,9 +687,7 @@ impl CrossingsCounter {
                 snap.node_type_of(snap.node_flat_index(current))
             } else {
                 current
-                    .lock_ok()
-                    .map(|node_guard| node_guard.node_type())
-                    .unwrap_or(NodeType::Normal)
+                    .lock().node_type()
             };
             match node_type {
                 NodeType::Normal => {
@@ -1006,7 +999,8 @@ fn node_id(node: &LNodeRef) -> usize {
 
 fn collect_connected_edges(port: &LPortRef, out: &mut Vec<LEdgeRef>) {
     out.clear();
-    if let Some(port_guard) = port.lock_ok() {
+    {
+        let port_guard = port.lock();
         out.extend(port_guard.incoming_edges().iter().cloned());
         out.extend(port_guard.outgoing_edges().iter().cloned());
     }
@@ -1018,12 +1012,12 @@ fn is_in_layer(edge: &LEdgeRef) -> bool {
         .map(|edge_guard| {
             let source_layer = edge_guard
                 .source()
-                .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
-                .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.layer()));
+                .and_then(|port| port.lock().node())
+                .and_then(|node| node.lock().layer());
             let target_layer = edge_guard
                 .target()
-                .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
-                .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.layer()));
+                .and_then(|port| port.lock().node())
+                .and_then(|node| node.lock().layer());
             (source_layer, target_layer)
         })
         .unwrap_or((None, None));

@@ -209,7 +209,7 @@ impl ModelOrderBarycenterHeuristic {
             .unwrap_or(false);
 
         if n1_has_model_order && n2_has_model_order {
-            let graph = n1.lock_ok().and_then(|node_guard| node_guard.graph());
+            let graph = n1.lock().graph();
             if let Some(graph) = graph {
                 let max_nodes = self.max_model_order_nodes;
                 let value =

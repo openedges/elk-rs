@@ -35,10 +35,7 @@ impl ILayoutProcessor<LGraph> for NorthSouthPortPostprocessor {
 
             for node in node_array {
                 let (node_type, ports, dummy_pos) = {
-                    let mut node_guard = match node.lock_ok() {
-            Some(guard) => guard,
-            None => continue,
-                    };
+                    let mut node_guard = node.lock();
                     let node_type = node_guard.node_type();
                     let ports = node_guard.ports().clone();
                     let dummy_pos = *node_guard.shape().position_ref();
@@ -135,8 +132,7 @@ fn process_input_port(port: &LPortRef, dummy_y: f64, add_junction: bool) {
     };
 
     let x = origin_port
-        .lock_ok()
-        .and_then(|port_guard| port_guard.absolute_anchor())
+        .lock().absolute_anchor()
         .unwrap_or_else(KVector::new)
         .x;
 
@@ -147,7 +143,8 @@ fn process_input_port(port: &LPortRef, dummy_y: f64, add_junction: bool) {
 
     for edge in edges {
         LEdge::set_target(&edge, Some(origin_port.clone()));
-        if let Some(mut edge_guard) = edge.lock_ok() {
+        {
+            let mut edge_guard = edge.lock();
             edge_guard.bend_points().add_last_values(x, dummy_y);
             if add_junction {
                 let mut junction_points = edge_guard
@@ -169,8 +166,7 @@ fn process_output_port(port: &LPortRef, dummy_y: f64, add_junction: bool) {
     };
 
     let x = origin_port
-        .lock_ok()
-        .and_then(|port_guard| port_guard.absolute_anchor())
+        .lock().absolute_anchor()
         .unwrap_or_else(KVector::new)
         .x;
 
@@ -181,7 +177,8 @@ fn process_output_port(port: &LPortRef, dummy_y: f64, add_junction: bool) {
 
     for edge in edges {
         LEdge::set_source(&edge, Some(origin_port.clone()));
-        if let Some(mut edge_guard) = edge.lock_ok() {
+        {
+            let mut edge_guard = edge.lock();
             edge_guard.bend_points().add_first_values(x, dummy_y);
             if add_junction {
                 let mut junction_points = edge_guard
@@ -205,7 +202,8 @@ fn process_spline_input_port(port: &LPortRef, dummy_y: f64) {
     };
 
     // Set SPLINE_NS_PORT_Y_COORD on the origin port
-    if let Some(mut origin_guard) = origin_port.lock_ok() {
+    {
+        let mut origin_guard = origin_port.lock();
         origin_guard.set_property(InternalProperties::SPLINE_NS_PORT_Y_COORD, Some(dummy_y));
     }
 
@@ -231,7 +229,8 @@ fn process_spline_output_port(port: &LPortRef, dummy_y: f64) {
     };
 
     // Set SPLINE_NS_PORT_Y_COORD on the origin port
-    if let Some(mut origin_guard) = origin_port.lock_ok() {
+    {
+        let mut origin_guard = origin_port.lock();
         origin_guard.set_property(InternalProperties::SPLINE_NS_PORT_Y_COORD, Some(dummy_y));
     }
 

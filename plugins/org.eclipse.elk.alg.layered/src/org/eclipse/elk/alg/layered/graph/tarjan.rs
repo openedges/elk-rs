@@ -66,14 +66,9 @@ impl<'a> Tarjan<'a> {
         self.index = 0;
         self.stack.clear();
         let nodes = graph
-            .lock_ok()
-            .map(|graph| graph.layerless_nodes().clone())
-            .unwrap_or_default();
+            .lock().layerless_nodes().clone();
         for node in nodes {
-            let mut guard = match node.lock_ok() {
-            Some(guard) => guard,
-            None => continue,
-            };
+            let mut guard = node.lock();
             let id = guard
                 .get_property(InternalProperties::TARJAN_ID)
                 .unwrap_or(-1);
@@ -92,7 +87,8 @@ impl<'a> Tarjan<'a> {
     }
 
     pub fn strongly_connected(&mut self, v: &LNodeRef) {
-        if let Some(mut guard) = v.lock_ok() {
+        {
+            let mut guard = v.lock();
             guard.set_property(InternalProperties::TARJAN_ID, Some(self.index));
             guard.set_property(InternalProperties::TARJAN_LOWLINK, Some(self.index));
             self.index += 1;
@@ -101,22 +97,17 @@ impl<'a> Tarjan<'a> {
         self.stack.push(v.clone());
 
         let edges = v
-            .lock_ok()
-            .map(|node| node.connected_edges())
-            .unwrap_or_default();
+            .lock().connected_edges();
         for edge in edges {
-            let edge_guard = match edge.lock_ok() {
-            Some(guard) => guard,
-            None => continue,
-            };
+            let edge_guard = edge.lock();
             let source = edge_guard.source();
             let target = edge_guard.target();
             drop(edge_guard);
 
             let (source_node, target_node) = match (source, target) {
                 (Some(source), Some(target)) => {
-                    let source_node = source.lock_ok().and_then(|port| port.node());
-                    let target_node = target.lock_ok().and_then(|port| port.node());
+                    let source_node = source.lock().node();
+                    let target_node = target.lock().node();
                     (source_node, target_node)
                 }
                 _ => (None, None),
@@ -152,7 +143,8 @@ impl<'a> Tarjan<'a> {
                     .lock_ok()
                     .and_then(|mut target| target.get_property(InternalProperties::TARJAN_LOWLINK))
                     .unwrap_or(i32::MAX);
-                if let Some(mut guard) = v.lock_ok() {
+                {
+                    let mut guard = v.lock();
                     let current = guard
                         .get_property(InternalProperties::TARJAN_LOWLINK)
                         .unwrap_or(i32::MAX);
@@ -167,7 +159,8 @@ impl<'a> Tarjan<'a> {
                     .and_then(|mut target| target.get_property(InternalProperties::TARJAN_ON_STACK))
                     .unwrap_or(false);
                 if target_on_stack {
-                    if let Some(mut guard) = v.lock_ok() {
+                    {
+                        let mut guard = v.lock();
                         let current = guard
                             .get_property(InternalProperties::TARJAN_LOWLINK)
                             .unwrap_or(i32::MAX);
@@ -192,7 +185,8 @@ impl<'a> Tarjan<'a> {
         if v_lowlink == v_id {
             let mut scc = Vec::new();
             while let Some(n) = self.stack.pop() {
-                if let Some(mut guard) = n.lock_ok() {
+                {
+                    let mut guard = n.lock();
                     guard.set_property(InternalProperties::TARJAN_ON_STACK, Some(false));
                 }
                 scc.push(n.clone());
@@ -212,22 +206,20 @@ impl<'a> Tarjan<'a> {
 
     pub fn reset_tarjan(&mut self, graph: &LGraphRef) {
         let nodes = graph
-            .lock_ok()
-            .map(|graph| graph.layerless_nodes().clone())
-            .unwrap_or_default();
+            .lock().layerless_nodes().clone();
         for node in nodes {
-            if let Some(mut guard) = node.lock_ok() {
+            {
+                let mut guard = node.lock();
                 guard.set_property(InternalProperties::TARJAN_ON_STACK, Some(false));
                 guard.set_property(InternalProperties::TARJAN_LOWLINK, Some(-1));
                 guard.set_property(InternalProperties::TARJAN_ID, Some(-1));
             }
             self.stack.clear();
             let edges = node
-                .lock_ok()
-                .map(|node| node.connected_edges())
-                .unwrap_or_default();
+                .lock().connected_edges();
             for edge in edges {
-                if let Some(mut edge_guard) = edge.lock_ok() {
+                {
+                    let mut edge_guard = edge.lock();
                     edge_guard.set_property(InternalProperties::IS_PART_OF_CYCLE, Some(false));
                 }
             }

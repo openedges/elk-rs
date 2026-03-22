@@ -39,9 +39,7 @@ impl ILayoutProcessor<LGraph> for LabelDummyRemover {
         let layers = layered_graph.layers().clone();
         for layer in layers {
             let nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
 
             for node in nodes {
                 let is_label_dummy = node
@@ -89,10 +87,7 @@ impl LabelDummyRemover {
             labels_below_edge,
             inline_labels,
         ) = {
-            let mut node_guard = match node.lock_ok() {
-            Some(guard) => guard,
-            None => return,
-            };
+            let mut node_guard = node.lock();
 
             let origin_edge = match node_guard.get_property(InternalProperties::ORIGIN) {
                 Some(Origin::LEdge(edge)) => edge,
@@ -170,7 +165,8 @@ impl LabelDummyRemover {
             );
         }
 
-        if let Some(mut edge_guard) = origin_edge.lock_ok() {
+        {
+            let mut edge_guard = origin_edge.lock();
             edge_guard.labels_mut().extend(represented_labels);
         };
     }
@@ -225,7 +221,7 @@ impl LabelDummyRemover {
 
     fn adjacent_source_and_target_nodes(node: &LNodeRef) -> Option<(LNodeRef, LNodeRef)> {
         let (west_port, east_port) = {
-            let node_guard = node.lock_ok()?;
+            let node_guard = node.lock();
             (
                 node_guard.ports_by_side(PortSide::West).first().cloned(),
                 node_guard.ports_by_side(PortSide::East).first().cloned(),
@@ -241,13 +237,11 @@ impl LabelDummyRemover {
         })?;
 
         let source_node = incoming_edge
-            .lock_ok()
-            .and_then(|edge_guard| edge_guard.source())
-            .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))?;
+            .lock().source()
+            .and_then(|port| port.lock().node())?;
         let target_node = outgoing_edge
-            .lock_ok()
-            .and_then(|edge_guard| edge_guard.target())
-            .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))?;
+            .lock().target()
+            .and_then(|port| port.lock().node())?;
 
         Some((source_node, target_node))
     }
@@ -259,7 +253,8 @@ impl LabelDummyRemover {
         label_space: &KVector,
     ) {
         for label in labels {
-            if let Some(mut label_guard) = label.lock_ok() {
+            {
+                let mut label_guard = label.lock();
                 let label_size_x = label_guard.shape().size_ref().x;
                 let label_size_y = label_guard.shape().size_ref().y;
 
@@ -317,7 +312,8 @@ impl LabelDummyRemover {
         inline: bool,
         left_aligned: bool,
     ) {
-        if let Some(mut label_guard) = label.lock_ok() {
+        {
+            let mut label_guard = label.lock();
             let label_size_x = label_guard.shape().size_ref().x;
             let label_size_y = label_guard.shape().size_ref().y;
 

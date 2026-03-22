@@ -14,7 +14,8 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::NullElkProgressMonitor;
 fn new_graph_with_layers(count: usize) -> (LGraphRef, Vec<LayerRef>) {
     let graph = LGraph::new();
     let mut layers = Vec::with_capacity(count);
-    if let Some(mut graph_guard) = graph.lock_ok() {
+    {
+        let mut graph_guard = graph.lock();
         for _ in 0..count {
             let layer = Layer::new(&graph);
             graph_guard.layers_mut().push(layer.clone());
@@ -32,13 +33,15 @@ fn add_node(graph: &LGraphRef, layer: &LayerRef) -> LNodeRef {
 
 fn connect(source_node: &LNodeRef, target_node: &LNodeRef) {
     let source_port = LPort::new();
-    if let Some(mut source_guard) = source_port.lock_ok() {
+    {
+        let mut source_guard = source_port.lock();
         source_guard.set_side(PortSide::East);
     }
     LPort::set_node(&source_port, Some(source_node.clone()));
 
     let target_port = LPort::new();
-    if let Some(mut target_guard) = target_port.lock_ok() {
+    {
+        let mut target_guard = target_port.lock();
         target_guard.set_side(PortSide::West);
     }
     LPort::set_node(&target_port, Some(target_node.clone()));
@@ -49,8 +52,7 @@ fn connect(source_node: &LNodeRef, target_node: &LNodeRef) {
 }
 
 fn node_layer(node: &LNodeRef) -> LayerRef {
-    node.lock_ok()
-        .and_then(|node_guard| node_guard.layer())
+    node.lock().layer()
         .expect("node layer")
 }
 
@@ -72,7 +74,8 @@ fn moves_incoming_and_outgoing_leaf_trees_to_inserted_layers() {
     init_layered_options();
 
     let (graph, layers) = new_graph_with_layers(3);
-    if let Some(mut graph_guard) = graph.lock_ok() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.set_property(LayeredOptions::HIGH_DEGREE_NODES_THRESHOLD, Some(2));
         graph_guard.set_property(LayeredOptions::HIGH_DEGREE_NODES_TREE_HEIGHT, Some(5));
     }
@@ -89,7 +92,8 @@ fn moves_incoming_and_outgoing_leaf_trees_to_inserted_layers() {
 
     let mut processor = HighDegreeNodeLayeringProcessor::default();
     let mut monitor = NullElkProgressMonitor;
-    if let Some(mut graph_guard) = graph.lock_ok() {
+    {
+        let mut graph_guard = graph.lock();
         processor.process(&mut graph_guard, &mut monitor);
     }
 
@@ -114,7 +118,8 @@ fn tree_height_zero_is_treated_as_unbounded() {
     init_layered_options();
 
     let (graph, layers) = new_graph_with_layers(3);
-    if let Some(mut graph_guard) = graph.lock_ok() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.set_property(LayeredOptions::HIGH_DEGREE_NODES_THRESHOLD, Some(3));
         graph_guard.set_property(LayeredOptions::HIGH_DEGREE_NODES_TREE_HEIGHT, Some(0));
     }
@@ -135,7 +140,8 @@ fn tree_height_zero_is_treated_as_unbounded() {
 
     let mut processor = HighDegreeNodeLayeringProcessor::default();
     let mut monitor = NullElkProgressMonitor;
-    if let Some(mut graph_guard) = graph.lock_ok() {
+    {
+        let mut graph_guard = graph.lock();
         processor.process(&mut graph_guard, &mut monitor);
     }
 

@@ -51,9 +51,11 @@ impl ILayoutProcessor<LGraph> for SelfLoopPreProcessor {
 }
 
 fn set_hyper_loop_label_properties(holder: &SelfLoopHolderRef, spacing: f64, horizontal: bool) {
-    if let Some(holder_guard) = holder.lock_ok() {
+    {
+        let holder_guard = holder.lock();
         for hyper_loop in holder_guard.sl_hyper_loops() {
-            if let Some(mut loop_guard) = hyper_loop.lock_ok() {
+            {
+                let mut loop_guard = hyper_loop.lock();
                 if let Some(sl_labels) = loop_guard.sl_labels_mut() {
                     sl_labels.set_layout_direction_horizontal(horizontal);
                     sl_labels.set_label_label_spacing(spacing);
@@ -67,9 +69,7 @@ fn hide_self_loops(
     holder: &crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfLoopHolderRef,
 ) {
     let edges = holder
-        .lock_ok()
-        .map(|holder_guard| holder_guard.all_self_loop_edges())
-        .unwrap_or_default();
+        .lock().all_self_loop_edges();
 
     for edge in edges {
         LEdge::set_source(&edge, None);
@@ -110,9 +110,7 @@ fn hide_ports(
     }
 
     let sl_ports = holder
-        .lock_ok()
-        .map(|holder_guard| holder_guard.sl_port_values())
-        .unwrap_or_default();
+        .lock().sl_port_values();
 
     for sl_port in sl_ports {
         let (had_only_self_loops, l_port) = sl_port
@@ -131,10 +129,12 @@ fn hide_ports(
 
         LPort::set_node(&l_port, None);
 
-        if let Some(mut sl_port_guard) = sl_port.lock_ok() {
+        {
+            let mut sl_port_guard = sl_port.lock();
             sl_port_guard.set_hidden(true);
         }
-        if let Some(mut holder_guard) = holder.lock_ok() {
+        {
+            let mut holder_guard = holder.lock();
             holder_guard.set_ports_hidden(true);
         }
 

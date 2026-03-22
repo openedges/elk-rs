@@ -96,7 +96,8 @@ impl NubsSelfLoop {
 
         let mut corner_x = 0.0;
         let mut corner_y = 0.0;
-        if let Some(port_guard) = source.lock_ok() {
+        {
+            let port_guard = source.lock();
             match port_guard.side() {
                 org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide::West => {
                     corner_x = 2.0 * (source_pos.x - source_height)
@@ -118,7 +119,8 @@ impl NubsSelfLoop {
             }
         }
 
-        if let Some(port_guard) = target.lock_ok() {
+        {
+            let port_guard = target.lock();
             match port_guard.side() {
                 org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide::West => {
                     corner_x = 2.0 * (target_pos.x - target_height)

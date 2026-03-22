@@ -55,9 +55,7 @@ impl ILayoutProcessor<LGraph> for SelfLoopRouter {
             .iter()
             .flat_map(|layer| {
                 layer
-                    .lock_ok()
-                    .map(|layer_guard| layer_guard.nodes().clone())
-                    .unwrap_or_default()
+                    .lock().nodes().clone()
             })
             .collect::<Vec<_>>();
 
@@ -130,9 +128,7 @@ fn route_node(
 
     for sl_loop in &hyper_loops {
         let sl_edges = sl_loop
-            .lock_ok()
-            .map(|loop_guard| loop_guard.sl_edges().clone())
-            .unwrap_or_default();
+            .lock().sl_edges().clone();
 
         for sl_edge in sl_edges {
             let (l_edge, sl_source, sl_target) = sl_edge
@@ -167,7 +163,8 @@ fn route_node(
                 );
             }
             if inside_self_loop_yo {
-                if let Some(mut edge_guard) = l_edge.lock_ok() {
+                {
+                    let mut edge_guard = l_edge.lock();
                     edge_guard.bend_points().clear();
                 }
                 continue;
@@ -211,7 +208,8 @@ fn route_node(
                 update_margins_with_point(node_size, &mut new_margins, bend_point);
             }
 
-            if let Some(mut edge_guard) = l_edge.lock_ok() {
+            {
+                let mut edge_guard = l_edge.lock();
                 edge_guard.bend_points().clear();
                 edge_guard.bend_points().add_all(&path);
             };
@@ -226,7 +224,8 @@ fn route_node(
         );
     }
 
-    if let Some(mut node_guard) = l_node.lock_ok() {
+    {
+        let mut node_guard = l_node.lock();
         *node_guard.margin() = new_margins;
     };
 }
@@ -549,10 +548,7 @@ fn place_loop_labels(
     margins: &mut LMargin,
 ) {
     let (side, alignment, align_ref, label_size, slot, inline_labels) = {
-        let mut sl_loop_guard = match sl_loop.lock_ok() {
-            Some(guard) => guard,
-            None => return,
-        };
+        let mut sl_loop_guard = sl_loop.lock();
         let labels = match sl_loop_guard.sl_labels_mut() {
             Some(labels) => labels,
             None => return,
@@ -610,7 +606,8 @@ fn place_loop_labels(
         PortSide::Undefined => return,
     }
 
-    if let Some(mut sl_loop_guard) = sl_loop.lock_ok() {
+    {
+        let mut sl_loop_guard = sl_loop.lock();
         if let Some(labels) = sl_loop_guard.sl_labels_mut() {
             *labels.position_mut() = relative;
             labels.apply_placement(KVector::new());

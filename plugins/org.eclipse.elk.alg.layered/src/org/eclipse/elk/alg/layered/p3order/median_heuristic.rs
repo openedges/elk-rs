@@ -75,10 +75,10 @@ impl MedianHeuristic {
                     .lock_ok()
                     .map(|edge_guard| {
                         let source_node = edge_guard.source().and_then(|port| {
-                            port.lock_ok().and_then(|port_guard| port_guard.node())
+                            port.lock().node()
                         });
                         let target_node = edge_guard.target().and_then(|port| {
-                            port.lock_ok().and_then(|port_guard| port_guard.node())
+                            port.lock().node()
                         });
                         (source_node, target_node)
                     })
@@ -98,7 +98,8 @@ impl MedianHeuristic {
                 Self::stable_sort_by_weight(&mut connected_nodes);
                 let median = connected_nodes[connected_nodes.len() / 2].clone();
                 if let Some(weight) = Self::weight_of(&median) {
-                    if let Some(mut node_guard) = node.lock_ok() {
+                    {
+                        let mut node_guard = node.lock();
                         node_guard.set_property(InternalProperties::WEIGHT, Some(weight));
                     }
                     min_weight = min_weight.min(weight);
@@ -109,7 +110,8 @@ impl MedianHeuristic {
 
         let avg_weight = (max_weight + min_weight) / 2.0;
         for node in to_revisit {
-            if let Some(mut node_guard) = node.lock_ok() {
+            {
+                let mut node_guard = node.lock();
                 node_guard.set_property(InternalProperties::WEIGHT, Some(avg_weight));
             }
         }
@@ -139,7 +141,8 @@ impl ICrossingMinimizationHeuristic for MedianHeuristic {
         let mut first_layer = layer.to_vec();
         for node in &first_layer {
             let weight = random.next_double();
-            if let Some(mut node_guard) = node.lock_ok() {
+            {
+                let mut node_guard = node.lock();
                 node_guard.set_property(InternalProperties::WEIGHT, Some(weight));
             }
         }
@@ -150,7 +153,8 @@ impl ICrossingMinimizationHeuristic for MedianHeuristic {
                     layer_slot[index] = node.clone();
                 }
             }
-            if let Some(mut node_guard) = node.lock_ok() {
+            {
+                let mut node_guard = node.lock();
                 node_guard.set_property(InternalProperties::WEIGHT, Some((index + 1) as f64));
             }
         }
@@ -201,8 +205,7 @@ impl ICrossingMinimizationHeuristic for MedianHeuristic {
 impl IInitializable for MedianHeuristic {}
 
 fn layer_id(node: &LNodeRef) -> Option<usize> {
-    node.lock_ok()
-        .and_then(|node_guard| node_guard.layer())
+    node.lock().layer()
         .and_then(|layer| {
             layer
                 .lock_ok()

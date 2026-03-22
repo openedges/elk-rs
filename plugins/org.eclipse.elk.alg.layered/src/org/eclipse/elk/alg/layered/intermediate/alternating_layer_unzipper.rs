@@ -35,15 +35,14 @@ impl ILayoutProcessor<LGraph> for AlternatingLayerUnzipper {
 
             if minimize_edge_length {
                 let layer_nodes = layer
-                    .lock_ok()
-                    .map(|layer_guard| layer_guard.nodes().clone())
-                    .unwrap_or_default();
+                    .lock().nodes().clone();
                 if !layer_nodes.is_empty() {
                     let mut max_width: f64 = 0.0;
                     let mut average_height: f64 = 0.0;
 
                     for node in &layer_nodes {
-                        if let Some(mut node_guard) = node.lock_ok() {
+                        {
+                            let mut node_guard = node.lock();
                             max_width = max_width.max(node_guard.shape().size_ref().x);
                             average_height += node_guard.shape().size_ref().y;
                         }
@@ -111,9 +110,7 @@ impl ILayoutProcessor<LGraph> for AlternatingLayerUnzipper {
                     };
 
                     let node_type = node
-                        .lock_ok()
-                        .map(|node_guard| node_guard.node_type())
-                        .unwrap_or(NodeType::Normal);
+                        .lock().node_type();
 
                     if node_type != NodeType::NonshiftingPlaceholder {
                         let shifted = shift_node(
@@ -154,9 +151,7 @@ fn get_layer_split_property(layer: &LayerRef) -> i32 {
     let mut property_unset = true;
 
     let nodes = layer
-        .lock_ok()
-        .map(|layer_guard| layer_guard.nodes().clone())
-        .unwrap_or_default();
+        .lock().nodes().clone();
 
     for node in nodes {
         if has_node_property(&node, LayeredOptions::LAYER_UNZIPPING_LAYER_SPLIT) {
@@ -182,9 +177,7 @@ fn get_layer_split_property(layer: &LayerRef) -> i32 {
 
 fn get_reset_on_long_edges_property(layer: &LayerRef) -> bool {
     let nodes = layer
-        .lock_ok()
-        .map(|layer_guard| layer_guard.nodes().clone())
-        .unwrap_or_default();
+        .lock().nodes().clone();
 
     for node in nodes {
         if has_node_property(&node, LayeredOptions::LAYER_UNZIPPING_RESET_ON_LONG_EDGES) {
@@ -205,9 +198,7 @@ fn get_reset_on_long_edges_property(layer: &LayerRef) -> bool {
 
 fn get_minimize_edge_length_property(layer: &LayerRef) -> bool {
     let nodes = layer
-        .lock_ok()
-        .map(|layer_guard| layer_guard.nodes().clone())
-        .unwrap_or_default();
+        .lock().nodes().clone();
 
     for node in nodes {
         if has_node_property(&node, LayeredOptions::LAYER_UNZIPPING_MINIMIZE_EDGE_LENGTH) {
@@ -247,9 +238,7 @@ fn shift_node(
     let mut no_incoming_edges = true;
 
     let reversed_incoming_edges: Vec<LEdgeRef> = node
-        .lock_ok()
-        .map(|node_guard| node_guard.incoming_edges())
-        .unwrap_or_default()
+        .lock().incoming_edges()
         .into_iter()
         .rev()
         .collect();
@@ -272,7 +261,8 @@ fn shift_node(
     if no_incoming_edges {
         for layer in sub_layers.iter().take(target_layer) {
             let dummy_node = LNode::new(graph_ref);
-            if let Some(mut dummy_guard) = dummy_node.lock_ok() {
+            {
+                let mut dummy_guard = dummy_node.lock();
                 dummy_guard.set_node_type(NodeType::Placeholder);
             }
             place_node_at_index(&dummy_node, layer, node_index + edge_count);
@@ -284,9 +274,7 @@ fn shift_node(
 
     let mut extra_edge = false;
     let outgoing_edges = node
-        .lock_ok()
-        .map(|node_guard| node_guard.outgoing_edges())
-        .unwrap_or_default();
+        .lock().outgoing_edges();
     for outgoing_edge in outgoing_edges {
         let mut next_edge_to_split = outgoing_edge;
         for layer in sub_layers.iter().skip(target_layer + 1) {
@@ -298,7 +286,8 @@ fn shift_node(
         if extra_edge {
             for layer in sub_layers.iter().take(target_layer + 1) {
                 let placeholder = LNode::new(graph_ref);
-                if let Some(mut placeholder_guard) = placeholder.lock_ok() {
+                {
+                    let mut placeholder_guard = placeholder.lock();
                     placeholder_guard.set_node_type(NodeType::NonshiftingPlaceholder);
                 }
                 place_node_at_index(&placeholder, layer, node_index + 1);
@@ -318,7 +307,8 @@ fn shift_node(
 
 fn create_dummy_node(graph_ref: &LGraphRef, edge_to_split: &LEdgeRef) -> LNodeRef {
     let dummy_node = LNode::new(graph_ref);
-    if let Some(mut dummy_guard) = dummy_node.lock_ok() {
+    {
+        let mut dummy_guard = dummy_node.lock();
         dummy_guard.set_node_type(NodeType::LongEdge);
         dummy_guard.set_property(
             InternalProperties::ORIGIN,
@@ -347,14 +337,10 @@ fn place_node_at_index(node: &LNodeRef, layer: &LayerRef, index: usize) {
 fn remove_unconnected_placeholder_nodes(graph: &mut LGraph) {
     for layer in graph.layers().clone() {
         let nodes = layer
-            .lock_ok()
-            .map(|layer_guard| layer_guard.nodes().clone())
-            .unwrap_or_default();
+            .lock().nodes().clone();
         for node in nodes {
             let node_type = node
-                .lock_ok()
-                .map(|node_guard| node_guard.node_type())
-                .unwrap_or(NodeType::Normal);
+                .lock().node_type();
             if node_type == NodeType::Placeholder || node_type == NodeType::NonshiftingPlaceholder {
                 LNode::set_layer(&node, None);
             }
@@ -380,14 +366,13 @@ fn has_node_property<T: Clone + Send + Sync + 'static>(
 fn graph_ref_for(layered_graph: &LGraph) -> LGraphRef {
     if let Some(layer) = layered_graph.layers().first() {
         if let Some(graph_ref) = layer
-            .lock_ok()
-            .and_then(|layer_guard| layer_guard.graph())
+            .lock().graph()
         {
             return graph_ref;
         }
     }
     if let Some(node) = layered_graph.layerless_nodes().first() {
-        if let Some(graph_ref) = node.lock_ok().and_then(|node_guard| node_guard.graph()) {
+        if let Some(graph_ref) = node.lock().graph() {
             return graph_ref;
         }
     }

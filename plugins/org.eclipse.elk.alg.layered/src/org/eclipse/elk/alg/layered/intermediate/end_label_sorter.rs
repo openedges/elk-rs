@@ -13,9 +13,7 @@ impl ILayoutProcessor<LGraph> for EndLabelSorter {
         let layers = layered_graph.layers().clone();
         for layer in layers {
             let nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
             for node in nodes {
                 if node
                     .lock_ok()
@@ -54,7 +52,8 @@ fn sort_represented_labels(node: &crate::org::eclipse::elk::alg::layered::graph:
         left_text.cmp(&right_text)
     });
 
-    if let Some(mut node_guard) = node.lock_ok() {
+    {
+        let mut node_guard = node.lock();
         node_guard.set_property(InternalProperties::REPRESENTED_LABELS, Some(sorted));
     }
 }

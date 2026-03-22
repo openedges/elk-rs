@@ -32,15 +32,13 @@ impl ILayoutProcessor<LGraph> for LabelDummyInserter {
         let mut new_dummy_nodes = Vec::new();
 
         for node in nodes {
-            let graph = node.lock_ok().and_then(|node_guard| node_guard.graph());
+            let graph = node.lock().graph();
             let Some(graph) = graph else {
                 continue;
             };
 
             let outgoing_edges = node
-                .lock_ok()
-                .map(|node_guard| node_guard.outgoing_edges())
-                .unwrap_or_default();
+                .lock().outgoing_edges();
             for edge in outgoing_edges {
                 if !edge_needs_processing(&edge) {
                     continue;
@@ -58,7 +56,8 @@ impl ILayoutProcessor<LGraph> for LabelDummyInserter {
                     label_label_spacing,
                 );
 
-                if let Some(mut dummy_guard) = dummy_node.lock_ok() {
+                {
+                    let mut dummy_guard = dummy_node.lock();
                     let size = dummy_guard.shape().size();
                     size.x = dummy_size.x;
                     size.y = dummy_size.y;
@@ -111,7 +110,8 @@ fn retrieve_thickness(edge: &LEdgeRef) -> f64 {
         .unwrap_or(1.0);
 
     if thickness < 0.0 {
-        if let Some(mut edge_guard) = edge.lock_ok() {
+        {
+            let mut edge_guard = edge.lock();
             edge_guard.set_property(CoreOptions::EDGE_THICKNESS, Some(0.0));
         }
         0.0
@@ -126,9 +126,10 @@ fn create_label_dummy(
     thickness: f64,
 ) -> LNodeRef {
     let dummy_node = LNode::new(graph);
-    let source = edge.lock_ok().and_then(|edge_guard| edge_guard.source());
-    let target = edge.lock_ok().and_then(|edge_guard| edge_guard.target());
-    if let Some(mut dummy_guard) = dummy_node.lock_ok() {
+    let source = edge.lock().source();
+    let target = edge.lock().target();
+    {
+        let mut dummy_guard = dummy_node.lock();
         dummy_guard.set_node_type(NodeType::Label);
         dummy_guard.set_property(
             InternalProperties::ORIGIN,
@@ -149,10 +150,12 @@ fn create_label_dummy(
     LongEdgeSplitter::split_edge(edge, &dummy_node);
 
     let port_pos = (thickness / 2.0).floor();
-    if let Some(dummy_guard) = dummy_node.lock_ok() {
+    {
+        let dummy_guard = dummy_node.lock();
         let ports = dummy_guard.ports().clone();
         for port in ports {
-            if let Some(mut port_guard) = port.lock_ok() {
+            {
+                let mut port_guard = port.lock();
                 port_guard.shape().position().y = port_pos;
             }
         }
@@ -169,9 +172,7 @@ fn collect_center_labels_and_size(
     label_label_spacing: f64,
 ) -> (Vec<LLabelRef>, KVector) {
     let labels = edge
-        .lock_ok()
-        .map(|edge_guard| edge_guard.labels().clone())
-        .unwrap_or_default();
+        .lock().labels().clone();
 
     let mut represented_labels = Vec::new();
     let mut remaining_labels = Vec::new();
@@ -215,7 +216,8 @@ fn collect_center_labels_and_size(
         }
     }
 
-    if let Some(mut edge_guard) = edge.lock_ok() {
+    {
+        let mut edge_guard = edge.lock();
         *edge_guard.labels_mut() = remaining_labels;
     }
 

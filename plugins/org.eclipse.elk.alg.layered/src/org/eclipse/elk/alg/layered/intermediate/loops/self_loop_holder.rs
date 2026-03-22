@@ -39,7 +39,8 @@ impl SelfLoopHolder {
 
         let holder = Arc::new(Mutex::new(SelfLoopHolder::new(node)));
 
-        if let Some(mut node_guard) = node.lock_ok() {
+        {
+            let mut node_guard = node.lock();
             node_guard.set_property(InternalProperties::SELF_LOOP_HOLDER, Some(holder.clone()));
         }
 
@@ -60,9 +61,7 @@ impl SelfLoopHolder {
 
         is_normal
             && outgoing_edges.iter().any(|edge| {
-                edge.lock_ok()
-                    .map(|edge_guard| edge_guard.is_self_loop())
-                    .unwrap_or(false)
+                edge.lock().is_self_loop()
             })
     }
 
@@ -73,15 +72,11 @@ impl SelfLoopHolder {
             .unwrap_or_else(|| panic!("self loop holder lock poisoned"));
 
         let outgoing_edges = node
-            .lock_ok()
-            .map(|node_guard| node_guard.outgoing_edges().clone())
-            .unwrap_or_default();
+            .lock().outgoing_edges().clone();
 
         for edge in outgoing_edges {
             let is_self_loop = edge
-                .lock_ok()
-                .map(|edge_guard| edge_guard.is_self_loop())
-                .unwrap_or(false);
+                .lock().is_self_loop();
             if !is_self_loop {
                 continue;
             }
@@ -118,14 +113,16 @@ impl SelfLoopHolder {
             }
 
             let hyper_loop = Self::initialize_hyper_loop(&sl_port, &mut visited);
-            if let Some(mut holder_guard) = holder.lock_ok() {
+            {
+                let mut holder_guard = holder.lock();
                 holder_guard.sl_hyper_loops.push(hyper_loop);
             }
         }
     }
 
     fn self_loop_port_for(holder: &SelfLoopHolderRef, l_port: &LPortRef) -> SelfLoopPortRef {
-        if let Some(holder_guard) = holder.lock_ok() {
+        {
+            let holder_guard = holder.lock();
             if let Some((_, sl_port)) = holder_guard
                 .sl_ports
                 .iter()
@@ -136,7 +133,8 @@ impl SelfLoopHolder {
         }
 
         let sl_port = SelfLoopPort::new(l_port);
-        if let Some(mut holder_guard) = holder.lock_ok() {
+        {
+            let mut holder_guard = holder.lock();
             holder_guard
                 .sl_ports
                 .push((l_port.clone(), sl_port.clone()));
