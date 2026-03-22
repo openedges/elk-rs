@@ -107,13 +107,14 @@ impl GreedyCycleBreaker {
             let mut model_order_calculator = GroupModelOrderCalculator::new();
 
             for node in nodes {
-                let has_model_order = node.lock_ok().is_some_and(|mut node_guard| {
+                let has_model_order = {
+                    let mut node_guard = node.lock();
                     node_guard
                         .shape()
                         .graph_element()
                         .properties()
                         .has_property(InternalProperties::MODEL_ORDER)
-                });
+                };
                 if !has_model_order {
                     continue;
                 }
@@ -155,45 +156,44 @@ impl GreedyCycleBreaker {
     }
 
     fn update_neighbors(&mut self, node: &LNodeRef) {
-        let ports = match node.lock_ok() {
-            Some(node_guard) => node_guard.ports().clone(),
-            None => return,
+        let ports = {
+            let node_guard = node.lock();
+            node_guard.ports().clone()
         };
 
         for port in ports {
-            let edges = match port.lock_ok() {
-            Some(port_guard) => port_guard.connected_edges(),
-            None => Vec::new(),
+            let edges = {
+                let port_guard = port.lock();
+                port_guard.connected_edges()
             };
 
             for edge in edges {
-                let (connected_port, is_target, priority) = match edge.lock_ok() {
-            Some(mut edge_guard) => {
-                        let source = edge_guard.source();
-                        let target = edge_guard.target();
-                        let Some(source_port) = source else {
-                            continue;
-                        };
-                        let Some(target_port) = target else {
-                            continue;
-                        };
-                        let connected_port = if Arc::ptr_eq(&source_port, &port) {
-                            target_port.clone()
-                        } else {
-                            source_port
-                        };
-                        let is_target = Arc::ptr_eq(&target_port, &connected_port);
-                        let priority = edge_guard
-                            .get_property(LayeredOptions::PRIORITY_DIRECTION)
-                            .unwrap_or(0);
-                        (connected_port, is_target, priority)
-                    }
-            None => continue,
+                let (connected_port, is_target, priority) = {
+                    let mut edge_guard = edge.lock();
+                    let source = edge_guard.source();
+                    let target = edge_guard.target();
+                    let Some(source_port) = source else {
+                        continue;
+                    };
+                    let Some(target_port) = target else {
+                        continue;
+                    };
+                    let connected_port = if Arc::ptr_eq(&source_port, &port) {
+                        target_port.clone()
+                    } else {
+                        source_port
+                    };
+                    let is_target = Arc::ptr_eq(&target_port, &connected_port);
+                    let priority = edge_guard
+                        .get_property(LayeredOptions::PRIORITY_DIRECTION)
+                        .unwrap_or(0);
+                    (connected_port, is_target, priority)
                 };
 
-                let endpoint = connected_port
-                    .lock_ok()
-                    .and_then(|port_guard| port_guard.node());
+                let endpoint = {
+                    let port_guard = connected_port.lock();
+                    port_guard.node()
+                };
                 let Some(endpoint) = endpoint else {
                     continue;
                 };
@@ -230,31 +230,35 @@ impl GreedyCycleBreaker {
     fn reverse_edges(&mut self, graph: &mut LGraph, nodes: &[LNodeRef]) {
         let reverse_graph = nodes
             .first()
-            .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.graph()))
+            .and_then(|node| {
+                let node_guard = node.lock();
+                node_guard.graph()
+            })
             .unwrap_or_default();
         let trace_reversals = ElkTrace::global().cycle_reversals;
         let forced_reversed = DEBUG_CYCLE_FORCE_REVERSE_ORIGINS.as_ref();
         let mut reversed_edges = Vec::new();
         for node in nodes {
-            let (ports, node_idx) = match node.lock_ok() {
-            Some(mut node_guard) => {
-                    let node_idx = node_guard.shape().graph_element().id as usize;
-                    (node_guard.ports().clone(), node_idx)
-                }
-            None => continue,
+            let (ports, node_idx) = {
+                let mut node_guard = node.lock();
+                let node_idx = node_guard.shape().graph_element().id as usize;
+                (node_guard.ports().clone(), node_idx)
             };
 
             for port in LGraphUtil::to_port_array(&ports) {
-                let edges = match port.lock_ok() {
-            Some(port_guard) => port_guard.outgoing_edges().clone(),
-            None => Vec::new(),
+                let edges = {
+                    let port_guard = port.lock();
+                    port_guard.outgoing_edges().clone()
                 };
 
                 for edge in LGraphUtil::to_edge_array(&edges) {
-                    let target_node = edge
-                        .lock_ok()
-                        .and_then(|edge_guard| edge_guard.target())
-                        .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
+                    let target_node = {
+                        let edge_guard = edge.lock();
+                        edge_guard.target().and_then(|port| {
+                            let port_guard = port.lock();
+                            port_guard.node()
+                        })
+                    };
                     let Some(target_node) = target_node else {
                         continue;
                     };
@@ -338,61 +342,68 @@ impl ILayoutPhase<LayeredPhases, LGraph> for GreedyCycleBreaker {
         }
 
         for (index, node) in nodes.iter().enumerate() {
-            if let Some(mut node_guard) = node.lock_ok() {
+            {
+                let mut node_guard = node.lock();
                 node_guard.shape().graph_element().id = index as i32;
             }
 
-            let ports = match node.lock_ok() {
-            Some(node_guard) => node_guard.ports().clone(),
-            None => continue,
+            let ports = {
+                let node_guard = node.lock();
+                node_guard.ports().clone()
             };
 
             for port in ports {
-                let (incoming, outgoing) = match port.lock_ok() {
-            Some(port_guard) => (
+                let (incoming, outgoing) = {
+                    let port_guard = port.lock();
+                    (
                         port_guard.incoming_edges().clone(),
                         port_guard.outgoing_edges().clone(),
-                    ),
-            None => (Vec::new(), Vec::new()),
+                    )
                 };
 
                 for edge in incoming {
-                    let source_node = edge
-                        .lock_ok()
-                        .and_then(|edge_guard| edge_guard.source())
-                        .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
+                    let source_node = {
+                        let edge_guard = edge.lock();
+                        edge_guard.source().and_then(|port| {
+                            let port_guard = port.lock();
+                            port_guard.node()
+                        })
+                    };
                     if source_node
                         .as_ref()
                         .is_some_and(|source| Arc::ptr_eq(source, node))
                     {
                         continue;
                     }
-                    let priority = edge
-                        .lock_ok()
-                        .and_then(|mut edge_guard| {
-                            edge_guard.get_property(LayeredOptions::PRIORITY_DIRECTION)
-                        })
-                        .unwrap_or(0);
+                    let priority = {
+                        let mut edge_guard = edge.lock();
+                        edge_guard
+                            .get_property(LayeredOptions::PRIORITY_DIRECTION)
+                            .unwrap_or(0)
+                    };
                     self.indeg[index] += if priority > 0 { priority + 1 } else { 1 };
                 }
 
                 for edge in outgoing {
-                    let target_node = edge
-                        .lock_ok()
-                        .and_then(|edge_guard| edge_guard.target())
-                        .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
+                    let target_node = {
+                        let edge_guard = edge.lock();
+                        edge_guard.target().and_then(|port| {
+                            let port_guard = port.lock();
+                            port_guard.node()
+                        })
+                    };
                     if target_node
                         .as_ref()
                         .is_some_and(|target| Arc::ptr_eq(target, node))
                     {
                         continue;
                     }
-                    let priority = edge
-                        .lock_ok()
-                        .and_then(|mut edge_guard| {
-                            edge_guard.get_property(LayeredOptions::PRIORITY_DIRECTION)
-                        })
-                        .unwrap_or(0);
+                    let priority = {
+                        let mut edge_guard = edge.lock();
+                        edge_guard
+                            .get_property(LayeredOptions::PRIORITY_DIRECTION)
+                            .unwrap_or(0)
+                    };
                     self.outdeg[index] += if priority > 0 { priority + 1 } else { 1 };
                 }
             }
@@ -482,9 +493,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for GreedyCycleBreaker {
 }
 
 fn node_index(node: &LNodeRef) -> usize {
-    node.lock_ok()
-        .map(|mut node_guard| node_guard.shape().graph_element().id as usize)
-        .unwrap_or(0)
+    let mut node_guard = node.lock();
+    node_guard.shape().graph_element().id as usize
 }
 
 fn trace_reversal_entry(
@@ -494,20 +504,18 @@ fn trace_reversal_entry(
     source_mark: i32,
     target_mark: i32,
 ) -> String {
-    let (edge_origin, source_port_origin, target_port_origin) = edge
-        .lock_ok()
-        .map(|mut edge_guard| {
-            let edge_origin = edge_guard
-                .get_property(InternalProperties::ORIGIN)
-                .and_then(|origin| match origin {
-                    Origin::ElkEdge(origin_id) => Some(origin_id),
-                    _ => None,
-                });
-            let source_port_origin = edge_guard.source().and_then(|port| trace_port_origin(&port));
-            let target_port_origin = edge_guard.target().and_then(|port| trace_port_origin(&port));
-            (edge_origin, source_port_origin, target_port_origin)
-        })
-        .unwrap_or((None, None, None));
+    let (edge_origin, source_port_origin, target_port_origin) = {
+        let mut edge_guard = edge.lock();
+        let edge_origin = edge_guard
+            .get_property(InternalProperties::ORIGIN)
+            .and_then(|origin| match origin {
+                Origin::ElkEdge(origin_id) => Some(origin_id),
+                _ => None,
+            });
+        let source_port_origin = edge_guard.source().and_then(|port| trace_port_origin(&port));
+        let target_port_origin = edge_guard.target().and_then(|port| trace_port_origin(&port));
+        (edge_origin, source_port_origin, target_port_origin)
+    };
 
     format!(
         "edge_origin={:?},source_port_origin={:?},target_port_origin={:?},src_node={},tgt_node={},src_mark={},tgt_mark={}",
@@ -522,21 +530,19 @@ fn trace_reversal_entry(
 }
 
 fn trace_port_origin(port: &LPortRef) -> Option<usize> {
-    port.lock_ok()
-        .and_then(|mut port_guard| port_guard.get_property(InternalProperties::ORIGIN))
-        .and_then(|origin| match origin {
-            Origin::ElkPort(origin_id) => Some(origin_id),
-            _ => None,
-        })
+    let mut port_guard = port.lock();
+    let origin = port_guard.get_property(InternalProperties::ORIGIN)?;
+    match origin {
+        Origin::ElkPort(origin_id) => Some(origin_id),
+        _ => None,
+    }
 }
-
 
 fn edge_origin_id(edge: &LEdgeRef) -> Option<usize> {
-    edge.lock_ok()
-        .and_then(|mut edge_guard| edge_guard.get_property(InternalProperties::ORIGIN))
-        .and_then(|origin| match origin {
-            Origin::ElkEdge(origin_id) => Some(origin_id),
-            _ => None,
-        })
+    let mut edge_guard = edge.lock();
+    let origin = edge_guard.get_property(InternalProperties::ORIGIN)?;
+    match origin {
+        Origin::ElkEdge(origin_id) => Some(origin_id),
+        _ => None,
+    }
 }
-
