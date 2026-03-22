@@ -205,10 +205,47 @@ Phase A-2 (typed wrapper)     Phase B-1 (lock_ok → lock 기계적 치환)
 | 5 | **C** | 아키텍처 전환 파일럿, lock 제거 | 대 | 중간 |
 | 6 | **D** | 전체 아키텍처 전환 | 대규모 | 높음 |
 
+## lock_ok() → lock() 변환 규칙 (2026-03-22 교훈)
+
+### 근본 원인
+
+`lock_ok().and_then(|guard| ...)` 에서 `and_then` closure가 guard 수명을 제어한다.
+`lock().method_chain()` 으로 변환하면 temporary guard가 전체 표현식 끝까지 유지되어,
+같은 mutex를 재잠금하는 코드에서 **데드락** 또는 **동작 차이**가 발생한다.
+
+### 안전한 변환 패턴
+
+```rust
+// BEFORE (lock_ok)
+x.lock_ok().and_then(|g| g.method())
+
+// SAFE: 명시적 변수 바인딩 (guard 범위 명확)
+{ let g = x.lock(); g.method() }
+
+// DANGEROUS: temporary chain (guard가 표현식 끝까지 유지)
+x.lock().method().and_then(|y| y.lock()...)  // 데드락 위험!
+```
+
+### 필수 규칙
+
+1. **guard를 항상 명시적 변수에 바인딩**: `let guard = x.lock();`
+2. **guard 범위를 블록으로 제한**: `{ let guard = x.lock(); ... }`
+3. **체인에서 temporary guard 금지**: `x.lock().ports().and_then(...)` 대신 `{ let g = x.lock(); let ports = g.ports().clone(); drop(g); ... }`
+4. **같은 객체 재잠금 전 guard 명시적 해제**: 부모 노드 lock → 자식에서 `absolute_anchor()` 등 부모 재잠금 시 반드시 `drop(guard)` 선행
+5. **매 batch 변환 후 model parity 검증** (Java baseline 대비)
+
+### 실패 사례 (롤백됨)
+
+- `d5bb558` ~ `5b25f1f` (17 커밋): 기계적 sed로 `lock_ok().and_then(|g| g.method())` → `lock().method()` 변환
+- `LongEdgeJoiner::join_at`에서 `node.lock().ports().first().and_then(|p| p.lock().absolute_anchor())` → 데드락
+- 1988/1989 → 1940/1974 parity 회귀 (34 drift)
+- 원인: temporary guard 수명 연장으로 인한 미묘한 lock 순서/타이밍 변화
+
 ## 각 Phase 완료 시 품질 게이트
 
 1. `cargo build --workspace` (error/warning 0건)
 2. `cargo clippy --workspace --all-targets` (warning 0건)
 3. `cargo test --workspace` (failure 0건)
-4. Phase C 이상: model parity + phase-step trace 재검증
-5. Phase D: JS parity 포함 전체 재검증
+4. **Phase B 이상: model parity 재검증 필수** (lock_ok 변환은 parity에 영향)
+5. Phase C 이상: phase-step trace 재검증
+6. Phase D: JS parity 포함 전체 재검증
