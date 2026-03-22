@@ -83,7 +83,8 @@ impl<'a> ElkGraphImporter<'a> {
             self.ensure_defined_port_side(&lgraph, port);
         }
 
-        let has_external_ports = if let Some(mut graph_guard) = lgraph.lock_ok() {
+        let has_external_ports = {
+            let mut graph_guard = lgraph.lock();
             let mut graph_properties = graph_guard
                 .get_property(InternalProperties::GRAPH_PROPERTIES)
                 .unwrap_or_else(EnumSet::none_of);
@@ -91,8 +92,6 @@ impl<'a> ElkGraphImporter<'a> {
             let has_external_ports = graph_properties.contains(&GraphProperties::ExternalPorts);
             graph_guard.set_property(InternalProperties::GRAPH_PROPERTIES, Some(graph_properties));
             has_external_ports
-        } else {
-            false
         };
         if has_external_ports {
             for port in &ports {
@@ -118,10 +117,12 @@ impl<'a> ElkGraphImporter<'a> {
             {
                 let graph_guard = lgraph.lock();
                 let node_count = graph_guard.layerless_nodes().len();
-                let edge_count: usize = graph_guard.layerless_nodes().iter().filter_map(|n| {
-                    n.lock_ok().map(|ng| ng.ports().iter().filter_map(|p| {
-                        p.lock_ok().map(|pg| pg.outgoing_edges().len())
-                    }).sum::<usize>())
+                let edge_count: usize = graph_guard.layerless_nodes().iter().map(|n| {
+                    let ng = n.lock();
+                    ng.ports().iter().map(|p| {
+                        let pg = p.lock();
+                        pg.outgoing_edges().len()
+                    }).sum::<usize>()
                 }).sum();
                 let graph_id = elkgraph.borrow_mut().connectable().shape().graph_element()
                     .identifier().unwrap_or("<no-id>").to_owned();
@@ -419,10 +420,10 @@ impl<'a> ElkGraphImporter<'a> {
             };
 
             if trace_edge_selection {
-                let has_target_graph_origin = parent_lgraph
-                    .lock_ok()
-                    .and_then(|mut g| g.get_property(InternalProperties::ORIGIN))
-                    .is_some();
+                let has_target_graph_origin = {
+                    let mut g = parent_lgraph.lock();
+                    g.get_property(InternalProperties::ORIGIN).is_some()
+                };
                 eprintln!(
                     "[import-edge-select] edge={} inside={} has_target_graph_origin={}",
                     edge_id_for_trace, is_inside_self_loop, has_target_graph_origin
@@ -494,12 +495,11 @@ impl<'a> ElkGraphImporter<'a> {
             return;
         }
 
-        let mut size_constraints = if let Some(graph_guard) = lgraph.lock_ok() {
+        let mut size_constraints = {
+            let graph_guard = lgraph.lock();
             graph_guard
                 .get_property_ref(LayeredOptions::NODE_SIZE_CONSTRAINTS)
                 .unwrap_or_else(EnumSet::none_of)
-        } else {
-            return;
         };
         if size_constraints.is_empty() {
             return;
@@ -533,12 +533,11 @@ impl<'a> ElkGraphImporter<'a> {
                 );
         }
 
-        let mut min_size = if let Some(graph_guard) = lgraph.lock_ok() {
+        let mut min_size = {
+            let graph_guard = lgraph.lock();
             graph_guard
                 .get_property_ref(LayeredOptions::NODE_SIZE_MINIMUM)
                 .unwrap_or_default()
-        } else {
-            return;
         };
 
         // Match Java's importer path:
@@ -715,15 +714,17 @@ impl<'a> ElkGraphImporter<'a> {
         self.node_map.insert(origin_id, lnode.clone());
 
         let direction = LGraphUtil::get_direction(lgraph);
-        let mut graph_properties = lgraph
-            .lock_ok()
-            .and_then(|mut graph_guard| graph_guard.get_property(InternalProperties::GRAPH_PROPERTIES))
-            .unwrap_or_else(EnumSet::none_of);
+        let mut graph_properties = {
+            let mut graph_guard = lgraph.lock();
+            graph_guard.get_property(InternalProperties::GRAPH_PROPERTIES)
+                .unwrap_or_else(EnumSet::none_of)
+        };
 
-        let mut port_constraints = lnode
-            .lock_ok()
-            .and_then(|mut node_guard| node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS))
-            .unwrap_or(PortConstraints::Undefined);
+        let mut port_constraints = {
+            let mut node_guard = lnode.lock();
+            node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
+                .unwrap_or(PortConstraints::Undefined)
+        };
         if port_constraints == PortConstraints::Undefined {
             {
                 let mut node_guard = lnode.lock();
@@ -776,19 +777,19 @@ impl<'a> ElkGraphImporter<'a> {
             }
         }
 
-        if lnode
-            .lock_ok()
-            .and_then(|mut node_guard| node_guard.get_property(LayeredOptions::COMMENT_BOX))
-            .unwrap_or(false)
-        {
+        if {
+            let mut node_guard = lnode.lock();
+            node_guard.get_property(LayeredOptions::COMMENT_BOX)
+                .unwrap_or(false)
+        } {
             graph_properties.insert(GraphProperties::Comments);
         }
 
-        if lnode
-            .lock_ok()
-            .and_then(|mut node_guard| node_guard.get_property(LayeredOptions::HYPERNODE))
-            .unwrap_or(false)
-        {
+        if {
+            let mut node_guard = lnode.lock();
+            node_guard.get_property(LayeredOptions::HYPERNODE)
+                .unwrap_or(false)
+        } {
             graph_properties.insert(GraphProperties::Hypernodes);
             graph_properties.insert(GraphProperties::Hyperedges);
             {
@@ -981,33 +982,30 @@ impl<'a> ElkGraphImporter<'a> {
         LEdge::set_source(&ledge, Some(source_port));
         LEdge::set_target(&ledge, Some(target_port));
 
-        let mut graph_properties = lgraph
-            .lock_ok()
-            .and_then(|mut graph_guard| graph_guard.get_property(InternalProperties::GRAPH_PROPERTIES))
-            .unwrap_or_else(EnumSet::none_of);
+        let mut graph_properties = {
+            let mut graph_guard = lgraph.lock();
+            graph_guard.get_property(InternalProperties::GRAPH_PROPERTIES)
+                .unwrap_or_else(EnumSet::none_of)
+        };
 
         // Java parity: self loops and hyperedges are tracked while importing edges.
-        let is_self_loop = ledge
-            .lock_ok()
-            .is_some_and(|edge_guard| edge_guard.is_self_loop());
+        let is_self_loop = {
+            let edge_guard = ledge.lock();
+            edge_guard.is_self_loop()
+        };
         if is_self_loop {
             graph_properties.insert(GraphProperties::SelfLoops);
         }
 
         let is_hyperedge = {
-            let source_counts = ledge.lock_ok().and_then(|edge_guard| {
-                edge_guard.source().and_then(|source| {
-                    source
-                        .lock_ok()
-                        .map(|port_guard| (port_guard.incoming_edges().len(), port_guard.outgoing_edges().len()))
-                })
+            let edge_guard = ledge.lock();
+            let source_counts = edge_guard.source().map(|source| {
+                let port_guard = source.lock();
+                (port_guard.incoming_edges().len(), port_guard.outgoing_edges().len())
             });
-            let target_counts = ledge.lock_ok().and_then(|edge_guard| {
-                edge_guard.target().and_then(|target| {
-                    target
-                        .lock_ok()
-                        .map(|port_guard| (port_guard.incoming_edges().len(), port_guard.outgoing_edges().len()))
-                })
+            let target_counts = edge_guard.target().map(|target| {
+                let port_guard = target.lock();
+                (port_guard.incoming_edges().len(), port_guard.outgoing_edges().len())
             });
             source_counts
                 .is_some_and(|(inc, out)| inc > 1 || out > 1)
@@ -1059,12 +1057,11 @@ impl<'a> ElkGraphImporter<'a> {
                 }
 
                 let llabel = self.transform_label(&label);
-                let placement = llabel
-                    .lock_ok()
-                    .and_then(|mut label_guard| {
-                        label_guard.get_property(LayeredOptions::EDGE_LABELS_PLACEMENT)
-                    })
-                    .unwrap_or(EdgeLabelPlacement::Center);
+                let placement = {
+                    let mut label_guard = llabel.lock();
+                    label_guard.get_property(LayeredOptions::EDGE_LABELS_PLACEMENT)
+                        .unwrap_or(EdgeLabelPlacement::Center)
+                };
                 match placement {
                     EdgeLabelPlacement::Head | EdgeLabelPlacement::Tail => {
                         graph_properties.insert(GraphProperties::EndLabels);
@@ -1250,16 +1247,16 @@ impl<'a> ElkGraphImporter<'a> {
                     }
                 };
                 let direction = LGraphUtil::get_direction(lgraph);
-                let mut graph_properties = lgraph
-                    .lock_ok()
-                    .and_then(|mut graph_guard| {
-                        graph_guard.get_property(InternalProperties::GRAPH_PROPERTIES)
-                    })
-                    .unwrap_or_else(EnumSet::none_of);
-                let mut port_constraints = lnode
-                    .lock_ok()
-                    .and_then(|mut node_guard| node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS))
-                    .unwrap_or(PortConstraints::Undefined);
+                let mut graph_properties = {
+                    let mut graph_guard = lgraph.lock();
+                    graph_guard.get_property(InternalProperties::GRAPH_PROPERTIES)
+                        .unwrap_or_else(EnumSet::none_of)
+                };
+                let mut port_constraints = {
+                    let mut node_guard = lnode.lock();
+                    node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
+                        .unwrap_or(PortConstraints::Undefined)
+                };
                 if port_constraints == PortConstraints::Undefined {
                     {
                         let mut node_guard = lnode.lock();
@@ -1318,10 +1315,11 @@ impl<'a> ElkGraphImporter<'a> {
 
     fn ensure_defined_port_side(&self, lgraph: &LGraphRef, elkport: &ElkPortRef) {
         let direction = LGraphUtil::get_direction(lgraph);
-        let port_constraints = lgraph
-            .lock_ok()
-            .and_then(|mut graph_guard| graph_guard.get_property(LayeredOptions::PORT_CONSTRAINTS))
-            .unwrap_or(PortConstraints::Undefined);
+        let port_constraints = {
+            let mut graph_guard = lgraph.lock();
+            graph_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
+                .unwrap_or(PortConstraints::Undefined)
+        };
 
         let mut port_side = self
             .graph_property(elkport, LayeredOptions::PORT_SIDE)
@@ -1586,9 +1584,10 @@ impl<'a> ElkGraphImporter<'a> {
             );
         }
 
-        let dummy_port = dummy
-            .lock_ok()
-            .and_then(|dummy_guard| dummy_guard.ports().first().cloned());
+        let dummy_port = {
+            let dummy_guard = dummy.lock();
+            dummy_guard.ports().first().cloned()
+        };
         if let Some(dummy_port) = &dummy_port {
             {
                 let mut dummy_port_guard = dummy_port.lock();
