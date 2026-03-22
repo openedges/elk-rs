@@ -109,23 +109,21 @@ impl LinearSegmentsNodePlacer {
                     let incoming = port
                         .lock().incoming_edges().clone();
                     for edge in incoming {
-                        let prio = edge
-                            .lock_ok()
-                            .and_then(|mut edge_guard| {
-                                edge_guard.get_property(LayeredOptions::PRIORITY_STRAIGHTNESS)
-                            })
-                            .unwrap_or(0);
+                        let prio = {
+                            let mut edge_guard = edge.lock();
+                            edge_guard.get_property(LayeredOptions::PRIORITY_STRAIGHTNESS)
+                                .unwrap_or(0)
+                        };
                         inprio = inprio.max(prio);
                     }
                     let outgoing = port
                         .lock().outgoing_edges().clone();
                     for edge in outgoing {
-                        let prio = edge
-                            .lock_ok()
-                            .and_then(|mut edge_guard| {
-                                edge_guard.get_property(LayeredOptions::PRIORITY_STRAIGHTNESS)
-                            })
-                            .unwrap_or(0);
+                        let prio = {
+                            let mut edge_guard = edge.lock();
+                            edge_guard.get_property(LayeredOptions::PRIORITY_STRAIGHTNESS)
+                                .unwrap_or(0)
+                        };
                         outprio = outprio.max(prio);
                     }
                 }
@@ -362,10 +360,10 @@ impl LinearSegmentsNodePlacer {
                         .get_property(LayeredOptions::SPACING_EDGE_EDGE)
                         .unwrap_or(0.0),
                 };
-                let layer_size = layers[layer_idx]
-                    .lock_ok()
-                    .map(|layer_guard| layer_guard.size_ref().y)
-                    .unwrap_or(0.0);
+                let layer_size = {
+                    let layer_guard = layers[layer_idx].lock();
+                    layer_guard.size_ref().y
+                };
                 uppermost_place = uppermost_place.max(layer_size + spacing);
             }
 
@@ -525,24 +523,21 @@ impl LinearSegmentsNodePlacer {
                         };
                         let other_segment = node_id(&other_node).max(0) as usize;
                         if other_segment != segment_index {
-                            let other_prio = other_node
-                                .lock_ok()
-                                .map(|mut node_guard| {
-                                    let input = node_guard
-                                        .get_property(&INPUT_PRIO_PROPERTY)
-                                        .unwrap_or(i32::MIN);
-                                    let output = node_guard
-                                        .get_property(&OUTPUT_PRIO_PROPERTY)
-                                        .unwrap_or(i32::MIN);
-                                    input.max(output)
-                                })
-                                .unwrap_or(i32::MIN);
-                            let prio = edge
-                                .lock_ok()
-                                .and_then(|mut edge_guard| {
-                                    edge_guard.get_property(LayeredOptions::PRIORITY_STRAIGHTNESS)
-                                })
-                                .unwrap_or(0);
+                            let other_prio = {
+                                let mut node_guard = other_node.lock();
+                                let input = node_guard
+                                    .get_property(&INPUT_PRIO_PROPERTY)
+                                    .unwrap_or(i32::MIN);
+                                let output = node_guard
+                                    .get_property(&OUTPUT_PRIO_PROPERTY)
+                                    .unwrap_or(i32::MIN);
+                                input.max(output)
+                            };
+                            let prio = {
+                                let mut edge_guard = edge.lock();
+                                edge_guard.get_property(LayeredOptions::PRIORITY_STRAIGHTNESS)
+                                    .unwrap_or(0)
+                            };
                             if prio >= min_prio && prio >= other_prio {
                                 node_deflection +=
                                     port_position_y(&other_node, &other_port) - port_pos;
@@ -568,24 +563,21 @@ impl LinearSegmentsNodePlacer {
                         };
                         let other_segment = node_id(&other_node).max(0) as usize;
                         if other_segment != segment_index {
-                            let other_prio = other_node
-                                .lock_ok()
-                                .map(|mut node_guard| {
-                                    let input = node_guard
-                                        .get_property(&INPUT_PRIO_PROPERTY)
-                                        .unwrap_or(i32::MIN);
-                                    let output = node_guard
-                                        .get_property(&OUTPUT_PRIO_PROPERTY)
-                                        .unwrap_or(i32::MIN);
-                                    input.max(output)
-                                })
-                                .unwrap_or(i32::MIN);
-                            let prio = edge
-                                .lock_ok()
-                                .and_then(|mut edge_guard| {
-                                    edge_guard.get_property(LayeredOptions::PRIORITY_STRAIGHTNESS)
-                                })
-                                .unwrap_or(0);
+                            let other_prio = {
+                                let mut node_guard = other_node.lock();
+                                let input = node_guard
+                                    .get_property(&INPUT_PRIO_PROPERTY)
+                                    .unwrap_or(i32::MIN);
+                                let output = node_guard
+                                    .get_property(&OUTPUT_PRIO_PROPERTY)
+                                    .unwrap_or(i32::MIN);
+                                input.max(output)
+                            };
+                            let prio = {
+                                let mut edge_guard = edge.lock();
+                                edge_guard.get_property(LayeredOptions::PRIORITY_STRAIGHTNESS)
+                                    .unwrap_or(0)
+                            };
                             if prio >= min_prio && prio >= other_prio {
                                 node_deflection +=
                                     port_position_y(&other_node, &other_port) - port_pos;
@@ -679,10 +671,9 @@ impl LinearSegmentsNodePlacer {
                 let index = node_index(node);
                 let layer_nodes = node
                     .lock().layer()
-                    .and_then(|layer| {
-                        layer
-                            .lock_ok()
-                            .map(|layer_guard| layer_guard.nodes().clone())
+                    .map(|layer| {
+                        let layer_guard = layer.lock();
+                        layer_guard.nodes().clone()
                     })
                     .unwrap_or_default();
 
@@ -847,9 +838,8 @@ fn region_index(segments: &[LinearSegment], index: usize) -> usize {
 }
 
 fn node_id(node: &LNodeRef) -> i32 {
-    node.lock_ok()
-        .map(|mut node_guard| node_guard.shape().graph_element().id)
-        .unwrap_or(0)
+    let mut node_guard = node.lock();
+    node_guard.shape().graph_element().id
 }
 
 fn set_node_id(node: &LNodeRef, value: i32) {
@@ -861,10 +851,9 @@ fn set_node_id(node: &LNodeRef, value: i32) {
 
 fn layer_index(node: &LNodeRef) -> usize {
     node.lock().layer()
-        .and_then(|layer| {
-            layer
-                .lock_ok()
-                .map(|mut layer_guard| layer_guard.graph_element().id as usize)
+        .map(|layer| {
+            let mut layer_guard = layer.lock();
+            layer_guard.graph_element().id as usize
         })
         .unwrap_or(0)
 }
@@ -875,39 +864,33 @@ fn node_index(node: &LNodeRef) -> usize {
 }
 
 fn node_position_y(node: &LNodeRef) -> f64 {
-    node.lock_ok()
-        .map(|mut node_guard| node_guard.shape().position_ref().y)
-        .unwrap_or(0.0)
+    let mut node_guard = node.lock();
+    node_guard.shape().position_ref().y
 }
 
 fn node_size_y(node: &LNodeRef) -> f64 {
-    node.lock_ok()
-        .map(|mut node_guard| node_guard.shape().size_ref().y)
-        .unwrap_or(0.0)
+    let mut node_guard = node.lock();
+    node_guard.shape().size_ref().y
 }
 
 fn node_margin_top(node: &LNodeRef) -> f64 {
-    node.lock_ok()
-        .map(|mut node_guard| node_guard.margin().top)
-        .unwrap_or(0.0)
+    let mut node_guard = node.lock();
+    node_guard.margin().top
 }
 
 fn node_margin_bottom(node: &LNodeRef) -> f64 {
-    node.lock_ok()
-        .map(|mut node_guard| node_guard.margin().bottom)
-        .unwrap_or(0.0)
+    let mut node_guard = node.lock();
+    node_guard.margin().bottom
 }
 
 fn port_position_y(node: &LNodeRef, port: &LPortRef) -> f64 {
     let node_pos = node_position_y(node);
-    let (port_pos, anchor) = port
-        .lock_ok()
-        .map(|mut port_guard| {
-            (
-                port_guard.shape().position_ref().y,
-                port_guard.anchor_ref().y,
-            )
-        })
-        .unwrap_or((0.0, 0.0));
+    let (port_pos, anchor) = {
+        let mut port_guard = port.lock();
+        (
+            port_guard.shape().position_ref().y,
+            port_guard.anchor_ref().y,
+        )
+    };
     node_pos + port_pos + anchor
 }

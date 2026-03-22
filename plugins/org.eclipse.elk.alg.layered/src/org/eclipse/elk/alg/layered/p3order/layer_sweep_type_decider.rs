@@ -46,14 +46,12 @@ impl LayerSweepTypeDecider {
     }
 
     pub fn use_bottom_up(&mut self, node_order: &[Vec<LNodeRef>]) -> bool {
-        let boundary = self
-            .l_graph
-            .lock_ok()
-            .and_then(|mut graph_guard| {
-                graph_guard
-                    .get_property(LayeredOptions::CROSSING_MINIMIZATION_HIERARCHICAL_SWEEPINESS)
-            })
-            .unwrap_or(0.0);
+        let boundary = {
+            let mut graph_guard = self.l_graph.lock();
+            graph_guard
+                .get_property(LayeredOptions::CROSSING_MINIMIZATION_HIERARCHICAL_SWEEPINESS)
+                .unwrap_or(0.0)
+        };
         self.use_bottom_up_with_boundary(node_order, boundary)
     }
 
@@ -119,9 +117,11 @@ impl LayerSweepTypeDecider {
                     north_south_ports.extend(node_guard.port_side_view(PortSide::South));
                 }
                 for port in north_south_ports {
-                    if let Some(ns_dummy) = port.lock_ok().and_then(|mut port_guard| {
+                    let ns_dummy = {
+                        let mut port_guard = port.lock();
                         port_guard.get_property(InternalProperties::PORT_DUMMY)
-                    }) {
+                    };
+                    if let Some(ns_dummy) = ns_dummy {
                         paths_to_random += current_info.random_influence;
                         paths_to_hierarchical += current_info.hierarchical_influence;
                         self.transfer_info_to(&current_info, &ns_dummy);
@@ -157,9 +157,8 @@ impl LayerSweepTypeDecider {
         let Some(parent) = self.parent.as_ref() else {
             return false;
         };
-        parent
-            .lock_ok()
-            .and_then(|mut node_guard| node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS))
+        let mut node_guard = parent.lock();
+        node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
             .map(|constraints| constraints.is_order_fixed())
             .unwrap_or(false)
     }
@@ -180,14 +179,13 @@ impl LayerSweepTypeDecider {
         let Some(parent) = self.parent.as_ref() else {
             return true;
         };
-        let east = parent
-            .lock_ok()
-            .map(|mut node_guard| node_guard.port_side_view(PortSide::East))
-            .unwrap_or_default();
-        let west = parent
-            .lock_ok()
-            .map(|mut node_guard| node_guard.port_side_view(PortSide::West))
-            .unwrap_or_default();
+        let (east, west) = {
+            let mut node_guard = parent.lock();
+            (
+                node_guard.port_side_view(PortSide::East),
+                node_guard.port_side_view(PortSide::West),
+            )
+        };
         east.len() < 2 && west.len() < 2
     }
 
@@ -200,41 +198,37 @@ impl LayerSweepTypeDecider {
     }
 
     fn has_no_eastern_ports(&self, node: &LNodeRef) -> bool {
-        let ports = node
-            .lock_ok()
-            .map(|mut node_guard| node_guard.port_side_view(PortSide::East))
-            .unwrap_or_default();
+        let ports = {
+            let mut node_guard = node.lock();
+            node_guard.port_side_view(PortSide::East)
+        };
         ports.is_empty()
             || !ports.iter().any(|port| {
-                port.lock_ok()
-                    .map(|port_guard| !port_guard.connected_edges().is_empty())
-                    .unwrap_or(false)
+                let port_guard = port.lock();
+                !port_guard.connected_edges().is_empty()
             })
     }
 
     fn has_no_western_ports(&self, node: &LNodeRef) -> bool {
-        let ports = node
-            .lock_ok()
-            .map(|mut node_guard| node_guard.port_side_view(PortSide::West))
-            .unwrap_or_default();
+        let ports = {
+            let mut node_guard = node.lock();
+            node_guard.port_side_view(PortSide::West)
+        };
         ports.is_empty()
             || !ports.iter().any(|port| {
-                port.lock_ok()
-                    .map(|port_guard| !port_guard.connected_edges().is_empty())
-                    .unwrap_or(false)
+                let port_guard = port.lock();
+                !port_guard.connected_edges().is_empty()
             })
     }
 
     fn is_external_port_dummy(&self, node: &LNodeRef) -> bool {
-        node.lock_ok()
-            .map(|node_guard| node_guard.node_type() == NodeType::ExternalPort)
-            .unwrap_or(false)
+        let node_guard = node.lock();
+        node_guard.node_type() == NodeType::ExternalPort
     }
 
     fn is_north_south_dummy(&self, node: &LNodeRef) -> bool {
-        node.lock_ok()
-            .map(|node_guard| node_guard.node_type() == NodeType::NorthSouthPort)
-            .unwrap_or(false)
+        let node_guard = node.lock();
+        node_guard.node_type() == NodeType::NorthSouthPort
     }
 
     fn is_eastern_dummy(&self, node: &LNodeRef) -> bool {
@@ -309,8 +303,8 @@ fn target_node(edge: &LEdgeRef) -> Option<LNodeRef> {
 }
 
 fn origin_port(node: &LNodeRef) -> Option<LPortRef> {
-    node.lock_ok()
-        .and_then(|mut node_guard| node_guard.get_property(InternalProperties::ORIGIN))
+    let mut node_guard = node.lock();
+    node_guard.get_property(InternalProperties::ORIGIN)
         .and_then(|origin| match origin {
             Origin::LPort(port) => Some(port),
             _ => None,
@@ -319,14 +313,13 @@ fn origin_port(node: &LNodeRef) -> Option<LPortRef> {
 
 fn layer_id(node: &LNodeRef) -> Option<usize> {
     node.lock().layer()
-        .and_then(|layer| {
-            layer
-                .lock_ok()
-                .map(|mut layer_guard| layer_guard.graph_element().id as usize)
+        .map(|layer| {
+            let mut layer_guard = layer.lock();
+            layer_guard.graph_element().id as usize
         })
 }
 
 fn node_id(node: &LNodeRef) -> Option<usize> {
-    node.lock_ok()
-        .map(|mut node_guard| node_guard.shape().graph_element().id as usize)
+    let mut node_guard = node.lock();
+    Some(node_guard.shape().graph_element().id as usize)
 }
