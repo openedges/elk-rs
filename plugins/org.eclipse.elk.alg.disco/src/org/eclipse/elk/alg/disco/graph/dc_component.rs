@@ -54,7 +54,8 @@ impl DCComponent {
 
     pub fn intersects(&mut self, rect: &ElkRectangle) -> bool {
         for elem in &self.shapes {
-            if let Some(elem_guard) = elem.lock_ok() {
+            {
+                let elem_guard = elem.lock();
                 if elem_guard.intersects(rect) {
                     return true;
                 }
@@ -90,10 +91,7 @@ impl DCComponent {
         let mut max_y = f64::NEG_INFINITY;
 
         for elem in &self.shapes {
-            let elem_guard = match elem.lock_ok() {
-            Some(guard) => guard,
-            None => continue,
-            };
+            let elem_guard = elem.lock();
             let elem_bounds = elem_guard.get_bounds();
             min_x = min_x.min(elem_bounds.x);
             max_x = max_x.max(elem_bounds.x + elem_bounds.width);

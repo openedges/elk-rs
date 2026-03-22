@@ -58,7 +58,8 @@ impl ForceModel for FruchtermanReingoldModel {
         let mut total_width = 0.0;
         let mut total_height = 0.0;
         for node in graph.nodes() {
-            if let Some(node_guard) = node.lock_ok() {
+            {
+                let node_guard = node.lock();
                 total_width += node_guard.size_ref().x;
                 total_height += node_guard.size_ref().y;
             }
@@ -160,8 +161,8 @@ impl ForceModel for FruchtermanReingoldModel {
                 }
                 connections[i * n + j] = match (&particles[i], &particles[j]) {
                     (FParticleRef::Node(n1), FParticleRef::Node(n2)) => {
-                        let id1 = n1.lock_ok().map(|g| g.id());
-                        let id2 = n2.lock_ok().map(|g| g.id());
+                        let id1 = Some(n1.lock().id());
+                        let id2 = Some(n2.lock().id());
                         match (id1, id2) {
                             (Some(id1), Some(id2))
                                 if id1 < adjacency.len() && id2 < adjacency.len() =>
@@ -172,13 +173,13 @@ impl ForceModel for FruchtermanReingoldModel {
                         }
                     }
                     (FParticleRef::Bend(b1), FParticleRef::Bend(b2)) => {
-                        let edge1 = b1.lock_ok().and_then(|b| b.edge());
-                        let edge2 = b2.lock_ok().and_then(|b| b.edge());
+                        let edge1 = b1.lock().edge();
+                        let edge2 = b2.lock().edge();
                         match (edge1, edge2) {
-                            (Some(e1), Some(e2)) if Arc::ptr_eq(&e1, &e2) => e2
-                                .lock_ok()
-                                .and_then(|mut eg| eg.get_property(ForceOptions::PRIORITY))
-                                .unwrap_or(1),
+                            (Some(e1), Some(e2)) if Arc::ptr_eq(&e1, &e2) => {
+                                let mut eg = e2.lock();
+                                eg.get_property(ForceOptions::PRIORITY).unwrap_or(1)
+                            }
                             _ => 0,
                         }
                     }

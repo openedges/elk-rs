@@ -34,7 +34,8 @@ fn add_node(graph: &LGraphRef, layer: &LayerRef, constraints: PortConstraints) -
 
 fn add_port(node: &LNodeRef, side: PortSide) -> LPortRef {
     let port = LPort::new();
-    if let Some(mut guard) = port.lock_ok() {
+    {
+        let mut guard = port.lock();
         guard.set_side(side);
     }
     LPort::set_node(&port, Some(node.clone()));
@@ -85,7 +86,7 @@ fn inverted_port_processor_inserts_dummy_for_inverted_ports() {
         .lock()
         
         .target()
-        .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
+        .and_then(|port| port.lock().node())
         .expect("west dummy node");
     let west_dummy_type = west_dummy.lock().node_type();
     let west_dummy_layer = west_dummy
@@ -107,7 +108,7 @@ fn inverted_port_processor_inserts_dummy_for_inverted_ports() {
         .lock()
         
         .source()
-        .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
+        .and_then(|port| port.lock().node())
         .expect("east dummy node");
     let east_dummy_type = east_dummy.lock().node_type();
     let east_dummy_layer = east_dummy

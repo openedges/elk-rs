@@ -54,7 +54,7 @@ impl Layer {
     pub fn index(&self) -> Option<usize> {
         let layer_ref = self.self_ref.upgrade()?;
         let graph = self.owner.upgrade()?;
-        let graph_guard = graph.lock_ok()?;
+        let graph_guard = graph.lock();
         index_of_arc(graph_guard.layers(), &layer_ref)
     }
 
@@ -69,7 +69,7 @@ impl fmt::Display for Layer {
         let nodes = self
             .nodes
             .iter()
-            .map(|node| node.lock_ok().map(|n| n.to_string()).unwrap_or_default())
+            .map(|node| node.lock().to_string())
             .collect::<Vec<_>>()
             .join(", ");
         write!(f, "L_{}[{}]", index, nodes)

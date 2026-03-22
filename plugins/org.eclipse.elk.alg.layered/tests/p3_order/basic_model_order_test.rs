@@ -37,7 +37,8 @@ fn model_order_layering_runs() {
 
         let lgraph = import_lgraph(&root);
         let mut monitor = BasicProgressMonitor::new();
-        if let Some(mut graph_guard) = lgraph.lock_ok() {
+        {
+            let mut graph_guard = lgraph.lock();
             match strategy {
                 LayeringStrategy::BfModelOrder => {
                     let mut layerer = BreadthFirstModelOrderLayerer::new();

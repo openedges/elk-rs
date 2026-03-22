@@ -15,18 +15,13 @@ impl ILayoutProcessor<TGraphRef> for RootProcessor {
         self.roots.clear();
 
         let nodes: Vec<_> = {
-            let graph_guard = match graph.lock_ok() {
-            Some(guard) => guard,
-            None => {
-                    progress_monitor.done();
-                    return;
-                }
-            };
+            let graph_guard = graph.lock();
             graph_guard.nodes().clone()
         };
 
         for node in &nodes {
-            if let Some(mut node_guard) = node.lock_ok() {
+            {
+                let mut node_guard = node.lock();
                 if node_guard.incoming_edges().is_empty() {
                     node_guard.set_property(InternalProperties::ROOT, Some(true));
                     self.roots.push(node.clone());
@@ -38,7 +33,8 @@ impl ILayoutProcessor<TGraphRef> for RootProcessor {
             0 => {
                 // empty graph; create a dummy root
                 let root = TNode::new_with_label(0, Some(graph.clone()), "DUMMY_ROOT");
-                if let Some(mut root_guard) = root.lock_ok() {
+                {
+                    let mut root_guard = root.lock();
                     root_guard.set_property(InternalProperties::ROOT, Some(true));
                     root_guard.set_property(InternalProperties::DUMMY, Some(true));
                 };
@@ -50,11 +46,13 @@ impl ILayoutProcessor<TGraphRef> for RootProcessor {
                 let super_root = TNode::new_with_label(0, Some(graph.clone()), "SUPER_ROOT");
                 for root in &self.roots {
                     TNode::add_child(&super_root, root);
-                    if let Some(mut root_guard) = root.lock_ok() {
+                    {
+                        let mut root_guard = root.lock();
                         root_guard.set_property(InternalProperties::ROOT, Some(false));
                     }
                 }
-                if let Some(mut root_guard) = super_root.lock_ok() {
+                {
+                    let mut root_guard = super_root.lock();
                     root_guard.set_property(InternalProperties::ROOT, Some(true));
                     root_guard.set_property(InternalProperties::DUMMY, Some(true));
                 };

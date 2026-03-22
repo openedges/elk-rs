@@ -87,10 +87,10 @@ impl StressMajorization {
                 let mut edge_guard = edge.lock();
                 let source_id = edge_guard
                     .source()
-                    .and_then(|node| node.lock_ok().map(|n| n.id()));
+                    .map(|node| node.lock().id());
                 let target_id = edge_guard
                     .target()
-                    .and_then(|node| node.lock_ok().map(|n| n.id()));
+                    .map(|node| node.lock().id());
                 let edge_len = if edge_guard.has_property(StressOptions::DESIRED_EDGE_LENGTH) {
                     edge_guard
                         .get_property(StressOptions::DESIRED_EDGE_LENGTH)
@@ -119,10 +119,10 @@ impl StressMajorization {
                 let edge_guard = edge.lock();
                 let source_id = edge_guard
                     .source()
-                    .and_then(|node| node.lock_ok().map(|n| n.id()));
+                    .map(|node| node.lock().id());
                 let target_id = edge_guard
                     .target()
-                    .and_then(|node| node.lock_ok().map(|n| n.id()));
+                    .map(|node| node.lock().id());
                 match (source_id, target_id) {
                     (Some(source_id), Some(target_id)) => (source_id, target_id),
                     _ => continue,
@@ -179,7 +179,8 @@ impl StressMajorization {
         let mut fixed = vec![false; n];
 
         for (i, node) in nodes.iter().enumerate() {
-            if let Some(mut node_guard) = node.lock_ok() {
+            {
+                let mut node_guard = node.lock();
                 pos_x[i] = node_guard.position_ref().x;
                 pos_y[i] = node_guard.position_ref().y;
                 node_ids[i] = node_guard.id();
@@ -225,7 +226,8 @@ impl StressMajorization {
 
         // Write back positions to nodes
         for (i, node) in graph.nodes().iter().enumerate() {
-            if let Some(mut node_guard) = node.lock_ok() {
+            {
+                let mut node_guard = node.lock();
                 let pos = node_guard.position();
                 pos.x = pos_x[i];
                 pos.y = pos_y[i];

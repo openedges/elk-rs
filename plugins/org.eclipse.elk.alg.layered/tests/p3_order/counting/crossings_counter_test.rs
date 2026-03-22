@@ -21,7 +21,8 @@ fn add_port(
     side: PortSide,
 ) -> org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LPortRef {
     let port = LPort::new();
-    if let Some(mut port_guard) = port.lock_ok() {
+    {
+        let mut port_guard = port.lock();
         port_guard.set_side(side);
     }
     LPort::set_node(&port, Some(node.clone()));
@@ -85,15 +86,19 @@ fn assign_ids(
     graph: &org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LGraphRef,
 ) {
     let mut port_id = 0i32;
-    if let Some(graph_guard) = graph.lock_ok() {
+    {
+        let graph_guard = graph.lock();
         for (layer_idx, layer) in graph_guard.layers().iter().enumerate() {
-            if let Some(mut layer_guard) = layer.lock_ok() {
+            {
+                let mut layer_guard = layer.lock();
                 layer_guard.graph_element().id = layer_idx as i32;
                 for (node_idx, node) in layer_guard.nodes().iter().enumerate() {
-                    if let Some(mut node_guard) = node.lock_ok() {
+                    {
+                        let mut node_guard = node.lock();
                         node_guard.shape().graph_element().id = node_idx as i32;
                         for port in node_guard.ports_mut() {
-                            if let Some(mut port_guard) = port.lock_ok() {
+                            {
+                                let mut port_guard = port.lock();
                                 port_guard.shape().graph_element().id = port_id;
                                 port_id += 1;
                             }
@@ -111,7 +116,8 @@ fn init_for_counting_between_handles_empty_layer() {
     let left_layer = Layer::new(&graph);
     let right_layer = Layer::new(&graph);
 
-    if let Some(mut graph_guard) = graph.lock_ok() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.layers_mut().push(left_layer.clone());
         graph_guard.layers_mut().push(right_layer.clone());
     }
@@ -130,7 +136,8 @@ fn count_crossings_between_layers_simple() {
     let left_layer = Layer::new(&graph);
     let right_layer = Layer::new(&graph);
 
-    if let Some(mut graph_guard) = graph.lock_ok() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.layers_mut().push(left_layer.clone());
         graph_guard.layers_mut().push(right_layer.clone());
     }
@@ -165,7 +172,8 @@ fn count_in_layer_crossings_simple() {
     let graph = LGraph::new();
     let layer = Layer::new(&graph);
 
-    if let Some(mut graph_guard) = graph.lock_ok() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.layers_mut().push(layer.clone());
     }
 
@@ -190,7 +198,8 @@ fn long_in_layer_crossings() {
     let graph = LGraph::new();
     let layer = Layer::new(&graph);
 
-    if let Some(mut graph_guard) = graph.lock_ok() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.layers_mut().push(layer.clone());
     }
 
@@ -215,7 +224,8 @@ fn count_crossings_between_layers_parallel_edges() {
     let left_layer = Layer::new(&graph);
     let right_layer = Layer::new(&graph);
 
-    if let Some(mut graph_guard) = graph.lock_ok() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.layers_mut().push(left_layer.clone());
         graph_guard.layers_mut().push(right_layer.clone());
     }
@@ -249,7 +259,8 @@ fn count_crossings_between_layers_cross_with_middle_edge() {
     let left_layer = Layer::new(&graph);
     let right_layer = Layer::new(&graph);
 
-    if let Some(mut graph_guard) = graph.lock_ok() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.layers_mut().push(left_layer.clone());
         graph_guard.layers_mut().push(right_layer.clone());
     }
@@ -287,7 +298,8 @@ fn count_crossings_between_layers_ignore_self_loops() {
     let left_layer = Layer::new(&graph);
     let right_layer = Layer::new(&graph);
 
-    if let Some(mut graph_guard) = graph.lock_ok() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.layers_mut().push(left_layer.clone());
         graph_guard.layers_mut().push(right_layer.clone());
     }
@@ -330,7 +342,8 @@ fn count_crossings_between_layers_into_same_port() {
     let left_layer = Layer::new(&graph);
     let right_layer = Layer::new(&graph);
 
-    if let Some(mut graph_guard) = graph.lock_ok() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.layers_mut().push(left_layer.clone());
         graph_guard.layers_mut().push(right_layer.clone());
     }
@@ -369,7 +382,8 @@ fn count_crossings_between_layers_cross_formed_multiple_edges_between_same_nodes
     let left_layer = Layer::new(&graph);
     let right_layer = Layer::new(&graph);
 
-    if let Some(mut graph_guard) = graph.lock_ok() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.layers_mut().push(left_layer.clone());
         graph_guard.layers_mut().push(right_layer.clone());
     }
@@ -411,7 +425,8 @@ fn count_crossings_between_ports_given_western_crossings_only_counts_for_given_p
     let left_layer = Layer::new(&graph);
     let right_layer = Layer::new(&graph);
 
-    if let Some(mut graph_guard) = graph.lock_ok() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.layers_mut().push(left_layer.clone());
         graph_guard.layers_mut().push(right_layer.clone());
     }
@@ -448,7 +463,8 @@ fn count_crossings_between_ports_given_crossings_on_eastern_side() {
     let left_layer = Layer::new(&graph);
     let right_layer = Layer::new(&graph);
 
-    if let Some(mut graph_guard) = graph.lock_ok() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.layers_mut().push(left_layer.clone());
         graph_guard.layers_mut().push(right_layer.clone());
     }
@@ -479,7 +495,8 @@ fn count_crossings_between_ports_two_edges_into_same_port() {
     let left_layer = Layer::new(&graph);
     let right_layer = Layer::new(&graph);
 
-    if let Some(mut graph_guard) = graph.lock_ok() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.layers_mut().push(left_layer.clone());
         graph_guard.layers_mut().push(right_layer.clone());
     }
@@ -516,7 +533,8 @@ fn count_crossings_between_layers_fixed_port_order() {
     let left_layer = Layer::new(&graph);
     let right_layer = Layer::new(&graph);
 
-    if let Some(mut graph_guard) = graph.lock_ok() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.layers_mut().push(left_layer.clone());
         graph_guard.layers_mut().push(right_layer.clone());
     }
@@ -524,7 +542,8 @@ fn count_crossings_between_layers_fixed_port_order() {
     let left = add_node(&graph, &left_layer);
     let right = add_node(&graph, &right_layer);
 
-    if let Some(mut right_guard) = right.lock_ok() {
+    {
+        let mut right_guard = right.lock();
         right_guard.set_property(
             LayeredOptions::PORT_CONSTRAINTS,
             Some(PortConstraints::FixedOrder),
@@ -557,7 +576,8 @@ fn count_crossings_between_layers_more_complex_three_layer_graph() {
     let middle_layer = Layer::new(&graph);
     let right_layer = Layer::new(&graph);
 
-    if let Some(mut graph_guard) = graph.lock_ok() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.layers_mut().push(left_layer.clone());
         graph_guard.layers_mut().push(middle_layer.clone());
         graph_guard.layers_mut().push(right_layer.clone());
@@ -604,7 +624,8 @@ fn counting_two_different_graphs_does_not_interfere_with_each_other() {
     let left_layer = Layer::new(&graph);
     let right_layer = Layer::new(&graph);
 
-    if let Some(mut graph_guard) = graph.lock_ok() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.layers_mut().push(left_layer.clone());
         graph_guard.layers_mut().push(right_layer.clone());
     }

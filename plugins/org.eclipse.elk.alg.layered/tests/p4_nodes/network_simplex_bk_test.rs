@@ -33,7 +33,8 @@ fn network_simplex_layering_invariants() {
     let lgraph = import_lgraph(&root);
     let mut layerer = NetworkSimplexLayerer::new();
     let mut monitor = BasicProgressMonitor::new();
-    if let Some(mut graph_guard) = lgraph.lock_ok() {
+    {
+        let mut graph_guard = lgraph.lock();
         layerer.process(&mut graph_guard, &mut monitor);
     }
 
@@ -204,15 +205,12 @@ fn assert_layering_invariants(
         let nodes = layer.lock().nodes().clone();
         for node in nodes {
             let outgoing = node
-                .lock_ok()
-                .map(|node_guard| node_guard.outgoing_edges())
-                .unwrap_or_default();
+                .lock().outgoing_edges();
             for edge in outgoing {
                 let target_layer_index = edge
-                    .lock_ok()
-                    .and_then(|edge_guard| edge_guard.target())
-                    .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
-                    .and_then(|target_node| target_node.lock_ok().and_then(|n| n.layer()))
+                    .lock().target()
+                    .and_then(|port| port.lock().node())
+                    .and_then(|target_node| target_node.lock().layer())
                     .map(|layer_ref| layer_index(&layer_ref))
                     .unwrap_or(layer_idx);
                 assert!(layer_idx < target_layer_index);
@@ -230,7 +228,8 @@ fn assert_layer_node_positions_increasing(
         let nodes = layer.lock().nodes().clone();
         let mut last_bottom = None;
         for node in nodes {
-            if let Some(mut node_guard) = node.lock_ok() {
+            {
+                let mut node_guard = node.lock();
                 let pos = node_guard.shape().position_ref().y;
                 let size = node_guard.shape().size_ref().y;
                 if let Some(last) = last_bottom {
@@ -246,8 +245,7 @@ fn layer_index(
     layer: &org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LayerRef,
 ) -> usize {
     layer
-        .lock_ok()
-        .and_then(|layer_guard| layer_guard.index())
+        .lock().index()
         .unwrap_or(0)
 }
 

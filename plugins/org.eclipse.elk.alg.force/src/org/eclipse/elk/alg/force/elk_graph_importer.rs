@@ -129,7 +129,7 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
 
             let f_node = FNode::new_with_label(label);
             {
-                let mut node_guard = f_node.lock_ok()?;
+                let mut node_guard = f_node.lock();
                 node_guard.set_id(index);
 
                 let node_props = {
@@ -234,7 +234,7 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
                 if let (Some(source), Some(target)) = (source, target) {
                     let f_edge = FEdge::new();
                     {
-                        let mut edge_guard = f_edge.lock_ok()?;
+                        let mut edge_guard = f_edge.lock();
                         let edge_props = {
                             let mut edge_mut = elkedge.borrow_mut();
                             edge_mut.element().properties().clone()
@@ -260,7 +260,7 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
                         let label_text = label.borrow().text().to_string();
                         let f_label = FLabel::new(&f_edge, label_text);
                         {
-                            let mut label_guard = f_label.lock_ok()?;
+                            let mut label_guard = f_label.lock();
                             let label_props = {
                                 let mut label_mut = label.borrow_mut();
                                 label_mut.shape().graph_element().properties().clone()
@@ -309,7 +309,8 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
         let mut max_y = f64::MIN;
 
         for node in fgraph.nodes() {
-            if let Some(node_guard) = node.lock_ok() {
+            {
+                let node_guard = node.lock();
                 let pos = node_guard.position_ref();
                 let size = node_guard.size_ref();
                 min_x = min_x.min(pos.x - size.x / 2.0);
@@ -319,7 +320,8 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
             }
         }
         for bend in fgraph.bendpoints() {
-            if let Some(bend_guard) = bend.lock_ok() {
+            {
+                let bend_guard = bend.lock();
                 let pos = bend_guard.position_ref();
                 let size = bend_guard.size_ref();
                 min_x = min_x.min(pos.x - size.x / 2.0);
@@ -343,8 +345,7 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
 
         for node in fgraph.nodes() {
             let origin = node
-                .lock_ok()
-                .and_then(|mut node_guard| node_guard.get_property(InternalProperties::ORIGIN));
+                .lock().get_property(InternalProperties::ORIGIN);
             let Some(Origin::ElkNode(node_id)) = origin else {
                 continue;
             };
@@ -352,7 +353,8 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
                 continue;
             };
 
-            if let Some(node_guard) = node.lock_ok() {
+            {
+                let node_guard = node.lock();
                 let mut node_pos = KVector::from_vector(node_guard.position_ref());
                 node_pos.add(&offset);
                 let mut elk_mut = elknode.borrow_mut();
@@ -369,8 +371,7 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
 
         for edge in fgraph.edges() {
             let origin = edge
-                .lock_ok()
-                .and_then(|mut edge_guard| edge_guard.get_property(InternalProperties::ORIGIN));
+                .lock().get_property(InternalProperties::ORIGIN);
             let Some(Origin::ElkEdge(edge_id)) = origin else {
                 continue;
             };
@@ -383,7 +384,8 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
             };
             let mut section_mut = section.borrow_mut();
 
-            if let Some(edge_guard) = edge.lock_ok() {
+            {
+                let edge_guard = edge.lock();
                 if let Some(mut start_location) = edge_guard.source_point() {
                     start_location.add(&offset);
                     section_mut.set_start_x(start_location.x);
@@ -391,7 +393,8 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
                 }
 
                 for bend in edge_guard.bendpoints() {
-                    if let Some(bend_guard) = bend.lock_ok() {
+                    {
+                        let bend_guard = bend.lock();
                         let mut position = KVector::from_vector(bend_guard.position_ref());
                         position.add(&offset);
                         Self::create_bend_point(&mut section_mut, position.x, position.y);
@@ -408,8 +411,7 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
 
         for label in fgraph.labels() {
             let origin = label
-                .lock_ok()
-                .and_then(|mut label_guard| label_guard.get_property(InternalProperties::ORIGIN));
+                .lock().get_property(InternalProperties::ORIGIN);
             let Some(Origin::ElkLabel(label_id)) = origin else {
                 continue;
             };
@@ -417,7 +419,8 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
                 continue;
             };
 
-            if let Some(label_guard) = label.lock_ok() {
+            {
+                let label_guard = label.lock();
                 let mut label_pos = KVector::from_vector(label_guard.position_ref());
                 label_pos.add(&offset);
                 elklabel

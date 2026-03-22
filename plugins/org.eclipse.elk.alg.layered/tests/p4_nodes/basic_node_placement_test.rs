@@ -153,7 +153,8 @@ fn assert_layer_node_positions_increasing(
         let nodes = layer.lock().nodes().clone();
         let mut last_bottom = None;
         for node in nodes {
-            if let Some(mut node_guard) = node.lock_ok() {
+            {
+                let mut node_guard = node.lock();
                 let pos = node_guard.shape().position_ref().y;
                 let size = node_guard.shape().size_ref().y;
                 if let Some(last) = last_bottom {

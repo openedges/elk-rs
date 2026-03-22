@@ -92,7 +92,8 @@ impl GraphTransformer {
         let mut offset: f64 = 0.0;
         if graph.size_ref().x == 0.0 {
             for node in nodes {
-                if let Some(mut node_guard) = node.lock_ok() {
+                {
+                    let mut node_guard = node.lock();
                     let pos = *node_guard.shape().position_ref();
                     let size = *node_guard.shape().size_ref();
                     let margin = node_guard.margin();
@@ -113,7 +114,8 @@ impl GraphTransformer {
         let mut offset: f64 = 0.0;
         if graph.size_ref().y == 0.0 {
             for node in nodes {
-                if let Some(mut node_guard) = node.lock_ok() {
+                {
+                    let mut node_guard = node.lock();
                     let pos = *node_guard.shape().position_ref();
                     let size = *node_guard.shape().size_ref();
                     let margin = node_guard.margin();
@@ -132,10 +134,7 @@ impl GraphTransformer {
 
     fn mirror_node_x(&self, node: &LNodeRef, offset: f64) {
         let (node_size, node_type, ports, labels) = {
-            let mut node_guard = match node.lock_ok() {
-            Some(guard) => guard,
-            None => return,
-            };
+            let mut node_guard = node.lock();
 
             let (node_size, has_position) = {
                 let shape = node_guard.shape();
@@ -191,10 +190,7 @@ impl GraphTransformer {
 
     fn mirror_node_y(&self, node: &LNodeRef, offset: f64) {
         let (node_size, node_type, ports, labels) = {
-            let mut node_guard = match node.lock_ok() {
-            Some(guard) => guard,
-            None => return,
-            };
+            let mut node_guard = node.lock();
 
             let (node_size, has_position) = {
                 let shape = node_guard.shape();
@@ -250,10 +246,7 @@ impl GraphTransformer {
 
     fn mirror_port_x(&self, port: &LPortRef, offset: f64, node_size_x: f64) {
         let (port_size, labels, edges) = {
-            let mut port_guard = match port.lock_ok() {
-            Some(guard) => guard,
-            None => return,
-            };
+            let mut port_guard = port.lock();
 
             let port_size = {
                 let shape = port_guard.shape();
@@ -283,10 +276,7 @@ impl GraphTransformer {
 
     fn mirror_port_y(&self, port: &LPortRef, offset: f64, node_size_y: f64) {
         let (port_size, labels, edges) = {
-            let mut port_guard = match port.lock_ok() {
-            Some(guard) => guard,
-            None => return,
-            };
+            let mut port_guard = port.lock();
 
             let port_size = {
                 let shape = port_guard.shape();
@@ -316,10 +306,7 @@ impl GraphTransformer {
 
     fn mirror_edge_x(&self, edge: &LEdgeRef, offset: f64) {
         let labels = {
-            let mut edge_guard = match edge.lock_ok() {
-            Some(guard) => guard,
-            None => return,
-            };
+            let mut edge_guard = edge.lock();
 
             for bend_point in edge_guard.bend_points().iter_mut() {
                 mirror_vector_x(bend_point, offset);
@@ -351,10 +338,7 @@ impl GraphTransformer {
 
     fn mirror_edge_y(&self, edge: &LEdgeRef, offset: f64) {
         let labels = {
-            let mut edge_guard = match edge.lock_ok() {
-            Some(guard) => guard,
-            None => return,
-            };
+            let mut edge_guard = edge.lock();
 
             for bend_point in edge_guard.bend_points().iter_mut() {
                 mirror_vector_y(bend_point, offset);
@@ -385,7 +369,8 @@ impl GraphTransformer {
     }
 
     fn mirror_node_label_x(&self, label: &LLabelRef, node_size_x: f64) {
-        if let Some(mut label_guard) = label.lock_ok() {
+        {
+            let mut label_guard = label.lock();
             let shape = label_guard.shape();
             self.mirror_node_label_placement_x(shape);
             let size = *shape.size_ref();
@@ -394,7 +379,8 @@ impl GraphTransformer {
     }
 
     fn mirror_node_label_y(&self, label: &LLabelRef, node_size_y: f64) {
-        if let Some(mut label_guard) = label.lock_ok() {
+        {
+            let mut label_guard = label.lock();
             let shape = label_guard.shape();
             self.mirror_node_label_placement_y(shape);
             let size = *shape.size_ref();
@@ -410,10 +396,7 @@ impl GraphTransformer {
 
     fn transpose_node(&self, node: &LNodeRef) {
         let (node_type, ports, labels) = {
-            let mut node_guard = match node.lock_ok() {
-            Some(guard) => guard,
-            None => return,
-            };
+            let mut node_guard = node.lock();
 
             {
                 let shape = node_guard.shape();
@@ -444,7 +427,8 @@ impl GraphTransformer {
         }
 
         for label in labels {
-            if let Some(mut label_guard) = label.lock_ok() {
+            {
+                let mut label_guard = label.lock();
                 let shape = label_guard.shape();
                 self.transpose_node_label_placement(shape);
                 transpose_vector(shape.size());
@@ -455,10 +439,7 @@ impl GraphTransformer {
 
     fn transpose_port(&self, port: &LPortRef) {
         let (labels, edges) = {
-            let mut port_guard = match port.lock_ok() {
-            Some(guard) => guard,
-            None => return,
-            };
+            let mut port_guard = port.lock();
 
             {
                 let shape = port_guard.shape();
@@ -486,10 +467,7 @@ impl GraphTransformer {
 
     fn transpose_edge(&self, edge: &LEdgeRef) {
         let labels = {
-            let mut edge_guard = match edge.lock_ok() {
-            Some(guard) => guard,
-            None => return,
-            };
+            let mut edge_guard = edge.lock();
 
             for bend_point in edge_guard.bend_points().iter_mut() {
                 transpose_vector(bend_point);
@@ -529,7 +507,8 @@ impl GraphTransformer {
     }
 
     fn transpose_external_port_side(&self, node: &LNodeRef) {
-        if let Some(mut node_guard) = node.lock_ok() {
+        {
+            let mut node_guard = node.lock();
             if let Some(side) = node_guard.get_property(InternalProperties::EXT_PORT_SIDE) {
                 node_guard.set_property(
                     InternalProperties::EXT_PORT_SIDE,
@@ -540,7 +519,8 @@ impl GraphTransformer {
     }
 
     fn mirror_external_port_side_x(&self, node: &LNodeRef) {
-        if let Some(mut node_guard) = node.lock_ok() {
+        {
+            let mut node_guard = node.lock();
             if let Some(side) = node_guard.get_property(InternalProperties::EXT_PORT_SIDE) {
                 node_guard.set_property(
                     InternalProperties::EXT_PORT_SIDE,
@@ -551,7 +531,8 @@ impl GraphTransformer {
     }
 
     fn mirror_external_port_side_y(&self, node: &LNodeRef) {
-        if let Some(mut node_guard) = node.lock_ok() {
+        {
+            let mut node_guard = node.lock();
             if let Some(side) = node_guard.get_property(InternalProperties::EXT_PORT_SIDE) {
                 node_guard.set_property(
                     InternalProperties::EXT_PORT_SIDE,
@@ -562,7 +543,8 @@ impl GraphTransformer {
     }
 
     fn mirror_layer_constraint_x(&self, node: &LNodeRef) {
-        if let Some(mut node_guard) = node.lock_ok() {
+        {
+            let mut node_guard = node.lock();
             let constraint = node_guard
                 .get_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT)
                 .unwrap_or(LayerConstraint::None);
@@ -583,7 +565,8 @@ impl GraphTransformer {
     }
 
     fn mirror_in_layer_constraint_y(&self, node: &LNodeRef) {
-        if let Some(mut node_guard) = node.lock_ok() {
+        {
+            let mut node_guard = node.lock();
             let constraint = node_guard
                 .get_property(InternalProperties::IN_LAYER_CONSTRAINT)
                 .unwrap_or(InLayerConstraint::None);
@@ -602,7 +585,8 @@ impl GraphTransformer {
     }
 
     fn transpose_layer_constraint(&self, node: &LNodeRef) {
-        if let Some(mut node_guard) = node.lock_ok() {
+        {
+            let mut node_guard = node.lock();
             let layer_constraint = node_guard
                 .get_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT)
                 .unwrap_or(LayerConstraint::None);
@@ -785,7 +769,8 @@ impl ILayoutProcessor<LGraph> for GraphTransformer {
             }
         }
         for layer in layered_graph.layers() {
-            if let Some(layer_guard) = layer.lock_ok() {
+            {
+                let layer_guard = layer.lock();
                 for node in layer_guard.nodes() {
                     let key = Arc::as_ptr(node) as usize;
                     if seen.insert(key) {
@@ -965,7 +950,8 @@ fn reverse_index(port: &mut crate::org::eclipse::elk::alg::layered::graph::LPort
 }
 
 fn mirror_label_x(label: &LLabelRef, base_offset: f64) {
-    if let Some(mut label_guard) = label.lock_ok() {
+    {
+        let mut label_guard = label.lock();
         let shape = label_guard.shape();
         let size = *shape.size_ref();
         mirror_vector_x(shape.position(), base_offset - size.x);
@@ -973,7 +959,8 @@ fn mirror_label_x(label: &LLabelRef, base_offset: f64) {
 }
 
 fn mirror_label_y(label: &LLabelRef, base_offset: f64) {
-    if let Some(mut label_guard) = label.lock_ok() {
+    {
+        let mut label_guard = label.lock();
         let shape = label_guard.shape();
         let size = *shape.size_ref();
         mirror_vector_y(shape.position(), base_offset - size.y);
@@ -981,7 +968,8 @@ fn mirror_label_y(label: &LLabelRef, base_offset: f64) {
 }
 
 fn transpose_label(label: &LLabelRef) {
-    if let Some(mut label_guard) = label.lock_ok() {
+    {
+        let mut label_guard = label.lock();
         let shape = label_guard.shape();
         transpose_vector(shape.position());
         transpose_vector(shape.size());

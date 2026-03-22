@@ -33,15 +33,12 @@ fn white_box_test_proper_layering() {
         let nodes = layer.lock().nodes().clone();
         for node in nodes {
             let outgoing = node
-                .lock_ok()
-                .map(|node_guard| node_guard.outgoing_edges())
-                .unwrap_or_default();
+                .lock().outgoing_edges();
             for edge in outgoing {
                 let target_layer_index = edge
-                    .lock_ok()
-                    .and_then(|edge_guard| edge_guard.target())
-                    .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()))
-                    .and_then(|target_node| target_node.lock_ok().and_then(|n| n.layer()))
+                    .lock().target()
+                    .and_then(|port| port.lock().node())
+                    .and_then(|target_node| target_node.lock().layer())
                     .map(|layer_ref| layer_index(&layer_ref))
                     .unwrap_or(source_layer_index);
                 assert!(
@@ -79,7 +76,8 @@ fn run_network_simplex_layerer(
 
     let mut layerer = NetworkSimplexLayerer::new();
     let mut monitor = BasicProgressMonitor::new();
-    if let Some(mut graph_guard) = lgraph.lock_ok() {
+    {
+        let mut graph_guard = lgraph.lock();
         layerer.process(&mut *graph_guard, &mut monitor);
     }
 
@@ -101,8 +99,7 @@ fn layer_index(
     layer: &org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LayerRef,
 ) -> usize {
     layer
-        .lock_ok()
-        .and_then(|layer_guard| layer_guard.index())
+        .lock().index()
         .unwrap_or(0)
 }
 

@@ -164,7 +164,8 @@ impl LayeredSpacingsBuilder {
 
     pub fn apply(&self, graph: &LGraphRef) {
         let configurator = self.build();
-        if let Some(mut graph_guard) = graph.lock_ok() {
+        {
+            let mut graph_guard = graph.lock();
             let props = graph_guard.graph_element().properties_mut();
             configurator.apply_to_properties(props);
         }

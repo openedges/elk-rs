@@ -48,7 +48,8 @@ impl ShrinkTree {
                 if progress_monitor.is_canceled() {
                     return;
                 }
-                if let Some(mut processor_guard) = processor.lock_ok() {
+                {
+                    let mut processor_guard = processor.lock();
                     let mut sub = progress_monitor.sub_task(1.0);
                     processor_guard.process(graph, sub.as_mut());
                 }

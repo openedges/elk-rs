@@ -67,7 +67,8 @@ fn connect_with_model_order(source: &LPortRef, target: &LPortRef, model_order: i
     let edge = LEdge::new();
     LEdge::set_source(&edge, Some(source.clone()));
     LEdge::set_target(&edge, Some(target.clone()));
-    if let Some(mut edge_guard) = edge.lock_ok() {
+    {
+        let mut edge_guard = edge.lock();
         edge_guard.set_property(InternalProperties::MODEL_ORDER, Some(model_order));
     };
 }

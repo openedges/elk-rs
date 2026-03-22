@@ -53,17 +53,13 @@ pub fn init(initializables: &mut [&mut dyn IInitializable], order: &[Vec<LNodeRe
                 initable.init_at_node_level(layer_index, node_index, order);
             }
             let ports = node
-                .lock_ok()
-                .map(|node_guard| node_guard.ports().clone())
-                .unwrap_or_default();
+                .lock().ports().clone();
             for (port_index, port) in ports.iter().enumerate() {
                 for initable in initializables.iter_mut() {
                     initable.init_at_port_level(layer_index, node_index, port_index, order);
                 }
                 let edges = port
-                    .lock_ok()
-                    .map(|port_guard| port_guard.connected_edges().clone())
-                    .unwrap_or_default();
+                    .lock().connected_edges().clone();
                 for (edge_index, edge) in edges.iter().enumerate() {
                     for initable in initializables.iter_mut() {
                         initable.init_at_edge_level(

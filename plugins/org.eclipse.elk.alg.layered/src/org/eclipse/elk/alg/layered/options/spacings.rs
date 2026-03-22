@@ -207,13 +207,9 @@ impl Spacings {
         mapping: &[Vec<Option<&'static Property<f64>>>],
     ) -> f64 {
         let t1 = n1
-            .lock_ok()
-            .map(|node| node.node_type())
-            .unwrap_or(NodeType::Normal);
+            .lock().node_type();
         let t2 = n2
-            .lock_ok()
-            .map(|node| node.node_type())
-            .unwrap_or(NodeType::Normal);
+            .lock().node_type();
         let layout_option = mapping[t1.ordinal()][t2.ordinal()]
             .unwrap_or_else(|| panic_any(UnspecifiedSpacingException::new(None)));
         let s1 = self.get_individual_or_default_f64(n1, layout_option);
@@ -278,7 +274,8 @@ impl Spacings {
         property: &'static Property<f64>,
     ) -> f64 {
         let mut value = None;
-        if let Some(mut node_guard) = node.lock_ok() {
+        {
+            let mut node_guard = node.lock();
             let has_individual = node_guard
                 .shape()
                 .graph_element()
@@ -319,7 +316,8 @@ impl Spacings {
         property: &Property<T>,
     ) -> T {
         let mut value = None;
-        if let Some(mut node_guard) = node.lock_ok() {
+        {
+            let mut node_guard = node.lock();
             let has_individual = node_guard
                 .shape()
                 .graph_element()

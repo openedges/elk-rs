@@ -95,9 +95,7 @@ impl BKAlignedLayout {
 
         for layer in &self.layers {
             let nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
             for node in nodes {
                 let node_id = node_id(&node);
                 let y_min = self.y[node_id].unwrap_or(0.0);
@@ -240,11 +238,9 @@ impl BKAlignedLayout {
 
     fn upper_neighbor(&self, node_id: usize, ni: &NeighborhoodInformation) -> Option<LNodeRef> {
         let node = self.nodes_by_id.get(node_id)?.clone();
-        let layer = node.lock_ok().and_then(|node_guard| node_guard.layer())?;
+        let layer = node.lock().layer()?;
         let layer_nodes = layer
-            .lock_ok()
-            .map(|layer_guard| layer_guard.nodes().clone())
-            .unwrap_or_default();
+            .lock().nodes().clone();
         let layer_index = *ni.node_index.get(node_id)?;
         if layer_index > 0 {
             return Some(layer_nodes[layer_index - 1].clone());
@@ -254,11 +250,9 @@ impl BKAlignedLayout {
 
     fn lower_neighbor(&self, node_id: usize, ni: &NeighborhoodInformation) -> Option<LNodeRef> {
         let node = self.nodes_by_id.get(node_id)?.clone();
-        let layer = node.lock_ok().and_then(|node_guard| node_guard.layer())?;
+        let layer = node.lock().layer()?;
         let layer_nodes = layer
-            .lock_ok()
-            .map(|layer_guard| layer_guard.nodes().clone())
-            .unwrap_or_default();
+            .lock().nodes().clone();
         let layer_index = *ni.node_index.get(node_id)?;
         if layer_index + 1 < layer_nodes.len() {
             return Some(layer_nodes[layer_index + 1].clone());

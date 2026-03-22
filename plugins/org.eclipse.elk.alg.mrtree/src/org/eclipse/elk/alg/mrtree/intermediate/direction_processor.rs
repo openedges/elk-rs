@@ -13,13 +13,7 @@ impl ILayoutProcessor<TGraphRef> for DirectionProcessor {
         progress_monitor.begin("Process directions", 1.0);
 
         let direction = {
-            let mut graph_guard = match graph.lock_ok() {
-            Some(guard) => guard,
-            None => {
-                    progress_monitor.done();
-                    return;
-                }
-            };
+            let mut graph_guard = graph.lock();
             graph_guard
                 .get_property(MrTreeOptions::DIRECTION)
                 .unwrap_or(Direction::Undefined)
@@ -27,18 +21,13 @@ impl ILayoutProcessor<TGraphRef> for DirectionProcessor {
 
         if direction != Direction::Down {
             let nodes = {
-                let graph_guard = match graph.lock_ok() {
-            Some(guard) => guard,
-            None => {
-                        progress_monitor.done();
-                        return;
-                    }
-                };
+                let graph_guard = graph.lock();
                 graph_guard.nodes().clone()
             };
 
             for node in nodes {
-                if let Some(mut node_guard) = node.lock_ok() {
+                {
+                    let mut node_guard = node.lock();
                     let mut x = node_guard
                         .get_property(InternalProperties::XCOOR)
                         .unwrap_or(0);

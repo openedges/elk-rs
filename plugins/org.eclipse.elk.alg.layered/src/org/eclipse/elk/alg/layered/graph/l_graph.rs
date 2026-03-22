@@ -126,13 +126,13 @@ impl fmt::Display for LGraph {
         let layerless = self
             .layerless_nodes
             .iter()
-            .map(|node| node.lock_ok().map(|n| n.to_string()).unwrap_or_default())
+            .map(|node| node.lock().to_string())
             .collect::<Vec<_>>()
             .join(", ");
         let layers = self
             .layers
             .iter()
-            .map(|layer| layer.lock_ok().map(|l| l.to_string()).unwrap_or_default())
+            .map(|layer| layer.lock().to_string())
             .collect::<Vec<_>>()
             .join(", ");
 

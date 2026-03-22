@@ -282,7 +282,8 @@ fn collect_nodes(
 ) -> Vec<org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LNodeRef> {
     let graph_guard = lgraph.lock();    let mut nodes = graph_guard.layerless_nodes().clone();
     for layer in graph_guard.layers() {
-        if let Some(layer_guard) = layer.lock_ok() {
+        {
+            let layer_guard = layer.lock();
             nodes.extend(layer_guard.nodes().clone());
         }
     }
@@ -309,14 +310,11 @@ fn dfs(
     visit.insert(id, VisitState::Visiting);
 
     let outgoing = node
-        .lock_ok()
-        .map(|node_guard| node_guard.outgoing_edges())
-        .unwrap_or_default();
+        .lock().outgoing_edges();
     for edge in outgoing {
         let target_node = edge
-            .lock_ok()
-            .and_then(|edge_guard| edge_guard.target())
-            .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
+            .lock().target()
+            .and_then(|port| port.lock().node());
         if let Some(target) = target_node {
             dfs(&target, visit);
         }

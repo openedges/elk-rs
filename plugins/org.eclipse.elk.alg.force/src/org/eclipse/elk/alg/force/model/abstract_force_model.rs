@@ -94,7 +94,8 @@ impl AbstractForceModel {
         if !interactive {
             let pos_scale = graph.nodes().len() as f64;
             for node in graph.nodes() {
-                if let Some(mut node_guard) = node.lock_ok() {
+                {
+                    let mut node_guard = node.lock();
                     let pos = node_guard.position();
                     pos.x = self.random.next_double() * pos_scale;
                     pos.y = self.random.next_double() * pos_scale;
@@ -105,16 +106,17 @@ impl AbstractForceModel {
         let edges = graph.edges().clone();
         let mut new_bendpoints = Vec::new();
         for edge in edges {
-            let count = edge
-                .lock_ok()
-                .and_then(|mut edge_guard| edge_guard.get_property(ForceOptions::REPULSIVE_POWER))
-                .unwrap_or(0);
+            let count = {
+                let mut edge_guard = edge.lock();
+                edge_guard.get_property(ForceOptions::REPULSIVE_POWER).unwrap_or(0)
+            };
             if count > 0 {
                 for _ in 0..count {
                     let bend = FBendpoint::new(&edge);
                     new_bendpoints.push(bend);
                 }
-                if let Some(mut edge_guard) = edge.lock_ok() {
+                {
+                    let mut edge_guard = edge.lock();
                     edge_guard.distribute_bendpoints();
                 }
             }
@@ -124,9 +126,11 @@ impl AbstractForceModel {
 
     pub fn iteration_done(&mut self, graph: &mut FGraph) {
         for edge in graph.edges() {
-            if let Some(mut edge_guard) = edge.lock_ok() {
+            {
+                let mut edge_guard = edge.lock();
                 for label in edge_guard.labels_mut() {
-                    if let Some(mut label_guard) = label.lock_ok() {
+                    {
+                        let mut label_guard = label.lock();
                         label_guard.refresh_position();
                     }
                 }
@@ -152,8 +156,8 @@ impl AbstractForceModel {
             let mut tried_for_bendpoints = false;
             if let (Some(u_bend), Some(v_bend)) = (u.as_bendpoint(), v.as_bendpoint()) {
                 if !tried_for_bendpoints {
-                    let u_edge = u_bend.lock_ok().and_then(|bend| bend.edge());
-                    let v_edge = v_bend.lock_ok().and_then(|bend| bend.edge());
+                    let u_edge = u_bend.lock().edge();
+                    let v_edge = v_bend.lock().edge();
                     if let (Some(u_edge), Some(v_edge)) = (u_edge, v_edge) {
                         let u_vec = {
                             let edge_guard = u_edge.lock();

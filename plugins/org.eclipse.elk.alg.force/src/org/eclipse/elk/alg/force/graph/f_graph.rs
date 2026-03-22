@@ -25,25 +25,35 @@ impl FParticleRef {
 
     pub fn with_particle_mut<R>(&self, f: impl FnOnce(&mut FParticle) -> R) -> Option<R> {
         match self {
-            FParticleRef::Node(node) => node
-                .lock_ok()
-                .map(|mut node_guard| f(node_guard.particle_mut())),
-            FParticleRef::Label(label) => label
-                .lock_ok()
-                .map(|mut label_guard| f(label_guard.particle_mut())),
-            FParticleRef::Bend(bend) => bend
-                .lock_ok()
-                .map(|mut bend_guard| f(bend_guard.particle_mut())),
+            FParticleRef::Node(node) => {
+                let mut node_guard = node.lock();
+                Some(f(node_guard.particle_mut()))
+            }
+            FParticleRef::Label(label) => {
+                let mut label_guard = label.lock();
+                Some(f(label_guard.particle_mut()))
+            }
+            FParticleRef::Bend(bend) => {
+                let mut bend_guard = bend.lock();
+                Some(f(bend_guard.particle_mut()))
+            }
         }
     }
 
     pub fn with_particle_ref<R>(&self, f: impl FnOnce(&FParticle) -> R) -> Option<R> {
         match self {
-            FParticleRef::Node(node) => node.lock_ok().map(|node_guard| f(node_guard.particle())),
-            FParticleRef::Label(label) => label
-                .lock_ok()
-                .map(|label_guard| f(label_guard.particle())),
-            FParticleRef::Bend(bend) => bend.lock_ok().map(|bend_guard| f(bend_guard.particle())),
+            FParticleRef::Node(node) => {
+                let node_guard = node.lock();
+                Some(f(node_guard.particle()))
+            }
+            FParticleRef::Label(label) => {
+                let label_guard = label.lock();
+                Some(f(label_guard.particle()))
+            }
+            FParticleRef::Bend(bend) => {
+                let bend_guard = bend.lock();
+                Some(f(bend_guard.particle()))
+            }
         }
     }
 
@@ -169,13 +179,13 @@ impl FGraph {
                 self.adjacency[id1][id2] + self.adjacency[id2][id1]
             }
             (FParticleRef::Bend(b1), FParticleRef::Bend(b2)) => {
-                let edge1 = b1.lock_ok().and_then(|b| b.edge());
-                let edge2 = b2.lock_ok().and_then(|b| b.edge());
+                let edge1 = b1.lock().edge();
+                let edge2 = b2.lock().edge();
                 match (edge1, edge2) {
-                    (Some(edge1), Some(edge2)) if Arc::ptr_eq(&edge1, &edge2) => edge2
-                        .lock_ok()
-                        .and_then(|mut edge_guard| edge_guard.get_property(ForceOptions::PRIORITY))
-                        .unwrap_or(1),
+                    (Some(edge1), Some(edge2)) if Arc::ptr_eq(&edge1, &edge2) => {
+                        let mut edge_guard = edge2.lock();
+                        edge_guard.get_property(ForceOptions::PRIORITY).unwrap_or(1)
+                    }
                     _ => 0,
                 }
             }
@@ -191,10 +201,10 @@ impl FGraph {
                 let mut edge_guard = edge.lock();
                 let source_id = edge_guard
                     .source()
-                    .and_then(|node| node.lock_ok().map(|n| n.id()));
+                    .map(|node| node.lock().id());
                 let target_id = edge_guard
                     .target()
-                    .and_then(|node| node.lock_ok().map(|n| n.id()));
+                    .map(|node| node.lock().id());
                 let priority = edge_guard.get_property(ForceOptions::PRIORITY).unwrap_or(1);
                 match (source_id, target_id) {
                     (Some(source_id), Some(target_id)) => (source_id, target_id, priority),

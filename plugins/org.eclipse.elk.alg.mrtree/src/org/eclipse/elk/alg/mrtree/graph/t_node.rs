@@ -34,7 +34,8 @@ impl TNode {
         }));
 
         if let Some(graph) = graph {
-            if let Some(mut graph_guard) = graph.lock_ok() {
+            {
+                let mut graph_guard = graph.lock();
                 graph_guard.nodes_mut().push(node.clone());
             }
         }
@@ -44,7 +45,8 @@ impl TNode {
 
     pub fn new_with_label(id: i32, graph: Option<TGraphRef>, label: impl Into<String>) -> TNodeRef {
         let node = Self::new(id, graph);
-        if let Some(mut node_guard) = node.lock_ok() {
+        {
+            let mut node_guard = node.lock();
             node_guard.label = Some(label.into());
         }
         node
@@ -138,7 +140,8 @@ impl TNode {
             return;
         }
         // Pre-extract target to avoid edge locks in children()
-        if let Some(guard) = edge.lock_ok() {
+        {
+            let guard = edge.lock();
             if let Some(target) = guard.target() {
                 self.direct_children.push(target);
             }
@@ -165,7 +168,8 @@ impl TNode {
         {
             self.outgoing_edges.remove(index);
             // Keep direct_children in sync
-            if let Some(guard) = edge.lock_ok() {
+            {
+                let guard = edge.lock();
                 if let Some(target) = guard.target() {
                     if let Some(ci) = self
                         .direct_children
@@ -194,7 +198,8 @@ impl TNode {
     pub fn replace_outgoing_edges(&mut self, edges: Vec<TEdgeRef>) {
         self.direct_children.clear();
         for edge in &edges {
-            if let Some(guard) = edge.lock_ok() {
+            {
+                let guard = edge.lock();
                 if let Some(target) = guard.target() {
                     self.direct_children.push(target);
                 }
@@ -206,7 +211,7 @@ impl TNode {
     pub fn parent(&self) -> Option<TNodeRef> {
         self.incoming_edges
             .first()
-            .and_then(|edge| edge.lock_ok().and_then(|edge_guard| edge_guard.source()))
+            .and_then(|edge| edge.lock().source())
     }
 
     pub fn children(&self) -> Vec<TNodeRef> {
@@ -219,14 +224,17 @@ impl TNode {
 
     pub fn add_child(node: &TNodeRef, child: &TNodeRef) {
         let edge = super::TEdge::new(node, child);
-        if let Some(mut edge_guard) = edge.lock_ok() {
+        {
+            let mut edge_guard = edge.lock();
             edge_guard
                 .element_mut()
                 .set_property(InternalProperties::DUMMY, Some(true));
         }
-        if let Some(node_guard) = node.lock_ok() {
+        {
+            let node_guard = node.lock();
             if let Some(graph) = node_guard.graph.as_ref().and_then(|graph| graph.upgrade()) {
-                if let Some(mut graph_guard) = graph.lock_ok() {
+                {
+                    let mut graph_guard = graph.lock();
                     graph_guard.edges_mut().push(edge);
                 }
             }
