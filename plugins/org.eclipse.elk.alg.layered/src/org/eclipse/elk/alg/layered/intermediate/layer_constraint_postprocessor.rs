@@ -32,18 +32,16 @@ impl ILayoutProcessor<LGraph> for LayerConstraintPostprocessor {
                     &last_label_layer,
                 );
 
-                if !first_label_layer
-                    .lock_ok()
-                    .map(|layer_guard| layer_guard.nodes().is_empty())
-                    .unwrap_or(true)
-                {
+                if !{
+                    let layer_guard = first_label_layer.lock();
+                    layer_guard.nodes().is_empty()
+                } {
                     layered_graph.layers_mut().insert(0, first_label_layer);
                 }
-                if !last_label_layer
-                    .lock_ok()
-                    .map(|layer_guard| layer_guard.nodes().is_empty())
-                    .unwrap_or(true)
-                {
+                if !{
+                    let layer_guard = last_label_layer.lock();
+                    layer_guard.nodes().is_empty()
+                } {
                     layered_graph.layers_mut().push(last_label_layer);
                 }
             }
@@ -68,18 +66,16 @@ impl ILayoutProcessor<LGraph> for LayerConstraintPostprocessor {
                 &last_separate_layer,
             );
 
-            if !first_separate_layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().is_empty())
-                .unwrap_or(true)
-            {
+            if !{
+                let layer_guard = first_separate_layer.lock();
+                layer_guard.nodes().is_empty()
+            } {
                 layered_graph.layers_mut().insert(0, first_separate_layer);
             }
-            if !last_separate_layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().is_empty())
-                .unwrap_or(true)
-            {
+            if !{
+                let layer_guard = last_separate_layer.lock();
+                layer_guard.nodes().is_empty()
+            } {
                 layered_graph.layers_mut().push(last_separate_layer);
             }
         }
@@ -134,10 +130,8 @@ fn move_first_and_last_nodes(
     }
 
     layered_graph.layers_mut().retain(|layer| {
-        !layer
-            .lock_ok()
-            .map(|layer_guard| layer_guard.nodes().is_empty())
-            .unwrap_or(true)
+        let layer_guard = layer.lock();
+        !layer_guard.nodes().is_empty()
     });
 }
 
@@ -159,10 +153,10 @@ fn move_labels_to_label_layer(node: &LNodeRef, incoming: bool, label_layer: &Lay
         let Some(possible_label_dummy) = possible_label_dummy else {
             continue;
         };
-        let is_label = possible_label_dummy
-            .lock_ok()
-            .map(|node_guard| node_guard.node_type() == NodeType::Label)
-            .unwrap_or(false);
+        let is_label = {
+            let node_guard = possible_label_dummy.lock();
+            node_guard.node_type() == NodeType::Label
+        };
         if is_label {
             LNode::set_layer(&possible_label_dummy, Some(label_layer.clone()));
         }
@@ -201,9 +195,10 @@ fn restore_hidden_nodes(
             let is_outgoing = hidden_edge
                 .lock().target()
                 .is_none();
-            let opposite = hidden_edge.lock_ok().and_then(|mut edge_guard| {
+            let opposite = {
+                let mut edge_guard = hidden_edge.lock();
                 edge_guard.get_property(InternalProperties::ORIGINAL_OPPOSITE_PORT)
-            });
+            };
             let Some(opposite) = opposite else {
                 continue;
             };
@@ -226,10 +221,10 @@ fn throw_up_unless_no_incoming_edges(node: &LNodeRef) {
             .map(|source| source.lock().node_type())
             .unwrap_or(NodeType::Normal);
         if source_type != NodeType::Label {
-            let designation = node
-                .lock_ok()
-                .map(|node_guard| node_guard.designation())
-                .unwrap_or_else(|| "<unknown>".to_owned());
+            let designation = {
+                let node_guard = node.lock();
+                node_guard.designation()
+            };
             panic!(
                 "{}",
                 UnsupportedConfigurationException::new(format!(
@@ -251,10 +246,10 @@ fn throw_up_unless_no_outgoing_edges(node: &LNodeRef) {
             .map(|target| target.lock().node_type())
             .unwrap_or(NodeType::Normal);
         if target_type != NodeType::Label {
-            let designation = node
-                .lock_ok()
-                .map(|node_guard| node_guard.designation())
-                .unwrap_or_else(|| "<unknown>".to_owned());
+            let designation = {
+                let node_guard = node.lock();
+                node_guard.designation()
+            };
             panic!(
                 "{}",
                 UnsupportedConfigurationException::new(format!(
@@ -267,18 +262,16 @@ fn throw_up_unless_no_outgoing_edges(node: &LNodeRef) {
 }
 
 fn layer_constraint_of(node: &LNodeRef) -> LayerConstraint {
-    node.lock_ok()
-        .and_then(|mut node_guard| {
-            if node_guard
-                .shape()
-                .graph_element()
-                .properties()
-                .has_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT)
-            {
-                node_guard.get_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT)
-            } else {
-                None
-            }
-        })
-        .unwrap_or(LayerConstraint::None)
+    let mut node_guard = node.lock();
+    if node_guard
+        .shape()
+        .graph_element()
+        .properties()
+        .has_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT)
+    {
+        node_guard.get_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT)
+            .unwrap_or(LayerConstraint::None)
+    } else {
+        LayerConstraint::None
+    }
 }

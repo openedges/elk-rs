@@ -164,18 +164,16 @@ impl ModelOrderBarycenterHeuristic {
     }
 
     fn compare_nodes(&mut self, n1: &LNodeRef, n2: &LNodeRef) -> i32 {
-        let constraint1 = n1
-            .lock_ok()
-            .and_then(|mut node_guard| {
-                node_guard.get_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT)
-            })
-            .unwrap_or(LayerConstraint::None);
-        let constraint2 = n2
-            .lock_ok()
-            .and_then(|mut node_guard| {
-                node_guard.get_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT)
-            })
-            .unwrap_or(LayerConstraint::None);
+        let constraint1 = {
+            let mut node_guard = n1.lock();
+            node_guard.get_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT)
+                .unwrap_or(LayerConstraint::None)
+        };
+        let constraint2 = {
+            let mut node_guard = n2.lock();
+            node_guard.get_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT)
+                .unwrap_or(LayerConstraint::None)
+        };
         if matches!(
             constraint1,
             LayerConstraint::FirstSeparate | LayerConstraint::LastSeparate
@@ -191,22 +189,18 @@ impl ModelOrderBarycenterHeuristic {
             return transitive;
         }
 
-        let n1_has_model_order = n1
-            .lock_ok()
-            .map(|mut node_guard| {
-                node_guard
-                    .get_property(InternalProperties::MODEL_ORDER)
-                    .is_some()
-            })
-            .unwrap_or(false);
-        let n2_has_model_order = n2
-            .lock_ok()
-            .map(|mut node_guard| {
-                node_guard
-                    .get_property(InternalProperties::MODEL_ORDER)
-                    .is_some()
-            })
-            .unwrap_or(false);
+        let n1_has_model_order = {
+            let mut node_guard = n1.lock();
+            node_guard
+                .get_property(InternalProperties::MODEL_ORDER)
+                .is_some()
+        };
+        let n2_has_model_order = {
+            let mut node_guard = n2.lock();
+            node_guard
+                .get_property(InternalProperties::MODEL_ORDER)
+                .is_some()
+        };
 
         if n1_has_model_order && n2_has_model_order {
             let graph = n1.lock().graph();
@@ -228,22 +222,20 @@ impl ModelOrderBarycenterHeuristic {
                 };
 
                 if self.group_order_strategy == GroupOrderStrategy::OnlyWithinGroup {
-                    let n1_group = n1
-                        .lock_ok()
-                        .and_then(|mut node_guard| {
-                            node_guard.get_property(
-                                LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID,
-                            )
-                        })
-                        .unwrap_or(0);
-                    let n2_group = n2
-                        .lock_ok()
-                        .and_then(|mut node_guard| {
-                            node_guard.get_property(
-                                LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID,
-                            )
-                        })
-                        .unwrap_or(0);
+                    let n1_group = {
+                        let mut node_guard = n1.lock();
+                        node_guard.get_property(
+                            LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID,
+                        )
+                        .unwrap_or(0)
+                    };
+                    let n2_group = {
+                        let mut node_guard = n2.lock();
+                        node_guard.get_property(
+                            LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID,
+                        )
+                        .unwrap_or(0)
+                    };
                     if n1_group != n2_group {
                         value = 0;
                     }

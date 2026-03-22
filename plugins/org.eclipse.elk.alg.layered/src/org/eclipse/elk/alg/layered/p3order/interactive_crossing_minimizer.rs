@@ -53,10 +53,8 @@ impl InteractiveCrossingMinimizer {
     }
 
     fn has_successor_constraint(node: &LNodeRef, successor: &LNodeRef) -> bool {
-        node.lock_ok()
-            .and_then(|mut node_guard| {
-                node_guard.get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
-            })
+        let mut node_guard = node.lock();
+        node_guard.get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
             .map(|constraints| {
                 constraints
                     .iter()
@@ -116,42 +114,44 @@ impl InteractiveCrossingMinimizer {
             _ => {}
         }
 
-        node.lock_ok()
-            .map(|mut node_guard| {
-                let (pos_y, size_y) = {
-                    let shape = node_guard.shape();
-                    (shape.position_ref().y, shape.size_ref().y)
-                };
-                match interactive_reference_point {
-                    InteractiveReferencePoint::Center => pos_y + size_y / 2.0,
-                    InteractiveReferencePoint::TopLeft => pos_y,
-                }
-            })
-            .unwrap_or(0.0)
+        {
+            let mut node_guard = node.lock();
+            let (pos_y, size_y) = {
+                let shape = node_guard.shape();
+                (shape.position_ref().y, shape.size_ref().y)
+            };
+            match interactive_reference_point {
+                InteractiveReferencePoint::Center => pos_y + size_y / 2.0,
+                InteractiveReferencePoint::TopLeft => pos_y,
+            }
+        }
     }
 
     fn long_edge_position(node: &LNodeRef, horiz_pos: f64) -> Option<f64> {
-        let edge = node
-            .lock_ok()
-            .and_then(|mut node_guard| node_guard.get_property(InternalProperties::ORIGIN))
-            .and_then(|origin| match origin {
-                Origin::LEdge(edge) => Some(edge),
-                _ => None,
-            })?;
+        let edge = {
+            let mut node_guard = node.lock();
+            node_guard.get_property(InternalProperties::ORIGIN)
+                .and_then(|origin| match origin {
+                    Origin::LEdge(edge) => Some(edge),
+                    _ => None,
+                })
+        }?;
 
         let mut bend_points = edge
             .lock().bend_points_ref().clone();
-        let reversed = edge
-            .lock_ok()
-            .and_then(|mut edge_guard| edge_guard.get_property(InternalProperties::REVERSED))
-            .unwrap_or(false);
+        let reversed = {
+            let mut edge_guard = edge.lock();
+            edge_guard.get_property(InternalProperties::REVERSED)
+                .unwrap_or(false)
+        };
         if reversed {
             bend_points = KVectorChain::reverse(&bend_points);
         }
 
-        let source = node.lock_ok().and_then(|mut node_guard| {
+        let source = {
+            let mut node_guard = node.lock();
             node_guard.get_property(InternalProperties::LONG_EDGE_SOURCE)
-        });
+        };
         if let Some(source_point) = source.and_then(|source_port| {
             source_port
                 .lock().absolute_anchor()
@@ -162,9 +162,10 @@ impl InteractiveCrossingMinimizer {
             bend_points.insert(0, source_point);
         }
 
-        let target = node.lock_ok().and_then(|mut node_guard| {
+        let target = {
+            let mut node_guard = node.lock();
             node_guard.get_property(InternalProperties::LONG_EDGE_TARGET)
-        });
+        };
         if let Some(target_point) = target.and_then(|target_port| {
             target_port
                 .lock().absolute_anchor()
@@ -199,29 +200,30 @@ impl InteractiveCrossingMinimizer {
     }
 
     fn north_south_port_position(node: &LNodeRef) -> Option<f64> {
-        let dummy_port = node
-            .lock_ok()
-            .and_then(|node_guard| node_guard.ports().first().cloned())?;
-        let origin_port = dummy_port
-            .lock_ok()
-            .and_then(|mut dummy_port_guard| {
-                dummy_port_guard.get_property(InternalProperties::ORIGIN)
-            })
-            .and_then(|origin| match origin {
-                Origin::LPort(port) => Some(port),
-                _ => None,
-            })?;
+        let dummy_port = {
+            let node_guard = node.lock();
+            node_guard.ports().first().cloned()
+        }?;
+        let origin_port = {
+            let mut dummy_port_guard = dummy_port.lock();
+            dummy_port_guard.get_property(InternalProperties::ORIGIN)
+                .and_then(|origin| match origin {
+                    Origin::LPort(port) => Some(port),
+                    _ => None,
+                })
+        }?;
 
         let side = origin_port
             .lock().side();
         let origin_node = origin_port
             .lock().node()?;
-        let (node_y, node_height) = origin_node.lock_ok().map(|mut origin_node_guard| {
+        let (node_y, node_height) = {
+            let mut origin_node_guard = origin_node.lock();
             (
                 origin_node_guard.shape().position_ref().y,
                 origin_node_guard.shape().size_ref().y,
             )
-        })?;
+        };
 
         match side {
             PortSide::North => Some(node_y),

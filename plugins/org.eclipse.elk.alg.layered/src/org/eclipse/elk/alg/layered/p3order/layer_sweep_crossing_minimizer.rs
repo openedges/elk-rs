@@ -428,12 +428,11 @@ impl LayerSweepCrossingMinimizer {
             comp.reset_for_previous_layer_slice(prev_layer);
             active_indices.clear();
             for (index, node) in layer.iter().enumerate() {
-                let has_model_order = node
-                    .lock_ok()
-                    .and_then(|mut node_guard| {
-                        node_guard.get_property(InternalProperties::MODEL_ORDER)
-                    })
-                    .is_some();
+                let has_model_order = {
+                    let mut node_guard = node.lock();
+                    node_guard.get_property(InternalProperties::MODEL_ORDER)
+                        .is_some()
+                };
                 if has_model_order {
                     active_indices.push(index);
                 }
@@ -474,15 +473,14 @@ impl LayerSweepCrossingMinimizer {
                 .unwrap_or(&[]);
             comp.reset_for_previous_layer_slice(prev_layer);
             for node in layer {
-                let maybe_ports = node
-                    .lock_ok()
-                    .and_then(|node_guard| {
-                        if node_guard.ports().len() < 2 {
-                            None
-                        } else {
-                            Some(node_guard.ports().clone())
-                        }
-                    });
+                let maybe_ports = {
+                    let node_guard = node.lock();
+                    if node_guard.ports().len() < 2 {
+                        None
+                    } else {
+                        Some(node_guard.ports().clone())
+                    }
+                };
                 let Some(ports) = maybe_ports else {
                     continue;
                 };
@@ -1142,10 +1140,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for LayerSweepCrossingMinimizer {
 
         let empty_graph = graph.layers().is_empty()
             || graph.layers().iter().all(|layer| {
-                layer
-                    .lock_ok()
-                    .map(|layer_guard| layer_guard.nodes().is_empty())
-                    .unwrap_or(true)
+                let layer_guard = layer.lock();
+                layer_guard.nodes().is_empty()
             });
         if trace {
             eprintln!("crossmin: empty_graph={}", empty_graph);
@@ -1154,8 +1150,10 @@ impl ILayoutPhase<LayeredPhases, LGraph> for LayerSweepCrossingMinimizer {
             && graph
                 .layers()
                 .first()
-                .and_then(|layer| layer.lock_ok())
-                .map(|layer_guard| layer_guard.nodes().len())
+                .map(|layer| {
+                    let layer_guard = layer.lock();
+                    layer_guard.nodes().len()
+                })
                 .unwrap_or(0)
                 == 1;
         if trace {
@@ -1201,11 +1199,10 @@ impl ILayoutPhase<LayeredPhases, LGraph> for LayerSweepCrossingMinimizer {
                     let node_ids: Vec<String> = layer
                         .iter()
                         .map(|n| {
-                            n.lock_ok()
-                                .map(|mut g| {
-                                    format!("id:{}", g.shape().graph_element().id)
-                                })
-                                .unwrap_or_else(|| "<locked>".to_string())
+                            {
+                                let mut g = n.lock();
+                                format!("id:{}", g.shape().graph_element().id)
+                            }
                         })
                         .collect();
                     eprintln!(
@@ -1301,20 +1298,19 @@ fn side_opposed_sweep_direction(is_forward: bool) -> PortSide {
 }
 
 fn is_external_port_dummy(node: &LNodeRef) -> bool {
-    node.lock_ok()
-        .map(|node_guard| node_guard.node_type() == NodeType::ExternalPort)
-        .unwrap_or(false)
+    let node_guard = node.lock();
+    node_guard.node_type() == NodeType::ExternalPort
 }
 
 fn is_hierarchical(port: &LPortRef) -> bool {
-    port.lock_ok()
-        .and_then(|mut port_guard| port_guard.get_property(InternalProperties::INSIDE_CONNECTIONS))
+    let mut port_guard = port.lock();
+    port_guard.get_property(InternalProperties::INSIDE_CONNECTIONS)
         .unwrap_or(false)
 }
 
 fn origin_port(node: &LNodeRef) -> Option<LPortRef> {
-    node.lock_ok()
-        .and_then(|mut node_guard| node_guard.get_property(InternalProperties::ORIGIN))
+    let mut node_guard = node.lock();
+    node_guard.get_property(InternalProperties::ORIGIN)
         .and_then(|origin| match origin {
             crate::org::eclipse::elk::alg::layered::options::Origin::LPort(port) => Some(port),
             _ => None,
@@ -1322,8 +1318,8 @@ fn origin_port(node: &LNodeRef) -> Option<LPortRef> {
 }
 
 fn dummy_node_for(port: &LPortRef) -> Option<LNodeRef> {
-    port.lock_ok()
-        .and_then(|mut port_guard| port_guard.get_property(InternalProperties::PORT_DUMMY))
+    let mut port_guard = port.lock();
+    port_guard.get_property(InternalProperties::PORT_DUMMY)
 }
 
 fn is_on_end_of_sweep_side(port: &LPortRef, on_right_most_layer: bool) -> bool {
@@ -1433,9 +1429,8 @@ fn sort_port_dummies_by_port_positions(
 }
 
 fn graph_id(graph: &LGraphRef) -> Option<usize> {
-    graph
-        .lock_ok()
-        .map(|mut graph_guard| graph_guard.graph_element().id as usize)
+    let mut graph_guard = graph.lock();
+    Some(graph_guard.graph_element().id as usize)
 }
 
 fn collect_hierarchical_targets(layer: &[LNodeRef], out: &mut Vec<(LNodeRef, usize)>) {
@@ -1473,9 +1468,8 @@ fn format_layer_nodes(layer: &[LNodeRef]) -> String {
     layer
         .iter()
         .map(|node| {
-            node.lock_ok()
-                .map(|guard| guard.to_string())
-                .unwrap_or_else(|| String::from("<poisoned-node>"))
+            let guard = node.lock();
+            guard.to_string()
         })
         .collect::<Vec<_>>()
         .join(", ")

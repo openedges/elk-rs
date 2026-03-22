@@ -392,9 +392,10 @@ impl CrossingsCounter {
             match node_type {
                 NodeType::Normal => {
                     // PORT_DUMMY property still needs one lock
-                    let dummy = port.lock_ok().and_then(|mut port_guard| {
+                    let dummy = {
+                        let mut port_guard = port.lock();
                         port_guard.get_property(InternalProperties::PORT_DUMMY)
-                    });
+                    };
                     if let Some(dummy) = dummy {
                         if let Some(ref snap) = snap {
                             // Snapshot path: use CSR for ports + degree
@@ -411,10 +412,10 @@ impl CrossingsCounter {
                             let dummy_ports = dummy
                                 .lock().ports().clone();
                             for dummy_port in dummy_ports {
-                                let degree = dummy_port
-                                    .lock_ok()
-                                    .map(|port_guard| port_guard.degree() as i32)
-                                    .unwrap_or(0);
+                                let degree = {
+                                    let port_guard = dummy_port.lock();
+                                    port_guard.degree() as i32
+                                };
                                 targets_and_degrees.push((dummy_port, degree));
                             }
                         }
@@ -442,32 +443,29 @@ impl CrossingsCounter {
                         let other_port = port
                             .lock().node()
                             .and_then(|node| {
-                                node.lock_ok()
-                                    .map(|node_guard| node_guard.ports().clone())
-                            })
-                            .and_then(|ports| {
+                                let node_guard = node.lock();
+                                let ports = node_guard.ports().clone();
                                 ports.into_iter().find(|p| !Arc::ptr_eq(p, port))
                             });
                         if let Some(other_port) = other_port {
-                            let degree = other_port
-                                .lock_ok()
-                                .map(|port_guard| port_guard.degree() as i32)
-                                .unwrap_or(0);
+                            let degree = {
+                                let port_guard = other_port.lock();
+                                port_guard.degree() as i32
+                            };
                             targets_and_degrees.push((other_port, degree));
                         }
                     }
                 }
                 NodeType::NorthSouthPort => {
                     // ORIGIN property still needs one lock
-                    let origin_port = port
-                        .lock_ok()
-                        .and_then(|mut port_guard| {
-                            port_guard.get_property(InternalProperties::ORIGIN)
-                        })
-                        .and_then(|origin| match origin {
-                            Origin::LPort(port) => Some(port),
-                            _ => None,
-                        });
+                    let origin_port = {
+                        let mut port_guard = port.lock();
+                        port_guard.get_property(InternalProperties::ORIGIN)
+                            .and_then(|origin| match origin {
+                                Origin::LPort(port) => Some(port),
+                                _ => None,
+                            })
+                    };
                     if let Some(origin_port) = origin_port {
                         let degree = if let Some(ref snap) = snap {
                             let pid = snap.port_id(port);
@@ -475,9 +473,8 @@ impl CrossingsCounter {
                                 + snap.port_successors(pid).len())
                                 as i32
                         } else {
-                            port.lock_ok()
-                                .map(|port_guard| port_guard.degree() as i32)
-                                .unwrap_or(0)
+                            let port_guard = port.lock();
+                            port_guard.degree() as i32
                         };
                         targets_and_degrees.push((origin_port, degree));
                     }
@@ -678,9 +675,10 @@ impl CrossingsCounter {
                 );
             }
             if node_has_property(current, InternalProperties::IN_LAYER_LAYOUT_UNIT) {
-                last_layout_unit = current.lock_ok().and_then(|mut node_guard| {
+                last_layout_unit = {
+                    let mut node_guard = current.lock();
                     node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
-                });
+                };
             }
 
             let node_type = if let Some(ref snap) = self.snapshot {
@@ -717,39 +715,39 @@ impl CrossingsCounter {
                     }
                 }
                 NodeType::NorthSouthPort => {
-                    let west_ports = current
-                        .lock_ok()
-                        .map(|mut node_guard| node_guard.port_side_view(INDEXING_SIDE))
-                        .unwrap_or_default();
+                    let west_ports = {
+                        let mut node_guard = current.lock();
+                        node_guard.port_side_view(INDEXING_SIDE)
+                    };
                     if let Some(port) = west_ports.first() {
                         let pid = self.port_id_of(port);
                         set_port_position(&mut self.port_positions, pid, index);
                         index += 1;
                         ports.push(port.clone());
                     }
-                    let east_ports = current
-                        .lock_ok()
-                        .map(|mut node_guard| node_guard.port_side_view(STACK_SIDE))
-                        .unwrap_or_default();
+                    let east_ports = {
+                        let mut node_guard = current.lock();
+                        node_guard.port_side_view(STACK_SIDE)
+                    };
                     if !east_ports.is_empty() {
                         stack.push(current.clone());
                     }
                 }
                 NodeType::LongEdge => {
-                    for port in current
-                        .lock_ok()
-                        .map(|mut node_guard| node_guard.port_side_view(PortSide::West))
-                        .unwrap_or_default()
+                    for port in {
+                        let mut node_guard = current.lock();
+                        node_guard.port_side_view(PortSide::West)
+                    }
                     {
                         let pid = self.port_id_of(&port);
                         set_port_position(&mut self.port_positions, pid, index);
                         index += 1;
                         ports.push(port);
                     }
-                    let east_ports = current
-                        .lock_ok()
-                        .map(|mut node_guard| node_guard.port_side_view(PortSide::East))
-                        .unwrap_or_default();
+                    let east_ports = {
+                        let mut node_guard = current.lock();
+                        node_guard.port_side_view(PortSide::East)
+                    };
                     if !east_ports.is_empty() {
                         stack.push(current.clone());
                     }

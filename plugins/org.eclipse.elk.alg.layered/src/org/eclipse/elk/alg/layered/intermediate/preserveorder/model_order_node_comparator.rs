@@ -315,13 +315,15 @@ impl ModelOrderNodeComparator {
     fn model_order_from_connected_edges(&self, node: &LNodeRef) -> i32 {
         let source_port = first_incoming_port(node);
         if let Some(port) = source_port {
-            let edge = port
-                .lock_ok()
-                .and_then(|port_guard| port_guard.incoming_edges().first().cloned());
+            let edge = {
+                let port_guard = port.lock();
+                port_guard.incoming_edges().first().cloned()
+            };
             if let Some(edge) = edge {
-                let order = edge.lock_ok().and_then(|mut edge_guard| {
+                let order = {
+                    let mut edge_guard = edge.lock();
                     edge_guard.get_property(InternalProperties::MODEL_ORDER)
-                });
+                };
                 if let Some(order) = order {
                     return order;
                 }
@@ -504,51 +506,50 @@ impl ModelOrderNodeComparator {
 }
 
 fn has_model_order(node: &LNodeRef) -> bool {
-    node.lock_ok()
-        .and_then(|mut node_guard| node_guard.get_property(InternalProperties::MODEL_ORDER))
-        .is_some()
+    let mut node_guard = node.lock();
+    node_guard.get_property(InternalProperties::MODEL_ORDER).is_some()
 }
 
 fn first_incoming_port(node: &LNodeRef) -> Option<LPortRef> {
-    node.lock_ok().and_then(|node_guard| {
-        node_guard
-            .ports()
-            .iter()
-            .find(|port| {
-                port.lock_ok()
-                    .map(|port_guard| !port_guard.incoming_edges().is_empty())
-                    .unwrap_or(false)
-            })
-            .cloned()
-    })
+    let node_guard = node.lock();
+    node_guard
+        .ports()
+        .iter()
+        .find(|port| {
+            let port_guard = port.lock();
+            !port_guard.incoming_edges().is_empty()
+        })
+        .cloned()
 }
 
 fn first_incoming_source_port(node: &LNodeRef) -> Option<LPortRef> {
     let port = first_incoming_port(node)?;
-    port.lock_ok()
-        .and_then(|port_guard| port_guard.incoming_edges().first().cloned())
-        .and_then(|edge| edge.lock().source())
+    let edge = {
+        let port_guard = port.lock();
+        port_guard.incoming_edges().first().cloned()
+    };
+    edge.and_then(|edge| edge.lock().source())
 }
 
 fn first_outgoing_port(node: &LNodeRef) -> Option<LPortRef> {
-    node.lock_ok().and_then(|node_guard| {
-        node_guard
-            .ports()
-            .iter()
-            .find(|port| {
-                port.lock_ok()
-                    .map(|port_guard| !port_guard.outgoing_edges().is_empty())
-                    .unwrap_or(false)
-            })
-            .cloned()
-    })
+    let node_guard = node.lock();
+    node_guard
+        .ports()
+        .iter()
+        .find(|port| {
+            let port_guard = port.lock();
+            !port_guard.outgoing_edges().is_empty()
+        })
+        .cloned()
 }
 
 fn first_outgoing_target_port(node: &LNodeRef) -> Option<LPortRef> {
     let port = first_outgoing_port(node)?;
-    port.lock_ok()
-        .and_then(|port_guard| port_guard.outgoing_edges().first().cloned())
-        .and_then(|edge| edge.lock().target())
+    let edge = {
+        let port_guard = port.lock();
+        port_guard.outgoing_edges().first().cloned()
+    };
+    edge.and_then(|edge| edge.lock().target())
 }
 
 fn first_source_port_to_previous_layer(node: &LNodeRef) -> Option<LPortRef> {
@@ -577,10 +578,9 @@ fn first_source_port_to_previous_layer(node: &LNodeRef) -> Option<LPortRef> {
 
 fn layer_id(node: &LNodeRef) -> usize {
     node.lock().layer()
-        .and_then(|layer| {
-            layer
-                .lock_ok()
-                .map(|mut layer_guard| layer_guard.graph_element().id as usize)
+        .map(|layer| {
+            let mut layer_guard = layer.lock();
+            layer_guard.graph_element().id as usize
         })
         .unwrap_or(0)
 }
