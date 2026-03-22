@@ -14,20 +14,17 @@ impl ILayoutProcessor<LGraph> for HypernodeProcessor {
 
         let layers = layered_graph.layers().clone();
         for layer in layers {
-            let nodes = layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+            let nodes = layer.lock().nodes().clone();
 
             for node in nodes {
-                let (is_hypernode, ports) = match node.lock_ok() {
-            Some(mut node_guard) => (
+                let (is_hypernode, ports) = {
+                    let mut node_guard = node.lock();
+                    (
                         node_guard
                             .get_property(LayeredOptions::HYPERNODE)
                             .unwrap_or(false),
                         node_guard.ports().clone(),
-                    ),
-            None => (false, Vec::new()),
+                    )
                 };
                 if !is_hypernode || ports.len() > 2 {
                     continue;
@@ -38,10 +35,7 @@ impl ILayoutProcessor<LGraph> for HypernodeProcessor {
                 let mut bottom_edges = 0;
                 let mut left_edges = 0;
                 for port in ports {
-                    let side = port
-                        .lock_ok()
-                        .map(|port_guard| port_guard.side())
-                        .unwrap_or(PortSide::Undefined);
+                    let side = port.lock().side();
                     match side {
                         PortSide::North => top_edges += 1,
                         PortSide::East => right_edges += 1,
@@ -64,10 +58,7 @@ impl ILayoutProcessor<LGraph> for HypernodeProcessor {
 }
 
 fn move_hypernode(layered_graph: &mut LGraph, hypernode: &LNodeRef, right: bool) {
-    let ports = hypernode
-        .lock_ok()
-        .map(|node_guard| node_guard.ports().clone())
-        .unwrap_or_default();
+    let ports = hypernode.lock().ports().clone();
 
     let mut bend_edges: Vec<LEdgeRef> = Vec::new();
     let mut bend_x = i32::MAX as f64;
@@ -77,15 +68,9 @@ fn move_hypernode(layered_graph: &mut LGraph, hypernode: &LNodeRef, right: bool)
     if right {
         bend_x = layered_graph.size_ref().x;
         for port in ports {
-            let outgoing = port
-                .lock_ok()
-                .map(|port_guard| port_guard.outgoing_edges().clone())
-                .unwrap_or_default();
+            let outgoing = port.lock().outgoing_edges().clone();
             for edge in outgoing {
-                let points = edge
-                    .lock_ok()
-                    .map(|edge_guard| edge_guard.bend_points_ref().to_array())
-                    .unwrap_or_default();
+                let points = edge.lock().bend_points_ref().to_array();
                 if points.is_empty() {
                     continue;
                 }
@@ -108,15 +93,9 @@ fn move_hypernode(layered_graph: &mut LGraph, hypernode: &LNodeRef, right: bool)
     } else {
         // Keep Java behavior: bend_x starts at Integer.MAX_VALUE for this branch as well.
         for port in ports {
-            let incoming = port
-                .lock_ok()
-                .map(|port_guard| port_guard.incoming_edges().clone())
-                .unwrap_or_default();
+            let incoming = port.lock().incoming_edges().clone();
             for edge in incoming {
-                let points = edge
-                    .lock_ok()
-                    .map(|edge_guard| edge_guard.bend_points_ref().to_array())
-                    .unwrap_or_default();
+                let points = edge.lock().bend_points_ref().to_array();
                 if points.is_empty() {
                     continue;
                 }
@@ -139,15 +118,13 @@ fn move_hypernode(layered_graph: &mut LGraph, hypernode: &LNodeRef, right: bool)
         }
     }
 
-    let (node_width, node_height) = hypernode
-        .lock_ok()
-        .map(|mut node_guard| {
-            (
-                node_guard.shape().size_ref().x,
-                node_guard.shape().size_ref().y,
-            )
-        })
-        .unwrap_or((0.0, 0.0));
+    let (node_width, node_height) = {
+        let mut node_guard = hypernode.lock();
+        (
+            node_guard.shape().size_ref().x,
+            node_guard.shape().size_ref().y,
+        )
+    };
 
     if bend_edges.is_empty() || diff_x <= node_width / 2.0 || diff_y <= node_height / 2.0 {
         return;
@@ -155,14 +132,16 @@ fn move_hypernode(layered_graph: &mut LGraph, hypernode: &LNodeRef, right: bool)
 
     let north_port = LPort::new();
     LPort::set_node(&north_port, Some(hypernode.clone()));
-    if let Some(mut north_guard) = north_port.lock_ok() {
+    {
+        let mut north_guard = north_port.lock();
         north_guard.set_side(PortSide::North);
         north_guard.shape().position().x = node_width / 2.0;
     }
 
     let south_port = LPort::new();
     LPort::set_node(&south_port, Some(hypernode.clone()));
-    if let Some(mut south_guard) = south_port.lock_ok() {
+    {
+        let mut south_guard = south_port.lock();
         south_guard.set_side(PortSide::South);
         south_guard.shape().position().x = node_width / 2.0;
         south_guard.shape().position().y = node_height;
@@ -176,7 +155,8 @@ fn move_hypernode(layered_graph: &mut LGraph, hypernode: &LNodeRef, right: bool)
         }
     }
 
-    if let Some(mut node_guard) = hypernode.lock_ok() {
+    {
+        let mut node_guard = hypernode.lock();
         node_guard.shape().position().x = bend_x - node_width / 2.0;
     }
 }
@@ -186,30 +166,28 @@ fn process_right_edge(
     north_port: &crate::org::eclipse::elk::alg::layered::graph::LPortRef,
     south_port: &crate::org::eclipse::elk::alg::layered::graph::LPortRef,
 ) {
-    let mut removed = None;
-    let mut second = None;
+    let (first, second);
 
-    if let Some(mut edge_guard) = edge.lock_ok() {
+    {
+        let mut edge_guard = edge.lock();
         let mut points = edge_guard.bend_points_ref().to_array();
         if points.is_empty() {
             return;
         }
-        let first = points.remove(0);
+        let removed = points.remove(0);
         rewrite_bend_points(&mut edge_guard, points.clone());
 
-        if let Some(next) = points.first().copied() {
-            second = Some(next);
+        let second_opt = if let Some(next) = points.first().copied() {
+            Some(next)
         } else if let Some(target) = edge_guard.target() {
-            second = target
-                .lock_ok()
-                .and_then(|port_guard| port_guard.absolute_anchor());
-        }
-        removed = Some(first);
+            target.lock().absolute_anchor()
+        } else {
+            None
+        };
+        first = removed;
+        second = second_opt;
     }
 
-    let Some(first) = removed else {
-        return;
-    };
     let Some(second_point) = second else {
         return;
     };
@@ -227,29 +205,27 @@ fn process_left_edge(
     north_port: &crate::org::eclipse::elk::alg::layered::graph::LPortRef,
     south_port: &crate::org::eclipse::elk::alg::layered::graph::LPortRef,
 ) {
-    let mut removed = None;
-    let mut second = None;
+    let (last_point, second);
 
-    if let Some(mut edge_guard) = edge.lock_ok() {
+    {
+        let mut edge_guard = edge.lock();
         let mut points = edge_guard.bend_points_ref().to_array();
         let Some(last) = points.pop() else {
             return;
         };
         rewrite_bend_points(&mut edge_guard, points.clone());
 
-        if let Some(prev) = points.last().copied() {
-            second = Some(prev);
+        let second_opt = if let Some(prev) = points.last().copied() {
+            Some(prev)
         } else if let Some(source) = edge_guard.source() {
-            second = source
-                .lock_ok()
-                .and_then(|port_guard| port_guard.absolute_anchor());
-        }
-        removed = Some(last);
+            source.lock().absolute_anchor()
+        } else {
+            None
+        };
+        last_point = last;
+        second = second_opt;
     }
 
-    let Some(last_point) = removed else {
-        return;
-    };
     let Some(second_point) = second else {
         return;
     };
@@ -271,7 +247,8 @@ fn rewrite_bend_points(
 }
 
 fn remove_junction_point(edge: &LEdgeRef, removed_point: KVector) {
-    if let Some(mut edge_guard) = edge.lock_ok() {
+    {
+        let mut edge_guard = edge.lock();
         let Some(mut junction_points) = edge_guard.get_property(LayeredOptions::JUNCTION_POINTS)
         else {
             return;
