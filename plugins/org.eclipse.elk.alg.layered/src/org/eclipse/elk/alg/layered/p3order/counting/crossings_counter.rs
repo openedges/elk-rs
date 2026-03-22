@@ -775,33 +775,31 @@ impl CrossingsCounter {
             // Snapshot path: get port IDs filtered by side (no Arc clone of ports list),
             // then convert to LPortRef via reverse map. Still needs one node lock to get
             // current port order (port distributor may have reordered).
-            let mut port_refs: Vec<LPortRef> = node
-                .lock_ok()
-                .map(|node_guard| {
-                    node_guard
-                        .ports()
-                        .iter()
-                        .filter_map(|p| {
-                            let pid = snap.port_id(p);
-                            if snap.port_side_of(pid) == side {
-                                snap.port_ref_opt(pid).cloned()
-                            } else {
-                                None
-                            }
-                        })
-                        .collect::<Vec<_>>()
-                })
-                .unwrap_or_default();
+            let mut port_refs: Vec<LPortRef> = {
+                let node_guard = node.lock();
+                node_guard
+                    .ports()
+                    .iter()
+                    .filter_map(|p| {
+                        let pid = snap.port_id(p);
+                        if snap.port_side_of(pid) == side {
+                            snap.port_ref_opt(pid).cloned()
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            };
             let need_reverse = if side == PortSide::East { !top_down } else { top_down };
             if need_reverse {
                 port_refs.reverse();
             }
             port_refs
         } else {
-            let mut ports = node
-                .lock_ok()
-                .map(|mut node_guard| node_guard.port_side_view(side))
-                .unwrap_or_default();
+            let mut ports = {
+                let mut node_guard = node.lock();
+                node_guard.port_side_view(side)
+            };
             let need_reverse = if side == PortSide::East { !top_down } else { top_down };
             if need_reverse {
                 ports.reverse();
@@ -986,15 +984,13 @@ impl CrossingsCounter {
 }
 
 fn port_id(port: &LPortRef) -> usize {
-    port.lock_ok()
-        .map(|mut port_guard| port_guard.shape().graph_element().id as usize)
-        .unwrap_or(0)
+    let mut port_guard = port.lock();
+    port_guard.shape().graph_element().id as usize
 }
 
 fn node_id(node: &LNodeRef) -> usize {
-    node.lock_ok()
-        .map(|mut node_guard| node_guard.shape().graph_element().id as usize)
-        .unwrap_or(0)
+    let mut node_guard = node.lock();
+    node_guard.shape().graph_element().id as usize
 }
 
 fn collect_connected_edges(port: &LPortRef, out: &mut Vec<LEdgeRef>) {
@@ -1007,20 +1003,18 @@ fn collect_connected_edges(port: &LPortRef, out: &mut Vec<LEdgeRef>) {
 }
 
 fn is_in_layer(edge: &LEdgeRef) -> bool {
-    let (source_layer, target_layer) = edge
-        .lock_ok()
-        .map(|edge_guard| {
-            let source_layer = edge_guard
-                .source()
-                .and_then(|port| port.lock().node())
-                .and_then(|node| node.lock().layer());
-            let target_layer = edge_guard
-                .target()
-                .and_then(|port| port.lock().node())
-                .and_then(|node| node.lock().layer());
-            (source_layer, target_layer)
-        })
-        .unwrap_or((None, None));
+    let (source_layer, target_layer) = {
+        let edge_guard = edge.lock();
+        let source_layer = edge_guard
+            .source()
+            .and_then(|port| port.lock().node())
+            .and_then(|node| node.lock().layer());
+        let target_layer = edge_guard
+            .target()
+            .and_then(|port| port.lock().node())
+            .and_then(|node| node.lock().layer());
+        (source_layer, target_layer)
+    };
     if let (Some(source_layer), Some(target_layer)) = (source_layer, target_layer) {
         Arc::ptr_eq(&source_layer, &target_layer)
     } else {
@@ -1032,10 +1026,9 @@ fn is_in_layer(edge: &LEdgeRef) -> bool {
 }
 
 fn other_end_of(edge: &LEdgeRef, from_port: &LPortRef) -> LPortRef {
-    let (source, target) = edge
-        .lock_ok()
-        .map(|edge_guard| (edge_guard.source(), edge_guard.target()))
-        .unwrap_or((None, None));
+    let edge_guard = edge.lock();
+    let source = edge_guard.source();
+    let target = edge_guard.target();
     match (source, target) {
         (Some(source), Some(target)) => {
             if Arc::ptr_eq(&source, from_port) {
@@ -1049,16 +1042,13 @@ fn other_end_of(edge: &LEdgeRef, from_port: &LPortRef) -> LPortRef {
 }
 
 fn is_port_self_loop(edge: &LEdgeRef) -> bool {
-    edge.lock_ok()
-        .map(|edge_guard| {
-            let source = edge_guard.source();
-            let target = edge_guard.target();
-            match (source, target) {
-                (Some(source), Some(target)) => Arc::ptr_eq(&source, &target),
-                _ => false,
-            }
-        })
-        .unwrap_or(false)
+    let edge_guard = edge.lock();
+    let source = edge_guard.source();
+    let target = edge_guard.target();
+    match (source, target) {
+        (Some(source), Some(target)) => Arc::ptr_eq(&source, &target),
+        _ => false,
+    }
 }
 
 fn port_ptr_id(port: &LPortRef) -> usize {
@@ -1069,15 +1059,12 @@ fn node_has_property(
     node: &LNodeRef,
     property: &org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property<LNodeRef>,
 ) -> bool {
-    node.lock_ok()
-        .map(|mut node_guard| {
-            node_guard
-                .shape()
-                .graph_element()
-                .properties()
-                .has_property(property)
-        })
-        .unwrap_or(false)
+    let mut node_guard = node.lock();
+    node_guard
+        .shape()
+        .graph_element()
+        .properties()
+        .has_property(property)
 }
 
 fn is_layout_unit_changed(last_unit: Option<&LNodeRef>, node: &LNodeRef) -> bool {
@@ -1090,9 +1077,10 @@ fn is_layout_unit_changed(last_unit: Option<&LNodeRef>, node: &LNodeRef) -> bool
     if !node_has_property(node, InternalProperties::IN_LAYER_LAYOUT_UNIT) {
         return false;
     }
-    let unit = node.lock_ok().and_then(|mut node_guard| {
+    let unit = {
+        let mut node_guard = node.lock();
         node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
-    });
+    };
     match unit {
         Some(unit) => !Arc::ptr_eq(&unit, last_unit),
         None => false,
@@ -1100,30 +1088,24 @@ fn is_layout_unit_changed(last_unit: Option<&LNodeRef>, node: &LNodeRef) -> bool
 }
 
 fn get_north_south_ports_with_incident_edges(node: &LNodeRef, side: PortSide) -> Vec<LPortRef> {
-    node.lock_ok()
-        .map(|mut node_guard| {
-            node_guard
-                .port_side_view(side)
-                .into_iter()
-                .filter(|port| port_has_property(port, InternalProperties::PORT_DUMMY))
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default()
+    let mut node_guard = node.lock();
+    node_guard
+        .port_side_view(side)
+        .into_iter()
+        .filter(|port| port_has_property(port, InternalProperties::PORT_DUMMY))
+        .collect::<Vec<_>>()
 }
 
 fn port_has_property(
     port: &LPortRef,
     property: &org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property<LNodeRef>,
 ) -> bool {
-    port.lock_ok()
-        .map(|mut port_guard| {
-            port_guard
-                .shape()
-                .graph_element()
-                .properties()
-                .has_property(property)
-        })
-        .unwrap_or(false)
+    let mut port_guard = port.lock();
+    port_guard
+        .shape()
+        .graph_element()
+        .properties()
+        .has_property(property)
 }
 
 fn empty_stack(
@@ -1135,10 +1117,10 @@ fn empty_stack(
     snapshot: &Option<Arc<CrossMinSnapshot>>,
 ) -> i32 {
     while let Some(dummy) = stack.pop() {
-        let dummy_ports = dummy
-            .lock_ok()
-            .map(|mut node_guard| node_guard.port_side_view(side))
-            .unwrap_or_default();
+        let dummy_ports = {
+            let mut node_guard = dummy.lock();
+            node_guard.port_side_view(side)
+        };
         if let Some(port) = dummy_ports.first() {
             let pid = if let Some(ref snap) = snapshot {
                 snap.port_id(port) as usize
