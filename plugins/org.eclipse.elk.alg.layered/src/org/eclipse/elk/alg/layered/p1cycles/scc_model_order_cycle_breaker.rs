@@ -120,10 +120,8 @@ pub(crate) fn constraint_model_order(
 }
 
 pub(crate) fn node_group_model_order_id(node: &LNodeRef) -> i32 {
-    node.lock_ok()
-        .and_then(|mut node_guard| {
-            node_guard.get_property(LayeredOptions::GROUP_MODEL_ORDER_CYCLE_BREAKING_ID)
-        })
+    node.lock()
+        .get_property(LayeredOptions::GROUP_MODEL_ORDER_CYCLE_BREAKING_ID)
         .unwrap_or(0)
 }
 

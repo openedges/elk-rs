@@ -17,28 +17,24 @@ impl ILayoutProcessor<LGraph> for PartitionPostprocessor {
             let nodes = layer
                 .lock().nodes().clone();
             for node in nodes {
-                let partition_ports: Vec<LPortRef> = node
-                    .lock_ok()
-                    .map(|node_guard| {
-                        node_guard
-                            .ports()
-                            .iter()
-                            .filter_map(|port| {
-                                let is_partition_dummy = port
-                                    .lock_ok()
-                                    .and_then(|mut port_guard| {
-                                        port_guard.get_property(InternalProperties::PARTITION_DUMMY)
-                                    })
-                                    .unwrap_or(false);
-                                if is_partition_dummy {
-                                    Some(port.clone())
-                                } else {
-                                    None
-                                }
-                            })
-                            .collect()
-                    })
-                    .unwrap_or_default();
+                let partition_ports: Vec<LPortRef> = {
+                    let node_guard = node.lock();
+                    node_guard
+                        .ports()
+                        .iter()
+                        .filter_map(|port| {
+                            let is_partition_dummy = port
+                                .lock()
+                                .get_property(InternalProperties::PARTITION_DUMMY)
+                                .unwrap_or(false);
+                            if is_partition_dummy {
+                                Some(port.clone())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect()
+                };
 
                 for port in partition_ports {
                     detach_partition_port(&port);

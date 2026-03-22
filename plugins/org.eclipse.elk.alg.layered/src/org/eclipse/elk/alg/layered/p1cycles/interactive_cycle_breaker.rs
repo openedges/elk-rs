@@ -35,16 +35,13 @@ impl InteractiveCycleBreaker {
     }
 
     fn reference_x(node: &LNodeRef, reference: InteractiveReferencePoint) -> f64 {
-        node.lock_ok()
-            .map(|mut node_guard| {
-                let shape = node_guard.shape();
-                let pos_x = shape.position_ref().x;
-                match reference {
-                    InteractiveReferencePoint::Center => pos_x + shape.size_ref().x / 2.0,
-                    InteractiveReferencePoint::TopLeft => pos_x,
-                }
-            })
-            .unwrap_or(0.0)
+        let mut node_guard = node.lock();
+        let shape = node_guard.shape();
+        let pos_x = shape.position_ref().x;
+        match reference {
+            InteractiveReferencePoint::Center => pos_x + shape.size_ref().x / 2.0,
+            InteractiveReferencePoint::TopLeft => pos_x,
+        }
     }
 
     fn find_cycles(start: &LNodeRef, rev_edges: &mut Vec<LEdgeRef>) {
@@ -77,10 +74,7 @@ impl InteractiveCycleBreaker {
             let edge = top.1[idx].0.clone();
             let target = top.1[idx].1.clone();
 
-            let target_id = target
-                .lock_ok()
-                .map(|mut g| g.shape().graph_element().id)
-                .unwrap_or(0);
+            let target_id = target.lock().shape().graph_element().id;
 
             if target_id < 0 {
                 // back edge -> cycle detected
@@ -180,10 +174,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveCycleBreaker {
         }
 
         for node in &nodes {
-            let is_unvisited = node
-                .lock_ok()
-                .map(|mut g| g.shape().graph_element().id > 0)
-                .unwrap_or(false);
+            let is_unvisited = node.lock().shape().graph_element().id > 0;
 
             if is_unvisited {
                 Self::find_cycles(node, &mut rev_edges);

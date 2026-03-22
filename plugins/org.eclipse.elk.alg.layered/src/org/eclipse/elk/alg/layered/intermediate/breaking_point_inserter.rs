@@ -131,9 +131,7 @@ impl BreakingPointInserter {
                     let (bp_end_marker, in_port_bp2, out_port_bp2) =
                         create_breaking_point_dummy(&graph_ref, &bp_layer2);
 
-                    let model_order = original_edge.lock_ok().and_then(|mut edge_guard| {
-                        edge_guard.get_property(InternalProperties::MODEL_ORDER)
-                    });
+                    let model_order = original_edge.lock().get_property(InternalProperties::MODEL_ORDER);
 
                     let source_port = original_edge
                         .lock().source();
@@ -184,14 +182,9 @@ impl BreakingPointInserter {
                         .and_then(|port| port.lock().node());
 
                     if let Some(prev_node) = prev_node {
-                        let prev_is_breaking_point = prev_node
-                            .lock_ok()
-                            .map(|node_guard| node_guard.node_type() == NodeType::BreakingPoint)
-                            .unwrap_or(false);
+                        let prev_is_breaking_point = prev_node.lock().node_type() == NodeType::BreakingPoint;
                         if prev_is_breaking_point {
-                            let prev_info = prev_node.lock_ok().and_then(|mut node_guard| {
-                                node_guard.get_property(InternalProperties::BREAKING_POINT_INFO)
-                            });
+                            let prev_info = prev_node.lock().get_property(InternalProperties::BREAKING_POINT_INFO);
                             if let Some(prev_info) = prev_info {
                                 {
                                     let mut prev_info_guard = prev_info.lock();

@@ -177,9 +177,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for MinWidthLayerer {
                 continue;
             }
             let size = node
-                .lock_ok()
-                .map(|mut node_guard| node_guard.shape().size_ref().y)
-                .unwrap_or(0.0);
+                .lock().shape().size_ref().y;
             self.minimum_node_size = self.minimum_node_size.min(size);
         }
         self.minimum_node_size = self.minimum_node_size.max(1.0);
@@ -195,9 +193,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for MinWidthLayerer {
             self.in_degree[index] = count_edges_except_self_loops(node, true);
             self.out_degree[index] = count_edges_except_self_loops(node, false);
             let size = node
-                .lock_ok()
-                .map(|mut node_guard| node_guard.shape().size_ref().y)
-                .unwrap_or(0.0);
+                .lock().shape().size_ref().y;
             self.norm_size[index] = size / self.minimum_node_size;
             self.avg_size += self.norm_size[index];
         }
@@ -312,16 +308,14 @@ fn select_node(
 }
 
 fn count_edges_except_self_loops(node: &LNodeRef, incoming: bool) -> i32 {
-    let edges = node
-        .lock_ok()
-        .map(|node_guard| {
-            if incoming {
-                node_guard.incoming_edges()
-            } else {
-                node_guard.outgoing_edges()
-            }
-        })
-        .unwrap_or_default();
+    let edges = {
+        let node_guard = node.lock();
+        if incoming {
+            node_guard.incoming_edges()
+        } else {
+            node_guard.outgoing_edges()
+        }
+    };
     let mut count = 0;
     for edge in edges {
         if edge
@@ -335,9 +329,7 @@ fn count_edges_except_self_loops(node: &LNodeRef, incoming: bool) -> i32 {
 }
 
 fn node_id_usize(node: &LNodeRef) -> usize {
-    node.lock_ok()
-        .map(|mut node_guard| node_guard.shape().graph_element().id as usize)
-        .unwrap_or(0)
+    node.lock().shape().graph_element().id as usize
 }
 
 fn set_node_id(node: &LNodeRef, value: i32) {

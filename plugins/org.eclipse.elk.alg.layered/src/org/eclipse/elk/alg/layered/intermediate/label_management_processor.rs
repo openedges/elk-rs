@@ -80,22 +80,21 @@ fn manage_non_center_labels(
             .lock().nodes().clone();
 
         for node in nodes {
-            let (node_type, node_labels, ports, top_comments, bottom_comments, outgoing_edges) =
-                match node.lock_ok() {
-            Some(mut node_guard) => (
-                        node_guard.node_type(),
-                        node_guard.labels().clone(),
-                        node_guard.ports().clone(),
-                        node_guard
-                            .get_property(InternalProperties::TOP_COMMENTS)
-                            .unwrap_or_default(),
-                        node_guard
-                            .get_property(InternalProperties::BOTTOM_COMMENTS)
-                            .unwrap_or_default(),
-                        node_guard.outgoing_edges(),
-                    ),
-            None => continue,
-                };
+            let (node_type, node_labels, ports, top_comments, bottom_comments, outgoing_edges) = {
+                let mut node_guard = node.lock();
+                (
+                    node_guard.node_type(),
+                    node_guard.labels().clone(),
+                    node_guard.ports().clone(),
+                    node_guard
+                        .get_property(InternalProperties::TOP_COMMENTS)
+                        .unwrap_or_default(),
+                    node_guard
+                        .get_property(InternalProperties::BOTTOM_COMMENTS)
+                        .unwrap_or_default(),
+                    node_guard.outgoing_edges(),
+                )
+            };
 
             if node_type == NodeType::Normal {
                 do_manage_labels(
@@ -187,16 +186,16 @@ fn manage_center_labels(
             .lock().nodes().clone();
 
         for node in nodes {
-            let (node_type, connected_edges, represented_labels, node_labels) = match node.lock_ok() {
-            Some(mut node_guard) => (
+            let (node_type, connected_edges, represented_labels, node_labels) = {
+                let mut node_guard = node.lock();
+                (
                     node_guard.node_type(),
                     node_guard.connected_edges(),
                     node_guard
                         .get_property(InternalProperties::REPRESENTED_LABELS)
                         .unwrap_or_default(),
                     node_guard.labels().clone(),
-                ),
-            None => continue,
+                )
             };
 
             if node_type != NodeType::Label {
@@ -206,9 +205,8 @@ fn manage_center_labels(
             let edge_thickness = connected_edges
                 .first()
                 .and_then(|edge| {
-                    edge.lock_ok().and_then(|mut edge_guard| {
-                        edge_guard.get_property(CoreOptions::EDGE_THICKNESS)
-                    })
+                    edge.lock()
+                        .get_property(CoreOptions::EDGE_THICKNESS)
                 })
                 .unwrap_or(1.0);
 

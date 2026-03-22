@@ -383,8 +383,8 @@ impl ModelOrderComponentGroup {
 
 fn component_mask(component: &LGraphRef) -> u8 {
     let connections = component
-        .lock_ok()
-        .and_then(|mut graph| graph.get_property(InternalProperties::EXT_PORT_CONNECTIONS))
+        .lock()
+        .get_property(InternalProperties::EXT_PORT_CONNECTIONS)
         .unwrap_or_else(EnumSet::none_of);
     connections_to_mask(&connections)
 }

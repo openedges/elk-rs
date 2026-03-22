@@ -67,11 +67,10 @@ impl ILayoutProcessor<LGraph> for SortByInputModelProcessor {
 
         let mut previous_layer_nodes = Vec::new();
         for (layer_index, layer) in layers.iter().enumerate() {
-            let mut nodes = if let Some(mut layer_guard) = layer.lock_ok() {
+            let mut nodes = {
+                let mut layer_guard = layer.lock();
                 layer_guard.graph_element().id = layer_index as i32;
                 layer_guard.nodes().clone()
-            } else {
-                Vec::new()
             };
             // Java semantics: for the first layer, previousLayer is the layer itself.
             if layer_index == 0 {
@@ -88,10 +87,8 @@ impl ILayoutProcessor<LGraph> for SortByInputModelProcessor {
             port_comparator.reset_for_previous_layer_slice(&previous_layer_nodes);
             for node in &nodes {
                 let constraints = node
-                    .lock_ok()
-                    .and_then(|mut node_guard| {
-                        node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
-                    })
+                    .lock()
+                    .get_property(LayeredOptions::PORT_CONSTRAINTS)
                     .unwrap_or(PortConstraints::Undefined);
                 if matches!(
                     constraints,
@@ -154,20 +151,17 @@ impl SortByInputModelProcessor {
 
     pub fn long_edge_target_node_preprocessing(node: &LNodeRef) -> FxHashMap<NodeRefKey, i32> {
         let mut target_node_model_order: FxHashMap<NodeRefKey, i32> = FxHashMap::default();
-        let ports = if let Some(mut node_guard) = node.lock_ok() {
+        let ports = {
+            let mut node_guard = node.lock();
             if let Some(existing) =
                 node_guard.get_property(InternalProperties::TARGET_NODE_MODEL_ORDER)
             {
                 return existing;
             }
             node_guard.ports().clone()
-        } else {
-            Vec::new()
         };
         for port in ports {
-            let first_edge = port
-                .lock_ok()
-                .and_then(|port_guard| port_guard.outgoing_edges().first().cloned());
+            let first_edge = port.lock().outgoing_edges().first().cloned();
             let Some(first_edge) = first_edge else {
                 continue;
             };
@@ -186,19 +180,17 @@ impl SortByInputModelProcessor {
                     .get(&target_node_key)
                     .copied()
                     .unwrap_or(i32::MAX);
-                let (reversed, model_order) = first_edge
-                    .lock_ok()
-                    .map(|mut edge_guard| {
-                        (
-                            edge_guard
-                                .get_property(InternalProperties::REVERSED)
-                                .unwrap_or(false),
-                            edge_guard
-                                .get_property(InternalProperties::MODEL_ORDER)
-                                .unwrap_or(i32::MAX),
-                        )
-                    })
-                    .unwrap_or((false, i32::MAX));
+                let (reversed, model_order) = {
+                    let mut edge_guard = first_edge.lock();
+                    (
+                        edge_guard
+                            .get_property(InternalProperties::REVERSED)
+                            .unwrap_or(false),
+                        edge_guard
+                            .get_property(InternalProperties::MODEL_ORDER)
+                            .unwrap_or(i32::MAX),
+                    )
+                };
                 if !reversed {
                     target_node_model_order.insert(target_node_key, prev_order.min(model_order));
                 }
@@ -217,9 +209,7 @@ impl SortByInputModelProcessor {
 }
 
 pub fn get_target_node(port: &LPortRef) -> Option<LNodeRef> {
-    let edge = port
-        .lock_ok()
-        .and_then(|port_guard| port_guard.outgoing_edges().first().cloned());
+    let edge = port.lock().outgoing_edges().first().cloned();
     edge.and_then(get_target_node_from_edge)
 }
 

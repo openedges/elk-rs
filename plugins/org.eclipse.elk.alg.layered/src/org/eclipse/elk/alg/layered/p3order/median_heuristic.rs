@@ -16,8 +16,8 @@ impl MedianHeuristic {
     }
 
     fn weight_of(node: &LNodeRef) -> Option<f64> {
-        node.lock_ok()
-            .and_then(|mut node_guard| node_guard.get_property(InternalProperties::WEIGHT))
+        node.lock()
+            .get_property(InternalProperties::WEIGHT)
     }
 
     fn weight_cmp(a: &LNodeRef, b: &LNodeRef) -> Ordering {
@@ -58,31 +58,27 @@ impl MedianHeuristic {
 
         for node in nodes {
             let mut connected_nodes: Vec<LNodeRef> = Vec::new();
-            let edges: Vec<LEdgeRef> = node
-                .lock_ok()
-                .map(|node_guard| {
-                    node_guard
-                        .incoming_edges()
-                        .iter()
-                        .chain(node_guard.outgoing_edges().iter())
-                        .cloned()
-                        .collect()
-                })
-                .unwrap_or_default();
+            let edges: Vec<LEdgeRef> = {
+                let node_guard = node.lock();
+                node_guard
+                    .incoming_edges()
+                    .iter()
+                    .chain(node_guard.outgoing_edges().iter())
+                    .cloned()
+                    .collect()
+            };
 
             for edge in edges {
-                let (source, target) = edge
-                    .lock_ok()
-                    .map(|edge_guard| {
-                        let source_node = edge_guard.source().and_then(|port| {
-                            port.lock().node()
-                        });
-                        let target_node = edge_guard.target().and_then(|port| {
-                            port.lock().node()
-                        });
-                        (source_node, target_node)
-                    })
-                    .unwrap_or((None, None));
+                let (source, target) = {
+                    let edge_guard = edge.lock();
+                    let source_node = edge_guard.source().and_then(|port| {
+                        port.lock().node()
+                    });
+                    let target_node = edge_guard.target().and_then(|port| {
+                        port.lock().node()
+                    });
+                    (source_node, target_node)
+                };
                 for candidate in [source, target].into_iter().flatten() {
                     if let Some(layer_id) = layer_id(&candidate) {
                         if layer_id as isize == reference_layer {
@@ -207,8 +203,6 @@ impl IInitializable for MedianHeuristic {}
 fn layer_id(node: &LNodeRef) -> Option<usize> {
     node.lock().layer()
         .and_then(|layer| {
-            layer
-                .lock_ok()
-                .map(|mut layer_guard| layer_guard.graph_element().id as usize)
+            Some(layer.lock().graph_element().id as usize)
         })
 }

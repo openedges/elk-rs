@@ -104,7 +104,7 @@ impl SplinesMath {
         let mut port_guard = port.lock();
         let node = port_guard.node();
         let node_size = node
-            .and_then(|node| node.lock_ok().map(|mut n| *n.shape().size_ref()))
+            .map(|node| *node.lock().shape().size_ref())
             .unwrap_or_default();
         let mut port_pos = *port_guard.shape().position_ref();
         let anchor = *port_guard.anchor_ref();

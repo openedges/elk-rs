@@ -109,10 +109,10 @@ impl SimpleThresholdStrategy {
 
             has_edges = true;
 
-            let other_node_id = edge
-                .lock_ok()
-                .map(|edge_guard| edge_guard.other_node(free_node))
-                .map(|node| node_id(&node));
+            let other_node_id = {
+                let other = edge.lock().other_node(free_node);
+                Some(node_id(&other))
+            };
             if let Some(other_node_id) = other_node_id {
                 if other_node_id >= bal.root.len() {
                     continue;
@@ -155,10 +155,10 @@ impl SimpleThresholdStrategy {
             return invalid;
         };
 
-        let (left_port, right_port) = edge
-            .lock_ok()
-            .and_then(|edge_guard| Some((edge_guard.source()?, edge_guard.target()?)))
-            .unwrap();
+        let (left_port, right_port) = {
+            let edge_guard = edge.lock();
+            (edge_guard.source().unwrap(), edge_guard.target().unwrap())
+        };
 
         let threshold = if is_root {
             let root_port = if bal.hdir == Some(HDirection::Right) {
@@ -242,10 +242,10 @@ impl SimpleThresholdStrategy {
     ) -> bool {
         let trace = ElkTrace::global().bk_thresh;
         let edge = pp.edge.as_ref().expect("processable edge missing");
-        let (source_port, target_port) = edge
-            .lock_ok()
-            .and_then(|edge_guard| Some((edge_guard.source()?, edge_guard.target()?)))
-            .unwrap();
+        let (source_port, target_port) = {
+            let edge_guard = edge.lock();
+            (edge_guard.source().unwrap(), edge_guard.target().unwrap())
+        };
 
         let free_id = pp.free;
         let source_node_id = port_node_id(&source_port);

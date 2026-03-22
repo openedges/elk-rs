@@ -254,18 +254,14 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
                     .lock().nodes().clone();
                 for node in nodes {
                     let node_id = node_id(&node);
-                    let (name, label_opt) = node
-                        .lock_ok()
-                        .map(|node_guard| {
-                            let name = node_guard.designation().to_string();
-                            let label_opt = node_guard.labels().first().and_then(|label| {
-                                label
-                                    .lock_ok()
-                                    .map(|label_guard| label_guard.text().to_string())
-                            });
-                            (name, label_opt)
-                        })
-                        .unwrap_or_else(|| ("<poisoned>".to_string(), None));
+                    let (name, label_opt) = {
+                        let node_guard = node.lock();
+                        let name = node_guard.designation().to_string();
+                        let label_opt = node_guard.labels().first().map(|label| {
+                            label.lock().text().to_string()
+                        });
+                        (name, label_opt)
+                    };
 
                     if let Some(filter) = &filter {
                         if !name.contains(filter)
@@ -371,12 +367,7 @@ impl BKNodePlacer {
 
         let layer_size: Vec<usize> = layers
             .iter()
-            .map(|layer| {
-                layer
-                    .lock_ok()
-                    .map(|layer_guard| layer_guard.nodes().len())
-                    .unwrap_or(0)
-            })
+            .map(|layer| layer.lock().nodes().len())
             .collect();
 
         for i in 1..layers.len() - 1 {
@@ -429,17 +420,13 @@ impl BKNodePlacer {
                                             let src_name = source
                                                 .as_ref()
                                                 .and_then(|node| {
-                                                    node.lock_ok().map(|node_guard| {
-                                                        node_guard.designation().to_string()
-                                                    })
+                                                    Some(node.lock().designation().to_string())
                                                 })
                                                 .unwrap_or_else(|| "<none>".to_string());
                                             let tgt_name = target
                                                 .as_ref()
                                                 .and_then(|node| {
-                                                    node.lock_ok().map(|node_guard| {
-                                                        node_guard.designation().to_string()
-                                                    })
+                                                    Some(node.lock().designation().to_string())
                                                 })
                                                 .unwrap_or_else(|| "<none>".to_string());
                                             let src_id =
@@ -485,10 +472,7 @@ impl BKNodePlacer {
                 .lock().source()
                 .and_then(|port| port.lock().node());
             if let Some(source_node) = source_node {
-                let is_long_edge = source_node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.node_type() == NodeType::LongEdge)
-                    .unwrap_or(false);
+                let is_long_edge = source_node.lock().node_type() == NodeType::LongEdge;
                 if !is_long_edge {
                     continue;
                 }
@@ -496,17 +480,13 @@ impl BKNodePlacer {
                 let source_layer_id = source_node
                     .lock().layer()
                     .and_then(|layer| {
-                        layer
-                            .lock_ok()
-                            .map(|mut layer_guard| layer_guard.graph_element().id as usize)
+                        Some(layer.lock().graph_element().id as usize)
                     })
                     .unwrap_or(0);
                 let node_layer_id = node
                     .lock().layer()
                     .and_then(|layer| {
-                        layer
-                            .lock_ok()
-                            .map(|mut layer_guard| layer_guard.graph_element().id as usize)
+                        Some(layer.lock().graph_element().id as usize)
                     })
                     .unwrap_or(0);
 

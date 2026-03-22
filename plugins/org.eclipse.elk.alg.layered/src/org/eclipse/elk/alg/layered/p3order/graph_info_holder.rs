@@ -672,16 +672,14 @@ fn trace_in_layer_constraints(node_order: &[Vec<LNodeRef>]) {
         eprintln!("rust-crossmin: layer[{layer_index}] nodes=[{layer_nodes}]");
 
         for node in layer {
-            let (node_name, successors) = node
-                .lock_ok()
-                .map(|mut node_guard| {
-                    let name = node_guard.to_string();
-                    let successors: Vec<LNodeRef> = node_guard
-                        .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
-                        .unwrap_or_default();
-                    (name, successors)
-                })
-                .unwrap_or_else(|| ("<poisoned-node>".to_owned(), Vec::new()));
+            let (node_name, successors) = {
+                let mut node_guard = node.lock();
+                let name = node_guard.to_string();
+                let successors: Vec<LNodeRef> = node_guard
+                    .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
+                    .unwrap_or_default();
+                (name, successors)
+            };
 
             if successors.is_empty() {
                 continue;
@@ -698,9 +696,7 @@ fn trace_in_layer_constraints(node_order: &[Vec<LNodeRef>]) {
 }
 
 fn node_debug_name(node: &LNodeRef) -> String {
-    node.lock_ok()
-        .map(|node_guard| node_guard.to_string())
-        .unwrap_or_else(|| "<poisoned-node>".to_owned())
+    node.lock().to_string()
 }
 
 #[derive(Clone)]
@@ -722,15 +718,12 @@ impl ISweepPortDistributor for SharedNodeRelativePortDistributor {
         is_forward_sweep: bool,
     ) -> bool {
         self.inner
-            .lock_ok()
-            .map(|mut distributor| {
-                distributor.distribute_ports_while_sweeping(
-                    order,
-                    free_layer_index,
-                    is_forward_sweep,
-                )
-            })
-            .unwrap_or(false)
+            .lock()
+            .distribute_ports_while_sweeping(
+                order,
+                free_layer_index,
+                is_forward_sweep,
+            )
     }
 }
 
@@ -819,15 +812,12 @@ impl ISweepPortDistributor for SharedLayerTotalPortDistributor {
         is_forward_sweep: bool,
     ) -> bool {
         self.inner
-            .lock_ok()
-            .map(|mut distributor| {
-                distributor.distribute_ports_while_sweeping(
-                    order,
-                    free_layer_index,
-                    is_forward_sweep,
-                )
-            })
-            .unwrap_or(false)
+            .lock()
+            .distribute_ports_while_sweeping(
+                order,
+                free_layer_index,
+                is_forward_sweep,
+            )
     }
 }
 

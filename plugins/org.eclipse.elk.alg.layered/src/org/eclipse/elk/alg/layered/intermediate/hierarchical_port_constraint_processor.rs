@@ -55,28 +55,24 @@ fn process_eastern_and_western_port_dummies_layer(layer: &LayerRef) {
 
     let mut nodes_sorted = nodes;
     nodes_sorted.sort_by(|node1, node2| {
-        let (node1_type, node1_pos) = node1
-            .lock_ok()
-            .map(|mut node_guard| {
-                (
-                    node_guard.node_type(),
-                    node_guard
-                        .get_property(InternalProperties::PORT_RATIO_OR_POSITION)
-                        .unwrap_or(0.0),
-                )
-            })
-            .unwrap_or((NodeType::Normal, 0.0));
-        let (node2_type, node2_pos) = node2
-            .lock_ok()
-            .map(|mut node_guard| {
-                (
-                    node_guard.node_type(),
-                    node_guard
-                        .get_property(InternalProperties::PORT_RATIO_OR_POSITION)
-                        .unwrap_or(0.0),
-                )
-            })
-            .unwrap_or((NodeType::Normal, 0.0));
+        let (node1_type, node1_pos) = {
+            let mut node_guard = node1.lock();
+            (
+                node_guard.node_type(),
+                node_guard
+                    .get_property(InternalProperties::PORT_RATIO_OR_POSITION)
+                    .unwrap_or(0.0),
+            )
+        };
+        let (node2_type, node2_pos) = {
+            let mut node_guard = node2.lock();
+            (
+                node_guard.node_type(),
+                node_guard
+                    .get_property(InternalProperties::PORT_RATIO_OR_POSITION)
+                    .unwrap_or(0.0),
+            )
+        };
 
         if node2_type != NodeType::ExternalPort {
             return std::cmp::Ordering::Less;
@@ -100,17 +96,15 @@ fn process_eastern_and_western_port_dummies_layer(layer: &LayerRef) {
     let mut last_hierarchical_dummy: Option<LNodeRef> = None;
 
     for node in nodes_sorted {
-        let (node_type, ext_side) = node
-            .lock_ok()
-            .map(|mut node_guard| {
-                (
-                    node_guard.node_type(),
-                    node_guard
-                        .get_property(InternalProperties::EXT_PORT_SIDE)
-                        .unwrap_or(PortSide::Undefined),
-                )
-            })
-            .unwrap_or((NodeType::Normal, PortSide::Undefined));
+        let (node_type, ext_side) = {
+            let mut node_guard = node.lock();
+            (
+                node_guard.node_type(),
+                node_guard
+                    .get_property(InternalProperties::EXT_PORT_SIDE)
+                    .unwrap_or(PortSide::Undefined),
+            )
+        };
 
         if node_type != NodeType::ExternalPort {
             break;
@@ -213,8 +207,10 @@ fn process_northern_and_southern_port_dummies(layered_graph: &mut LGraph) {
                 };
 
                 let dummy_port = prev_layer_dummy
-                    .lock_ok()
-                    .and_then(|dummy_guard| dummy_guard.ports().get(DUMMY_OUTPUT_PORT).cloned());
+                    .lock()
+                    .ports()
+                    .get(DUMMY_OUTPUT_PORT)
+                    .cloned();
                 if let Some(dummy_port) = dummy_port {
                     LEdge::set_source(&edge, Some(dummy_port));
                 }
@@ -249,8 +245,10 @@ fn process_northern_and_southern_port_dummies(layered_graph: &mut LGraph) {
                 };
 
                 let dummy_port = next_layer_dummy
-                    .lock_ok()
-                    .and_then(|dummy_guard| dummy_guard.ports().get(DUMMY_INPUT_PORT).cloned());
+                    .lock()
+                    .ports()
+                    .get(DUMMY_INPUT_PORT)
+                    .cloned();
                 if let Some(dummy_port) = dummy_port {
                     LEdge::set_target(&edge, Some(dummy_port));
                 }
@@ -291,17 +289,15 @@ fn process_northern_and_southern_port_dummies(layered_graph: &mut LGraph) {
 }
 
 fn is_northern_or_southern_dummy(node: &LNodeRef) -> bool {
-    let (node_type, port_side) = node
-        .lock_ok()
-        .map(|mut node_guard| {
-            (
-                node_guard.node_type(),
-                node_guard
-                    .get_property(InternalProperties::EXT_PORT_SIDE)
-                    .unwrap_or(PortSide::Undefined),
-            )
-        })
-        .unwrap_or((NodeType::Normal, PortSide::Undefined));
+    let (node_type, port_side) = {
+        let mut node_guard = node.lock();
+        (
+            node_guard.node_type(),
+            node_guard
+                .get_property(InternalProperties::EXT_PORT_SIDE)
+                .unwrap_or(PortSide::Undefined),
+        )
+    };
 
     node_type == NodeType::ExternalPort
         && (port_side == PortSide::North || port_side == PortSide::South)
@@ -309,8 +305,8 @@ fn is_northern_or_southern_dummy(node: &LNodeRef) -> bool {
 
 fn origin_port_key(node: &LNodeRef) -> Option<OriginId> {
     let origin = node
-        .lock_ok()
-        .and_then(|mut node_guard| node_guard.get_property(InternalProperties::ORIGIN));
+        .lock()
+        .get_property(InternalProperties::ORIGIN);
     match origin {
         Some(Origin::ElkPort(origin_id)) => Some(origin_id),
         Some(Origin::LPort(port)) => {
@@ -324,7 +320,9 @@ fn origin_port_key(node: &LNodeRef) -> Option<OriginId> {
 fn create_dummy(graph: &LGraphRef, original_dummy: &LNodeRef) -> LNodeRef {
     let new_dummy = LNode::new(graph);
 
-    if let (Some(mut new_guard), Some(mut orig_guard)) = (new_dummy.lock_ok(), original_dummy.lock_ok()) {
+    {
+        let mut new_guard = new_dummy.lock();
+        let mut orig_guard = original_dummy.lock();
         let props = orig_guard.shape().graph_element().properties().clone();
         new_guard
             .shape()

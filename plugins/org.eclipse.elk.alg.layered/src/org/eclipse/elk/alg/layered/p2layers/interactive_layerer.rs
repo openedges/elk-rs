@@ -47,15 +47,13 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveLayerer {
 
         let mut current_spans: Vec<LayerSpan> = Vec::new();
         for node in &nodes {
-            let (minx, mut maxx) = node
-                .lock_ok()
-                .map(|mut node_guard| {
-                    let shape = node_guard.shape();
-                    let pos = *shape.position_ref();
-                    let size = *shape.size_ref();
-                    (pos.x, pos.x + size.x)
-                })
-                .unwrap_or((0.0, 0.0));
+            let (minx, mut maxx) = {
+                let mut node_guard = node.lock();
+                let shape = node_guard.shape();
+                let pos = *shape.position_ref();
+                let size = *shape.size_ref();
+                (pos.x, pos.x + size.x)
+            };
             maxx = maxx.max(minx + 1.0);
 
             let mut idx = 0usize;
@@ -125,10 +123,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveLayerer {
         }
 
         graph.layers_mut().retain(|layer| {
-            !layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().is_empty())
-                .unwrap_or(false)
+            !layer.lock().nodes().is_empty()
         });
 
         graph.layerless_nodes_mut().clear();
@@ -163,18 +158,12 @@ fn check_node(node: &LNodeRef, graph: &mut LGraph, graph_ref: &LGraphRef) -> Vec
     let Some(layer1) = layer1 else {
         return Vec::new();
     };
-    let layer1_id = layer1
-        .lock_ok()
-        .map(|mut layer_guard| layer_guard.graph_element().id)
-        .unwrap_or(0);
+    let layer1_id = layer1.lock().graph_element().id;
 
     let mut shifted_nodes: Vec<LNodeRef> = Vec::new();
     let mut seen: HashSet<usize> = HashSet::new();
 
-    let ports = node
-        .lock_ok()
-        .map(|node_guard| node_guard.ports_by_type(PortType::Output))
-        .unwrap_or_default();
+    let ports = node.lock().ports_by_type(PortType::Output);
     for port in ports {
         let outgoing = port
             .lock().outgoing_edges().clone();
@@ -193,9 +182,7 @@ fn check_node(node: &LNodeRef, graph: &mut LGraph, graph_ref: &LGraphRef) -> Vec
             let layer2_id = layer2
                 .as_ref()
                 .and_then(|layer| {
-                    layer
-                        .lock_ok()
-                        .map(|mut layer_guard| layer_guard.graph_element().id)
+                    Some(layer.lock().graph_element().id)
                 })
                 .unwrap_or(-1);
             if layer2_id <= layer1_id {
@@ -224,9 +211,7 @@ fn check_node(node: &LNodeRef, graph: &mut LGraph, graph_ref: &LGraphRef) -> Vec
 }
 
 fn node_id(node: &LNodeRef) -> i32 {
-    node.lock_ok()
-        .map(|mut node_guard| node_guard.shape().graph_element().id)
-        .unwrap_or(0)
+    node.lock().shape().graph_element().id
 }
 
 fn set_node_id(node: &LNodeRef, value: i32) {

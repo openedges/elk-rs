@@ -45,24 +45,18 @@ impl DepthFirstCycleBreaker {
         self.visited[index] = true;
         self.active[index] = true;
 
-        let outgoing = match node.lock_ok() {
-            Some(node_guard) => node_guard.outgoing_edges(),
-            None => Vec::new(),
-        };
+        let outgoing = node.lock().outgoing_edges();
 
         for edge in outgoing {
-            let is_self_loop = edge
-                .lock_ok()
-                .map(|edge_guard| edge_guard.is_self_loop())
-                .unwrap_or(false);
+            let is_self_loop = edge.lock().is_self_loop();
             if is_self_loop {
                 continue;
             }
 
             let target_node = edge
-                .lock_ok()
-                .and_then(|edge_guard| edge_guard.target())
-                .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
+                .lock()
+                .target()
+                .and_then(|port| port.lock().node());
             let Some(target_node) = target_node else {
                 continue;
             };
@@ -97,7 +91,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for DepthFirstCycleBreaker {
 
         let mut sources: Vec<LNodeRef> = Vec::new();
         for (index, node) in nodes.iter().enumerate() {
-            if let Some(mut node_guard) = node.lock_ok() {
+            { let mut node_guard = node.lock();
                 node_guard.shape().graph_element().id = index as i32;
                 if node_guard.incoming_edges().is_empty() {
                     sources.push(node.clone());
@@ -136,7 +130,5 @@ impl ILayoutPhase<LayeredPhases, LGraph> for DepthFirstCycleBreaker {
 }
 
 fn node_index(node: &LNodeRef) -> usize {
-    node.lock_ok()
-        .map(|mut node_guard| node_guard.shape().graph_element().id as usize)
-        .unwrap_or(0)
+    node.lock().shape().graph_element().id as usize
 }

@@ -6,9 +6,7 @@ use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LNodeRef, LPortRef
 use super::aligned_layout::BKAlignedLayout;
 
 pub(crate) fn node_id(node: &LNodeRef) -> usize {
-    node.lock_ok()
-        .map(|mut node_guard| node_guard.shape().graph_element().id as usize)
-        .unwrap_or(0)
+    node.lock().shape().graph_element().id as usize
 }
 
 pub(crate) fn node_type(node: &LNodeRef) -> NodeType {
@@ -16,33 +14,24 @@ pub(crate) fn node_type(node: &LNodeRef) -> NodeType {
 }
 
 pub(crate) fn node_margin_top(node: &LNodeRef) -> f64 {
-    node.lock_ok()
-        .map(|mut node_guard| node_guard.margin().top)
-        .unwrap_or(0.0)
+    node.lock().margin().top
 }
 
 pub(crate) fn node_margin_bottom(node: &LNodeRef) -> f64 {
-    node.lock_ok()
-        .map(|mut node_guard| node_guard.margin().bottom)
-        .unwrap_or(0.0)
+    node.lock().margin().bottom
 }
 
 pub(crate) fn node_size_y(node: &LNodeRef) -> f64 {
-    node.lock_ok()
-        .map(|mut node_guard| node_guard.shape().size_ref().y)
-        .unwrap_or(0.0)
+    node.lock().shape().size_ref().y
 }
 
 pub(crate) fn node_to_string(node: &LNodeRef) -> String {
-    node.lock_ok()
-        .map(|node_guard| node_guard.to_string())
-        .unwrap_or_else(|| "n_".to_string())
+    node.lock().to_string()
 }
 
 pub(crate) fn port_offset_y(port: &LPortRef) -> f64 {
-    port.lock_ok()
-        .map(|mut port_guard| port_guard.shape().position_ref().y + port_guard.anchor_ref().y)
-        .unwrap_or(0.0)
+    let mut port_guard = port.lock();
+    port_guard.shape().position_ref().y + port_guard.anchor_ref().y
 }
 
 pub(crate) fn port_node_id(port: &LPortRef) -> usize {
@@ -57,18 +46,16 @@ pub(crate) fn edge_key(edge: &LEdgeRef) -> usize {
 
 pub(crate) fn edge_between(source: &LNodeRef, target: &LNodeRef) -> Option<LEdgeRef> {
     fn edge_matches(edge: &LEdgeRef, source_id: usize, target_id: usize) -> bool {
-        let (src_node, tgt_node) = edge
-            .lock_ok()
-            .map(|edge_guard| {
-                let src = edge_guard
-                    .source()
-                    .and_then(|port| port.lock().node());
-                let tgt = edge_guard
-                    .target()
-                    .and_then(|port| port.lock().node());
-                (src, tgt)
-            })
-            .unwrap_or((None, None));
+        let (src_node, tgt_node) = {
+            let edge_guard = edge.lock();
+            let src = edge_guard
+                .source()
+                .and_then(|port| port.lock().node());
+            let tgt = edge_guard
+                .target()
+                .and_then(|port| port.lock().node());
+            (src, tgt)
+        };
         if let (Some(src_node), Some(tgt_node)) = (src_node, tgt_node) {
             let src_id = node_id(&src_node);
             let tgt_id = node_id(&tgt_node);

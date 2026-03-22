@@ -15,11 +15,7 @@ impl ILayoutProcessor<LGraph> for EndLabelSorter {
             let nodes = layer
                 .lock().nodes().clone();
             for node in nodes {
-                if node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.node_type() != NodeType::Label)
-                    .unwrap_or(true)
-                {
+                if node.lock().node_type() != NodeType::Label {
                     continue;
                 }
                 sort_represented_labels(&node);
@@ -32,8 +28,8 @@ impl ILayoutProcessor<LGraph> for EndLabelSorter {
 
 fn sort_represented_labels(node: &crate::org::eclipse::elk::alg::layered::graph::LNodeRef) {
     let labels = node
-        .lock_ok()
-        .and_then(|mut node_guard| node_guard.get_property(InternalProperties::REPRESENTED_LABELS))
+        .lock()
+        .get_property(InternalProperties::REPRESENTED_LABELS)
         .unwrap_or_default();
     if labels.len() < 2 {
         return;
@@ -41,14 +37,8 @@ fn sort_represented_labels(node: &crate::org::eclipse::elk::alg::layered::graph:
 
     let mut sorted = labels;
     sorted.sort_by(|left, right| {
-        let left_text = left
-            .lock_ok()
-            .map(|label_guard| label_guard.text().to_owned())
-            .unwrap_or_default();
-        let right_text = right
-            .lock_ok()
-            .map(|label_guard| label_guard.text().to_owned())
-            .unwrap_or_default();
+        let left_text = left.lock().text().to_owned();
+        let right_text = right.lock().text().to_owned();
         left_text.cmp(&right_text)
     });
 

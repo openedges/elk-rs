@@ -143,10 +143,7 @@ impl CoffmanGrahamLayerer {
 
     fn is_layer_full(&self, layer: &LayerRef, bound: i32) -> bool {
         let bound = if bound < 0 { 0 } else { bound as usize };
-        layer
-            .lock_ok()
-            .map(|layer_guard| layer_guard.nodes().len() >= bound)
-            .unwrap_or(false)
+        layer.lock().nodes().len() >= bound
     }
 
     fn can_add(&self, node: &LNodeRef, layer: &LayerRef) -> bool {
@@ -339,9 +336,7 @@ fn pop_best_by<T>(items: &mut Vec<T>, cmp: impl Fn(&T, &T) -> Ordering) -> Optio
 }
 
 fn node_id(node: &LNodeRef) -> usize {
-    node.lock_ok()
-        .map(|mut node_guard| node_guard.shape().graph_element().id as usize)
-        .unwrap_or(0)
+    node.lock().shape().graph_element().id as usize
 }
 
 fn set_node_id(node: &LNodeRef, value: i32) {
@@ -352,9 +347,7 @@ fn set_node_id(node: &LNodeRef, value: i32) {
 }
 
 fn edge_id(edge: &LEdgeRef) -> usize {
-    edge.lock_ok()
-        .map(|mut edge_guard| edge_guard.graph_element().id as usize)
-        .unwrap_or(0)
+    edge.lock().graph_element().id as usize
 }
 
 fn set_edge_id(edge: &LEdgeRef, value: i32) {

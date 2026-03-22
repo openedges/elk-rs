@@ -246,23 +246,15 @@ impl SplineSegment {
                 .lock().node();
             info.normal_source_node = source_node
                 .as_ref()
-                .and_then(|node| node.lock_ok())
-                .map(|node_guard| SplineEdgeRouter::is_normal_node(&node_guard))
+                .map(|node| SplineEdgeRouter::is_normal_node(&node.lock()))
                 .unwrap_or(false);
             info.normal_target_node = target_node
                 .as_ref()
-                .and_then(|node| node.lock_ok())
-                .map(|node_guard| SplineEdgeRouter::is_normal_node(&node_guard))
+                .map(|node| SplineEdgeRouter::is_normal_node(&node.lock()))
                 .unwrap_or(false);
 
-            info.inverted_left = source_port
-                .lock_ok()
-                .map(|port_guard| port_guard.side() == PortSide::West)
-                .unwrap_or(false);
-            info.inverted_right = target_port
-                .lock_ok()
-                .map(|port_guard| port_guard.side() == PortSide::East)
-                .unwrap_or(false);
+            info.inverted_left = source_port.lock().side() == PortSide::West;
+            info.inverted_right = target_port.lock().side() == PortSide::East;
         }
 
         self.edge_information.insert(edge_key(edge), info);

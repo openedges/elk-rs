@@ -142,18 +142,14 @@ impl OrthogonalRoutingGenerator {
                 .ports()
                 .iter()
                 .map(|port| {
-                    if let Some(port_guard) = port.lock_ok() {
+                    {
+                        let port_guard = port.lock();
                         let node_name = port_guard
                             .node()
-                            .and_then(|node| {
-                                node.lock_ok()
-                                    .map(|node_guard| node_guard.designation())
-                            })
+                            .map(|node| node.lock().designation())
                             .unwrap_or_else(|| "?".to_string());
                         let anchor = port_guard.absolute_anchor().map(|a| a.y).unwrap_or(0.0);
                         format!("{}:{:?}@{:.1}", node_name, port_guard.side(), anchor)
-                    } else {
-                        "?".to_string()
                     }
                 })
                 .collect::<Vec<_>>()
@@ -183,11 +179,8 @@ impl OrthogonalRoutingGenerator {
         if let Some(nodes) = nodes {
             for node in nodes {
                 let ports = node
-                    .lock_ok()
-                    .map(|node_guard| {
-                        node_guard.ports_by_type_and_side(PortType::Output, port_side)
-                    })
-                    .unwrap_or_default();
+                    .lock()
+                    .ports_by_type_and_side(PortType::Output, port_side);
                 for port in ports {
                     let key = port_key(&port);
                     let entry = port_map.get(&key).cloned();

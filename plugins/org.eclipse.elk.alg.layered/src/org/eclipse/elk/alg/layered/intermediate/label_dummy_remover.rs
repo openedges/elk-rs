@@ -42,10 +42,7 @@ impl ILayoutProcessor<LGraph> for LabelDummyRemover {
                 .lock().nodes().clone();
 
             for node in nodes {
-                let is_label_dummy = node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.node_type() == NodeType::Label)
-                    .unwrap_or(false);
+                let is_label_dummy = node.lock().node_type() == NodeType::Label;
                 if !is_label_dummy {
                     continue;
                 }
@@ -190,15 +187,11 @@ impl LabelDummyRemover {
             return;
         };
 
-        let source_right = source_node.lock_ok().map(|mut source_guard| {
+        let source_right = {
+            let mut source_guard = source_node.lock();
             source_guard.shape().position_ref().x + source_guard.shape().size_ref().x
-        });
-        let target_left = target_node
-            .lock_ok()
-            .map(|mut target_guard| target_guard.shape().position_ref().x);
-        let (Some(source_right), Some(target_left)) = (source_right, target_left) else {
-            return;
         };
+        let target_left = target_node.lock().shape().position_ref().x;
 
         let left_spacing = spacings.get_horizontal_spacing(&source_node, node);
         let right_spacing = spacings.get_horizontal_spacing(node, &target_node);
@@ -227,14 +220,10 @@ impl LabelDummyRemover {
                 node_guard.ports_by_side(PortSide::East).first().cloned(),
             )
         };
-        let incoming_edge = west_port.and_then(|port| {
-            port.lock_ok()
-                .and_then(|port_guard| port_guard.incoming_edges().first().cloned())
-        })?;
-        let outgoing_edge = east_port.and_then(|port| {
-            port.lock_ok()
-                .and_then(|port_guard| port_guard.outgoing_edges().first().cloned())
-        })?;
+        let incoming_edge = west_port
+            .and_then(|port| port.lock().incoming_edges().first().cloned())?;
+        let outgoing_edge = east_port
+            .and_then(|port| port.lock().outgoing_edges().first().cloned())?;
 
         let source_node = incoming_edge
             .lock().source()
@@ -332,36 +321,29 @@ impl LabelDummyRemover {
     }
 
     fn edge_thickness(edge: &crate::org::eclipse::elk::alg::layered::graph::LEdgeRef) -> f64 {
-        edge.lock_ok()
-            .and_then(|mut edge_guard| {
-                if edge_guard
-                    .graph_element()
-                    .properties()
-                    .has_property(CoreOptions::EDGE_THICKNESS)
-                {
-                    edge_guard.get_property(CoreOptions::EDGE_THICKNESS)
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(1.0)
+        let mut edge_guard = edge.lock();
+        if edge_guard
+            .graph_element()
+            .properties()
+            .has_property(CoreOptions::EDGE_THICKNESS)
+        {
+            edge_guard.get_property(CoreOptions::EDGE_THICKNESS).unwrap_or(1.0)
+        } else {
+            1.0
+        }
     }
 
     fn label_inline_property(label: &LLabelRef) -> bool {
-        label
-            .lock_ok()
-            .and_then(|mut label_guard| {
-                if label_guard
-                    .shape()
-                    .graph_element()
-                    .properties()
-                    .has_property(LayeredOptions::EDGE_LABELS_INLINE)
-                {
-                    label_guard.get_property(LayeredOptions::EDGE_LABELS_INLINE)
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(false)
+        let mut label_guard = label.lock();
+        if label_guard
+            .shape()
+            .graph_element()
+            .properties()
+            .has_property(LayeredOptions::EDGE_LABELS_INLINE)
+        {
+            label_guard.get_property(LayeredOptions::EDGE_LABELS_INLINE).unwrap_or(false)
+        } else {
+            false
+        }
     }
 }

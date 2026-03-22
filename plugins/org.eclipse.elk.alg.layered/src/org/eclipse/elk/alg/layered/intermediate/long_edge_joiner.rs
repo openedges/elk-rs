@@ -31,10 +31,7 @@ impl ILayoutProcessor<LGraph> for LongEdgeJoiner {
             let nodes = layer
                 .lock().nodes().clone();
             for node in nodes {
-                let is_long_edge_dummy = node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.node_type() == NodeType::LongEdge)
-                    .unwrap_or(false);
+                let is_long_edge_dummy = node.lock().node_type() == NodeType::LongEdge;
                 if !is_long_edge_dummy {
                     continue;
                 }
@@ -50,11 +47,15 @@ impl ILayoutProcessor<LGraph> for LongEdgeJoiner {
 impl LongEdgeJoiner {
     pub fn join_at(long_edge_dummy: &LNodeRef, add_unnecessary_bendpoints: bool) {
         let west_port = long_edge_dummy
-            .lock_ok()
-            .and_then(|node_guard| node_guard.ports_by_side(PortSide::West).first().cloned());
+            .lock()
+            .ports_by_side(PortSide::West)
+            .first()
+            .cloned();
         let east_port = long_edge_dummy
-            .lock_ok()
-            .and_then(|node_guard| node_guard.ports_by_side(PortSide::East).first().cloned());
+            .lock()
+            .ports_by_side(PortSide::East)
+            .first()
+            .cloned();
         let (Some(west_port), Some(east_port)) = (west_port, east_port) else {
             return;
         };
@@ -66,11 +67,11 @@ impl LongEdgeJoiner {
         let mut edge_count = input_edges.len().min(output_edges.len());
 
         let unnecessary_bendpoint = long_edge_dummy
-            .lock_ok()
-            .and_then(|node_guard| node_guard.ports().first().cloned())
-            .and_then(|port| {
-                port.lock().absolute_anchor()
-            });
+            .lock()
+            .ports()
+            .first()
+            .cloned()
+            .and_then(|port| port.lock().absolute_anchor());
 
         while edge_count > 0 {
             edge_count -= 1;
@@ -83,13 +84,10 @@ impl LongEdgeJoiner {
                 continue;
             };
             let dropped_edge_list_index = dropped_target
-                .lock_ok()
-                .and_then(|port_guard| {
-                    port_guard
-                        .incoming_edges()
-                        .iter()
-                        .position(|candidate| Arc::ptr_eq(candidate, &dropped_edge))
-                })
+                .lock()
+                .incoming_edges()
+                .iter()
+                .position(|candidate| Arc::ptr_eq(candidate, &dropped_edge))
                 .unwrap_or(0);
 
             LEdge::set_target_and_insert_at_index(
@@ -111,10 +109,7 @@ impl LongEdgeJoiner {
                 }
             }
 
-            let dropped_bend_points = dropped_edge
-                .lock_ok()
-                .map(|edge_guard| edge_guard.bend_points_ref().to_array())
-                .unwrap_or_default();
+            let dropped_bend_points = dropped_edge.lock().bend_points_ref().to_array();
             {
                 let mut surviving_guard = surviving_edge.lock();
                 surviving_guard.bend_points().add_all(&dropped_bend_points);
@@ -131,7 +126,8 @@ impl LongEdgeJoiner {
                 surviving_guard.labels_mut().extend(dropped_labels);
             }
 
-            let dropped_junction_points = dropped_edge.lock_ok().and_then(|mut edge_guard| {
+            let dropped_junction_points = {
+                let mut edge_guard = dropped_edge.lock();
                 if edge_guard
                     .graph_element()
                     .properties()
@@ -141,7 +137,7 @@ impl LongEdgeJoiner {
                 } else {
                     None
                 }
-            });
+            };
             if let Some(dropped_junction_points) = dropped_junction_points {
                 {
                     let mut surviving_guard = surviving_edge.lock();

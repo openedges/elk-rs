@@ -44,10 +44,7 @@ impl NubsSelfLoop {
         let source_pos = port_position(source);
         let target_pos = port_position(target);
 
-        let direction = source
-            .lock_ok()
-            .map(|port_guard| SplinesMath::port_side_to_direction(port_guard.side()))
-            .unwrap_or(0.0);
+        let direction = SplinesMath::port_side_to_direction(source.lock().side());
         let mut first_cp = KVector::from_angle(direction);
         first_cp.scale(length);
         first_cp.add(&source_pos);
@@ -75,14 +72,8 @@ impl NubsSelfLoop {
         source_height: f64,
         target_height: f64,
     ) -> NubsSelfLoop {
-        let source_dir = source
-            .lock_ok()
-            .map(|port_guard| SplinesMath::port_side_to_direction(port_guard.side()))
-            .unwrap_or(0.0);
-        let target_dir = target
-            .lock_ok()
-            .map(|port_guard| SplinesMath::port_side_to_direction(port_guard.side()))
-            .unwrap_or(0.0);
+        let source_dir = SplinesMath::port_side_to_direction(source.lock().side());
+        let target_dir = SplinesMath::port_side_to_direction(target.lock().side());
 
         let source_pos = port_position(source);
         let target_pos = port_position(target);

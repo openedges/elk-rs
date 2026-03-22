@@ -80,28 +80,20 @@ fn hide_self_loops(
 fn hide_ports(
     holder: &crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfLoopHolderRef,
 ) {
-    let node = holder
-        .lock_ok()
-        .map(|holder_guard| holder_guard.l_node().clone());
-    let Some(node) = node else {
-        return;
-    };
+    let node = holder.lock().l_node().clone();
 
-    let (order_fixed, nested_graph) = node
-        .lock_ok()
-        .map(|mut node_guard| {
-            let constraints = node_guard
-                .get_property(LayeredOptions::PORT_CONSTRAINTS)
-                .unwrap_or(PortConstraints::Undefined);
-            (constraints.is_order_fixed(), node_guard.nested_graph())
-        })
-        .unwrap_or((false, None));
+    let (order_fixed, nested_graph) = {
+        let mut node_guard = node.lock();
+        let constraints = node_guard
+            .get_property(LayeredOptions::PORT_CONSTRAINTS)
+            .unwrap_or(PortConstraints::Undefined);
+        (constraints.is_order_fixed(), node_guard.nested_graph())
+    };
 
     let hierarchy_mode = nested_graph
         .and_then(|graph| {
-            graph.lock_ok().and_then(|mut graph_guard| {
-                graph_guard.get_property(InternalProperties::GRAPH_PROPERTIES)
-            })
+            graph.lock()
+                .get_property(InternalProperties::GRAPH_PROPERTIES)
         })
         .is_some_and(|graph_props| graph_props.contains(&GraphProperties::ExternalPorts));
 
@@ -113,15 +105,13 @@ fn hide_ports(
         .lock().sl_port_values();
 
     for sl_port in sl_ports {
-        let (had_only_self_loops, l_port) = sl_port
-            .lock_ok()
-            .map(|port_guard| {
-                (
-                    port_guard.had_only_self_loops(),
-                    port_guard.l_port().clone(),
-                )
-            })
-            .unwrap_or_else(|| panic!("self loop port lock poisoned"));
+        let (had_only_self_loops, l_port) = {
+            let port_guard = sl_port.lock();
+            (
+                port_guard.had_only_self_loops(),
+                port_guard.l_port().clone(),
+            )
+        };
 
         if !had_only_self_loops {
             continue;
@@ -139,8 +129,8 @@ fn hide_ports(
         }
 
         debug_assert!(l_port
-            .lock_ok()
-            .and_then(|mut port_guard| port_guard.get_property(InternalProperties::PORT_DUMMY))
+            .lock()
+            .get_property(InternalProperties::PORT_DUMMY)
             .is_none());
     }
 }

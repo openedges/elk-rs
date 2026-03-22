@@ -186,10 +186,8 @@ impl ForsterConstraintResolver {
             }
 
             let successors = node
-                .lock_ok()
-                .and_then(|mut node_guard| {
-                    node_guard.get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
-                })
+                .lock()
+                .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
                 .unwrap_or_default();
             for successor in successors {
                 if only_between_normal_nodes {
@@ -505,9 +503,7 @@ impl ForsterConstraintResolver {
                 layer_states[node_index] = Some(BarycenterState::new(node.clone()));
             }
 
-            let layout_unit = node.lock_ok().and_then(|mut node_guard| {
-                node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
-            });
+            let layout_unit = node.lock().get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT);
             if let Some(layout_unit) = layout_unit {
                 let key = node_ptr_id(&layout_unit);
                 self.layout_units.entry(key).or_default().push(node.clone());
@@ -633,9 +629,7 @@ fn remove_group(list: &mut Vec<ConstraintGroupId>, target: ConstraintGroupId) ->
 }
 
 fn node_id(node: &LNodeRef) -> usize {
-    node.lock_ok()
-        .map(|mut node_guard| node_guard.shape().graph_element().id as usize)
-        .unwrap_or(0)
+    node.lock().shape().graph_element().id as usize
 }
 
 fn layer_index(node: &LNodeRef) -> usize {
@@ -656,9 +650,7 @@ fn node_ptr_id(node: &LNodeRef) -> usize {
 fn group_contains_pump(resolver: &ForsterConstraintResolver, group_id: ConstraintGroupId) -> bool {
     resolver.group(group_id).is_some_and(|group_data| {
         group_data.nodes.iter().any(|node| {
-            node.lock_ok()
-                .map(|node_guard| node_guard.to_string().contains("pumpOutletPressure"))
-                .unwrap_or(false)
+            node.lock().to_string().contains("pumpOutletPressure")
         })
     })
 }
@@ -683,9 +675,7 @@ fn format_group(resolver: &ForsterConstraintResolver, group: ConstraintGroupId) 
                 .nodes
                 .iter()
                 .map(|node| {
-                    node.lock_ok()
-                        .map(|node_guard| node_guard.to_string())
-                        .unwrap_or_else(|| "<poisoned-node>".to_owned())
+                    node.lock().to_string()
                 })
                 .collect::<Vec<_>>()
                 .join(",")

@@ -155,7 +155,7 @@ impl LPort {
     pub fn name(&self) -> Option<String> {
         self.labels
             .first()
-            .and_then(|label| label.lock_ok().map(|label| label.text().to_owned()))
+            .map(|label| label.lock().text().to_owned())
     }
 
     pub fn degree(&self) -> usize {

@@ -73,11 +73,8 @@ impl DepthFirstModelOrderLayerer {
                         .lock().layer()
                     {
                         directly_connected = layer
-                            .lock_ok()
-                            .map(|mut layer_guard| {
-                                layer_guard.graph_element().id == self.current_layer_id
-                            })
-                            .unwrap_or(false);
+                            .lock()
+                            .graph_element().id == self.current_layer_id;
                     }
                 }
 
@@ -95,11 +92,8 @@ impl DepthFirstModelOrderLayerer {
                             })
                         {
                             connected_via_label_dummy = layer
-                                .lock_ok()
-                                .map(|mut layer_guard| {
-                                    layer_guard.graph_element().id == self.current_layer_id
-                                })
-                                .unwrap_or(false);
+                                .lock()
+                                .graph_element().id == self.current_layer_id;
                         }
                     }
                 }
@@ -260,12 +254,12 @@ impl ILayoutPhase<LayeredPhases, LGraph> for DepthFirstModelOrderLayerer {
 
         let mut real_nodes: Vec<(i32, LNodeRef)> = Vec::new();
         for node in &nodes {
-            let (node_type, model_order) = match node.lock_ok() {
-            Some(mut node_guard) => (
+            let (node_type, model_order) = {
+                let mut node_guard = node.lock();
+                (
                     node_guard.node_type(),
                     node_guard.get_property(InternalProperties::MODEL_ORDER),
-                ),
-            None => (NodeType::Normal, None),
+                )
             };
             if node_type == NodeType::Normal {
                 let order = model_order.unwrap_or_else(|| {
@@ -352,10 +346,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for DepthFirstModelOrderLayerer {
                 self.place_nodes_to_place(graph, &graph_ref);
                 self.nodes_to_place.clear();
 
-                if node
-                    .lock_ok()
-                    .map(|node_guard| node_guard.incoming_edges().is_empty())
-                    .unwrap_or(true)
+                if node.lock().incoming_edges().is_empty()
                 {
                     self.nodes_to_place.push(node.clone());
                     set_node_id(&node, 0);
@@ -377,10 +368,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for DepthFirstModelOrderLayerer {
 
         graph.layerless_nodes_mut().clear();
         graph.layers_mut().retain(|layer| {
-            !layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().is_empty())
-                .unwrap_or(false)
+            !layer.lock().nodes().is_empty()
         });
         for (index, layer) in graph.layers().iter().enumerate() {
             {
@@ -403,9 +391,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for DepthFirstModelOrderLayerer {
 }
 
 fn node_id(node: &LNodeRef) -> i32 {
-    node.lock_ok()
-        .map(|mut node_guard| node_guard.shape().graph_element().id)
-        .unwrap_or(0)
+    node.lock().shape().graph_element().id
 }
 
 fn set_node_id(node: &LNodeRef, value: i32) {

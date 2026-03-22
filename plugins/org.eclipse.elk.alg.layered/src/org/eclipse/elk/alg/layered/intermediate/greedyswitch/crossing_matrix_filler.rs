@@ -86,7 +86,5 @@ impl CrossingMatrixFiller {
 }
 
 fn node_id(node: &LNodeRef) -> usize {
-    node.lock_ok()
-        .map(|mut node_guard| node_guard.shape().graph_element().id as usize)
-        .unwrap_or(0)
+    node.lock().shape().graph_element().id as usize
 }

@@ -22,8 +22,7 @@ impl WestToEastRoutingStrategy {
         let node_pos_y = port_guard
             .node()
             .and_then(|node| {
-                node.lock_ok()
-                    .map(|mut node_guard| node_guard.shape().position_ref().y)
+                Some(node.lock().shape().position_ref().y)
             })
             .unwrap_or(0.0);
         let port_pos_y = port_guard.shape().position_ref().y;

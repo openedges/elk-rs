@@ -92,10 +92,7 @@ impl ILayoutProcessor<LGraph> for HighDegreeNodeLayeringProcessor {
         }
 
         layered_graph.layers_mut().retain(|layer| {
-            !layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().is_empty())
-                .unwrap_or(true)
+            !layer.lock().nodes().is_empty()
         });
 
         progress_monitor.done();

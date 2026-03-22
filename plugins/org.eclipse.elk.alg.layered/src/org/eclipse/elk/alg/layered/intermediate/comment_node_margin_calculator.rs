@@ -25,7 +25,8 @@ impl ILayoutProcessor<LGraph> for CommentNodeMarginCalculator {
 }
 
 fn process_comments(layered_graph: &LGraph, node: &LNodeRef) {
-    let (top_boxes, bottom_boxes, node_width) = if let Some(mut node_guard) = node.lock_ok() {
+    let (top_boxes, bottom_boxes, node_width) = {
+        let mut node_guard = node.lock();
         let top_boxes = if node_guard
             .shape()
             .graph_element()
@@ -47,8 +48,6 @@ fn process_comments(layered_graph: &LGraph, node: &LNodeRef) {
             None
         };
         (top_boxes, bottom_boxes, node_guard.shape().size_ref().x)
-    } else {
-        return;
     };
 
     if top_boxes.is_none() && bottom_boxes.is_none() {

@@ -82,13 +82,14 @@ impl BfsNodeOrderCycleBreaker {
                 continue;
             };
 
-            let has_model_order = target_node.lock_ok().is_some_and(|mut node_guard| {
+            let has_model_order = {
+                let mut node_guard = target_node.lock();
                 node_guard
                     .shape()
                     .graph_element()
                     .properties()
                     .has_property(InternalProperties::MODEL_ORDER)
-            });
+            };
 
             if !has_model_order {
                 let key = i32::MAX - model_order_map.len() as i32;
@@ -97,26 +98,22 @@ impl BfsNodeOrderCycleBreaker {
             }
 
             let target_model_order = if enforce_group_model_order {
-                let (group_id, model_order) = target_node
-                    .lock_ok()
-                    .map(|mut node_guard| {
-                        (
-                            node_guard
-                                .get_property(LayeredOptions::GROUP_MODEL_ORDER_CYCLE_BREAKING_ID)
-                                .unwrap_or(0),
-                            node_guard
-                                .get_property(InternalProperties::MODEL_ORDER)
-                                .unwrap_or(0),
-                        )
-                    })
-                    .unwrap_or((0, 0));
+                let (group_id, model_order) = {
+                    let mut node_guard = target_node.lock();
+                    (
+                        node_guard
+                            .get_property(LayeredOptions::GROUP_MODEL_ORDER_CYCLE_BREAKING_ID)
+                            .unwrap_or(0),
+                        node_guard
+                            .get_property(InternalProperties::MODEL_ORDER)
+                            .unwrap_or(0),
+                    )
+                };
                 max_model_order_nodes * group_id + model_order
             } else {
                 target_node
-                    .lock_ok()
-                    .and_then(|mut node_guard| {
-                        node_guard.get_property(InternalProperties::MODEL_ORDER)
-                    })
+                    .lock()
+                    .get_property(InternalProperties::MODEL_ORDER)
                     .unwrap_or(0)
             };
 
@@ -182,15 +179,13 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BfsNodeOrderCycleBreaker {
 
         let mut sources_in_order: Vec<LNodeRef> = Vec::new();
         for (index, node) in nodes.iter().enumerate() {
-            let (is_source, is_sink) = match node.lock_ok() {
-            Some(mut node_guard) => {
-                    node_guard.shape().graph_element().id = index as i32;
-                    (
-                        node_guard.incoming_edges().is_empty(),
-                        node_guard.outgoing_edges().is_empty(),
-                    )
-                }
-            None => (false, false),
+            let (is_source, is_sink) = {
+                let mut node_guard = node.lock();
+                node_guard.shape().graph_element().id = index as i32;
+                (
+                    node_guard.incoming_edges().is_empty(),
+                    node_guard.outgoing_edges().is_empty(),
+                )
             };
 
             if is_source {
@@ -241,7 +236,5 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BfsNodeOrderCycleBreaker {
 }
 
 fn node_index(node: &LNodeRef) -> usize {
-    node.lock_ok()
-        .map(|mut node_guard| node_guard.shape().graph_element().id as usize)
-        .unwrap_or(0)
+    node.lock().shape().graph_element().id as usize
 }

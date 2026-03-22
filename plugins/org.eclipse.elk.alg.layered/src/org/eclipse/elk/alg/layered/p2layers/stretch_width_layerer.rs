@@ -65,10 +65,7 @@ impl StretchWidthLayerer {
     }
 
     fn get_rank(&self, node: &LNodeRef) -> i32 {
-        let outgoing_count = node
-            .lock_ok()
-            .map(|node_guard| node_guard.outgoing_edges().len() as i32)
-            .unwrap_or(0);
+        let outgoing_count = node.lock().outgoing_edges().len() as i32;
         let mut max_rank = outgoing_count;
         let incoming = node
             .lock().incoming_edges();
@@ -77,10 +74,7 @@ impl StretchWidthLayerer {
                 .lock().source()
                 .and_then(|port| port.lock().node());
             if let Some(predecessor) = predecessor {
-                let pre_out = predecessor
-                    .lock_ok()
-                    .map(|node_guard| node_guard.outgoing_edges().len() as i32)
-                    .unwrap_or(0);
+                let pre_out = predecessor.lock().outgoing_edges().len() as i32;
                 max_rank = max_rank.max(pre_out);
             }
         }
@@ -115,13 +109,9 @@ impl StretchWidthLayerer {
         for node in &self.sorted_layerless_nodes {
             let node_index = node_id_usize(node);
             let incoming = node
-                .lock_ok()
-                .map(|node_guard| node_guard.incoming_edges().len() as i32)
-                .unwrap_or(0);
+                .lock().incoming_edges().len() as i32;
             let outgoing = node
-                .lock_ok()
-                .map(|node_guard| node_guard.outgoing_edges().len() as i32)
-                .unwrap_or(0);
+                .lock().outgoing_edges().len() as i32;
             self.in_degree[node_index] = incoming;
             self.out_degree[node_index] = outgoing;
         }
@@ -135,9 +125,7 @@ impl StretchWidthLayerer {
                 continue;
             }
             let size = node
-                .lock_ok()
-                .map(|mut node_guard| node_guard.shape().size_ref().y)
-                .unwrap_or(0.0);
+                .lock().shape().size_ref().y;
             self.minimum_node_size = self.minimum_node_size.min(size);
             self.maximum_node_size = self.maximum_node_size.max(size);
         }
@@ -149,9 +137,7 @@ impl StretchWidthLayerer {
         for node in &self.sorted_layerless_nodes {
             let node_index = node_id_usize(node);
             let size = node
-                .lock_ok()
-                .map(|mut node_guard| node_guard.shape().size_ref().y)
-                .unwrap_or(0.0);
+                .lock().shape().size_ref().y;
             self.norm_size[node_index] = size / self.minimum_node_size;
         }
     }
@@ -164,9 +150,7 @@ impl StretchWidthLayerer {
         let mut total_out = 0.0;
         for node in nodes {
             let out_count = node
-                .lock_ok()
-                .map(|node_guard| node_guard.outgoing_edges().len() as f64)
-                .unwrap_or(0.0);
+                .lock().outgoing_edges().len() as f64;
             total_out += out_count;
         }
         total_out / nodes.len() as f64
@@ -341,9 +325,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for StretchWidthLayerer {
 }
 
 fn node_id(node: &LNodeRef) -> i32 {
-    node.lock_ok()
-        .map(|mut node_guard| node_guard.shape().graph_element().id)
-        .unwrap_or(0)
+    node.lock().shape().graph_element().id
 }
 
 fn node_id_usize(node: &LNodeRef) -> usize {

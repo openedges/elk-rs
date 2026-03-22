@@ -134,14 +134,14 @@ impl<'a> Tarjan<'a> {
             };
 
             let target_id = target
-                .lock_ok()
-                .and_then(|mut target| target.get_property(InternalProperties::TARJAN_ID))
+                .lock()
+                .get_property(InternalProperties::TARJAN_ID)
                 .unwrap_or(-1);
             if target_id == -1 {
                 self.strongly_connected(&target);
                 let target_lowlink = target
-                    .lock_ok()
-                    .and_then(|mut target| target.get_property(InternalProperties::TARJAN_LOWLINK))
+                    .lock()
+                    .get_property(InternalProperties::TARJAN_LOWLINK)
                     .unwrap_or(i32::MAX);
                 {
                     let mut guard = v.lock();
@@ -155,8 +155,8 @@ impl<'a> Tarjan<'a> {
                 }
             } else {
                 let target_on_stack = target
-                    .lock_ok()
-                    .and_then(|mut target| target.get_property(InternalProperties::TARJAN_ON_STACK))
+                    .lock()
+                    .get_property(InternalProperties::TARJAN_ON_STACK)
                     .unwrap_or(false);
                 if target_on_stack {
                     {
@@ -174,12 +174,12 @@ impl<'a> Tarjan<'a> {
         }
 
         let v_lowlink = v
-            .lock_ok()
-            .and_then(|mut node| node.get_property(InternalProperties::TARJAN_LOWLINK))
+            .lock()
+            .get_property(InternalProperties::TARJAN_LOWLINK)
             .unwrap_or(i32::MAX);
         let v_id = v
-            .lock_ok()
-            .and_then(|mut node| node.get_property(InternalProperties::TARJAN_ID))
+            .lock()
+            .get_property(InternalProperties::TARJAN_ID)
             .unwrap_or(-1);
 
         if v_lowlink == v_id {

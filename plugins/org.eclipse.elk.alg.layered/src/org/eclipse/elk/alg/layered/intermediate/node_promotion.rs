@@ -381,8 +381,8 @@ fn apply_model_order_layers(graph: &mut LGraph, layer_map: &LayerNodeMap) {
 }
 
 fn model_order(node: &LNodeRef) -> Option<i32> {
-    node.lock_ok()
-        .and_then(|mut node_guard| node_guard.get_property(InternalProperties::MODEL_ORDER))
+    node.lock()
+        .get_property(InternalProperties::MODEL_ORDER)
 }
 
 fn node_type(node: &LNodeRef) -> NodeType {
@@ -390,15 +390,19 @@ fn node_type(node: &LNodeRef) -> NodeType {
 }
 
 fn first_incoming_source_node(node: &LNodeRef) -> Option<LNodeRef> {
-    node.lock_ok()
-        .and_then(|node_guard| node_guard.incoming_edges().first().cloned())
+    node.lock()
+        .incoming_edges()
+        .first()
+        .cloned()
         .and_then(|edge| edge.lock().source())
         .and_then(|port| port.lock().node())
 }
 
 fn first_outgoing_target_node(node: &LNodeRef) -> Option<LNodeRef> {
-    node.lock_ok()
-        .and_then(|node_guard| node_guard.outgoing_edges().first().cloned())
+    node.lock()
+        .outgoing_edges()
+        .first()
+        .cloned()
         .and_then(|edge| edge.lock().target())
         .and_then(|port| port.lock().node())
 }

@@ -96,18 +96,15 @@ impl SelfHyperLoop {
             let mut loop_guard = sl_loop.lock();
             loop_guard.sl_edges.push(sl_edge.clone());
 
-            let (sl_source, sl_target, edge_labels) = sl_edge
-                .lock_ok()
-                .map(|edge_guard| {
-                    (
-                        edge_guard.sl_source().clone(),
-                        edge_guard.sl_target().clone(),
-                        edge_guard
-                            .l_edge()
-                            .lock().labels().clone(),
-                    )
-                })
-                .unwrap_or_else(|| panic!("self loop edge lock poisoned"));
+            let (sl_source, sl_target, l_edge) = {
+                let edge_guard = sl_edge.lock();
+                (
+                    edge_guard.sl_source().clone(),
+                    edge_guard.sl_target().clone(),
+                    edge_guard.l_edge().clone(),
+                )
+            };
+            let edge_labels = l_edge.lock().labels().clone();
 
             if !loop_guard
                 .sl_ports
@@ -229,27 +226,17 @@ impl SelfHyperLoop {
 
     pub fn port_id(sl_port: &SelfLoopPortRef) -> i32 {
         sl_port
-            .lock_ok()
-            .and_then(|port_guard| {
-                port_guard
-                    .l_port()
-                    .lock_ok()
-                    .map(|mut l_port_guard| l_port_guard.shape().graph_element().id)
-            })
-            .unwrap_or(i32::MAX)
+            .lock()
+            .l_port()
+            .lock()
+            .shape()
+            .graph_element()
+            .id
     }
 }
 
 fn sl_port_side(sl_port: &SelfLoopPortRef) -> PortSide {
-    sl_port
-        .lock_ok()
-        .and_then(|port_guard| {
-            port_guard
-                .l_port()
-                .lock_ok()
-                .map(|l_port_guard| l_port_guard.side())
-        })
-        .unwrap_or(PortSide::Undefined)
+    sl_port.lock().l_port().lock().side()
 }
 
 fn side_index(side: PortSide) -> usize {

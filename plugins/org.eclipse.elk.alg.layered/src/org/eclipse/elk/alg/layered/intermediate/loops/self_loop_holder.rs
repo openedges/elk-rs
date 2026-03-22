@@ -49,15 +49,13 @@ impl SelfLoopHolder {
     }
 
     pub fn needs_self_loop_processing(node: &LNodeRef) -> bool {
-        let (is_normal, outgoing_edges) = node
-            .lock_ok()
-            .map(|node_guard| {
-                (
-                    node_guard.node_type() == NodeType::Normal,
-                    node_guard.outgoing_edges().clone(),
-                )
-            })
-            .unwrap_or((false, Vec::new()));
+        let (is_normal, outgoing_edges) = {
+            let node_guard = node.lock();
+            (
+                node_guard.node_type() == NodeType::Normal,
+                node_guard.outgoing_edges().clone(),
+            )
+        };
 
         is_normal
             && outgoing_edges.iter().any(|edge| {
@@ -66,10 +64,7 @@ impl SelfLoopHolder {
     }
 
     fn initialize(holder: &SelfLoopHolderRef) {
-        let node = holder
-            .lock_ok()
-            .map(|holder_guard| holder_guard.l_node.clone())
-            .unwrap_or_else(|| panic!("self loop holder lock poisoned"));
+        let node = holder.lock().l_node.clone();
 
         let outgoing_edges = node
             .lock().outgoing_edges().clone();
@@ -81,10 +76,10 @@ impl SelfLoopHolder {
                 continue;
             }
 
-            let (source_port, target_port) = edge
-                .lock_ok()
-                .map(|edge_guard| (edge_guard.source(), edge_guard.target()))
-                .unwrap_or((None, None));
+            let (source_port, target_port) = {
+                let edge_guard = edge.lock();
+                (edge_guard.source(), edge_guard.target())
+            };
             let (Some(source_port), Some(target_port)) = (source_port, target_port) else {
                 continue;
             };
@@ -94,16 +89,14 @@ impl SelfLoopHolder {
             let _ = SelfLoopEdge::new(&edge, &sl_source, &sl_target);
         }
 
-        let sl_ports = holder
-            .lock_ok()
-            .map(|holder_guard| {
-                holder_guard
-                    .sl_ports
-                    .iter()
-                    .map(|(_, sl_port)| sl_port.clone())
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
+        let sl_ports = {
+            let holder_guard = holder.lock();
+            holder_guard
+                .sl_ports
+                .iter()
+                .map(|(_, sl_port)| sl_port.clone())
+                .collect::<Vec<_>>()
+        };
 
         let mut visited: HashSet<usize> = HashSet::new();
         for sl_port in sl_ports {
@@ -153,28 +146,24 @@ impl SelfLoopHolder {
         visited.insert(Arc::as_ptr(start_port) as usize);
 
         while let Some(current_sl_port) = queue.pop_front() {
-            let (outgoing, incoming) = current_sl_port
-                .lock_ok()
-                .map(|port_guard| {
-                    (
-                        port_guard.outgoing_sl_edges().clone(),
-                        port_guard.incoming_sl_edges().clone(),
-                    )
-                })
-                .unwrap_or_default();
+            let (outgoing, incoming) = {
+                let port_guard = current_sl_port.lock();
+                (
+                    port_guard.outgoing_sl_edges().clone(),
+                    port_guard.incoming_sl_edges().clone(),
+                )
+            };
 
             for sl_edge in outgoing.into_iter().chain(incoming) {
                 SelfHyperLoop::add_self_loop_edge(&sl_loop, &sl_edge);
 
-                let (source_port, target_port) = sl_edge
-                    .lock_ok()
-                    .map(|edge_guard| {
-                        (
-                            edge_guard.sl_source().clone(),
-                            edge_guard.sl_target().clone(),
-                        )
-                    })
-                    .unwrap_or_else(|| panic!("self loop edge lock poisoned"));
+                let (source_port, target_port) = {
+                    let edge_guard = sl_edge.lock();
+                    (
+                        edge_guard.sl_source().clone(),
+                        edge_guard.sl_target().clone(),
+                    )
+                };
 
                 let source_key = Arc::as_ptr(&source_port) as usize;
                 if visited.insert(source_key) {
@@ -230,20 +219,12 @@ impl SelfLoopHolder {
         self.sl_hyper_loops
             .iter()
             .flat_map(|sl_loop| {
-                sl_loop
-                    .lock_ok()
-                    .map(|loop_guard| {
-                        loop_guard
-                            .sl_edges()
-                            .iter()
-                            .filter_map(|sl_edge| {
-                                sl_edge
-                                    .lock_ok()
-                                    .map(|edge_guard| edge_guard.l_edge().clone())
-                            })
-                            .collect::<Vec<_>>()
-                    })
-                    .unwrap_or_default()
+                let loop_guard = sl_loop.lock();
+                loop_guard
+                    .sl_edges()
+                    .iter()
+                    .map(|sl_edge| sl_edge.lock().l_edge().clone())
+                    .collect::<Vec<_>>()
             })
             .collect()
     }

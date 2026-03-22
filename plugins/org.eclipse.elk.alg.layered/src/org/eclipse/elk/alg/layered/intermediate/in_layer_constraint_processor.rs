@@ -19,27 +19,23 @@ impl ILayoutProcessor<LGraph> for InLayerConstraintProcessor {
             let mut bottom_constrained_nodes = Vec::new();
 
             for (i, node) in nodes.iter().enumerate() {
-                let constraint = node
-                    .lock_ok()
-                    .and_then(|mut node_guard| {
-                        if node_guard
-                            .shape()
-                            .graph_element()
-                            .properties_mut()
-                            .has_property(InternalProperties::IN_LAYER_CONSTRAINT)
-                        {
-                            node_guard.get_property(InternalProperties::IN_LAYER_CONSTRAINT)
-                        } else {
-                            None
-                        }
-                    })
-                    .unwrap_or(InLayerConstraint::None);
+                let constraint = {
+                    let mut node_guard = node.lock();
+                    if node_guard
+                        .shape()
+                        .graph_element()
+                        .properties_mut()
+                        .has_property(InternalProperties::IN_LAYER_CONSTRAINT)
+                    {
+                        node_guard.get_property(InternalProperties::IN_LAYER_CONSTRAINT)
+                    } else {
+                        None
+                    }
+                }
+                .unwrap_or(InLayerConstraint::None);
 
                 if ElkTrace::global().ilc {
-                    let node_name = node
-                        .lock_ok()
-                        .map(|node_guard| node_guard.to_string())
-                        .unwrap_or_else(|| "<poisoned-node>".to_owned());
+                    let node_name = node.lock().to_string();
                     eprintln!(
                         "rust-ilc: layer_node_index={i} node={node_name} constraint={constraint:?}"
                     );

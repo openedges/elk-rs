@@ -22,8 +22,7 @@ impl NorthToSouthRoutingStrategy {
         let node_pos_x = port_guard
             .node()
             .and_then(|node| {
-                node.lock_ok()
-                    .map(|mut node_guard| node_guard.shape().position_ref().x)
+                Some(node.lock().shape().position_ref().x)
             })
             .unwrap_or(0.0);
         let port_pos_x = port_guard.shape().position_ref().x;

@@ -51,8 +51,8 @@ impl ILayoutProcessor<LGraph> for PartitionPreprocessor {
 }
 
 fn node_partition(node: &LNodeRef) -> Option<i32> {
-    node.lock_ok()
-        .and_then(|mut node_guard| node_guard.get_property(CoreOptions::PARTITIONING_PARTITION))
+    node.lock()
+        .get_property(CoreOptions::PARTITIONING_PARTITION)
 }
 
 fn must_be_reversed(

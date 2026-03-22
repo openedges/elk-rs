@@ -77,10 +77,10 @@ impl ILayoutPhase<LayeredPhases, LGraph> for SimpleNodePlacer {
         }
 
         for layer_ref in layers.iter() {
-            let (layer_height, nodes) = layer_ref
-                .lock_ok()
-                .map(|layer_guard| (layer_guard.size_ref().y, layer_guard.nodes().clone()))
-                .unwrap_or((0.0, Vec::new()));
+            let (layer_height, nodes) = {
+                let layer_guard = layer_ref.lock();
+                (layer_guard.size_ref().y, layer_guard.nodes().clone())
+            };
 
             let mut pos = (max_height - layer_height) / 2.0;
             let mut last_node = None;

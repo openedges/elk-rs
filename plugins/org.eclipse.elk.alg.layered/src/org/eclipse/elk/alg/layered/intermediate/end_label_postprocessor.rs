@@ -16,19 +16,17 @@ impl ILayoutProcessor<LGraph> for EndLabelPostprocessor {
             let nodes = layer
                 .lock().nodes().clone();
             for node in nodes {
-                let should_process = node
-                    .lock_ok()
-                    .map(|mut node_guard| {
-                        matches!(
-                            node_guard.node_type(),
-                            NodeType::Normal | NodeType::ExternalPort
-                        ) && node_guard
-                            .shape()
-                            .graph_element()
-                            .properties()
-                            .has_property(InternalProperties::END_LABELS)
-                    })
-                    .unwrap_or(false);
+                let should_process = {
+                    let mut node_guard = node.lock();
+                    matches!(
+                        node_guard.node_type(),
+                        NodeType::Normal | NodeType::ExternalPort
+                    ) && node_guard
+                        .shape()
+                        .graph_element()
+                        .properties()
+                        .has_property(InternalProperties::END_LABELS)
+                };
 
                 if should_process {
                     process_node(&node);
@@ -41,12 +39,12 @@ impl ILayoutProcessor<LGraph> for EndLabelPostprocessor {
 }
 
 fn process_node(node: &crate::org::eclipse::elk::alg::layered::graph::LNodeRef) {
-    let (node_pos, end_label_cells) = match node.lock_ok() {
-            Some(mut guard) => (
+    let (node_pos, end_label_cells) = {
+        let mut guard = node.lock();
+        (
             *guard.shape().position_ref(),
             guard.get_property(InternalProperties::END_LABELS),
-        ),
-            None => return,
+        )
     };
 
     let Some(end_label_cells) = end_label_cells else {

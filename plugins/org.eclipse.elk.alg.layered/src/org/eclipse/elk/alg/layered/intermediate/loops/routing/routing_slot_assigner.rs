@@ -143,21 +143,17 @@ fn labels_overlap(sl_loop1: &SelfHyperLoopRef, sl_loop2: &SelfHyperLoopRef) -> b
 }
 
 fn loop_label_span(sl_loop: &SelfHyperLoopRef) -> Option<(PortSide, f64, f64)> {
-    sl_loop.lock_ok().and_then(|sl_loop_guard| {
-        let sl_labels = sl_loop_guard.sl_labels()?;
-        let side = sl_labels.side();
-        let start = sl_labels.position().x;
-        let end = start + sl_labels.size().x;
-        Some((side, start, end))
-    })
+    let sl_loop_guard = sl_loop.lock();
+    let sl_labels = sl_loop_guard.sl_labels()?;
+    let side = sl_labels.side();
+    let start = sl_labels.position().x;
+    let end = start + sl_labels.size().x;
+    Some((side, start, end))
 }
 
 fn loop_has_labels(sl_loop: &SelfHyperLoopRef) -> bool {
     // Java parity: match `getSLLabels() != null` — don't check if labels list is empty
-    sl_loop
-        .lock_ok()
-        .map(|sl_loop_guard| sl_loop_guard.sl_labels().is_some())
-        .unwrap_or(false)
+    sl_loop.lock().sl_labels().is_some()
 }
 
 fn create_crossing_graph(
@@ -202,16 +198,14 @@ fn compute_loop_activity(port_count: usize, loops: &[SelfHyperLoopRef]) -> LoopA
     for sl_loop in loops {
         let mut loop_activity = vec![false; port_count];
 
-        let (Some(leftmost_port), Some(rightmost_port)) = sl_loop
-            .lock_ok()
-            .map(|sl_loop_guard| {
-                (
-                    sl_loop_guard.leftmost_port(),
-                    sl_loop_guard.rightmost_port(),
-                )
-            })
-            .unwrap_or((None, None))
-        else {
+        let (leftmost_port, rightmost_port) = {
+            let sl_loop_guard = sl_loop.lock();
+            (
+                sl_loop_guard.leftmost_port(),
+                sl_loop_guard.rightmost_port(),
+            )
+        };
+        let (Some(leftmost_port), Some(rightmost_port)) = (leftmost_port, rightmost_port) else {
             activity.insert(loop_key(sl_loop), loop_activity);
             continue;
         };
@@ -573,23 +567,13 @@ fn shift_towards_node_on_side(
 }
 
 fn collect_port_side_ranges(holder: &SelfLoopHolderRef) -> (usize, SidePortRanges) {
-    let ports = holder
-        .lock_ok()
-        .and_then(|holder_guard| {
-            holder_guard
-                .l_node()
-                .lock_ok()
-                .map(|node_guard| node_guard.ports().clone())
-        })
-        .unwrap_or_default();
+    let ports = holder.lock().l_node().lock().ports().clone();
 
     let mut side_port_ranges: SidePortRanges = [None; 5];
     for l_port in &ports {
-        let Some((port_side, port_id)) = l_port
-            .lock_ok()
-            .map(|mut port_guard| (port_guard.side(), port_guard.shape().graph_element().id))
-        else {
-            continue;
+        let (port_side, port_id) = {
+            let mut port_guard = l_port.lock();
+            (port_guard.side(), port_guard.shape().graph_element().id)
         };
         if port_id < 0 {
             continue;

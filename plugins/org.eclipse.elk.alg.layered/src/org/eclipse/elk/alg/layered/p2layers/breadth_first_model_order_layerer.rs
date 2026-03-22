@@ -63,12 +63,12 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BreadthFirstModelOrderLayerer {
 
         let mut real_nodes: Vec<(i32, LNodeRef)> = Vec::new();
         for node in &nodes {
-            let (node_type, model_order) = match node.lock_ok() {
-            Some(mut node_guard) => (
+            let (node_type, model_order) = {
+                let mut node_guard = node.lock();
+                (
                     node_guard.node_type(),
                     node_guard.get_property(InternalProperties::MODEL_ORDER),
-                ),
-            None => (NodeType::Normal, None),
+                )
             };
             if node_type == NodeType::Normal {
                 let order = model_order.unwrap_or_else(|| {
@@ -173,10 +173,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BreadthFirstModelOrderLayerer {
 
         graph.layerless_nodes_mut().clear();
         graph.layers_mut().retain(|layer| {
-            !layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().is_empty())
-                .unwrap_or(false)
+            !layer.lock().nodes().is_empty()
         });
         for (index, layer) in graph.layers().iter().enumerate() {
             {

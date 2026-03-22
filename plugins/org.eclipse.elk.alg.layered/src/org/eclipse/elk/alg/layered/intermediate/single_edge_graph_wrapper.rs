@@ -198,10 +198,7 @@ impl SingleEdgeGraphWrapper {
                 let nodes_to_move = old_layer
                     .lock().nodes().clone();
                 for node in nodes_to_move {
-                    let insert_index = new_layer
-                        .lock_ok()
-                        .map(|layer_guard| layer_guard.nodes().len())
-                        .unwrap_or(0);
+                    let insert_index = new_layer.lock().nodes().len();
                     LNode::set_layer_at_index(&node, insert_index, Some(new_layer.clone()));
 
                     if new_index == 0 {
@@ -221,10 +218,7 @@ impl SingleEdgeGraphWrapper {
         }
 
         graph.layers_mut().retain(|layer| {
-            !layer
-                .lock_ok()
-                .map(|layer_guard| layer_guard.nodes().is_empty())
-                .unwrap_or(true)
+            !layer.lock().nodes().is_empty()
         });
     }
 }
@@ -362,17 +356,14 @@ fn determine_layer_height(layer: &LayerRef, in_layer_spacing: f64) -> f64 {
                 continue;
             };
 
-            let is_north_south_dummy = source_node
-                .lock_ok()
-                .map(|node_guard| node_guard.node_type() == NodeType::NorthSouthPort)
-                .unwrap_or(false);
+            let is_north_south_dummy = source_node.lock().node_type() == NodeType::NorthSouthPort;
             if !is_north_south_dummy {
                 continue;
             }
 
             let origin = source_node
-                .lock_ok()
-                .and_then(|mut node_guard| node_guard.get_property(InternalProperties::ORIGIN));
+                .lock()
+                .get_property(InternalProperties::ORIGIN);
             if let Some(Origin::LNode(origin_node)) = origin {
                 {
                     let mut origin_guard = origin_node.lock();
@@ -666,24 +657,22 @@ impl CuttingUtils {
                 break;
             };
             if layer_index == src_index {
-                let insertion_index = next_layer
-                    .lock_ok()
-                    .map(|layer_guard| {
-                        if layer_guard.nodes().len() > offset_first_in_layer_dummy {
-                            layer_guard.nodes().len() - offset_first_in_layer_dummy
-                        } else {
-                            0
-                        }
-                    })
-                    .unwrap_or(0);
+                let insertion_index = {
+                    let layer_guard = next_layer.lock();
+                    if layer_guard.nodes().len() > offset_first_in_layer_dummy {
+                        layer_guard.nodes().len() - offset_first_in_layer_dummy
+                    } else {
+                        0
+                    }
+                };
                 LNode::set_layer_at_index(&dummy_node, insertion_index, Some(next_layer.clone()));
             } else {
                 LNode::set_layer(&dummy_node, Some(next_layer.clone()));
             }
 
             let mut thickness = edge
-                .lock_ok()
-                .and_then(|mut edge_guard| edge_guard.get_property(CoreOptions::EDGE_THICKNESS))
+                .lock()
+                .get_property(CoreOptions::EDGE_THICKNESS)
                 .unwrap_or(1.0);
             if thickness < 0.0 {
                 thickness = 0.0;

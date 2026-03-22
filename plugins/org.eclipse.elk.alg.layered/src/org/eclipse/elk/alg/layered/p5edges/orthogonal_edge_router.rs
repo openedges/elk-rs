@@ -190,14 +190,13 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
         let layers = layered_graph.layers().clone();
         if ElkTrace::global().compound_width {
             let layer_info: Vec<String> = layers.iter().enumerate().map(|(i, layer)| {
-                let node_count = layer.lock_ok().map(|g| g.nodes().len()).unwrap_or(0);
-                let nodes_str = layer.lock_ok().map(|g| {
+                let node_count = layer.lock().nodes().len();
+                let nodes_str = {
+                    let g = layer.lock();
                     g.nodes().iter().map(|n| {
-                        n.lock_ok().map(|ng| format!("{:?}",
-                            ng.node_type()
-                        )).unwrap_or("?".to_string())
+                        format!("{:?}", n.lock().node_type())
                     }).collect::<Vec<_>>().join(", ")
-                }).unwrap_or_default();
+                };
                 format!("L{}[{}]: {}", i, node_count, nodes_str)
             }).collect();
             eprintln!("[compound-width] edge_router layers={} detail: {}", layers.len(), layer_info.join(" | "));
@@ -216,10 +215,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
                 None
             };
 
-            let right_layer_nodes = right_layer.as_ref().and_then(|layer| {
-                layer
-                    .lock_ok()
-                    .map(|layer_guard| layer_guard.nodes().clone())
+            let right_layer_nodes = right_layer.as_ref().map(|layer| {
+                layer.lock().nodes().clone()
             });
             let right_layer_index = if right_layer.is_some() {
                 layer_index as i32
@@ -229,10 +226,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
 
             if let Some(left_layer_ref) = &left_layer {
                 LGraphUtil::place_nodes_horizontally(left_layer_ref, xpos);
-                let left_width = left_layer_ref
-                    .lock_ok()
-                    .map(|layer_guard| layer_guard.size_ref().x)
-                    .unwrap_or(0.0);
+                let left_width = left_layer_ref.lock().size_ref().x;
                 xpos = (xpos + left_width) as f32 as f64;
             }
 

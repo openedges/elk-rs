@@ -46,22 +46,16 @@ impl LongestPathLayerer {
             return self.node_heights[index];
         }
 
-        let ports = match node.lock_ok() {
-            Some(node_guard) => node_guard.ports().clone(),
-            None => Vec::new(),
-        };
+        let ports = node.lock().ports().clone();
 
         let mut max_height = 1;
         for port in ports {
-            let outgoing = match port.lock_ok() {
-            Some(port_guard) => port_guard.outgoing_edges().clone(),
-            None => Vec::new(),
-            };
+            let outgoing = port.lock().outgoing_edges().clone();
             for edge in outgoing {
                 let target_node = edge
-                    .lock_ok()
-                    .and_then(|edge_guard| edge_guard.target())
-                    .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
+                    .lock()
+                    .target()
+                    .and_then(|port| port.lock().node());
                 let Some(target_node) = target_node else {
                     continue;
                 };
@@ -120,12 +114,12 @@ impl ILayoutPhase<LayeredPhases, LGraph> for LongestPathLayerer {
 
         let graph_ref = nodes
             .first()
-            .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.graph()))
+            .and_then(|node| node.lock().graph())
             .unwrap_or_default();
 
         self.node_heights = vec![-1; nodes.len()];
         for (index, node) in nodes.iter().enumerate() {
-            if let Some(mut node_guard) = node.lock_ok() {
+            { let mut node_guard = node.lock();
                 node_guard.shape().graph_element().id = index as i32;
             }
         }
@@ -149,7 +143,5 @@ impl ILayoutPhase<LayeredPhases, LGraph> for LongestPathLayerer {
 }
 
 fn node_index(node: &LNodeRef) -> usize {
-    node.lock_ok()
-        .map(|mut node_guard| node_guard.shape().graph_element().id as usize)
-        .unwrap_or(0)
+    node.lock().shape().graph_element().id as usize
 }

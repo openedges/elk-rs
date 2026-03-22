@@ -38,28 +38,21 @@ fn fix_coordinates(layer: &LayerRef, layered_graph: &mut LGraph) {
         .lock().nodes().clone();
 
     for node in nodes {
-        let (node_type, ext_side, ratio_or_pos, anchor) = node
-            .lock_ok()
-            .map(|mut node_guard| {
-                (
-                    node_guard.node_type(),
-                    node_guard
-                        .get_property(InternalProperties::EXT_PORT_SIDE)
-                        .unwrap_or(PortSide::Undefined),
-                    node_guard
-                        .get_property(InternalProperties::PORT_RATIO_OR_POSITION)
-                        .unwrap_or(0.0),
-                    node_guard
-                        .get_property(LayeredOptions::PORT_ANCHOR)
-                        .unwrap_or_default(),
-                )
-            })
-            .unwrap_or((
-                NodeType::Normal,
-                PortSide::Undefined,
-                0.0,
-                Default::default(),
-            ));
+        let (node_type, ext_side, ratio_or_pos, anchor) = {
+            let mut node_guard = node.lock();
+            (
+                node_guard.node_type(),
+                node_guard
+                    .get_property(InternalProperties::EXT_PORT_SIDE)
+                    .unwrap_or(PortSide::Undefined),
+                node_guard
+                    .get_property(InternalProperties::PORT_RATIO_OR_POSITION)
+                    .unwrap_or(0.0),
+                node_guard
+                    .get_property(LayeredOptions::PORT_ANCHOR)
+                    .unwrap_or_default(),
+            )
+        };
 
         if node_type != NodeType::ExternalPort {
             continue;

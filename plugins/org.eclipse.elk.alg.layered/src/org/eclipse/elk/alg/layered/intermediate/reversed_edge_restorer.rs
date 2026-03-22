@@ -23,10 +23,8 @@ impl ILayoutProcessor<LGraph> for ReversedEdgeRestorer {
                         .lock().outgoing_edges().clone();
                     for edge in outgoing {
                         let reversed = edge
-                            .lock_ok()
-                            .and_then(|mut edge_guard| {
-                                edge_guard.get_property(InternalProperties::REVERSED)
-                            })
+                            .lock()
+                            .get_property(InternalProperties::REVERSED)
                             .unwrap_or(false);
                         if reversed {
                             LEdge::reverse(&edge, &placeholder_graph, false);

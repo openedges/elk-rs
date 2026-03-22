@@ -105,14 +105,8 @@ impl SccNodeTypeCycleBreaker {
                 continue;
             }
 
-            let min_in_degree = min_node
-                .lock_ok()
-                .map(|node_guard| node_guard.incoming_edges().len())
-                .unwrap_or(0);
-            let max_out_degree = max_node
-                .lock_ok()
-                .map(|node_guard| node_guard.outgoing_edges().len())
-                .unwrap_or(0);
+            let min_in_degree = min_node.lock().incoming_edges().len();
+            let max_out_degree = max_node.lock().outgoing_edges().len();
 
             if min_in_degree > max_out_degree {
                 let incoming_edges = min_node

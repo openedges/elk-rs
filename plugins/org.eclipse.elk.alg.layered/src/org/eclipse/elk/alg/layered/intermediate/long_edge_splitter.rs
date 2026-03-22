@@ -60,20 +60,19 @@ impl ILayoutProcessor<LGraph> for LongEdgeSplitter {
 impl LongEdgeSplitter {
     pub fn split_edge(edge: &LEdgeRef, dummy_node: &LNodeRef) -> LEdgeRef {
         let old_edge_target = edge.lock().target();
-        let mut thickness = edge
-            .lock_ok()
-            .and_then(|mut edge_guard| {
-                if edge_guard
-                    .graph_element()
-                    .properties()
-                    .has_property(CoreOptions::EDGE_THICKNESS)
-                {
-                    edge_guard.get_property(CoreOptions::EDGE_THICKNESS)
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(1.0);
+        let mut thickness = {
+            let mut edge_guard = edge.lock();
+            if edge_guard
+                .graph_element()
+                .properties()
+                .has_property(CoreOptions::EDGE_THICKNESS)
+            {
+                edge_guard.get_property(CoreOptions::EDGE_THICKNESS)
+            } else {
+                None
+            }
+        }
+        .unwrap_or(1.0);
         if thickness < 0.0 {
             thickness = 0.0;
             {
@@ -107,7 +106,9 @@ impl LongEdgeSplitter {
         LEdge::set_target(edge, Some(dummy_input));
 
         let dummy_edge = LEdge::new();
-        if let (Some(mut new_edge), Some(mut old_edge)) = (dummy_edge.lock_ok(), edge.lock_ok()) {
+        {
+            let mut new_edge = dummy_edge.lock();
+            let mut old_edge = edge.lock();
             new_edge
                 .graph_element()
                 .properties_mut()
@@ -163,21 +164,20 @@ fn move_head_labels(old_edge: &LEdgeRef, new_edge: &LEdgeRef) {
     let labels = old_edge
         .lock().labels().clone();
     for label in labels {
-        let placement = label
-            .lock_ok()
-            .and_then(|mut label_guard| {
-                if label_guard
-                    .shape()
-                    .graph_element()
-                    .properties()
-                    .has_property(LayeredOptions::EDGE_LABELS_PLACEMENT)
-                {
-                    label_guard.get_property(LayeredOptions::EDGE_LABELS_PLACEMENT)
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(EdgeLabelPlacement::Center);
+        let placement = {
+            let mut label_guard = label.lock();
+            if label_guard
+                .shape()
+                .graph_element()
+                .properties()
+                .has_property(LayeredOptions::EDGE_LABELS_PLACEMENT)
+            {
+                label_guard.get_property(LayeredOptions::EDGE_LABELS_PLACEMENT)
+            } else {
+                None
+            }
+        }
+        .unwrap_or(EdgeLabelPlacement::Center);
         if placement != EdgeLabelPlacement::Head {
             continue;
         }
@@ -298,10 +298,10 @@ fn trace_long_edge_split(
         return;
     }
 
-    let (source_ref, target_ref) = edge
-        .lock_ok()
-        .map(|edge_guard| (edge_guard.source(), edge_guard.target()))
-        .unwrap_or((None, None));
+    let (source_ref, target_ref) = {
+        let edge_guard = edge.lock();
+        (edge_guard.source(), edge_guard.target())
+    };
     let source_desc = source_ref
         .map(|source| source.lock().to_string())
         .unwrap_or_else(|| "<no-source>".to_owned());

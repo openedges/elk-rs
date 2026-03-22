@@ -64,10 +64,7 @@ impl HyperEdgeSegment {
         segment.ports.push(port.clone());
 
         let port_pos = segment.get_port_position_on_hyper_node(port);
-        if port
-            .lock_ok()
-            .map(|port_guard| port_guard.side() == segment.source_port_side())
-            .unwrap_or(false)
+        if port.lock().side() == segment.source_port_side()
         {
             insert_sorted(&mut segment.incoming_connection_coordinates, port_pos);
         } else {
@@ -93,9 +90,8 @@ impl HyperEdgeSegment {
         let mut port_guard = port.lock();
         let node_pos = port_guard
             .node()
-            .and_then(|node| {
-                node.lock_ok()
-                    .map(|mut node_guard| *node_guard.shape().position_ref())
+            .map(|node| {
+                *node.lock().shape().position_ref()
             })
             .unwrap_or_default();
         let port_pos = *port_guard.shape().position_ref();

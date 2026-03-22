@@ -26,36 +26,31 @@ impl ILayoutProcessor<LGraph> for InvertedPortProcessor {
                 .lock().nodes().clone();
 
             for node in nodes {
-                let skip = node
-                    .lock_ok()
-                    .map(|mut node_guard| {
-                        if node_guard.node_type() != NodeType::Normal {
-                            return true;
-                        }
-                        if !node_guard
-                            .shape()
-                            .graph_element()
-                            .properties()
-                            .has_property(LayeredOptions::PORT_CONSTRAINTS)
-                        {
-                            return true;
-                        }
+                let skip = {
+                    let mut node_guard = node.lock();
+                    if node_guard.node_type() != NodeType::Normal {
+                        true
+                    } else if !node_guard
+                        .shape()
+                        .graph_element()
+                        .properties()
+                        .has_property(LayeredOptions::PORT_CONSTRAINTS)
+                    {
+                        true
+                    } else {
                         !node_guard
                             .get_property(LayeredOptions::PORT_CONSTRAINTS)
                             .unwrap_or(PortConstraints::Undefined)
                             .is_side_fixed()
-                    })
-                    .unwrap_or(true);
+                    }
+                };
                 if skip {
                     continue;
                 }
 
                 let east_input_ports = node
-                    .lock_ok()
-                    .map(|node_guard| {
-                        node_guard.ports_by_type_and_side(PortType::Input, PortSide::East)
-                    })
-                    .unwrap_or_default();
+                    .lock()
+                    .ports_by_type_and_side(PortType::Input, PortSide::East);
                 for east_port in east_input_ports {
                     let incoming = east_port
                         .lock().incoming_edges().clone();
@@ -65,11 +60,8 @@ impl ILayoutProcessor<LGraph> for InvertedPortProcessor {
                 }
 
                 let west_output_ports = node
-                    .lock_ok()
-                    .map(|node_guard| {
-                        node_guard.ports_by_type_and_side(PortType::Output, PortSide::West)
-                    })
-                    .unwrap_or_default();
+                    .lock()
+                    .ports_by_type_and_side(PortType::Output, PortSide::West);
                 for west_port in west_output_ports {
                     let outgoing = west_port
                         .lock().outgoing_edges().clone();
@@ -106,7 +98,9 @@ fn create_east_port_side_dummy(layer: &LayerRef, east_port: &LPortRef, edge: &LE
     LEdge::set_target(edge, Some(dummy_input));
 
     let dummy_edge = LEdge::new();
-    if let (Some(mut dummy_edge_guard), Some(mut old_edge_guard)) = (dummy_edge.lock_ok(), edge.lock_ok()) {
+    {
+        let mut dummy_edge_guard = dummy_edge.lock();
+        let mut old_edge_guard = edge.lock();
         dummy_edge_guard
             .graph_element()
             .properties_mut()
@@ -142,7 +136,9 @@ fn create_west_port_side_dummy(layer: &LayerRef, west_port: &LPortRef, edge: &LE
     LEdge::set_target(edge, Some(dummy_input));
 
     let dummy_edge = LEdge::new();
-    if let (Some(mut dummy_edge_guard), Some(mut old_edge_guard)) = (dummy_edge.lock_ok(), edge.lock_ok()) {
+    {
+        let mut dummy_edge_guard = dummy_edge.lock();
+        let mut old_edge_guard = edge.lock();
         dummy_edge_guard
             .graph_element()
             .properties_mut()
@@ -193,21 +189,20 @@ fn move_head_labels(old_edge: &LEdgeRef, new_edge: &LEdgeRef) {
     let labels = old_edge
         .lock().labels().clone();
     for label in labels {
-        let placement = label
-            .lock_ok()
-            .and_then(|mut label_guard| {
-                if label_guard
-                    .shape()
-                    .graph_element()
-                    .properties()
-                    .has_property(LayeredOptions::EDGE_LABELS_PLACEMENT)
-                {
-                    label_guard.get_property(LayeredOptions::EDGE_LABELS_PLACEMENT)
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(EdgeLabelPlacement::Center);
+        let placement = {
+            let mut label_guard = label.lock();
+            if label_guard
+                .shape()
+                .graph_element()
+                .properties()
+                .has_property(LayeredOptions::EDGE_LABELS_PLACEMENT)
+            {
+                label_guard.get_property(LayeredOptions::EDGE_LABELS_PLACEMENT)
+            } else {
+                None
+            }
+        }
+        .unwrap_or(EdgeLabelPlacement::Center);
         if placement != EdgeLabelPlacement::Head {
             continue;
         }

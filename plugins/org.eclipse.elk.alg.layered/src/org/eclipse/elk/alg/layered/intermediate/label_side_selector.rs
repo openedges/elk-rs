@@ -94,10 +94,7 @@ fn based_on_direction(
         let nodes = layer
             .lock().nodes().clone();
         for node in nodes {
-            let is_label = node
-                .lock_ok()
-                .map(|ng| ng.node_type() == NodeType::Label)
-                .unwrap_or(false);
+            let is_label = node.lock().node_type() == NodeType::Label;
             if is_label {
                 let side = if does_edge_point_right_node(&node) {
                     side_for_rightward_edges
@@ -201,11 +198,11 @@ fn smart_for_consecutive_dummy_node_run(
 
     let first_is_label = dummy_nodes
         .front()
-        .and_then(|n| n.lock_ok().map(|ng| ng.node_type() == NodeType::Label))
+        .map(|n| n.lock().node_type() == NodeType::Label)
         .unwrap_or(false);
     let last_is_label = dummy_nodes
         .back()
-        .and_then(|n| n.lock_ok().map(|ng| ng.node_type() == NodeType::Label))
+        .map(|n| n.lock().node_type() == NodeType::Label)
         .unwrap_or(false);
 
     if top_group
@@ -294,13 +291,14 @@ fn apply_for_dummy_node_run_with_simple_loops(
 
 /// Returns either the long edge source or target node of the given dummy node.
 fn get_long_edge_end_node(dummy: &LNodeRef, source: bool) -> Option<LNodeRef> {
-    let port: Option<LPortRef> = dummy.lock_ok().and_then(|mut ng| {
+    let port: Option<LPortRef> = {
+        let mut ng = dummy.lock();
         if source {
             ng.get_property(InternalProperties::LONG_EDGE_SOURCE)
         } else {
             ng.get_property(InternalProperties::LONG_EDGE_TARGET)
         }
-    });
+    };
 
     port.and_then(|p| p.lock().node())
 }
@@ -398,24 +396,19 @@ fn smart_for_regular_node_port_end_labels(
 /// Applies the given label side to the given label dummy node. If necessary, its ports are
 /// moved to reserve space for the label on the correct side.
 fn apply_label_side_to_dummy(node: &LNodeRef, side: LabelSide, edge_label_spacing: f64) {
-    let is_label_dummy = node
-        .lock_ok()
-        .map(|node_guard| node_guard.node_type() == NodeType::Label)
-        .unwrap_or(false);
+    let is_label_dummy = node.lock().node_type() == NodeType::Label;
     if !is_label_dummy {
         return;
     }
 
-    let effective_side = node
-        .lock_ok()
-        .map(|mut node_guard| {
-            if node_guard.is_inline_edge_label() {
-                LabelSide::Inline
-            } else {
-                side
-            }
-        })
-        .unwrap_or(side);
+    let effective_side = {
+        let mut node_guard = node.lock();
+        if node_guard.is_inline_edge_label() {
+            LabelSide::Inline
+        } else {
+            side
+        }
+    };
 
     {
         let mut node_guard = node.lock();
@@ -438,16 +431,10 @@ fn apply_label_side_to_dummy(node: &LNodeRef, side: LabelSide, edge_label_spacin
 
         let mut port_pos: f64 = 0.0;
         if effective_side == LabelSide::Above {
-            let node_height = node
-                .lock_ok()
-                .map(|mut ng| ng.shape().size_ref().y)
-                .unwrap_or(0.0);
+            let node_height = node.lock().shape().size_ref().y;
             port_pos = node_height - (thickness / 2.0).ceil();
         } else if effective_side == LabelSide::Inline {
-            let node_height = node
-                .lock_ok()
-                .map(|mut ng| ng.shape().size_ref().y)
-                .unwrap_or(0.0);
+            let node_height = node.lock().shape().size_ref().y;
 
             port_pos = (node_height - edge_label_spacing - thickness).ceil() / 2.0;
 
@@ -521,8 +508,8 @@ fn apply_label_side_to_labels(labels: &[LLabelRef], side: LabelSide) {
 /// Checks if the given edge will point right in the final drawing.
 fn does_edge_point_right_edge(edge: &LEdgeRef) -> bool {
     !edge
-        .lock_ok()
-        .and_then(|mut eg| eg.get_property(InternalProperties::REVERSED))
+        .lock()
+        .get_property(InternalProperties::REVERSED)
         .unwrap_or(false)
 }
 

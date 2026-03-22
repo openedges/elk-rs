@@ -39,8 +39,8 @@ impl CMGroupModelOrderCalculator {
         };
 
         let element_model_order = element
-            .lock_ok()
-            .and_then(|mut node_guard| node_guard.get_property(InternalProperties::MODEL_ORDER));
+            .lock()
+            .get_property(InternalProperties::MODEL_ORDER);
         if element_model_order.is_none() {
             return -1;
         }
@@ -48,18 +48,12 @@ impl CMGroupModelOrderCalculator {
 
         if enforce_group_model_order {
             let element_group_id = element
-                .lock_ok()
-                .and_then(|mut node_guard| {
-                    node_guard
-                        .get_property(LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID)
-                })
+                .lock()
+                .get_property(LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID)
                 .unwrap_or(0);
             let other_group_id = other
-                .lock_ok()
-                .and_then(|mut node_guard| {
-                    node_guard
-                        .get_property(LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID)
-                })
+                .lock()
+                .get_property(LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID)
                 .unwrap_or(0);
             if enforced_orders.contains(&element_group_id)
                 && enforced_orders.contains(&other_group_id)
