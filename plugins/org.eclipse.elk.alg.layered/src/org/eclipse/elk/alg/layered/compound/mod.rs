@@ -210,9 +210,7 @@ impl CompoundGraphPreprocessor {
         if ElkTrace::global().trace {
             for orig_edge in cross_hierarchy_map.keys() {
                 let label_count = orig_edge
-                    .lock_ok()
-                    .map(|edge_guard| edge_guard.labels().len())
-                    .unwrap_or(0);
+                    .lock().labels().len();
                 eprintln!("[compound-pre] cross edge labels={label_count}");
             }
         }
@@ -243,7 +241,8 @@ impl CompoundGraphPreprocessor {
     ) {
         for (port_key, dummy_node) in dummy_node_map {
             let external_port = port_key.0.clone();
-            let dummy_side = if let Some(mut dummy_guard) = dummy_node.lock_ok() {
+            let dummy_side = {
+                let mut dummy_guard = dummy_node.lock();
                 dummy_guard.set_property(
                     InternalProperties::ORIGIN,
                     Some(Origin::LPort(external_port.clone())),
@@ -251,17 +250,14 @@ impl CompoundGraphPreprocessor {
                 dummy_guard
                     .get_property(InternalProperties::EXT_PORT_SIDE)
                     .unwrap_or(PortSide::Undefined)
-            } else {
-                PortSide::Undefined
             };
 
-            let node_ref = if let Some(mut port_guard) = external_port.lock_ok() {
+            let node_ref = {
+                let mut port_guard = external_port.lock();
                 port_guard.set_property(InternalProperties::PORT_DUMMY, Some(dummy_node.clone()));
                 port_guard.set_property(InternalProperties::INSIDE_CONNECTIONS, Some(true));
                 port_guard.set_side(dummy_side);
                 port_guard.node()
-            } else {
-                None
             };
             let node_graph = node_ref
                 .as_ref()
@@ -320,13 +316,12 @@ impl CompoundGraphPreprocessor {
                     dummy_node_map,
                 );
 
-                let has_external_ports = nested_graph
-                    .lock_ok()
-                    .and_then(|mut graph_guard| {
-                        graph_guard.get_property(InternalProperties::GRAPH_PROPERTIES)
-                    })
-                    .map(|props| props.contains(&GraphProperties::ExternalPorts))
-                    .unwrap_or(false);
+                let has_external_ports = {
+                    let mut graph_guard = nested_graph.lock();
+                    graph_guard.get_property(InternalProperties::GRAPH_PROPERTIES)
+                        .map(|props| props.contains(&GraphProperties::ExternalPorts))
+                        .unwrap_or(false)
+                };
 
                 if has_external_ports {
                     let (port_constraints, port_label_placement, ports) =
@@ -395,32 +390,30 @@ impl CompoundGraphPreprocessor {
                             None => continue,
                         };
 
-                        let dummy_port = dummy_node
-                            .lock_ok()
-                            .and_then(|node| node.ports().first().cloned());
+                        let dummy_port = {
+                            let node = dummy_node.lock();
+                            node.ports().first().cloned()
+                        };
                         let Some(dummy_port) = dummy_port else {
                             continue;
                         };
 
-                        let (labels, port_size, port_side_cached) = if let Some(mut port_guard) = port.lock_ok() {
+                        let (labels, port_size, port_side_cached) = {
+                            let mut port_guard = port.lock();
                             (
                                 port_guard.labels().clone(),
                                 *port_guard.shape().size_ref(),
                                 port_guard.side(),
                             )
-                        } else {
-                            (Vec::new(), KVector::default(), PortSide::Undefined)
                         };
 
                         for label in labels {
-                            let (label_size, label_pos) = if let Some(mut label_guard) = label.lock_ok()
-                            {
+                            let (label_size, label_pos) = {
+                                let mut label_guard = label.lock();
                                 (
                                     *label_guard.shape().size_ref(),
                                     *label_guard.shape().position_ref(),
                                 )
-                            } else {
-                                (KVector::new(), KVector::new())
                             };
 
                             let dummy_label = Arc::new(Mutex::new(LLabel::new()));
@@ -492,10 +485,7 @@ impl CompoundGraphPreprocessor {
         cross_hierarchy_map: &CrossHierarchyMap,
     ) {
         for orig_edge in cross_hierarchy_map.keys() {
-            let has_labels = orig_edge
-                .lock_ok()
-                .map(|edge_guard| !edge_guard.labels().is_empty())
-                .unwrap_or(false);
+            let has_labels = !orig_edge.lock().labels().is_empty();
 
             if has_labels {
                 let mut edge_segments = cross_hierarchy_map.get(&orig_edge);
@@ -507,12 +497,11 @@ impl CompoundGraphPreprocessor {
                     let idx = 0;
                     while idx < edge_guard.labels().len() {
                         let label_ref = edge_guard.labels()[idx].clone();
-                        let placement = label_ref
-                            .lock_ok()
-                            .and_then(|mut label| {
-                                label.get_property(LayeredOptions::EDGE_LABELS_PLACEMENT)
-                            })
-                            .unwrap_or(EdgeLabelPlacement::Center);
+                        let placement = {
+                            let mut label = label_ref.lock();
+                            label.get_property(LayeredOptions::EDGE_LABELS_PLACEMENT)
+                                .unwrap_or(EdgeLabelPlacement::Center)
+                        };
 
                         let target_index = match placement {
                             EdgeLabelPlacement::Head => edge_segments.len().saturating_sub(1),
@@ -806,42 +795,39 @@ impl CompoundGraphPreprocessor {
                 .lock().ports().clone();
 
             if ElkTrace::global().trace {
-                let origin_id = child_node
-                    .lock_ok()
-                    .and_then(|mut node_guard| node_guard.get_property(InternalProperties::ORIGIN))
-                    .and_then(|origin| match origin {
-                        Origin::ElkNode(id) => Some(id),
-                        _ => None,
-                    })
-                    .unwrap_or(0);
+                let origin_id = {
+                    let mut node_guard = child_node.lock();
+                    node_guard.get_property(InternalProperties::ORIGIN)
+                        .and_then(|origin| match origin {
+                            Origin::ElkNode(id) => Some(id),
+                            _ => None,
+                        })
+                        .unwrap_or(0)
+                };
                 eprintln!(
                     "[compound-pre] child node origin={origin_id} ports={}",
                     ports.len()
                 );
                 for port in &ports {
-                    let (in_len, out_len) = port
-                        .lock_ok()
-                        .map(|port_guard| {
-                            (
-                                port_guard.incoming_edges().len(),
-                                port_guard.outgoing_edges().len(),
-                            )
-                        })
-                        .unwrap_or((0, 0));
+                    let (in_len, out_len) = {
+                        let port_guard = port.lock();
+                        (
+                            port_guard.incoming_edges().len(),
+                            port_guard.outgoing_edges().len(),
+                        )
+                    };
                     eprintln!("[compound-pre] port edges in={in_len} out={out_len}");
                 }
             }
 
             for child_port in ports {
-                let (outgoing_edges, incoming_edges) = child_port
-                    .lock_ok()
-                    .map(|port_guard| {
-                        (
-                            port_guard.outgoing_edges().clone(),
-                            port_guard.incoming_edges().clone(),
-                        )
-                    })
-                    .unwrap_or_default();
+                let (outgoing_edges, incoming_edges) = {
+                    let port_guard = child_port.lock();
+                    (
+                        port_guard.outgoing_edges().clone(),
+                        port_guard.incoming_edges().clone(),
+                    )
+                };
 
                 let mut current_external_output_index: Option<usize> = None;
                 for out_edge in outgoing_edges {
@@ -886,10 +872,7 @@ impl CompoundGraphPreprocessor {
                         let edge_guard = in_edge.lock();
                         let has_e2 = if ElkTrace::global().trace {
                             edge_guard.labels().iter().any(|label_ref| {
-                                label_ref
-                                    .lock_ok()
-                                    .map(|label_guard| label_guard.text() == "e2")
-                                    .unwrap_or(false)
+                                label_ref.lock().text() == "e2"
                             })
                         } else {
                             false
@@ -961,16 +944,14 @@ impl CompoundGraphPreprocessor {
         dummy_node_map: &mut HashMap<PortRefKey, LNodeRef>,
     ) {
         let trace_inside = ElkTrace::global().inside_yo;
-        let (inside_self_loops_active, ports) = node
-            .lock_ok()
-            .map(|mut node_guard| {
-                let active = node_guard
-                    .get_property(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE)
-                    .unwrap_or(false);
-                let ports = node_guard.ports().clone();
-                (active, ports)
-            })
-            .unwrap_or((false, Vec::new()));
+        let (inside_self_loops_active, ports) = {
+            let mut node_guard = node.lock();
+            let active = node_guard
+                .get_property(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE)
+                .unwrap_or(false);
+            let ports = node_guard.ports().clone();
+            (active, ports)
+        };
         if trace_inside {
             let node_key = Arc::as_ptr(node) as usize;
             eprintln!(
@@ -987,17 +968,15 @@ impl CompoundGraphPreprocessor {
                 .lock().outgoing_edges().clone();
 
             for out_edge in out_edges {
-                let (is_self_loop, inside_self_loop) = out_edge
-                    .lock_ok()
-                    .map(|mut edge_guard| {
-                        let is_self_loop = edge_guard.is_self_loop();
-                        let inside_self_loop = is_self_loop
-                            && edge_guard
-                                .get_property(CoreOptions::INSIDE_SELF_LOOPS_YO)
-                                .unwrap_or(false);
-                        (is_self_loop, inside_self_loop)
-                    })
-                    .unwrap_or((false, false));
+                let (is_self_loop, inside_self_loop) = {
+                    let mut edge_guard = out_edge.lock();
+                    let is_self_loop = edge_guard.is_self_loop();
+                    let inside_self_loop = is_self_loop
+                        && edge_guard
+                            .get_property(CoreOptions::INSIDE_SELF_LOOPS_YO)
+                            .unwrap_or(false);
+                    (is_self_loop, inside_self_loop)
+                };
                 if trace_inside {
                     let edge_key = Arc::as_ptr(&out_edge) as usize;
                     eprintln!(
@@ -1011,7 +990,7 @@ impl CompoundGraphPreprocessor {
                 }
 
                 let (source_port, target_port) = {
-                    let edge_guard = out_edge.lock_ok().unwrap();
+                    let edge_guard = out_edge.lock();
                     (edge_guard.source().unwrap(), edge_guard.target().unwrap())
                 };
 
@@ -1032,12 +1011,10 @@ impl CompoundGraphPreprocessor {
 
                 let dummy_edge = create_dummy_edge(&out_edge);
                 let source_port_dummy = source_dummy
-                    .lock_ok()
-                    .and_then(|node| node.ports().first().cloned())
+                    .lock().ports().first().cloned()
                     .unwrap();
                 let target_port_dummy = target_dummy
-                    .lock_ok()
-                    .and_then(|node| node.ports().first().cloned())
+                    .lock().ports().first().cloned()
                     .unwrap();
                 LEdge::set_source(&dummy_edge, Some(source_port_dummy));
                 LEdge::set_target(&dummy_edge, Some(target_port_dummy));
@@ -1077,10 +1054,10 @@ impl CompoundGraphPreprocessor {
         }
 
         let (port_side, port_size, direction) = {
-            let (port_side, port_size) = port
-                .lock_ok()
-                .map(|mut port_guard| (port_guard.side(), *port_guard.shape().size_ref()))
-                .unwrap_or((PortSide::Undefined, KVector::new()));
+            let (port_side, port_size) = {
+                let mut port_guard = port.lock();
+                (port_guard.side(), *port_guard.shape().size_ref())
+            };
             (port_side, port_size, LGraphUtil::get_direction(graph))
         };
 
@@ -1142,12 +1119,11 @@ impl CompoundGraphPreprocessor {
         cross_hierarchy_map: &mut CrossHierarchyMap,
         dummy_node_map: &mut HashMap<PortRefKey, LNodeRef>,
     ) -> Option<ExternalPort> {
-        let merge_external_ports = graph
-            .lock_ok()
-            .and_then(|mut graph_guard| {
-                graph_guard.get_property(LayeredOptions::MERGE_HIERARCHY_EDGES)
-            })
-            .unwrap_or(true);
+        let merge_external_ports = {
+            let mut graph_guard = graph.lock();
+            graph_guard.get_property(LayeredOptions::MERGE_HIERARCHY_EDGES)
+                .unwrap_or(true)
+        };
 
         let parent_end_port = if port_type == PortType::Input {
             orig_edge
@@ -1182,10 +1158,11 @@ impl CompoundGraphPreprocessor {
         if merge_external_ports && parent_end_port.is_none() {
             if let Some(default_port) = default_external_port {
                 default_port.orig_edges.push(orig_edge.clone());
-                let orig_thickness = orig_edge
-                    .lock_ok()
-                    .and_then(|mut edge_guard| edge_guard.get_property(CoreOptions::EDGE_THICKNESS))
-                    .unwrap_or(1.0);
+                let orig_thickness = {
+                    let mut edge_guard = orig_edge.lock();
+                    edge_guard.get_property(CoreOptions::EDGE_THICKNESS)
+                        .unwrap_or(1.0)
+                };
                 {
                     let mut edge_guard = default_port.new_edge.lock();
                     let existing_thickness = edge_guard
@@ -1204,17 +1181,9 @@ impl CompoundGraphPreprocessor {
                     ),
                 );
                 if ElkTrace::global().trace
-                    && orig_edge
-                        .lock_ok()
-                        .map(|edge_guard| {
-                            edge_guard.labels().iter().any(|label_ref| {
-                                label_ref
-                                    .lock_ok()
-                                    .map(|label_guard| label_guard.text() == "e2")
-                                    .unwrap_or(false)
-                            })
-                        })
-                        .unwrap_or(false)
+                    && orig_edge.lock().labels().iter().any(|label_ref| {
+                        label_ref.lock().text() == "e2"
+                    })
                 {
                     eprintln!(
                         "[compound-pre] e2 added via merge port_type={:?}",
@@ -1228,12 +1197,12 @@ impl CompoundGraphPreprocessor {
         let port_side = if let Some(parent_end_port) = parent_end_port.as_ref() {
             parent_end_port
                 .lock().side()
-        } else if parent_node
-            .lock_ok()
-            .and_then(|mut node_guard| node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS))
-            .unwrap_or(PortConstraints::Undefined)
-            .is_side_fixed()
-        {
+        } else if {
+            let mut node_guard = parent_node.lock();
+            node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
+                .unwrap_or(PortConstraints::Undefined)
+                .is_side_fixed()
+        } {
             if port_type == PortType::Input {
                 PortSide::West
             } else {
@@ -1253,8 +1222,7 @@ impl CompoundGraphPreprocessor {
         );
 
         let dummy_port = dummy_node
-            .lock_ok()
-            .and_then(|node| node.ports().first().cloned())
+            .lock().ports().first().cloned()
             .unwrap();
 
         let dummy_edge = create_dummy_edge(orig_edge);
@@ -1266,14 +1234,15 @@ impl CompoundGraphPreprocessor {
             LEdge::set_target(&dummy_edge, Some(dummy_port));
         }
 
-        let origin_port = dummy_node
-            .lock_ok()
-            .and_then(|mut node| node.get_property(InternalProperties::ORIGIN))
-            .and_then(|origin| match origin {
-                Origin::LPort(port) => Some(port),
-                _ => None,
-            })
-            .unwrap_or_else(|| opposite_port.clone());
+        let origin_port = {
+            let mut node = dummy_node.lock();
+            node.get_property(InternalProperties::ORIGIN)
+                .and_then(|origin| match origin {
+                    Origin::LPort(port) => Some(port),
+                    _ => None,
+                })
+                .unwrap_or_else(|| opposite_port.clone())
+        };
 
         let external_port = ExternalPort::new(
             orig_edge.clone(),
@@ -1289,17 +1258,9 @@ impl CompoundGraphPreprocessor {
             CrossHierarchyEdge::new(dummy_edge, graph.clone(), port_type),
         );
         if ElkTrace::global().trace
-            && orig_edge
-                .lock_ok()
-                .map(|edge_guard| {
-                    edge_guard.labels().iter().any(|label_ref| {
-                        label_ref
-                            .lock_ok()
-                            .map(|label_guard| label_guard.text() == "e2")
-                            .unwrap_or(false)
-                    })
-                })
-                .unwrap_or(false)
+            && orig_edge.lock().labels().iter().any(|label_ref| {
+                label_ref.lock().text() == "e2"
+            })
         {
             eprintln!("[compound-pre] e2 added via new port_type={:?}", port_type);
         }
@@ -1317,7 +1278,7 @@ impl CompoundGraphPreprocessor {
         dummy_node_map: &mut HashMap<PortRefKey, LNodeRef>,
     ) -> LNodeRef {
         let outside_port = {
-            let edge_guard = edge.lock_ok().expect("edge missing endpoints");
+            let edge_guard = edge.lock();
             if port_type == PortType::Input {
                 edge_guard.source()
             } else {
@@ -1337,21 +1298,19 @@ impl CompoundGraphPreprocessor {
             if let Some(existing) = dummy_node_map.get(&port_key) {
                 return existing.clone();
             }
-            let port_constraints = parent_node
-                .lock_ok()
-                .and_then(|mut node_guard| {
-                    node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
-                })
-                .unwrap_or(PortConstraints::Undefined);
+            let port_constraints = {
+                let mut node_guard = parent_node.lock();
+                node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
+                    .unwrap_or(PortConstraints::Undefined)
+            };
             let net_flow = self.calculate_net_flow(&outside_port);
             let port_node_size = KVector::new();
-            let (port_position, port_size) = if let Some(mut port_guard) = outside_port.lock_ok() {
+            let (port_position, port_size) = {
+                let mut port_guard = outside_port.lock();
                 (
                     *port_guard.shape().position_ref(),
                     *port_guard.shape().size_ref(),
                 )
-            } else {
-                (KVector::new(), KVector::new())
             };
             let mut props = port_property_holder(&outside_port);
             let dummy = LGraphUtil::create_external_port_dummy(
@@ -1375,12 +1334,11 @@ impl CompoundGraphPreprocessor {
             dummy_node_map.insert(port_key, dummy.clone());
             dummy
         } else {
-            let port_constraints = parent_node
-                .lock_ok()
-                .and_then(|mut node_guard| {
-                    node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
-                })
-                .unwrap_or(PortConstraints::Undefined);
+            let port_constraints = {
+                let mut node_guard = parent_node.lock();
+                node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
+                    .unwrap_or(PortConstraints::Undefined)
+            };
             let net_flow = if port_type == PortType::Input { -1 } else { 1 };
             let port_node_size = KVector::new();
             let port_position = KVector::new();
@@ -1438,38 +1396,35 @@ impl CompoundGraphPreprocessor {
 
     fn calculate_net_flow(&self, port: &LPortRef) -> i32 {
         let (node, outgoing_edges, incoming_edges) = {
-            let port_guard = port.lock_ok().expect("port without node");
+            let port_guard = port.lock();
             (
                 port_guard.node().expect("port without node"),
                 port_guard.outgoing_edges().clone(),
                 port_guard.incoming_edges().clone(),
             )
         };
-        let inside_self_loops_enabled = node
-            .lock_ok()
-            .and_then(|mut node_guard| {
-                node_guard.get_property(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE)
-            })
-            .unwrap_or(false);
+        let inside_self_loops_enabled = {
+            let mut node_guard = node.lock();
+            node_guard.get_property(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE)
+                .unwrap_or(false)
+        };
 
         let mut output_port_vote = 0;
         let mut input_port_vote = 0;
 
         for outgoing_edge in outgoing_edges {
-            let (is_self_loop, is_inside_self_loop, target_node) = outgoing_edge
-                .lock_ok()
-                .map(|mut edge_guard| {
-                    (
-                        edge_guard.is_self_loop(),
-                        edge_guard
-                            .get_property(CoreOptions::INSIDE_SELF_LOOPS_YO)
-                            .unwrap_or(false),
-                        edge_guard
-                            .target()
-                            .and_then(|port| port.lock().node()),
-                    )
-                })
-                .unwrap_or((false, false, None));
+            let (is_self_loop, is_inside_self_loop, target_node) = {
+                let mut edge_guard = outgoing_edge.lock();
+                (
+                    edge_guard.is_self_loop(),
+                    edge_guard
+                        .get_property(CoreOptions::INSIDE_SELF_LOOPS_YO)
+                        .unwrap_or(false),
+                    edge_guard
+                        .target()
+                        .and_then(|port| port.lock().node()),
+                )
+            };
 
             let is_inside_self_loop =
                 is_self_loop && inside_self_loops_enabled && is_inside_self_loop;
@@ -1497,20 +1452,18 @@ impl CompoundGraphPreprocessor {
         }
 
         for incoming_edge in incoming_edges {
-            let (is_self_loop, is_inside_self_loop, source_node) = incoming_edge
-                .lock_ok()
-                .map(|mut edge_guard| {
-                    (
-                        edge_guard.is_self_loop(),
-                        edge_guard
-                            .get_property(CoreOptions::INSIDE_SELF_LOOPS_YO)
-                            .unwrap_or(false),
-                        edge_guard
-                            .source()
-                            .and_then(|port| port.lock().node()),
-                    )
-                })
-                .unwrap_or((false, false, None));
+            let (is_self_loop, is_inside_self_loop, source_node) = {
+                let mut edge_guard = incoming_edge.lock();
+                (
+                    edge_guard.is_self_loop(),
+                    edge_guard
+                        .get_property(CoreOptions::INSIDE_SELF_LOOPS_YO)
+                        .unwrap_or(false),
+                    edge_guard
+                        .source()
+                        .and_then(|port| port.lock().node()),
+                )
+            };
 
             let is_inside_self_loop =
                 is_self_loop && inside_self_loops_enabled && is_inside_self_loop;
@@ -1568,12 +1521,11 @@ impl CompoundGraphPreprocessor {
                 }
                 PortType::Undefined => {}
             }
-            let border_offset = dummy_node
-                .lock_ok()
-                .and_then(|mut dummy_guard| {
-                    dummy_guard.get_property(LayeredOptions::PORT_BORDER_OFFSET)
-                })
-                .unwrap_or(0.0);
+            let border_offset = {
+                let mut dummy_guard = dummy_node.lock();
+                dummy_guard.get_property(LayeredOptions::PORT_BORDER_OFFSET)
+                    .unwrap_or(0.0)
+            };
             port_guard.set_property(LayeredOptions::PORT_BORDER_OFFSET, Some(border_offset));
         }
 
@@ -1623,28 +1575,16 @@ impl CompoundGraphPostprocessor {
 
             let trace_edge = ElkTrace::global().trace
                 && (cross_edges.iter().any(|edge| {
-                    edge.edge()
-                        .lock_ok()
-                        .map(|edge_guard| {
-                            edge_guard.labels().iter().any(|label_ref| {
-                                label_ref
-                                    .lock_ok()
-                                    .map(|label_guard| label_guard.text() == "e2")
-                                    .unwrap_or(false)
-                            })
-                        })
-                        .unwrap_or(false)
-                }) || orig_edge
-                    .lock_ok()
-                    .map(|edge_guard| {
-                        edge_guard.labels().iter().any(|label_ref| {
-                            label_ref
-                                .lock_ok()
-                                .map(|label_guard| label_guard.text() == "e2")
-                                .unwrap_or(false)
-                        })
+                    let edge_guard = edge.edge().lock();
+                    edge_guard.labels().iter().any(|label_ref| {
+                        label_ref.lock().text() == "e2"
                     })
-                    .unwrap_or(false));
+                }) || {
+                    let edge_guard = orig_edge.lock();
+                    edge_guard.labels().iter().any(|label_ref| {
+                        label_ref.lock().text() == "e2"
+                    })
+                });
 
             let source_port = cross_edges.first().and_then(|edge| edge.actual_source());
             let target_port = cross_edges.last().and_then(|edge| edge.actual_target());
@@ -1667,13 +1607,14 @@ impl CompoundGraphPostprocessor {
             let target_node = target_port
                 .lock().node()
                 .expect("target port missing node");
-            let reference_graph = reference_node.lock_ok().and_then(|node| {
+            let reference_graph = {
+                let node = reference_node.lock();
                 if LGraphUtil::is_descendant(&target_node, &reference_node) {
                     node.nested_graph()
                 } else {
                     node.graph()
                 }
-            });
+            };
             let Some(reference_graph) = reference_graph else {
                 continue;
             };
@@ -1827,9 +1768,10 @@ fn copy_junction_points(
     offset: &KVector,
 ) {
     let Some(target_chain) = target else { return };
-    let jps = source_edge
-        .lock_ok()
-        .and_then(|mut edge_guard| edge_guard.get_property(LayeredOptions::JUNCTION_POINTS));
+    let jps = {
+        let mut edge_guard = source_edge.lock();
+        edge_guard.get_property(LayeredOptions::JUNCTION_POINTS)
+    };
     if let Some(mut jps) = jps {
         jps.offset(offset.x, offset.y);
         target_chain.add_all(&jps.to_array());
@@ -1855,13 +1797,12 @@ fn copy_labels_back(
         let mut idx = 0;
         while idx < edge_guard.labels().len() {
             let label_ref = edge_guard.labels()[idx].clone();
-            let matches = label_ref
-                .lock_ok()
-                .and_then(|mut label_guard| {
-                    label_guard.get_property(InternalProperties::ORIGINAL_LABEL_EDGE)
-                })
-                .map(|edge| Arc::ptr_eq(&edge, orig_edge))
-                .unwrap_or(false);
+            let matches = {
+                let mut label_guard = label_ref.lock();
+                label_guard.get_property(InternalProperties::ORIGINAL_LABEL_EDGE)
+                    .map(|edge| Arc::ptr_eq(&edge, orig_edge))
+                    .unwrap_or(false)
+            };
             if matches {
                 edge_guard.labels_mut().remove(idx);
                 labels_to_move.push(label_ref);
@@ -1889,11 +1830,12 @@ fn copy_labels_back(
 
 fn create_external_port_properties(graph: &LGraphRef) -> MapPropertyHolder {
     let mut property_holder = MapPropertyHolder::new();
-    let spacing = graph
-        .lock_ok()
-        .and_then(|mut graph_guard| graph_guard.get_property(LayeredOptions::SPACING_EDGE_EDGE))
-        .or_else(|| LayeredOptions::SPACING_EDGE_EDGE.get_default())
-        .unwrap_or(0.0);
+    let spacing = {
+        let mut graph_guard = graph.lock();
+        graph_guard.get_property(LayeredOptions::SPACING_EDGE_EDGE)
+            .or_else(|| LayeredOptions::SPACING_EDGE_EDGE.get_default())
+            .unwrap_or(0.0)
+    };
     property_holder.set_property(LayeredOptions::PORT_BORDER_OFFSET, Some(spacing / 2.0));
     property_holder
 }
