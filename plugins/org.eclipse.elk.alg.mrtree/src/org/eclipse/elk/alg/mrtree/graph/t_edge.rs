@@ -140,12 +140,9 @@ impl TEdge {
 impl fmt::Display for TEdge {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let (Some(source), Some(target)) = (self.source(), self.target()) {
-            let source_label = source.lock_ok().map(|node| node.to_string());
-            let target_label = target.lock_ok().map(|node| node.to_string());
-            if let (Some(source_label), Some(target_label)) = (source_label, target_label) {
-                return write!(f, "{}->{}", source_label, target_label);
-            }
-            write!(f, "e_{:p}", self)
+            let source_label = source.lock().to_string();
+            let target_label = target.lock().to_string();
+            return write!(f, "{}->{}", source_label, target_label);
         } else {
             write!(f, "e_{:p}", self)
         }

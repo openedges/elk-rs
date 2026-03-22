@@ -22,13 +22,7 @@ impl ILayoutProcessor<TGraphRef> for CompactionProcessor {
 
         // Batch all graph property reads in a single lock
         let (enabled, direction, node_node_spacing, routing_mode) = {
-            let mut graph_guard = match graph.lock_ok() {
-            Some(guard) => guard,
-            None => {
-                    progress_monitor.done();
-                    return;
-                }
-            };
+            let mut graph_guard = graph.lock();
             let enabled = graph_guard
                 .get_property(MrTreeOptions::COMPACTION)
                 .unwrap_or(false);
@@ -53,13 +47,7 @@ impl ILayoutProcessor<TGraphRef> for CompactionProcessor {
         self.compute_node_constraints(graph, node_node_spacing / 4.0);
 
         let nodes = {
-            let graph_guard = match graph.lock_ok() {
-            Some(guard) => guard,
-            None => {
-                    progress_monitor.done();
-                    return;
-                }
-            };
+            let graph_guard = graph.lock();
             graph_guard.nodes().clone()
         };
 
@@ -72,15 +60,14 @@ impl ILayoutProcessor<TGraphRef> for CompactionProcessor {
         let mut node_sizes: HashMap<usize, KVector> = HashMap::with_capacity(nodes.len());
         for n in &nodes {
             let key = node_key(n);
-            if let Some(mut guard) = n.lock_ok() {
-                let pos = *guard.position_ref();
-                sort_keys.insert(key, dir_vec.dot_product(&pos));
-                node_sizes.insert(key, *guard.size_ref());
-                node_is_root.insert(
-                    key,
-                    guard.get_property(InternalProperties::ROOT).unwrap_or(false),
-                );
-            }
+            let mut guard = n.lock();
+            let pos = *guard.position_ref();
+            sort_keys.insert(key, dir_vec.dot_product(&pos));
+            node_sizes.insert(key, *guard.size_ref());
+            node_is_root.insert(
+                key,
+                guard.get_property(InternalProperties::ROOT).unwrap_or(false),
+            );
         }
         nodes_sorted.sort_by(|a, b| {
             let a_key = sort_keys.get(&node_key(a)).copied().unwrap_or(0.0);
@@ -107,16 +94,16 @@ impl ILayoutProcessor<TGraphRef> for CompactionProcessor {
 
             if let Some(dep) = dependent.clone() {
                 // Single lock for both pos and size
-                let (dep_pos, dep_size) = dep
-                    .lock_ok()
-                    .map(|n| (*n.position_ref(), *n.size_ref()))
-                    .unwrap_or_default();
+                let (dep_pos, dep_size) = {
+                    let n = dep.lock();
+                    (*n.position_ref(), *n.size_ref())
+                };
                 if let Some(parent) = parent.clone() {
                     // Single lock for both pos and size
-                    let (parent_pos, parent_size) = parent
-                        .lock_ok()
-                        .map(|n| (*n.position_ref(), *n.size_ref()))
-                        .unwrap_or_default();
+                    let (parent_pos, parent_size) = {
+                        let n = parent.lock();
+                        (*n.position_ref(), *n.size_ref())
+                    };
                     match direction {
                         Direction::Left => {
                             new_pos = dep_pos.x - node_node_spacing - size.x;
@@ -154,10 +141,10 @@ impl ILayoutProcessor<TGraphRef> for CompactionProcessor {
                 }
             } else if let Some(parent) = parent.clone() {
                 // Single lock for both pos and size
-                let (parent_pos, parent_size) = parent
-                    .lock_ok()
-                    .map(|n| (*n.position_ref(), *n.size_ref()))
-                    .unwrap_or_default();
+                let (parent_pos, parent_size) = {
+                    let n = parent.lock();
+                    (*n.position_ref(), *n.size_ref())
+                };
                 match direction {
                     Direction::Left => {
                         new_pos = parent_pos.x - node_node_spacing - size.x;
@@ -203,25 +190,25 @@ impl ILayoutProcessor<TGraphRef> for CompactionProcessor {
                 };
 
                 if let Some((index, level_pair)) = chosen_level {
-                    if let Some(mut node_guard) = node.lock_ok() {
-                        if direction.is_horizontal() {
-                            node_guard.position().x = *level_pair.first();
-                        } else {
-                            node_guard.position().y = *level_pair.first();
-                        }
-                        let current_level = node_guard
-                            .get_property(MrTreeOptions::TREE_LEVEL)
-                            .unwrap_or(0);
-                        if index > 0 && current_level != index as i32 {
-                            node_guard.set_property(
-                                InternalProperties::COMPACT_LEVEL_ASCENSION,
-                                Some(true),
-                            );
-                            node_guard.set_property(MrTreeOptions::TREE_LEVEL, Some(index as i32));
-                        }
+                    let mut node_guard = node.lock();
+                    if direction.is_horizontal() {
+                        node_guard.position().x = *level_pair.first();
+                    } else {
+                        node_guard.position().y = *level_pair.first();
+                    }
+                    let current_level = node_guard
+                        .get_property(MrTreeOptions::TREE_LEVEL)
+                        .unwrap_or(0);
+                    if index > 0 && current_level != index as i32 {
+                        node_guard.set_property(
+                            InternalProperties::COMPACT_LEVEL_ASCENSION,
+                            Some(true),
+                        );
+                        node_guard.set_property(MrTreeOptions::TREE_LEVEL, Some(index as i32));
                     }
                 }
-            } else if let Some(mut node_guard) = node.lock_ok() {
+            } else {
+                let mut node_guard = node.lock();
                 if direction.is_horizontal() {
                     node_guard.position().x = new_pos;
                 } else {
@@ -239,47 +226,43 @@ impl CompactionProcessor {
         self.levels.clear();
 
         let nodes = {
-            let graph_guard = match graph.lock_ok() {
-            Some(guard) => guard,
-            None => return,
-            };
+            let graph_guard = graph.lock();
             graph_guard.nodes().clone()
         };
 
         for node in nodes {
-            if let Some(mut node_guard) = node.lock_ok() {
-                let level = node_guard
-                    .get_property(MrTreeOptions::TREE_LEVEL)
-                    .unwrap_or(0) as usize;
-                while level >= self.levels.len() {
-                    self.levels.push(Pair::of(f64::MAX, -f64::MAX));
+            let mut node_guard = node.lock();
+            let level = node_guard
+                .get_property(MrTreeOptions::TREE_LEVEL)
+                .unwrap_or(0) as usize;
+            while level >= self.levels.len() {
+                self.levels.push(Pair::of(f64::MAX, -f64::MAX));
+            }
+            let pos = node_guard.position_ref();
+            let size = node_guard.size_ref();
+            if direction.is_horizontal() {
+                if pos.x < *self.levels[level].first() {
+                    self.levels[level].set_first(pos.x);
                 }
-                let pos = node_guard.position_ref();
-                let size = node_guard.size_ref();
-                if direction.is_horizontal() {
-                    if pos.x < *self.levels[level].first() {
-                        self.levels[level].set_first(pos.x);
-                    }
-                    if pos.x + size.x > *self.levels[level].second() {
-                        self.levels[level].set_second(pos.x + size.x);
-                    }
-                } else {
-                    if pos.y < *self.levels[level].first() {
-                        self.levels[level].set_first(pos.y);
-                    }
-                    if pos.y + size.y > *self.levels[level].second() {
-                        self.levels[level].set_second(pos.y + size.y);
-                    }
+                if pos.x + size.x > *self.levels[level].second() {
+                    self.levels[level].set_second(pos.x + size.x);
+                }
+            } else {
+                if pos.y < *self.levels[level].first() {
+                    self.levels[level].set_first(pos.y);
+                }
+                if pos.y + size.y > *self.levels[level].second() {
+                    self.levels[level].set_second(pos.y + size.y);
                 }
             }
         }
     }
 
     fn compute_node_constraints(&mut self, graph: &TGraphRef, node_node_spacing: f64) {
-        let direction = graph
-            .lock_ok()
-            .and_then(|mut g| g.get_property(MrTreeOptions::DIRECTION))
-            .unwrap_or(Direction::Undefined);
+        let direction = {
+            let mut g = graph.lock();
+            g.get_property(MrTreeOptions::DIRECTION).unwrap_or(Direction::Undefined)
+        };
         let right = if direction.is_horizontal() {
             Direction::Down
         } else {
@@ -287,22 +270,19 @@ impl CompactionProcessor {
         };
 
         let nodes = {
-            let graph_guard = match graph.lock_ok() {
-            Some(guard) => guard,
-            None => return,
-            };
+            let graph_guard = graph.lock();
             graph_guard.nodes().clone()
         };
 
         let actual_nodes: Vec<TNodeRef> = nodes
             .into_iter()
             .filter(|node| {
-                node.lock_ok()
-                    .and_then(|node_guard| {
-                        node_guard.label().map(|label| label.contains("SUPER_ROOT"))
-                    })
-                    .map(|contains| !contains)
-                    .unwrap_or(true)
+                let node_guard = node.lock();
+                let is_super_root = node_guard
+                    .label()
+                    .map(|label| label.contains("SUPER_ROOT"))
+                    .unwrap_or(false);
+                !is_super_root
             })
             .collect();
 
@@ -311,23 +291,22 @@ impl CompactionProcessor {
         let mut points: Vec<Triple<TNodeRef, KVector, bool>> = Vec::with_capacity(actual_nodes.len() * 2);
 
         for node in &actual_nodes {
-            if let Some(node_guard) = node.lock_ok() {
-                let pos = *node_guard.position_ref();
-                let size = *node_guard.size_ref();
-                let key = node_key(node);
-                pos_cache.insert(key, pos);
+            let node_guard = node.lock();
+            let pos = *node_guard.position_ref();
+            let size = *node_guard.size_ref();
+            let key = node_key(node);
+            pos_cache.insert(key, pos);
 
-                let mut start_pos = pos;
-                start_pos.sub_values(node_node_spacing, node_node_spacing);
-                points.push(Triple::new(node.clone(), start_pos, true));
+            let mut start_pos = pos;
+            start_pos.sub_values(node_node_spacing, node_node_spacing);
+            points.push(Triple::new(node.clone(), start_pos, true));
 
-                let mut end_pos = pos;
-                end_pos.add_values(
-                    size.x + node_node_spacing,
-                    size.y + node_node_spacing,
-                );
-                points.push(Triple::new(node.clone(), end_pos, false));
-            }
+            let mut end_pos = pos;
+            end_pos.add_values(
+                size.x + node_node_spacing,
+                size.y + node_node_spacing,
+            );
+            points.push(Triple::new(node.clone(), end_pos, false));
         }
 
         let right_vec = TreeUtil::get_direction_vector(right);
@@ -377,9 +356,10 @@ impl CompactionProcessor {
     }
 
     fn get_lowest_dependent_node(&self, node: &TNodeRef, direction: Direction) -> Option<TNodeRef> {
-        let constraints = node.lock_ok().and_then(|mut node_guard| {
+        let constraints = {
+            let mut node_guard = node.lock();
             node_guard.get_property(InternalProperties::COMPACT_CONSTRAINTS)
-        });
+        };
         let constraints = constraints.unwrap_or_default();
         if constraints.is_empty() {
             return None;
@@ -392,10 +372,10 @@ impl CompactionProcessor {
         let mut best_value = 0.0_f64;
         for candidate in constraints {
             // Single lock for both pos and size
-            let (candidate_pos, candidate_size) = candidate
-                .lock_ok()
-                .map(|n| (*n.position_ref(), *n.size_ref()))
-                .unwrap_or_default();
+            let (candidate_pos, candidate_size) = {
+                let n = candidate.lock();
+                (*n.position_ref(), *n.size_ref())
+            };
             let value = match direction {
                 Direction::Left => candidate_pos.x,
                 Direction::Right => candidate_pos.x + candidate_size.x,
@@ -474,11 +454,10 @@ fn right_neighbor(active: &[TNodeRef], node: &TNodeRef) -> Option<TNodeRef> {
 }
 
 fn push_constraint(node: &TNodeRef, constraint: &TNodeRef) {
-    if let Some(mut node_guard) = node.lock_ok() {
-        let mut list = node_guard
-            .get_property(InternalProperties::COMPACT_CONSTRAINTS)
-            .unwrap_or_else(Vec::new);
-        list.push(constraint.clone());
-        node_guard.set_property(InternalProperties::COMPACT_CONSTRAINTS, Some(list));
-    }
+    let mut node_guard = node.lock();
+    let mut list = node_guard
+        .get_property(InternalProperties::COMPACT_CONSTRAINTS)
+        .unwrap_or_else(Vec::new);
+    list.push(constraint.clone());
+    node_guard.set_property(InternalProperties::COMPACT_CONSTRAINTS, Some(list));
 }

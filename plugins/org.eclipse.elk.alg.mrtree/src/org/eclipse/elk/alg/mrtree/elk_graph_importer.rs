@@ -202,9 +202,10 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
     }
 
     fn apply_layout(&self, tgraph: &TGraphRef) {
-        let origin = tgraph
-            .lock_ok()
-            .and_then(|mut g| g.get_property(InternalProperties::ORIGIN));
+        let origin = {
+            let mut g = tgraph.lock();
+            g.get_property(InternalProperties::ORIGIN)
+        };
         let Some(Origin::ElkNode(root_id)) = origin else {
             return;
         };
@@ -243,9 +244,10 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
         };
 
         for node in &nodes {
-            let origin = node
-                .lock_ok()
-                .and_then(|mut guard| guard.get_property(InternalProperties::ORIGIN));
+            let origin = {
+                let mut guard = node.lock();
+                guard.get_property(InternalProperties::ORIGIN)
+            };
             let Some(Origin::ElkNode(node_id)) = origin else {
                 continue;
             };
@@ -273,38 +275,39 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
         let edges = tgraph
             .lock().edges().clone();
         for edge in edges {
-            let origin = edge
-                .lock_ok()
-                .and_then(|mut guard| guard.get_property(InternalProperties::ORIGIN));
+            let origin = {
+                let mut guard = edge.lock();
+                guard.get_property(InternalProperties::ORIGIN)
+            };
             let Some(Origin::ElkEdge(edge_id)) = origin else {
                 continue;
             };
             let Some(elk_edge) = self.edge_map.get(&edge_id) else {
                 continue;
             };
-            let mut bend_points = edge
-                .lock_ok()
-                .map(|guard| guard.bend_points_ref().clone());
-            let Some(mut bend_points_value) = bend_points.take() else {
-                continue;
+            let mut bend_points_value = {
+                let guard = edge.lock();
+                guard.bend_points_ref().clone()
             };
 
             if bend_points_value.size() < 2 {
-                let endpoints = edge.lock_ok().and_then(|guard| {
-                    let source = guard.source()?;
-                    let target = guard.target()?;
-                    let source_center = source.lock_ok().map(|source_guard| {
-                        let pos = source_guard.position_ref();
-                        let size = source_guard.size_ref();
-                        KVector::with_values(pos.x + size.x / 2.0, pos.y + size.y / 2.0)
-                    })?;
-                    let target_center = target.lock_ok().map(|target_guard| {
-                        let pos = target_guard.position_ref();
-                        let size = target_guard.size_ref();
-                        KVector::with_values(pos.x + size.x / 2.0, pos.y + size.y / 2.0)
-                    })?;
-                    Some((source_center, target_center))
-                });
+                let endpoints = {
+                    let guard = edge.lock();
+                    match (guard.source(), guard.target()) {
+                        (Some(source), Some(target)) => {
+                            let source_guard = source.lock();
+                            let pos = source_guard.position_ref();
+                            let size = source_guard.size_ref();
+                            let source_center = KVector::with_values(pos.x + size.x / 2.0, pos.y + size.y / 2.0);
+                            let target_guard = target.lock();
+                            let pos = target_guard.position_ref();
+                            let size = target_guard.size_ref();
+                            let target_center = KVector::with_values(pos.x + size.x / 2.0, pos.y + size.y / 2.0);
+                            Some((source_center, target_center))
+                        }
+                        _ => None,
+                    }
+                };
                 let Some((source_center, target_center)) = endpoints else {
                     continue;
                 };

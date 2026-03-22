@@ -91,12 +91,11 @@ impl ILayoutPhase<TreeLayoutPhases, TGraphRef> for EdgeRouter {
                 let edges = graph
                     .lock().edges().clone();
                 for edge in edges {
-                    if edge
-                        .lock_ok()
-                        .map(|guard| guard.bend_points_ref().len())
-                        .unwrap_or(0)
-                        < 2
-                    {
+                    let bp_len = {
+                        let guard = edge.lock();
+                        guard.bend_points_ref().len()
+                    };
+                    if bp_len < 2 {
                         self.middle_to_middle_edge_route(&edge);
                     }
                 }
@@ -293,12 +292,12 @@ fn build_edge_maps(
         if !seen.insert(ek) {
             continue;
         }
-        let (source, target) = match edge.lock_ok() {
-            Some(guard) => match (guard.source(), guard.target()) {
+        let (source, target) = {
+            let guard = edge.lock();
+            match (guard.source(), guard.target()) {
                 (Some(s), Some(t)) => (s, t),
                 _ => continue,
-            },
-            None => continue,
+            }
         };
         let source_key = Arc::as_ptr(&source) as usize;
         let target_key = Arc::as_ptr(&target) as usize;
@@ -604,20 +603,14 @@ impl EdgeRouter {
                         }
                     }
 
-                    let (first_index, second_index) = match edge.lock_ok() {
-                        Some(mut guard) => {
-                            let bends = guard.bend_points();
-                            let first_index = bends.len();
-                            bends.add_vector(KVector::new());
-                            let second_index = bends.len();
-                            bends.add_vector(KVector::new());
-                            (Some(first_index), Some(second_index))
-                        }
-                        None => (None, None),
-                    };
-                    let (Some(first_index), Some(second_index)) = (first_index, second_index)
-                    else {
-                        continue;
+                    let (first_index, second_index) = {
+                        let mut guard = edge.lock();
+                        let bends = guard.bend_points();
+                        let first_index = bends.len();
+                        bends.add_vector(KVector::new());
+                        let second_index = bends.len();
+                        bends.add_vector(KVector::new());
+                        (first_index, second_index)
                     };
                     has_bends = true;
 
@@ -896,12 +889,10 @@ impl EdgeRouter {
             }
 
             // Extract COMPACT_LEVEL_ASCENSION once per node (not per edge)
-            let skip = node
-                .lock_ok()
-                .and_then(|mut guard| {
-                    guard.get_property(InternalProperties::COMPACT_LEVEL_ASCENSION)
-                })
-                .unwrap_or(false);
+            let skip = {
+                let mut guard = node.lock();
+                guard.get_property(InternalProperties::COMPACT_LEVEL_ASCENSION).unwrap_or(false)
+            };
             let num = outs.len();
             for (i, edge) in outs.iter().enumerate() {
                 // Use pre-computed cycle_inducing set — zero locks

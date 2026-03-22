@@ -22,16 +22,15 @@ impl ILayoutProcessor<TGraphRef> for LevelProcessor {
                 .nodes()
                 .iter()
                 .filter_map(|node| {
-                    node.lock_ok().and_then(|mut node_guard| {
-                        if node_guard
-                            .get_property(InternalProperties::ROOT)
-                            .unwrap_or(false)
-                        {
-                            Some(node.clone())
-                        } else {
-                            None
-                        }
-                    })
+                    let mut node_guard = node.lock();
+                    if node_guard
+                        .get_property(InternalProperties::ROOT)
+                        .unwrap_or(false)
+                    {
+                        Some(node.clone())
+                    } else {
+                        None
+                    }
                 })
                 .collect()
         };

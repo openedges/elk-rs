@@ -41,10 +41,10 @@ impl MrTree {
     fn do_layout_with_monitor(&mut self, graph: &TGraphRef, monitor: &mut dyn IElkProgressMonitor) {
         monitor.begin("Tree layout", 1.0);
 
-        let debug = graph
-            .lock_ok()
-            .and_then(|mut g| g.get_property(MrTreeOptions::DEBUG_MODE))
-            .unwrap_or(false);
+        let debug = {
+            let mut g = graph.lock();
+            g.get_property(MrTreeOptions::DEBUG_MODE).unwrap_or(false)
+        };
         if debug {
             monitor.log("MrTree! called.");
         }
@@ -82,10 +82,10 @@ impl MrTree {
         let total = self.algorithm.len().max(1) as f32;
         monitor.begin("Layout", total);
 
-        let debug = graph
-            .lock_ok()
-            .and_then(|mut g| g.get_property(MrTreeOptions::DEBUG_MODE))
-            .unwrap_or(false);
+        let debug = {
+            let mut g = graph.lock();
+            g.get_property(MrTreeOptions::DEBUG_MODE).unwrap_or(false)
+        };
         if debug {
             monitor.log(&format!(
                 "ELK MrTree uses the following {} modules:",

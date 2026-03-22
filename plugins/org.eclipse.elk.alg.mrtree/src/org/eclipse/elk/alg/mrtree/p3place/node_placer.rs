@@ -67,7 +67,8 @@ impl TreeSoA {
 
             for idx in level_start..level_end {
                 let node = nodes[idx].clone();
-                let lock_result = node.lock_ok();                let (hw, hsx, hsy, fd, child_refs) = if let Some(guard) = lock_result {
+                let guard = node.lock();
+                let (hw, hsx, hsy, fd, child_refs) = {
                     let size = guard.size_ref();
                     let hw = if is_vertical {
                         size.x / 2.0
@@ -76,8 +77,6 @@ impl TreeSoA {
                     };
                     let fd = if is_vertical { size.y } else { size.x };
                     (hw, size.x / 2.0, size.y / 2.0, fd, guard.children())
-                } else {
-                    continue;
                 };
                 // guard dropped here — safe to push to vectors
                 half_width_vec[idx] = hw;
@@ -230,11 +229,8 @@ impl ILayoutPhase<TreeLayoutPhases, TGraphRef> for NodePlacer {
                 .nodes()
                 .iter()
                 .find(|node| {
-                    node.lock_ok()
-                        .and_then(|mut node_guard| {
-                            node_guard.get_property(InternalProperties::ROOT)
-                        })
-                        .unwrap_or(false)
+                    let mut node_guard = node.lock();
+                    node_guard.get_property(InternalProperties::ROOT).unwrap_or(false)
                 })
                 .cloned();
             (spacing, direction, root)

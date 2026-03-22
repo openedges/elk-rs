@@ -20,11 +20,8 @@ impl ILayoutProcessor<TGraphRef> for NodePositionProcessor {
             let root = nodes
                 .iter()
                 .find(|node| {
-                    node.lock_ok()
-                        .and_then(|mut node_guard| {
-                            node_guard.get_property(InternalProperties::ROOT)
-                        })
-                        .unwrap_or(false)
+                    let mut node_guard = node.lock();
+                    node_guard.get_property(InternalProperties::ROOT).unwrap_or(false)
                 })
                 .cloned();
             (nodes, root)

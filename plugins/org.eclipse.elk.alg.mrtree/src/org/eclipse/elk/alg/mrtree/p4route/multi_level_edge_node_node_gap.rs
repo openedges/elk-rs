@@ -226,9 +226,9 @@ impl MultiLevelEdgeNodeNodeGap {
 
 fn edge_target_pos(edge: &TEdgeRef) -> KVector {
     edge.lock().target()
-        .and_then(|node| {
-            node.lock_ok()
-                .map(|node_guard| *node_guard.position_ref())
+        .map(|node| {
+            let node_guard = node.lock();
+            *node_guard.position_ref()
         })
         .unwrap_or_default()
 }
