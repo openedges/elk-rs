@@ -44,10 +44,7 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
         // 2. Get offset from LGraph (offset + padding.left/top)
         // 3. Get padding
         let (origin, mut offset, padding) = {
-            let mut graph_guard = match lgraph.lock_ok() {
-            Some(guard) => guard,
-            None => return,
-            };
+            let mut graph_guard = lgraph.lock();
             let origin = graph_guard.get_property(InternalProperties::ORIGIN);
             let mut offset = *graph_guard.offset_ref();
             let padding = graph_guard.padding_ref().clone();
@@ -88,12 +85,9 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
         }
 
         // 5. Process layerless nodes and collect from layers
-        let parent_node = lgraph.lock_ok().and_then(|g| g.parent_node());
+        let parent_node = lgraph.lock().parent_node();
         let all_nodes = {
-            let graph_guard = match lgraph.lock_ok() {
-            Some(guard) => guard,
-            None => return,
-            };
+            let graph_guard = lgraph.lock();
             collect_nodes_from_graph(&graph_guard)
         };
 
@@ -107,10 +101,7 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
 
         for lnode in &all_nodes {
             let (node_origin, node_type) = {
-                let mut node_guard = match lnode.lock_ok() {
-            Some(guard) => guard,
-            None => continue,
-                };
+                let mut node_guard = lnode.lock();
                 (
                     node_guard.get_property(InternalProperties::ORIGIN),
                     node_guard.node_type(),
@@ -146,22 +137,26 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
                 _ => {}
             }
 
-            let ports = lnode
-                .lock_ok()
-                .map(|node_guard| node_guard.ports().clone())
-                .unwrap_or_default();
+            let ports = {
+                let node_guard = lnode.lock();
+                node_guard.ports().clone()
+            };
             for port in ports {
-                let outgoing_edges = port
-                    .lock_ok()
-                    .map(|port_guard| port_guard.outgoing_edges().clone())
-                    .unwrap_or_default();
+                let outgoing_edges = {
+                    let port_guard = port.lock();
+                    port_guard.outgoing_edges().clone()
+                };
                 for edge in outgoing_edges {
-                    let include_edge = edge
-                        .lock_ok()
-                        .and_then(|edge_guard| edge_guard.target())
-                        .and_then(|target_port| target_port.lock_ok().and_then(|p| p.node()))
-                        .map(|target_node| !LGraphUtil::is_descendant(&target_node, lnode))
-                        .unwrap_or(true);
+                    let include_edge = {
+                        let edge_guard = edge.lock();
+                        edge_guard.target()
+                            .and_then(|target_port| {
+                                let p = target_port.lock();
+                                p.node()
+                            })
+                            .map(|target_node| !LGraphUtil::is_descendant(&target_node, lnode))
+                            .unwrap_or(true)
+                    };
                     if include_edge {
                         edge_list.push(edge);
                     }
@@ -170,22 +165,26 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
         }
 
         if let Some(parent_lnode) = &parent_node {
-            let ports = parent_lnode
-                .lock_ok()
-                .map(|node_guard| node_guard.ports().clone())
-                .unwrap_or_default();
+            let ports = {
+                let node_guard = parent_lnode.lock();
+                node_guard.ports().clone()
+            };
             for port in ports {
-                let outgoing_edges = port
-                    .lock_ok()
-                    .map(|port_guard| port_guard.outgoing_edges().clone())
-                    .unwrap_or_default();
+                let outgoing_edges = {
+                    let port_guard = port.lock();
+                    port_guard.outgoing_edges().clone()
+                };
                 for edge in outgoing_edges {
-                    let include_edge = edge
-                        .lock_ok()
-                        .and_then(|edge_guard| edge_guard.target())
-                        .and_then(|target_port| target_port.lock_ok().and_then(|p| p.node()))
-                        .map(|target_node| LGraphUtil::is_descendant(&target_node, parent_lnode))
-                        .unwrap_or(false);
+                    let include_edge = {
+                        let edge_guard = edge.lock();
+                        edge_guard.target()
+                            .and_then(|target_port| {
+                                let p = target_port.lock();
+                                p.node()
+                            })
+                            .map(|target_node| LGraphUtil::is_descendant(&target_node, parent_lnode))
+                            .unwrap_or(false)
+                    };
                     if include_edge {
                         edge_list.push(edge);
                     }
@@ -227,13 +226,14 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
 
         // 8. Apply edge layout to all collected edges
         for edge in &edge_list {
-            let edge_id = edge
-                .lock_ok()
-                .and_then(|mut edge_guard| edge_guard.get_property(InternalProperties::ORIGIN))
-                .and_then(|origin| match origin {
-                    Origin::ElkEdge(id) => Some(id),
-                    _ => None,
-                });
+            let edge_id = {
+                let mut edge_guard = edge.lock();
+                edge_guard.get_property(InternalProperties::ORIGIN)
+                    .and_then(|origin| match origin {
+                        Origin::ElkEdge(id) => Some(id),
+                        _ => None,
+                    })
+            };
             let Some(edge_id) = edge_id else {
                 continue;
             };
@@ -253,9 +253,10 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
 
         // 10. Recursively process nested subgraphs
         for node in &all_nodes {
-            let nested_graph = node
-                .lock_ok()
-                .and_then(|node_guard| node_guard.nested_graph());
+            let nested_graph = {
+                let node_guard = node.lock();
+                node_guard.nested_graph()
+            };
             if let Some(nested_graph) = nested_graph {
                 self.apply_layout(&nested_graph);
             }
@@ -267,9 +268,10 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
 
     fn apply_parent_node_layout(&self, lgraph: &LGraphRef) {
         // Get origin ElkNode
-        let origin = lgraph
-            .lock_ok()
-            .and_then(|mut g| g.get_property(InternalProperties::ORIGIN));
+        let origin = {
+            let mut g = lgraph.lock();
+            g.get_property(InternalProperties::ORIGIN)
+        };
         let Some(Origin::ElkNode(graph_id)) = origin else {
             return;
         };
@@ -286,7 +288,7 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
                 .unwrap_or_else(SizeConstraint::fixed);
             size_constraints.contains(&SizeConstraint::PortLabels)
         };
-        let parent_node = lgraph.lock_ok().and_then(|g| g.parent_node());
+        let parent_node = lgraph.lock().parent_node();
 
         if ElkTrace::global().compound_width {
             let origin_id_str = elk_node
@@ -318,10 +320,7 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
         // already resized by the layered pipeline and must not be inflated here.
         if parent_node.is_none() {
             let (graph_props, actual_graph_size) = {
-                let mut graph_guard = match lgraph.lock_ok() {
-            Some(guard) => guard,
-            None => return,
-                };
+                let mut graph_guard = lgraph.lock();
                 let gp = graph_guard
                     .get_property(InternalProperties::GRAPH_PROPERTIES)
                     .unwrap_or_else(EnumSet::none_of);
@@ -427,10 +426,7 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
             node_has_label_placement,
             port_labels_are_fixed,
         ) = {
-            let mut node_guard = match lnode.lock_ok() {
-            Some(guard) => guard,
-            None => return,
-            };
+            let mut node_guard = lnode.lock();
             let origin = node_guard.get_property(InternalProperties::ORIGIN);
             let position = *node_guard.shape().position_ref();
             let size = *node_guard.shape().size_ref();
@@ -467,10 +463,7 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
 
         // Get layer_id and position_id from lnode
         let (layer_id, position_id) = {
-            let mut node_guard = match lnode.lock_ok() {
-            Some(guard) => guard,
-            None => return,
-            };
+            let mut node_guard = lnode.lock();
             let lid = node_guard
                 .get_property(LayeredOptions::LAYERING_LAYER_ID)
                 .unwrap_or(-1);
@@ -526,16 +519,14 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
 
         // Java parity: set node label positions only when node/label placement is configured.
         for label in &labels {
-            let label_has_label_placement = label
-                .lock_ok()
-                .map(|mut label_guard| {
-                    label_guard
-                        .shape()
-                        .graph_element()
-                        .properties()
-                        .has_property(LayeredOptions::NODE_LABELS_PLACEMENT)
-                })
-                .unwrap_or(false);
+            let label_has_label_placement = {
+                let mut label_guard = label.lock();
+                label_guard
+                    .shape()
+                    .graph_element()
+                    .properties()
+                    .has_property(LayeredOptions::NODE_LABELS_PLACEMENT)
+            };
             if node_has_label_placement || label_has_label_placement {
                 self.apply_label_layout_with_size(label);
             }
@@ -544,10 +535,7 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
 
     fn apply_port_layout(&self, lport: &LPortRef, apply_labels: bool) {
         let (origin, position, size, labels, side) = {
-            let mut port_guard = match lport.lock_ok() {
-            Some(guard) => guard,
-            None => return,
-            };
+            let mut port_guard = lport.lock();
             let origin = port_guard.get_property(InternalProperties::ORIGIN);
             let position = *port_guard.shape().position_ref();
             let size = *port_guard.shape().size_ref();
@@ -583,10 +571,7 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
 
     fn apply_label_layout_with_size(&self, llabel: &LLabelRef) {
         let (origin, position, size) = {
-            let mut label_guard = match llabel.lock_ok() {
-            Some(guard) => guard,
-            None => return,
-            };
+            let mut label_guard = llabel.lock();
             let origin = label_guard.get_property(InternalProperties::ORIGIN);
             let position = *label_guard.shape().position_ref();
             let size = *label_guard.shape().size_ref();
@@ -614,10 +599,7 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
         edge_routing: EdgeRouting,
     ) {
         let (source, target, labels) = {
-            let edge_guard = match ledge.lock_ok() {
-            Some(guard) => guard,
-            None => return,
-            };
+            let edge_guard = ledge.lock();
             let source = edge_guard.source();
             let target = edge_guard.target();
             let labels = edge_guard.labels().clone();
@@ -660,10 +642,10 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
                 edge_mut.element().identifier().map(|id| id.to_string())
             };
             if edge_id_str.as_deref() == Some("e2") {
-                let bend_count = ledge
-                    .lock_ok()
-                    .map(|edge_guard| edge_guard.bend_points_ref().len())
-                    .unwrap_or(0);
+                let bend_count = {
+                    let edge_guard = ledge.lock();
+                    edge_guard.bend_points_ref().len()
+                };
                 eprintln!(
                     "[transferrer] e2 apply_layout source_present={} target_present={} bendpoints={}",
                     source.is_some(),
@@ -681,10 +663,16 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
         // Determine source and target nodes for the is_descendant check
         let source_node = source
             .as_ref()
-            .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
+            .and_then(|port| {
+                let port_guard = port.lock();
+                port_guard.node()
+            });
         let target_node = target
             .as_ref()
-            .and_then(|port| port.lock_ok().and_then(|port_guard| port_guard.node()));
+            .and_then(|port| {
+                let port_guard = port.lock();
+                port_guard.node()
+            });
 
         // Source point logic
         let source_is_descendant_parent = match (&target_node, &source_node) {
@@ -698,22 +686,22 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
             // Note: uses port position + anchor (relative to node), NOT absolute anchor
             source
                 .as_ref()
-                .and_then(|port| {
-                    let mut port_guard = port.lock_ok()?;
+                .map(|port| {
+                    let mut port_guard = port.lock();
                     let port_pos = *port_guard.shape().position_ref();
                     let anchor = *port_guard.anchor_ref();
-                    Some(KVector::with_values(
+                    KVector::with_values(
                         port_pos.x + anchor.x - offset.x,
                         port_pos.y + anchor.y - offset.y,
-                    ))
+                    )
                 })
                 .unwrap_or_else(KVector::new)
         } else {
             source
                 .as_ref()
                 .and_then(|port| {
-                    port.lock_ok()
-                        .and_then(|port_guard| port_guard.absolute_anchor())
+                    let port_guard = port.lock();
+                    port_guard.absolute_anchor()
                 })
                 .unwrap_or_else(KVector::new)
         };
@@ -722,15 +710,16 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
         let mut end = target
             .as_ref()
             .and_then(|port| {
-                port.lock_ok()
-                    .and_then(|port_guard| port_guard.absolute_anchor())
+                let port_guard = port.lock();
+                port_guard.absolute_anchor()
             })
             .unwrap_or_else(KVector::new);
 
         // Add TARGET_OFFSET if present
-        let target_offset = ledge
-            .lock_ok()
-            .and_then(|mut edge_guard| edge_guard.get_property(InternalProperties::TARGET_OFFSET));
+        let target_offset = {
+            let mut edge_guard = ledge.lock();
+            edge_guard.get_property(InternalProperties::TARGET_OFFSET)
+        };
         if let Some(to) = target_offset {
             end.x += to.x;
             end.y += to.y;
@@ -846,10 +835,7 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
         // Apply label positions with edge_offset (Java also sets dimensions)
         for label in &labels {
             let (label_origin, label_position, label_size, include_label) = {
-                let mut label_guard = match label.lock_ok() {
-            Some(guard) => guard,
-            None => continue,
-                };
+                let mut label_guard = label.lock();
                 let origin = label_guard.get_property(InternalProperties::ORIGIN);
                 let position = *label_guard.shape().position_ref();
                 let size = *label_guard.shape().size_ref();
@@ -885,9 +871,10 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
         }
 
         // Copy junction points (offset them) or set to None
-        let junction_points = ledge
-            .lock_ok()
-            .and_then(|mut edge_guard| edge_guard.get_property(LayeredOptions::JUNCTION_POINTS));
+        let junction_points = {
+            let mut edge_guard = ledge.lock();
+            edge_guard.get_property(LayeredOptions::JUNCTION_POINTS)
+        };
 
         {
             let mut edge_mut = elk_edge.borrow_mut();
@@ -923,19 +910,27 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
     }
 
     fn calculate_hierarchical_offset(&self, ledge: &LEdgeRef) -> KVector {
-        let target_graph = ledge.lock_ok().and_then(|mut edge_guard| {
+        let target_graph = {
+            let mut edge_guard = ledge.lock();
             edge_guard.get_property(InternalProperties::COORDINATE_SYSTEM_ORIGIN)
-        });
+        };
         let Some(target_graph) = target_graph else {
             return KVector::new();
         };
 
         let mut result = KVector::new();
-        let current_graph = ledge
-            .lock_ok()
-            .and_then(|edge_guard| edge_guard.source())
-            .and_then(|source| source.lock_ok().and_then(|port_guard| port_guard.node()))
-            .and_then(|node| node.lock_ok().and_then(|node_guard| node_guard.graph()));
+        let current_graph = {
+            let edge_guard = ledge.lock();
+            edge_guard.source()
+                .and_then(|source| {
+                    let port_guard = source.lock();
+                    port_guard.node()
+                })
+                .and_then(|node| {
+                    let node_guard = node.lock();
+                    node_guard.graph()
+                })
+        };
 
         let Some(mut current_graph) = current_graph else {
             return result;
@@ -953,10 +948,7 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
             // The previous implementation used the current graph's offset/padding,
             // which over-shifts hierarchical edge sections for nested sources.
             let parent_node = {
-                let graph_guard = match current_graph.lock_ok() {
-            Some(guard) => guard,
-            None => break,
-                };
+                let graph_guard = current_graph.lock();
                 graph_guard.parent_node()
             };
             let Some(parent_node) = parent_node else {
@@ -964,10 +956,7 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
             };
 
             let (parent_pos, parent_graph) = {
-                let mut node_guard = match parent_node.lock_ok() {
-            Some(guard) => guard,
-            None => break,
-                };
+                let mut node_guard = parent_node.lock();
                 (*node_guard.shape().position_ref(), node_guard.graph())
             };
             let Some(parent_graph) = parent_graph else {
@@ -975,10 +964,7 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
             };
 
             let (parent_offset, parent_padding) = {
-                let parent_graph_guard = match parent_graph.lock_ok() {
-            Some(guard) => guard,
-            None => break,
-                };
+                let parent_graph_guard = parent_graph.lock();
                 (
                     *parent_graph_guard.offset_ref(),
                     parent_graph_guard.padding_ref().clone(),
@@ -1063,10 +1049,7 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
     /// This is analogous to HierarchicalNodeResizingProcessor::resizeGraphNoReallyIMeanIt.
     fn apply_content_alignment_offset(&self, lgraph: &LGraphRef, offset: &mut KVector) {
         let (size_constraint, content_alignment, calculated_size) = {
-            let graph_guard = match lgraph.lock_ok() {
-            Some(guard) => guard,
-            None => return,
-            };
+            let graph_guard = lgraph.lock();
             let size_constraint = graph_guard
                 .get_property_ref(LayeredOptions::NODE_SIZE_CONSTRAINTS)
                 .unwrap_or_else(EnumSet::none_of);
@@ -1083,15 +1066,17 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
         }
 
         // Get minimum size (same logic as HierarchicalNodeResizingProcessor::resize_graph)
-        let mut min_size = lgraph
-            .lock_ok()
-            .and_then(|g| g.get_property_ref(LayeredOptions::NODE_SIZE_MINIMUM))
-            .unwrap_or_default();
+        let mut min_size = {
+            let g = lgraph.lock();
+            g.get_property_ref(LayeredOptions::NODE_SIZE_MINIMUM)
+                .unwrap_or_default()
+        };
 
-        let size_options = lgraph
-            .lock_ok()
-            .and_then(|g| g.get_property_ref(CoreOptions::NODE_SIZE_OPTIONS))
-            .unwrap_or_else(EnumSet::none_of);
+        let size_options = {
+            let g = lgraph.lock();
+            g.get_property_ref(CoreOptions::NODE_SIZE_OPTIONS)
+                .unwrap_or_else(EnumSet::none_of)
+        };
 
         if size_options.contains(&SizeOptions::DefaultMinimumSize) {
             if min_size.x <= 0.0 {
@@ -1128,48 +1113,48 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
 }
 
 fn uses_network_simplex_flexible_size(lnode: &LNodeRef) -> bool {
-    let graph_ref = lnode.lock_ok().and_then(|node_guard| node_guard.graph());
+    let graph_ref = {
+        let node_guard = lnode.lock();
+        node_guard.graph()
+    };
     let Some(graph_ref) = graph_ref else {
         return false;
     };
 
-    let node_placement_strategy = graph_ref
-        .lock_ok()
-        .and_then(|mut graph_guard| {
-            graph_guard.get_property(LayeredOptions::NODE_PLACEMENT_STRATEGY)
-        })
-        .unwrap_or_default();
+    let node_placement_strategy = {
+        let mut graph_guard = graph_ref.lock();
+        graph_guard.get_property(LayeredOptions::NODE_PLACEMENT_STRATEGY)
+            .unwrap_or_default()
+    };
     if node_placement_strategy != NodePlacementStrategy::NetworkSimplex {
         return false;
     }
 
-    let node_flexibility = lnode
-        .lock_ok()
-        .and_then(|mut node_guard| {
-            if node_guard
-                .shape()
-                .graph_element()
-                .properties()
-                .has_property(LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY)
-            {
-                node_guard.get_property(
-                    LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY,
-                )
-            } else {
-                None
-            }
-        })
-        .or_else(|| {
-            graph_ref.lock_ok().and_then(|mut graph_guard| {
-                graph_guard.get_property(
-                    LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_DEFAULT,
-                )
-            })
-        })
-        .or_else(|| {
-            LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_DEFAULT.get_default()
-        })
-        .unwrap_or(NodeFlexibility::None);
+    let node_flexibility = {
+        let mut node_guard = lnode.lock();
+        if node_guard
+            .shape()
+            .graph_element()
+            .properties()
+            .has_property(LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY)
+        {
+            node_guard.get_property(
+                LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY,
+            )
+        } else {
+            None
+        }
+    }
+    .or_else(|| {
+        let mut graph_guard = graph_ref.lock();
+        graph_guard.get_property(
+            LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_DEFAULT,
+        )
+    })
+    .or_else(|| {
+        LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_DEFAULT.get_default()
+    })
+    .unwrap_or(NodeFlexibility::None);
 
     node_flexibility.is_flexible_size_where_space_permits()
 }
@@ -1189,12 +1174,11 @@ fn collect_nodes_from_graph(
     }
 
     for layer in graph.layers() {
-        if let Some(layer_guard) = layer.lock_ok() {
-            for node in layer_guard.nodes() {
-                let key = Arc::as_ptr(node) as usize;
-                if seen.insert(key) {
-                    nodes.push(node.clone());
-                }
+        let layer_guard = layer.lock();
+        for node in layer_guard.nodes() {
+            let key = Arc::as_ptr(node) as usize;
+            if seen.insert(key) {
+                nodes.push(node.clone());
             }
         }
     }
