@@ -16,7 +16,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, IElkProgressM
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::nodespacing::node_dimension_calculation::NodeDimensionCalculation;
 use crate::org::eclipse::elk::alg::layered::graph::transform::LGraphAdapters;
 use crate::org::eclipse::elk::alg::layered::graph::{
-    LEdge, LGraph, LGraphUtil, LNode, LNodeRef, LPort, LayerRef, NodeRefKey, NodeType,
+    ArenaSync, LEdge, LGraph, LGraphUtil, LNode, LNodeRef, LPort, LayerRef, NodeRefKey, NodeType,
 };
 use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions};
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::orthogonal_routing_generator::OrthogonalRoutingGenerator;
@@ -607,6 +607,7 @@ impl HierarchicalPortOrthogonalEdgeRouter {
         }
 
         if !northern_source_layer.is_empty() {
+            let sync = ArenaSync::from_lgraph(layered_graph);
             let mut routing_generator = OrthogonalRoutingGenerator::new(
                 RoutingDirection::SouthToNorth,
                 edge_spacing,
@@ -619,6 +620,7 @@ impl HierarchicalPortOrthogonalEdgeRouter {
                 0,
                 Some(&northern_target_layer),
                 -node_spacing - layered_graph.offset_ref().y,
+                &sync,
             );
             if slots > 0 {
                 self.northern_ext_port_edge_routing_height =
@@ -640,6 +642,7 @@ impl HierarchicalPortOrthogonalEdgeRouter {
         }
 
         if !southern_source_layer.is_empty() {
+            let sync = ArenaSync::from_lgraph(layered_graph);
             let mut routing_generator = OrthogonalRoutingGenerator::new(
                 RoutingDirection::NorthToSouth,
                 edge_spacing,
@@ -652,6 +655,7 @@ impl HierarchicalPortOrthogonalEdgeRouter {
                 0,
                 Some(&southern_target_layer),
                 layered_graph.size_ref().y + node_spacing - layered_graph.offset_ref().y,
+                &sync,
             );
             if slots > 0 {
                 layered_graph.size().y += node_spacing + (slots as f64 - 1.0) * edge_spacing;

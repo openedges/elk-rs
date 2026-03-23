@@ -4,7 +4,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutP
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, IElkProgressMonitor};
 
-use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LGraphUtil};
+use crate::org::eclipse::elk::alg::layered::graph::{ArenaSync, LGraph, LGraphUtil};
 use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorStrategy;
 use crate::org::eclipse::elk::alg::layered::options::{
     GraphProperties, InternalProperties, LayeredOptions,
@@ -187,6 +187,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
             Some("phase5".to_string()),
         );
 
+        let sync = ArenaSync::from_lgraph(layered_graph);
+
         let layers = layered_graph.layers().clone();
         if ElkTrace::global().compound_width {
             let layer_info: Vec<String> = layers.iter().enumerate().map(|(i, layer)| {
@@ -244,6 +246,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
                 left_layer_index,
                 right_layer_nodes.as_deref(),
                 start_pos,
+                &sync,
             );
 
             let is_left_layer_external = match left_layer_nodes.as_deref() {
