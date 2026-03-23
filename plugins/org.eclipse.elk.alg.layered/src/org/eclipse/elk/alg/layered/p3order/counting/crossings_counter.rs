@@ -664,7 +664,48 @@ impl CrossingsCounter {
         let mut index: i32 = 0;
 
         for current in nodes {
-            if is_layout_unit_changed(last_layout_unit.as_ref(), current) {
+            // ── Single lock per node: extract node_type, layout_unit, and side ports ──
+            // Replaces 5-8 separate locks per node with 1.
+            let (node_type_val, layout_unit, north_ports, south_ports, west_ports, east_nonempty) = {
+                let mut ng = current.lock();
+                let nt = if let Some(ref snap) = self.snapshot {
+                    snap.node_type_of(snap.node_flat_index(current))
+                } else {
+                    ng.node_type()
+                };
+                let ilu = ng.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT);
+                match nt {
+                    NodeType::Normal => {
+                        let n = ng.port_side_view(PortSide::North);
+                        let s = ng.port_side_view(PortSide::South);
+                        (nt, ilu, n, s, Vec::new(), false)
+                    }
+                    NodeType::NorthSouthPort => {
+                        let w = ng.port_side_view(INDEXING_SIDE);
+                        let e_ne = !ng.port_side_view(STACK_SIDE).is_empty();
+                        (nt, ilu, Vec::new(), Vec::new(), w, e_ne)
+                    }
+                    NodeType::LongEdge => {
+                        let w = ng.port_side_view(PortSide::West);
+                        let e_ne = !ng.port_side_view(PortSide::East).is_empty();
+                        (nt, ilu, Vec::new(), Vec::new(), w, e_ne)
+                    }
+                    _ => (nt, ilu, Vec::new(), Vec::new(), Vec::new(), false),
+                }
+            };
+
+            // Layout unit change check (zero locks)
+            let ilu_changed = match &last_layout_unit {
+                None => false,
+                Some(last) => {
+                    if Arc::ptr_eq(last, current) {
+                        false
+                    } else {
+                        layout_unit.as_ref().map_or(false, |u| !Arc::ptr_eq(u, last))
+                    }
+                }
+            };
+            if ilu_changed {
                 index = empty_stack(
                     &mut stack,
                     &mut ports,
@@ -674,22 +715,14 @@ impl CrossingsCounter {
                     &self.snapshot,
                 );
             }
-            if node_has_property(current, InternalProperties::IN_LAYER_LAYOUT_UNIT) {
-                last_layout_unit = {
-                    let node_guard = current.lock();
-                    node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
-                };
+            if layout_unit.is_some() {
+                last_layout_unit = layout_unit;
             }
 
-            let node_type = if let Some(ref snap) = self.snapshot {
-                snap.node_type_of(snap.node_flat_index(current))
-            } else {
-                current
-                    .lock().node_type()
-            };
-            match node_type {
+            match node_type_val {
                 NodeType::Normal => {
-                    for port in get_north_south_ports_with_incident_edges(current, PortSide::North)
+                    for port in north_ports.into_iter()
+                        .filter(|p| port_has_property(p, InternalProperties::PORT_DUMMY))
                     {
                         let pid = self.port_id_of(&port);
                         set_port_position(&mut self.port_positions, pid, index);
@@ -706,7 +739,8 @@ impl CrossingsCounter {
                         &self.snapshot,
                     );
 
-                    for port in get_north_south_ports_with_incident_edges(current, PortSide::South)
+                    for port in south_ports.into_iter()
+                        .filter(|p| port_has_property(p, InternalProperties::PORT_DUMMY))
                     {
                         let pid = self.port_id_of(&port);
                         set_port_position(&mut self.port_positions, pid, index);
@@ -715,40 +749,24 @@ impl CrossingsCounter {
                     }
                 }
                 NodeType::NorthSouthPort => {
-                    let west_ports = {
-                        let mut node_guard = current.lock();
-                        node_guard.port_side_view(INDEXING_SIDE)
-                    };
                     if let Some(port) = west_ports.first() {
                         let pid = self.port_id_of(port);
                         set_port_position(&mut self.port_positions, pid, index);
                         index += 1;
                         ports.push(port.clone());
                     }
-                    let east_ports = {
-                        let mut node_guard = current.lock();
-                        node_guard.port_side_view(STACK_SIDE)
-                    };
-                    if !east_ports.is_empty() {
+                    if east_nonempty {
                         stack.push(current.clone());
                     }
                 }
                 NodeType::LongEdge => {
-                    for port in {
-                        let mut node_guard = current.lock();
-                        node_guard.port_side_view(PortSide::West)
-                    }
-                    {
-                        let pid = self.port_id_of(&port);
+                    for port in &west_ports {
+                        let pid = self.port_id_of(port);
                         set_port_position(&mut self.port_positions, pid, index);
                         index += 1;
-                        ports.push(port);
+                        ports.push(port.clone());
                     }
-                    let east_ports = {
-                        let mut node_guard = current.lock();
-                        node_guard.port_side_view(PortSide::East)
-                    };
-                    if !east_ports.is_empty() {
+                    if east_nonempty {
                         stack.push(current.clone());
                     }
                 }
@@ -1051,47 +1069,6 @@ fn is_port_self_loop(edge: &LEdgeRef) -> bool {
 
 fn port_ptr_id(port: &LPortRef) -> usize {
     Arc::as_ptr(port) as usize
-}
-
-fn node_has_property(
-    node: &LNodeRef,
-    property: &org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property<LNodeRef>,
-) -> bool {
-    let mut node_guard = node.lock();
-    node_guard
-        .shape()
-        .graph_element()
-        .properties()
-        .has_property(property)
-}
-
-fn is_layout_unit_changed(last_unit: Option<&LNodeRef>, node: &LNodeRef) -> bool {
-    let Some(last_unit) = last_unit else {
-        return false;
-    };
-    if Arc::ptr_eq(last_unit, node) {
-        return false;
-    }
-    if !node_has_property(node, InternalProperties::IN_LAYER_LAYOUT_UNIT) {
-        return false;
-    }
-    let unit = {
-        let node_guard = node.lock();
-        node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
-    };
-    match unit {
-        Some(unit) => !Arc::ptr_eq(&unit, last_unit),
-        None => false,
-    }
-}
-
-fn get_north_south_ports_with_incident_edges(node: &LNodeRef, side: PortSide) -> Vec<LPortRef> {
-    let mut node_guard = node.lock();
-    node_guard
-        .port_side_view(side)
-        .into_iter()
-        .filter(|port| port_has_property(port, InternalProperties::PORT_DUMMY))
-        .collect::<Vec<_>>()
 }
 
 fn port_has_property(
