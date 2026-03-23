@@ -66,12 +66,10 @@ impl LongEdgeJoiner {
             .lock().outgoing_edges().clone();
         let mut edge_count = input_edges.len().min(output_edges.len());
 
-        let unnecessary_bendpoint = long_edge_dummy
-            .lock()
-            .ports()
-            .first()
-            .cloned()
-            .and_then(|port| port.lock().absolute_anchor());
+        let unnecessary_bendpoint = {
+            let first_port = long_edge_dummy.lock().ports().first().cloned();
+            first_port.and_then(|port| port.lock().absolute_anchor())
+        };
 
         while edge_count > 0 {
             edge_count -= 1;
