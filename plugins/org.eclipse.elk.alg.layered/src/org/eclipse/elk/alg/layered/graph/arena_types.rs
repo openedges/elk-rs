@@ -11,6 +11,11 @@ impl NodeId {
     pub const NONE: Self = NodeId(u32::MAX);
 
     #[inline]
+    pub fn new(i: usize) -> Self {
+        NodeId(i as u32)
+    }
+
+    #[inline]
     pub fn is_none(self) -> bool {
         self.0 == u32::MAX
     }
@@ -27,6 +32,11 @@ pub struct PortId(pub u32);
 
 impl PortId {
     pub const NONE: Self = PortId(u32::MAX);
+
+    #[inline]
+    pub fn new(i: usize) -> Self {
+        PortId(i as u32)
+    }
 
     #[inline]
     pub fn is_none(self) -> bool {
@@ -47,6 +57,11 @@ impl EdgeId {
     pub const NONE: Self = EdgeId(u32::MAX);
 
     #[inline]
+    pub fn new(i: usize) -> Self {
+        EdgeId(i as u32)
+    }
+
+    #[inline]
     pub fn is_none(self) -> bool {
         self.0 == u32::MAX
     }
@@ -65,6 +80,11 @@ impl LabelId {
     pub const NONE: Self = LabelId(u32::MAX);
 
     #[inline]
+    pub fn new(i: usize) -> Self {
+        LabelId(i as u32)
+    }
+
+    #[inline]
     pub fn is_none(self) -> bool {
         self.0 == u32::MAX
     }
@@ -81,6 +101,11 @@ pub struct LayerId(pub u32);
 
 impl LayerId {
     pub const NONE: Self = LayerId(u32::MAX);
+
+    #[inline]
+    pub fn new(i: usize) -> Self {
+        LayerId(i as u32)
+    }
 
     #[inline]
     pub fn is_none(self) -> bool {
