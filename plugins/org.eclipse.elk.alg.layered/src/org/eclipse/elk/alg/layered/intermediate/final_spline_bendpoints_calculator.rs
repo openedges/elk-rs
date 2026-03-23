@@ -232,9 +232,12 @@ impl FinalSplineBendpointsCalculator {
         if let Some(source_port) = segment.source_port.as_ref() {
             let src_node = source_port.lock().node();
             if let Some(src_node) = src_node {
-                let src_layer = src_node.lock().layer();
+                let (src_layer, node_id) = {
+                    let mut g = src_node.lock();
+                    (g.layer(), g.shape().graph_element().id as isize)
+                };
                 if src_layer.is_some() && edge_info.normal_source_node {
-                    let node_id = src_node.lock().shape().graph_element().id as isize;
+                    let node_id = node_id;
                     let layer_nodes = src_layer
                         .as_ref()
                         .map(|layer| layer.lock().nodes().clone())
@@ -266,9 +269,12 @@ impl FinalSplineBendpointsCalculator {
         if let Some(target_port) = segment.target_port.as_ref() {
             let tgt_node = target_port.lock().node();
             if let Some(tgt_node) = tgt_node {
-                let tgt_layer = tgt_node.lock().layer();
+                let (tgt_layer, node_id) = {
+                    let mut g = tgt_node.lock();
+                    (g.layer(), g.shape().graph_element().id as isize)
+                };
                 if tgt_layer.is_some() && edge_info.normal_target_node {
-                    let node_id = tgt_node.lock().shape().graph_element().id as isize;
+                    let node_id = node_id;
                     let layer_nodes = tgt_layer
                         .as_ref()
                         .map(|layer| layer.lock().nodes().clone())

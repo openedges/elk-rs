@@ -125,8 +125,10 @@ fn create_label_dummy(
     thickness: f64,
 ) -> LNodeRef {
     let dummy_node = LNode::new(graph);
-    let source = edge.lock().source();
-    let target = edge.lock().target();
+    let (source, target) = {
+        let g = edge.lock();
+        (g.source(), g.target())
+    };
     {
         let mut dummy_guard = dummy_node.lock();
         dummy_guard.set_node_type(NodeType::Label);

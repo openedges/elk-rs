@@ -208,10 +208,8 @@ fn move_head_labels(old_edge: &LEdgeRef, new_edge: &LEdgeRef) {
 }
 
 fn set_dummy_node_properties(dummy_node: &LNodeRef, in_edge: &LEdgeRef, out_edge: &LEdgeRef) {
-    let in_edge_source = in_edge
-        .lock().source();
-    let out_edge_target = out_edge
-        .lock().target();
+    let in_edge_source = in_edge.lock().source();
+    let out_edge_target = out_edge.lock().target();
 
     let in_edge_source_node = in_edge_source
         .as_ref()
