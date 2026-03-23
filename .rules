@@ -63,11 +63,11 @@
   - NAPI 플랫폼별 패키지 6개 추가 완료: `@elk-rs/darwin-arm64`, `@elk-rs/darwin-x64`, `@elk-rs/linux-x64-gnu`, `@elk-rs/linux-x64-musl`, `@elk-rs/linux-arm64-gnu`, `@elk-rs/win32-x64-msvc`
   - 로딩 우선순위: 플랫폼 NAPI 패키지 → 로컬 `.node` → WASM 폴백
   - CI/CD: `.github/workflows/napi.yml` (태그 push 시 6 플랫폼 크로스 빌드 + npm publish)
-- **성능 기준선 (6-way fair benchmark, synthetic 10/3, 2026-03-23 측정, ~3.45x)**:
+- **성능 기준선 (6-way fair benchmark, synthetic 10/3, 2026-03-23 측정, ~3.88x)**:
   - 측정 머신: MacBook Pro (Mac15,6), Apple M3 Pro (11코어: 5P+6E), 36GB RAM, macOS 26.3
   - 툴체인: Rust 1.93.1, OpenJDK 21.0.10, Node.js 22.16.0
-  - 전체 26 시나리오 평균: java 87.9ms, rust_native **25.5ms** → Rust **~3.45x faster**
-  - 이전 3.90x → 3.45x: get_property(&self) 비캐시 전환으로 default 재계산 오버헤드 발생, 향후 Phase C(Arena)에서 회복 예상
+  - 전체 26 시나리오 평균: java 87.9ms, rust_native **22.7ms** → Rust **~3.88x faster**
+  - Phase C Arena 전환으로 Force/Stress lock overhead 제거 → 3.45x → 3.88x 회복 (기준 3.90x 대비 0.5% 이내)
   - API 그룹: rust_api ~9-64x faster than elkjs (동일 JSON parse+layout+serialize 경로)
   - 6-way 공정성: 동일 LCG seed + rejection sampling DAG + max_attempts=edges*100 + 동일 타이밍 범위
   - **MRTree P4 EdgeRouter adjacency map optimization** (Phase 28): edge adjacency maps (O(E) pre-build, O(N*E) → O(1) per-node lookup), level-node pre-sorted map, cycle_inducing pre-computed set, MultiLevelEdgeNodeNodeGap graph lock 제거. mrtree_xlarge 26.9ms → 6.58ms (4.09x speedup)
