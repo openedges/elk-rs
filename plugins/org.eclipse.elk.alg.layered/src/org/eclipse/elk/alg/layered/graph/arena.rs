@@ -149,6 +149,11 @@ impl LArena {
     }
 
     #[inline]
+    pub fn set_node_type(&mut self, id: NodeId, node_type: NodeType) {
+        self.node_type[id.idx()] = node_type;
+    }
+
+    #[inline]
     pub fn node_margin(&self, id: NodeId) -> &LMargin {
         &self.node_margin[id.idx()]
     }
@@ -213,6 +218,11 @@ impl LArena {
     #[inline]
     pub fn port_side(&self, id: PortId) -> PortSide {
         self.port_side[id.idx()]
+    }
+
+    #[inline]
+    pub fn set_port_side(&mut self, id: PortId, side: PortSide) {
+        self.port_side[id.idx()] = side;
     }
 
     #[inline]
@@ -433,5 +443,94 @@ impl LArena {
             .iter()
             .map(|&eid| self.edge_target[eid.idx()])
             .collect()
+    }
+
+    // ── ID iterators ─────────────────────────────────────────────────
+
+    /// All node IDs in the arena.
+    #[inline]
+    pub fn all_node_ids(&self) -> impl Iterator<Item = NodeId> {
+        (0..self.n_nodes as usize).map(NodeId::new)
+    }
+
+    /// All port IDs in the arena.
+    #[inline]
+    pub fn all_port_ids(&self) -> impl Iterator<Item = PortId> {
+        (0..self.n_ports as usize).map(PortId::new)
+    }
+
+    /// All edge IDs in the arena.
+    #[inline]
+    pub fn all_edge_ids(&self) -> impl Iterator<Item = EdgeId> {
+        (0..self.n_edges as usize).map(EdgeId::new)
+    }
+
+    /// All label IDs in the arena.
+    #[inline]
+    pub fn all_label_ids(&self) -> impl Iterator<Item = LabelId> {
+        (0..self.n_labels as usize).map(LabelId::new)
+    }
+
+    /// All layer IDs in the arena.
+    #[inline]
+    pub fn all_layer_ids(&self) -> impl Iterator<Item = LayerId> {
+        (0..self.n_layers as usize).map(LayerId::new)
+    }
+
+    // ── Port reordering (for P3 crossing minimization) ───────────────
+
+    /// Reorder the ports of a node within the CSR structure.
+    /// `new_order` must be a permutation of the current port IDs for this node.
+    /// This modifies the `node_port_ids` slice in-place without changing CSR offsets.
+    pub fn reorder_node_ports(&mut self, node: NodeId, new_order: &[PortId]) {
+        let i = node.idx();
+        let start = self.node_port_offset[i] as usize;
+        let end = self.node_port_offset[i + 1] as usize;
+        let slice = &mut self.node_port_ids[start..end];
+        debug_assert_eq!(
+            slice.len(),
+            new_order.len(),
+            "reorder_node_ports: length mismatch"
+        );
+        slice.copy_from_slice(new_order);
+    }
+
+    /// Reorder nodes within a layer in the CSR structure.
+    /// `new_order` must be a permutation of the current node IDs for this layer.
+    pub fn reorder_layer_nodes(&mut self, layer: LayerId, new_order: &[NodeId]) {
+        let i = layer.idx();
+        let start = self.layer_node_offset[i] as usize;
+        let end = self.layer_node_offset[i + 1] as usize;
+        let slice = &mut self.layer_node_ids[start..end];
+        debug_assert_eq!(
+            slice.len(),
+            new_order.len(),
+            "reorder_layer_nodes: length mismatch"
+        );
+        slice.copy_from_slice(new_order);
+    }
+
+    // ── Convenience: ports by side ───────────────────────────────────
+
+    /// Get port IDs for a node filtered by side.
+    pub fn node_ports_by_side(&self, node: NodeId, side: PortSide) -> Vec<PortId> {
+        self.node_ports(node)
+            .iter()
+            .copied()
+            .filter(|&pid| self.port_side[pid.idx()] == side)
+            .collect()
+    }
+
+    /// Absolute anchor position of a port (port position + node position + anchor offset).
+    #[inline]
+    pub fn port_absolute_anchor(&self, port: PortId) -> KVector {
+        let node = self.port_owner[port.idx()];
+        let node_pos = self.node_pos[node.idx()];
+        let port_pos = self.port_pos[port.idx()];
+        let anchor = self.port_anchor[port.idx()];
+        KVector::with_values(
+            node_pos.x + port_pos.x + anchor.x,
+            node_pos.y + port_pos.y + anchor.y,
+        )
     }
 }

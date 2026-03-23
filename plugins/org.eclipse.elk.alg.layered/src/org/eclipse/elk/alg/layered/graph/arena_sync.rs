@@ -9,7 +9,7 @@ use std::sync::Arc;
 use super::arena::LArena;
 use super::arena_builder::LArenaBuilder;
 use super::arena_types::*;
-use super::{LEdgeRef, LGraphRef, LLabelRef, LNodeRef, LPortRef, LayerRef};
+use super::{LEdgeRef, LGraph, LGraphRef, LLabelRef, LNodeRef, LPortRef, LayerRef};
 
 pub struct ArenaSync {
     arena: LArena,
@@ -135,6 +135,132 @@ impl ArenaSync {
                 // Edge labels
                 for label_ref in &edge_label_refs {
                     let label_id = add_label_to_builder(&mut builder, label_ref, &mut label_id_to_arc);
+                    builder.add_edge_label(edge_id, label_id);
+                }
+            }
+        }
+
+        let arena = builder.freeze();
+
+        ArenaSync {
+            arena,
+            node_arc_to_id,
+            port_arc_to_id,
+            edge_arc_to_id,
+            node_id_to_arc,
+            port_id_to_arc,
+            edge_id_to_arc,
+            label_id_to_arc,
+            layer_id_to_arc,
+        }
+    }
+
+    /// Build an arena from an already-borrowed `&LGraph`.
+    ///
+    /// Use this in processors that receive `&mut LGraph` instead of `&LGraphRef`.
+    /// Same two-pass logic as [`Self::from_graph`] but skips the graph-level lock.
+    pub fn from_lgraph(graph: &LGraph) -> Self {
+        let mut builder = LArenaBuilder::new();
+
+        let mut node_arc_to_id: FxHashMap<usize, NodeId> = FxHashMap::default();
+        let mut port_arc_to_id: FxHashMap<usize, PortId> = FxHashMap::default();
+        let mut edge_arc_to_id: FxHashMap<usize, EdgeId> = FxHashMap::default();
+
+        let mut node_id_to_arc: Vec<LNodeRef> = Vec::new();
+        let mut port_id_to_arc: Vec<LPortRef> = Vec::new();
+        let mut edge_id_to_arc: Vec<LEdgeRef> = Vec::new();
+        let mut label_id_to_arc: Vec<LLabelRef> = Vec::new();
+        let mut layer_id_to_arc: Vec<LayerRef> = Vec::new();
+
+        // No graph lock needed — we already have &LGraph
+        let layer_refs = graph.layers();
+        let layerless_refs = graph.layerless_nodes();
+
+        // ── Pass 1: layers, nodes, ports, labels ────────────────────
+
+        for layer_ref in layer_refs {
+            let (layer_size, layer_eid, node_refs) = {
+                let mut layer_guard = layer_ref.lock();
+                let size = *layer_guard.size_ref();
+                let eid = layer_guard.graph_element().id;
+                let nodes = layer_guard.nodes().clone();
+                (size, eid, nodes)
+            };
+
+            let layer_id = builder.add_layer(layer_size, layer_eid);
+            layer_id_to_arc.push(layer_ref.clone());
+
+            for node_ref in &node_refs {
+                let node_id = add_node_to_builder(
+                    &mut builder,
+                    node_ref,
+                    &mut node_arc_to_id,
+                    &mut node_id_to_arc,
+                    &mut port_arc_to_id,
+                    &mut port_id_to_arc,
+                    &mut label_id_to_arc,
+                );
+                builder.set_node_layer(node_id, layer_id);
+            }
+        }
+
+        // Handle layerless nodes
+        for node_ref in layerless_refs {
+            add_node_to_builder(
+                &mut builder,
+                node_ref,
+                &mut node_arc_to_id,
+                &mut node_id_to_arc,
+                &mut port_arc_to_id,
+                &mut port_id_to_arc,
+                &mut label_id_to_arc,
+            );
+        }
+
+        // ── Pass 2: edges and edge labels ───────────────────────────
+
+        for port_ref in &port_id_to_arc {
+            let outgoing = {
+                let port_guard = port_ref.lock();
+                port_guard.outgoing_edges().clone()
+            };
+
+            for edge_ref in &outgoing {
+                let edge_ptr = Arc::as_ptr(edge_ref) as usize;
+                if edge_arc_to_id.contains_key(&edge_ptr) {
+                    continue;
+                }
+
+                let (src_port_ref, tgt_port_ref, bend_points, eid, props, edge_label_refs) = {
+                    let mut edge_guard = edge_ref.lock();
+                    let src = edge_guard.source().unwrap();
+                    let tgt = edge_guard.target().unwrap();
+                    let bp = edge_guard.bend_points_ref().clone();
+                    let eid = edge_guard.graph_element().id;
+                    let props = edge_guard.graph_element().properties().clone();
+                    let labels = edge_guard.labels().clone();
+                    (src, tgt, bp, eid, props, labels)
+                };
+
+                let src_ptr = Arc::as_ptr(&src_port_ref) as usize;
+                let tgt_ptr = Arc::as_ptr(&tgt_port_ref) as usize;
+
+                let src_pid = match port_arc_to_id.get(&src_ptr) {
+                    Some(&pid) => pid,
+                    None => continue,
+                };
+                let tgt_pid = match port_arc_to_id.get(&tgt_ptr) {
+                    Some(&pid) => pid,
+                    None => continue,
+                };
+
+                let edge_id = builder.add_edge(src_pid, tgt_pid, bend_points, eid, props);
+                edge_arc_to_id.insert(edge_ptr, edge_id);
+                edge_id_to_arc.push(edge_ref.clone());
+
+                for label_ref in &edge_label_refs {
+                    let label_id =
+                        add_label_to_builder(&mut builder, label_ref, &mut label_id_to_arc);
                     builder.add_edge_label(edge_id, label_id);
                 }
             }
@@ -285,6 +411,28 @@ impl ArenaSync {
             let mut guard = edge_ref.lock();            let bp = guard.bend_points();
             let arena_bp = self.arena.edge_bend_points(id);
             *bp = arena_bp.clone();
+        }
+    }
+
+    /// Write arena layer sizes back to the Arc graph.
+    pub fn sync_layer_sizes_to_graph(&self) {
+        for (i, layer_ref) in self.layer_id_to_arc.iter().enumerate() {
+            let layer_id = LayerId(i as u32);
+            let arena_size = self.arena.layer_size(layer_id);
+            let mut layer_guard = layer_ref.lock();
+            let size = layer_guard.size();
+            size.x = arena_size.x;
+            size.y = arena_size.y;
+        }
+    }
+
+    /// Write arena node properties back to the Arc graph.
+    pub fn sync_node_properties_to_graph(&self) {
+        for (i, node_ref) in self.node_id_to_arc.iter().enumerate() {
+            let id = NodeId(i as u32);
+            let mut guard = node_ref.lock();
+            *guard.shape().graph_element().properties_mut() =
+                self.arena.node_properties(id).clone();
         }
     }
 }

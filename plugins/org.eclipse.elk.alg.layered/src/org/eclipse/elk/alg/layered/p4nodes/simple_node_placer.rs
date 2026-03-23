@@ -4,7 +4,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutP
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
-use crate::org::eclipse::elk::alg::layered::graph::LGraph;
+use crate::org::eclipse::elk::alg::layered::graph::{ArenaSync, LGraph};
 use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorStrategy;
 use crate::org::eclipse::elk::alg::layered::options::{GraphProperties, InternalProperties};
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
@@ -44,62 +44,62 @@ impl ILayoutPhase<LayeredPhases, LGraph> for SimpleNodePlacer {
                 panic!("Missing spacings configuration for simple node placement");
             });
 
-        let layers = graph.layers().clone();
+        let mut sync = ArenaSync::from_lgraph(graph);
+
+        let layer_ids: Vec<_> = sync.arena().all_layer_ids().collect();
         let mut max_height = 0.0;
 
-        for layer_ref in layers.iter() {
-            let nodes = layer_ref
-                .lock().nodes().clone();
+        // First pass: compute layer heights
+        for &layer_id in &layer_ids {
+            let node_ids: Vec<_> = sync.arena().layer_nodes(layer_id).to_vec();
 
             let mut layer_height = 0.0;
-            let mut last_node = None;
-            for node in nodes.iter() {
-                if let Some(prev) = &last_node {
-                    layer_height += spacings.get_vertical_spacing(node, prev);
+            let mut last_nid = None;
+            for &nid in &node_ids {
+                if let Some(prev_nid) = last_nid {
+                    let node_ref = sync.node_ref(nid);
+                    let prev_ref = sync.node_ref(prev_nid);
+                    layer_height += spacings.get_vertical_spacing(node_ref, prev_ref);
                 }
-                {
-                    let mut node_guard = node.lock();
-                    let size_y = node_guard.shape().size_ref().y;
-                    let margin_top = node_guard.margin().top;
-                    let margin_bottom = node_guard.margin().bottom;
-                    layer_height += margin_top + size_y + margin_bottom;
-                }
-                last_node = Some(node.clone());
+                let margin_top = sync.arena().node_margin(nid).top;
+                let size_y = sync.arena().node_size(nid).y;
+                let margin_bottom = sync.arena().node_margin(nid).bottom;
+                layer_height += margin_top + size_y + margin_bottom;
+                last_nid = Some(nid);
             }
 
-            {
-                let mut layer_guard = layer_ref.lock();
-                layer_guard.size().y = layer_height;
-            }
+            sync.arena_mut().layer_size_mut(layer_id).y = layer_height;
             if layer_height > max_height {
                 max_height = layer_height;
             }
         }
 
-        for layer_ref in layers.iter() {
-            let (layer_height, nodes) = {
-                let layer_guard = layer_ref.lock();
-                (layer_guard.size_ref().y, layer_guard.nodes().clone())
-            };
+        // Second pass: set node y-positions
+        for &layer_id in &layer_ids {
+            let layer_height = sync.arena().layer_size(layer_id).y;
+            let node_ids: Vec<_> = sync.arena().layer_nodes(layer_id).to_vec();
 
             let mut pos = (max_height - layer_height) / 2.0;
-            let mut last_node = None;
-            for node in nodes {
-                if let Some(prev) = &last_node {
-                    pos += spacings.get_vertical_spacing(&node, prev);
+            let mut last_nid = None;
+            for &nid in &node_ids {
+                if let Some(prev_nid) = last_nid {
+                    let node_ref = sync.node_ref(nid);
+                    let prev_ref = sync.node_ref(prev_nid);
+                    pos += spacings.get_vertical_spacing(node_ref, prev_ref);
                 }
-                {
-                    let mut node_guard = node.lock();
-                    let margin_top = node_guard.margin().top;
-                    let margin_bottom = node_guard.margin().bottom;
-                    let size_y = node_guard.shape().size_ref().y;
-                    pos += margin_top;
-                    node_guard.shape().position().y = pos;
-                    pos += size_y + margin_bottom;
-                }
-                last_node = Some(node);
+                let margin_top = sync.arena().node_margin(nid).top;
+                let size_y = sync.arena().node_size(nid).y;
+                let margin_bottom = sync.arena().node_margin(nid).bottom;
+                pos += margin_top;
+                sync.arena_mut().node_pos_mut(nid).y = pos;
+                pos += size_y + margin_bottom;
+                last_nid = Some(nid);
             }
         }
+
+        // Sync positions and layer sizes back to Arc graph
+        sync.sync_positions_to_graph();
+        sync.sync_layer_sizes_to_graph();
 
         monitor.done();
     }

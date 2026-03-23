@@ -1,7 +1,7 @@
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LGraph, NodeType};
+use crate::org::eclipse::elk::alg::layered::graph::{ArenaSync, LGraph, NodeType};
 use crate::org::eclipse::elk::alg::layered::options::LayeredOptions;
 
 pub struct ConstraintsPostprocessor;
@@ -10,23 +10,26 @@ impl ILayoutProcessor<LGraph> for ConstraintsPostprocessor {
     fn process(&mut self, graph: &mut LGraph, progress_monitor: &mut dyn IElkProgressMonitor) {
         progress_monitor.begin("Constraints Postprocessor", 1.0);
 
+        let mut sync = ArenaSync::from_lgraph(graph);
+
         let mut layer_index: i32 = 0;
-        for layer in graph.layers().clone() {
-            let nodes = layer
-                .lock().nodes().clone();
+        let layer_ids: Vec<_> = sync.arena().all_layer_ids().collect();
+        for layer_id in layer_ids {
+            let node_ids: Vec<_> = sync.arena().layer_nodes(layer_id).to_vec();
 
             let mut position_index: i32 = 0;
             let mut has_normal_node = false;
 
-            for node in nodes {
-                let mut node_guard = node.lock();
-                if node_guard.node_type() != NodeType::Normal {
+            for &nid in &node_ids {
+                if sync.arena().node_type(nid) != NodeType::Normal {
                     continue;
                 }
 
                 has_normal_node = true;
-                node_guard.set_property(LayeredOptions::LAYERING_LAYER_ID, Some(layer_index));
-                node_guard.set_property(
+                sync.arena_mut()
+                    .node_properties_mut(nid)
+                    .set_property(LayeredOptions::LAYERING_LAYER_ID, Some(layer_index));
+                sync.arena_mut().node_properties_mut(nid).set_property(
                     LayeredOptions::CROSSING_MINIMIZATION_POSITION_ID,
                     Some(position_index),
                 );
@@ -38,6 +41,9 @@ impl ILayoutProcessor<LGraph> for ConstraintsPostprocessor {
                 layer_index += 1;
             }
         }
+
+        // Sync node properties back to Arc graph
+        sync.sync_node_properties_to_graph();
 
         progress_monitor.done();
     }

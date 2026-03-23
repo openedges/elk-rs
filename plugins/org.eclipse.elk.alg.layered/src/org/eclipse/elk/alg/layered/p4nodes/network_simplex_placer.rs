@@ -15,7 +15,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, IElkProgressMonitor};
 
 use crate::org::eclipse::elk::alg::layered::graph::{
-    LEdgeRef, LGraph, LLabelRef, LNodeRef, LPortRef, LayerRef, NodeType,
+    ArenaSync, LEdgeRef, LGraph, LLabelRef, LNodeRef, LPortRef, LayerRef, NodeType,
 };
 use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorStrategy;
 use crate::org::eclipse::elk::alg::layered::options::{
@@ -59,6 +59,8 @@ pub struct NetworkSimplexPlacer {
     flexible_where_space_permits_edges: Vec<NEdgeRef>,
     // Raw graph pointer used to access graph properties without re-locking the graph mutex.
     graph_ptr: Option<usize>,
+    // Arena snapshot for lock-free reads of node/port/edge attributes.
+    sync: Option<ArenaSync>,
 }
 
 impl NetworkSimplexPlacer {
@@ -76,6 +78,7 @@ impl NetworkSimplexPlacer {
             crossing: Vec::new(),
             flexible_where_space_permits_edges: Vec::new(),
             graph_ptr: None,
+            sync: None,
         }
     }
 
@@ -84,6 +87,11 @@ impl NetworkSimplexPlacer {
         // SAFETY: `graph_ptr` is set from a valid reference to the LGraph at the start of
         // `process()`. The graph outlives this processor and is not moved during layout.
         unsafe { &*ptr }
+    }
+
+    #[inline]
+    fn sync(&self) -> &ArenaSync {
+        self.sync.as_ref().expect("arena sync not initialized")
     }
 }
 
@@ -108,6 +116,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for NetworkSimplexPlacer {
         }
 
         self.prepare(layered_graph);
+        // Build arena after prepare() has assigned sequential element IDs
+        self.sync = Some(ArenaSync::from_lgraph(layered_graph));
         self.build_initial_auxiliary_graph(layered_graph);
         self.insert_north_south_auxiliary_edges(layered_graph);
         self.insert_in_layer_edge_auxiliary_edges(layered_graph);
@@ -262,6 +272,7 @@ impl NetworkSimplexPlacer {
         self.node_count = 0;
         self.edge_count = 0;
         self.graph_ptr = None;
+        self.sync = None;
     }
 
     fn build_initial_auxiliary_graph(&mut self, graph: &LGraph) {
@@ -293,8 +304,9 @@ impl NetworkSimplexPlacer {
 
             if let Some(last) = last_rep.as_ref() {
                 let spacing = {
-                    let last_bottom = node_margin_bottom(&last.origin);
-                    let current_top = node_margin_top(&node);
+                    let s = self.sync();
+                    let last_bottom = node_margin_bottom_a(s, &last.origin);
+                    let current_top = node_margin_top_a(s, &node);
                     let vertical = self
                         .spacings
                         .as_ref()
@@ -302,7 +314,7 @@ impl NetworkSimplexPlacer {
                         .get_vertical_spacing(&last.origin, &node);
                     let mut value = last_bottom + vertical + current_top;
                     if !last.is_flexible {
-                        value += node_size_y(&last.origin);
+                        value += node_size_y_a(s, &last.origin);
                     }
                     value
                 };
@@ -326,15 +338,16 @@ impl NetworkSimplexPlacer {
             .type_label("non-flexible")
             .create(&mut self.n_graph);
 
-        let ports = {
-            let node_guard = node.lock();
-            node_guard.ports().clone()
+        let ports_to_map: Vec<usize> = {
+            let s = self.sync();
+            let nid = s.node_id(node).unwrap();
+            s.arena().node_ports(nid).iter()
+                .filter(|&&pid| matches!(s.arena().port_side(pid), PortSide::East | PortSide::West))
+                .map(|&pid| port_key(s.port_ref(pid)))
+                .collect()
         };
-        for port in ports {
-            let side = { port.lock().side() };
-            if matches!(side, PortSide::East | PortSide::West) {
-                self.port_map.insert(port_key(&port), single.clone());
-            }
+        for key in ports_to_map {
+            self.port_map.insert(key, single.clone());
         }
 
         NodeRep {
@@ -363,7 +376,7 @@ impl NetworkSimplexPlacer {
             tail: bottom_left.clone(),
         };
 
-        let min_height = node_size_y(node);
+        let min_height = node_size_y_a(self.sync(), node);
         let nf = get_node_flexibility(self.graph_ref(), node);
         let mut size_weight = NODE_SIZE_WEIGHT_STATIC;
         if nf.is_flexible_size() {
@@ -381,17 +394,19 @@ impl NetworkSimplexPlacer {
             self.flexible_where_space_permits_edges.push(node_size_edge);
         }
 
-        let (west_ports, east_ports) = {
-            let mut node_guard = node.lock();
-            (
-                node_guard.port_side_view(PortSide::West),
-                node_guard.port_side_view(PortSide::East),
-            )
+        let (west_port_refs, east_port_refs) = {
+            let s = self.sync();
+            let nid = s.node_id(node).unwrap();
+            let west: Vec<LPortRef> = s.arena().node_ports_by_side(nid, PortSide::West)
+                .iter().map(|&pid| s.port_ref(pid).clone()).collect();
+            let east: Vec<LPortRef> = s.arena().node_ports_by_side(nid, PortSide::East)
+                .iter().map(|&pid| s.port_ref(pid).clone()).collect();
+            (west, east)
         };
-        let mut west_ports_rev = west_ports;
+        let mut west_ports_rev = west_port_refs;
         west_ports_rev.reverse();
         self.transform_ports(&west_ports_rev, &corners);
-        self.transform_ports(&east_ports, &corners);
+        self.transform_ports(&east_port_refs, &corners);
 
         corners
     }
@@ -419,8 +434,8 @@ impl NetworkSimplexPlacer {
         for port in ports {
             let spacing = if let Some(ref last) = last_port {
                 let last_size = {
-                    let mut port_guard = last.lock();
-                    port_guard.shape().size_ref().y
+                    let last_pid = self.sync().port_id(last).unwrap();
+                    self.sync().arena().port_size(last_pid).y
                 };
                 port_spacing + last_size
             } else {
@@ -447,8 +462,8 @@ impl NetworkSimplexPlacer {
 
         if let Some(last_port) = last_port {
             let last_size = {
-                let mut port_guard = last_port.lock();
-                port_guard.shape().size_ref().y
+                let last_pid = self.sync().port_id(&last_port).unwrap();
+                self.sync().arena().port_size(last_pid).y
             };
             NEdge::of()
                 .weight(0.0)
@@ -514,18 +529,20 @@ impl NetworkSimplexPlacer {
             .expect("Missing node rep");
 
         let src_offset = {
-            let mut port_guard = source_port.lock();
-            let mut offset = port_guard.anchor_ref().y;
+            let s = self.sync();
+            let src_pid = s.port_id(&source_port).unwrap();
+            let mut offset = s.arena().port_anchor(src_pid).y;
             if !src_rep.is_flexible {
-                offset += port_guard.shape().position_ref().y;
+                offset += s.arena().port_pos(src_pid).y;
             }
             offset
         };
         let tgt_offset = {
-            let mut port_guard = target_port.lock();
-            let mut offset = port_guard.anchor_ref().y;
+            let s = self.sync();
+            let tgt_pid = s.port_id(&target_port).unwrap();
+            let mut offset = s.arena().port_anchor(tgt_pid).y;
             if !tgt_rep.is_flexible {
-                offset += port_guard.shape().position_ref().y;
+                offset += s.arena().port_pos(tgt_pid).y;
             }
             offset
         };
@@ -570,10 +587,12 @@ impl NetworkSimplexPlacer {
             };
             for node in nodes {
                 let edges = {
-                    let node_guard = node.lock();
-                    if node_guard.node_type() != NodeType::Normal {
+                    let s = self.sync();
+                    let nid = s.node_id(&node).unwrap();
+                    if s.arena().node_type(nid) != NodeType::Normal {
                         continue;
                     }
+                    let node_guard = node.lock();
                     node_guard.connected_edges()
                 };
                 for edge in edges {
@@ -666,9 +685,17 @@ impl NetworkSimplexPlacer {
             };
             for node in nodes {
                 let node_id_val = node_id(&node);
-                let mut node_guard = node.lock();
 
-                let south_ports = node_guard.port_side_view(PortSide::South);
+                let (south_ports, north_ports) = {
+                    let s = self.sync();
+                    let nid = s.node_id(&node).unwrap();
+                    let south: Vec<LPortRef> = s.arena().node_ports_by_side(nid, PortSide::South)
+                        .iter().map(|&pid| s.port_ref(pid).clone()).collect();
+                    let north: Vec<LPortRef> = s.arena().node_ports_by_side(nid, PortSide::North)
+                        .iter().map(|&pid| s.port_ref(pid).clone()).collect();
+                    (south, north)
+                };
+
                 for port in south_ports {
                     let dummy = {
                         let port_guard = port.lock();
@@ -685,7 +712,6 @@ impl NetworkSimplexPlacer {
                     }
                 }
 
-                let north_ports = node_guard.port_side_view(PortSide::North);
                 for port in north_ports {
                     let dummy = {
                         let port_guard = port.lock();
@@ -737,8 +763,10 @@ impl NetworkSimplexPlacer {
                 continue;
             };
             let should_skip = {
-                let node_guard = rep.origin.lock();
-                node_guard.node_type() != NodeType::Normal || node_guard.ports().len() <= 1
+                let s = self.sync();
+                let nid = s.node_id(&rep.origin).unwrap();
+                s.arena().node_type(nid) != NodeType::Normal
+                    || s.arena().node_ports(nid).len() <= 1
             };
             if should_skip {
                 continue;
@@ -800,11 +828,18 @@ impl NetworkSimplexPlacer {
                     }
 
                     if flexible_node && nf.is_flexible_ports() {
-                        let ports = node_guard.ports().clone();
-                        for port in ports {
-                            let side = { port.lock().side() };
-                            if matches!(side, PortSide::East | PortSide::West) {
-                                if let Some(n_node) = self.port_map.get(&port_key(&port)) {
+                        // Collect port keys and sides from arena, then write positions
+                        let port_info: Vec<(LPortRef, bool)> = {
+                            let s = self.sync();
+                            let nid = s.node_id(&node).unwrap();
+                            s.arena().node_ports(nid).iter().map(|&pid| {
+                                let side = s.arena().port_side(pid);
+                                (s.port_ref(pid).clone(), matches!(side, PortSide::East | PortSide::West))
+                            }).collect()
+                        };
+                        for (port, is_ew) in &port_info {
+                            if *is_ew {
+                                if let Some(n_node) = self.port_map.get(&port_key(port)) {
                                     let layer_val = {
                                         let node_guard = n_node.lock();
                                         node_guard.layer
@@ -1005,13 +1040,13 @@ impl NetworkSimplexPlacer {
                 .unwrap()
                 .get_vertical_spacing(&above, center_node)
                 .ceil();
-            above_dist = (n_head_layer - node_margin_top(center_node))
+            above_dist = (n_head_layer - node_margin_top_a(self.sync(), center_node))
                 - ({
                     let node_guard = above_rep.head.lock();
                     node_guard.layer
                 } as f64
-                    + node_size_y(&above)
-                    + node_margin_bottom(&above))
+                    + node_size_y_a(self.sync(), &above)
+                    + node_margin_bottom_a(self.sync(), &above))
                 - spacing;
         }
         if node_index + 1 < layer_nodes.len() {
@@ -1027,10 +1062,10 @@ impl NetworkSimplexPlacer {
                 let node_guard = below_rep.head.lock();
                 node_guard.layer
             } as f64
-                - node_margin_top(&below))
+                - node_margin_top_a(self.sync(), &below))
                 - (n_head_layer
-                    + node_size_y(center_node)
-                    + node_margin_bottom(center_node))
+                    + node_size_y_a(self.sync(), center_node)
+                    + node_margin_bottom_a(self.sync(), center_node))
                 - spacing;
         }
 
@@ -1189,15 +1224,19 @@ impl NetworkSimplexPlacer {
             layer_guard.nodes().clone()
         };
         for node in &left_nodes {
-            let east_ports = {
-                let mut node_guard = node.lock();
-                node_guard.port_side_view(PortSide::East)
+            let (east_port_refs, east_outgoing): (Vec<LPortRef>, Vec<Vec<LEdgeRef>>) = {
+                let s = self.sync();
+                let nid = s.node_id(node).unwrap();
+                let pids = s.arena().node_ports_by_side(nid, PortSide::East);
+                let refs: Vec<LPortRef> = pids.iter().map(|&pid| s.port_ref(pid).clone()).collect();
+                let outs: Vec<Vec<LEdgeRef>> = pids.iter().map(|&pid| {
+                    s.arena().port_outgoing_edges(pid).iter()
+                        .map(|&eid| s.edge_ref(eid).clone())
+                        .collect()
+                }).collect();
+                (refs, outs)
             };
-            for port in east_ports {
-                let outgoing = {
-                    let port_guard = port.lock();
-                    port_guard.outgoing_edges().clone()
-                };
+            for (_port, outgoing) in east_port_refs.iter().zip(east_outgoing.iter()) {
                 for edge in outgoing {
                     // Extract ports WITHOUT holding edge lock during property checks
                     let (source_port, target_port) = {
@@ -1223,7 +1262,7 @@ impl NetworkSimplexPlacer {
                     if is_self || is_in_layer || target_not_in_right {
                         continue;
                     }
-                    open_edges.push(edge);
+                    open_edges.push(edge.clone());
                 }
             }
         }
@@ -1233,15 +1272,19 @@ impl NetworkSimplexPlacer {
             layer_guard.nodes().clone()
         };
         for node in right_nodes.into_iter().rev() {
-            let west_ports = {
-                let mut node_guard = node.lock();
-                node_guard.port_side_view(PortSide::West)
+            let (west_port_refs, west_incoming): (Vec<LPortRef>, Vec<Vec<LEdgeRef>>) = {
+                let s = self.sync();
+                let nid = s.node_id(&node).unwrap();
+                let pids = s.arena().node_ports_by_side(nid, PortSide::West);
+                let refs: Vec<LPortRef> = pids.iter().map(|&pid| s.port_ref(pid).clone()).collect();
+                let incs: Vec<Vec<LEdgeRef>> = pids.iter().map(|&pid| {
+                    s.arena().port_incoming_edges(pid).iter()
+                        .map(|&eid| s.edge_ref(eid).clone())
+                        .collect()
+                }).collect();
+                (refs, incs)
             };
-            for port in west_ports {
-                let incoming = {
-                    let port_guard = port.lock();
-                    port_guard.incoming_edges().clone()
-                };
+            for (_port, incoming) in west_port_refs.iter().zip(west_incoming.iter()) {
                 for edge in incoming {
                     // Extract ports WITHOUT holding edge lock during property checks
                     let (source_port, target_port) = {
@@ -1464,13 +1507,11 @@ impl Path {
 }
 
 fn get_node_flexibility(graph: &LGraph, node: &LNodeRef) -> NodeFlexibility {
+    if let Some(value) = node
+        .lock()
+        .get_property(LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY)
     {
-        let node_guard = node.lock();
-        if let Some(value) =
-            node_guard.get_property(LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY)
-        {
-            return value;
-        }
+        return value;
     }
     if let Some(value) = graph
         .get_property(LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_DEFAULT)
@@ -1531,17 +1572,18 @@ fn is_flexible_node(graph: &LGraph, node: &LNodeRef) -> bool {
                 node_guard.port_side_view(PortSide::East).len(),
             )
         };
+        let size_y = { node.lock().shape().size_ref().y };
         let required_west_height = additional_port_spacing.top
             + additional_port_spacing.bottom
             + (west_count.saturating_sub(1) as f64) * port_spacing;
-        if required_west_height > node_size_y(node) {
+        if required_west_height > size_y {
             return false;
         }
 
         let required_east_height = additional_port_spacing.top
             + additional_port_spacing.bottom
             + (east_count.saturating_sub(1) as f64) * port_spacing;
-        if required_east_height > node_size_y(node) {
+        if required_east_height > size_y {
             return false;
         }
     }
@@ -1576,35 +1618,20 @@ fn get_node_state(node: &LNodeRef) -> i32 {
     let mut inco = 0usize;
     let mut ouco = 0usize;
     for port in ports {
-        // Extract edge lists, then DROP port lock before checking is_self_loop
-        // (is_self_loop locks source/target ports, which would deadlock if this port is held)
         let (incoming, outgoing) = {
             let port_guard = port.lock();
             (
                 port_guard.incoming_edges().clone(),
                 port_guard.outgoing_edges().clone(),
             )
-            // port lock dropped here
         };
         inco += incoming
             .iter()
-            .filter(|edge| {
-                let (sp, tp) = {
-                    let eg = edge.lock();
-                    (eg.source(), eg.target())
-                };
-                !check_self_loop_ports(&sp, &tp)
-            })
+            .filter(|edge| !is_self_loop_edge(edge))
             .count();
         ouco += outgoing
             .iter()
-            .filter(|edge| {
-                let (sp, tp) = {
-                    let eg = edge.lock();
-                    (eg.source(), eg.target())
-                };
-                !check_self_loop_ports(&sp, &tp)
-            })
+            .filter(|edge| !is_self_loop_edge(edge))
             .count();
         if inco > 1 || ouco > 1 {
             return JUNCTION;
@@ -1614,6 +1641,14 @@ fn get_node_state(node: &LNodeRef) -> i32 {
         return JUNCTION;
     }
     OTHER
+}
+
+fn is_self_loop_edge(edge: &LEdgeRef) -> bool {
+    let (sp, tp) = {
+        let eg = edge.lock();
+        (eg.source(), eg.target())
+    };
+    check_self_loop_ports(&sp, &tp)
 }
 
 fn length(edge: &NEdgeRef) -> i32 {
@@ -1648,13 +1683,23 @@ fn adjust_label_position(
 }
 
 fn node_id(node: &LNodeRef) -> usize {
-    let mut node_guard = node.lock();
-    node_guard.shape().graph_element().id as usize
+    node.lock().shape().graph_element().id as usize
 }
 
 fn edge_id(edge: &LEdgeRef) -> usize {
-    let mut edge_guard = edge.lock();
-    edge_guard.graph_element().id as usize
+    edge.lock().graph_element().id as usize
+}
+
+fn node_margin_top_a(sync: &ArenaSync, node: &LNodeRef) -> f64 {
+    sync.arena().node_margin(sync.node_id(node).unwrap()).top
+}
+
+fn node_margin_bottom_a(sync: &ArenaSync, node: &LNodeRef) -> f64 {
+    sync.arena().node_margin(sync.node_id(node).unwrap()).bottom
+}
+
+fn node_size_y_a(sync: &ArenaSync, node: &LNodeRef) -> f64 {
+    sync.arena().node_size(sync.node_id(node).unwrap()).y
 }
 
 fn check_self_loop_ports(source: &Option<LPortRef>, target: &Option<LPortRef>) -> bool {
@@ -1690,19 +1735,4 @@ fn check_in_layer_edge_ports(source: &Option<LPortRef>, target: &Option<LPortRef
 
 fn port_key(port: &LPortRef) -> usize {
     Arc::as_ptr(port) as usize
-}
-
-fn node_margin_top(node: &LNodeRef) -> f64 {
-    let mut node_guard = node.lock();
-    node_guard.margin().top
-}
-
-fn node_margin_bottom(node: &LNodeRef) -> f64 {
-    let mut node_guard = node.lock();
-    node_guard.margin().bottom
-}
-
-fn node_size_y(node: &LNodeRef) -> f64 {
-    let mut node_guard = node.lock();
-    node_guard.shape().size_ref().y
 }

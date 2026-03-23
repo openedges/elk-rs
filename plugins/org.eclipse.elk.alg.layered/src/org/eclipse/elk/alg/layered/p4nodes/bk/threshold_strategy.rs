@@ -6,7 +6,7 @@ use crate::org::eclipse::elk::alg::layered::graph::LEdgeRef;
 
 use super::aligned_layout::{BKAlignedLayout, HDirection, VDirection};
 use super::neighborhood_information::NeighborhoodInformation;
-use super::util::{node_id, port_node_id, port_offset_y};
+use super::util::{node_id, port_node_id_a, port_offset_y_a};
 
 const THRESHOLD: f64 = f64::MAX;
 const EPSILON: f64 = 0.0001;
@@ -171,20 +171,20 @@ impl SimpleThresholdStrategy {
             } else {
                 right_port.clone()
             };
-            let other_node_id = port_node_id(&other_port);
+            let other_node_id = port_node_id_a(&bal.sync, &other_port);
             if other_node_id >= bal.root.len() {
                 return invalid;
             }
-            let root_node_id = port_node_id(&root_port);
+            let root_node_id = port_node_id_a(&bal.sync, &root_port);
             if root_node_id >= bal.root.len() {
                 return invalid;
             }
             let other_root = bal.root[other_node_id];
             bal.y[other_root].unwrap_or(0.0)
                 + bal.inner_shift[other_node_id]
-                + port_offset_y(&other_port)
+                + port_offset_y_a(&bal.sync, &other_port)
                 - bal.inner_shift[root_node_id]
-                - port_offset_y(&root_port)
+                - port_offset_y_a(&bal.sync, &root_port)
         } else {
             let root_port = if bal.hdir == Some(HDirection::Left) {
                 right_port.clone()
@@ -196,27 +196,27 @@ impl SimpleThresholdStrategy {
             } else {
                 right_port.clone()
             };
-            let other_node_id = port_node_id(&other_port);
+            let other_node_id = port_node_id_a(&bal.sync, &other_port);
             if other_node_id >= bal.root.len() {
                 return invalid;
             }
-            let root_node_id = port_node_id(&root_port);
+            let root_node_id = port_node_id_a(&bal.sync, &root_port);
             if root_node_id >= bal.root.len() {
                 return invalid;
             }
             let other_root = bal.root[other_node_id];
             bal.y[other_root].unwrap_or(0.0)
                 + bal.inner_shift[other_node_id]
-                + port_offset_y(&other_port)
+                + port_offset_y_a(&bal.sync, &other_port)
                 - bal.inner_shift[root_node_id]
-                - port_offset_y(&root_port)
+                - port_offset_y_a(&bal.sync, &root_port)
         };
 
-        let left_node_id = port_node_id(&left_port);
+        let left_node_id = port_node_id_a(&bal.sync, &left_port);
         if left_node_id >= bal.root.len() {
             return invalid;
         }
-        let right_node_id = port_node_id(&right_port);
+        let right_node_id = port_node_id_a(&bal.sync, &right_port);
         if right_node_id >= bal.root.len() {
             return invalid;
         }
@@ -248,14 +248,14 @@ impl SimpleThresholdStrategy {
         };
 
         let free_id = pp.free;
-        let source_node_id = port_node_id(&source_port);
+        let source_node_id = port_node_id_a(&bal.sync, &source_port);
         let (fix, block) = if source_node_id == free_id {
             (target_port, source_port)
         } else {
             (source_port, target_port)
         };
 
-        let block_node_id = port_node_id(&block);
+        let block_node_id = port_node_id_a(&bal.sync, &block);
         let delta = bal.calculate_delta(&fix, &block);
         if trace {
             eprintln!(

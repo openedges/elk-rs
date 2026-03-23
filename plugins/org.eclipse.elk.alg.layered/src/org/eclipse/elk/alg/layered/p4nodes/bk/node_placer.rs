@@ -7,7 +7,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutP
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LNodeRef, LayerRef, NodeType};
+use crate::org::eclipse::elk::alg::layered::graph::{ArenaSync, LGraph, LNodeRef, LayerRef, NodeType};
 use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorStrategy;
 use crate::org::eclipse::elk::alg::layered::options::{
     FixedAlignment, GraphProperties, InternalProperties, LayeredOptions,
@@ -20,7 +20,8 @@ use super::compactor::BKCompactor;
 use super::i_compactor::ICompactor;
 use super::neighborhood_information::NeighborhoodInformation;
 use super::util::{
-    edge_key, get_blocks, node_id, node_margin_bottom, node_margin_top, node_size_y, node_to_string,
+    edge_key, get_blocks, node_id, node_margin_bottom_a, node_margin_top_a, node_size_y_a,
+    node_to_string,
 };
 
 static HIERARCHY_PROCESSING_ADDITIONS: LazyLock<
@@ -65,6 +66,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
         let mut ni = NeighborhoodInformation::build_for(graph);
         let layers = graph.layers().clone();
         let nodes_by_id = build_nodes_by_id(&layers, ni.node_count);
+        // Build arena after NeighborhoodInformation has assigned sequential node IDs
+        let sync = Arc::new(ArenaSync::from_lgraph(graph));
 
         let align = graph
             .get_property(LayeredOptions::NODE_PLACEMENT_BK_FIXED_ALIGNMENT)
@@ -92,6 +95,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
                 spacings.clone(),
                 Some(VDirection::Down),
                 Some(HDirection::Left),
+                sync.clone(),
             )),
             FixedAlignment::LeftUp => layouts.push(BKAlignedLayout::new(
                 layers.clone(),
@@ -99,6 +103,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
                 spacings.clone(),
                 Some(VDirection::Up),
                 Some(HDirection::Left),
+                sync.clone(),
             )),
             FixedAlignment::RightDown => layouts.push(BKAlignedLayout::new(
                 layers.clone(),
@@ -106,6 +111,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
                 spacings.clone(),
                 Some(VDirection::Down),
                 Some(HDirection::Right),
+                sync.clone(),
             )),
             FixedAlignment::RightUp => layouts.push(BKAlignedLayout::new(
                 layers.clone(),
@@ -113,6 +119,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
                 spacings.clone(),
                 Some(VDirection::Up),
                 Some(HDirection::Right),
+                sync.clone(),
             )),
             _ => {
                 // Order must match Java: RightDown, RightUp, LeftDown, LeftUp
@@ -122,6 +129,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
                     spacings.clone(),
                     Some(VDirection::Down),
                     Some(HDirection::Right),
+                    sync.clone(),
                 ));
                 layouts.push(BKAlignedLayout::new(
                     layers.clone(),
@@ -129,6 +137,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
                     spacings.clone(),
                     Some(VDirection::Up),
                     Some(HDirection::Right),
+                    sync.clone(),
                 ));
                 layouts.push(BKAlignedLayout::new(
                     layers.clone(),
@@ -136,6 +145,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
                     spacings.clone(),
                     Some(VDirection::Down),
                     Some(HDirection::Left),
+                    sync.clone(),
                 ));
                 layouts.push(BKAlignedLayout::new(
                     layers.clone(),
@@ -143,6 +153,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
                     spacings.clone(),
                     Some(VDirection::Up),
                     Some(HDirection::Left),
+                    sync.clone(),
                 ));
             }
         }
@@ -194,7 +205,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
         let mut balanced_layout: Option<BKAlignedLayout> = None;
 
         if produce_balanced_layout {
-            let balanced = create_balanced_layout(&layouts, &layers, &nodes_by_id);
+            let balanced = create_balanced_layout(&layouts, &layers, &nodes_by_id, &sync);
             let balanced_ok = check_order_constraint(&balanced, &layers, monitor);
             if trace {
                 eprintln!(
@@ -505,13 +516,14 @@ fn create_balanced_layout(
     layouts: &[BKAlignedLayout],
     layers: &[LayerRef],
     nodes_by_id: &[LNodeRef],
+    sync: &Arc<ArenaSync>,
 ) -> BKAlignedLayout {
     let spacings = layouts
         .first()
         .map(|layout| layout.spacings.clone())
         .expect("At least one BK layout required for balanced layout");
     let mut balanced =
-        BKAlignedLayout::new(layers.to_vec(), nodes_by_id.to_vec(), spacings, None, None);
+        BKAlignedLayout::new(layers.to_vec(), nodes_by_id.to_vec(), spacings, None, None, sync.clone());
 
     let no_of_layouts = layouts.len();
     let mut width = vec![0.0; no_of_layouts];
@@ -532,7 +544,7 @@ fn create_balanced_layout(
                 let node_id = node_id(&node);
                 let node_pos = layout.y[node_id].unwrap_or(0.0) + layout.inner_shift[node_id];
                 min[i] = min[i].min(node_pos);
-                max[i] = max[i].max(node_pos + node_size_y(&node));
+                max[i] = max[i].max(node_pos + node_size_y_a(&sync, &node));
             }
         }
     }
@@ -586,17 +598,17 @@ fn check_order_constraint(
         for node in nodes {
             let node_id = node_id(&node);
             let top =
-                bal.y[node_id].unwrap_or(0.0) + bal.inner_shift[node_id] - node_margin_top(&node);
+                bal.y[node_id].unwrap_or(0.0) + bal.inner_shift[node_id] - node_margin_top_a(&bal.sync, &node);
             let bottom = bal.y[node_id].unwrap_or(0.0)
                 + bal.inner_shift[node_id]
-                + node_size_y(&node)
-                + node_margin_bottom(&node);
+                + node_size_y_a(&bal.sync, &node)
+                + node_margin_bottom_a(&bal.sync, &node);
 
             if top > pos && bottom > pos {
                 pos = bal.y[node_id].unwrap_or(0.0)
                     + bal.inner_shift[node_id]
-                    + node_size_y(&node)
-                    + node_margin_bottom(&node);
+                    + node_size_y_a(&bal.sync, &node)
+                    + node_margin_bottom_a(&bal.sync, &node);
                 previous = Some(node);
             } else {
                 feasible = false;

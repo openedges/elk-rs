@@ -3,7 +3,7 @@ use rustc_hash::FxHashSet;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LEdge, LPortRef};
+use crate::org::eclipse::elk::alg::layered::graph::{ArenaSync, LEdge, LPortRef};
 use crate::org::eclipse::elk::alg::layered::options::LayeredOptions;
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::hyper_edge_segment::HyperEdgeSegment;
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::orthogonal_routing_generator::OrthogonalRoutingGenerator;
@@ -138,16 +138,17 @@ impl RoutingDirectionStrategy {
         segment: &HyperEdgeSegment,
         start_pos: f64,
         edge_spacing: f64,
+        sync: &ArenaSync,
     ) {
         match self {
             RoutingDirectionStrategy::WestToEast(strategy) => {
-                strategy.calculate_bend_points(segment, start_pos, edge_spacing)
+                strategy.calculate_bend_points(segment, start_pos, edge_spacing, sync)
             }
             RoutingDirectionStrategy::NorthToSouth(strategy) => {
-                strategy.calculate_bend_points(segment, start_pos, edge_spacing)
+                strategy.calculate_bend_points(segment, start_pos, edge_spacing, sync)
             }
             RoutingDirectionStrategy::SouthToNorth(strategy) => {
-                strategy.calculate_bend_points(segment, start_pos, edge_spacing)
+                strategy.calculate_bend_points(segment, start_pos, edge_spacing, sync)
             }
         }
     }
