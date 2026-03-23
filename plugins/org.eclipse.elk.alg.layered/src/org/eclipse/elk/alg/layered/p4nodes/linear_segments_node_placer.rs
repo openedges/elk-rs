@@ -6,7 +6,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configu
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LNodeRef, LPortRef, NodeType};
+use crate::org::eclipse::elk::alg::layered::graph::{ArenaSync, LGraph, LNodeRef, LPortRef, NodeType};
 use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorStrategy;
 use crate::org::eclipse::elk::alg::layered::options::{
     GraphProperties, InternalProperties, LayeredOptions, Spacings,
@@ -82,6 +82,7 @@ enum Mode {
 pub struct LinearSegmentsNodePlacer {
     linear_segments: Vec<LinearSegment>,
     spacings: Option<Spacings>,
+    sync: Option<ArenaSync>,
 }
 
 impl LinearSegmentsNodePlacer {
@@ -89,6 +90,7 @@ impl LinearSegmentsNodePlacer {
         LinearSegmentsNodePlacer {
             linear_segments: Vec::new(),
             spacings: None,
+            sync: None,
         }
     }
 
@@ -369,20 +371,18 @@ impl LinearSegmentsNodePlacer {
 
             for node in &segment.nodes {
                 let layer_idx = layer_index(node);
+                let s = self.sync.as_ref().unwrap();
+                let margin_top = node_margin_top_a(s, node);
+                let margin_bottom = node_margin_bottom_a(s, node);
+                let size_y = node_size_y_a(s, node);
                 {
                     let mut node_guard = node.lock();
-                    let margin_top = node_guard.margin().top;
-                    let margin_bottom = node_guard.margin().bottom;
-                    let size_y = node_guard.shape().size_ref().y;
                     node_guard.shape().position().y = uppermost_place + margin_top;
-
-                    if let Some(layer_ref) = layers.get(layer_idx) {
-                        {
-                            let mut layer_guard = layer_ref.lock();
-                            layer_guard.size().y =
-                                uppermost_place + margin_top + size_y + margin_bottom;
-                        }
-                    }
+                }
+                if let Some(layer_ref) = layers.get(layer_idx) {
+                    let mut layer_guard = layer_ref.lock();
+                    layer_guard.size().y =
+                        uppermost_place + margin_top + size_y + margin_bottom;
                 }
                 if layer_idx < recent_node.len() {
                     recent_node[layer_idx] = Some(node.clone());
@@ -505,8 +505,9 @@ impl LinearSegmentsNodePlacer {
 
             let ports = node
                 .lock().ports().clone();
+            let s = self.sync.as_ref().unwrap();
             for port in ports {
-                let port_pos = port_position_y(node, &port);
+                let port_pos = port_position_y_a(s, node, &port);
                 if outgoing {
                     let outgoing_edges = port
                         .lock().outgoing_edges().clone();
@@ -540,7 +541,7 @@ impl LinearSegmentsNodePlacer {
                             };
                             if prio >= min_prio && prio >= other_prio {
                                 node_deflection +=
-                                    port_position_y(&other_node, &other_port) - port_pos;
+                                    port_position_y_a(s, &other_node, &other_port) - port_pos;
                                 edge_weight_sum += 1;
                             }
                         }
@@ -580,7 +581,7 @@ impl LinearSegmentsNodePlacer {
                             };
                             if prio >= min_prio && prio >= other_prio {
                                 node_deflection +=
-                                    port_position_y(&other_node, &other_port) - port_pos;
+                                    port_position_y_a(s, &other_node, &other_port) - port_pos;
                                 edge_weight_sum += 1;
                             }
                         }
@@ -625,12 +626,13 @@ impl LinearSegmentsNodePlacer {
                 let region2 = region_index(&self.linear_segments, node_id(&node2).max(0) as usize);
                 if region1 != region2 {
                     let spacing = spacings.get_vertical_spacing(&node1, &node2);
+                    let s = self.sync.as_ref().unwrap();
                     let node1_extent = node_position_y(&node1)
-                        + node_size_y(&node1)
-                        + node_margin_bottom(&node1)
+                        + node_size_y_a(s, &node1)
+                        + node_margin_bottom_a(s, &node1)
                         + self.linear_segments[region1].deflection
                         + spacing;
-                    let node2_extent = node_position_y(&node2) - node_margin_top(&node2)
+                    let node2_extent = node_position_y(&node2) - node_margin_top_a(s, &node2)
                         + self.linear_segments[region2].deflection;
                     if node1_extent > node2_extent + threshold {
                         let weight_sum = self.linear_segments[region1].weight
@@ -677,17 +679,18 @@ impl LinearSegmentsNodePlacer {
                     })
                     .unwrap_or_default();
 
+                let s = self.sync.as_ref().unwrap();
                 let room_above = if index > 0 && index <= layer_nodes.len() {
                     let neighbor = &layer_nodes[index - 1];
                     let spacing = spacings.get_vertical_spacing(node, neighbor);
                     node_position_y(node)
-                        - node_margin_top(node)
+                        - node_margin_top_a(s, node)
                         - (node_position_y(neighbor)
-                            + node_size_y(neighbor)
-                            + node_margin_bottom(neighbor)
+                            + node_size_y_a(s, neighbor)
+                            + node_margin_bottom_a(s, neighbor)
                             + spacing)
                 } else {
-                    node_position_y(node) - node_margin_top(node)
+                    node_position_y(node) - node_margin_top_a(s, node)
                 };
                 min_room_above = min_room_above.min(room_above);
 
@@ -695,10 +698,10 @@ impl LinearSegmentsNodePlacer {
                     let neighbor = &layer_nodes[index + 1];
                     let spacing = spacings.get_vertical_spacing(node, neighbor);
                     node_position_y(neighbor)
-                        - node_margin_top(neighbor)
+                        - node_margin_top_a(s, neighbor)
                         - (node_position_y(node)
-                            + node_size_y(node)
-                            + node_margin_bottom(node)
+                            + node_size_y_a(s, node)
+                            + node_margin_bottom_a(s, node)
                             + spacing)
                 } else {
                     2.0 * node_position_y(node)
@@ -710,10 +713,11 @@ impl LinearSegmentsNodePlacer {
             let mut found_place = false;
 
             if let Some(first_node) = segment.nodes.first() {
+                let s = self.sync.as_ref().unwrap();
                 let ports = first_node
                     .lock().ports().clone();
                 for target in ports {
-                    let pos = port_position_y(first_node, &target);
+                    let pos = port_position_y_a(s, first_node, &target);
                     let incoming = target
                         .lock().incoming_edges().clone();
                     for edge in incoming {
@@ -726,7 +730,7 @@ impl LinearSegmentsNodePlacer {
                         let Some(other_node) = other_node else {
                             continue;
                         };
-                        let d = port_position_y(&other_node, &source) - pos;
+                        let d = port_position_y_a(s, &other_node, &source) - pos;
                         if d.abs() < min_displacement.abs()
                             && d.abs()
                                 < if d < 0.0 {
@@ -743,10 +747,11 @@ impl LinearSegmentsNodePlacer {
             }
 
             if let Some(last_node) = segment.nodes.last() {
+                let s = self.sync.as_ref().unwrap();
                 let ports = last_node
                     .lock().ports().clone();
                 for source in ports {
-                    let pos = port_position_y(last_node, &source);
+                    let pos = port_position_y_a(s, last_node, &source);
                     let outgoing = source
                         .lock().outgoing_edges().clone();
                     for edge in outgoing {
@@ -759,7 +764,7 @@ impl LinearSegmentsNodePlacer {
                         let Some(other_node) = other_node else {
                             continue;
                         };
-                        let d = port_position_y(&other_node, &target) - pos;
+                        let d = port_position_y_a(s, &other_node, &target) - pos;
                         if d.abs() < min_displacement.abs()
                             && d.abs()
                                 < if d < 0.0 {
@@ -803,12 +808,15 @@ impl ILayoutPhase<LayeredPhases, LGraph> for LinearSegmentsNodePlacer {
         self.spacings = Some(spacings);
 
         self.sort_linear_segments(graph, monitor);
+        // Build arena after sort_linear_segments has assigned sequential node IDs
+        self.sync = Some(ArenaSync::from_lgraph(graph));
         self.create_unbalanced_placement(graph);
         self.balance_placement(graph);
         self.post_process(graph);
 
         self.linear_segments.clear();
         self.spacings = None;
+        self.sync = None;
         monitor.done();
     }
 
@@ -864,33 +872,25 @@ fn node_index(node: &LNodeRef) -> usize {
 }
 
 fn node_position_y(node: &LNodeRef) -> f64 {
-    let mut node_guard = node.lock();
-    node_guard.shape().position_ref().y
+    node.lock().shape().position_ref().y
 }
 
-fn node_size_y(node: &LNodeRef) -> f64 {
-    let mut node_guard = node.lock();
-    node_guard.shape().size_ref().y
+fn node_size_y_a(sync: &ArenaSync, node: &LNodeRef) -> f64 {
+    sync.arena().node_size(sync.node_id(node).unwrap()).y
 }
 
-fn node_margin_top(node: &LNodeRef) -> f64 {
-    let mut node_guard = node.lock();
-    node_guard.margin().top
+fn node_margin_top_a(sync: &ArenaSync, node: &LNodeRef) -> f64 {
+    sync.arena().node_margin(sync.node_id(node).unwrap()).top
 }
 
-fn node_margin_bottom(node: &LNodeRef) -> f64 {
-    let mut node_guard = node.lock();
-    node_guard.margin().bottom
+fn node_margin_bottom_a(sync: &ArenaSync, node: &LNodeRef) -> f64 {
+    sync.arena().node_margin(sync.node_id(node).unwrap()).bottom
 }
 
-fn port_position_y(node: &LNodeRef, port: &LPortRef) -> f64 {
+fn port_position_y_a(sync: &ArenaSync, node: &LNodeRef, port: &LPortRef) -> f64 {
     let node_pos = node_position_y(node);
-    let (port_pos, anchor) = {
-        let mut port_guard = port.lock();
-        (
-            port_guard.shape().position_ref().y,
-            port_guard.anchor_ref().y,
-        )
-    };
+    let pid = sync.port_id(port).unwrap();
+    let port_pos = sync.arena().port_pos(pid).y;
+    let anchor = sync.arena().port_anchor(pid).y;
     node_pos + port_pos + anchor
 }

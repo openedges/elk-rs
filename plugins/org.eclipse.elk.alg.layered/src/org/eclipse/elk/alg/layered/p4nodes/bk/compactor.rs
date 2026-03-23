@@ -14,7 +14,7 @@ use super::neighborhood_information::NeighborhoodInformation;
 use super::threshold_strategy::{
     NullThresholdStrategy, SimpleThresholdStrategy, ThresholdStrategy,
 };
-use super::util::{node_id, node_margin_bottom, node_margin_top, node_size_y};
+use super::util::{node_id, node_margin_bottom_a, node_margin_top_a, node_size_y_a};
 
 static BK_REVERSE_SINK_QUEUE: LazyLock<bool> =
     LazyLock::new(|| std::env::var_os("ELK_BK_REVERSE_SINK_QUEUE").is_some());
@@ -136,10 +136,10 @@ impl BKCompactor {
                     if vdir == VDirection::Up {
                         let new_position = bal.y[neighbor_root].unwrap_or(0.0)
                             + bal.inner_shift[neighbor_id]
-                            - node_margin_top(&neighbor)
+                            - node_margin_top_a(&bal.sync, &neighbor)
                             - spacing
-                            - node_margin_bottom(&current_node)
-                            - node_size_y(&current_node)
+                            - node_margin_bottom_a(&bal.sync, &current_node)
+                            - node_size_y_a(&bal.sync, &current_node)
                             - bal.inner_shift[current];
 
                         let current_position = bal.y[root_id].unwrap_or(0.0);
@@ -158,10 +158,10 @@ impl BKCompactor {
                     } else {
                         let new_position = bal.y[neighbor_root].unwrap_or(0.0)
                             + bal.inner_shift[neighbor_id]
-                            + node_size_y(&neighbor)
-                            + node_margin_bottom(&neighbor)
+                            + node_size_y_a(&bal.sync, &neighbor)
+                            + node_margin_bottom_a(&bal.sync, &neighbor)
                             + spacing
-                            + node_margin_top(&current_node)
+                            + node_margin_top_a(&bal.sync, &current_node)
                             - bal.inner_shift[current];
 
                         let current_position = bal.y[root_id].unwrap_or(0.0);
@@ -175,9 +175,9 @@ impl BKCompactor {
                         if trace_place_block {
                             let neighbor_inner = bal.inner_shift[neighbor_id];
                             let current_inner = bal.inner_shift[current];
-                            let neighbor_size = node_size_y(&neighbor);
-                            let neighbor_margin_bottom = node_margin_bottom(&neighbor);
-                            let current_margin_top = node_margin_top(&current_node);
+                            let neighbor_size = node_size_y_a(&bal.sync, &neighbor);
+                            let neighbor_margin_bottom = node_margin_bottom_a(&bal.sync, &neighbor);
+                            let current_margin_top = node_margin_top_a(&bal.sync, &current_node);
                             let neighbor_root_y = bal.y[neighbor_root].unwrap_or(0.0);
                             let current_name = current_node
                                 .lock().designation().to_string();
@@ -200,11 +200,11 @@ impl BKCompactor {
                     if vdir == VDirection::Up {
                         let required_space = bal.y[root_id].unwrap_or(0.0)
                             + bal.inner_shift[current]
-                            + node_size_y(&current_node)
-                            + node_margin_bottom(&current_node)
+                            + node_size_y_a(&bal.sync, &current_node)
+                            + node_margin_bottom_a(&bal.sync, &current_node)
                             + self.spacing_node_node
                             - (bal.y[neighbor_root].unwrap_or(0.0) + bal.inner_shift[neighbor_id]
-                                - node_margin_top(&neighbor));
+                                - node_margin_top_a(&bal.sync, &neighbor));
                         self.add_class_edge(sink_id, neighbor_sink_id, required_space);
                         if trace_place_block {
                             eprintln!(
@@ -214,11 +214,11 @@ impl BKCompactor {
                     } else {
                         let required_space = bal.y[root_id].unwrap_or(0.0)
                             + bal.inner_shift[current]
-                            - node_margin_top(&current_node)
+                            - node_margin_top_a(&bal.sync, &current_node)
                             - bal.y[neighbor_root].unwrap_or(0.0)
                             - bal.inner_shift[neighbor_id]
-                            - node_size_y(&neighbor)
-                            - node_margin_bottom(&neighbor)
+                            - node_size_y_a(&bal.sync, &neighbor)
+                            - node_margin_bottom_a(&bal.sync, &neighbor)
                             - self.spacing_node_node;
                         self.add_class_edge(sink_id, neighbor_sink_id, required_space);
                         if trace_place_block {

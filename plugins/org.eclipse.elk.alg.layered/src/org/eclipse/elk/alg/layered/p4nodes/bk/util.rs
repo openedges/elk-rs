@@ -1,7 +1,9 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LNodeRef, LPortRef, NodeType};
+use crate::org::eclipse::elk::alg::layered::graph::{
+    ArenaSync, LEdgeRef, LNodeRef, LPortRef, NodeType,
+};
 
 use super::aligned_layout::BKAlignedLayout;
 
@@ -13,31 +15,36 @@ pub(crate) fn node_type(node: &LNodeRef) -> NodeType {
     node.lock().node_type()
 }
 
-pub(crate) fn node_margin_top(node: &LNodeRef) -> f64 {
-    node.lock().margin().top
+/// Arena-based node margin top (lock-free).
+pub(crate) fn node_margin_top_a(sync: &ArenaSync, node: &LNodeRef) -> f64 {
+    sync.arena().node_margin(sync.node_id(node).unwrap()).top
 }
 
-pub(crate) fn node_margin_bottom(node: &LNodeRef) -> f64 {
-    node.lock().margin().bottom
+/// Arena-based node margin bottom (lock-free).
+pub(crate) fn node_margin_bottom_a(sync: &ArenaSync, node: &LNodeRef) -> f64 {
+    sync.arena().node_margin(sync.node_id(node).unwrap()).bottom
 }
 
-pub(crate) fn node_size_y(node: &LNodeRef) -> f64 {
-    node.lock().shape().size_ref().y
+/// Arena-based node size y (lock-free).
+pub(crate) fn node_size_y_a(sync: &ArenaSync, node: &LNodeRef) -> f64 {
+    sync.arena().node_size(sync.node_id(node).unwrap()).y
 }
 
 pub(crate) fn node_to_string(node: &LNodeRef) -> String {
     node.lock().to_string()
 }
 
-pub(crate) fn port_offset_y(port: &LPortRef) -> f64 {
-    let mut port_guard = port.lock();
-    port_guard.shape().position_ref().y + port_guard.anchor_ref().y
+/// Arena-based port offset y (lock-free).
+pub(crate) fn port_offset_y_a(sync: &ArenaSync, port: &LPortRef) -> f64 {
+    let pid = sync.port_id(port).unwrap();
+    sync.arena().port_pos(pid).y + sync.arena().port_anchor(pid).y
 }
 
-pub(crate) fn port_node_id(port: &LPortRef) -> usize {
-    port.lock().node()
-        .map(|node| node_id(&node))
-        .unwrap_or(0)
+/// Arena-based port node id (lock-free).
+pub(crate) fn port_node_id_a(sync: &ArenaSync, port: &LPortRef) -> usize {
+    let pid = sync.port_id(port).unwrap();
+    let nid = sync.arena().port_owner(pid);
+    sync.arena().node_element_id(nid) as usize
 }
 
 pub(crate) fn edge_key(edge: &LEdgeRef) -> usize {

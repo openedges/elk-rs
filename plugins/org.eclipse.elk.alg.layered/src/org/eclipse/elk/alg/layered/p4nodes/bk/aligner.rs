@@ -8,8 +8,8 @@ use super::aligned_layout::{BKAlignedLayout, HDirection, VDirection};
 use super::neighborhood_information::NeighborhoodInformation;
 use super::util::get_blocks;
 use super::util::{
-    edge_between, edge_key, node_id, node_margin_bottom, node_margin_top, node_size_y, node_type,
-    port_offset_y,
+    edge_between, edge_key, node_id, node_margin_bottom_a, node_margin_top_a, node_size_y_a,
+    node_type, port_offset_y_a,
 };
 
 pub struct BKAligner;
@@ -181,8 +181,8 @@ impl BKAligner {
                 eprintln!("bk-inner: root={root_id}({root_name}) start hdir={hdir:?}");
             }
 
-            let mut space_above = node_margin_top(&root_node);
-            let mut space_below = node_size_y(&root_node) + node_margin_bottom(&root_node);
+            let mut space_above = node_margin_top_a(&bal.sync, &root_node);
+            let mut space_below = node_size_y_a(&bal.sync, &root_node) + node_margin_bottom_a(&bal.sync, &root_node);
             bal.inner_shift[root_id] = 0.0;
 
             let mut current = root_id;
@@ -238,9 +238,9 @@ impl BKAligner {
                 };
 
                 let port_pos_diff = if hdir == HDirection::Left {
-                    port_offset_y(&target_port) - port_offset_y(&source_port)
+                    port_offset_y_a(&bal.sync, &target_port) - port_offset_y_a(&bal.sync, &source_port)
                 } else {
-                    port_offset_y(&source_port) - port_offset_y(&target_port)
+                    port_offset_y_a(&bal.sync, &source_port) - port_offset_y_a(&bal.sync, &target_port)
                 };
 
                 let next_inner_shift = bal.inner_shift[current] + port_pos_diff;
@@ -256,9 +256,9 @@ impl BKAligner {
                 }
 
                 let next_node = &bal.nodes_by_id[next];
-                space_above = space_above.max(node_margin_top(next_node) - next_inner_shift);
+                space_above = space_above.max(node_margin_top_a(&bal.sync, next_node) - next_inner_shift);
                 space_below = space_below
-                    .max(next_inner_shift + node_size_y(next_node) + node_margin_bottom(next_node));
+                    .max(next_inner_shift + node_size_y_a(&bal.sync, next_node) + node_margin_bottom_a(&bal.sync, next_node));
 
                 current = next;
                 steps += 1;
