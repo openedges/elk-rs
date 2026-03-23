@@ -83,6 +83,7 @@
   - Phase A-2 완료: typed property wrapper 22개 (LNode 11, LEdge 6, LPort 4, LGraph 3)
   - Phase B-1 완료: lock_ok() → lock() 전환 (3,822건)
   - Phase B-2 완료: guard 재사용 통합 (3파일)
+  - Phase C 완료: Force/Stress Arena 전환 — Arc<Mutex<T>> 85건→0건, 5개 타입 파일 삭제, -757줄
   - 데드락 2건 수정: LongEdgeJoiner + FinalSplineBendpointsCalculator (9 timeout 해소)
 - **Parity 재검증 상태 (2026-03-23)**: 클린 재실행 완료 — `total=1998`, `compared=1989`, `matches=1988`, `drift=1`, `skipped=9`, `errors=0`, `timeouts=0`
 - **알려진 실패**: 없음 (`elk_live_examples_test` 해결 완료 — cross-hierarchy edge graceful skip + 30s timeout)
