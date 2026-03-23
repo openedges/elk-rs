@@ -1,7 +1,7 @@
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{IElkProgressMonitor, Random};
 
-use crate::org::eclipse::elk::alg::force::graph::{FBendpoint, FGraph, FParticleRef};
+use crate::org::eclipse::elk::alg::force::graph::{FGraph, FParticleId};
 use crate::org::eclipse::elk::alg::force::options::{ForceOptions, InternalProperties};
 
 const DISP_BOUND_FACTOR: f64 = 16.0;
@@ -19,8 +19,8 @@ pub trait ForceModel {
     fn calc_displacement(
         &mut self,
         graph: &FGraph,
-        forcer: &FParticleRef,
-        forcee: &FParticleRef,
+        forcer: FParticleId,
+        forcee: FParticleId,
     ) -> Option<KVector>;
     fn iteration_done(&mut self) {}
 
@@ -34,28 +34,26 @@ pub trait ForceModel {
             self.base().iteration_done(graph);
             self.iteration_done();
 
-            let particles = graph.particles();
-            for v in &particles {
-                for u in &particles {
-                    if u.ptr_eq(v) {
+            let particles = graph.particle_ids();
+            for &v in &particles {
+                for &u in &particles {
+                    if u == v {
                         continue;
                     }
                     if let Some(displacement) = self.calc_displacement(graph, u, v) {
-                        let _ = v.with_particle_mut(|particle| {
-                            particle.displacement().add(&displacement);
-                        });
+                        graph.arena.particle_displacement_mut(v).add(&displacement);
                     }
                 }
             }
 
             let disp_bound = self.base().disp_bound;
-            for v in &particles {
-                let _ = v.with_particle_mut(|particle| {
-                    let mut d = *particle.displacement_ref();
-                    d.bound(-disp_bound, -disp_bound, disp_bound, disp_bound);
-                    particle.position().add(&d);
-                    particle.displacement().reset();
-                });
+            for &v in &particles {
+                let d = *graph.arena.particle_displacement(v);
+                let pos = graph.arena.particle_position_mut(v);
+                let mut bounded = d;
+                bounded.bound(-disp_bound, -disp_bound, disp_bound, disp_bound);
+                pos.add(&bounded);
+                graph.arena.particle_displacement_mut(v).reset();
             }
 
             iterations += 1;
@@ -85,130 +83,101 @@ impl AbstractForceModel {
         graph.calc_adjacency();
 
         let disp_bound =
-            (graph.nodes().len() as f64 * DISP_BOUND_FACTOR) + graph.edges().len() as f64;
+            (graph.nodes.len() as f64 * DISP_BOUND_FACTOR) + graph.edges.len() as f64;
         self.disp_bound = disp_bound.max(DISP_BOUND_FACTOR * DISP_BOUND_FACTOR);
 
         let interactive = graph
             .get_property(ForceOptions::INTERACTIVE)
             .unwrap_or(false);
         if !interactive {
-            let pos_scale = graph.nodes().len() as f64;
-            for node in graph.nodes() {
-                {
-                    let mut node_guard = node.lock();
-                    let pos = node_guard.position();
-                    pos.x = self.random.next_double() * pos_scale;
-                    pos.y = self.random.next_double() * pos_scale;
-                }
+            let pos_scale = graph.nodes.len() as f64;
+            for &nid in &graph.nodes {
+                let pos = &mut graph.arena.node_position[nid.0];
+                pos.x = self.random.next_double() * pos_scale;
+                pos.y = self.random.next_double() * pos_scale;
             }
         }
 
-        let edges = graph.edges().clone();
-        let mut new_bendpoints = Vec::new();
-        for edge in edges {
-            let count = {
-                let edge_guard = edge.lock();
-                edge_guard.get_property(ForceOptions::REPULSIVE_POWER).unwrap_or(0)
-            };
+        let edge_ids: Vec<_> = graph.edges.clone();
+        for eid in edge_ids {
+            let count = graph.arena.edge_properties[eid.0]
+                .get_property(ForceOptions::REPULSIVE_POWER)
+                .unwrap_or(0);
             if count > 0 {
                 for _ in 0..count {
-                    let bend = FBendpoint::new(&edge);
-                    new_bendpoints.push(bend);
+                    let bid = graph.arena.add_bendpoint(eid);
+                    graph.bendpoints.push(bid);
                 }
-                {
-                    let mut edge_guard = edge.lock();
-                    edge_guard.distribute_bendpoints();
-                }
+                graph.distribute_bendpoints(eid);
             }
         }
-        graph.bendpoints_mut().extend(new_bendpoints);
     }
 
     pub fn iteration_done(&mut self, graph: &mut FGraph) {
-        for edge in graph.edges() {
-            {
-                let mut edge_guard = edge.lock();
-                for label in edge_guard.labels_mut() {
-                    {
-                        let mut label_guard = label.lock();
-                        label_guard.refresh_position();
-                    }
-                }
-                edge_guard.distribute_bendpoints();
+        let edge_ids: Vec<_> = graph.edges.clone();
+        for eid in edge_ids {
+            let label_ids: Vec<_> = graph.arena.edge_labels[eid.0].clone();
+            for lid in label_ids {
+                graph.refresh_label_position(lid);
             }
+            graph.distribute_bendpoints(eid);
         }
     }
 
-    pub fn avoid_same_position(random: &mut Random, u: &FParticleRef, v: &FParticleRef) {
+    pub fn avoid_same_position(random: &mut Random, graph: &mut FGraph, u: FParticleId, v: FParticleId) {
         loop {
-            let (pu, pv) = {
-                let pu = u.with_particle_ref(|p| *p.position_ref());
-                let pv = v.with_particle_ref(|p| *p.position_ref());
-                match (pu, pv) {
-                    (Some(pu), Some(pv)) => (pu, pv),
-                    _ => return,
-                }
-            };
+            let pu = *graph.arena.particle_position(u);
+            let pv = *graph.arena.particle_position(v);
             if pu.x != pv.x || pu.y != pv.y {
                 return;
             }
 
             let mut tried_for_bendpoints = false;
-            if let (Some(u_bend), Some(v_bend)) = (u.as_bendpoint(), v.as_bendpoint()) {
-                if !tried_for_bendpoints {
-                    let u_edge = u_bend.lock().edge();
-                    let v_edge = v_bend.lock().edge();
-                    if let (Some(u_edge), Some(v_edge)) = (u_edge, v_edge) {
-                        let u_vec = {
-                            let edge_guard = u_edge.lock();
-                            let source = edge_guard.source_point();
-                            let target = edge_guard.target_point();
-                            match (source, target) {
-                                (Some(source), Some(target)) => {
-                                    KVector::from_points(&source, &target)
-                                }
-                                _ => return,
-                            }
-                        };
-                        let mut orthogonal_u = KVector::new();
-                        if u_vec.length() > 0.0 {
-                            let length = 2.0;
-                            orthogonal_u = KVector::with_values(
-                                (u_vec.x / u_vec.length()) * length,
-                                -(u_vec.y / u_vec.length()) * length,
-                            );
+            if let (FParticleId::Bend(b1), FParticleId::Bend(b2)) = (u, v) {
+                let u_edge = graph.arena.bend_edge[b1.0];
+                let v_edge = graph.arena.bend_edge[b2.0];
+                if let (Some(u_eid), Some(v_eid)) = (u_edge, v_edge) {
+                    let u_vec = {
+                        let source = graph.edge_source_point(u_eid);
+                        let target = graph.edge_target_point(u_eid);
+                        match (source, target) {
+                            (Some(source), Some(target)) => KVector::from_points(&source, &target),
+                            _ => return,
                         }
-                        let v_vec = {
-                            let edge_guard = v_edge.lock();
-                            let source = edge_guard.source_point();
-                            let target = edge_guard.target_point();
-                            match (source, target) {
-                                (Some(source), Some(target)) => {
-                                    KVector::from_points(&source, &target)
-                                }
-                                _ => return,
-                            }
-                        };
-                        let mut orthogonal_v = KVector::new();
-                        if v_vec.length() > 0.0 {
-                            let length = 2.0;
-                            orthogonal_v = KVector::with_values(
-                                (v_vec.x / v_vec.length()) * length,
-                                -(v_vec.y / v_vec.length()) * length,
-                            );
-                        }
-                        let _ = u.with_particle_mut(|p| {
-                            p.position().add(&orthogonal_u);
-                            p.position().add(&orthogonal_v);
-                        });
-                        tried_for_bendpoints = true;
+                    };
+                    let mut orthogonal_u = KVector::new();
+                    if u_vec.length() > 0.0 {
+                        let length = 2.0;
+                        orthogonal_u = KVector::with_values(
+                            (u_vec.x / u_vec.length()) * length,
+                            -(u_vec.y / u_vec.length()) * length,
+                        );
                     }
+                    let v_vec = {
+                        let source = graph.edge_source_point(v_eid);
+                        let target = graph.edge_target_point(v_eid);
+                        match (source, target) {
+                            (Some(source), Some(target)) => KVector::from_points(&source, &target),
+                            _ => return,
+                        }
+                    };
+                    let mut orthogonal_v = KVector::new();
+                    if v_vec.length() > 0.0 {
+                        let length = 2.0;
+                        orthogonal_v = KVector::with_values(
+                            (v_vec.x / v_vec.length()) * length,
+                            -(v_vec.y / v_vec.length()) * length,
+                        );
+                    }
+                    graph.arena.particle_position_mut(u).add(&orthogonal_u);
+                    graph.arena.particle_position_mut(u).add(&orthogonal_v);
+                    tried_for_bendpoints = true;
                 }
             }
 
             if !tried_for_bendpoints {
-                let _ = u.with_particle_mut(|p| p.position().wiggle(random, 1.0));
-                let _ = v.with_particle_mut(|p| p.position().wiggle(random, 1.0));
+                graph.arena.particle_position_mut(u).wiggle(random, 1.0);
+                graph.arena.particle_position_mut(v).wiggle(random, 1.0);
             }
         }
     }

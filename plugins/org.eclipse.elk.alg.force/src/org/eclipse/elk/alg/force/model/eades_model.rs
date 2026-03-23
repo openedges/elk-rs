@@ -1,6 +1,6 @@
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 
-use crate::org::eclipse::elk::alg::force::graph::{FGraph, FParticleRef};
+use crate::org::eclipse::elk::alg::force::graph::{FGraph, FParticleId};
 use crate::org::eclipse::elk::alg::force::model::abstract_force_model::{
     AbstractForceModel, ForceModel,
 };
@@ -58,35 +58,29 @@ impl ForceModel for EadesModel {
     fn calc_displacement(
         &mut self,
         graph: &FGraph,
-        forcer: &FParticleRef,
-        forcee: &FParticleRef,
+        forcer: FParticleId,
+        forcee: FParticleId,
     ) -> Option<KVector> {
-        AbstractForceModel::avoid_same_position(self.base.random_mut(), forcer, forcee);
-
-        let displacement = forcee.with_particle_ref(|p| *p.position_ref());
-        let forcer_pos = forcer.with_particle_ref(|p| *p.position_ref());
-        let (mut displacement, forcer_pos) = match (displacement, forcer_pos) {
-            (Some(displacement), Some(forcer_pos)) => {
-                (KVector::from_vector(&displacement), forcer_pos)
-            }
-            _ => return None,
-        };
+        let forcee_pos = *graph.arena.particle_position(forcee);
+        let forcer_pos = *graph.arena.particle_position(forcer);
+        let mut displacement = KVector::from_vector(&forcee_pos);
         displacement.sub(&forcer_pos);
         let length = displacement.length();
         if length == 0.0 {
             return None;
         }
-        let forcer_radius = forcer.with_particle_ref(|p| p.radius()).unwrap_or(0.0);
-        let forcee_radius = forcee.with_particle_ref(|p| p.radius()).unwrap_or(0.0);
+        let forcer_radius = graph.arena.particle_radius(forcer);
+        let forcee_radius = graph.arena.particle_radius(forcee);
         let d = (length - forcer_radius - forcee_radius).max(0.0);
 
         let connection = graph.get_connection(forcer, forcee);
         let force = if connection > 0 {
             -Self::attractive(d, self.spring_length) * (connection as f64)
         } else {
-            let priority = forcer
-                .with_particle_mut(|p| p.get_property(ForceOptions::PRIORITY))
-                .flatten()
+            let priority = graph
+                .arena
+                .particle_properties(forcer)
+                .get_property(ForceOptions::PRIORITY)
                 .unwrap_or(1);
             Self::repulsive(d, self.repulsion_factor) * (priority as f64)
         };
