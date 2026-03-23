@@ -320,11 +320,14 @@ impl FinalSplineBendpointsCalculator {
         let mut indegree = 0i32;
         let mut outdegree = 0i32;
 
-        let source_port = edge.lock().source();
-        let target_port = edge.lock().target();
+        let (source_port, target_port) = {
+            let edge_guard = edge.lock();
+            (edge_guard.source(), edge_guard.target())
+        };
 
         if let Some(target_port) = target_port {
-            if let Some(node) = target_port.lock().node() {
+            let node = target_port.lock().node();
+            if let Some(node) = node {
                 let ports = node.lock().ports().clone();
                 for port in ports {
                     indegree += port.lock().incoming_edges().len() as i32;
@@ -335,7 +338,8 @@ impl FinalSplineBendpointsCalculator {
         }
 
         if let Some(source_port) = source_port {
-            if let Some(node) = source_port.lock().node() {
+            let node = source_port.lock().node();
+            if let Some(node) = node {
                 let ports = node.lock().ports().clone();
                 for port in ports {
                     outdegree += port.lock().outgoing_edges().len() as i32;
