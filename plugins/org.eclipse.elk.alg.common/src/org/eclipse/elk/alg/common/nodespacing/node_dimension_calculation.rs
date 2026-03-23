@@ -1383,12 +1383,12 @@ impl NodeDimensionCalculation {
         let mut min_x: f64 = 0.0;
         let mut max_x: f64 = width;
 
-        // Keep defaults stable; only explicit properties influence clamp bounds.
-        if node.has_property(CoreOptions::PADDING) {
-            let padding = node.get_padding();
-            min_x = min_x.max(padding.left.max(0.0));
-            max_x = (width - padding.right.max(0.0)).max(min_x);
-        }
+        // Always use effective padding (includes defaults) — matches Java behavior
+        // where getProperty() caches defaults making hasProperty() return true.
+        let padding = node.get_padding();
+        min_x = min_x.max(padding.left.max(0.0));
+        max_x = (width - padding.right.max(0.0)).max(min_x);
+
         if node.has_property(CoreOptions::SPACING_LABEL_NODE) {
             let spacing = node
                 .get_property(CoreOptions::SPACING_LABEL_NODE)
@@ -1396,13 +1396,6 @@ impl NodeDimensionCalculation {
                 .max(0.0);
             min_x = min_x.max(spacing);
             max_x = (width - spacing).max(min_x);
-        }
-        if node.has_property(CoreOptions::NODE_LABELS_PADDING) {
-            let padding = node
-                .get_property(CoreOptions::NODE_LABELS_PADDING)
-                .unwrap_or_default();
-            min_x = min_x.max(padding.left.max(0.0));
-            max_x = (width - padding.right.max(0.0)).max(min_x);
         }
 
         (min_x, max_x)
@@ -1754,11 +1747,10 @@ impl NodeDimensionCalculation {
         let mut min_x: f64 = 0.0;
         let mut max_x: f64 = width;
 
-        if node.has_property(CoreOptions::PADDING) {
-            let padding = node.get_padding();
-            min_x = min_x.max(padding.left.max(0.0));
-            max_x = (width - padding.right.max(0.0)).max(min_x);
-        }
+        let padding = node.get_padding();
+        min_x = min_x.max(padding.left.max(0.0));
+        max_x = (width - padding.right.max(0.0)).max(min_x);
+
         if node.has_property(CoreOptions::SPACING_LABEL_NODE) {
             let spacing = node
                 .get_property(CoreOptions::SPACING_LABEL_NODE)
@@ -1766,13 +1758,6 @@ impl NodeDimensionCalculation {
                 .max(0.0);
             min_x = min_x.max(spacing);
             max_x = (width - spacing).max(min_x);
-        }
-        if node.has_property(CoreOptions::NODE_LABELS_PADDING) {
-            let padding = node
-                .get_property(CoreOptions::NODE_LABELS_PADDING)
-                .unwrap_or_default();
-            min_x = min_x.max(padding.left.max(0.0));
-            max_x = (width - padding.right.max(0.0)).max(min_x);
         }
 
         (min_x, max_x)
