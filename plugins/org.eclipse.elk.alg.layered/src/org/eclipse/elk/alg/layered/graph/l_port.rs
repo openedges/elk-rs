@@ -6,7 +6,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 
-use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, Origin};
+use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions, Origin};
 
 use super::{
     index_of_arc, remove_arc, LEdgeRef, LLabelRef, LMargin, LNodeRef, LNodeWeak, LPortRef, LShape,
@@ -247,6 +247,16 @@ impl LPort {
 
     pub fn port_dummy(&self) -> Option<LNodeRef> {
         self.shape.get_property(InternalProperties::PORT_DUMMY)
+    }
+
+    pub fn inside_connections(&self) -> bool {
+        self.shape
+            .get_property(InternalProperties::INSIDE_CONNECTIONS)
+            .unwrap_or(false)
+    }
+
+    pub fn port_index(&self) -> Option<i32> {
+        self.shape.get_property(LayeredOptions::PORT_INDEX)
     }
 
     pub fn designation(&self) -> String {

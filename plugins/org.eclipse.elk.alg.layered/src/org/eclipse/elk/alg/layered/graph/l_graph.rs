@@ -3,7 +3,14 @@ use std::sync::Arc;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::direction::Direction;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_routing::EdgeRouting;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::EnumSet;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
+
+use crate::org::eclipse::elk::alg::layered::options::{
+    GraphProperties, InternalProperties, LayeredOptions,
+};
 
 use super::{index_of_arc, LGraphElement, LGraphRef, LNodeRef, LNodeWeak, LPadding, LayerRef};
 
@@ -102,6 +109,26 @@ impl LGraph {
         value: Option<T>,
     ) {
         self.element.set_property(property, value);
+    }
+
+    // --- Typed property accessors (read-only, &self) ---
+
+    pub fn graph_properties(&self) -> EnumSet<GraphProperties> {
+        self.element
+            .get_property(InternalProperties::GRAPH_PROPERTIES)
+            .unwrap_or_else(EnumSet::none_of)
+    }
+
+    pub fn direction(&self) -> Direction {
+        self.element
+            .get_property(LayeredOptions::DIRECTION)
+            .unwrap_or(Direction::Undefined)
+    }
+
+    pub fn edge_routing(&self) -> EdgeRouting {
+        self.element
+            .get_property(LayeredOptions::EDGE_ROUTING)
+            .unwrap_or(EdgeRouting::Undefined)
     }
 
     pub fn to_node_array(&self) -> Vec<Vec<LNodeRef>> {

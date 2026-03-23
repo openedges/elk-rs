@@ -3,6 +3,7 @@ use std::sync::Arc;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector_chain::KVectorChain;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_label_placement::EdgeLabelPlacement;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
@@ -324,6 +325,17 @@ impl LEdge {
             .properties()
             .get_property(LayeredOptions::PRIORITY_STRAIGHTNESS)
             .unwrap_or(0)
+    }
+
+    pub fn edge_thickness(&self) -> f64 {
+        self.element
+            .properties()
+            .get_property(CoreOptions::EDGE_THICKNESS)
+            .unwrap_or(0.0)
+    }
+
+    pub fn model_order(&self) -> Option<i32> {
+        self.element.properties().get_property(InternalProperties::MODEL_ORDER)
     }
 
     pub fn designation(&self) -> Option<String> {

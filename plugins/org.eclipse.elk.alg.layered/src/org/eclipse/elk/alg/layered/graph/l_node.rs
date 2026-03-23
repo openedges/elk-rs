@@ -10,8 +10,8 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 
 use crate::org::eclipse::elk::alg::layered::options::{
-    InteractiveReferencePoint, InternalProperties, LayerConstraint, LayeredOptions, Origin,
-    PortType,
+    InLayerConstraint, InteractiveReferencePoint, InternalProperties, LayerConstraint,
+    LayeredOptions, Origin, PortType,
 };
 
 use super::{
@@ -449,6 +449,26 @@ impl LNode {
     pub fn in_layer_layout_unit(&self) -> Option<LNodeRef> {
         self.shape
             .get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
+    }
+
+    pub fn in_layer_constraint(&self) -> InLayerConstraint {
+        self.shape
+            .get_property(InternalProperties::IN_LAYER_CONSTRAINT)
+            .unwrap_or(InLayerConstraint::None)
+    }
+
+    pub fn long_edge_source(&self) -> Option<LPortRef> {
+        self.shape.get_property(InternalProperties::LONG_EDGE_SOURCE)
+    }
+
+    pub fn long_edge_target(&self) -> Option<LPortRef> {
+        self.shape.get_property(InternalProperties::LONG_EDGE_TARGET)
+    }
+
+    pub fn long_edge_has_label_dummies(&self) -> bool {
+        self.shape
+            .get_property(InternalProperties::LONG_EDGE_HAS_LABEL_DUMMIES)
+            .unwrap_or(false)
     }
 
     pub fn designation(&self) -> String {
