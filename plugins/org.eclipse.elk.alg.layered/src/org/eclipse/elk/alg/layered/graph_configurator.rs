@@ -131,7 +131,7 @@ impl GraphConfigurator {
 
     fn configure_graph_properties(&mut self, graph: &LGraphRef) {
         let (edge_spacing, direction, random_seed, edge_routing, favor_straightness) = {
-            let mut graph_guard = graph.lock();
+            let graph_guard = graph.lock();
             (
                 graph_guard
                     .get_property(LayeredOptions::SPACING_EDGE_EDGE)

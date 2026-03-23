@@ -122,7 +122,7 @@ impl PolylineEdgeRouter {
     }
 
     pub(crate) fn is_external_west_or_east_port(node: &LNodeRef) -> bool {
-        let mut node_guard = node.lock();
+        let node_guard = node.lock();
         if node_guard.node_type() != NodeType::ExternalPort {
             return false;
         }
@@ -152,7 +152,7 @@ impl PolylineEdgeRouter {
         for port in ports {
             // Batch-extract port data in a single lock
             let (absolute_port_anchor, port_side, add_junction_point, origin, connected_edges) = {
-                let mut port_guard = port.lock();
+                let port_guard = port.lock();
                 let anchor = port_guard.absolute_anchor();
                 let side = port_guard.side();
                 let multi = port_guard.incoming_edges().len()
@@ -524,7 +524,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for PolylineEdgeRouter {
         graph: &LGraph,
     ) -> Option<LayoutProcessorConfiguration<LayeredPhases, LGraph>> {
         let graph_properties = graph
-            .get_property_ref(InternalProperties::GRAPH_PROPERTIES)
+            .get_property(InternalProperties::GRAPH_PROPERTIES)
             .unwrap_or_else(EnumSet::none_of);
 
         let mut configuration =

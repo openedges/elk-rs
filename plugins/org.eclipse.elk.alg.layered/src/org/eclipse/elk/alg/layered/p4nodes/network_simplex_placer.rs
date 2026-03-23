@@ -173,7 +173,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for NetworkSimplexPlacer {
         graph: &LGraph,
     ) -> Option<LayoutProcessorConfiguration<LayeredPhases, LGraph>> {
         if graph
-            .get_property_ref(InternalProperties::GRAPH_PROPERTIES)
+            .get_property(InternalProperties::GRAPH_PROPERTIES)
             .is_some_and(|props| props.contains(&GraphProperties::ExternalPorts))
         {
             Some(LayoutProcessorConfiguration::create_from(
@@ -671,7 +671,7 @@ impl NetworkSimplexPlacer {
                 let south_ports = node_guard.port_side_view(PortSide::South);
                 for port in south_ports {
                     let dummy = {
-                        let mut port_guard = port.lock();
+                        let port_guard = port.lock();
                         port_guard.get_property(InternalProperties::PORT_DUMMY)
                     };
                     if let Some(dummy) = dummy {
@@ -688,7 +688,7 @@ impl NetworkSimplexPlacer {
                 let north_ports = node_guard.port_side_view(PortSide::North);
                 for port in north_ports {
                     let dummy = {
-                        let mut port_guard = port.lock();
+                        let port_guard = port.lock();
                         port_guard.get_property(InternalProperties::PORT_DUMMY)
                     };
                     if let Some(dummy) = dummy {
@@ -843,7 +843,7 @@ impl NetworkSimplexPlacer {
 
     fn get_edge_weight(&self, edge: &LEdgeRef) -> f64 {
         let (priority, source_port, target_port) = {
-            let mut edge_guard = edge.lock();
+            let edge_guard = edge.lock();
             let p = edge_guard
                 .get_property(LayeredOptions::PRIORITY_STRAIGHTNESS)
                 .unwrap_or(1)
@@ -1465,7 +1465,7 @@ impl Path {
 
 fn get_node_flexibility(graph: &LGraph, node: &LNodeRef) -> NodeFlexibility {
     {
-        let mut node_guard = node.lock();
+        let node_guard = node.lock();
         if let Some(value) =
             node_guard.get_property(LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY)
         {
@@ -1473,7 +1473,7 @@ fn get_node_flexibility(graph: &LGraph, node: &LNodeRef) -> NodeFlexibility {
         }
     }
     if let Some(value) = graph
-        .get_property_ref(LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_DEFAULT)
+        .get_property(LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_DEFAULT)
     {
         return value;
     }
@@ -1484,7 +1484,7 @@ fn get_node_flexibility(graph: &LGraph, node: &LNodeRef) -> NodeFlexibility {
 
 fn is_flexible_node(graph: &LGraph, node: &LNodeRef) -> bool {
     let (node_type, port_count, port_constraints) = {
-        let mut node_guard = node.lock();
+        let node_guard = node.lock();
         (
             node_guard.node_type(),
             node_guard.ports().len(),

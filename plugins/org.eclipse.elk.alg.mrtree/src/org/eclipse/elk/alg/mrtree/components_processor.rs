@@ -18,7 +18,7 @@ impl ComponentsProcessor {
 
     pub fn split(&self, graph: &TGraphRef) -> Vec<TGraphRef> {
         let (separate, nodes, edges, properties) = {
-            let mut graph_guard = graph.lock();
+            let graph_guard = graph.lock();
             let separate = graph_guard
                 .get_property(MrTreeOptions::SEPARATE_CONNECTED_COMPONENTS)
                 .unwrap_or(true);
@@ -160,7 +160,7 @@ impl ComponentsProcessor {
             let mut maxx = f64::MIN;
             let mut maxy = f64::MIN;
             for node in nodes {
-                let mut node_guard = node.lock();
+                let node_guard = node.lock();
                 priority += node_guard
                     .get_property(MrTreeOptions::PRIORITY)
                     .unwrap_or(0);
@@ -212,7 +212,7 @@ impl ComponentsProcessor {
             let mut max_row_width: f64 = 0.0;
             let mut total_area: f64 = 0.0;
             for graph in &components_sorted {
-                let mut graph_guard = graph.lock();
+                let graph_guard = graph.lock();
                 let size = graph_guard
                     .get_property(InternalProperties::BB_LOWRIGHT)
                     .unwrap_or_default();
@@ -225,12 +225,12 @@ impl ComponentsProcessor {
                 total_area += diff.x * diff.y;
             }
             let aspect = {
-                let mut g = result.lock();
+                let g = result.lock();
                 g.get_property(MrTreeOptions::ASPECT_RATIO).unwrap_or(1.0)
             };
             max_row_width = max_row_width.max(total_area.sqrt() * aspect);
             let spacing = {
-                let mut g = result.lock();
+                let g = result.lock();
                 g.get_property(MrTreeOptions::SPACING_NODE_NODE).unwrap_or(0.0)
             };
             (max_row_width, spacing)
@@ -241,7 +241,7 @@ impl ComponentsProcessor {
         let mut highest_box = 0.0;
         for graph in &components_sorted {
             let (size, min) = {
-                let mut graph_guard = graph.lock();
+                let graph_guard = graph.lock();
                 let mut size = graph_guard
                     .get_property(InternalProperties::BB_LOWRIGHT)
                     .unwrap_or_default();
@@ -272,7 +272,7 @@ impl ComponentsProcessor {
 
     fn apply_padding_and_normalize_positions(&self, graph: &TGraphRef) {
         let padding = {
-            let mut g = graph.lock();
+            let g = graph.lock();
             g.get_property(MrTreeOptions::PADDING).unwrap_or_default()
         };
 
@@ -285,11 +285,11 @@ impl ComponentsProcessor {
         }
 
         let xmin = {
-            let mut g = graph.lock();
+            let g = graph.lock();
             g.get_property(InternalProperties::GRAPH_XMIN).unwrap_or(0.0)
         };
         let ymin = {
-            let mut g = graph.lock();
+            let g = graph.lock();
             g.get_property(InternalProperties::GRAPH_YMIN).unwrap_or(0.0)
         };
 
@@ -306,7 +306,7 @@ impl ComponentsProcessor {
         offsety: f64,
     ) {
         let (nodes, edges, source_min) = {
-            let mut source_guard = source_graph.lock();
+            let source_guard = source_graph.lock();
             let nodes = source_guard.nodes().clone();
             let edges = source_guard.edges().clone();
             let source_min = source_guard
@@ -353,7 +353,7 @@ impl Default for ComponentsProcessor {
 }
 
 fn component_sort_values(graph: &TGraphRef) -> (i32, f64) {
-    let mut guard = graph.lock();
+    let guard = graph.lock();
     let priority = guard.get_property(MrTreeOptions::PRIORITY).unwrap_or(0);
     let mut size = guard
         .get_property(InternalProperties::BB_LOWRIGHT)

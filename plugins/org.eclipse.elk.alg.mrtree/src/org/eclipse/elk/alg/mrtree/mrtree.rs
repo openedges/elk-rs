@@ -42,7 +42,7 @@ impl MrTree {
         monitor.begin("Tree layout", 1.0);
 
         let debug = {
-            let mut g = graph.lock();
+            let g = graph.lock();
             g.get_property(MrTreeOptions::DEBUG_MODE).unwrap_or(false)
         };
         if debug {
@@ -83,7 +83,7 @@ impl MrTree {
         monitor.begin("Layout", total);
 
         let debug = {
-            let mut g = graph.lock();
+            let g = graph.lock();
             g.get_property(MrTreeOptions::DEBUG_MODE).unwrap_or(false)
         };
         if debug {

@@ -230,7 +230,7 @@ impl Spacings {
 
     fn cache_graph_values(&mut self) {
         let mut values: FxHashMap<usize, f64> = FxHashMap::default();
-        let mut graph_guard = self.graph.lock();
+        let graph_guard = self.graph.lock();
 
         let mut cache = |property: &'static Property<f64>| {
             let key = property as *const Property<f64> as usize;
@@ -337,7 +337,7 @@ impl Spacings {
         if let Some(value) = value {
             return value;
         }
-        if let Some(value) = graph.get_property_ref(property) {
+        if let Some(value) = graph.get_property(property) {
             return value;
         }
         property

@@ -165,12 +165,12 @@ impl ModelOrderBarycenterHeuristic {
 
     fn compare_nodes(&mut self, n1: &LNodeRef, n2: &LNodeRef) -> i32 {
         let constraint1 = {
-            let mut node_guard = n1.lock();
+            let node_guard = n1.lock();
             node_guard.get_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT)
                 .unwrap_or(LayerConstraint::None)
         };
         let constraint2 = {
-            let mut node_guard = n2.lock();
+            let node_guard = n2.lock();
             node_guard.get_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT)
                 .unwrap_or(LayerConstraint::None)
         };
@@ -190,13 +190,13 @@ impl ModelOrderBarycenterHeuristic {
         }
 
         let n1_has_model_order = {
-            let mut node_guard = n1.lock();
+            let node_guard = n1.lock();
             node_guard
                 .get_property(InternalProperties::MODEL_ORDER)
                 .is_some()
         };
         let n2_has_model_order = {
-            let mut node_guard = n2.lock();
+            let node_guard = n2.lock();
             node_guard
                 .get_property(InternalProperties::MODEL_ORDER)
                 .is_some()
@@ -223,14 +223,14 @@ impl ModelOrderBarycenterHeuristic {
 
                 if self.group_order_strategy == GroupOrderStrategy::OnlyWithinGroup {
                     let n1_group = {
-                        let mut node_guard = n1.lock();
+                        let node_guard = n1.lock();
                         node_guard.get_property(
                             LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID,
                         )
                         .unwrap_or(0)
                     };
                     let n2_group = {
-                        let mut node_guard = n2.lock();
+                        let node_guard = n2.lock();
                         node_guard.get_property(
                             LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID,
                         )

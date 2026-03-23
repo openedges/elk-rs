@@ -22,7 +22,7 @@ impl ILayoutProcessor<TGraphRef> for CompactionProcessor {
 
         // Batch all graph property reads in a single lock
         let (enabled, direction, node_node_spacing, routing_mode) = {
-            let mut graph_guard = graph.lock();
+            let graph_guard = graph.lock();
             let enabled = graph_guard
                 .get_property(MrTreeOptions::COMPACTION)
                 .unwrap_or(false);
@@ -60,7 +60,7 @@ impl ILayoutProcessor<TGraphRef> for CompactionProcessor {
         let mut node_sizes: HashMap<usize, KVector> = HashMap::with_capacity(nodes.len());
         for n in &nodes {
             let key = node_key(n);
-            let mut guard = n.lock();
+            let guard = n.lock();
             let pos = *guard.position_ref();
             sort_keys.insert(key, dir_vec.dot_product(&pos));
             node_sizes.insert(key, *guard.size_ref());
@@ -231,7 +231,7 @@ impl CompactionProcessor {
         };
 
         for node in nodes {
-            let mut node_guard = node.lock();
+            let node_guard = node.lock();
             let level = node_guard
                 .get_property(MrTreeOptions::TREE_LEVEL)
                 .unwrap_or(0) as usize;
@@ -260,7 +260,7 @@ impl CompactionProcessor {
 
     fn compute_node_constraints(&mut self, graph: &TGraphRef, node_node_spacing: f64) {
         let direction = {
-            let mut g = graph.lock();
+            let g = graph.lock();
             g.get_property(MrTreeOptions::DIRECTION).unwrap_or(Direction::Undefined)
         };
         let right = if direction.is_horizontal() {
@@ -357,7 +357,7 @@ impl CompactionProcessor {
 
     fn get_lowest_dependent_node(&self, node: &TNodeRef, direction: Direction) -> Option<TNodeRef> {
         let constraints = {
-            let mut node_guard = node.lock();
+            let node_guard = node.lock();
             node_guard.get_property(InternalProperties::COMPACT_CONSTRAINTS)
         };
         let constraints = constraints.unwrap_or_default();

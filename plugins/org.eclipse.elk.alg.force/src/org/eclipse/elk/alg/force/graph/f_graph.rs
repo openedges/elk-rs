@@ -107,7 +107,7 @@ impl FGraph {
     }
 
     pub fn get_property<T: Clone + Send + Sync + 'static>(
-        &mut self,
+        &self,
         property: &Property<T>,
     ) -> Option<T> {
         self.properties.get_property(property)
@@ -183,7 +183,7 @@ impl FGraph {
                 let edge2 = b2.lock().edge();
                 match (edge1, edge2) {
                     (Some(edge1), Some(edge2)) if Arc::ptr_eq(&edge1, &edge2) => {
-                        let mut edge_guard = edge2.lock();
+                        let edge_guard = edge2.lock();
                         edge_guard.get_property(ForceOptions::PRIORITY).unwrap_or(1)
                     }
                     _ => 0,
@@ -198,7 +198,7 @@ impl FGraph {
         self.adjacency = vec![vec![0; n]; n];
         for edge in &self.edges {
             let (source_id, target_id, priority) = {
-                let mut edge_guard = edge.lock();
+                let edge_guard = edge.lock();
                 let source_id = edge_guard
                     .source()
                     .map(|node| node.lock().id());

@@ -132,7 +132,7 @@ impl GraphElementAdapter<LNodeRef> for LGraphAdapter {
     fn set_position(&self, _pos: KVector) {}
 
     fn get_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> Option<P> {
-        self.properties.get_property_ref(prop)
+        self.properties.get_property(prop)
     }
 
     fn has_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> bool {
@@ -220,7 +220,7 @@ impl GraphElementAdapter<LNodeRef> for LNodeAdapter {
     }
 
     fn get_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> Option<P> {
-        let mut node = self.node.lock();
+        let node = self.node.lock();
         node.get_property(prop)
     }
 
@@ -344,7 +344,7 @@ impl NodeAdapter<LNodeRef> for LNodeAdapter {
     }
 
     fn is_compound_node(&self) -> bool {
-        let mut node = self.node.lock();
+        let node = self.node.lock();
         // Java only checks COMPOUND_NODE property
         node.get_property(InternalProperties::COMPOUND_NODE)
             .unwrap_or(false)
@@ -425,7 +425,7 @@ impl GraphElementAdapter<LPortRef> for LPortAdapter {
     }
 
     fn get_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> Option<P> {
-        let mut port = self.port.lock();
+        let port = self.port.lock();
         port.get_property(prop)
     }
 
@@ -506,7 +506,7 @@ impl PortAdapter<LPortRef> for LPortAdapter {
 
         // 2. If transparent N/S edges, include edges from PORT_DUMMY
         if self.transparent_north_south_edges {
-            let mut port = self.port.lock();
+            let port = self.port.lock();
             if let Some(port_dummy) = port.get_property(InternalProperties::PORT_DUMMY) {
                 // Get ALL incoming edges of the port dummy NODE (iterate all its ports)
                 let dummy_guard = port_dummy.lock();
@@ -585,7 +585,7 @@ impl PortAdapter<LPortRef> for LPortAdapter {
 
         // 2. If transparent N/S edges, include edges from PORT_DUMMY
         if self.transparent_north_south_edges {
-            let mut port = self.port.lock();
+            let port = self.port.lock();
             if let Some(port_dummy) = port.get_property(InternalProperties::PORT_DUMMY) {
                 // Get ALL outgoing edges of the port dummy NODE (iterate all its ports)
                 let dummy_guard = port_dummy.lock();
@@ -637,7 +637,7 @@ impl PortAdapter<LPortRef> for LPortAdapter {
     fn has_compound_connections(&self) -> bool {
         // In the layered algorithm, compound connections are determined by the INSIDE_CONNECTIONS
         // property which is set during graph import.
-        let mut port = self.port.lock();
+        let port = self.port.lock();
         port.get_property(InternalProperties::INSIDE_CONNECTIONS)
             .unwrap_or(false)
     }
@@ -685,7 +685,7 @@ impl GraphElementAdapter<LLabelRef> for LLabelAdapter {
     }
 
     fn get_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> Option<P> {
-        let mut label = self.label.lock();
+        let label = self.label.lock();
         label.get_property(prop)
     }
 
@@ -709,7 +709,7 @@ impl GraphElementAdapter<LLabelRef> for LLabelAdapter {
 
 impl LabelAdapter<LLabelRef> for LLabelAdapter {
     fn get_side(&self) -> LabelSide {
-        let mut label = self.label.lock();
+        let label = self.label.lock();
         label
             .get_property(LabelSide::LABEL_SIDE)
             .unwrap_or(LabelSide::Unknown)

@@ -15,12 +15,12 @@ impl ILayoutProcessor<TGraphRef> for LevelHeightProcessor {
         progress_monitor.begin("Processor determine the height for each level", 1.0);
 
         let (nodes, root, direction) = {
-            let mut graph_guard = graph.lock();
+            let graph_guard = graph.lock();
             let nodes = graph_guard.nodes().clone();
             let root = nodes
                 .iter()
                 .find(|node| {
-                    let mut node_guard = node.lock();
+                    let node_guard = node.lock();
                     node_guard.get_property(InternalProperties::ROOT).unwrap_or(false)
                 })
                 .cloned();

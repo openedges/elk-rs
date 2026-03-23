@@ -53,7 +53,7 @@ impl InteractiveCrossingMinimizer {
     }
 
     fn has_successor_constraint(node: &LNodeRef, successor: &LNodeRef) -> bool {
-        let mut node_guard = node.lock();
+        let node_guard = node.lock();
         node_guard.get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
             .map(|constraints| {
                 constraints
@@ -129,7 +129,7 @@ impl InteractiveCrossingMinimizer {
 
     fn long_edge_position(node: &LNodeRef, horiz_pos: f64) -> Option<f64> {
         let edge = {
-            let mut node_guard = node.lock();
+            let node_guard = node.lock();
             node_guard.get_property(InternalProperties::ORIGIN)
                 .and_then(|origin| match origin {
                     Origin::LEdge(edge) => Some(edge),
@@ -140,7 +140,7 @@ impl InteractiveCrossingMinimizer {
         let mut bend_points = edge
             .lock().bend_points_ref().clone();
         let reversed = {
-            let mut edge_guard = edge.lock();
+            let edge_guard = edge.lock();
             edge_guard.get_property(InternalProperties::REVERSED)
                 .unwrap_or(false)
         };
@@ -149,7 +149,7 @@ impl InteractiveCrossingMinimizer {
         }
 
         let source = {
-            let mut node_guard = node.lock();
+            let node_guard = node.lock();
             node_guard.get_property(InternalProperties::LONG_EDGE_SOURCE)
         };
         if let Some(source_point) = source.and_then(|source_port| {
@@ -163,7 +163,7 @@ impl InteractiveCrossingMinimizer {
         }
 
         let target = {
-            let mut node_guard = node.lock();
+            let node_guard = node.lock();
             node_guard.get_property(InternalProperties::LONG_EDGE_TARGET)
         };
         if let Some(target_point) = target.and_then(|target_port| {
@@ -205,7 +205,7 @@ impl InteractiveCrossingMinimizer {
             node_guard.ports().first().cloned()
         }?;
         let origin_port = {
-            let mut dummy_port_guard = dummy_port.lock();
+            let dummy_port_guard = dummy_port.lock();
             dummy_port_guard.get_property(InternalProperties::ORIGIN)
                 .and_then(|origin| match origin {
                     Origin::LPort(port) => Some(port),
@@ -323,7 +323,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveCrossingMinimizer {
         let mut configuration =
             LayoutProcessorConfiguration::create_from(&INTERMEDIATE_PROCESSING_CONFIGURATION);
         let graph_properties = graph
-            .get_property_ref(InternalProperties::GRAPH_PROPERTIES)
+            .get_property(InternalProperties::GRAPH_PROPERTIES)
             .unwrap_or_default();
         if graph_properties.contains(&GraphProperties::NonFreePorts) {
             configuration.add_before(

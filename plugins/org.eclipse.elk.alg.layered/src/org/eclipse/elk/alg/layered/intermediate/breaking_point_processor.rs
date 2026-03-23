@@ -547,7 +547,7 @@ impl BreakingPointProcessor {
 }
 
 fn breaking_point_info(node: &LNodeRef) -> Option<BreakingPointInfoRef> {
-    let mut node_guard = node.lock();
+    let node_guard = node.lock();
     node_guard.get_property(InternalProperties::BREAKING_POINT_INFO)
 }
 

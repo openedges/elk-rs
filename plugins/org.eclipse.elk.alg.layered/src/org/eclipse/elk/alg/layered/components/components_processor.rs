@@ -85,7 +85,7 @@ impl ComponentsProcessor {
 
         for (i, node) in nodes.iter().enumerate() {
             {
-                let mut node_guard = node.lock();
+                let node_guard = node.lock();
                 if node_guard.node_type() == NodeType::ExternalPort {
                     ext_port_side[i] =
                         node_guard.get_property(InternalProperties::EXT_PORT_SIDE);
@@ -217,7 +217,7 @@ impl ComponentsProcessor {
         }
 
         let (consider_model_order, has_external_ports) = {
-            let mut target_guard = target.lock();
+            let target_guard = target.lock();
             (
                 target_guard
                     .get_property(LayeredOptions::CONSIDER_MODEL_ORDER_COMPONENTS)
@@ -342,7 +342,7 @@ fn combine_simple_row(components: &[LGraphRef], target: &LGraphRef) {
     }
 
     let (aspect_ratio, component_spacing) = {
-        let mut target_guard = target.lock();
+        let target_guard = target.lock();
         (
             target_guard
                 .get_property(LayeredOptions::ASPECT_RATIO)
@@ -405,7 +405,7 @@ fn combine_component_group(components: &[LGraphRef], target: &LGraphRef) {
     }
 
     let component_spacing = {
-        let mut component_guard = components.first().unwrap().lock();
+        let component_guard = components.first().unwrap().lock();
         component_guard.get_property(LayeredOptions::SPACING_COMPONENT_COMPONENT)
             .unwrap_or(20.0)
     };
@@ -459,13 +459,13 @@ fn combine_component_group_model_order(components: &[LGraphRef], target: &LGraph
     }
 
     let component_spacing = {
-        let mut component_guard = components.first().unwrap().lock();
+        let component_guard = components.first().unwrap().lock();
         component_guard.get_property(LayeredOptions::SPACING_COMPONENT_COMPONENT)
             .unwrap_or(20.0)
     };
 
     let direction = {
-        let mut target_guard = target.lock();
+        let target_guard = target.lock();
         target_guard.get_property(CoreOptions::DIRECTION)
             .unwrap_or(Direction::Right)
     };
@@ -736,7 +736,7 @@ fn place_components_in_rows_group(components: &[LGraphRef], spacing: f64) -> KVe
     }
 
     let aspect_ratio = {
-        let mut component_guard = components.first().unwrap().lock();
+        let component_guard = components.first().unwrap().lock();
         component_guard.get_property(LayeredOptions::ASPECT_RATIO)
             .unwrap_or(1.6)
     };
@@ -785,7 +785,7 @@ fn combine_model_order_row(components: &[LGraphRef], target: &LGraphRef) {
     }
 
     let (aspect_ratio, component_spacing) = {
-        let mut target_guard = target.lock();
+        let target_guard = target.lock();
         (
             target_guard
                 .get_property(LayeredOptions::ASPECT_RATIO)
@@ -830,7 +830,7 @@ fn place_components_in_rows_model_order(
 
     for component in components {
         let (size_x, size_y, offset_x, offset_y, ext_ports) = {
-            let mut component_guard = component.lock();
+            let component_guard = component.lock();
             (
                 component_guard.size_ref().x,
                 component_guard.size_ref().y,
@@ -845,7 +845,7 @@ fn place_components_in_rows_model_order(
         let last_has_east = last_component
             .as_ref()
             .map(|last| {
-                let mut guard = last.lock();
+                let guard = last.lock();
                 guard.get_property(InternalProperties::EXT_PORT_CONNECTIONS)
                     .is_some_and(|ports| ports.contains(&PortSide::East))
             })
@@ -899,7 +899,7 @@ fn maybe_compact_components(components: &[LGraphRef], target: &LGraphRef, requir
     }
 
     let (compact_enabled, edge_routing) = {
-        let mut guard = components.first().unwrap().lock();
+        let guard = components.first().unwrap().lock();
         (
             guard
                 .get_property(LayeredOptions::COMPACTION_CONNECTED_COMPONENTS)
@@ -940,7 +940,7 @@ fn maybe_compact_components(components: &[LGraphRef], target: &LGraphRef, requir
             continue;
         };
         let has_external_connections = {
-            let mut guard = component.lock();
+            let guard = component.lock();
             guard.get_property(InternalProperties::EXT_PORT_CONNECTIONS)
                 .is_some_and(|connections| !connections.is_empty())
         };
@@ -1069,7 +1069,7 @@ fn max_of(values: &[f64]) -> f64 {
 
 fn sort_components_by_priority(components: &mut [LGraphRef], target: &LGraphRef) {
     let consider_model_order = {
-        let mut target_guard = target.lock();
+        let target_guard = target.lock();
         target_guard.get_property(LayeredOptions::CONSIDER_MODEL_ORDER_COMPONENTS)
             .unwrap_or(ComponentOrderingStrategy::None)
     };
@@ -1124,7 +1124,7 @@ fn component_priority_and_area(graph: &LGraphRef) -> (i32, f64) {
     let priority = collect_component_nodes(graph)
         .iter()
         .filter_map(|node| {
-            let mut node_guard = node.lock();
+            let node_guard = node.lock();
             node_guard.get_property(CoreOptions::PRIORITY)
         })
         .sum::<i32>();

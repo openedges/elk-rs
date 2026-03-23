@@ -152,7 +152,7 @@ impl SortByInputModelProcessor {
     pub fn long_edge_target_node_preprocessing(node: &LNodeRef) -> FxHashMap<NodeRefKey, i32> {
         let mut target_node_model_order: FxHashMap<NodeRefKey, i32> = FxHashMap::default();
         let ports = {
-            let mut node_guard = node.lock();
+            let node_guard = node.lock();
             if let Some(existing) =
                 node_guard.get_property(InternalProperties::TARGET_NODE_MODEL_ORDER)
             {
@@ -181,7 +181,7 @@ impl SortByInputModelProcessor {
                     .copied()
                     .unwrap_or(i32::MAX);
                 let (reversed, model_order) = {
-                    let mut edge_guard = first_edge.lock();
+                    let edge_guard = first_edge.lock();
                     (
                         edge_guard
                             .get_property(InternalProperties::REVERSED)
@@ -220,7 +220,7 @@ fn get_target_node_from_edge(mut edge: LEdgeRef) -> Option<LNodeRef> {
             .and_then(|port| port.lock().node())?;
 
         {
-            let mut node_guard = target_node.lock();
+            let node_guard = target_node.lock();
             if let Some(long_edge_target) =
                 node_guard.get_property(InternalProperties::LONG_EDGE_TARGET)
             {

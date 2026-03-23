@@ -221,7 +221,7 @@ fn reverse_edge(graph_ref: &LGraphRef, edge: &LEdgeRef) {
 
 fn can_reverse_outgoing_edge(source_constraint: LayerConstraint, edge: &LEdgeRef) -> bool {
     {
-        let mut edge_guard = edge.lock();
+        let edge_guard = edge.lock();
         if edge_guard
             .get_property(InternalProperties::REVERSED)
             .unwrap_or(false)
@@ -254,7 +254,7 @@ fn can_reverse_outgoing_edge(source_constraint: LayerConstraint, edge: &LEdgeRef
 
 fn can_reverse_incoming_edge(target_constraint: LayerConstraint, edge: &LEdgeRef) -> bool {
     {
-        let mut edge_guard = edge.lock();
+        let edge_guard = edge.lock();
         if edge_guard
             .get_property(InternalProperties::REVERSED)
             .unwrap_or(false)

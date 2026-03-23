@@ -262,7 +262,7 @@ fn graph_layout_to_node(node: &LNodeRef, lgraph: &mut LGraph) {
         }
     }
     let has_external_ports = lgraph
-        .get_property_ref(InternalProperties::GRAPH_PROPERTIES)
+        .get_property(InternalProperties::GRAPH_PROPERTIES)
         .unwrap_or_else(EnumSet::none_of)
         .contains(&GraphProperties::ExternalPorts);
 
@@ -347,7 +347,7 @@ fn edge_represents_self_loop(
     edge: &crate::org::eclipse::elk::alg::layered::graph::LEdgeRef,
 ) -> bool {
     let origin_edge = {
-        let mut edge_guard = edge.lock();
+        let edge_guard = edge.lock();
         if edge_guard.is_self_loop() {
             return true;
         }
@@ -430,10 +430,10 @@ fn get_external_port_position_for_graph(
 /// * `lgraph` - the graph to resize.
 fn resize_graph(lgraph: &mut LGraph) {
     let size_constraint = lgraph
-        .get_property_ref(LayeredOptions::NODE_SIZE_CONSTRAINTS)
+        .get_property(LayeredOptions::NODE_SIZE_CONSTRAINTS)
         .unwrap_or_else(EnumSet::none_of);
     let size_options = lgraph
-        .get_property_ref(CoreOptions::NODE_SIZE_OPTIONS)
+        .get_property(CoreOptions::NODE_SIZE_OPTIONS)
         .unwrap_or_else(EnumSet::none_of);
 
     // getActualSize() used to take the border spacing (what is now included in the padding)
@@ -446,7 +446,7 @@ fn resize_graph(lgraph: &mut LGraph) {
     // calculate the new size
     if size_constraint.contains(&SizeConstraint::MinimumSize) {
         let mut min_size = lgraph
-            .get_property_ref(LayeredOptions::NODE_SIZE_MINIMUM)
+            .get_property(LayeredOptions::NODE_SIZE_MINIMUM)
             .unwrap_or_default();
 
         // if minimum width or height are not set, maybe default to default values
@@ -466,7 +466,7 @@ fn resize_graph(lgraph: &mut LGraph) {
     }
 
     if ElkTrace::global().sizing {
-        let min_size = lgraph.get_property_ref(LayeredOptions::NODE_SIZE_MINIMUM).unwrap_or_default();
+        let min_size = lgraph.get_property(LayeredOptions::NODE_SIZE_MINIMUM).unwrap_or_default();
         let padding = lgraph.padding_ref().clone();
         eprintln!("TRACE resize_graph: constraints={:?} calculated_size=({:.1},{:.1}) adjusted_size=({:.1},{:.1}) min_size=({:.1},{:.1}) padding=({:.1},{:.1},{:.1},{:.1})",
             size_constraint, calculated_size.x, calculated_size.y, adjusted_size.x, adjusted_size.y,
@@ -486,7 +486,7 @@ fn resize_graph(lgraph: &mut LGraph) {
 fn resize_graph_no_really_i_mean_it(lgraph: &mut LGraph, old_size: &KVector, new_size: &KVector) {
     // obey to specified alignment constraints
     let content_alignment = lgraph
-        .get_property_ref(CoreOptions::CONTENT_ALIGNMENT)
+        .get_property(CoreOptions::CONTENT_ALIGNMENT)
         .unwrap_or_else(EnumSet::none_of);
 
     // horizontal alignment
@@ -509,7 +509,7 @@ fn resize_graph_no_really_i_mean_it(lgraph: &mut LGraph, old_size: &KVector, new
 
     // correct the position of eastern and southern hierarchical ports, if necessary
     let has_external_ports = lgraph
-        .get_property_ref(InternalProperties::GRAPH_PROPERTIES)
+        .get_property(InternalProperties::GRAPH_PROPERTIES)
         .unwrap_or_else(EnumSet::none_of)
         .contains(&GraphProperties::ExternalPorts);
 

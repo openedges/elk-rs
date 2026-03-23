@@ -374,14 +374,14 @@ impl LabelDummySwitcher {
         let incoming_reversed = incoming
             .as_ref()
             .and_then(|edge| {
-                let mut edge_guard = edge.lock();
+                let edge_guard = edge.lock();
                 edge_guard.get_property(InternalProperties::REVERSED)
             })
             .unwrap_or(false);
         let outgoing_reversed = outgoing
             .as_ref()
             .and_then(|edge| {
-                let mut edge_guard = edge.lock();
+                let edge_guard = edge.lock();
                 edge_guard.get_property(InternalProperties::REVERSED)
             })
             .unwrap_or(false);
@@ -509,7 +509,7 @@ impl LabelDummySwitcher {
         }
 
         let labels = {
-            let mut node_guard = label_dummy_info.label_dummy.lock();
+            let node_guard = label_dummy_info.label_dummy.lock();
             node_guard
                 .get_property(InternalProperties::REPRESENTED_LABELS)
                 .unwrap_or_default()
@@ -722,7 +722,7 @@ impl LabelDummyInfo {
             .unwrap_or(info.leftmost_layer_id);
 
         let represented_labels = {
-            let mut node_guard = info.label_dummy.lock();
+            let node_guard = info.label_dummy.lock();
             node_guard
                 .get_property(InternalProperties::REPRESENTED_LABELS)
                 .unwrap_or_default()

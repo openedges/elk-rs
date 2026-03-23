@@ -39,7 +39,7 @@ fn fix_coordinates(layer: &LayerRef, layered_graph: &mut LGraph) {
 
     for node in nodes {
         let (node_type, ext_side, ratio_or_pos, anchor) = {
-            let mut node_guard = node.lock();
+            let node_guard = node.lock();
             (
                 node_guard.node_type(),
                 node_guard

@@ -196,7 +196,7 @@ fn restore_hidden_nodes(
                 .lock().target()
                 .is_none();
             let opposite = {
-                let mut edge_guard = hidden_edge.lock();
+                let edge_guard = hidden_edge.lock();
                 edge_guard.get_property(InternalProperties::ORIGINAL_OPPOSITE_PORT)
             };
             let Some(opposite) = opposite else {

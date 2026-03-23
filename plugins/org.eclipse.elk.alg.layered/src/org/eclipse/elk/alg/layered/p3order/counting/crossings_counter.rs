@@ -393,7 +393,7 @@ impl CrossingsCounter {
                 NodeType::Normal => {
                     // PORT_DUMMY property still needs one lock
                     let dummy = {
-                        let mut port_guard = port.lock();
+                        let port_guard = port.lock();
                         port_guard.get_property(InternalProperties::PORT_DUMMY)
                     };
                     if let Some(dummy) = dummy {
@@ -459,7 +459,7 @@ impl CrossingsCounter {
                 NodeType::NorthSouthPort => {
                     // ORIGIN property still needs one lock
                     let origin_port = {
-                        let mut port_guard = port.lock();
+                        let port_guard = port.lock();
                         port_guard.get_property(InternalProperties::ORIGIN)
                             .and_then(|origin| match origin {
                                 Origin::LPort(port) => Some(port),
@@ -676,7 +676,7 @@ impl CrossingsCounter {
             }
             if node_has_property(current, InternalProperties::IN_LAYER_LAYOUT_UNIT) {
                 last_layout_unit = {
-                    let mut node_guard = current.lock();
+                    let node_guard = current.lock();
                     node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
                 };
             }
@@ -1076,7 +1076,7 @@ fn is_layout_unit_changed(last_unit: Option<&LNodeRef>, node: &LNodeRef) -> bool
         return false;
     }
     let unit = {
-        let mut node_guard = node.lock();
+        let node_guard = node.lock();
         node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
     };
     match unit {

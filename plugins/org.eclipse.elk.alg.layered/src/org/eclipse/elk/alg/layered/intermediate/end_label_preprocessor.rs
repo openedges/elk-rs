@@ -148,7 +148,7 @@ pub(crate) fn gather_labels(port: &LPortRef) -> Option<Vec<LLabelRef>> {
     let mut max_edge_thickness = gather_labels_from_port(port, &mut labels);
 
     let dummy_node = {
-        let mut port_guard = port.lock();
+        let port_guard = port.lock();
         port_guard.get_property(InternalProperties::PORT_DUMMY)
     };
     if let Some(dummy_node) = dummy_node {
@@ -158,7 +158,7 @@ pub(crate) fn gather_labels(port: &LPortRef) -> Option<Vec<LLabelRef>> {
         };
         for dummy_port in dummy_ports {
             let origin = {
-                let mut port_guard = dummy_port.lock();
+                let port_guard = dummy_port.lock();
                 port_guard.get_property(InternalProperties::ORIGIN)
             };
             let matches_origin = matches!(origin, Some(Origin::LPort(origin_port)) if Arc::ptr_eq(&origin_port, port));
@@ -196,7 +196,7 @@ fn gather_labels_from_port(port: &LPortRef, target_list: &mut Vec<LLabelRef>) ->
 
     for edge in edges {
         let (edge_thickness, is_source, labels) = {
-            let mut edge_guard = edge.lock();
+            let edge_guard = edge.lock();
             let thickness = edge_guard
                 .get_property(CoreOptions::EDGE_THICKNESS)
                 .unwrap_or(0.0);
@@ -211,7 +211,7 @@ fn gather_labels_from_port(port: &LPortRef, target_list: &mut Vec<LLabelRef>) ->
 
         for label in labels {
             let placement = {
-                let mut label_guard = label.lock();
+                let label_guard = label.lock();
                 label_guard
                     .get_property(LayeredOptions::EDGE_LABELS_PLACEMENT)
                     .unwrap_or(EdgeLabelPlacement::Center)

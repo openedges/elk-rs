@@ -293,7 +293,7 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
 
     fn apply_layout(&self, fgraph: &FGraph) {
         let origin = {
-            let mut props = fgraph.properties().clone();
+            let props = fgraph.properties().clone();
             props.get_property(InternalProperties::ORIGIN)
         };
         let Some(Origin::ElkNode(root_id)) = origin else {

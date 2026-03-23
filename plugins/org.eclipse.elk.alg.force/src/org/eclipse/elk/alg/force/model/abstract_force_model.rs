@@ -107,7 +107,7 @@ impl AbstractForceModel {
         let mut new_bendpoints = Vec::new();
         for edge in edges {
             let count = {
-                let mut edge_guard = edge.lock();
+                let edge_guard = edge.lock();
                 edge_guard.get_property(ForceOptions::REPULSIVE_POWER).unwrap_or(0)
             };
             if count > 0 {

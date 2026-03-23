@@ -77,7 +77,7 @@ impl ILayoutPhase<TreeLayoutPhases, TGraphRef> for EdgeRouter {
         progress_monitor.begin("Edge routing", 1.0);
 
         let mode = {
-            let mut graph_guard = graph.lock();
+            let graph_guard = graph.lock();
             graph_guard
                 .get_property(MrTreeOptions::EDGE_ROUTING_MODE)
                 .unwrap_or(EdgeRoutingMode::AvoidOverlap)
@@ -135,7 +135,7 @@ fn build_node_data(
     for node in nodes {
         let key = Arc::as_ptr(node) as usize;
         {
-            let mut guard = node.lock();
+            let guard = node.lock();
             let level = guard
                 .get_property(MrTreeOptions::TREE_LEVEL)
                 .unwrap_or(0);
@@ -435,7 +435,7 @@ impl EdgeRouter {
     fn avoid_overlap(&self, graph: &TGraphRef) {
         // Single graph lock: extract all properties + nodes + edges
         let (nodes, edges, node_bendpoint_padding, edge_end_texture_padding, direction, graph_bounds) = {
-            let mut g = graph.lock();
+            let g = graph.lock();
             (
                 g.nodes().clone(),
                 g.edges().clone(),
@@ -890,7 +890,7 @@ impl EdgeRouter {
 
             // Extract COMPACT_LEVEL_ASCENSION once per node (not per edge)
             let skip = {
-                let mut guard = node.lock();
+                let guard = node.lock();
                 guard.get_property(InternalProperties::COMPACT_LEVEL_ASCENSION).unwrap_or(false)
             };
             let num = outs.len();

@@ -68,7 +68,7 @@ impl<'a> Tarjan<'a> {
         let nodes = graph
             .lock().layerless_nodes().clone();
         for node in nodes {
-            let mut guard = node.lock();
+            let guard = node.lock();
             let id = guard
                 .get_property(InternalProperties::TARJAN_ID)
                 .unwrap_or(-1);

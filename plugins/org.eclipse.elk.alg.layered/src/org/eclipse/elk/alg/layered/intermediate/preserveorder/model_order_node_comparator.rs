@@ -180,7 +180,7 @@ impl ModelOrderNodeComparator {
         }
 
         if n1_has_model_order && n2_has_model_order {
-            let max_nodes = match self.graph.try_lock() {            Some(mut graph_guard) => graph_guard
+            let max_nodes = match self.graph.try_lock() {            Some(graph_guard) => graph_guard
                     .get_property(InternalProperties::MAX_MODEL_ORDER_NODES)
                     .unwrap_or(0),
             None => {
@@ -321,7 +321,7 @@ impl ModelOrderNodeComparator {
             };
             if let Some(edge) = edge {
                 let order = {
-                    let mut edge_guard = edge.lock();
+                    let edge_guard = edge.lock();
                     edge_guard.get_property(InternalProperties::MODEL_ORDER)
                 };
                 if let Some(order) = order {
@@ -506,7 +506,7 @@ impl ModelOrderNodeComparator {
 }
 
 fn has_model_order(node: &LNodeRef) -> bool {
-    let mut node_guard = node.lock();
+    let node_guard = node.lock();
     node_guard.get_property(InternalProperties::MODEL_ORDER).is_some()
 }
 

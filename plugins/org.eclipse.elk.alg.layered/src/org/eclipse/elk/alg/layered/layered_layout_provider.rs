@@ -71,7 +71,7 @@ impl IGraphLayoutEngine for LayeredLayoutProvider {
 
         let hierarchy_handling = {
             let mut graph_mut = layout_graph.borrow_mut();
-            let mut props = graph_mut
+            let props = graph_mut
                 .connectable()
                 .shape()
                 .graph_element()

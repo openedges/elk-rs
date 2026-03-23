@@ -261,7 +261,7 @@ impl SplineSegment {
     }
 
     fn anchor_y(port: &LPortRef) -> f64 {
-        let mut port_guard = port.lock();
+        let port_guard = port.lock();
         let side = port_guard.side();
         if SIDES_NORTH_SOUTH.contains(&side) {
             port_guard

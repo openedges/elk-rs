@@ -177,7 +177,7 @@ impl ForceModel for FruchtermanReingoldModel {
                         let edge2 = b2.lock().edge();
                         match (edge1, edge2) {
                             (Some(e1), Some(e2)) if Arc::ptr_eq(&e1, &e2) => {
-                                let mut eg = e2.lock();
+                                let eg = e2.lock();
                                 eg.get_property(ForceOptions::PRIORITY).unwrap_or(1)
                             }
                             _ => 0,

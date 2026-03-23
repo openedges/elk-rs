@@ -12,7 +12,7 @@ impl ILayoutProcessor<TGraphRef> for Untreeifyer {
         progress_monitor.begin("Untreeify", 1.0);
 
         let edges = {
-            let mut graph_guard = graph.lock();
+            let graph_guard = graph.lock();
             graph_guard
                 .get_property(InternalProperties::REMOVABLE_EDGES)
                 .unwrap_or_default()

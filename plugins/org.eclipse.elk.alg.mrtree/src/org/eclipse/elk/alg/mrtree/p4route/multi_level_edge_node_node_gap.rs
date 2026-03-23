@@ -234,7 +234,7 @@ fn edge_target_pos(edge: &TEdgeRef) -> KVector {
 }
 
 fn node_data(node: &TNodeRef) -> Option<(KVector, KVector, f64, f64)> {
-    let mut guard = node.lock();
+    let guard = node.lock();
     let pos = *guard.position_ref();
     let size = *guard.size_ref();
     let level_min = guard

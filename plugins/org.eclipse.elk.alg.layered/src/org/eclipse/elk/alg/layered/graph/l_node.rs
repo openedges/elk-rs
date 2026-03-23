@@ -348,7 +348,7 @@ impl LNode {
 
     pub fn interactive_reference_point(&mut self) -> Option<KVector> {
         let graph = self.graph()?;
-        let mut graph_guard = graph.lock();
+        let graph_guard = graph.lock();
         let reference = graph_guard
             .get_property(LayeredOptions::INTERACTIVE_REFERENCE_POINT)
             .unwrap_or(InteractiveReferencePoint::Center);
@@ -399,17 +399,10 @@ impl LNode {
     }
 
     pub fn get_property<T: Clone + Send + Sync + 'static>(
-        &mut self,
-        property: &Property<T>,
-    ) -> Option<T> {
-        self.shape.get_property(property)
-    }
-
-    pub fn get_property_ref<T: Clone + Send + Sync + 'static>(
         &self,
         property: &Property<T>,
     ) -> Option<T> {
-        self.shape.get_property_ref(property)
+        self.shape.get_property(property)
     }
 
     pub fn set_property<T: Clone + Send + Sync + 'static>(
@@ -423,39 +416,39 @@ impl LNode {
     // --- Typed property accessors (read-only, &self) ---
 
     pub fn origin(&self) -> Option<Origin> {
-        self.shape.get_property_ref(InternalProperties::ORIGIN)
+        self.shape.get_property(InternalProperties::ORIGIN)
     }
 
     pub fn port_constraints_prop(&self) -> PortConstraints {
         self.shape
-            .get_property_ref(LayeredOptions::PORT_CONSTRAINTS)
+            .get_property(LayeredOptions::PORT_CONSTRAINTS)
             .unwrap_or(PortConstraints::Undefined)
     }
 
     pub fn ext_port_side(&self) -> PortSide {
         self.shape
-            .get_property_ref(InternalProperties::EXT_PORT_SIDE)
+            .get_property(InternalProperties::EXT_PORT_SIDE)
             .unwrap_or(PortSide::Undefined)
     }
 
     pub fn model_order(&self) -> Option<i32> {
-        self.shape.get_property_ref(InternalProperties::MODEL_ORDER)
+        self.shape.get_property(InternalProperties::MODEL_ORDER)
     }
 
     pub fn layer_constraint(&self) -> LayerConstraint {
         self.shape
-            .get_property_ref(LayeredOptions::LAYERING_LAYER_CONSTRAINT)
+            .get_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT)
             .unwrap_or(LayerConstraint::None)
     }
 
     pub fn port_ratio_or_position(&self) -> Option<f64> {
         self.shape
-            .get_property_ref(InternalProperties::PORT_RATIO_OR_POSITION)
+            .get_property(InternalProperties::PORT_RATIO_OR_POSITION)
     }
 
     pub fn in_layer_layout_unit(&self) -> Option<LNodeRef> {
         self.shape
-            .get_property_ref(InternalProperties::IN_LAYER_LAYOUT_UNIT)
+            .get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
     }
 
     pub fn designation(&self) -> String {

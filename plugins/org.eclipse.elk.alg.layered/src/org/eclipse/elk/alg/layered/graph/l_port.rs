@@ -225,17 +225,10 @@ impl LPort {
     }
 
     pub fn get_property<T: Clone + Send + Sync + 'static>(
-        &mut self,
-        property: &Property<T>,
-    ) -> Option<T> {
-        self.shape.get_property(property)
-    }
-
-    pub fn get_property_ref<T: Clone + Send + Sync + 'static>(
         &self,
         property: &Property<T>,
     ) -> Option<T> {
-        self.shape.get_property_ref(property)
+        self.shape.get_property(property)
     }
 
     pub fn set_property<T: Clone + Send + Sync + 'static>(
@@ -249,11 +242,11 @@ impl LPort {
     // --- Typed property accessors (read-only, &self) ---
 
     pub fn origin(&self) -> Option<Origin> {
-        self.shape.get_property_ref(InternalProperties::ORIGIN)
+        self.shape.get_property(InternalProperties::ORIGIN)
     }
 
     pub fn port_dummy(&self) -> Option<LNodeRef> {
-        self.shape.get_property_ref(InternalProperties::PORT_DUMMY)
+        self.shape.get_property(InternalProperties::PORT_DUMMY)
     }
 
     pub fn designation(&self) -> String {

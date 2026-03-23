@@ -249,7 +249,7 @@ impl ModelOrderPortComparator {
                     (&p1_target_node, &p2_target_node)
                 {
                     if has_model_order(p1_target_node) && has_model_order(p2_target_node) {
-                        let max_nodes = match self.graph.try_lock() {            Some(mut graph_guard) => graph_guard
+                        let max_nodes = match self.graph.try_lock() {            Some(graph_guard) => graph_guard
                                 .get_property(InternalProperties::MAX_MODEL_ORDER_NODES)
                                 .unwrap_or(0),
             None => {
@@ -560,7 +560,7 @@ fn port_model_order(port: &LPortRef, graph: &LGraphRef, offset: i32) -> i32 {
     let enforce_group_model_order = graph
         .try_lock()
 
-        .and_then(|mut graph_guard| {
+        .and_then(|graph_guard| {
             graph_guard.get_property(LayeredOptions::GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY)
         })
         .unwrap_or(
@@ -571,7 +571,7 @@ fn port_model_order(port: &LPortRef, graph: &LGraphRef, offset: i32) -> i32 {
         let enforced_orders = graph
             .try_lock()
 
-            .and_then(|mut graph_guard| {
+            .and_then(|graph_guard| {
                 graph_guard.get_property(LayeredOptions::GROUP_MODEL_ORDER_CM_ENFORCED_GROUP_ORDERS)
             })
             .unwrap_or_default();
@@ -596,7 +596,7 @@ fn edge_model_order(edge: &LEdgeRef, graph: &LGraphRef, offset: usize) -> i32 {
     let enforce_group_model_order = graph
         .try_lock()
 
-        .and_then(|mut graph_guard| {
+        .and_then(|graph_guard| {
             graph_guard.get_property(LayeredOptions::GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY)
         })
         .unwrap_or(
@@ -607,7 +607,7 @@ fn edge_model_order(edge: &LEdgeRef, graph: &LGraphRef, offset: usize) -> i32 {
         let enforced_orders = graph
             .try_lock()
 
-            .and_then(|mut graph_guard| {
+            .and_then(|graph_guard| {
                 graph_guard.get_property(LayeredOptions::GROUP_MODEL_ORDER_CM_ENFORCED_GROUP_ORDERS)
             })
             .unwrap_or_default();
@@ -649,7 +649,7 @@ fn to_target_node_position_map(
 }
 
 fn port_snapshot(port: &LPortRef) -> PortSnapshot {
-    let mut port_guard = port.lock();
+    let port_guard = port.lock();
     let (incoming_first, incoming_len) = {
         let incoming = port_guard.incoming_edges();
         (incoming.first().cloned(), incoming.len())

@@ -78,7 +78,7 @@ impl NeighborhoodInformation {
                         continue;
                     }
                     let prio = {
-                        let mut edge_guard = edge.lock();
+                        let edge_guard = edge.lock();
                         edge_guard.get_property(LayeredOptions::PRIORITY_STRAIGHTNESS)
                             .unwrap_or(0)
                     };
@@ -120,7 +120,7 @@ impl NeighborhoodInformation {
                         continue;
                     }
                     let prio = {
-                        let mut edge_guard = edge.lock();
+                        let edge_guard = edge.lock();
                         edge_guard.get_property(LayeredOptions::PRIORITY_STRAIGHTNESS)
                             .unwrap_or(0)
                     };

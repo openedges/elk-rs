@@ -13,7 +13,7 @@ impl ComponentsProcessor {
         ComponentsProcessor
     }
 
-    pub fn split(&self, mut graph: FGraph) -> Vec<FGraph> {
+    pub fn split(&self, graph: FGraph) -> Vec<FGraph> {
         let separate = graph
             .get_property(ForceOptions::SEPARATE_CONNECTED_COMPONENTS)
             .unwrap_or(true);
@@ -71,7 +71,7 @@ impl ComponentsProcessor {
 
             for node in graph.nodes() {
                 {
-                    let mut node_guard = node.lock();
+                    let node_guard = node.lock();
                     priority += node_guard.get_property(ForceOptions::PRIORITY).unwrap_or(1);
                     let pos = node_guard.position_ref();
                     let size = node_guard.size_ref();
@@ -110,7 +110,7 @@ impl ComponentsProcessor {
             }
 
             let size1 = {
-                let mut props = graph1.properties().clone();
+                let props = graph1.properties().clone();
                 let up = props
                     .get_property(InternalProperties::BB_UPLEFT)
                     .unwrap_or_default();
@@ -122,7 +122,7 @@ impl ComponentsProcessor {
                 size
             };
             let size2 = {
-                let mut props = graph2.properties().clone();
+                let props = graph2.properties().clone();
                 let up = props
                     .get_property(InternalProperties::BB_UPLEFT)
                     .unwrap_or_default();
@@ -264,7 +264,7 @@ impl ComponentsProcessor {
     }
 
     fn bounding_size(graph: &FGraph) -> KVector {
-        let mut props = graph.properties().clone();
+        let props = graph.properties().clone();
         let up = props
             .get_property(InternalProperties::BB_UPLEFT)
             .unwrap_or_default();
@@ -278,7 +278,7 @@ impl ComponentsProcessor {
 
     fn move_graph(dest: &mut FGraph, source: FGraph, offset_x: f64, offset_y: f64) {
         let offset = {
-            let mut props = source.properties().clone();
+            let props = source.properties().clone();
             let up = props
                 .get_property(InternalProperties::BB_UPLEFT)
                 .unwrap_or_default();

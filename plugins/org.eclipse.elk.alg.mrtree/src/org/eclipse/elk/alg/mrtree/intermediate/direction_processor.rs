@@ -13,7 +13,7 @@ impl ILayoutProcessor<TGraphRef> for DirectionProcessor {
         progress_monitor.begin("Process directions", 1.0);
 
         let direction = {
-            let mut graph_guard = graph.lock();
+            let graph_guard = graph.lock();
             graph_guard
                 .get_property(MrTreeOptions::DIRECTION)
                 .unwrap_or(Direction::Undefined)

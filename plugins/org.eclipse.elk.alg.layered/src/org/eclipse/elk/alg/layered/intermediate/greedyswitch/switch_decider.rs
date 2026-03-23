@@ -186,7 +186,7 @@ impl SwitchDecider {
 
     fn have_successor_constraints(&self, upper_node: &LNodeRef, lower_node: &LNodeRef) -> bool {
         let constraints = {
-            let mut node_guard = upper_node.lock();
+            let node_guard = upper_node.lock();
             node_guard
                 .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
                 .unwrap_or_default()
@@ -206,11 +206,11 @@ impl SwitchDecider {
             upper_type != NodeType::LongEdge && lower_type != NodeType::LongEdge;
 
         let upper_layout_unit = {
-            let mut node_guard = upper_node.lock();
+            let node_guard = upper_node.lock();
             node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
         };
         let lower_layout_unit = {
-            let mut node_guard = lower_node.lock();
+            let node_guard = lower_node.lock();
             node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
         };
 
@@ -245,7 +245,7 @@ impl SwitchDecider {
         };
         for port in ports {
             let (has_dummy, has_edges) = {
-                let mut port_guard = port.lock();
+                let port_guard = port.lock();
                 let dummy = port_guard
                     .get_property(InternalProperties::PORT_DUMMY)
                     .is_some();
@@ -291,7 +291,7 @@ impl SwitchDecider {
 
 fn origin_port_of(node: &LNodeRef) -> Option<LPortRef> {
     let origin = {
-        let mut node_guard = node.lock();
+        let node_guard = node.lock();
         node_guard.get_property(InternalProperties::ORIGIN)
     };
     match origin {

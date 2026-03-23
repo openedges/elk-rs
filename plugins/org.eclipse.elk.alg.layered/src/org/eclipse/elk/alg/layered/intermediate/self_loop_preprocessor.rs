@@ -83,7 +83,7 @@ fn hide_ports(
     let node = holder.lock().l_node().clone();
 
     let (order_fixed, nested_graph) = {
-        let mut node_guard = node.lock();
+        let node_guard = node.lock();
         let constraints = node_guard
             .get_property(LayeredOptions::PORT_CONSTRAINTS)
             .unwrap_or(PortConstraints::Undefined);

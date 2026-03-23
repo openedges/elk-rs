@@ -318,7 +318,7 @@ impl CompactionContext {
         let metadata =
             CompactionMetadata::from_context(&self.cnode_origin, &self.segments, layered_graph);
         let vertical_edge_edge_spacing = layered_graph
-            .get_property_ref(LayeredOptions::SPACING_EDGE_EDGE)
+            .get_property(LayeredOptions::SPACING_EDGE_EDGE)
             .unwrap_or(0.0);
         let spacing_handler =
             SpecialSpacingsHandler::new(&self.cnode_origin, &self.segments, spacings);
@@ -509,7 +509,7 @@ impl CompactionContext {
             };
             for edge in outgoing {
                 let spline = {
-                    let mut edge_guard = edge.lock();
+                    let edge_guard = edge.lock();
                     edge_guard.get_property(InternalProperties::SPLINE_ROUTE_START)
                 };
                 if let Some(spline) = spline {
@@ -916,7 +916,7 @@ impl CompactionContext {
             };
             for edge in outgoing {
                 let spline_chain = {
-                    let mut edge_guard = edge.lock();
+                    let edge_guard = edge.lock();
                     edge_guard.get_property(InternalProperties::SPLINE_ROUTE_START)
                 };
                 let Some(spline_chain) = spline_chain else {
@@ -1054,7 +1054,7 @@ impl CompactionContext {
 
     fn capture_comment_offset_if_needed(&mut self, node: &LNodeRef) -> bool {
         let (is_comment, connected_edges) = {
-            let mut node_guard = node.lock();
+            let node_guard = node.lock();
             (
                 node_guard
                     .get_property(LayeredOptions::COMMENT_BOX)

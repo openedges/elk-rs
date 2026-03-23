@@ -21,7 +21,7 @@ impl ILayoutProcessor<LGraph> for SelfLoopPostProcessor {
 
         for lnode in nodes {
             let has_self_loop_holder = {
-                let mut node_guard = lnode.lock();
+                let node_guard = lnode.lock();
                 node_guard.node_type() == NodeType::Normal
                     && node_guard
                         .get_property(InternalProperties::SELF_LOOP_HOLDER)

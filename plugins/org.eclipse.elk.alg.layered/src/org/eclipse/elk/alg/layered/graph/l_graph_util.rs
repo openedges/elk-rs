@@ -320,7 +320,7 @@ impl LGraphUtil {
         };
 
         let mut props = {
-            let mut graph_guard = layered_graph.lock();
+            let graph_guard = layered_graph.lock();
             graph_guard
                 .get_property(InternalProperties::GRAPH_PROPERTIES)
                 .unwrap_or_else(EnumSet::none_of)
@@ -328,7 +328,7 @@ impl LGraphUtil {
 
         for node in nodes {
             let (node_type, is_comment, is_hypernode, ports, port_constraints) = {
-                let mut node_guard = node.lock();
+                let node_guard = node.lock();
                 (
                     node_guard.node_type(),
                     node_guard
@@ -414,7 +414,7 @@ impl LGraphUtil {
 
                     for label in labels {
                         {
-                            let mut label_guard = label.lock();
+                            let label_guard = label.lock();
                             match label_guard
                                 .get_property(LayeredOptions::EDGE_LABELS_PLACEMENT)
                                 .unwrap_or(EdgeLabelPlacement::Center)
@@ -446,19 +446,19 @@ impl LGraphUtil {
     ) -> LPortRef {
         let direction = LGraphUtil::get_direction(layered_graph);
         let merge_ports = {
-            let mut graph_guard = layered_graph.lock();
+            let graph_guard = layered_graph.lock();
             graph_guard
                 .get_property(LayeredOptions::MERGE_EDGES)
                 .unwrap_or(false)
         };
         let node_is_hyper = {
-            let mut node_guard = node.lock();
+            let node_guard = node.lock();
             node_guard
                 .get_property(LayeredOptions::HYPERNODE)
                 .unwrap_or(false)
         };
         let port_constraints = {
-            let mut node_guard = node.lock();
+            let node_guard = node.lock();
             node_guard
                 .get_property(LayeredOptions::PORT_CONSTRAINTS)
                 .unwrap_or(PortConstraints::Undefined)
@@ -658,7 +658,7 @@ impl LGraphUtil {
                     let node_guard = node.lock();
                     for candidate in node_guard.ports() {
                         if {
-                            let mut port = candidate.lock();
+                            let port = candidate.lock();
                             port.get_property(InternalProperties::INPUT_COLLECT)
                                 .unwrap_or(false)
                         } {
@@ -678,7 +678,7 @@ impl LGraphUtil {
                     let node_guard = node.lock();
                     for candidate in node_guard.ports() {
                         if {
-                            let mut port = candidate.lock();
+                            let port = candidate.lock();
                             port.get_property(InternalProperties::OUTPUT_COLLECT)
                                 .unwrap_or(false)
                         } {
@@ -1065,7 +1065,7 @@ impl LGraphUtil {
                 graph_guard.padding_ref().clone(),
                 *graph_guard.offset_ref(),
                 graph_guard
-                    .get_property_ref(LayeredOptions::COMPACTION_CONNECTED_COMPONENTS)
+                    .get_property(LayeredOptions::COMPACTION_CONNECTED_COMPONENTS)
                     .unwrap_or(false),
             )
         };
@@ -1233,7 +1233,7 @@ impl LGraphUtil {
         if result.is_none() {
             if let Some(graph) = graph {
                 {
-                    let mut graph_guard = graph.lock();
+                    let graph_guard = graph.lock();
                     result = graph_guard.get_property(property);
                 }
             }
@@ -1244,7 +1244,7 @@ impl LGraphUtil {
 
     pub fn get_direction(graph: &LGraphRef) -> Direction {
         let (direction, aspect_ratio) = {
-            let mut graph_guard = graph.lock();
+            let graph_guard = graph.lock();
             (
                 graph_guard
                     .get_property(LayeredOptions::DIRECTION)
@@ -1275,7 +1275,7 @@ impl LGraphUtil {
         let mut order = i32::MAX;
         for node in nodes {
             {
-                let mut node_guard = node.lock();
+                let node_guard = node.lock();
                 if let Some(value) = node_guard.get_property(InternalProperties::MODEL_ORDER) {
                     if value < order {
                         order = value;

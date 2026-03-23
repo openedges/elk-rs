@@ -28,7 +28,7 @@ impl ILayoutPhase<TreeLayoutPhases, TGraphRef> for NodeOrderer {
         progress_monitor.begin("Processor arrange node", 1.0);
 
         let (debug, weighting, root) = {
-            let mut graph_guard = graph.lock();
+            let graph_guard = graph.lock();
             let debug = graph_guard
                 .get_property(MrTreeOptions::DEBUG_MODE)
                 .unwrap_or(false);
@@ -39,7 +39,7 @@ impl ILayoutPhase<TreeLayoutPhases, TGraphRef> for NodeOrderer {
                 .nodes()
                 .iter()
                 .find(|node| {
-                    let mut node_guard = node.lock();
+                    let node_guard = node.lock();
                     node_guard.get_property(InternalProperties::ROOT).unwrap_or(false)
                 })
                 .cloned();
@@ -76,7 +76,7 @@ impl ILayoutPhase<TreeLayoutPhases, TGraphRef> for NodeOrderer {
 
         // FanProc only needed for Fan/Descendants/Constraint weighting (not ModelOrder)
         let weighting = {
-            let mut g = graph.lock();
+            let g = graph.lock();
             g.get_property(MrTreeOptions::WEIGHTING).unwrap_or(OrderWeighting::ModelOrder)
         };
         if weighting != OrderWeighting::ModelOrder {
@@ -105,7 +105,7 @@ impl NodeOrderer {
         let mut sort_keys: Vec<i32> = current_level
             .iter()
             .map(|n| {
-                let mut g = n.lock();
+                let g = n.lock();
                 g.get_property(sort_property).unwrap_or(0)
             })
             .collect();
@@ -164,7 +164,7 @@ impl NodeOrderer {
                     let pos_keys: Vec<i32> = children
                         .iter()
                         .map(|c| {
-                            let mut g = c.lock();
+                            let g = c.lock();
                             g.get_property(InternalProperties::POSITION).unwrap_or(0)
                         })
                         .collect();
@@ -189,7 +189,7 @@ impl NodeOrderer {
                 while fill_gap > 0 && !leaves.is_empty() {
                     if let Some(leaf) = leaves.pop() {
                         let val = {
-                            let mut node_guard = leaf.lock();
+                            let node_guard = leaf.lock();
                             node_guard.get_property(sort_property).unwrap_or(0)
                         };
                         if val == 0 {
@@ -229,7 +229,7 @@ impl NodeOrderer {
 
         for node in current_level.iter() {
             let constraint = {
-                let mut node_guard = node.lock();
+                let node_guard = node.lock();
                 node_guard.get_property(MrTreeOptions::POSITION_CONSTRAINT).unwrap_or(-1)
             };
             if constraint < 0 {
@@ -247,7 +247,7 @@ impl NodeOrderer {
         while idx < in_bound_nodes.len() {
             let node = in_bound_nodes[idx].clone();
             let target_pos = {
-                let mut node_guard = node.lock();
+                let node_guard = node.lock();
                 node_guard.get_property(MrTreeOptions::POSITION_CONSTRAINT).unwrap_or(-1)
             };
             if target_pos >= 0
@@ -265,7 +265,7 @@ impl NodeOrderer {
         while idx < in_bound_nodes.len() {
             let node = in_bound_nodes[idx].clone();
             let target_pos = {
-                let mut node_guard = node.lock();
+                let node_guard = node.lock();
                 node_guard.get_property(MrTreeOptions::POSITION_CONSTRAINT).unwrap_or(-1)
             };
             let mut j = 0;
@@ -297,7 +297,7 @@ impl NodeOrderer {
             let keys: Vec<i32> = out_of_bound_nodes
                 .iter()
                 .map(|n| {
-                    let mut g = n.lock();
+                    let g = n.lock();
                     g.get_property(MrTreeOptions::POSITION_CONSTRAINT).unwrap_or(0)
                 })
                 .collect();
@@ -333,7 +333,7 @@ impl NodeOrderer {
         let inners: Vec<TNodeRef> = current_level
             .iter()
             .filter(|node| {
-                let mut node_guard = node.lock();
+                let node_guard = node.lock();
                 node_guard.get_property(InternalProperties::FAN).unwrap_or(0) != 0
             })
             .cloned()
@@ -352,7 +352,7 @@ impl NodeOrderer {
                 let pos_keys: Vec<i32> = children
                     .iter()
                     .map(|c| {
-                        let mut g = c.lock();
+                        let g = c.lock();
                         g.get_property(InternalProperties::POSITION).unwrap_or(0)
                     })
                     .collect();

@@ -169,7 +169,7 @@ impl GreedyCycleBreaker {
 
             for edge in edges {
                 let (connected_port, is_target, priority) = {
-                    let mut edge_guard = edge.lock();
+                    let edge_guard = edge.lock();
                     let source = edge_guard.source();
                     let target = edge_guard.target();
                     let Some(source_port) = source else {
@@ -376,7 +376,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for GreedyCycleBreaker {
                         continue;
                     }
                     let priority = {
-                        let mut edge_guard = edge.lock();
+                        let edge_guard = edge.lock();
                         edge_guard
                             .get_property(LayeredOptions::PRIORITY_DIRECTION)
                             .unwrap_or(0)
@@ -399,7 +399,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for GreedyCycleBreaker {
                         continue;
                     }
                     let priority = {
-                        let mut edge_guard = edge.lock();
+                        let edge_guard = edge.lock();
                         edge_guard
                             .get_property(LayeredOptions::PRIORITY_DIRECTION)
                             .unwrap_or(0)
@@ -505,7 +505,7 @@ fn trace_reversal_entry(
     target_mark: i32,
 ) -> String {
     let (edge_origin, source_port_origin, target_port_origin) = {
-        let mut edge_guard = edge.lock();
+        let edge_guard = edge.lock();
         let edge_origin = edge_guard
             .get_property(InternalProperties::ORIGIN)
             .and_then(|origin| match origin {
@@ -530,7 +530,7 @@ fn trace_reversal_entry(
 }
 
 fn trace_port_origin(port: &LPortRef) -> Option<usize> {
-    let mut port_guard = port.lock();
+    let port_guard = port.lock();
     let origin = port_guard.get_property(InternalProperties::ORIGIN)?;
     match origin {
         Origin::ElkPort(origin_id) => Some(origin_id),
@@ -539,7 +539,7 @@ fn trace_port_origin(port: &LPortRef) -> Option<usize> {
 }
 
 fn edge_origin_id(edge: &LEdgeRef) -> Option<usize> {
-    let mut edge_guard = edge.lock();
+    let edge_guard = edge.lock();
     let origin = edge_guard.get_property(InternalProperties::ORIGIN)?;
     match origin {
         Origin::ElkEdge(origin_id) => Some(origin_id),

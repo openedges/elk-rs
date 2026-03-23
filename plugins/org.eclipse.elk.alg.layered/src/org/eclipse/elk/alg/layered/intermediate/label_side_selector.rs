@@ -292,7 +292,7 @@ fn apply_for_dummy_node_run_with_simple_loops(
 /// Returns either the long edge source or target node of the given dummy node.
 fn get_long_edge_end_node(dummy: &LNodeRef, source: bool) -> Option<LNodeRef> {
     let port: Option<LPortRef> = {
-        let mut ng = dummy.lock();
+        let ng = dummy.lock();
         if source {
             ng.get_property(InternalProperties::LONG_EDGE_SOURCE)
         } else {
@@ -467,7 +467,7 @@ fn get_origin_edge_thickness(label_dummy: &LNodeRef) -> f64 {
         .lock().incoming_edges();
     if let Some(edge) = incoming.first() {
         {
-            let mut eg = edge.lock();
+            let eg = edge.lock();
             return eg.get_property(CoreOptions::EDGE_THICKNESS).unwrap_or(0.0);
         }
     }
@@ -476,7 +476,7 @@ fn get_origin_edge_thickness(label_dummy: &LNodeRef) -> f64 {
         .lock().outgoing_edges();
     if let Some(edge) = outgoing.first() {
         {
-            let mut eg = edge.lock();
+            let eg = edge.lock();
             return eg.get_property(CoreOptions::EDGE_THICKNESS).unwrap_or(0.0);
         }
     }

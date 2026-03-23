@@ -558,7 +558,7 @@ impl SplineEdgeRouter {
             > = Vec::new();
             for edge in connected_edges {
                 let reversed_edge = {
-                    let mut edge_guard = edge.lock();
+                    let edge_guard = edge.lock();
                     edge_guard.get_property(InternalProperties::REVERSED)
                         .unwrap_or(false)
                 };
@@ -1274,7 +1274,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for SplineEdgeRouter {
         configuration.add_all(&BASELINE_PROCESSING_ADDITIONS);
 
         let graph_properties = graph
-            .get_property_ref(InternalProperties::GRAPH_PROPERTIES)
+            .get_property(InternalProperties::GRAPH_PROPERTIES)
             .unwrap_or_else(EnumSet::none_of);
 
         if graph_properties.contains(&GraphProperties::SelfLoops) {

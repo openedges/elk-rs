@@ -84,7 +84,7 @@ impl StressMajorization {
         let mut adj: Vec<Vec<(usize, f64)>> = vec![Vec::new(); n];
         for edge in graph.edges() {
             let (source_id, target_id, edge_len) = {
-                let mut edge_guard = edge.lock();
+                let edge_guard = edge.lock();
                 let source_id = edge_guard
                     .source()
                     .map(|node| node.lock().id());
@@ -180,7 +180,7 @@ impl StressMajorization {
 
         for (i, node) in nodes.iter().enumerate() {
             {
-                let mut node_guard = node.lock();
+                let node_guard = node.lock();
                 pos_x[i] = node_guard.position_ref().x;
                 pos_y[i] = node_guard.position_ref().y;
                 node_ids[i] = node_guard.id();

@@ -42,10 +42,10 @@ impl TEdge {
     }
 
     pub fn get_property<T: Clone + Send + Sync + 'static>(
-        &mut self,
+        &self,
         property: &Property<T>,
     ) -> Option<T> {
-        self.element_mut().get_property(property)
+        self.element().get_property(property)
     }
 
     pub fn set_property<T: Clone + Send + Sync + 'static>(

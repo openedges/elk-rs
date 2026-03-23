@@ -91,7 +91,7 @@ impl HierarchicalPortOrthogonalEdgeRouter {
                 }
 
                 let replaced_dummy = {
-                    let mut node_guard = node.lock();
+                    let node_guard = node.lock();
                     node_guard.get_property(InternalProperties::EXT_PORT_REPLACED_DUMMY)
                 };
                 if let Some(replaced_dummy) = replaced_dummy {
@@ -111,7 +111,7 @@ impl HierarchicalPortOrthogonalEdgeRouter {
 
     fn restore_dummy(&self, dummy: &LNodeRef, graph: &mut LGraph) {
         let (port_side, dummy_port) = {
-            let mut dummy_guard = dummy.lock();
+            let dummy_guard = dummy.lock();
             let side = dummy_guard
                 .get_property(InternalProperties::EXT_PORT_SIDE)
                 .unwrap_or(PortSide::Undefined);
@@ -139,19 +139,19 @@ impl HierarchicalPortOrthogonalEdgeRouter {
         }
 
         let port_label_spacing_horizontal = {
-            let mut dummy_guard = dummy.lock();
+            let dummy_guard = dummy.lock();
             dummy_guard.get_property(LayeredOptions::SPACING_LABEL_PORT_HORIZONTAL)
         }
             .or_else(|| LayeredOptions::SPACING_LABEL_PORT_HORIZONTAL.get_default())
             .unwrap_or(0.0);
         let port_label_spacing_vertical = {
-            let mut dummy_guard = dummy.lock();
+            let dummy_guard = dummy.lock();
             dummy_guard.get_property(LayeredOptions::SPACING_LABEL_PORT_VERTICAL)
         }
             .or_else(|| LayeredOptions::SPACING_LABEL_PORT_VERTICAL.get_default())
             .unwrap_or(0.0);
         let label_label_spacing = {
-            let mut dummy_guard = dummy.lock();
+            let dummy_guard = dummy.lock();
             dummy_guard.get_property(LayeredOptions::SPACING_LABEL_LABEL)
         }
             .or_else(|| LayeredOptions::SPACING_LABEL_LABEL.get_default())
@@ -224,7 +224,7 @@ impl HierarchicalPortOrthogonalEdgeRouter {
         LPort::set_node(&out_port, Some(node.clone()));
 
         let ext_port_side = {
-            let mut node_guard = node.lock();
+            let node_guard = node.lock();
             node_guard.get_property(InternalProperties::EXT_PORT_SIDE)
                 .unwrap_or(PortSide::Undefined)
         };
@@ -301,7 +301,7 @@ impl HierarchicalPortOrthogonalEdgeRouter {
             }
 
             let ext_side = {
-                let mut dummy_guard = dummy.lock();
+                let dummy_guard = dummy.lock();
                 dummy_guard.get_property(InternalProperties::EXT_PORT_SIDE)
                     .unwrap_or(PortSide::Undefined)
             };
@@ -374,7 +374,7 @@ impl HierarchicalPortOrthogonalEdgeRouter {
         }
 
         let offset = {
-            let mut dummy_guard = dummy.lock();
+            let dummy_guard = dummy.lock();
             dummy_guard.get_property(LayeredOptions::PORT_ANCHOR)
                 .unwrap_or_default()
                 .x
@@ -388,13 +388,13 @@ impl HierarchicalPortOrthogonalEdgeRouter {
 
     fn apply_north_south_dummy_ratio(&self, dummy: &LNodeRef, width: f64) {
         let offset = {
-            let mut dummy_guard = dummy.lock();
+            let dummy_guard = dummy.lock();
             dummy_guard.get_property(LayeredOptions::PORT_ANCHOR)
                 .unwrap_or_default()
                 .x
         };
         let ratio = {
-            let mut dummy_guard = dummy.lock();
+            let dummy_guard = dummy.lock();
             dummy_guard.get_property(InternalProperties::PORT_RATIO_OR_POSITION)
                 .unwrap_or(0.0)
         };
@@ -407,13 +407,13 @@ impl HierarchicalPortOrthogonalEdgeRouter {
 
     fn apply_north_south_dummy_position(&self, dummy: &LNodeRef) {
         let offset = {
-            let mut dummy_guard = dummy.lock();
+            let dummy_guard = dummy.lock();
             dummy_guard.get_property(LayeredOptions::PORT_ANCHOR)
                 .unwrap_or_default()
                 .x
         };
         let position = {
-            let mut dummy_guard = dummy.lock();
+            let dummy_guard = dummy.lock();
             dummy_guard.get_property(InternalProperties::PORT_RATIO_OR_POSITION)
                 .unwrap_or(0.0)
         };
@@ -453,12 +453,12 @@ impl HierarchicalPortOrthogonalEdgeRouter {
         let mut dummy_array = LGraphUtil::to_node_array(dummies);
         dummy_array.sort_by(|a, b| {
             let ax = {
-                let mut node_guard = a.lock();
+                let node_guard = a.lock();
                 node_guard.get_property(InternalProperties::PORT_RATIO_OR_POSITION)
                     .unwrap_or(0.0)
             };
             let bx = {
-                let mut node_guard = b.lock();
+                let node_guard = b.lock();
                 node_guard.get_property(InternalProperties::PORT_RATIO_OR_POSITION)
                     .unwrap_or(0.0)
             };
@@ -560,7 +560,7 @@ impl HierarchicalPortOrthogonalEdgeRouter {
 
         for dummy in north_south_dummies {
             let ext_side = {
-                let mut dummy_guard = dummy.lock();
+                let dummy_guard = dummy.lock();
                 dummy_guard.get_property(InternalProperties::EXT_PORT_SIDE)
                     .unwrap_or(PortSide::Undefined)
             };
@@ -759,7 +759,7 @@ impl HierarchicalPortOrthogonalEdgeRouter {
                 outgoing_bends.add_vector(last_bend);
 
                 let replaced_dummy = {
-                    let mut node_guard = node.lock();
+                    let node_guard = node.lock();
                     node_guard.get_property(InternalProperties::EXT_PORT_REPLACED_DUMMY)
                 };
                 let Some(replaced_dummy) = replaced_dummy else {
@@ -846,7 +846,7 @@ impl HierarchicalPortOrthogonalEdgeRouter {
 
         for node in &nodes {
             let (node_type, ext_side, ext_size, port_anchor) = {
-                let mut node_guard = node.lock();
+                let node_guard = node.lock();
                 (
                     node_guard.node_type(),
                     node_guard
@@ -884,7 +884,7 @@ impl HierarchicalPortOrthogonalEdgeRouter {
                 PortSide::East | PortSide::West => {
                     if constraints == PortConstraints::FixedRatio {
                         let ratio = {
-                            let mut node_guard = node.lock();
+                            let node_guard = node.lock();
                             node_guard.get_property(InternalProperties::PORT_RATIO_OR_POSITION)
                                 .unwrap_or(0.0)
                         };
@@ -897,7 +897,7 @@ impl HierarchicalPortOrthogonalEdgeRouter {
                         }
                     } else if constraints == PortConstraints::FixedPos {
                         let pos = {
-                            let mut node_guard = node.lock();
+                            let node_guard = node.lock();
                             node_guard.get_property(InternalProperties::PORT_RATIO_OR_POSITION)
                                 .unwrap_or(0.0)
                         };
@@ -919,7 +919,7 @@ impl HierarchicalPortOrthogonalEdgeRouter {
 
         for node in nodes {
             let (node_type, ext_side) = {
-                let mut node_guard = node.lock();
+                let node_guard = node.lock();
                 (
                     node_guard.node_type(),
                     node_guard
@@ -966,7 +966,7 @@ impl HierarchicalPortOrthogonalEdgeRouter {
             .lock().nodes().clone();
         for node in nodes {
             let (node_type, ext_side) = {
-                let mut node_guard = node.lock();
+                let node_guard = node.lock();
                 (
                     node_guard.node_type(),
                     node_guard

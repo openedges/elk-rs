@@ -410,7 +410,7 @@ impl ILayoutProcessor<LGraph> for LabelAndNodeSizeProcessor {
 // ============================================================
 
 fn should_apply_phase1_port_placement(node: &LNodeRef) -> bool {
-    let mut node_guard = node.lock();
+    let node_guard = node.lock();
     let activate = node_guard
         .get_property(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE)
         .unwrap_or(false);
@@ -433,7 +433,7 @@ fn should_reposition_ports_after_phase2(
         return false;
     }
 
-    let mut node_guard = node.lock();
+    let node_guard = node.lock();
     let Some(graph) = node_guard.graph() else {
         return false;
     };
@@ -456,7 +456,7 @@ fn graph_key_for_node(node: &LNodeRef) -> Option<usize> {
 fn node_has_non_zero_border_offset(node: &LNodeRef) -> bool {
     let node_guard = node.lock();
     node_guard.ports().iter().any(|port| {
-        let mut port_guard = port.lock();
+        let port_guard = port.lock();
         port_guard
             .get_property(CoreOptions::PORT_BORDER_OFFSET)
             .unwrap_or(0.0)
@@ -469,7 +469,7 @@ fn should_reapply_phase2_self_loop_port_sizing(node: &LNodeRef) -> bool {
     if !should_apply_phase1_port_placement(node) {
         return false;
     }
-    let mut node_guard = node.lock();
+    let node_guard = node.lock();
     let has_self_loop_holder = node_guard
         .get_property(InternalProperties::SELF_LOOP_HOLDER)
         .is_some();
@@ -542,7 +542,7 @@ fn should_reapply_phase2_inside_north_south_label_sizing(node: &LNodeRef) -> boo
     }
 
     let (size_constraints, placement, ports) = {
-        let mut node_guard = node.lock();
+        let node_guard = node.lock();
         (
             node_guard
                 .get_property(LayeredOptions::NODE_SIZE_CONSTRAINTS)
@@ -1010,7 +1010,7 @@ fn graph_needs_phase2b_inside_port_label_restack(graph: &LGraph) -> bool {
 }
 
 fn node_has_inside_port_label_constraints(node: &LNodeRef) -> bool {
-    let mut node_guard = node.lock();
+    let node_guard = node.lock();
     let placement = node_guard
         .get_property(CoreOptions::PORT_LABELS_PLACEMENT)
         .unwrap_or_default();
@@ -1533,7 +1533,7 @@ fn place_ports_on_side(
                     && port_guard.outgoing_edges().is_empty())
             };
             let has_compound_connections = {
-                let mut port_guard = port.lock();
+                let port_guard = port.lock();
                 port_guard.get_property(InternalProperties::INSIDE_CONNECTIONS)
             }
             .unwrap_or(false);
@@ -2529,7 +2529,7 @@ fn place_external_port_dummy_labels(
     label_box.height += (port_labels.len() as f64 - 1.0) * label_label_spacing;
 
     let ext_port_side = {
-        let mut g = dummy.lock();
+        let g = dummy.lock();
         g.get_property(InternalProperties::EXT_PORT_SIDE)
             .unwrap_or(PortSide::Undefined)
     };

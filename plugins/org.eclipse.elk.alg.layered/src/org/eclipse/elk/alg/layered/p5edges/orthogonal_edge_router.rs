@@ -311,7 +311,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
         graph: &LGraph,
     ) -> Option<LayoutProcessorConfiguration<LayeredPhases, LGraph>> {
         let graph_properties = graph
-            .get_property_ref(InternalProperties::GRAPH_PROPERTIES)
+            .get_property(InternalProperties::GRAPH_PROPERTIES)
             .unwrap_or_else(EnumSet::none_of);
         let mut configuration = LayoutProcessorConfiguration::create();
 
@@ -322,7 +322,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
 
         if graph_properties.contains(&GraphProperties::NonFreePorts)
             || graph
-                .get_property_ref(LayeredOptions::FEEDBACK_EDGES)
+                .get_property(LayeredOptions::FEEDBACK_EDGES)
                 .unwrap_or(false)
         {
             configuration.add_all(&INVERTED_PORT_PROCESSING_ADDITIONS);

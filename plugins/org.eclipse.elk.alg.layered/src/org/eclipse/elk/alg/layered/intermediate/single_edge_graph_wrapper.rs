@@ -745,7 +745,7 @@ impl CuttingUtils {
         if in_edge_source_type == Some(NodeType::LongEdge) {
             if let Some(in_edge_source_node) = in_edge_source_node {
                 {
-                    let (mut dummy_guard, mut source_guard) =
+                    let (mut dummy_guard, source_guard) =
                         (dummy.lock(), in_edge_source_node.lock());
                     dummy_guard.set_property(
                         InternalProperties::LONG_EDGE_SOURCE,

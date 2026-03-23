@@ -67,38 +67,38 @@ impl BreakingPointRemover {
         match edge_routing {
             EdgeRouting::Splines => {
                 let s1 = {
-                    let mut edge_guard = node_start_edge.lock();
+                    let edge_guard = node_start_edge.lock();
                     edge_guard
                         .get_property(InternalProperties::SPLINE_ROUTE_START)
                         .unwrap_or_default()
                 };
                 let mut s2 = {
-                    let mut edge_guard = start_end_edge.lock();
+                    let edge_guard = start_end_edge.lock();
                     edge_guard
                         .get_property(InternalProperties::SPLINE_ROUTE_START)
                         .unwrap_or_default()
                 };
                 let s3 = {
-                    let mut edge_guard = original_edge.lock();
+                    let edge_guard = original_edge.lock();
                     edge_guard
                         .get_property(InternalProperties::SPLINE_ROUTE_START)
                         .unwrap_or_default()
                 };
 
                 let e1 = {
-                    let mut edge_guard = node_start_edge.lock();
+                    let edge_guard = node_start_edge.lock();
                     edge_guard
                         .get_property(InternalProperties::SPLINE_EDGE_CHAIN)
                         .unwrap_or_default()
                 };
                 let e2 = {
-                    let mut edge_guard = start_end_edge.lock();
+                    let edge_guard = start_end_edge.lock();
                     edge_guard
                         .get_property(InternalProperties::SPLINE_EDGE_CHAIN)
                         .unwrap_or_default()
                 };
                 let e3 = {
-                    let mut edge_guard = original_edge.lock();
+                    let edge_guard = original_edge.lock();
                     edge_guard
                         .get_property(InternalProperties::SPLINE_EDGE_CHAIN)
                         .unwrap_or_default()
@@ -215,15 +215,15 @@ impl BreakingPointRemover {
         LEdge::set_source(&original_edge, restored_source);
 
         let junction_points_one = {
-            let mut edge_guard = node_start_edge.lock();
+            let edge_guard = node_start_edge.lock();
             edge_guard.get_property(LayeredOptions::JUNCTION_POINTS)
         };
         let junction_points_two = {
-            let mut edge_guard = start_end_edge.lock();
+            let edge_guard = start_end_edge.lock();
             edge_guard.get_property(LayeredOptions::JUNCTION_POINTS)
         };
         let junction_points_three = {
-            let mut edge_guard = original_edge.lock();
+            let edge_guard = original_edge.lock();
             edge_guard.get_property(LayeredOptions::JUNCTION_POINTS)
         };
 
@@ -254,7 +254,7 @@ impl BreakingPointRemover {
 }
 
 fn breaking_point_info(node: &LNodeRef) -> Option<BreakingPointInfoRef> {
-    let mut node_guard = node.lock();
+    let node_guard = node.lock();
     node_guard.get_property(InternalProperties::BREAKING_POINT_INFO)
 }
 

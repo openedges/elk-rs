@@ -26,7 +26,7 @@ impl ILayoutProcessor<LGraph> for HierarchicalPortDummySizeProcessor {
 
             for node in nodes {
                 let (node_type, side) = {
-                    let mut node_guard = node.lock();
+                    let node_guard = node.lock();
                     (
                         node_guard.node_type(),
                         node_guard

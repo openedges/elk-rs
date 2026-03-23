@@ -202,7 +202,7 @@ impl NetworkSimplexLayerer {
                 };
 
                 let priority = {
-                    let mut edge_guard = edge.lock();
+                    let edge_guard = edge.lock();
                     edge_guard.get_property(LayeredOptions::PRIORITY_SHORTNESS)
                         .unwrap_or(1)
                 };

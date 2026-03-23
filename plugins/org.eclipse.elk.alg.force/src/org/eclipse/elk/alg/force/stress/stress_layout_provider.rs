@@ -43,7 +43,7 @@ impl IGraphLayoutEngine for StressLayoutProvider {
 
         let interactive = {
             let mut root = layout_graph.borrow_mut();
-            let mut props = root
+            let props = root
                 .connectable()
                 .shape()
                 .graph_element()
@@ -80,7 +80,7 @@ impl IGraphLayoutEngine for StressLayoutProvider {
         } else {
             let omit_micro = {
                 let mut root = layout_graph.borrow_mut();
-                let mut props = root
+                let props = root
                     .connectable()
                     .shape()
                     .graph_element()

@@ -49,7 +49,7 @@ impl FLabel {
     }
 
     pub fn get_property<T: Clone + Send + Sync + 'static>(
-        &mut self,
+        &self,
         property: &Property<T>,
     ) -> Option<T> {
         self.particle.get_property(property)
@@ -119,7 +119,7 @@ impl FLabel {
         }
 
         let spacing = {
-            let mut edge_guard = edge.lock();
+            let edge_guard = edge.lock();
             edge_guard.get_property(ForceOptions::SPACING_EDGE_LABEL).unwrap_or(0.0)
         };
         let pos = self.position();

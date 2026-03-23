@@ -31,7 +31,7 @@ impl TGraph {
     }
 
     pub fn get_property<T: Clone + Send + Sync + 'static>(
-        &mut self,
+        &self,
         property: &Property<T>,
     ) -> Option<T> {
         self.properties.get_property(property)

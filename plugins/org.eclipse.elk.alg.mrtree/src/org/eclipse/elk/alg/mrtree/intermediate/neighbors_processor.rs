@@ -19,7 +19,7 @@ impl ILayoutProcessor<TGraphRef> for NeighborsProcessor {
             let root = nodes
                 .iter()
                 .find(|node| {
-                    let mut node_guard = node.lock();
+                    let node_guard = node.lock();
                     node_guard.get_property(InternalProperties::ROOT).unwrap_or(false)
                 })
                 .cloned();

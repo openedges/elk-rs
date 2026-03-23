@@ -327,7 +327,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
         graph: &LGraph,
     ) -> Option<LayoutProcessorConfiguration<LayeredPhases, LGraph>> {
         if graph
-            .get_property_ref(InternalProperties::GRAPH_PROPERTIES)
+            .get_property(InternalProperties::GRAPH_PROPERTIES)
             .is_some_and(|props| props.contains(&GraphProperties::ExternalPorts))
         {
             Some(LayoutProcessorConfiguration::create_from(

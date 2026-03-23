@@ -230,7 +230,7 @@ fn set_dummy_node_properties(dummy_node: &LNodeRef, in_edge: &LEdgeRef, out_edge
     if in_source_type == Some(NodeType::LongEdge) {
         if let Some(in_source_node) = in_edge_source_node {
             {
-                let (mut dummy_guard, mut source_guard) =
+                let (mut dummy_guard, source_guard) =
                     (dummy_node.lock(), in_source_node.lock());
                 dummy_guard.set_property(
                     InternalProperties::LONG_EDGE_SOURCE,
@@ -249,7 +249,7 @@ fn set_dummy_node_properties(dummy_node: &LNodeRef, in_edge: &LEdgeRef, out_edge
     } else if in_source_type == Some(NodeType::Label) {
         if let Some(in_source_node) = in_edge_source_node {
             {
-                let (mut dummy_guard, mut source_guard) =
+                let (mut dummy_guard, source_guard) =
                     (dummy_node.lock(), in_source_node.lock());
                 dummy_guard.set_property(
                     InternalProperties::LONG_EDGE_SOURCE,
@@ -266,7 +266,7 @@ fn set_dummy_node_properties(dummy_node: &LNodeRef, in_edge: &LEdgeRef, out_edge
     } else if out_target_type == Some(NodeType::Label) {
         if let Some(out_target_node) = out_edge_target_node {
             {
-                let (mut dummy_guard, mut target_guard) =
+                let (mut dummy_guard, target_guard) =
                     (dummy_node.lock(), out_target_node.lock());
                 dummy_guard.set_property(
                     InternalProperties::LONG_EDGE_SOURCE,

@@ -55,7 +55,7 @@ impl FNode {
     }
 
     pub fn get_property<T: Clone + Send + Sync + 'static>(
-        &mut self,
+        &self,
         property: &Property<T>,
     ) -> Option<T> {
         self.particle.get_property(property)

@@ -58,7 +58,7 @@ impl ILayoutProcessor<LGraph> for NorthSouthPortPreprocessor {
                         .graph()
                         .as_ref()
                         .and_then(|graph_ref| graph_ref.try_lock())
-                        .and_then(|mut graph_guard| {
+                        .and_then(|graph_guard| {
                             graph_guard.get_property(LayeredOptions::CONSIDER_MODEL_ORDER_STRATEGY)
                         })
                         .unwrap_or(OrderingStrategy::None);
@@ -667,7 +667,7 @@ fn origin_port_allows_switch(dummy: &LNodeRef) -> bool {
         dummy_guard.ports().first().cloned()
     }
     .and_then(|port| {
-        let mut port_guard = port.lock();
+        let port_guard = port.lock();
         port_guard.get_property(InternalProperties::ORIGIN)
     });
     let Some(Origin::LPort(origin_port)) = origin_port else {
@@ -675,7 +675,7 @@ fn origin_port_allows_switch(dummy: &LNodeRef) -> bool {
     };
 
     let (allows_switch, port_constraints, origin_node) = {
-        let mut port_guard = origin_port.lock();
+        let port_guard = origin_port.lock();
         (
             port_guard
                 .get_property(LayeredOptions::ALLOW_NON_FLOW_PORTS_TO_SWITCH_SIDES)
@@ -688,7 +688,7 @@ fn origin_port_allows_switch(dummy: &LNodeRef) -> bool {
     let port_constraints = port_constraints
         .or_else(|| {
             origin_node.and_then(|node| {
-                let mut node_guard = node.lock();
+                let node_guard = node.lock();
                 node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
             })
         })

@@ -47,7 +47,7 @@ impl LayerSweepTypeDecider {
 
     pub fn use_bottom_up(&mut self, node_order: &[Vec<LNodeRef>]) -> bool {
         let boundary = {
-            let mut graph_guard = self.l_graph.lock();
+            let graph_guard = self.l_graph.lock();
             graph_guard
                 .get_property(LayeredOptions::CROSSING_MINIMIZATION_HIERARCHICAL_SWEEPINESS)
                 .unwrap_or(0.0)
@@ -118,7 +118,7 @@ impl LayerSweepTypeDecider {
                 }
                 for port in north_south_ports {
                     let ns_dummy = {
-                        let mut port_guard = port.lock();
+                        let port_guard = port.lock();
                         port_guard.get_property(InternalProperties::PORT_DUMMY)
                     };
                     if let Some(ns_dummy) = ns_dummy {
@@ -157,7 +157,7 @@ impl LayerSweepTypeDecider {
         let Some(parent) = self.parent.as_ref() else {
             return false;
         };
-        let mut node_guard = parent.lock();
+        let node_guard = parent.lock();
         node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
             .map(|constraints| constraints.is_order_fixed())
             .unwrap_or(false)
@@ -303,7 +303,7 @@ fn target_node(edge: &LEdgeRef) -> Option<LNodeRef> {
 }
 
 fn origin_port(node: &LNodeRef) -> Option<LPortRef> {
-    let mut node_guard = node.lock();
+    let node_guard = node.lock();
     node_guard.get_property(InternalProperties::ORIGIN)
         .and_then(|origin| match origin {
             Origin::LPort(port) => Some(port),

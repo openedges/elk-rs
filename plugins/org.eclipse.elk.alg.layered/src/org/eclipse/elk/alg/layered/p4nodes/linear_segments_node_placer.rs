@@ -110,7 +110,7 @@ impl LinearSegmentsNodePlacer {
                         .lock().incoming_edges().clone();
                     for edge in incoming {
                         let prio = {
-                            let mut edge_guard = edge.lock();
+                            let edge_guard = edge.lock();
                             edge_guard.get_property(LayeredOptions::PRIORITY_STRAIGHTNESS)
                                 .unwrap_or(0)
                         };
@@ -120,7 +120,7 @@ impl LinearSegmentsNodePlacer {
                         .lock().outgoing_edges().clone();
                     for edge in outgoing {
                         let prio = {
-                            let mut edge_guard = edge.lock();
+                            let edge_guard = edge.lock();
                             edge_guard.get_property(LayeredOptions::PRIORITY_STRAIGHTNESS)
                                 .unwrap_or(0)
                         };
@@ -487,7 +487,7 @@ impl LinearSegmentsNodePlacer {
             let mut node_deflection = 0.0;
             let mut edge_weight_sum = 0;
             let (input_prio, output_prio) = {
-                let mut guard = node.lock();                let input_prio = if incoming {
+                let guard = node.lock();                let input_prio = if incoming {
                     guard.get_property(&INPUT_PRIO_PROPERTY).unwrap_or(i32::MIN)
                 } else {
                     i32::MIN
@@ -524,7 +524,7 @@ impl LinearSegmentsNodePlacer {
                         let other_segment = node_id(&other_node).max(0) as usize;
                         if other_segment != segment_index {
                             let other_prio = {
-                                let mut node_guard = other_node.lock();
+                                let node_guard = other_node.lock();
                                 let input = node_guard
                                     .get_property(&INPUT_PRIO_PROPERTY)
                                     .unwrap_or(i32::MIN);
@@ -534,7 +534,7 @@ impl LinearSegmentsNodePlacer {
                                 input.max(output)
                             };
                             let prio = {
-                                let mut edge_guard = edge.lock();
+                                let edge_guard = edge.lock();
                                 edge_guard.get_property(LayeredOptions::PRIORITY_STRAIGHTNESS)
                                     .unwrap_or(0)
                             };
@@ -564,7 +564,7 @@ impl LinearSegmentsNodePlacer {
                         let other_segment = node_id(&other_node).max(0) as usize;
                         if other_segment != segment_index {
                             let other_prio = {
-                                let mut node_guard = other_node.lock();
+                                let node_guard = other_node.lock();
                                 let input = node_guard
                                     .get_property(&INPUT_PRIO_PROPERTY)
                                     .unwrap_or(i32::MIN);
@@ -574,7 +574,7 @@ impl LinearSegmentsNodePlacer {
                                 input.max(output)
                             };
                             let prio = {
-                                let mut edge_guard = edge.lock();
+                                let edge_guard = edge.lock();
                                 edge_guard.get_property(LayeredOptions::PRIORITY_STRAIGHTNESS)
                                     .unwrap_or(0)
                             };
@@ -817,7 +817,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for LinearSegmentsNodePlacer {
         graph: &LGraph,
     ) -> Option<LayoutProcessorConfiguration<LayeredPhases, LGraph>> {
         if graph
-            .get_property_ref(InternalProperties::GRAPH_PROPERTIES)
+            .get_property(InternalProperties::GRAPH_PROPERTIES)
             .is_some_and(|props| props.contains(&GraphProperties::ExternalPorts))
         {
             Some(LayoutProcessorConfiguration::create_from(

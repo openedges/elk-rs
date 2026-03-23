@@ -99,7 +99,7 @@ impl BfsNodeOrderCycleBreaker {
 
             let target_model_order = if enforce_group_model_order {
                 let (group_id, model_order) = {
-                    let mut node_guard = target_node.lock();
+                    let node_guard = target_node.lock();
                     (
                         node_guard
                             .get_property(LayeredOptions::GROUP_MODEL_ORDER_CYCLE_BREAKING_ID)

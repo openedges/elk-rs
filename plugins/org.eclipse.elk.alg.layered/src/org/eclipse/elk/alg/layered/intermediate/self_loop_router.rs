@@ -61,7 +61,7 @@ impl ILayoutProcessor<LGraph> for SelfLoopRouter {
 
         for node in nodes {
             let holder = {
-                let mut node_guard = node.lock();
+                let node_guard = node.lock();
                 if node_guard.node_type() != NodeType::Normal {
                     None
                 } else {
@@ -150,7 +150,7 @@ fn route_node(
             };
 
             let inside_self_loop_yo = {
-                let mut edge_guard = l_edge.lock();
+                let edge_guard = l_edge.lock();
                 edge_guard.get_property(CoreOptions::INSIDE_SELF_LOOPS_YO).unwrap_or(false)
             };
             if ElkTrace::global().inside_yo {
@@ -467,7 +467,7 @@ fn inline_label_side_and_size(
         let l_edge = sl_edge_guard.l_edge().clone();
         let edge_guard = l_edge.lock();
         edge_guard.labels().iter().any(|label| {
-            let mut label_guard = label.lock();
+            let label_guard = label.lock();
             label_guard
                 .get_property(LayeredOptions::EDGE_LABELS_INLINE)
                 .unwrap_or(false)
@@ -546,7 +546,7 @@ fn place_loop_labels(
         }
 
         let inline = labels.l_labels().iter().any(|label| {
-            let mut label_guard = label.lock();
+            let label_guard = label.lock();
             label_guard
                 .get_property(LayeredOptions::EDGE_LABELS_INLINE)
                 .unwrap_or(false)

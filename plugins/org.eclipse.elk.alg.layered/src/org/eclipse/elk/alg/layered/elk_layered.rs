@@ -521,7 +521,7 @@ impl ElkLayered {
         for graph in &graphs {
             self.graph_configurator.prepare_graph_for_layout(graph);
             let processors = {
-                let mut guard = graph.lock();
+                let guard = graph.lock();
                 guard.get_property(InternalProperties::PROCESSORS).unwrap_or_default()
             };
             total_work += processors.len() as f32;
@@ -621,7 +621,7 @@ impl ElkLayered {
 
     fn layout_component(&mut self, lgraph: &LGraphRef, monitor: &mut dyn IElkProgressMonitor) {
         let processors = {
-            let mut graph_guard = lgraph.lock();
+            let graph_guard = lgraph.lock();
             graph_guard
                 .get_property(InternalProperties::PROCESSORS)
                 .unwrap_or_default()
@@ -699,7 +699,7 @@ impl ElkLayered {
         state: &TestExecutionState,
     ) -> Option<Vec<SharedProcessor<LGraph>>> {
         let graph = state.graphs.first()?.clone();
-        let mut graph_guard = graph.lock();
+        let graph_guard = graph.lock();
         Some(
             graph_guard
                 .get_property(InternalProperties::PROCESSORS)
@@ -709,7 +709,7 @@ impl ElkLayered {
 
     fn review_and_correct_hierarchical_processors(&self, root: &LGraphRef, graphs: &[LGraphRef]) {
         let (root_crossing_minimization, root_greedy_switch_type) = {
-            let mut root_guard = root.lock();
+            let root_guard = root.lock();
             (
                 root_guard
                     .get_property(LayeredOptions::CROSSING_MINIMIZATION_STRATEGY)
@@ -785,7 +785,7 @@ impl ElkLayered {
 
     fn resize_graph(&self, lgraph: &LGraphRef) {
         let (size_constraints, size_options, min_size, fixed_graph_size, calculated_size) = {
-            let mut graph_guard = lgraph.lock();
+            let graph_guard = lgraph.lock();
             let size_constraints = graph_guard
                 .get_property(LayeredOptions::NODE_SIZE_CONSTRAINTS)
                 .unwrap_or_else(EnumSet::none_of);
@@ -865,7 +865,7 @@ impl ElkLayered {
 
     fn resize_graph_no_really(&self, lgraph: &LGraphRef, old_size: KVector, new_size: KVector) {
         let (content_alignment, graph_properties) = {
-            let mut graph_guard = lgraph.lock();
+            let graph_guard = lgraph.lock();
             let content_alignment = graph_guard
                 .get_property(CoreOptions::CONTENT_ALIGNMENT)
                 .unwrap_or_else(EnumSet::none_of);

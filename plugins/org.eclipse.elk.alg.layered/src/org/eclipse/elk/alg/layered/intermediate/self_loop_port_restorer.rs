@@ -78,7 +78,7 @@ impl ILayoutProcessor<LGraph> for SelfLoopPortRestorer {
 
         for node in nodes {
             let holder = {
-                let mut node_guard = node.lock();
+                let node_guard = node.lock();
                 if node_guard.node_type() != NodeType::Normal {
                     None
                 } else {
@@ -110,7 +110,7 @@ fn process_node(holder: &SelfLoopHolderRef) {
     let original_constraints = {
         let holder_guard = holder.lock();
         let l_node = holder_guard.l_node().clone();
-        let mut node_guard = l_node.lock();
+        let node_guard = l_node.lock();
         node_guard
             .get_property(InternalProperties::ORIGINAL_PORT_CONSTRAINTS)
             .unwrap_or(PortConstraints::Undefined)
@@ -154,7 +154,7 @@ fn assign_hidden_port_sides(holder: &SelfLoopHolderRef) {
         let l_node = holder_guard.l_node().clone();
         let loops = holder_guard.sl_hyper_loops().clone();
         let distribution = {
-            let mut node_guard = l_node.lock();
+            let node_guard = l_node.lock();
             node_guard
                 .get_property(LayeredOptions::EDGE_ROUTING_SELF_LOOP_DISTRIBUTION)
                 .unwrap_or(SelfLoopDistributionStrategy::North)
@@ -269,7 +269,7 @@ fn restore_ports(holder: &SelfLoopHolderRef) {
     let ordering = {
         let holder_guard = holder.lock();
         let l_node = holder_guard.l_node().clone();
-        let mut node_guard = l_node.lock();
+        let node_guard = l_node.lock();
         node_guard
             .get_property(LayeredOptions::EDGE_ROUTING_SELF_LOOP_ORDERING)
             .unwrap_or(SelfLoopOrderingStrategy::Stacked)
@@ -735,7 +735,7 @@ fn is_north_south_port_with_east_connections(l_port: &LPortRef) -> bool {
 fn north_south_port_connection_sides(l_port: &LPortRef) -> HashSet<PortSide> {
     let mut connection_sides = HashSet::new();
     let port_dummy = {
-        let mut l_port_guard = l_port.lock();
+        let l_port_guard = l_port.lock();
         l_port_guard.get_property(InternalProperties::PORT_DUMMY)
     };
     let Some(port_dummy) = port_dummy else {
@@ -746,7 +746,7 @@ fn north_south_port_connection_sides(l_port: &LPortRef) -> HashSet<PortSide> {
         .lock().ports().clone();
     for dummy_l_port in dummy_ports {
         let origin = {
-            let mut dummy_port_guard = dummy_l_port.lock();
+            let dummy_port_guard = dummy_l_port.lock();
             dummy_port_guard.get_property(InternalProperties::ORIGIN)
         };
         let Some(Origin::LPort(origin_port)) = origin else {

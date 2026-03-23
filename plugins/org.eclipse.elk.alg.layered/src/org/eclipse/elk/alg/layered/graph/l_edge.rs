@@ -288,17 +288,10 @@ impl LEdge {
     }
 
     pub fn get_property<T: Clone + Send + Sync + 'static>(
-        &mut self,
-        property: &Property<T>,
-    ) -> Option<T> {
-        self.element.get_property(property)
-    }
-
-    pub fn get_property_ref<T: Clone + Send + Sync + 'static>(
         &self,
         property: &Property<T>,
     ) -> Option<T> {
-        self.element.properties().get_property_ref(property)
+        self.element.get_property(property)
     }
 
     pub fn set_property<T: Clone + Send + Sync + 'static>(
@@ -312,24 +305,24 @@ impl LEdge {
     // --- Typed property accessors (read-only, &self) ---
 
     pub fn origin(&self) -> Option<Origin> {
-        self.element.properties().get_property_ref(InternalProperties::ORIGIN)
+        self.element.properties().get_property(InternalProperties::ORIGIN)
     }
 
     pub fn junction_points(&self) -> Option<KVectorChain> {
-        self.element.properties().get_property_ref(LayeredOptions::JUNCTION_POINTS)
+        self.element.properties().get_property(LayeredOptions::JUNCTION_POINTS)
     }
 
     pub fn is_reversed(&self) -> bool {
         self.element
             .properties()
-            .get_property_ref(InternalProperties::REVERSED)
+            .get_property(InternalProperties::REVERSED)
             .unwrap_or(false)
     }
 
     pub fn priority_straightness(&self) -> i32 {
         self.element
             .properties()
-            .get_property_ref(LayeredOptions::PRIORITY_STRAIGHTNESS)
+            .get_property(LayeredOptions::PRIORITY_STRAIGHTNESS)
             .unwrap_or(0)
     }
 

@@ -3,12 +3,7 @@ use std::borrow::Cow;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
-use std::sync::LazyLock;
-
 use rustc_hash::FxHashMap;
-
-static TRACE_SIZING: LazyLock<bool> =
-    LazyLock::new(|| std::env::var("ELK_TRACE_SIZING").is_ok());
 
 use crate::org::eclipse::elk::graph::util::ElkReflect;
 
@@ -332,8 +327,9 @@ impl MapPropertyHolder {
         self
     }
 
-    /// Primary property getter with default-caching behavior.
-    pub fn get_property<T: Clone + Send + Sync + 'static>(
+    /// Property getter with proxy-resolution caching and default-caching.
+    /// Use only in JSON import/export paths where proxy caching matters.
+    pub fn get_property_cached<T: Clone + Send + Sync + 'static>(
         &mut self,
         property: &Property<T>,
     ) -> Option<T> {
@@ -365,10 +361,10 @@ impl MapPropertyHolder {
         default_value
     }
 
-    /// Read-only property getter — no mutation, no caching.
-    /// Use in `&self` contexts (Display impls, typed wrappers, comparators).
+    /// Primary property getter — read-only, no mutation, no caching.
+    /// Safe for use in `&self` contexts. By layout time all proxies are resolved.
     #[inline]
-    pub fn get_property_ref<T: Clone + Send + Sync + 'static>(
+    pub fn get_property<T: Clone + Send + Sync + 'static>(
         &self,
         property: &Property<T>,
     ) -> Option<T> {

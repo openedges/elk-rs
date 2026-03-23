@@ -77,7 +77,7 @@ impl GraphInfoHolder {
             port_influence,
             thoroughness,
         ) = {
-            let mut g = graph.lock();            (
+            let g = graph.lock();            (
                 g.to_node_array(),
                 g.parent_node(),
                 g.get_property(InternalProperties::GRAPH_PROPERTIES)
@@ -673,7 +673,7 @@ fn trace_in_layer_constraints(node_order: &[Vec<LNodeRef>]) {
 
         for node in layer {
             let (node_name, successors) = {
-                let mut node_guard = node.lock();
+                let node_guard = node.lock();
                 let name = node_guard.to_string();
                 let successors: Vec<LNodeRef> = node_guard
                     .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)

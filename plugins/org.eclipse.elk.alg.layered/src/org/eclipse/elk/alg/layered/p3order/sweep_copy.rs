@@ -251,7 +251,7 @@ fn assert_correct_port_sides(dummy: &LNodeRef) -> Option<LNodeRef> {
     }
     let dummy_port = dummy_ports.first()?.clone();
     let dummy_origin_port = {
-        let mut port_guard = dummy_port.lock();
+        let port_guard = dummy_port.lock();
         port_guard.get_property(InternalProperties::ORIGIN)
             .and_then(|origin| match origin {
                 Origin::LPort(port) => Some(port),

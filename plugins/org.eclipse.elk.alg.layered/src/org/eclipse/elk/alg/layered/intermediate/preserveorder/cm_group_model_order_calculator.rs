@@ -14,7 +14,7 @@ impl CMGroupModelOrderCalculator {
         parent: &LGraphRef,
         offset: i32,
     ) -> i32 {
-        let enforce_group_model_order = match parent.try_lock() {            Some(mut graph_guard) => {
+        let enforce_group_model_order = match parent.try_lock() {            Some(graph_guard) => {
                 graph_guard
                     .get_property(LayeredOptions::GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY)
                     .unwrap_or(GroupOrderStrategy::OnlyWithinGroup)
@@ -27,7 +27,7 @@ impl CMGroupModelOrderCalculator {
                 false
             }
         };
-        let enforced_orders = match parent.try_lock() {            Some(mut graph_guard) => graph_guard
+        let enforced_orders = match parent.try_lock() {            Some(graph_guard) => graph_guard
                 .get_property(LayeredOptions::GROUP_MODEL_ORDER_CM_ENFORCED_GROUP_ORDERS)
                 .unwrap_or_default(),
             None => {

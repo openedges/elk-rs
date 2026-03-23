@@ -325,7 +325,7 @@ impl BarycenterHeuristic {
 
         // Handle BARYCENTER_ASSOCIATES (requires one lock per node, not per port)
         let associates = flat_to_node.get(&flat).and_then(|node| {
-            let mut node_guard = node.lock();
+            let node_guard = node.lock();
             node_guard.get_property(InternalProperties::BARYCENTER_ASSOCIATES)
         });
         if let Some(associates) = associates {
@@ -447,7 +447,7 @@ impl BarycenterHeuristic {
         }
 
         let associates = {
-            let mut node_guard = node.lock();
+            let node_guard = node.lock();
             node_guard.get_property(InternalProperties::BARYCENTER_ASSOCIATES)
         };
         if let Some(associates) = associates {

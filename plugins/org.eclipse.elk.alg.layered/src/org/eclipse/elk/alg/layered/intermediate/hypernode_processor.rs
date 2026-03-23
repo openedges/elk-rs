@@ -18,7 +18,7 @@ impl ILayoutProcessor<LGraph> for HypernodeProcessor {
 
             for node in nodes {
                 let (is_hypernode, ports) = {
-                    let mut node_guard = node.lock();
+                    let node_guard = node.lock();
                     (
                         node_guard
                             .get_property(LayeredOptions::HYPERNODE)

@@ -483,7 +483,7 @@ impl AbstractBarycenterPortDistributor {
 
         // One lock for PORT_CONSTRAINTS (not in snapshot)
         let constraints = {
-            let mut ng = node.lock();
+            let ng = node.lock();
             ng.get_property(LayeredOptions::PORT_CONSTRAINTS)
                 .unwrap_or(PortConstraints::Undefined)
         };
@@ -571,7 +571,7 @@ impl AbstractBarycenterPortDistributor {
                 // PORT_DUMMY property still needs lock via port_ref
                 let dummy = snap.port_ref_opt(pid)
                     .and_then(|port| {
-                        let mut pg = port.lock();
+                        let pg = port.lock();
                         pg.get_property(InternalProperties::PORT_DUMMY)
                     });
                 let Some(dummy) = dummy else { continue; };
@@ -778,7 +778,7 @@ impl AbstractBarycenterPortDistributor {
 
             if north_south_port {
                 let dummy = {
-                    let mut port_guard = port.lock();
+                    let port_guard = port.lock();
                     port_guard.get_property(InternalProperties::PORT_DUMMY)
                 };
                 let Some(dummy) = dummy else {
@@ -858,7 +858,7 @@ impl AbstractBarycenterPortDistributor {
 
             if north_south_port {
                 let dummy = {
-                    let mut port_guard = port.lock();
+                    let port_guard = port.lock();
                     port_guard.get_property(InternalProperties::PORT_DUMMY)
                 };
                 let Some(dummy) = dummy else {
@@ -1024,7 +1024,7 @@ impl AbstractBarycenterPortDistributor {
                 let origin_matches = snap
                     .port_ref_opt(dpid)
                     .and_then(|dp| {
-                        let mut pg = dp.lock();
+                        let pg = dp.lock();
                         pg.get_property(InternalProperties::ORIGIN)
                     })
                     .and_then(|origin| match origin {
@@ -1079,7 +1079,7 @@ impl AbstractBarycenterPortDistributor {
             }
             for dummy_port in dummy_ports {
                 let origin_matches = {
-                    let mut port_guard = dummy_port.lock();
+                    let port_guard = dummy_port.lock();
                     port_guard.get_property(InternalProperties::ORIGIN)
                 }
                     .and_then(|origin| match origin {

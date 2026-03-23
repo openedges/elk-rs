@@ -13,7 +13,7 @@ impl ILayoutProcessor<TGraphRef> for LevelCoordinatesProcessor {
         progress_monitor.begin("Processor determine the coords for each level", 1.0);
 
         let (nodes, direction) = {
-            let mut graph_guard = graph.lock();
+            let graph_guard = graph.lock();
             let nodes = graph_guard.nodes().clone();
             let direction = graph_guard
                 .get_property(MrTreeOptions::DIRECTION)
@@ -26,7 +26,7 @@ impl ILayoutProcessor<TGraphRef> for LevelCoordinatesProcessor {
         // Pass 1: extract level + bounds, cache levels to avoid re-reading property
         let mut node_levels: Vec<usize> = Vec::with_capacity(nodes.len());
         for node in &nodes {
-            let mut node_guard = node.lock();
+            let node_guard = node.lock();
             let level = node_guard
                 .get_property(MrTreeOptions::TREE_LEVEL)
                 .unwrap_or(0) as usize;

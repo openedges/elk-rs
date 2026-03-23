@@ -429,7 +429,7 @@ impl LayerSweepCrossingMinimizer {
             active_indices.clear();
             for (index, node) in layer.iter().enumerate() {
                 let has_model_order = {
-                    let mut node_guard = node.lock();
+                    let node_guard = node.lock();
                     node_guard.get_property(InternalProperties::MODEL_ORDER)
                         .is_some()
                 };
@@ -1303,13 +1303,13 @@ fn is_external_port_dummy(node: &LNodeRef) -> bool {
 }
 
 fn is_hierarchical(port: &LPortRef) -> bool {
-    let mut port_guard = port.lock();
+    let port_guard = port.lock();
     port_guard.get_property(InternalProperties::INSIDE_CONNECTIONS)
         .unwrap_or(false)
 }
 
 fn origin_port(node: &LNodeRef) -> Option<LPortRef> {
-    let mut node_guard = node.lock();
+    let node_guard = node.lock();
     node_guard.get_property(InternalProperties::ORIGIN)
         .and_then(|origin| match origin {
             crate::org::eclipse::elk::alg::layered::options::Origin::LPort(port) => Some(port),
@@ -1318,7 +1318,7 @@ fn origin_port(node: &LNodeRef) -> Option<LPortRef> {
 }
 
 fn dummy_node_for(port: &LPortRef) -> Option<LNodeRef> {
-    let mut port_guard = port.lock();
+    let port_guard = port.lock();
     port_guard.get_property(InternalProperties::PORT_DUMMY)
 }
 

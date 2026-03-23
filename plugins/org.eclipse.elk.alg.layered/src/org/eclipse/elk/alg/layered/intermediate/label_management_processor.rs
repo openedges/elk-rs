@@ -81,7 +81,7 @@ fn manage_non_center_labels(
 
         for node in nodes {
             let (node_type, node_labels, ports, top_comments, bottom_comments, outgoing_edges) = {
-                let mut node_guard = node.lock();
+                let node_guard = node.lock();
                 (
                     node_guard.node_type(),
                     node_guard.labels().clone(),
@@ -187,7 +187,7 @@ fn manage_center_labels(
 
         for node in nodes {
             let (node_type, connected_edges, represented_labels, node_labels) = {
-                let mut node_guard = node.lock();
+                let node_guard = node.lock();
                 (
                     node_guard.node_type(),
                     node_guard.connected_edges(),

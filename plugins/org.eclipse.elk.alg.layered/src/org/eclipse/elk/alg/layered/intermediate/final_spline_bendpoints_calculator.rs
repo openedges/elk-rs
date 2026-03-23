@@ -383,7 +383,7 @@ impl FinalSplineBendpointsCalculator {
         all_cp.add_vector(source_anchor);
 
         {
-            let mut port_guard = source_port.lock();
+            let port_guard = source_port.lock();
             if SIDES_NORTH_SOUTH.contains(&port_guard.side()) {
                 let y = port_guard
                     .get_property(InternalProperties::SPLINE_NS_PORT_Y_COORD)
@@ -426,7 +426,7 @@ impl FinalSplineBendpointsCalculator {
             .unwrap_or_else(KVector::new);
 
         {
-            let mut port_guard = target_port.lock();
+            let port_guard = target_port.lock();
             if SIDES_NORTH_SOUTH.contains(&port_guard.side()) {
                 let y = port_guard
                     .get_property(InternalProperties::SPLINE_NS_PORT_Y_COORD)

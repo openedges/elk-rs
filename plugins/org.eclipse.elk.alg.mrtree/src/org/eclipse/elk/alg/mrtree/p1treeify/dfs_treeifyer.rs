@@ -62,7 +62,7 @@ impl DFSTreeifyer {
 
     fn collect_edges(&mut self, graph: &TGraphRef) {
         let treeifying_order = {
-            let mut graph_guard = graph.lock();
+            let graph_guard = graph.lock();
             graph_guard.get_property(MrTreeOptions::SEARCH_ORDER)
                 .unwrap_or(TreeifyingOrder::Dfs)
         };

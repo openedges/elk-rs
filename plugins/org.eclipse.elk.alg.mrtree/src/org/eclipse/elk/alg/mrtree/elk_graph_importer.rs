@@ -203,7 +203,7 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
 
     fn apply_layout(&self, tgraph: &TGraphRef) {
         let origin = {
-            let mut g = tgraph.lock();
+            let g = tgraph.lock();
             g.get_property(InternalProperties::ORIGIN)
         };
         let Some(Origin::ElkNode(root_id)) = origin else {
@@ -245,7 +245,7 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
 
         for node in &nodes {
             let origin = {
-                let mut guard = node.lock();
+                let guard = node.lock();
                 guard.get_property(InternalProperties::ORIGIN)
             };
             let Some(Origin::ElkNode(node_id)) = origin else {
@@ -276,7 +276,7 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
             .lock().edges().clone();
         for edge in edges {
             let origin = {
-                let mut guard = edge.lock();
+                let guard = edge.lock();
                 guard.get_property(InternalProperties::ORIGIN)
             };
             let Some(Origin::ElkEdge(edge_id)) = origin else {

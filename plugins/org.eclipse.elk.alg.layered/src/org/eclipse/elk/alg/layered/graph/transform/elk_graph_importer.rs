@@ -421,7 +421,7 @@ impl<'a> ElkGraphImporter<'a> {
 
             if trace_edge_selection {
                 let has_target_graph_origin = {
-                    let mut g = parent_lgraph.lock();
+                    let g = parent_lgraph.lock();
                     g.get_property(InternalProperties::ORIGIN).is_some()
                 };
                 eprintln!(
@@ -498,7 +498,7 @@ impl<'a> ElkGraphImporter<'a> {
         let mut size_constraints = {
             let graph_guard = lgraph.lock();
             graph_guard
-                .get_property_ref(LayeredOptions::NODE_SIZE_CONSTRAINTS)
+                .get_property(LayeredOptions::NODE_SIZE_CONSTRAINTS)
                 .unwrap_or_else(EnumSet::none_of)
         };
         if size_constraints.is_empty() {
@@ -536,7 +536,7 @@ impl<'a> ElkGraphImporter<'a> {
         let mut min_size = {
             let graph_guard = lgraph.lock();
             graph_guard
-                .get_property_ref(LayeredOptions::NODE_SIZE_MINIMUM)
+                .get_property(LayeredOptions::NODE_SIZE_MINIMUM)
                 .unwrap_or_default()
         };
 
@@ -579,7 +579,7 @@ impl<'a> ElkGraphImporter<'a> {
         let (properties, padding) = {
             let mut graph_mut = elkgraph.borrow_mut();
             let shape = graph_mut.connectable().shape();
-            let mut props = shape.graph_element().properties().clone();
+            let props = shape.graph_element().properties().clone();
             let padding = props.get_property(CoreOptions::PADDING).unwrap_or_default();
             (props, padding)
         };
@@ -715,13 +715,13 @@ impl<'a> ElkGraphImporter<'a> {
 
         let direction = LGraphUtil::get_direction(lgraph);
         let mut graph_properties = {
-            let mut graph_guard = lgraph.lock();
+            let graph_guard = lgraph.lock();
             graph_guard.get_property(InternalProperties::GRAPH_PROPERTIES)
                 .unwrap_or_else(EnumSet::none_of)
         };
 
         let mut port_constraints = {
-            let mut node_guard = lnode.lock();
+            let node_guard = lnode.lock();
             node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
                 .unwrap_or(PortConstraints::Undefined)
         };
@@ -778,7 +778,7 @@ impl<'a> ElkGraphImporter<'a> {
         }
 
         if {
-            let mut node_guard = lnode.lock();
+            let node_guard = lnode.lock();
             node_guard.get_property(LayeredOptions::COMMENT_BOX)
                 .unwrap_or(false)
         } {
@@ -786,7 +786,7 @@ impl<'a> ElkGraphImporter<'a> {
         }
 
         if {
-            let mut node_guard = lnode.lock();
+            let node_guard = lnode.lock();
             node_guard.get_property(LayeredOptions::HYPERNODE)
                 .unwrap_or(false)
         } {
@@ -823,7 +823,7 @@ impl<'a> ElkGraphImporter<'a> {
         let (properties, position, size, labels, anchor) = {
             let mut port_mut = elkport.borrow_mut();
             let shape = port_mut.connectable().shape();
-            let mut props = shape.graph_element().properties().clone();
+            let props = shape.graph_element().properties().clone();
             let position = (shape.x(), shape.y());
             let size = (shape.width(), shape.height());
             let labels: Vec<ElkLabelRef> = shape.graph_element().labels().iter().cloned().collect();
@@ -904,7 +904,7 @@ impl<'a> ElkGraphImporter<'a> {
     }
 
     fn transform_edge(&mut self, elkedge: &ElkEdgeRef, lgraph: &LGraphRef) {
-        let (sources, targets, mut properties, labels, edge_id) = {
+        let (sources, targets, properties, labels, edge_id) = {
             let mut edge_mut = elkedge.borrow_mut();
             let sources: Vec<ElkConnectableShapeRef> =
                 edge_mut.sources_ro().iter().cloned().collect();
@@ -983,7 +983,7 @@ impl<'a> ElkGraphImporter<'a> {
         LEdge::set_target(&ledge, Some(target_port));
 
         let mut graph_properties = {
-            let mut graph_guard = lgraph.lock();
+            let graph_guard = lgraph.lock();
             graph_guard.get_property(InternalProperties::GRAPH_PROPERTIES)
                 .unwrap_or_else(EnumSet::none_of)
         };
@@ -1058,7 +1058,7 @@ impl<'a> ElkGraphImporter<'a> {
 
                 let llabel = self.transform_label(&label);
                 let placement = {
-                    let mut label_guard = llabel.lock();
+                    let label_guard = llabel.lock();
                     label_guard.get_property(LayeredOptions::EDGE_LABELS_PLACEMENT)
                         .unwrap_or(EdgeLabelPlacement::Center)
                 };
@@ -1248,12 +1248,12 @@ impl<'a> ElkGraphImporter<'a> {
                 };
                 let direction = LGraphUtil::get_direction(lgraph);
                 let mut graph_properties = {
-                    let mut graph_guard = lgraph.lock();
+                    let graph_guard = lgraph.lock();
                     graph_guard.get_property(InternalProperties::GRAPH_PROPERTIES)
                         .unwrap_or_else(EnumSet::none_of)
                 };
                 let mut port_constraints = {
-                    let mut node_guard = lnode.lock();
+                    let node_guard = lnode.lock();
                     node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
                         .unwrap_or(PortConstraints::Undefined)
                 };
@@ -1316,7 +1316,7 @@ impl<'a> ElkGraphImporter<'a> {
     fn ensure_defined_port_side(&self, lgraph: &LGraphRef, elkport: &ElkPortRef) {
         let direction = LGraphUtil::get_direction(lgraph);
         let port_constraints = {
-            let mut graph_guard = lgraph.lock();
+            let graph_guard = lgraph.lock();
             graph_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
                 .unwrap_or(PortConstraints::Undefined)
         };
@@ -1983,7 +1983,7 @@ impl<'a> ElkGraphImporter<'a> {
         element: &impl GraphPropertyOwner,
         property: &org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property<T>,
     ) -> Option<T> {
-        let mut props = element.graph_properties();
+        let props = element.graph_properties();
         props.get_property(property)
     }
 

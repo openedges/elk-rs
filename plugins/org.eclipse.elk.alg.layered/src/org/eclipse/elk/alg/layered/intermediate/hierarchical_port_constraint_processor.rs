@@ -56,7 +56,7 @@ fn process_eastern_and_western_port_dummies_layer(layer: &LayerRef) {
     let mut nodes_sorted = nodes;
     nodes_sorted.sort_by(|node1, node2| {
         let (node1_type, node1_pos) = {
-            let mut node_guard = node1.lock();
+            let node_guard = node1.lock();
             (
                 node_guard.node_type(),
                 node_guard
@@ -65,7 +65,7 @@ fn process_eastern_and_western_port_dummies_layer(layer: &LayerRef) {
             )
         };
         let (node2_type, node2_pos) = {
-            let mut node_guard = node2.lock();
+            let node_guard = node2.lock();
             (
                 node_guard.node_type(),
                 node_guard
@@ -97,7 +97,7 @@ fn process_eastern_and_western_port_dummies_layer(layer: &LayerRef) {
 
     for node in nodes_sorted {
         let (node_type, ext_side) = {
-            let mut node_guard = node.lock();
+            let node_guard = node.lock();
             (
                 node_guard.node_type(),
                 node_guard
@@ -290,7 +290,7 @@ fn process_northern_and_southern_port_dummies(layered_graph: &mut LGraph) {
 
 fn is_northern_or_southern_dummy(node: &LNodeRef) -> bool {
     let (node_type, port_side) = {
-        let mut node_guard = node.lock();
+        let node_guard = node.lock();
         (
             node_guard.node_type(),
             node_guard

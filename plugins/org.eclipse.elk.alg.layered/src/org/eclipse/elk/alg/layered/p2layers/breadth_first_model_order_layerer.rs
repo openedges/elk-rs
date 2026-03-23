@@ -64,7 +64,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BreadthFirstModelOrderLayerer {
         let mut real_nodes: Vec<(i32, LNodeRef)> = Vec::new();
         for node in &nodes {
             let (node_type, model_order) = {
-                let mut node_guard = node.lock();
+                let node_guard = node.lock();
                 (
                     node_guard.node_type(),
                     node_guard.get_property(InternalProperties::MODEL_ORDER),

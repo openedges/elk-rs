@@ -166,7 +166,7 @@ impl NorthSouthEdgeNeighbouringNodeCrossingsCounter {
     }
 
     fn has_connected_north_south_edge(&self, port: &LPortRef) -> bool {
-        let mut port_guard = port.lock();
+        let port_guard = port.lock();
         port_guard
             .get_property(InternalProperties::PORT_DUMMY)
             .is_some()
@@ -194,7 +194,7 @@ impl NorthSouthEdgeNeighbouringNodeCrossingsCounter {
         };
         let port = port?;
         let origin = {
-            let mut port_guard = port.lock();
+            let port_guard = port.lock();
             port_guard.get_property(InternalProperties::ORIGIN)
         };
         match origin {
@@ -212,7 +212,7 @@ impl NorthSouthEdgeNeighbouringNodeCrossingsCounter {
 
     fn origin_of(&self, node: &LNodeRef) -> Option<LNodeRef> {
         let origin = {
-            let mut node_guard = node.lock();
+            let node_guard = node.lock();
             node_guard.get_property(InternalProperties::ORIGIN)
         };
         match origin {

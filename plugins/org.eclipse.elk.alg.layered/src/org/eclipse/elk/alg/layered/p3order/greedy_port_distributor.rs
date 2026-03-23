@@ -68,7 +68,7 @@ impl GreedyPortDistributor {
 
         for node in &node_order[current_index] {
             let port_constraints = {
-                let mut node_guard = node.lock();
+                let node_guard = node.lock();
                 node_guard
                     .get_property(LayeredOptions::PORT_CONSTRAINTS)
                     .unwrap_or(PortConstraints::Undefined)
@@ -198,11 +198,11 @@ impl GreedyPortDistributor {
 
         if let Some(counter) = hierarchical_counter {
             let upper_node = {
-                let mut port_guard = upper_port.lock();
+                let port_guard = upper_port.lock();
                 port_guard.get_property(InternalProperties::PORT_DUMMY)
             };
             let lower_node = {
-                let mut port_guard = lower_port.lock();
+                let port_guard = lower_port.lock();
                 port_guard.get_property(InternalProperties::PORT_DUMMY)
             };
             if let (Some(upper_node), Some(lower_node)) = (upper_node, lower_node) {
