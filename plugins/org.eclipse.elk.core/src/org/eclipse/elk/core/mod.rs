@@ -4,6 +4,7 @@ pub mod comments;
 pub mod data;
 pub mod graph_layout_engine;
 pub mod labels;
+pub mod layout_arena_context;
 pub mod layout_configurator;
 pub mod math;
 pub mod options;

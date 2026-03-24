@@ -829,7 +829,12 @@ impl RecursiveGraphLayoutEngine {
             panic!("{}", error);
         }
 
+        // Build layout-scoped arena for lock-free ElkGraph reads (D-2.3).
+        crate::org::eclipse::elk::core::layout_arena_context::init_layout_arena(layout_graph);
+
         self.layout_recursively(layout_graph, test_controller, progress_monitor);
+
+        crate::org::eclipse::elk::core::layout_arena_context::clear_layout_arena();
 
         progress_monitor.done();
     }
