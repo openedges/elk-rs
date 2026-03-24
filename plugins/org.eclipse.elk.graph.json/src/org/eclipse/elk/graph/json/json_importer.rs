@@ -1219,40 +1219,36 @@ impl JsonImporter {
                     obj
                 };
 
-                let (
-                    start_x,
-                    start_y,
-                    end_x,
-                    end_y,
-                    bend_points,
-                    incoming_shape,
-                    outgoing_shape,
-                    incoming_sections,
-                    outgoing_sections,
-                ) = {
+                // Arena path: read coordinates from SoA arrays, fall back for shapes/sections
+                let (start_x, start_y, end_x, end_y, bend_points) =
+                    if let Some(ref sync) = self.arena_sync {
+                        if let Some(sid) = sync.section_id(section) {
+                            let a = sync.arena();
+                            let bends = a.section_bend_points[sid.idx()]
+                                .iter()
+                                .map(|bid| (a.bend_x[bid.idx()], a.bend_y[bid.idx()]))
+                                .collect::<Vec<_>>();
+                            (a.section_start_x[sid.idx()], a.section_start_y[sid.idx()],
+                             a.section_end_x[sid.idx()], a.section_end_y[sid.idx()], bends)
+                        } else {
+                            let mut sr = section.borrow_mut();
+                            let bends = sr.bend_points().iter()
+                                .map(|b| { let br = b.borrow(); (br.x(), br.y()) }).collect();
+                            (sr.start_x(), sr.start_y(), sr.end_x(), sr.end_y(), bends)
+                        }
+                    } else {
+                        let mut sr = section.borrow_mut();
+                        let bends = sr.bend_points().iter()
+                            .map(|b| { let br = b.borrow(); (br.x(), br.y()) }).collect();
+                        (sr.start_x(), sr.start_y(), sr.end_x(), sr.end_y(), bends)
+                    };
+                let (incoming_shape, outgoing_shape, incoming_sections, outgoing_sections) = {
                     let mut section_ref = section.borrow_mut();
-                    let bend_points = section_ref
-                        .bend_points()
-                        .iter()
-                        .map(|bend| {
-                            let bend_ref = bend.borrow();
-                            (bend_ref.x(), bend_ref.y())
-                        })
-                        .collect::<Vec<_>>();
-                    let incoming_shape = section_ref.incoming_shape();
-                    let outgoing_shape = section_ref.outgoing_shape();
-                    let incoming_sections = section_ref.incoming_sections();
-                    let outgoing_sections = section_ref.outgoing_sections();
                     (
-                        section_ref.start_x(),
-                        section_ref.start_y(),
-                        section_ref.end_x(),
-                        section_ref.end_y(),
-                        bend_points,
-                        incoming_shape,
-                        outgoing_shape,
-                        incoming_sections,
-                        outgoing_sections,
+                        section_ref.incoming_shape(),
+                        section_ref.outgoing_shape(),
+                        section_ref.incoming_sections(),
+                        section_ref.outgoing_sections(),
                     )
                 };
 
@@ -1413,7 +1409,19 @@ impl JsonImporter {
         self.record_global_coords_label(label);
         self.record_coordinate_modes(ElkGraphElementRef::Label(label.clone()));
         let parent = self.json_parent(ElkGraphElementRef::Label(label.clone()));
-        {
+        if let Some(ref sync) = self.arena_sync {
+            if let Some(lid) = sync.label_id(label) {
+                let a = sync.arena();
+                self.transfer_xywh_to_json(
+                    a.label_x[lid.idx()], a.label_y[lid.idx()],
+                    a.label_width[lid.idx()], a.label_height[lid.idx()],
+                    json_obj, parent,
+                );
+            } else {
+                let mut label_mut = label.borrow_mut();
+                self.transfer_shape_layout_to_json(label_mut.shape(), json_obj, parent);
+            }
+        } else {
             let mut label_mut = label.borrow_mut();
             self.transfer_shape_layout_to_json(label_mut.shape(), json_obj, parent);
         }
