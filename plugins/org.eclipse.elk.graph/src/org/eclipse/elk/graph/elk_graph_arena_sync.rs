@@ -56,6 +56,15 @@ impl ElkGraphArenaSync {
     #[inline] pub fn port_ref(&self, id: EPortId) -> &ElkPortRef { &self.port_id_to_rc[id.idx()] }
     #[inline] pub fn edge_ref(&self, id: EEdgeId) -> &ElkEdgeRef { &self.edge_id_to_rc[id.idx()] }
     #[inline] pub fn label_ref(&self, id: ELabelId) -> &ElkLabelRef { &self.label_id_to_rc[id.idx()] }
+    #[inline] pub fn section_ref(&self, id: ESectionId) -> &ElkEdgeSectionRef { &self.section_id_to_rc[id.idx()] }
+
+    /// Resolve a connectable ID to the owning node ID.
+    pub fn connectable_node_id(&self, cid: EConnectableId) -> ENodeId {
+        match cid {
+            EConnectableId::Node(nid) => nid,
+            EConnectableId::Port(pid) => self.arena.port_owner[pid.idx()],
+        }
+    }
 
     pub fn connectable_id(&self, shape: &ElkConnectableShapeRef) -> Option<EConnectableId> {
         match shape {

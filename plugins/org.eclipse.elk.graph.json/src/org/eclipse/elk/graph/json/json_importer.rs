@@ -1174,32 +1174,53 @@ impl JsonImporter {
             .map(|id| id.as_string())
             .unwrap_or_default();
 
-        let sections = {
-            let mut edge_mut = edge.borrow_mut();
-            let list = edge_mut.sections();
-            (0..list.len())
-                .filter_map(|i| list.get(i))
-                .collect::<Vec<_>>()
-        };
-
-        let mut json_sections = Vec::new();
-        let is_self_loop = {
-            let edge_ref = edge.borrow();
-            let source = edge_ref
-                .sources_ro()
-                .get(0)
-                .as_ref()
-                .and_then(ElkGraphUtil::connectable_shape_to_node);
-            let target = edge_ref
-                .targets_ro()
-                .get(0)
-                .as_ref()
-                .and_then(ElkGraphUtil::connectable_shape_to_node);
-            match (source, target) {
-                (Some(source_node), Some(target_node)) => Rc::ptr_eq(&source_node, &target_node),
-                _ => false,
+        // Arena path: get sections list + self-loop detection without borrow_mut
+        let (sections, is_self_loop) = if let Some(ref sync) = self.arena_sync {
+            if let Some(eid) = sync.edge_id(edge) {
+                let a = sync.arena();
+                let secs: Vec<_> = a.edge_sections[eid.idx()]
+                    .iter()
+                    .map(|&sid| sync.section_ref(sid).clone())
+                    .collect();
+                let self_loop = {
+                    let sources = &a.edge_sources[eid.idx()];
+                    let targets = &a.edge_targets[eid.idx()];
+                    if let (Some(&src), Some(&tgt)) = (sources.first(), targets.first()) {
+                        sync.connectable_node_id(src) == sync.connectable_node_id(tgt)
+                    } else {
+                        false
+                    }
+                };
+                (secs, self_loop)
+            } else {
+                let secs = {
+                    let mut edge_mut = edge.borrow_mut();
+                    let list = edge_mut.sections();
+                    (0..list.len()).filter_map(|i| list.get(i)).collect::<Vec<_>>()
+                };
+                let sl = {
+                    let edge_ref = edge.borrow();
+                    let source = edge_ref.sources_ro().get(0).as_ref().and_then(ElkGraphUtil::connectable_shape_to_node);
+                    let target = edge_ref.targets_ro().get(0).as_ref().and_then(ElkGraphUtil::connectable_shape_to_node);
+                    matches!((source, target), (Some(s), Some(t)) if Rc::ptr_eq(&s, &t))
+                };
+                (secs, sl)
             }
+        } else {
+            let secs = {
+                let mut edge_mut = edge.borrow_mut();
+                let list = edge_mut.sections();
+                (0..list.len()).filter_map(|i| list.get(i)).collect::<Vec<_>>()
+            };
+            let sl = {
+                let edge_ref = edge.borrow();
+                let source = edge_ref.sources_ro().get(0).as_ref().and_then(ElkGraphUtil::connectable_shape_to_node);
+                let target = edge_ref.targets_ro().get(0).as_ref().and_then(ElkGraphUtil::connectable_shape_to_node);
+                matches!((source, target), (Some(s), Some(t)) if Rc::ptr_eq(&s, &t))
+            };
+            (secs, sl)
         };
+        let mut json_sections = Vec::new();
         if !sections.is_empty() {
             for (index, section) in sections.iter().enumerate() {
                 let mut json_section_obj = if let Some(pointer) =
