@@ -194,9 +194,8 @@ impl PolylineEdgeRouter {
 
             if is_ns_port {
                 if let Some(Origin::LPort(origin_port)) = origin {
-                    let origin_anchor_x = sync.port_id(&origin_port)
-                        .map(|pid| arena.port_absolute_anchor(pid).x)
-                        .or_else(|| origin_port.lock().absolute_anchor().map(|a| a.x));
+                    // Always use live anchor (arena node_pos.x is stale after place_nodes_horizontally)
+                    let origin_anchor_x = origin_port.lock().absolute_anchor().map(|a| a.x);
                     if let Some(x) = origin_anchor_x {
                         absolute_port_anchor.x = x;
                         node.lock().shape().position().x = absolute_port_anchor.x;
