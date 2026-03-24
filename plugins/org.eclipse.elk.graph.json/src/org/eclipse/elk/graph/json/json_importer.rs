@@ -1125,11 +1125,22 @@ impl JsonImporter {
         {
             let delta = node_width - 4.0;
             self.inside_self_loop_node_x_delta.insert(node_key(node), delta);
-            if let Some(parent) = node.borrow().parent() {
+            let parent = if let Some(ref sync) = self.arena_sync {
+                sync.node_id(node)
+                    .and_then(|nid| sync.arena().node_parent[nid.idx()])
+                    .map(|pid| sync.node_ref(pid).clone())
+            } else {
+                node.borrow().parent()
+            };
+            if let Some(parent) = parent {
                 if should_compact_passthrough_node {
                     self.passthrough_compacted_parent_keys.push(node_key(&parent));
                 } else if should_compact_inside_self_loop_node {
-                    let parent_has_single_child = {
+                    let parent_has_single_child = if let Some(ref sync) = self.arena_sync {
+                        sync.node_id(&parent)
+                            .map(|pid| sync.arena().node_children[pid.idx()].len() == 1)
+                            .unwrap_or(false)
+                    } else {
                         let mut parent_ref = parent.borrow_mut();
                         parent_ref.children().len() == 1
                     };
@@ -1143,7 +1154,14 @@ impl JsonImporter {
         if should_compact_vertical_passthrough_node && node_height > 4.0 {
             let delta = node_height - 4.0;
             self.compacted_vertical_node_y_delta.insert(node_key(node), delta);
-            if let Some(parent) = node.borrow().parent() {
+            let parent = if let Some(ref sync) = self.arena_sync {
+                sync.node_id(node)
+                    .and_then(|nid| sync.arena().node_parent[nid.idx()])
+                    .map(|pid| sync.node_ref(pid).clone())
+            } else {
+                node.borrow().parent()
+            };
+            if let Some(parent) = parent {
                 self.vertical_compacted_parent_keys.push(node_key(&parent));
             }
             json_obj.insert("height".to_string(), Value::Number(f64_to_number(4.0)));
@@ -1193,17 +1211,24 @@ impl JsonImporter {
             self.transfer_shape_layout_to_json(port_mut.connectable().shape(), json_obj, parent);
         }
 
-        let parent_node = port.borrow().parent();
+        let parent_node = if let Some(ref sync) = self.arena_sync {
+            sync.port_id(port)
+                .map(|pid| sync.node_ref(sync.arena().port_owner[pid.idx()]).clone())
+        } else {
+            port.borrow().parent()
+        };
         if let Some(parent_node) = parent_node {
             if let Some(delta) = self.inside_self_loop_node_x_delta.get(&node_key(&parent_node)) {
-                let side = {
+                let side = if let Some(ref sync) = self.arena_sync {
+                    sync.port_id(port)
+                        .map(|pid| sync.arena().port_properties[pid.idx()]
+                            .get_property(CoreOptions::PORT_SIDE)
+                            .unwrap_or(PortSide::Undefined))
+                        .unwrap_or(PortSide::Undefined)
+                } else {
                     let mut port_mut = port.borrow_mut();
-                    port_mut
-                        .connectable()
-                        .shape()
-                        .graph_element()
-                        .properties_mut()
-                        .get_property(CoreOptions::PORT_SIDE)
+                    port_mut.connectable().shape().graph_element()
+                        .properties_mut().get_property(CoreOptions::PORT_SIDE)
                         .unwrap_or(PortSide::Undefined)
                 };
                 if side == PortSide::East {
@@ -1215,14 +1240,16 @@ impl JsonImporter {
             }
             if let Some(delta) = self.compacted_vertical_node_y_delta.get(&node_key(&parent_node))
             {
-                let side = {
+                let side = if let Some(ref sync) = self.arena_sync {
+                    sync.port_id(port)
+                        .map(|pid| sync.arena().port_properties[pid.idx()]
+                            .get_property(CoreOptions::PORT_SIDE)
+                            .unwrap_or(PortSide::Undefined))
+                        .unwrap_or(PortSide::Undefined)
+                } else {
                     let mut port_mut = port.borrow_mut();
-                    port_mut
-                        .connectable()
-                        .shape()
-                        .graph_element()
-                        .properties_mut()
-                        .get_property(CoreOptions::PORT_SIDE)
+                    port_mut.connectable().shape().graph_element()
+                        .properties_mut().get_property(CoreOptions::PORT_SIDE)
                         .unwrap_or(PortSide::Undefined)
                 };
                 if side == PortSide::South {
