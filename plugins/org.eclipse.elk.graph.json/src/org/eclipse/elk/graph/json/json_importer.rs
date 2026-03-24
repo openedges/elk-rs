@@ -929,61 +929,57 @@ impl JsonImporter {
             has_west_and_east_center_zero_ports,
             has_only_north_or_south_boundary_zero_ports,
         ) = {
-            let mut node_mut = node.borrow_mut();
-            let ports = node_mut.ports();
             let mut has_left = false;
             let mut has_right = false;
             let mut all_centered = true;
             let mut has_ports = false;
             let mut only_north_or_south = true;
             let mut north_south_on_boundary = true;
-            let all_zero = !ports.is_empty()
-                && ports.iter().all(|port| {
+
+            // Port analysis closure — reads geometry + PORT_SIDE
+            let mut analyze_port = |width: f64, height: f64, x: f64, y: f64, mut side: PortSide| -> bool {
+                if side == PortSide::Undefined {
+                    if y.abs() <= 1e-9 { side = PortSide::North; }
+                    else if (y - node_height).abs() <= 1e-9 { side = PortSide::South; }
+                }
+                has_ports = true;
+                if x.abs() <= 1e-9 { has_left = true; }
+                if (x - node_width).abs() <= 1e-9 { has_right = true; }
+                if (y - node_height / 2.0).abs() > 1e-9 { all_centered = false; }
+                match side {
+                    PortSide::North => { if y.abs() > 1e-9 { north_south_on_boundary = false; } }
+                    PortSide::South => { if (y - node_height).abs() > 1e-9 { north_south_on_boundary = false; } }
+                    _ => { only_north_or_south = false; }
+                }
+                width.abs() <= 1e-9 && height.abs() <= 1e-9
+            };
+
+            // Arena path: read port geometry + PORT_SIDE from arena arrays (no borrow_mut)
+            let all_zero = if let Some(ref sync) = self.arena_sync {
+                if let Some(nid) = sync.node_id(node) {
+                    let a = sync.arena();
+                    let port_ids = &a.node_ports[nid.idx()];
+                    !port_ids.is_empty() && port_ids.iter().all(|&pid| {
+                        let side = a.port_properties[pid.idx()]
+                            .get_property(CoreOptions::PORT_SIDE)
+                            .unwrap_or(PortSide::Undefined);
+                        analyze_port(a.port_width[pid.idx()], a.port_height[pid.idx()],
+                                     a.port_x[pid.idx()], a.port_y[pid.idx()], side)
+                    })
+                } else {
+                    false
+                }
+            } else {
+                let mut node_mut = node.borrow_mut();
+                let ports = node_mut.ports();
+                !ports.is_empty() && ports.iter().all(|port| {
                     let mut port_ref = port.borrow_mut();
                     let shape = port_ref.connectable().shape();
-                    let width = shape.width();
-                    let height = shape.height();
-                    let x = shape.x();
-                    let y = shape.y();
-                    let mut side = shape
-                        .graph_element()
-                        .properties_mut()
-                        .get_property(CoreOptions::PORT_SIDE)
-                        .unwrap_or(PortSide::Undefined);
-                    if side == PortSide::Undefined {
-                        if y.abs() <= 1e-9 {
-                            side = PortSide::North;
-                        } else if (y - node_height).abs() <= 1e-9 {
-                            side = PortSide::South;
-                        }
-                    }
-                    has_ports = true;
-                    if x.abs() <= 1e-9 {
-                        has_left = true;
-                    }
-                    if (x - node_width).abs() <= 1e-9 {
-                        has_right = true;
-                    }
-                    if (y - node_height / 2.0).abs() > 1e-9 {
-                        all_centered = false;
-                    }
-                    match side {
-                        PortSide::North => {
-                            if y.abs() > 1e-9 {
-                                north_south_on_boundary = false;
-                            }
-                        }
-                        PortSide::South => {
-                            if (y - node_height).abs() > 1e-9 {
-                                north_south_on_boundary = false;
-                            }
-                        }
-                        _ => {
-                            only_north_or_south = false;
-                        }
-                    }
-                    width.abs() <= 1e-9 && height.abs() <= 1e-9
-                });
+                    let side = shape.graph_element().properties_mut()
+                        .get_property(CoreOptions::PORT_SIDE).unwrap_or(PortSide::Undefined);
+                    analyze_port(shape.width(), shape.height(), shape.x(), shape.y(), side)
+                })
+            };
             (
                 all_zero,
                 all_zero && has_left && has_right && all_centered,
@@ -995,12 +991,22 @@ impl JsonImporter {
             if children.len() != 1 {
                 false
             } else if let Some(child) = children.first() {
-                let mut child_ref = child.borrow_mut();
-                let child_shape = child_ref.connectable().shape();
-                (child_shape.x() - 12.0).abs() <= 1e-9
-                    && (child_shape.y() - 12.0).abs() <= 1e-9
-                    && child_shape.width().abs() <= 1e-9
-                    && child_shape.height().abs() <= 1e-9
+                let (cx, cy, cw, ch) = if let Some(ref sync) = self.arena_sync {
+                    if let Some(cid) = sync.node_id(child) {
+                        let a = sync.arena();
+                        (a.node_x[cid.idx()], a.node_y[cid.idx()], a.node_width[cid.idx()], a.node_height[cid.idx()])
+                    } else {
+                        let mut cr = child.borrow_mut();
+                        let s = cr.connectable().shape();
+                        (s.x(), s.y(), s.width(), s.height())
+                    }
+                } else {
+                    let mut cr = child.borrow_mut();
+                    let s = cr.connectable().shape();
+                    (s.x(), s.y(), s.width(), s.height())
+                };
+                (cx - 12.0).abs() <= 1e-9 && (cy - 12.0).abs() <= 1e-9
+                    && cw.abs() <= 1e-9 && ch.abs() <= 1e-9
             } else {
                 false
             }
@@ -1010,12 +1016,22 @@ impl JsonImporter {
             if children.len() != 1 {
                 false
             } else if let Some(child) = children.first() {
-                let mut child_ref = child.borrow_mut();
-                let child_shape = child_ref.connectable().shape();
-                (child_shape.x() - node_width / 2.0).abs() <= 1e-9
-                    && (child_shape.y() - 12.0).abs() <= 1e-9
-                    && child_shape.width().abs() <= 1e-9
-                    && child_shape.height().abs() <= 1e-9
+                let (cx, cy, cw, ch) = if let Some(ref sync) = self.arena_sync {
+                    if let Some(cid) = sync.node_id(child) {
+                        let a = sync.arena();
+                        (a.node_x[cid.idx()], a.node_y[cid.idx()], a.node_width[cid.idx()], a.node_height[cid.idx()])
+                    } else {
+                        let mut cr = child.borrow_mut();
+                        let s = cr.connectable().shape();
+                        (s.x(), s.y(), s.width(), s.height())
+                    }
+                } else {
+                    let mut cr = child.borrow_mut();
+                    let s = cr.connectable().shape();
+                    (s.x(), s.y(), s.width(), s.height())
+                };
+                (cx - node_width / 2.0).abs() <= 1e-9 && (cy - 12.0).abs() <= 1e-9
+                    && cw.abs() <= 1e-9 && ch.abs() <= 1e-9
             } else {
                 false
             }
