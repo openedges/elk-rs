@@ -31,8 +31,7 @@ impl<T> InstancePool<T> {
     }
 
     pub fn fetch(&self) -> T {
-        let mut instances = self.instances.lock().unwrap();
-        if let Some(obj) = instances.pop() {
+        let mut instances = self.instances.lock();        if let Some(obj) = instances.pop() {
             return obj;
         }
         drop(instances);
@@ -40,8 +39,7 @@ impl<T> InstancePool<T> {
     }
 
     pub fn release(&self, obj: T) {
-        let mut instances = self.instances.lock().unwrap();
-        let should_store = self.limit < 0 || (instances.len() as isize) < self.limit;
+        let mut instances = self.instances.lock();        let should_store = self.limit < 0 || (instances.len() as isize) < self.limit;
         if should_store {
             instances.push(obj);
             return;
@@ -51,8 +49,7 @@ impl<T> InstancePool<T> {
     }
 
     pub fn clear(&self) {
-        let mut instances = self.instances.lock().unwrap();
-        for obj in instances.drain(..) {
+        let mut instances = self.instances.lock();        for obj in instances.drain(..) {
             self.factory.destroy(obj);
         }
     }

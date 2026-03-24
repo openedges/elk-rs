@@ -11,8 +11,7 @@ fn graph_with_layers(count: usize) -> (LGraphRef, Vec<LayerRef>) {
     let graph = LGraph::new();
     let mut layers = Vec::with_capacity(count);
     {
-        let mut graph_guard = graph.lock().expect("graph lock");
-        for _ in 0..count {
+        let mut graph_guard = graph.lock();        for _ in 0..count {
             let layer = Layer::new(&graph);
             graph_guard.layers_mut().push(layer.clone());
             layers.push(layer);
@@ -32,8 +31,7 @@ fn add_node(
 ) -> LNodeRef {
     let node = LNode::new(graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.shape().position().y = y;
+        let mut node_guard = node.lock();        node_guard.shape().position().y = y;
         node_guard.shape().size().x = w;
         node_guard.shape().size().y = h;
         node_guard.margin().top = margin_top;
@@ -54,19 +52,17 @@ fn layer_size_and_graph_heigth_calculator_bounds_all_nodes() {
 
     let mut processor = LayerSizeAndGraphHeightCalculator;
     let mut monitor = NullElkProgressMonitor;
-    processor.process(&mut graph.lock().expect("graph lock"), &mut monitor);
+    processor.process(&mut graph.lock(), &mut monitor);
 
-    let graph_guard = graph.lock().expect("graph lock");
-    let top = -graph_guard.offset_ref().y;
+    let graph_guard = graph.lock();    let top = -graph_guard.offset_ref().y;
     let bottom = graph_guard.size_ref().y - graph_guard.offset_ref().y;
     let layers = graph_guard.layers().clone();
     drop(graph_guard);
 
     for layer in layers {
-        let nodes = layer.lock().expect("layer lock").nodes().clone();
+        let nodes = layer.lock().nodes().clone();
         for node in nodes {
-            let mut node_guard = node.lock().expect("node lock");
-            let node_top = node_guard.shape().position_ref().y - node_guard.margin().top;
+            let mut node_guard = node.lock();            let node_top = node_guard.shape().position_ref().y - node_guard.margin().top;
             let node_bottom = node_guard.shape().position_ref().y
                 + node_guard.shape().size_ref().y
                 + node_guard.margin().bottom;

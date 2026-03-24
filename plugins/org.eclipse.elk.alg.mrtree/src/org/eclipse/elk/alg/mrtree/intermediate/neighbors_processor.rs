@@ -14,23 +14,13 @@ impl ILayoutProcessor<TGraphRef> for NeighborsProcessor {
         progress_monitor.begin("Processor set neighbors", 1.0);
 
         let (nodes, root) = {
-            let graph_guard = match graph.lock() {
-                Ok(guard) => guard,
-                Err(_) => {
-                    progress_monitor.done();
-                    return;
-                }
-            };
+            let graph_guard = graph.lock();
             let nodes = graph_guard.nodes().clone();
             let root = nodes
                 .iter()
                 .find(|node| {
-                    node.lock()
-                        .ok()
-                        .and_then(|mut node_guard| {
-                            node_guard.get_property(InternalProperties::ROOT)
-                        })
-                        .unwrap_or(false)
+                    let node_guard = node.lock();
+                    node_guard.get_property(InternalProperties::ROOT).unwrap_or(false)
                 })
                 .cloned();
             (nodes, root)
@@ -40,10 +30,7 @@ impl ILayoutProcessor<TGraphRef> for NeighborsProcessor {
 
         if let Some(root) = root {
             let children = root
-                .lock()
-                .ok()
-                .map(|node| node.children())
-                .unwrap_or_default();
+                .lock().children();
             self.set_neighbors(&children, progress_monitor);
         }
 
@@ -69,10 +56,12 @@ impl NeighborsProcessor {
         let mut left_neighbor: Option<TNodeRef> = None;
 
         for node in current_level {
-            if let Ok(mut node_guard) = node.lock() {
+            {
+                let mut node_guard = node.lock();
                 next_level.extend(node_guard.children());
                 if let Some(left_node) = left_neighbor.as_ref() {
-                    if let Ok(mut left_guard) = left_node.lock() {
+                    {
+                        let mut left_guard = left_node.lock();
                         left_guard.set_property(
                             InternalProperties::RIGHTNEIGHBOR,
                             Some(Some(node.clone())),

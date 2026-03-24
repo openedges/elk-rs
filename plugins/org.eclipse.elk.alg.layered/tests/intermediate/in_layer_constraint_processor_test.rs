@@ -16,7 +16,7 @@ fn graph_with_layer() -> (LGraphRef, Arc<Mutex<Layer>>) {
     let layer = Layer::new(&graph);
     graph
         .lock()
-        .expect("graph lock")
+        
         .layers_mut()
         .push(layer.clone());
     (graph, layer)
@@ -29,8 +29,7 @@ fn add_node_with_constraint(
 ) -> LNodeRef {
     let node = LNode::new(graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.set_property(InternalProperties::IN_LAYER_CONSTRAINT, Some(constraint));
+        let mut node_guard = node.lock();        node_guard.set_property(InternalProperties::IN_LAYER_CONSTRAINT, Some(constraint));
     }
     LNode::set_layer(&node, Some(layer.clone()));
     node
@@ -39,12 +38,11 @@ fn add_node_with_constraint(
 fn run_processor(graph: &LGraphRef) {
     let mut processor = InLayerConstraintProcessor;
     let mut monitor = NullElkProgressMonitor;
-    let mut graph_guard = graph.lock().expect("graph lock");
-    processor.process(&mut graph_guard, &mut monitor);
+    let mut graph_guard = graph.lock();    processor.process(&mut graph_guard, &mut monitor);
 }
 
 fn layer_nodes(layer: &Arc<Mutex<Layer>>) -> Vec<LNodeRef> {
-    layer.lock().expect("layer lock").nodes().clone()
+    layer.lock().nodes().clone()
 }
 
 #[test]

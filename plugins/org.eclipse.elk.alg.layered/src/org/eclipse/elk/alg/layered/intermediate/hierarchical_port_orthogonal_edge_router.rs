@@ -1,7 +1,6 @@
 #![allow(clippy::mutable_key_type)]
 
 use std::collections::HashSet;
-use std::sync::LazyLock;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
@@ -17,21 +16,19 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, IElkProgressM
 use org_eclipse_elk_alg_common::org::eclipse::elk::alg::common::nodespacing::node_dimension_calculation::NodeDimensionCalculation;
 use crate::org::eclipse::elk::alg::layered::graph::transform::LGraphAdapters;
 use crate::org::eclipse::elk::alg::layered::graph::{
-    LEdge, LGraph, LGraphUtil, LNode, LNodeRef, LPort, LayerRef, NodeRefKey, NodeType,
+    ArenaSync, LEdge, LGraph, LGraphUtil, LNode, LNodeRef, LPort, LayerRef, NodeRefKey, NodeType,
 };
 use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions};
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::orthogonal_routing_generator::OrthogonalRoutingGenerator;
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::direction::routing_direction::RoutingDirection;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 pub struct HierarchicalPortOrthogonalEdgeRouter {
     northern_ext_port_edge_routing_height: f64,
 }
 
-static TRACE_HIER_PORT_ORTHO: LazyLock<bool> =
-    LazyLock::new(|| std::env::var("ELK_TRACE_HIER_PORT_ORTHO").is_ok());
-
 fn trace_step(message: &str) {
-    if *TRACE_HIER_PORT_ORTHO {
+    if ElkTrace::global().hier_port_ortho {
         eprintln!("[hier-port-ortho] {message}");
     }
 }
@@ -83,23 +80,20 @@ impl HierarchicalPortOrthogonalEdgeRouter {
         let layers = layered_graph.layers().clone();
         for layer in layers {
             let nodes = layer
-                .lock()
-                .ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
             for node in nodes {
-                let is_external = node
-                    .lock()
-                    .ok()
-                    .map(|node_guard| node_guard.node_type() == NodeType::ExternalPort)
-                    .unwrap_or(false);
+                let is_external = {
+                    let node_guard = node.lock();
+                    node_guard.node_type() == NodeType::ExternalPort
+                };
                 if !is_external {
                     continue;
                 }
 
-                let replaced_dummy = node.lock().ok().and_then(|mut node_guard| {
+                let replaced_dummy = {
+                    let node_guard = node.lock();
                     node_guard.get_property(InternalProperties::EXT_PORT_REPLACED_DUMMY)
-                });
+                };
                 if let Some(replaced_dummy) = replaced_dummy {
                     self.connect_node_to_dummy(layered_graph, &node, &replaced_dummy);
                 }
@@ -116,17 +110,20 @@ impl HierarchicalPortOrthogonalEdgeRouter {
     }
 
     fn restore_dummy(&self, dummy: &LNodeRef, graph: &mut LGraph) {
-        let Some((port_side, dummy_port)) = dummy.lock().ok().and_then(|mut dummy_guard| {
+        let (port_side, dummy_port) = {
+            let dummy_guard = dummy.lock();
             let side = dummy_guard
                 .get_property(InternalProperties::EXT_PORT_SIDE)
                 .unwrap_or(PortSide::Undefined);
             let port = dummy_guard.ports().first().cloned();
-            port.map(|port| (side, port))
-        }) else {
-            return;
+            match port {
+                Some(port) => (side, port),
+                None => return,
+            }
         };
 
-        if let Ok(mut port_guard) = dummy_port.lock() {
+        {
+            let mut port_guard = dummy_port.lock();
             match port_side {
                 PortSide::North => port_guard.set_side(PortSide::South),
                 PortSide::South => port_guard.set_side(PortSide::North),
@@ -141,28 +138,22 @@ impl HierarchicalPortOrthogonalEdgeRouter {
             return;
         }
 
-        let port_label_spacing_horizontal = dummy
-            .lock()
-            .ok()
-            .and_then(|mut dummy_guard| {
-                dummy_guard.get_property(LayeredOptions::SPACING_LABEL_PORT_HORIZONTAL)
-            })
+        let port_label_spacing_horizontal = {
+            let dummy_guard = dummy.lock();
+            dummy_guard.get_property(LayeredOptions::SPACING_LABEL_PORT_HORIZONTAL)
+        }
             .or_else(|| LayeredOptions::SPACING_LABEL_PORT_HORIZONTAL.get_default())
             .unwrap_or(0.0);
-        let port_label_spacing_vertical = dummy
-            .lock()
-            .ok()
-            .and_then(|mut dummy_guard| {
-                dummy_guard.get_property(LayeredOptions::SPACING_LABEL_PORT_VERTICAL)
-            })
+        let port_label_spacing_vertical = {
+            let dummy_guard = dummy.lock();
+            dummy_guard.get_property(LayeredOptions::SPACING_LABEL_PORT_VERTICAL)
+        }
             .or_else(|| LayeredOptions::SPACING_LABEL_PORT_VERTICAL.get_default())
             .unwrap_or(0.0);
-        let label_label_spacing = dummy
-            .lock()
-            .ok()
-            .and_then(|mut dummy_guard| {
-                dummy_guard.get_property(LayeredOptions::SPACING_LABEL_LABEL)
-            })
+        let label_label_spacing = {
+            let dummy_guard = dummy.lock();
+            dummy_guard.get_property(LayeredOptions::SPACING_LABEL_LABEL)
+        }
             .or_else(|| LayeredOptions::SPACING_LABEL_LABEL.get_default())
             .unwrap_or(0.0);
 
@@ -172,29 +163,23 @@ impl HierarchicalPortOrthogonalEdgeRouter {
 
         if port_label_placement.contains(&PortLabelPlacement::Inside) {
             let mut current_y = port_label_spacing_vertical;
-            let (dummy_width, port_pos_x, labels) = dummy
-                .lock()
-                .ok()
-                .map(|mut dummy_guard| {
-                    (
-                        dummy_guard.shape().size_ref().x,
-                        dummy_port
-                            .lock()
-                            .ok()
-                            .map(|mut port_guard| port_guard.shape().position_ref().x)
-                            .unwrap_or(0.0),
-                        dummy_port
-                            .lock()
-                            .ok()
-                            .map(|port_guard| port_guard.labels().clone())
-                            .unwrap_or_default(),
-                    )
-                })
-                .unwrap_or((0.0, 0.0, Vec::new()));
+            let (dummy_width, port_pos_x, labels) = {
+                let mut dummy_guard = dummy.lock();
+                (
+                    dummy_guard.shape().size_ref().x,
+                    {
+                        let mut port_guard = dummy_port.lock();
+                        port_guard.shape().position_ref().x
+                    },
+                    dummy_port
+                        .lock().labels().clone(),
+                )
+            };
             let x_center_relative = dummy_width / 2.0 - port_pos_x;
 
             for label in labels {
-                if let Ok(mut label_guard) = label.lock() {
+                {
+                    let mut label_guard = label.lock();
                     label_guard.shape().position().y = current_y;
                     label_guard.shape().position().x =
                         x_center_relative - label_guard.shape().size_ref().x / 2.0;
@@ -202,28 +187,22 @@ impl HierarchicalPortOrthogonalEdgeRouter {
                 }
             }
         } else if port_label_placement.contains(&PortLabelPlacement::Outside) {
-            let (dummy_width, port_pos_x, labels) = dummy
-                .lock()
-                .ok()
-                .map(|mut dummy_guard| {
-                    (
-                        dummy_guard.shape().size_ref().x,
-                        dummy_port
-                            .lock()
-                            .ok()
-                            .map(|mut port_guard| port_guard.shape().position_ref().x)
-                            .unwrap_or(0.0),
-                        dummy_port
-                            .lock()
-                            .ok()
-                            .map(|port_guard| port_guard.labels().clone())
-                            .unwrap_or_default(),
-                    )
-                })
-                .unwrap_or((0.0, 0.0, Vec::new()));
+            let (dummy_width, port_pos_x, labels) = {
+                let mut dummy_guard = dummy.lock();
+                (
+                    dummy_guard.shape().size_ref().x,
+                    {
+                        let mut port_guard = dummy_port.lock();
+                        port_guard.shape().position_ref().x
+                    },
+                    dummy_port
+                        .lock().labels().clone(),
+                )
+            };
 
             for label in labels {
-                if let Ok(mut label_guard) = label.lock() {
+                {
+                    let mut label_guard = label.lock();
                     label_guard.shape().position().x =
                         port_label_spacing_horizontal + dummy_width - port_pos_x;
                 }
@@ -244,20 +223,21 @@ impl HierarchicalPortOrthogonalEdgeRouter {
         let out_port = LPort::new();
         LPort::set_node(&out_port, Some(node.clone()));
 
-        let ext_port_side = node
-            .lock()
-            .ok()
-            .and_then(|mut node_guard| node_guard.get_property(InternalProperties::EXT_PORT_SIDE))
-            .unwrap_or(PortSide::Undefined);
-        if let Ok(mut out_guard) = out_port.lock() {
+        let ext_port_side = {
+            let node_guard = node.lock();
+            node_guard.get_property(InternalProperties::EXT_PORT_SIDE)
+                .unwrap_or(PortSide::Undefined)
+        };
+        {
+            let mut out_guard = out_port.lock();
             out_guard.set_side(ext_port_side);
         }
 
-        let Some(in_port) = dummy
-            .lock()
-            .ok()
-            .and_then(|dummy_guard| dummy_guard.ports().first().cloned())
-        else {
+        let in_port = {
+            let dummy_guard = dummy.lock();
+            dummy_guard.ports().first().cloned()
+        };
+        let Some(in_port) = in_port else {
             return;
         };
 
@@ -294,7 +274,8 @@ impl HierarchicalPortOrthogonalEdgeRouter {
                 }
                 PortConstraints::FixedRatio => {
                     self.apply_north_south_dummy_ratio(dummy, graph_width);
-                    if let Ok(mut dummy_guard) = dummy.lock() {
+                    {
+                        let mut dummy_guard = dummy.lock();
                         let padding_left = layered_graph.padding_ref().left;
                         let offset_x = layered_graph.offset_ref().x;
                         dummy_guard.shape().position().x -= padding_left + offset_x;
@@ -302,12 +283,14 @@ impl HierarchicalPortOrthogonalEdgeRouter {
                 }
                 PortConstraints::FixedPos => {
                     self.apply_north_south_dummy_position(dummy);
-                    if let Ok(mut dummy_guard) = dummy.lock() {
+                    {
+                        let mut dummy_guard = dummy.lock();
                         let padding_left = layered_graph.padding_ref().left;
                         let offset_x = layered_graph.offset_ref().x;
                         dummy_guard.shape().position().x -= padding_left + offset_x;
                     }
-                    if let Ok(mut dummy_guard) = dummy.lock() {
+                    {
+                        let mut dummy_guard = dummy.lock();
                         let required_x = dummy_guard.shape().position_ref().x
                             + dummy_guard.shape().size_ref().x / 2.0;
                         let graph_size = layered_graph.size();
@@ -317,23 +300,23 @@ impl HierarchicalPortOrthogonalEdgeRouter {
                 PortConstraints::Undefined => {}
             }
 
-            let ext_side = dummy
-                .lock()
-                .ok()
-                .and_then(|mut dummy_guard| {
-                    dummy_guard.get_property(InternalProperties::EXT_PORT_SIDE)
-                })
-                .unwrap_or(PortSide::Undefined);
+            let ext_side = {
+                let dummy_guard = dummy.lock();
+                dummy_guard.get_property(InternalProperties::EXT_PORT_SIDE)
+                    .unwrap_or(PortSide::Undefined)
+            };
 
             match ext_side {
                 PortSide::North => {
-                    if let Ok(mut dummy_guard) = dummy.lock() {
+                    {
+                        let mut dummy_guard = dummy.lock();
                         dummy_guard.shape().position().y = north_y;
                     }
                     northern_dummies.push(dummy.clone());
                 }
                 PortSide::South => {
-                    if let Ok(mut dummy_guard) = dummy.lock() {
+                    {
+                        let mut dummy_guard = dummy.lock();
                         dummy_guard.shape().position().y = south_y;
                     }
                     southern_dummies.push(dummy.clone());
@@ -356,22 +339,20 @@ impl HierarchicalPortOrthogonalEdgeRouter {
     }
 
     fn calculate_north_south_dummy_positions(&self, dummy: &LNodeRef) {
-        let dummy_port = dummy
-            .lock()
-            .ok()
-            .and_then(|dummy_guard| dummy_guard.ports().first().cloned());
+        let dummy_port = {
+            let dummy_guard = dummy.lock();
+            dummy_guard.ports().first().cloned()
+        };
         let Some(dummy_port) = dummy_port else {
             return;
         };
 
         let connected_ports = dummy_port
-            .lock()
-            .ok()
-            .map(|port_guard| port_guard.connected_ports())
-            .unwrap_or_default();
+            .lock().connected_ports();
 
         if connected_ports.is_empty() {
-            if let Ok(mut dummy_guard) = dummy.lock() {
+            {
+                let mut dummy_guard = dummy.lock();
                 dummy_guard.shape().position().x = 0.0;
             }
             return;
@@ -379,9 +360,11 @@ impl HierarchicalPortOrthogonalEdgeRouter {
 
         let mut pos_sum = 0.0;
         for port in &connected_ports {
-            if let Ok(mut port_guard) = port.lock() {
+            {
+                let mut port_guard = port.lock();
                 if let Some(node) = port_guard.node() {
-                    if let Ok(mut node_guard) = node.lock() {
+                    {
+                        let mut node_guard = node.lock();
                         pos_sum += node_guard.shape().position_ref().x
                             + port_guard.shape().position_ref().x
                             + port_guard.anchor_ref().x;
@@ -390,54 +373,53 @@ impl HierarchicalPortOrthogonalEdgeRouter {
             }
         }
 
-        let offset = dummy
-            .lock()
-            .ok()
-            .and_then(|mut dummy_guard| dummy_guard.get_property(LayeredOptions::PORT_ANCHOR))
-            .unwrap_or_default()
-            .x;
+        let offset = {
+            let dummy_guard = dummy.lock();
+            dummy_guard.get_property(LayeredOptions::PORT_ANCHOR)
+                .unwrap_or_default()
+                .x
+        };
 
-        if let Ok(mut dummy_guard) = dummy.lock() {
+        {
+            let mut dummy_guard = dummy.lock();
             dummy_guard.shape().position().x = pos_sum / (connected_ports.len() as f64) - offset;
         }
     }
 
     fn apply_north_south_dummy_ratio(&self, dummy: &LNodeRef, width: f64) {
-        let offset = dummy
-            .lock()
-            .ok()
-            .and_then(|mut dummy_guard| dummy_guard.get_property(LayeredOptions::PORT_ANCHOR))
-            .unwrap_or_default()
-            .x;
-        let ratio = dummy
-            .lock()
-            .ok()
-            .and_then(|mut dummy_guard| {
-                dummy_guard.get_property(InternalProperties::PORT_RATIO_OR_POSITION)
-            })
-            .unwrap_or(0.0);
+        let offset = {
+            let dummy_guard = dummy.lock();
+            dummy_guard.get_property(LayeredOptions::PORT_ANCHOR)
+                .unwrap_or_default()
+                .x
+        };
+        let ratio = {
+            let dummy_guard = dummy.lock();
+            dummy_guard.get_property(InternalProperties::PORT_RATIO_OR_POSITION)
+                .unwrap_or(0.0)
+        };
 
-        if let Ok(mut dummy_guard) = dummy.lock() {
+        {
+            let mut dummy_guard = dummy.lock();
             dummy_guard.shape().position().x = width * ratio - offset;
         }
     }
 
     fn apply_north_south_dummy_position(&self, dummy: &LNodeRef) {
-        let offset = dummy
-            .lock()
-            .ok()
-            .and_then(|mut dummy_guard| dummy_guard.get_property(LayeredOptions::PORT_ANCHOR))
-            .unwrap_or_default()
-            .x;
-        let position = dummy
-            .lock()
-            .ok()
-            .and_then(|mut dummy_guard| {
-                dummy_guard.get_property(InternalProperties::PORT_RATIO_OR_POSITION)
-            })
-            .unwrap_or(0.0);
+        let offset = {
+            let dummy_guard = dummy.lock();
+            dummy_guard.get_property(LayeredOptions::PORT_ANCHOR)
+                .unwrap_or_default()
+                .x
+        };
+        let position = {
+            let dummy_guard = dummy.lock();
+            dummy_guard.get_property(InternalProperties::PORT_RATIO_OR_POSITION)
+                .unwrap_or(0.0)
+        };
 
-        if let Ok(mut dummy_guard) = dummy.lock() {
+        {
+            let mut dummy_guard = dummy.lock();
             dummy_guard.shape().position().x = position - offset;
         }
     }
@@ -449,16 +431,14 @@ impl HierarchicalPortOrthogonalEdgeRouter {
 
         let mut dummy_array = LGraphUtil::to_node_array(dummies);
         dummy_array.sort_by(|a, b| {
-            let ax = a
-                .lock()
-                .ok()
-                .map(|mut node_guard| node_guard.shape().position_ref().x)
-                .unwrap_or(0.0);
-            let bx = b
-                .lock()
-                .ok()
-                .map(|mut node_guard| node_guard.shape().position_ref().x)
-                .unwrap_or(0.0);
+            let ax = {
+                let mut node_guard = a.lock();
+                node_guard.shape().position_ref().x
+            };
+            let bx = {
+                let mut node_guard = b.lock();
+                node_guard.shape().position_ref().x
+            };
             ax.partial_cmp(&bx).unwrap_or(std::cmp::Ordering::Equal)
         });
 
@@ -472,20 +452,16 @@ impl HierarchicalPortOrthogonalEdgeRouter {
 
         let mut dummy_array = LGraphUtil::to_node_array(dummies);
         dummy_array.sort_by(|a, b| {
-            let ax = a
-                .lock()
-                .ok()
-                .and_then(|mut node_guard| {
-                    node_guard.get_property(InternalProperties::PORT_RATIO_OR_POSITION)
-                })
-                .unwrap_or(0.0);
-            let bx = b
-                .lock()
-                .ok()
-                .and_then(|mut node_guard| {
-                    node_guard.get_property(InternalProperties::PORT_RATIO_OR_POSITION)
-                })
-                .unwrap_or(0.0);
+            let ax = {
+                let node_guard = a.lock();
+                node_guard.get_property(InternalProperties::PORT_RATIO_OR_POSITION)
+                    .unwrap_or(0.0)
+            };
+            let bx = {
+                let node_guard = b.lock();
+                node_guard.get_property(InternalProperties::PORT_RATIO_OR_POSITION)
+                    .unwrap_or(0.0)
+            };
             ax.partial_cmp(&bx).unwrap_or(std::cmp::Ordering::Equal)
         });
 
@@ -501,52 +477,45 @@ impl HierarchicalPortOrthogonalEdgeRouter {
             .get_property(LayeredOptions::SPACING_PORT_PORT)
             .unwrap_or(0.0);
 
-        let first = dummies[0]
-            .lock()
-            .ok()
-            .map(|mut node_guard| {
-                (
-                    node_guard.shape().position_ref().x,
-                    node_guard.shape().size_ref().x,
-                    node_guard.margin().right,
-                )
-            })
-            .unwrap_or((0.0, 0.0, 0.0));
+        let first = {
+            let mut node_guard = dummies[0].lock();
+            (
+                node_guard.shape().position_ref().x,
+                node_guard.shape().size_ref().x,
+                node_guard.margin().right,
+            )
+        };
         let mut next_valid = first.0 + first.1 + first.2 + spacing;
 
         for dummy in dummies.iter().skip(1) {
-            let (pos_x, size_x, margin_left, margin_right) = dummy
-                .lock()
-                .ok()
-                .map(|mut node_guard| {
-                    (
-                        node_guard.shape().position_ref().x,
-                        node_guard.shape().size_ref().x,
-                        node_guard.margin().left,
-                        node_guard.margin().right,
-                    )
-                })
-                .unwrap_or((0.0, 0.0, 0.0, 0.0));
+            let (pos_x, size_x, margin_left, margin_right) = {
+                let mut node_guard = dummy.lock();
+                (
+                    node_guard.shape().position_ref().x,
+                    node_guard.shape().size_ref().x,
+                    node_guard.margin().left,
+                    node_guard.margin().right,
+                )
+            };
             let delta = pos_x - margin_left - next_valid;
             if delta < 0.0 {
-                if let Ok(mut dummy_guard) = dummy.lock() {
+                {
+                    let mut dummy_guard = dummy.lock();
                     dummy_guard.shape().position().x -= delta;
                 }
             }
 
-            let current_pos = dummy
-                .lock()
-                .ok()
-                .map(|mut node_guard| node_guard.shape().position_ref().x)
-                .unwrap_or(pos_x);
+            let current_pos = {
+                let mut node_guard = dummy.lock();
+                node_guard.shape().position_ref().x
+            };
             let graph_size = graph.size();
             graph_size.x = graph_size.x.max(current_pos + size_x);
 
-            let new_pos = dummy
-                .lock()
-                .ok()
-                .map(|mut node_guard| node_guard.shape().position_ref().x)
-                .unwrap_or(pos_x);
+            let new_pos = {
+                let mut node_guard = dummy.lock();
+                node_guard.shape().position_ref().x
+            };
             next_valid = new_pos + size_x + margin_right + spacing;
         }
     }
@@ -573,7 +542,7 @@ impl HierarchicalPortOrthogonalEdgeRouter {
         let edge_spacing = layered_graph
             .get_property(LayeredOptions::SPACING_EDGE_EDGE)
             .unwrap_or(0.0);
-        if *TRACE_HIER_PORT_ORTHO {
+        if ElkTrace::global().hier_port_ortho {
             eprintln!(
                 "[hier-port-ortho] route_edges prep north(src={},tgt={}) south(src={},tgt={}) spacing(node={},edge={}) graph(size=({:.1},{:.1}) offset=({:.1},{:.1}))",
                 northern_source_layer.len(),
@@ -590,13 +559,11 @@ impl HierarchicalPortOrthogonalEdgeRouter {
         }
 
         for dummy in north_south_dummies {
-            let ext_side = dummy
-                .lock()
-                .ok()
-                .and_then(|mut dummy_guard| {
-                    dummy_guard.get_property(InternalProperties::EXT_PORT_SIDE)
-                })
-                .unwrap_or(PortSide::Undefined);
+            let ext_side = {
+                let dummy_guard = dummy.lock();
+                dummy_guard.get_property(InternalProperties::EXT_PORT_SIDE)
+                    .unwrap_or(PortSide::Undefined)
+            };
 
             if ext_side == PortSide::North {
                 let key = NodeRefKey(dummy.clone());
@@ -605,16 +572,11 @@ impl HierarchicalPortOrthogonalEdgeRouter {
                 }
 
                 let incoming_edges = dummy
-                    .lock()
-                    .ok()
-                    .map(|dummy_guard| dummy_guard.incoming_edges())
-                    .unwrap_or_default();
+                    .lock().incoming_edges();
                 for edge in incoming_edges {
                     if let Some(source_node) = edge
-                        .lock()
-                        .ok()
-                        .and_then(|edge_guard| edge_guard.source())
-                        .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
+                        .lock().source()
+                        .and_then(|port| port.lock().node())
                     {
                         let key = NodeRefKey(source_node.clone());
                         if northern_source_seen.insert(key) {
@@ -629,16 +591,11 @@ impl HierarchicalPortOrthogonalEdgeRouter {
                 }
 
                 let incoming_edges = dummy
-                    .lock()
-                    .ok()
-                    .map(|dummy_guard| dummy_guard.incoming_edges())
-                    .unwrap_or_default();
+                    .lock().incoming_edges();
                 for edge in incoming_edges {
                     if let Some(source_node) = edge
-                        .lock()
-                        .ok()
-                        .and_then(|edge_guard| edge_guard.source())
-                        .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
+                        .lock().source()
+                        .and_then(|port| port.lock().node())
                     {
                         let key = NodeRefKey(source_node.clone());
                         if southern_source_seen.insert(key) {
@@ -650,6 +607,7 @@ impl HierarchicalPortOrthogonalEdgeRouter {
         }
 
         if !northern_source_layer.is_empty() {
+            let sync = ArenaSync::from_lgraph(layered_graph);
             let mut routing_generator = OrthogonalRoutingGenerator::new(
                 RoutingDirection::SouthToNorth,
                 edge_spacing,
@@ -662,6 +620,7 @@ impl HierarchicalPortOrthogonalEdgeRouter {
                 0,
                 Some(&northern_target_layer),
                 -node_spacing - layered_graph.offset_ref().y,
+                &sync,
             );
             if slots > 0 {
                 self.northern_ext_port_edge_routing_height =
@@ -669,7 +628,7 @@ impl HierarchicalPortOrthogonalEdgeRouter {
                 layered_graph.offset().y += self.northern_ext_port_edge_routing_height;
                 layered_graph.size().y += self.northern_ext_port_edge_routing_height;
             }
-            if *TRACE_HIER_PORT_ORTHO {
+            if ElkTrace::global().hier_port_ortho {
                 eprintln!(
                     "[hier-port-ortho] north slots={} added_height={:.1} graph(size=({:.1},{:.1}) offset=({:.1},{:.1}))",
                     slots,
@@ -683,6 +642,7 @@ impl HierarchicalPortOrthogonalEdgeRouter {
         }
 
         if !southern_source_layer.is_empty() {
+            let sync = ArenaSync::from_lgraph(layered_graph);
             let mut routing_generator = OrthogonalRoutingGenerator::new(
                 RoutingDirection::NorthToSouth,
                 edge_spacing,
@@ -695,11 +655,12 @@ impl HierarchicalPortOrthogonalEdgeRouter {
                 0,
                 Some(&southern_target_layer),
                 layered_graph.size_ref().y + node_spacing - layered_graph.offset_ref().y,
+                &sync,
             );
             if slots > 0 {
                 layered_graph.size().y += node_spacing + (slots as f64 - 1.0) * edge_spacing;
             }
-            if *TRACE_HIER_PORT_ORTHO {
+            if ElkTrace::global().hier_port_ortho {
                 eprintln!(
                     "[hier-port-ortho] south slots={} graph(size=({:.1},{:.1}) offset=({:.1},{:.1}))",
                     slots,
@@ -717,57 +678,44 @@ impl HierarchicalPortOrthogonalEdgeRouter {
 
         for layer in layered_graph.layers().clone() {
             let nodes = layer
-                .lock()
-                .ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
             for node in nodes {
-                let is_external = node
-                    .lock()
-                    .ok()
-                    .map(|node_guard| node_guard.node_type() == NodeType::ExternalPort)
-                    .unwrap_or(false);
+                let is_external = {
+                    let node_guard = node.lock();
+                    node_guard.node_type() == NodeType::ExternalPort
+                };
                 if !is_external {
                     continue;
                 }
 
-                let has_replaced = node
-                    .lock()
-                    .ok()
-                    .map(|mut node_guard| {
-                        node_guard
-                            .shape()
-                            .graph_element()
-                            .properties()
-                            .has_property(InternalProperties::EXT_PORT_REPLACED_DUMMY)
-                    })
-                    .unwrap_or(false);
+                let has_replaced = {
+                    let mut node_guard = node.lock();
+                    node_guard
+                        .shape()
+                        .graph_element()
+                        .properties()
+                        .has_property(InternalProperties::EXT_PORT_REPLACED_DUMMY)
+                };
                 if !has_replaced {
                     continue;
                 }
 
-                let (node_in_port, node_out_port, node_origin_port) = node
-                    .lock()
-                    .ok()
-                    .map(|node_guard| {
-                        let mut in_port = None;
-                        let mut out_port = None;
-                        let mut origin_port = None;
-                        for port in node_guard.ports() {
-                            let side = port
-                                .lock()
-                                .ok()
-                                .map(|p| p.side())
-                                .unwrap_or(PortSide::Undefined);
-                            match side {
-                                PortSide::West => in_port = Some(port.clone()),
-                                PortSide::East => out_port = Some(port.clone()),
-                                _ => origin_port = Some(port.clone()),
-                            }
+                let (node_in_port, node_out_port, node_origin_port) = {
+                    let node_guard = node.lock();
+                    let mut in_port = None;
+                    let mut out_port = None;
+                    let mut origin_port = None;
+                    for port in node_guard.ports() {
+                        let side = port
+                            .lock().side();
+                        match side {
+                            PortSide::West => in_port = Some(port.clone()),
+                            PortSide::East => out_port = Some(port.clone()),
+                            _ => origin_port = Some(port.clone()),
                         }
-                        (in_port, out_port, origin_port)
-                    })
-                    .unwrap_or((None, None, None));
+                    }
+                    (in_port, out_port, origin_port)
+                };
 
                 let (Some(node_in_port), Some(node_out_port), Some(node_origin_port)) =
                     (node_in_port, node_out_port, node_origin_port)
@@ -775,70 +723,66 @@ impl HierarchicalPortOrthogonalEdgeRouter {
                     continue;
                 };
 
-                let node_to_origin_edge = node_origin_port
-                    .lock()
-                    .ok()
-                    .and_then(|port_guard| port_guard.outgoing_edges().first().cloned());
+                let node_to_origin_edge = {
+                    let port_guard = node_origin_port.lock();
+                    port_guard.outgoing_edges().first().cloned()
+                };
                 let Some(node_to_origin_edge) = node_to_origin_edge else {
                     continue;
                 };
 
-                let origin_bends = node_to_origin_edge
-                    .lock()
-                    .ok()
-                    .map(|edge_guard| {
-                        edge_guard
-                            .bend_points_ref()
-                            .iter()
-                            .copied()
-                            .collect::<Vec<_>>()
-                    })
-                    .unwrap_or_default();
+                let origin_bends = {
+                    let edge_guard = node_to_origin_edge.lock();
+                    edge_guard
+                        .bend_points_ref()
+                        .iter()
+                        .copied()
+                        .collect::<Vec<_>>()
+                };
                 let mut incoming_bends = KVectorChain::from_vectors(&origin_bends);
-                let mut first_bend = node_origin_port
-                    .lock()
-                    .ok()
-                    .map(|mut port_guard| *port_guard.shape().position_ref())
-                    .unwrap_or_else(KVector::new);
-                if let Ok(mut node_guard) = node.lock() {
+                let mut first_bend = {
+                    let mut port_guard = node_origin_port.lock();
+                    *port_guard.shape().position_ref()
+                };
+                {
+                    let mut node_guard = node.lock();
                     first_bend.add(node_guard.shape().position_ref());
                 }
                 incoming_bends.insert(0, first_bend);
 
                 let mut outgoing_bends =
                     KVectorChain::reverse(&KVectorChain::from_vectors(&origin_bends));
-                let mut last_bend = node_origin_port
-                    .lock()
-                    .ok()
-                    .map(|mut port_guard| *port_guard.shape().position_ref())
-                    .unwrap_or_else(KVector::new);
-                if let Ok(mut node_guard) = node.lock() {
+                let mut last_bend = {
+                    let mut port_guard = node_origin_port.lock();
+                    *port_guard.shape().position_ref()
+                };
+                {
+                    let mut node_guard = node.lock();
                     last_bend.add(node_guard.shape().position_ref());
                 }
                 outgoing_bends.add_vector(last_bend);
 
-                let replaced_dummy = node.lock().ok().and_then(|mut node_guard| {
+                let replaced_dummy = {
+                    let node_guard = node.lock();
                     node_guard.get_property(InternalProperties::EXT_PORT_REPLACED_DUMMY)
-                });
+                };
                 let Some(replaced_dummy) = replaced_dummy else {
                     continue;
                 };
-                let replaced_dummy_port = replaced_dummy
-                    .lock()
-                    .ok()
-                    .and_then(|dummy_guard| dummy_guard.ports().first().cloned());
+                let replaced_dummy_port = {
+                    let dummy_guard = replaced_dummy.lock();
+                    dummy_guard.ports().first().cloned()
+                };
                 let Some(replaced_dummy_port) = replaced_dummy_port else {
                     continue;
                 };
 
                 let incoming_edges = node_in_port
-                    .lock()
-                    .ok()
-                    .map(|port_guard| port_guard.incoming_edges().clone())
-                    .unwrap_or_default();
+                    .lock().incoming_edges().clone();
                 for edge in incoming_edges {
                     LEdge::set_target(&edge, Some(replaced_dummy_port.clone()));
-                    if let Ok(mut edge_guard) = edge.lock() {
+                    {
+                        let mut edge_guard = edge.lock();
                         let mut existing: Vec<KVector> =
                             edge_guard.bend_points_ref().iter().copied().collect();
                         let mut extra: Vec<KVector> = incoming_bends.iter().copied().collect();
@@ -849,13 +793,11 @@ impl HierarchicalPortOrthogonalEdgeRouter {
                 }
 
                 let outgoing_edges = node_out_port
-                    .lock()
-                    .ok()
-                    .map(|port_guard| port_guard.outgoing_edges().clone())
-                    .unwrap_or_default();
+                    .lock().outgoing_edges().clone();
                 for edge in outgoing_edges {
                     LEdge::set_source(&edge, Some(replaced_dummy_port.clone()));
-                    if let Ok(mut edge_guard) = edge.lock() {
+                    {
+                        let mut edge_guard = edge.lock();
                         let mut existing: Vec<KVector> =
                             edge_guard.bend_points_ref().iter().copied().collect();
                         let mut extra: Vec<KVector> = outgoing_bends.iter().copied().collect();
@@ -904,41 +846,31 @@ impl HierarchicalPortOrthogonalEdgeRouter {
         let mut new_actual_height = graph_actual_size.y;
 
         let nodes = layer
-            .lock()
-            .ok()
-            .map(|layer_guard| layer_guard.nodes().clone())
-            .unwrap_or_default();
+            .lock().nodes().clone();
 
         for node in &nodes {
-            let (node_type, ext_side, ext_size, port_anchor) = node
-                .lock()
-                .ok()
-                .map(|mut node_guard| {
-                    (
-                        node_guard.node_type(),
-                        node_guard
-                            .get_property(InternalProperties::EXT_PORT_SIDE)
-                            .unwrap_or(PortSide::Undefined),
-                        node_guard
-                            .get_property(InternalProperties::EXT_PORT_SIZE)
-                            .unwrap_or_default(),
-                        node_guard
-                            .get_property(LayeredOptions::PORT_ANCHOR)
-                            .unwrap_or_default(),
-                    )
-                })
-                .unwrap_or((
-                    NodeType::Normal,
-                    PortSide::Undefined,
-                    KVector::new(),
-                    KVector::new(),
-                ));
+            let (node_type, ext_side, ext_size, port_anchor) = {
+                let node_guard = node.lock();
+                (
+                    node_guard.node_type(),
+                    node_guard
+                        .get_property(InternalProperties::EXT_PORT_SIDE)
+                        .unwrap_or(PortSide::Undefined),
+                    node_guard
+                        .get_property(InternalProperties::EXT_PORT_SIZE)
+                        .unwrap_or_default(),
+                    node_guard
+                        .get_property(LayeredOptions::PORT_ANCHOR)
+                        .unwrap_or_default(),
+                )
+            };
 
             if node_type != NodeType::ExternalPort {
                 continue;
             }
 
-            if let Ok(mut node_guard) = node.lock() {
+            {
+                let mut node_guard = node.lock();
                 match ext_side {
                     PortSide::East => {
                         node_guard.shape().position().x =
@@ -955,28 +887,26 @@ impl HierarchicalPortOrthogonalEdgeRouter {
             match ext_side {
                 PortSide::East | PortSide::West => {
                     if constraints == PortConstraints::FixedRatio {
-                        let ratio = node
-                            .lock()
-                            .ok()
-                            .and_then(|mut node_guard| {
-                                node_guard.get_property(InternalProperties::PORT_RATIO_OR_POSITION)
-                            })
-                            .unwrap_or(0.0);
-                        if let Ok(mut node_guard) = node.lock() {
+                        let ratio = {
+                            let node_guard = node.lock();
+                            node_guard.get_property(InternalProperties::PORT_RATIO_OR_POSITION)
+                                .unwrap_or(0.0)
+                        };
+                        {
+                            let mut node_guard = node.lock();
                             node_guard.shape().position().y =
                                 graph_actual_size.y * ratio - port_anchor.y;
                             required_height = node_guard.shape().position_ref().y + ext_size.y;
                             node_guard.shape().position().y -= padding.top + offset.y;
                         }
                     } else if constraints == PortConstraints::FixedPos {
-                        let pos = node
-                            .lock()
-                            .ok()
-                            .and_then(|mut node_guard| {
-                                node_guard.get_property(InternalProperties::PORT_RATIO_OR_POSITION)
-                            })
-                            .unwrap_or(0.0);
-                        if let Ok(mut node_guard) = node.lock() {
+                        let pos = {
+                            let node_guard = node.lock();
+                            node_guard.get_property(InternalProperties::PORT_RATIO_OR_POSITION)
+                                .unwrap_or(0.0)
+                        };
+                        {
+                            let mut node_guard = node.lock();
                             node_guard.shape().position().y = pos - port_anchor.y;
                             required_height = node_guard.shape().position_ref().y + ext_size.y;
                             node_guard.shape().position().y -= padding.top + offset.y;
@@ -992,30 +922,29 @@ impl HierarchicalPortOrthogonalEdgeRouter {
         graph.size().y += new_actual_height - graph_actual_size.y;
 
         for node in nodes {
-            let (node_type, ext_side) = node
-                .lock()
-                .ok()
-                .map(|mut node_guard| {
-                    (
-                        node_guard.node_type(),
-                        node_guard
-                            .get_property(InternalProperties::EXT_PORT_SIDE)
-                            .unwrap_or(PortSide::Undefined),
-                    )
-                })
-                .unwrap_or((NodeType::Normal, PortSide::Undefined));
+            let (node_type, ext_side) = {
+                let node_guard = node.lock();
+                (
+                    node_guard.node_type(),
+                    node_guard
+                        .get_property(InternalProperties::EXT_PORT_SIDE)
+                        .unwrap_or(PortSide::Undefined),
+                )
+            };
             if node_type != NodeType::ExternalPort {
                 continue;
             }
 
             match ext_side {
                 PortSide::North => {
-                    if let Ok(mut node_guard) = node.lock() {
+                    {
+                        let mut node_guard = node.lock();
                         node_guard.shape().position().y = -offset.y - padding.top;
                     }
                 }
                 PortSide::South => {
-                    if let Ok(mut node_guard) = node.lock() {
+                    {
+                        let mut node_guard = node.lock();
                         node_guard.shape().position().y =
                             graph.size_ref().y + padding.bottom - offset.y;
                     }
@@ -1038,23 +967,17 @@ impl HierarchicalPortOrthogonalEdgeRouter {
 
     fn correct_slanted_edge_segments_layer(&self, layer: &LayerRef) {
         let nodes = layer
-            .lock()
-            .ok()
-            .map(|layer_guard| layer_guard.nodes().clone())
-            .unwrap_or_default();
+            .lock().nodes().clone();
         for node in nodes {
-            let (node_type, ext_side) = node
-                .lock()
-                .ok()
-                .map(|mut node_guard| {
-                    (
-                        node_guard.node_type(),
-                        node_guard
-                            .get_property(InternalProperties::EXT_PORT_SIDE)
-                            .unwrap_or(PortSide::Undefined),
-                    )
-                })
-                .unwrap_or((NodeType::Normal, PortSide::Undefined));
+            let (node_type, ext_side) = {
+                let node_guard = node.lock();
+                (
+                    node_guard.node_type(),
+                    node_guard
+                        .get_property(InternalProperties::EXT_PORT_SIDE)
+                        .unwrap_or(PortSide::Undefined),
+                )
+            };
             if node_type != NodeType::ExternalPort {
                 continue;
             }
@@ -1063,25 +986,22 @@ impl HierarchicalPortOrthogonalEdgeRouter {
             }
 
             let connected_edges = node
-                .lock()
-                .ok()
-                .map(|node_guard| node_guard.connected_edges())
-                .unwrap_or_default();
+                .lock().connected_edges();
             for edge in connected_edges {
-                if let Ok(mut edge_guard) = edge.lock() {
+                {
+                    let mut edge_guard = edge.lock();
                     if edge_guard.bend_points_ref().is_empty() {
                         continue;
                     }
 
                     if let Some(source_port) = edge_guard.source() {
                         let belongs = source_port
-                            .lock()
-                            .ok()
-                            .and_then(|port_guard| port_guard.node())
+                            .lock().node()
                             .map(|port_node| std::sync::Arc::ptr_eq(&port_node, &node))
                             .unwrap_or(false);
                         if belongs {
-                            if let Ok(port_guard) = source_port.lock() {
+                            {
+                                let port_guard = source_port.lock();
                                 if let Some(anchor) = port_guard.absolute_anchor() {
                                     let mut first = edge_guard.bend_points_ref().get_first();
                                     first.y = anchor.y;
@@ -1093,13 +1013,12 @@ impl HierarchicalPortOrthogonalEdgeRouter {
 
                     if let Some(target_port) = edge_guard.target() {
                         let belongs = target_port
-                            .lock()
-                            .ok()
-                            .and_then(|port_guard| port_guard.node())
+                            .lock().node()
                             .map(|port_node| std::sync::Arc::ptr_eq(&port_node, &node))
                             .unwrap_or(false);
                         if belongs {
-                            if let Ok(port_guard) = target_port.lock() {
+                            {
+                                let port_guard = target_port.lock();
                                 if let Some(anchor) = port_guard.absolute_anchor() {
                                     let last_index = edge_guard.bend_points_ref().len() - 1;
                                     let mut last = edge_guard.bend_points_ref().get_last();

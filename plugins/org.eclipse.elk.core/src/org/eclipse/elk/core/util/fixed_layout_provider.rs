@@ -8,6 +8,7 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::{
 
 use crate::org::eclipse::elk::core::abstract_layout_provider::AbstractLayoutProvider;
 use crate::org::eclipse::elk::core::graph_layout_engine::IGraphLayoutEngine;
+use crate::org::eclipse::elk::core::layout_arena_context::with_layout_arena;
 use crate::org::eclipse::elk::core::math::{ElkPadding, KVector};
 use crate::org::eclipse::elk::core::options::{
     CoreOptions, EdgeRouting, FixedLayouterOptions, SizeConstraint,
@@ -31,10 +32,12 @@ impl IGraphLayoutEngine for FixedLayoutProvider {
     ) {
         progress_monitor.begin("Fixed Layout", 1.0);
 
-        let edge_routing = with_node_properties_mut(layout_graph, |props| {
-            props
-                .get_property(CoreOptions::EDGE_ROUTING)
-                .unwrap_or(EdgeRouting::Undefined)
+        let edge_routing = with_layout_arena(|sync| {
+            sync.node_id(layout_graph).and_then(|nid|
+                sync.arena().node_properties[nid.idx()].get_property(CoreOptions::EDGE_ROUTING))
+        }).flatten().unwrap_or_else(|| {
+            with_node_properties_mut(layout_graph, |props|
+                props.get_property(CoreOptions::EDGE_ROUTING).unwrap_or(EdgeRouting::Undefined))
         });
 
         let mut maxx: f64 = 0.0;

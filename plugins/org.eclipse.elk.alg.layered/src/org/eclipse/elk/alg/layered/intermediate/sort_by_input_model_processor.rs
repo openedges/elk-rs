@@ -67,11 +67,10 @@ impl ILayoutProcessor<LGraph> for SortByInputModelProcessor {
 
         let mut previous_layer_nodes = Vec::new();
         for (layer_index, layer) in layers.iter().enumerate() {
-            let mut nodes = if let Ok(mut layer_guard) = layer.lock() {
+            let mut nodes = {
+                let mut layer_guard = layer.lock();
                 layer_guard.graph_element().id = layer_index as i32;
                 layer_guard.nodes().clone()
-            } else {
-                Vec::new()
             };
             // Java semantics: for the first layer, previousLayer is the layer itself.
             if layer_index == 0 {
@@ -80,7 +79,8 @@ impl ILayoutProcessor<LGraph> for SortByInputModelProcessor {
 
             pre_ports_node_comparator.reset_for_previous_layer_slice(&previous_layer_nodes);
             Self::insertion_sort(nodes.as_mut_slice(), &mut pre_ports_node_comparator);
-            if let Ok(mut layer_guard) = layer.lock() {
+            {
+                let mut layer_guard = layer.lock();
                 layer_guard.nodes_mut().clone_from(&nodes);
             }
 
@@ -88,10 +88,7 @@ impl ILayoutProcessor<LGraph> for SortByInputModelProcessor {
             for node in &nodes {
                 let constraints = node
                     .lock()
-                    .ok()
-                    .and_then(|mut node_guard| {
-                        node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
-                    })
+                    .get_property(LayeredOptions::PORT_CONSTRAINTS)
                     .unwrap_or(PortConstraints::Undefined);
                 if matches!(
                     constraints,
@@ -103,12 +100,10 @@ impl ILayoutProcessor<LGraph> for SortByInputModelProcessor {
                 let long_edge_targets = Self::long_edge_target_node_preprocessing(node);
                 port_comparator.reset_for_node_target_model_order(Some(long_edge_targets));
                 let mut ports = node
-                    .lock()
-                    .ok()
-                    .map(|node_guard| node_guard.ports().clone())
-                    .unwrap_or_default();
+                    .lock().ports().clone();
                 Self::insertion_sort_port(ports.as_mut_slice(), &mut port_comparator);
-                if let Ok(mut node_guard) = node.lock() {
+                {
+                    let mut node_guard = node.lock();
                     *node_guard.ports_mut() = ports;
                     node_guard.cache_port_sides();
                 }
@@ -116,7 +111,8 @@ impl ILayoutProcessor<LGraph> for SortByInputModelProcessor {
 
             post_ports_node_comparator.reset_for_previous_layer_slice(&previous_layer_nodes);
             Self::insertion_sort(nodes.as_mut_slice(), &mut post_ports_node_comparator);
-            if let Ok(mut layer_guard) = layer.lock() {
+            {
+                let mut layer_guard = layer.lock();
                 layer_guard.nodes_mut().clone_from(&nodes);
             }
             previous_layer_nodes = nodes;
@@ -155,28 +151,25 @@ impl SortByInputModelProcessor {
 
     pub fn long_edge_target_node_preprocessing(node: &LNodeRef) -> FxHashMap<NodeRefKey, i32> {
         let mut target_node_model_order: FxHashMap<NodeRefKey, i32> = FxHashMap::default();
-        let ports = if let Ok(mut node_guard) = node.lock() {
+        let ports = {
+            let node_guard = node.lock();
             if let Some(existing) =
                 node_guard.get_property(InternalProperties::TARGET_NODE_MODEL_ORDER)
             {
                 return existing;
             }
             node_guard.ports().clone()
-        } else {
-            Vec::new()
         };
         for port in ports {
-            let first_edge = port
-                .lock()
-                .ok()
-                .and_then(|port_guard| port_guard.outgoing_edges().first().cloned());
+            let first_edge = port.lock().outgoing_edges().first().cloned();
             let Some(first_edge) = first_edge else {
                 continue;
             };
 
             let target_node = get_target_node_from_edge(first_edge.clone());
             if let Some(target_node) = &target_node {
-                if let Ok(mut port_guard) = port.lock() {
+                {
+                    let mut port_guard = port.lock();
                     port_guard.set_property(
                         InternalProperties::LONG_EDGE_TARGET_NODE,
                         Some(target_node.clone()),
@@ -187,27 +180,25 @@ impl SortByInputModelProcessor {
                     .get(&target_node_key)
                     .copied()
                     .unwrap_or(i32::MAX);
-                let (reversed, model_order) = first_edge
-                    .lock()
-                    .ok()
-                    .map(|mut edge_guard| {
-                        (
-                            edge_guard
-                                .get_property(InternalProperties::REVERSED)
-                                .unwrap_or(false),
-                            edge_guard
-                                .get_property(InternalProperties::MODEL_ORDER)
-                                .unwrap_or(i32::MAX),
-                        )
-                    })
-                    .unwrap_or((false, i32::MAX));
+                let (reversed, model_order) = {
+                    let edge_guard = first_edge.lock();
+                    (
+                        edge_guard
+                            .get_property(InternalProperties::REVERSED)
+                            .unwrap_or(false),
+                        edge_guard
+                            .get_property(InternalProperties::MODEL_ORDER)
+                            .unwrap_or(i32::MAX),
+                    )
+                };
                 if !reversed {
                     target_node_model_order.insert(target_node_key, prev_order.min(model_order));
                 }
             }
         }
 
-        if let Ok(mut node_guard) = node.lock() {
+        {
+            let mut node_guard = node.lock();
             node_guard.set_property(
                 InternalProperties::TARGET_NODE_MODEL_ORDER,
                 Some(target_node_model_order.clone()),
@@ -218,29 +209,23 @@ impl SortByInputModelProcessor {
 }
 
 pub fn get_target_node(port: &LPortRef) -> Option<LNodeRef> {
-    let edge = port
-        .lock()
-        .ok()
-        .and_then(|port_guard| port_guard.outgoing_edges().first().cloned());
+    let edge = port.lock().outgoing_edges().first().cloned();
     edge.and_then(get_target_node_from_edge)
 }
 
 fn get_target_node_from_edge(mut edge: LEdgeRef) -> Option<LNodeRef> {
     loop {
         let target_node = edge
-            .lock()
-            .ok()
-            .and_then(|edge_guard| edge_guard.target())
-            .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))?;
+            .lock().target()
+            .and_then(|port| port.lock().node())?;
 
-        if let Ok(mut node_guard) = target_node.lock() {
+        {
+            let node_guard = target_node.lock();
             if let Some(long_edge_target) =
                 node_guard.get_property(InternalProperties::LONG_EDGE_TARGET)
             {
                 if let Some(target) = long_edge_target
-                    .lock()
-                    .ok()
-                    .and_then(|port_guard| port_guard.node())
+                    .lock().node()
                 {
                     return Some(target);
                 }
@@ -261,7 +246,8 @@ fn get_target_node_from_edge(mut edge: LEdgeRef) -> Option<LNodeRef> {
 
 fn build_ordering_context_graph(graph: &mut LGraph) -> LGraphRef {
     let context = LGraph::new();
-    if let Ok(mut context_guard) = context.lock() {
+    {
+        let mut context_guard = context.lock();
         if let Some(max_model_order_nodes) =
             graph.get_property(InternalProperties::MAX_MODEL_ORDER_NODES)
         {

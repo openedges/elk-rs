@@ -1,14 +1,12 @@
 use std::collections::{HashSet, VecDeque};
-use std::sync::LazyLock;
+
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 use crate::org::eclipse::elk::alg::layered::graph::LEdgeRef;
 
 use super::aligned_layout::{BKAlignedLayout, HDirection, VDirection};
 use super::neighborhood_information::NeighborhoodInformation;
-use super::util::{node_id, port_node_id, port_offset_y};
-
-static TRACE_BK_THRESH: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_BK_THRESH").is_some());
+use super::util::{node_id, port_node_id_a, port_offset_y_a};
 
 const THRESHOLD: f64 = f64::MAX;
 const EPSILON: f64 = 0.0001;
@@ -81,29 +79,17 @@ impl SimpleThresholdStrategy {
         let edges = if pp.is_root {
             if bal.hdir == Some(HDirection::Right) {
                 free_node
-                    .lock()
-                    .ok()
-                    .map(|node_guard| node_guard.incoming_edges())
-                    .unwrap_or_default()
+                    .lock().incoming_edges()
             } else {
                 free_node
-                    .lock()
-                    .ok()
-                    .map(|node_guard| node_guard.outgoing_edges())
-                    .unwrap_or_default()
+                    .lock().outgoing_edges()
             }
         } else if bal.hdir == Some(HDirection::Left) {
             free_node
-                .lock()
-                .ok()
-                .map(|node_guard| node_guard.incoming_edges())
-                .unwrap_or_default()
+                .lock().incoming_edges()
         } else {
             free_node
-                .lock()
-                .ok()
-                .map(|node_guard| node_guard.outgoing_edges())
-                .unwrap_or_default()
+                .lock().outgoing_edges()
         };
 
         let mut has_edges = false;
@@ -111,10 +97,7 @@ impl SimpleThresholdStrategy {
             let only_dummies = bal.od[bal.root[pp.free]];
             if !only_dummies {
                 let in_layer = edge
-                    .lock()
-                    .ok()
-                    .map(|edge_guard| edge_guard.is_in_layer_edge())
-                    .unwrap_or(false);
+                    .lock().is_in_layer_edge();
                 if in_layer {
                     continue;
                 }
@@ -126,11 +109,10 @@ impl SimpleThresholdStrategy {
 
             has_edges = true;
 
-            let other_node_id = edge
-                .lock()
-                .ok()
-                .map(|edge_guard| edge_guard.other_node(free_node))
-                .map(|node| node_id(&node));
+            let other_node_id = {
+                let other = edge.lock().other_node(free_node);
+                Some(node_id(&other))
+            };
             if let Some(other_node_id) = other_node_id {
                 if other_node_id >= bal.root.len() {
                     continue;
@@ -150,7 +132,7 @@ impl SimpleThresholdStrategy {
     }
 
     fn get_bound(&mut self, bal: &mut BKAlignedLayout, block_node: usize, is_root: bool) -> f64 {
-        let trace = *TRACE_BK_THRESH;
+        let trace = ElkTrace::global().bk_thresh;
         let invalid = match bal.vdir {
             Some(VDirection::Up) => f64::INFINITY,
             _ => f64::NEG_INFINITY,
@@ -173,11 +155,10 @@ impl SimpleThresholdStrategy {
             return invalid;
         };
 
-        let (left_port, right_port) = edge
-            .lock()
-            .ok()
-            .and_then(|edge_guard| Some((edge_guard.source()?, edge_guard.target()?)))
-            .unwrap();
+        let (left_port, right_port) = {
+            let edge_guard = edge.lock();
+            (edge_guard.source().unwrap(), edge_guard.target().unwrap())
+        };
 
         let threshold = if is_root {
             let root_port = if bal.hdir == Some(HDirection::Right) {
@@ -190,20 +171,20 @@ impl SimpleThresholdStrategy {
             } else {
                 right_port.clone()
             };
-            let other_node_id = port_node_id(&other_port);
+            let other_node_id = port_node_id_a(&bal.sync, &other_port);
             if other_node_id >= bal.root.len() {
                 return invalid;
             }
-            let root_node_id = port_node_id(&root_port);
+            let root_node_id = port_node_id_a(&bal.sync, &root_port);
             if root_node_id >= bal.root.len() {
                 return invalid;
             }
             let other_root = bal.root[other_node_id];
             bal.y[other_root].unwrap_or(0.0)
                 + bal.inner_shift[other_node_id]
-                + port_offset_y(&other_port)
+                + port_offset_y_a(&bal.sync, &other_port)
                 - bal.inner_shift[root_node_id]
-                - port_offset_y(&root_port)
+                - port_offset_y_a(&bal.sync, &root_port)
         } else {
             let root_port = if bal.hdir == Some(HDirection::Left) {
                 right_port.clone()
@@ -215,27 +196,27 @@ impl SimpleThresholdStrategy {
             } else {
                 right_port.clone()
             };
-            let other_node_id = port_node_id(&other_port);
+            let other_node_id = port_node_id_a(&bal.sync, &other_port);
             if other_node_id >= bal.root.len() {
                 return invalid;
             }
-            let root_node_id = port_node_id(&root_port);
+            let root_node_id = port_node_id_a(&bal.sync, &root_port);
             if root_node_id >= bal.root.len() {
                 return invalid;
             }
             let other_root = bal.root[other_node_id];
             bal.y[other_root].unwrap_or(0.0)
                 + bal.inner_shift[other_node_id]
-                + port_offset_y(&other_port)
+                + port_offset_y_a(&bal.sync, &other_port)
                 - bal.inner_shift[root_node_id]
-                - port_offset_y(&root_port)
+                - port_offset_y_a(&bal.sync, &root_port)
         };
 
-        let left_node_id = port_node_id(&left_port);
+        let left_node_id = port_node_id_a(&bal.sync, &left_port);
         if left_node_id >= bal.root.len() {
             return invalid;
         }
-        let right_node_id = port_node_id(&right_port);
+        let right_node_id = port_node_id_a(&bal.sync, &right_port);
         if right_node_id >= bal.root.len() {
             return invalid;
         }
@@ -259,23 +240,22 @@ impl SimpleThresholdStrategy {
         ni: &NeighborhoodInformation,
         pp: &Postprocessable,
     ) -> bool {
-        let trace = *TRACE_BK_THRESH;
+        let trace = ElkTrace::global().bk_thresh;
         let edge = pp.edge.as_ref().expect("processable edge missing");
-        let (source_port, target_port) = edge
-            .lock()
-            .ok()
-            .and_then(|edge_guard| Some((edge_guard.source()?, edge_guard.target()?)))
-            .unwrap();
+        let (source_port, target_port) = {
+            let edge_guard = edge.lock();
+            (edge_guard.source().unwrap(), edge_guard.target().unwrap())
+        };
 
         let free_id = pp.free;
-        let source_node_id = port_node_id(&source_port);
+        let source_node_id = port_node_id_a(&bal.sync, &source_port);
         let (fix, block) = if source_node_id == free_id {
             (target_port, source_port)
         } else {
             (source_port, target_port)
         };
 
-        let block_node_id = port_node_id(&block);
+        let block_node_id = port_node_id_a(&bal.sync, &block);
         let delta = bal.calculate_delta(&fix, &block);
         if trace {
             eprintln!(
@@ -355,7 +335,7 @@ impl ThresholdStrategy for SimpleThresholdStrategy {
     }
 
     fn post_process(&mut self, bal: &mut BKAlignedLayout, ni: &NeighborhoodInformation) {
-        let trace = *TRACE_BK_THRESH;
+        let trace = ElkTrace::global().bk_thresh;
         while let Some(pp) = self.post_process_queue.pop_front() {
             let pick = self.pick_edge(bal, pp);
             let Some(edge) = pick.edge.clone() else {
@@ -370,10 +350,7 @@ impl ThresholdStrategy for SimpleThresholdStrategy {
 
             let only_dummies = bal.od[bal.root[pick.free]];
             let in_layer = edge
-                .lock()
-                .ok()
-                .map(|edge_guard| edge_guard.is_in_layer_edge())
-                .unwrap_or(false);
+                .lock().is_in_layer_edge();
             if !only_dummies && in_layer {
                 continue;
             }

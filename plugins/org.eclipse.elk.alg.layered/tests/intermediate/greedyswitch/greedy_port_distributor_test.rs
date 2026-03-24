@@ -20,7 +20,8 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, Random};
 
 fn set_up_graph(graph: &LGraphRef) {
-    if let Ok(mut graph_guard) = graph.lock() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.set_property(LayeredOptions::EDGE_ROUTING, Some(EdgeRouting::Orthogonal));
         graph_guard.set_property(
             LayeredOptions::HIERARCHY_HANDLING,
@@ -32,7 +33,8 @@ fn set_up_graph(graph: &LGraphRef) {
 
 fn make_layer(graph: &LGraphRef) -> LayerRef {
     let layer = Layer::new(graph);
-    if let Ok(mut graph_guard) = graph.lock() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.layers_mut().push(layer.clone());
     }
     layer
@@ -40,7 +42,8 @@ fn make_layer(graph: &LGraphRef) -> LayerRef {
 
 fn add_node(graph: &LGraphRef, layer: &LayerRef) -> LNodeRef {
     let node = LNode::new(graph);
-    if let Ok(mut node_guard) = node.lock() {
+    {
+        let mut node_guard = node.lock();
         node_guard.set_node_type(NodeType::Normal);
         node_guard.set_property(InternalProperties::IN_LAYER_LAYOUT_UNIT, Some(node.clone()));
     }
@@ -54,11 +57,13 @@ fn add_nodes(graph: &LGraphRef, layer: &LayerRef, count: usize) -> Vec<LNodeRef>
 
 fn add_port_on_side(node: &LNodeRef, side: PortSide) -> LPortRef {
     let port = LPort::new();
-    if let Ok(mut port_guard) = port.lock() {
+    {
+        let mut port_guard = port.lock();
         port_guard.set_side(side);
     }
     LPort::set_node(&port, Some(node.clone()));
-    if let Ok(mut node_guard) = node.lock() {
+    {
+        let mut node_guard = node.lock();
         let constraints = node_guard
             .get_property(LayeredOptions::PORT_CONSTRAINTS)
             .unwrap_or(PortConstraints::Undefined);
@@ -99,16 +104,16 @@ fn connect_node_to_port(left: &LNodeRef, port: &LPortRef) {
 }
 
 fn port_ids(node: &LNodeRef) -> Vec<i32> {
-    let ports = node.lock().expect("node lock").ports().clone();
+    let ports = node.lock().ports().clone();
     ports
         .iter()
-        .filter_map(|port| port.lock().ok())
+        .map(|port| port.lock())
         .map(|mut port_guard| port_guard.shape().graph_element().id)
         .collect()
 }
 
 fn port_ptrs(node: &LNodeRef) -> Vec<usize> {
-    let ports = node.lock().expect("node lock").ports().clone();
+    let ports = node.lock().ports().clone();
     ports
         .iter()
         .map(|port| Arc::as_ptr(port) as usize)
@@ -126,7 +131,7 @@ fn prepare_distributor(
     graph: &LGraphRef,
     distributor: &mut GreedyPortDistributor,
 ) -> Vec<Vec<LNodeRef>> {
-    let node_order = graph.lock().expect("graph lock").to_node_array();
+    let node_order = graph.lock().to_node_array();
     let mut initables: [&mut dyn IInitializable; 1] = [distributor];
     init(&mut initables, &node_order);
     node_order
@@ -139,19 +144,19 @@ fn init_layered_options() {
 
 fn nested_graph(node: &LNodeRef) -> LGraphRef {
     if let Some(nested_graph) = node
-        .lock()
-        .ok()
-        .and_then(|node_guard| node_guard.nested_graph())
+        .lock().nested_graph()
     {
         return nested_graph;
     }
 
     let nested_graph = LGraph::new();
     set_up_graph(&nested_graph);
-    if let Ok(mut graph_guard) = nested_graph.lock() {
+    {
+        let mut graph_guard = nested_graph.lock();
         graph_guard.set_parent_node(Some(node.clone()));
     }
-    if let Ok(mut node_guard) = node.lock() {
+    {
+        let mut node_guard = node.lock();
         node_guard.set_nested_graph(Some(nested_graph.clone()));
     }
     nested_graph
@@ -159,18 +164,14 @@ fn nested_graph(node: &LNodeRef) -> LGraphRef {
 
 fn add_external_port_dummy_node_to_layer(layer: &LayerRef, port: &LPortRef) -> LNodeRef {
     let graph = layer
-        .lock()
-        .ok()
-        .and_then(|layer_guard| layer_guard.graph())
+        .lock().graph()
         .expect("layer graph");
     let node = add_node(&graph, layer);
     let port_side = port
-        .lock()
-        .ok()
-        .map(|port_guard| port_guard.side())
-        .unwrap_or(PortSide::Undefined);
+        .lock().side();
 
-    if let Ok(mut node_guard) = node.lock() {
+    {
+        let mut node_guard = node.lock();
         node_guard.set_node_type(NodeType::ExternalPort);
         node_guard.set_property(
             InternalProperties::ORIGIN,
@@ -179,12 +180,14 @@ fn add_external_port_dummy_node_to_layer(layer: &LayerRef, port: &LPortRef) -> L
         node_guard.set_property(InternalProperties::EXT_PORT_SIDE, Some(port_side));
     }
 
-    if let Ok(mut port_guard) = port.lock() {
+    {
+        let mut port_guard = port.lock();
         port_guard.set_property(InternalProperties::PORT_DUMMY, Some(node.clone()));
         port_guard.set_property(InternalProperties::INSIDE_CONNECTIONS, Some(true));
     }
 
-    if let Ok(mut graph_guard) = graph.lock() {
+    {
+        let mut graph_guard = graph.lock();
         let mut props = graph_guard
             .get_property(InternalProperties::GRAPH_PROPERTIES)
             .unwrap_or_else(EnumSet::none_of);
@@ -200,10 +203,7 @@ fn add_external_port_dummies_to_layer(layer: &LayerRef, ports: &[LPortRef]) -> V
         return Vec::new();
     }
     let side = ports[0]
-        .lock()
-        .ok()
-        .map(|port_guard| port_guard.side())
-        .unwrap_or(PortSide::Undefined);
+        .lock().side();
     let mut nodes = Vec::with_capacity(ports.len());
     for i in 0..ports.len() {
         let port_index = if side == PortSide::East {
@@ -330,7 +330,8 @@ fn distribute_ports_fixed_order_no_change() {
     let left_nodes = add_nodes(&graph, &left_layer, 1);
     let right_nodes = add_nodes(&graph, &right_layer, 2);
 
-    if let Ok(mut node_guard) = left_nodes[0].lock() {
+    {
+        let mut node_guard = left_nodes[0].lock();
         node_guard.set_property(
             LayeredOptions::PORT_CONSTRAINTS,
             Some(PortConstraints::FixedOrder),
@@ -523,8 +524,9 @@ fn distribute_ports_two_nodes_in_one_layer_no_switch() {
 
     let left_outer_node = left_layer
         .lock()
-        .ok()
-        .and_then(|layer_guard| layer_guard.nodes().first().cloned())
+        .nodes()
+        .first()
+        .cloned()
         .expect("left layer node");
 
     let mut distributor = GreedyPortDistributor::new();

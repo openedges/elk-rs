@@ -12,7 +12,7 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::{
     ElkNodeRef,
 };
 
-use crate::org::eclipse::elk::alg::force::graph::{FEdge, FGraph, FLabel, FNode};
+use crate::org::eclipse::elk::alg::force::graph::{FGraph, FNodeId};
 use crate::org::eclipse::elk::alg::force::i_graph_importer::IGraphImporter;
 use crate::org::eclipse::elk::alg::force::options::{
     ForceOptions, InternalProperties, Origin, OriginId,
@@ -107,8 +107,8 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
             let mut root = elkgraph.borrow_mut();
             root.children().iter().cloned().collect()
         };
-        let mut elem_map: HashMap<OriginId, crate::org::eclipse::elk::alg::force::graph::FNodeRef> =
-            HashMap::new();
+        // Map from origin_id -> FNodeId (arena index)
+        let mut elem_map: HashMap<OriginId, FNodeId> = HashMap::new();
 
         for (index, elknode) in children.iter().enumerate() {
             let label = {
@@ -127,48 +127,40 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
                     .unwrap_or_default()
             };
 
-            let f_node = FNode::new_with_label(label);
-            {
-                let mut node_guard = f_node.lock().ok()?;
-                node_guard.set_id(index);
+            let nid = fgraph.arena.add_node();
+            fgraph.arena.node_id[nid.0] = index;
+            fgraph.arena.node_label[nid.0] = Some(label);
 
-                let node_props = {
-                    let mut node_mut = elknode.borrow_mut();
-                    node_mut
-                        .connectable()
-                        .shape()
-                        .graph_element()
-                        .properties()
-                        .clone()
-                };
-                node_guard.properties_mut().copy_properties(&node_props);
+            let node_props = {
+                let mut node_mut = elknode.borrow_mut();
+                node_mut
+                    .connectable()
+                    .shape()
+                    .graph_element()
+                    .properties()
+                    .clone()
+            };
+            fgraph.arena.node_properties[nid.0].copy_properties(&node_props);
 
-                let (x, y, w, h) = {
-                    let mut node_mut = elknode.borrow_mut();
-                    let shape = node_mut.connectable().shape();
-                    (shape.x(), shape.y(), shape.width(), shape.height())
-                };
-                {
-                    let pos = node_guard.position();
-                    pos.x = x + w / 2.0;
-                    pos.y = y + h / 2.0;
-                }
-                {
-                    let size = node_guard.size();
-                    size.x = w.max(1.0);
-                    size.y = h.max(1.0);
-                }
+            let (x, y, w, h) = {
+                let mut node_mut = elknode.borrow_mut();
+                let shape = node_mut.connectable().shape();
+                (shape.x(), shape.y(), shape.width(), shape.height())
+            };
+            fgraph.arena.node_position[nid.0].x = x + w / 2.0;
+            fgraph.arena.node_position[nid.0].y = y + h / 2.0;
+            fgraph.arena.node_size[nid.0].x = w.max(1.0);
+            fgraph.arena.node_size[nid.0].y = h.max(1.0);
 
-                let node_origin = Self::origin_id(&ElkGraphElementRef::Node(elknode.clone()));
-                node_guard.set_property(
-                    InternalProperties::ORIGIN,
-                    Some(Origin::ElkNode(node_origin)),
-                );
-                self.node_map.insert(node_origin, elknode.clone());
-                elem_map.insert(node_origin, f_node.clone());
-            }
+            let node_origin = Self::origin_id(&ElkGraphElementRef::Node(elknode.clone()));
+            fgraph.arena.node_properties[nid.0].set_property(
+                InternalProperties::ORIGIN,
+                Some(Origin::ElkNode(node_origin)),
+            );
+            self.node_map.insert(node_origin, elknode.clone());
+            elem_map.insert(node_origin, nid);
 
-            fgraph.nodes_mut().push(f_node.clone());
+            fgraph.nodes.push(nid);
 
             let port_constraints = {
                 let mut node_mut = elknode.borrow_mut();
@@ -228,27 +220,24 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
                 let target_node_id =
                     Self::origin_id(&ElkGraphElementRef::Node(target_node.clone()));
 
-                let source = elem_map.get(&source_node_id).cloned();
-                let target = elem_map.get(&target_node_id).cloned();
+                let source = elem_map.get(&source_node_id).copied();
+                let target = elem_map.get(&target_node_id).copied();
 
-                if let (Some(source), Some(target)) = (source, target) {
-                    let f_edge = FEdge::new();
-                    {
-                        let mut edge_guard = f_edge.lock().ok()?;
-                        let edge_props = {
-                            let mut edge_mut = elkedge.borrow_mut();
-                            edge_mut.element().properties().clone()
-                        };
-                        edge_guard.properties_mut().copy_properties(&edge_props);
-                        edge_guard.set_property(
-                            InternalProperties::ORIGIN,
-                            Some(Origin::ElkEdge(origin_id)),
-                        );
-                    }
-                    FEdge::set_source(&f_edge, Some(source));
-                    FEdge::set_target(&f_edge, Some(target));
+                if let (Some(source_nid), Some(target_nid)) = (source, target) {
+                    let eid = fgraph.arena.add_edge();
+                    let edge_props = {
+                        let mut edge_mut = elkedge.borrow_mut();
+                        edge_mut.element().properties().clone()
+                    };
+                    fgraph.arena.edge_properties[eid.0].copy_properties(&edge_props);
+                    fgraph.arena.edge_properties[eid.0].set_property(
+                        InternalProperties::ORIGIN,
+                        Some(Origin::ElkEdge(origin_id)),
+                    );
+                    fgraph.arena.set_edge_source(eid, source_nid);
+                    fgraph.arena.set_edge_target(eid, target_nid);
 
-                    fgraph.edges_mut().push(f_edge.clone());
+                    fgraph.edges.push(eid);
                     self.edge_map.insert(origin_id, elkedge.clone());
                     seen_edges.insert(origin_id, ());
 
@@ -258,31 +247,32 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
                     };
                     for label in labels {
                         let label_text = label.borrow().text().to_string();
-                        let f_label = FLabel::new(&f_edge, label_text);
-                        {
-                            let mut label_guard = f_label.lock().ok()?;
-                            let label_props = {
-                                let mut label_mut = label.borrow_mut();
-                                label_mut.shape().graph_element().properties().clone()
-                            };
-                            label_guard.properties_mut().copy_properties(&label_props);
-                            let origin = Self::origin_id(&ElkGraphElementRef::Label(label.clone()));
-                            label_guard.set_property(
-                                InternalProperties::ORIGIN,
-                                Some(Origin::ElkLabel(origin)),
-                            );
-                            self.label_map.insert(origin, label.clone());
+                        let lid = fgraph.arena.add_label(eid);
+                        fgraph.arena.label_text[lid.0] = Some(label_text);
 
-                            let (w, h) = {
-                                let mut label_mut = label.borrow_mut();
-                                let shape = label_mut.shape();
-                                (shape.width(), shape.height())
-                            };
-                            label_guard.size().x = w.max(1.0);
-                            label_guard.size().y = h.max(1.0);
-                            label_guard.refresh_position();
-                        }
-                        fgraph.labels_mut().push(f_label);
+                        let label_props = {
+                            let mut label_mut = label.borrow_mut();
+                            label_mut.shape().graph_element().properties().clone()
+                        };
+                        fgraph.arena.label_properties[lid.0].copy_properties(&label_props);
+                        let label_origin =
+                            Self::origin_id(&ElkGraphElementRef::Label(label.clone()));
+                        fgraph.arena.label_properties[lid.0].set_property(
+                            InternalProperties::ORIGIN,
+                            Some(Origin::ElkLabel(label_origin)),
+                        );
+                        self.label_map.insert(label_origin, label.clone());
+
+                        let (w, h) = {
+                            let mut label_mut = label.borrow_mut();
+                            let shape = label_mut.shape();
+                            (shape.width(), shape.height())
+                        };
+                        fgraph.arena.label_size[lid.0].x = w.max(1.0);
+                        fgraph.arena.label_size[lid.0].y = h.max(1.0);
+                        fgraph.refresh_label_position(lid);
+
+                        fgraph.labels.push(lid);
                     }
                 }
             }
@@ -292,10 +282,7 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
     }
 
     fn apply_layout(&self, fgraph: &FGraph) {
-        let origin = {
-            let mut props = fgraph.properties().clone();
-            props.get_property(InternalProperties::ORIGIN)
-        };
+        let origin = fgraph.properties.get_property(InternalProperties::ORIGIN);
         let Some(Origin::ElkNode(root_id)) = origin else {
             return;
         };
@@ -308,25 +295,21 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
         let mut max_x = f64::MIN;
         let mut max_y = f64::MIN;
 
-        for node in fgraph.nodes() {
-            if let Ok(node_guard) = node.lock() {
-                let pos = node_guard.position_ref();
-                let size = node_guard.size_ref();
-                min_x = min_x.min(pos.x - size.x / 2.0);
-                min_y = min_y.min(pos.y - size.y / 2.0);
-                max_x = max_x.max(pos.x + size.x / 2.0);
-                max_y = max_y.max(pos.y + size.y / 2.0);
-            }
+        for &nid in &fgraph.nodes {
+            let pos = &fgraph.arena.node_position[nid.0];
+            let size = &fgraph.arena.node_size[nid.0];
+            min_x = min_x.min(pos.x - size.x / 2.0);
+            min_y = min_y.min(pos.y - size.y / 2.0);
+            max_x = max_x.max(pos.x + size.x / 2.0);
+            max_y = max_y.max(pos.y + size.y / 2.0);
         }
-        for bend in fgraph.bendpoints() {
-            if let Ok(bend_guard) = bend.lock() {
-                let pos = bend_guard.position_ref();
-                let size = bend_guard.size_ref();
-                min_x = min_x.min(pos.x - size.x / 2.0);
-                min_y = min_y.min(pos.y - size.y / 2.0);
-                max_x = max_x.max(pos.x + size.x / 2.0);
-                max_y = max_y.max(pos.y + size.y / 2.0);
-            }
+        for &bid in &fgraph.bendpoints {
+            let pos = &fgraph.arena.bend_position[bid.0];
+            let size = &fgraph.arena.bend_size[bid.0];
+            min_x = min_x.min(pos.x - size.x / 2.0);
+            min_y = min_y.min(pos.y - size.y / 2.0);
+            max_x = max_x.max(pos.x + size.x / 2.0);
+            max_y = max_y.max(pos.y + size.y / 2.0);
         }
 
         let padding = {
@@ -341,11 +324,9 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
         };
         let offset = KVector::with_values(padding.left - min_x, padding.top - min_y);
 
-        for node in fgraph.nodes() {
-            let origin = node
-                .lock()
-                .ok()
-                .and_then(|mut node_guard| node_guard.get_property(InternalProperties::ORIGIN));
+        for &nid in &fgraph.nodes {
+            let origin = fgraph.arena.node_properties[nid.0]
+                .get_property(InternalProperties::ORIGIN);
             let Some(Origin::ElkNode(node_id)) = origin else {
                 continue;
             };
@@ -353,26 +334,22 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
                 continue;
             };
 
-            if let Ok(node_guard) = node.lock() {
-                let mut node_pos = KVector::from_vector(node_guard.position_ref());
-                node_pos.add(&offset);
-                let mut elk_mut = elknode.borrow_mut();
-                let (width, height) = {
-                    let shape = elk_mut.connectable().shape();
-                    (shape.width(), shape.height())
-                };
-                elk_mut
-                    .connectable()
-                    .shape()
-                    .set_location(node_pos.x - width / 2.0, node_pos.y - height / 2.0);
-            }
+            let mut node_pos = KVector::from_vector(&fgraph.arena.node_position[nid.0]);
+            node_pos.add(&offset);
+            let mut elk_mut = elknode.borrow_mut();
+            let (width, height) = {
+                let shape = elk_mut.connectable().shape();
+                (shape.width(), shape.height())
+            };
+            elk_mut
+                .connectable()
+                .shape()
+                .set_location(node_pos.x - width / 2.0, node_pos.y - height / 2.0);
         }
 
-        for edge in fgraph.edges() {
-            let origin = edge
-                .lock()
-                .ok()
-                .and_then(|mut edge_guard| edge_guard.get_property(InternalProperties::ORIGIN));
+        for &eid in &fgraph.edges {
+            let origin = fgraph.arena.edge_properties[eid.0]
+                .get_property(InternalProperties::ORIGIN);
             let Some(Origin::ElkEdge(edge_id)) = origin else {
                 continue;
             };
@@ -385,34 +362,28 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
             };
             let mut section_mut = section.borrow_mut();
 
-            if let Ok(edge_guard) = edge.lock() {
-                if let Some(mut start_location) = edge_guard.source_point() {
-                    start_location.add(&offset);
-                    section_mut.set_start_x(start_location.x);
-                    section_mut.set_start_y(start_location.y);
-                }
+            if let Some(mut start_location) = fgraph.edge_source_point(eid) {
+                start_location.add(&offset);
+                section_mut.set_start_x(start_location.x);
+                section_mut.set_start_y(start_location.y);
+            }
 
-                for bend in edge_guard.bendpoints() {
-                    if let Ok(bend_guard) = bend.lock() {
-                        let mut position = KVector::from_vector(bend_guard.position_ref());
-                        position.add(&offset);
-                        Self::create_bend_point(&mut section_mut, position.x, position.y);
-                    }
-                }
+            for &bid in &fgraph.arena.edge_bendpoints[eid.0] {
+                let mut position = KVector::from_vector(&fgraph.arena.bend_position[bid.0]);
+                position.add(&offset);
+                Self::create_bend_point(&mut section_mut, position.x, position.y);
+            }
 
-                if let Some(mut end_location) = edge_guard.target_point() {
-                    end_location.add(&offset);
-                    section_mut.set_end_x(end_location.x);
-                    section_mut.set_end_y(end_location.y);
-                }
+            if let Some(mut end_location) = fgraph.edge_target_point(eid) {
+                end_location.add(&offset);
+                section_mut.set_end_x(end_location.x);
+                section_mut.set_end_y(end_location.y);
             }
         }
 
-        for label in fgraph.labels() {
-            let origin = label
-                .lock()
-                .ok()
-                .and_then(|mut label_guard| label_guard.get_property(InternalProperties::ORIGIN));
+        for &lid in &fgraph.labels {
+            let origin = fgraph.arena.label_properties[lid.0]
+                .get_property(InternalProperties::ORIGIN);
             let Some(Origin::ElkLabel(label_id)) = origin else {
                 continue;
             };
@@ -420,14 +391,12 @@ impl IGraphImporter<ElkNodeRef> for ElkGraphImporter {
                 continue;
             };
 
-            if let Ok(label_guard) = label.lock() {
-                let mut label_pos = KVector::from_vector(label_guard.position_ref());
-                label_pos.add(&offset);
-                elklabel
-                    .borrow_mut()
-                    .shape()
-                    .set_location(label_pos.x, label_pos.y);
-            }
+            let mut label_pos = KVector::from_vector(&fgraph.arena.label_position[lid.0]);
+            label_pos.add(&offset);
+            elklabel
+                .borrow_mut()
+                .shape()
+                .set_location(label_pos.x, label_pos.y);
         }
 
         let horizontal = padding.left + padding.right;

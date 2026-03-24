@@ -15,7 +15,8 @@ fn test_successor_constraints() {
     let b = create_node(&graph, &layer);
     let c = create_node(&graph, &layer);
 
-    if let Ok(mut a_guard) = a.lock() {
+    {
+        let mut a_guard = a.lock();
         a_guard.set_property(
             InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS,
             Some(vec![b.clone()]),
@@ -52,7 +53,8 @@ fn test_non_overlapping_layout_units() {
 fn create_graph_with_layer() -> (LGraphRef, LayerRef) {
     let graph = LGraph::new();
     let layer = Layer::new(&graph);
-    if let Ok(mut graph_guard) = graph.lock() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.layers_mut().push(layer.clone());
     }
     (graph, layer)
@@ -60,7 +62,8 @@ fn create_graph_with_layer() -> (LGraphRef, LayerRef) {
 
 fn create_node(graph: &LGraphRef, layer: &LayerRef) -> LNodeRef {
     let node = LNode::new(graph);
-    if let Ok(mut node_guard) = node.lock() {
+    {
+        let mut node_guard = node.lock();
         node_guard.set_node_type(NodeType::Normal);
     }
     LNode::set_layer(&node, Some(layer.clone()));
@@ -68,7 +71,8 @@ fn create_node(graph: &LGraphRef, layer: &LayerRef) -> LNodeRef {
 }
 
 fn set_layout_unit(node: &LNodeRef, representative: &LNodeRef) {
-    if let Ok(mut node_guard) = node.lock() {
+    {
+        let mut node_guard = node.lock();
         node_guard.set_property(
             InternalProperties::IN_LAYER_LAYOUT_UNIT,
             Some(representative.clone()),
@@ -101,10 +105,7 @@ fn assert_successor_constraints_respected(nodes: &[LNodeRef]) {
     for node in nodes {
         let successors = node
             .lock()
-            .ok()
-            .and_then(|mut node_guard| {
-                node_guard.get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
-            })
+            .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
             .unwrap_or_default();
 
         let has_violation = successors
@@ -123,10 +124,7 @@ fn assert_non_overlapping_layout_units(nodes: &[LNodeRef]) {
     for node in nodes {
         let layout_unit = node
             .lock()
-            .ok()
-            .and_then(|mut node_guard| {
-                node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
-            })
+            .get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
             .map(|layout_unit| node_ptr_id(&layout_unit));
 
         if let Some(layout_unit) = layout_unit {

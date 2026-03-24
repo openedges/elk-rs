@@ -1,13 +1,9 @@
-use std::sync::LazyLock;
-
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LNode};
 use crate::org::eclipse::elk::alg::layered::options::{InLayerConstraint, InternalProperties};
-
-static TRACE_ILC: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_ILC").is_some());
 
 pub struct InLayerConstraintProcessor;
 
@@ -18,37 +14,28 @@ impl ILayoutProcessor<LGraph> for InLayerConstraintProcessor {
         let layers = layered_graph.layers().clone();
         for layer in layers {
             let nodes = layer
-                .lock()
-                .ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
             let mut top_insertion_index: Option<usize> = None;
             let mut bottom_constrained_nodes = Vec::new();
 
             for (i, node) in nodes.iter().enumerate() {
-                let constraint = node
-                    .lock()
-                    .ok()
-                    .and_then(|mut node_guard| {
-                        if node_guard
-                            .shape()
-                            .graph_element()
-                            .properties_mut()
-                            .has_property(InternalProperties::IN_LAYER_CONSTRAINT)
-                        {
-                            node_guard.get_property(InternalProperties::IN_LAYER_CONSTRAINT)
-                        } else {
-                            None
-                        }
-                    })
-                    .unwrap_or(InLayerConstraint::None);
+                let constraint = {
+                    let mut node_guard = node.lock();
+                    if node_guard
+                        .shape()
+                        .graph_element()
+                        .properties_mut()
+                        .has_property(InternalProperties::IN_LAYER_CONSTRAINT)
+                    {
+                        node_guard.get_property(InternalProperties::IN_LAYER_CONSTRAINT)
+                    } else {
+                        None
+                    }
+                }
+                .unwrap_or(InLayerConstraint::None);
 
-                if *TRACE_ILC {
-                    let node_name = node
-                        .lock()
-                        .ok()
-                        .map(|mut node_guard| node_guard.to_string())
-                        .unwrap_or_else(|| "<poisoned-node>".to_owned());
+                if ElkTrace::global().ilc {
+                    let node_name = node.lock().to_string();
                     eprintln!(
                         "rust-ilc: layer_node_index={i} node={node_name} constraint={constraint:?}"
                     );

@@ -1,11 +1,11 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 
 use crate::org::eclipse::elk::alg::layered::p3order::cross_min_snapshot::CrossMinSnapshot;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LNodeRef, LPortRef, NodeType};
+use crate::org::eclipse::elk::alg::layered::graph::{ArenaSync, LEdgeRef, LNodeRef, LPortRef, NodeType};
 use crate::org::eclipse::elk::alg::layered::p3order::counting::i_initializable::IInitializable;
 use crate::org::eclipse::elk::alg::layered::p3order::counting::{
     CrossingsCounter, HyperedgeCrossingsCounter,
@@ -20,9 +20,9 @@ pub struct AllCrossingsCounter {
     n_ports: i32,
 }
 
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
+
 static TRACE_CROSSINGS_CALLS: AtomicUsize = AtomicUsize::new(0);
-static TRACE_CROSSINGS_BREAKDOWN: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSINGS_BREAKDOWN").is_some());
 
 impl AllCrossingsCounter {
     pub fn new(graph: &[Vec<LNodeRef>]) -> Self {
@@ -41,11 +41,15 @@ impl AllCrossingsCounter {
         self.crossing_counter.set_snapshot(snapshot);
     }
 
+    pub fn set_arena_sync(&mut self, sync: Arc<ArenaSync>) {
+        self.crossing_counter.set_arena_sync(sync);
+    }
+
     pub fn count_all_crossings(&mut self, current_order: &[Vec<LNodeRef>]) -> i32 {
         if current_order.is_empty() {
             return 0;
         }
-        let trace = *TRACE_CROSSINGS_BREAKDOWN;
+        let trace = ElkTrace::global().crossings_breakdown;
         let trace_this_call = if trace {
             let _ = TRACE_CROSSINGS_CALLS.fetch_add(1, Ordering::SeqCst);
             true
@@ -166,10 +170,8 @@ fn node_names(layer: &[LNodeRef]) -> String {
     layer
         .iter()
         .map(|node| {
-            node.lock()
-                .ok()
-                .map(|mut node_guard| node_guard.to_string())
-                .unwrap_or_else(|| String::from("<poisoned-node>"))
+            let node_guard = node.lock();
+            node_guard.to_string()
         })
         .collect::<Vec<_>>()
         .join(", ")
@@ -184,10 +186,7 @@ impl IInitializable for AllCrossingsCounter {
     ) {
         let node = &node_order[layer_index][node_index];
         let node_type = node
-            .lock()
-            .ok()
-            .map(|node_guard| node_guard.node_type())
-            .unwrap_or(NodeType::Normal);
+            .lock().node_type();
         if node_type == NodeType::NorthSouthPort {
             if let Some(flag) = self.has_north_south_ports.get_mut(layer_index) {
                 *flag = true;
@@ -202,27 +201,23 @@ impl IInitializable for AllCrossingsCounter {
         port_index: usize,
         node_order: &[Vec<LNodeRef>],
     ) {
-        let port = node_order[layer_index][node_index]
-            .lock()
-            .ok()
-            .and_then(|node_guard| node_guard.ports().get(port_index).cloned());
+        let port = {
+            let node_guard = node_order[layer_index][node_index].lock();
+            node_guard.ports().get(port_index).cloned()
+        };
         let Some(port) = port else {
             return;
         };
         set_port_id(&port, self.n_ports);
         self.n_ports += 1;
 
-        let degree = port
-            .lock()
-            .ok()
-            .map(|port_guard| port_guard.outgoing_edges().len() + port_guard.incoming_edges().len())
-            .unwrap_or(0);
+        let degree = {
+            let port_guard = port.lock();
+            port_guard.outgoing_edges().len() + port_guard.incoming_edges().len()
+        };
         if degree > 1 {
             let side = port
-                .lock()
-                .ok()
-                .map(|port_guard| port_guard.side())
-                .unwrap_or(PortSide::Undefined);
+                .lock().side();
             if side == PortSide::East {
                 if let Some(flag) = self.has_hyper_edges_east_of_index.get_mut(layer_index) {
                     *flag = true;
@@ -244,27 +239,23 @@ impl IInitializable for AllCrossingsCounter {
         edge: &LEdgeRef,
         node_order: &[Vec<LNodeRef>],
     ) {
-        let port = node_order[layer_index][node_index]
-            .lock()
-            .ok()
-            .and_then(|node_guard| node_guard.ports().get(port_index).cloned());
+        let port = {
+            let node_guard = node_order[layer_index][node_index].lock();
+            node_guard.ports().get(port_index).cloned()
+        };
         let Some(port) = port else {
             return;
         };
-        let source = edge.lock().ok().and_then(|edge_guard| edge_guard.source());
+        let source = edge.lock().source();
         if let Some(source) = source {
             if Arc::ptr_eq(&source, &port) {
                 let source_layer = source
-                    .lock()
-                    .ok()
-                    .and_then(|port_guard| port_guard.node())
-                    .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.layer()));
+                    .lock().node()
+                    .and_then(|node| node.lock().layer());
                 let target_layer = edge
-                    .lock()
-                    .ok()
-                    .and_then(|edge_guard| edge_guard.target())
-                    .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
-                    .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.layer()));
+                    .lock().target()
+                    .and_then(|port| port.lock().node())
+                    .and_then(|node| node.lock().layer());
                 if let (Some(source_layer), Some(target_layer)) = (source_layer, target_layer) {
                     if Arc::ptr_eq(&source_layer, &target_layer) {
                         if let Some(count) = self.in_layer_edge_counts.get_mut(layer_index) {
@@ -289,7 +280,8 @@ impl IInitializable for AllCrossingsCounter {
 }
 
 fn set_port_id(port: &LPortRef, value: i32) {
-    if let Ok(mut port_guard) = port.lock() {
+    {
+        let mut port_guard = port.lock();
         port_guard.shape().graph_element().id = value;
     }
 }

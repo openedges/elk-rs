@@ -1,11 +1,10 @@
 use std::sync::Arc;
-use std::sync::LazyLock;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutPhase;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, IElkProgressMonitor};
 
-use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LGraphUtil};
+use crate::org::eclipse::elk::alg::layered::graph::{ArenaSync, LGraph, LGraphUtil};
 use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorStrategy;
 use crate::org::eclipse::elk::alg::layered::options::{
     GraphProperties, InternalProperties, LayeredOptions,
@@ -14,9 +13,9 @@ use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::direction::Rout
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::OrthogonalRoutingGenerator;
 use crate::org::eclipse::elk::alg::layered::p5edges::polyline_edge_router::PolylineEdgeRouter;
 use crate::org::eclipse::elk::alg::layered::LayeredPhases;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
+use std::sync::LazyLock;
 
-static TRACE_COMPOUND_WIDTH: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_COMPOUND_WIDTH").is_some());
 static DISABLE_NS: LazyLock<bool> =
     LazyLock::new(|| std::env::var("ELK_DISABLE_NS").is_ok());
 
@@ -188,17 +187,18 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
             Some("phase5".to_string()),
         );
 
+        let sync = ArenaSync::from_lgraph(layered_graph);
+
         let layers = layered_graph.layers().clone();
-        if *TRACE_COMPOUND_WIDTH {
+        if ElkTrace::global().compound_width {
             let layer_info: Vec<String> = layers.iter().enumerate().map(|(i, layer)| {
-                let node_count = layer.lock().ok().map(|g| g.nodes().len()).unwrap_or(0);
-                let nodes_str = layer.lock().ok().map(|g| {
+                let node_count = layer.lock().nodes().len();
+                let nodes_str = {
+                    let g = layer.lock();
                     g.nodes().iter().map(|n| {
-                        n.lock().ok().map(|ng| format!("{:?}",
-                            ng.node_type()
-                        )).unwrap_or("?".to_string())
+                        format!("{:?}", n.lock().node_type())
                     }).collect::<Vec<_>>().join(", ")
-                }).unwrap_or_default();
+                };
                 format!("L{}[{}]: {}", i, node_count, nodes_str)
             }).collect();
             eprintln!("[compound-width] edge_router layers={} detail: {}", layers.len(), layer_info.join(" | "));
@@ -217,11 +217,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
                 None
             };
 
-            let right_layer_nodes = right_layer.as_ref().and_then(|layer| {
-                layer
-                    .lock()
-                    .ok()
-                    .map(|layer_guard| layer_guard.nodes().clone())
+            let right_layer_nodes = right_layer.as_ref().map(|layer| {
+                layer.lock().nodes().clone()
             });
             let right_layer_index = if right_layer.is_some() {
                 layer_index as i32
@@ -231,11 +228,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
 
             if let Some(left_layer_ref) = &left_layer {
                 LGraphUtil::place_nodes_horizontally(left_layer_ref, xpos);
-                let left_width = left_layer_ref
-                    .lock()
-                    .ok()
-                    .map(|layer_guard| layer_guard.size_ref().x)
-                    .unwrap_or(0.0);
+                let left_width = left_layer_ref.lock().size_ref().x;
                 xpos = (xpos + left_width) as f32 as f64;
             }
 
@@ -253,6 +246,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
                 left_layer_index,
                 right_layer_nodes.as_deref(),
                 start_pos,
+                &sync,
             );
 
             let is_left_layer_external = match left_layer_nodes.as_deref() {
@@ -290,7 +284,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
             } else if !is_left_layer_external && !is_right_layer_external {
                 xpos = (xpos + node_node_spacing) as f32 as f64;
             }
-            if *TRACE_COMPOUND_WIDTH {
+            if ElkTrace::global().compound_width {
                 eprintln!("[compound-width] edge_router: layer_index={} xpos={} slots={} left_ext={} right_ext={}",
                     layer_index, xpos, slots_count, is_left_layer_external, is_right_layer_external);
             }
@@ -308,7 +302,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
             }
         }
 
-        if *TRACE_COMPOUND_WIDTH {
+        if ElkTrace::global().compound_width {
             eprintln!("[compound-width] edge_router: FINAL xpos={} graph_size_x={}", xpos, xpos as f32 as f64);
         }
         layered_graph.size().x = xpos as f32 as f64;
@@ -320,7 +314,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
         graph: &LGraph,
     ) -> Option<LayoutProcessorConfiguration<LayeredPhases, LGraph>> {
         let graph_properties = graph
-            .get_property_ref(InternalProperties::GRAPH_PROPERTIES)
+            .get_property(InternalProperties::GRAPH_PROPERTIES)
             .unwrap_or_else(EnumSet::none_of);
         let mut configuration = LayoutProcessorConfiguration::create();
 
@@ -331,7 +325,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for OrthogonalEdgeRouter {
 
         if graph_properties.contains(&GraphProperties::NonFreePorts)
             || graph
-                .get_property_ref(LayeredOptions::FEEDBACK_EDGES)
+                .get_property(LayeredOptions::FEEDBACK_EDGES)
                 .unwrap_or(false)
         {
             configuration.add_all(&INVERTED_PORT_PROCESSING_ADDITIONS);

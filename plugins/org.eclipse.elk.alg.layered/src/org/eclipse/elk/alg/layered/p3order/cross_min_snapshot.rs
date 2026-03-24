@@ -27,6 +27,8 @@ pub struct CrossMinSnapshot {
     node_layer: Vec<u32>,
     /// Node type
     node_type: Vec<NodeType>,
+    /// Whether node has a nested graph (cached to avoid per-node lock in distribute_ports)
+    node_has_nested_graph: Vec<bool>,
 
     // ── Node → port CSR (indexed by flat node index) ─────────────────
     /// `node_port_offset[i]..node_port_offset[i+1]` indexes into `node_port_ids`
@@ -75,6 +77,7 @@ impl CrossMinSnapshot {
         let mut node_graph_id = Vec::with_capacity(total_nodes);
         let mut node_layer = Vec::with_capacity(total_nodes);
         let mut node_type_vec = Vec::with_capacity(total_nodes);
+        let mut node_has_nested_graph = Vec::with_capacity(total_nodes);
         let mut node_port_offset = Vec::with_capacity(total_nodes + 1);
         let mut node_port_ids = Vec::with_capacity(n_ports);
         let mut node_refs_vec: Vec<LNodeRef> = Vec::with_capacity(total_nodes);
@@ -95,17 +98,20 @@ impl CrossMinSnapshot {
                 node_map.insert(node_ptr, flat_node_idx);
                 node_refs_vec.push(node_ref.clone());
 
-                if let Ok(mut node_guard) = node_ref.lock() {
+                {
+                    let mut node_guard = node_ref.lock();
                     node_graph_id.push(node_guard.shape().graph_element().id as u32);
                     node_layer.push(layer_index as u32);
                     node_type_vec.push(node_guard.node_type());
+                    node_has_nested_graph.push(node_guard.nested_graph().is_some());
 
                     node_port_offset.push(node_port_ids.len() as u32);
 
                     for port_ref in node_guard.ports() {
                         let port_ptr = Arc::as_ptr(port_ref) as usize;
 
-                        if let Ok(mut port_guard) = port_ref.lock() {
+                        {
+                            let mut port_guard = port_ref.lock();
                             let pid = port_guard.shape().graph_element().id as u32;
                             let pid_usize = pid as usize;
 
@@ -119,9 +125,11 @@ impl CrossMinSnapshot {
 
                                 // Collect incoming edge source ports
                                 for edge in port_guard.incoming_edges() {
-                                    if let Ok(edge_guard) = edge.lock() {
+                                    {
+                                        let edge_guard = edge.lock();
                                         if let Some(src_port) = edge_guard.source() {
-                                            if let Ok(mut src_guard) = src_port.lock() {
+                                            {
+                                                let mut src_guard = src_port.lock();
                                                 let src_pid =
                                                     src_guard.shape().graph_element().id as u32;
                                                 port_in_lists[pid_usize].push(src_pid);
@@ -132,9 +140,11 @@ impl CrossMinSnapshot {
 
                                 // Collect outgoing edge target ports
                                 for edge in port_guard.outgoing_edges() {
-                                    if let Ok(edge_guard) = edge.lock() {
+                                    {
+                                        let edge_guard = edge.lock();
                                         if let Some(tgt_port) = edge_guard.target() {
-                                            if let Ok(mut tgt_guard) = tgt_port.lock() {
+                                            {
+                                                let mut tgt_guard = tgt_port.lock();
                                                 let tgt_pid =
                                                     tgt_guard.shape().graph_element().id as u32;
                                                 port_out_lists[pid_usize].push(tgt_pid);
@@ -176,6 +186,7 @@ impl CrossMinSnapshot {
             node_graph_id,
             node_layer,
             node_type: node_type_vec,
+            node_has_nested_graph,
             node_port_offset,
             node_port_ids,
             node_refs: node_refs_vec,
@@ -298,6 +309,13 @@ impl CrossMinSnapshot {
         } else {
             PortSide::Undefined
         }
+    }
+
+    /// Check if a node has a nested graph (cached, no lock needed).
+    #[inline]
+    pub fn node_has_nested_graph(&self, flat_node: u32) -> bool {
+        let idx = flat_node as usize;
+        idx < self.node_has_nested_graph.len() && self.node_has_nested_graph[idx]
     }
 
     /// Get the node type for a flat node index.

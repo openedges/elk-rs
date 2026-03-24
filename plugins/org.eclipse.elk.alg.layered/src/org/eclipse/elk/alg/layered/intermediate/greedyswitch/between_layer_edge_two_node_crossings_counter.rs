@@ -218,11 +218,10 @@ impl AdjacencyList {
         for port in ports {
             let edges = edges_connected_to(&port, self.side);
             for edge in edges {
-                let (is_self_loop, is_in_layer) = edge
-                    .lock()
-                    .ok()
-                    .map(|edge_guard| (edge_guard.is_self_loop(), edge_guard.is_in_layer_edge()))
-                    .unwrap_or((false, false));
+                let (is_self_loop, is_in_layer) = {
+                    let edge_guard = edge.lock();
+                    (edge_guard.is_self_loop(), edge_guard.is_in_layer_edge())
+                };
                 if is_self_loop || is_in_layer {
                     continue;
                 }
@@ -331,26 +330,21 @@ impl Adjacency {
 }
 
 fn edges_connected_to(port: &LPortRef, side: PortSide) -> Vec<LEdgeRef> {
-    port.lock()
-        .ok()
-        .map(|port_guard| {
-            if side == PortSide::West {
-                port_guard.incoming_edges().clone()
-            } else {
-                port_guard.outgoing_edges().clone()
-            }
-        })
-        .unwrap_or_default()
+    let port_guard = port.lock();
+    if side == PortSide::West {
+        port_guard.incoming_edges().clone()
+    } else {
+        port_guard.outgoing_edges().clone()
+    }
 }
 
 fn adjacent_port_of(edge: &LEdgeRef, side: PortSide) -> Option<LPortRef> {
-    if let Ok(edge_guard) = edge.lock() {
-        if side == PortSide::West {
-            return edge_guard.source();
-        }
-        return edge_guard.target();
+    let edge_guard = edge.lock();
+    if side == PortSide::West {
+        edge_guard.source()
+    } else {
+        edge_guard.target()
     }
-    None
 }
 
 fn port_ptr_id(port: &LPortRef) -> usize {

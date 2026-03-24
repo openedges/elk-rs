@@ -4,8 +4,7 @@ use std::cmp::Ordering;
 use std::rc::{Rc, Weak};
 use std::sync::LazyLock;
 
-static TRACE_CORE_PORT_SORT: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_CORE_PORT_SORT").is_some());
+use crate::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::{MapPropertyHolder, Property};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
@@ -502,7 +501,7 @@ impl NodeAdapter<ElkNodeRef> for ElkNodeAdapter {
                 .unwrap_or(PortConstraints::Undefined)
         });
         if constraints.is_order_fixed() {
-            let trace = *TRACE_CORE_PORT_SORT;
+            let trace = ElkTrace::global().core_port_sort;
             let node_id = if trace {
                 with_node_shape_mut(&self.inner.element, |shape| {
                     shape

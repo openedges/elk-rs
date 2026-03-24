@@ -19,8 +19,7 @@ fn graph_with_layers(count: usize) -> (LGraphRef, Vec<LayerRef>) {
     let graph = LGraph::new();
     let mut layers = Vec::with_capacity(count);
     {
-        let mut graph_guard = graph.lock().expect("graph lock");
-        for _ in 0..count {
+        let mut graph_guard = graph.lock();        for _ in 0..count {
             let layer = Layer::new(&graph);
             graph_guard.layers_mut().push(layer.clone());
             layers.push(layer);
@@ -49,8 +48,7 @@ fn init_layered_metadata() {
 fn add_node(graph: &LGraphRef, layer: &LayerRef, model_order: i32) -> LNodeRef {
     let node = LNode::new(graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.set_property(InternalProperties::MODEL_ORDER, Some(model_order));
+        let mut node_guard = node.lock();        node_guard.set_property(InternalProperties::MODEL_ORDER, Some(model_order));
     }
     LNode::set_layer(&node, Some(layer.clone()));
     node
@@ -59,8 +57,7 @@ fn add_node(graph: &LGraphRef, layer: &LayerRef, model_order: i32) -> LNodeRef {
 fn add_port(node: &LNodeRef, side: PortSide) -> LPortRef {
     let port = LPort::new();
     {
-        let mut port_guard = port.lock().expect("port lock");
-        port_guard.set_side(side);
+        let mut port_guard = port.lock();        port_guard.set_side(side);
     }
     LPort::set_node(&port, Some(node.clone()));
     port
@@ -71,15 +68,14 @@ fn connect_with_model_order(source: &LPortRef, target: &LPortRef, model_order: i
     LEdge::set_source(&edge, Some(source.clone()));
     LEdge::set_target(&edge, Some(target.clone()));
     edge.lock()
-        .expect("edge lock")
+        
         .set_property(InternalProperties::MODEL_ORDER, Some(model_order));
 }
 
 fn run_sorter_direct(graph: &LGraphRef) {
     let mut processor = SortByInputModelProcessor;
     let mut monitor = NullElkProgressMonitor;
-    let mut graph_guard = graph.lock().expect("graph lock");
-    processor.process(&mut graph_guard, &mut monitor);
+    let mut graph_guard = graph.lock();    processor.process(&mut graph_guard, &mut monitor);
 }
 
 fn assert_node_order(orders: [i32; 4]) {
@@ -94,12 +90,11 @@ fn assert_node_order(orders: [i32; 4]) {
 
     run_sorter_direct(&graph);
 
-    let nodes = layer.lock().expect("layer lock").nodes().clone();
+    let nodes = layer.lock().nodes().clone();
     let mut sorted = inserted.to_vec();
     sorted.sort_by_key(|node| {
         node.lock()
-            .ok()
-            .and_then(|mut node_guard| node_guard.get_property(InternalProperties::MODEL_ORDER))
+            .get_property(InternalProperties::MODEL_ORDER)
             .unwrap_or(i32::MAX)
     });
 
@@ -121,7 +116,7 @@ fn assert_port_order(edge_orders: [i32; 3], constraints: PortConstraints) {
     let source = add_node(&graph, &source_layer, 0);
     source
         .lock()
-        .expect("source lock")
+        
         .set_property(LayeredOptions::PORT_CONSTRAINTS, Some(constraints));
     let ports = [
         add_port(&source, PortSide::East),
@@ -146,7 +141,7 @@ fn assert_port_order(edge_orders: [i32; 3], constraints: PortConstraints) {
 
     run_sorter_direct(&graph);
 
-    let sorted_ports = source.lock().expect("source lock").ports().clone();
+    let sorted_ports = source.lock().ports().clone();
     if matches!(
         constraints,
         PortConstraints::FixedOrder | PortConstraints::FixedPos
@@ -158,12 +153,10 @@ fn assert_port_order(edge_orders: [i32; 3], constraints: PortConstraints) {
         let mut expected = ports.to_vec();
         expected.sort_by_key(|port| {
             port.lock()
-                .ok()
-                .and_then(|port_guard| port_guard.outgoing_edges().first().cloned())
+                .outgoing_edges()
+                .first()
                 .and_then(|edge| {
-                    edge.lock().ok().and_then(|mut edge_guard| {
-                        edge_guard.get_property(InternalProperties::MODEL_ORDER)
-                    })
+                    edge.lock().get_property(InternalProperties::MODEL_ORDER)
                 })
                 .unwrap_or(i32::MAX)
         });

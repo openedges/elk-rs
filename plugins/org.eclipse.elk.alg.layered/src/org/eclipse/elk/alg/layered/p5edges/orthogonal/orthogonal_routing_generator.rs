@@ -1,15 +1,12 @@
 use std::collections::VecDeque;
 
 use rustc_hash::FxHashMap;
-use std::sync::LazyLock;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{IElkProgressMonitor, Random};
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
-static TRACE_ORTHO: LazyLock<bool> =
-    LazyLock::new(|| std::env::var("ELK_TRACE_ORTHO").is_ok());
-
-use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LNodeRef};
+use crate::org::eclipse::elk::alg::layered::graph::{ArenaSync, LGraph, LNodeRef};
 use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, PortType};
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::direction::base_routing_direction_strategy::RoutingDirectionStrategy;
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::direction::routing_direction::RoutingDirection;
@@ -53,6 +50,7 @@ impl OrthogonalRoutingGenerator {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn route_edges(
         &mut self,
         _monitor: &mut dyn IElkProgressMonitor,
@@ -61,6 +59,7 @@ impl OrthogonalRoutingGenerator {
         _source_layer_index: i32,
         target_layer_nodes: Option<&[LNodeRef]>,
         start_pos: f64,
+        sync: &ArenaSync,
     ) -> i32 {
         let mut port_to_segment_map: FxHashMap<usize, HyperEdgeSegmentRef> = FxHashMap::default();
         let mut edge_segments: Vec<HyperEdgeSegmentRef> = Vec::new();
@@ -70,12 +69,14 @@ impl OrthogonalRoutingGenerator {
             self.routing_strategy.get_source_port_side(),
             &mut edge_segments,
             &mut port_to_segment_map,
+            sync,
         );
         self.create_hyper_edge_segments(
             target_layer_nodes,
             self.routing_strategy.get_target_port_side(),
             &mut edge_segments,
             &mut port_to_segment_map,
+            sync,
         );
         self.trace_segments("initial", &edge_segments);
 
@@ -119,6 +120,7 @@ impl OrthogonalRoutingGenerator {
                 &segment_guard,
                 start_pos,
                 self.edge_spacing,
+                sync,
             );
         }
 
@@ -127,7 +129,7 @@ impl OrthogonalRoutingGenerator {
     }
 
     fn trace_segments(&self, label: &str, edge_segments: &[HyperEdgeSegmentRef]) {
-        if !*TRACE_ORTHO {
+        if !ElkTrace::global().ortho {
             return;
         }
 
@@ -145,19 +147,14 @@ impl OrthogonalRoutingGenerator {
                 .ports()
                 .iter()
                 .map(|port| {
-                    if let Ok(port_guard) = port.lock() {
+                    {
+                        let port_guard = port.lock();
                         let node_name = port_guard
                             .node()
-                            .and_then(|node| {
-                                node.lock()
-                                    .ok()
-                                    .map(|mut node_guard| node_guard.designation())
-                            })
+                            .map(|node| node.lock().designation())
                             .unwrap_or_else(|| "?".to_string());
                         let anchor = port_guard.absolute_anchor().map(|a| a.y).unwrap_or(0.0);
                         format!("{}:{:?}@{:.1}", node_name, port_guard.side(), anchor)
-                    } else {
-                        "?".to_string()
                     }
                 })
                 .collect::<Vec<_>>()
@@ -183,16 +180,13 @@ impl OrthogonalRoutingGenerator {
         port_side: PortSide,
         hyper_edges: &mut Vec<HyperEdgeSegmentRef>,
         port_map: &mut FxHashMap<usize, HyperEdgeSegmentRef>,
+        sync: &ArenaSync,
     ) {
         if let Some(nodes) = nodes {
             for node in nodes {
                 let ports = node
                     .lock()
-                    .ok()
-                    .map(|node_guard| {
-                        node_guard.ports_by_type_and_side(PortType::Output, port_side)
-                    })
-                    .unwrap_or_default();
+                    .ports_by_type_and_side(PortType::Output, port_side);
                 for port in ports {
                     let key = port_key(&port);
                     let entry = port_map.get(&key).cloned();
@@ -204,7 +198,7 @@ impl OrthogonalRoutingGenerator {
                         segment
                     };
                     if !port_map.contains_key(&key) {
-                        HyperEdgeSegment::add_port_positions(&segment, &port, port_map);
+                        HyperEdgeSegment::add_port_positions(&segment, &port, port_map, sync);
                     }
                 }
             }

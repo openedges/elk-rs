@@ -44,10 +44,12 @@ impl Dependency {
             target: target.clone(),
             weight,
         }));
-        if let Ok(mut source_guard) = source.lock() {
+        {
+            let mut source_guard = source.lock();
             source_guard.outgoing.push(dependency.clone());
         }
-        if let Ok(mut target_guard) = target.lock() {
+        {
+            let mut target_guard = target.lock();
             target_guard.incoming.push(dependency.clone());
         }
         dependency
@@ -100,10 +102,9 @@ impl SplineSegment {
             let side = pair.first;
             let edge = pair.second.clone();
             let target_port = {
-                let edge_guard = edge.lock().ok();
-                let edge_guard = edge_guard.as_ref();
-                let source_port = edge_guard.and_then(|edge| edge.source());
-                let target_port = edge_guard.and_then(|edge| edge.target());
+                let edge_guard = edge.lock();
+                let source_port = edge_guard.source();
+                let target_port = edge_guard.target();
                 if let (Some(source_port), Some(target_port)) = (source_port, target_port) {
                     if Arc::ptr_eq(&source_port, single_port) {
                         target_port
@@ -147,11 +148,10 @@ impl SplineSegment {
     ) -> SplineSegmentRef {
         let mut segment = SplineSegment::empty();
         let (source_port, target_port) = {
-            let edge_guard = edge.lock().ok();
-            let edge_guard = edge_guard.as_ref();
+            let edge_guard = edge.lock();
             (
-                edge_guard.and_then(|edge| edge.source()),
-                edge_guard.and_then(|edge| edge.target()),
+                edge_guard.source(),
+                edge_guard.target(),
             )
         };
         if let (Some(source_port), Some(target_port)) = (source_port, target_port) {
@@ -229,11 +229,10 @@ impl SplineSegment {
         let mut info = EdgeInformation::default();
 
         let (source_port, target_port) = {
-            let edge_guard = edge.lock().ok();
-            let edge_guard = edge_guard.as_ref();
+            let edge_guard = edge.lock();
             (
-                edge_guard.and_then(|edge| edge.source()),
-                edge_guard.and_then(|edge| edge.target()),
+                edge_guard.source(),
+                edge_guard.target(),
             )
         };
 
@@ -242,43 +241,27 @@ impl SplineSegment {
             info.end_y = Self::anchor_y(&target_port);
 
             let source_node = source_port
-                .lock()
-                .ok()
-                .and_then(|port_guard| port_guard.node());
+                .lock().node();
             let target_node = target_port
-                .lock()
-                .ok()
-                .and_then(|port_guard| port_guard.node());
+                .lock().node();
             info.normal_source_node = source_node
                 .as_ref()
-                .and_then(|node| node.lock().ok())
-                .map(|node_guard| SplineEdgeRouter::is_normal_node(&node_guard))
+                .map(|node| SplineEdgeRouter::is_normal_node(&node.lock()))
                 .unwrap_or(false);
             info.normal_target_node = target_node
                 .as_ref()
-                .and_then(|node| node.lock().ok())
-                .map(|node_guard| SplineEdgeRouter::is_normal_node(&node_guard))
+                .map(|node| SplineEdgeRouter::is_normal_node(&node.lock()))
                 .unwrap_or(false);
 
-            info.inverted_left = source_port
-                .lock()
-                .ok()
-                .map(|port_guard| port_guard.side() == PortSide::West)
-                .unwrap_or(false);
-            info.inverted_right = target_port
-                .lock()
-                .ok()
-                .map(|port_guard| port_guard.side() == PortSide::East)
-                .unwrap_or(false);
+            info.inverted_left = source_port.lock().side() == PortSide::West;
+            info.inverted_right = target_port.lock().side() == PortSide::East;
         }
 
         self.edge_information.insert(edge_key(edge), info);
     }
 
     fn anchor_y(port: &LPortRef) -> f64 {
-        let Ok(mut port_guard) = port.lock() else {
-            return 0.0;
-        };
+        let port_guard = port.lock();
         let side = port_guard.side();
         if SIDES_NORTH_SOUTH.contains(&side) {
             port_guard

@@ -14,7 +14,7 @@ fn graph_with_layer() -> (LGraphRef, Arc<Mutex<Layer>>) {
     let layer = Layer::new(&graph);
     graph
         .lock()
-        .expect("graph lock")
+        
         .layers_mut()
         .push(layer.clone());
     (graph, layer)
@@ -37,7 +37,7 @@ fn connect(source: &LPortRef, target: &LPortRef, reversed: bool) -> LEdgeRef {
     LEdge::set_source(&edge, Some(source.clone()));
     LEdge::set_target(&edge, Some(target.clone()));
     edge.lock()
-        .expect("edge lock")
+        
         .set_property(InternalProperties::REVERSED, Some(reversed));
     edge
 }
@@ -45,8 +45,7 @@ fn connect(source: &LPortRef, target: &LPortRef, reversed: bool) -> LEdgeRef {
 fn run_direct(graph: &LGraphRef) {
     let mut processor = ReversedEdgeRestorer;
     let mut monitor = NullElkProgressMonitor;
-    let mut graph_guard = graph.lock().expect("graph lock");
-    processor.process(&mut graph_guard, &mut monitor);
+    let mut graph_guard = graph.lock();    processor.process(&mut graph_guard, &mut monitor);
 }
 
 #[test]
@@ -60,11 +59,11 @@ fn reversed_edge_restorer_reverses_marked_edge_direction() {
 
     run_direct(&graph);
 
-    let source = edge.lock().expect("edge lock").source().expect("source");
-    let target = edge.lock().expect("edge lock").target().expect("target");
+    let source = edge.lock().source().expect("source");
+    let target = edge.lock().target().expect("target");
     let reversed = edge
         .lock()
-        .expect("edge lock")
+        
         .get_property(InternalProperties::REVERSED)
         .unwrap_or(true);
     assert!(Arc::ptr_eq(&source, &target_port));

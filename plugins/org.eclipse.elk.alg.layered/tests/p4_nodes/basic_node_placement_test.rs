@@ -147,13 +147,14 @@ fn import_lgraph(
 fn assert_layer_node_positions_increasing(
     lgraph: &org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LGraphRef,
 ) {
-    let layers = lgraph.lock().expect("lgraph lock").layers().clone();
+    let layers = lgraph.lock().layers().clone();
 
     for layer in layers {
-        let nodes = layer.lock().expect("layer lock").nodes().clone();
+        let nodes = layer.lock().nodes().clone();
         let mut last_bottom = None;
         for node in nodes {
-            if let Ok(mut node_guard) = node.lock() {
+            {
+                let mut node_guard = node.lock();
                 let pos = node_guard.shape().position_ref().y;
                 let size = node_guard.shape().size_ref().y;
                 if let Some(last) = last_bottom {

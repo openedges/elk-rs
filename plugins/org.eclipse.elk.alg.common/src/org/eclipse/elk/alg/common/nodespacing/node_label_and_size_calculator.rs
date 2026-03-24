@@ -8,13 +8,10 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::{
 use org_eclipse_elk_core::org::eclipse::elk::core::util::adapters::{
     GraphElementAdapter, LabelAdapter, NodeAdapter, PortAdapter,
 };
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::ElkUtil;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, IndividualSpacings};
 
-static TRACE_SIZING_LABELS: LazyLock<bool> =
-    LazyLock::new(|| std::env::var("ELK_TRACE_SIZING_LABELS").is_ok());
-static TRACE_SIZING: LazyLock<bool> =
-    LazyLock::new(|| std::env::var("ELK_TRACE_SIZING").is_ok());
 static DEBUG_NODE_LABEL_PADDING: LazyLock<bool> =
     LazyLock::new(|| std::env::var("DEBUG_NODE_LABEL_PADDING").is_ok());
 /// Type-erased label wrapper. Stores any label that implements GraphElementAdapter
@@ -1340,11 +1337,11 @@ impl NodeLabelAndSizeCalculator {
         N::Label: 'static,
         N::LabelAdapter: 'static,
     {
-        let trace_labels = *TRACE_SIZING_LABELS;
+        let trace_labels = ElkTrace::global().sizing_labels;
         let size_constraints = node
             .get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)
             .unwrap_or_default();
-        if *TRACE_SIZING {
+        if ElkTrace::global().sizing {
             let label_count = node.get_labels().len();
             let sz = node.get_size();
             eprintln!("TRACE process_node: labels={} size=({},{}) size_constraints={:?} compound={}",

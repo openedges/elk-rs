@@ -17,7 +17,7 @@ fn graph_with_single_layer() -> (LGraphRef, Arc<Mutex<Layer>>) {
     let layer = Layer::new(&graph);
     graph
         .lock()
-        .expect("graph lock")
+        
         .layers_mut()
         .push(layer.clone());
     (graph, layer)
@@ -48,7 +48,7 @@ fn connect(
 #[test]
 fn test_removed_nodes() {
     let (graph, layer) = graph_with_single_layer();
-    graph.lock().expect("graph lock").set_property(
+    graph.lock().set_property(
         LayeredOptions::EDGE_LABELS_SIDE_SELECTION,
         Some(EdgeLabelSideSelection::AlwaysUp),
     );
@@ -61,17 +61,17 @@ fn test_removed_nodes() {
 
     let label = Arc::new(Mutex::new(LLabel::with_text("edge-label")));
     edge.lock()
-        .expect("edge lock")
+        
         .labels_mut()
         .push(label.clone());
 
     let mut selector = LabelSideSelector;
     let mut monitor = NullElkProgressMonitor;
-    selector.process(&mut graph.lock().expect("graph lock"), &mut monitor);
+    selector.process(&mut graph.lock(), &mut monitor);
 
     let side = label
         .lock()
-        .expect("label lock")
+        
         .get_property(InternalProperties::LABEL_SIDE)
         .unwrap_or(LabelSide::Unknown);
     assert_ne!(side, LabelSide::Unknown);

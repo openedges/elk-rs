@@ -249,7 +249,7 @@ pub fn layout_json(graph_json: &str, options_json: &str) -> Result<String, Strin
     }));
 
     match result {
-        Ok(inner) => inner,
+            Ok(inner) => inner,
         Err(payload) => {
             let msg = panic_payload_to_string(&*payload);
             // If the panic message already contains an ELK exception class name,

@@ -130,8 +130,7 @@ impl IGraphLayoutEngine for RadialLayoutProvider {
                 progress_monitor.log_graph(layout_graph, &tag);
             }
             let mut sub = progress_monitor.sub_task(1.0);
-            let mut processor_guard = processor.lock().expect("processor lock");
-            processor_guard.process(&mut graph_ref, sub.as_mut());
+            let mut processor_guard = processor.lock();            processor_guard.process(&mut graph_ref, sub.as_mut());
         }
 
         if progress_monitor.is_logging_enabled() {

@@ -75,7 +75,8 @@ impl SelfHyperLoop {
 
     pub fn add_self_loop_edge(sl_loop: &SelfHyperLoopRef, sl_edge: &SelfLoopEdgeRef) {
         {
-            if let Ok(loop_guard) = sl_loop.lock() {
+            {
+                let loop_guard = sl_loop.lock();
                 if loop_guard
                     .sl_edges
                     .iter()
@@ -86,29 +87,24 @@ impl SelfHyperLoop {
             }
         }
 
-        if let Ok(mut edge_guard) = sl_edge.lock() {
+        {
+            let mut edge_guard = sl_edge.lock();
             edge_guard.set_sl_hyper_loop(sl_loop);
         }
 
-        if let Ok(mut loop_guard) = sl_loop.lock() {
+        {
+            let mut loop_guard = sl_loop.lock();
             loop_guard.sl_edges.push(sl_edge.clone());
 
-            let (sl_source, sl_target, edge_labels) = sl_edge
-                .lock()
-                .ok()
-                .map(|edge_guard| {
-                    (
-                        edge_guard.sl_source().clone(),
-                        edge_guard.sl_target().clone(),
-                        edge_guard
-                            .l_edge()
-                            .lock()
-                            .ok()
-                            .map(|edge| edge.labels().clone())
-                            .unwrap_or_default(),
-                    )
-                })
-                .unwrap_or_else(|| panic!("self loop edge lock poisoned"));
+            let (sl_source, sl_target, l_edge) = {
+                let edge_guard = sl_edge.lock();
+                (
+                    edge_guard.sl_source().clone(),
+                    edge_guard.sl_target().clone(),
+                    edge_guard.l_edge().clone(),
+                )
+            };
+            let edge_labels = l_edge.lock().labels().clone();
 
             if !loop_guard
                 .sl_ports
@@ -231,30 +227,16 @@ impl SelfHyperLoop {
     pub fn port_id(sl_port: &SelfLoopPortRef) -> i32 {
         sl_port
             .lock()
-            .ok()
-            .and_then(|port_guard| {
-                port_guard
-                    .l_port()
-                    .lock()
-                    .ok()
-                    .map(|mut l_port_guard| l_port_guard.shape().graph_element().id)
-            })
-            .unwrap_or(i32::MAX)
+            .l_port()
+            .lock()
+            .shape()
+            .graph_element()
+            .id
     }
 }
 
 fn sl_port_side(sl_port: &SelfLoopPortRef) -> PortSide {
-    sl_port
-        .lock()
-        .ok()
-        .and_then(|port_guard| {
-            port_guard
-                .l_port()
-                .lock()
-                .ok()
-                .map(|l_port_guard| l_port_guard.side())
-        })
-        .unwrap_or(PortSide::Undefined)
+    sl_port.lock().l_port().lock().side()
 }
 
 fn side_index(side: PortSide) -> usize {

@@ -49,20 +49,18 @@ fn label_and_node_size_processor_applies_port_offsets() {
     let mut layered = ElkLayered::new();
     layered.do_layout(&lgraph, None);
 
-    let layers = lgraph.lock().expect("lgraph lock").layers().clone();
+    let layers = lgraph.lock().layers().clone();
     for layer in layers {
-        let nodes = layer.lock().expect("layer lock").nodes().clone();
+        let nodes = layer.lock().nodes().clone();
         for node in nodes {
             let (node_w, node_h) = {
-                let mut node_guard = node.lock().expect("node lock");
-                let size = node_guard.shape().size_ref();
+                let mut node_guard = node.lock();                let size = node_guard.shape().size_ref();
                 (size.x, size.y)
             };
-            let ports = node.lock().expect("node lock").ports().clone();
+            let ports = node.lock().ports().clone();
             for port in ports {
                 let (side, pos_x, pos_y, port_w, port_h) = {
-                    let mut port_guard = port.lock().expect("port lock");
-                    let side = port_guard.side();
+                    let mut port_guard = port.lock();                    let side = port_guard.side();
                     let shape = port_guard.shape();
                     let pos_x = shape.position_ref().x;
                     let pos_y = shape.position_ref().y;

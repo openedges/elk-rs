@@ -1,65 +1,50 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LNodeRef, LPortRef, NodeType};
+use crate::org::eclipse::elk::alg::layered::graph::{
+    ArenaSync, LEdgeRef, LNodeRef, LPortRef, NodeType,
+};
 
 use super::aligned_layout::BKAlignedLayout;
 
 pub(crate) fn node_id(node: &LNodeRef) -> usize {
-    node.lock()
-        .ok()
-        .map(|mut node_guard| node_guard.shape().graph_element().id as usize)
-        .unwrap_or(0)
+    node.lock().shape().graph_element().id as usize
 }
 
 pub(crate) fn node_type(node: &LNodeRef) -> NodeType {
-    node.lock()
-        .ok()
-        .map(|node_guard| node_guard.node_type())
-        .unwrap_or(NodeType::Normal)
+    node.lock().node_type()
 }
 
-pub(crate) fn node_margin_top(node: &LNodeRef) -> f64 {
-    node.lock()
-        .ok()
-        .map(|mut node_guard| node_guard.margin().top)
-        .unwrap_or(0.0)
+/// Arena-based node margin top (lock-free).
+pub(crate) fn node_margin_top_a(sync: &ArenaSync, node: &LNodeRef) -> f64 {
+    sync.arena().node_margin(sync.node_id(node).unwrap()).top
 }
 
-pub(crate) fn node_margin_bottom(node: &LNodeRef) -> f64 {
-    node.lock()
-        .ok()
-        .map(|mut node_guard| node_guard.margin().bottom)
-        .unwrap_or(0.0)
+/// Arena-based node margin bottom (lock-free).
+pub(crate) fn node_margin_bottom_a(sync: &ArenaSync, node: &LNodeRef) -> f64 {
+    sync.arena().node_margin(sync.node_id(node).unwrap()).bottom
 }
 
-pub(crate) fn node_size_y(node: &LNodeRef) -> f64 {
-    node.lock()
-        .ok()
-        .map(|mut node_guard| node_guard.shape().size_ref().y)
-        .unwrap_or(0.0)
+/// Arena-based node size y (lock-free).
+pub(crate) fn node_size_y_a(sync: &ArenaSync, node: &LNodeRef) -> f64 {
+    sync.arena().node_size(sync.node_id(node).unwrap()).y
 }
 
 pub(crate) fn node_to_string(node: &LNodeRef) -> String {
-    node.lock()
-        .ok()
-        .map(|mut node_guard| node_guard.to_string())
-        .unwrap_or_else(|| "n_".to_string())
+    node.lock().to_string()
 }
 
-pub(crate) fn port_offset_y(port: &LPortRef) -> f64 {
-    port.lock()
-        .ok()
-        .map(|mut port_guard| port_guard.shape().position_ref().y + port_guard.anchor_ref().y)
-        .unwrap_or(0.0)
+/// Arena-based port offset y (lock-free).
+pub(crate) fn port_offset_y_a(sync: &ArenaSync, port: &LPortRef) -> f64 {
+    let pid = sync.port_id(port).unwrap();
+    sync.arena().port_pos(pid).y + sync.arena().port_anchor(pid).y
 }
 
-pub(crate) fn port_node_id(port: &LPortRef) -> usize {
-    port.lock()
-        .ok()
-        .and_then(|port_guard| port_guard.node())
-        .map(|node| node_id(&node))
-        .unwrap_or(0)
+/// Arena-based port node id (lock-free).
+pub(crate) fn port_node_id_a(sync: &ArenaSync, port: &LPortRef) -> usize {
+    let pid = sync.port_id(port).unwrap();
+    let nid = sync.arena().port_owner(pid);
+    sync.arena().node_element_id(nid) as usize
 }
 
 pub(crate) fn edge_key(edge: &LEdgeRef) -> usize {
@@ -68,19 +53,16 @@ pub(crate) fn edge_key(edge: &LEdgeRef) -> usize {
 
 pub(crate) fn edge_between(source: &LNodeRef, target: &LNodeRef) -> Option<LEdgeRef> {
     fn edge_matches(edge: &LEdgeRef, source_id: usize, target_id: usize) -> bool {
-        let (src_node, tgt_node) = edge
-            .lock()
-            .ok()
-            .map(|edge_guard| {
-                let src = edge_guard
-                    .source()
-                    .and_then(|port| port.lock().ok().and_then(|port| port.node()));
-                let tgt = edge_guard
-                    .target()
-                    .and_then(|port| port.lock().ok().and_then(|port| port.node()));
-                (src, tgt)
-            })
-            .unwrap_or((None, None));
+        let (src_node, tgt_node) = {
+            let edge_guard = edge.lock();
+            let src = edge_guard
+                .source()
+                .and_then(|port| port.lock().node());
+            let tgt = edge_guard
+                .target()
+                .and_then(|port| port.lock().node());
+            (src, tgt)
+        };
         if let (Some(src_node), Some(tgt_node)) = (src_node, tgt_node) {
             let src_id = node_id(&src_node);
             let tgt_id = node_id(&tgt_node);
@@ -94,10 +76,7 @@ pub(crate) fn edge_between(source: &LNodeRef, target: &LNodeRef) -> Option<LEdge
     let target_id = node_id(target);
 
     let source_edges = source
-        .lock()
-        .ok()
-        .map(|node_guard| node_guard.connected_edges())
-        .unwrap_or_default();
+        .lock().connected_edges();
     if let Some(edge) = source_edges
         .into_iter()
         .find(|edge| edge_matches(edge, source_id, target_id))
@@ -106,10 +85,7 @@ pub(crate) fn edge_between(source: &LNodeRef, target: &LNodeRef) -> Option<LEdge
     }
 
     let target_edges = target
-        .lock()
-        .ok()
-        .map(|node_guard| node_guard.connected_edges())
-        .unwrap_or_default();
+        .lock().connected_edges();
     target_edges
         .into_iter()
         .find(|edge| edge_matches(edge, source_id, target_id))
@@ -120,10 +96,7 @@ pub(crate) fn get_blocks(bal: &BKAlignedLayout) -> BTreeMap<usize, Vec<LNodeRef>
 
     for layer in &bal.layers {
         let nodes = layer
-            .lock()
-            .ok()
-            .map(|layer_guard| layer_guard.nodes().clone())
-            .unwrap_or_default();
+            .lock().nodes().clone();
         for node in nodes {
             let id = node_id(&node);
             let root_id = bal.root[id];

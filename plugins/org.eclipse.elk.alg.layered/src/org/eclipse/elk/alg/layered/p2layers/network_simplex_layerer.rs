@@ -66,7 +66,8 @@ impl NetworkSimplexLayerer {
             FxHashMap::with_capacity_and_hasher(num_nodes, Default::default());
         for (index, node) in nodes.iter().enumerate() {
             ptr_to_idx.insert(Arc::as_ptr(node) as usize, index);
-            if let Ok(mut node_guard) = node.lock() {
+            {
+                let mut node_guard = node.lock();
                 node_guard.shape().graph_element().id = index as i32;
             }
         }
@@ -74,36 +75,38 @@ impl NetworkSimplexLayerer {
         // Pre-build adjacency list — one lock chain per node, then DFS is lock-free
         let mut adjacency: Vec<Vec<usize>> = vec![Vec::new(); num_nodes];
         for (i, node) in nodes.iter().enumerate() {
-            if let Ok(node_guard) = node.lock() {
-                for port in node_guard.ports() {
-                    if let Ok(port_guard) = port.lock() {
-                        for edge in port_guard.incoming_edges() {
-                            if let Some(src_node) = edge
-                                .lock()
-                                .ok()
-                                .and_then(|e| e.source())
-                                .and_then(|p| p.lock().ok().and_then(|pg| pg.node()))
-                            {
-                                if let Some(&j) =
-                                    ptr_to_idx.get(&(Arc::as_ptr(&src_node) as usize))
-                                {
-                                    adjacency[i].push(j);
-                                }
-                            }
+            let node_guard = node.lock();
+            for port in node_guard.ports() {
+                let port_guard = port.lock();
+                for edge in port_guard.incoming_edges() {
+                    let src_node = {
+                        let e = edge.lock();
+                        e.source().and_then(|p| {
+                            let pg = p.lock();
+                            pg.node()
+                        })
+                    };
+                    if let Some(src_node) = src_node {
+                        if let Some(&j) =
+                            ptr_to_idx.get(&(Arc::as_ptr(&src_node) as usize))
+                        {
+                            adjacency[i].push(j);
                         }
-                        for edge in port_guard.outgoing_edges() {
-                            if let Some(tgt_node) = edge
-                                .lock()
-                                .ok()
-                                .and_then(|e| e.target())
-                                .and_then(|p| p.lock().ok().and_then(|pg| pg.node()))
-                            {
-                                if let Some(&j) =
-                                    ptr_to_idx.get(&(Arc::as_ptr(&tgt_node) as usize))
-                                {
-                                    adjacency[i].push(j);
-                                }
-                            }
+                    }
+                }
+                for edge in port_guard.outgoing_edges() {
+                    let tgt_node = {
+                        let e = edge.lock();
+                        e.target().and_then(|p| {
+                            let pg = p.lock();
+                            pg.node()
+                        })
+                    };
+                    if let Some(tgt_node) = tgt_node {
+                        if let Some(&j) =
+                            ptr_to_idx.get(&(Arc::as_ptr(&tgt_node) as usize))
+                        {
+                            adjacency[i].push(j);
                         }
                     }
                 }
@@ -163,28 +166,32 @@ impl NetworkSimplexLayerer {
         }
 
         for node in nodes {
-            let outgoing = match node.lock() {
-                Ok(node_guard) => node_guard.outgoing_edges(),
-                Err(_) => Vec::new(),
+            let outgoing = {
+                let node_guard = node.lock();
+                node_guard.outgoing_edges()
             };
             for edge in outgoing {
-                let is_self_loop = edge
-                    .lock()
-                    .map(|edge_guard| edge_guard.is_self_loop())
-                    .unwrap_or(false);
+                let is_self_loop = {
+                    let edge_guard = edge.lock();
+                    edge_guard.is_self_loop()
+                };
                 if is_self_loop {
                     continue;
                 }
-                let source_node = edge
-                    .lock()
-                    .ok()
-                    .and_then(|edge_guard| edge_guard.source())
-                    .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
-                let target_node = edge
-                    .lock()
-                    .ok()
-                    .and_then(|edge_guard| edge_guard.target())
-                    .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                let source_node = {
+                    let edge_guard = edge.lock();
+                    edge_guard.source().and_then(|port| {
+                        let port_guard = port.lock();
+                        port_guard.node()
+                    })
+                };
+                let target_node = {
+                    let edge_guard = edge.lock();
+                    edge_guard.target().and_then(|port| {
+                        let port_guard = port.lock();
+                        port_guard.node()
+                    })
+                };
                 let (Some(source_node), Some(target_node)) = (source_node, target_node) else {
                     continue;
                 };
@@ -197,19 +204,14 @@ impl NetworkSimplexLayerer {
                     None => continue,
                 };
 
-                let (priority, ignore) = edge
-                    .lock()
-                    .ok()
-                    .map(|mut edge_guard| {
-                        let p = edge_guard
-                            .get_property(LayeredOptions::PRIORITY_SHORTNESS)
-                            .unwrap_or(1);
-                        let ig = edge_guard
-                            .get_property(LayeredOptions::LAYERING_IGNORE_EDGE_IN_LAYER)
-                            .unwrap_or(false);
-                        (p, ig)
-                    })
-                    .unwrap_or((1, false));
+                let (priority, ignore) = {
+                    let edge_guard = edge.lock();
+                    let p = edge_guard.get_property(LayeredOptions::PRIORITY_SHORTNESS)
+                        .unwrap_or(1);
+                    let ig = edge_guard.get_property(LayeredOptions::LAYERING_IGNORE_EDGE_IN_LAYER)
+                        .unwrap_or(false);
+                    (p, ig)
+                };
                 let weight = (priority.max(1)) as f64;
                 let delta = if ignore { 0 } else { 1 };
                 let origin: Arc<dyn std::any::Any + Send + Sync> = Arc::new(edge.clone());
@@ -263,9 +265,9 @@ impl ILayoutPhase<LayeredPhases, LGraph> for NetworkSimplexLayerer {
             simplex.execute_with_monitor(sub_monitor.as_mut());
 
             for nnode in &graph.nodes {
-                let (layer, origin) = match nnode.lock() {
-                    Ok(node_guard) => (node_guard.layer, node_guard.origin.clone()),
-                    Err(_) => continue,
+                let (layer, origin) = {
+                    let node_guard = nnode.lock();
+                    (node_guard.layer, node_guard.origin.clone())
                 };
                 let Some(origin) = origin else {
                     continue;
@@ -275,11 +277,10 @@ impl ILayoutPhase<LayeredPhases, LGraph> for NetworkSimplexLayerer {
                 };
 
                 while layered_graph.layers().len() <= layer as usize {
-                    let graph_ref = l_node
-                        .lock()
-                        .ok()
-                        .and_then(|node_guard| node_guard.graph())
-                        .unwrap_or_default();
+                    let graph_ref = {
+                        let node_guard = l_node.lock();
+                        node_guard.graph()
+                    }.unwrap_or_default();
                     layered_graph.layers_mut().push(Layer::new(&graph_ref));
                 }
 
@@ -294,9 +295,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for NetworkSimplexLayerer {
             if connected_components.len() > 1 {
                 let mut counts = vec![0i32; layered_graph.layers().len()];
                 for (layer_idx, layer) in layered_graph.layers().iter().enumerate() {
-                    if let Ok(layer_guard) = layer.lock() {
-                        counts[layer_idx] = layer_guard.nodes().len() as i32;
-                    }
+                    let layer_guard = layer.lock();
+                    counts[layer_idx] = layer_guard.nodes().len() as i32;
                 }
                 previous_layering_node_counts = Some(counts);
             }
@@ -310,54 +310,39 @@ impl ILayoutPhase<LayeredPhases, LGraph> for NetworkSimplexLayerer {
         let dummy_graph = LGraph::new();
         let mut edges_to_reverse = Vec::new();
         for layer in layered_graph.layers() {
-            if let Ok(layer_guard) = layer.lock() {
+            {
+                let layer_guard = layer.lock();
                 for node in layer_guard.nodes() {
-                    if let Ok(node_guard) = node.lock() {
-                        for port in node_guard.ports() {
-                            let port_guard = match port.lock() {
-                                Ok(pg) => pg,
-                                Err(_) => continue,
-                            };
-                            if port_guard.side() != PortSide::East {
-                                continue;
-                            }
-                            for edge in port_guard.outgoing_edges() {
-                                let should_reverse = edge
-                                    .lock()
-                                    .ok()
-                                    .map(|mut eg| {
-                                        let ignore = eg
-                                            .get_property(
-                                                LayeredOptions::LAYERING_IGNORE_EDGE_IN_LAYER,
-                                            )
-                                            .unwrap_or(false);
-                                        let reversed = eg
-                                            .get_property(InternalProperties::REVERSED)
-                                            .unwrap_or(false);
-                                        let target_side = eg
-                                            .target()
-                                            .and_then(|p| p.lock().ok().map(|pg| pg.side()))
-                                            .unwrap_or(PortSide::Undefined);
-                                        let same_layer = eg
-                                            .target()
-                                            .and_then(|p| {
-                                                p.lock().ok().and_then(|pg| {
-                                                    pg.node().and_then(|tn| {
-                                                        tn.lock().ok().and_then(|tng| tng.layer())
-                                                    })
-                                                })
-                                            })
-                                            .map(|tl| Arc::ptr_eq(&tl, layer))
-                                            .unwrap_or(false);
-                                        ignore
-                                            && !reversed
-                                            && same_layer
-                                            && target_side == PortSide::West
-                                    })
+                    let node_guard = node.lock();
+                    for port in node_guard.ports() {
+                        let port_guard = port.lock();
+                        if port_guard.side() != PortSide::East {
+                            continue;
+                        }
+                        for edge in port_guard.outgoing_edges() {
+                            let should_reverse = {
+                                let eg = edge.lock();
+                                let ignore = eg
+                                    .get_property(LayeredOptions::LAYERING_IGNORE_EDGE_IN_LAYER)
                                     .unwrap_or(false);
-                                if should_reverse {
-                                    edges_to_reverse.push(edge.clone());
-                                }
+                                let reversed = eg
+                                    .get_property(InternalProperties::REVERSED)
+                                    .unwrap_or(false);
+                                let target_side = eg
+                                    .target()
+                                    .map(|p| p.lock().side())
+                                    .unwrap_or(PortSide::Undefined);
+                                let same_layer = eg
+                                    .target()
+                                    .and_then(|p| {
+                                        p.lock().node().and_then(|tn| tn.lock().layer())
+                                    })
+                                    .map(|tl| Arc::ptr_eq(&tl, layer))
+                                    .unwrap_or(false);
+                                ignore && !reversed && same_layer && target_side == PortSide::West
+                            };
+                            if should_reverse {
+                                edges_to_reverse.push(edge.clone());
                             }
                         }
                     }

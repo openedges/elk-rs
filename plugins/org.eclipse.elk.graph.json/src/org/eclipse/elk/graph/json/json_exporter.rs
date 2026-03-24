@@ -344,16 +344,16 @@ impl JsonExporter {
             if key == CoreOptions::SPACING_INDIVIDUAL.id() {
                 continue;
             }
-            if self.omit_unknown_layout_options && !is_known_option(key) {
+            if self.omit_unknown_layout_options && !is_known_option(key.as_str()) {
                 continue;
             }
             let out_key = if self.short_layout_option_keys {
-                short_option_key(key)
+                short_option_key(key.as_str())
             } else {
                 key.to_string()
             };
             let value_str =
-                property_value_to_string(key, value).unwrap_or_else(|| "<value>".to_string());
+                property_value_to_string(key.as_str(), value).unwrap_or_else(|| "<value>".to_string());
             json_props.insert(out_key, Value::String(value_str));
         }
 
@@ -375,16 +375,16 @@ impl JsonExporter {
         }
         let mut json_props = Map::new();
         for (key, value) in individual.properties().get_all_properties() {
-            if self.omit_unknown_layout_options && !is_known_option(key) {
+            if self.omit_unknown_layout_options && !is_known_option(key.as_str()) {
                 continue;
             }
             let out_key = if self.short_layout_option_keys {
-                short_option_key(key)
+                short_option_key(key.as_str())
             } else {
                 key.to_string()
             };
             let value_str =
-                property_value_to_string(key, value).unwrap_or_else(|| "<value>".to_string());
+                property_value_to_string(key.as_str(), value).unwrap_or_else(|| "<value>".to_string());
             json_props.insert(out_key, Value::String(value_str));
         }
         if !json_props.is_empty() {

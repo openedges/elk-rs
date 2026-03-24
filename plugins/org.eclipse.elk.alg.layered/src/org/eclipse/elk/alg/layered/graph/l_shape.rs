@@ -22,6 +22,10 @@ impl LShape {
         &mut self.element
     }
 
+    pub fn graph_element_ref(&self) -> &LGraphElement {
+        &self.element
+    }
+
     pub fn position(&mut self) -> &mut KVector {
         &mut self.position
     }
@@ -39,7 +43,7 @@ impl LShape {
     }
 
     pub fn get_property<T: Clone + Send + Sync + 'static>(
-        &mut self,
+        &self,
         property: &Property<T>,
     ) -> Option<T> {
         self.element.get_property(property)

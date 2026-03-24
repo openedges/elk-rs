@@ -20,9 +20,8 @@ impl NeighborhoodInformation {
 
         let layers = graph.layers().clone();
         for layer in layers.iter() {
-            if let Ok(layer_guard) = layer.lock() {
-                ni.node_count += layer_guard.nodes().len();
-            }
+            let layer_guard = layer.lock();
+            ni.node_count += layer_guard.nodes().len();
         }
 
         ni.layer_index = vec![0; layers.len()];
@@ -31,21 +30,23 @@ impl NeighborhoodInformation {
         let mut layer_id = 0usize;
         let mut node_counter = 0usize;
         for (layer_idx, layer) in layers.iter().enumerate() {
-            if let Ok(mut layer_guard) = layer.lock() {
+            let nodes = {
+                let mut layer_guard = layer.lock();
                 layer_guard.graph_element().id = layer_id as i32;
                 ni.layer_index[layer_id] = layer_idx;
                 layer_id += 1;
-                let nodes = layer_guard.nodes().clone();
-                for (local_index, node) in nodes.into_iter().enumerate() {
-                    if let Ok(mut node_guard) = node.lock() {
-                        node_guard.shape().graph_element().id = node_counter as i32;
-                    }
-                    if node_counter >= ni.node_index.len() {
-                        ni.node_index.resize(node_counter + 1, 0);
-                    }
-                    ni.node_index[node_counter] = local_index;
-                    node_counter += 1;
+                layer_guard.nodes().clone()
+            };
+            for (local_index, node) in nodes.into_iter().enumerate() {
+                {
+                    let mut node_guard = node.lock();
+                    node_guard.shape().graph_element().id = node_counter as i32;
                 }
+                if node_counter >= ni.node_index.len() {
+                    ni.node_index.resize(node_counter + 1, 0);
+                }
+                ni.node_index[node_counter] = local_index;
+                node_counter += 1;
             }
         }
 
@@ -53,11 +54,10 @@ impl NeighborhoodInformation {
         ni.right_neighbors = vec![Vec::new(); ni.node_count];
 
         for layer in layers {
-            let nodes = layer
-                .lock()
-                .ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+            let nodes = {
+                let layer_guard = layer.lock();
+                layer_guard.nodes().clone()
+            };
             for node in nodes {
                 let current_node_id = node_id(&node);
                 if current_node_id >= ni.node_count {
@@ -65,41 +65,35 @@ impl NeighborhoodInformation {
                 }
                 let mut right: Vec<Pair<LNodeRef, LEdgeRef>> = Vec::new();
                 let mut max_priority = 0;
-                let outgoing_edges = node
-                    .lock()
-                    .ok()
-                    .map(|node_guard| node_guard.outgoing_edges().clone())
-                    .unwrap_or_default();
+                let outgoing_edges = {
+                    let node_guard = node.lock();
+                    node_guard.outgoing_edges().clone()
+                };
                 for edge in outgoing_edges {
-                    let skip = edge
-                        .lock()
-                        .ok()
-                        .map(|edge_guard| {
-                            edge_guard.is_self_loop() || edge_guard.is_in_layer_edge()
-                        })
-                        .unwrap_or(false);
+                    let skip = {
+                        let edge_guard = edge.lock();
+                        edge_guard.is_self_loop() || edge_guard.is_in_layer_edge()
+                    };
                     if skip {
                         continue;
                     }
-                    let prio = edge
-                        .lock()
-                        .ok()
-                        .and_then(|mut edge_guard| {
-                            edge_guard.get_property(LayeredOptions::PRIORITY_STRAIGHTNESS)
-                        })
-                        .unwrap_or(0);
+                    let prio = {
+                        let edge_guard = edge.lock();
+                        edge_guard.get_property(LayeredOptions::PRIORITY_STRAIGHTNESS)
+                            .unwrap_or(0)
+                    };
                     if prio > max_priority {
                         max_priority = prio;
                         right.clear();
                     }
                     if prio == max_priority {
-                        let target_node = edge
-                            .lock()
-                            .ok()
-                            .and_then(|edge_guard| edge_guard.target())
-                            .and_then(|port| {
-                                port.lock().ok().and_then(|port_guard| port_guard.node())
-                            });
+                        let target_node = {
+                            let edge_guard = edge.lock();
+                            edge_guard.target().and_then(|port| {
+                                let port_guard = port.lock();
+                                port_guard.node()
+                            })
+                        };
                         if let Some(target_node) = target_node {
                             let target_id = node_id(&target_node);
                             if target_id < ni.node_count {
@@ -113,41 +107,35 @@ impl NeighborhoodInformation {
 
                 let mut left: Vec<Pair<LNodeRef, LEdgeRef>> = Vec::new();
                 let mut max_priority = 0;
-                let incoming_edges = node
-                    .lock()
-                    .ok()
-                    .map(|node_guard| node_guard.incoming_edges().clone())
-                    .unwrap_or_default();
+                let incoming_edges = {
+                    let node_guard = node.lock();
+                    node_guard.incoming_edges().clone()
+                };
                 for edge in incoming_edges {
-                    let skip = edge
-                        .lock()
-                        .ok()
-                        .map(|edge_guard| {
-                            edge_guard.is_self_loop() || edge_guard.is_in_layer_edge()
-                        })
-                        .unwrap_or(false);
+                    let skip = {
+                        let edge_guard = edge.lock();
+                        edge_guard.is_self_loop() || edge_guard.is_in_layer_edge()
+                    };
                     if skip {
                         continue;
                     }
-                    let prio = edge
-                        .lock()
-                        .ok()
-                        .and_then(|mut edge_guard| {
-                            edge_guard.get_property(LayeredOptions::PRIORITY_STRAIGHTNESS)
-                        })
-                        .unwrap_or(0);
+                    let prio = {
+                        let edge_guard = edge.lock();
+                        edge_guard.get_property(LayeredOptions::PRIORITY_STRAIGHTNESS)
+                            .unwrap_or(0)
+                    };
                     if prio > max_priority {
                         max_priority = prio;
                         left.clear();
                     }
                     if prio == max_priority {
-                        let source_node = edge
-                            .lock()
-                            .ok()
-                            .and_then(|edge_guard| edge_guard.source())
-                            .and_then(|port| {
-                                port.lock().ok().and_then(|port_guard| port_guard.node())
-                            });
+                        let source_node = {
+                            let edge_guard = edge.lock();
+                            edge_guard.source().and_then(|port| {
+                                let port_guard = port.lock();
+                                port_guard.node()
+                            })
+                        };
                         if let Some(source_node) = source_node {
                             let source_id = node_id(&source_node);
                             if source_id < ni.node_count {
@@ -186,8 +174,6 @@ fn neighbor_cmp(
 }
 
 fn node_id(node: &LNodeRef) -> usize {
-    node.lock()
-        .ok()
-        .map(|mut node_guard| node_guard.shape().graph_element().id as usize)
-        .unwrap_or(0)
+    let mut node_guard = node.lock();
+    node_guard.shape().graph_element().id as usize
 }

@@ -1,11 +1,13 @@
 use std::collections::{BTreeMap, HashSet};
 use std::sync::{Arc, LazyLock};
 
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
+
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutPhase;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LNodeRef, LayerRef, NodeType};
+use crate::org::eclipse::elk::alg::layered::graph::{ArenaSync, LGraph, LNodeRef, LayerRef, NodeType};
 use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorStrategy;
 use crate::org::eclipse::elk::alg::layered::options::{
     FixedAlignment, GraphProperties, InternalProperties, LayeredOptions,
@@ -18,7 +20,8 @@ use super::compactor::BKCompactor;
 use super::i_compactor::ICompactor;
 use super::neighborhood_information::NeighborhoodInformation;
 use super::util::{
-    edge_key, get_blocks, node_id, node_margin_bottom, node_margin_top, node_size_y, node_to_string,
+    edge_key, get_blocks, node_id, node_margin_bottom_a, node_margin_top_a, node_size_y_a,
+    node_to_string,
 };
 
 static HIERARCHY_PROCESSING_ADDITIONS: LazyLock<
@@ -32,16 +35,6 @@ static HIERARCHY_PROCESSING_ADDITIONS: LazyLock<
     config
 });
 
-static TRACE_BK: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_BK").is_some());
-static TRACE_BK_LAYOUTS: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_BK_LAYOUTS").is_some());
-static TRACE_BK_NODE_STATE: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_BK_NODE_STATE").is_some());
-static TRACE_BK_NODE_FILTER: LazyLock<Option<String>> =
-    LazyLock::new(|| std::env::var("ELK_TRACE_BK_NODE_FILTER").ok());
-static TRACE_BK_CONFLICTS: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_BK_CONFLICTS").is_some());
 
 pub struct BKNodePlacer {
     marked_edges: HashSet<usize>,
@@ -64,7 +57,7 @@ impl Default for BKNodePlacer {
 impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
     fn process(&mut self, graph: &mut LGraph, monitor: &mut dyn IElkProgressMonitor) {
         monitor.begin("Brandes & Koepf node placement", 1.0);
-        let trace = *TRACE_BK;
+        let trace = ElkTrace::global().bk;
         if trace {
             eprintln!("bk: start");
         }
@@ -73,6 +66,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
         let mut ni = NeighborhoodInformation::build_for(graph);
         let layers = graph.layers().clone();
         let nodes_by_id = build_nodes_by_id(&layers, ni.node_count);
+        // Build arena after NeighborhoodInformation has assigned sequential node IDs
+        let sync = Arc::new(ArenaSync::from_lgraph(graph));
 
         let align = graph
             .get_property(LayeredOptions::NODE_PLACEMENT_BK_FIXED_ALIGNMENT)
@@ -100,6 +95,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
                 spacings.clone(),
                 Some(VDirection::Down),
                 Some(HDirection::Left),
+                sync.clone(),
             )),
             FixedAlignment::LeftUp => layouts.push(BKAlignedLayout::new(
                 layers.clone(),
@@ -107,6 +103,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
                 spacings.clone(),
                 Some(VDirection::Up),
                 Some(HDirection::Left),
+                sync.clone(),
             )),
             FixedAlignment::RightDown => layouts.push(BKAlignedLayout::new(
                 layers.clone(),
@@ -114,6 +111,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
                 spacings.clone(),
                 Some(VDirection::Down),
                 Some(HDirection::Right),
+                sync.clone(),
             )),
             FixedAlignment::RightUp => layouts.push(BKAlignedLayout::new(
                 layers.clone(),
@@ -121,6 +119,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
                 spacings.clone(),
                 Some(VDirection::Up),
                 Some(HDirection::Right),
+                sync.clone(),
             )),
             _ => {
                 // Order must match Java: RightDown, RightUp, LeftDown, LeftUp
@@ -130,6 +129,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
                     spacings.clone(),
                     Some(VDirection::Down),
                     Some(HDirection::Right),
+                    sync.clone(),
                 ));
                 layouts.push(BKAlignedLayout::new(
                     layers.clone(),
@@ -137,6 +137,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
                     spacings.clone(),
                     Some(VDirection::Up),
                     Some(HDirection::Right),
+                    sync.clone(),
                 ));
                 layouts.push(BKAlignedLayout::new(
                     layers.clone(),
@@ -144,6 +145,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
                     spacings.clone(),
                     Some(VDirection::Down),
                     Some(HDirection::Left),
+                    sync.clone(),
                 ));
                 layouts.push(BKAlignedLayout::new(
                     layers.clone(),
@@ -151,6 +153,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
                     spacings.clone(),
                     Some(VDirection::Up),
                     Some(HDirection::Left),
+                    sync.clone(),
                 ));
             }
         }
@@ -171,15 +174,12 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
         if trace {
             eprintln!("bk: compaction done");
         }
-        if *TRACE_BK_LAYOUTS {
+        if ElkTrace::global().bk_layouts {
             for bal in &layouts {
                 eprintln!("bk-layout: {}", bal);
                 for layer in &layers {
                     let nodes = layer
-                        .lock()
-                        .ok()
-                        .map(|layer_guard| layer_guard.nodes().clone())
-                        .unwrap_or_default();
+                        .lock().nodes().clone();
                     for node in nodes {
                         let id = node_id(&node);
                         eprintln!(
@@ -205,7 +205,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
         let mut balanced_layout: Option<BKAlignedLayout> = None;
 
         if produce_balanced_layout {
-            let balanced = create_balanced_layout(&layouts, &layers, &nodes_by_id);
+            let balanced = create_balanced_layout(&layouts, &layers, &nodes_by_id, &sync);
             let balanced_ok = check_order_constraint(&balanced, &layers, monitor);
             if trace {
                 eprintln!(
@@ -258,30 +258,21 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
         let chosen_layout = chosen_layout
             .unwrap_or_else(|| layouts.first().expect("At least one BK layout must exist"));
 
-        if *TRACE_BK_NODE_STATE {
-            let filter = TRACE_BK_NODE_FILTER.as_deref();
+        if ElkTrace::global().bk_node_state {
+            let filter = ElkTrace::global().bk_node_filter.as_deref();
             for layer in &layers {
                 let nodes = layer
-                    .lock()
-                    .ok()
-                    .map(|layer_guard| layer_guard.nodes().clone())
-                    .unwrap_or_default();
+                    .lock().nodes().clone();
                 for node in nodes {
                     let node_id = node_id(&node);
-                    let (name, label_opt) = node
-                        .lock()
-                        .ok()
-                        .map(|mut node_guard| {
-                            let name = node_guard.designation().to_string();
-                            let label_opt = node_guard.labels().first().and_then(|label| {
-                                label
-                                    .lock()
-                                    .ok()
-                                    .map(|label_guard| label_guard.text().to_string())
-                            });
-                            (name, label_opt)
-                        })
-                        .unwrap_or_else(|| ("<poisoned>".to_string(), None));
+                    let (name, label_opt) = {
+                        let node_guard = node.lock();
+                        let name = node_guard.designation().to_string();
+                        let label_opt = node_guard.labels().first().map(|label| {
+                            label.lock().text().to_string()
+                        });
+                        (name, label_opt)
+                    };
 
                     if let Some(filter) = &filter {
                         if !name.contains(filter)
@@ -310,13 +301,11 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
 
         for layer in &layers {
             let nodes = layer
-                .lock()
-                .ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
             for node in nodes {
                 let node_id = node_id(&node);
-                if let Ok(mut node_guard) = node.lock() {
+                {
+                    let mut node_guard = node.lock();
                     node_guard.shape().position().y = chosen_layout.y[node_id].unwrap_or(0.0)
                         + chosen_layout.inner_shift[node_id];
                 }
@@ -349,7 +338,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BKNodePlacer {
         graph: &LGraph,
     ) -> Option<LayoutProcessorConfiguration<LayeredPhases, LGraph>> {
         if graph
-            .get_property_ref(InternalProperties::GRAPH_PROPERTIES)
+            .get_property(InternalProperties::GRAPH_PROPERTIES)
             .is_some_and(|props| props.contains(&GraphProperties::ExternalPorts))
         {
             Some(LayoutProcessorConfiguration::create_from(
@@ -365,10 +354,7 @@ fn build_nodes_by_id(layers: &[LayerRef], node_count: usize) -> Vec<LNodeRef> {
     let mut nodes: Vec<Option<LNodeRef>> = vec![None; node_count];
     for layer in layers {
         let layer_nodes = layer
-            .lock()
-            .ok()
-            .map(|layer_guard| layer_guard.nodes().clone())
-            .unwrap_or_default();
+            .lock().nodes().clone();
         for node in layer_nodes {
             let id = node_id(&node);
             if id < nodes.len() {
@@ -385,29 +371,20 @@ fn build_nodes_by_id(layers: &[LayerRef], node_count: usize) -> Vec<LNodeRef> {
 impl BKNodePlacer {
     fn mark_conflicts(&mut self, layers: &[LayerRef], ni: &NeighborhoodInformation) {
         const MIN_LAYERS_FOR_CONFLICTS: usize = 3;
-        let trace_conflicts = *TRACE_BK_CONFLICTS;
+        let trace_conflicts = ElkTrace::global().bk_conflicts;
         if layers.len() < MIN_LAYERS_FOR_CONFLICTS {
             return;
         }
 
         let layer_size: Vec<usize> = layers
             .iter()
-            .map(|layer| {
-                layer
-                    .lock()
-                    .ok()
-                    .map(|layer_guard| layer_guard.nodes().len())
-                    .unwrap_or(0)
-            })
+            .map(|layer| layer.lock().nodes().len())
             .collect();
 
         for i in 1..layers.len() - 1 {
             let current_layer = layers[i + 1].clone();
             let nodes = current_layer
-                .lock()
-                .ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
 
             let mut k_0 = 0usize;
             let mut l = 0usize;
@@ -441,38 +418,26 @@ impl BKNodePlacer {
                                         if trace_conflicts {
                                             let source = neighbor
                                                 .second
-                                                .lock()
-                                                .ok()
-                                                .and_then(|edge_guard| edge_guard.source())
+                                                .lock().source()
                                                 .and_then(|port| {
-                                                    port.lock()
-                                                        .ok()
-                                                        .and_then(|port_guard| port_guard.node())
+                                                    port.lock().node()
                                                 });
                                             let target = neighbor
                                                 .second
-                                                .lock()
-                                                .ok()
-                                                .and_then(|edge_guard| edge_guard.target())
+                                                .lock().target()
                                                 .and_then(|port| {
-                                                    port.lock()
-                                                        .ok()
-                                                        .and_then(|port_guard| port_guard.node())
+                                                    port.lock().node()
                                                 });
                                             let src_name = source
                                                 .as_ref()
                                                 .and_then(|node| {
-                                                    node.lock().ok().map(|mut node_guard| {
-                                                        node_guard.designation().to_string()
-                                                    })
+                                                    Some(node.lock().designation().to_string())
                                                 })
                                                 .unwrap_or_else(|| "<none>".to_string());
                                             let tgt_name = target
                                                 .as_ref()
                                                 .and_then(|node| {
-                                                    node.lock().ok().map(|mut node_guard| {
-                                                        node_guard.designation().to_string()
-                                                    })
+                                                    Some(node.lock().designation().to_string())
                                                 })
                                                 .unwrap_or_else(|| "<none>".to_string());
                                             let src_id =
@@ -505,56 +470,34 @@ impl BKNodePlacer {
         ni: &NeighborhoodInformation,
     ) -> bool {
         if node
-            .lock()
-            .ok()
-            .map(|node_guard| node_guard.node_type())
-            .unwrap_or(NodeType::Normal)
+            .lock().node_type()
             != NodeType::LongEdge
         {
             return false;
         }
 
         let incoming_edges = node
-            .lock()
-            .ok()
-            .map(|node_guard| node_guard.incoming_edges())
-            .unwrap_or_default();
+            .lock().incoming_edges();
         for edge in incoming_edges {
             let source_node = edge
-                .lock()
-                .ok()
-                .and_then(|edge_guard| edge_guard.source())
-                .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                .lock().source()
+                .and_then(|port| port.lock().node());
             if let Some(source_node) = source_node {
-                let is_long_edge = source_node
-                    .lock()
-                    .ok()
-                    .map(|node_guard| node_guard.node_type() == NodeType::LongEdge)
-                    .unwrap_or(false);
+                let is_long_edge = source_node.lock().node_type() == NodeType::LongEdge;
                 if !is_long_edge {
                     continue;
                 }
 
                 let source_layer_id = source_node
-                    .lock()
-                    .ok()
-                    .and_then(|node_guard| node_guard.layer())
+                    .lock().layer()
                     .and_then(|layer| {
-                        layer
-                            .lock()
-                            .ok()
-                            .map(|mut layer_guard| layer_guard.graph_element().id as usize)
+                        Some(layer.lock().graph_element().id as usize)
                     })
                     .unwrap_or(0);
                 let node_layer_id = node
-                    .lock()
-                    .ok()
-                    .and_then(|node_guard| node_guard.layer())
+                    .lock().layer()
                     .and_then(|layer| {
-                        layer
-                            .lock()
-                            .ok()
-                            .map(|mut layer_guard| layer_guard.graph_element().id as usize)
+                        Some(layer.lock().graph_element().id as usize)
                     })
                     .unwrap_or(0);
 
@@ -573,13 +516,14 @@ fn create_balanced_layout(
     layouts: &[BKAlignedLayout],
     layers: &[LayerRef],
     nodes_by_id: &[LNodeRef],
+    sync: &Arc<ArenaSync>,
 ) -> BKAlignedLayout {
     let spacings = layouts
         .first()
         .map(|layout| layout.spacings.clone())
         .expect("At least one BK layout required for balanced layout");
     let mut balanced =
-        BKAlignedLayout::new(layers.to_vec(), nodes_by_id.to_vec(), spacings, None, None);
+        BKAlignedLayout::new(layers.to_vec(), nodes_by_id.to_vec(), spacings, None, None, sync.clone());
 
     let no_of_layouts = layouts.len();
     let mut width = vec![0.0; no_of_layouts];
@@ -595,15 +539,12 @@ fn create_balanced_layout(
 
         for layer in layers {
             let nodes = layer
-                .lock()
-                .ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
             for node in nodes {
                 let node_id = node_id(&node);
                 let node_pos = layout.y[node_id].unwrap_or(0.0) + layout.inner_shift[node_id];
                 min[i] = min[i].min(node_pos);
-                max[i] = max[i].max(node_pos + node_size_y(&node));
+                max[i] = max[i].max(node_pos + node_size_y_a(&sync, &node));
             }
         }
     }
@@ -620,10 +561,7 @@ fn create_balanced_layout(
     let mut calculated = vec![0.0; no_of_layouts];
     for layer in layers {
         let nodes = layer
-            .lock()
-            .ok()
-            .map(|layer_guard| layer_guard.nodes().clone())
-            .unwrap_or_default();
+            .lock().nodes().clone();
         for node in nodes {
             let node_id = node_id(&node);
             for i in 0..no_of_layouts {
@@ -653,27 +591,24 @@ fn check_order_constraint(
 
     for layer in layers {
         let nodes = layer
-            .lock()
-            .ok()
-            .map(|layer_guard| layer_guard.nodes().clone())
-            .unwrap_or_default();
+            .lock().nodes().clone();
         let mut pos = f64::NEG_INFINITY;
         let mut previous: Option<LNodeRef> = None;
 
         for node in nodes {
             let node_id = node_id(&node);
             let top =
-                bal.y[node_id].unwrap_or(0.0) + bal.inner_shift[node_id] - node_margin_top(&node);
+                bal.y[node_id].unwrap_or(0.0) + bal.inner_shift[node_id] - node_margin_top_a(&bal.sync, &node);
             let bottom = bal.y[node_id].unwrap_or(0.0)
                 + bal.inner_shift[node_id]
-                + node_size_y(&node)
-                + node_margin_bottom(&node);
+                + node_size_y_a(&bal.sync, &node)
+                + node_margin_bottom_a(&bal.sync, &node);
 
             if top > pos && bottom > pos {
                 pos = bal.y[node_id].unwrap_or(0.0)
                     + bal.inner_shift[node_id]
-                    + node_size_y(&node)
-                    + node_margin_bottom(&node);
+                    + node_size_y_a(&bal.sync, &node)
+                    + node_margin_bottom_a(&bal.sync, &node);
                 previous = Some(node);
             } else {
                 feasible = false;

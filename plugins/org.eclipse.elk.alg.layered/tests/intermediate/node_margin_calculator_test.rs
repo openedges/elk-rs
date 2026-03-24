@@ -14,8 +14,7 @@ fn new_graph_with_layer() -> (LGraphRef, LayerRef) {
     let graph = LGraph::new();
     let layer = Layer::new(&graph);
     {
-        let mut graph_guard = graph.lock().expect("graph lock");
-        graph_guard.layers_mut().push(layer.clone());
+        let mut graph_guard = graph.lock();        graph_guard.layers_mut().push(layer.clone());
     }
     (graph, layer)
 }
@@ -23,8 +22,7 @@ fn new_graph_with_layer() -> (LGraphRef, LayerRef) {
 fn add_node(graph: &LGraphRef, layer: &LayerRef, width: f64, height: f64) -> LNodeRef {
     let node = LNode::new(graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.shape().size().x = width;
+        let mut node_guard = node.lock();        node_guard.shape().size().x = width;
         node_guard.shape().size().y = height;
     }
     LNode::set_layer(&node, Some(layer.clone()));
@@ -34,16 +32,14 @@ fn add_node(graph: &LGraphRef, layer: &LayerRef, width: f64, height: f64) -> LNo
 fn run_processor(graph: &LGraphRef) {
     let mut processor = CommentNodeMarginCalculator;
     let mut monitor = NullElkProgressMonitor;
-    let mut graph_guard = graph.lock().expect("graph lock");
-    processor.process(&mut graph_guard, &mut monitor);
+    let mut graph_guard = graph.lock();    processor.process(&mut graph_guard, &mut monitor);
 }
 
 #[test]
 fn top_and_bottom_comment_margins_are_applied() {
     let (graph, layer) = new_graph_with_layer();
     {
-        let mut graph_guard = graph.lock().expect("graph lock");
-        graph_guard.set_property(LayeredOptions::SPACING_COMMENT_COMMENT, Some(2.0));
+        let mut graph_guard = graph.lock();        graph_guard.set_property(LayeredOptions::SPACING_COMMENT_COMMENT, Some(2.0));
         graph_guard.set_property(LayeredOptions::SPACING_COMMENT_NODE, Some(3.0));
     }
 
@@ -53,15 +49,13 @@ fn top_and_bottom_comment_margins_are_applied() {
     let bottom = add_node(&graph, &layer, 10.0, 5.0);
 
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.set_property(InternalProperties::TOP_COMMENTS, Some(vec![top_a, top_b]));
+        let mut node_guard = node.lock();        node_guard.set_property(InternalProperties::TOP_COMMENTS, Some(vec![top_a, top_b]));
         node_guard.set_property(InternalProperties::BOTTOM_COMMENTS, Some(vec![bottom]));
     }
 
     run_processor(&graph);
 
-    let mut node_guard = node.lock().expect("node lock");
-    assert!((node_guard.margin().top - 11.0).abs() < TOLERANCE);
+    let mut node_guard = node.lock();    assert!((node_guard.margin().top - 11.0).abs() < TOLERANCE);
     assert!((node_guard.margin().bottom - 8.0).abs() < TOLERANCE);
 }
 
@@ -71,8 +65,7 @@ fn node_without_comments_keeps_existing_margins() {
     let node = add_node(&graph, &layer, 40.0, 10.0);
 
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.margin().top = 1.0;
+        let mut node_guard = node.lock();        node_guard.margin().top = 1.0;
         node_guard.margin().right = 2.0;
         node_guard.margin().bottom = 3.0;
         node_guard.margin().left = 4.0;
@@ -80,8 +73,7 @@ fn node_without_comments_keeps_existing_margins() {
 
     run_processor(&graph);
 
-    let mut node_guard = node.lock().expect("node lock");
-    assert!((node_guard.margin().top - 1.0).abs() < TOLERANCE);
+    let mut node_guard = node.lock();    assert!((node_guard.margin().top - 1.0).abs() < TOLERANCE);
     assert!((node_guard.margin().right - 2.0).abs() < TOLERANCE);
     assert!((node_guard.margin().bottom - 3.0).abs() < TOLERANCE);
     assert!((node_guard.margin().left - 4.0).abs() < TOLERANCE);

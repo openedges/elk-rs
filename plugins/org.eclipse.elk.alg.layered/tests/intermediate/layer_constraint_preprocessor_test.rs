@@ -15,12 +15,12 @@ fn add_layerless_node(graph: &LGraphRef, constraint: LayerConstraint) -> LNodeRe
     let node = LNode::new(graph);
     if constraint != LayerConstraint::None {
         node.lock()
-            .expect("node lock")
+            
             .set_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT, Some(constraint));
     }
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(node.clone());
     node
@@ -44,8 +44,7 @@ fn run_processor(graph: &LGraphRef) {
         .register_layout_meta_data_provider(&LayeredMetaDataProvider);
     let mut processor = LayerConstraintPreprocessor;
     let mut monitor = NullElkProgressMonitor;
-    let mut graph_guard = graph.lock().expect("graph lock");
-    processor.process(&mut graph_guard, &mut monitor);
+    let mut graph_guard = graph.lock();    processor.process(&mut graph_guard, &mut monitor);
 }
 
 #[test]
@@ -60,28 +59,28 @@ fn layer_constraint_preprocessor_hides_first_separate_and_remembers_opposite_por
 
     run_processor(&graph);
 
-    let layerless_nodes = graph.lock().expect("graph lock").layerless_nodes().clone();
+    let layerless_nodes = graph.lock().layerless_nodes().clone();
     assert_eq!(layerless_nodes.len(), 1);
     assert!(Arc::ptr_eq(&layerless_nodes[0], &opposite));
 
     let hidden_nodes = graph
         .lock()
-        .expect("graph lock")
+        
         .get_property(InternalProperties::HIDDEN_NODES)
         .unwrap_or_default();
     assert_eq!(hidden_nodes.len(), 1);
     assert!(Arc::ptr_eq(&hidden_nodes[0], &hidden));
 
-    assert!(edge.lock().expect("edge lock").target().is_none());
+    assert!(edge.lock().target().is_none());
     assert!(edge
         .lock()
-        .expect("edge lock")
+        
         .get_property(InternalProperties::ORIGINAL_OPPOSITE_PORT)
         .is_some_and(|port| Arc::ptr_eq(&port, &opposite_port)));
 
     let assigned = opposite
         .lock()
-        .expect("opposite lock")
+        
         .get_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT)
         .unwrap_or(LayerConstraint::None);
     assert_eq!(assigned, LayerConstraint::First);
@@ -105,7 +104,7 @@ fn layer_constraint_preprocessor_does_not_force_layer_when_connected_to_both_hid
 
     let has_constraint = opposite
         .lock()
-        .expect("opposite lock")
+        
         .shape()
         .graph_element()
         .properties()

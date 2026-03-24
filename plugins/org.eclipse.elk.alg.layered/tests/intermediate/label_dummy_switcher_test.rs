@@ -20,8 +20,7 @@ fn add_node(
 ) -> Arc<Mutex<LNode>> {
     let node = LNode::new(graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.set_node_type(node_type);
+        let mut node_guard = node.lock();        node_guard.set_node_type(node_type);
     }
     LNode::set_layer(&node, Some(layer.clone()));
     node
@@ -30,8 +29,7 @@ fn add_node(
 fn add_port(node: &Arc<Mutex<LNode>>, side: PortSide) -> Arc<Mutex<LPort>> {
     let port = LPort::new();
     {
-        let mut port_guard = port.lock().expect("port lock");
-        port_guard.set_side(side);
+        let mut port_guard = port.lock();        port_guard.set_side(side);
     }
     LPort::set_node(&port, Some(node.clone()));
     port
@@ -60,8 +58,7 @@ fn moves_label_dummy_to_median_layer() {
     let layer1 = Layer::new(&graph);
     let layer2 = Layer::new(&graph);
     {
-        let mut graph_guard = graph.lock().expect("graph lock");
-        graph_guard.layers_mut().push(layer0.clone());
+        let mut graph_guard = graph.lock();        graph_guard.layers_mut().push(layer0.clone());
         graph_guard.layers_mut().push(layer1.clone());
         graph_guard.layers_mut().push(layer2.clone());
         graph_guard.set_property(
@@ -92,10 +89,10 @@ fn moves_label_dummy_to_median_layer() {
 
     let mut processor = LabelDummySwitcher::default();
     let mut monitor = NullElkProgressMonitor;
-    processor.process(&mut graph.lock().expect("graph lock"), &mut monitor);
+    processor.process(&mut graph.lock(), &mut monitor);
 
-    let layer0_nodes = layer0.lock().expect("layer0 lock").nodes().clone();
-    let layer1_nodes = layer1.lock().expect("layer1 lock").nodes().clone();
+    let layer0_nodes = layer0.lock().nodes().clone();
+    let layer1_nodes = layer1.lock().nodes().clone();
 
     assert!(
         layer0_nodes

@@ -3,14 +3,7 @@
 use std::collections::{BTreeSet, HashSet, VecDeque};
 use std::sync::{Arc, LazyLock};
 
-static TRACE_CROSSMIN: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN").is_some());
-static TRACE_CROSSMIN_TIMING: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN_TIMING").is_some());
-static TRACE_CROSSMIN_STATS: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN_STATS").is_some());
-static DEBUG_CROSSMIN_FORCE_SWEEP: LazyLock<Option<String>> =
-    LazyLock::new(|| std::env::var("ELK_DEBUG_CROSSMIN_FORCE_SWEEP").ok());
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutPhase;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
@@ -117,7 +110,7 @@ impl LayerSweepCrossingMinimizer {
             if !has_layers {
                 continue;
             }
-            if *TRACE_CROSSMIN {
+            if ElkTrace::global().crossmin {
                 eprintln!("crossmin: sweep graph {}", index);
             }
 
@@ -158,7 +151,7 @@ impl LayerSweepCrossingMinimizer {
     }
 
     fn compare_different_randomized_layouts(&mut self, index: usize) {
-        let trace = *TRACE_CROSSMIN;
+        let trace = ElkTrace::global().crossmin;
         self.reset_random_for_all_graphs();
         self.graphs_whose_node_order_changed.clear();
 
@@ -241,7 +234,7 @@ impl LayerSweepCrossingMinimizer {
     }
 
     fn minimize_crossings_with_counter(&mut self, index: usize) -> i32 {
-        let trace = *TRACE_CROSSMIN;
+        let trace = ElkTrace::global().crossmin;
         let mut is_forward_sweep = self.next_boolean_for_graph(index);
 
         let initial_crossings = self.count_current_number_of_crossings(index) as f64;
@@ -326,7 +319,7 @@ impl LayerSweepCrossingMinimizer {
     }
 
     fn minimize_crossings_node_port_order_with_counter(&mut self, index: usize) -> f64 {
-        let trace = *TRACE_CROSSMIN;
+        let trace = ElkTrace::global().crossmin;
         let mut is_forward_sweep = self.next_boolean_for_graph(index);
 
         let initial_crossings = self.count_current_number_of_crossings_node_port_order(index);
@@ -435,13 +428,11 @@ impl LayerSweepCrossingMinimizer {
             comp.reset_for_previous_layer_slice(prev_layer);
             active_indices.clear();
             for (index, node) in layer.iter().enumerate() {
-                let has_model_order = node
-                    .lock()
-                    .ok()
-                    .and_then(|mut node_guard| {
-                        node_guard.get_property(InternalProperties::MODEL_ORDER)
-                    })
-                    .is_some();
+                let has_model_order = {
+                    let node_guard = node.lock();
+                    node_guard.get_property(InternalProperties::MODEL_ORDER)
+                        .is_some()
+                };
                 if has_model_order {
                     active_indices.push(index);
                 }
@@ -482,16 +473,14 @@ impl LayerSweepCrossingMinimizer {
                 .unwrap_or(&[]);
             comp.reset_for_previous_layer_slice(prev_layer);
             for node in layer {
-                let maybe_ports = node
-                    .lock()
-                    .ok()
-                    .and_then(|node_guard| {
-                        if node_guard.ports().len() < 2 {
-                            None
-                        } else {
-                            Some(node_guard.ports().clone())
-                        }
-                    });
+                let maybe_ports = {
+                    let node_guard = node.lock();
+                    if node_guard.ports().len() < 2 {
+                        None
+                    } else {
+                        Some(node_guard.ports().clone())
+                    }
+                };
                 let Some(ports) = maybe_ports else {
                     continue;
                 };
@@ -512,7 +501,7 @@ impl LayerSweepCrossingMinimizer {
     }
 
     fn count_current_number_of_crossings(&mut self, start_index: usize) -> i32 {
-        let trace = *TRACE_CROSSMIN_TIMING;
+        let trace = ElkTrace::global().crossmin_timing;
         let start = if trace {
             Some(std::time::Instant::now())
         } else {
@@ -577,7 +566,7 @@ impl LayerSweepCrossingMinimizer {
     }
 
     fn count_current_number_of_crossings_node_port_order(&mut self, start_index: usize) -> f64 {
-        let trace = *TRACE_CROSSMIN_TIMING;
+        let trace = ElkTrace::global().crossmin_timing;
         let start = if trace {
             Some(std::time::Instant::now())
         } else {
@@ -638,13 +627,13 @@ impl LayerSweepCrossingMinimizer {
     }
 
     fn sweep_reducing_crossings(&mut self, index: usize, forward: bool, first_sweep: bool) -> bool {
-        let trace = *TRACE_CROSSMIN;
+        let trace = ElkTrace::global().crossmin;
         let length = self.graph_info_holders[index].current_node_order().len();
         if length == 0 {
             return false;
         }
         self.prepare_cross_minimizer(index);
-        let timing = *TRACE_CROSSMIN_TIMING;
+        let timing = ElkTrace::global().crossmin_timing;
         let mut improved = {
             let graph_data = &mut self.graph_info_holders[index];
             if trace {
@@ -867,7 +856,8 @@ impl LayerSweepCrossingMinimizer {
 
             sort_ports_by_dummy_positions_in_last_layer_snap(nodes, &parent, true, snapshot);
             sort_ports_by_dummy_positions_in_last_layer_snap(nodes, &parent, false, snapshot);
-            if let Ok(mut parent_guard) = parent.lock() {
+            {
+                let mut parent_guard = parent.lock();
                 parent_guard.set_property(
                     LayeredOptions::PORT_CONSTRAINTS,
                     Some(PortConstraints::FixedOrder),
@@ -959,7 +949,7 @@ impl LayerSweepCrossingMinimizer {
     }
 
     fn reset_random_for_all_graphs(&mut self) {
-        if *TRACE_CROSSMIN {
+        if ElkTrace::global().crossmin {
             eprintln!("crossmin: reset_random_for_all_graphs");
         }
         // Java only resets the shared random object, NOT individual heuristic seeds
@@ -967,7 +957,7 @@ impl LayerSweepCrossingMinimizer {
     }
 
     fn next_boolean_for_graph(&mut self, _index: usize) -> bool {
-        if let Some(force) = DEBUG_CROSSMIN_FORCE_SWEEP.as_deref() {
+        if let Some(force) = ElkTrace::global().debug_crossmin_force_sweep.as_deref() {
             match force {
                 "forward" => return true,
                 "backward" => return false,
@@ -984,7 +974,7 @@ impl LayerSweepCrossingMinimizer {
         self.graphs_whose_node_order_changed.clear();
         self.graphs_dirty_for_crossing_count.clear();
         self.cached_crossings_by_graph.clear();
-        let trace = *TRACE_CROSSMIN;
+        let trace = ElkTrace::global().crossmin;
 
         self.random = root_graph_guard
             .get_property(InternalProperties::RANDOM)
@@ -1018,7 +1008,8 @@ impl LayerSweepCrossingMinimizer {
             }
             if Arc::ptr_eq(&graph, root_graph) {
                 root_graph_guard.graph_element().id = index as i32;
-            } else if let Ok(mut graph_guard) = graph.lock() {
+            } else {
+                let mut graph_guard = graph.lock();
                 graph_guard.graph_element().id = index as i32;
             }
             let mut g_data = if Arc::ptr_eq(&graph, root_graph) {
@@ -1031,7 +1022,7 @@ impl LayerSweepCrossingMinimizer {
             } else {
                 GraphInfoHolder::new(graph.clone(), self.cross_min_type)
             };
-            if *TRACE_CROSSMIN_STATS {
+            if ElkTrace::global().crossmin_stats {
                 Self::log_graph_stats(index, &g_data);
             }
             let parent_index = g_data.parent_graph_ref().and_then(|parent_graph| {
@@ -1069,17 +1060,11 @@ impl LayerSweepCrossingMinimizer {
         for layer in layers {
             for node in layer {
                 let ports = node
-                    .lock()
-                    .ok()
-                    .map(|node_guard| node_guard.ports().clone())
-                    .unwrap_or_default();
+                    .lock().ports().clone();
                 port_count += ports.len();
                 for port in ports {
                     let connected = port
-                        .lock()
-                        .ok()
-                        .map(|port_guard| port_guard.connected_edges().clone())
-                        .unwrap_or_default();
+                        .lock().connected_edges().clone();
                     for edge in connected {
                         edges.insert(Arc::as_ptr(&edge) as usize);
                     }
@@ -1145,7 +1130,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for LayerSweepCrossingMinimizer {
             &format!("Minimize Crossings {:?}", self.cross_min_type),
             1.0,
         );
-        let trace = *TRACE_CROSSMIN;
+        let trace = ElkTrace::global().crossmin;
         if trace {
             eprintln!("crossmin: start");
         }
@@ -1155,11 +1140,8 @@ impl ILayoutPhase<LayeredPhases, LGraph> for LayerSweepCrossingMinimizer {
 
         let empty_graph = graph.layers().is_empty()
             || graph.layers().iter().all(|layer| {
-                layer
-                    .lock()
-                    .ok()
-                    .map(|layer_guard| layer_guard.nodes().is_empty())
-                    .unwrap_or(true)
+                let layer_guard = layer.lock();
+                layer_guard.nodes().is_empty()
             });
         if trace {
             eprintln!("crossmin: empty_graph={}", empty_graph);
@@ -1168,8 +1150,10 @@ impl ILayoutPhase<LayeredPhases, LGraph> for LayerSweepCrossingMinimizer {
             && graph
                 .layers()
                 .first()
-                .and_then(|layer| layer.lock().ok())
-                .map(|layer_guard| layer_guard.nodes().len())
+                .map(|layer| {
+                    let layer_guard = layer.lock();
+                    layer_guard.nodes().len()
+                })
                 .unwrap_or(0)
                 == 1;
         if trace {
@@ -1215,12 +1199,10 @@ impl ILayoutPhase<LayeredPhases, LGraph> for LayerSweepCrossingMinimizer {
                     let node_ids: Vec<String> = layer
                         .iter()
                         .map(|n| {
-                            n.lock()
-                                .ok()
-                                .map(|mut g| {
-                                    format!("id:{}", g.shape().graph_element().id)
-                                })
-                                .unwrap_or_else(|| "<locked>".to_string())
+                            {
+                                let mut g = n.lock();
+                                format!("id:{}", g.shape().graph_element().id)
+                            }
                         })
                         .collect();
                     eprintln!(
@@ -1316,23 +1298,19 @@ fn side_opposed_sweep_direction(is_forward: bool) -> PortSide {
 }
 
 fn is_external_port_dummy(node: &LNodeRef) -> bool {
-    node.lock()
-        .ok()
-        .map(|node_guard| node_guard.node_type() == NodeType::ExternalPort)
-        .unwrap_or(false)
+    let node_guard = node.lock();
+    node_guard.node_type() == NodeType::ExternalPort
 }
 
 fn is_hierarchical(port: &LPortRef) -> bool {
-    port.lock()
-        .ok()
-        .and_then(|mut port_guard| port_guard.get_property(InternalProperties::INSIDE_CONNECTIONS))
+    let port_guard = port.lock();
+    port_guard.get_property(InternalProperties::INSIDE_CONNECTIONS)
         .unwrap_or(false)
 }
 
 fn origin_port(node: &LNodeRef) -> Option<LPortRef> {
-    node.lock()
-        .ok()
-        .and_then(|mut node_guard| node_guard.get_property(InternalProperties::ORIGIN))
+    let node_guard = node.lock();
+    node_guard.get_property(InternalProperties::ORIGIN)
         .and_then(|origin| match origin {
             crate::org::eclipse::elk::alg::layered::options::Origin::LPort(port) => Some(port),
             _ => None,
@@ -1340,17 +1318,13 @@ fn origin_port(node: &LNodeRef) -> Option<LPortRef> {
 }
 
 fn dummy_node_for(port: &LPortRef) -> Option<LNodeRef> {
-    port.lock()
-        .ok()
-        .and_then(|mut port_guard| port_guard.get_property(InternalProperties::PORT_DUMMY))
+    let port_guard = port.lock();
+    port_guard.get_property(InternalProperties::PORT_DUMMY)
 }
 
 fn is_on_end_of_sweep_side(port: &LPortRef, on_right_most_layer: bool) -> bool {
     let side = port
-        .lock()
-        .ok()
-        .map(|port_guard| port_guard.side())
-        .unwrap_or(PortSide::Undefined);
+        .lock().side();
     if on_right_most_layer {
         side == PortSide::East
     } else {
@@ -1373,7 +1347,8 @@ fn sort_ports_by_dummy_positions_in_last_layer(
         return;
     }
 
-    if let Ok(mut parent_guard) = parent.lock() {
+    {
+        let mut parent_guard = parent.lock();
         let ports = parent_guard.ports_mut();
         for i in 0..ports.len() {
             let port = ports.get(i).cloned();
@@ -1410,7 +1385,8 @@ fn sort_ports_by_dummy_positions_in_last_layer_snap(
         return;
     }
 
-    if let Ok(mut parent_guard) = parent.lock() {
+    {
+        let mut parent_guard = parent.lock();
         let ports = parent_guard.ports_mut();
         for i in 0..ports.len() {
             let port = ports.get(i).cloned();
@@ -1453,19 +1429,15 @@ fn sort_port_dummies_by_port_positions(
 }
 
 fn graph_id(graph: &LGraphRef) -> Option<usize> {
-    graph
-        .lock()
-        .ok()
-        .map(|mut graph_guard| graph_guard.graph_element().id as usize)
+    let mut graph_guard = graph.lock();
+    Some(graph_guard.graph_element().id as usize)
 }
 
 fn collect_hierarchical_targets(layer: &[LNodeRef], out: &mut Vec<(LNodeRef, usize)>) {
     out.clear();
     for node in layer {
         let Some(nested_graph) = node
-            .lock()
-            .ok()
-            .and_then(|node_guard| node_guard.nested_graph())
+            .lock().nested_graph()
         else {
             continue;
         };
@@ -1478,12 +1450,14 @@ fn collect_hierarchical_targets(layer: &[LNodeRef], out: &mut Vec<(LNodeRef, usi
 
 fn root_graph_ref(graph: &mut LGraph) -> Option<LGraphRef> {
     if let Some(layer) = graph.layers().first() {
-        if let Ok(layer_guard) = layer.lock() {
+        {
+            let layer_guard = layer.lock();
             return layer_guard.graph();
         }
     }
     if let Some(node) = graph.layerless_nodes().first() {
-        if let Ok(node_guard) = node.lock() {
+        {
+            let node_guard = node.lock();
             return node_guard.graph();
         }
     }
@@ -1494,10 +1468,8 @@ fn format_layer_nodes(layer: &[LNodeRef]) -> String {
     layer
         .iter()
         .map(|node| {
-            node.lock()
-                .ok()
-                .map(|mut guard| guard.to_string())
-                .unwrap_or_else(|| String::from("<poisoned-node>"))
+            let guard = node.lock();
+            guard.to_string()
         })
         .collect::<Vec<_>>()
         .join(", ")

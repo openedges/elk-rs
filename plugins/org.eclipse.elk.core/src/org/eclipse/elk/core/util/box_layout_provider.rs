@@ -8,6 +8,7 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 
 use crate::org::eclipse::elk::core::abstract_layout_provider::AbstractLayoutProvider;
 use crate::org::eclipse::elk::core::graph_layout_engine::IGraphLayoutEngine;
+use crate::org::eclipse::elk::core::layout_arena_context::with_layout_arena;
 use crate::org::eclipse::elk::core::math::{ElkPadding, KVector};
 use crate::org::eclipse::elk::core::options::{BoxLayouterOptions, PackingMode};
 use crate::org::eclipse::elk::core::util::{ElkUtil, IElkProgressMonitor};
@@ -27,25 +28,30 @@ impl IGraphLayoutEngine for BoxLayoutProvider {
     fn layout(&mut self, layout_node: &ElkNodeRef, progress_monitor: &mut dyn IElkProgressMonitor) {
         progress_monitor.begin("Box layout", 2.0);
 
+        // Arena path: read configuration properties without borrow_mut
         let (obj_spacing, padding, expand_nodes, interactive, packing_mode) =
-            with_node_properties_mut(layout_node, |props| {
-                let spacing = props
-                    .get_property(BoxLayouterOptions::SPACING_NODE_NODE)
-                    .unwrap_or(0.0);
-                let padding = props
-                    .get_property(BoxLayouterOptions::PADDING)
-                    .unwrap_or_else(ElkPadding::new);
-                let expand_nodes = props
-                    .get_property(BoxLayouterOptions::EXPAND_NODES)
-                    .unwrap_or(false);
-                let interactive = props
-                    .get_property(BoxLayouterOptions::INTERACTIVE)
-                    .unwrap_or(false);
-                let packing_mode = props
-                    .get_property(BoxLayouterOptions::BOX_PACKING_MODE)
-                    .unwrap_or(PackingMode::Simple);
-                (spacing, padding, expand_nodes, interactive, packing_mode)
-            });
+            if let Some(result) = with_layout_arena(|sync| {
+                sync.node_id(layout_node).map(|nid| {
+                    let props = &sync.arena().node_properties[nid.idx()];
+                    let spacing = props.get_property(BoxLayouterOptions::SPACING_NODE_NODE).unwrap_or(0.0);
+                    let padding = props.get_property(BoxLayouterOptions::PADDING).unwrap_or_else(ElkPadding::new);
+                    let expand = props.get_property(BoxLayouterOptions::EXPAND_NODES).unwrap_or(false);
+                    let interactive = props.get_property(BoxLayouterOptions::INTERACTIVE).unwrap_or(false);
+                    let mode = props.get_property(BoxLayouterOptions::BOX_PACKING_MODE).unwrap_or(PackingMode::Simple);
+                    (spacing, padding, expand, interactive, mode)
+                })
+            }).flatten() {
+                result
+            } else {
+                with_node_properties_mut(layout_node, |props| {
+                    let spacing = props.get_property(BoxLayouterOptions::SPACING_NODE_NODE).unwrap_or(0.0);
+                    let padding = props.get_property(BoxLayouterOptions::PADDING).unwrap_or_else(ElkPadding::new);
+                    let expand_nodes = props.get_property(BoxLayouterOptions::EXPAND_NODES).unwrap_or(false);
+                    let interactive = props.get_property(BoxLayouterOptions::INTERACTIVE).unwrap_or(false);
+                    let packing_mode = props.get_property(BoxLayouterOptions::BOX_PACKING_MODE).unwrap_or(PackingMode::Simple);
+                    (spacing, padding, expand_nodes, interactive, packing_mode)
+                })
+            };
 
         match packing_mode {
             PackingMode::Simple => place_boxes(

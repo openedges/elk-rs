@@ -43,7 +43,7 @@ impl IGraphLayoutEngine for StressLayoutProvider {
 
         let interactive = {
             let mut root = layout_graph.borrow_mut();
-            let mut props = root
+            let props = root
                 .connectable()
                 .shape()
                 .graph_element()
@@ -56,8 +56,6 @@ impl IGraphLayoutEngine for StressLayoutProvider {
 
         if !interactive {
             // Java parity: Stress delegates to Force for initial coordinates.
-            // Force-specific defaults (for example padding=50, spacing=80) may
-            // not be materialized on a stress-configured node.
             {
                 let mut root = layout_graph.borrow_mut();
                 let props = root
@@ -80,7 +78,7 @@ impl IGraphLayoutEngine for StressLayoutProvider {
         } else {
             let omit_micro = {
                 let mut root = layout_graph.borrow_mut();
-                let mut props = root
+                let props = root
                     .connectable()
                     .shape()
                     .graph_element()
@@ -103,16 +101,15 @@ impl IGraphLayoutEngine for StressLayoutProvider {
 
         let mut components = self.components_processor.split(fgraph);
         for subgraph in components.iter_mut() {
-            if subgraph.nodes().len() <= 1 {
+            if subgraph.nodes.len() <= 1 {
                 continue;
             }
             self.stress_majorization.initialize(subgraph);
             self.stress_majorization.execute(subgraph);
 
-            for label in subgraph.labels() {
-                if let Ok(mut label_guard) = label.lock() {
-                    label_guard.refresh_position();
-                }
+            let label_ids: Vec<_> = subgraph.labels.clone();
+            for lid in label_ids {
+                subgraph.refresh_label_position(lid);
             }
         }
 

@@ -67,8 +67,7 @@ impl IGraphLayoutEngine for TopdownpackingLayoutProvider {
         progress_monitor.begin("Topdown Packing", algorithm.len() as f32);
 
         for processor in &algorithm {
-            let mut processor_guard = processor.lock().expect("processor lock");
-            let mut sub = progress_monitor.sub_task(1.0);
+            let mut processor_guard = processor.lock();            let mut sub = progress_monitor.sub_task(1.0);
             processor_guard.process(&mut wrapped_graph, sub.as_mut());
         }
 

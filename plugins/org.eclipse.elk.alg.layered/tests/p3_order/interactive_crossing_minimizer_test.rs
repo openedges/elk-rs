@@ -15,7 +15,7 @@ fn new_single_layer_graph() -> (LGraphRef, LayerRef) {
     let layer = Layer::new(&graph);
     graph
         .lock()
-        .expect("graph lock")
+        
         .layers_mut()
         .push(layer.clone());
     (graph, layer)
@@ -30,8 +30,7 @@ fn add_node_to_layer(
 ) -> LNodeRef {
     let node = LNode::new(graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.set_node_type(node_type);
+        let mut node_guard = node.lock();        node_guard.set_node_type(node_type);
         node_guard.shape().position().y = y;
         node_guard.shape().size().y = height;
     }
@@ -43,7 +42,7 @@ fn run_interactive_crossing_minimization(graph: &LGraphRef) {
     LayoutMetaDataService::get_instance();
     let mut phase = CrossingMinimizationStrategy::Interactive.create_phase();
     let mut monitor = NullElkProgressMonitor;
-    phase.process(&mut graph.lock().expect("graph lock"), &mut monitor);
+    phase.process(&mut graph.lock(), &mut monitor);
 }
 
 #[test]
@@ -66,21 +65,20 @@ fn interactive_crossing_minimizer_sorts_layer_and_sets_dummy_position() {
 
     // Start in reverse order so the phase must actively sort by previous y positions.
     {
-        let mut layer_guard = layer.lock().expect("layer lock");
-        layer_guard.nodes_mut().clear();
+        let mut layer_guard = layer.lock();        layer_guard.nodes_mut().clear();
         layer_guard.nodes_mut().push(normal.clone());
         layer_guard.nodes_mut().push(long_edge_dummy.clone());
     }
 
     run_interactive_crossing_minimization(&graph);
 
-    let ordered_nodes = layer.lock().expect("layer lock").nodes().clone();
+    let ordered_nodes = layer.lock().nodes().clone();
     assert!(Arc::ptr_eq(&ordered_nodes[0], &long_edge_dummy));
     assert!(Arc::ptr_eq(&ordered_nodes[1], &normal));
 
     let original_dummy_pos = long_edge_dummy
         .lock()
-        .expect("dummy node lock")
+        
         .get_property(InternalProperties::ORIGINAL_DUMMY_NODE_POSITION)
         .expect("missing original dummy position");
     assert!(
@@ -96,19 +94,18 @@ fn interactive_crossing_minimizer_respects_in_layer_successor_constraints_on_tie
     let node_b = add_node_to_layer(&graph, &layer, NodeType::Normal, 0.0, 0.0);
 
     {
-        node_a.lock().expect("node_a lock").set_property(
+        node_a.lock().set_property(
             InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS,
             Some(vec![node_b.clone()]),
         );
-        let mut layer_guard = layer.lock().expect("layer lock");
-        layer_guard.nodes_mut().clear();
+        let mut layer_guard = layer.lock();        layer_guard.nodes_mut().clear();
         layer_guard.nodes_mut().push(node_b.clone());
         layer_guard.nodes_mut().push(node_a.clone());
     }
 
     run_interactive_crossing_minimization(&graph);
 
-    let ordered_nodes = layer.lock().expect("layer lock").nodes().clone();
+    let ordered_nodes = layer.lock().nodes().clone();
     assert!(Arc::ptr_eq(&ordered_nodes[0], &node_a));
     assert!(Arc::ptr_eq(&ordered_nodes[1], &node_b));
 }

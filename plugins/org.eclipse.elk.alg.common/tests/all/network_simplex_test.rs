@@ -22,25 +22,12 @@ fn network_simplex_deltas() {
 
                     for node in &graph.nodes {
                         let outgoing = node
-                            .lock()
-                            .ok()
-                            .map(|guard| guard.outgoing_edges().clone())
-                            .unwrap_or_default();
+                            .lock().outgoing_edges().clone();
                         for edge in outgoing {
                             let (source_layer, target_layer, delta) = {
-                                let edge_guard = edge.lock().expect("edge lock");
-                                let source_layer = edge_guard
-                                    .source
-                                    .lock()
-                                    .ok()
-                                    .map(|node_guard| node_guard.layer)
-                                    .unwrap_or(0);
-                                let target_layer = edge_guard
-                                    .target
-                                    .lock()
-                                    .ok()
-                                    .map(|node_guard| node_guard.layer)
-                                    .unwrap_or(0);
+                                let edge_guard = edge.lock();
+                                let source_layer = edge_guard.source.lock().layer;
+                                let target_layer = edge_guard.target.lock().layer;
                                 (source_layer, target_layer, edge_guard.delta)
                             };
                             assert!(target_layer - source_layer >= delta, "Valid delta");
@@ -88,25 +75,12 @@ fn generate_random_graph(random: &mut Random) -> NGraph {
 
     for node in &graph.nodes {
         let outgoing = node
-            .lock()
-            .ok()
-            .map(|guard| guard.outgoing_edges().clone())
-            .unwrap_or_default();
+            .lock().outgoing_edges().clone();
         for edge in outgoing {
             let (source_id, target_id) = {
-                let edge_guard = edge.lock().expect("edge lock");
-                let source_id = edge_guard
-                    .source
-                    .lock()
-                    .ok()
-                    .map(|node_guard| node_guard.id)
-                    .unwrap_or(0);
-                let target_id = edge_guard
-                    .target
-                    .lock()
-                    .ok()
-                    .map(|node_guard| node_guard.id)
-                    .unwrap_or(0);
+                let edge_guard = edge.lock();
+                let source_id = edge_guard.source.lock().id;
+                let target_id = edge_guard.target.lock().id;
                 (source_id, target_id)
             };
             if source_id > target_id {

@@ -23,7 +23,7 @@ fn trace_recorder_keeps_layerless_nodes_at_minus_one_even_in_layer_list() {
     let layer = Layer::new(&graph);
     graph
         .lock()
-        .expect("graph lock")
+        
         .layers_mut()
         .push(layer.clone());
 
@@ -32,14 +32,13 @@ fn trace_recorder_keeps_layerless_nodes_at_minus_one_even_in_layer_list() {
     let node = LNode::new(&graph);
     layer
         .lock()
-        .expect("layer lock")
+        
         .nodes_mut()
         .push(node);
 
     let trace_dir = temp_trace_dir();
     {
-        let graph_guard = graph.lock().expect("graph lock");
-        serialize_lgraph_snapshot(&graph_guard, 0, "CommentPostprocessor", &trace_dir)
+        let graph_guard = graph.lock();        serialize_lgraph_snapshot(&graph_guard, 0, "CommentPostprocessor", &trace_dir)
             .expect("serialize snapshot");
     }
 
@@ -58,22 +57,20 @@ fn trace_recorder_compacts_inside_self_loop_passthrough_width_and_east_port_x() 
     let graph = LGraph::new();
     let node = LNode::new(&graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.shape().size().x = 24.0;
+        let mut node_guard = node.lock();        node_guard.shape().size().x = 24.0;
         node_guard.shape().size().y = 24.0;
         node_guard.set_property(CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE, Some(true));
     }
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(node.clone());
 
     let west_port = LPort::new();
     LPort::set_node(&west_port, Some(node.clone()));
     {
-        let mut west_guard = west_port.lock().expect("west port lock");
-        west_guard.set_side(PortSide::West);
+        let mut west_guard = west_port.lock();        west_guard.set_side(PortSide::West);
         west_guard.shape().position().x = 0.0;
         west_guard.shape().position().y = 12.0;
         west_guard.shape().size().x = 0.0;
@@ -83,8 +80,7 @@ fn trace_recorder_compacts_inside_self_loop_passthrough_width_and_east_port_x() 
     let east_port = LPort::new();
     LPort::set_node(&east_port, Some(node.clone()));
     {
-        let mut east_guard = east_port.lock().expect("east port lock");
-        east_guard.set_side(PortSide::East);
+        let mut east_guard = east_port.lock();        east_guard.set_side(PortSide::East);
         east_guard.shape().position().x = 24.0;
         east_guard.shape().position().y = 12.0;
         east_guard.shape().size().x = 0.0;
@@ -93,8 +89,7 @@ fn trace_recorder_compacts_inside_self_loop_passthrough_width_and_east_port_x() 
 
     let trace_dir = temp_trace_dir();
     {
-        let graph_guard = graph.lock().expect("graph lock");
-        serialize_lgraph_snapshot(&graph_guard, 0, "EdgeAndLayerConstraintEdgeReverser", &trace_dir)
+        let graph_guard = graph.lock();        serialize_lgraph_snapshot(&graph_guard, 0, "EdgeAndLayerConstraintEdgeReverser", &trace_dir)
             .expect("serialize snapshot");
     }
 
@@ -124,27 +119,25 @@ fn trace_recorder_does_not_compact_passthrough_without_inside_self_loop_flag() {
     let layer = Layer::new(&graph);
     graph
         .lock()
-        .expect("graph lock")
+        
         .layers_mut()
         .push(layer.clone());
 
     let node = LNode::new(&graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.shape().size().x = 24.0;
+        let mut node_guard = node.lock();        node_guard.shape().size().x = 24.0;
         node_guard.shape().size().y = 24.0;
     }
     layer
         .lock()
-        .expect("layer lock")
+        
         .nodes_mut()
         .push(node.clone());
 
     let west_port = LPort::new();
     LPort::set_node(&west_port, Some(node.clone()));
     {
-        let mut west_guard = west_port.lock().expect("west port lock");
-        west_guard.set_side(PortSide::West);
+        let mut west_guard = west_port.lock();        west_guard.set_side(PortSide::West);
         west_guard.shape().position().x = 0.0;
         west_guard.shape().position().y = 12.0;
     }
@@ -152,16 +145,14 @@ fn trace_recorder_does_not_compact_passthrough_without_inside_self_loop_flag() {
     let east_port = LPort::new();
     LPort::set_node(&east_port, Some(node.clone()));
     {
-        let mut east_guard = east_port.lock().expect("east port lock");
-        east_guard.set_side(PortSide::East);
+        let mut east_guard = east_port.lock();        east_guard.set_side(PortSide::East);
         east_guard.shape().position().x = 24.0;
         east_guard.shape().position().y = 12.0;
     }
 
     let trace_dir = temp_trace_dir();
     {
-        let graph_guard = graph.lock().expect("graph lock");
-        serialize_lgraph_snapshot(&graph_guard, 11, "InLayerConstraintProcessor", &trace_dir)
+        let graph_guard = graph.lock();        serialize_lgraph_snapshot(&graph_guard, 11, "InLayerConstraintProcessor", &trace_dir)
             .expect("serialize snapshot");
     }
 
@@ -186,21 +177,19 @@ fn trace_recorder_compacts_single_south_flat_node_height_and_port_y() {
     let graph = LGraph::new();
     let node = LNode::new(&graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.shape().size().x = 64.0;
+        let mut node_guard = node.lock();        node_guard.shape().size().x = 64.0;
         node_guard.shape().size().y = 24.0;
     }
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(node.clone());
 
     let south_port_left = LPort::new();
     LPort::set_node(&south_port_left, Some(node.clone()));
     {
-        let mut port_guard = south_port_left.lock().expect("south port left lock");
-        port_guard.set_side(PortSide::South);
+        let mut port_guard = south_port_left.lock();        port_guard.set_side(PortSide::South);
         port_guard.shape().position().x = 12.0;
         port_guard.shape().position().y = 24.0;
     }
@@ -208,16 +197,14 @@ fn trace_recorder_compacts_single_south_flat_node_height_and_port_y() {
     let south_port_right = LPort::new();
     LPort::set_node(&south_port_right, Some(node.clone()));
     {
-        let mut port_guard = south_port_right.lock().expect("south port right lock");
-        port_guard.set_side(PortSide::South);
+        let mut port_guard = south_port_right.lock();        port_guard.set_side(PortSide::South);
         port_guard.shape().position().x = 52.0;
         port_guard.shape().position().y = 24.0;
     }
 
     let trace_dir = temp_trace_dir();
     {
-        let graph_guard = graph.lock().expect("graph lock");
-        serialize_lgraph_snapshot(&graph_guard, 92, "EdgeAndLayerConstraintEdgeReverser", &trace_dir)
+        let graph_guard = graph.lock();        serialize_lgraph_snapshot(&graph_guard, 92, "EdgeAndLayerConstraintEdgeReverser", &trace_dir)
             .expect("serialize snapshot");
     }
 
@@ -245,21 +232,19 @@ fn trace_recorder_compacts_single_north_flat_node_height_and_keeps_port_y_zero()
     let graph = LGraph::new();
     let node = LNode::new(&graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.shape().size().x = 64.0;
+        let mut node_guard = node.lock();        node_guard.shape().size().x = 64.0;
         node_guard.shape().size().y = 24.0;
     }
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(node.clone());
 
     let north_port_left = LPort::new();
     LPort::set_node(&north_port_left, Some(node.clone()));
     {
-        let mut port_guard = north_port_left.lock().expect("north port left lock");
-        port_guard.set_side(PortSide::North);
+        let mut port_guard = north_port_left.lock();        port_guard.set_side(PortSide::North);
         port_guard.shape().position().x = 12.0;
         port_guard.shape().position().y = 0.0;
     }
@@ -267,16 +252,14 @@ fn trace_recorder_compacts_single_north_flat_node_height_and_keeps_port_y_zero()
     let north_port_right = LPort::new();
     LPort::set_node(&north_port_right, Some(node.clone()));
     {
-        let mut port_guard = north_port_right.lock().expect("north port right lock");
-        port_guard.set_side(PortSide::North);
+        let mut port_guard = north_port_right.lock();        port_guard.set_side(PortSide::North);
         port_guard.shape().position().x = 52.0;
         port_guard.shape().position().y = 0.0;
     }
 
     let trace_dir = temp_trace_dir();
     {
-        let graph_guard = graph.lock().expect("graph lock");
-        serialize_lgraph_snapshot(&graph_guard, 114, "EdgeAndLayerConstraintEdgeReverser", &trace_dir)
+        let graph_guard = graph.lock();        serialize_lgraph_snapshot(&graph_guard, 114, "EdgeAndLayerConstraintEdgeReverser", &trace_dir)
             .expect("serialize snapshot");
     }
 
@@ -304,21 +287,19 @@ fn trace_recorder_compacts_non_centered_passthrough_width_and_east_port_x() {
     let graph = LGraph::new();
     let node = LNode::new(&graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.shape().size().x = 24.0;
+        let mut node_guard = node.lock();        node_guard.shape().size().x = 24.0;
         node_guard.shape().size().y = 46.0;
     }
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(node.clone());
 
     let west_top = LPort::new();
     LPort::set_node(&west_top, Some(node.clone()));
     {
-        let mut port_guard = west_top.lock().expect("west top lock");
-        port_guard.set_side(PortSide::West);
+        let mut port_guard = west_top.lock();        port_guard.set_side(PortSide::West);
         port_guard.shape().position().x = 0.0;
         port_guard.shape().position().y = 12.0;
     }
@@ -326,8 +307,7 @@ fn trace_recorder_compacts_non_centered_passthrough_width_and_east_port_x() {
     let west_bottom = LPort::new();
     LPort::set_node(&west_bottom, Some(node.clone()));
     {
-        let mut port_guard = west_bottom.lock().expect("west bottom lock");
-        port_guard.set_side(PortSide::West);
+        let mut port_guard = west_bottom.lock();        port_guard.set_side(PortSide::West);
         port_guard.shape().position().x = 0.0;
         port_guard.shape().position().y = 33.0;
     }
@@ -335,8 +315,7 @@ fn trace_recorder_compacts_non_centered_passthrough_width_and_east_port_x() {
     let east_top = LPort::new();
     LPort::set_node(&east_top, Some(node.clone()));
     {
-        let mut port_guard = east_top.lock().expect("east top lock");
-        port_guard.set_side(PortSide::East);
+        let mut port_guard = east_top.lock();        port_guard.set_side(PortSide::East);
         port_guard.shape().position().x = 24.0;
         port_guard.shape().position().y = 12.0;
     }
@@ -344,16 +323,14 @@ fn trace_recorder_compacts_non_centered_passthrough_width_and_east_port_x() {
     let east_bottom = LPort::new();
     LPort::set_node(&east_bottom, Some(node.clone()));
     {
-        let mut port_guard = east_bottom.lock().expect("east bottom lock");
-        port_guard.set_side(PortSide::East);
+        let mut port_guard = east_bottom.lock();        port_guard.set_side(PortSide::East);
         port_guard.shape().position().x = 24.0;
         port_guard.shape().position().y = 33.0;
     }
 
     let trace_dir = temp_trace_dir();
     {
-        let graph_guard = graph.lock().expect("graph lock");
-        serialize_lgraph_snapshot(&graph_guard, 158, "EdgeAndLayerConstraintEdgeReverser", &trace_dir)
+        let graph_guard = graph.lock();        serialize_lgraph_snapshot(&graph_guard, 158, "EdgeAndLayerConstraintEdgeReverser", &trace_dir)
             .expect("serialize snapshot");
     }
 
@@ -382,13 +359,12 @@ fn trace_recorder_compacts_passthrough_with_pre_shifted_east_ports() {
     let graph = LGraph::new();
     let node = LNode::new(&graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.shape().size().x = 24.0;
+        let mut node_guard = node.lock();        node_guard.shape().size().x = 24.0;
         node_guard.shape().size().y = 64.0;
     }
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(node.clone());
 
@@ -396,8 +372,7 @@ fn trace_recorder_compacts_passthrough_with_pre_shifted_east_ports() {
         let west = LPort::new();
         LPort::set_node(&west, Some(node.clone()));
         {
-            let mut port_guard = west.lock().expect("west lock");
-            port_guard.set_side(PortSide::West);
+            let mut port_guard = west.lock();            port_guard.set_side(PortSide::West);
             port_guard.shape().position().x = 0.0;
             port_guard.shape().position().y = y;
         }
@@ -405,8 +380,7 @@ fn trace_recorder_compacts_passthrough_with_pre_shifted_east_ports() {
         let east = LPort::new();
         LPort::set_node(&east, Some(node.clone()));
         {
-            let mut port_guard = east.lock().expect("east lock");
-            port_guard.set_side(PortSide::East);
+            let mut port_guard = east.lock();            port_guard.set_side(PortSide::East);
             port_guard.shape().position().x = 4.0;
             port_guard.shape().position().y = y;
         }
@@ -414,8 +388,7 @@ fn trace_recorder_compacts_passthrough_with_pre_shifted_east_ports() {
 
     let trace_dir = temp_trace_dir();
     {
-        let graph_guard = graph.lock().expect("graph lock");
-        serialize_lgraph_snapshot(&graph_guard, 144, "EdgeAndLayerConstraintEdgeReverser", &trace_dir)
+        let graph_guard = graph.lock();        serialize_lgraph_snapshot(&graph_guard, 144, "EdgeAndLayerConstraintEdgeReverser", &trace_dir)
             .expect("serialize snapshot");
     }
 
@@ -444,21 +417,19 @@ fn trace_recorder_does_not_compact_passthrough_when_rows_do_not_align() {
     let graph = LGraph::new();
     let node = LNode::new(&graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.shape().size().x = 24.0;
+        let mut node_guard = node.lock();        node_guard.shape().size().x = 24.0;
         node_guard.shape().size().y = 44.0;
     }
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(node.clone());
 
     let west = LPort::new();
     LPort::set_node(&west, Some(node.clone()));
     {
-        let mut port_guard = west.lock().expect("west lock");
-        port_guard.set_side(PortSide::West);
+        let mut port_guard = west.lock();        port_guard.set_side(PortSide::West);
         port_guard.shape().position().x = 0.0;
         port_guard.shape().position().y = 12.0;
     }
@@ -466,16 +437,14 @@ fn trace_recorder_does_not_compact_passthrough_when_rows_do_not_align() {
     let east = LPort::new();
     LPort::set_node(&east, Some(node.clone()));
     {
-        let mut port_guard = east.lock().expect("east lock");
-        port_guard.set_side(PortSide::East);
+        let mut port_guard = east.lock();        port_guard.set_side(PortSide::East);
         port_guard.shape().position().x = 24.0;
         port_guard.shape().position().y = 32.0;
     }
 
     let trace_dir = temp_trace_dir();
     {
-        let graph_guard = graph.lock().expect("graph lock");
-        serialize_lgraph_snapshot(&graph_guard, 23, "EdgeAndLayerConstraintEdgeReverser", &trace_dir)
+        let graph_guard = graph.lock();        serialize_lgraph_snapshot(&graph_guard, 23, "EdgeAndLayerConstraintEdgeReverser", &trace_dir)
             .expect("serialize snapshot");
     }
 

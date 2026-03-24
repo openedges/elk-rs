@@ -168,7 +168,7 @@ fn test_add_processor_configuration() {
         let mut monitor = NullElkProgressMonitor;
         processor
             .lock()
-            .expect("processor lock")
+            
             .process(&mut buffer, &mut monitor);
         assert_eq!(*expected, buffer);
     }

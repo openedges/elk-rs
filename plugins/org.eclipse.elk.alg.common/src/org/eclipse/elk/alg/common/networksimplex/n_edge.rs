@@ -46,13 +46,11 @@ impl NEdge {
 
     pub fn reverse(edge: &NEdgeRef) {
         let (old_source, old_target) = {
-            let guard = edge.lock().expect("edge lock");
-            (guard.source.clone(), guard.target.clone())
+            let guard = edge.lock();            (guard.source.clone(), guard.target.clone())
         };
 
         {
-            let mut edge_guard = edge.lock().expect("edge lock");
-            edge_guard.source = old_target.clone();
+            let mut edge_guard = edge.lock();            edge_guard.source = old_target.clone();
             edge_guard.target = old_source.clone();
         }
 
@@ -61,17 +59,11 @@ impl NEdge {
 
         let old_target_ref = old_target.clone();
         {
-            let Ok(mut source_guard) = old_target_ref.lock() else {
-                return;
-            };
-            source_guard.outgoing_edges_mut().push(edge.clone());
+            let mut source_guard = old_target_ref.lock();            source_guard.outgoing_edges_mut().push(edge.clone());
         }
         let old_source_ref = old_source.clone();
         {
-            let Ok(mut target_guard) = old_source_ref.lock() else {
-                return;
-            };
-            target_guard.incoming_edges_mut().push(edge.clone());
+            let mut target_guard = old_source_ref.lock();            target_guard.incoming_edges_mut().push(edge.clone());
         }
     }
 }
@@ -145,10 +137,12 @@ impl NEdgeBuilder {
             tree_edge: false,
         }));
 
-        if let Ok(mut source_guard) = source.lock() {
+        {
+            let mut source_guard = source.lock();
             source_guard.outgoing_edges_mut().push(edge_ref.clone());
         }
-        if let Ok(mut target_guard) = target.lock() {
+        {
+            let mut target_guard = target.lock();
             target_guard.incoming_edges_mut().push(edge_ref.clone());
         }
 
@@ -157,12 +151,11 @@ impl NEdgeBuilder {
 }
 
 fn remove_edge_from(node: &NNodeRef, edge: &NEdgeRef, outgoing: bool) {
-    if let Ok(mut node_guard) = node.lock() {
-        let list = if outgoing {
-            node_guard.outgoing_edges_mut()
-        } else {
-            node_guard.incoming_edges_mut()
-        };
-        list.retain(|candidate| !Arc::ptr_eq(candidate, edge));
-    }
+    let mut node_guard = node.lock();
+    let list = if outgoing {
+        node_guard.outgoing_edges_mut()
+    } else {
+        node_guard.incoming_edges_mut()
+    };
+    list.retain(|candidate| !Arc::ptr_eq(candidate, edge));
 }

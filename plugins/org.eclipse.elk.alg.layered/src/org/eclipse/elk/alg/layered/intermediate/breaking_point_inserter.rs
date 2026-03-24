@@ -96,17 +96,11 @@ impl BreakingPointInserter {
         while idx < graph.layers().len() {
             let layer = graph.layers()[idx].clone();
             let nodes = layer
-                .lock()
-                .ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
 
             for node in nodes {
                 let outgoing = node
-                    .lock()
-                    .ok()
-                    .map(|node_guard| node_guard.outgoing_edges())
-                    .unwrap_or_default();
+                    .lock().outgoing_edges();
                 for edge in outgoing {
                     if !contains_edge(&open_edges, &edge) {
                         open_edges.push(edge);
@@ -114,10 +108,7 @@ impl BreakingPointInserter {
                 }
 
                 let incoming = node
-                    .lock()
-                    .ok()
-                    .map(|node_guard| node_guard.incoming_edges())
-                    .unwrap_or_default();
+                    .lock().incoming_edges();
                 for edge in incoming {
                     remove_edge(&mut open_edges, &edge);
                 }
@@ -140,18 +131,15 @@ impl BreakingPointInserter {
                     let (bp_end_marker, in_port_bp2, out_port_bp2) =
                         create_breaking_point_dummy(&graph_ref, &bp_layer2);
 
-                    let model_order = original_edge.lock().ok().and_then(|mut edge_guard| {
-                        edge_guard.get_property(InternalProperties::MODEL_ORDER)
-                    });
+                    let model_order = original_edge.lock().get_property(InternalProperties::MODEL_ORDER);
 
                     let source_port = original_edge
-                        .lock()
-                        .ok()
-                        .and_then(|edge_guard| edge_guard.source());
+                        .lock().source();
                     let node_start_edge = LEdge::new();
                     LEdge::set_source(&node_start_edge, source_port);
                     LEdge::set_target(&node_start_edge, Some(in_port_bp1));
-                    if let Ok(mut node_start_edge_guard) = node_start_edge.lock() {
+                    {
+                        let mut node_start_edge_guard = node_start_edge.lock();
                         node_start_edge_guard
                             .set_property(InternalProperties::MODEL_ORDER, model_order);
                     }
@@ -159,7 +147,8 @@ impl BreakingPointInserter {
                     let start_end_edge = LEdge::new();
                     LEdge::set_source(&start_end_edge, Some(out_port_bp1));
                     LEdge::set_target(&start_end_edge, Some(in_port_bp2));
-                    if let Ok(mut start_end_edge_guard) = start_end_edge.lock() {
+                    {
+                        let mut start_end_edge_guard = start_end_edge.lock();
                         start_end_edge_guard
                             .set_property(InternalProperties::MODEL_ORDER, model_order);
                     }
@@ -173,13 +162,15 @@ impl BreakingPointInserter {
                         start_end_edge,
                         original_edge,
                     );
-                    if let Ok(mut start_guard) = bp_start_marker.lock() {
+                    {
+                        let mut start_guard = bp_start_marker.lock();
                         start_guard.set_property(
                             InternalProperties::BREAKING_POINT_INFO,
                             Some(bp_info.clone()),
                         );
                     }
-                    if let Ok(mut end_guard) = bp_end_marker.lock() {
+                    {
+                        let mut end_guard = bp_end_marker.lock();
                         end_guard.set_property(
                             InternalProperties::BREAKING_POINT_INFO,
                             Some(bp_info.clone()),
@@ -187,26 +178,20 @@ impl BreakingPointInserter {
                     }
 
                     let prev_node = node_start_edge
-                        .lock()
-                        .ok()
-                        .and_then(|edge_guard| edge_guard.source())
-                        .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                        .lock().source()
+                        .and_then(|port| port.lock().node());
 
                     if let Some(prev_node) = prev_node {
-                        let prev_is_breaking_point = prev_node
-                            .lock()
-                            .ok()
-                            .map(|node_guard| node_guard.node_type() == NodeType::BreakingPoint)
-                            .unwrap_or(false);
+                        let prev_is_breaking_point = prev_node.lock().node_type() == NodeType::BreakingPoint;
                         if prev_is_breaking_point {
-                            let prev_info = prev_node.lock().ok().and_then(|mut node_guard| {
-                                node_guard.get_property(InternalProperties::BREAKING_POINT_INFO)
-                            });
+                            let prev_info = prev_node.lock().get_property(InternalProperties::BREAKING_POINT_INFO);
                             if let Some(prev_info) = prev_info {
-                                if let Ok(mut prev_info_guard) = prev_info.lock() {
+                                {
+                                    let mut prev_info_guard = prev_info.lock();
                                     prev_info_guard.next = Some(bp_info.clone());
                                 }
-                                if let Ok(mut bp_info_guard) = bp_info.lock() {
+                                {
+                                    let mut bp_info_guard = bp_info.lock();
                                     bp_info_guard.prev = Some(prev_info);
                                 }
                             }
@@ -373,17 +358,11 @@ fn compute_edge_spans(graph: &LGraph) -> Vec<i32> {
         spans[idx] = open.len() as i32;
 
         let nodes = layer
-            .lock()
-            .ok()
-            .map(|layer_guard| layer_guard.nodes().clone())
-            .unwrap_or_default();
+            .lock().nodes().clone();
 
         for node in &nodes {
             let outgoing = node
-                .lock()
-                .ok()
-                .map(|node_guard| node_guard.outgoing_edges())
-                .unwrap_or_default();
+                .lock().outgoing_edges();
             for edge in outgoing {
                 if !contains_edge(&open, &edge) {
                     open.push(edge);
@@ -393,10 +372,7 @@ fn compute_edge_spans(graph: &LGraph) -> Vec<i32> {
 
         for node in &nodes {
             let incoming = node
-                .lock()
-                .ok()
-                .map(|node_guard| node_guard.incoming_edges())
-                .unwrap_or_default();
+                .lock().incoming_edges();
             for edge in incoming {
                 remove_edge(&mut open, &edge);
             }
@@ -415,7 +391,8 @@ fn create_breaking_point_dummy(
     Arc<Mutex<crate::org::eclipse::elk::alg::layered::graph::LPort>>,
 ) {
     let node = LNode::new(graph_ref);
-    if let Ok(mut node_guard) = node.lock() {
+    {
+        let mut node_guard = node.lock();
         node_guard.set_property(
             LayeredOptions::PORT_CONSTRAINTS,
             Some(PortConstraints::FixedSide),
@@ -425,13 +402,15 @@ fn create_breaking_point_dummy(
     LNode::set_layer(&node, Some(layer.clone()));
 
     let in_port = LPort::new();
-    if let Ok(mut in_port_guard) = in_port.lock() {
+    {
+        let mut in_port_guard = in_port.lock();
         in_port_guard.set_side(PortSide::West);
     }
     LPort::set_node(&in_port, Some(node.clone()));
 
     let out_port = LPort::new();
-    if let Ok(mut out_port_guard) = out_port.lock() {
+    {
+        let mut out_port_guard = out_port.lock();
         out_port_guard.set_side(PortSide::East);
     }
     LPort::set_node(&out_port, Some(node.clone()));
@@ -595,15 +574,13 @@ impl CutIndexCalculator for MSDCutIndexHeuristic {
 fn graph_ref_for(layered_graph: &LGraph) -> LGraphRef {
     if let Some(layer) = layered_graph.layers().first() {
         if let Some(graph_ref) = layer
-            .lock()
-            .ok()
-            .and_then(|layer_guard| layer_guard.graph())
+            .lock().graph()
         {
             return graph_ref;
         }
     }
     if let Some(node) = layered_graph.layerless_nodes().first() {
-        if let Some(graph_ref) = node.lock().ok().and_then(|node_guard| node_guard.graph()) {
+        if let Some(graph_ref) = node.lock().graph() {
             return graph_ref;
         }
     }

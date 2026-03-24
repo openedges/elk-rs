@@ -1,7 +1,7 @@
 use std::any::Any;
-use std::sync::LazyLock;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::util::Random;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LNodeRef, NodeType};
 use crate::org::eclipse::elk::alg::layered::intermediate::greedyswitch::crossing_matrix_filler::CrossingMatrixFiller;
@@ -11,9 +11,6 @@ use crate::org::eclipse::elk::alg::layered::intermediate::greedyswitch::switch_d
 use crate::org::eclipse::elk::alg::layered::p3order::counting::IInitializable;
 use crate::org::eclipse::elk::alg::layered::p3order::i_crossing_minimization_heuristic::ICrossingMinimizationHeuristic;
 use crate::org::eclipse::elk::alg::layered::p3order::layer_sweep_crossing_minimizer::CrossMinType;
-
-static TRACE_GREEDY_SWITCH: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_GREEDY_SWITCH").is_some());
 
 pub struct ParentContext {
     parent_node_order: Vec<Vec<LNodeRef>>,
@@ -79,7 +76,7 @@ impl GreedySwitchHeuristic {
         let free_layer = &order[free_layer_index];
         let free_layer_first_is_external_port = free_layer
             .first()
-            .and_then(|node| node.lock().ok().map(|node_guard| node_guard.node_type()))
+            .map(|node| node.lock().node_type())
             .map(|node_type| node_type == NodeType::ExternalPort)
             .unwrap_or(false);
 
@@ -123,7 +120,7 @@ impl GreedySwitchHeuristic {
         switch_decider: &mut SwitchDecider,
     ) -> bool {
         let mut improved = false;
-        let trace = *TRACE_GREEDY_SWITCH;
+        let trace = ElkTrace::global().greedy_switch;
         let mut iterations = 0usize;
         loop {
             let continue_switching =
@@ -281,8 +278,9 @@ impl IInitializable for GreedySwitchHeuristic {
 
     fn init_at_layer_level(&mut self, layer_index: usize, node_order: &[Vec<LNodeRef>]) {
         if let Some(node) = node_order.get(layer_index).and_then(|layer| layer.first()) {
-            if let Some(layer_ref) = node.lock().ok().and_then(|node_guard| node_guard.layer()) {
-                if let Ok(mut layer_guard) = layer_ref.lock() {
+            if let Some(layer_ref) = node.lock().layer() {
+                {
+                    let mut layer_guard = layer_ref.lock();
                     layer_guard.graph_element().id = layer_index as i32;
                 }
             }
@@ -295,13 +293,8 @@ impl IInitializable for GreedySwitchHeuristic {
 }
 
 fn layer_index_of(node: &LNodeRef) -> Option<usize> {
-    node.lock()
-        .ok()
-        .and_then(|node_guard| node_guard.layer())
+    node.lock().layer()
         .and_then(|layer| {
-            layer
-                .lock()
-                .ok()
-                .map(|mut layer_guard| layer_guard.graph_element().id as usize)
+            Some(layer.lock().graph_element().id as usize)
         })
 }

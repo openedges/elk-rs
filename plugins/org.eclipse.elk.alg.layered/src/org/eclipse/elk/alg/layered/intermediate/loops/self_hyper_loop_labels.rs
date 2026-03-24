@@ -54,7 +54,8 @@ impl SelfHyperLoopLabels {
         let mut new_size = KVector::new();
         let labels: Vec<_> = self.l_labels.clone();
         for (i, l_label) in labels.iter().enumerate() {
-            if let Ok(mut label_guard) = l_label.lock() {
+            {
+                let mut label_guard = l_label.lock();
                 let width = label_guard.shape().size_ref().x;
                 let height = label_guard.shape().size_ref().y;
                 if self.layout_direction_horizontal {
@@ -148,7 +149,8 @@ impl SelfHyperLoopLabels {
         let mut y = self.position.y;
 
         for l_label in &self.l_labels {
-            if let Ok(mut label_guard) = l_label.lock() {
+            {
+                let mut label_guard = l_label.lock();
                 let label_width = label_guard.shape().size_ref().x;
                 let label_height = label_guard.shape().size_ref().y;
 
@@ -174,7 +176,8 @@ impl SelfHyperLoopLabels {
         let y = self.position.y;
 
         for l_label in &self.l_labels {
-            if let Ok(mut label_guard) = l_label.lock() {
+            {
+                let mut label_guard = l_label.lock();
                 let label_width = label_guard.shape().size_ref().x;
                 let label_height = label_guard.shape().size_ref().y;
 
@@ -202,7 +205,8 @@ impl SelfHyperLoopLabels {
         let mut new_size = KVector::new();
 
         for (index, l_label) in self.l_labels.iter().enumerate() {
-            if let Ok(mut label_guard) = l_label.lock() {
+            {
+                let mut label_guard = l_label.lock();
                 if let Some(updated_size) =
                     label_manager.manage_label_size(&*label_guard, target_width)
                 {
@@ -222,7 +226,8 @@ impl SelfHyperLoopLabels {
     }
 
     fn update_size(&mut self, l_label: &LLabelRef) {
-        if let Ok(mut label_guard) = l_label.lock() {
+        {
+            let mut label_guard = l_label.lock();
             let width = label_guard.shape().size_ref().x;
             let height = label_guard.shape().size_ref().y;
             if self.layout_direction_horizontal {

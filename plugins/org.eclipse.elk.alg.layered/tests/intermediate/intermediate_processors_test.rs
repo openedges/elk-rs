@@ -20,8 +20,7 @@ fn new_graph_with_single_layer() -> (LGraphRef, LayerRef) {
     let graph = LGraph::new();
     let layer = Layer::new(&graph);
     {
-        let mut graph_guard = graph.lock().expect("graph lock");
-        graph_guard.layers_mut().push(layer.clone());
+        let mut graph_guard = graph.lock();        graph_guard.layers_mut().push(layer.clone());
     }
     (graph, layer)
 }
@@ -34,8 +33,7 @@ fn init_layered_metadata() {
 fn add_node(graph: &LGraphRef, layer: &LayerRef, x: f64, y: f64) -> LNodeRef {
     let node = LNode::new(graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.shape().position().x = x;
+        let mut node_guard = node.lock();        node_guard.shape().position().x = x;
         node_guard.shape().position().y = y;
     }
     LNode::set_layer(&node, Some(layer.clone()));
@@ -45,8 +43,7 @@ fn add_node(graph: &LGraphRef, layer: &LayerRef, x: f64, y: f64) -> LNodeRef {
 fn add_port(node: &LNodeRef, side: PortSide, x: f64, y: f64) -> LPortRef {
     let port = LPort::new();
     {
-        let mut port_guard = port.lock().expect("port lock");
-        port_guard.set_side(side);
+        let mut port_guard = port.lock();        port_guard.set_side(side);
         port_guard.shape().position().x = x;
         port_guard.shape().position().y = y;
     }
@@ -75,8 +72,7 @@ fn build_north_south_fixture() -> NorthSouthFixture {
     let (graph, layer) = new_graph_with_single_layer();
     let owner = add_node(&graph, &layer, 20.0, 40.0);
     {
-        let mut owner_guard = owner.lock().expect("owner lock");
-        owner_guard.set_property(
+        let mut owner_guard = owner.lock();        owner_guard.set_property(
             LayeredOptions::PORT_CONSTRAINTS,
             Some(PortConstraints::FixedSide),
         );
@@ -107,31 +103,29 @@ fn run_preprocessor(graph: &LGraphRef) {
     init_layered_metadata();
     let mut processor = NorthSouthPortPreprocessor;
     let mut monitor = NullElkProgressMonitor;
-    let mut graph_guard = graph.lock().expect("graph lock");
-    processor.process(&mut graph_guard, &mut monitor);
+    let mut graph_guard = graph.lock();    processor.process(&mut graph_guard, &mut monitor);
 }
 
 fn run_postprocessor(graph: &LGraphRef) {
     init_layered_metadata();
     let mut processor = NorthSouthPortPostprocessor;
     let mut monitor = NullElkProgressMonitor;
-    let mut graph_guard = graph.lock().expect("graph lock");
-    processor.process(&mut graph_guard, &mut monitor);
+    let mut graph_guard = graph.lock();    processor.process(&mut graph_guard, &mut monitor);
 }
 
 fn layer_node_count(layer: &LayerRef) -> usize {
-    layer.lock().expect("layer lock").nodes().len()
+    layer.lock().nodes().len()
 }
 
 fn dummy_nodes_in_layer(layer: &LayerRef) -> Vec<LNodeRef> {
     layer
         .lock()
-        .expect("layer lock")
+        
         .nodes()
         .iter()
         .filter_map(|node| {
-            let node_type = node.lock().ok().map(|node_guard| node_guard.node_type());
-            if node_type == Some(NodeType::NorthSouthPort) {
+            let node_type = node.lock().node_type();
+            if node_type == NodeType::NorthSouthPort {
                 Some(node.clone())
             } else {
                 None
@@ -141,32 +135,23 @@ fn dummy_nodes_in_layer(layer: &LayerRef) -> Vec<LNodeRef> {
 }
 
 fn snapshot(graph: &LGraphRef) -> (usize, usize, usize, usize) {
-    let graph_guard = graph.lock().expect("graph lock");
-    let layer_count = graph_guard.layers().len();
+    let graph_guard = graph.lock();    let layer_count = graph_guard.layers().len();
     let first_layer_nodes = graph_guard
         .layers()
         .first()
-        .and_then(|layer| {
-            layer
-                .lock()
-                .ok()
-                .map(|layer_guard| layer_guard.nodes().len())
-        })
+        .map(|layer| layer.lock().nodes().len())
         .unwrap_or(0);
     let layerless_count = graph_guard.layerless_nodes().len();
     let normal_nodes = graph_guard
         .layers()
         .iter()
-        .filter_map(|layer| layer.lock().ok())
+        .map(|layer| layer.lock())
         .map(|layer_guard| {
             layer_guard
                 .nodes()
                 .iter()
                 .filter(|node| {
-                    node.lock()
-                        .ok()
-                        .map(|node_guard| node_guard.node_type() == NodeType::Normal)
-                        .unwrap_or(false)
+                    node.lock().node_type() == NodeType::Normal
                 })
                 .count()
         })
@@ -183,8 +168,7 @@ fn run_strategy(strategy: IntermediateProcessorStrategy, graph: &LGraphRef) {
     init_layered_metadata();
     let mut processor = strategy.create();
     let mut monitor = NullElkProgressMonitor;
-    let mut graph_guard = graph.lock().expect("graph lock");
-    processor.process(&mut graph_guard, &mut monitor);
+    let mut graph_guard = graph.lock();    processor.process(&mut graph_guard, &mut monitor);
 }
 
 fn assert_strategy_stable(strategy: IntermediateProcessorStrategy) {
@@ -211,8 +195,7 @@ fn north_south_preprocessor_skips_unconnected_ports() {
     let (graph, layer) = new_graph_with_single_layer();
     let owner = add_node(&graph, &layer, 0.0, 0.0);
     {
-        let mut owner_guard = owner.lock().expect("owner lock");
-        owner_guard.set_property(
+        let mut owner_guard = owner.lock();        owner_guard.set_property(
             LayeredOptions::PORT_CONSTRAINTS,
             Some(PortConstraints::FixedSide),
         );
@@ -232,7 +215,7 @@ fn north_south_preprocessor_sets_layout_unit_and_barycenter_associates() {
     let barycenter = fixture
         .owner
         .lock()
-        .expect("owner lock")
+        
         .get_property(InternalProperties::BARYCENTER_ASSOCIATES)
         .unwrap_or_default();
     assert_eq!(barycenter.len(), 2);
@@ -241,7 +224,7 @@ fn north_south_preprocessor_sets_layout_unit_and_barycenter_associates() {
     for dummy in dummies {
         let layout_unit = dummy
             .lock()
-            .expect("dummy lock")
+            
             .get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
             .expect("layout unit");
         assert!(Arc::ptr_eq(&layout_unit, &fixture.owner));
@@ -267,14 +250,14 @@ fn north_south_postprocessor_restores_incoming_edge_to_origin_port() {
     let target = fixture
         .incoming_edge
         .lock()
-        .expect("edge lock")
+        
         .target()
         .expect("target");
     assert!(Arc::ptr_eq(&target, &fixture.north_port));
     let bend_count = fixture
         .incoming_edge
         .lock()
-        .expect("edge lock")
+        
         .bend_points_ref()
         .size();
     assert!(bend_count >= 1);
@@ -289,14 +272,14 @@ fn north_south_postprocessor_restores_outgoing_edge_to_origin_port() {
     let source = fixture
         .outgoing_edge
         .lock()
-        .expect("edge lock")
+        
         .source()
         .expect("source");
     assert!(Arc::ptr_eq(&source, &fixture.south_port));
     let bend_count = fixture
         .outgoing_edge
         .lock()
-        .expect("edge lock")
+        
         .bend_points_ref()
         .size();
     assert!(bend_count >= 1);

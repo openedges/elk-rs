@@ -44,14 +44,14 @@
 7. 커밋 (`<scope>: <summary>`)
 8. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
-## 현재 핵심 스냅샷 (2026-03-06, 100% parity)
+## 현재 핵심 스냅샷 (2026-03-24, 100% parity)
 - **elk-rs 버전**: `0.11.0` (ELK Java `v0.11.0` 기준 포팅 완료)
   - Cargo workspace 전체 + npm 동일 버전
   - 서브모듈 고정: `external/elk` → `v0.11.0` 태그, `external/elkjs` → `0.11.0` 태그
 - **Model parity**: `matches=1988/1989`, `drift=1`, `skipped=9` **(100%)**
-  - 전체 1998 모델 커버리지 (.elkt/.elkg/.json 포함, 이전 1438 → 1988)
-  - 550개 .json ptolemy 모델 추가 — Java export + manifest 통합으로 달성
+  - 전체 1998 모델 커버리지 (.elkt/.elkg/.json 포함)
   - `213_componentsCompaction.elkt`는 Java ELK NaN 버그로 `java_exclude.txt`에서 제외
+  - polyline_edge_router stale arena fix: 341/463/587 drift 3건 해소 (arena node_pos.x stale → live port anchor 사용)
 - **Phase-step trace**: `1997/1997` match, `0` drift **(100%)**
   - 전체 모델 커버리지 (이전 1438 → 1997)
   - `rust_only=1` (`588_hierarchicalLayoutNPE.elkt` — Java NPE로 trace 생성 불가)
@@ -63,20 +63,15 @@
   - NAPI 플랫폼별 패키지 6개 추가 완료: `@elk-rs/darwin-arm64`, `@elk-rs/darwin-x64`, `@elk-rs/linux-x64-gnu`, `@elk-rs/linux-x64-musl`, `@elk-rs/linux-arm64-gnu`, `@elk-rs/win32-x64-msvc`
   - 로딩 우선순위: 플랫폼 NAPI 패키지 → 로컬 `.node` → WASM 폴백
   - CI/CD: `.github/workflows/napi.yml` (태그 push 시 6 플랫폼 크로스 빌드 + npm publish)
-- **성능 기준선 (6-way fair benchmark, synthetic 10/3, 2026-03-06 측정, ~3.90x)**:
+- **성능 기준선 (6-way fair benchmark, synthetic 10/3, 2026-03-23 측정, ~3.88x)**:
   - 측정 머신: MacBook Pro (Mac15,6), Apple M3 Pro (11코어: 5P+6E), 36GB RAM, macOS 26.3
   - 툴체인: Rust 1.93.1, OpenJDK 21.0.10, Node.js 22.16.0
-  - 전체 26 시나리오 평균: java 100.0ms, rust_native **25.6ms** → Rust **~3.90x faster**
-  - Rust wins 24/26 시나리오, Java wins 2/26 시나리오
-  - `layered_xlarge`: rust_native **245ms** vs java **360ms** → Rust **1.47x faster**
-  - `force_xlarge`: rust_native **157ms** vs java **947ms** → Rust **6.03x faster** (SoA 최적화)
-  - `stress_xlarge`: rust_native **173ms** vs java **981ms** → Rust **5.67x faster** (SoA 최적화)
-  - `mrtree_xlarge`: rust_native **5.82ms** vs java **26.6ms** → Rust **4.56x faster** (P4 EdgeRouter adjacency map 최적화)
-  - `radial_xlarge`: rust_native **11.8ms** vs java **17.4ms** → Rust **1.47x faster** (SoA + borrow batching)
-  - `routing_orthogonal`: rust_native **2.61ms** vs java **2.95ms** → Rust **1.13x faster**
-  - Rust 우위: layered/force/stress/mrtree/rectpacking/routing/crossmin/hierarchy/radial_xlarge; Java 우위: radial_medium, radial_large
+  - 전체 26 시나리오 평균: java 87.9ms, rust_native **22.7ms** → Rust **~3.88x faster**
+  - Phase C Arena 전환으로 Force/Stress lock overhead 제거 → 3.45x → 3.88x 회복 (기준 3.90x 대비 0.5% 이내)
   - API 그룹: rust_api ~9-64x faster than elkjs (동일 JSON parse+layout+serialize 경로)
   - 6-way 공정성: 동일 LCG seed + rejection sampling DAG + max_attempts=edges*100 + 동일 타이밍 범위
+  - **P3 ArenaSync 도입** (Phase D-1.5): GraphInfoHolder에 ArenaSync 구축, 4개 subcomponent에 전파. 10개 property-read lock(IN_LAYER_SUCCESSOR_CONSTRAINTS, BARYCENTER_ASSOCIATES, PORT_DUMMY, ORIGIN, PORT_CONSTRAINTS)을 arena 경유 lock-free 접근으로 전환. CrossMinSnapshot CSR 병행 유지
+  - **P3 crossing-min lock 최적화** (Phase 29): hyperedge_crossings_counter `edge_is_in_layer` 5→2 locks (node membership set), boundary `port_layer` 2→1 lock, N/S port counting node당 5-8→1 lock. P2 layering ArenaSync 스킵 결정(layer 부재 구조 부적합, 기본 layerer 이미 최적화)
   - **MRTree P4 EdgeRouter adjacency map optimization** (Phase 28): edge adjacency maps (O(E) pre-build, O(N*E) → O(1) per-node lookup), level-node pre-sorted map, cycle_inducing pre-computed set, MultiLevelEdgeNodeNodeGap graph lock 제거. mrtree_xlarge 26.9ms → 6.58ms (4.09x speedup)
   - **P3 crossing-min sort optimization** (Phase 27): port sort pre-extract (side+barycenter) O(n) locks → O(n log n) 제거, barycenter layer sort HashMap→Vec 병렬 배열 (cache locality 개선)
   - **MRTree/Radial borrow batching** (Phase 26): edge_router COMPACT_LEVEL_ASCENSION 1회 추출, avoid_overlap bend point 로컬 추적, compaction_processor graph lock 배치 + is_root/size 사전 추출, radial shift_closest_edge_to_radi 4→1 borrow, PolarCoordinateSorter ORDER_ID+node_arc 배치
@@ -85,8 +80,21 @@
   - **Edge routing 최적화** (Phase 23): 3개 routing strategy에서 edge lock 4+회 → 1회 배치, crossing-min에서 in-place reverse
   - **SoA 최적화** (Phase 20-21): Force/Stress 알고리즘에 SoA(Struct-of-Arrays) 패턴 적용, O(n²) hot loop에서 lock 제거
   - 상세 리포트: `tests/perf/report.md`
-- **코드 품질**: `cargo build` warning 0건, `cargo clippy` warning 0건, `cargo test` 712 passed / 0 failed
-- **Parity 재검증 상태 (2026-03-06)**: 클린 재실행 완료 — `total=1998`, `compared=1989`, `matches=1988`, `drift=1`, `skipped=9`, `errors=0`
+- **코드 품질**: `cargo build` warning 0건, `cargo clippy` warning 0건, `cargo test` 통과 (0 failed)
+  - RUST_QUALITY_PLAN_V2 Phase A-1 완료: `get_property(&mut self)` → `get_property(&self)` 전환 (111파일, 272건 mut 제거)
+  - Phase A-2 완료: typed property wrapper 22개 (LNode 11, LEdge 6, LPort 4, LGraph 3)
+  - Phase B-1 완료: lock_ok() → lock() 전환 (3,822건)
+  - Phase B-2 완료: guard 재사용 통합 (3파일)
+  - Phase C 완료: Force/Stress Arena 전환 — Arc<Mutex<T>> 85건→0건, 5개 타입 파일 삭제, -757줄
+  - 데드락 2건 수정: LongEdgeJoiner + FinalSplineBendpointsCalculator (9 timeout 해소)
+  - Phase D-1 완료: LGraph Arena adoption — P4/P5 processors를 ArenaSync 기반으로 전환
+  - Phase D-1.5 완료: P3 crossing-min ArenaSync 도입 — 10개 property-read lock → arena 경유 lock-free
+  - Phase 29 완료: P3 crossing-min lock 최적화 — hyperedge edge_is_in_layer 5→2 locks, N/S counting node당 5-8→1 lock
+  - P5 polyline_edge_router stale arena 버그 2건 수정: process_node anchor + NS port origin_anchor_x (D-1.4 도입 잠재 버그)
+  - P2 layering ArenaSync 분석 → 스킵 결정 (layer 부재 구조 부적합, 기본 layerer 이미 최적화)
+- **Parity 재검증 상태 (2026-03-24)**: 클린 재실행 완료 — `total=1998`, `compared=1989`, `matches=1988`, `drift=1`, `skipped=9`, `errors=0`, `timeouts=0`
+  - Phase-step trace: `1997/1997` match, `0` drift (100%)
+  - 성능: layered_xlarge ~239ms (3회 평균, 회귀 없음)
 - **알려진 실패**: 없음 (`elk_live_examples_test` 해결 완료 — cross-hierarchy edge graceful skip + 30s timeout)
 - `213_componentsCompaction.elkt`: `java_non_ok=nan_output`으로 분류 — Rust 출력이 더 정확
 

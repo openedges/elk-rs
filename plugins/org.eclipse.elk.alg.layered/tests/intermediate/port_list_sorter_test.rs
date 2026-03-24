@@ -17,8 +17,7 @@ fn graph_with_one_node() -> (LGraphRef, LayerRef, LNodeRef) {
     let graph = LGraph::new();
     let layer = Layer::new(&graph);
     {
-        let mut graph_guard = graph.lock().expect("graph lock");
-        graph_guard.layers_mut().push(layer.clone());
+        let mut graph_guard = graph.lock();        graph_guard.layers_mut().push(layer.clone());
     }
     let node = LNode::new(&graph);
     LNode::set_layer(&node, Some(layer.clone()));
@@ -28,8 +27,7 @@ fn graph_with_one_node() -> (LGraphRef, LayerRef, LNodeRef) {
 fn add_port(node: &LNodeRef, side: PortSide, index: Option<i32>, x: f64, y: f64) -> LPortRef {
     let port = LPort::new();
     {
-        let mut port_guard = port.lock().expect("port lock");
-        port_guard.set_side(side);
+        let mut port_guard = port.lock();        port_guard.set_side(side);
         port_guard.shape().position().x = x;
         port_guard.shape().position().y = y;
         if let Some(idx) = index {
@@ -43,27 +41,24 @@ fn add_port(node: &LNodeRef, side: PortSide, index: Option<i32>, x: f64, y: f64)
 fn run_sorter_direct(graph: &LGraphRef) {
     let mut sorter = PortListSorter;
     let mut monitor = NullElkProgressMonitor;
-    let mut graph_guard = graph.lock().expect("graph lock");
-    sorter.process(&mut graph_guard, &mut monitor);
+    let mut graph_guard = graph.lock();    sorter.process(&mut graph_guard, &mut monitor);
 }
 
 fn run_sorter_via_strategy(graph: &LGraphRef) {
     let mut processor = IntermediateProcessorStrategy::PortListSorter.create();
     let mut monitor = NullElkProgressMonitor;
-    let mut graph_guard = graph.lock().expect("graph lock");
-    processor.process(&mut graph_guard, &mut monitor);
+    let mut graph_guard = graph.lock();    processor.process(&mut graph_guard, &mut monitor);
 }
 
 fn current_ports(node: &LNodeRef) -> Vec<LPortRef> {
-    node.lock().expect("node lock").ports().clone()
+    node.lock().ports().clone()
 }
 
 #[test]
 fn port_list_sorter_orders_by_side_and_index_for_fixed_order() {
     let (graph, _, node) = graph_with_one_node();
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.set_property(
+        let mut node_guard = node.lock();        node_guard.set_property(
             LayeredOptions::PORT_CONSTRAINTS,
             Some(PortConstraints::FixedOrder),
         );
@@ -95,8 +90,7 @@ fn port_list_sorter_orders_by_side_and_index_for_fixed_order() {
 fn port_list_sorter_orders_fixed_pos_ports_clockwise_by_position() {
     let (graph, _, node) = graph_with_one_node();
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.set_property(
+        let mut node_guard = node.lock();        node_guard.set_property(
             LayeredOptions::PORT_CONSTRAINTS,
             Some(PortConstraints::FixedPos),
         );
@@ -128,8 +122,7 @@ fn port_list_sorter_orders_fixed_pos_ports_clockwise_by_position() {
 fn port_list_sorter_skips_nodes_with_free_constraints() {
     let (graph, _, node) = graph_with_one_node();
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.set_property(
+        let mut node_guard = node.lock();        node_guard.set_property(
             LayeredOptions::PORT_CONSTRAINTS,
             Some(PortConstraints::Free),
         );

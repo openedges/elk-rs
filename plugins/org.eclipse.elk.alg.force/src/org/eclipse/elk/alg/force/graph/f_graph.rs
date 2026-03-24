@@ -1,89 +1,32 @@
-use std::sync::Arc;
-
+use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
+use org_eclipse_elk_core::org::eclipse::elk::core::math::{
+    elk_math::ElkMath, kvector_chain::KVectorChain,
+};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::{MapPropertyHolder, Property};
 
 use crate::org::eclipse::elk::alg::force::options::ForceOptions;
 
-use super::{FBendpointRef, FEdgeRef, FLabelRef, FNodeRef, FParticle};
+use super::{FArena, FBendpointId, FEdgeId, FLabelId, FNodeId, FParticleId};
 
-#[derive(Clone)]
-pub enum FParticleRef {
-    Node(FNodeRef),
-    Label(FLabelRef),
-    Bend(FBendpointRef),
-}
-
-impl FParticleRef {
-    pub fn ptr_eq(&self, other: &FParticleRef) -> bool {
-        match (self, other) {
-            (FParticleRef::Node(a), FParticleRef::Node(b)) => Arc::ptr_eq(a, b),
-            (FParticleRef::Label(a), FParticleRef::Label(b)) => Arc::ptr_eq(a, b),
-            (FParticleRef::Bend(a), FParticleRef::Bend(b)) => Arc::ptr_eq(a, b),
-            _ => false,
-        }
-    }
-
-    pub fn with_particle_mut<R>(&self, f: impl FnOnce(&mut FParticle) -> R) -> Option<R> {
-        match self {
-            FParticleRef::Node(node) => node
-                .lock()
-                .ok()
-                .map(|mut node_guard| f(node_guard.particle_mut())),
-            FParticleRef::Label(label) => label
-                .lock()
-                .ok()
-                .map(|mut label_guard| f(label_guard.particle_mut())),
-            FParticleRef::Bend(bend) => bend
-                .lock()
-                .ok()
-                .map(|mut bend_guard| f(bend_guard.particle_mut())),
-        }
-    }
-
-    pub fn with_particle_ref<R>(&self, f: impl FnOnce(&FParticle) -> R) -> Option<R> {
-        match self {
-            FParticleRef::Node(node) => node.lock().ok().map(|node_guard| f(node_guard.particle())),
-            FParticleRef::Label(label) => label
-                .lock()
-                .ok()
-                .map(|label_guard| f(label_guard.particle())),
-            FParticleRef::Bend(bend) => bend.lock().ok().map(|bend_guard| f(bend_guard.particle())),
-        }
-    }
-
-    pub fn as_node(&self) -> Option<FNodeRef> {
-        match self {
-            FParticleRef::Node(node) => Some(node.clone()),
-            _ => None,
-        }
-    }
-
-    pub fn as_bendpoint(&self) -> Option<FBendpointRef> {
-        match self {
-            FParticleRef::Bend(bend) => Some(bend.clone()),
-            _ => None,
-        }
-    }
-}
-
-#[derive(Default)]
 pub struct FGraph {
-    properties: MapPropertyHolder,
-    nodes: Vec<FNodeRef>,
-    edges: Vec<FEdgeRef>,
-    labels: Vec<FLabelRef>,
-    bendpoints: Vec<FBendpointRef>,
-    adjacency: Vec<Vec<i32>>,
+    pub arena: FArena,
+    pub nodes: Vec<FNodeId>,
+    pub edges: Vec<FEdgeId>,
+    pub labels: Vec<FLabelId>,
+    pub bendpoints: Vec<FBendpointId>,
+    pub properties: MapPropertyHolder,
+    pub adjacency: Vec<Vec<i32>>,
 }
 
 impl FGraph {
     pub fn new() -> Self {
         FGraph {
-            properties: MapPropertyHolder::new(),
+            arena: FArena::new(),
             nodes: Vec::new(),
             edges: Vec::new(),
             labels: Vec::new(),
             bendpoints: Vec::new(),
+            properties: MapPropertyHolder::new(),
             adjacency: Vec::new(),
         }
     }
@@ -101,7 +44,7 @@ impl FGraph {
     }
 
     pub fn get_property<T: Clone + Send + Sync + 'static>(
-        &mut self,
+        &self,
         property: &Property<T>,
     ) -> Option<T> {
         self.properties.get_property(property)
@@ -115,76 +58,38 @@ impl FGraph {
         self.properties.set_property(property, value);
     }
 
-    pub fn nodes(&self) -> &Vec<FNodeRef> {
-        &self.nodes
+    pub fn particle_ids(&self) -> Vec<FParticleId> {
+        let mut ids = Vec::with_capacity(
+            self.nodes.len() + self.labels.len() + self.bendpoints.len(),
+        );
+        for &n in &self.nodes {
+            ids.push(FParticleId::Node(n));
+        }
+        for &l in &self.labels {
+            ids.push(FParticleId::Label(l));
+        }
+        for &b in &self.bendpoints {
+            ids.push(FParticleId::Bend(b));
+        }
+        ids
     }
 
-    pub fn nodes_mut(&mut self) -> &mut Vec<FNodeRef> {
-        &mut self.nodes
-    }
-
-    pub fn edges(&self) -> &Vec<FEdgeRef> {
-        &self.edges
-    }
-
-    pub fn edges_mut(&mut self) -> &mut Vec<FEdgeRef> {
-        &mut self.edges
-    }
-
-    pub fn labels(&self) -> &Vec<FLabelRef> {
-        &self.labels
-    }
-
-    pub fn labels_mut(&mut self) -> &mut Vec<FLabelRef> {
-        &mut self.labels
-    }
-
-    pub fn bendpoints(&self) -> &Vec<FBendpointRef> {
-        &self.bendpoints
-    }
-
-    pub fn bendpoints_mut(&mut self) -> &mut Vec<FBendpointRef> {
-        &mut self.bendpoints
-    }
-
-    pub fn particles(&self) -> Vec<FParticleRef> {
-        let mut particles = Vec::new();
-        particles.extend(self.nodes.iter().cloned().map(FParticleRef::Node));
-        particles.extend(self.labels.iter().cloned().map(FParticleRef::Label));
-        particles.extend(self.bendpoints.iter().cloned().map(FParticleRef::Bend));
-        particles
-    }
-
-    pub fn adjacency(&self) -> &Vec<Vec<i32>> {
-        &self.adjacency
-    }
-
-    pub fn get_connection(&self, particle1: &FParticleRef, particle2: &FParticleRef) -> i32 {
-        match (particle1, particle2) {
-            (FParticleRef::Node(node1), FParticleRef::Node(node2)) => {
-                let (id1, id2) = {
-                    let node1_guard = node1.lock().ok();
-                    let node2_guard = node2.lock().ok();
-                    match (node1_guard, node2_guard) {
-                        (Some(node1_guard), Some(node2_guard)) => {
-                            (node1_guard.id(), node2_guard.id())
-                        }
-                        _ => return 0,
-                    }
-                };
+    pub fn get_connection(&self, p1: FParticleId, p2: FParticleId) -> i32 {
+        match (p1, p2) {
+            (FParticleId::Node(n1), FParticleId::Node(n2)) => {
+                let id1 = self.arena.node_id[n1.0];
+                let id2 = self.arena.node_id[n2.0];
                 if id1 >= self.adjacency.len() || id2 >= self.adjacency.len() {
                     return 0;
                 }
                 self.adjacency[id1][id2] + self.adjacency[id2][id1]
             }
-            (FParticleRef::Bend(b1), FParticleRef::Bend(b2)) => {
-                let edge1 = b1.lock().ok().and_then(|b| b.edge());
-                let edge2 = b2.lock().ok().and_then(|b| b.edge());
-                match (edge1, edge2) {
-                    (Some(edge1), Some(edge2)) if Arc::ptr_eq(&edge1, &edge2) => edge2
-                        .lock()
-                        .ok()
-                        .and_then(|mut edge_guard| edge_guard.get_property(ForceOptions::PRIORITY))
+            (FParticleId::Bend(b1), FParticleId::Bend(b2)) => {
+                let e1 = self.arena.bend_edge[b1.0];
+                let e2 = self.arena.bend_edge[b2.0];
+                match (e1, e2) {
+                    (Some(e1), Some(e2)) if e1 == e2 => self.arena.edge_properties[e1.0]
+                        .get_property(ForceOptions::PRIORITY)
                         .unwrap_or(1),
                     _ => 0,
                 }
@@ -196,27 +101,137 @@ impl FGraph {
     pub fn calc_adjacency(&mut self) {
         let n = self.nodes.len();
         self.adjacency = vec![vec![0; n]; n];
-        for edge in &self.edges {
-            let (source_id, target_id, priority) = {
-                let edge_guard = edge.lock().ok();
-                let Some(mut edge_guard) = edge_guard else {
-                    continue;
-                };
-                let source_id = edge_guard
-                    .source()
-                    .and_then(|node| node.lock().ok().map(|n| n.id()));
-                let target_id = edge_guard
-                    .target()
-                    .and_then(|node| node.lock().ok().map(|n| n.id()));
-                let priority = edge_guard.get_property(ForceOptions::PRIORITY).unwrap_or(1);
-                match (source_id, target_id) {
-                    (Some(source_id), Some(target_id)) => (source_id, target_id, priority),
-                    _ => continue,
+        for &eid in &self.edges {
+            let source_id = self.arena.edge_source[eid.0].map(|nid| self.arena.node_id[nid.0]);
+            let target_id = self.arena.edge_target[eid.0].map(|nid| self.arena.node_id[nid.0]);
+            let priority = self.arena.edge_properties[eid.0]
+                .get_property(ForceOptions::PRIORITY)
+                .unwrap_or(1);
+            if let (Some(sid), Some(tid)) = (source_id, target_id) {
+                if sid < n && tid < n {
+                    self.adjacency[sid][tid] += priority;
                 }
-            };
-            if source_id < n && target_id < n {
-                self.adjacency[source_id][target_id] += priority;
             }
         }
+    }
+
+    // --- Edge geometry helpers (previously on FEdge) ---
+
+    pub fn edge_source_point(&self, eid: FEdgeId) -> Option<KVector> {
+        let src_nid = self.arena.edge_source[eid.0]?;
+        let tgt_nid = self.arena.edge_target[eid.0]?;
+        let source_pos = self.arena.node_position[src_nid.0];
+        let source_size = self.arena.node_size[src_nid.0];
+        let target_pos = self.arena.node_position[tgt_nid.0];
+        let mut v = KVector::from_vector(&target_pos);
+        v.sub(&source_pos);
+        ElkMath::clip_vector(&mut v, source_size.x, source_size.y);
+        v.add(&source_pos);
+        Some(v)
+    }
+
+    pub fn edge_target_point(&self, eid: FEdgeId) -> Option<KVector> {
+        let src_nid = self.arena.edge_source[eid.0]?;
+        let tgt_nid = self.arena.edge_target[eid.0]?;
+        let source_pos = self.arena.node_position[src_nid.0];
+        let target_pos = self.arena.node_position[tgt_nid.0];
+        let target_size = self.arena.node_size[tgt_nid.0];
+        let mut v = KVector::from_vector(&source_pos);
+        v.sub(&target_pos);
+        ElkMath::clip_vector(&mut v, target_size.x, target_size.y);
+        v.add(&target_pos);
+        Some(v)
+    }
+
+    pub fn edge_to_vector_chain(&self, eid: FEdgeId) -> Option<KVectorChain> {
+        let mut chain = KVectorChain::new();
+        let source = self.edge_source_point(eid)?;
+        let target = self.edge_target_point(eid)?;
+        chain.add_vector(source);
+        for &bid in &self.arena.edge_bendpoints[eid.0] {
+            chain.add_vector(self.arena.bend_position[bid.0]);
+        }
+        chain.add_vector(target);
+        Some(chain)
+    }
+
+    pub fn distribute_bendpoints(&mut self, eid: FEdgeId) {
+        let bends = &self.arena.edge_bendpoints[eid.0];
+        let count = bends.len();
+        if count == 0 {
+            return;
+        }
+        let src_nid = self.arena.edge_source[eid.0];
+        let tgt_nid = self.arena.edge_target[eid.0];
+        let (source_pos, target_pos) = match (src_nid, tgt_nid) {
+            (Some(s), Some(t)) => (self.arena.node_position[s.0], self.arena.node_position[t.0]),
+            _ => return,
+        };
+
+        let mut incr = KVector::from_vector(&target_pos);
+        incr.sub(&source_pos);
+        incr.scale(1.0 / ((count + 1) as f64));
+        let mut pos = KVector::from_vector(&source_pos);
+        let bend_ids: Vec<FBendpointId> = bends.clone();
+        for bid in bend_ids {
+            self.arena.bend_position[bid.0].x = pos.x + incr.x;
+            self.arena.bend_position[bid.0].y = pos.y + incr.y;
+            pos.add(&incr);
+        }
+    }
+
+    /// Refresh label position (previously FLabel::refresh_position)
+    pub fn refresh_label_position(&mut self, lid: FLabelId) {
+        let Some(eid) = self.arena.label_edge[lid.0] else {
+            return;
+        };
+        let place_inline = self.arena.label_properties[lid.0]
+            .get_property(ForceOptions::EDGE_LABELS_INLINE)
+            .unwrap_or(false);
+
+        let src_nid = self.arena.edge_source[eid.0];
+        let tgt_nid = self.arena.edge_target[eid.0];
+        let (src, tgt) = match (src_nid, tgt_nid) {
+            (Some(s), Some(t)) => (self.arena.node_position[s.0], self.arena.node_position[t.0]),
+            _ => return,
+        };
+
+        let size = self.arena.label_size[lid.0];
+        if place_inline {
+            let mut src_to_tgt = KVector::from_vector(&tgt);
+            src_to_tgt.sub(&src).scale(0.5);
+            let mut to_label_center = KVector::from_vector(&size);
+            to_label_center.scale(0.5);
+            let mut new_pos = KVector::from_vector(&src);
+            new_pos.add(&src_to_tgt).sub(&to_label_center);
+            self.arena.label_position[lid.0].set(&new_pos);
+            return;
+        }
+
+        let spacing = self.arena.edge_properties[eid.0]
+            .get_property(ForceOptions::SPACING_EDGE_LABEL)
+            .unwrap_or(0.0);
+        let pos = &mut self.arena.label_position[lid.0];
+        if src.x >= tgt.x {
+            if src.y >= tgt.y {
+                pos.x = tgt.x + ((src.x - tgt.x) / 2.0) + spacing;
+                pos.y = tgt.y + ((src.y - tgt.y) / 2.0) - spacing - size.y;
+            } else {
+                pos.x = tgt.x + ((src.x - tgt.x) / 2.0) + spacing;
+                pos.y = src.y + ((tgt.y - src.y) / 2.0) + spacing;
+            }
+        } else if src.y >= tgt.y {
+            pos.x = src.x + ((tgt.x - src.x) / 2.0) + spacing;
+            pos.y = tgt.y + ((src.y - tgt.y) / 2.0) + spacing;
+        } else {
+            pos.x = src.x + ((tgt.x - src.x) / 2.0) + spacing;
+            pos.y = src.y + ((tgt.y - src.y) / 2.0) - spacing - size.y;
+        }
+    }
+}
+
+impl Default for FGraph {
+    fn default() -> Self {
+        Self::new()
     }
 }

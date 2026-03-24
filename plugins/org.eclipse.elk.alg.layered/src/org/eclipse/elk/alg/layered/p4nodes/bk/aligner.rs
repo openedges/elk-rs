@@ -1,5 +1,6 @@
 use std::collections::HashSet;
-use std::sync::LazyLock;
+
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 use crate::org::eclipse::elk::alg::layered::graph::NodeType;
 
@@ -7,16 +8,9 @@ use super::aligned_layout::{BKAlignedLayout, HDirection, VDirection};
 use super::neighborhood_information::NeighborhoodInformation;
 use super::util::get_blocks;
 use super::util::{
-    edge_between, edge_key, node_id, node_margin_bottom, node_margin_top, node_size_y, node_type,
-    port_offset_y,
+    edge_between, edge_key, node_id, node_margin_bottom_a, node_margin_top_a, node_size_y_a,
+    node_type, port_offset_y_a,
 };
-
-static TRACE_BK_ALIGN: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_BK_ALIGN").is_some());
-static TRACE_BK_INNER: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_BK_INNER").is_some());
-static TRACE_BK_GUARD: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_BK_GUARD").is_some());
 
 pub struct BKAligner;
 
@@ -31,13 +25,10 @@ impl BKAligner {
         ni: &NeighborhoodInformation,
         marked_edges: &HashSet<usize>,
     ) {
-        let trace_align = *TRACE_BK_ALIGN;
+        let trace_align = ElkTrace::global().bk_align;
         for layer in &bal.layers {
             let nodes = layer
-                .lock()
-                .ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
             for node in nodes {
                 let id = node_id(&node);
                 bal.root[id] = id;
@@ -59,10 +50,7 @@ impl BKAligner {
         for layer in layers {
             let mut r: isize = -1;
             let mut nodes = layer
-                .lock()
-                .ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
 
             if vdir == VDirection::Up {
                 r = isize::MAX;
@@ -95,10 +83,7 @@ impl BKAligner {
                 let high = d / 2;
                 if trace_align {
                     let node_name = node
-                        .lock()
-                        .ok()
-                        .map(|mut node_guard| node_guard.designation().to_string())
-                        .unwrap_or_else(|| "<poisoned>".to_string());
+                        .lock().designation().to_string();
                     eprintln!(
                         "bk-align: node={}({node_name}) neighbors={} low={} high={} vdir={vdir:?} hdir={hdir:?}",
                         node_id_val, d, low, high
@@ -118,11 +103,7 @@ impl BKAligner {
                                 *ni.node_index.get(neighbor_id).unwrap_or(&0) as isize;
                             let edge_marked = marked_edges.contains(&edge_key(edge));
                             if trace_align {
-                                let neighbor_name = neighbor
-                                    .lock()
-                                    .ok()
-                                    .map(|mut node_guard| node_guard.designation().to_string())
-                                    .unwrap_or_else(|| "<poisoned>".to_string());
+                                let neighbor_name = neighbor.lock().designation().to_string();
                                 eprintln!(
                                     "bk-align: try node={} neighbor={}({neighbor_name}) idx={} r={} marked={edge_marked}",
                                     node_id_val, neighbor_id, neighbor_index, r
@@ -158,11 +139,7 @@ impl BKAligner {
                                 *ni.node_index.get(neighbor_id).unwrap_or(&0) as isize;
                             let edge_marked = marked_edges.contains(&edge_key(edge));
                             if trace_align {
-                                let neighbor_name = neighbor
-                                    .lock()
-                                    .ok()
-                                    .map(|mut node_guard| node_guard.designation().to_string())
-                                    .unwrap_or_else(|| "<poisoned>".to_string());
+                                let neighbor_name = neighbor.lock().designation().to_string();
                                 eprintln!(
                                     "bk-align: try node={} neighbor={}({neighbor_name}) idx={} r={} marked={edge_marked}",
                                     node_id_val, neighbor_id, neighbor_index, r
@@ -195,21 +172,17 @@ impl BKAligner {
         let hdir = bal
             .hdir
             .expect("BK aligner requires a horizontal direction");
-        let trace_inner = *TRACE_BK_INNER;
+        let trace_inner = ElkTrace::global().bk_inner;
 
         for (root_id, _block) in blocks {
             let root_node = bal.nodes_by_id[root_id].clone();
-            let root_name = root_node
-                .lock()
-                .ok()
-                .map(|mut node_guard| node_guard.designation().to_string())
-                .unwrap_or_else(|| "<poisoned>".to_string());
+            let root_name = root_node.lock().designation().to_string();
             if trace_inner {
                 eprintln!("bk-inner: root={root_id}({root_name}) start hdir={hdir:?}");
             }
 
-            let mut space_above = node_margin_top(&root_node);
-            let mut space_below = node_size_y(&root_node) + node_margin_bottom(&root_node);
+            let mut space_above = node_margin_top_a(&bal.sync, &root_node);
+            let mut space_below = node_size_y_a(&bal.sync, &root_node) + node_margin_bottom_a(&bal.sync, &root_node);
             bal.inner_shift[root_id] = 0.0;
 
             let mut current = root_id;
@@ -218,7 +191,7 @@ impl BKAligner {
             loop {
                 let next = bal.align[current];
                 if next == root_id || steps >= max_steps {
-                    if steps >= max_steps && *TRACE_BK_GUARD {
+                    if steps >= max_steps && ElkTrace::global().bk_guard {
                         eprintln!(
                             "bk-guard: inside_block_shift loop1 hit max_steps root_id={} current={} next={} max_steps={}",
                             root_id, current, next, max_steps
@@ -233,35 +206,24 @@ impl BKAligner {
                     let current_id = node_id(&bal.nodes_by_id[current]);
                     let next_id = node_id(&bal.nodes_by_id[next]);
                     let candidate_count = bal.nodes_by_id[current]
-                        .lock()
-                        .ok()
-                        .map(|node_guard| node_guard.connected_edges())
-                        .unwrap_or_default()
+                        .lock().connected_edges()
                         .into_iter()
                         .filter(|candidate| {
-                            candidate
-                                .lock()
-                                .ok()
-                                .map(|edge_guard| {
-                                    let src = edge_guard.source().and_then(|port| {
-                                        port.lock().ok().and_then(|port_guard| port_guard.node())
-                                    });
-                                    let tgt = edge_guard.target().and_then(|port| {
-                                        port.lock().ok().and_then(|port_guard| port_guard.node())
-                                    });
-                                    (src, tgt)
-                                })
-                                .map(|(src, tgt)| {
-                                    if let (Some(src), Some(tgt)) = (src, tgt) {
-                                        let src_id = node_id(&src);
-                                        let tgt_id = node_id(&tgt);
-                                        (src_id == current_id && tgt_id == next_id)
-                                            || (src_id == next_id && tgt_id == current_id)
-                                    } else {
-                                        false
-                                    }
-                                })
-                                .unwrap_or(false)
+                            let edge_guard = candidate.lock();
+                            let src = edge_guard.source().and_then(|port| {
+                                port.lock().node()
+                            });
+                            let tgt = edge_guard.target().and_then(|port| {
+                                port.lock().node()
+                            });
+                            if let (Some(src), Some(tgt)) = (src, tgt) {
+                                let src_id = node_id(&src);
+                                let tgt_id = node_id(&tgt);
+                                (src_id == current_id && tgt_id == next_id)
+                                    || (src_id == next_id && tgt_id == current_id)
+                            } else {
+                                false
+                            }
                         })
                         .count();
                     if candidate_count > 1 {
@@ -270,40 +232,33 @@ impl BKAligner {
                         );
                     }
                 }
-                let (source_port, target_port) = edge
-                    .lock()
-                    .ok()
-                    .and_then(|edge_guard| Some((edge_guard.source()?, edge_guard.target()?)))
-                    .unwrap();
+                let (source_port, target_port) = {
+                    let edge_guard = edge.lock();
+                    (edge_guard.source().unwrap(), edge_guard.target().unwrap())
+                };
 
                 let port_pos_diff = if hdir == HDirection::Left {
-                    port_offset_y(&target_port) - port_offset_y(&source_port)
+                    port_offset_y_a(&bal.sync, &target_port) - port_offset_y_a(&bal.sync, &source_port)
                 } else {
-                    port_offset_y(&source_port) - port_offset_y(&target_port)
+                    port_offset_y_a(&bal.sync, &source_port) - port_offset_y_a(&bal.sync, &target_port)
                 };
 
                 let next_inner_shift = bal.inner_shift[current] + port_pos_diff;
                 bal.inner_shift[next] = next_inner_shift;
                 if trace_inner {
                     let current_name = bal.nodes_by_id[current]
-                        .lock()
-                        .ok()
-                        .map(|mut node_guard| node_guard.designation().to_string())
-                        .unwrap_or_else(|| "<poisoned>".to_string());
+                        .lock().designation().to_string();
                     let next_name = bal.nodes_by_id[next]
-                        .lock()
-                        .ok()
-                        .map(|mut node_guard| node_guard.designation().to_string())
-                        .unwrap_or_else(|| "<poisoned>".to_string());
+                        .lock().designation().to_string();
                     eprintln!(
                         "bk-inner: root={root_id} step current={current}({current_name}) next={next}({next_name}) port_diff={port_pos_diff:.3} next_inner={next_inner_shift:.3}"
                     );
                 }
 
                 let next_node = &bal.nodes_by_id[next];
-                space_above = space_above.max(node_margin_top(next_node) - next_inner_shift);
+                space_above = space_above.max(node_margin_top_a(&bal.sync, next_node) - next_inner_shift);
                 space_below = space_below
-                    .max(next_inner_shift + node_size_y(next_node) + node_margin_bottom(next_node));
+                    .max(next_inner_shift + node_size_y_a(&bal.sync, next_node) + node_margin_bottom_a(&bal.sync, next_node));
 
                 current = next;
                 steps += 1;
@@ -316,10 +271,7 @@ impl BKAligner {
                 bal.inner_shift[current] += space_above;
                 if trace_inner {
                     let current_name = bal.nodes_by_id[current]
-                        .lock()
-                        .ok()
-                        .map(|mut node_guard| node_guard.designation().to_string())
-                        .unwrap_or_else(|| "<poisoned>".to_string());
+                        .lock().designation().to_string();
                     eprintln!(
                         "bk-inner: root={root_id} apply current={current}({current_name}) inner={:.3}",
                         bal.inner_shift[current]
@@ -327,7 +279,7 @@ impl BKAligner {
                 }
                 current = bal.align[current];
                 if current == root_id || steps >= max_steps {
-                    if steps >= max_steps && *TRACE_BK_GUARD {
+                    if steps >= max_steps && ElkTrace::global().bk_guard {
                         eprintln!(
                             "bk-guard: inside_block_shift loop2 hit max_steps root_id={} current={} max_steps={}",
                             root_id, current, max_steps

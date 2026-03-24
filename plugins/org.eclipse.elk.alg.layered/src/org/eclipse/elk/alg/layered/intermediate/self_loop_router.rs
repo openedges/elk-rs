@@ -1,5 +1,3 @@
-use std::sync::LazyLock;
-
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::labels::LabelManagementOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
@@ -18,9 +16,7 @@ use crate::org::eclipse::elk::alg::layered::intermediate::loops::{
 };
 use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions};
 use crate::org::eclipse::elk::alg::layered::p5edges::splines::{NubSpline, SplinesMath};
-
-static TRACE_INSIDE_YO: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_INSIDE_YO").is_some());
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 const EPSILON: f64 = 1e-3;
 const POLYLINE_SELF_LOOP_CORNER_DISTANCE: f64 = 10.0;
@@ -59,20 +55,19 @@ impl ILayoutProcessor<LGraph> for SelfLoopRouter {
             .iter()
             .flat_map(|layer| {
                 layer
-                    .lock()
-                    .ok()
-                    .map(|layer_guard| layer_guard.nodes().clone())
-                    .unwrap_or_default()
+                    .lock().nodes().clone()
             })
             .collect::<Vec<_>>();
 
         for node in nodes {
-            let holder = node.lock().ok().and_then(|mut node_guard| {
+            let holder = {
+                let node_guard = node.lock();
                 if node_guard.node_type() != NodeType::Normal {
-                    return None;
+                    None
+                } else {
+                    node_guard.get_property(InternalProperties::SELF_LOOP_HOLDER)
                 }
-                node_guard.get_property(InternalProperties::SELF_LOOP_HOLDER)
-            });
+            };
             let Some(holder) = holder else {
                 continue;
             };
@@ -107,20 +102,18 @@ fn route_node(
     node_self_loop_distance: f64,
     edge_routing: EdgeRouting,
 ) {
-    let (l_node, routing_slot_count, hyper_loops) = if let Ok(holder_guard) = holder.lock() {
+    let (l_node, routing_slot_count, hyper_loops) = {
+        let holder_guard = holder.lock();
         (
             holder_guard.l_node().clone(),
             holder_guard.routing_slot_count().to_vec(),
             holder_guard.sl_hyper_loops().clone(),
         )
-    } else {
-        return;
     };
 
-    let (node_size, mut new_margins) = if let Ok(mut node_guard) = l_node.lock() {
+    let (node_size, mut new_margins) = {
+        let mut node_guard = l_node.lock();
         (*node_guard.shape().size_ref(), node_guard.margin().clone())
-    } else {
-        return;
     };
 
     let routing_slot_positions = compute_routing_slot_positions(
@@ -135,41 +128,32 @@ fn route_node(
 
     for sl_loop in &hyper_loops {
         let sl_edges = sl_loop
-            .lock()
-            .ok()
-            .map(|loop_guard| loop_guard.sl_edges().clone())
-            .unwrap_or_default();
+            .lock().sl_edges().clone();
 
         for sl_edge in sl_edges {
-            let (l_edge, sl_source, sl_target) = sl_edge
-                .lock()
-                .ok()
-                .map(|sl_edge_guard| {
-                    (
-                        sl_edge_guard.l_edge().clone(),
-                        sl_edge_guard.sl_source().clone(),
-                        sl_edge_guard.sl_target().clone(),
-                    )
-                })
-                .unwrap_or_else(|| panic!("self loop edge lock poisoned"));
+            let (l_edge, sl_source, sl_target) = {
+                let sl_edge_guard = sl_edge.lock();
+                (
+                    sl_edge_guard.l_edge().clone(),
+                    sl_edge_guard.sl_source().clone(),
+                    sl_edge_guard.sl_target().clone(),
+                )
+            };
 
-            let source_port = sl_source
-                .lock()
-                .ok()
-                .map(|port_guard| port_guard.l_port().clone())
-                .unwrap_or_else(|| panic!("self loop source lock poisoned"));
-            let target_port = sl_target
-                .lock()
-                .ok()
-                .map(|port_guard| port_guard.l_port().clone())
-                .unwrap_or_else(|| panic!("self loop target lock poisoned"));
+            let source_port = {
+                let port_guard = sl_source.lock();
+                port_guard.l_port().clone()
+            };
+            let target_port = {
+                let port_guard = sl_target.lock();
+                port_guard.l_port().clone()
+            };
 
-            let inside_self_loop_yo = l_edge
-                .lock()
-                .ok()
-                .and_then(|mut edge_guard| edge_guard.get_property(CoreOptions::INSIDE_SELF_LOOPS_YO))
-                .unwrap_or(false);
-            if *TRACE_INSIDE_YO {
+            let inside_self_loop_yo = {
+                let edge_guard = l_edge.lock();
+                edge_guard.get_property(CoreOptions::INSIDE_SELF_LOOPS_YO).unwrap_or(false)
+            };
+            if ElkTrace::global().inside_yo {
                 let edge_key = std::sync::Arc::as_ptr(&l_edge) as usize;
                 eprintln!(
                     "[self-loop-router] edge={} inside_self_loop_yo={}",
@@ -177,7 +161,8 @@ fn route_node(
                 );
             }
             if inside_self_loop_yo {
-                if let Ok(mut edge_guard) = l_edge.lock() {
+                {
+                    let mut edge_guard = l_edge.lock();
                     edge_guard.bend_points().clear();
                 }
                 continue;
@@ -221,7 +206,8 @@ fn route_node(
                 update_margins_with_point(node_size, &mut new_margins, bend_point);
             }
 
-            if let Ok(mut edge_guard) = l_edge.lock() {
+            {
+                let mut edge_guard = l_edge.lock();
                 edge_guard.bend_points().clear();
                 edge_guard.bend_points().add_all(&path);
             };
@@ -236,7 +222,8 @@ fn route_node(
         );
     }
 
-    if let Ok(mut node_guard) = l_node.lock() {
+    {
+        let mut node_guard = l_node.lock();
         *node_guard.margin() = new_margins;
     };
 }
@@ -302,20 +289,21 @@ fn initialize_max_label_height(
     side: PortSide,
 ) {
     for sl_loop in hyper_loops {
-        let (slot, label_height) = sl_loop
-            .lock()
-            .ok()
-            .and_then(|loop_guard| {
-                let labels = loop_guard.sl_labels()?;
+        let (slot, label_height) = {
+            let loop_guard = sl_loop.lock();
+            if let Some(labels) = loop_guard.sl_labels() {
                 if labels.side() != side {
-                    return None;
+                    (usize::MAX, 0.0)
+                } else {
+                    (
+                        loop_guard.routing_slot(side).max(0) as usize,
+                        labels.size().y,
+                    )
                 }
-                Some((
-                    loop_guard.routing_slot(side).max(0) as usize,
-                    labels.size().y,
-                ))
-            })
-            .unwrap_or((usize::MAX, 0.0));
+            } else {
+                (usize::MAX, 0.0)
+            }
+        };
         if slot == usize::MAX {
             continue;
         }
@@ -369,16 +357,13 @@ fn compute_orthogonal_bend_points(
                 curr_side.left()
             };
 
-            let curr_slot = sl_loop
-                .lock()
-                .ok()
-                .map(|loop_guard| loop_guard.routing_slot(curr_side).max(0) as usize)
-                .unwrap_or_default();
-            let next_slot = sl_loop
-                .lock()
-                .ok()
-                .map(|loop_guard| loop_guard.routing_slot(next_side).max(0) as usize)
-                .unwrap_or_default();
+            let (curr_slot, next_slot) = {
+                let loop_guard = sl_loop.lock();
+                (
+                    loop_guard.routing_slot(curr_side).max(0) as usize,
+                    loop_guard.routing_slot(next_side).max(0) as usize,
+                )
+            };
 
             let mut curr_component = base_vector(curr_side, curr_slot, routing_slot_positions);
             let mut next_component = base_vector(next_side, next_slot, routing_slot_positions);
@@ -467,48 +452,37 @@ fn modify_bend_points(
 }
 
 fn local_port_anchor(port: &LPortRef) -> KVector {
-    port.lock()
-        .ok()
-        .map(|mut port_guard| {
-            let mut anchor = KVector::from_vector(port_guard.shape().position_ref());
-            anchor.add(port_guard.anchor_ref());
-            anchor
-        })
-        .unwrap_or_default()
+    let mut port_guard = port.lock();
+    let mut anchor = KVector::from_vector(port_guard.shape().position_ref());
+    anchor.add(port_guard.anchor_ref());
+    anchor
 }
 
 fn inline_label_side_and_size(
     sl_edge: &SelfLoopEdgeRef,
     sl_loop: &SelfHyperLoopRef,
 ) -> Option<(PortSide, KVector)> {
-    let has_inline_label = sl_edge
-        .lock()
-        .ok()
-        .map(|sl_edge_guard| sl_edge_guard.l_edge().clone())
-        .is_some_and(|l_edge| {
-            l_edge.lock().ok().is_some_and(|edge_guard| {
-                edge_guard.labels().iter().any(|label| {
-                    label
-                        .lock()
-                        .ok()
-                        .and_then(|mut label_guard| {
-                            label_guard.get_property(LayeredOptions::EDGE_LABELS_INLINE)
-                        })
-                        .unwrap_or(false)
-                })
-            })
-        });
+    let has_inline_label = {
+        let sl_edge_guard = sl_edge.lock();
+        let l_edge = sl_edge_guard.l_edge().clone();
+        let edge_guard = l_edge.lock();
+        edge_guard.labels().iter().any(|label| {
+            let label_guard = label.lock();
+            label_guard
+                .get_property(LayeredOptions::EDGE_LABELS_INLINE)
+                .unwrap_or(false)
+        })
+    };
     if !has_inline_label {
         return None;
     }
 
-    sl_loop.lock().ok().and_then(|loop_guard| {
-        let labels = loop_guard.sl_labels()?;
-        if labels.side() == PortSide::Undefined {
-            return None;
-        }
-        Some((labels.side(), *labels.size()))
-    })
+    let loop_guard = sl_loop.lock();
+    let labels = loop_guard.sl_labels()?;
+    if labels.side() == PortSide::Undefined {
+        return None;
+    }
+    Some((labels.side(), *labels.size()))
 }
 
 fn adjust_vector_for_label_side(vector: &mut KVector, label_side: PortSide, label_size: KVector) {
@@ -529,16 +503,14 @@ fn compute_edge_routing_direction(
     target_side: PortSide,
 ) -> bool {
     if source_side == target_side {
-        let source_id = source_port
-            .lock()
-            .ok()
-            .map(|mut source_guard| source_guard.shape().graph_element().id)
-            .unwrap_or_default();
-        let target_id = target_port
-            .lock()
-            .ok()
-            .map(|mut target_guard| target_guard.shape().graph_element().id)
-            .unwrap_or_default();
+        let source_id = {
+            let mut source_guard = source_port.lock();
+            source_guard.shape().graph_element().id
+        };
+        let target_id = {
+            let mut target_guard = target_port.lock();
+            target_guard.shape().graph_element().id
+        };
         return source_id < target_id;
     }
 
@@ -549,15 +521,10 @@ fn compute_edge_routing_direction(
         return false;
     }
 
-    sl_loop
-        .lock()
-        .ok()
-        .map(|loop_guard| {
-            loop_guard
-                .occupied_port_sides()
-                .contains(&source_side.right())
-        })
-        .unwrap_or(true)
+    let loop_guard = sl_loop.lock();
+    loop_guard
+        .occupied_port_sides()
+        .contains(&source_side.right())
 }
 
 fn place_loop_labels(
@@ -568,10 +535,7 @@ fn place_loop_labels(
     margins: &mut LMargin,
 ) {
     let (side, alignment, align_ref, label_size, slot, inline_labels) = {
-        let mut sl_loop_guard = match sl_loop.lock().ok() {
-            Some(guard) => guard,
-            None => return,
-        };
+        let mut sl_loop_guard = sl_loop.lock();
         let labels = match sl_loop_guard.sl_labels_mut() {
             Some(labels) => labels,
             None => return,
@@ -582,12 +546,9 @@ fn place_loop_labels(
         }
 
         let inline = labels.l_labels().iter().any(|label| {
-            label
-                .lock()
-                .ok()
-                .and_then(|mut label_guard| {
-                    label_guard.get_property(LayeredOptions::EDGE_LABELS_INLINE)
-                })
+            let label_guard = label.lock();
+            label_guard
+                .get_property(LayeredOptions::EDGE_LABELS_INLINE)
                 .unwrap_or(false)
         });
 
@@ -630,7 +591,8 @@ fn place_loop_labels(
         PortSide::Undefined => return,
     }
 
-    if let Ok(mut sl_loop_guard) = sl_loop.lock() {
+    {
+        let mut sl_loop_guard = sl_loop.lock();
         if let Some(labels) = sl_loop_guard.sl_labels_mut() {
             *labels.position_mut() = relative;
             labels.apply_placement(KVector::new());
@@ -649,7 +611,8 @@ fn route_point_for_port(
     sl_loop: &SelfHyperLoopRef,
     node_size: KVector,
 ) -> Option<RoutePoint> {
-    let (mut side, local_anchor) = port.lock().ok().map(|mut port_guard| {
+    let (mut side, local_anchor) = {
+        let mut port_guard = port.lock();
         let side = port_guard.side();
         let (pos_x, pos_y) = {
             let pos = port_guard.shape().position_ref();
@@ -660,17 +623,16 @@ fn route_point_for_port(
             side,
             KVector::with_values(pos_x + anchor.x, pos_y + anchor.y),
         )
-    })?;
+    };
 
     if side == PortSide::Undefined {
         side = infer_side_from_position(&local_anchor, node_size);
     }
 
-    let slot = sl_loop
-        .lock()
-        .ok()
-        .map(|loop_guard| loop_guard.routing_slot(side).max(0) as usize)
-        .unwrap_or_default();
+    let slot = {
+        let loop_guard = sl_loop.lock();
+        loop_guard.routing_slot(side).max(0) as usize
+    };
     let base = base_vector(side, slot, routing_slot_positions);
     let outer_anchor = match side {
         PortSide::North | PortSide::South => KVector::with_values(local_anchor.x, base.y),
@@ -724,14 +686,12 @@ fn local_position(
 fn alignment_reference_xy(
     sl_port: &crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfLoopPortRef,
 ) -> Option<(f64, f64)> {
-    sl_port.lock().ok().and_then(|port_guard| {
-        port_guard.l_port().lock().ok().map(|mut port_guard| {
-            (
-                port_guard.shape().position_ref().x + port_guard.anchor_ref().x,
-                port_guard.shape().position_ref().y + port_guard.anchor_ref().y,
-            )
-        })
-    })
+    let port_guard = sl_port.lock();
+    let mut l_port_guard = port_guard.l_port().lock();
+    Some((
+        l_port_guard.shape().position_ref().x + l_port_guard.anchor_ref().x,
+        l_port_guard.shape().position_ref().y + l_port_guard.anchor_ref().y,
+    ))
 }
 
 fn update_margins_with_point(node_size: KVector, margins: &mut LMargin, point: &KVector) {

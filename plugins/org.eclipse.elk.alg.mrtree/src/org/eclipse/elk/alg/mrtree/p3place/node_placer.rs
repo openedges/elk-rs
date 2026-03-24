@@ -67,8 +67,8 @@ impl TreeSoA {
 
             for idx in level_start..level_end {
                 let node = nodes[idx].clone();
-                let lock_result = node.lock();
-                let (hw, hsx, hsy, fd, child_refs) = if let Ok(guard) = lock_result {
+                let guard = node.lock();
+                let (hw, hsx, hsy, fd, child_refs) = {
                     let size = guard.size_ref();
                     let hw = if is_vertical {
                         size.x / 2.0
@@ -77,8 +77,6 @@ impl TreeSoA {
                     };
                     let fd = if is_vertical { size.y } else { size.x };
                     (hw, size.x / 2.0, size.y / 2.0, fd, guard.children())
-                } else {
-                    continue;
                 };
                 // guard dropped here — safe to push to vectors
                 half_width_vec[idx] = hw;
@@ -215,13 +213,7 @@ impl ILayoutPhase<TreeLayoutPhases, TGraphRef> for NodePlacer {
         progress_monitor.begin("Processor order nodes", 2.0);
 
         let (spacing, direction, root) = {
-            let mut graph_guard = match graph.lock() {
-                Ok(guard) => guard,
-                Err(_) => {
-                    progress_monitor.done();
-                    return;
-                }
-            };
+            let mut graph_guard = graph.lock();
             let spacing = graph_guard
                 .get_property(MrTreeOptions::SPACING_NODE_NODE)
                 .unwrap_or(0.0);
@@ -237,12 +229,8 @@ impl ILayoutPhase<TreeLayoutPhases, TGraphRef> for NodePlacer {
                 .nodes()
                 .iter()
                 .find(|node| {
-                    node.lock()
-                        .ok()
-                        .and_then(|mut node_guard| {
-                            node_guard.get_property(InternalProperties::ROOT)
-                        })
-                        .unwrap_or(false)
+                    let node_guard = node.lock();
+                    node_guard.get_property(InternalProperties::ROOT).unwrap_or(false)
                 })
                 .cloned();
             (spacing, direction, root)
@@ -436,7 +424,8 @@ impl NodePlacer {
         let pos_y = ycoor as f64 - soa.half_size_y[idx];
 
         // Write final position directly — no intermediate XCOOR/YCOOR/PRELIM/MODIFIER
-        if let Ok(mut guard) = soa.nodes[idx].lock() {
+        {
+            let mut guard = soa.nodes[idx].lock();
             let pos = guard.position();
             pos.x = pos_x;
             pos.y = pos_y;

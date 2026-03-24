@@ -19,10 +19,7 @@ impl ILayoutProcessor<LGraph> for PortSideProcessor {
         let layers = layered_graph.layers().clone();
         for layer in layers {
             let nodes = layer
-                .lock()
-                .ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
             for node in nodes {
                 process_node(&node);
             }
@@ -33,35 +30,27 @@ impl ILayoutProcessor<LGraph> for PortSideProcessor {
 }
 
 fn process_node(node: &LNodeRef) {
-    let constraints = node
-        .lock()
-        .ok()
-        .and_then(|mut node_guard| {
-            if node_guard
-                .shape()
-                .graph_element()
-                .properties_mut()
-                .has_property(LayeredOptions::PORT_CONSTRAINTS)
-            {
-                node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
-            } else {
-                None
-            }
-        })
-        .unwrap_or(PortConstraints::Undefined);
+    let constraints = {
+        let mut node_guard = node.lock();
+        if node_guard
+            .shape()
+            .graph_element()
+            .properties_mut()
+            .has_property(LayeredOptions::PORT_CONSTRAINTS)
+        {
+            node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
+        } else {
+            None
+        }
+    }
+    .unwrap_or(PortConstraints::Undefined);
     let ports = node
-        .lock()
-        .ok()
-        .map(|node_guard| node_guard.ports().clone())
-        .unwrap_or_default();
+        .lock().ports().clone();
 
     if constraints.is_side_fixed() {
         for port in ports {
             let side = port
-                .lock()
-                .ok()
-                .map(|port_guard| port_guard.side())
-                .unwrap_or(PortSide::Undefined);
+                .lock().side();
             if side == PortSide::Undefined {
                 set_port_side(&port);
             }
@@ -70,7 +59,8 @@ fn process_node(node: &LNodeRef) {
         for port in ports {
             set_port_side(&port);
         }
-        if let Ok(mut node_guard) = node.lock() {
+        {
+            let mut node_guard = node.lock();
             node_guard.set_property(
                 LayeredOptions::PORT_CONSTRAINTS,
                 Some(PortConstraints::FixedSide),
@@ -81,12 +71,12 @@ fn process_node(node: &LNodeRef) {
 
 pub fn set_port_side(port: &LPortRef) {
     let mut assigned_side: Option<PortSide> = None;
-    if let Ok(mut port_guard) = port.lock() {
+    {
+        let mut port_guard = port.lock();
         let port_dummy = port_guard.get_property(InternalProperties::PORT_DUMMY);
         if let Some(port_dummy) = port_dummy.as_ref() {
-            assigned_side = port_dummy.lock().ok().and_then(|mut dummy_guard| {
-                dummy_guard.get_property(InternalProperties::EXT_PORT_SIDE)
-            });
+            assigned_side = port_dummy.lock()
+                .get_property(InternalProperties::EXT_PORT_SIDE);
         }
 
         let side = assigned_side.unwrap_or_else(|| {
