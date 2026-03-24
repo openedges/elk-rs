@@ -27,6 +27,14 @@ pub enum EConnectableId {
     Port(EPortId),
 }
 
+/// Label parent element (matches ElkGraphElementRef variants that own labels).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ELabelParent {
+    Node(ENodeId),
+    Port(EPortId),
+    Edge(EEdgeId),
+}
+
 impl ENodeId {
     pub const NONE: Self = Self(u32::MAX);
     #[inline]
@@ -109,6 +117,7 @@ pub struct ElkGraphArena {
     pub label_identifier: Vec<Option<String>>,
     pub label_properties: Vec<MapPropertyHolder>,
     pub label_text: Vec<String>,
+    pub label_parent: Vec<Option<ELabelParent>>,
 
     // ── EdgeSection attributes (indexed by ESectionId) ──
     pub section_start_x: Vec<f64>,
@@ -154,6 +163,7 @@ impl ElkGraphArena {
             label_width: Vec::new(), label_height: Vec::new(),
             label_identifier: Vec::new(), label_properties: Vec::new(),
             label_text: Vec::new(),
+            label_parent: Vec::new(),
 
             section_start_x: Vec::new(), section_start_y: Vec::new(),
             section_end_x: Vec::new(), section_end_y: Vec::new(),
@@ -238,19 +248,23 @@ impl ElkGraphArena {
         self.label_identifier.push(None);
         self.label_properties.push(MapPropertyHolder::new());
         self.label_text.push(text);
+        self.label_parent.push(None);
         id
     }
 
     pub fn add_node_label(&mut self, node: ENodeId, label: ELabelId) {
         self.node_labels[node.idx()].push(label);
+        self.label_parent[label.idx()] = Some(ELabelParent::Node(node));
     }
 
     pub fn add_port_label(&mut self, port: EPortId, label: ELabelId) {
         self.port_labels[port.idx()].push(label);
+        self.label_parent[label.idx()] = Some(ELabelParent::Port(port));
     }
 
     pub fn add_edge_label(&mut self, edge: EEdgeId, label: ELabelId) {
         self.edge_labels[edge.idx()].push(label);
+        self.label_parent[label.idx()] = Some(ELabelParent::Edge(edge));
     }
 
     pub fn add_section(&mut self, parent_edge: EEdgeId) -> ESectionId {

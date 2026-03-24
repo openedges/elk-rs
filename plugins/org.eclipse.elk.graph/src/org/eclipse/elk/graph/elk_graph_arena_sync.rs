@@ -3,10 +3,12 @@ use std::rc::Rc;
 use rustc_hash::FxHashMap;
 
 use crate::org::eclipse::elk::graph::{
-    ElkConnectableShapeRef, ElkEdgeRef, ElkEdgeSectionRef, ElkLabelRef, ElkNodeRef, ElkPortRef,
+    ElkConnectableShapeRef, ElkEdgeRef, ElkEdgeSectionRef, ElkGraphElementRef,
+    ElkLabelRef, ElkNodeRef, ElkPortRef,
 };
 use crate::org::eclipse::elk::graph::elk_graph_arena::{
-    EBendId, EConnectableId, EEdgeId, ELabelId, ENodeId, EPortId, ESectionId, ElkGraphArena,
+    EBendId, EConnectableId, EEdgeId, ELabelId, ELabelParent, ENodeId, EPortId, ESectionId,
+    ElkGraphArena,
 };
 
 /// Bidirectional bridge between the Rc<RefCell<T>> ElkGraph tree and ElkGraphArena.
@@ -64,6 +66,15 @@ impl ElkGraphArenaSync {
             EConnectableId::Node(nid) => nid,
             EConnectableId::Port(pid) => self.arena.port_owner[pid.idx()],
         }
+    }
+
+    /// Resolve a label's parent as ElkGraphElementRef via arena.
+    pub fn label_parent_ref(&self, lid: ELabelId) -> Option<ElkGraphElementRef> {
+        self.arena.label_parent[lid.idx()].map(|lp| match lp {
+            ELabelParent::Node(nid) => ElkGraphElementRef::Node(self.node_ref(nid).clone()),
+            ELabelParent::Port(pid) => ElkGraphElementRef::Port(self.port_ref(pid).clone()),
+            ELabelParent::Edge(eid) => ElkGraphElementRef::Edge(self.edge_ref(eid).clone()),
+        })
     }
 
     pub fn connectable_id(&self, shape: &ElkConnectableShapeRef) -> Option<EConnectableId> {

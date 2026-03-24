@@ -7,7 +7,7 @@ pub mod properties;
 pub mod util;
 
 pub use elk_graph_arena::{
-    EBendId, EConnectableId, EEdgeId, ELabelId, ENodeId, EPortId, ESectionId,
+    EBendId, EConnectableId, EEdgeId, ELabelId, ELabelParent, ENodeId, EPortId, ESectionId,
     ElkGraphArena,
 };
 pub use elk_graph_arena_sync::ElkGraphArenaSync;

@@ -1973,7 +1973,11 @@ impl JsonImporter {
     }
 
     fn record_global_coords_label(&mut self, label: &ElkLabelRef) {
-        let parent = label.borrow().parent();
+        let parent = if let Some(ref sync) = self.arena_sync {
+            sync.label_id(label).and_then(|lid| sync.label_parent_ref(lid))
+        } else {
+            label.borrow().parent()
+        };
         let ancestor = parent.as_ref().and_then(|p| self.shape_ancestor(p));
         let dx = ancestor.as_ref().map(|a| self.global_x(a)).unwrap_or(0.0);
         let dy = ancestor.as_ref().map(|a| self.global_y(a)).unwrap_or(0.0);
@@ -2030,7 +2034,14 @@ impl JsonImporter {
                 .get(&edge_key(&edge))
                 .cloned()
                 .map(ElkGraphElementRef::Node),
-            ElkGraphElementRef::Label(label) => label.borrow().parent(),
+            ElkGraphElementRef::Label(label) => {
+                if let Some(ref sync) = self.arena_sync {
+                    if let Some(lid) = sync.label_id(&label) {
+                        return sync.label_parent_ref(lid);
+                    }
+                }
+                label.borrow().parent()
+            }
         }
     }
 
