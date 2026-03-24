@@ -1822,10 +1822,22 @@ impl JsonImporter {
             .and_then(|p| self.shape_ancestor(&ElkGraphElementRef::Node(p.clone())));
         let dx = ancestor.as_ref().map(|a| self.global_x(a)).unwrap_or(0.0);
         let dy = ancestor.as_ref().map(|a| self.global_y(a)).unwrap_or(0.0);
-        let x = node.borrow_mut().connectable().shape().x() + dx;
-        let y = node.borrow_mut().connectable().shape().y() + dy;
-        self.global_x_map.insert(node_key(node), x);
-        self.global_y_map.insert(node_key(node), y);
+        let (nx, ny) = if let Some(ref sync) = self.arena_sync {
+            if let Some(nid) = sync.node_id(node) {
+                let a = sync.arena();
+                (a.node_x[nid.idx()], a.node_y[nid.idx()])
+            } else {
+                let mut n = node.borrow_mut();
+                let s = n.connectable().shape();
+                (s.x(), s.y())
+            }
+        } else {
+            let mut n = node.borrow_mut();
+            let s = n.connectable().shape();
+            (s.x(), s.y())
+        };
+        self.global_x_map.insert(node_key(node), nx + dx);
+        self.global_y_map.insert(node_key(node), ny + dy);
     }
 
     fn record_global_coords_port(&mut self, port: &ElkPortRef) {
@@ -1835,10 +1847,22 @@ impl JsonImporter {
             .and_then(|p| self.shape_ancestor(&ElkGraphElementRef::Node(p.clone())));
         let dx = ancestor.as_ref().map(|a| self.global_x(a)).unwrap_or(0.0);
         let dy = ancestor.as_ref().map(|a| self.global_y(a)).unwrap_or(0.0);
-        let x = port.borrow_mut().connectable().shape().x() + dx;
-        let y = port.borrow_mut().connectable().shape().y() + dy;
-        self.global_x_map.insert(port_key(port), x);
-        self.global_y_map.insert(port_key(port), y);
+        let (px, py) = if let Some(ref sync) = self.arena_sync {
+            if let Some(pid) = sync.port_id(port) {
+                let a = sync.arena();
+                (a.port_x[pid.idx()], a.port_y[pid.idx()])
+            } else {
+                let mut p = port.borrow_mut();
+                let s = p.connectable().shape();
+                (s.x(), s.y())
+            }
+        } else {
+            let mut p = port.borrow_mut();
+            let s = p.connectable().shape();
+            (s.x(), s.y())
+        };
+        self.global_x_map.insert(port_key(port), px + dx);
+        self.global_y_map.insert(port_key(port), py + dy);
     }
 
     fn record_global_coords_label(&mut self, label: &ElkLabelRef) {
@@ -1846,10 +1870,20 @@ impl JsonImporter {
         let ancestor = parent.as_ref().and_then(|p| self.shape_ancestor(p));
         let dx = ancestor.as_ref().map(|a| self.global_x(a)).unwrap_or(0.0);
         let dy = ancestor.as_ref().map(|a| self.global_y(a)).unwrap_or(0.0);
-        let x = label.borrow_mut().shape().x() + dx;
-        let y = label.borrow_mut().shape().y() + dy;
-        self.global_x_map.insert(label_key(label), x);
-        self.global_y_map.insert(label_key(label), y);
+        let (lx, ly) = if let Some(ref sync) = self.arena_sync {
+            if let Some(lid) = sync.label_id(label) {
+                let a = sync.arena();
+                (a.label_x[lid.idx()], a.label_y[lid.idx()])
+            } else {
+                let mut l = label.borrow_mut();
+                (l.shape().x(), l.shape().y())
+            }
+        } else {
+            let mut l = label.borrow_mut();
+            (l.shape().x(), l.shape().y())
+        };
+        self.global_x_map.insert(label_key(label), lx + dx);
+        self.global_y_map.insert(label_key(label), ly + dy);
     }
 
     fn shape_ancestor(&self, element: &ElkGraphElementRef) -> Option<ElkGraphElementRef> {
