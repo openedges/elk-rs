@@ -52,7 +52,7 @@
   - 전체 1998 모델 커버리지 (.elkt/.elkg/.json 포함)
   - `213_componentsCompaction.elkt`는 Java ELK NaN 버그로 `java_exclude.txt`에서 제외
   - polyline_edge_router stale arena fix: 341/463/587 drift 3건 해소 (arena node_pos.x stale → live port anchor 사용)
-- **Phase-step trace**: `1997/1997` match, `0` drift **(100%)** (재검증 필요)
+- **Phase-step trace**: `1997/1997` match, `0` drift **(100%)**
   - 전체 모델 커버리지 (이전 1438 → 1997)
   - `rust_only=1` (`588_hierarchicalLayoutNPE.elkt` — Java NPE로 trace 생성 불가)
   - compare 스크립트에서 within-layer 노드 정렬로 비결정적 순서 차이 해소 (NetworkSimplexLayerer 등)
