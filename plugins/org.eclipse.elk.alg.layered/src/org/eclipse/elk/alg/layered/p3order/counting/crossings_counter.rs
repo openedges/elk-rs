@@ -6,7 +6,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::pair::Pair;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LNodeRef, LPortRef, NodeType};
+use crate::org::eclipse::elk::alg::layered::graph::{ArenaSync, LEdgeRef, LNodeRef, LPortRef, NodeType};
 use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, Origin};
 use crate::org::eclipse::elk::alg::layered::p3order::counting::{
     in_north_south_east_west_order, BinaryIndexedTree,
@@ -19,6 +19,7 @@ pub struct CrossingsCounter {
     ends: VecDeque<i32>,
     node_cardinalities: Vec<i32>,
     snapshot: Option<Arc<CrossMinSnapshot>>,
+    arena_sync: Option<Arc<ArenaSync>>,
     /// Reusable scratch buffer for port deduplication (replaces per-call BTreeSet)
     scratch_seen: Vec<usize>,
     /// Reusable scratch buffer for edge collection
@@ -33,6 +34,7 @@ impl CrossingsCounter {
             ends: VecDeque::new(),
             node_cardinalities: Vec::new(),
             snapshot: None,
+            arena_sync: None,
             scratch_seen: Vec::new(),
             scratch_edge_buf: Vec::new(),
         }
@@ -40,6 +42,10 @@ impl CrossingsCounter {
 
     pub fn set_snapshot(&mut self, snapshot: Arc<CrossMinSnapshot>) {
         self.snapshot = Some(snapshot);
+    }
+
+    pub fn set_arena_sync(&mut self, sync: Arc<ArenaSync>) {
+        self.arena_sync = Some(sync);
     }
 
     #[inline]
@@ -391,10 +397,16 @@ impl CrossingsCounter {
 
             match node_type {
                 NodeType::Normal => {
-                    // PORT_DUMMY property still needs one lock
-                    let dummy = {
-                        let port_guard = port.lock();
-                        port_guard.get_property(InternalProperties::PORT_DUMMY)
+                    // PORT_DUMMY — arena path avoids lock
+                    let dummy = if let Some(ref sync) = self.arena_sync {
+                        if let Some(pid) = sync.port_id(port) {
+                            sync.arena().port_properties(pid)
+                                .get_property(InternalProperties::PORT_DUMMY)
+                        } else {
+                            port.lock().get_property(InternalProperties::PORT_DUMMY)
+                        }
+                    } else {
+                        port.lock().get_property(InternalProperties::PORT_DUMMY)
                     };
                     if let Some(dummy) = dummy {
                         if let Some(ref snap) = snap {
@@ -457,10 +469,24 @@ impl CrossingsCounter {
                     }
                 }
                 NodeType::NorthSouthPort => {
-                    // ORIGIN property still needs one lock
-                    let origin_port = {
-                        let port_guard = port.lock();
-                        port_guard.get_property(InternalProperties::ORIGIN)
+                    // ORIGIN — arena path avoids lock
+                    let origin_port = if let Some(ref sync) = self.arena_sync {
+                        if let Some(pid) = sync.port_id(port) {
+                            sync.arena().port_properties(pid)
+                                .get_property(InternalProperties::ORIGIN)
+                                .and_then(|origin| match origin {
+                                    Origin::LPort(port) => Some(port),
+                                    _ => None,
+                                })
+                        } else {
+                            port.lock().get_property(InternalProperties::ORIGIN)
+                                .and_then(|origin| match origin {
+                                    Origin::LPort(port) => Some(port),
+                                    _ => None,
+                                })
+                        }
+                    } else {
+                        port.lock().get_property(InternalProperties::ORIGIN)
                             .and_then(|origin| match origin {
                                 Origin::LPort(port) => Some(port),
                                 _ => None,

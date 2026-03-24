@@ -5,7 +5,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::Po
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LNodeRef, LPortRef};
+use crate::org::eclipse::elk::alg::layered::graph::{ArenaSync, LNodeRef, LPortRef};
 use crate::org::eclipse::elk::alg::layered::options::{
     InternalProperties, LayeredOptions, PortType,
 };
@@ -45,6 +45,7 @@ pub struct AbstractBarycenterPortDistributor {
     in_layer_port_ids: Vec<u32>,
     port_id_buf: Vec<u32>,
     pub(crate) snapshot: Option<Arc<CrossMinSnapshot>>,
+    pub(crate) arena_sync: Option<Arc<ArenaSync>>,
 }
 
 impl AbstractBarycenterPortDistributor {
@@ -67,6 +68,7 @@ impl AbstractBarycenterPortDistributor {
             in_layer_port_ids: Vec::new(),
             port_id_buf: Vec::new(),
             snapshot: None,
+            arena_sync: None,
         }
     }
 
@@ -481,10 +483,18 @@ impl AbstractBarycenterPortDistributor {
         let flat = snap.node_flat_index(node);
         let node_id = snap.node_graph_id_of(flat) as i32;
 
-        // One lock for PORT_CONSTRAINTS (not in snapshot)
-        let constraints = {
-            let ng = node.lock();
-            ng.get_property(LayeredOptions::PORT_CONSTRAINTS)
+        // PORT_CONSTRAINTS — arena path avoids lock
+        let constraints = if let Some(ref sync) = self.arena_sync {
+            if let Some(nid) = sync.node_id(node) {
+                sync.arena().node_properties(nid)
+                    .get_property(LayeredOptions::PORT_CONSTRAINTS)
+                    .unwrap_or(PortConstraints::Undefined)
+            } else {
+                node.lock().get_property(LayeredOptions::PORT_CONSTRAINTS)
+                    .unwrap_or(PortConstraints::Undefined)
+            }
+        } else {
+            node.lock().get_property(LayeredOptions::PORT_CONSTRAINTS)
                 .unwrap_or(PortConstraints::Undefined)
         };
 
@@ -568,12 +578,23 @@ impl AbstractBarycenterPortDistributor {
             let mut sum: f32 = 0.0;
 
             if north_south_port {
-                // PORT_DUMMY property still needs lock via port_ref
-                let dummy = snap.port_ref_opt(pid)
-                    .and_then(|port| {
+                // PORT_DUMMY — arena path avoids lock
+                let dummy = if let Some(ref sync) = self.arena_sync {
+                    if let Some(apid) = snap.port_ref_opt(pid).and_then(|p| sync.port_id(p)) {
+                        sync.arena().port_properties(apid)
+                            .get_property(InternalProperties::PORT_DUMMY)
+                    } else {
+                        snap.port_ref_opt(pid).and_then(|port| {
+                            let pg = port.lock();
+                            pg.get_property(InternalProperties::PORT_DUMMY)
+                        })
+                    }
+                } else {
+                    snap.port_ref_opt(pid).and_then(|port| {
                         let pg = port.lock();
                         pg.get_property(InternalProperties::PORT_DUMMY)
-                    });
+                    })
+                };
                 let Some(dummy) = dummy else { continue; };
                 let port_ref = snap.port_ref_opt(pid).unwrap();
                 let contribution = self.deal_with_north_south_ports(absurdly_large_float as f64, port_ref, &dummy);
@@ -1020,10 +1041,16 @@ impl AbstractBarycenterPortDistributor {
                 );
             }
             for &dpid in dummy_port_ids {
-                // ORIGIN property check still needs one lock per dummy port
+                // ORIGIN — arena path avoids lock
                 let origin_matches = snap
                     .port_ref_opt(dpid)
                     .and_then(|dp| {
+                        if let Some(ref sync) = self.arena_sync {
+                            if let Some(apid) = sync.port_id(dp) {
+                                return sync.arena().port_properties(apid)
+                                    .get_property(InternalProperties::ORIGIN);
+                            }
+                        }
                         let pg = dp.lock();
                         pg.get_property(InternalProperties::ORIGIN)
                     })

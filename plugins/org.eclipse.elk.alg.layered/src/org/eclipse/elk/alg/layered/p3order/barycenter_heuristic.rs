@@ -9,7 +9,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::Random;
 use crate::org::eclipse::elk::alg::layered::p3order::random_trace;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LNodeRef, LPortRef, NodeType};
+use crate::org::eclipse::elk::alg::layered::graph::{ArenaSync, LNodeRef, LPortRef, NodeType};
 use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, PortType};
 use crate::org::eclipse::elk::alg::layered::p3order::barycenter_port_distributor::BarycenterPortDistributor;
 use crate::org::eclipse::elk::alg::layered::p3order::counting::IInitializable;
@@ -23,6 +23,7 @@ pub struct BarycenterHeuristic {
     pub(crate) port_distributor: Box<dyn BarycenterPortDistributor>,
     pub sweep_iteration: usize,
     snapshot: Option<Arc<CrossMinSnapshot>>,
+    arena_sync: Option<Arc<ArenaSync>>,
     /// Reusable buffer for flat→node lookup in calculate_barycenters (avoids HashMap alloc per call).
     flat_to_node_buf: FxHashMap<u32, LNodeRef>,
 }
@@ -38,6 +39,7 @@ impl BarycenterHeuristic {
             port_distributor,
             sweep_iteration: 0,
             snapshot: None,
+            arena_sync: None,
             flat_to_node_buf: FxHashMap::default(),
         }
     }
@@ -46,6 +48,11 @@ impl BarycenterHeuristic {
         self.port_distributor.set_snapshot(snapshot.clone());
         self.constraint_resolver.set_snapshot(snapshot.clone());
         self.snapshot = Some(snapshot);
+    }
+
+    pub fn set_arena_sync(&mut self, sync: Arc<ArenaSync>) {
+        self.constraint_resolver.set_arena_sync(sync.clone());
+        self.arena_sync = Some(sync);
     }
 
     #[inline]
@@ -323,8 +330,14 @@ impl BarycenterHeuristic {
             }
         }
 
-        // Handle BARYCENTER_ASSOCIATES (requires one lock per node, not per port)
+        // Handle BARYCENTER_ASSOCIATES — arena path avoids lock
         let associates = flat_to_node.get(&flat).and_then(|node| {
+            if let Some(ref sync) = self.arena_sync {
+                if let Some(nid) = sync.node_id(node) {
+                    return sync.arena().node_properties(nid)
+                        .get_property(InternalProperties::BARYCENTER_ASSOCIATES);
+                }
+            }
             let node_guard = node.lock();
             node_guard.get_property(InternalProperties::BARYCENTER_ASSOCIATES)
         });
@@ -446,9 +459,15 @@ impl BarycenterHeuristic {
             }
         }
 
-        let associates = {
-            let node_guard = node.lock();
-            node_guard.get_property(InternalProperties::BARYCENTER_ASSOCIATES)
+        let associates = if let Some(ref sync) = self.arena_sync {
+            if let Some(nid) = sync.node_id(node) {
+                sync.arena().node_properties(nid)
+                    .get_property(InternalProperties::BARYCENTER_ASSOCIATES)
+            } else {
+                node.lock().get_property(InternalProperties::BARYCENTER_ASSOCIATES)
+            }
+        } else {
+            node.lock().get_property(InternalProperties::BARYCENTER_ASSOCIATES)
         };
         if let Some(associates) = associates {
             for associate in associates {

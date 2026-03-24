@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LNodeRef, NodeType};
+use crate::org::eclipse::elk::alg::layered::graph::{ArenaSync, LNodeRef, NodeType};
 use crate::org::eclipse::elk::alg::layered::options::InternalProperties;
 use crate::org::eclipse::elk::alg::layered::p3order::barycenter_heuristic::BarycenterState;
 use crate::org::eclipse::elk::alg::layered::p3order::counting::IInitializable;
@@ -18,6 +18,7 @@ pub struct ForsterConstraintResolver {
     constraint_groups: Vec<Vec<Option<ConstraintGroupId>>>,
     constraint_group_arena: Vec<ConstraintGroup>,
     snapshot: Option<Arc<CrossMinSnapshot>>,
+    arena_sync: Option<Arc<ArenaSync>>,
 }
 
 type ConstraintGroupId = usize;
@@ -34,11 +35,16 @@ impl ForsterConstraintResolver {
             constraint_groups: Vec::new(),
             constraint_group_arena: Vec::new(),
             snapshot: None,
+            arena_sync: None,
         }
     }
 
     pub fn set_snapshot(&mut self, snapshot: Arc<CrossMinSnapshot>) {
         self.snapshot = Some(snapshot);
+    }
+
+    pub fn set_arena_sync(&mut self, sync: Arc<ArenaSync>) {
+        self.arena_sync = Some(sync);
     }
 
     #[inline]
@@ -185,10 +191,21 @@ impl ForsterConstraintResolver {
                 }
             }
 
-            let successors = node
-                .lock()
-                .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
-                .unwrap_or_default();
+            let successors = if let Some(ref sync) = self.arena_sync {
+                if let Some(nid) = sync.node_id(&node) {
+                    sync.arena().node_properties(nid)
+                        .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
+                        .unwrap_or_default()
+                } else {
+                    node.lock()
+                        .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
+                        .unwrap_or_default()
+                }
+            } else {
+                node.lock()
+                    .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
+                    .unwrap_or_default()
+            };
             for successor in successors {
                 if only_between_normal_nodes {
                     let successor_type = self.snap_node_type(&successor);
@@ -503,7 +520,16 @@ impl ForsterConstraintResolver {
                 layer_states[node_index] = Some(BarycenterState::new(node.clone()));
             }
 
-            let layout_unit = node.lock().get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT);
+            let layout_unit = if let Some(ref sync) = self.arena_sync {
+                if let Some(nid) = sync.node_id(node) {
+                    sync.arena().node_properties(nid)
+                        .get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
+                } else {
+                    node.lock().get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
+                }
+            } else {
+                node.lock().get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
+            };
             if let Some(layout_unit) = layout_unit {
                 let key = node_ptr_id(&layout_unit);
                 self.layout_units.entry(key).or_default().push(node.clone());

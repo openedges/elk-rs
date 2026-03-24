@@ -5,7 +5,7 @@ use crate::org::eclipse::elk::alg::layered::p3order::cross_min_snapshot::CrossMi
 
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LNodeRef, LPortRef, NodeType};
+use crate::org::eclipse::elk::alg::layered::graph::{ArenaSync, LEdgeRef, LNodeRef, LPortRef, NodeType};
 use crate::org::eclipse::elk::alg::layered::p3order::counting::i_initializable::IInitializable;
 use crate::org::eclipse::elk::alg::layered::p3order::counting::{
     CrossingsCounter, HyperedgeCrossingsCounter,
@@ -39,6 +39,10 @@ impl AllCrossingsCounter {
 
     pub fn set_snapshot(&mut self, snapshot: Arc<CrossMinSnapshot>) {
         self.crossing_counter.set_snapshot(snapshot);
+    }
+
+    pub fn set_arena_sync(&mut self, sync: Arc<ArenaSync>) {
+        self.crossing_counter.set_arena_sync(sync);
     }
 
     pub fn count_all_crossings(&mut self, current_order: &[Vec<LNodeRef>]) -> i32 {

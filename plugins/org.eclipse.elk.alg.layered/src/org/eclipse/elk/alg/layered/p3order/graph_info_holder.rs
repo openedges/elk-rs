@@ -6,7 +6,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, Random};
 use crate::org::eclipse::elk::alg::layered::p3order::random_trace;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LGraphRef, LNodeRef};
+use crate::org::eclipse::elk::alg::layered::graph::{ArenaSync, LGraph, LGraphRef, LNodeRef};
 use crate::org::eclipse::elk::alg::layered::intermediate::greedyswitch::greedy_switch_heuristic::GreedySwitchHeuristic;
 use crate::org::eclipse::elk::alg::layered::options::{
     GraphProperties, GroupOrderStrategy, InternalProperties, LayeredOptions, OrderingStrategy,
@@ -56,6 +56,7 @@ pub struct GraphInfoHolder {
     first_try_with_initial_order: bool,
     second_try_with_initial_order: bool,
     snapshot: Arc<CrossMinSnapshot>,
+    arena_sync: Option<Arc<ArenaSync>>,
 }
 
 impl GraphInfoHolder {
@@ -112,8 +113,8 @@ impl GraphInfoHolder {
             )
         };
 
-        Self::build(
-            graph,
+        let mut holder = Self::build(
+            graph.clone(),
             cross_min_type,
             current_node_order,
             parent_node,
@@ -129,7 +130,10 @@ impl GraphInfoHolder {
             node_influence,
             port_influence,
             thoroughness,
-        )
+        );
+        // Graph lock is NOT held here — safe to use from_graph.
+        holder.init_arena_sync(Arc::new(ArenaSync::from_graph(&graph)));
+        holder
     }
 
     pub fn new_with_graph(
@@ -184,7 +188,7 @@ impl GraphInfoHolder {
             .get_property(LayeredOptions::THOROUGHNESS)
             .unwrap_or(1);
 
-        Self::build(
+        let mut holder = Self::build(
             graph_ref,
             cross_min_type,
             current_node_order,
@@ -201,7 +205,10 @@ impl GraphInfoHolder {
             node_influence,
             port_influence,
             thoroughness,
-        )
+        );
+        // Graph is borrowed as &mut LGraph — use from_lgraph to avoid re-locking.
+        holder.init_arena_sync(Arc::new(ArenaSync::from_lgraph(graph)));
+        holder
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -319,6 +326,7 @@ impl GraphInfoHolder {
             first_try_with_initial_order: false,
             second_try_with_initial_order: false,
             snapshot: empty_snapshot,
+            arena_sync: None,
         };
 
         let order = holder.current_node_order.clone();
@@ -347,6 +355,10 @@ impl GraphInfoHolder {
         if trace {
             eprintln!("crossmin: graph_info_holder snapshot built (nodes={}, ports={})",
                 snapshot.n_nodes(), snapshot.n_ports());
+        }
+
+        if trace {
+            eprintln!("crossmin: graph_info_holder arena_sync deferred to caller");
         }
 
         // Propagate snapshot to components for lock-free ID lookups.
@@ -379,6 +391,19 @@ impl GraphInfoHolder {
         holder.update_greedy_context(None);
 
         holder
+    }
+
+    /// Propagate ArenaSync to subcomponents for lock-free property reads (D-1.5).
+    fn init_arena_sync(&mut self, sync: Arc<ArenaSync>) {
+        self.crossings_counter.set_arena_sync(sync.clone());
+        if let Some(bary) = self
+            .cross_minimizer
+            .as_any_mut()
+            .downcast_mut::<BarycenterHeuristic>()
+        {
+            bary.set_arena_sync(sync.clone());
+        }
+        self.arena_sync = Some(sync);
     }
 
     pub fn dont_sweep_into(&self) -> bool {
