@@ -1376,28 +1376,51 @@ impl JsonImporter {
             }
         }
 
-        let junction_points = with_edge_properties_mut(edge, |props| {
-            if props.has_property(CoreOptions::JUNCTION_POINTS) {
-                props.get_property(CoreOptions::JUNCTION_POINTS)
+        // Arena path: read junction points + containing node identifier
+        let junction_points = if let Some(ref sync) = self.arena_sync {
+            if let Some(eid) = sync.edge_id(edge) {
+                let a = sync.arena();
+                if a.edge_properties[eid.idx()].has_property(CoreOptions::JUNCTION_POINTS) {
+                    a.edge_properties[eid.idx()].get_property(CoreOptions::JUNCTION_POINTS)
+                } else {
+                    None
+                }
             } else {
-                None
+                with_edge_properties_mut(edge, |props| {
+                    if props.has_property(CoreOptions::JUNCTION_POINTS) {
+                        props.get_property(CoreOptions::JUNCTION_POINTS)
+                    } else { None }
+                })
             }
-        });
+        } else {
+            with_edge_properties_mut(edge, |props| {
+                if props.has_property(CoreOptions::JUNCTION_POINTS) {
+                    props.get_property(CoreOptions::JUNCTION_POINTS)
+                } else { None }
+            })
+        };
 
         let container_id = if let Some(parent) = self.edge_original_parent.get(&edge_key(edge)) {
             if self.edge_coords_mode(&ElkGraphElementRef::Node(parent.clone()))
                 == EdgeCoords::Container
             {
-                edge.borrow().containing_node().and_then(|node| {
-                    let id = node
-                        .borrow_mut()
-                        .connectable()
-                        .shape()
-                        .graph_element()
-                        .identifier()
-                        .map(|value| value.to_string());
-                    id
-                })
+                if let Some(ref sync) = self.arena_sync {
+                    if let Some(eid) = sync.edge_id(edge) {
+                        let a = sync.arena();
+                        a.edge_containing_node[eid.idx()]
+                            .and_then(|nid| a.node_identifier[nid.idx()].clone())
+                    } else {
+                        edge.borrow().containing_node().and_then(|node| {
+                            node.borrow_mut().connectable().shape().graph_element()
+                                .identifier().map(|v| v.to_string())
+                        })
+                    }
+                } else {
+                    edge.borrow().containing_node().and_then(|node| {
+                        node.borrow_mut().connectable().shape().graph_element()
+                            .identifier().map(|v| v.to_string())
+                    })
+                }
             } else {
                 None
             }
