@@ -157,35 +157,24 @@ impl ElkUtil {
             let mut min_south: f64 = 2.0;
             let mut min_west: f64 = 2.0;
             for port in ports {
-                let port_side = {
+                // Single borrow: read PORT_SIDE + geometry together
+                let (port_side_raw, xpos, ypos, port_width, port_height) = {
                     let mut port_mut = port.borrow_mut();
-                    port_mut
-                        .connectable()
-                        .shape()
-                        .graph_element()
-                        .properties_mut()
-                        .get_property(CoreOptions::PORT_SIDE)
-                }
-                .unwrap_or(PortSide::Undefined);
-
-                let port_side = if port_side == PortSide::Undefined {
+                    let side = port_mut.connectable().shape().graph_element()
+                        .properties_mut().get_property(CoreOptions::PORT_SIDE)
+                        .unwrap_or(PortSide::Undefined);
+                    let shape = port_mut.connectable().shape();
+                    (side, shape.x(), shape.y(), shape.width(), shape.height())
+                };
+                let port_side = if port_side_raw == PortSide::Undefined {
                     let calculated = Self::calc_port_side(&port, direction);
                     let mut port_mut = port.borrow_mut();
-                    port_mut
-                        .connectable()
-                        .shape()
-                        .graph_element()
+                    port_mut.connectable().shape().graph_element()
                         .properties_mut()
                         .set_property(CoreOptions::PORT_SIDE, Some(calculated));
                     calculated
                 } else {
-                    port_side
-                };
-
-                let (xpos, ypos, port_width, port_height) = {
-                    let mut port_mut = port.borrow_mut();
-                    let shape = port_mut.connectable().shape();
-                    (shape.x(), shape.y(), shape.width(), shape.height())
+                    port_side_raw
                 };
 
                 if port_constraints == PortConstraints::FixedPos {
