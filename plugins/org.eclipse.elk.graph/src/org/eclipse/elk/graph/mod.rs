@@ -1,8 +1,14 @@
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
+pub mod elk_graph_arena;
 pub mod properties;
 pub mod util;
+
+pub use elk_graph_arena::{
+    EBendId, EConnectableId, EEdgeId, ELabelId, ENodeId, EPortId, ESectionId,
+    ElkGraphArena,
+};
 
 use properties::MapPropertyHolder;
 
