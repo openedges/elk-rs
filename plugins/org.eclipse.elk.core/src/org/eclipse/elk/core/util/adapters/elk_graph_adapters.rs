@@ -249,6 +249,84 @@ fn with_label_shape_mut<R>(label: &ElkLabelRef, f: impl FnOnce(&mut ElkShape) ->
     f(label_mut.shape())
 }
 
+// ── Arena-aware read helpers (D-2.3) ──
+
+use crate::org::eclipse::elk::core::layout_arena_context::with_layout_arena;
+
+fn read_node_pos(node: &ElkNodeRef) -> KVector {
+    if let Some(pos) = with_layout_arena(|sync| {
+        sync.node_id(node).map(|nid| {
+            let a = sync.arena();
+            KVector::with_values(a.node_x[nid.idx()], a.node_y[nid.idx()])
+        })
+    }).flatten() { return pos; }
+    with_node_shape_mut(node, |s| KVector::with_values(s.x(), s.y()))
+}
+
+fn read_node_size(node: &ElkNodeRef) -> KVector {
+    if let Some(size) = with_layout_arena(|sync| {
+        sync.node_id(node).map(|nid| {
+            let a = sync.arena();
+            KVector::with_values(a.node_width[nid.idx()], a.node_height[nid.idx()])
+        })
+    }).flatten() { return size; }
+    with_node_shape_mut(node, |s| KVector::with_values(s.width(), s.height()))
+}
+
+fn read_node_property<P: Clone + Send + Sync + 'static>(node: &ElkNodeRef, prop: &Property<P>) -> Option<P> {
+    if let Some(result) = with_layout_arena(|sync| {
+        sync.node_id(node).and_then(|nid| sync.arena().node_properties[nid.idx()].get_property(prop))
+    }).flatten() { return Some(result); }
+    with_node_properties_mut(node, |props| props.get_property(prop))
+}
+
+fn read_port_pos(port: &ElkPortRef) -> KVector {
+    if let Some(pos) = with_layout_arena(|sync| {
+        sync.port_id(port).map(|pid| {
+            let a = sync.arena();
+            KVector::with_values(a.port_x[pid.idx()], a.port_y[pid.idx()])
+        })
+    }).flatten() { return pos; }
+    with_port_shape_mut(port, |s| KVector::with_values(s.x(), s.y()))
+}
+
+fn read_port_size(port: &ElkPortRef) -> KVector {
+    if let Some(size) = with_layout_arena(|sync| {
+        sync.port_id(port).map(|pid| {
+            let a = sync.arena();
+            KVector::with_values(a.port_width[pid.idx()], a.port_height[pid.idx()])
+        })
+    }).flatten() { return size; }
+    with_port_shape_mut(port, |s| KVector::with_values(s.width(), s.height()))
+}
+
+fn read_port_property<P: Clone + Send + Sync + 'static>(port: &ElkPortRef, prop: &Property<P>) -> Option<P> {
+    if let Some(result) = with_layout_arena(|sync| {
+        sync.port_id(port).and_then(|pid| sync.arena().port_properties[pid.idx()].get_property(prop))
+    }).flatten() { return Some(result); }
+    with_port_properties_mut(port, |props| props.get_property(prop))
+}
+
+fn read_label_pos(label: &ElkLabelRef) -> KVector {
+    if let Some(pos) = with_layout_arena(|sync| {
+        sync.label_id(label).map(|lid| {
+            let a = sync.arena();
+            KVector::with_values(a.label_x[lid.idx()], a.label_y[lid.idx()])
+        })
+    }).flatten() { return pos; }
+    with_label_shape_mut(label, |s| KVector::with_values(s.x(), s.y()))
+}
+
+fn read_label_size(label: &ElkLabelRef) -> KVector {
+    if let Some(size) = with_layout_arena(|sync| {
+        sync.label_id(label).map(|lid| {
+            let a = sync.arena();
+            KVector::with_values(a.label_width[lid.idx()], a.label_height[lid.idx()])
+        })
+    }).flatten() { return size; }
+    with_label_shape_mut(label, |s| KVector::with_values(s.width(), s.height()))
+}
+
 fn with_node_properties_mut<R>(
     node: &ElkNodeRef,
     f: impl FnOnce(&mut MapPropertyHolder) -> R,
@@ -307,9 +385,7 @@ fn get_property_with_offset<P: Clone + Send + Sync + 'static>(
 
 impl GraphElementAdapter<ElkNodeRef> for ElkGraphAdapter {
     fn get_size(&self) -> KVector {
-        with_node_shape_mut(&self.inner.element, |shape| {
-            KVector::with_values(shape.width(), shape.height())
-        })
+        read_node_size(&self.inner.element)
     }
 
     fn set_size(&self, size: KVector) {
@@ -320,9 +396,7 @@ impl GraphElementAdapter<ElkNodeRef> for ElkGraphAdapter {
     }
 
     fn get_position(&self) -> KVector {
-        with_node_shape_mut(&self.inner.element, |shape| {
-            KVector::with_values(shape.x(), shape.y())
-        })
+        read_node_pos(&self.inner.element)
     }
 
     fn set_position(&self, pos: KVector) {
@@ -333,9 +407,13 @@ impl GraphElementAdapter<ElkNodeRef> for ElkGraphAdapter {
     }
 
     fn get_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> Option<P> {
-        with_node_properties_mut(&self.inner.element, |props| {
-            get_property_with_offset(props, prop)
-        })
+        // PORT_BORDER_OFFSET needs special handling — fall back to borrow
+        if prop.id() == CoreOptions::PORT_BORDER_OFFSET.id() {
+            return with_node_properties_mut(&self.inner.element, |props| {
+                get_property_with_offset(props, prop)
+            });
+        }
+        read_node_property(&self.inner.element, prop)
     }
 
     fn has_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> bool {
@@ -374,9 +452,7 @@ impl GraphAdapter<ElkNodeRef> for ElkGraphAdapter {
 
 impl GraphElementAdapter<ElkNodeRef> for ElkNodeAdapter {
     fn get_size(&self) -> KVector {
-        with_node_shape_mut(&self.inner.element, |shape| {
-            KVector::with_values(shape.width(), shape.height())
-        })
+        read_node_size(&self.inner.element)
     }
 
     fn set_size(&self, size: KVector) {
@@ -387,9 +463,7 @@ impl GraphElementAdapter<ElkNodeRef> for ElkNodeAdapter {
     }
 
     fn get_position(&self) -> KVector {
-        with_node_shape_mut(&self.inner.element, |shape| {
-            KVector::with_values(shape.x(), shape.y())
-        })
+        read_node_pos(&self.inner.element)
     }
 
     fn set_position(&self, pos: KVector) {
@@ -400,9 +474,12 @@ impl GraphElementAdapter<ElkNodeRef> for ElkNodeAdapter {
     }
 
     fn get_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> Option<P> {
-        with_node_properties_mut(&self.inner.element, |props| {
-            get_property_with_offset(props, prop)
-        })
+        if prop.id() == CoreOptions::PORT_BORDER_OFFSET.id() {
+            return with_node_properties_mut(&self.inner.element, |props| {
+                get_property_with_offset(props, prop)
+            });
+        }
+        read_node_property(&self.inner.element, prop)
     }
 
     fn has_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> bool {
@@ -601,9 +678,7 @@ impl NodeAdapter<ElkNodeRef> for ElkNodeAdapter {
 
 impl GraphElementAdapter<ElkPortRef> for ElkPortAdapter {
     fn get_size(&self) -> KVector {
-        with_port_shape_mut(&self.inner.element, |shape| {
-            KVector::with_values(shape.width(), shape.height())
-        })
+        read_port_size(&self.inner.element)
     }
 
     fn set_size(&self, size: KVector) {
@@ -614,9 +689,7 @@ impl GraphElementAdapter<ElkPortRef> for ElkPortAdapter {
     }
 
     fn get_position(&self) -> KVector {
-        with_port_shape_mut(&self.inner.element, |shape| {
-            KVector::with_values(shape.x(), shape.y())
-        })
+        read_port_pos(&self.inner.element)
     }
 
     fn set_position(&self, pos: KVector) {
@@ -627,9 +700,12 @@ impl GraphElementAdapter<ElkPortRef> for ElkPortAdapter {
     }
 
     fn get_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> Option<P> {
-        with_port_properties_mut(&self.inner.element, |props| {
-            get_property_with_offset(props, prop)
-        })
+        if prop.id() == CoreOptions::PORT_BORDER_OFFSET.id() {
+            return with_port_properties_mut(&self.inner.element, |props| {
+                get_property_with_offset(props, prop)
+            });
+        }
+        read_port_property(&self.inner.element, prop)
     }
 
     fn has_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> bool {
@@ -652,11 +728,8 @@ impl PortAdapter<ElkPortRef> for ElkPortAdapter {
     type EdgeAdapter = ElkEdgeAdapter;
 
     fn get_side(&self) -> PortSide {
-        with_port_properties_mut(&self.inner.element, |props| {
-            props
-                .get_property(CoreOptions::PORT_SIDE)
-                .unwrap_or(PortSide::Undefined)
-        })
+        read_port_property(&self.inner.element, &CoreOptions::PORT_SIDE)
+            .unwrap_or(PortSide::Undefined)
     }
 
     fn get_labels(&self) -> Vec<Self::LabelAdapter> {
@@ -777,9 +850,7 @@ impl PortAdapter<ElkPortRef> for ElkPortAdapter {
 
 impl GraphElementAdapter<ElkLabelRef> for ElkLabelAdapter {
     fn get_size(&self) -> KVector {
-        with_label_shape_mut(&self.inner.element, |shape| {
-            KVector::with_values(shape.width(), shape.height())
-        })
+        read_label_size(&self.inner.element)
     }
 
     fn set_size(&self, size: KVector) {
@@ -790,9 +861,7 @@ impl GraphElementAdapter<ElkLabelRef> for ElkLabelAdapter {
     }
 
     fn get_position(&self) -> KVector {
-        with_label_shape_mut(&self.inner.element, |shape| {
-            KVector::with_values(shape.x(), shape.y())
-        })
+        read_label_pos(&self.inner.element)
     }
 
     fn set_position(&self, pos: KVector) {
@@ -803,6 +872,7 @@ impl GraphElementAdapter<ElkLabelRef> for ElkLabelAdapter {
     }
 
     fn get_property<P: Clone + Send + Sync + 'static>(&self, prop: &Property<P>) -> Option<P> {
+        // Labels don't have arena property storage yet — fall back
         with_label_properties_mut(&self.inner.element, |props| {
             get_property_with_offset(props, prop)
         })
