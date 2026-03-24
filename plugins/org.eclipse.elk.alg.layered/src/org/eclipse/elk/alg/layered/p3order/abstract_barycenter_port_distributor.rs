@@ -1278,8 +1278,10 @@ impl AbstractBarycenterPortDistributor {
     }
 
     fn has_nested_graph(&self, node: &LNodeRef) -> bool {
-        node.lock().nested_graph()
-            .is_some()
+        if let Some(ref snap) = self.snapshot {
+            return snap.node_has_nested_graph(snap.node_flat_index(node));
+        }
+        node.lock().nested_graph().is_some()
     }
 
     fn is_not_first_layer(&self, length: usize, current_index: usize, is_forward: bool) -> bool {
