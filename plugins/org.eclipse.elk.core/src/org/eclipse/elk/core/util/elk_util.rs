@@ -1080,27 +1080,21 @@ impl ElkUtil {
     }
 
     pub fn configure_defaults_recursively(graph: &ElkNodeRef) {
-        let children: Vec<ElkNodeRef> = {
+        // Single borrow: extract children, ports, edges
+        let (children, ports, edges) = {
             let mut graph_mut = graph.borrow_mut();
-            graph_mut.children().iter().cloned().collect()
+            let c: Vec<ElkNodeRef> = graph_mut.children().iter().cloned().collect();
+            let p: Vec<ElkPortRef> = graph_mut.ports().iter().cloned().collect();
+            let e: Vec<ElkEdgeRef> = graph_mut.contained_edges().iter().cloned().collect();
+            (c, p, e)
         };
         for child in &children {
             Self::configure_with_default_values(child);
             Self::configure_defaults_recursively(child);
         }
-
-        let ports: Vec<ElkPortRef> = {
-            let mut graph_mut = graph.borrow_mut();
-            graph_mut.ports().iter().cloned().collect()
-        };
         for port in &ports {
             Self::configure_with_default_values(port);
         }
-
-        let edges: Vec<ElkEdgeRef> = {
-            let mut graph_mut = graph.borrow_mut();
-            graph_mut.contained_edges().iter().cloned().collect()
-        };
         for edge in &edges {
             Self::configure_with_default_values(edge);
         }
@@ -1294,26 +1288,20 @@ impl ElkUtil {
         }
 
         if let ElkGraphElementRef::Node(node) = element {
-            let ports: Vec<ElkPortRef> = {
+            // Single borrow: extract ports, children, edges
+            let (ports, children, edges) = {
                 let mut node_mut = node.borrow_mut();
-                node_mut.ports().iter().cloned().collect()
+                let p: Vec<ElkPortRef> = node_mut.ports().iter().cloned().collect();
+                let c: Vec<ElkNodeRef> = node_mut.children().iter().cloned().collect();
+                let e: Vec<ElkEdgeRef> = node_mut.contained_edges().iter().cloned().collect();
+                (p, c, e)
             };
             for port in ports {
                 Self::apply_visitors_to_element(&ElkGraphElementRef::Port(port), visitors);
             }
-
-            let children: Vec<ElkNodeRef> = {
-                let mut node_mut = node.borrow_mut();
-                node_mut.children().iter().cloned().collect()
-            };
             for child in children {
                 Self::apply_visitors_to_element(&ElkGraphElementRef::Node(child), visitors);
             }
-
-            let edges: Vec<ElkEdgeRef> = {
-                let mut node_mut = node.borrow_mut();
-                node_mut.contained_edges().iter().cloned().collect()
-            };
             for edge in edges {
                 Self::apply_visitors_to_element(&ElkGraphElementRef::Edge(edge), visitors);
             }
