@@ -1837,7 +1837,13 @@ impl JsonImporter {
     }
 
     fn record_global_coords_node(&mut self, node: &ElkNodeRef) {
-        let parent = node.borrow().parent();
+        let parent = if let Some(ref sync) = self.arena_sync {
+            sync.node_id(node)
+                .and_then(|nid| sync.arena().node_parent[nid.idx()])
+                .map(|pid| sync.node_ref(pid).clone())
+        } else {
+            node.borrow().parent()
+        };
         let ancestor = parent
             .as_ref()
             .and_then(|p| self.shape_ancestor(&ElkGraphElementRef::Node(p.clone())));
@@ -1862,7 +1868,12 @@ impl JsonImporter {
     }
 
     fn record_global_coords_port(&mut self, port: &ElkPortRef) {
-        let parent = port.borrow().parent();
+        let parent = if let Some(ref sync) = self.arena_sync {
+            sync.port_id(port)
+                .map(|pid| sync.node_ref(sync.arena().port_owner[pid.idx()]).clone())
+        } else {
+            port.borrow().parent()
+        };
         let ancestor = parent
             .as_ref()
             .and_then(|p| self.shape_ancestor(&ElkGraphElementRef::Node(p.clone())));
@@ -1918,6 +1929,24 @@ impl JsonImporter {
     }
 
     fn json_parent(&self, element: ElkGraphElementRef) -> Option<ElkGraphElementRef> {
+        // Arena path: resolve parent via arena indices (no borrow)
+        if let Some(ref sync) = self.arena_sync {
+            match &element {
+                ElkGraphElementRef::Node(node) => {
+                    if let Some(nid) = sync.node_id(node) {
+                        return sync.arena().node_parent[nid.idx()]
+                            .map(|pid| ElkGraphElementRef::Node(sync.node_ref(pid).clone()));
+                    }
+                }
+                ElkGraphElementRef::Port(port) => {
+                    if let Some(pid) = sync.port_id(port) {
+                        let owner = sync.arena().port_owner[pid.idx()];
+                        return Some(ElkGraphElementRef::Node(sync.node_ref(owner).clone()));
+                    }
+                }
+                _ => {}
+            }
+        }
         match element {
             ElkGraphElementRef::Node(node) => node.borrow().parent().map(ElkGraphElementRef::Node),
             ElkGraphElementRef::Port(port) => port.borrow().parent().map(ElkGraphElementRef::Node),
