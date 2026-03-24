@@ -807,6 +807,68 @@ impl JsonImporter {
         Ok(())
     }
 
+    // ── Arena-aware graph traversal helpers ──
+
+    fn arena_node_children(&self, node: &ElkNodeRef) -> Vec<ElkNodeRef> {
+        if let Some(ref sync) = self.arena_sync {
+            if let Some(nid) = sync.node_id(node) {
+                return sync.arena().node_children[nid.idx()]
+                    .iter().map(|&cid| sync.node_ref(cid).clone()).collect();
+            }
+        }
+        node_children(node)
+    }
+
+    fn arena_node_ports(&self, node: &ElkNodeRef) -> Vec<ElkPortRef> {
+        if let Some(ref sync) = self.arena_sync {
+            if let Some(nid) = sync.node_id(node) {
+                return sync.arena().node_ports[nid.idx()]
+                    .iter().map(|&pid| sync.port_ref(pid).clone()).collect();
+            }
+        }
+        node_ports(node)
+    }
+
+    fn arena_node_labels(&self, node: &ElkNodeRef) -> Vec<ElkLabelRef> {
+        if let Some(ref sync) = self.arena_sync {
+            if let Some(nid) = sync.node_id(node) {
+                return sync.arena().node_labels[nid.idx()]
+                    .iter().map(|&lid| sync.label_ref(lid).clone()).collect();
+            }
+        }
+        node_labels(node)
+    }
+
+    fn arena_node_edges(&self, node: &ElkNodeRef) -> Vec<ElkEdgeRef> {
+        if let Some(ref sync) = self.arena_sync {
+            if let Some(nid) = sync.node_id(node) {
+                return sync.arena().node_contained_edges[nid.idx()]
+                    .iter().map(|&eid| sync.edge_ref(eid).clone()).collect();
+            }
+        }
+        node_edges(node)
+    }
+
+    fn arena_port_labels(&self, port: &ElkPortRef) -> Vec<ElkLabelRef> {
+        if let Some(ref sync) = self.arena_sync {
+            if let Some(pid) = sync.port_id(port) {
+                return sync.arena().port_labels[pid.idx()]
+                    .iter().map(|&lid| sync.label_ref(lid).clone()).collect();
+            }
+        }
+        port_labels(port)
+    }
+
+    fn arena_edge_labels(&self, edge: &ElkEdgeRef) -> Vec<ElkLabelRef> {
+        if let Some(ref sync) = self.arena_sync {
+            if let Some(eid) = sync.edge_id(edge) {
+                return sync.arena().edge_labels[eid.idx()]
+                    .iter().map(|&lid| sync.label_ref(lid).clone()).collect();
+            }
+        }
+        edge_labels(edge)
+    }
+
     fn transfer_nodes_and_ports(
         &mut self,
         root: &ElkNodeRef,
@@ -815,12 +877,10 @@ impl JsonImporter {
         let mut stack = vec![root.clone()];
         while let Some(node) = stack.pop() {
             self.transfer_layout_node(&node, json_root)?;
-            let ports = node_ports(&node);
-            for port in ports {
+            for port in self.arena_node_ports(&node) {
                 self.transfer_layout_port(&port, json_root)?;
             }
-            let children = node_children(&node);
-            for child in children {
+            for child in self.arena_node_children(&node) {
                 stack.push(child);
             }
         }
@@ -834,21 +894,21 @@ impl JsonImporter {
     ) -> JsonResult<()> {
         let mut stack = vec![root.clone()];
         while let Some(node) = stack.pop() {
-            for label in node_labels(&node) {
+            for label in self.arena_node_labels(&node) {
                 self.transfer_layout_label(&label, json_root)?;
             }
-            for port in node_ports(&node) {
-                for label in port_labels(&port) {
+            for port in self.arena_node_ports(&node) {
+                for label in self.arena_port_labels(&port) {
                     self.transfer_layout_label(&label, json_root)?;
                 }
             }
-            for edge in node_edges(&node) {
+            for edge in self.arena_node_edges(&node) {
                 self.transfer_layout_edge(&edge, json_root)?;
-                for label in edge_labels(&edge) {
+                for label in self.arena_edge_labels(&edge) {
                     self.transfer_layout_label(&label, json_root)?;
                 }
             }
-            for child in node_children(&node) {
+            for child in self.arena_node_children(&node) {
                 stack.push(child);
             }
         }
@@ -987,7 +1047,7 @@ impl JsonImporter {
             )
         };
         let has_single_point_child = {
-            let children = node_children(node);
+            let children = self.arena_node_children(node);
             if children.len() != 1 {
                 false
             } else if let Some(child) = children.first() {
@@ -1012,7 +1072,7 @@ impl JsonImporter {
             }
         };
         let has_single_point_child_centered = {
-            let children = node_children(node);
+            let children = self.arena_node_children(node);
             if children.len() != 1 {
                 false
             } else if let Some(child) = children.first() {
@@ -1036,7 +1096,7 @@ impl JsonImporter {
                 false
             }
         };
-        let has_no_children = node_children(node).is_empty();
+        let has_no_children = self.arena_node_children(node).is_empty();
         // Compact inside self-loop nodes only when they have no children.
         // When a node has children (e.g., inside_outside.elkt), the recursive
         // layout correctly sizes the node to contain them and compaction would
