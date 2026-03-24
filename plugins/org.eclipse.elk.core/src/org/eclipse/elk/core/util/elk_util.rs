@@ -119,16 +119,17 @@ impl ElkUtil {
 
     pub fn resize_node(node: &ElkNodeRef) -> Option<KVector> {
         LayoutMetaDataService::get_instance();
-        let size_constraint = {
+        // Single node borrow: extract size_constraint, port_constraints, ports
+        let (size_constraint, port_constraints, ports) = {
             let mut node_mut = node.borrow_mut();
-            node_mut
-                .connectable()
-                .shape()
-                .graph_element()
-                .properties_mut()
-                .get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)
-        }
-        .unwrap_or_else(SizeConstraint::fixed);
+            let props = node_mut.connectable().shape().graph_element().properties_mut();
+            let sc = props.get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)
+                .unwrap_or_else(SizeConstraint::fixed);
+            let pc = props.get_property(CoreOptions::PORT_CONSTRAINTS)
+                .unwrap_or(PortConstraints::Undefined);
+            let ports: Vec<ElkPortRef> = node_mut.ports().iter().cloned().collect();
+            (sc, pc, ports)
+        };
 
         if size_constraint.is_empty() {
             return None;
@@ -138,17 +139,6 @@ impl ElkUtil {
         let mut new_height = 0.0;
 
         if size_constraint.contains(&SizeConstraint::Ports) {
-            let port_constraints = {
-                let mut node_mut = node.borrow_mut();
-                node_mut
-                    .connectable()
-                    .shape()
-                    .graph_element()
-                    .properties_mut()
-                    .get_property(CoreOptions::PORT_CONSTRAINTS)
-            }
-            .unwrap_or(PortConstraints::Undefined);
-
             let direction = {
                 let parent = node.borrow().parent();
                 let target = parent.as_ref().unwrap_or(node);
@@ -166,11 +156,6 @@ impl ElkUtil {
             let mut min_east: f64 = 2.0;
             let mut min_south: f64 = 2.0;
             let mut min_west: f64 = 2.0;
-
-            let ports: Vec<ElkPortRef> = {
-                let mut node_mut = node.borrow_mut();
-                node_mut.ports().iter().cloned().collect()
-            };
             for port in ports {
                 let port_side = {
                     let mut port_mut = port.borrow_mut();
@@ -239,10 +224,16 @@ impl ElkUtil {
         move_labels: bool,
     ) -> KVector {
         LayoutMetaDataService::get_instance();
-        let old_size = {
+        // Single node borrow: old_size + port_constraints + ports
+        let (old_size, fixed_ports, ports) = {
             let mut node_mut = node.borrow_mut();
             let shape = node_mut.connectable().shape();
-            KVector::with_values(shape.width(), shape.height())
+            let os = KVector::with_values(shape.width(), shape.height());
+            let fp = shape.graph_element().properties_mut()
+                .get_property(CoreOptions::PORT_CONSTRAINTS)
+                .unwrap_or(PortConstraints::Undefined) == PortConstraints::FixedPos;
+            let ports: Vec<ElkPortRef> = node_mut.ports().iter().cloned().collect();
+            (os, fp, ports)
         };
 
         let mut new_size = Self::effective_min_size_constraint_for(node);
@@ -271,23 +262,6 @@ impl ElkUtil {
                     .get_property(CoreOptions::DIRECTION)
             }
             .unwrap_or(Direction::Undefined);
-
-            let fixed_ports = {
-                let mut node_mut = node.borrow_mut();
-                node_mut
-                    .connectable()
-                    .shape()
-                    .graph_element()
-                    .properties_mut()
-                    .get_property(CoreOptions::PORT_CONSTRAINTS)
-            }
-            .unwrap_or(PortConstraints::Undefined)
-                == PortConstraints::FixedPos;
-
-            let ports: Vec<ElkPortRef> = {
-                let mut node_mut = node.borrow_mut();
-                node_mut.ports().iter().cloned().collect()
-            };
             for port in ports {
                 let port_side = {
                     let mut port_mut = port.borrow_mut();
