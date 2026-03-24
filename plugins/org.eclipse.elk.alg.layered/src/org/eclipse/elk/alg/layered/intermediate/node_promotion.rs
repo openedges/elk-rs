@@ -45,10 +45,7 @@ impl LayerNodeMap {
 
         for (layer_id, layer_ref) in graph.layers().iter().enumerate() {
             let mut nodes = layer_ref
-                .lock()
-                .ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
             nodes.sort_by(|left, right| model_order_compare(left, right, left_to_right));
 
             for node in &nodes {
@@ -308,28 +305,18 @@ fn promote_node_by_model_order(
     let mut nodes_to_promote = Vec::new();
     let mut seen = HashSet::new();
     let connected_edges = if left_to_right {
-        node.lock()
-            .ok()
-            .map(|node_guard| node_guard.outgoing_edges())
-            .unwrap_or_default()
+        node.lock().outgoing_edges()
     } else {
-        node.lock()
-            .ok()
-            .map(|node_guard| node_guard.incoming_edges())
-            .unwrap_or_default()
+        node.lock().incoming_edges()
     };
 
     for edge in connected_edges {
         let next_node = if left_to_right {
-            edge.lock()
-                .ok()
-                .and_then(|edge_guard| edge_guard.target())
-                .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
+            edge.lock().target()
+                .and_then(|port| port.lock().node())
         } else {
-            edge.lock()
-                .ok()
-                .and_then(|edge_guard| edge_guard.source())
-                .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
+            edge.lock().source()
+                .and_then(|port| port.lock().node())
         };
 
         let Some(next_node) = next_node else {
@@ -350,9 +337,7 @@ fn apply_model_order_layers(graph: &mut LGraph, layer_map: &LayerNodeMap) {
     let existing_layers = graph.layers().clone();
     let graph_ref = existing_layers.first().and_then(|layer| {
         layer
-            .lock()
-            .ok()
-            .and_then(|layer_guard| layer_guard.graph())
+            .lock().graph()
     });
 
     let mut layer_refs_by_key: BTreeMap<i32, _> = BTreeMap::new();
@@ -371,7 +356,8 @@ fn apply_model_order_layers(graph: &mut LGraph, layer_map: &LayerNodeMap) {
     }
 
     for layer_ref in layer_refs_by_key.values() {
-        if let Ok(mut layer_guard) = layer_ref.lock() {
+        {
+            let mut layer_guard = layer_ref.lock();
             layer_guard.nodes_mut().clear();
         }
     }
@@ -396,31 +382,29 @@ fn apply_model_order_layers(graph: &mut LGraph, layer_map: &LayerNodeMap) {
 
 fn model_order(node: &LNodeRef) -> Option<i32> {
     node.lock()
-        .ok()
-        .and_then(|mut node_guard| node_guard.get_property(InternalProperties::MODEL_ORDER))
+        .get_property(InternalProperties::MODEL_ORDER)
 }
 
 fn node_type(node: &LNodeRef) -> NodeType {
-    node.lock()
-        .ok()
-        .map(|node_guard| node_guard.node_type())
-        .unwrap_or(NodeType::Normal)
+    node.lock().node_type()
 }
 
 fn first_incoming_source_node(node: &LNodeRef) -> Option<LNodeRef> {
     node.lock()
-        .ok()
-        .and_then(|node_guard| node_guard.incoming_edges().first().cloned())
-        .and_then(|edge| edge.lock().ok().and_then(|edge_guard| edge_guard.source()))
-        .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
+        .incoming_edges()
+        .first()
+        .cloned()
+        .and_then(|edge| edge.lock().source())
+        .and_then(|port| port.lock().node())
 }
 
 fn first_outgoing_target_node(node: &LNodeRef) -> Option<LNodeRef> {
     node.lock()
-        .ok()
-        .and_then(|node_guard| node_guard.outgoing_edges().first().cloned())
-        .and_then(|edge| edge.lock().ok().and_then(|edge_guard| edge_guard.target()))
-        .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
+        .outgoing_edges()
+        .first()
+        .cloned()
+        .and_then(|edge| edge.lock().target())
+        .and_then(|port| port.lock().node())
 }
 
 fn node_key(node: &LNodeRef) -> usize {

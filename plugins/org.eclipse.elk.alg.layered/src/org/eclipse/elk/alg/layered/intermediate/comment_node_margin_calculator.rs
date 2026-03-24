@@ -14,10 +14,7 @@ impl ILayoutProcessor<LGraph> for CommentNodeMarginCalculator {
 
         for layer in layered_graph.layers().clone() {
             let nodes = layer
-                .lock()
-                .ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
             for node in nodes {
                 process_comments(layered_graph, &node);
             }
@@ -28,7 +25,8 @@ impl ILayoutProcessor<LGraph> for CommentNodeMarginCalculator {
 }
 
 fn process_comments(layered_graph: &LGraph, node: &LNodeRef) {
-    let (top_boxes, bottom_boxes, node_width) = if let Ok(mut node_guard) = node.lock() {
+    let (top_boxes, bottom_boxes, node_width) = {
+        let mut node_guard = node.lock();
         let top_boxes = if node_guard
             .shape()
             .graph_element()
@@ -50,8 +48,6 @@ fn process_comments(layered_graph: &LGraph, node: &LNodeRef) {
             None
         };
         (top_boxes, bottom_boxes, node_guard.shape().size_ref().x)
-    } else {
-        return;
     };
 
     if top_boxes.is_none() && bottom_boxes.is_none() {
@@ -75,7 +71,8 @@ fn process_comments(layered_graph: &LGraph, node: &LNodeRef) {
         if !top_boxes.is_empty() {
             let mut max_height: f64 = 0.0;
             for comment_box in &top_boxes {
-                if let Ok(mut comment_guard) = comment_box.lock() {
+                {
+                    let mut comment_guard = comment_box.lock();
                     let size = comment_guard.shape().size_ref();
                     max_height = max_height.max(size.y);
                     top_width += size.x;
@@ -92,7 +89,8 @@ fn process_comments(layered_graph: &LGraph, node: &LNodeRef) {
         if !bottom_boxes.is_empty() {
             let mut max_height: f64 = 0.0;
             for comment_box in &bottom_boxes {
-                if let Ok(mut comment_guard) = comment_box.lock() {
+                {
+                    let mut comment_guard = comment_box.lock();
                     let size = comment_guard.shape().size_ref();
                     max_height = max_height.max(size.y);
                     bottom_width += size.x;
@@ -103,7 +101,8 @@ fn process_comments(layered_graph: &LGraph, node: &LNodeRef) {
         }
     }
 
-    if let Ok(mut node_guard) = node.lock() {
+    {
+        let mut node_guard = node.lock();
         let margin = node_guard.margin();
         margin.top += top_extra_margin;
         margin.bottom += bottom_extra_margin;

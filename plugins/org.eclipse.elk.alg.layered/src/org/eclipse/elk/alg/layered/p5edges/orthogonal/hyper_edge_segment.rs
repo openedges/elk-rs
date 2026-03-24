@@ -6,7 +6,7 @@ use std::sync::Arc;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::pair::Pair;
 
-use crate::org::eclipse::elk::alg::layered::graph::LPortRef;
+use crate::org::eclipse::elk::alg::layered::graph::{ArenaSync, LPortRef};
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::direction::routing_direction::RoutingDirection;
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::hyper_edge_segment_dependency::HyperEdgeSegmentDependency;
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::hyper_edge_segment_dependency::HyperEdgeSegmentDependencyRef;
@@ -58,17 +58,17 @@ impl HyperEdgeSegment {
         segment_ref: &HyperEdgeSegmentRef,
         port: &LPortRef,
         hyper_edge_segment_map: &mut FxHashMap<usize, HyperEdgeSegmentRef>,
+        sync: &ArenaSync,
     ) {
         hyper_edge_segment_map.insert(port_key(port), segment_ref.clone());
         let mut segment = segment_ref.borrow_mut();
         segment.ports.push(port.clone());
 
-        let port_pos = segment.get_port_position_on_hyper_node(port);
-        if port
-            .lock()
-            .ok()
-            .map(|port_guard| port_guard.side() == segment.source_port_side())
-            .unwrap_or(false)
+        let port_pos = segment.get_port_position_on_hyper_node_arena(port, sync);
+        let port_side = sync.port_id(port)
+            .map(|pid| sync.arena().port_side(pid))
+            .unwrap_or_else(|| port.lock().side());
+        if port_side == segment.source_port_side()
         {
             insert_sorted(&mut segment.incoming_connection_coordinates, port_pos);
         } else {
@@ -78,31 +78,38 @@ impl HyperEdgeSegment {
         drop(segment);
 
         let connected_ports = port
-            .lock()
-            .ok()
-            .map(|port_guard| port_guard.connected_ports())
-            .unwrap_or_default();
+            .lock().connected_ports();
         for other_port in connected_ports {
             if !hyper_edge_segment_map.contains_key(&port_key(&other_port)) {
                 HyperEdgeSegment::add_port_positions(
                     segment_ref,
                     &other_port,
                     hyper_edge_segment_map,
+                    sync,
                 );
             }
         }
     }
 
+    fn get_port_position_on_hyper_node_arena(&self, port: &LPortRef, sync: &ArenaSync) -> f64 {
+        if let Some(pid) = sync.port_id(port) {
+            let arena = sync.arena();
+            let anchor = arena.port_absolute_anchor(pid);
+            match self.routing_direction {
+                RoutingDirection::WestToEast => anchor.y,
+                RoutingDirection::NorthToSouth | RoutingDirection::SouthToNorth => anchor.x,
+            }
+        } else {
+            self.get_port_position_on_hyper_node(port)
+        }
+    }
+
     fn get_port_position_on_hyper_node(&self, port: &LPortRef) -> f64 {
-        let Ok(mut port_guard) = port.lock() else {
-            return 0.0;
-        };
+        let mut port_guard = port.lock();
         let node_pos = port_guard
             .node()
-            .and_then(|node| {
-                node.lock()
-                    .ok()
-                    .map(|mut node_guard| *node_guard.shape().position_ref())
+            .map(|node| {
+                *node.lock().shape().position_ref()
             })
             .unwrap_or_default();
         let port_pos = *port_guard.shape().position_ref();

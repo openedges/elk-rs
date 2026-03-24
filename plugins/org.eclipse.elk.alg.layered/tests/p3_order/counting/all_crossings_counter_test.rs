@@ -16,7 +16,8 @@ fn add_node(
     layer: &org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LayerRef,
 ) -> org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LNodeRef {
     let node = LNode::new(graph);
-    if let Ok(mut node_guard) = node.lock() {
+    {
+        let mut node_guard = node.lock();
         node_guard.set_property(InternalProperties::IN_LAYER_LAYOUT_UNIT, Some(node.clone()));
     }
     LNode::set_layer(&node, Some(layer.clone()));
@@ -28,7 +29,8 @@ fn add_port(
     side: PortSide,
 ) -> org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LPortRef {
     let port = LPort::new();
-    if let Ok(mut port_guard) = port.lock() {
+    {
+        let mut port_guard = port.lock();
         port_guard.set_side(side);
     }
     LPort::set_node(&port, Some(node.clone()));
@@ -57,7 +59,8 @@ fn add_in_layer_edge(
 fn set_fixed_order_constraint(
     node: &org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LNodeRef,
 ) {
-    if let Ok(mut node_guard) = node.lock() {
+    {
+        let mut node_guard = node.lock();
         node_guard.set_property(
             LayeredOptions::PORT_CONSTRAINTS,
             Some(PortConstraints::FixedOrder),
@@ -68,7 +71,8 @@ fn set_fixed_order_constraint(
 fn set_as_long_edge_dummy(
     node: &org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LNodeRef,
 ) {
-    if let Ok(mut node_guard) = node.lock() {
+    {
+        let mut node_guard = node.lock();
         node_guard.set_node_type(NodeType::LongEdge);
         node_guard.set_property(InternalProperties::IN_LAYER_LAYOUT_UNIT, None);
     }
@@ -82,25 +86,17 @@ fn add_north_south_edge(
     node_with_east_west_ports_is_origin: bool,
 ) {
     let ns_layer_index = node_with_ns_ports
-        .lock()
-        .ok()
-        .and_then(|node_guard| node_guard.layer())
+        .lock().layer()
         .and_then(|layer| {
             layer
-                .lock()
-                .ok()
-                .and_then(|layer_guard| layer_guard.index())
+                .lock().index()
         })
         .unwrap_or(0);
     let other_layer_index = node_with_east_west_ports
-        .lock()
-        .ok()
-        .and_then(|node_guard| node_guard.layer())
+        .lock().layer()
         .and_then(|layer| {
             layer
-                .lock()
-                .ok()
-                .and_then(|layer_guard| layer_guard.index())
+                .lock().index()
         })
         .unwrap_or(0);
 
@@ -121,7 +117,8 @@ fn add_north_south_edge(
         connect(&dummy_node_port, &normal_node_port);
     }
 
-    if let Ok(mut dummy_guard) = north_south_dummy.lock() {
+    {
+        let mut dummy_guard = north_south_dummy.lock();
         dummy_guard.set_property(
             InternalProperties::IN_LAYER_LAYOUT_UNIT,
             Some(node_with_ns_ports.clone()),
@@ -134,13 +131,15 @@ fn add_north_south_edge(
     }
 
     let origin_port = add_port(node_with_ns_ports, side);
-    if let Ok(mut dummy_port_guard) = dummy_node_port.lock() {
+    {
+        let mut dummy_port_guard = dummy_node_port.lock();
         dummy_port_guard.set_property(
             InternalProperties::ORIGIN,
             Some(Origin::LPort(origin_port.clone())),
         );
     }
-    if let Ok(mut origin_port_guard) = origin_port.lock() {
+    {
+        let mut origin_port_guard = origin_port.lock();
         origin_port_guard.set_property(
             InternalProperties::PORT_DUMMY,
             Some(north_south_dummy.clone()),
@@ -148,11 +147,10 @@ fn add_north_south_edge(
     }
 
     if let Some(graph) = node_with_ns_ports
-        .lock()
-        .ok()
-        .and_then(|node_guard| node_guard.graph())
+        .lock().graph()
     {
-        if let Ok(mut graph_guard) = graph.lock() {
+        {
+            let mut graph_guard = graph.lock();
             let mut props = graph_guard
                 .get_property(InternalProperties::GRAPH_PROPERTIES)
                 .unwrap_or_else(EnumSet::none_of);
@@ -165,12 +163,15 @@ fn add_north_south_edge(
 fn assign_ids(
     graph: &org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LGraphRef,
 ) {
-    if let Ok(graph_guard) = graph.lock() {
+    {
+        let graph_guard = graph.lock();
         for (layer_idx, layer) in graph_guard.layers().iter().enumerate() {
-            if let Ok(mut layer_guard) = layer.lock() {
+            {
+                let mut layer_guard = layer.lock();
                 layer_guard.graph_element().id = layer_idx as i32;
                 for (node_idx, node) in layer_guard.nodes().iter().enumerate() {
-                    if let Ok(mut node_guard) = node.lock() {
+                    {
+                        let mut node_guard = node.lock();
                         node_guard.shape().graph_element().id = node_idx as i32;
                     }
                 }
@@ -185,7 +186,8 @@ fn all_crossings_count_cross_form() {
     let left_layer = Layer::new(&graph);
     let right_layer = Layer::new(&graph);
 
-    if let Ok(mut graph_guard) = graph.lock() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.layers_mut().push(left_layer.clone());
         graph_guard.layers_mut().push(right_layer.clone());
     }
@@ -205,7 +207,7 @@ fn all_crossings_count_cross_form() {
 
     assign_ids(&graph);
 
-    let order = graph.lock().expect("graph lock").to_node_array();
+    let order = graph.lock().to_node_array();
     let mut counter = AllCrossingsCounter::new(&order);
     let mut initables: [&mut dyn IInitializable; 1] = [&mut counter];
     init_initializables(&mut initables, &order);
@@ -216,7 +218,7 @@ fn all_crossings_count_cross_form() {
 #[test]
 fn all_crossings_count_empty_graph() {
     let graph = LGraph::new();
-    let order = graph.lock().expect("graph lock").to_node_array();
+    let order = graph.lock().to_node_array();
 
     let mut counter = AllCrossingsCounter::new(&order);
     let mut initables: [&mut dyn IInitializable; 1] = [&mut counter];
@@ -231,7 +233,8 @@ fn all_crossings_count_multiple_edges_between_same_nodes() {
     let left_layer = Layer::new(&graph);
     let right_layer = Layer::new(&graph);
 
-    if let Ok(mut graph_guard) = graph.lock() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.layers_mut().push(left_layer.clone());
         graph_guard.layers_mut().push(right_layer.clone());
     }
@@ -257,7 +260,7 @@ fn all_crossings_count_multiple_edges_between_same_nodes() {
 
     assign_ids(&graph);
 
-    let order = graph.lock().expect("graph lock").to_node_array();
+    let order = graph.lock().to_node_array();
     let mut counter = AllCrossingsCounter::new(&order);
     let mut initables: [&mut dyn IInitializable; 1] = [&mut counter];
     init_initializables(&mut initables, &order);
@@ -271,7 +274,8 @@ fn all_crossings_switch_and_count_twice() {
     let left_layer = Layer::new(&graph);
     let right_layer = Layer::new(&graph);
 
-    if let Ok(mut graph_guard) = graph.lock() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.layers_mut().push(left_layer.clone());
         graph_guard.layers_mut().push(right_layer.clone());
     }
@@ -291,7 +295,7 @@ fn all_crossings_switch_and_count_twice() {
 
     assign_ids(&graph);
 
-    let order = graph.lock().expect("graph lock").to_node_array();
+    let order = graph.lock().to_node_array();
     let mut counter = AllCrossingsCounter::new(&order);
     let mut initables: [&mut dyn IInitializable; 1] = [&mut counter];
     init_initializables(&mut initables, &order);
@@ -313,7 +317,8 @@ fn all_crossings_count_in_layer_crossing() {
     let middle_layer = Layer::new(&graph);
     let right_layer = Layer::new(&graph);
 
-    if let Ok(mut graph_guard) = graph.lock() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.layers_mut().push(left_layer.clone());
         graph_guard.layers_mut().push(middle_layer.clone());
         graph_guard.layers_mut().push(right_layer.clone());
@@ -335,7 +340,7 @@ fn all_crossings_count_in_layer_crossing() {
 
     assign_ids(&graph);
 
-    let order = graph.lock().expect("graph lock").to_node_array();
+    let order = graph.lock().to_node_array();
     let mut counter = AllCrossingsCounter::new(&order);
     let mut initables: [&mut dyn IInitializable; 1] = [&mut counter];
     init_initializables(&mut initables, &order);
@@ -350,7 +355,8 @@ fn all_crossings_count_in_layer_crossing_and_switch() {
     let middle_layer = Layer::new(&graph);
     let right_layer = Layer::new(&graph);
 
-    if let Ok(mut graph_guard) = graph.lock() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.layers_mut().push(left_layer.clone());
         graph_guard.layers_mut().push(middle_layer.clone());
         graph_guard.layers_mut().push(right_layer.clone());
@@ -372,7 +378,7 @@ fn all_crossings_count_in_layer_crossing_and_switch() {
 
     assign_ids(&graph);
 
-    let order = graph.lock().expect("graph lock").to_node_array();
+    let order = graph.lock().to_node_array();
     let mut counter = AllCrossingsCounter::new(&order);
     let mut initables: [&mut dyn IInitializable; 1] = [&mut counter];
     init_initializables(&mut initables, &order);
@@ -385,7 +391,8 @@ fn all_crossings_in_layer_crossings_on_far_left() {
     let graph = LGraph::new();
     let layer = Layer::new(&graph);
 
-    if let Ok(mut graph_guard) = graph.lock() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.layers_mut().push(layer.clone());
     }
 
@@ -396,7 +403,7 @@ fn all_crossings_in_layer_crossings_on_far_left() {
 
     assign_ids(&graph);
 
-    let order = graph.lock().expect("graph lock").to_node_array();
+    let order = graph.lock().to_node_array();
     let mut counter = AllCrossingsCounter::new(&order);
     let mut initables: [&mut dyn IInitializable; 1] = [&mut counter];
     init_initializables(&mut initables, &order);
@@ -409,7 +416,8 @@ fn all_crossings_too_many_in_layer_crossings_with_the_old_method() {
     let graph = LGraph::new();
     let layer = Layer::new(&graph);
 
-    if let Ok(mut graph_guard) = graph.lock() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.layers_mut().push(layer.clone());
     }
 
@@ -419,7 +427,7 @@ fn all_crossings_too_many_in_layer_crossings_with_the_old_method() {
 
     assign_ids(&graph);
 
-    let order = graph.lock().expect("graph lock").to_node_array();
+    let order = graph.lock().to_node_array();
     let mut counter = AllCrossingsCounter::new(&order);
     let mut initables: [&mut dyn IInitializable; 1] = [&mut counter];
     init_initializables(&mut initables, &order);
@@ -436,7 +444,8 @@ fn graph_with_north_south_crossing(
     let middle_layer = Layer::new(&graph);
     let right_layer = Layer::new(&graph);
 
-    if let Ok(mut graph_guard) = graph.lock() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.layers_mut().push(left_layer.clone());
         graph_guard.layers_mut().push(middle_layer.clone());
         graph_guard.layers_mut().push(right_layer.clone());
@@ -479,7 +488,7 @@ fn graph_with_north_south_crossing(
 #[test]
 fn all_crossings_count_north_south_crossing() {
     let graph = graph_with_north_south_crossing(PortSide::North, false);
-    let order = graph.lock().expect("graph lock").to_node_array();
+    let order = graph.lock().to_node_array();
     let mut counter = AllCrossingsCounter::new(&order);
     let mut initables: [&mut dyn IInitializable; 1] = [&mut counter];
     init_initializables(&mut initables, &order);
@@ -489,7 +498,7 @@ fn all_crossings_count_north_south_crossing() {
 #[test]
 fn all_crossings_count_northern_north_south_crossing() {
     let graph = graph_with_north_south_crossing(PortSide::South, false);
-    let order = graph.lock().expect("graph lock").to_node_array();
+    let order = graph.lock().to_node_array();
     let mut counter = AllCrossingsCounter::new(&order);
     let mut initables: [&mut dyn IInitializable; 1] = [&mut counter];
     init_initializables(&mut initables, &order);
@@ -499,7 +508,7 @@ fn all_crossings_count_northern_north_south_crossing() {
 #[test]
 fn all_crossings_north_south_dummy_edge_crossing() {
     let graph = graph_with_north_south_crossing(PortSide::North, true);
-    let order = graph.lock().expect("graph lock").to_node_array();
+    let order = graph.lock().to_node_array();
     let mut counter = AllCrossingsCounter::new(&order);
     let mut initables: [&mut dyn IInitializable; 1] = [&mut counter];
     init_initializables(&mut initables, &order);
@@ -509,7 +518,7 @@ fn all_crossings_north_south_dummy_edge_crossing() {
 #[test]
 fn all_crossings_one_node_is_long_edge_dummy() {
     let graph = graph_with_north_south_crossing(PortSide::North, true);
-    let order = graph.lock().expect("graph lock").to_node_array();
+    let order = graph.lock().to_node_array();
     let mut counter = AllCrossingsCounter::new(&order);
     let mut initables: [&mut dyn IInitializable; 1] = [&mut counter];
     init_initializables(&mut initables, &order);
@@ -519,7 +528,7 @@ fn all_crossings_one_node_is_long_edge_dummy() {
 #[test]
 fn all_crossings_one_node_is_long_edge_dummy_northern() {
     let graph = graph_with_north_south_crossing(PortSide::South, true);
-    let order = graph.lock().expect("graph lock").to_node_array();
+    let order = graph.lock().to_node_array();
     let mut counter = AllCrossingsCounter::new(&order);
     let mut initables: [&mut dyn IInitializable; 1] = [&mut counter];
     init_initializables(&mut initables, &order);
@@ -533,7 +542,8 @@ fn graph_multiple_north_south_and_long_edge_dummies_on_both_sides(
     let middle_layer = Layer::new(&graph);
     let right_layer = Layer::new(&graph);
 
-    if let Ok(mut graph_guard) = graph.lock() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.layers_mut().push(left_layer.clone());
         graph_guard.layers_mut().push(middle_layer.clone());
         graph_guard.layers_mut().push(right_layer.clone());
@@ -598,7 +608,7 @@ fn graph_multiple_north_south_and_long_edge_dummies_on_both_sides(
 #[test]
 fn all_crossings_multiple_north_south_and_long_edge_dummies_on_both_sides() {
     let graph = graph_multiple_north_south_and_long_edge_dummies_on_both_sides();
-    let order = graph.lock().expect("graph lock").to_node_array();
+    let order = graph.lock().to_node_array();
     let mut counter = AllCrossingsCounter::new(&order);
     let mut initables: [&mut dyn IInitializable; 1] = [&mut counter];
     init_initializables(&mut initables, &order);

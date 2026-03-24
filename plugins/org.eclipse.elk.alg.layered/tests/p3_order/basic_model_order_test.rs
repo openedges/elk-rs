@@ -37,7 +37,8 @@ fn model_order_layering_runs() {
 
         let lgraph = import_lgraph(&root);
         let mut monitor = BasicProgressMonitor::new();
-        if let Ok(mut graph_guard) = lgraph.lock() {
+        {
+            let mut graph_guard = lgraph.lock();
             match strategy {
                 LayeringStrategy::BfModelOrder => {
                     let mut layerer = BreadthFirstModelOrderLayerer::new();
@@ -107,15 +108,13 @@ fn import_lgraph(
 fn assert_layering_invariants(
     lgraph: &org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LGraphRef,
 ) {
-    let graph_guard = lgraph.lock().expect("lgraph lock");
-    assert!(graph_guard.layerless_nodes().is_empty());
+    let graph_guard = lgraph.lock();    assert!(graph_guard.layerless_nodes().is_empty());
 
     let layers = graph_guard.layers().clone();
     drop(graph_guard);
 
     for layer in &layers {
-        let layer_guard = layer.lock().expect("layer lock");
-        assert!(!layer_guard.nodes().is_empty());
+        let layer_guard = layer.lock();        assert!(!layer_guard.nodes().is_empty());
     }
 }
 

@@ -17,9 +17,14 @@ impl ILayoutProcessor<ElkNodeRef> for CalculateGraphSize {
             progress_monitor.log_graph(graph, "Before");
         }
 
-        let children: Vec<ElkNodeRef> = {
+        // Single graph borrow: children + properties
+        let (children, padding, center_on_root) = {
             let mut graph_mut = graph.borrow_mut();
-            graph_mut.children().iter().cloned().collect()
+            let children: Vec<ElkNodeRef> = graph_mut.children().iter().cloned().collect();
+            let props = graph_mut.connectable().shape().graph_element().properties_mut();
+            let padding = props.get_property(CoreOptions::PADDING).unwrap_or_default();
+            let center = props.get_property(RadialOptions::CENTER_ON_ROOT).unwrap_or(false);
+            (children, padding, center)
         };
 
         let mut min_x_pos = f64::MAX;
@@ -49,20 +54,6 @@ impl ILayoutProcessor<ElkNodeRef> for CalculateGraphSize {
             max_x_pos = max_x_pos.max(pos_x + width + margins.right);
             max_y_pos = max_y_pos.max(pos_y + height + margins.bottom);
         }
-
-        // Batch graph property reads in a single borrow
-        let (padding, center_on_root) = {
-            let mut graph_mut = graph.borrow_mut();
-            let props = graph_mut
-                .connectable()
-                .shape()
-                .graph_element()
-                .properties_mut();
-            (
-                props.get_property(CoreOptions::PADDING).unwrap_or_default(),
-                props.get_property(RadialOptions::CENTER_ON_ROOT).unwrap_or(false),
-            )
-        };
 
         let mut offset = KVector::with_values(min_x_pos - padding.left, min_y_pos - padding.top);
 

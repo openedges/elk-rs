@@ -77,28 +77,24 @@ fn manage_non_center_labels(
 ) {
     for layer in graph.layers().clone() {
         let nodes = layer
-            .lock()
-            .ok()
-            .map(|layer_guard| layer_guard.nodes().clone())
-            .unwrap_or_default();
+            .lock().nodes().clone();
 
         for node in nodes {
-            let (node_type, node_labels, ports, top_comments, bottom_comments, outgoing_edges) =
-                match node.lock() {
-                    Ok(mut node_guard) => (
-                        node_guard.node_type(),
-                        node_guard.labels().clone(),
-                        node_guard.ports().clone(),
-                        node_guard
-                            .get_property(InternalProperties::TOP_COMMENTS)
-                            .unwrap_or_default(),
-                        node_guard
-                            .get_property(InternalProperties::BOTTOM_COMMENTS)
-                            .unwrap_or_default(),
-                        node_guard.outgoing_edges(),
-                    ),
-                    Err(_) => continue,
-                };
+            let (node_type, node_labels, ports, top_comments, bottom_comments, outgoing_edges) = {
+                let node_guard = node.lock();
+                (
+                    node_guard.node_type(),
+                    node_guard.labels().clone(),
+                    node_guard.ports().clone(),
+                    node_guard
+                        .get_property(InternalProperties::TOP_COMMENTS)
+                        .unwrap_or_default(),
+                    node_guard
+                        .get_property(InternalProperties::BOTTOM_COMMENTS)
+                        .unwrap_or_default(),
+                    node_guard.outgoing_edges(),
+                )
+            };
 
             if node_type == NodeType::Normal {
                 do_manage_labels(
@@ -111,10 +107,7 @@ fn manage_non_center_labels(
 
                 for port in ports {
                     let labels = port
-                        .lock()
-                        .ok()
-                        .map(|port_guard| port_guard.labels().clone())
-                        .unwrap_or_default();
+                        .lock().labels().clone();
                     do_manage_labels(
                         label_manager,
                         &labels,
@@ -140,10 +133,7 @@ fn manage_non_center_labels(
 
             for edge in outgoing_edges {
                 let labels = edge
-                    .lock()
-                    .ok()
-                    .map(|edge_guard| edge_guard.labels().clone())
-                    .unwrap_or_default();
+                    .lock().labels().clone();
                 do_manage_labels(
                     label_manager,
                     &labels,
@@ -164,10 +154,7 @@ fn do_manage_attached_comment_labels(
 ) {
     for comment_node in comment_nodes {
         let labels = comment_node
-            .lock()
-            .ok()
-            .map(|comment_guard| comment_guard.labels().clone())
-            .unwrap_or_default();
+            .lock().labels().clone();
         if labels.is_empty() {
             continue;
         }
@@ -196,22 +183,19 @@ fn manage_center_labels(
         );
 
         let nodes = layer
-            .lock()
-            .ok()
-            .map(|layer_guard| layer_guard.nodes().clone())
-            .unwrap_or_default();
+            .lock().nodes().clone();
 
         for node in nodes {
-            let (node_type, connected_edges, represented_labels, node_labels) = match node.lock() {
-                Ok(mut node_guard) => (
+            let (node_type, connected_edges, represented_labels, node_labels) = {
+                let node_guard = node.lock();
+                (
                     node_guard.node_type(),
                     node_guard.connected_edges(),
                     node_guard
                         .get_property(InternalProperties::REPRESENTED_LABELS)
                         .unwrap_or_default(),
                     node_guard.labels().clone(),
-                ),
-                Err(_) => continue,
+                )
             };
 
             if node_type != NodeType::Label {
@@ -221,9 +205,8 @@ fn manage_center_labels(
             let edge_thickness = connected_edges
                 .first()
                 .and_then(|edge| {
-                    edge.lock().ok().and_then(|mut edge_guard| {
-                        edge_guard.get_property(CoreOptions::EDGE_THICKNESS)
-                    })
+                    edge.lock()
+                        .get_property(CoreOptions::EDGE_THICKNESS)
                 })
                 .unwrap_or(1.0);
 
@@ -240,7 +223,8 @@ fn manage_center_labels(
                 vertical_layout,
             );
 
-            if let Ok(mut node_guard) = node.lock() {
+            {
+                let mut node_guard = node.lock();
                 node_guard.shape().size().x = required.x;
                 node_guard.shape().size().y = required.y + edge_thickness + edge_label_spacing;
             }
@@ -261,9 +245,7 @@ fn do_manage_labels(
     }
 
     for label in labels {
-        let Ok(mut label_guard) = label.lock() else {
-            continue;
-        };
+        let mut label_guard = label.lock();
 
         let origin = label_guard.get_property(InternalProperties::ORIGIN);
         if let Some(origin) = origin {

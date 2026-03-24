@@ -45,8 +45,7 @@ impl DCElement {
             .as_ref()
             .and_then(|weak| weak.upgrade())
             .expect("DCElement without component");
-        let component_guard = component.lock().expect("component lock");
-        component_guard.get_offset()
+        let component_guard = component.lock();        component_guard.get_offset()
     }
 
     pub fn get_coords(&mut self) -> Vec<f64> {

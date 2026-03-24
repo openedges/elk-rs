@@ -1,17 +1,14 @@
 #![allow(clippy::mutable_key_type)]
 
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::sync::LazyLock;
 
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 use crate::org::eclipse::elk::alg::layered::graph::{LGraphRef, LNodeRef, LPortRef, NodeRefKey, NodeType};
 use crate::org::eclipse::elk::alg::layered::intermediate::preserveorder::model_order_port_comparator::ModelOrderPortComparator;
 use crate::org::eclipse::elk::alg::layered::intermediate::CMGroupModelOrderCalculator;
 use crate::org::eclipse::elk::alg::layered::options::{
     GroupOrderStrategy, InternalProperties, LongEdgeOrderingStrategy, OrderingStrategy,
 };
-
-static TRACE_CROSSMIN: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN").is_some());
 
 pub struct ModelOrderNodeComparator {
     previous_layer: Vec<LNodeRef>,
@@ -105,20 +102,13 @@ impl ModelOrderNodeComparator {
             if let (Some(p1_source_port), Some(p2_source_port)) = (&p1_source_port, &p2_source_port)
             {
                 let p1_node = p1_source_port
-                    .lock()
-                    .ok()
-                    .and_then(|port_guard| port_guard.node());
+                    .lock().node();
                 let p2_node = p2_source_port
-                    .lock()
-                    .ok()
-                    .and_then(|port_guard| port_guard.node());
+                    .lock().node();
                 if let (Some(p1_node), Some(p2_node)) = (&p1_node, &p2_node) {
                     if ArcPtr::eq_nodes(p1_node, p2_node) {
                         let ports = p1_node
-                            .lock()
-                            .ok()
-                            .map(|node_guard| node_guard.ports().clone())
-                            .unwrap_or_default();
+                            .lock().ports().clone();
                         for port in ports {
                             if ArcPtr::eq_ports(&port, p1_source_port) {
                                 self.update_bigger_and_smaller(n2, n1);
@@ -190,12 +180,11 @@ impl ModelOrderNodeComparator {
         }
 
         if n1_has_model_order && n2_has_model_order {
-            let max_nodes = match self.graph.try_lock() {
-                Ok(mut graph_guard) => graph_guard
+            let max_nodes = match self.graph.try_lock() {            Some(graph_guard) => graph_guard
                     .get_property(InternalProperties::MAX_MODEL_ORDER_NODES)
                     .unwrap_or(0),
-                Err(_) => {
-                    if *TRACE_CROSSMIN {
+            None => {
+                    if ElkTrace::global().crossmin {
                         eprintln!("node_compare: graph lock busy, using default max_nodes");
                     }
                     0
@@ -326,14 +315,15 @@ impl ModelOrderNodeComparator {
     fn model_order_from_connected_edges(&self, node: &LNodeRef) -> i32 {
         let source_port = first_incoming_port(node);
         if let Some(port) = source_port {
-            let edge = port
-                .lock()
-                .ok()
-                .and_then(|port_guard| port_guard.incoming_edges().first().cloned());
+            let edge = {
+                let port_guard = port.lock();
+                port_guard.incoming_edges().first().cloned()
+            };
             if let Some(edge) = edge {
-                let order = edge.lock().ok().and_then(|mut edge_guard| {
+                let order = {
+                    let edge_guard = edge.lock();
                     edge_guard.get_property(InternalProperties::MODEL_ORDER)
-                });
+                };
                 if let Some(order) = order {
                     return order;
                 }
@@ -353,16 +343,12 @@ impl ModelOrderNodeComparator {
                 return 0;
             };
             let Some(dummy_source_node) = dummy_source_port
-                .lock()
-                .ok()
-                .and_then(|port_guard| port_guard.node())
+                .lock().node()
             else {
                 return 0;
             };
             let Some(dummy_target_node) = dummy_target_port
-                .lock()
-                .ok()
-                .and_then(|port_guard| port_guard.node())
+                .lock().node()
             else {
                 return 0;
             };
@@ -389,16 +375,12 @@ impl ModelOrderNodeComparator {
                 return 0;
             };
             let Some(dummy_source_node) = dummy_source_port
-                .lock()
-                .ok()
-                .and_then(|port_guard| port_guard.node())
+                .lock().node()
             else {
                 return 0;
             };
             let Some(dummy_target_node) = dummy_target_port
-                .lock()
-                .ok()
-                .and_then(|port_guard| port_guard.node())
+                .lock().node()
             else {
                 return 0;
             };
@@ -425,16 +407,12 @@ impl ModelOrderNodeComparator {
                 return 0;
             };
             let Some(n1_source_node) = n1_source_port
-                .lock()
-                .ok()
-                .and_then(|port_guard| port_guard.node())
+                .lock().node()
             else {
                 return 0;
             };
             let Some(n1_target_node) = n1_target_port
-                .lock()
-                .ok()
-                .and_then(|port_guard| port_guard.node())
+                .lock().node()
             else {
                 return 0;
             };
@@ -458,16 +436,12 @@ impl ModelOrderNodeComparator {
                 return 0;
             };
             let Some(n2_source_node) = n2_source_port
-                .lock()
-                .ok()
-                .and_then(|port_guard| port_guard.node())
+                .lock().node()
             else {
                 return 0;
             };
             let Some(n2_target_node) = n2_target_port
-                .lock()
-                .ok()
-                .and_then(|port_guard| port_guard.node())
+                .lock().node()
             else {
                 return 0;
             };
@@ -512,10 +486,7 @@ impl ModelOrderNodeComparator {
                     }
                 } else {
                     let ports = n1_reference
-                        .lock()
-                        .ok()
-                        .map(|node_guard| node_guard.ports().clone())
-                        .unwrap_or_default();
+                        .lock().ports().clone();
                     for port in ports {
                         if ArcPtr::eq_ports(&port, &n1_source_port) {
                             self.update_bigger_and_smaller(n2, n1);
@@ -535,79 +506,65 @@ impl ModelOrderNodeComparator {
 }
 
 fn has_model_order(node: &LNodeRef) -> bool {
-    node.lock()
-        .ok()
-        .and_then(|mut node_guard| node_guard.get_property(InternalProperties::MODEL_ORDER))
-        .is_some()
+    let node_guard = node.lock();
+    node_guard.get_property(InternalProperties::MODEL_ORDER).is_some()
 }
 
 fn first_incoming_port(node: &LNodeRef) -> Option<LPortRef> {
-    node.lock().ok().and_then(|node_guard| {
-        node_guard
-            .ports()
-            .iter()
-            .find(|port| {
-                port.lock()
-                    .ok()
-                    .map(|port_guard| !port_guard.incoming_edges().is_empty())
-                    .unwrap_or(false)
-            })
-            .cloned()
-    })
+    let node_guard = node.lock();
+    node_guard
+        .ports()
+        .iter()
+        .find(|port| {
+            let port_guard = port.lock();
+            !port_guard.incoming_edges().is_empty()
+        })
+        .cloned()
 }
 
 fn first_incoming_source_port(node: &LNodeRef) -> Option<LPortRef> {
     let port = first_incoming_port(node)?;
-    port.lock()
-        .ok()
-        .and_then(|port_guard| port_guard.incoming_edges().first().cloned())
-        .and_then(|edge| edge.lock().ok().and_then(|edge_guard| edge_guard.source()))
+    let edge = {
+        let port_guard = port.lock();
+        port_guard.incoming_edges().first().cloned()
+    };
+    edge.and_then(|edge| edge.lock().source())
 }
 
 fn first_outgoing_port(node: &LNodeRef) -> Option<LPortRef> {
-    node.lock().ok().and_then(|node_guard| {
-        node_guard
-            .ports()
-            .iter()
-            .find(|port| {
-                port.lock()
-                    .ok()
-                    .map(|port_guard| !port_guard.outgoing_edges().is_empty())
-                    .unwrap_or(false)
-            })
-            .cloned()
-    })
+    let node_guard = node.lock();
+    node_guard
+        .ports()
+        .iter()
+        .find(|port| {
+            let port_guard = port.lock();
+            !port_guard.outgoing_edges().is_empty()
+        })
+        .cloned()
 }
 
 fn first_outgoing_target_port(node: &LNodeRef) -> Option<LPortRef> {
     let port = first_outgoing_port(node)?;
-    port.lock()
-        .ok()
-        .and_then(|port_guard| port_guard.outgoing_edges().first().cloned())
-        .and_then(|edge| edge.lock().ok().and_then(|edge_guard| edge_guard.target()))
+    let edge = {
+        let port_guard = port.lock();
+        port_guard.outgoing_edges().first().cloned()
+    };
+    edge.and_then(|edge| edge.lock().target())
 }
 
 fn first_source_port_to_previous_layer(node: &LNodeRef) -> Option<LPortRef> {
     let node_layer = layer_id(node);
     let prev_layer = node_layer.checked_sub(1)?;
     let ports = node
-        .lock()
-        .ok()
-        .map(|node_guard| node_guard.ports().clone())
-        .unwrap_or_default();
+        .lock().ports().clone();
     for port in ports {
         let incoming = port
-            .lock()
-            .ok()
-            .map(|port_guard| port_guard.incoming_edges().clone())
-            .unwrap_or_default();
+            .lock().incoming_edges().clone();
         if let Some(edge) = incoming.first() {
-            let source_port = edge.lock().ok().and_then(|edge_guard| edge_guard.source());
+            let source_port = edge.lock().source();
             if let Some(source_port) = source_port {
                 let source_node = source_port
-                    .lock()
-                    .ok()
-                    .and_then(|port_guard| port_guard.node());
+                    .lock().node();
                 if let Some(source_node) = source_node {
                     if layer_id(&source_node) == prev_layer {
                         return Some(source_port);
@@ -620,23 +577,16 @@ fn first_source_port_to_previous_layer(node: &LNodeRef) -> Option<LPortRef> {
 }
 
 fn layer_id(node: &LNodeRef) -> usize {
-    node.lock()
-        .ok()
-        .and_then(|node_guard| node_guard.layer())
-        .and_then(|layer| {
-            layer
-                .lock()
-                .ok()
-                .map(|mut layer_guard| layer_guard.graph_element().id as usize)
+    node.lock().layer()
+        .map(|layer| {
+            let mut layer_guard = layer.lock();
+            layer_guard.graph_element().id as usize
         })
         .unwrap_or(0)
 }
 
 fn node_type(node: &LNodeRef) -> NodeType {
-    node.lock()
-        .ok()
-        .map(|node_guard| node_guard.node_type())
-        .unwrap_or(NodeType::Normal)
+    node.lock().node_type()
 }
 
 struct ArcPtr;

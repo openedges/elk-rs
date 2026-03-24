@@ -15,35 +15,26 @@ impl ILayoutProcessor<LGraph> for PartitionPostprocessor {
         let layers = lgraph.layers().clone();
         for layer in layers {
             let nodes = layer
-                .lock()
-                .ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
             for node in nodes {
-                let partition_ports: Vec<LPortRef> = node
-                    .lock()
-                    .ok()
-                    .map(|node_guard| {
-                        node_guard
-                            .ports()
-                            .iter()
-                            .filter_map(|port| {
-                                let is_partition_dummy = port
-                                    .lock()
-                                    .ok()
-                                    .and_then(|mut port_guard| {
-                                        port_guard.get_property(InternalProperties::PARTITION_DUMMY)
-                                    })
-                                    .unwrap_or(false);
-                                if is_partition_dummy {
-                                    Some(port.clone())
-                                } else {
-                                    None
-                                }
-                            })
-                            .collect()
-                    })
-                    .unwrap_or_default();
+                let partition_ports: Vec<LPortRef> = {
+                    let node_guard = node.lock();
+                    node_guard
+                        .ports()
+                        .iter()
+                        .filter_map(|port| {
+                            let is_partition_dummy = port
+                                .lock()
+                                .get_property(InternalProperties::PARTITION_DUMMY)
+                                .unwrap_or(false);
+                            if is_partition_dummy {
+                                Some(port.clone())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect()
+                };
 
                 for port in partition_ports {
                     detach_partition_port(&port);
@@ -57,16 +48,11 @@ impl ILayoutProcessor<LGraph> for PartitionPostprocessor {
 
 fn detach_partition_port(port: &LPortRef) {
     let connected_edges = port
-        .lock()
-        .ok()
-        .map(|port_guard| port_guard.connected_edges())
-        .unwrap_or_default();
+        .lock().connected_edges();
 
     for edge in connected_edges {
         let source_is_port = edge
-            .lock()
-            .ok()
-            .and_then(|edge_guard| edge_guard.source())
+            .lock().source()
             .map(|source| Arc::ptr_eq(&source, port))
             .unwrap_or(false);
         if source_is_port {
@@ -74,9 +60,7 @@ fn detach_partition_port(port: &LPortRef) {
         }
 
         let target_is_port = edge
-            .lock()
-            .ok()
-            .and_then(|edge_guard| edge_guard.target())
+            .lock().target()
             .map(|target| Arc::ptr_eq(&target, port))
             .unwrap_or(false);
         if target_is_port {

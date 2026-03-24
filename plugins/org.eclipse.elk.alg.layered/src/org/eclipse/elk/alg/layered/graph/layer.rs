@@ -1,3 +1,4 @@
+use std::fmt;
 use std::sync::{Arc, Weak};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
@@ -53,12 +54,14 @@ impl Layer {
     pub fn index(&self) -> Option<usize> {
         let layer_ref = self.self_ref.upgrade()?;
         let graph = self.owner.upgrade()?;
-        let graph_guard = graph.lock().ok()?;
+        let graph_guard = graph.lock();
         index_of_arc(graph_guard.layers(), &layer_ref)
     }
 
-    #[allow(clippy::inherent_to_string)]
-    pub fn to_string(&mut self) -> String {
+}
+
+impl fmt::Display for Layer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let index = self
             .index()
             .map(|value| value.to_string())
@@ -66,9 +69,9 @@ impl Layer {
         let nodes = self
             .nodes
             .iter()
-            .map(|node| node.lock().map(|mut n| n.to_string()).unwrap_or_default())
+            .map(|node| node.lock().to_string())
             .collect::<Vec<_>>()
             .join(", ");
-        format!("L_{}[{}]", index, nodes)
+        write!(f, "L_{}[{}]", index, nodes)
     }
 }

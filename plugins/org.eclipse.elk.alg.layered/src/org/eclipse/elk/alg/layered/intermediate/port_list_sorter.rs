@@ -29,21 +29,16 @@ impl ILayoutProcessor<LGraph> for PortListSorter {
         let layers = graph.layers().clone();
         for layer in layers {
             let nodes = layer
-                .lock()
-                .ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
 
             for node in nodes {
                 let constraints = node
                     .lock()
-                    .ok()
-                    .and_then(|mut node_guard| {
-                        node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
-                    })
+                    .get_property(LayeredOptions::PORT_CONSTRAINTS)
                     .unwrap_or(PortConstraints::Undefined);
 
-                if let Ok(mut node_guard) = node.lock() {
+                {
+                    let mut node_guard = node.lock();
                     if constraints.is_order_fixed() {
                         stable_sort_by(node_guard.ports_mut(), |p1, p2| {
                             compare_ports_combined(p1, p2, constraints)
@@ -106,14 +101,8 @@ fn compare_fixed_order_and_pos(
     }
 
     if constraints == PortConstraints::FixedOrder {
-        let idx1 = p1
-            .lock()
-            .ok()
-            .and_then(|mut port_guard| port_guard.get_property(LayeredOptions::PORT_INDEX));
-        let idx2 = p2
-            .lock()
-            .ok()
-            .and_then(|mut port_guard| port_guard.get_property(LayeredOptions::PORT_INDEX));
+        let idx1 = p1.lock().get_property(LayeredOptions::PORT_INDEX);
+        let idx2 = p2.lock().get_property(LayeredOptions::PORT_INDEX);
         if let (Some(i1), Some(i2)) = (idx1, idx2) {
             if i1 != i2 {
                 return i1.cmp(&i2);
@@ -121,16 +110,8 @@ fn compare_fixed_order_and_pos(
         }
     }
 
-    let pos1 = p1
-        .lock()
-        .ok()
-        .map(|mut port_guard| *port_guard.shape().position_ref())
-        .unwrap_or_default();
-    let pos2 = p2
-        .lock()
-        .ok()
-        .map(|mut port_guard| *port_guard.shape().position_ref())
-        .unwrap_or_default();
+    let pos1 = *p1.lock().shape().position_ref();
+    let pos2 = *p2.lock().shape().position_ref();
     match side1 {
         PortSide::North => pos1.x.partial_cmp(&pos2.x).unwrap_or(Ordering::Equal),
         PortSide::East => pos1.y.partial_cmp(&pos2.y).unwrap_or(Ordering::Equal),
@@ -207,24 +188,20 @@ where
 }
 
 fn real_degree(port: &LPortRef, outgoing: bool) -> i32 {
-    let edges = port
-        .lock()
-        .ok()
-        .map(|port_guard| {
-            if outgoing {
-                port_guard.outgoing_edges().clone()
-            } else {
-                port_guard.incoming_edges().clone()
-            }
-        })
-        .unwrap_or_default();
+    let edges = {
+        let port_guard = port.lock();
+        if outgoing {
+            port_guard.outgoing_edges().clone()
+        } else {
+            port_guard.incoming_edges().clone()
+        }
+    };
 
     let mut degree = 0;
     for edge in edges {
         let reversed = edge
             .lock()
-            .ok()
-            .and_then(|mut edge_guard| edge_guard.get_property(InternalProperties::REVERSED))
+            .get_property(InternalProperties::REVERSED)
             .unwrap_or(false);
         if !reversed {
             degree += 1;
@@ -235,10 +212,7 @@ fn real_degree(port: &LPortRef, outgoing: bool) -> i32 {
 }
 
 fn port_side(port: &LPortRef) -> PortSide {
-    port.lock()
-        .ok()
-        .map(|port_guard| port_guard.side())
-        .unwrap_or(PortSide::Undefined)
+    port.lock().side()
 }
 
 fn side_ordinal(side: PortSide) -> i32 {

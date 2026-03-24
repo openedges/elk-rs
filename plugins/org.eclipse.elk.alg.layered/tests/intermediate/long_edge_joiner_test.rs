@@ -12,8 +12,7 @@ fn layered_graph_with_three_layers() -> (LGraphRef, Vec<LayerRef>) {
     let graph = LGraph::new();
     let mut layers = Vec::new();
     {
-        let mut graph_guard = graph.lock().expect("graph lock");
-        for _ in 0..3 {
+        let mut graph_guard = graph.lock();        for _ in 0..3 {
             let layer = Layer::new(&graph);
             graph_guard.layers_mut().push(layer.clone());
             layers.push(layer);
@@ -33,7 +32,7 @@ fn add_port(
     side: PortSide,
 ) -> org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LPortRef {
     let port = LPort::new();
-    port.lock().expect("port lock").set_side(side);
+    port.lock().set_side(side);
     LPort::set_node(&port, Some(node.clone()));
     port
 }
@@ -59,13 +58,13 @@ fn long_edge_joiner_removes_long_edge_dummy_nodes() {
     let mut splitter = LongEdgeSplitter;
     let mut joiner = LongEdgeJoiner;
     let mut monitor = NullElkProgressMonitor;
-    splitter.process(&mut graph.lock().expect("graph lock"), &mut monitor);
-    joiner.process(&mut graph.lock().expect("graph lock"), &mut monitor);
+    splitter.process(&mut graph.lock(), &mut monitor);
+    joiner.process(&mut graph.lock(), &mut monitor);
 
     for layer in &layers {
-        let nodes = layer.lock().expect("layer lock").nodes().clone();
+        let nodes = layer.lock().nodes().clone();
         for node in nodes {
-            let ty = node.lock().expect("node lock").node_type();
+            let ty = node.lock().node_type();
             assert_ne!(ty, NodeType::LongEdge);
         }
     }

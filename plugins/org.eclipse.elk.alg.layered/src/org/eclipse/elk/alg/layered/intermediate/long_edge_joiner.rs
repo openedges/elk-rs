@@ -29,16 +29,9 @@ impl ILayoutProcessor<LGraph> for LongEdgeJoiner {
         let layers = layered_graph.layers().clone();
         for layer in layers {
             let nodes = layer
-                .lock()
-                .ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
             for node in nodes {
-                let is_long_edge_dummy = node
-                    .lock()
-                    .ok()
-                    .map(|node_guard| node_guard.node_type() == NodeType::LongEdge)
-                    .unwrap_or(false);
+                let is_long_edge_dummy = node.lock().node_type() == NodeType::LongEdge;
                 if !is_long_edge_dummy {
                     continue;
                 }
@@ -55,37 +48,28 @@ impl LongEdgeJoiner {
     pub fn join_at(long_edge_dummy: &LNodeRef, add_unnecessary_bendpoints: bool) {
         let west_port = long_edge_dummy
             .lock()
-            .ok()
-            .and_then(|node_guard| node_guard.ports_by_side(PortSide::West).first().cloned());
+            .ports_by_side(PortSide::West)
+            .first()
+            .cloned();
         let east_port = long_edge_dummy
             .lock()
-            .ok()
-            .and_then(|node_guard| node_guard.ports_by_side(PortSide::East).first().cloned());
+            .ports_by_side(PortSide::East)
+            .first()
+            .cloned();
         let (Some(west_port), Some(east_port)) = (west_port, east_port) else {
             return;
         };
 
         let mut input_edges = west_port
-            .lock()
-            .ok()
-            .map(|port_guard| port_guard.incoming_edges().clone())
-            .unwrap_or_default();
+            .lock().incoming_edges().clone();
         let mut output_edges = east_port
-            .lock()
-            .ok()
-            .map(|port_guard| port_guard.outgoing_edges().clone())
-            .unwrap_or_default();
+            .lock().outgoing_edges().clone();
         let mut edge_count = input_edges.len().min(output_edges.len());
 
-        let unnecessary_bendpoint = long_edge_dummy
-            .lock()
-            .ok()
-            .and_then(|node_guard| node_guard.ports().first().cloned())
-            .and_then(|port| {
-                port.lock()
-                    .ok()
-                    .and_then(|port_guard| port_guard.absolute_anchor())
-            });
+        let unnecessary_bendpoint = {
+            let first_port = long_edge_dummy.lock().ports().first().cloned();
+            first_port.and_then(|port| port.lock().absolute_anchor())
+        };
 
         while edge_count > 0 {
             edge_count -= 1;
@@ -93,21 +77,15 @@ impl LongEdgeJoiner {
             let dropped_edge = output_edges.remove(0);
 
             let dropped_target = dropped_edge
-                .lock()
-                .ok()
-                .and_then(|edge_guard| edge_guard.target());
+                .lock().target();
             let Some(dropped_target) = dropped_target else {
                 continue;
             };
             let dropped_edge_list_index = dropped_target
                 .lock()
-                .ok()
-                .and_then(|port_guard| {
-                    port_guard
-                        .incoming_edges()
-                        .iter()
-                        .position(|candidate| Arc::ptr_eq(candidate, &dropped_edge))
-                })
+                .incoming_edges()
+                .iter()
+                .position(|candidate| Arc::ptr_eq(candidate, &dropped_edge))
                 .unwrap_or(0);
 
             LEdge::set_target_and_insert_at_index(
@@ -120,7 +98,8 @@ impl LongEdgeJoiner {
 
             if add_unnecessary_bendpoints {
                 if let Some(unnecessary_bendpoint) = unnecessary_bendpoint {
-                    if let Ok(mut surviving_guard) = surviving_edge.lock() {
+                    {
+                        let mut surviving_guard = surviving_edge.lock();
                         surviving_guard
                             .bend_points()
                             .add_vector(KVector::from_vector(&unnecessary_bendpoint));
@@ -128,28 +107,25 @@ impl LongEdgeJoiner {
                 }
             }
 
-            let dropped_bend_points = dropped_edge
-                .lock()
-                .ok()
-                .map(|edge_guard| edge_guard.bend_points_ref().to_array())
-                .unwrap_or_default();
-            if let Ok(mut surviving_guard) = surviving_edge.lock() {
+            let dropped_bend_points = dropped_edge.lock().bend_points_ref().to_array();
+            {
+                let mut surviving_guard = surviving_edge.lock();
                 surviving_guard.bend_points().add_all(&dropped_bend_points);
             }
 
             let dropped_labels = dropped_edge
-                .lock()
-                .ok()
-                .map(|edge_guard| edge_guard.labels().clone())
-                .unwrap_or_default();
-            if let Ok(mut dropped_guard) = dropped_edge.lock() {
+                .lock().labels().clone();
+            {
+                let mut dropped_guard = dropped_edge.lock();
                 dropped_guard.labels_mut().clear();
             }
-            if let Ok(mut surviving_guard) = surviving_edge.lock() {
+            {
+                let mut surviving_guard = surviving_edge.lock();
                 surviving_guard.labels_mut().extend(dropped_labels);
             }
 
-            let dropped_junction_points = dropped_edge.lock().ok().and_then(|mut edge_guard| {
+            let dropped_junction_points = {
+                let mut edge_guard = dropped_edge.lock();
                 if edge_guard
                     .graph_element()
                     .properties()
@@ -159,9 +135,10 @@ impl LongEdgeJoiner {
                 } else {
                     None
                 }
-            });
+            };
             if let Some(dropped_junction_points) = dropped_junction_points {
-                if let Ok(mut surviving_guard) = surviving_edge.lock() {
+                {
+                    let mut surviving_guard = surviving_edge.lock();
                     let mut surviving_junctions = if surviving_guard
                         .graph_element()
                         .properties()

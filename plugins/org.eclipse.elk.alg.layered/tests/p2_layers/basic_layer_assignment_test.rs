@@ -179,7 +179,8 @@ fn run_layerer_for_strategy(
 
     let lgraph = import_lgraph(&root);
     let mut monitor = BasicProgressMonitor::new();
-    if let Ok(mut graph_guard) = lgraph.lock() {
+    {
+        let mut graph_guard = lgraph.lock();
         match strategy {
             LayeringStrategy::CoffmanGraham => {
                 let mut layerer = CoffmanGrahamLayerer::new();
@@ -220,44 +221,35 @@ fn run_layerer_for_strategy(
 
 fn assert_no_layerless_nodes(strategy: LayeringStrategy) {
     let lgraph = run_layerer_for_strategy(strategy);
-    let graph_guard = lgraph.lock().expect("lgraph lock");
-    assert!(graph_guard.layerless_nodes().is_empty());
+    let graph_guard = lgraph.lock();    assert!(graph_guard.layerless_nodes().is_empty());
 }
 
 fn assert_no_empty_layers(strategy: LayeringStrategy) {
     let lgraph = run_layerer_for_strategy(strategy);
-    let graph_guard = lgraph.lock().expect("lgraph lock");
-    let layers = graph_guard.layers().clone();
+    let graph_guard = lgraph.lock();    let layers = graph_guard.layers().clone();
     drop(graph_guard);
 
     for layer in &layers {
-        let layer_guard = layer.lock().expect("layer lock");
-        assert!(!layer_guard.nodes().is_empty());
+        let layer_guard = layer.lock();        assert!(!layer_guard.nodes().is_empty());
     }
 }
 
 fn assert_edges_point_towards_next_layers(strategy: LayeringStrategy) {
     let lgraph = run_layerer_for_strategy(strategy);
-    let graph_guard = lgraph.lock().expect("lgraph lock");
-    let layers = graph_guard.layers().clone();
+    let graph_guard = lgraph.lock();    let layers = graph_guard.layers().clone();
     drop(graph_guard);
 
     for layer in &layers {
         let layer_idx = layer_index(layer);
-        let nodes = layer.lock().expect("layer lock").nodes().clone();
+        let nodes = layer.lock().nodes().clone();
         for node in nodes {
             let outgoing = node
-                .lock()
-                .ok()
-                .map(|node_guard| node_guard.outgoing_edges())
-                .unwrap_or_default();
+                .lock().outgoing_edges();
             for edge in outgoing {
                 let target_layer_idx = edge
-                    .lock()
-                    .ok()
-                    .and_then(|edge_guard| edge_guard.target())
-                    .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
-                    .and_then(|target_node| target_node.lock().ok().and_then(|n| n.layer()))
+                    .lock().target()
+                    .and_then(|port| port.lock().node())
+                    .and_then(|target_node| target_node.lock().layer())
                     .map(|layer_ref| layer_index(&layer_ref))
                     .unwrap_or(layer_idx);
                 assert!(layer_idx < target_layer_idx);
@@ -270,9 +262,7 @@ fn layer_index(
     layer: &org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LayerRef,
 ) -> usize {
     layer
-        .lock()
-        .ok()
-        .and_then(|layer_guard| layer_guard.index())
+        .lock().index()
         .unwrap_or(0)
 }
 

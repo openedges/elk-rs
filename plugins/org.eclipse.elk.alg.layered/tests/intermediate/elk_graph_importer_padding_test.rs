@@ -67,8 +67,7 @@ fn importer_adds_inside_node_label_padding_to_graph_padding() {
     let mut importer = ElkGraphImporter::new(&mut origin_store);
     let lgraph = importer.import_graph(&graph);
 
-    let mut graph_guard = lgraph.lock().expect("lgraph lock");
-    let padding = graph_guard.padding().clone();
+    let mut graph_guard = lgraph.lock();    let padding = graph_guard.padding().clone();
     drop(graph_guard);
 
     // Top: base(1) + labelHeight(5) + nodeLabelsPadding.top(2) + cellGap(2)

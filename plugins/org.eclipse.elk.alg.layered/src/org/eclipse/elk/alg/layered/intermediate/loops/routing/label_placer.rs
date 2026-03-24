@@ -20,35 +20,25 @@ impl LabelPlacer {
         holder: &SelfLoopHolderRef,
         label_manager: Option<&Arc<dyn ILabelManager>>,
     ) {
-        let Some((node_size, loops, ordering_strategy, node_margin)) =
-            holder.lock().ok().map(|holder_guard| {
-                let node = holder_guard.l_node().clone();
-                let (size, ordering_strategy, margin) = node
-                    .lock()
-                    .ok()
-                    .map(|mut node_guard| {
-                        (
-                            *node_guard.shape().size_ref(),
-                            node_guard
-                                .get_property(LayeredOptions::EDGE_ROUTING_SELF_LOOP_ORDERING)
-                                .unwrap_or_default(),
-                            node_guard.margin().clone(),
-                        )
-                    })
-                    .unwrap_or((
-                        KVector::new(),
-                        SelfLoopOrderingStrategy::Stacked,
-                        crate::org::eclipse::elk::alg::layered::graph::LMargin::new(),
-                    ));
+        let (node_size, loops, ordering_strategy, node_margin) = {
+            let holder_guard = holder.lock();
+            let node = holder_guard.l_node().clone();
+            let (size, ordering_strategy, margin) = {
+                let mut node_guard = node.lock();
                 (
-                    size,
-                    holder_guard.sl_hyper_loops().clone(),
-                    ordering_strategy,
-                    margin,
+                    *node_guard.shape().size_ref(),
+                    node_guard
+                        .get_property(LayeredOptions::EDGE_ROUTING_SELF_LOOP_ORDERING)
+                        .unwrap_or_default(),
+                    node_guard.margin().clone(),
                 )
-            })
-        else {
-            return;
+            };
+            (
+                size,
+                holder_guard.sl_hyper_loops().clone(),
+                ordering_strategy,
+                margin,
+            )
         };
 
         assign_sides_and_alignments(&loops, ordering_strategy);
@@ -67,39 +57,28 @@ impl LabelPlacer {
     ) {
         self.prepare_labels(holder, label_manager);
 
-        let Some((l_node, node_pos, node_size, loops, ordering_strategy, mut margin)) =
-            holder.lock().ok().map(|holder_guard| {
-                let node = holder_guard.l_node().clone();
-                let (pos, size, ordering_strategy, margin) = node
-                    .lock()
-                    .ok()
-                    .map(|mut node_guard| {
-                        (
-                            *node_guard.shape().position_ref(),
-                            *node_guard.shape().size_ref(),
-                            node_guard
-                                .get_property(LayeredOptions::EDGE_ROUTING_SELF_LOOP_ORDERING)
-                                .unwrap_or_default(),
-                            node_guard.margin().clone(),
-                        )
-                    })
-                    .unwrap_or((
-                        KVector::new(),
-                        KVector::new(),
-                        SelfLoopOrderingStrategy::Stacked,
-                        crate::org::eclipse::elk::alg::layered::graph::LMargin::new(),
-                    ));
+        let (l_node, node_pos, node_size, loops, ordering_strategy, mut margin) = {
+            let holder_guard = holder.lock();
+            let node = holder_guard.l_node().clone();
+            let (pos, size, ordering_strategy, margin) = {
+                let mut node_guard = node.lock();
                 (
-                    node,
-                    pos,
-                    size,
-                    holder_guard.sl_hyper_loops().clone(),
-                    ordering_strategy,
-                    margin,
+                    *node_guard.shape().position_ref(),
+                    *node_guard.shape().size_ref(),
+                    node_guard
+                        .get_property(LayeredOptions::EDGE_ROUTING_SELF_LOOP_ORDERING)
+                        .unwrap_or_default(),
+                    node_guard.margin().clone(),
                 )
-            })
-        else {
-            return;
+            };
+            (
+                node,
+                pos,
+                size,
+                holder_guard.sl_hyper_loops().clone(),
+                ordering_strategy,
+                margin,
+            )
         };
 
         let _ = ordering_strategy;
@@ -111,7 +90,8 @@ impl LabelPlacer {
                 continue;
             };
 
-            if let Ok(mut sl_loop_guard) = sl_loop.lock() {
+            {
+                let mut sl_loop_guard = sl_loop.lock();
                 if let Some(labels) = sl_loop_guard.sl_labels_mut() {
                     *labels.position_mut() = absolute;
                     labels.apply_placement(KVector::new());
@@ -127,7 +107,8 @@ impl LabelPlacer {
             }
         }
 
-        if let Ok(mut node_guard) = l_node.lock() {
+        {
+            let mut node_guard = l_node.lock();
             *node_guard.margin() = margin;
         };
     }
@@ -139,7 +120,8 @@ fn manage_labels(
     node_margin: &LMargin,
     label_manager: &Arc<dyn ILabelManager>,
 ) {
-    if let Ok(mut sl_loop_guard) = sl_loop.lock() {
+    {
+        let mut sl_loop_guard = sl_loop.lock();
         let Some(sl_labels) = sl_loop_guard.sl_labels_mut() else {
             return;
         };
@@ -171,15 +153,11 @@ fn target_width_for_label_management(
 }
 
 fn alignment_reference_x(sl_port: &SelfLoopPortRef) -> f64 {
-    sl_port
-        .lock()
-        .ok()
-        .and_then(|port_guard| {
-            port_guard.l_port().lock().ok().map(|mut port_guard| {
-                port_guard.shape().position_ref().x + port_guard.anchor_ref().x
-            })
-        })
-        .unwrap_or(0.0)
+    let port_guard = sl_port.lock();
+    let l_port = port_guard.l_port().clone();
+    drop(port_guard);
+    let mut l_port_guard = l_port.lock();
+    l_port_guard.shape().position_ref().x + l_port_guard.anchor_ref().x
 }
 
 fn update_margins_with_point(
@@ -200,7 +178,7 @@ fn compute_loop_label_placement(
     base_offset: f64,
 ) -> Option<KVector> {
     let (side, alignment, align_ref, label_size, slot) = {
-        let mut sl_loop_guard = sl_loop.lock().ok()?;
+        let mut sl_loop_guard = sl_loop.lock();
 
         let (side, alignment, align_ref, label_size) = {
             let sl_labels = sl_loop_guard.sl_labels_mut()?;
@@ -259,18 +237,17 @@ fn assign_sides_and_alignments(
     let mut southern_one_sided_loops = Vec::new();
 
     for sl_loop in loops {
-        let one_sided_side = sl_loop
-            .lock()
-            .ok()
-            .and_then(|sl_loop_guard| {
-                if sl_loop_guard.sl_labels().is_none()
-                    || sl_loop_guard.self_loop_type() != Some(SelfLoopType::OneSide)
-                {
-                    return None;
-                }
+        let one_sided_side = {
+            let sl_loop_guard = sl_loop.lock();
+            if sl_loop_guard.sl_labels().is_none()
+                || sl_loop_guard.self_loop_type() != Some(SelfLoopType::OneSide)
+            {
+                PortSide::Undefined
+            } else {
                 sl_loop_guard.occupied_port_sides().iter().copied().next()
-            })
-            .unwrap_or(PortSide::Undefined);
+                    .unwrap_or(PortSide::Undefined)
+            }
+        };
 
         if ordering_strategy == SelfLoopOrderingStrategy::Sequenced
             && one_sided_side == PortSide::North
@@ -285,7 +262,8 @@ fn assign_sides_and_alignments(
             continue;
         }
 
-        if let Ok(mut sl_loop_guard) = sl_loop.lock() {
+        {
+            let mut sl_loop_guard = sl_loop.lock();
             assign_side_and_alignment(&mut sl_loop_guard);
         }
     }
@@ -343,7 +321,8 @@ fn set_side_and_alignment(
     alignment: Alignment,
     alignment_reference: Option<SelfLoopPortRef>,
 ) {
-    if let Ok(mut sl_loop_guard) = sl_loop.lock() {
+    {
+        let mut sl_loop_guard = sl_loop.lock();
         if let Some(sl_labels) = sl_loop_guard.sl_labels_mut() {
             sl_labels.set_side(side);
             sl_labels.set_alignment(alignment);
@@ -363,10 +342,7 @@ fn assign_side_and_alignment(sl_loop: &mut SelfHyperLoop) {
     let has_inline_labels = sl_labels.l_labels().iter().any(|label| {
         label
             .lock()
-            .ok()
-            .and_then(|mut label_guard| {
-                label_guard.get_property(LayeredOptions::EDGE_LABELS_INLINE)
-            })
+            .get_property(LayeredOptions::EDGE_LABELS_INLINE)
             .unwrap_or(false)
     });
 
@@ -481,37 +457,30 @@ fn clear_inline_label_property(
     sl_labels: &mut crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfHyperLoopLabels,
 ) {
     for label in sl_labels.l_labels() {
-        if let Ok(mut label_guard) = label.lock() {
+        {
+            let mut label_guard = label.lock();
             label_guard.set_property(LayeredOptions::EDGE_LABELS_INLINE, None);
         }
     }
 }
 
 fn loop_leftmost_port_id(sl_loop: &SelfHyperLoopRef) -> i32 {
-    sl_loop
-        .lock()
-        .ok()
-        .and_then(|sl_loop_guard| {
-            sl_loop_guard
-                .leftmost_port()
-                .as_ref()
-                .map(SelfHyperLoop::port_id)
-        })
+    let sl_loop_guard = sl_loop.lock();
+    sl_loop_guard
+        .leftmost_port()
+        .as_ref()
+        .map(SelfHyperLoop::port_id)
         .unwrap_or(i32::MAX)
 }
 
 fn loop_leftmost_port(sl_loop: &SelfHyperLoopRef) -> Option<SelfLoopPortRef> {
     sl_loop
-        .lock()
-        .ok()
-        .and_then(|sl_loop_guard| sl_loop_guard.leftmost_port())
+        .lock().leftmost_port()
 }
 
 fn loop_rightmost_port(sl_loop: &SelfHyperLoopRef) -> Option<SelfLoopPortRef> {
     sl_loop
-        .lock()
-        .ok()
-        .and_then(|sl_loop_guard| sl_loop_guard.rightmost_port())
+        .lock().rightmost_port()
 }
 
 fn local_position(
@@ -521,12 +490,12 @@ fn local_position(
     alignment_reference: Option<SelfLoopPortRef>,
 ) -> KVector {
     let mut result = KVector::new();
-    let reference = alignment_reference.and_then(|sl_port| {
-        sl_port.lock().ok().and_then(|port_guard| {
-            port_guard.l_port().lock().ok().map(|mut port_guard| {
-                (*port_guard.shape().position_ref(), *port_guard.anchor_ref())
-            })
-        })
+    let reference = alignment_reference.map(|sl_port| {
+        let port_guard = sl_port.lock();
+        let l_port = port_guard.l_port().clone();
+        drop(port_guard);
+        let mut l_port_guard = l_port.lock();
+        (*l_port_guard.shape().position_ref(), *l_port_guard.anchor_ref())
     });
 
     match alignment {
@@ -575,27 +544,19 @@ fn pick_topmost_port(
 }
 
 fn sl_port_side(sl_port: &SelfLoopPortRef) -> PortSide {
-    sl_port
-        .lock()
-        .ok()
-        .and_then(|port_guard| {
-            port_guard
-                .l_port()
-                .lock()
-                .ok()
-                .map(|l_port_guard| l_port_guard.side())
-        })
-        .unwrap_or(PortSide::Undefined)
+    let port_guard = sl_port.lock();
+    let l_port = port_guard.l_port().clone();
+    drop(port_guard);
+    let guard = l_port.lock();
+    let side = guard.side();
+    drop(guard);
+    side
 }
 
 fn sl_port_y(sl_port: &SelfLoopPortRef) -> f64 {
-    sl_port
-        .lock()
-        .ok()
-        .and_then(|port_guard| {
-            port_guard.l_port().lock().ok().map(|mut port_guard| {
-                port_guard.shape().position_ref().y + port_guard.anchor_ref().y
-            })
-        })
-        .unwrap_or(f64::INFINITY)
+    let port_guard = sl_port.lock();
+    let l_port = port_guard.l_port().clone();
+    drop(port_guard);
+    let mut l_port_guard = l_port.lock();
+    l_port_guard.shape().position_ref().y + l_port_guard.anchor_ref().y
 }

@@ -3,18 +3,10 @@ use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap};
 use std::marker::PhantomData;
 use std::sync::Arc;
-use std::sync::LazyLock;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 use std::time::Instant;
 
-static TRACE_PROCESSORS: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_PROCESSORS").is_some());
-static TRACE_PROCESSOR_TIMING: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_PROCESSOR_TIMING").is_some());
-static TRACE_PHASES: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_PHASES").is_some());
-static TRACE_PHASE_TIMING: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_PHASE_TIMING").is_some());
+use crate::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 use crate::org::eclipse::elk::core::util::{EnumSetType, IElkProgressMonitor};
 
@@ -147,8 +139,7 @@ where
 
         let mut processor_configuration = LayoutProcessorConfiguration::create();
         for phase in phases.iter().flatten() {
-            let phase_guard = phase.lock().expect("phase lock");
-            if let Some(config) = phase_guard.get_layout_processor_configuration(graph) {
+            let phase_guard = phase.lock();            if let Some(config) = phase_guard.get_layout_processor_configuration(graph) {
                 processor_configuration.add_all(&config);
             }
         }
@@ -245,9 +236,8 @@ struct SharedProcessorAdapter<G> {
 
 impl<G: 'static> ILayoutProcessor<G> for SharedProcessorAdapter<G> {
     fn process(&mut self, graph: &mut G, progress_monitor: &mut dyn IElkProgressMonitor) {
-        let mut processor = self.processor.lock().expect("processor lock");
-        let trace_processors = *TRACE_PROCESSORS;
-        let trace_timing = *TRACE_PROCESSOR_TIMING;
+        let mut processor = self.processor.lock();        let trace_processors = ElkTrace::global().processors;
+        let trace_timing = ElkTrace::global().processor_timing;
         if trace_processors {
             eprintln!("processor: {}", processor.type_name());
         }
@@ -269,18 +259,12 @@ impl<G: 'static> ILayoutProcessor<G> for SharedProcessorAdapter<G> {
 
     fn type_name(&self) -> &'static str {
         self.processor
-            .lock()
-            .ok()
-            .map(|processor| processor.type_name())
-            .unwrap_or_else(|| std::any::type_name::<Self>())
+            .lock().type_name()
     }
 
     fn is_hierarchy_aware(&self) -> bool {
         self.processor
-            .lock()
-            .ok()
-            .map(|processor| processor.is_hierarchy_aware())
-            .unwrap_or(false)
+            .lock().is_hierarchy_aware()
     }
 }
 
@@ -293,9 +277,8 @@ where
     P: EnumSetType,
 {
     fn process(&mut self, graph: &mut G, progress_monitor: &mut dyn IElkProgressMonitor) {
-        let mut phase = self.phase.lock().expect("phase lock");
-        let trace_phases = *TRACE_PHASES;
-        let trace_timing = *TRACE_PHASE_TIMING;
+        let mut phase = self.phase.lock();        let trace_phases = ElkTrace::global().phases;
+        let trace_timing = ElkTrace::global().phase_timing;
         if trace_phases {
             eprintln!("phase: {}", phase.type_name());
         }
@@ -313,18 +296,12 @@ where
 
     fn type_name(&self) -> &'static str {
         self.phase
-            .lock()
-            .ok()
-            .map(|phase| phase.type_name())
-            .unwrap_or_else(|| std::any::type_name::<Self>())
+            .lock().type_name()
     }
 
     fn is_hierarchy_aware(&self) -> bool {
         self.phase
-            .lock()
-            .ok()
-            .map(|phase| phase.is_hierarchy_aware())
-            .unwrap_or(false)
+            .lock().is_hierarchy_aware()
     }
 }
 

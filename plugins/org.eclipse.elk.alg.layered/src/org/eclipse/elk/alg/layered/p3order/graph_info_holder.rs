@@ -1,15 +1,12 @@
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
-static TRACE_CROSSMIN: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN").is_some());
-static TRACE_CROSSMIN_CONSTRAINTS: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN_CONSTRAINTS").is_some());
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, Random};
 use crate::org::eclipse::elk::alg::layered::p3order::random_trace;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LGraphRef, LNodeRef};
+use crate::org::eclipse::elk::alg::layered::graph::{ArenaSync, LGraph, LGraphRef, LNodeRef};
 use crate::org::eclipse::elk::alg::layered::intermediate::greedyswitch::greedy_switch_heuristic::GreedySwitchHeuristic;
 use crate::org::eclipse::elk::alg::layered::options::{
     GraphProperties, GroupOrderStrategy, InternalProperties, LayeredOptions, OrderingStrategy,
@@ -59,6 +56,7 @@ pub struct GraphInfoHolder {
     first_try_with_initial_order: bool,
     second_try_with_initial_order: bool,
     snapshot: Arc<CrossMinSnapshot>,
+    arena_sync: Option<Arc<ArenaSync>>,
 }
 
 impl GraphInfoHolder {
@@ -80,8 +78,7 @@ impl GraphInfoHolder {
             port_influence,
             thoroughness,
         ) = {
-            let mut g = graph.lock().unwrap();
-            (
+            let g = graph.lock();            (
                 g.to_node_array(),
                 g.parent_node(),
                 g.get_property(InternalProperties::GRAPH_PROPERTIES)
@@ -116,8 +113,8 @@ impl GraphInfoHolder {
             )
         };
 
-        Self::build(
-            graph,
+        let mut holder = Self::build(
+            graph.clone(),
             cross_min_type,
             current_node_order,
             parent_node,
@@ -133,7 +130,10 @@ impl GraphInfoHolder {
             node_influence,
             port_influence,
             thoroughness,
-        )
+        );
+        // Graph lock is NOT held here — safe to use from_graph.
+        holder.init_arena_sync(Arc::new(ArenaSync::from_graph(&graph)));
+        holder
     }
 
     pub fn new_with_graph(
@@ -142,7 +142,7 @@ impl GraphInfoHolder {
         cross_min_type: CrossMinType,
         shared_random: &mut Random,
     ) -> Self {
-        let trace = *TRACE_CROSSMIN;
+        let trace = ElkTrace::global().crossmin;
         if trace {
             eprintln!("crossmin: graph_info_holder new_with_graph start");
         }
@@ -188,7 +188,7 @@ impl GraphInfoHolder {
             .get_property(LayeredOptions::THOROUGHNESS)
             .unwrap_or(1);
 
-        Self::build(
+        let mut holder = Self::build(
             graph_ref,
             cross_min_type,
             current_node_order,
@@ -205,7 +205,10 @@ impl GraphInfoHolder {
             node_influence,
             port_influence,
             thoroughness,
-        )
+        );
+        // Graph is borrowed as &mut LGraph — use from_lgraph to avoid re-locking.
+        holder.init_arena_sync(Arc::new(ArenaSync::from_lgraph(graph)));
+        holder
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -227,7 +230,7 @@ impl GraphInfoHolder {
         port_influence: f64,
         thoroughness: i32,
     ) -> Self {
-        let trace = *TRACE_CROSSMIN;
+        let trace = ElkTrace::global().crossmin;
         if trace {
             eprintln!("crossmin: graph_info_holder build start");
         }
@@ -235,7 +238,7 @@ impl GraphInfoHolder {
         let has_parent = parent_node.is_some();
         let parent_graph_ref = parent_node
             .as_ref()
-            .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.graph()));
+            .and_then(|node| node.lock().graph());
         // Parent graph indices are resolved by the caller once graph holders are collected.
         let parent_graph_index = None;
 
@@ -323,6 +326,7 @@ impl GraphInfoHolder {
             first_try_with_initial_order: false,
             second_try_with_initial_order: false,
             snapshot: empty_snapshot,
+            arena_sync: None,
         };
 
         let order = holder.current_node_order.clone();
@@ -351,6 +355,10 @@ impl GraphInfoHolder {
         if trace {
             eprintln!("crossmin: graph_info_holder snapshot built (nodes={}, ports={})",
                 snapshot.n_nodes(), snapshot.n_ports());
+        }
+
+        if trace {
+            eprintln!("crossmin: graph_info_holder arena_sync deferred to caller");
         }
 
         // Propagate snapshot to components for lock-free ID lookups.
@@ -383,6 +391,19 @@ impl GraphInfoHolder {
         holder.update_greedy_context(None);
 
         holder
+    }
+
+    /// Propagate ArenaSync to subcomponents for lock-free property reads (D-1.5).
+    fn init_arena_sync(&mut self, sync: Arc<ArenaSync>) {
+        self.crossings_counter.set_arena_sync(sync.clone());
+        if let Some(bary) = self
+            .cross_minimizer
+            .as_any_mut()
+            .downcast_mut::<BarycenterHeuristic>()
+        {
+            bary.set_arena_sync(sync.clone());
+        }
+        self.arena_sync = Some(sync);
     }
 
     pub fn dont_sweep_into(&self) -> bool {
@@ -636,7 +657,8 @@ impl IInitializable for GraphInfoHolder {
             .and_then(|layer| layer.get(node_index))
             .cloned();
         if let Some(node) = node {
-            if let Ok(mut node_guard) = node.lock() {
+            {
+                let mut node_guard = node.lock();
                 // p3-order repeatedly queries side-filtered ports; cache side ranges once.
                 node_guard.cache_port_sides();
                 if let Some(nested_graph) = node_guard.nested_graph() {
@@ -662,7 +684,7 @@ impl IInitializable for GraphInfoHolder {
 }
 
 fn trace_in_layer_constraints(node_order: &[Vec<LNodeRef>]) {
-    if !*TRACE_CROSSMIN_CONSTRAINTS {
+    if !ElkTrace::global().crossmin_constraints {
         return;
     }
 
@@ -675,17 +697,14 @@ fn trace_in_layer_constraints(node_order: &[Vec<LNodeRef>]) {
         eprintln!("rust-crossmin: layer[{layer_index}] nodes=[{layer_nodes}]");
 
         for node in layer {
-            let (node_name, successors) = node
-                .lock()
-                .ok()
-                .map(|mut node_guard| {
-                    let name = node_guard.to_string();
-                    let successors: Vec<LNodeRef> = node_guard
-                        .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
-                        .unwrap_or_default();
-                    (name, successors)
-                })
-                .unwrap_or_else(|| ("<poisoned-node>".to_owned(), Vec::new()));
+            let (node_name, successors) = {
+                let node_guard = node.lock();
+                let name = node_guard.to_string();
+                let successors: Vec<LNodeRef> = node_guard
+                    .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
+                    .unwrap_or_default();
+                (name, successors)
+            };
 
             if successors.is_empty() {
                 continue;
@@ -702,10 +721,7 @@ fn trace_in_layer_constraints(node_order: &[Vec<LNodeRef>]) {
 }
 
 fn node_debug_name(node: &LNodeRef) -> String {
-    node.lock()
-        .ok()
-        .map(|mut node_guard| node_guard.to_string())
-        .unwrap_or_else(|| "<poisoned-node>".to_owned())
+    node.lock().to_string()
 }
 
 #[derive(Clone)]
@@ -728,21 +744,18 @@ impl ISweepPortDistributor for SharedNodeRelativePortDistributor {
     ) -> bool {
         self.inner
             .lock()
-            .ok()
-            .map(|mut distributor| {
-                distributor.distribute_ports_while_sweeping(
-                    order,
-                    free_layer_index,
-                    is_forward_sweep,
-                )
-            })
-            .unwrap_or(false)
+            .distribute_ports_while_sweeping(
+                order,
+                free_layer_index,
+                is_forward_sweep,
+            )
     }
 }
 
 impl BarycenterPortDistributor for SharedNodeRelativePortDistributor {
     fn set_snapshot(&mut self, snapshot: Arc<CrossMinSnapshot>) {
-        if let Ok(mut distributor) = self.inner.lock() {
+        {
+            let mut distributor = self.inner.lock();
             BarycenterPortDistributor::set_snapshot(&mut *distributor, snapshot);
         }
     }
@@ -752,23 +765,22 @@ impl BarycenterPortDistributor for SharedNodeRelativePortDistributor {
         layer: &[LNodeRef],
         port_type: crate::org::eclipse::elk::alg::layered::options::PortType,
     ) {
-        if let Ok(mut distributor) = self.inner.lock() {
+        {
+            let mut distributor = self.inner.lock();
             distributor.calculate_port_ranks(layer, port_type);
         }
     }
 
     fn port_ranks(&self) -> Vec<f64> {
         self.inner
-            .lock()
-            .ok()
-            .map(|distributor| distributor.port_ranks().clone())
-            .unwrap_or_default()
+            .lock().port_ranks().clone()
     }
 }
 
 impl IInitializable for SharedNodeRelativePortDistributor {
     fn init_at_layer_level(&mut self, layer_index: usize, node_order: &[Vec<LNodeRef>]) {
-        if let Ok(mut distributor) = self.inner.lock() {
+        {
+            let mut distributor = self.inner.lock();
             distributor.init_at_layer_level(layer_index, node_order);
         }
     }
@@ -779,7 +791,8 @@ impl IInitializable for SharedNodeRelativePortDistributor {
         node_index: usize,
         node_order: &[Vec<LNodeRef>],
     ) {
-        if let Ok(mut distributor) = self.inner.lock() {
+        {
+            let mut distributor = self.inner.lock();
             distributor.init_at_node_level(layer_index, node_index, node_order);
         }
     }
@@ -791,13 +804,15 @@ impl IInitializable for SharedNodeRelativePortDistributor {
         port_index: usize,
         node_order: &[Vec<LNodeRef>],
     ) {
-        if let Ok(mut distributor) = self.inner.lock() {
+        {
+            let mut distributor = self.inner.lock();
             distributor.init_at_port_level(layer_index, node_index, port_index, node_order);
         }
     }
 
     fn init_after_traversal(&mut self) {
-        if let Ok(mut distributor) = self.inner.lock() {
+        {
+            let mut distributor = self.inner.lock();
             distributor.init_after_traversal();
         }
     }
@@ -823,21 +838,18 @@ impl ISweepPortDistributor for SharedLayerTotalPortDistributor {
     ) -> bool {
         self.inner
             .lock()
-            .ok()
-            .map(|mut distributor| {
-                distributor.distribute_ports_while_sweeping(
-                    order,
-                    free_layer_index,
-                    is_forward_sweep,
-                )
-            })
-            .unwrap_or(false)
+            .distribute_ports_while_sweeping(
+                order,
+                free_layer_index,
+                is_forward_sweep,
+            )
     }
 }
 
 impl BarycenterPortDistributor for SharedLayerTotalPortDistributor {
     fn set_snapshot(&mut self, snapshot: Arc<CrossMinSnapshot>) {
-        if let Ok(mut distributor) = self.inner.lock() {
+        {
+            let mut distributor = self.inner.lock();
             BarycenterPortDistributor::set_snapshot(&mut *distributor, snapshot);
         }
     }
@@ -847,23 +859,22 @@ impl BarycenterPortDistributor for SharedLayerTotalPortDistributor {
         layer: &[LNodeRef],
         port_type: crate::org::eclipse::elk::alg::layered::options::PortType,
     ) {
-        if let Ok(mut distributor) = self.inner.lock() {
+        {
+            let mut distributor = self.inner.lock();
             distributor.calculate_port_ranks(layer, port_type);
         }
     }
 
     fn port_ranks(&self) -> Vec<f64> {
         self.inner
-            .lock()
-            .ok()
-            .map(|distributor| distributor.port_ranks().clone())
-            .unwrap_or_default()
+            .lock().port_ranks().clone()
     }
 }
 
 impl IInitializable for SharedLayerTotalPortDistributor {
     fn init_at_layer_level(&mut self, layer_index: usize, node_order: &[Vec<LNodeRef>]) {
-        if let Ok(mut distributor) = self.inner.lock() {
+        {
+            let mut distributor = self.inner.lock();
             distributor.init_at_layer_level(layer_index, node_order);
         }
     }
@@ -874,7 +885,8 @@ impl IInitializable for SharedLayerTotalPortDistributor {
         node_index: usize,
         node_order: &[Vec<LNodeRef>],
     ) {
-        if let Ok(mut distributor) = self.inner.lock() {
+        {
+            let mut distributor = self.inner.lock();
             distributor.init_at_node_level(layer_index, node_index, node_order);
         }
     }
@@ -886,13 +898,15 @@ impl IInitializable for SharedLayerTotalPortDistributor {
         port_index: usize,
         node_order: &[Vec<LNodeRef>],
     ) {
-        if let Ok(mut distributor) = self.inner.lock() {
+        {
+            let mut distributor = self.inner.lock();
             distributor.init_at_port_level(layer_index, node_index, port_index, node_order);
         }
     }
 
     fn init_after_traversal(&mut self) {
-        if let Ok(mut distributor) = self.inner.lock() {
+        {
+            let mut distributor = self.inner.lock();
             distributor.init_after_traversal();
         }
     }
@@ -906,7 +920,7 @@ fn create_port_distributors(
     Box<dyn ISweepPortDistributor>,
     Option<Box<dyn BarycenterPortDistributor>>,
 ) {
-    let trace = *TRACE_CROSSMIN;
+    let trace = ElkTrace::global().crossmin;
     if cross_min_type == CrossMinType::TwoSidedGreedySwitch {
         if trace {
             eprintln!("crossmin: port_distributor=GreedySwitch");

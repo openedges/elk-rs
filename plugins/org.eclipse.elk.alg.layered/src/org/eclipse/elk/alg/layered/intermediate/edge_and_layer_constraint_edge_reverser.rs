@@ -30,9 +30,10 @@ fn handle_outer_nodes(layered_graph: &mut LGraph) -> Vec<LNodeRef> {
         let edge_constraint = edge_constraint_for(layer_constraint);
 
         if let Some(edge_constraint) = edge_constraint {
-            if let Ok(mut node_guard) = node.lock() {
+            {
                 // Java parity: EdgeAndLayerConstraintEdgeReverser stores OUTGOING_ONLY
                 // regardless of whether the computed edge constraint is incoming or outgoing.
+                let mut node_guard = node.lock();
                 node_guard.set_property(
                     InternalProperties::EDGE_CONSTRAINT,
                     Some(EdgeConstraint::OutgoingOnly),
@@ -60,9 +61,10 @@ fn handle_inner_nodes(_layered_graph: &mut LGraph, remaining_nodes: &[LNodeRef])
         let edge_constraint = edge_constraint_for(layer_constraint);
 
         if let Some(edge_constraint) = edge_constraint {
-            if let Ok(mut node_guard) = node.lock() {
+            {
                 // Java parity: EdgeAndLayerConstraintEdgeReverser stores OUTGOING_ONLY
                 // regardless of whether the computed edge constraint is incoming or outgoing.
+                let mut node_guard = node.lock();
                 node_guard.set_property(
                     InternalProperties::EDGE_CONSTRAINT,
                     Some(EdgeConstraint::OutgoingOnly),
@@ -80,50 +82,39 @@ fn handle_inner_nodes(_layered_graph: &mut LGraph, remaining_nodes: &[LNodeRef])
             continue;
         }
 
-        let ports = node
-            .lock()
-            .ok()
-            .map(|node_guard| node_guard.ports().clone())
-            .unwrap_or_default();
+        let ports = node.lock().ports().clone();
         if ports.is_empty() {
             continue;
         }
 
-        let side_fixed = node
-            .lock()
-            .ok()
-            .and_then(|mut node_guard| {
-                if node_guard
-                    .shape()
-                    .graph_element()
-                    .properties()
-                    .has_property(LayeredOptions::PORT_CONSTRAINTS)
-                {
-                    node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(PortConstraints::Undefined)
-            .is_side_fixed();
+        let side_fixed = {
+            let mut node_guard = node.lock();
+            if node_guard
+                .shape()
+                .graph_element()
+                .properties()
+                .has_property(LayeredOptions::PORT_CONSTRAINTS)
+            {
+                node_guard
+                    .get_property(LayeredOptions::PORT_CONSTRAINTS)
+                    .unwrap_or(PortConstraints::Undefined)
+            } else {
+                PortConstraints::Undefined
+            }
+        }
+        .is_side_fixed();
         if !side_fixed {
             continue;
         }
 
         let mut all_ports_reversed = true;
         for port in ports {
-            let (side, net_flow, outgoing_edges, incoming_edges) =
-                if let Ok(port_guard) = port.lock() {
-                    (
-                        port_guard.side(),
-                        port_guard.net_flow(),
-                        port_guard.outgoing_edges().clone(),
-                        port_guard.incoming_edges().clone(),
-                    )
-                } else {
-                    all_ports_reversed = false;
-                    break;
-                };
+            let port_guard = port.lock();
+            let side = port_guard.side();
+            let net_flow = port_guard.net_flow();
+            let outgoing_edges = port_guard.outgoing_edges().clone();
+            let incoming_edges = port_guard.incoming_edges().clone();
+            drop(port_guard);
 
             let looks_reversed = (side == PortSide::East && net_flow > 0)
                 || (side == PortSide::West && net_flow < 0);
@@ -133,13 +124,20 @@ fn handle_inner_nodes(_layered_graph: &mut LGraph, remaining_nodes: &[LNodeRef])
             }
 
             for edge in outgoing_edges {
-                let target_constraint = edge
-                    .lock()
-                    .ok()
-                    .and_then(|edge_guard| edge_guard.target())
-                    .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
-                    .map(|node_ref| layer_constraint_of(&node_ref))
-                    .unwrap_or(LayerConstraint::None);
+                let target_node = {
+                    let edge_guard = edge.lock();
+                    edge_guard.target()
+                };
+                let target_constraint = if let Some(port) = target_node {
+                    let port_guard = port.lock();
+                    if let Some(node_ref) = port_guard.node() {
+                        layer_constraint_of(&node_ref)
+                    } else {
+                        LayerConstraint::None
+                    }
+                } else {
+                    LayerConstraint::None
+                };
                 if target_constraint == LayerConstraint::Last
                     || target_constraint == LayerConstraint::LastSeparate
                 {
@@ -152,13 +150,20 @@ fn handle_inner_nodes(_layered_graph: &mut LGraph, remaining_nodes: &[LNodeRef])
             }
 
             for edge in incoming_edges {
-                let source_constraint = edge
-                    .lock()
-                    .ok()
-                    .and_then(|edge_guard| edge_guard.source())
-                    .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
-                    .map(|node_ref| layer_constraint_of(&node_ref))
-                    .unwrap_or(LayerConstraint::None);
+                let source_port = {
+                    let edge_guard = edge.lock();
+                    edge_guard.source()
+                };
+                let source_constraint = if let Some(port) = source_port {
+                    let port_guard = port.lock();
+                    if let Some(node_ref) = port_guard.node() {
+                        layer_constraint_of(&node_ref)
+                    } else {
+                        LayerConstraint::None
+                    }
+                } else {
+                    LayerConstraint::None
+                };
                 if source_constraint == LayerConstraint::First
                     || source_constraint == LayerConstraint::FirstSeparate
                 {
@@ -182,25 +187,16 @@ fn reverse_edges(
     node_layer_constraint: LayerConstraint,
     target_port_type: PortType,
 ) {
-    let graph_ref = node
-        .lock()
-        .ok()
-        .and_then(|node_guard| node_guard.graph())
-        .unwrap_or_default();
+    let graph_ref = {
+        let node_guard = node.lock();
+        node_guard.graph().unwrap_or_default()
+    };
 
-    let ports = node
-        .lock()
-        .ok()
-        .map(|node_guard| node_guard.ports().clone())
-        .unwrap_or_default();
+    let ports = node.lock().ports().clone();
 
     for port in ports {
         if target_port_type == PortType::Input || target_port_type == PortType::Undefined {
-            let outgoing = port
-                .lock()
-                .ok()
-                .map(|port_guard| port_guard.outgoing_edges().clone())
-                .unwrap_or_default();
+            let outgoing = port.lock().outgoing_edges().clone();
             for edge in outgoing {
                 if can_reverse_outgoing_edge(node_layer_constraint, &edge) {
                     reverse_edge(&graph_ref, &edge);
@@ -209,11 +205,7 @@ fn reverse_edges(
         }
 
         if target_port_type == PortType::Output || target_port_type == PortType::Undefined {
-            let incoming = port
-                .lock()
-                .ok()
-                .map(|port_guard| port_guard.incoming_edges().clone())
-                .unwrap_or_default();
+            let incoming = port.lock().incoming_edges().clone();
             for edge in incoming {
                 if can_reverse_incoming_edge(node_layer_constraint, &edge) {
                     reverse_edge(&graph_ref, &edge);
@@ -228,30 +220,30 @@ fn reverse_edge(graph_ref: &LGraphRef, edge: &LEdgeRef) {
 }
 
 fn can_reverse_outgoing_edge(source_constraint: LayerConstraint, edge: &LEdgeRef) -> bool {
-    if edge
-        .lock()
-        .ok()
-        .and_then(|mut edge_guard| edge_guard.get_property(InternalProperties::REVERSED))
-        .unwrap_or(false)
     {
-        return false;
+        let edge_guard = edge.lock();
+        if edge_guard
+            .get_property(InternalProperties::REVERSED)
+            .unwrap_or(false)
+        {
+            return false;
+        }
     }
 
-    let target_node = edge
-        .lock()
-        .ok()
-        .and_then(|edge_guard| edge_guard.target())
-        .and_then(|target| target.lock().ok().and_then(|port_guard| port_guard.node()));
+    let target_node = {
+        let edge_guard = edge.lock();
+        let target_port = edge_guard.target();
+        target_port.and_then(|port| {
+            let port_guard = port.lock();
+            port_guard.node()
+        })
+    };
     let Some(target_node) = target_node else {
         return false;
     };
 
     if source_constraint == LayerConstraint::Last {
-        let is_label = target_node
-            .lock()
-            .ok()
-            .map(|node_guard| node_guard.node_type() == NodeType::Label)
-            .unwrap_or(false);
+        let is_label = target_node.lock().node_type() == NodeType::Label;
         if is_label {
             return false;
         }
@@ -261,30 +253,30 @@ fn can_reverse_outgoing_edge(source_constraint: LayerConstraint, edge: &LEdgeRef
 }
 
 fn can_reverse_incoming_edge(target_constraint: LayerConstraint, edge: &LEdgeRef) -> bool {
-    if edge
-        .lock()
-        .ok()
-        .and_then(|mut edge_guard| edge_guard.get_property(InternalProperties::REVERSED))
-        .unwrap_or(false)
     {
-        return false;
+        let edge_guard = edge.lock();
+        if edge_guard
+            .get_property(InternalProperties::REVERSED)
+            .unwrap_or(false)
+        {
+            return false;
+        }
     }
 
-    let source_node = edge
-        .lock()
-        .ok()
-        .and_then(|edge_guard| edge_guard.source())
-        .and_then(|source| source.lock().ok().and_then(|port_guard| port_guard.node()));
+    let source_node = {
+        let edge_guard = edge.lock();
+        let source_port = edge_guard.source();
+        source_port.and_then(|port| {
+            let port_guard = port.lock();
+            port_guard.node()
+        })
+    };
     let Some(source_node) = source_node else {
         return false;
     };
 
     if target_constraint == LayerConstraint::First {
-        let is_label = source_node
-            .lock()
-            .ok()
-            .map(|node_guard| node_guard.node_type() == NodeType::Label)
-            .unwrap_or(false);
+        let is_label = source_node.lock().node_type() == NodeType::Label;
         if is_label {
             return false;
         }
@@ -294,21 +286,19 @@ fn can_reverse_incoming_edge(target_constraint: LayerConstraint, edge: &LEdgeRef
 }
 
 fn layer_constraint_of(node: &LNodeRef) -> LayerConstraint {
-    node.lock()
-        .ok()
-        .and_then(|mut node_guard| {
-            if node_guard
-                .shape()
-                .graph_element()
-                .properties()
-                .has_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT)
-            {
-                node_guard.get_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT)
-            } else {
-                None
-            }
-        })
-        .unwrap_or(LayerConstraint::None)
+    let mut node_guard = node.lock();
+    if node_guard
+        .shape()
+        .graph_element()
+        .properties()
+        .has_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT)
+    {
+        node_guard
+            .get_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT)
+            .unwrap_or(LayerConstraint::None)
+    } else {
+        LayerConstraint::None
+    }
 }
 
 fn edge_constraint_for(layer_constraint: LayerConstraint) -> Option<EdgeConstraint> {

@@ -58,17 +58,17 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BreadthFirstModelOrderLayerer {
 
         let graph_ref = nodes
             .first()
-            .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.graph()))
+            .and_then(|node| node.lock().graph())
             .unwrap_or_default();
 
         let mut real_nodes: Vec<(i32, LNodeRef)> = Vec::new();
         for node in &nodes {
-            let (node_type, model_order) = match node.lock() {
-                Ok(mut node_guard) => (
+            let (node_type, model_order) = {
+                let node_guard = node.lock();
+                (
                     node_guard.node_type(),
                     node_guard.get_property(InternalProperties::MODEL_ORDER),
-                ),
-                Err(_) => (NodeType::Normal, None),
+                )
             };
             if node_type == NodeType::Normal {
                 let order = model_order.unwrap_or_else(|| {
@@ -94,32 +94,22 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BreadthFirstModelOrderLayerer {
             }
 
             let incoming_edges = node
-                .lock()
-                .ok()
-                .map(|node_guard| node_guard.incoming_edges())
-                .unwrap_or_default();
+                .lock().incoming_edges();
 
             for edge in &incoming_edges {
                 let source_node = edge
-                    .lock()
-                    .ok()
-                    .and_then(|edge_guard| edge_guard.source())
-                    .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                    .lock().source()
+                    .and_then(|port| port.lock().node());
                 let Some(source_node) = source_node else {
                     continue;
                 };
                 let source_type = source_node
-                    .lock()
-                    .ok()
-                    .map(|node_guard| node_guard.node_type())
-                    .unwrap_or(NodeType::Normal);
+                    .lock().node_type();
 
                 let mut connected = false;
                 if source_type == NodeType::Normal {
                     if let Some(source_layer) = source_node
-                        .lock()
-                        .ok()
-                        .and_then(|node_guard| node_guard.layer())
+                        .lock().layer()
                     {
                         if Arc::ptr_eq(&source_layer, &current_layer) {
                             connected = true;
@@ -127,20 +117,15 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BreadthFirstModelOrderLayerer {
                     }
                 } else if source_type == NodeType::Label {
                     let label_incoming = source_node
-                        .lock()
-                        .ok()
-                        .map(|node_guard| node_guard.incoming_edges())
-                        .unwrap_or_default();
+                        .lock().incoming_edges();
                     if let Some(label_edge) = label_incoming.first() {
                         let label_source_layer = label_edge
-                            .lock()
-                            .ok()
-                            .and_then(|edge_guard| edge_guard.source())
+                            .lock().source()
                             .and_then(|port| {
-                                port.lock().ok().and_then(|port_guard| port_guard.node())
+                                port.lock().node()
                             })
                             .and_then(|node| {
-                                node.lock().ok().and_then(|node_guard| node_guard.layer())
+                                node.lock().layer()
                             });
                         if let Some(label_source_layer) = label_source_layer {
                             if Arc::ptr_eq(&label_source_layer, &current_layer) {
@@ -163,23 +148,16 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BreadthFirstModelOrderLayerer {
 
             for edge in &incoming_edges {
                 let source_node = edge
-                    .lock()
-                    .ok()
-                    .and_then(|edge_guard| edge_guard.source())
-                    .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                    .lock().source()
+                    .and_then(|port| port.lock().node());
                 let Some(source_node) = source_node else {
                     continue;
                 };
                 let source_type = source_node
-                    .lock()
-                    .ok()
-                    .map(|node_guard| node_guard.node_type())
-                    .unwrap_or(NodeType::Normal);
+                    .lock().node_type();
                 if source_type == NodeType::Label
                     && source_node
-                        .lock()
-                        .ok()
-                        .and_then(|node_guard| node_guard.layer())
+                        .lock().layer()
                         .is_none()
                 {
                     let dummy_layer = current_dummy_layer
@@ -195,13 +173,11 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BreadthFirstModelOrderLayerer {
 
         graph.layerless_nodes_mut().clear();
         graph.layers_mut().retain(|layer| {
-            !layer
-                .lock()
-                .map(|layer_guard| layer_guard.nodes().is_empty())
-                .unwrap_or(false)
+            !layer.lock().nodes().is_empty()
         });
         for (index, layer) in graph.layers().iter().enumerate() {
-            if let Ok(mut layer_guard) = layer.lock() {
+            {
+                let mut layer_guard = layer.lock();
                 layer_guard.graph_element().id = index as i32;
             }
         }

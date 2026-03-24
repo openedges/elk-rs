@@ -207,13 +207,9 @@ impl Spacings {
         mapping: &[Vec<Option<&'static Property<f64>>>],
     ) -> f64 {
         let t1 = n1
-            .lock()
-            .map(|node| node.node_type())
-            .unwrap_or(NodeType::Normal);
+            .lock().node_type();
         let t2 = n2
-            .lock()
-            .map(|node| node.node_type())
-            .unwrap_or(NodeType::Normal);
+            .lock().node_type();
         let layout_option = mapping[t1.ordinal()][t2.ordinal()]
             .unwrap_or_else(|| panic_any(UnspecifiedSpacingException::new(None)));
         let s1 = self.get_individual_or_default_f64(n1, layout_option);
@@ -234,23 +230,17 @@ impl Spacings {
 
     fn cache_graph_values(&mut self) {
         let mut values: FxHashMap<usize, f64> = FxHashMap::default();
-        let mut graph_guard = self.graph.lock().ok();
+        let graph_guard = self.graph.lock();
 
         let mut cache = |property: &'static Property<f64>| {
             let key = property as *const Property<f64> as usize;
             if values.contains_key(&key) {
                 return;
             }
-            let value = if let Some(graph_guard) = graph_guard.as_mut() {
-                graph_guard
-                    .get_property(property)
-                    .or_else(|| property.get_default())
-                    .unwrap_or_else(|| panic_any(UnspecifiedSpacingException::new(None)))
-            } else {
-                property
-                    .get_default()
-                    .unwrap_or_else(|| panic_any(UnspecifiedSpacingException::new(None)))
-            };
+            let value = graph_guard
+                .get_property(property)
+                .or_else(|| property.get_default())
+                .unwrap_or_else(|| panic_any(UnspecifiedSpacingException::new(None)));
             values.insert(key, value);
         };
 
@@ -284,7 +274,8 @@ impl Spacings {
         property: &'static Property<f64>,
     ) -> f64 {
         let mut value = None;
-        if let Ok(mut node_guard) = node.lock() {
+        {
+            let mut node_guard = node.lock();
             let has_individual = node_guard
                 .shape()
                 .graph_element()
@@ -325,7 +316,8 @@ impl Spacings {
         property: &Property<T>,
     ) -> T {
         let mut value = None;
-        if let Ok(mut node_guard) = node.lock() {
+        {
+            let mut node_guard = node.lock();
             let has_individual = node_guard
                 .shape()
                 .graph_element()
@@ -345,7 +337,7 @@ impl Spacings {
         if let Some(value) = value {
             return value;
         }
-        if let Some(value) = graph.get_property_ref(property) {
+        if let Some(value) = graph.get_property(property) {
             return value;
         }
         property

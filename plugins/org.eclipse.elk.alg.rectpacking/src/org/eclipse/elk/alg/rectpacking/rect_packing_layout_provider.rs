@@ -187,8 +187,7 @@ impl IGraphLayoutEngine for RectPackingLayoutProvider {
                     .log_graph(layout_graph, &format!("{}-Before processor", slot_index));
             }
             let mut sub = progress_monitor.sub_task(monitor_progress);
-            let mut processor_guard = processor.lock().expect("processor lock");
-            processor_guard.process(&mut graph_ref, sub.as_mut());
+            let mut processor_guard = processor.lock();            processor_guard.process(&mut graph_ref, sub.as_mut());
             slot_index += 1;
         }
 

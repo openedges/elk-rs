@@ -22,7 +22,7 @@ impl LGraphElement {
     }
 
     pub fn get_property<T: Clone + Send + Sync + 'static>(
-        &mut self,
+        &self,
         property: &Property<T>,
     ) -> Option<T> {
         self.properties.get_property(property)
@@ -36,7 +36,7 @@ impl LGraphElement {
         self.properties.set_property(property, value);
     }
 
-    pub fn get_designation(&mut self) -> Option<String> {
+    pub fn get_designation(&self) -> Option<String> {
         None
     }
 }

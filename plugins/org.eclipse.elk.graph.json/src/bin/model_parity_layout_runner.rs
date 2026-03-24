@@ -414,7 +414,7 @@ fn run_layout_case(
     }));
 
     match result {
-        Ok(inner) => inner,
+            Ok(inner) => inner,
         Err(payload) => Err(format!(
             "panic during layout: {}",
             panic_payload_to_string(payload.as_ref())
@@ -477,7 +477,7 @@ fn trace_port_order_before_layout(root: &ElkNodeRef) {
 
 fn parse_random_seed_override() -> Result<Option<i32>, String> {
     let value = match env::var("MODEL_PARITY_RANDOM_SEED") {
-        Ok(value) => value,
+            Ok(value) => value,
         Err(env::VarError::NotPresent) => return Ok(None),
         Err(err) => {
             return Err(format!(
@@ -499,7 +499,7 @@ fn parse_random_seed_override() -> Result<Option<i32>, String> {
 
 fn parse_timeout_secs() -> Result<u64, String> {
     let value = match env::var("MODEL_PARITY_TIMEOUT_SECS") {
-        Ok(value) => value,
+            Ok(value) => value,
         Err(env::VarError::NotPresent) => return Ok(120),
         Err(err) => {
             return Err(format!(
@@ -536,7 +536,7 @@ fn run_layout_case_with_timeout(
         let _ = tx.send(result);
     });
     match rx.recv_timeout(timeout) {
-        Ok(result) => result,
+            Ok(result) => result,
         Err(mpsc::RecvTimeoutError::Timeout) => Err("timeout".to_string()),
         Err(mpsc::RecvTimeoutError::Disconnected) => {
             Err("layout thread disconnected unexpectedly".to_string())
@@ -661,7 +661,7 @@ fn run(config: Config) -> Result<(), String> {
                 config.trace_dir.is_some(),
                 timeout,
             ) {
-                Ok(()) => {
+            Ok(()) => {
                     ok += 1;
                     (rust_layout_json, "ok".to_string(), String::new())
                 }
@@ -742,7 +742,7 @@ fn run(config: Config) -> Result<(), String> {
 
 fn main() {
     let config = match parse_args() {
-        Ok(config) => config,
+            Ok(config) => config,
         Err(err) => {
             eprintln!("{err}");
             print_usage();

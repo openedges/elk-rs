@@ -19,8 +19,7 @@ fn graph_with_layers(count: usize) -> (LGraphRef, Vec<LayerRef>) {
     let graph = LGraph::new();
     let mut layers = Vec::with_capacity(count);
     {
-        let mut graph_guard = graph.lock().expect("graph lock");
-        for _ in 0..count {
+        let mut graph_guard = graph.lock();        for _ in 0..count {
             let layer = Layer::new(&graph);
             graph_guard.layers_mut().push(layer.clone());
             layers.push(layer);
@@ -49,8 +48,7 @@ fn init_layered_metadata() {
 fn add_node(graph: &LGraphRef, layer: &LayerRef, model_order: i32) -> LNodeRef {
     let node = LNode::new(graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.set_property(InternalProperties::MODEL_ORDER, Some(model_order));
+        let mut node_guard = node.lock();        node_guard.set_property(InternalProperties::MODEL_ORDER, Some(model_order));
     }
     LNode::set_layer(&node, Some(layer.clone()));
     node
@@ -59,8 +57,7 @@ fn add_node(graph: &LGraphRef, layer: &LayerRef, model_order: i32) -> LNodeRef {
 fn add_port(node: &LNodeRef, side: PortSide) -> LPortRef {
     let port = LPort::new();
     {
-        let mut port_guard = port.lock().expect("port lock");
-        port_guard.set_side(side);
+        let mut port_guard = port.lock();        port_guard.set_side(side);
     }
     LPort::set_node(&port, Some(node.clone()));
     port
@@ -70,24 +67,24 @@ fn connect_with_model_order(source: &LPortRef, target: &LPortRef, model_order: i
     let edge = LEdge::new();
     LEdge::set_source(&edge, Some(source.clone()));
     LEdge::set_target(&edge, Some(target.clone()));
-    if let Ok(mut edge_guard) = edge.lock() {
+    {
+        let mut edge_guard = edge.lock();
         edge_guard.set_property(InternalProperties::MODEL_ORDER, Some(model_order));
     };
 }
 
 fn layer_nodes(layer: &LayerRef) -> Vec<LNodeRef> {
-    layer.lock().expect("layer lock").nodes().clone()
+    layer.lock().nodes().clone()
 }
 
 fn node_ports(node: &LNodeRef) -> Vec<LPortRef> {
-    node.lock().expect("node lock").ports().clone()
+    node.lock().ports().clone()
 }
 
 fn run_sorter_direct(graph: &LGraphRef) {
     let mut processor = SortByInputModelProcessor;
     let mut monitor = NullElkProgressMonitor;
-    let mut graph_guard = graph.lock().expect("graph lock");
-    processor.process(&mut graph_guard, &mut monitor);
+    let mut graph_guard = graph.lock();    processor.process(&mut graph_guard, &mut monitor);
 }
 
 #[test]
@@ -115,8 +112,7 @@ fn sort_by_input_model_processor_sorts_ports_by_edge_model_order() {
 
     let source = add_node(&graph, &source_layer, 0);
     {
-        let mut source_guard = source.lock().expect("source lock");
-        source_guard.set_property(
+        let mut source_guard = source.lock();        source_guard.set_property(
             LayeredOptions::PORT_CONSTRAINTS,
             Some(PortConstraints::Free),
         );

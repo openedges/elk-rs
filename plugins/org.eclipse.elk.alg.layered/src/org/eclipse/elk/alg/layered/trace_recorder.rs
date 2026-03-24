@@ -30,7 +30,7 @@ fn number_or_special(value: f64) -> Value {
 }
 
 fn serialize_label(label: &Arc<Mutex<super::graph::LLabel>>) -> Option<Value> {
-    let mut guard = label.try_lock().ok()?;
+    let mut guard = label.try_lock()?;
     let text = guard.text().to_string();
     let pos_x = guard.shape().position_ref().x;
     let pos_y = guard.shape().position_ref().y;
@@ -49,7 +49,7 @@ fn serialize_port(
     port: &Arc<Mutex<super::graph::LPort>>,
     east_port_x_shift: f64,
 ) -> Option<Value> {
-    let mut guard = port.try_lock().ok()?;
+    let mut guard = port.try_lock()?;
     let id = format!("P{}", guard.shape().graph_element().id);
     let mut pos_x = guard.shape().position_ref().x;
     let pos_y = guard.shape().position_ref().y;
@@ -74,7 +74,7 @@ fn serialize_port(
 }
 
 fn serialize_node(node: &LNodeRef, known_layer_index: Option<usize>) -> Option<Value> {
-    let mut guard = node.try_lock().ok()?;
+    let mut guard = node.try_lock()?;
     let id = format!("N{}", guard.shape().graph_element().id);
     // Avoid calling designation() as it uses label.lock() which can deadlock
     // when a label mutex is already held in the current thread context.
@@ -94,7 +94,7 @@ fn serialize_node(node: &LNodeRef, known_layer_index: Option<usize>) -> Option<V
     let layer_index: Value = if let Some(layer_ref) = guard.layer() {
         layer_ref
             .try_lock()
-            .ok()
+            
             .and_then(|lg| lg.index())
             .or(known_layer_index)
             .map(|i| json!(i as i64))
@@ -149,16 +149,16 @@ fn serialize_node(node: &LNodeRef, known_layer_index: Option<usize>) -> Option<V
 }
 
 fn serialize_edge(edge: &LEdgeRef) -> Option<Value> {
-    let mut guard = edge.try_lock().ok()?;
+    let mut guard = edge.try_lock()?;
     let id = format!("E{}", guard.graph_element().id);
 
     let source_id = guard
         .source()
         .and_then(|port| {
-            port.try_lock().ok().and_then(|p| {
+            port.try_lock().and_then(|p| {
                 p.node().and_then(|n| {
                     n.try_lock()
-                        .ok()
+                        
                         .map(|mut ng| format!("N{}", ng.shape().graph_element().id))
                 })
             })
@@ -168,10 +168,10 @@ fn serialize_edge(edge: &LEdgeRef) -> Option<Value> {
     let target_id = guard
         .target()
         .and_then(|port| {
-            port.try_lock().ok().and_then(|p| {
+            port.try_lock().and_then(|p| {
                 p.node().and_then(|n| {
                     n.try_lock()
-                        .ok()
+                        
                         .map(|mut ng| format!("N{}", ng.shape().graph_element().id))
                 })
             })
@@ -486,7 +486,7 @@ pub fn serialize_lgraph_snapshot(
     // Build layers array
     let mut layers_json: Vec<Value> = Vec::new();
     for (layer_index, layer) in lgraph.layers().iter().enumerate() {
-        let nodes_json: Vec<Value> = if let Ok(layer_guard) = layer.try_lock() {
+        let nodes_json: Vec<Value> = if let Some(layer_guard) = layer.try_lock() {
             layer_guard
                 .nodes()
                 .iter()
@@ -514,14 +514,12 @@ pub fn serialize_lgraph_snapshot(
 
     let mut collect_edges_from_nodes = |nodes: &[LNodeRef]| {
         for node in nodes {
-            let ports = match node.try_lock() {
-                Ok(guard) => guard.ports().clone(),
-                Err(_) => continue,
+            let ports = match node.try_lock() {            Some(guard) => guard.ports().clone(),
+            None => continue,
             };
             for port in &ports {
-                let outgoing = match port.try_lock() {
-                    Ok(guard) => guard.outgoing_edges().clone(),
-                    Err(_) => continue,
+                let outgoing = match port.try_lock() {            Some(guard) => guard.outgoing_edges().clone(),
+            None => continue,
                 };
                 for edge in &outgoing {
                     let edge_ptr = Arc::as_ptr(edge) as usize;
@@ -537,7 +535,7 @@ pub fn serialize_lgraph_snapshot(
 
     collect_edges_from_nodes(lgraph.layerless_nodes());
     for layer in lgraph.layers() {
-        if let Ok(layer_guard) = layer.try_lock() {
+        if let Some(layer_guard) = layer.try_lock() {
             collect_edges_from_nodes(layer_guard.nodes());
         }
     }

@@ -41,11 +41,10 @@ impl MrTree {
     fn do_layout_with_monitor(&mut self, graph: &TGraphRef, monitor: &mut dyn IElkProgressMonitor) {
         monitor.begin("Tree layout", 1.0);
 
-        let debug = graph
-            .lock()
-            .ok()
-            .and_then(|mut g| g.get_property(MrTreeOptions::DEBUG_MODE))
-            .unwrap_or(false);
+        let debug = {
+            let g = graph.lock();
+            g.get_property(MrTreeOptions::DEBUG_MODE).unwrap_or(false)
+        };
         if debug {
             monitor.log("MrTree! called.");
         }
@@ -83,11 +82,10 @@ impl MrTree {
         let total = self.algorithm.len().max(1) as f32;
         monitor.begin("Layout", total);
 
-        let debug = graph
-            .lock()
-            .ok()
-            .and_then(|mut g| g.get_property(MrTreeOptions::DEBUG_MODE))
-            .unwrap_or(false);
+        let debug = {
+            let g = graph.lock();
+            g.get_property(MrTreeOptions::DEBUG_MODE).unwrap_or(false)
+        };
         if debug {
             monitor.log(&format!(
                 "ELK MrTree uses the following {} modules:",
@@ -102,7 +100,8 @@ impl MrTree {
             if debug {
                 monitor.log(&format!("   Slot {}: processor", idx));
             }
-            if let Ok(mut processor_guard) = processor.lock() {
+            {
+                let mut processor_guard = processor.lock();
                 let mut sub = monitor.sub_task(1.0);
                 processor_guard.process(graph, sub.as_mut());
             }

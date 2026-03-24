@@ -223,6 +223,9 @@ impl BasicProgressMonitor {
         if let Some(parent) = self.parent_monitor {
             if self.current_child_work > 0.0 && self.max_levels != 0 {
                 let propagated = work / self.total_work * self.current_child_work;
+                // SAFETY: `parent_monitor` raw pointer is set from a mutable reference to the
+                // parent BasicProgressMonitor. The parent outlives the child, and layout is
+                // single-threaded, so no aliasing occurs.
                 unsafe {
                     (&mut *parent).internal_worked(propagated);
                 }
@@ -257,6 +260,7 @@ impl BasicProgressMonitor {
 
     fn debug_folder_for_child(&mut self) -> Option<PathBuf> {
         let parent = self.parent_monitor?;
+        // SAFETY: Same invariant as `internal_worked` — parent outlives child, single-threaded.
         let parent_ref = unsafe { &mut *parent };
         parent_ref.init_debug_folder(true);
         let index = self.child_index;

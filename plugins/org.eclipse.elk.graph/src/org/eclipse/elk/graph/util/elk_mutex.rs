@@ -1,9 +1,10 @@
 use std::fmt;
 use std::ops::{Deref, DerefMut};
 
-/// A Mutex wrapper around `parking_lot::Mutex` that provides the same API as
-/// `std::sync::Mutex` (returning `Result` from `lock()`), but uses parking_lot
-/// for better performance on uncontended locks.
+/// A Mutex wrapper around `parking_lot::Mutex` with a simplified API.
+///
+/// Unlike `std::sync::Mutex`, `lock()` returns `MutexGuard` directly (not
+/// `Result`) because parking_lot never poisons.
 ///
 /// parking_lot::Mutex advantages:
 /// - No poisoning (lock() never fails)
@@ -22,20 +23,24 @@ impl<T> Mutex<T> {
 
 impl<T: ?Sized> Mutex<T> {
     /// Acquires the mutex, returning a guard. Always succeeds (no poisoning).
-    /// Returns `Result` for API compatibility with `std::sync::Mutex::lock()`.
     #[inline]
-    pub fn lock(&self) -> Result<MutexGuard<'_, T>, std::sync::PoisonError<MutexGuard<'_, T>>> {
-        Ok(MutexGuard(self.0.lock()))
+    pub fn lock(&self) -> MutexGuard<'_, T> {
+        MutexGuard(self.0.lock())
+    }
+
+    /// Compatibility helper: returns `Some(guard)`.
+    /// Use `lock()` directly for new code. This exists only to ease migration
+    /// from the old `lock().ok()` pattern.
+    #[inline]
+    pub fn lock_ok(&self) -> Option<MutexGuard<'_, T>> {
+        Some(self.lock())
     }
 
     /// Attempts to acquire the mutex without blocking.
-    /// Returns `Ok(MutexGuard)` if successful, `Err(TryLockError::WouldBlock)` otherwise.
+    /// Returns `Some(MutexGuard)` if successful, `None` otherwise.
     #[inline]
-    pub fn try_lock(&self) -> Result<MutexGuard<'_, T>, std::sync::TryLockError<MutexGuard<'_, T>>> {
-        match self.0.try_lock() {
-            Some(guard) => Ok(MutexGuard(guard)),
-            None => Err(std::sync::TryLockError::WouldBlock),
-        }
+    pub fn try_lock(&self) -> Option<MutexGuard<'_, T>> {
+        self.0.try_lock().map(MutexGuard)
     }
 }
 
@@ -57,8 +62,7 @@ impl<T: ?Sized> DerefMut for MutexGuard<'_, T> {
 
 impl<T: ?Sized + fmt::Debug> fmt::Debug for Mutex<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.0.try_lock() {
-            Some(guard) => f.debug_tuple("Mutex").field(&&*guard).finish(),
+        match self.0.try_lock() {            Some(guard) => f.debug_tuple("Mutex").field(&&*guard).finish(),
             None => f.debug_tuple("Mutex").field(&"<locked>").finish(),
         }
     }

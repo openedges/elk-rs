@@ -14,12 +14,12 @@ fn add_layerless_node(graph: &LGraphRef, comment_box: bool) -> LNodeRef {
     let node = LNode::new(graph);
     if comment_box {
         node.lock()
-            .expect("node lock")
+            
             .set_property(LayeredOptions::COMMENT_BOX, Some(true));
     }
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(node.clone());
     node
@@ -34,8 +34,7 @@ fn add_port(node: &LNodeRef) -> LPortRef {
 fn run_preprocessor(graph: &LGraphRef) {
     let mut processor = CommentPreprocessor;
     let mut monitor = NullElkProgressMonitor;
-    let mut graph_guard = graph.lock().expect("graph lock");
-    processor.process(&mut graph_guard, &mut monitor);
+    let mut graph_guard = graph.lock();    processor.process(&mut graph_guard, &mut monitor);
 }
 
 #[test]
@@ -50,25 +49,25 @@ fn comment_preprocessor_extracts_single_connection_comment() {
     LEdge::set_source(&edge, Some(comment_port.clone()));
     LEdge::set_target(&edge, Some(real_port.clone()));
     edge.lock()
-        .expect("edge lock")
+        
         .bend_points()
         .add_values(10.0, 20.0);
 
     run_preprocessor(&graph);
 
-    let layerless_nodes = graph.lock().expect("graph lock").layerless_nodes().clone();
+    let layerless_nodes = graph.lock().layerless_nodes().clone();
     assert_eq!(layerless_nodes.len(), 1);
     assert!(Arc::ptr_eq(&layerless_nodes[0], &real_node));
 
     let in_top = real_node
         .lock()
-        .expect("real node lock")
+        
         .get_property(InternalProperties::TOP_COMMENTS)
         .map(|nodes| nodes.iter().any(|n| Arc::ptr_eq(n, &comment_node)))
         .unwrap_or(false);
     let in_bottom = real_node
         .lock()
-        .expect("real node lock")
+        
         .get_property(InternalProperties::BOTTOM_COMMENTS)
         .map(|nodes| nodes.iter().any(|n| Arc::ptr_eq(n, &comment_node)))
         .unwrap_or(false);
@@ -76,11 +75,11 @@ fn comment_preprocessor_extracts_single_connection_comment() {
 
     assert!(comment_node
         .lock()
-        .expect("comment node lock")
+        
         .get_property(InternalProperties::COMMENT_CONN_PORT)
         .is_some_and(|p| Arc::ptr_eq(&p, &real_port)));
-    assert!(edge.lock().expect("edge lock").target().is_none());
-    assert!(edge.lock().expect("edge lock").bend_points_ref().is_empty());
+    assert!(edge.lock().target().is_none());
+    assert!(edge.lock().bend_points_ref().is_empty());
 }
 
 #[test]
@@ -104,13 +103,13 @@ fn comment_preprocessor_keeps_multi_connected_comment() {
 
     run_preprocessor(&graph);
 
-    let layerless_nodes = graph.lock().expect("graph lock").layerless_nodes().clone();
+    let layerless_nodes = graph.lock().layerless_nodes().clone();
     assert!(layerless_nodes
         .iter()
         .any(|n| Arc::ptr_eq(n, &comment_node)));
     assert!(comment_node
         .lock()
-        .expect("comment node lock")
+        
         .get_property(InternalProperties::COMMENT_CONN_PORT)
         .is_none());
 }

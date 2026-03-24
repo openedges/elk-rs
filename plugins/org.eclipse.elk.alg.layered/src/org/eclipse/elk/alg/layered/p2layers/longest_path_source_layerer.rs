@@ -46,23 +46,16 @@ impl LongestPathSourceLayerer {
             return self.node_heights[index];
         }
 
-        let ports = match node.lock() {
-            Ok(node_guard) => node_guard.ports().clone(),
-            Err(_) => Vec::new(),
-        };
+        let ports = node.lock().ports().clone();
 
         let mut max_height = 1;
         for port in ports {
-            let incoming = match port.lock() {
-                Ok(port_guard) => port_guard.incoming_edges().clone(),
-                Err(_) => Vec::new(),
-            };
+            let incoming = port.lock().incoming_edges().clone();
             for edge in incoming {
                 let source_node = edge
                     .lock()
-                    .ok()
-                    .and_then(|edge_guard| edge_guard.source())
-                    .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                    .source()
+                    .and_then(|port| port.lock().node());
                 let Some(source_node) = source_node else {
                     continue;
                 };
@@ -121,12 +114,12 @@ impl ILayoutPhase<LayeredPhases, LGraph> for LongestPathSourceLayerer {
 
         let graph_ref = nodes
             .first()
-            .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.graph()))
+            .and_then(|node| node.lock().graph())
             .unwrap_or_default();
 
         self.node_heights = vec![-1; nodes.len()];
         for (index, node) in nodes.iter().enumerate() {
-            if let Ok(mut node_guard) = node.lock() {
+            { let mut node_guard = node.lock();
                 node_guard.shape().graph_element().id = index as i32;
             }
         }
@@ -150,8 +143,5 @@ impl ILayoutPhase<LayeredPhases, LGraph> for LongestPathSourceLayerer {
 }
 
 fn node_index(node: &LNodeRef) -> usize {
-    node.lock()
-        .ok()
-        .map(|mut node_guard| node_guard.shape().graph_element().id as usize)
-        .unwrap_or(0)
+    node.lock().shape().graph_element().id as usize
 }

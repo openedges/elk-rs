@@ -29,14 +29,14 @@ impl ElkReflect {
     ) {
         if let Some(new_instance) = new_instance {
             let registry = NEW_REGISTRY.get_or_init(|| Mutex::new(HashMap::new()));
-            registry.lock().unwrap().insert(
+            registry.lock().insert(
                 TypeId::of::<T>(),
                 Box::new(move || Box::new(new_instance()) as Box<dyn Any + Send + Sync>),
             );
         }
         if let Some(clone_fn) = clone_fn {
             let registry = CLONE_REGISTRY.get_or_init(|| Mutex::new(HashMap::new()));
-            registry.lock().unwrap().insert(
+            registry.lock().insert(
                 TypeId::of::<T>(),
                 Box::new(move |value: &dyn Any| {
                     value
@@ -63,7 +63,6 @@ impl ElkReflect {
         let registry = NEW_REGISTRY.get_or_init(|| Mutex::new(HashMap::new()));
         registry
             .lock()
-            .unwrap()
             .get(&TypeId::of::<T>())
             .and_then(|ctor| ctor().downcast::<T>().ok())
             .map(|boxed| *boxed)
@@ -73,7 +72,6 @@ impl ElkReflect {
         let registry = CLONE_REGISTRY.get_or_init(|| Mutex::new(HashMap::new()));
         registry
             .lock()
-            .unwrap()
             .get(&TypeId::of::<T>())
             .and_then(|clone_fn| clone_fn(value as &dyn Any))
             .and_then(|boxed| boxed.downcast::<T>().ok())
@@ -84,14 +82,13 @@ impl ElkReflect {
         let registry = CLONE_REGISTRY.get_or_init(|| Mutex::new(HashMap::new()));
         registry
             .lock()
-            .unwrap()
             .get(&value.type_id())
             .and_then(|clone_fn| clone_fn(value))
     }
 
     pub fn has_clone<T: Send + Sync + 'static>() -> bool {
         let registry = CLONE_REGISTRY.get_or_init(|| Mutex::new(HashMap::new()));
-        registry.lock().unwrap().contains_key(&TypeId::of::<T>())
+        registry.lock().contains_key(&TypeId::of::<T>())
     }
 }
 

@@ -17,27 +17,20 @@ impl ILayoutProcessor<TGraphRef> for LevelProcessor {
         self.level_map.clear();
 
         let roots: Vec<TNodeRef> = {
-            let graph_guard = match graph.lock() {
-                Ok(guard) => guard,
-                Err(_) => {
-                    progress_monitor.done();
-                    return;
-                }
-            };
+            let graph_guard = graph.lock();
             graph_guard
                 .nodes()
                 .iter()
                 .filter_map(|node| {
-                    node.lock().ok().and_then(|mut node_guard| {
-                        if node_guard
-                            .get_property(InternalProperties::ROOT)
-                            .unwrap_or(false)
-                        {
-                            Some(node.clone())
-                        } else {
-                            None
-                        }
-                    })
+                    let node_guard = node.lock();
+                    if node_guard
+                        .get_property(InternalProperties::ROOT)
+                        .unwrap_or(false)
+                    {
+                        Some(node.clone())
+                    } else {
+                        None
+                    }
                 })
                 .collect()
         };
@@ -45,18 +38,13 @@ impl ILayoutProcessor<TGraphRef> for LevelProcessor {
         self.set_level(&roots, 0);
 
         let nodes = {
-            let graph_guard = match graph.lock() {
-                Ok(guard) => guard,
-                Err(_) => {
-                    progress_monitor.done();
-                    return;
-                }
-            };
+            let graph_guard = graph.lock();
             graph_guard.nodes().clone()
         };
 
         for node in nodes {
-            if let Ok(mut node_guard) = node.lock() {
+            {
+                let mut node_guard = node.lock();
                 let level = self.level_map.get(&node_guard.id()).cloned().unwrap_or(0);
                 node_guard.set_property(MrTreeOptions::TREE_LEVEL, Some(level));
             }
@@ -74,7 +62,8 @@ impl LevelProcessor {
 
         let mut next_level: Vec<TNodeRef> = Vec::new();
         for node in current_level {
-            if let Ok(node_guard) = node.lock() {
+            {
+                let node_guard = node.lock();
                 self.level_map.insert(node_guard.id(), level);
                 next_level.extend(node_guard.children());
             }

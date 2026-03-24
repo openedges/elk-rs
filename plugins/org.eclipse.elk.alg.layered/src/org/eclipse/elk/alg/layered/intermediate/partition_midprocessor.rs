@@ -16,9 +16,7 @@ impl ILayoutProcessor<LGraph> for PartitionMidprocessor {
 
         let mut partition_to_nodes: BTreeMap<i32, Vec<LNodeRef>> = BTreeMap::new();
         for node in lgraph.layerless_nodes() {
-            let partition = node.lock().ok().and_then(|mut node_guard| {
-                node_guard.get_property(CoreOptions::PARTITIONING_PARTITION)
-            });
+            let partition = node.lock().get_property(CoreOptions::PARTITIONING_PARTITION);
             if let Some(partition) = partition {
                 partition_to_nodes
                     .entry(partition)
@@ -56,7 +54,8 @@ impl ILayoutProcessor<LGraph> for PartitionMidprocessor {
 fn connect_partitions(first_partition: &[LNodeRef], second_partition: &[LNodeRef]) {
     for node in first_partition {
         let source_port = LPort::new();
-        if let Ok(mut source_guard) = source_port.lock() {
+        {
+            let mut source_guard = source_port.lock();
             source_guard.set_side(PortSide::East);
             source_guard.set_property(InternalProperties::PARTITION_DUMMY, Some(true));
         }
@@ -64,14 +63,16 @@ fn connect_partitions(first_partition: &[LNodeRef], second_partition: &[LNodeRef
 
         for other_node in second_partition {
             let target_port = LPort::new();
-            if let Ok(mut target_guard) = target_port.lock() {
+            {
+                let mut target_guard = target_port.lock();
                 target_guard.set_side(PortSide::West);
                 target_guard.set_property(InternalProperties::PARTITION_DUMMY, Some(true));
             }
             LPort::set_node(&target_port, Some(other_node.clone()));
 
             let edge = LEdge::new();
-            if let Ok(mut edge_guard) = edge.lock() {
+            {
+                let mut edge_guard = edge.lock();
                 edge_guard.set_property(InternalProperties::PARTITION_DUMMY, Some(true));
             }
             LEdge::set_source(&edge, Some(source_port.clone()));

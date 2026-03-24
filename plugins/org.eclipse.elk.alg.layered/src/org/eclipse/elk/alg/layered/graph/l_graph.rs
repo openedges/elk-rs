@@ -1,8 +1,16 @@
+use std::fmt;
 use std::sync::Arc;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::direction::Direction;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_routing::EdgeRouting;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::EnumSet;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
+
+use crate::org::eclipse::elk::alg::layered::options::{
+    GraphProperties, InternalProperties, LayeredOptions,
+};
 
 use super::{index_of_arc, LGraphElement, LGraphRef, LNodeRef, LNodeWeak, LPadding, LayerRef};
 
@@ -89,17 +97,10 @@ impl LGraph {
     }
 
     pub fn get_property<T: Clone + Send + Sync + 'static>(
-        &mut self,
-        property: &Property<T>,
-    ) -> Option<T> {
-        self.element.get_property(property)
-    }
-
-    pub fn get_property_ref<T: Clone + Send + Sync + 'static>(
         &self,
         property: &Property<T>,
     ) -> Option<T> {
-        self.element.properties().get_property_immut(property)
+        self.element.get_property(property)
     }
 
     pub fn set_property<T: Clone + Send + Sync + 'static>(
@@ -110,36 +111,57 @@ impl LGraph {
         self.element.set_property(property, value);
     }
 
+    // --- Typed property accessors (read-only, &self) ---
+
+    pub fn graph_properties(&self) -> EnumSet<GraphProperties> {
+        self.element
+            .get_property(InternalProperties::GRAPH_PROPERTIES)
+            .unwrap_or_else(EnumSet::none_of)
+    }
+
+    pub fn direction(&self) -> Direction {
+        self.element
+            .get_property(LayeredOptions::DIRECTION)
+            .unwrap_or(Direction::Undefined)
+    }
+
+    pub fn edge_routing(&self) -> EdgeRouting {
+        self.element
+            .get_property(LayeredOptions::EDGE_ROUTING)
+            .unwrap_or(EdgeRouting::Undefined)
+    }
+
     pub fn to_node_array(&self) -> Vec<Vec<LNodeRef>> {
         let mut result = Vec::with_capacity(self.layers.len());
         for layer in &self.layers {
-            let layer_guard = layer.lock().expect("layer lock");
-            result.push(layer_guard.nodes().clone());
+            let layer_guard = layer.lock();            result.push(layer_guard.nodes().clone());
         }
         result
     }
 
-    #[allow(clippy::inherent_to_string)]
-    pub fn to_string(&self) -> String {
+}
+
+impl fmt::Display for LGraph {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let layerless = self
             .layerless_nodes
             .iter()
-            .map(|node| node.lock().map(|mut n| n.to_string()).unwrap_or_default())
+            .map(|node| node.lock().to_string())
             .collect::<Vec<_>>()
             .join(", ");
         let layers = self
             .layers
             .iter()
-            .map(|layer| layer.lock().map(|mut l| l.to_string()).unwrap_or_default())
+            .map(|layer| layer.lock().to_string())
             .collect::<Vec<_>>()
             .join(", ");
 
         if self.layers.is_empty() {
-            format!("G-unlayered[{}]", layerless)
+            write!(f, "G-unlayered[{}]", layerless)
         } else if self.layerless_nodes.is_empty() {
-            format!("G-layered[{}]", layers)
+            write!(f, "G-layered[{}]", layers)
         } else {
-            format!("G[layerless[{}], layers[{}]]", layerless, layers)
+            write!(f, "G[layerless[{}], layers[{}]]", layerless, layers)
         }
     }
 }

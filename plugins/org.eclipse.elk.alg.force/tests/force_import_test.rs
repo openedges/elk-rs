@@ -6,9 +6,9 @@ use org_eclipse_elk_alg_force::org::eclipse::elk::alg::force::{
 };
 
 fn check_simple_graph(graph: &FGraph) {
-    assert_eq!(graph.nodes().len(), 3);
-    assert_eq!(graph.edges().len(), 2);
-    assert_eq!(graph.labels().len(), 2);
+    assert_eq!(graph.nodes.len(), 3);
+    assert_eq!(graph.edges.len(), 2);
+    assert_eq!(graph.labels.len(), 2);
 }
 
 fn create_elk_graph() -> org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef {
@@ -104,7 +104,7 @@ fn test_do_not_separate_connected_components() {
     assert_eq!(graphs.len(), 1);
 
     let graph = &graphs[0];
-    assert_eq!(graph.nodes().len(), 6);
-    assert_eq!(graph.edges().len(), 4);
-    assert_eq!(graph.labels().len(), 4);
+    assert_eq!(graph.nodes.len(), 6);
+    assert_eq!(graph.edges.len(), 4);
+    assert_eq!(graph.labels.len(), 4);
 }

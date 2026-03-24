@@ -1,3 +1,4 @@
+use std::fmt;
 use std::sync::{Arc, Weak};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
@@ -6,8 +7,11 @@ use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::pair::Pair;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 
+use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
+
 use crate::org::eclipse::elk::alg::layered::options::{
-    InteractiveReferencePoint, InternalProperties, LayeredOptions, PortType,
+    InLayerConstraint, InteractiveReferencePoint, InternalProperties, LayerConstraint,
+    LayeredOptions, Origin, PortType,
 };
 
 use super::{
@@ -122,58 +126,49 @@ impl LNode {
     }
 
     pub fn set_layer(node: &LNodeRef, layer: Option<LayerRef>) {
-        let current_layer = node.lock().ok().and_then(|node| node.layer());
+        let current_layer = node.lock().layer();
 
         if let Some(current_layer) = current_layer {
-            if let Ok(mut layer) = current_layer.lock() {
-                remove_arc(layer.nodes_mut(), node);
-            }
+            let mut layer = current_layer.lock();
+            remove_arc(layer.nodes_mut(), node);
         }
 
         {
-            if let Ok(mut node_guard) = node.lock() {
-                node_guard.layer = layer.as_ref().map(Arc::downgrade);
-            }
+            let mut node_guard = node.lock();
+            node_guard.layer = layer.as_ref().map(Arc::downgrade);
         }
 
         if let Some(layer) = layer {
-            if let Ok(mut layer_guard) = layer.lock() {
-                layer_guard.nodes_mut().push(node.clone());
-            }
+            let mut layer_guard = layer.lock();
+            layer_guard.nodes_mut().push(node.clone());
         }
     }
 
     pub fn set_layer_at_index(node: &LNodeRef, index: usize, layer: Option<LayerRef>) {
         if let Some(layer_ref) = &layer {
-            let size = layer_ref
-                .lock()
-                .map(|layer| layer.nodes().len())
-                .unwrap_or(0);
+            let size = layer_ref.lock().nodes().len();
             if index > size {
                 panic!("index must be >= 0 and <= layer node count");
             }
         }
 
-        let current_layer = node.lock().ok().and_then(|node| node.layer());
+        let current_layer = node.lock().layer();
         if let Some(current_layer) = current_layer {
-            if let Ok(mut layer) = current_layer.lock() {
-                remove_arc(layer.nodes_mut(), node);
-            }
+            let mut layer = current_layer.lock();
+            remove_arc(layer.nodes_mut(), node);
         }
 
         {
-            if let Ok(mut node_guard) = node.lock() {
-                node_guard.layer = layer.as_ref().map(Arc::downgrade);
-            }
+            let mut node_guard = node.lock();
+            node_guard.layer = layer.as_ref().map(Arc::downgrade);
         }
 
         if let Some(layer) = layer {
-            if let Ok(mut layer_guard) = layer.lock() {
-                if index > layer_guard.nodes().len() {
-                    panic!("index must be >= 0 and <= layer node count");
-                }
-                layer_guard.nodes_mut().insert(index, node.clone());
+            let mut layer_guard = layer.lock();
+            if index > layer_guard.nodes().len() {
+                panic!("index must be >= 0 and <= layer node count");
             }
+            layer_guard.nodes_mut().insert(index, node.clone());
         }
     }
 
@@ -182,7 +177,7 @@ impl LNode {
             return Some(graph);
         }
         self.layer()
-            .and_then(|layer| layer.lock().ok().and_then(|layer| layer.graph()))
+            .and_then(|layer| layer.lock().graph())
     }
 
     pub fn set_graph(&mut self, graph: &LGraphRef) {
@@ -213,21 +208,13 @@ impl LNode {
             PortType::Input => self
                 .ports
                 .iter()
-                .filter(|port| {
-                    port.lock()
-                        .map(|port| !port.incoming_edges().is_empty())
-                        .unwrap_or(false)
-                })
+                .filter(|port| !port.lock().incoming_edges().is_empty())
                 .cloned()
                 .collect(),
             PortType::Output => self
                 .ports
                 .iter()
-                .filter(|port| {
-                    port.lock()
-                        .map(|port| !port.outgoing_edges().is_empty())
-                        .unwrap_or(false)
-                })
+                .filter(|port| !port.lock().outgoing_edges().is_empty())
                 .cloned()
                 .collect(),
             PortType::Undefined => Vec::new(),
@@ -237,7 +224,7 @@ impl LNode {
     pub fn ports_by_side(&self, side: PortSide) -> Vec<LPortRef> {
         self.ports
             .iter()
-            .filter(|port| port.lock().map(|port| port.side() == side).unwrap_or(false))
+            .filter(|port| port.lock().side() == side)
             .cloned()
             .collect()
     }
@@ -253,11 +240,7 @@ impl LNode {
                 .and_then(|arr| arr[side as usize].as_ref())
             {
                 let slice = &self.ports[indices.first..indices.second];
-                let matches = slice.iter().all(|port| {
-                    port.lock()
-                        .map(|port_guard| port_guard.side() == side)
-                        .unwrap_or(false)
-                });
+                let matches = slice.iter().all(|port| port.lock().side() == side);
                 if matches {
                     return slice.to_vec();
                 }
@@ -267,7 +250,7 @@ impl LNode {
         // Cache can be stale if port sides changed after caching.
         self.ports
             .iter()
-            .filter(|port| port.lock().map(|port| port.side() == side).unwrap_or(false))
+            .filter(|port| port.lock().side() == side)
             .cloned()
             .collect()
     }
@@ -276,17 +259,15 @@ impl LNode {
         self.ports
             .iter()
             .filter(|port| {
-                if let Ok(port_guard) = port.lock() {
-                    if port_guard.side() != side {
-                        return false;
-                    }
-                    return match port_type {
-                        PortType::Input => !port_guard.incoming_edges().is_empty(),
-                        PortType::Output => !port_guard.outgoing_edges().is_empty(),
-                        PortType::Undefined => false,
-                    };
+                let port_guard = port.lock();
+                if port_guard.side() != side {
+                    return false;
                 }
-                false
+                match port_type {
+                    PortType::Input => !port_guard.incoming_edges().is_empty(),
+                    PortType::Output => !port_guard.outgoing_edges().is_empty(),
+                    PortType::Undefined => false,
+                }
             })
             .cloned()
             .collect()
@@ -295,9 +276,8 @@ impl LNode {
     pub fn incoming_edges(&self) -> Vec<LEdgeRef> {
         let mut edges = Vec::new();
         for port in &self.ports {
-            if let Ok(port_guard) = port.lock() {
-                edges.extend(port_guard.incoming_edges().iter().cloned());
-            }
+            let port_guard = port.lock();
+            edges.extend(port_guard.incoming_edges().iter().cloned());
         }
         edges
     }
@@ -305,9 +285,8 @@ impl LNode {
     pub fn outgoing_edges(&self) -> Vec<LEdgeRef> {
         let mut edges = Vec::new();
         for port in &self.ports {
-            if let Ok(port_guard) = port.lock() {
-                edges.extend(port_guard.outgoing_edges().iter().cloned());
-            }
+            let port_guard = port.lock();
+            edges.extend(port_guard.outgoing_edges().iter().cloned());
         }
         edges
     }
@@ -315,9 +294,8 @@ impl LNode {
     pub fn connected_edges(&self) -> Vec<LEdgeRef> {
         let mut edges = Vec::new();
         for port in &self.ports {
-            if let Ok(port_guard) = port.lock() {
-                edges.extend(port_guard.connected_edges().iter().cloned());
-            }
+            let port_guard = port.lock();
+            edges.extend(port_guard.connected_edges().iter().cloned());
         }
         edges
     }
@@ -349,14 +327,13 @@ impl LNode {
     pub fn index(&self) -> Option<usize> {
         let node_ref = self.self_ref.upgrade()?;
         let layer = self.layer()?;
-        let layer_guard = layer.lock().ok()?;
+        let layer_guard = layer.lock();
         index_of_arc(layer_guard.nodes(), &node_ref)
     }
 
     pub fn border_to_content_area_coordinates(&mut self, horizontal: bool, vertical: bool) {
         let graph = self.graph().expect("node must be assigned to a graph");
-        let graph_guard = graph.lock().expect("graph lock");
-        let padding = graph_guard.padding_ref();
+        let graph_guard = graph.lock();        let padding = graph_guard.padding_ref();
         let offset = graph_guard.offset_ref();
         let pos = self.shape.position();
 
@@ -371,7 +348,7 @@ impl LNode {
 
     pub fn interactive_reference_point(&mut self) -> Option<KVector> {
         let graph = self.graph()?;
-        let mut graph_guard = graph.lock().ok()?;
+        let graph_guard = graph.lock();
         let reference = graph_guard
             .get_property(LayeredOptions::INTERACTIVE_REFERENCE_POINT)
             .unwrap_or(InteractiveReferencePoint::Center);
@@ -407,10 +384,7 @@ impl LNode {
         let mut current_side = PortSide::North;
         let mut current_index = 0usize;
         for port in &self.ports {
-            let side = port
-                .lock()
-                .map(|port| port.side())
-                .unwrap_or(PortSide::Undefined);
+            let side = port.lock().side();
             if side != current_side {
                 if first_index != current_index {
                     indices[current_side as usize] = Some(Pair::of(first_index, current_index));
@@ -425,7 +399,7 @@ impl LNode {
     }
 
     pub fn get_property<T: Clone + Send + Sync + 'static>(
-        &mut self,
+        &self,
         property: &Property<T>,
     ) -> Option<T> {
         self.shape.get_property(property)
@@ -439,16 +413,73 @@ impl LNode {
         self.shape.set_property(property, value);
     }
 
-    pub fn designation(&mut self) -> String {
+    // --- Typed property accessors (read-only, &self) ---
+
+    pub fn origin(&self) -> Option<Origin> {
+        self.shape.get_property(InternalProperties::ORIGIN)
+    }
+
+    pub fn port_constraints_prop(&self) -> PortConstraints {
+        self.shape
+            .get_property(LayeredOptions::PORT_CONSTRAINTS)
+            .unwrap_or(PortConstraints::Undefined)
+    }
+
+    pub fn ext_port_side(&self) -> PortSide {
+        self.shape
+            .get_property(InternalProperties::EXT_PORT_SIDE)
+            .unwrap_or(PortSide::Undefined)
+    }
+
+    pub fn model_order(&self) -> Option<i32> {
+        self.shape.get_property(InternalProperties::MODEL_ORDER)
+    }
+
+    pub fn layer_constraint(&self) -> LayerConstraint {
+        self.shape
+            .get_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT)
+            .unwrap_or(LayerConstraint::None)
+    }
+
+    pub fn port_ratio_or_position(&self) -> Option<f64> {
+        self.shape
+            .get_property(InternalProperties::PORT_RATIO_OR_POSITION)
+    }
+
+    pub fn in_layer_layout_unit(&self) -> Option<LNodeRef> {
+        self.shape
+            .get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
+    }
+
+    pub fn in_layer_constraint(&self) -> InLayerConstraint {
+        self.shape
+            .get_property(InternalProperties::IN_LAYER_CONSTRAINT)
+            .unwrap_or(InLayerConstraint::None)
+    }
+
+    pub fn long_edge_source(&self) -> Option<LPortRef> {
+        self.shape.get_property(InternalProperties::LONG_EDGE_SOURCE)
+    }
+
+    pub fn long_edge_target(&self) -> Option<LPortRef> {
+        self.shape.get_property(InternalProperties::LONG_EDGE_TARGET)
+    }
+
+    pub fn long_edge_has_label_dummies(&self) -> bool {
+        self.shape
+            .get_property(InternalProperties::LONG_EDGE_HAS_LABEL_DUMMIES)
+            .unwrap_or(false)
+    }
+
+    pub fn designation(&self) -> String {
         if let Some(label) = self.labels.first() {
-            if let Ok(label_guard) = label.lock() {
-                if !label_guard.text().is_empty() {
-                    return label_guard.text().to_owned();
-                }
+            let label_guard = label.lock();
+            if !label_guard.text().is_empty() {
+                return label_guard.text().to_owned();
             }
         }
 
-        if let Some(id) = self.shape.graph_element().get_designation() {
+        if let Some(id) = self.shape.graph_element_ref().get_designation() {
             return id;
         }
 
@@ -470,23 +501,20 @@ impl LNode {
         labels.iter().all(|label| {
             label
                 .lock()
-                .ok()
-                .and_then(|mut label| label.get_property(LayeredOptions::EDGE_LABELS_INLINE))
+                .get_property(LayeredOptions::EDGE_LABELS_INLINE)
                 .unwrap_or(false)
         })
     }
 
-    #[allow(clippy::inherent_to_string)]
-    pub fn to_string(&mut self) -> String {
-        let mut result = String::new();
-        result.push('n');
+}
+
+impl fmt::Display for LNode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("n")?;
         if self.node_type != NodeType::Normal {
-            result.push('(');
-            result.push_str(&self.node_type.name().to_lowercase());
-            result.push(')');
+            write!(f, "({})", self.node_type.name().to_lowercase())?;
         }
-        result.push('_');
-        result.push_str(&self.designation());
-        result
+        f.write_str("_")?;
+        f.write_str(&self.designation())
     }
 }

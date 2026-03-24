@@ -30,7 +30,8 @@ fn test_model_order_respected() {
 
     let mut model_order = -1;
     for node in &node_order[1] {
-        if let Ok(mut node_guard) = node.lock() {
+        {
+            let mut node_guard = node.lock();
             if let Some(new_model_order) = node_guard.get_property(InternalProperties::MODEL_ORDER)
             {
                 assert!(
@@ -60,7 +61,8 @@ fn init_layered_options() {
 fn create_graph() -> LGraphRef {
     init_layered_options();
     let graph = LGraph::new();
-    if let Ok(mut graph_guard) = graph.lock() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.set_property(
             LayeredOptions::CONSIDER_MODEL_ORDER_STRATEGY,
             Some(OrderingStrategy::NodesAndEdges),
@@ -95,7 +97,8 @@ fn create_graph() -> LGraphRef {
 
 fn make_layer(graph: &LGraphRef) -> LayerRef {
     let layer = Layer::new(graph);
-    if let Ok(mut graph_guard) = graph.lock() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.layers_mut().push(layer.clone());
     }
     layer
@@ -103,7 +106,8 @@ fn make_layer(graph: &LGraphRef) -> LayerRef {
 
 fn add_node_to_layer(graph: &LGraphRef, layer: &LayerRef, model_order: Option<i32>) -> LNodeRef {
     let node = LNode::new(graph);
-    if let Ok(mut node_guard) = node.lock() {
+    {
+        let mut node_guard = node.lock();
         node_guard.set_node_type(NodeType::Normal);
         node_guard.set_property(InternalProperties::IN_LAYER_LAYOUT_UNIT, Some(node.clone()));
         node_guard.set_property(InternalProperties::MODEL_ORDER, model_order);
@@ -117,12 +121,14 @@ fn add_port_on_side(
     side: PortSide,
 ) -> org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LPortRef {
     let port = LPort::new();
-    if let Ok(mut port_guard) = port.lock() {
+    {
+        let mut port_guard = port.lock();
         port_guard.set_side(side);
     }
     LPort::set_node(&port, Some(node.clone()));
 
-    if let Ok(mut node_guard) = node.lock() {
+    {
+        let mut node_guard = node.lock();
         let constraints = node_guard
             .get_property(LayeredOptions::PORT_CONSTRAINTS)
             .unwrap_or(PortConstraints::Undefined);
@@ -146,19 +152,23 @@ fn east_west_edge_from_to(left: &LNodeRef, right: &LNodeRef) {
 }
 
 fn set_up_ids(graph: &LGraphRef) {
-    if let Ok(graph_guard) = graph.lock() {
+    {
+        let graph_guard = graph.lock();
         let layers = graph_guard.layers().clone();
         drop(graph_guard);
 
         let mut port_id = 0i32;
         for (layer_index, layer) in layers.iter().enumerate() {
-            if let Ok(mut layer_guard) = layer.lock() {
+            {
+                let mut layer_guard = layer.lock();
                 layer_guard.graph_element().id = layer_index as i32;
                 for (node_index, node) in layer_guard.nodes().iter().enumerate() {
-                    if let Ok(mut node_guard) = node.lock() {
+                    {
+                        let mut node_guard = node.lock();
                         node_guard.shape().graph_element().id = node_index as i32;
                         for port in node_guard.ports_mut() {
-                            if let Ok(mut port_guard) = port.lock() {
+                            {
+                                let mut port_guard = port.lock();
                                 port_guard.shape().graph_element().id = port_id;
                             }
                             port_id += 1;
@@ -171,7 +181,8 @@ fn set_up_ids(graph: &LGraphRef) {
 }
 
 fn to_node_order(graph: &LGraphRef) -> Vec<Vec<LNodeRef>> {
-    if let Ok(graph_guard) = graph.lock() {
+    {
+        let graph_guard = graph.lock();
         return graph_guard.to_node_array();
     }
     Vec::new()

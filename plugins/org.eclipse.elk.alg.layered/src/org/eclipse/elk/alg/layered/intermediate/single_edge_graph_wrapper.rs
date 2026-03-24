@@ -196,24 +196,14 @@ impl SingleEdgeGraphWrapper {
                 let new_layer = graph.layers()[new_index].clone();
 
                 let nodes_to_move = old_layer
-                    .lock()
-                    .ok()
-                    .map(|layer_guard| layer_guard.nodes().clone())
-                    .unwrap_or_default();
+                    .lock().nodes().clone();
                 for node in nodes_to_move {
-                    let insert_index = new_layer
-                        .lock()
-                        .ok()
-                        .map(|layer_guard| layer_guard.nodes().len())
-                        .unwrap_or(0);
+                    let insert_index = new_layer.lock().nodes().len();
                     LNode::set_layer_at_index(&node, insert_index, Some(new_layer.clone()));
 
                     if new_index == 0 {
                         let incoming_edges = node
-                            .lock()
-                            .ok()
-                            .map(|node_guard| node_guard.incoming_edges())
-                            .unwrap_or_default();
+                            .lock().incoming_edges();
                         for edge in incoming_edges {
                             LEdge::reverse(&edge, graph_ref, true);
                             graph.set_property(InternalProperties::CYCLIC, Some(true));
@@ -228,11 +218,7 @@ impl SingleEdgeGraphWrapper {
         }
 
         graph.layers_mut().retain(|layer| {
-            !layer
-                .lock()
-                .ok()
-                .map(|layer_guard| layer_guard.nodes().is_empty())
-                .unwrap_or(true)
+            !layer.lock().nodes().is_empty()
         });
     }
 }
@@ -329,14 +315,12 @@ impl GraphStats {
 
 fn determine_layer_width(layer: &LayerRef, spacing: f64) -> f64 {
     let nodes = layer
-        .lock()
-        .ok()
-        .map(|layer_guard| layer_guard.nodes().clone())
-        .unwrap_or_default();
+        .lock().nodes().clone();
 
     let mut max_width: f64 = 0.0;
     for node in nodes {
-        if let Ok(mut node_guard) = node.lock() {
+        {
+            let mut node_guard = node.lock();
             let node_width = node_guard.shape().size_ref().x
                 + node_guard.margin().left
                 + node_guard.margin().right
@@ -349,20 +333,15 @@ fn determine_layer_width(layer: &LayerRef, spacing: f64) -> f64 {
 
 fn determine_layer_height(layer: &LayerRef, in_layer_spacing: f64) -> f64 {
     let nodes = layer
-        .lock()
-        .ok()
-        .map(|layer_guard| layer_guard.nodes().clone())
-        .unwrap_or_default();
+        .lock().nodes().clone();
 
     let mut layer_height = 0.0;
     for node in nodes {
         let incoming_edges = node
-            .lock()
-            .ok()
-            .map(|node_guard| node_guard.incoming_edges())
-            .unwrap_or_default();
+            .lock().incoming_edges();
 
-        if let Ok(mut node_guard) = node.lock() {
+        {
+            let mut node_guard = node.lock();
             layer_height += node_guard.shape().size_ref().y
                 + node_guard.margin().bottom
                 + node_guard.margin().top
@@ -371,29 +350,23 @@ fn determine_layer_height(layer: &LayerRef, in_layer_spacing: f64) -> f64 {
 
         for incoming_edge in incoming_edges {
             let source_node = incoming_edge
-                .lock()
-                .ok()
-                .and_then(|edge_guard| edge_guard.source())
-                .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                .lock().source()
+                .and_then(|port| port.lock().node());
             let Some(source_node) = source_node else {
                 continue;
             };
 
-            let is_north_south_dummy = source_node
-                .lock()
-                .ok()
-                .map(|node_guard| node_guard.node_type() == NodeType::NorthSouthPort)
-                .unwrap_or(false);
+            let is_north_south_dummy = source_node.lock().node_type() == NodeType::NorthSouthPort;
             if !is_north_south_dummy {
                 continue;
             }
 
             let origin = source_node
                 .lock()
-                .ok()
-                .and_then(|mut node_guard| node_guard.get_property(InternalProperties::ORIGIN));
+                .get_property(InternalProperties::ORIGIN);
             if let Some(Origin::LNode(origin_node)) = origin {
-                if let Ok(mut origin_guard) = origin_node.lock() {
+                {
+                    let mut origin_guard = origin_node.lock();
                     layer_height += origin_guard.shape().size_ref().y
                         + origin_guard.margin().bottom
                         + origin_guard.margin().top;
@@ -436,19 +409,13 @@ fn init_cut_allowed(graph: &mut LGraph, layers: &[LayerRef]) -> Vec<bool> {
 
 fn is_cut_allowed_layer(layer: &LayerRef) -> bool {
     let nodes = layer
-        .lock()
-        .ok()
-        .map(|layer_guard| layer_guard.nodes().clone())
-        .unwrap_or_default();
+        .lock().nodes().clone();
 
     let mut target_node: Option<LNodeRef> = None;
     let mut source_node: Option<LNodeRef> = None;
     for target in nodes {
         let incoming_edges = target
-            .lock()
-            .ok()
-            .map(|node_guard| node_guard.incoming_edges())
-            .unwrap_or_default();
+            .lock().incoming_edges();
         for edge in incoming_edges {
             if let Some(existing_target) = &target_node {
                 if !Arc::ptr_eq(existing_target, &target) {
@@ -459,10 +426,8 @@ fn is_cut_allowed_layer(layer: &LayerRef) -> bool {
             }
 
             let source = edge
-                .lock()
-                .ok()
-                .and_then(|edge_guard| edge_guard.source())
-                .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+                .lock().source()
+                .and_then(|port| port.lock().node());
             let Some(source) = source else {
                 continue;
             };
@@ -643,30 +608,22 @@ impl CuttingUtils {
         );
 
         let mut edge = original_edge.clone();
-        let target_port = edge.lock().ok().and_then(|edge_guard| edge_guard.target());
+        let target_port = edge.lock().target();
 
         let source_node = edge
-            .lock()
-            .ok()
-            .and_then(|edge_guard| edge_guard.source())
-            .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+            .lock().source()
+            .and_then(|port| port.lock().node());
         let target_node = edge
-            .lock()
-            .ok()
-            .and_then(|edge_guard| edge_guard.target())
-            .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+            .lock().target()
+            .and_then(|port| port.lock().node());
         let (Some(source_node), Some(target_node)) = (source_node, target_node) else {
             return Vec::new();
         };
 
         let source_layer = source_node
-            .lock()
-            .ok()
-            .and_then(|node_guard| node_guard.layer());
+            .lock().layer();
         let target_layer = target_node
-            .lock()
-            .ok()
-            .and_then(|node_guard| node_guard.layer());
+            .lock().layer();
         let (Some(source_layer), Some(target_layer)) = (source_layer, target_layer) else {
             return Vec::new();
         };
@@ -679,7 +636,8 @@ impl CuttingUtils {
         let mut created_edges = Vec::new();
         for layer_index in src_index..=tgt_index {
             let dummy_node = LNode::new(graph_ref);
-            if let Ok(mut dummy_guard) = dummy_node.lock() {
+            {
+                let mut dummy_guard = dummy_node.lock();
                 dummy_guard.set_node_type(NodeType::LongEdge);
                 dummy_guard.set_property(
                     InternalProperties::ORIGIN,
@@ -699,17 +657,14 @@ impl CuttingUtils {
                 break;
             };
             if layer_index == src_index {
-                let insertion_index = next_layer
-                    .lock()
-                    .ok()
-                    .map(|layer_guard| {
-                        if layer_guard.nodes().len() > offset_first_in_layer_dummy {
-                            layer_guard.nodes().len() - offset_first_in_layer_dummy
-                        } else {
-                            0
-                        }
-                    })
-                    .unwrap_or(0);
+                let insertion_index = {
+                    let layer_guard = next_layer.lock();
+                    if layer_guard.nodes().len() > offset_first_in_layer_dummy {
+                        layer_guard.nodes().len() - offset_first_in_layer_dummy
+                    } else {
+                        0
+                    }
+                };
                 LNode::set_layer_at_index(&dummy_node, insertion_index, Some(next_layer.clone()));
             } else {
                 LNode::set_layer(&dummy_node, Some(next_layer.clone()));
@@ -717,30 +672,33 @@ impl CuttingUtils {
 
             let mut thickness = edge
                 .lock()
-                .ok()
-                .and_then(|mut edge_guard| edge_guard.get_property(CoreOptions::EDGE_THICKNESS))
+                .get_property(CoreOptions::EDGE_THICKNESS)
                 .unwrap_or(1.0);
             if thickness < 0.0 {
                 thickness = 0.0;
-                if let Ok(mut edge_guard) = edge.lock() {
+                {
+                    let mut edge_guard = edge.lock();
                     edge_guard.set_property(CoreOptions::EDGE_THICKNESS, Some(thickness));
                 }
             }
 
-            if let Ok(mut dummy_guard) = dummy_node.lock() {
+            {
+                let mut dummy_guard = dummy_node.lock();
                 dummy_guard.shape().size().y = thickness;
             }
             let port_pos = (thickness / 2.0).floor();
 
             let dummy_input = LPort::new();
-            if let Ok(mut input_guard) = dummy_input.lock() {
+            {
+                let mut input_guard = dummy_input.lock();
                 input_guard.set_side(PortSide::West);
                 input_guard.shape().position().y = port_pos;
             }
             LPort::set_node(&dummy_input, Some(dummy_node.clone()));
 
             let dummy_output = LPort::new();
-            if let Ok(mut output_guard) = dummy_output.lock() {
+            {
+                let mut output_guard = dummy_output.lock();
                 output_guard.set_side(PortSide::East);
                 output_guard.shape().position().y = port_pos;
             }
@@ -749,9 +707,9 @@ impl CuttingUtils {
             LEdge::set_target(&edge, Some(dummy_input));
 
             let dummy_edge = LEdge::new();
-            if let (Ok(mut new_edge_guard), Ok(mut old_edge_guard)) =
-                (dummy_edge.lock(), edge.lock())
             {
+                let (mut new_edge_guard, mut old_edge_guard) =
+                    (dummy_edge.lock(), edge.lock());
                 new_edge_guard
                     .graph_element()
                     .properties_mut()
@@ -773,26 +731,22 @@ impl CuttingUtils {
 
     fn set_dummy_properties(dummy: &LNodeRef, in_edge: &LEdgeRef, out_edge: &LEdgeRef) {
         let in_edge_source = in_edge
-            .lock()
-            .ok()
-            .and_then(|edge_guard| edge_guard.source());
+            .lock().source();
         let out_edge_target = out_edge
-            .lock()
-            .ok()
-            .and_then(|edge_guard| edge_guard.target());
+            .lock().target();
 
         let in_edge_source_node = in_edge_source
             .as_ref()
-            .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()));
+            .and_then(|port| port.lock().node());
         let in_edge_source_type = in_edge_source_node
             .as_ref()
-            .and_then(|node| node.lock().ok().map(|node_guard| node_guard.node_type()));
+            .map(|node| node.lock().node_type());
 
         if in_edge_source_type == Some(NodeType::LongEdge) {
             if let Some(in_edge_source_node) = in_edge_source_node {
-                if let (Ok(mut dummy_guard), Ok(mut source_guard)) =
-                    (dummy.lock(), in_edge_source_node.lock())
                 {
+                    let (mut dummy_guard, source_guard) =
+                        (dummy.lock(), in_edge_source_node.lock());
                     dummy_guard.set_property(
                         InternalProperties::LONG_EDGE_SOURCE,
                         source_guard.get_property(InternalProperties::LONG_EDGE_SOURCE),
@@ -806,7 +760,8 @@ impl CuttingUtils {
             return;
         }
 
-        if let Ok(mut dummy_guard) = dummy.lock() {
+        {
+            let mut dummy_guard = dummy.lock();
             dummy_guard.set_property(InternalProperties::LONG_EDGE_SOURCE, in_edge_source);
             dummy_guard.set_property(InternalProperties::LONG_EDGE_TARGET, out_edge_target);
         }
@@ -816,15 +771,13 @@ impl CuttingUtils {
 fn graph_ref_for(layered_graph: &LGraph) -> LGraphRef {
     if let Some(layer) = layered_graph.layers().first() {
         if let Some(graph_ref) = layer
-            .lock()
-            .ok()
-            .and_then(|layer_guard| layer_guard.graph())
+            .lock().graph()
         {
             return graph_ref;
         }
     }
     if let Some(node) = layered_graph.layerless_nodes().first() {
-        if let Some(graph_ref) = node.lock().ok().and_then(|node_guard| node_guard.graph()) {
+        if let Some(graph_ref) = node.lock().graph() {
             return graph_ref;
         }
     }

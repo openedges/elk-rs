@@ -21,8 +21,7 @@ impl GroupModelOrderCalculator {
 
         if let Some(node_model_order) = node
             .lock()
-            .ok()
-            .and_then(|mut node_guard| node_guard.get_property(InternalProperties::MODEL_ORDER))
+            .get_property(InternalProperties::MODEL_ORDER)
         {
             model_order += node_model_order;
         }
@@ -40,15 +39,11 @@ impl GroupModelOrderCalculator {
 
         let group_id = node
             .lock()
-            .ok()
-            .and_then(|mut node_guard| {
-                node_guard.get_property(LayeredOptions::GROUP_MODEL_ORDER_CYCLE_BREAKING_ID)
-            })
+            .get_property(LayeredOptions::GROUP_MODEL_ORDER_CYCLE_BREAKING_ID)
             .unwrap_or(0);
         if let Some(node_model_order) = node
             .lock()
-            .ok()
-            .and_then(|mut node_guard| node_guard.get_property(InternalProperties::MODEL_ORDER))
+            .get_property(InternalProperties::MODEL_ORDER)
         {
             model_order += group_id * small_offset + node_model_order;
         }
@@ -67,22 +62,20 @@ impl GroupModelOrderCalculator {
         separate_offset: i32,
         offset: i32,
     ) -> i32 {
-        let constraint = node
-            .lock()
-            .ok()
-            .and_then(|mut node_guard| {
-                if node_guard
-                    .shape()
-                    .graph_element()
-                    .properties()
-                    .has_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT)
-                {
-                    node_guard.get_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT)
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(LayerConstraint::None);
+        let constraint = {
+            let mut node_guard = node.lock();
+            if node_guard
+                .shape()
+                .graph_element()
+                .properties()
+                .has_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT)
+            {
+                node_guard.get_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT)
+            } else {
+                None
+            }
+        }
+        .unwrap_or(LayerConstraint::None);
 
         match constraint {
             LayerConstraint::FirstSeparate => {

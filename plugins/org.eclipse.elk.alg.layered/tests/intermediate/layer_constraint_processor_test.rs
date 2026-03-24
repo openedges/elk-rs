@@ -22,8 +22,7 @@ fn new_graph_with_layers(count: usize) -> (LGraphRef, Vec<LayerRef>) {
     let graph = LGraph::new();
     let mut layers = Vec::with_capacity(count);
     {
-        let mut graph_guard = graph.lock().expect("graph lock");
-        for _ in 0..count {
+        let mut graph_guard = graph.lock();        for _ in 0..count {
             let layer = Layer::new(&graph);
             graph_guard.layers_mut().push(layer.clone());
             layers.push(layer);
@@ -36,7 +35,7 @@ fn add_node(graph: &LGraphRef, layer: Option<&LayerRef>, constraint: LayerConstr
     let node = LNode::new(graph);
     if constraint != LayerConstraint::None {
         node.lock()
-            .expect("node lock")
+            
             .set_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT, Some(constraint));
     }
     if let Some(layer) = layer {
@@ -44,7 +43,7 @@ fn add_node(graph: &LGraphRef, layer: Option<&LayerRef>, constraint: LayerConstr
     } else {
         graph
             .lock()
-            .expect("graph lock")
+            
             .layerless_nodes_mut()
             .push(node.clone());
     }
@@ -60,11 +59,11 @@ fn layer_constraint_processor_hides_first_separate_nodes() {
 
     let mut pre = LayerConstraintPreprocessor;
     let mut monitor = NullElkProgressMonitor;
-    pre.process(&mut graph.lock().expect("graph lock"), &mut monitor);
+    pre.process(&mut graph.lock(), &mut monitor);
 
     let hidden_nodes = graph
         .lock()
-        .expect("graph lock")
+        
         .get_property(InternalProperties::HIDDEN_NODES)
         .unwrap_or_default();
     assert!(
@@ -87,16 +86,16 @@ fn layer_constraint_processor_moves_first_and_last_after_postprocessing() {
 
     let mut post = LayerConstraintPostprocessor;
     let mut monitor = NullElkProgressMonitor;
-    post.process(&mut graph.lock().expect("graph lock"), &mut monitor);
+    post.process(&mut graph.lock(), &mut monitor);
 
     let first_node_layer = first_node
         .lock()
-        .expect("first node lock")
+        
         .layer()
         .expect("layer");
     let last_node_layer = last_node
         .lock()
-        .expect("last node lock")
+        
         .layer()
         .expect("layer");
     assert!(Arc::ptr_eq(&first_node_layer, &first_layer));

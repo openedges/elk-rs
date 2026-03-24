@@ -720,7 +720,7 @@ struct ModelEntry {
 
 fn load_models_from_manifest(manifest_path: &str, limit: usize) -> Vec<ModelEntry> {
     let file = match fs::File::open(manifest_path) {
-        Ok(f) => f,
+            Ok(f) => f,
         Err(e) => {
             eprintln!("Cannot open manifest {}: {}", manifest_path, e);
             return Vec::new();
@@ -811,8 +811,8 @@ fn load_models_from_dir(dir: &str, limit: usize) -> Vec<ModelEntry> {
 
 fn collect_json_files(dir: &Path, out: &mut Vec<String>) {
     let entries = match fs::read_dir(dir) {
-        Ok(e) => e,
-        Err(_) => return,
+            Ok(e) => e,
+            Err(_) => return,
     };
     for entry in entries.flatten() {
         let path = entry.path();
@@ -885,7 +885,7 @@ fn main() {
             "synthetic" => {
                 for (name, json) in synthetic_scenarios_json() {
                     match run_api_benchmark(name, json.as_str(), iterations, warmup) {
-                        Ok((nanos, avg_ms, ops_per_sec)) => {
+            Ok((nanos, avg_ms, ops_per_sec)) => {
                             eprintln!(
                                 "  {name}: {avg_ms:.4} ms/op, {ops_per_sec:.0} ops/s ({nanos} ns total)"
                             );
@@ -927,7 +927,7 @@ fn main() {
                 let mut errors = 0usize;
                 for model in &models {
                     match run_api_benchmark(&model.name, &model.json, iterations, warmup) {
-                        Ok((nanos, avg_ms, ops_per_sec)) => {
+            Ok((nanos, avg_ms, ops_per_sec)) => {
                             ok += 1;
                             if ok <= 5 || ok.is_multiple_of(10) {
                                 eprintln!("  {}: {:.4} ms/op", model.name, avg_ms);

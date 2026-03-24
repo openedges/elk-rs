@@ -1,12 +1,9 @@
-use std::sync::LazyLock;
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LGraphRef, LNodeRef};
 use crate::org::eclipse::elk::alg::layered::options::{
     GroupOrderStrategy, InternalProperties, LayeredOptions,
 };
-
-static TRACE_CROSSMIN: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN").is_some());
 
 pub struct CMGroupModelOrderCalculator;
 
@@ -17,26 +14,24 @@ impl CMGroupModelOrderCalculator {
         parent: &LGraphRef,
         offset: i32,
     ) -> i32 {
-        let enforce_group_model_order = match parent.try_lock() {
-            Ok(mut graph_guard) => {
+        let enforce_group_model_order = match parent.try_lock() {            Some(graph_guard) => {
                 graph_guard
                     .get_property(LayeredOptions::GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY)
                     .unwrap_or(GroupOrderStrategy::OnlyWithinGroup)
                     == GroupOrderStrategy::Enforced
             }
-            Err(_) => {
-                if *TRACE_CROSSMIN {
+            None => {
+                if ElkTrace::global().crossmin {
                     eprintln!("cm_group: graph lock busy, skipping group order");
                 }
                 false
             }
         };
-        let enforced_orders = match parent.try_lock() {
-            Ok(mut graph_guard) => graph_guard
+        let enforced_orders = match parent.try_lock() {            Some(graph_guard) => graph_guard
                 .get_property(LayeredOptions::GROUP_MODEL_ORDER_CM_ENFORCED_GROUP_ORDERS)
                 .unwrap_or_default(),
-            Err(_) => {
-                if *TRACE_CROSSMIN {
+            None => {
+                if ElkTrace::global().crossmin {
                     eprintln!("cm_group: graph lock busy, using empty enforced orders");
                 }
                 Vec::new()
@@ -45,8 +40,7 @@ impl CMGroupModelOrderCalculator {
 
         let element_model_order = element
             .lock()
-            .ok()
-            .and_then(|mut node_guard| node_guard.get_property(InternalProperties::MODEL_ORDER));
+            .get_property(InternalProperties::MODEL_ORDER);
         if element_model_order.is_none() {
             return -1;
         }
@@ -55,19 +49,11 @@ impl CMGroupModelOrderCalculator {
         if enforce_group_model_order {
             let element_group_id = element
                 .lock()
-                .ok()
-                .and_then(|mut node_guard| {
-                    node_guard
-                        .get_property(LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID)
-                })
+                .get_property(LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID)
                 .unwrap_or(0);
             let other_group_id = other
                 .lock()
-                .ok()
-                .and_then(|mut node_guard| {
-                    node_guard
-                        .get_property(LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID)
-                })
+                .get_property(LayeredOptions::GROUP_MODEL_ORDER_CROSSING_MINIMIZATION_ID)
                 .unwrap_or(0);
             if enforced_orders.contains(&element_group_id)
                 && enforced_orders.contains(&other_group_id)

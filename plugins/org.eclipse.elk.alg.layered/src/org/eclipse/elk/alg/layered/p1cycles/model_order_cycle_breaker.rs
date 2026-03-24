@@ -70,25 +70,16 @@ impl ILayoutPhase<LayeredPhases, LGraph> for ModelOrderCycleBreaker {
 
             let output_ports = source
                 .lock()
-                .ok()
-                .map(|node_guard| node_guard.ports_by_type(PortType::Output))
-                .unwrap_or_default();
+                .ports_by_type(PortType::Output);
             for port in output_ports {
                 let outgoing_edges = port
-                    .lock()
-                    .ok()
-                    .map(|port_guard| port_guard.outgoing_edges().clone())
-                    .unwrap_or_default();
+                    .lock().outgoing_edges().clone();
                 for edge in outgoing_edges {
                     let target = edge
-                        .lock()
-                        .ok()
-                        .and_then(|edge_guard| edge_guard.target())
+                        .lock().target()
                         .and_then(|target_port| {
                             target_port
-                                .lock()
-                                .ok()
-                                .and_then(|target_guard| target_guard.node())
+                                .lock().node()
                         });
                     let Some(target) = target else {
                         continue;

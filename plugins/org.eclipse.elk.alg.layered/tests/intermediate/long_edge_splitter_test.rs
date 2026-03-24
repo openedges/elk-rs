@@ -12,8 +12,7 @@ fn layered_graph_with_three_layers() -> (LGraphRef, Vec<LayerRef>) {
     let graph = LGraph::new();
     let mut layers = Vec::new();
     {
-        let mut graph_guard = graph.lock().expect("graph lock");
-        for _ in 0..3 {
+        let mut graph_guard = graph.lock();        for _ in 0..3 {
             let layer = Layer::new(&graph);
             graph_guard.layers_mut().push(layer.clone());
             layers.push(layer);
@@ -33,7 +32,7 @@ fn add_port(
     side: PortSide,
 ) -> org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LPortRef {
     let port = LPort::new();
-    port.lock().expect("port lock").set_side(side);
+    port.lock().set_side(side);
     LPort::set_node(&port, Some(node.clone()));
     port
 }
@@ -65,19 +64,19 @@ fn long_edge_splitter_makes_edges_connect_adjacent_layers() {
 
     let mut processor = LongEdgeSplitter;
     let mut monitor = NullElkProgressMonitor;
-    processor.process(&mut graph.lock().expect("graph lock"), &mut monitor);
+    processor.process(&mut graph.lock(), &mut monitor);
 
     for (i, layer) in layers.iter().enumerate() {
-        let nodes = layer.lock().expect("layer lock").nodes().clone();
+        let nodes = layer.lock().nodes().clone();
         for node in nodes {
-            let outgoing = node.lock().expect("node lock").outgoing_edges();
+            let outgoing = node.lock().outgoing_edges();
             for edge in outgoing {
                 let target_layer = edge
                     .lock()
-                    .expect("edge lock")
+                    
                     .target()
-                    .and_then(|port| port.lock().ok().and_then(|port_guard| port_guard.node()))
-                    .and_then(|node| node.lock().ok().and_then(|node_guard| node_guard.layer()))
+                    .and_then(|port| port.lock().node())
+                    .and_then(|node| node.lock().layer())
                     .expect("target layer");
                 let t_idx = layer_index(&layers, &target_layer);
                 assert!(t_idx > i, "edge must point forward");
@@ -98,13 +97,13 @@ fn long_edge_splitter_inserts_long_edge_dummy_nodes() {
 
     let mut processor = LongEdgeSplitter;
     let mut monitor = NullElkProgressMonitor;
-    processor.process(&mut graph.lock().expect("graph lock"), &mut monitor);
+    processor.process(&mut graph.lock(), &mut monitor);
 
-    let middle_nodes = layers[1].lock().expect("middle layer lock").nodes().clone();
+    let middle_nodes = layers[1].lock().nodes().clone();
     assert!(
         middle_nodes
             .iter()
-            .any(|node| node.lock().ok().map(|n| n.node_type()) == Some(NodeType::LongEdge)),
+            .any(|node| node.lock().node_type() == NodeType::LongEdge),
         "middle layer should contain a long edge dummy",
     );
 }

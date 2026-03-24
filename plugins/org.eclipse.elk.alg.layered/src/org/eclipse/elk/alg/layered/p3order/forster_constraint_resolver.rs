@@ -1,12 +1,11 @@
 use std::collections::VecDeque;
 
 use rustc_hash::FxHashMap;
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 
-static TRACE_FORSTER_GROUPS: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_FORSTER_GROUPS").is_some());
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LNodeRef, NodeType};
+use crate::org::eclipse::elk::alg::layered::graph::{ArenaSync, LNodeRef, NodeType};
 use crate::org::eclipse::elk::alg::layered::options::InternalProperties;
 use crate::org::eclipse::elk::alg::layered::p3order::barycenter_heuristic::BarycenterState;
 use crate::org::eclipse::elk::alg::layered::p3order::counting::IInitializable;
@@ -19,6 +18,7 @@ pub struct ForsterConstraintResolver {
     constraint_groups: Vec<Vec<Option<ConstraintGroupId>>>,
     constraint_group_arena: Vec<ConstraintGroup>,
     snapshot: Option<Arc<CrossMinSnapshot>>,
+    arena_sync: Option<Arc<ArenaSync>>,
 }
 
 type ConstraintGroupId = usize;
@@ -35,11 +35,16 @@ impl ForsterConstraintResolver {
             constraint_groups: Vec::new(),
             constraint_group_arena: Vec::new(),
             snapshot: None,
+            arena_sync: None,
         }
     }
 
     pub fn set_snapshot(&mut self, snapshot: Arc<CrossMinSnapshot>) {
         self.snapshot = Some(snapshot);
+    }
+
+    pub fn set_arena_sync(&mut self, sync: Arc<ArenaSync>) {
+        self.arena_sync = Some(sync);
     }
 
     #[inline]
@@ -65,10 +70,7 @@ impl ForsterConstraintResolver {
         if let Some(ref snap) = self.snapshot {
             snap.node_type_of(snap.node_flat_index(node))
         } else {
-            node.lock()
-                .ok()
-                .map(|node_guard| node_guard.node_type())
-                .unwrap_or(NodeType::Normal)
+            node.lock().node_type()
         }
     }
 
@@ -107,7 +109,7 @@ impl ForsterConstraintResolver {
             groups.push(group);
         }
 
-        let trace = *TRACE_FORSTER_GROUPS
+        let trace = ElkTrace::global().forster_groups
             && groups
                 .iter()
                 .copied()
@@ -163,7 +165,7 @@ impl ForsterConstraintResolver {
         groups: &[ConstraintGroupId],
         only_between_normal_nodes: bool,
     ) {
-        let trace = *TRACE_FORSTER_GROUPS
+        let trace = ElkTrace::global().forster_groups
             && groups
                 .iter()
                 .copied()
@@ -189,13 +191,21 @@ impl ForsterConstraintResolver {
                 }
             }
 
-            let successors = node
-                .lock()
-                .ok()
-                .and_then(|mut node_guard| {
-                    node_guard.get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
-                })
-                .unwrap_or_default();
+            let successors = if let Some(ref sync) = self.arena_sync {
+                if let Some(nid) = sync.node_id(&node) {
+                    sync.arena().node_properties(nid)
+                        .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
+                        .unwrap_or_default()
+                } else {
+                    node.lock()
+                        .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
+                        .unwrap_or_default()
+                }
+            } else {
+                node.lock()
+                    .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
+                    .unwrap_or_default()
+            };
             for successor in successors {
                 if only_between_normal_nodes {
                     let successor_type = self.snap_node_type(&successor);
@@ -510,9 +520,16 @@ impl ForsterConstraintResolver {
                 layer_states[node_index] = Some(BarycenterState::new(node.clone()));
             }
 
-            let layout_unit = node.lock().ok().and_then(|mut node_guard| {
-                node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
-            });
+            let layout_unit = if let Some(ref sync) = self.arena_sync {
+                if let Some(nid) = sync.node_id(node) {
+                    sync.arena().node_properties(nid)
+                        .get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
+                } else {
+                    node.lock().get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
+                }
+            } else {
+                node.lock().get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
+            };
             if let Some(layout_unit) = layout_unit {
                 let key = node_ptr_id(&layout_unit);
                 self.layout_units.entry(key).or_default().push(node.clone());
@@ -542,11 +559,10 @@ impl IInitializable for ForsterConstraintResolver {
 
         if let Some(first_node) = node_order[layer_index].first() {
             if let Some(layer) = first_node
-                .lock()
-                .ok()
-                .and_then(|node_guard| node_guard.layer())
+                .lock().layer()
             {
-                if let Ok(mut layer_guard) = layer.lock() {
+                {
+                    let mut layer_guard = layer.lock();
                     layer_guard.graph_element().id = layer_index as i32;
                 }
             }
@@ -563,7 +579,8 @@ impl IInitializable for ForsterConstraintResolver {
             .get(layer_index)
             .and_then(|layer| layer.get(node_index))
         {
-            if let Ok(mut node_guard) = node.lock() {
+            {
+                let mut node_guard = node.lock();
                 node_guard.shape().graph_element().id = node_index as i32;
             }
             self.init_node_level(node, true);
@@ -638,16 +655,14 @@ fn remove_group(list: &mut Vec<ConstraintGroupId>, target: ConstraintGroupId) ->
 }
 
 fn node_id(node: &LNodeRef) -> usize {
-    node.lock()
-        .ok()
-        .map(|mut node_guard| node_guard.shape().graph_element().id as usize)
-        .unwrap_or(0)
+    node.lock().shape().graph_element().id as usize
 }
 
 fn layer_index(node: &LNodeRef) -> usize {
-    let layer = node.lock().ok().and_then(|node_guard| node_guard.layer());
+    let layer = node.lock().layer();
     if let Some(layer) = layer {
-        if let Ok(mut layer_guard) = layer.lock() {
+        {
+            let mut layer_guard = layer.lock();
             return layer_guard.graph_element().id as usize;
         }
     }
@@ -661,10 +676,7 @@ fn node_ptr_id(node: &LNodeRef) -> usize {
 fn group_contains_pump(resolver: &ForsterConstraintResolver, group_id: ConstraintGroupId) -> bool {
     resolver.group(group_id).is_some_and(|group_data| {
         group_data.nodes.iter().any(|node| {
-            node.lock()
-                .ok()
-                .map(|mut node_guard| node_guard.to_string().contains("pumpOutletPressure"))
-                .unwrap_or(false)
+            node.lock().to_string().contains("pumpOutletPressure")
         })
     })
 }
@@ -689,10 +701,7 @@ fn format_group(resolver: &ForsterConstraintResolver, group: ConstraintGroupId) 
                 .nodes
                 .iter()
                 .map(|node| {
-                    node.lock()
-                        .ok()
-                        .map(|mut node_guard| node_guard.to_string())
-                        .unwrap_or_else(|| "<poisoned-node>".to_owned())
+                    node.lock().to_string()
                 })
                 .collect::<Vec<_>>()
                 .join(",")

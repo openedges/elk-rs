@@ -15,7 +15,7 @@ fn node(graph: &LGraphRef) -> LNodeRef {
     let lnode = LNode::new(graph);
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(lnode.clone());
     lnode
@@ -31,22 +31,22 @@ fn edge(source: &LPortRef, target: &LPortRef) -> LEdgeRef {
 fn ports(node: &LNodeRef, north: usize, east: usize, south: usize, west: usize) {
     for _ in 0..north {
         let port = LPort::new();
-        port.lock().expect("port lock").set_side(PortSide::North);
+        port.lock().set_side(PortSide::North);
         LPort::set_node(&port, Some(node.clone()));
     }
     for _ in 0..east {
         let port = LPort::new();
-        port.lock().expect("port lock").set_side(PortSide::East);
+        port.lock().set_side(PortSide::East);
         LPort::set_node(&port, Some(node.clone()));
     }
     for _ in 0..south {
         let port = LPort::new();
-        port.lock().expect("port lock").set_side(PortSide::South);
+        port.lock().set_side(PortSide::South);
         LPort::set_node(&port, Some(node.clone()));
     }
     for _ in 0..west {
         let port = LPort::new();
-        port.lock().expect("port lock").set_side(PortSide::West);
+        port.lock().set_side(PortSide::West);
         LPort::set_node(&port, Some(node.clone()));
     }
 }
@@ -60,8 +60,8 @@ fn basic_graph_without_self_loops() -> LGraphRef {
     let n2 = node(&graph);
     ports(&n2, 0, 0, 0, 1);
 
-    let n1_port = n1.lock().expect("n1 lock").ports()[0].clone();
-    let n2_port = n2.lock().expect("n2 lock").ports()[0].clone();
+    let n1_port = n1.lock().ports()[0].clone();
+    let n2_port = n2.lock().ports()[0].clone();
     let _ = edge(&n1_port, &n2_port);
 
     graph
@@ -82,10 +82,9 @@ struct TestGraph {
 impl TestGraph {
     fn new(port_constraints: PortConstraints) -> Self {
         let graph = basic_graph_without_self_loops();
-        let self_loop_node = graph.lock().expect("graph lock").layerless_nodes()[1].clone();
+        let self_loop_node = graph.lock().layerless_nodes()[1].clone();
         {
-            let mut node_guard = self_loop_node.lock().expect("self loop node lock");
-            node_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(port_constraints));
+            let mut node_guard = self_loop_node.lock();            node_guard.set_property(LayeredOptions::PORT_CONSTRAINTS, Some(port_constraints));
             node_guard.shape().size().x = 50.0;
             node_guard.shape().size().y = 50.0;
         }
@@ -93,8 +92,7 @@ impl TestGraph {
         ports(&self_loop_node, 2, 2, 2, 1);
 
         let (node_width, node_height, all_ports) = {
-            let mut node_guard = self_loop_node.lock().expect("self loop node lock");
-            let width = node_guard.shape().size_ref().x;
+            let mut node_guard = self_loop_node.lock();            let width = node_guard.shape().size_ref().x;
             let height = node_guard.shape().size_ref().y;
             let ports = node_guard.ports().clone();
             (width, height, ports)
@@ -105,9 +103,8 @@ impl TestGraph {
         let mut south = 10.0;
         let mut west = 10.0;
         for port in &all_ports {
-            let side = port.lock().expect("port lock").side();
-            let mut port_guard = port.lock().expect("port lock");
-            match side {
+            let side = port.lock().side();
+            let mut port_guard = port.lock();            match side {
                 PortSide::North => {
                     port_guard.shape().position().x = north;
                     port_guard.shape().position().y = 0.0;
@@ -134,7 +131,7 @@ impl TestGraph {
 
         let ports = self_loop_node
             .lock()
-            .expect("self loop node lock")
+            
             .ports()
             .clone();
         assert_eq!(8, ports.len());
@@ -164,18 +161,18 @@ fn run_preprocessor(graph: &LGraphRef) {
     LayoutMetaDataService::get_instance();
     let mut preprocessor = SelfLoopPreProcessor;
     let mut monitor = NullElkProgressMonitor;
-    preprocessor.process(&mut graph.lock().expect("graph lock"), &mut monitor);
+    preprocessor.process(&mut graph.lock(), &mut monitor);
 }
 
 fn test_hidden_edges(test_graph: &TestGraph) {
     let connected_edges = test_graph
         .self_loop_node
         .lock()
-        .expect("self loop node lock")
+        
         .connected_edges();
 
     for ledge in &connected_edges {
-        assert!(!ledge.lock().expect("edge lock").is_self_loop());
+        assert!(!ledge.lock().is_self_loop());
     }
     assert!(!connected_edges.is_empty());
 }
@@ -187,7 +184,7 @@ fn test_ports_hidden(port_constraints: PortConstraints) {
     let remaining_ports = test_graph
         .self_loop_node
         .lock()
-        .expect("self loop node lock")
+        
         .ports()
         .clone();
     assert_eq!(
@@ -214,7 +211,7 @@ fn test_ports_untouched(port_constraints: PortConstraints) {
     let remaining_ports = test_graph
         .self_loop_node
         .lock()
-        .expect("self loop node lock")
+        
         .ports()
         .clone();
     assert_eq!(

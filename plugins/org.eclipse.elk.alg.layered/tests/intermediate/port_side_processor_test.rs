@@ -18,7 +18,7 @@ fn graph_with_layer() -> (LGraphRef, Arc<Mutex<Layer>>) {
     let layer = Layer::new(&graph);
     graph
         .lock()
-        .expect("graph lock")
+        
         .layers_mut()
         .push(layer.clone());
     (graph, layer)
@@ -33,8 +33,7 @@ fn add_node(graph: &LGraphRef, layer: &Arc<Mutex<Layer>>) -> LNodeRef {
 fn add_port(node: &LNodeRef, side: PortSide) -> LPortRef {
     let port = LPort::new();
     {
-        let mut port_guard = port.lock().expect("port lock");
-        port_guard.set_side(side);
+        let mut port_guard = port.lock();        port_guard.set_side(side);
     }
     LPort::set_node(&port, Some(node.clone()));
     port
@@ -49,8 +48,7 @@ fn connect(source: &LPortRef, target: &LPortRef) {
 fn run_processor(graph: &LGraphRef) {
     let mut processor = PortSideProcessor;
     let mut monitor = NullElkProgressMonitor;
-    let mut graph_guard = graph.lock().expect("graph lock");
-    processor.process(&mut graph_guard, &mut monitor);
+    let mut graph_guard = graph.lock();    processor.process(&mut graph_guard, &mut monitor);
 }
 
 #[test]
@@ -60,8 +58,7 @@ fn port_side_processor_assigns_sides_and_fixes_constraints() {
     let other = add_node(&graph, &layer);
 
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.set_property(
+        let mut node_guard = node.lock();        node_guard.set_property(
             LayeredOptions::PORT_CONSTRAINTS,
             Some(PortConstraints::Free),
         );
@@ -78,12 +75,12 @@ fn port_side_processor_assigns_sides_and_fixes_constraints() {
 
     let constraints = node
         .lock()
-        .expect("node lock")
+        
         .get_property(LayeredOptions::PORT_CONSTRAINTS)
         .unwrap_or(PortConstraints::Undefined);
     assert_eq!(constraints, PortConstraints::FixedSide);
-    assert_eq!(out_port.lock().expect("port lock").side(), PortSide::East);
-    assert_eq!(in_port.lock().expect("port lock").side(), PortSide::West);
+    assert_eq!(out_port.lock().side(), PortSide::East);
+    assert_eq!(in_port.lock().side(), PortSide::West);
 }
 
 #[test]
@@ -91,8 +88,7 @@ fn port_side_processor_only_fills_undefined_ports_when_side_fixed() {
     let (graph, layer) = graph_with_layer();
     let node = add_node(&graph, &layer);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.set_property(
+        let mut node_guard = node.lock();        node_guard.set_property(
             LayeredOptions::PORT_CONSTRAINTS,
             Some(PortConstraints::FixedSide),
         );
@@ -103,9 +99,9 @@ fn port_side_processor_only_fills_undefined_ports_when_side_fixed() {
 
     run_processor(&graph);
 
-    assert_eq!(fixed.lock().expect("fixed lock").side(), PortSide::North);
+    assert_eq!(fixed.lock().side(), PortSide::North);
     assert_ne!(
-        undefined.lock().expect("undefined lock").side(),
+        undefined.lock().side(),
         PortSide::Undefined
     );
 }
@@ -115,8 +111,7 @@ fn port_side_processor_prefers_port_dummy_external_side() {
     let (graph, layer) = graph_with_layer();
     let node = add_node(&graph, &layer);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.set_property(
+        let mut node_guard = node.lock();        node_guard.set_property(
             LayeredOptions::PORT_CONSTRAINTS,
             Some(PortConstraints::Free),
         );
@@ -124,15 +119,13 @@ fn port_side_processor_prefers_port_dummy_external_side() {
 
     let dummy = add_node(&graph, &layer);
     {
-        let mut dummy_guard = dummy.lock().expect("dummy lock");
-        dummy_guard.set_property(InternalProperties::EXT_PORT_SIDE, Some(PortSide::South));
+        let mut dummy_guard = dummy.lock();        dummy_guard.set_property(InternalProperties::EXT_PORT_SIDE, Some(PortSide::South));
     }
     let port = add_port(&node, PortSide::Undefined);
     {
-        let mut port_guard = port.lock().expect("port lock");
-        port_guard.set_property(InternalProperties::PORT_DUMMY, Some(dummy.clone()));
+        let mut port_guard = port.lock();        port_guard.set_property(InternalProperties::PORT_DUMMY, Some(dummy.clone()));
     }
 
     run_processor(&graph);
-    assert_eq!(port.lock().expect("port lock").side(), PortSide::South);
+    assert_eq!(port.lock().side(), PortSide::South);
 }

@@ -40,8 +40,7 @@ fn graph_properties_include_end_labels() {
 
     let graph_props = lgraph
         .lock()
-        .ok()
-        .and_then(|mut guard| guard.get_property(InternalProperties::GRAPH_PROPERTIES))
+        .get_property(InternalProperties::GRAPH_PROPERTIES)
         .unwrap_or_else(EnumSet::none_of);
 
     assert!(graph_props.contains(&GraphProperties::EndLabels));

@@ -15,7 +15,8 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, Random};
 
 fn new_graph() -> LGraphRef {
     let graph = LGraph::new();
-    if let Ok(mut graph_guard) = graph.lock() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.set_property(LayeredOptions::EDGE_ROUTING, Some(EdgeRouting::Orthogonal));
         graph_guard.set_property(
             LayeredOptions::HIERARCHY_HANDLING,
@@ -28,7 +29,8 @@ fn new_graph() -> LGraphRef {
 
 fn make_layer(graph: &LGraphRef) -> LayerRef {
     let layer = Layer::new(graph);
-    if let Ok(mut graph_guard) = graph.lock() {
+    {
+        let mut graph_guard = graph.lock();
         graph_guard.layers_mut().push(layer.clone());
     }
     layer
@@ -52,7 +54,8 @@ fn add_nodes_to_layer(graph: &LGraphRef, layer: &LayerRef, count: usize) -> Vec<
 
 fn add_port_on_side(node: &LNodeRef, side: PortSide) -> LPortRef {
     let port = LPort::new();
-    if let Ok(mut port_guard) = port.lock() {
+    {
+        let mut port_guard = port.lock();
         port_guard.set_side(side);
     }
     LPort::set_node(&port, Some(node.clone()));
@@ -89,13 +92,15 @@ fn self_loop_on(node: &LNodeRef, side: PortSide) {
 }
 
 fn set_fixed_order_constraint(node: &LNodeRef) {
-    if let Ok(mut node_guard) = node.lock() {
+    {
+        let mut node_guard = node.lock();
         node_guard.set_property(
             LayeredOptions::PORT_CONSTRAINTS,
             Some(PortConstraints::FixedOrder),
         );
         if let Some(graph) = node_guard.graph() {
-            if let Ok(mut graph_guard) = graph.lock() {
+            {
+                let mut graph_guard = graph.lock();
                 let mut props = graph_guard
                     .get_property(InternalProperties::GRAPH_PROPERTIES)
                     .unwrap_or_else(EnumSet::none_of);
@@ -108,15 +113,19 @@ fn set_fixed_order_constraint(node: &LNodeRef) {
 
 fn assign_ids(graph: &LGraphRef) -> usize {
     let mut port_id = 0usize;
-    if let Ok(graph_guard) = graph.lock() {
+    {
+        let graph_guard = graph.lock();
         for (layer_idx, layer) in graph_guard.layers().iter().enumerate() {
-            if let Ok(mut layer_guard) = layer.lock() {
+            {
+                let mut layer_guard = layer.lock();
                 layer_guard.graph_element().id = layer_idx as i32;
                 for (node_idx, node) in layer_guard.nodes().iter().enumerate() {
-                    if let Ok(mut node_guard) = node.lock() {
+                    {
+                        let mut node_guard = node.lock();
                         node_guard.shape().graph_element().id = node_idx as i32;
                         for port in node_guard.ports_mut() {
-                            if let Ok(mut port_guard) = port.lock() {
+                            {
+                                let mut port_guard = port.lock();
                                 port_guard.shape().graph_element().id = port_id as i32;
                             }
                             port_id += 1;
@@ -142,14 +151,15 @@ impl InLayerCrossingHarness {
         let total_ports = assign_ids(graph);
         let node_order = graph
             .lock()
-            .expect("graph lock")
+            
             .to_node_array()
             .get(layer_index)
             .cloned()
             .expect("layer index");
 
         for (idx, node) in node_order.iter().enumerate() {
-            if let Ok(mut node_guard) = node.lock() {
+            {
+                let mut node_guard = node.lock();
                 node_guard.shape().graph_element().id = idx as i32;
             }
         }
@@ -268,8 +278,8 @@ fn graph_cross_with_many_self_loops() -> LGraphRef {
     let top_left_port = add_port_on_side(&left_nodes[0], PortSide::East);
     let bottom_left_port = add_port_on_side(&left_nodes[1], PortSide::East);
 
-    for layer in graph.lock().expect("graph lock").layers().clone() {
-        let nodes = layer.lock().expect("layer lock").nodes().clone();
+    for layer in graph.lock().layers().clone() {
+        let nodes = layer.lock().nodes().clone();
         for node in nodes {
             self_loop_on(&node, PortSide::East);
             self_loop_on(&node, PortSide::East);

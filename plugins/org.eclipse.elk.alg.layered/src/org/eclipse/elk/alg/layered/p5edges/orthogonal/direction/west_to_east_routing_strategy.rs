@@ -1,7 +1,7 @@
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 
-use crate::org::eclipse::elk::alg::layered::graph::LPortRef;
+use crate::org::eclipse::elk::alg::layered::graph::{ArenaSync, LPortRef};
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::hyper_edge_segment::HyperEdgeSegment;
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::orthogonal_routing_generator::OrthogonalRoutingGenerator;
 use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::direction::base_routing_direction_strategy::BaseRoutingDirectionStrategy;
@@ -18,16 +18,10 @@ impl WestToEastRoutingStrategy {
     }
 
     pub fn get_port_position_on_hyper_node(&self, port: &LPortRef) -> f64 {
-        let Ok(mut port_guard) = port.lock() else {
-            return 0.0;
-        };
+        let mut port_guard = port.lock();
         let node_pos_y = port_guard
             .node()
-            .and_then(|node| {
-                node.lock()
-                    .ok()
-                    .map(|mut node_guard| node_guard.shape().position_ref().y)
-            })
+            .map(|node| node.lock().shape().position_ref().y)
             .unwrap_or(0.0);
         let port_pos_y = port_guard.shape().position_ref().y;
         let anchor_y = port_guard.anchor_ref().y;
@@ -47,18 +41,23 @@ impl WestToEastRoutingStrategy {
         segment: &HyperEdgeSegment,
         start_pos: f64,
         edge_spacing: f64,
+        sync: &ArenaSync,
     ) {
         if segment.is_dummy() {
             return;
         }
 
+        let arena = sync.arena();
         let segment_x = start_pos + segment.routing_slot() as f64 * edge_spacing;
         for port in segment.ports() {
-            // Single lock to get both anchor and outgoing edges
-            let (source_y, outgoing_edges) = {
-                let Ok(port_guard) = port.lock() else {
-                    continue;
-                };
+            // Use arena for port anchor; fall back to lock if port not in arena
+            let (source_y, outgoing_edges) = if let Some(pid) = sync.port_id(port) {
+                let anchor_y = arena.port_absolute_anchor(pid).y;
+                let edge_ids = arena.port_outgoing_edges(pid);
+                let edges: Vec<_> = edge_ids.iter().map(|&eid| sync.edge_ref(eid).clone()).collect();
+                (anchor_y, edges)
+            } else {
+                let port_guard = port.lock();
                 let anchor_y = port_guard
                     .absolute_anchor()
                     .map(|a| a.y)
@@ -68,20 +67,24 @@ impl WestToEastRoutingStrategy {
             };
 
             for edge in outgoing_edges {
-                // Single lock to get is_self_loop + target + absolute_anchor
-                let (is_self_loop, target_y) = {
-                    let Ok(edge_guard) = edge.lock() else {
-                        continue;
-                    };
+                // Use arena for edge target anchor
+                let (is_self_loop, target_y) = if let Some(eid) = sync.edge_id(&edge) {
+                    let src_pid = arena.edge_source(eid);
+                    let tgt_pid = arena.edge_target(eid);
+                    if src_pid == tgt_pid {
+                        (true, 0.0)
+                    } else {
+                        (false, arena.port_absolute_anchor(tgt_pid).y)
+                    }
+                } else {
+                    let edge_guard = edge.lock();
                     if edge_guard.is_self_loop() {
                         (true, 0.0)
                     } else {
                         let ty = edge_guard
                             .target()
                             .and_then(|t| {
-                                t.lock()
-                                    .ok()
-                                    .and_then(|port_guard| port_guard.absolute_anchor())
+                                t.lock().absolute_anchor()
                                     .map(|anchor| anchor.y)
                             })
                             .unwrap_or(0.0);
@@ -94,9 +97,7 @@ impl WestToEastRoutingStrategy {
 
                 if (source_y - target_y).abs() > OrthogonalRoutingGenerator::TOLERANCE {
                     // Single edge lock for ALL bend points + junction points
-                    let Ok(mut edge_guard) = edge.lock() else {
-                        continue;
-                    };
+                    let mut edge_guard = edge.lock();
 
                     let mut current_x = segment_x;
                     let mut current_segment = None;

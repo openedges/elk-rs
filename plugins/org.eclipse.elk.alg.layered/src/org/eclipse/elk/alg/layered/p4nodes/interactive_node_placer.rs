@@ -5,7 +5,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configu
 use org_eclipse_elk_core::org::eclipse::elk::core::util::IElkProgressMonitor;
 
 use crate::org::eclipse::elk::alg::layered::graph::l_node::NodeType;
-use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LNodeRef};
+use crate::org::eclipse::elk::alg::layered::graph::{ArenaSync, LGraph, NodeId};
 use crate::org::eclipse::elk::alg::layered::intermediate::IntermediateProcessorStrategy;
 use crate::org::eclipse::elk::alg::layered::options::{
     GraphProperties, InternalProperties, Spacings,
@@ -47,15 +47,16 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveNodePlacer {
                 panic!("Missing spacings configuration for interactive node placement");
             });
 
-        let layers = graph.layers().clone();
-        for layer_ref in layers {
-            let nodes = layer_ref
-                .lock()
-                .ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
-            place_nodes(&nodes, &spacings);
+        let mut sync = ArenaSync::from_lgraph(graph);
+
+        let layer_ids: Vec<_> = sync.arena().all_layer_ids().collect();
+        for layer_id in layer_ids {
+            let node_ids: Vec<_> = sync.arena().layer_nodes(layer_id).to_vec();
+            place_nodes(&mut sync, &node_ids, &spacings);
         }
+
+        // Sync node positions back to Arc graph
+        sync.sync_positions_to_graph();
 
         monitor.done();
     }
@@ -65,7 +66,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveNodePlacer {
         graph: &LGraph,
     ) -> Option<LayoutProcessorConfiguration<LayeredPhases, LGraph>> {
         if graph
-            .get_property_ref(InternalProperties::GRAPH_PROPERTIES)
+            .get_property(InternalProperties::GRAPH_PROPERTIES)
             .is_some_and(|props| props.contains(&GraphProperties::ExternalPorts))
         {
             Some(LayoutProcessorConfiguration::create_from(
@@ -77,38 +78,38 @@ impl ILayoutPhase<LayeredPhases, LGraph> for InteractiveNodePlacer {
     }
 }
 
-fn place_nodes(nodes: &[LNodeRef], spacings: &Spacings) {
+fn place_nodes(sync: &mut ArenaSync, node_ids: &[NodeId], spacings: &Spacings) {
     let mut min_valid_y = f64::NEG_INFINITY;
     let mut prev_node_type = NodeType::Normal;
 
-    for node in nodes {
-        if let Ok(mut node_guard) = node.lock() {
-            let node_type = node_guard.node_type();
-            let spacing = spacings.get_vertical_spacing_for_types(node_type, prev_node_type);
+    for &nid in node_ids {
+        let node_type = sync.arena().node_type(nid);
+        let spacing = spacings.get_vertical_spacing_for_types(node_type, prev_node_type);
 
-            let mut pos_y = node_guard.shape().position_ref().y;
-            if node_type != NodeType::Normal {
-                let original =
-                    node_guard.get_property(InternalProperties::ORIGINAL_DUMMY_NODE_POSITION);
-                if let Some(original) = original {
-                    pos_y = original;
-                } else {
-                    min_valid_y = min_valid_y.max(0.0);
-                    pos_y = min_valid_y + spacing;
-                }
+        let mut pos_y = sync.arena().node_pos(nid).y;
+        if node_type != NodeType::Normal {
+            let original: Option<f64> = sync
+                .arena()
+                .node_properties(nid)
+                .get_property(InternalProperties::ORIGINAL_DUMMY_NODE_POSITION);
+            if let Some(original) = original {
+                pos_y = original;
+            } else {
+                min_valid_y = min_valid_y.max(0.0);
+                pos_y = min_valid_y + spacing;
             }
-
-            let margin_top = node_guard.margin().top;
-            let margin_bottom = node_guard.margin().bottom;
-            let size_y = node_guard.shape().size_ref().y;
-
-            if pos_y < min_valid_y + spacing + margin_top {
-                pos_y = min_valid_y + spacing + margin_top;
-            }
-
-            node_guard.shape().position().y = pos_y;
-            min_valid_y = pos_y + size_y + margin_bottom;
-            prev_node_type = node_type;
         }
+
+        let margin_top = sync.arena().node_margin(nid).top;
+        let margin_bottom = sync.arena().node_margin(nid).bottom;
+        let size_y = sync.arena().node_size(nid).y;
+
+        if pos_y < min_valid_y + spacing + margin_top {
+            pos_y = min_valid_y + spacing + margin_top;
+        }
+
+        sync.arena_mut().node_pos_mut(nid).y = pos_y;
+        min_valid_y = pos_y + size_y + margin_bottom;
+        prev_node_type = node_type;
     }
 }

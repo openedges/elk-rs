@@ -12,27 +12,14 @@ pub struct AngleRotation;
 
 impl IRadialRotator for AngleRotation {
     fn rotate(&mut self, graph: &ElkNodeRef) {
-        let mut target_angle = {
+        // Single borrow: read both rotation properties
+        let (mut target_angle, compute_additional) = {
             let mut graph_mut = graph.borrow_mut();
-            graph_mut
-                .connectable()
-                .shape()
-                .graph_element()
-                .properties_mut()
-                .get_property(RadialOptions::ROTATION_TARGET_ANGLE)
-        }
-        .unwrap_or(0.0);
-
-        let compute_additional = {
-            let mut graph_mut = graph.borrow_mut();
-            graph_mut
-                .connectable()
-                .shape()
-                .graph_element()
-                .properties_mut()
-                .get_property(RadialOptions::ROTATION_COMPUTE_ADDITIONAL_WEDGE_SPACE)
-        }
-        .unwrap_or(false);
+            let props = graph_mut.connectable().shape().graph_element().properties_mut();
+            let angle = props.get_property(RadialOptions::ROTATION_TARGET_ANGLE).unwrap_or(0.0);
+            let compute = props.get_property(RadialOptions::ROTATION_COMPUTE_ADDITIONAL_WEDGE_SPACE).unwrap_or(false);
+            (angle, compute)
+        };
 
         if compute_additional {
             if let Some(root) = RadialUtil::root_from_graph(graph) {

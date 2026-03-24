@@ -1,22 +1,15 @@
 use std::any::Any;
 use std::cmp::Ordering;
 use rustc_hash::FxHashMap;
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 use std::time::Instant;
 
-static TRACE_PORT_RANKS: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_PORT_RANKS").is_some());
-static TRACE_CROSSMIN: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN").is_some());
-static TRACE_CROSSMIN_TIMING: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN_TIMING").is_some());
-static TRACE_BARYCENTER_LAYER_PATTERN: LazyLock<Option<String>> =
-    LazyLock::new(|| std::env::var("ELK_TRACE_BARYCENTER_LAYER_PATTERN").ok());
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::util::Random;
 use crate::org::eclipse::elk::alg::layered::p3order::random_trace;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LNodeRef, LPortRef, NodeType};
+use crate::org::eclipse::elk::alg::layered::graph::{ArenaSync, LNodeRef, LPortRef, NodeType};
 use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, PortType};
 use crate::org::eclipse::elk::alg::layered::p3order::barycenter_port_distributor::BarycenterPortDistributor;
 use crate::org::eclipse::elk::alg::layered::p3order::counting::IInitializable;
@@ -30,6 +23,7 @@ pub struct BarycenterHeuristic {
     pub(crate) port_distributor: Box<dyn BarycenterPortDistributor>,
     pub sweep_iteration: usize,
     snapshot: Option<Arc<CrossMinSnapshot>>,
+    arena_sync: Option<Arc<ArenaSync>>,
     /// Reusable buffer for flat→node lookup in calculate_barycenters (avoids HashMap alloc per call).
     flat_to_node_buf: FxHashMap<u32, LNodeRef>,
 }
@@ -45,6 +39,7 @@ impl BarycenterHeuristic {
             port_distributor,
             sweep_iteration: 0,
             snapshot: None,
+            arena_sync: None,
             flat_to_node_buf: FxHashMap::default(),
         }
     }
@@ -53,6 +48,11 @@ impl BarycenterHeuristic {
         self.port_distributor.set_snapshot(snapshot.clone());
         self.constraint_resolver.set_snapshot(snapshot.clone());
         self.snapshot = Some(snapshot);
+    }
+
+    pub fn set_arena_sync(&mut self, sync: Arc<ArenaSync>) {
+        self.constraint_resolver.set_arena_sync(sync.clone());
+        self.arena_sync = Some(sync);
     }
 
     #[inline]
@@ -113,11 +113,10 @@ impl BarycenterHeuristic {
         for node in nodes {
             let raw = random.next_double();
             let value = if random_trace::is_enabled() {
-                let node_label = node
-                    .lock()
-                    .ok()
-                    .map(|mut g| format!("id:{}", g.shape().graph_element().id))
-                    .unwrap_or_else(|| "<locked>".into());
+                let node_label = {
+                    let mut g = node.lock();
+                    format!("id:{}", g.shape().graph_element().id)
+                };
                 random_trace::trace_next_double(
                     raw,
                     &format!("barycenter::randomize_barycenters node={node_label}"),
@@ -187,11 +186,10 @@ impl BarycenterHeuristic {
                 if bary.is_none() {
                     let raw_f = random.next_float();
                     let raw_f = if random_trace::is_enabled() {
-                        let node_label = node
-                            .lock()
-                            .ok()
-                            .map(|mut g| format!("id:{}", g.shape().graph_element().id))
-                            .unwrap_or_else(|| "<locked>".into());
+                        let node_label = {
+                            let mut g = node.lock();
+                            format!("id:{}", g.shape().graph_element().id)
+                        };
                         random_trace::trace_next_float(
                             raw_f,
                             &format!("barycenter::fill_in_unknown_barycenters node={node_label}"),
@@ -278,10 +276,13 @@ impl BarycenterHeuristic {
             state.barycenter = None;
         }
 
-        let trace_cm = *TRACE_CROSSMIN;
+        let trace_cm = ElkTrace::global().crossmin;
         let node_name = if trace_cm {
             flat_to_node.get(&flat)
-                .and_then(|n| n.lock().ok().map(|mut g| format!("id:{}", g.shape().graph_element().id)))
+                .map(|n| {
+                    let mut g = n.lock();
+                    format!("id:{}", g.shape().graph_element().id)
+                })
                 .unwrap_or_else(|| "<unknown>".into())
         } else {
             String::new()
@@ -329,11 +330,16 @@ impl BarycenterHeuristic {
             }
         }
 
-        // Handle BARYCENTER_ASSOCIATES (requires one lock per node, not per port)
+        // Handle BARYCENTER_ASSOCIATES — arena path avoids lock
         let associates = flat_to_node.get(&flat).and_then(|node| {
-            node.lock().ok().and_then(|mut node_guard| {
-                node_guard.get_property(InternalProperties::BARYCENTER_ASSOCIATES)
-            })
+            if let Some(ref sync) = self.arena_sync {
+                if let Some(nid) = sync.node_id(node) {
+                    return sync.arena().node_properties(nid)
+                        .get_property(InternalProperties::BARYCENTER_ASSOCIATES);
+                }
+            }
+            let node_guard = node.lock();
+            node_guard.get_property(InternalProperties::BARYCENTER_ASSOCIATES)
         });
         if let Some(associates) = associates {
             for associate in associates {
@@ -384,7 +390,7 @@ impl BarycenterHeuristic {
 
     /// Lock-based barycenter calculation — fallback when snapshot is not available.
     fn calculate_barycenter_lock(&mut self, node: &LNodeRef, forward: bool, port_ranks: &[f64], random: &mut Random) {
-        let trace_cm = *TRACE_CROSSMIN;
+        let trace_cm = ElkTrace::global().crossmin;
         let li = self.layer_index_of(node);
         let ni = self.node_id_of(node);
 
@@ -399,29 +405,24 @@ impl BarycenterHeuristic {
         }
 
         let node_name = if trace_cm {
-            node.lock()
-                .ok()
-                .map(|mut g| format!("id:{}", g.shape().graph_element().id))
-                .unwrap_or_else(|| "<locked>".into())
+            let mut g = node.lock();
+            format!("id:{}", g.shape().graph_element().id)
         } else {
             String::new()
         };
 
         let ports = node
-            .lock()
-            .ok()
-            .map(|node_guard| node_guard.ports().clone())
-            .unwrap_or_default();
+            .lock().ports().clone();
 
         for free_port in ports {
             let port_iter = if forward {
-                free_port.lock().ok().map(|port_guard| port_guard.predecessor_ports()).unwrap_or_default()
+                free_port.lock().predecessor_ports()
             } else {
-                free_port.lock().ok().map(|port_guard| port_guard.successor_ports()).unwrap_or_default()
+                free_port.lock().successor_ports()
             };
 
             for fixed_port in port_iter {
-                let fixed_node = fixed_port.lock().ok().and_then(|port_guard| port_guard.node());
+                let fixed_node = fixed_port.lock().node();
                 let Some(fixed_node) = fixed_node else { continue; };
 
                 if self.same_layer_check(&fixed_node, node) {
@@ -441,9 +442,10 @@ impl BarycenterHeuristic {
                     let pid = self.port_id_of(&fixed_port);
                     let rank = port_ranks.get(pid).copied().unwrap_or(0.0);
                     if trace_cm {
-                        let fp_name = fixed_port.lock().ok()
-                            .map(|mut g| format!("pid:{}", g.shape().graph_element().id))
-                            .unwrap_or_else(|| "<locked>".into());
+                        let fp_name = {
+                            let mut g = fixed_port.lock();
+                            format!("pid:{}", g.shape().graph_element().id)
+                        };
                         eprintln!(
                             "[CROSSMIN] calc_bary: node={} fixed_port={} port_id={} rank={}",
                             node_name, fp_name, pid, rank
@@ -457,9 +459,16 @@ impl BarycenterHeuristic {
             }
         }
 
-        let associates = node.lock().ok().and_then(|mut node_guard| {
-            node_guard.get_property(InternalProperties::BARYCENTER_ASSOCIATES)
-        });
+        let associates = if let Some(ref sync) = self.arena_sync {
+            if let Some(nid) = sync.node_id(node) {
+                sync.arena().node_properties(nid)
+                    .get_property(InternalProperties::BARYCENTER_ASSOCIATES)
+            } else {
+                node.lock().get_property(InternalProperties::BARYCENTER_ASSOCIATES)
+            }
+        } else {
+            node.lock().get_property(InternalProperties::BARYCENTER_ASSOCIATES)
+        };
         if let Some(associates) = associates {
             for associate in associates {
                 if self.same_layer_check(&associate, node) {
@@ -514,8 +523,8 @@ impl BarycenterHeuristic {
         forward: bool,
         random: &mut Random,
     ) {
-        let trace = *TRACE_CROSSMIN_TIMING;
-        let trace_pr = *TRACE_PORT_RANKS && self.sweep_iteration == 0;
+        let trace = ElkTrace::global().crossmin_timing;
+        let trace_pr = ElkTrace::global().port_ranks && self.sweep_iteration == 0;
         let start = if trace { Some(Instant::now()) } else { None };
         if randomize {
             self.randomize_barycenters(layer, random);
@@ -535,11 +544,10 @@ impl BarycenterHeuristic {
             // Trace barycenters after computation
             let layer_idx = self.layer_index_of(layer.first().unwrap());
             for node in layer.iter() {
-                let node_id = node
-                    .lock()
-                    .ok()
-                    .map(|mut g| g.shape().graph_element().id)
-                    .unwrap_or(-1);
+                let node_id = {
+                    let mut g = node.lock();
+                    g.shape().graph_element().id
+                };
                 let tli = self.layer_index_of(node);
                 let tni = self.node_id_of(node);
                 let (barycenter, summed_weight, degree) = self
@@ -556,10 +564,8 @@ impl BarycenterHeuristic {
             let node_ids_before: Vec<i32> = layer
                 .iter()
                 .map(|n| {
-                    n.lock()
-                        .ok()
-                        .map(|mut g| g.shape().graph_element().id)
-                        .unwrap_or(-1)
+                    let mut g = n.lock();
+                    g.shape().graph_element().id
                 })
                 .collect();
             let ids_str_before: Vec<String> =
@@ -571,13 +577,11 @@ impl BarycenterHeuristic {
             );
         }
 
-        let trace_layer_pattern = TRACE_BARYCENTER_LAYER_PATTERN.clone();
+        let trace_layer_pattern = ElkTrace::global().barycenter_layer_pattern.clone();
         if trace_layer_pattern.as_ref().is_some_and(|pattern| {
             layer.iter().any(|node| {
-                node.lock()
-                    .ok()
-                    .map(|mut node_guard| node_guard.to_string().contains(pattern))
-                    .unwrap_or(false)
+                let node_guard = node.lock();
+                node_guard.to_string().contains(pattern)
             })
         }) {
             eprintln!(
@@ -585,11 +589,10 @@ impl BarycenterHeuristic {
                 pre_ordered, randomize, forward
             );
             for (index, node) in layer.iter().enumerate() {
-                let name = node
-                    .lock()
-                    .ok()
-                    .map(|mut node_guard| node_guard.to_string())
-                    .unwrap_or_else(|| "<poisoned-node>".to_owned());
+                let name = {
+                    let node_guard = node.lock();
+                    node_guard.to_string()
+                };
                 let tli = self.layer_index_of(node);
                 let tni = self.node_id_of(node);
                 let (barycenter, degree, summed_weight) = self
@@ -632,10 +635,8 @@ impl BarycenterHeuristic {
             let node_ids_after: Vec<i32> = layer
                 .iter()
                 .map(|n| {
-                    n.lock()
-                        .ok()
-                        .map(|mut g| g.shape().graph_element().id)
-                        .unwrap_or(-1)
+                    let mut g = n.lock();
+                    g.shape().graph_element().id
                 })
                 .collect();
             let ids_str_after: Vec<String> =
@@ -647,11 +648,14 @@ impl BarycenterHeuristic {
             );
         }
 
-        if *TRACE_CROSSMIN {
+        if ElkTrace::global().crossmin {
             let li = layer
                 .first()
-                .and_then(|n| n.lock().ok().and_then(|ng| ng.layer()))
-                .and_then(|l| l.lock().ok().map(|mut lg| lg.graph_element().id))
+                .and_then(|n| n.lock().layer())
+                .map(|l| {
+                    let mut lg = l.lock();
+                    lg.graph_element().id
+                })
                 .unwrap_or(-1);
             eprintln!(
                 "[CROSSMIN] minimize_crossings_layer: layer={} forward={} nodes={}",
@@ -665,13 +669,10 @@ impl BarycenterHeuristic {
                 let (name, bary, deg, sw) = self
                     .bary_state(tli, tni)
                     .map(|sg| {
-                        let nm = node
-                            .lock()
-                            .ok()
-                            .map(|mut g| {
-                                format!("id:{}", g.shape().graph_element().id)
-                            })
-                            .unwrap_or_else(|| "<locked>".into());
+                        let nm = {
+                            let mut g = node.lock();
+                            format!("id:{}", g.shape().graph_element().id)
+                        };
                         (nm, sg.barycenter, sg.degree, sg.summed_weight)
                     })
                     .unwrap_or(("<no_state>".into(), None, 0, 0.0));
@@ -687,10 +688,8 @@ impl BarycenterHeuristic {
         if let Some(ref snap) = self.snapshot {
             snap.node_type_of(snap.node_flat_index(node)) == NodeType::ExternalPort
         } else {
-            node.lock()
-                .ok()
-                .map(|node_guard| node_guard.node_type() == NodeType::ExternalPort)
-                .unwrap_or(false)
+            let node_guard = node.lock();
+            node_guard.node_type() == NodeType::ExternalPort
         }
     }
 
@@ -792,11 +791,10 @@ impl IInitializable for BarycenterHeuristic {
             .init_at_layer_level(layer_index, node_order);
         if let Some(first_node) = node_order[layer_index].first() {
             if let Some(layer) = first_node
-                .lock()
-                .ok()
-                .and_then(|node_guard| node_guard.layer())
+                .lock().layer()
             {
-                if let Ok(mut layer_guard) = layer.lock() {
+                {
+                    let mut layer_guard = layer.lock();
                     layer_guard.graph_element().id = layer_index as i32;
                 }
             }
@@ -873,16 +871,15 @@ impl BarycenterState {
 const RANDOM_AMOUNT: f64 = 0.07_f32 as f64;
 
 fn node_id(node: &LNodeRef) -> usize {
-    node.lock()
-        .ok()
-        .map(|mut node_guard| node_guard.shape().graph_element().id as usize)
-        .unwrap_or(0)
+    let mut node_guard = node.lock();
+    node_guard.shape().graph_element().id as usize
 }
 
 fn layer_index(node: &LNodeRef) -> usize {
-    let layer = node.lock().ok().and_then(|node_guard| node_guard.layer());
+    let layer = node.lock().layer();
     if let Some(layer) = layer {
-        if let Ok(mut layer_guard) = layer.lock() {
+        {
+            let mut layer_guard = layer.lock();
             return layer_guard.graph_element().id as usize;
         }
     }
@@ -890,8 +887,8 @@ fn layer_index(node: &LNodeRef) -> usize {
 }
 
 fn same_layer(left: &LNodeRef, right: &LNodeRef) -> bool {
-    let left_layer = left.lock().ok().and_then(|node_guard| node_guard.layer());
-    let right_layer = right.lock().ok().and_then(|node_guard| node_guard.layer());
+    let left_layer = left.lock().layer();
+    let right_layer = right.lock().layer();
     match (left_layer, right_layer) {
         (Some(left_layer), Some(right_layer)) => Arc::ptr_eq(&left_layer, &right_layer),
         _ => false,
@@ -899,9 +896,7 @@ fn same_layer(left: &LNodeRef, right: &LNodeRef) -> bool {
 }
 
 fn port_id(port: &LPortRef) -> usize {
-    port.lock()
-        .ok()
-        .map(|mut port_guard| port_guard.shape().graph_element().id as usize)
-        .unwrap_or(0)
+    let mut port_guard = port.lock();
+    port_guard.shape().graph_element().id as usize
 }
 

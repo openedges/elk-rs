@@ -3,14 +3,88 @@ use std::borrow::Cow;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
-use std::sync::LazyLock;
-
 use rustc_hash::FxHashMap;
 
-static TRACE_SIZING: LazyLock<bool> =
-    LazyLock::new(|| std::env::var("ELK_TRACE_SIZING").is_ok());
-
 use crate::org::eclipse::elk::graph::util::ElkReflect;
+
+/// Type-safe wrapper for property identifier keys.
+///
+/// Prevents accidental use of arbitrary strings as property map keys.
+/// Cheap to clone for static keys (borrows a `&'static str`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PropertyId(Cow<'static, str>);
+
+impl PropertyId {
+    #[inline]
+    pub fn borrowed(id: &'static str) -> Self {
+        PropertyId(Cow::Borrowed(id))
+    }
+
+    #[inline]
+    pub fn owned(id: impl Into<String>) -> Self {
+        PropertyId(Cow::Owned(id.into()))
+    }
+
+    #[inline]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl Hash for PropertyId {
+    #[inline]
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
+
+impl PartialEq<str> for PropertyId {
+    #[inline]
+    fn eq(&self, other: &str) -> bool {
+        self.as_str() == other
+    }
+}
+
+impl PartialEq<&str> for PropertyId {
+    #[inline]
+    fn eq(&self, other: &&str) -> bool {
+        self.as_str() == *other
+    }
+}
+
+impl std::borrow::Borrow<str> for PropertyId {
+    #[inline]
+    fn borrow(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<&'static str> for PropertyId {
+    #[inline]
+    fn from(s: &'static str) -> Self {
+        PropertyId::borrowed(s)
+    }
+}
+
+impl From<String> for PropertyId {
+    #[inline]
+    fn from(s: String) -> Self {
+        PropertyId::owned(s)
+    }
+}
+
+impl From<PropertyId> for String {
+    #[inline]
+    fn from(id: PropertyId) -> Self {
+        id.0.into_owned()
+    }
+}
+
+impl fmt::Display for PropertyId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 pub trait IPropertyValueProxy: Send + Sync {
     fn resolve_value(&self, property_id: &str) -> Option<Arc<dyn Any + Send + Sync>>;
@@ -62,7 +136,7 @@ impl<T: fmt::Display> fmt::Display for Bound<T> {
 }
 
 pub struct Property<T: Clone + Send + Sync + 'static> {
-    id: Cow<'static, str>,
+    id: PropertyId,
     default_value: Option<T>,
     lower_bound: Bound<T>,
     upper_bound: Bound<T>,
@@ -71,7 +145,7 @@ pub struct Property<T: Clone + Send + Sync + 'static> {
 impl<T: Clone + Send + Sync + 'static> Property<T> {
     pub fn new(id: &'static str) -> Self {
         Property {
-            id: Cow::Borrowed(id),
+            id: PropertyId::borrowed(id),
             default_value: None,
             lower_bound: Bound::negative_infinity(),
             upper_bound: Bound::positive_infinity(),
@@ -86,7 +160,7 @@ impl<T: Clone + Send + Sync + 'static> Property<T> {
 
     pub fn new_owned(id: impl Into<String>) -> Self {
         Property {
-            id: Cow::Owned(id.into()),
+            id: PropertyId::owned(id),
             default_value: None,
             lower_bound: Bound::negative_infinity(),
             upper_bound: Bound::positive_infinity(),
@@ -130,12 +204,12 @@ impl<T: Clone + Send + Sync + 'static> Property<T> {
     }
 
     pub fn id(&self) -> &str {
-        &self.id
+        self.id.as_str()
     }
 
-    /// Get an owned Cow clone of the property id (cheap for static keys).
+    /// Get a cloned PropertyId (cheap for static keys).
     #[inline]
-    pub fn id_cow(&self) -> Cow<'static, str> {
+    pub fn id_key(&self) -> PropertyId {
         self.id.clone()
     }
 
@@ -196,7 +270,7 @@ impl<T: Clone + Send + Sync + 'static> Hash for Property<T> {
 
 #[derive(Clone)]
 pub struct MapPropertyHolder {
-    property_map: FxHashMap<Cow<'static, str>, PropertyValue>,
+    property_map: FxHashMap<PropertyId, PropertyValue>,
 }
 
 impl MapPropertyHolder {
@@ -214,7 +288,7 @@ impl MapPropertyHolder {
         match value {
             Some(value) => {
                 self.property_map.insert(
-                    property.id_cow(),
+                    property.id_key(),
                     PropertyValue::Resolved(Arc::new(value)),
                 );
             }
@@ -231,7 +305,7 @@ impl MapPropertyHolder {
         proxy: Arc<dyn IPropertyValueProxy>,
     ) -> &mut Self {
         self.property_map
-            .insert(Cow::Owned(property_id.into()), PropertyValue::Proxy(proxy));
+            .insert(PropertyId::owned(property_id), PropertyValue::Proxy(proxy));
         self
     }
 
@@ -243,7 +317,7 @@ impl MapPropertyHolder {
         match value {
             Some(value) => {
                 self.property_map
-                    .insert(Cow::Owned(property_id.into()), PropertyValue::Resolved(value));
+                    .insert(PropertyId::owned(property_id), PropertyValue::Resolved(value));
             }
             None => {
                 let key: String = property_id.into();
@@ -253,7 +327,9 @@ impl MapPropertyHolder {
         self
     }
 
-    pub fn get_property<T: Clone + Send + Sync + 'static>(
+    /// Property getter with proxy-resolution caching and default-caching.
+    /// Use only in JSON import/export paths where proxy caching matters.
+    pub fn get_property_cached<T: Clone + Send + Sync + 'static>(
         &mut self,
         property: &Property<T>,
     ) -> Option<T> {
@@ -263,17 +339,13 @@ impl MapPropertyHolder {
                     if let Some(typed_ref) = (**value).downcast_ref::<T>() {
                         return Some(typed_ref.clone());
                     }
-                    if *TRACE_SIZING {
-                        eprintln!("TRACE get_property DOWNCAST FAIL: id={} expected_type={} actual_type_id={:?}",
-                            property.id(), std::any::type_name::<T>(), (**value).type_id());
-                    }
                     return None;
                 }
                 PropertyValue::Proxy(proxy) => {
                     if let Some(resolved) = proxy.resolve_value(property.id()) {
                         let typed_ref = (*resolved).downcast_ref::<T>()?.clone();
                         self.property_map
-                            .insert(property.id_cow(), PropertyValue::Resolved(resolved));
+                            .insert(property.id_key(), PropertyValue::Resolved(resolved));
                         return Some(typed_ref);
                     }
                 }
@@ -289,7 +361,10 @@ impl MapPropertyHolder {
         default_value
     }
 
-    pub fn get_property_immut<T: Clone + Send + Sync + 'static>(
+    /// Primary property getter — read-only, no mutation, no caching.
+    /// Safe for use in `&self` contexts. By layout time all proxies are resolved.
+    #[inline]
+    pub fn get_property<T: Clone + Send + Sync + 'static>(
         &self,
         property: &Property<T>,
     ) -> Option<T> {
@@ -321,7 +396,7 @@ impl MapPropertyHolder {
         self
     }
 
-    pub fn get_all_properties(&self) -> &FxHashMap<Cow<'static, str>, PropertyValue> {
+    pub fn get_all_properties(&self) -> &FxHashMap<PropertyId, PropertyValue> {
         &self.property_map
     }
 

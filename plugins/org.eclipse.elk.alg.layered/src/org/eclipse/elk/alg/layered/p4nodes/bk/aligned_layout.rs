@@ -1,16 +1,16 @@
 use std::fmt;
-use std::sync::LazyLock;
+use std::sync::Arc;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LNodeRef, LPortRef, LayerRef};
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
+
+use crate::org::eclipse::elk::alg::layered::graph::{ArenaSync, LNodeRef, LPortRef, LayerRef};
 use crate::org::eclipse::elk::alg::layered::options::Spacings;
 
 use super::neighborhood_information::NeighborhoodInformation;
 use super::util::{
-    node_id, node_margin_bottom, node_margin_top, node_size_y, port_node_id, port_offset_y,
+    node_id, node_margin_bottom_a, node_margin_top_a, node_size_y_a, port_node_id_a,
+    port_offset_y_a,
 };
-
-static TRACE_BK_GUARD: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_BK_GUARD").is_some());
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum VDirection {
@@ -39,6 +39,7 @@ pub struct BKAlignedLayout {
     pub(crate) layers: Vec<LayerRef>,
     pub(crate) nodes_by_id: Vec<LNodeRef>,
     pub(crate) spacings: Spacings,
+    pub(crate) sync: Arc<ArenaSync>,
 }
 
 impl BKAlignedLayout {
@@ -48,6 +49,7 @@ impl BKAlignedLayout {
         spacings: Spacings,
         vdir: Option<VDirection>,
         hdir: Option<HDirection>,
+        sync: Arc<ArenaSync>,
     ) -> Self {
         let node_count = nodes_by_id.len();
         let mut root = Vec::with_capacity(node_count);
@@ -74,6 +76,7 @@ impl BKAlignedLayout {
             layers,
             nodes_by_id,
             spacings,
+            sync,
         }
     }
 
@@ -97,10 +100,7 @@ impl BKAlignedLayout {
 
         for layer in &self.layers {
             let nodes = layer
-                .lock()
-                .ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
             for node in nodes {
                 let node_id = node_id(&node);
                 let y_min = self.y[node_id].unwrap_or(0.0);
@@ -115,13 +115,13 @@ impl BKAlignedLayout {
     }
 
     pub fn calculate_delta(&self, src: &LPortRef, tgt: &LPortRef) -> f64 {
-        let src_node_id = port_node_id(src);
-        let tgt_node_id = port_node_id(tgt);
+        let src_node_id = port_node_id_a(&self.sync, src);
+        let tgt_node_id = port_node_id_a(&self.sync, tgt);
 
         let src_pos =
-            self.y[src_node_id].unwrap_or(0.0) + self.inner_shift[src_node_id] + port_offset_y(src);
+            self.y[src_node_id].unwrap_or(0.0) + self.inner_shift[src_node_id] + port_offset_y_a(&self.sync, src);
         let tgt_pos =
-            self.y[tgt_node_id].unwrap_or(0.0) + self.inner_shift[tgt_node_id] + port_offset_y(tgt);
+            self.y[tgt_node_id].unwrap_or(0.0) + self.inner_shift[tgt_node_id] + port_offset_y_a(&self.sync, tgt);
         tgt_pos - src_pos
     }
 
@@ -135,7 +135,7 @@ impl BKAlignedLayout {
             self.y[current] = Some(new_pos);
             current = self.align[current];
             if current == root || steps >= max_steps {
-                if steps >= max_steps && *TRACE_BK_GUARD {
+                if steps >= max_steps && ElkTrace::global().bk_guard {
                     eprintln!(
                         "bk-guard: shift_block loop hit max_steps root={} current={} max_steps={}",
                         root, current, max_steps
@@ -174,7 +174,7 @@ impl BKAlignedLayout {
             }
             steps += 1;
             if steps >= max_steps {
-                if *TRACE_BK_GUARD {
+                if ElkTrace::global().bk_guard {
                     eprintln!(
                         "bk-guard: check_space_above loop hit max_steps root={} current={} max_steps={}",
                         root, current, max_steps
@@ -214,7 +214,7 @@ impl BKAlignedLayout {
             }
             steps += 1;
             if steps >= max_steps {
-                if *TRACE_BK_GUARD {
+                if ElkTrace::global().bk_guard {
                     eprintln!(
                         "bk-guard: check_space_below loop hit max_steps root={} current={} max_steps={}",
                         root, current, max_steps
@@ -230,25 +230,22 @@ impl BKAlignedLayout {
     pub fn min_y(&self, node_id: usize) -> f64 {
         let root_id = self.root[node_id];
         self.y[root_id].unwrap_or(0.0) + self.inner_shift[node_id]
-            - node_margin_top(&self.nodes_by_id[node_id])
+            - node_margin_top_a(&self.sync, &self.nodes_by_id[node_id])
     }
 
     pub fn max_y(&self, node_id: usize) -> f64 {
         let root_id = self.root[node_id];
         self.y[root_id].unwrap_or(0.0)
             + self.inner_shift[node_id]
-            + node_size_y(&self.nodes_by_id[node_id])
-            + node_margin_bottom(&self.nodes_by_id[node_id])
+            + node_size_y_a(&self.sync, &self.nodes_by_id[node_id])
+            + node_margin_bottom_a(&self.sync, &self.nodes_by_id[node_id])
     }
 
     fn upper_neighbor(&self, node_id: usize, ni: &NeighborhoodInformation) -> Option<LNodeRef> {
         let node = self.nodes_by_id.get(node_id)?.clone();
-        let layer = node.lock().ok().and_then(|node_guard| node_guard.layer())?;
+        let layer = node.lock().layer()?;
         let layer_nodes = layer
-            .lock()
-            .ok()
-            .map(|layer_guard| layer_guard.nodes().clone())
-            .unwrap_or_default();
+            .lock().nodes().clone();
         let layer_index = *ni.node_index.get(node_id)?;
         if layer_index > 0 {
             return Some(layer_nodes[layer_index - 1].clone());
@@ -258,12 +255,9 @@ impl BKAlignedLayout {
 
     fn lower_neighbor(&self, node_id: usize, ni: &NeighborhoodInformation) -> Option<LNodeRef> {
         let node = self.nodes_by_id.get(node_id)?.clone();
-        let layer = node.lock().ok().and_then(|node_guard| node_guard.layer())?;
+        let layer = node.lock().layer()?;
         let layer_nodes = layer
-            .lock()
-            .ok()
-            .map(|layer_guard| layer_guard.nodes().clone())
-            .unwrap_or_default();
+            .lock().nodes().clone();
         let layer_index = *ni.node_index.get(node_id)?;
         if layer_index + 1 < layer_nodes.len() {
             return Some(layer_nodes[layer_index + 1].clone());

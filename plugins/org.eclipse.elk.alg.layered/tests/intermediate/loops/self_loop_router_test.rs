@@ -23,8 +23,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::NullElkProgressMonitor;
 fn create_port(node: &LNodeRef, side: PortSide, x: f64, y: f64) -> LPortRef {
     let port = LPort::new();
     {
-        let mut port_guard = port.lock().expect("port lock");
-        port_guard.set_side(side);
+        let mut port_guard = port.lock();        port_guard.set_side(side);
         port_guard.shape().position().x = x;
         port_guard.shape().position().y = y;
     }
@@ -46,17 +45,16 @@ fn add_single_label(edge: &LEdgeRef, width: f64, height: f64) {
 fn add_single_label_with_inline(edge: &LEdgeRef, width: f64, height: f64, inline: bool) {
     let label = Arc::new(Mutex::new(LLabel::with_text("self-loop")));
     {
-        let mut label_guard = label.lock().expect("label lock");
-        label_guard.shape().size().x = width;
+        let mut label_guard = label.lock();        label_guard.shape().size().x = width;
         label_guard.shape().size().y = height;
         label_guard.set_property(LayeredOptions::EDGE_LABELS_INLINE, Some(inline));
     }
-    edge.lock().expect("edge lock").labels_mut().push(label);
+    edge.lock().labels_mut().push(label);
 }
 
 fn run_processor(processor: &mut dyn ILayoutProcessor<LGraph>, graph: &LGraphRef) {
     let mut monitor = NullElkProgressMonitor;
-    processor.process(&mut graph.lock().expect("graph lock"), &mut monitor);
+    processor.process(&mut graph.lock(), &mut monitor);
 }
 
 fn init_layered_metadata() {
@@ -79,8 +77,7 @@ fn build_self_loop_graph() -> (LGraphRef, LNodeRef, Vec<LEdgeRef>) {
     let graph = LGraph::new();
     let node = LNode::new(&graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.shape().size().x = 60.0;
+        let mut node_guard = node.lock();        node_guard.shape().size().x = 60.0;
         node_guard.shape().size().y = 50.0;
         node_guard.shape().position().x = 15.0;
         node_guard.shape().position().y = 20.0;
@@ -92,7 +89,7 @@ fn build_self_loop_graph() -> (LGraphRef, LNodeRef, Vec<LEdgeRef>) {
     }
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(node.clone());
 
@@ -110,8 +107,7 @@ fn build_parallel_north_self_loop_graph() -> (LGraphRef, LNodeRef, Vec<LEdgeRef>
     let graph = LGraph::new();
     let node = LNode::new(&graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.shape().size().x = 80.0;
+        let mut node_guard = node.lock();        node_guard.shape().size().x = 80.0;
         node_guard.shape().size().y = 60.0;
         node_guard.shape().position().x = 10.0;
         node_guard.shape().position().y = 30.0;
@@ -123,7 +119,7 @@ fn build_parallel_north_self_loop_graph() -> (LGraphRef, LNodeRef, Vec<LEdgeRef>
     }
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(node.clone());
 
@@ -151,8 +147,7 @@ fn build_parallel_north_self_loop_graph_with_labels_and_sequenced_ordering(
     let graph = LGraph::new();
     let node = LNode::new(&graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.shape().size().x = 80.0;
+        let mut node_guard = node.lock();        node_guard.shape().size().x = 80.0;
         node_guard.shape().size().y = 60.0;
         node_guard.shape().position().x = 10.0;
         node_guard.shape().position().y = 30.0;
@@ -168,7 +163,7 @@ fn build_parallel_north_self_loop_graph_with_labels_and_sequenced_ordering(
     }
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(node.clone());
 
@@ -189,8 +184,7 @@ fn build_north_south_self_loop_graph_with_label(inline: bool) -> (LGraphRef, LNo
     let graph = LGraph::new();
     let node = LNode::new(&graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.shape().size().x = 80.0;
+        let mut node_guard = node.lock();        node_guard.shape().size().x = 80.0;
         node_guard.shape().size().y = 60.0;
         node_guard.shape().position().x = 10.0;
         node_guard.shape().position().y = 20.0;
@@ -203,7 +197,7 @@ fn build_north_south_self_loop_graph_with_label(inline: bool) -> (LGraphRef, LNo
     }
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(node.clone());
 
@@ -219,8 +213,7 @@ fn build_east_west_self_loop_graph() -> (LGraphRef, LNodeRef, LEdgeRef) {
     let graph = LGraph::new();
     let node = LNode::new(&graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.shape().size().x = 80.0;
+        let mut node_guard = node.lock();        node_guard.shape().size().x = 80.0;
         node_guard.shape().size().y = 60.0;
         node_guard.shape().position().x = 10.0;
         node_guard.shape().position().y = 20.0;
@@ -232,7 +225,7 @@ fn build_east_west_self_loop_graph() -> (LGraphRef, LNodeRef, LEdgeRef) {
     }
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(node.clone());
 
@@ -249,8 +242,7 @@ fn build_opposing_self_loop_with_side_penalty(
     let graph = LGraph::new();
     let node = LNode::new(&graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.shape().size().x = 80.0;
+        let mut node_guard = node.lock();        node_guard.shape().size().x = 80.0;
         node_guard.shape().size().y = 60.0;
         node_guard.shape().position().x = 10.0;
         node_guard.shape().position().y = 20.0;
@@ -262,7 +254,7 @@ fn build_opposing_self_loop_with_side_penalty(
     }
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(node.clone());
 
@@ -274,8 +266,7 @@ fn build_opposing_self_loop_with_side_penalty(
 
     let external = LNode::new(&graph);
     {
-        let mut external_guard = external.lock().expect("external node lock");
-        external_guard.shape().size().x = 20.0;
+        let mut external_guard = external.lock();        external_guard.shape().size().x = 20.0;
         external_guard.shape().size().y = 20.0;
         external_guard.shape().position().x = 140.0;
         external_guard.shape().position().y = 20.0;
@@ -286,7 +277,7 @@ fn build_opposing_self_loop_with_side_penalty(
     }
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(external.clone());
     let ext_west = create_port(&external, PortSide::West, 0.0, 10.0);
@@ -307,8 +298,7 @@ fn build_north_west_corner_mixed_graph(
     let graph = LGraph::new();
     let node = LNode::new(&graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.shape().size().x = 90.0;
+        let mut node_guard = node.lock();        node_guard.shape().size().x = 90.0;
         node_guard.shape().size().y = 60.0;
         node_guard.shape().position().x = 15.0;
         node_guard.shape().position().y = 20.0;
@@ -324,7 +314,7 @@ fn build_north_west_corner_mixed_graph(
     }
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(node.clone());
 
@@ -337,8 +327,7 @@ fn build_north_west_corner_mixed_graph(
 
     let external = LNode::new(&graph);
     {
-        let mut ext_guard = external.lock().expect("external node lock");
-        ext_guard.shape().size().x = 20.0;
+        let mut ext_guard = external.lock();        ext_guard.shape().size().x = 20.0;
         ext_guard.shape().size().y = 20.0;
         ext_guard.shape().position().x = 130.0;
         ext_guard.shape().position().y = 20.0;
@@ -349,7 +338,7 @@ fn build_north_west_corner_mixed_graph(
     }
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(external.clone());
     let ext_west = create_port(&external, PortSide::West, 0.0, 10.0);
@@ -390,8 +379,7 @@ fn build_equally_distribution_graph_with_unique_loop_sizes(
     let graph = LGraph::new();
     let node = LNode::new(&graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.shape().size().x = 120.0;
+        let mut node_guard = node.lock();        node_guard.shape().size().x = 120.0;
         node_guard.shape().size().y = 70.0;
         node_guard.shape().position().x = 15.0;
         node_guard.shape().position().y = 20.0;
@@ -407,7 +395,7 @@ fn build_equally_distribution_graph_with_unique_loop_sizes(
     }
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(node.clone());
 
@@ -424,8 +412,7 @@ fn build_south_middle_with_east_dummy_graph() -> (LGraphRef, LNodeRef, LPortRef,
     let graph = LGraph::new();
     let node = LNode::new(&graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.shape().size().x = 120.0;
+        let mut node_guard = node.lock();        node_guard.shape().size().x = 120.0;
         node_guard.shape().size().y = 70.0;
         node_guard.shape().position().x = 15.0;
         node_guard.shape().position().y = 20.0;
@@ -441,7 +428,7 @@ fn build_south_middle_with_east_dummy_graph() -> (LGraphRef, LNodeRef, LPortRef,
     }
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(node.clone());
 
@@ -453,7 +440,7 @@ fn build_south_middle_with_east_dummy_graph() -> (LGraphRef, LNodeRef, LPortRef,
     let external = LNode::new(&graph);
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(external.clone());
     let ext_west = create_port(&external, PortSide::West, 0.0, 10.0);
@@ -462,7 +449,8 @@ fn build_south_middle_with_east_dummy_graph() -> (LGraphRef, LNodeRef, LPortRef,
     // Simulate a north/south dummy that records an EAST connection for the visible south port.
     let port_dummy = LNode::new(&graph);
     let dummy_port = create_port(&port_dummy, PortSide::East, 0.0, 0.0);
-    if let Ok(mut dummy_port_guard) = dummy_port.lock() {
+    {
+        let mut dummy_port_guard = dummy_port.lock();
         dummy_port_guard.set_property(
             InternalProperties::ORIGIN,
             Some(Origin::LPort(visible_south.clone())),
@@ -471,7 +459,8 @@ fn build_south_middle_with_east_dummy_graph() -> (LGraphRef, LNodeRef, LPortRef,
     let dummy_external = LNode::new(&graph);
     let dummy_target = create_port(&dummy_external, PortSide::West, 0.0, 0.0);
     let _ = add_edge(&dummy_port, &dummy_target);
-    if let Ok(mut visible_guard) = visible_south.lock() {
+    {
+        let mut visible_guard = visible_south.lock();
         visible_guard.set_property(InternalProperties::PORT_DUMMY, Some(port_dummy));
     }
 
@@ -482,8 +471,7 @@ fn build_north_middle_with_west_dummy_graph() -> (LGraphRef, LNodeRef, LPortRef,
     let graph = LGraph::new();
     let node = LNode::new(&graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.shape().size().x = 120.0;
+        let mut node_guard = node.lock();        node_guard.shape().size().x = 120.0;
         node_guard.shape().size().y = 70.0;
         node_guard.shape().position().x = 15.0;
         node_guard.shape().position().y = 20.0;
@@ -499,7 +487,7 @@ fn build_north_middle_with_west_dummy_graph() -> (LGraphRef, LNodeRef, LPortRef,
     }
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(node.clone());
 
@@ -511,7 +499,7 @@ fn build_north_middle_with_west_dummy_graph() -> (LGraphRef, LNodeRef, LPortRef,
     let external = LNode::new(&graph);
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(external.clone());
     let ext_east = create_port(&external, PortSide::East, 10.0, 10.0);
@@ -520,7 +508,8 @@ fn build_north_middle_with_west_dummy_graph() -> (LGraphRef, LNodeRef, LPortRef,
     // Simulate a north/south dummy that records a WEST connection for the visible north port.
     let port_dummy = LNode::new(&graph);
     let dummy_port = create_port(&port_dummy, PortSide::West, 0.0, 0.0);
-    if let Ok(mut dummy_port_guard) = dummy_port.lock() {
+    {
+        let mut dummy_port_guard = dummy_port.lock();
         dummy_port_guard.set_property(
             InternalProperties::ORIGIN,
             Some(Origin::LPort(visible_north.clone())),
@@ -529,7 +518,8 @@ fn build_north_middle_with_west_dummy_graph() -> (LGraphRef, LNodeRef, LPortRef,
     let dummy_external = LNode::new(&graph);
     let dummy_source = create_port(&dummy_external, PortSide::East, 0.0, 0.0);
     let _ = add_edge(&dummy_source, &dummy_port);
-    if let Ok(mut visible_guard) = visible_north.lock() {
+    {
+        let mut visible_guard = visible_north.lock();
         visible_guard.set_property(InternalProperties::PORT_DUMMY, Some(port_dummy));
     }
 
@@ -540,8 +530,7 @@ fn build_corner_and_dummy_combined_graph() -> CornerDummyCombinedGraph {
     let graph = LGraph::new();
     let node = LNode::new(&graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.shape().size().x = 150.0;
+        let mut node_guard = node.lock();        node_guard.shape().size().x = 150.0;
         node_guard.shape().size().y = 90.0;
         node_guard.shape().position().x = 15.0;
         node_guard.shape().position().y = 20.0;
@@ -557,7 +546,7 @@ fn build_corner_and_dummy_combined_graph() -> CornerDummyCombinedGraph {
     }
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(node.clone());
 
@@ -580,7 +569,7 @@ fn build_corner_and_dummy_combined_graph() -> CornerDummyCombinedGraph {
     let ext_north = LNode::new(&graph);
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(ext_north.clone());
     let ext_north_east = create_port(&ext_north, PortSide::East, 10.0, 10.0);
@@ -588,7 +577,8 @@ fn build_corner_and_dummy_combined_graph() -> CornerDummyCombinedGraph {
 
     let north_dummy = LNode::new(&graph);
     let north_dummy_port = create_port(&north_dummy, PortSide::West, 0.0, 0.0);
-    if let Ok(mut dummy_port_guard) = north_dummy_port.lock() {
+    {
+        let mut dummy_port_guard = north_dummy_port.lock();
         dummy_port_guard.set_property(
             InternalProperties::ORIGIN,
             Some(Origin::LPort(visible_north.clone())),
@@ -597,7 +587,8 @@ fn build_corner_and_dummy_combined_graph() -> CornerDummyCombinedGraph {
     let north_dummy_external = LNode::new(&graph);
     let north_dummy_source = create_port(&north_dummy_external, PortSide::East, 0.0, 0.0);
     let _ = add_edge(&north_dummy_source, &north_dummy_port);
-    if let Ok(mut visible_guard) = visible_north.lock() {
+    {
+        let mut visible_guard = visible_north.lock();
         visible_guard.set_property(InternalProperties::PORT_DUMMY, Some(north_dummy));
     }
 
@@ -605,7 +596,7 @@ fn build_corner_and_dummy_combined_graph() -> CornerDummyCombinedGraph {
     let ext_south = LNode::new(&graph);
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(ext_south.clone());
     let ext_south_west = create_port(&ext_south, PortSide::West, 0.0, 10.0);
@@ -613,7 +604,8 @@ fn build_corner_and_dummy_combined_graph() -> CornerDummyCombinedGraph {
 
     let south_dummy = LNode::new(&graph);
     let south_dummy_port = create_port(&south_dummy, PortSide::East, 0.0, 0.0);
-    if let Ok(mut dummy_port_guard) = south_dummy_port.lock() {
+    {
+        let mut dummy_port_guard = south_dummy_port.lock();
         dummy_port_guard.set_property(
             InternalProperties::ORIGIN,
             Some(Origin::LPort(visible_south.clone())),
@@ -622,7 +614,8 @@ fn build_corner_and_dummy_combined_graph() -> CornerDummyCombinedGraph {
     let south_dummy_external = LNode::new(&graph);
     let south_dummy_target = create_port(&south_dummy_external, PortSide::West, 0.0, 0.0);
     let _ = add_edge(&south_dummy_port, &south_dummy_target);
-    if let Ok(mut visible_guard) = visible_south.lock() {
+    {
+        let mut visible_guard = visible_south.lock();
         visible_guard.set_property(InternalProperties::PORT_DUMMY, Some(south_dummy));
     }
 
@@ -644,8 +637,7 @@ fn self_loop_router_keeps_duplicate_bend_points_for_same_port() {
     let graph = LGraph::new();
     let node = LNode::new(&graph);
     {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.shape().size().x = 50.0;
+        let mut node_guard = node.lock();        node_guard.shape().size().x = 50.0;
         node_guard.shape().size().y = 40.0;
         node_guard.shape().position().x = 10.0;
         node_guard.shape().position().y = 20.0;
@@ -657,7 +649,7 @@ fn self_loop_router_keeps_duplicate_bend_points_for_same_port() {
     }
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .push(node.clone());
 
@@ -671,14 +663,14 @@ fn self_loop_router_keeps_duplicate_bend_points_for_same_port() {
     {
         graph
             .lock()
-            .expect("graph lock")
+            
             .layers_mut()
             .push(layer.clone());
     }
     LNode::set_layer(&node, Some(layer));
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .retain(|candidate| !Arc::ptr_eq(candidate, &node));
 
@@ -689,7 +681,7 @@ fn self_loop_router_keeps_duplicate_bend_points_for_same_port() {
     let mut post = SelfLoopPostProcessor;
     run_processor(&mut post, &graph);
 
-    let bends = edge.lock().expect("edge lock").bend_points_ref().to_array();
+    let bends = edge.lock().bend_points_ref().to_array();
     assert_eq!(
         bends.len(),
         2,
@@ -713,14 +705,14 @@ fn self_loop_router_creates_outside_bend_points_for_hidden_loops() {
     {
         graph
             .lock()
-            .expect("graph lock")
+            
             .layers_mut()
             .push(layer.clone());
     }
     LNode::set_layer(&node, Some(layer));
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .retain(|candidate| !Arc::ptr_eq(candidate, &node));
 
@@ -731,22 +723,18 @@ fn self_loop_router_creates_outside_bend_points_for_hidden_loops() {
     let mut post = SelfLoopPostProcessor;
     run_processor(&mut post, &graph);
 
-    let (node_x, node_y, node_w, node_h) = node
-        .lock()
-        .ok()
-        .map(|mut node_guard| {
-            (
-                node_guard.shape().position_ref().x,
-                node_guard.shape().position_ref().y,
-                node_guard.shape().size_ref().x,
-                node_guard.shape().size_ref().y,
-            )
-        })
-        .unwrap_or((0.0, 0.0, 0.0, 0.0));
+    let (node_x, node_y, node_w, node_h) = {
+        let mut node_guard = node.lock();
+        (
+            node_guard.shape().position_ref().x,
+            node_guard.shape().position_ref().y,
+            node_guard.shape().size_ref().x,
+            node_guard.shape().size_ref().y,
+        )
+    };
 
     for edge in edges {
-        let edge_guard = edge.lock().expect("edge lock");
-        assert!(edge_guard.source().is_some());
+        let edge_guard = edge.lock();        assert!(edge_guard.source().is_some());
         assert!(edge_guard.target().is_some());
         assert!(
             !edge_guard.bend_points_ref().is_empty(),
@@ -778,14 +766,14 @@ fn self_loop_router_assigns_separate_slots_for_parallel_north_loops() {
     {
         graph
             .lock()
-            .expect("graph lock")
+            
             .layers_mut()
             .push(layer.clone());
     }
     LNode::set_layer(&node, Some(layer));
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .retain(|candidate| !Arc::ptr_eq(candidate, &node));
 
@@ -796,10 +784,9 @@ fn self_loop_router_assigns_separate_slots_for_parallel_north_loops() {
     let mut post = SelfLoopPostProcessor;
     run_processor(&mut post, &graph);
 
-    let node_y = node.lock().expect("node lock").shape().position_ref().y;
+    let node_y = node.lock().shape().position_ref().y;
     for edge in edges {
-        let edge_guard = edge.lock().expect("edge lock");
-        assert!(
+        let edge_guard = edge.lock();        assert!(
             !edge_guard.bend_points_ref().is_empty(),
             "self-loop edges need bend points after routing"
         );
@@ -824,14 +811,14 @@ fn self_loop_router_places_labels_above_parallel_north_loops() {
     {
         graph
             .lock()
-            .expect("graph lock")
+            
             .layers_mut()
             .push(layer.clone());
     }
     LNode::set_layer(&node, Some(layer));
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .retain(|candidate| !Arc::ptr_eq(candidate, &node));
 
@@ -843,8 +830,7 @@ fn self_loop_router_places_labels_above_parallel_north_loops() {
     run_processor(&mut post, &graph);
 
     let (node_x, node_y, node_width) = {
-        let mut node_guard = node.lock().expect("node lock");
-        (
+        let mut node_guard = node.lock();        (
             node_guard.shape().position_ref().x,
             node_guard.shape().position_ref().y,
             node_guard.shape().size_ref().x,
@@ -854,14 +840,12 @@ fn self_loop_router_places_labels_above_parallel_north_loops() {
     let mut label_y_positions = Vec::new();
     for edge in edges {
         let label = {
-            let edge_guard = edge.lock().expect("edge lock");
-            assert_eq!(edge_guard.labels().len(), 1, "expected one label per edge");
+            let edge_guard = edge.lock();            assert_eq!(edge_guard.labels().len(), 1, "expected one label per edge");
             edge_guard.labels()[0].clone()
         };
 
         let (x, y, w, h) = {
-            let mut label_guard = label.lock().expect("label lock");
-            (
+            let mut label_guard = label.lock();            (
                 label_guard.shape().position_ref().x,
                 label_guard.shape().position_ref().y,
                 label_guard.shape().size_ref().x,
@@ -906,14 +890,14 @@ fn self_loop_router_sequences_one_sided_north_labels_left_and_right() {
     {
         graph
             .lock()
-            .expect("graph lock")
+            
             .layers_mut()
             .push(layer.clone());
     }
     LNode::set_layer(&node, Some(layer));
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .retain(|candidate| !Arc::ptr_eq(candidate, &node));
 
@@ -925,8 +909,7 @@ fn self_loop_router_sequences_one_sided_north_labels_left_and_right() {
     run_processor(&mut post, &graph);
 
     let (node_x, node_y, node_width) = {
-        let mut node_guard = node.lock().expect("node lock");
-        (
+        let mut node_guard = node.lock();        (
             node_guard.shape().position_ref().x,
             node_guard.shape().position_ref().y,
             node_guard.shape().size_ref().x,
@@ -937,8 +920,7 @@ fn self_loop_router_sequences_one_sided_north_labels_left_and_right() {
     let mut label_centers = Vec::new();
     for edge in edges {
         let label = {
-            let edge_guard = edge.lock().expect("edge lock");
-            edge_guard
+            let edge_guard = edge.lock();            edge_guard
                 .labels()
                 .first()
                 .expect("expected one label per edge")
@@ -946,8 +928,7 @@ fn self_loop_router_sequences_one_sided_north_labels_left_and_right() {
         };
 
         let (x, y, w, h) = {
-            let mut label_guard = label.lock().expect("label lock");
-            (
+            let mut label_guard = label.lock();            (
                 label_guard.shape().position_ref().x,
                 label_guard.shape().position_ref().y,
                 label_guard.shape().size_ref().x,
@@ -980,14 +961,14 @@ fn self_loop_router_expands_node_margin_for_self_loop_labels() {
     {
         graph
             .lock()
-            .expect("graph lock")
+            
             .layers_mut()
             .push(layer.clone());
     }
     LNode::set_layer(&node, Some(layer));
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .retain(|candidate| !Arc::ptr_eq(candidate, &node));
 
@@ -997,21 +978,18 @@ fn self_loop_router_expands_node_margin_for_self_loop_labels() {
     run_processor(&mut router, &graph);
 
     let margin_top = {
-        let mut node_guard = node.lock().expect("node lock");
-        node_guard.margin().top
+        let mut node_guard = node.lock();        node_guard.margin().top
     };
 
     let first_label = {
-        let edge_guard = edges[0].lock().expect("edge lock");
-        edge_guard
+        let edge_guard = edges[0].lock();        edge_guard
             .labels()
             .first()
             .expect("expected first self-loop label")
             .clone()
     };
     let label_top_local = {
-        let mut label_guard = first_label.lock().expect("label lock");
-        label_guard.shape().position_ref().y
+        let mut label_guard = first_label.lock();        label_guard.shape().position_ref().y
     };
 
     assert!(
@@ -1028,21 +1006,16 @@ fn self_loop_router_offsets_corner_for_inline_label_clearance() {
     let (inline_graph, inline_node, inline_edge) =
         build_north_south_self_loop_graph_with_label(true);
 
-    let inline_flag_before = {
-        let edge_guard = inline_edge.lock().expect("inline edge lock");
-        let label = edge_guard
-            .labels()
-            .first()
-            .expect("inline edge label")
-            .clone();
-        label
-            .lock()
-            .ok()
-            .and_then(|mut label_guard| {
-                label_guard.get_property(LayeredOptions::EDGE_LABELS_INLINE)
-            })
-            .unwrap_or(false)
-    };
+    let inline_label = inline_edge
+        .lock()
+        .labels()
+        .first()
+        .expect("inline edge label")
+        .clone();
+    let inline_flag_before = inline_label
+        .lock()
+        .get_property(LayeredOptions::EDGE_LABELS_INLINE)
+        .unwrap_or(false);
     assert!(
         inline_flag_before,
         "inline label flag must be set before routing"
@@ -1058,13 +1031,13 @@ fn self_loop_router_offsets_corner_for_inline_label_clearance() {
         let layer = Layer::new(graph);
         graph
             .lock()
-            .expect("graph lock")
+            
             .layers_mut()
             .push(layer.clone());
         LNode::set_layer(node, Some(layer));
         graph
             .lock()
-            .expect("graph lock")
+            
             .layerless_nodes_mut()
             .retain(|candidate| !Arc::ptr_eq(candidate, node));
 
@@ -1078,21 +1051,16 @@ fn self_loop_router_offsets_corner_for_inline_label_clearance() {
 
     let (inline_self_loop_type, label_side) = inline_node
         .lock()
-        .expect("inline node lock")
+        
         .get_property(InternalProperties::SELF_LOOP_HOLDER)
-        .and_then(|holder| {
-            holder
-                .lock()
-                .ok()
-                .and_then(|holder_guard| holder_guard.sl_hyper_loops().first().cloned())
+        .and_then(|holder| holder.lock().sl_hyper_loops().first().cloned())
+        .map(|sl_loop| {
+            let sl_loop_guard = sl_loop.lock();
+            sl_loop_guard
+                .sl_labels()
+                .map(|labels| (sl_loop_guard.self_loop_type(), labels.side()))
         })
-        .and_then(|sl_loop| {
-            sl_loop.lock().ok().and_then(|sl_loop_guard| {
-                sl_loop_guard
-                    .sl_labels()
-                    .map(|labels| (sl_loop_guard.self_loop_type(), labels.side()))
-            })
-        })
+        .flatten()
         .unwrap_or((None, PortSide::Undefined));
 
     assert_eq!(
@@ -1102,8 +1070,7 @@ fn self_loop_router_offsets_corner_for_inline_label_clearance() {
     );
 
     let regular_extreme = {
-        let edge_guard = regular_edge.lock().expect("regular edge lock");
-        match label_side {
+        let edge_guard = regular_edge.lock();        match label_side {
             PortSide::North => edge_guard
                 .bend_points_ref()
                 .iter()
@@ -1128,8 +1095,7 @@ fn self_loop_router_offsets_corner_for_inline_label_clearance() {
         }
     };
     let inline_extreme = {
-        let edge_guard = inline_edge.lock().expect("inline edge lock");
-        match label_side {
+        let edge_guard = inline_edge.lock();        match label_side {
             PortSide::North => edge_guard
                 .bend_points_ref()
                 .iter()
@@ -1178,13 +1144,13 @@ fn self_loop_router_prefers_west_route_when_east_ports_are_more_connected() {
     let layer = Layer::new(&graph);
     graph
         .lock()
-        .expect("graph lock")
+        
         .layers_mut()
         .push(layer.clone());
     LNode::set_layer(&node, Some(layer));
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .retain(|candidate| !Arc::ptr_eq(candidate, &node));
     let mut restorer = SelfLoopPortRestorer;
@@ -1195,15 +1161,13 @@ fn self_loop_router_prefers_west_route_when_east_ports_are_more_connected() {
     run_processor(&mut post, &graph);
 
     let (node_x, _) = {
-        let mut node_guard = node.lock().expect("node lock");
-        (
+        let mut node_guard = node.lock();        (
             node_guard.shape().position_ref().x,
             node_guard.shape().size_ref().x,
         )
     };
     let min_x = {
-        let edge_guard = self_loop.lock().expect("self-loop edge lock");
-        edge_guard
+        let edge_guard = self_loop.lock();        edge_guard
             .bend_points_ref()
             .iter()
             .map(|point| point.x)
@@ -1225,13 +1189,13 @@ fn self_loop_router_prefers_east_route_when_west_ports_are_more_connected() {
     let layer = Layer::new(&graph);
     graph
         .lock()
-        .expect("graph lock")
+        
         .layers_mut()
         .push(layer.clone());
     LNode::set_layer(&node, Some(layer));
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .retain(|candidate| !Arc::ptr_eq(candidate, &node));
     let mut restorer = SelfLoopPortRestorer;
@@ -1242,15 +1206,13 @@ fn self_loop_router_prefers_east_route_when_west_ports_are_more_connected() {
     run_processor(&mut post, &graph);
 
     let (node_x, node_w) = {
-        let mut node_guard = node.lock().expect("node lock");
-        (
+        let mut node_guard = node.lock();        (
             node_guard.shape().position_ref().x,
             node_guard.shape().size_ref().x,
         )
     };
     let max_x = {
-        let edge_guard = self_loop.lock().expect("self-loop edge lock");
-        edge_guard
+        let edge_guard = self_loop.lock();        edge_guard
             .bend_points_ref()
             .iter()
             .map(|point| point.x)
@@ -1273,13 +1235,13 @@ fn self_loop_router_prefers_south_route_on_east_west_tie() {
     let layer = Layer::new(&graph);
     graph
         .lock()
-        .expect("graph lock")
+        
         .layers_mut()
         .push(layer.clone());
     LNode::set_layer(&node, Some(layer));
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .retain(|candidate| !Arc::ptr_eq(candidate, &node));
     let mut restorer = SelfLoopPortRestorer;
@@ -1290,15 +1252,13 @@ fn self_loop_router_prefers_south_route_on_east_west_tie() {
     run_processor(&mut post, &graph);
 
     let (node_y, node_h) = {
-        let mut node_guard = node.lock().expect("node lock");
-        (
+        let mut node_guard = node.lock();        (
             node_guard.shape().position_ref().y,
             node_guard.shape().size_ref().y,
         )
     };
     let max_y = {
-        let edge_guard = self_loop.lock().expect("self-loop edge lock");
-        edge_guard
+        let edge_guard = self_loop.lock();        edge_guard
             .bend_points_ref()
             .iter()
             .map(|point| point.y)
@@ -1330,20 +1290,20 @@ fn self_loop_port_restorer_keeps_north_west_corner_clockwise_order() {
     let layer = Layer::new(&graph);
     graph
         .lock()
-        .expect("graph lock")
+        
         .layers_mut()
         .push(layer.clone());
     LNode::set_layer(&node, Some(layer));
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .retain(|candidate| !Arc::ptr_eq(candidate, &node));
 
     let mut restorer = SelfLoopPortRestorer;
     run_processor(&mut restorer, &graph);
 
-    let ports = node.lock().expect("node lock").ports().clone();
+    let ports = node.lock().ports().clone();
     let index_of = |target: &LPortRef| {
         ports
             .iter()
@@ -1378,13 +1338,13 @@ fn self_loop_port_restorer_equally_distribution_assigns_corner_by_net_flow() {
     let layer = Layer::new(&graph);
     graph
         .lock()
-        .expect("graph lock")
+        
         .layers_mut()
         .push(layer.clone());
     LNode::set_layer(&node, Some(layer));
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .retain(|candidate| !Arc::ptr_eq(candidate, &node));
 
@@ -1393,16 +1353,16 @@ fn self_loop_port_restorer_equally_distribution_assigns_corner_by_net_flow() {
 
     let holder = node
         .lock()
-        .expect("node lock")
+        
         .get_property(InternalProperties::SELF_LOOP_HOLDER)
         .expect("self loop holder");
 
     let loop_sizes = holder
         .lock()
-        .expect("holder lock")
+        
         .sl_hyper_loops()
         .iter()
-        .map(|sl_loop| sl_loop.lock().expect("loop lock").sl_ports().len())
+        .map(|sl_loop| sl_loop.lock().sl_ports().len())
         .collect::<Vec<_>>();
     assert!(
         loop_sizes.contains(&2)
@@ -1413,8 +1373,8 @@ fn self_loop_port_restorer_equally_distribution_assigns_corner_by_net_flow() {
         "expected five self hyper loops with unique sizes, got {loop_sizes:?}"
     );
 
-    let source_side = small_loop_source.lock().expect("source lock").side();
-    let target_side = small_loop_target.lock().expect("target lock").side();
+    let source_side = small_loop_source.lock().side();
+    let target_side = small_loop_target.lock().side();
     let small_loop_sides = [source_side, target_side];
 
     assert!(
@@ -1424,10 +1384,10 @@ fn self_loop_port_restorer_equally_distribution_assigns_corner_by_net_flow() {
 
     let side_set = node
         .lock()
-        .expect("node lock")
+        
         .ports()
         .iter()
-        .map(|port| port.lock().expect("port lock").side())
+        .map(|port| port.lock().side())
         .collect::<std::collections::HashSet<_>>();
     assert!(
         side_set.contains(&PortSide::North)
@@ -1450,20 +1410,20 @@ fn self_loop_port_restorer_places_east_connected_south_before_middle_hidden_sout
     let layer = Layer::new(&graph);
     graph
         .lock()
-        .expect("graph lock")
+        
         .layers_mut()
         .push(layer.clone());
     LNode::set_layer(&node, Some(layer));
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .retain(|candidate| !Arc::ptr_eq(candidate, &node));
 
     let mut restorer = SelfLoopPortRestorer;
     run_processor(&mut restorer, &graph);
 
-    let ports = node.lock().expect("node lock").ports().clone();
+    let ports = node.lock().ports().clone();
     let visible_index = ports
         .iter()
         .position(|port| Arc::ptr_eq(port, &visible_south))
@@ -1496,20 +1456,20 @@ fn self_loop_port_restorer_places_west_connected_north_before_middle_hidden_nort
     let layer = Layer::new(&graph);
     graph
         .lock()
-        .expect("graph lock")
+        
         .layers_mut()
         .push(layer.clone());
     LNode::set_layer(&node, Some(layer));
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .retain(|candidate| !Arc::ptr_eq(candidate, &node));
 
     let mut restorer = SelfLoopPortRestorer;
     run_processor(&mut restorer, &graph);
 
-    let ports = node.lock().expect("node lock").ports().clone();
+    let ports = node.lock().ports().clone();
     let visible_index = ports
         .iter()
         .position(|port| Arc::ptr_eq(port, &visible_north))
@@ -1550,20 +1510,20 @@ fn self_loop_port_restorer_orders_corner_and_dummy_connected_ports_before_middle
     let layer = Layer::new(&graph);
     graph
         .lock()
-        .expect("graph lock")
+        
         .layers_mut()
         .push(layer.clone());
     LNode::set_layer(&node, Some(layer));
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .retain(|candidate| !Arc::ptr_eq(candidate, &node));
 
     let mut restorer = SelfLoopPortRestorer;
     run_processor(&mut restorer, &graph);
 
-    let ports = node.lock().expect("node lock").ports().clone();
+    let ports = node.lock().ports().clone();
     let index_of = |target: &LPortRef| {
         ports
             .iter()
@@ -1622,13 +1582,13 @@ fn self_loop_router_routes_corner_and_dummy_combined_loops_with_labels() {
     let layer = Layer::new(&graph);
     graph
         .lock()
-        .expect("graph lock")
+        
         .layers_mut()
         .push(layer.clone());
     LNode::set_layer(&node, Some(layer));
     graph
         .lock()
-        .expect("graph lock")
+        
         .layerless_nodes_mut()
         .retain(|candidate| !Arc::ptr_eq(candidate, &node));
 
@@ -1640,8 +1600,7 @@ fn self_loop_router_routes_corner_and_dummy_combined_loops_with_labels() {
     run_processor(&mut post, &graph);
 
     let (node_x, node_y, node_w, node_h) = {
-        let mut node_guard = node.lock().expect("node lock");
-        (
+        let mut node_guard = node.lock();        (
             node_guard.shape().position_ref().x,
             node_guard.shape().position_ref().y,
             node_guard.shape().size_ref().x,
@@ -1650,8 +1609,7 @@ fn self_loop_router_routes_corner_and_dummy_combined_loops_with_labels() {
     };
 
     for edge in self_loop_edges {
-        let edge_guard = edge.lock().expect("edge lock");
-        assert_eq!(
+        let edge_guard = edge.lock();        assert_eq!(
             edge_guard.labels().len(),
             1,
             "self-loop label should stay attached across pre/restore/route/post"

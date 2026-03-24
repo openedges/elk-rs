@@ -51,9 +51,11 @@ impl ILayoutProcessor<LGraph> for SelfLoopPreProcessor {
 }
 
 fn set_hyper_loop_label_properties(holder: &SelfLoopHolderRef, spacing: f64, horizontal: bool) {
-    if let Ok(holder_guard) = holder.lock() {
+    {
+        let holder_guard = holder.lock();
         for hyper_loop in holder_guard.sl_hyper_loops() {
-            if let Ok(mut loop_guard) = hyper_loop.lock() {
+            {
+                let mut loop_guard = hyper_loop.lock();
                 if let Some(sl_labels) = loop_guard.sl_labels_mut() {
                     sl_labels.set_layout_direction_horizontal(horizontal);
                     sl_labels.set_label_label_spacing(spacing);
@@ -67,10 +69,7 @@ fn hide_self_loops(
     holder: &crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfLoopHolderRef,
 ) {
     let edges = holder
-        .lock()
-        .ok()
-        .map(|holder_guard| holder_guard.all_self_loop_edges())
-        .unwrap_or_default();
+        .lock().all_self_loop_edges();
 
     for edge in edges {
         LEdge::set_source(&edge, None);
@@ -81,30 +80,20 @@ fn hide_self_loops(
 fn hide_ports(
     holder: &crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfLoopHolderRef,
 ) {
-    let node = holder
-        .lock()
-        .ok()
-        .map(|holder_guard| holder_guard.l_node().clone());
-    let Some(node) = node else {
-        return;
-    };
+    let node = holder.lock().l_node().clone();
 
-    let (order_fixed, nested_graph) = node
-        .lock()
-        .ok()
-        .map(|mut node_guard| {
-            let constraints = node_guard
-                .get_property(LayeredOptions::PORT_CONSTRAINTS)
-                .unwrap_or(PortConstraints::Undefined);
-            (constraints.is_order_fixed(), node_guard.nested_graph())
-        })
-        .unwrap_or((false, None));
+    let (order_fixed, nested_graph) = {
+        let node_guard = node.lock();
+        let constraints = node_guard
+            .get_property(LayeredOptions::PORT_CONSTRAINTS)
+            .unwrap_or(PortConstraints::Undefined);
+        (constraints.is_order_fixed(), node_guard.nested_graph())
+    };
 
     let hierarchy_mode = nested_graph
         .and_then(|graph| {
-            graph.lock().ok().and_then(|mut graph_guard| {
-                graph_guard.get_property(InternalProperties::GRAPH_PROPERTIES)
-            })
+            graph.lock()
+                .get_property(InternalProperties::GRAPH_PROPERTIES)
         })
         .is_some_and(|graph_props| graph_props.contains(&GraphProperties::ExternalPorts));
 
@@ -113,22 +102,16 @@ fn hide_ports(
     }
 
     let sl_ports = holder
-        .lock()
-        .ok()
-        .map(|holder_guard| holder_guard.sl_port_values())
-        .unwrap_or_default();
+        .lock().sl_port_values();
 
     for sl_port in sl_ports {
-        let (had_only_self_loops, l_port) = sl_port
-            .lock()
-            .ok()
-            .map(|port_guard| {
-                (
-                    port_guard.had_only_self_loops(),
-                    port_guard.l_port().clone(),
-                )
-            })
-            .unwrap_or_else(|| panic!("self loop port lock poisoned"));
+        let (had_only_self_loops, l_port) = {
+            let port_guard = sl_port.lock();
+            (
+                port_guard.had_only_self_loops(),
+                port_guard.l_port().clone(),
+            )
+        };
 
         if !had_only_self_loops {
             continue;
@@ -136,17 +119,18 @@ fn hide_ports(
 
         LPort::set_node(&l_port, None);
 
-        if let Ok(mut sl_port_guard) = sl_port.lock() {
+        {
+            let mut sl_port_guard = sl_port.lock();
             sl_port_guard.set_hidden(true);
         }
-        if let Ok(mut holder_guard) = holder.lock() {
+        {
+            let mut holder_guard = holder.lock();
             holder_guard.set_ports_hidden(true);
         }
 
         debug_assert!(l_port
             .lock()
-            .ok()
-            .and_then(|mut port_guard| port_guard.get_property(InternalProperties::PORT_DUMMY))
+            .get_property(InternalProperties::PORT_DUMMY)
             .is_none());
     }
 }

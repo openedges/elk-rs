@@ -88,7 +88,7 @@ impl IGraphLayoutEngine for ForceLayoutProvider {
 
         let omit_micro = {
             let mut root = layout_graph.borrow_mut();
-            let mut props = root
+            let props = root
                 .connectable()
                 .shape()
                 .graph_element()

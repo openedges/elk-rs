@@ -1,7 +1,4 @@
-use std::sync::LazyLock;
-
-static TRACE_CROSSMIN: LazyLock<bool> =
-    LazyLock::new(|| std::env::var_os("ELK_TRACE_CROSSMIN").is_some());
+use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LNodeRef};
 
@@ -40,7 +37,7 @@ pub trait IInitializable {
 }
 
 pub fn init(initializables: &mut [&mut dyn IInitializable], order: &[Vec<LNodeRef>]) {
-    let trace = *TRACE_CROSSMIN;
+    let trace = ElkTrace::global().crossmin;
     if trace {
         eprintln!("crossmin:init_initializables layers={}", order.len());
     }
@@ -56,19 +53,13 @@ pub fn init(initializables: &mut [&mut dyn IInitializable], order: &[Vec<LNodeRe
                 initable.init_at_node_level(layer_index, node_index, order);
             }
             let ports = node
-                .lock()
-                .ok()
-                .map(|node_guard| node_guard.ports().clone())
-                .unwrap_or_default();
+                .lock().ports().clone();
             for (port_index, port) in ports.iter().enumerate() {
                 for initable in initializables.iter_mut() {
                     initable.init_at_port_level(layer_index, node_index, port_index, order);
                 }
                 let edges = port
-                    .lock()
-                    .ok()
-                    .map(|port_guard| port_guard.connected_edges().clone())
-                    .unwrap_or_default();
+                    .lock().connected_edges().clone();
                 for (edge_index, edge) in edges.iter().enumerate() {
                     for initable in initializables.iter_mut() {
                         initable.init_at_edge_level(

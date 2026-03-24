@@ -23,11 +23,15 @@ impl Calculations {
         let mut closest_neighbor_bottom_border = 0.0;
         let last_placed_y = last_placed.borrow_mut().connectable().shape().y();
         for placed_rect in placed_rects {
-            let placed_rect_bottom_border = {
+            // Single borrow: extract y, height, x, width together
+            let (pr_y, pr_h, pr_x, pr_w) = {
                 let mut rect_mut = placed_rect.borrow_mut();
-                rect_mut.connectable().shape().y() + rect_mut.connectable().shape().height()
+                let s = rect_mut.connectable().shape();
+                (s.y(), s.height(), s.x(), s.width())
             };
-            if Self::vertical_order_constraint(placed_rect, x, node_node_spacing)
+            let placed_rect_bottom_border = pr_y + pr_h;
+            let passes_constraint = x < pr_x + pr_w + node_node_spacing;
+            if passes_constraint
                 && (closest_upper_neighbor.is_none()
                     || last_placed_y - placed_rect_bottom_border
                         < last_placed_y - closest_neighbor_bottom_border)
@@ -54,11 +58,15 @@ impl Calculations {
         let mut closest_neighbor_right_border = 0.0;
         let last_placed_x = last_placed.borrow_mut().connectable().shape().x();
         for placed_rect in placed_rects {
-            let placed_rect_right_border = {
+            // Single borrow: extract x, width, y, height together
+            let (pr_x, pr_w, pr_y, pr_h) = {
                 let mut rect_mut = placed_rect.borrow_mut();
-                rect_mut.connectable().shape().x() + rect_mut.connectable().shape().width()
+                let s = rect_mut.connectable().shape();
+                (s.x(), s.width(), s.y(), s.height())
             };
-            if Self::horizontal_order_constraint(placed_rect, y, node_node_spacing)
+            let placed_rect_right_border = pr_x + pr_w;
+            let passes_constraint = y < pr_y + pr_h + node_node_spacing;
+            if passes_constraint
                 && (closest_left_neighbor.is_none()
                     || last_placed_x - placed_rect_right_border
                         < last_placed_x - closest_neighbor_right_border)

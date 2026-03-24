@@ -26,6 +26,8 @@ fn compact_tree(
     orthogonal: bool,
     svg: &mut SVGImage,
 ) {
+    // SAFETY: `root_ptr` points to the root of the tree which outlives all recursive calls.
+    // Only shared access is needed here; the tree is traversed single-threaded.
     let root = unsafe { &*root_ptr };
     for child in &mut tree.children {
         compact_tree(child, root_ptr, orthogonal, svg);

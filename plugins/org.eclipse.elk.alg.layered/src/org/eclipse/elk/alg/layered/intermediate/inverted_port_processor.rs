@@ -23,50 +23,37 @@ impl ILayoutProcessor<LGraph> for InvertedPortProcessor {
         let layers = layered_graph.layers().clone();
         for layer in layers {
             let nodes = layer
-                .lock()
-                .ok()
-                .map(|layer_guard| layer_guard.nodes().clone())
-                .unwrap_or_default();
+                .lock().nodes().clone();
 
             for node in nodes {
-                let skip = node
-                    .lock()
-                    .ok()
-                    .map(|mut node_guard| {
-                        if node_guard.node_type() != NodeType::Normal {
-                            return true;
-                        }
-                        if !node_guard
-                            .shape()
-                            .graph_element()
-                            .properties()
-                            .has_property(LayeredOptions::PORT_CONSTRAINTS)
-                        {
-                            return true;
-                        }
+                let skip = {
+                    let mut node_guard = node.lock();
+                    if node_guard.node_type() != NodeType::Normal {
+                        true
+                    } else if !node_guard
+                        .shape()
+                        .graph_element()
+                        .properties()
+                        .has_property(LayeredOptions::PORT_CONSTRAINTS)
+                    {
+                        true
+                    } else {
                         !node_guard
                             .get_property(LayeredOptions::PORT_CONSTRAINTS)
                             .unwrap_or(PortConstraints::Undefined)
                             .is_side_fixed()
-                    })
-                    .unwrap_or(true);
+                    }
+                };
                 if skip {
                     continue;
                 }
 
                 let east_input_ports = node
                     .lock()
-                    .ok()
-                    .map(|node_guard| {
-                        node_guard.ports_by_type_and_side(PortType::Input, PortSide::East)
-                    })
-                    .unwrap_or_default();
+                    .ports_by_type_and_side(PortType::Input, PortSide::East);
                 for east_port in east_input_ports {
                     let incoming = east_port
-                        .lock()
-                        .ok()
-                        .map(|port_guard| port_guard.incoming_edges().clone())
-                        .unwrap_or_default();
+                        .lock().incoming_edges().clone();
                     for edge in incoming {
                         create_east_port_side_dummy(&layer, &east_port, &edge);
                     }
@@ -74,17 +61,10 @@ impl ILayoutProcessor<LGraph> for InvertedPortProcessor {
 
                 let west_output_ports = node
                     .lock()
-                    .ok()
-                    .map(|node_guard| {
-                        node_guard.ports_by_type_and_side(PortType::Output, PortSide::West)
-                    })
-                    .unwrap_or_default();
+                    .ports_by_type_and_side(PortType::Output, PortSide::West);
                 for west_port in west_output_ports {
                     let outgoing = west_port
-                        .lock()
-                        .ok()
-                        .map(|port_guard| port_guard.outgoing_edges().clone())
-                        .unwrap_or_default();
+                        .lock().outgoing_edges().clone();
                     for edge in outgoing {
                         create_west_port_side_dummy(&layer, &west_port, &edge);
                     }
@@ -98,14 +78,10 @@ impl ILayoutProcessor<LGraph> for InvertedPortProcessor {
 
 fn create_east_port_side_dummy(layer: &LayerRef, east_port: &LPortRef, edge: &LEdgeRef) {
     let source_node = edge
-        .lock()
-        .ok()
-        .and_then(|edge_guard| edge_guard.source())
-        .and_then(|source| source.lock().ok().and_then(|port_guard| port_guard.node()));
+        .lock().source()
+        .and_then(|source| source.lock().node());
     let target_node = east_port
-        .lock()
-        .ok()
-        .and_then(|port_guard| port_guard.node());
+        .lock().node();
     if source_node
         .as_ref()
         .zip(target_node.as_ref())
@@ -122,7 +98,9 @@ fn create_east_port_side_dummy(layer: &LayerRef, east_port: &LPortRef, edge: &LE
     LEdge::set_target(edge, Some(dummy_input));
 
     let dummy_edge = LEdge::new();
-    if let (Ok(mut dummy_edge_guard), Ok(mut old_edge_guard)) = (dummy_edge.lock(), edge.lock()) {
+    {
+        let mut dummy_edge_guard = dummy_edge.lock();
+        let mut old_edge_guard = edge.lock();
         dummy_edge_guard
             .graph_element()
             .properties_mut()
@@ -137,14 +115,10 @@ fn create_east_port_side_dummy(layer: &LayerRef, east_port: &LPortRef, edge: &LE
 
 fn create_west_port_side_dummy(layer: &LayerRef, west_port: &LPortRef, edge: &LEdgeRef) {
     let source_node = west_port
-        .lock()
-        .ok()
-        .and_then(|port_guard| port_guard.node());
+        .lock().node();
     let target_node = edge
-        .lock()
-        .ok()
-        .and_then(|edge_guard| edge_guard.target())
-        .and_then(|target| target.lock().ok().and_then(|port_guard| port_guard.node()));
+        .lock().target()
+        .and_then(|target| target.lock().node());
     if source_node
         .as_ref()
         .zip(target_node.as_ref())
@@ -158,11 +132,13 @@ fn create_west_port_side_dummy(layer: &LayerRef, west_port: &LPortRef, edge: &LE
     let dummy_input = create_dummy_port(&dummy, PortSide::West);
     let dummy_output = create_dummy_port(&dummy, PortSide::East);
 
-    let original_target = edge.lock().ok().and_then(|edge_guard| edge_guard.target());
+    let original_target = edge.lock().target();
     LEdge::set_target(edge, Some(dummy_input));
 
     let dummy_edge = LEdge::new();
-    if let (Ok(mut dummy_edge_guard), Ok(mut old_edge_guard)) = (dummy_edge.lock(), edge.lock()) {
+    {
+        let mut dummy_edge_guard = dummy_edge.lock();
+        let mut old_edge_guard = edge.lock();
         dummy_edge_guard
             .graph_element()
             .properties_mut()
@@ -180,12 +156,11 @@ fn create_dummy_node(
     origin_edge: &LEdgeRef,
 ) -> Arc<Mutex<LNode>> {
     let graph = layer
-        .lock()
-        .ok()
-        .and_then(|layer_guard| layer_guard.graph())
+        .lock().graph()
         .unwrap_or_default();
     let dummy = LNode::new(&graph);
-    if let Ok(mut dummy_guard) = dummy.lock() {
+    {
+        let mut dummy_guard = dummy.lock();
         dummy_guard.set_node_type(NodeType::LongEdge);
         dummy_guard.set_property(
             InternalProperties::ORIGIN,
@@ -202,7 +177,8 @@ fn create_dummy_node(
 
 fn create_dummy_port(dummy: &Arc<Mutex<LNode>>, side: PortSide) -> LPortRef {
     let port = LPort::new();
-    if let Ok(mut port_guard) = port.lock() {
+    {
+        let mut port_guard = port.lock();
         port_guard.set_side(side);
     }
     LPort::set_node(&port, Some(dummy.clone()));
@@ -211,37 +187,34 @@ fn create_dummy_port(dummy: &Arc<Mutex<LNode>>, side: PortSide) -> LPortRef {
 
 fn move_head_labels(old_edge: &LEdgeRef, new_edge: &LEdgeRef) {
     let labels = old_edge
-        .lock()
-        .ok()
-        .map(|edge_guard| edge_guard.labels().clone())
-        .unwrap_or_default();
+        .lock().labels().clone();
     for label in labels {
-        let placement = label
-            .lock()
-            .ok()
-            .and_then(|mut label_guard| {
-                if label_guard
-                    .shape()
-                    .graph_element()
-                    .properties()
-                    .has_property(LayeredOptions::EDGE_LABELS_PLACEMENT)
-                {
-                    label_guard.get_property(LayeredOptions::EDGE_LABELS_PLACEMENT)
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(EdgeLabelPlacement::Center);
+        let placement = {
+            let mut label_guard = label.lock();
+            if label_guard
+                .shape()
+                .graph_element()
+                .properties()
+                .has_property(LayeredOptions::EDGE_LABELS_PLACEMENT)
+            {
+                label_guard.get_property(LayeredOptions::EDGE_LABELS_PLACEMENT)
+            } else {
+                None
+            }
+        }
+        .unwrap_or(EdgeLabelPlacement::Center);
         if placement != EdgeLabelPlacement::Head {
             continue;
         }
 
-        if let Ok(mut old_edge_guard) = old_edge.lock() {
+        {
+            let mut old_edge_guard = old_edge.lock();
             old_edge_guard
                 .labels_mut()
                 .retain(|candidate| !std::sync::Arc::ptr_eq(candidate, &label));
         }
-        if let Ok(mut new_edge_guard) = new_edge.lock() {
+        {
+            let mut new_edge_guard = new_edge.lock();
             new_edge_guard.labels_mut().push(label);
         }
     }

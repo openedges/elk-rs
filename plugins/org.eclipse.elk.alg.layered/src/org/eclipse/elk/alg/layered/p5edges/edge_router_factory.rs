@@ -21,8 +21,7 @@ pub struct EdgeRouterFactory {
 
 impl EdgeRouterFactory {
     pub fn factory_for(edge_routing: EdgeRouting) -> Arc<EdgeRouterFactory> {
-        let mut cache = FACTORY_CACHE.lock().expect("edge router cache lock");
-        if let Some(factory) = cache.get(&edge_routing) {
+        let mut cache = FACTORY_CACHE.lock();        if let Some(factory) = cache.get(&edge_routing) {
             return factory.clone();
         }
         let factory = Arc::new(EdgeRouterFactory { edge_routing });
