@@ -383,39 +383,21 @@ impl ElkUtil {
 
     pub fn effective_min_size_constraint_for(node: &ElkNodeRef) -> KVector {
         LayoutMetaDataService::get_instance();
-        let size_constraint = {
+        // Single node borrow: extract all 3 properties at once
+        let (size_constraint, size_options, min_size_raw) = {
             let mut node_mut = node.borrow_mut();
-            node_mut
-                .connectable()
-                .shape()
-                .graph_element()
-                .properties_mut()
-                .get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)
-        }
-        .unwrap_or_else(SizeConstraint::fixed);
+            let props = node_mut.connectable().shape().graph_element().properties_mut();
+            let sc = props.get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)
+                .unwrap_or_else(SizeConstraint::fixed);
+            let so = props.get_property(CoreOptions::NODE_SIZE_OPTIONS)
+                .unwrap_or_else(EnumSet::none_of);
+            let ms = props.get_property(CoreOptions::NODE_SIZE_MINIMUM)
+                .unwrap_or_else(KVector::new);
+            (sc, so, ms)
+        };
 
         if size_constraint.contains(&SizeConstraint::MinimumSize) {
-            let size_options = {
-                let mut node_mut = node.borrow_mut();
-                node_mut
-                    .connectable()
-                    .shape()
-                    .graph_element()
-                    .properties_mut()
-                    .get_property(CoreOptions::NODE_SIZE_OPTIONS)
-            }
-            .unwrap_or_else(EnumSet::none_of);
-
-            let mut min_size = {
-                let mut node_mut = node.borrow_mut();
-                node_mut
-                    .connectable()
-                    .shape()
-                    .graph_element()
-                    .properties_mut()
-                    .get_property(CoreOptions::NODE_SIZE_MINIMUM)
-            }
-            .unwrap_or_else(KVector::new);
+            let mut min_size = min_size_raw;
 
             if size_options.contains(&SizeOptions::DefaultMinimumSize) {
                 if min_size.x <= 0.0 {
