@@ -8,6 +8,7 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::{
 
 use crate::org::eclipse::elk::core::abstract_layout_provider::AbstractLayoutProvider;
 use crate::org::eclipse::elk::core::graph_layout_engine::IGraphLayoutEngine;
+use crate::org::eclipse::elk::core::layout_arena_context::with_layout_arena;
 use crate::org::eclipse::elk::core::math::ElkPadding;
 use crate::org::eclipse::elk::core::options::RandomLayouterOptions;
 use crate::org::eclipse::elk::core::util::{ElkUtil, IElkProgressMonitor, Random};
@@ -39,21 +40,26 @@ impl IGraphLayoutEngine for RandomLayoutProvider {
         }
 
         let (random_seed, aspect_ratio, spacing, padding) =
-            with_node_properties_mut(layout_graph, |props| {
-                let seed = props
-                    .get_property(RandomLayouterOptions::RANDOM_SEED)
-                    .unwrap_or(0);
-                let aspect_ratio = props
-                    .get_property(RandomLayouterOptions::ASPECT_RATIO)
-                    .unwrap_or(1.0);
-                let spacing = props
-                    .get_property(RandomLayouterOptions::SPACING_NODE_NODE)
-                    .unwrap_or(0.0);
-                let padding = props
-                    .get_property(RandomLayouterOptions::PADDING)
-                    .unwrap_or_else(ElkPadding::new);
-                (seed, aspect_ratio, spacing, padding)
-            });
+            if let Some(result) = with_layout_arena(|sync| {
+                sync.node_id(layout_graph).map(|nid| {
+                    let props = &sync.arena().node_properties[nid.idx()];
+                    let seed = props.get_property(RandomLayouterOptions::RANDOM_SEED).unwrap_or(0);
+                    let ar = props.get_property(RandomLayouterOptions::ASPECT_RATIO).unwrap_or(1.0);
+                    let sp = props.get_property(RandomLayouterOptions::SPACING_NODE_NODE).unwrap_or(0.0);
+                    let pad = props.get_property(RandomLayouterOptions::PADDING).unwrap_or_else(ElkPadding::new);
+                    (seed, ar, sp, pad)
+                })
+            }).flatten() {
+                result
+            } else {
+                with_node_properties_mut(layout_graph, |props| {
+                    let seed = props.get_property(RandomLayouterOptions::RANDOM_SEED).unwrap_or(0);
+                    let aspect_ratio = props.get_property(RandomLayouterOptions::ASPECT_RATIO).unwrap_or(1.0);
+                    let spacing = props.get_property(RandomLayouterOptions::SPACING_NODE_NODE).unwrap_or(0.0);
+                    let padding = props.get_property(RandomLayouterOptions::PADDING).unwrap_or_else(ElkPadding::new);
+                    (seed, aspect_ratio, spacing, padding)
+                })
+            };
 
         let seed = if random_seed != 0 {
             random_seed as u64
