@@ -19,7 +19,7 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::{
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkGraphUtil;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{
     ElkConnectableShapeRef, ElkEdge, ElkEdgeRef, ElkEdgeSection, ElkEdgeSectionRef,
-    ElkGraphElementRef, ElkLabelRef, ElkNodeRef, ElkPortRef,
+    ElkGraphArenaSync, ElkGraphElementRef, ElkLabelRef, ElkNodeRef, ElkPortRef,
 };
 
 use super::json_adapter::{JsonAdapter, JsonId};
@@ -55,6 +55,7 @@ pub struct JsonImporter {
     vertical_compacted_parent_keys: Vec<usize>,
     root_include_children_hint: bool,
     input_model: Option<Rc<RefCell<Value>>>,
+    arena_sync: Option<ElkGraphArenaSync>,
 }
 
 impl JsonImporter {
@@ -110,6 +111,9 @@ impl JsonImporter {
                 .map(|value| value.eq_ignore_ascii_case("INCLUDE_CHILDREN"))
                 .unwrap_or(false)
         };
+        // Build arena from post-layout ElkGraph for lock-free position reads (D-2.2).
+        self.arena_sync = Some(ElkGraphArenaSync::from_root(graph));
+
         let mut root = model.borrow_mut();
 
         self.transfer_nodes_and_ports(graph, &mut root)?;
@@ -861,7 +865,20 @@ impl JsonImporter {
         self.record_global_coords_node(node);
         self.record_coordinate_modes(ElkGraphElementRef::Node(node.clone()));
         let parent = self.json_parent(ElkGraphElementRef::Node(node.clone()));
-        {
+        // Arena path: read positions from SoA arrays (no borrow_mut needed)
+        if let Some(ref sync) = self.arena_sync {
+            if let Some(nid) = sync.node_id(node) {
+                let a = sync.arena();
+                self.transfer_xywh_to_json(
+                    a.node_x[nid.idx()], a.node_y[nid.idx()],
+                    a.node_width[nid.idx()], a.node_height[nid.idx()],
+                    json_obj, parent,
+                );
+            } else {
+                let mut node_mut = node.borrow_mut();
+                self.transfer_shape_layout_to_json(node_mut.connectable().shape(), json_obj, parent);
+            }
+        } else {
             let mut node_mut = node.borrow_mut();
             self.transfer_shape_layout_to_json(node_mut.connectable().shape(), json_obj, parent);
         }
@@ -1083,7 +1100,19 @@ impl JsonImporter {
         self.record_global_coords_port(port);
         self.record_coordinate_modes(ElkGraphElementRef::Port(port.clone()));
         let parent = self.json_parent(ElkGraphElementRef::Port(port.clone()));
-        {
+        if let Some(ref sync) = self.arena_sync {
+            if let Some(pid) = sync.port_id(port) {
+                let a = sync.arena();
+                self.transfer_xywh_to_json(
+                    a.port_x[pid.idx()], a.port_y[pid.idx()],
+                    a.port_width[pid.idx()], a.port_height[pid.idx()],
+                    json_obj, parent,
+                );
+            } else {
+                let mut port_mut = port.borrow_mut();
+                self.transfer_shape_layout_to_json(port_mut.connectable().shape(), json_obj, parent);
+            }
+        } else {
             let mut port_mut = port.borrow_mut();
             self.transfer_shape_layout_to_json(port_mut.connectable().shape(), json_obj, parent);
         }
@@ -1543,6 +1572,30 @@ impl JsonImporter {
         }
 
         Ok(())
+    }
+
+    /// Arena path: transfer x/y/w/h directly from arena values (no borrow_mut).
+    fn transfer_xywh_to_json(
+        &self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+        json_obj: &mut Map<String, Value>,
+        parent: Option<ElkGraphElementRef>,
+    ) {
+        let adjusted_x = parent
+            .as_ref()
+            .map(|p| self.adjust_parent_x(p, x))
+            .unwrap_or(x);
+        let adjusted_y = parent
+            .as_ref()
+            .map(|p| self.adjust_parent_y(p, y))
+            .unwrap_or(y);
+        json_obj.insert("x".to_string(), Value::Number(f64_to_number(adjusted_x)));
+        json_obj.insert("y".to_string(), Value::Number(f64_to_number(adjusted_y)));
+        json_obj.insert("width".to_string(), Value::Number(f64_to_number(width)));
+        json_obj.insert("height".to_string(), Value::Number(f64_to_number(height)));
     }
 
     fn transfer_shape_layout_to_json(
