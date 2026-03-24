@@ -1,4 +1,6 @@
+use org_eclipse_elk_core::org::eclipse::elk::core::IGraphLayoutEngine;
 use org_eclipse_elk_graph_json::org::eclipse::elk::graph::json::elk_graph_json::ElkGraphJson;
+use org_eclipse_elk_graph_json::org::eclipse::elk::graph::json::layout_api::layout_json;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkGraphArenaSync;
 
 #[test]
@@ -89,4 +91,70 @@ fn arena_sync_bidirectional_mapping() {
     let a = sync.arena();
     assert_eq!(a.edge_sources[0].len(), 1, "edge should have 1 source");
     assert_eq!(a.edge_targets[0].len(), 1, "edge should have 1 target");
+}
+
+#[test]
+fn arena_captures_post_layout_positions() {
+    let input = r#"{
+        "id": "root",
+        "layoutOptions": { "org.eclipse.elk.algorithm": "layered" },
+        "children": [
+            { "id": "n1", "width": 40, "height": 20 },
+            { "id": "n2", "width": 40, "height": 20 }
+        ],
+        "edges": [
+            { "id": "e1", "sources": ["n1"], "targets": ["n2"] }
+        ]
+    }"#;
+
+    // Run full layout pipeline
+    let output = layout_json(input, "{}").expect("layout failed");
+    let out_val: serde_json::Value = serde_json::from_str(&output).expect("parse output");
+
+    // Re-import the ORIGINAL graph, run layout, then build arena from post-layout state
+    let root = ElkGraphJson::for_graph(input)
+        .lenient(true)
+        .to_elk()
+        .expect("import failed");
+    {
+        let mut engine = org_eclipse_elk_core::org::eclipse::elk::core::recursive_graph_layout_engine::RecursiveGraphLayoutEngine::new();
+        let mut monitor = org_eclipse_elk_core::org::eclipse::elk::core::util::BasicProgressMonitor::new();
+        engine.layout(&root, &mut monitor);
+    }
+
+    let sync = ElkGraphArenaSync::from_root(&root);
+    let a = sync.arena();
+
+    // Arena should capture post-layout positions (non-zero for laid-out nodes)
+    // n1 and n2 should have been placed by the layered algorithm
+    let children: Vec<_> = root.borrow_mut().children().iter().cloned().collect();
+    let n1_id = sync.node_id(&children[0]).unwrap();
+    let n2_id = sync.node_id(&children[1]).unwrap();
+
+    // Verify arena positions match the live ElkGraph positions
+    let (live_n1_x, live_n1_y) = {
+        let mut n = children[0].borrow_mut();
+        let s = n.connectable().shape();
+        (s.x(), s.y())
+    };
+    assert_eq!(a.node_x[n1_id.idx()], live_n1_x, "n1 x should match live");
+    assert_eq!(a.node_y[n1_id.idx()], live_n1_y, "n1 y should match live");
+
+    // Both nodes should have positions assigned (at least one non-zero coordinate)
+    let n1_placed = a.node_x[n1_id.idx()] != 0.0 || a.node_y[n1_id.idx()] != 0.0;
+    let n2_placed = a.node_x[n2_id.idx()] != 0.0 || a.node_y[n2_id.idx()] != 0.0;
+    assert!(n1_placed || n2_placed, "at least one node should be placed at non-origin");
+
+    // Verify JSON output has the same positions as arena
+    if let Some(children_json) = out_val.get("children").and_then(|c| c.as_array()) {
+        for child in children_json {
+            let id = child.get("id").and_then(|v| v.as_str()).unwrap_or("");
+            let jx = child.get("x").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let jy = child.get("y").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            if id == "n1" {
+                assert!((a.node_x[n1_id.idx()] - jx).abs() < 0.01, "n1 arena x={} vs json x={}", a.node_x[n1_id.idx()], jx);
+                assert!((a.node_y[n1_id.idx()] - jy).abs() < 0.01, "n1 arena y={} vs json y={}", a.node_y[n1_id.idx()], jy);
+            }
+        }
+    }
 }
