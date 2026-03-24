@@ -51,18 +51,13 @@ impl RecursiveGraphLayoutEngine {
             return Vec::new();
         }
 
-        let no_layout = with_node_properties_mut(layout_node, |props| {
-            props.get_property(CoreOptions::NO_LAYOUT).unwrap_or(false)
-        });
+        let no_layout = read_node_prop(layout_node, &CoreOptions::NO_LAYOUT).unwrap_or(false);
         if no_layout {
             recursive_trace(layout_node, "exit no_layout=true");
             return Vec::new();
         }
 
-        let children: Vec<ElkNodeRef> = {
-            let mut node_mut = layout_node.borrow_mut();
-            node_mut.children().iter().cloned().collect()
-        };
+        let children = arena_children(layout_node);
 
         let inside_self_loops = self.gather_inside_self_loops(layout_node);
         let has_inside_self_loops = !inside_self_loops.is_empty();
@@ -95,11 +90,8 @@ impl RecursiveGraphLayoutEngine {
         }
 
         self.evaluate_hierarchy_handling_inheritance(layout_node);
-        let hierarchy_handling = with_node_properties_mut(layout_node, |props| {
-            props
-                .get_property(CoreOptions::HIERARCHY_HANDLING)
-                .unwrap_or(HierarchyHandling::Inherit)
-        });
+        let hierarchy_handling = read_node_prop(layout_node, &CoreOptions::HIERARCHY_HANDLING)
+            .unwrap_or(HierarchyHandling::Inherit);
 
         let include_children = hierarchy_handling == HierarchyHandling::IncludeChildren
             && (algorithm_data.supports_feature(GraphFeature::Compound)
@@ -113,11 +105,8 @@ impl RecursiveGraphLayoutEngine {
             ),
         );
 
-        let topdown_layout = with_node_properties_mut(layout_node, |props| {
-            props
-                .get_property(CoreOptions::TOPDOWN_LAYOUT)
-                .unwrap_or(false)
-        });
+        let topdown_layout = read_node_prop(layout_node, &CoreOptions::TOPDOWN_LAYOUT)
+            .unwrap_or(false);
         if include_children && topdown_layout {
             let message = "Topdown layout cannot be used together with hierarchy handling.";
             panic!("{}", UnsupportedConfigurationException::new(message));
@@ -883,6 +872,43 @@ fn with_node_properties_mut<R>(
         .graph_element()
         .properties_mut();
     f(props)
+}
+
+/// Read a node property via arena (lock-free) with borrow_mut fallback.
+/// Safe for properties that don't change during layout (set before layout_recursively).
+fn read_node_prop<T: Clone + Send + Sync + 'static>(
+    node: &ElkNodeRef,
+    prop: &org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property<T>,
+) -> Option<T> {
+    use crate::org::eclipse::elk::core::layout_arena_context::with_layout_arena;
+    if let Some(result) = with_layout_arena(|sync| {
+        sync.node_id(node)
+            .and_then(|nid| sync.arena().node_properties[nid.idx()].get_property(prop))
+    })
+    .flatten()
+    {
+        return Some(result);
+    }
+    with_node_properties_mut(node, |props| props.get_property(prop))
+}
+
+/// Get node children via arena (lock-free) with borrow_mut fallback.
+fn arena_children(node: &ElkNodeRef) -> Vec<ElkNodeRef> {
+    use crate::org::eclipse::elk::core::layout_arena_context::with_layout_arena;
+    if let Some(children) = with_layout_arena(|sync| {
+        sync.node_id(node).map(|nid| {
+            sync.arena().node_children[nid.idx()]
+                .iter()
+                .map(|&cid| sync.node_ref(cid).clone())
+                .collect::<Vec<_>>()
+        })
+    })
+    .flatten()
+    {
+        return children;
+    }
+    let mut node_mut = node.borrow_mut();
+    node_mut.children().iter().cloned().collect()
 }
 
 fn with_edge_properties_mut<R>(
