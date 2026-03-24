@@ -70,7 +70,8 @@
   - Phase C Arena 전환으로 Force/Stress lock overhead 제거 → 3.45x → 3.88x 회복 (기준 3.90x 대비 0.5% 이내)
   - API 그룹: rust_api ~9-64x faster than elkjs (동일 JSON parse+layout+serialize 경로)
   - 6-way 공정성: 동일 LCG seed + rejection sampling DAG + max_attempts=edges*100 + 동일 타이밍 범위
-  - **P3 crossing-min lock 최적화** (Phase 29): hyperedge_crossings_counter `edge_is_in_layer` 5→2 locks (node membership set), boundary `port_layer` 2→1 lock, N/S port counting `init_positions_for_north_south_counting` node당 5-8→1 lock (단일 lock 통합). synthetic 벤치마크 noise 내, real-world hyperedge 그래프에서 edge당 3-4 lock 절감
+  - **P3 ArenaSync 도입** (Phase D-1.5): GraphInfoHolder에 ArenaSync 구축, 4개 subcomponent에 전파. 10개 property-read lock(IN_LAYER_SUCCESSOR_CONSTRAINTS, BARYCENTER_ASSOCIATES, PORT_DUMMY, ORIGIN, PORT_CONSTRAINTS)을 arena 경유 lock-free 접근으로 전환. CrossMinSnapshot CSR 병행 유지
+  - **P3 crossing-min lock 최적화** (Phase 29): hyperedge_crossings_counter `edge_is_in_layer` 5→2 locks (node membership set), boundary `port_layer` 2→1 lock, N/S port counting node당 5-8→1 lock. P2 layering ArenaSync 스킵 결정(layer 부재 구조 부적합, 기본 layerer 이미 최적화)
   - **MRTree P4 EdgeRouter adjacency map optimization** (Phase 28): edge adjacency maps (O(E) pre-build, O(N*E) → O(1) per-node lookup), level-node pre-sorted map, cycle_inducing pre-computed set, MultiLevelEdgeNodeNodeGap graph lock 제거. mrtree_xlarge 26.9ms → 6.58ms (4.09x speedup)
   - **P3 crossing-min sort optimization** (Phase 27): port sort pre-extract (side+barycenter) O(n) locks → O(n log n) 제거, barycenter layer sort HashMap→Vec 병렬 배열 (cache locality 개선)
   - **MRTree/Radial borrow batching** (Phase 26): edge_router COMPACT_LEVEL_ASCENSION 1회 추출, avoid_overlap bend point 로컬 추적, compaction_processor graph lock 배치 + is_root/size 사전 추출, radial shift_closest_edge_to_radi 4→1 borrow, PolarCoordinateSorter ORDER_ID+node_arc 배치
