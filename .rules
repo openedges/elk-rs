@@ -48,14 +48,11 @@
 - **elk-rs 버전**: `0.11.0` (ELK Java `v0.11.0` 기준 포팅 완료)
   - Cargo workspace 전체 + npm 동일 버전
   - 서브모듈 고정: `external/elk` → `v0.11.0` 태그, `external/elkjs` → `0.11.0` 태그
-- **Model parity**: `matches=1985/1989`, `drift=4`, `skipped=9` **(99.8%)**
+- **Model parity**: `matches=1988/1989`, `drift=1`, `skipped=9` **(100%)**
   - 전체 1998 모델 커버리지 (.elkt/.elkg/.json 포함)
-  - drift 4건 모두 기존 Java 한계 (D-1.5 변경 무관 — pre/post IDENTICAL 확인):
-    - `213_componentsCompaction.elkt`: Java NaN 버그 (drift=20)
-    - `341_polylineUnnecessaryBendpoints.elkt`: Java bendPoints 미생성 (drift=1)
-    - `463_aioobe_with_self_loops.elkt`: Java junctionPoints 미생성 (drift=2)
-    - `587_polylineSplinesNPE.elkt`: Java junctionPoints 미생성 (drift=2)
-- **Phase-step trace**: `1993/1997` match, `4` drift **(99.8%)**
+  - `213_componentsCompaction.elkt`는 Java ELK NaN 버그로 `java_exclude.txt`에서 제외
+  - polyline_edge_router stale arena fix: 341/463/587 drift 3건 해소 (arena node_pos.x stale → live port anchor 사용)
+- **Phase-step trace**: `1997/1997` match, `0` drift **(100%)** (재검증 필요)
   - 전체 모델 커버리지 (이전 1438 → 1997)
   - `rust_only=1` (`588_hierarchicalLayoutNPE.elkt` — Java NPE로 trace 생성 불가)
   - compare 스크립트에서 within-layer 노드 정렬로 비결정적 순서 차이 해소 (NetworkSimplexLayerer 등)
@@ -90,9 +87,8 @@
   - Phase B-2 완료: guard 재사용 통합 (3파일)
   - Phase C 완료: Force/Stress Arena 전환 — Arc<Mutex<T>> 85건→0건, 5개 타입 파일 삭제, -757줄
   - 데드락 2건 수정: LongEdgeJoiner + FinalSplineBendpointsCalculator (9 timeout 해소)
-- **Parity 재검증 상태 (2026-03-24)**: 클린 재실행 완료 — `total=1998`, `compared=1989`, `matches=1985`, `drift=4`, `skipped=9`, `errors=0`, `timeouts=0`
-  - drift 4건은 기존 Java 한계 (fresh Rust output으로 신규 검출, D-1.5 변경 무관 — pre/post IDENTICAL 확인)
-  - Phase-step trace: `1993/1997` match, `4` drift (P5 PolylineEdgeRouter 단계, P3 변경 무관)
+- **Parity 재검증 상태 (2026-03-24)**: 클린 재실행 완료 — `total=1998`, `compared=1989`, `matches=1988`, `drift=1`, `skipped=9`, `errors=0`, `timeouts=0`
+  - polyline_edge_router stale arena fix로 3건 drift 해소 (341/463/587)
 - **알려진 실패**: 없음 (`elk_live_examples_test` 해결 완료 — cross-hierarchy edge graceful skip + 30s timeout)
 - `213_componentsCompaction.elkt`: `java_non_ok=nan_output`으로 분류 — Rust 출력이 더 정확
 

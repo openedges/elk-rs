@@ -166,43 +166,27 @@ impl PolylineEdgeRouter {
         let is_in_layer_dummy = Self::is_in_layer_dummy(node);
 
         for port in ports {
-            // Use arena for port data
-            let (absolute_port_anchor, port_side, add_junction_point, origin, connected_edges) =
-                if let Some(pid) = sync.port_id(&port) {
-                    let anchor = arena.port_absolute_anchor(pid);
-                    let side = arena.port_side(pid);
-                    let in_count = arena.port_incoming_edges(pid).len();
-                    let out_count = arena.port_outgoing_edges(pid).len();
-                    let multi = in_count + out_count > 1;
-                    let origin = if is_ns_port {
-                        port.lock().get_property(InternalProperties::ORIGIN)
-                    } else {
-                        None
-                    };
-                    // Build connected edges list from arena
-                    let mut edges: Vec<LEdgeRef> = Vec::with_capacity(in_count + out_count);
-                    for &eid in arena.port_incoming_edges(pid) {
-                        edges.push(sync.edge_ref(eid).clone());
-                    }
-                    for &eid in arena.port_outgoing_edges(pid) {
-                        edges.push(sync.edge_ref(eid).clone());
-                    }
-                    (Some(anchor), side, multi, origin, edges)
+            // Use live port data for anchor and edges (arena node_pos.x is stale
+            // after place_nodes_horizontally). Arena safe for side/count only.
+            let (absolute_port_anchor, port_side, add_junction_point, origin, connected_edges) = {
+                let port_guard = port.lock();
+                let anchor = port_guard.absolute_anchor();
+                let side = if let Some(pid) = sync.port_id(&port) {
+                    arena.port_side(pid)
                 } else {
-                    let port_guard = port.lock();
-                    let anchor = port_guard.absolute_anchor();
-                    let side = port_guard.side();
-                    let multi = port_guard.incoming_edges().len()
-                        + port_guard.outgoing_edges().len()
-                        > 1;
-                    let origin = if is_ns_port {
-                        port_guard.get_property(InternalProperties::ORIGIN)
-                    } else {
-                        None
-                    };
-                    let edges = port_guard.connected_edges();
-                    (anchor, side, multi, origin, edges)
+                    port_guard.side()
                 };
+                let multi = port_guard.incoming_edges().len()
+                    + port_guard.outgoing_edges().len()
+                    > 1;
+                let origin = if is_ns_port {
+                    port_guard.get_property(InternalProperties::ORIGIN)
+                } else {
+                    None
+                };
+                let edges = port_guard.connected_edges();
+                (anchor, side, multi, origin, edges)
+            };
 
             let Some(mut absolute_port_anchor) = absolute_port_anchor else {
                 continue;
