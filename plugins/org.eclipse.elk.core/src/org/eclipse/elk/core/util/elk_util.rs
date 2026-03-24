@@ -460,45 +460,22 @@ impl ElkUtil {
 
     pub fn apply_configured_node_scaling(node: &ElkNodeRef) {
         LayoutMetaDataService::get_instance();
-        let scaling_factor = {
+        // Single node borrow: read scale factor, apply to dimensions, collect labels + ports
+        let (scaling_factor, node_labels, ports) = {
             let mut node_mut = node.borrow_mut();
-            node_mut
-                .connectable()
-                .shape()
-                .graph_element()
+            let sf = node_mut.connectable().shape().graph_element()
                 .properties_mut()
                 .get_property(CoreOptions::SCALE_FACTOR)
-        }
-        .unwrap_or(1.0);
-
-        if (scaling_factor - 1.0).abs() < f64::EPSILON {
-            return;
-        }
-
-        {
-            let mut node_mut = node.borrow_mut();
+                .unwrap_or(1.0);
+            if (sf - 1.0).abs() < f64::EPSILON {
+                return;
+            }
             let shape = node_mut.connectable().shape();
-            shape.set_dimensions(
-                shape.width() * scaling_factor,
-                shape.height() * scaling_factor,
-            );
-        }
-
-        let node_labels: Vec<ElkLabelRef> = {
-            let mut node_mut = node.borrow_mut();
-            node_mut
-                .connectable()
-                .shape()
-                .graph_element()
-                .labels()
-                .iter()
-                .cloned()
-                .collect()
-        };
-
-        let ports: Vec<ElkPortRef> = {
-            let mut node_mut = node.borrow_mut();
-            node_mut.ports().iter().cloned().collect()
+            shape.set_dimensions(shape.width() * sf, shape.height() * sf);
+            let labels: Vec<ElkLabelRef> = node_mut.connectable().shape().graph_element()
+                .labels().iter().cloned().collect();
+            let ports: Vec<ElkPortRef> = node_mut.ports().iter().cloned().collect();
+            (sf, labels, ports)
         };
 
         let mut port_labels: Vec<ElkLabelRef> = Vec::new();
@@ -557,38 +534,20 @@ impl ElkUtil {
         let mut max_x: f64 = 0.0;
         let mut max_y: f64 = 0.0;
 
-        let edge_labels: Vec<ElkLabelRef> = {
-            let edges: Vec<ElkEdgeRef> = {
-                let mut node_mut = node.borrow_mut();
-                node_mut.contained_edges().iter().cloned().collect()
-            };
-            let mut labels = Vec::new();
-            for edge in edges {
-                let edge_labels: Vec<ElkLabelRef> = {
-                    let mut edge_mut = edge.borrow_mut();
-                    edge_mut.element().labels().iter().cloned().collect()
-                };
-                labels.extend(edge_labels);
-            }
-            labels
-        };
-
-        let node_labels: Vec<ElkLabelRef> = {
+        // Single node borrow to extract edges, labels, and children
+        let (edges, node_labels, children) = {
             let mut node_mut = node.borrow_mut();
-            node_mut
-                .connectable()
-                .shape()
-                .graph_element()
-                .labels()
-                .iter()
-                .cloned()
-                .collect()
+            let edges: Vec<ElkEdgeRef> = node_mut.contained_edges().iter().cloned().collect();
+            let labels: Vec<ElkLabelRef> = node_mut.connectable().shape().graph_element()
+                .labels().iter().cloned().collect();
+            let children: Vec<ElkNodeRef> = node_mut.children().iter().cloned().collect();
+            (edges, labels, children)
         };
-
-        let children: Vec<ElkNodeRef> = {
-            let mut node_mut = node.borrow_mut();
-            node_mut.children().iter().cloned().collect()
-        };
+        let mut edge_labels: Vec<ElkLabelRef> = Vec::new();
+        for edge in &edges {
+            let mut edge_mut = edge.borrow_mut();
+            edge_labels.extend(edge_mut.element().labels().iter().cloned());
+        }
 
         for label in node_labels.iter().chain(edge_labels.iter()) {
             let mut label_mut = label.borrow_mut();
@@ -618,11 +577,8 @@ impl ElkUtil {
             max_y = max_y.max(shape.y() + shape.height() + margins.bottom);
         }
 
-        let edges: Vec<ElkEdgeRef> = {
-            let mut node_mut = node.borrow_mut();
-            node_mut.contained_edges().iter().cloned().collect()
-        };
-        for edge in edges {
+        // Reuse edges from the single borrow above
+        for edge in &edges {
             let sections: Vec<ElkEdgeSectionRef> = {
                 let mut edge_mut = edge.borrow_mut();
                 let list = edge_mut.sections();
