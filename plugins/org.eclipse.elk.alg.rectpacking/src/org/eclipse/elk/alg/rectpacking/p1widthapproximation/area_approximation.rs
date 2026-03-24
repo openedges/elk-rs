@@ -251,15 +251,22 @@ impl AreaApproximation {
         let mut y = 0.0;
         let drawing_width = drawing.drawing_width();
         let drawing_height = drawing.drawing_height();
-        let height_to_place = to_place.borrow_mut().connectable().shape().height();
-        let width_to_place = to_place.borrow_mut().connectable().shape().width();
+        // Single borrow each: extract all geometry upfront
+        let (width_to_place, height_to_place) = {
+            let mut tp = to_place.borrow_mut();
+            let s = tp.connectable().shape();
+            (s.width(), s.height())
+        };
+        let (last_x, last_y, last_width, last_height) = {
+            let mut lp = last_placed.borrow_mut();
+            let s = lp.connectable().shape();
+            (s.x(), s.y(), s.width(), s.height())
+        };
         let width;
         let height;
 
         match option {
             DrawingDataDescriptor::CandidatePositionLastPlacedRight => {
-                let last_width = last_placed.borrow_mut().connectable().shape().width();
-                let last_x = last_placed.borrow_mut().connectable().shape().x();
                 x = last_x + last_width + node_node_spacing;
                 if self.lp_shift {
                     y = Calculations::calculate_y_for_lpr(
@@ -269,14 +276,12 @@ impl AreaApproximation {
                         node_node_spacing,
                     );
                 } else {
-                    y = last_placed.borrow_mut().connectable().shape().y();
+                    y = last_y;
                 }
                 width = Calculations::width_lpr_or_lpb(drawing_width, x, width_to_place);
                 height = Calculations::height_lpr_or_lpb(drawing_height, y, height_to_place);
             }
             DrawingDataDescriptor::CandidatePositionLastPlacedBelow => {
-                let last_height = last_placed.borrow_mut().connectable().shape().height();
-                let last_y = last_placed.borrow_mut().connectable().shape().y();
                 y = last_y + last_height + node_node_spacing;
                 if self.lp_shift {
                     x = Calculations::calculate_x_for_lpb(
@@ -286,7 +291,7 @@ impl AreaApproximation {
                         node_node_spacing,
                     );
                 } else {
-                    x = last_placed.borrow_mut().connectable().shape().x();
+                    x = last_x;
                 }
                 width = Calculations::width_lpr_or_lpb(drawing_width, x, width_to_place);
                 height = Calculations::height_lpr_or_lpb(drawing_height, y, height_to_place);

@@ -119,16 +119,17 @@ impl ElkUtil {
 
     pub fn resize_node(node: &ElkNodeRef) -> Option<KVector> {
         LayoutMetaDataService::get_instance();
-        let size_constraint = {
+        // Single node borrow: extract size_constraint, port_constraints, ports
+        let (size_constraint, port_constraints, ports) = {
             let mut node_mut = node.borrow_mut();
-            node_mut
-                .connectable()
-                .shape()
-                .graph_element()
-                .properties_mut()
-                .get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)
-        }
-        .unwrap_or_else(SizeConstraint::fixed);
+            let props = node_mut.connectable().shape().graph_element().properties_mut();
+            let sc = props.get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)
+                .unwrap_or_else(SizeConstraint::fixed);
+            let pc = props.get_property(CoreOptions::PORT_CONSTRAINTS)
+                .unwrap_or(PortConstraints::Undefined);
+            let ports: Vec<ElkPortRef> = node_mut.ports().iter().cloned().collect();
+            (sc, pc, ports)
+        };
 
         if size_constraint.is_empty() {
             return None;
@@ -138,17 +139,6 @@ impl ElkUtil {
         let mut new_height = 0.0;
 
         if size_constraint.contains(&SizeConstraint::Ports) {
-            let port_constraints = {
-                let mut node_mut = node.borrow_mut();
-                node_mut
-                    .connectable()
-                    .shape()
-                    .graph_element()
-                    .properties_mut()
-                    .get_property(CoreOptions::PORT_CONSTRAINTS)
-            }
-            .unwrap_or(PortConstraints::Undefined);
-
             let direction = {
                 let parent = node.borrow().parent();
                 let target = parent.as_ref().unwrap_or(node);
@@ -166,41 +156,25 @@ impl ElkUtil {
             let mut min_east: f64 = 2.0;
             let mut min_south: f64 = 2.0;
             let mut min_west: f64 = 2.0;
-
-            let ports: Vec<ElkPortRef> = {
-                let mut node_mut = node.borrow_mut();
-                node_mut.ports().iter().cloned().collect()
-            };
             for port in ports {
-                let port_side = {
+                // Single borrow: read PORT_SIDE + geometry together
+                let (port_side_raw, xpos, ypos, port_width, port_height) = {
                     let mut port_mut = port.borrow_mut();
-                    port_mut
-                        .connectable()
-                        .shape()
-                        .graph_element()
-                        .properties_mut()
-                        .get_property(CoreOptions::PORT_SIDE)
-                }
-                .unwrap_or(PortSide::Undefined);
-
-                let port_side = if port_side == PortSide::Undefined {
+                    let side = port_mut.connectable().shape().graph_element()
+                        .properties_mut().get_property(CoreOptions::PORT_SIDE)
+                        .unwrap_or(PortSide::Undefined);
+                    let shape = port_mut.connectable().shape();
+                    (side, shape.x(), shape.y(), shape.width(), shape.height())
+                };
+                let port_side = if port_side_raw == PortSide::Undefined {
                     let calculated = Self::calc_port_side(&port, direction);
                     let mut port_mut = port.borrow_mut();
-                    port_mut
-                        .connectable()
-                        .shape()
-                        .graph_element()
+                    port_mut.connectable().shape().graph_element()
                         .properties_mut()
                         .set_property(CoreOptions::PORT_SIDE, Some(calculated));
                     calculated
                 } else {
-                    port_side
-                };
-
-                let (xpos, ypos, port_width, port_height) = {
-                    let mut port_mut = port.borrow_mut();
-                    let shape = port_mut.connectable().shape();
-                    (shape.x(), shape.y(), shape.width(), shape.height())
+                    port_side_raw
                 };
 
                 if port_constraints == PortConstraints::FixedPos {
@@ -239,10 +213,16 @@ impl ElkUtil {
         move_labels: bool,
     ) -> KVector {
         LayoutMetaDataService::get_instance();
-        let old_size = {
+        // Single node borrow: old_size + port_constraints + ports
+        let (old_size, fixed_ports, ports) = {
             let mut node_mut = node.borrow_mut();
             let shape = node_mut.connectable().shape();
-            KVector::with_values(shape.width(), shape.height())
+            let os = KVector::with_values(shape.width(), shape.height());
+            let fp = shape.graph_element().properties_mut()
+                .get_property(CoreOptions::PORT_CONSTRAINTS)
+                .unwrap_or(PortConstraints::Undefined) == PortConstraints::FixedPos;
+            let ports: Vec<ElkPortRef> = node_mut.ports().iter().cloned().collect();
+            (os, fp, ports)
         };
 
         let mut new_size = Self::effective_min_size_constraint_for(node);
@@ -271,23 +251,6 @@ impl ElkUtil {
                     .get_property(CoreOptions::DIRECTION)
             }
             .unwrap_or(Direction::Undefined);
-
-            let fixed_ports = {
-                let mut node_mut = node.borrow_mut();
-                node_mut
-                    .connectable()
-                    .shape()
-                    .graph_element()
-                    .properties_mut()
-                    .get_property(CoreOptions::PORT_CONSTRAINTS)
-            }
-            .unwrap_or(PortConstraints::Undefined)
-                == PortConstraints::FixedPos;
-
-            let ports: Vec<ElkPortRef> = {
-                let mut node_mut = node.borrow_mut();
-                node_mut.ports().iter().cloned().collect()
-            };
             for port in ports {
                 let port_side = {
                     let mut port_mut = port.borrow_mut();
@@ -409,39 +372,21 @@ impl ElkUtil {
 
     pub fn effective_min_size_constraint_for(node: &ElkNodeRef) -> KVector {
         LayoutMetaDataService::get_instance();
-        let size_constraint = {
+        // Single node borrow: extract all 3 properties at once
+        let (size_constraint, size_options, min_size_raw) = {
             let mut node_mut = node.borrow_mut();
-            node_mut
-                .connectable()
-                .shape()
-                .graph_element()
-                .properties_mut()
-                .get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)
-        }
-        .unwrap_or_else(SizeConstraint::fixed);
+            let props = node_mut.connectable().shape().graph_element().properties_mut();
+            let sc = props.get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)
+                .unwrap_or_else(SizeConstraint::fixed);
+            let so = props.get_property(CoreOptions::NODE_SIZE_OPTIONS)
+                .unwrap_or_else(EnumSet::none_of);
+            let ms = props.get_property(CoreOptions::NODE_SIZE_MINIMUM)
+                .unwrap_or_else(KVector::new);
+            (sc, so, ms)
+        };
 
         if size_constraint.contains(&SizeConstraint::MinimumSize) {
-            let size_options = {
-                let mut node_mut = node.borrow_mut();
-                node_mut
-                    .connectable()
-                    .shape()
-                    .graph_element()
-                    .properties_mut()
-                    .get_property(CoreOptions::NODE_SIZE_OPTIONS)
-            }
-            .unwrap_or_else(EnumSet::none_of);
-
-            let mut min_size = {
-                let mut node_mut = node.borrow_mut();
-                node_mut
-                    .connectable()
-                    .shape()
-                    .graph_element()
-                    .properties_mut()
-                    .get_property(CoreOptions::NODE_SIZE_MINIMUM)
-            }
-            .unwrap_or_else(KVector::new);
+            let mut min_size = min_size_raw;
 
             if size_options.contains(&SizeOptions::DefaultMinimumSize) {
                 if min_size.x <= 0.0 {
@@ -460,45 +405,22 @@ impl ElkUtil {
 
     pub fn apply_configured_node_scaling(node: &ElkNodeRef) {
         LayoutMetaDataService::get_instance();
-        let scaling_factor = {
+        // Single node borrow: read scale factor, apply to dimensions, collect labels + ports
+        let (scaling_factor, node_labels, ports) = {
             let mut node_mut = node.borrow_mut();
-            node_mut
-                .connectable()
-                .shape()
-                .graph_element()
+            let sf = node_mut.connectable().shape().graph_element()
                 .properties_mut()
                 .get_property(CoreOptions::SCALE_FACTOR)
-        }
-        .unwrap_or(1.0);
-
-        if (scaling_factor - 1.0).abs() < f64::EPSILON {
-            return;
-        }
-
-        {
-            let mut node_mut = node.borrow_mut();
+                .unwrap_or(1.0);
+            if (sf - 1.0).abs() < f64::EPSILON {
+                return;
+            }
             let shape = node_mut.connectable().shape();
-            shape.set_dimensions(
-                shape.width() * scaling_factor,
-                shape.height() * scaling_factor,
-            );
-        }
-
-        let node_labels: Vec<ElkLabelRef> = {
-            let mut node_mut = node.borrow_mut();
-            node_mut
-                .connectable()
-                .shape()
-                .graph_element()
-                .labels()
-                .iter()
-                .cloned()
-                .collect()
-        };
-
-        let ports: Vec<ElkPortRef> = {
-            let mut node_mut = node.borrow_mut();
-            node_mut.ports().iter().cloned().collect()
+            shape.set_dimensions(shape.width() * sf, shape.height() * sf);
+            let labels: Vec<ElkLabelRef> = node_mut.connectable().shape().graph_element()
+                .labels().iter().cloned().collect();
+            let ports: Vec<ElkPortRef> = node_mut.ports().iter().cloned().collect();
+            (sf, labels, ports)
         };
 
         let mut port_labels: Vec<ElkLabelRef> = Vec::new();
@@ -557,38 +479,20 @@ impl ElkUtil {
         let mut max_x: f64 = 0.0;
         let mut max_y: f64 = 0.0;
 
-        let edge_labels: Vec<ElkLabelRef> = {
-            let edges: Vec<ElkEdgeRef> = {
-                let mut node_mut = node.borrow_mut();
-                node_mut.contained_edges().iter().cloned().collect()
-            };
-            let mut labels = Vec::new();
-            for edge in edges {
-                let edge_labels: Vec<ElkLabelRef> = {
-                    let mut edge_mut = edge.borrow_mut();
-                    edge_mut.element().labels().iter().cloned().collect()
-                };
-                labels.extend(edge_labels);
-            }
-            labels
-        };
-
-        let node_labels: Vec<ElkLabelRef> = {
+        // Single node borrow to extract edges, labels, and children
+        let (edges, node_labels, children) = {
             let mut node_mut = node.borrow_mut();
-            node_mut
-                .connectable()
-                .shape()
-                .graph_element()
-                .labels()
-                .iter()
-                .cloned()
-                .collect()
+            let edges: Vec<ElkEdgeRef> = node_mut.contained_edges().iter().cloned().collect();
+            let labels: Vec<ElkLabelRef> = node_mut.connectable().shape().graph_element()
+                .labels().iter().cloned().collect();
+            let children: Vec<ElkNodeRef> = node_mut.children().iter().cloned().collect();
+            (edges, labels, children)
         };
-
-        let children: Vec<ElkNodeRef> = {
-            let mut node_mut = node.borrow_mut();
-            node_mut.children().iter().cloned().collect()
-        };
+        let mut edge_labels: Vec<ElkLabelRef> = Vec::new();
+        for edge in &edges {
+            let mut edge_mut = edge.borrow_mut();
+            edge_labels.extend(edge_mut.element().labels().iter().cloned());
+        }
 
         for label in node_labels.iter().chain(edge_labels.iter()) {
             let mut label_mut = label.borrow_mut();
@@ -618,11 +522,8 @@ impl ElkUtil {
             max_y = max_y.max(shape.y() + shape.height() + margins.bottom);
         }
 
-        let edges: Vec<ElkEdgeRef> = {
-            let mut node_mut = node.borrow_mut();
-            node_mut.contained_edges().iter().cloned().collect()
-        };
-        for edge in edges {
+        // Reuse edges from the single borrow above
+        for edge in &edges {
             let sections: Vec<ElkEdgeSectionRef> = {
                 let mut edge_mut = edge.borrow_mut();
                 let list = edge_mut.sections();
@@ -1168,27 +1069,21 @@ impl ElkUtil {
     }
 
     pub fn configure_defaults_recursively(graph: &ElkNodeRef) {
-        let children: Vec<ElkNodeRef> = {
+        // Single borrow: extract children, ports, edges
+        let (children, ports, edges) = {
             let mut graph_mut = graph.borrow_mut();
-            graph_mut.children().iter().cloned().collect()
+            let c: Vec<ElkNodeRef> = graph_mut.children().iter().cloned().collect();
+            let p: Vec<ElkPortRef> = graph_mut.ports().iter().cloned().collect();
+            let e: Vec<ElkEdgeRef> = graph_mut.contained_edges().iter().cloned().collect();
+            (c, p, e)
         };
         for child in &children {
             Self::configure_with_default_values(child);
             Self::configure_defaults_recursively(child);
         }
-
-        let ports: Vec<ElkPortRef> = {
-            let mut graph_mut = graph.borrow_mut();
-            graph_mut.ports().iter().cloned().collect()
-        };
         for port in &ports {
             Self::configure_with_default_values(port);
         }
-
-        let edges: Vec<ElkEdgeRef> = {
-            let mut graph_mut = graph.borrow_mut();
-            graph_mut.contained_edges().iter().cloned().collect()
-        };
         for edge in &edges {
             Self::configure_with_default_values(edge);
         }
@@ -1200,71 +1095,49 @@ impl ElkUtil {
 
     fn configure_node_with_default_values(node: &ElkNodeRef) {
         LayoutMetaDataService::get_instance();
-        let size_constraint = {
+        // Single borrow: read size_constraint + check dimensions + set defaults if needed
+        {
             let mut node_mut = node.borrow_mut();
-            node_mut
-                .connectable()
-                .shape()
-                .graph_element()
+            let size_constraint = node_mut.connectable().shape().graph_element()
                 .properties_mut()
                 .get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)
-        }
-        .unwrap_or_else(SizeConstraint::fixed);
-
-        if size_constraint == SizeConstraint::fixed() {
-            let (width, height) = {
-                let mut node_mut = node.borrow_mut();
+                .unwrap_or_else(SizeConstraint::fixed);
+            if size_constraint == SizeConstraint::fixed() {
                 let shape = node_mut.connectable().shape();
-                (shape.width(), shape.height())
-            };
-            if width == 0.0 && height == 0.0 {
-                let mut node_mut = node.borrow_mut();
-                let shape = node_mut.connectable().shape();
-                shape.set_width(Self::DEFAULT_MIN_WIDTH * 4.0);
-                shape.set_height(Self::DEFAULT_MIN_HEIGHT * 4.0);
+                if shape.width() == 0.0 && shape.height() == 0.0 {
+                    shape.set_width(Self::DEFAULT_MIN_WIDTH * 4.0);
+                    shape.set_height(Self::DEFAULT_MIN_HEIGHT * 4.0);
+                }
             }
         }
 
         Self::ensure_label(&ElkGraphElementRef::Node(node.clone()));
 
-        let placement = {
+        // Single borrow: read placement + set default if needed
+        {
             let mut node_mut = node.borrow_mut();
-            node_mut
-                .connectable()
-                .shape()
-                .graph_element()
-                .properties_mut()
-                .get_property(CoreOptions::NODE_LABELS_PLACEMENT)
-        }
-        .unwrap_or_else(NodeLabelPlacement::fixed);
-
-        if placement == NodeLabelPlacement::fixed() {
-            let mut node_mut = node.borrow_mut();
-            node_mut
-                .connectable()
-                .shape()
-                .graph_element()
-                .properties_mut()
-                .set_property(
+            let props = node_mut.connectable().shape().graph_element().properties_mut();
+            let placement = props.get_property(CoreOptions::NODE_LABELS_PLACEMENT)
+                .unwrap_or_else(NodeLabelPlacement::fixed);
+            if placement == NodeLabelPlacement::fixed() {
+                props.set_property(
                     CoreOptions::NODE_LABELS_PLACEMENT,
                     Some(NodeLabelPlacement::inside_center()),
                 );
+            }
         }
     }
 
     fn configure_port_with_default_values(port: &ElkPortRef) {
         LayoutMetaDataService::get_instance();
-        let (width, height) = {
+        // Single borrow: check dimensions + set defaults
+        {
             let mut port_mut = port.borrow_mut();
             let shape = port_mut.connectable().shape();
-            (shape.width(), shape.height())
-        };
-
-        if width == 0.0 && height == 0.0 {
-            let mut port_mut = port.borrow_mut();
-            let shape = port_mut.connectable().shape();
-            shape.set_width(Self::DEFAULT_MIN_WIDTH / 4.0);
-            shape.set_height(Self::DEFAULT_MIN_HEIGHT / 4.0);
+            if shape.width() == 0.0 && shape.height() == 0.0 {
+                shape.set_width(Self::DEFAULT_MIN_WIDTH / 4.0);
+                shape.set_height(Self::DEFAULT_MIN_HEIGHT / 4.0);
+            }
         }
 
         Self::ensure_label(&ElkGraphElementRef::Port(port.clone()));
@@ -1272,19 +1145,17 @@ impl ElkUtil {
 
     fn configure_edge_with_default_values(edge: &ElkEdgeRef) {
         LayoutMetaDataService::get_instance();
-        let has_placement = {
+        // Single borrow: check + set placement
+        {
             let mut edge_mut = edge.borrow_mut();
-            edge_mut
-                .element()
-                .properties()
-                .has_property(CoreOptions::EDGE_LABELS_PLACEMENT)
-        };
-        if !has_placement {
-            let mut edge_mut = edge.borrow_mut();
-            edge_mut.element().properties_mut().set_property(
-                CoreOptions::EDGE_LABELS_PLACEMENT,
-                Some(EdgeLabelPlacement::Center),
-            );
+            let has_placement = edge_mut.element().properties()
+                .has_property(CoreOptions::EDGE_LABELS_PLACEMENT);
+            if !has_placement {
+                edge_mut.element().properties_mut().set_property(
+                    CoreOptions::EDGE_LABELS_PLACEMENT,
+                    Some(EdgeLabelPlacement::Center),
+                );
+            }
         }
     }
 
@@ -1382,26 +1253,20 @@ impl ElkUtil {
         }
 
         if let ElkGraphElementRef::Node(node) = element {
-            let ports: Vec<ElkPortRef> = {
+            // Single borrow: extract ports, children, edges
+            let (ports, children, edges) = {
                 let mut node_mut = node.borrow_mut();
-                node_mut.ports().iter().cloned().collect()
+                let p: Vec<ElkPortRef> = node_mut.ports().iter().cloned().collect();
+                let c: Vec<ElkNodeRef> = node_mut.children().iter().cloned().collect();
+                let e: Vec<ElkEdgeRef> = node_mut.contained_edges().iter().cloned().collect();
+                (p, c, e)
             };
             for port in ports {
                 Self::apply_visitors_to_element(&ElkGraphElementRef::Port(port), visitors);
             }
-
-            let children: Vec<ElkNodeRef> = {
-                let mut node_mut = node.borrow_mut();
-                node_mut.children().iter().cloned().collect()
-            };
             for child in children {
                 Self::apply_visitors_to_element(&ElkGraphElementRef::Node(child), visitors);
             }
-
-            let edges: Vec<ElkEdgeRef> = {
-                let mut node_mut = node.borrow_mut();
-                node_mut.contained_edges().iter().cloned().collect()
-            };
             for edge in edges {
                 Self::apply_visitors_to_element(&ElkGraphElementRef::Edge(edge), visitors);
             }

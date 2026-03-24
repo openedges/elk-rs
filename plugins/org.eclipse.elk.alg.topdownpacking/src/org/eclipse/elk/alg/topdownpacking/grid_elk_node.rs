@@ -1,5 +1,6 @@
 use std::fmt;
 
+use org_eclipse_elk_core::org::eclipse::elk::core::layout_arena_context::with_layout_arena;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::ElkNodeRef;
 
@@ -72,6 +73,13 @@ impl GridElkNode {
     }
 
     pub fn children(&self) -> Vec<ElkNodeRef> {
+        if let Some(children) = with_layout_arena(|sync| {
+            sync.node_id(&self.node).map(|nid|
+                sync.arena().node_children[nid.idx()]
+                    .iter().map(|&cid| sync.node_ref(cid).clone()).collect::<Vec<_>>())
+        }).flatten() {
+            return children;
+        }
         let mut node = self.node.borrow_mut();
         node.children().iter().cloned().collect()
     }
@@ -80,6 +88,12 @@ impl GridElkNode {
         &self,
         property: &Property<T>,
     ) -> Option<T> {
+        if let Some(result) = with_layout_arena(|sync| {
+            sync.node_id(&self.node)
+                .and_then(|nid| sync.arena().node_properties[nid.idx()].get_property(property))
+        }).flatten() {
+            return Some(result);
+        }
         let mut node = self.node.borrow_mut();
         node.connectable()
             .shape()
