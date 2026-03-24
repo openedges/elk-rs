@@ -1720,14 +1720,29 @@ impl JsonImporter {
             .get(&edge_key(edge))
             .map(|parent| self.edge_coords_mode(&ElkGraphElementRef::Node(parent.clone())))
             .unwrap_or(EdgeCoords::Container);
-        let inside_self_loop_yo = with_edge_properties_mut(edge, |props| {
-            props
-                .get_property(CoreOptions::INSIDE_SELF_LOOPS_YO)
-                .unwrap_or(false)
-        });
-        let containing = edge
-            .borrow()
-            .containing_node()
+        // Arena path: read edge property + containing node without borrow
+        let (inside_self_loop_yo, containing) = if let Some(ref sync) = self.arena_sync {
+            if let Some(eid) = sync.edge_id(edge) {
+                let a = sync.arena();
+                let yo = a.edge_properties[eid.idx()]
+                    .get_property(CoreOptions::INSIDE_SELF_LOOPS_YO)
+                    .unwrap_or(false);
+                let cn = a.edge_containing_node[eid.idx()]
+                    .map(|nid| sync.node_ref(nid).clone());
+                (yo, cn)
+            } else {
+                let yo = with_edge_properties_mut(edge, |props| {
+                    props.get_property(CoreOptions::INSIDE_SELF_LOOPS_YO).unwrap_or(false)
+                });
+                (yo, edge.borrow().containing_node())
+            }
+        } else {
+            let yo = with_edge_properties_mut(edge, |props| {
+                props.get_property(CoreOptions::INSIDE_SELF_LOOPS_YO).unwrap_or(false)
+            });
+            (yo, edge.borrow().containing_node())
+        };
+        let containing = containing
             .ok_or_else(|| JsonImportException::new("Edge has no container."))?;
         let mut adjusted_x = match mode {
             EdgeCoords::Root => {
@@ -1752,18 +1767,25 @@ impl JsonImporter {
             _ => x,
         };
 
-        let (source_node, target_node) = {
+        // Arena path: self-loop source/target detection
+        let (source_node, target_node) = if let Some(ref sync) = self.arena_sync {
+            if let Some(eid) = sync.edge_id(edge) {
+                let a = sync.arena();
+                let src = a.edge_sources[eid.idx()].first()
+                    .map(|&cid| sync.node_ref(sync.connectable_node_id(cid)).clone());
+                let tgt = a.edge_targets[eid.idx()].first()
+                    .map(|&cid| sync.node_ref(sync.connectable_node_id(cid)).clone());
+                (src, tgt)
+            } else {
+                let edge_ref = edge.borrow();
+                let source = edge_ref.sources_ro().get(0).as_ref().and_then(ElkGraphUtil::connectable_shape_to_node);
+                let target = edge_ref.targets_ro().get(0).as_ref().and_then(ElkGraphUtil::connectable_shape_to_node);
+                (source, target)
+            }
+        } else {
             let edge_ref = edge.borrow();
-            let source = edge_ref
-                .sources_ro()
-                .get(0)
-                .as_ref()
-                .and_then(ElkGraphUtil::connectable_shape_to_node);
-            let target = edge_ref
-                .targets_ro()
-                .get(0)
-                .as_ref()
-                .and_then(ElkGraphUtil::connectable_shape_to_node);
+            let source = edge_ref.sources_ro().get(0).as_ref().and_then(ElkGraphUtil::connectable_shape_to_node);
+            let target = edge_ref.targets_ro().get(0).as_ref().and_then(ElkGraphUtil::connectable_shape_to_node);
             (source, target)
         };
         if let (Some(source_node), Some(target_node)) = (source_node, target_node) {
@@ -1787,14 +1809,28 @@ impl JsonImporter {
             .get(&edge_key(edge))
             .map(|parent| self.edge_coords_mode(&ElkGraphElementRef::Node(parent.clone())))
             .unwrap_or(EdgeCoords::Container);
-        let inside_self_loop_yo = with_edge_properties_mut(edge, |props| {
-            props
-                .get_property(CoreOptions::INSIDE_SELF_LOOPS_YO)
-                .unwrap_or(false)
-        });
-        let containing = edge
-            .borrow()
-            .containing_node()
+        let (inside_self_loop_yo, containing) = if let Some(ref sync) = self.arena_sync {
+            if let Some(eid) = sync.edge_id(edge) {
+                let a = sync.arena();
+                let yo = a.edge_properties[eid.idx()]
+                    .get_property(CoreOptions::INSIDE_SELF_LOOPS_YO)
+                    .unwrap_or(false);
+                let cn = a.edge_containing_node[eid.idx()]
+                    .map(|nid| sync.node_ref(nid).clone());
+                (yo, cn)
+            } else {
+                let yo = with_edge_properties_mut(edge, |props| {
+                    props.get_property(CoreOptions::INSIDE_SELF_LOOPS_YO).unwrap_or(false)
+                });
+                (yo, edge.borrow().containing_node())
+            }
+        } else {
+            let yo = with_edge_properties_mut(edge, |props| {
+                props.get_property(CoreOptions::INSIDE_SELF_LOOPS_YO).unwrap_or(false)
+            });
+            (yo, edge.borrow().containing_node())
+        };
+        let containing = containing
             .ok_or_else(|| JsonImportException::new("Edge has no container."))?;
         match mode {
             EdgeCoords::Root => {
