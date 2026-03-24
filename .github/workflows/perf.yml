@@ -1,0 +1,36 @@
+name: Performance Regression Check
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build release benchmark
+        run: cargo build --release --bin perf_benchmark
+
+      - name: Run benchmark (rust_native, synthetic 5/2)
+        run: |
+          cargo run --release --bin perf_benchmark -- \
+            --engine rust_native --mode synthetic --repeat 5 --warmup 2 \
+            2>&1 | tee benchmark_output.txt
+
+      - name: Check for regression
+        run: |
+          python3 scripts/check_perf_regression.py benchmark_output.txt
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmark_output.txt
