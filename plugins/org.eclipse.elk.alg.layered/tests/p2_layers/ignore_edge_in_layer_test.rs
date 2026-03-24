@@ -31,12 +31,11 @@ fn build_two_node_graph(ignore: bool) -> org_eclipse_elk_alg_layered::org::eclip
     LEdge::set_target(&edge, Some(port_b));
     if ignore {
         edge.lock()
-            .expect("edge lock")
             .set_property(LayeredOptions::LAYERING_IGNORE_EDGE_IN_LAYER, Some(true));
     }
 
     {
-        let mut g = graph.lock().expect("graph lock");
+        let mut g = graph.lock();
         g.layerless_nodes_mut().push(node_a);
         g.layerless_nodes_mut().push(node_b);
     }
@@ -48,19 +47,19 @@ fn ignore_edge_in_layer_places_nodes_in_same_layer() {
     init();
     let graph = build_two_node_graph(true);
     {
-        let mut g = graph.lock().expect("graph lock");
+        let mut g = graph.lock();
         let mut layerer = NetworkSimplexLayerer::new();
         let mut monitor = BasicProgressMonitor::new();
         layerer.process(&mut g, &mut monitor);
     }
 
-    let g = graph.lock().expect("graph lock");
+    let g = graph.lock();
     assert!(g.layerless_nodes().is_empty(), "no layerless nodes remain");
 
     // Both nodes should be in the same layer (delta=0 allows this)
     let layers = g.layers();
     assert_eq!(layers.len(), 1, "both nodes should be in a single layer");
-    let layer = layers[0].lock().expect("layer lock");
+    let layer = layers[0].lock();
     assert_eq!(layer.nodes().len(), 2);
 }
 
@@ -69,13 +68,13 @@ fn normal_edge_places_nodes_in_different_layers() {
     init();
     let graph = build_two_node_graph(false);
     {
-        let mut g = graph.lock().expect("graph lock");
+        let mut g = graph.lock();
         let mut layerer = NetworkSimplexLayerer::new();
         let mut monitor = BasicProgressMonitor::new();
         layerer.process(&mut g, &mut monitor);
     }
 
-    let g = graph.lock().expect("graph lock");
+    let g = graph.lock();
     assert!(g.layerless_nodes().is_empty());
 
     // Normal edge: nodes should be in different layers
@@ -92,14 +91,14 @@ fn ignore_edge_in_layer_reverses_same_layer_east_west_edge() {
 
     let port_a = LPort::new();
     {
-        let mut pg = port_a.lock().expect("port lock");
+        let mut pg = port_a.lock();
         pg.set_side(org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide::East);
     }
     LPort::set_node(&port_a, Some(node_a.clone()));
 
     let port_b = LPort::new();
     {
-        let mut pg = port_b.lock().expect("port lock");
+        let mut pg = port_b.lock();
         pg.set_side(org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide::West);
     }
     LPort::set_node(&port_b, Some(node_b.clone()));
@@ -108,17 +107,16 @@ fn ignore_edge_in_layer_reverses_same_layer_east_west_edge() {
     LEdge::set_source(&edge, Some(port_a));
     LEdge::set_target(&edge, Some(port_b));
     edge.lock()
-        .expect("edge lock")
         .set_property(LayeredOptions::LAYERING_IGNORE_EDGE_IN_LAYER, Some(true));
 
     {
-        let mut g = graph.lock().expect("graph lock");
+        let mut g = graph.lock();
         g.layerless_nodes_mut().push(node_a);
         g.layerless_nodes_mut().push(node_b);
     }
 
     {
-        let mut g = graph.lock().expect("graph lock");
+        let mut g = graph.lock();
         let mut layerer = NetworkSimplexLayerer::new();
         let mut monitor = BasicProgressMonitor::new();
         layerer.process(&mut g, &mut monitor);
@@ -127,7 +125,6 @@ fn ignore_edge_in_layer_reverses_same_layer_east_west_edge() {
     // Edge should be reversed (same-layer EAST→WEST with ignoreEdgeInLayer)
     let reversed = edge
         .lock()
-        .expect("edge lock")
         .get_property(InternalProperties::REVERSED)
         .unwrap_or(false);
     assert!(reversed, "same-layer EAST→WEST ignoreEdgeInLayer edge should be reversed");

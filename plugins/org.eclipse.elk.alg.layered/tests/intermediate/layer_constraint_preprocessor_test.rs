@@ -129,7 +129,6 @@ fn preprocessor_does_not_panic_with_incoming_edge_on_first_separate() {
 
     let hidden_nodes = graph
         .lock()
-        .expect("graph lock")
         .get_property(InternalProperties::HIDDEN_NODES)
         .unwrap_or_default();
     assert!(
@@ -155,7 +154,6 @@ fn preprocessor_does_not_panic_with_outgoing_edge_on_last_separate() {
 
     let hidden_nodes = graph
         .lock()
-        .expect("graph lock")
         .get_property(InternalProperties::HIDDEN_NODES)
         .unwrap_or_default();
     assert!(

@@ -122,7 +122,7 @@ fn reverser_keeps_first_separate_to_first_edge_direction() {
 
 fn add_port_with_side(node: &LNodeRef, side: PortSide) -> LPortRef {
     let port = LPort::new();
-    if let Ok(mut pg) = port.lock() {
+    { let mut pg = port.lock();
         pg.set_side(side);
     }
     LPort::set_node(&port, Some(node.clone()));
@@ -165,7 +165,6 @@ fn reverser_blocks_non_east_west_edge_to_last_separate() {
     // Edge should NOT be reversed because ports are not EAST→WEST
     let reversed = edge
         .lock()
-        .expect("edge lock")
         .get_property(InternalProperties::REVERSED)
         .unwrap_or(false);
     assert!(!reversed, "non-EAST→WEST edge to LastSeparate should not be reversed");
@@ -189,7 +188,6 @@ fn reverser_allows_first_separate_outgoing_east_west_edge() {
     // FirstSeparate is OutgoingOnly, so this outgoing edge stays as-is
     let reversed = edge
         .lock()
-        .expect("edge lock")
         .get_property(InternalProperties::REVERSED)
         .unwrap_or(false);
     assert!(!reversed, "FirstSeparate outgoing EAST→WEST edge should not be reversed");
@@ -202,7 +200,6 @@ fn add_layerless_node_with_type(
 ) -> LNodeRef {
     let node = add_layerless_node(graph, constraint);
     node.lock()
-        .expect("node lock")
         .set_node_type(node_type);
     node
 }
@@ -226,7 +223,6 @@ fn reverser_blocks_external_port_east_west_edge_to_last_separate() {
     // ExternalPort nodes are not NORMAL, so can_reverse_outgoing_edge should return false
     let reversed = edge
         .lock()
-        .expect("edge lock")
         .get_property(InternalProperties::REVERSED)
         .unwrap_or(false);
     assert!(

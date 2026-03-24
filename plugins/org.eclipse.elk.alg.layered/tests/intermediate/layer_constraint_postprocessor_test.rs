@@ -126,7 +126,7 @@ fn add_hidden_node(
 ) -> LNodeRef {
     let node = LNode::new(graph);
     {
-        let mut ng = node.lock().expect("node lock");
+        let mut ng = node.lock();
         ng.set_property(LayeredOptions::LAYERING_LAYER_CONSTRAINT, Some(constraint));
         ng.set_node_type(node_type);
     }
@@ -149,7 +149,7 @@ fn postprocessor_separates_external_port_from_separate_layer() {
     let last_sep_ext_port =
         add_hidden_node(&graph, LayerConstraint::LastSeparate, NodeType::ExternalPort);
 
-    graph.lock().expect("graph lock").set_property(
+    graph.lock().set_property(
         InternalProperties::HIDDEN_NODES,
         Some(vec![
             first_sep_normal.clone(),
@@ -161,7 +161,7 @@ fn postprocessor_separates_external_port_from_separate_layer() {
 
     run_processor(&graph);
 
-    let layers_after = graph.lock().expect("graph lock").layers().clone();
+    let layers_after = graph.lock().layers().clone();
 
     // Should have at least 5 layers:
     // [first_ext_port_layer] [first_separate_layer] [main] [last_separate_layer] [last_ext_port_layer]
@@ -174,7 +174,6 @@ fn postprocessor_separates_external_port_from_separate_layer() {
     // First layer should contain the external port node
     let first_layer_nodes = layers_after[0]
         .lock()
-        .expect("first layer lock")
         .nodes()
         .clone();
     assert!(
@@ -187,7 +186,6 @@ fn postprocessor_separates_external_port_from_separate_layer() {
     // Second layer should contain the normal FIRST_SEPARATE node
     let second_layer_nodes = layers_after[1]
         .lock()
-        .expect("second layer lock")
         .nodes()
         .clone();
     assert!(
@@ -200,7 +198,6 @@ fn postprocessor_separates_external_port_from_separate_layer() {
     // Second-to-last layer should contain the normal LAST_SEPARATE node
     let second_to_last_nodes = layers_after[layers_after.len() - 2]
         .lock()
-        .expect("second to last layer lock")
         .nodes()
         .clone();
     assert!(
@@ -213,7 +210,6 @@ fn postprocessor_separates_external_port_from_separate_layer() {
     // Last layer should contain the external port node
     let last_layer_nodes = layers_after[layers_after.len() - 1]
         .lock()
-        .expect("last layer lock")
         .nodes()
         .clone();
     assert!(

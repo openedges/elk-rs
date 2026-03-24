@@ -154,7 +154,7 @@ fn inverted_port_processor_skips_dummy_for_same_layer_east_input() {
     run_processor(&graph);
 
     // No dummy node should be created for same-layer EAST→EAST edge
-    let nodes = layer.lock().expect("layer lock").nodes().clone();
+    let nodes = layer.lock().nodes().clone();
     assert_eq!(nodes.len(), 2, "no dummy node should be added for same-layer edge");
 }
 
@@ -173,7 +173,7 @@ fn inverted_port_processor_skips_dummy_for_same_layer_west_output() {
     run_processor(&graph);
 
     // No dummy node should be created for same-layer WEST→WEST edge
-    let nodes = layer.lock().expect("layer lock").nodes().clone();
+    let nodes = layer.lock().nodes().clone();
     assert_eq!(nodes.len(), 2, "no dummy node should be added for same-layer edge");
 }
 
@@ -193,6 +193,6 @@ fn inverted_port_processor_creates_dummy_for_cross_layer_east_input() {
     run_processor(&graph);
 
     // Dummy should be created for cross-layer inverted port
-    let nodes = layer1.lock().expect("layer lock").nodes().clone();
+    let nodes = layer1.lock().nodes().clone();
     assert!(nodes.len() > 1, "dummy node should be created for cross-layer inverted port");
 }
