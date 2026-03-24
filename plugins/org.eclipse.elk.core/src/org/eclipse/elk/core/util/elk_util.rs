@@ -1106,71 +1106,49 @@ impl ElkUtil {
 
     fn configure_node_with_default_values(node: &ElkNodeRef) {
         LayoutMetaDataService::get_instance();
-        let size_constraint = {
+        // Single borrow: read size_constraint + check dimensions + set defaults if needed
+        {
             let mut node_mut = node.borrow_mut();
-            node_mut
-                .connectable()
-                .shape()
-                .graph_element()
+            let size_constraint = node_mut.connectable().shape().graph_element()
                 .properties_mut()
                 .get_property(CoreOptions::NODE_SIZE_CONSTRAINTS)
-        }
-        .unwrap_or_else(SizeConstraint::fixed);
-
-        if size_constraint == SizeConstraint::fixed() {
-            let (width, height) = {
-                let mut node_mut = node.borrow_mut();
+                .unwrap_or_else(SizeConstraint::fixed);
+            if size_constraint == SizeConstraint::fixed() {
                 let shape = node_mut.connectable().shape();
-                (shape.width(), shape.height())
-            };
-            if width == 0.0 && height == 0.0 {
-                let mut node_mut = node.borrow_mut();
-                let shape = node_mut.connectable().shape();
-                shape.set_width(Self::DEFAULT_MIN_WIDTH * 4.0);
-                shape.set_height(Self::DEFAULT_MIN_HEIGHT * 4.0);
+                if shape.width() == 0.0 && shape.height() == 0.0 {
+                    shape.set_width(Self::DEFAULT_MIN_WIDTH * 4.0);
+                    shape.set_height(Self::DEFAULT_MIN_HEIGHT * 4.0);
+                }
             }
         }
 
         Self::ensure_label(&ElkGraphElementRef::Node(node.clone()));
 
-        let placement = {
+        // Single borrow: read placement + set default if needed
+        {
             let mut node_mut = node.borrow_mut();
-            node_mut
-                .connectable()
-                .shape()
-                .graph_element()
-                .properties_mut()
-                .get_property(CoreOptions::NODE_LABELS_PLACEMENT)
-        }
-        .unwrap_or_else(NodeLabelPlacement::fixed);
-
-        if placement == NodeLabelPlacement::fixed() {
-            let mut node_mut = node.borrow_mut();
-            node_mut
-                .connectable()
-                .shape()
-                .graph_element()
-                .properties_mut()
-                .set_property(
+            let props = node_mut.connectable().shape().graph_element().properties_mut();
+            let placement = props.get_property(CoreOptions::NODE_LABELS_PLACEMENT)
+                .unwrap_or_else(NodeLabelPlacement::fixed);
+            if placement == NodeLabelPlacement::fixed() {
+                props.set_property(
                     CoreOptions::NODE_LABELS_PLACEMENT,
                     Some(NodeLabelPlacement::inside_center()),
                 );
+            }
         }
     }
 
     fn configure_port_with_default_values(port: &ElkPortRef) {
         LayoutMetaDataService::get_instance();
-        let (width, height) = {
+        // Single borrow: check dimensions + set defaults
+        {
             let mut port_mut = port.borrow_mut();
             let shape = port_mut.connectable().shape();
-            (shape.width(), shape.height())
-        };
-
-        if width == 0.0 && height == 0.0 {
-            let mut port_mut = port.borrow_mut();
-            let shape = port_mut.connectable().shape();
-            shape.set_width(Self::DEFAULT_MIN_WIDTH / 4.0);
-            shape.set_height(Self::DEFAULT_MIN_HEIGHT / 4.0);
+            if shape.width() == 0.0 && shape.height() == 0.0 {
+                shape.set_width(Self::DEFAULT_MIN_WIDTH / 4.0);
+                shape.set_height(Self::DEFAULT_MIN_HEIGHT / 4.0);
+            }
         }
 
         Self::ensure_label(&ElkGraphElementRef::Port(port.clone()));
@@ -1178,19 +1156,17 @@ impl ElkUtil {
 
     fn configure_edge_with_default_values(edge: &ElkEdgeRef) {
         LayoutMetaDataService::get_instance();
-        let has_placement = {
+        // Single borrow: check + set placement
+        {
             let mut edge_mut = edge.borrow_mut();
-            edge_mut
-                .element()
-                .properties()
-                .has_property(CoreOptions::EDGE_LABELS_PLACEMENT)
-        };
-        if !has_placement {
-            let mut edge_mut = edge.borrow_mut();
-            edge_mut.element().properties_mut().set_property(
-                CoreOptions::EDGE_LABELS_PLACEMENT,
-                Some(EdgeLabelPlacement::Center),
-            );
+            let has_placement = edge_mut.element().properties()
+                .has_property(CoreOptions::EDGE_LABELS_PLACEMENT);
+            if !has_placement {
+                edge_mut.element().properties_mut().set_property(
+                    CoreOptions::EDGE_LABELS_PLACEMENT,
+                    Some(EdgeLabelPlacement::Center),
+                );
+            }
         }
     }
 
