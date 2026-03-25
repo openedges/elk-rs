@@ -123,21 +123,4 @@ impl Calculations {
         width_lpb * height_lpb
     }
 
-    fn vertical_order_constraint(placed_rect: &ElkNodeRef, x: f64, node_node_spacing: f64) -> bool {
-        let mut rect_mut = placed_rect.borrow_mut();
-        x < rect_mut.connectable().shape().x()
-            + rect_mut.connectable().shape().width()
-            + node_node_spacing
-    }
-
-    fn horizontal_order_constraint(
-        placed_rect: &ElkNodeRef,
-        y: f64,
-        node_node_spacing: f64,
-    ) -> bool {
-        let mut rect_mut = placed_rect.borrow_mut();
-        y < rect_mut.connectable().shape().y()
-            + rect_mut.connectable().shape().height()
-            + node_node_spacing
-    }
 }

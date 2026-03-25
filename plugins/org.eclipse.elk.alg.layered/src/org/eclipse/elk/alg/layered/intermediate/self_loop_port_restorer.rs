@@ -355,7 +355,7 @@ fn process_one_side_loops(
             loop_guard
                 .sl_ports()
                 .first()
-                .map(|sl_port| sl_port_side(sl_port))
+                .map(sl_port_side)
                 .unwrap_or(PortSide::Undefined)
         };
         if side == PortSide::Undefined {

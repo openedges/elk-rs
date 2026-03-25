@@ -139,14 +139,12 @@ impl ModelOrderPortComparator {
                 p1_snapshot
                     .incoming_first
                     .as_ref()
-                    .map(|edge| edge.lock().source())
-                    .flatten();
+                    .and_then(|edge| edge.lock().source());
             let p2_source_port =
                 p2_snapshot
                     .incoming_first
                     .as_ref()
-                    .map(|edge| edge.lock().source())
-                    .flatten();
+                    .and_then(|edge| edge.lock().source());
             if let (Some(p1_source_port), Some(p2_source_port)) = (p1_source_port, p2_source_port) {
                 let p1_node = p1_source_port.lock().node();
                 let p2_node = p2_source_port.lock().node();

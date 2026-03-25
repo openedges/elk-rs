@@ -294,7 +294,7 @@ impl IInitializable for GreedySwitchHeuristic {
 
 fn layer_index_of(node: &LNodeRef) -> Option<usize> {
     node.lock().layer()
-        .and_then(|layer| {
-            Some(layer.lock().graph_element().id as usize)
+        .map(|layer| {
+            layer.lock().graph_element().id as usize
         })
 }

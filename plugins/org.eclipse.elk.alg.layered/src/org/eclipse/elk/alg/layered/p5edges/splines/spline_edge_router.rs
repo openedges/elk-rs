@@ -420,19 +420,17 @@ impl SplineEdgeRouter {
                     let source = edge_guard.source();
                     let target = edge_guard.target();
                     let source_pos = source
-                        .map(|port| {
+                        .and_then(|port| {
                             let port_guard = port.lock();
                             port_guard.absolute_anchor()
                         })
-                        .flatten()
                         .map(|anchor| anchor.y)
                         .unwrap_or(0.0);
                     let target_pos = target
-                        .map(|port| {
+                        .and_then(|port| {
                             let port_guard = port.lock();
                             port_guard.absolute_anchor()
                         })
-                        .flatten()
                         .map(|anchor| anchor.y)
                         .unwrap_or(0.0);
                     (source_pos, target_pos)
@@ -1160,7 +1158,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for SplineEdgeRouter {
             let slot_count = self
                 .spline_segments_layer
                 .iter()
-                .map(|segment| {
+                .filter_map(|segment| {
                     let seg = segment.lock();
                     if seg.is_straight {
                         None
@@ -1168,7 +1166,6 @@ impl ILayoutPhase<LayeredPhases, LGraph> for SplineEdgeRouter {
                         Some(seg.rank + 1)
                     }
                 })
-                .flatten()
                 .max()
                 .unwrap_or(0);
 

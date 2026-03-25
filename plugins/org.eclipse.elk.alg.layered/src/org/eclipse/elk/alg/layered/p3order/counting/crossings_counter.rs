@@ -727,7 +727,7 @@ impl CrossingsCounter {
                     if Arc::ptr_eq(last, current) {
                         false
                     } else {
-                        layout_unit.as_ref().map_or(false, |u| !Arc::ptr_eq(u, last))
+                        layout_unit.as_ref().is_some_and(|u| !Arc::ptr_eq(u, last))
                     }
                 }
             };

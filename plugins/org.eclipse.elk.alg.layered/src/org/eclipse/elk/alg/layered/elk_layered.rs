@@ -791,7 +791,7 @@ impl ElkLayered {
                 .unwrap_or_else(EnumSet::none_of);
             let min_size = graph_guard
                 .get_property(CoreOptions::NODE_SIZE_MINIMUM)
-                .unwrap_or_else(KVector::new);
+                .unwrap_or_default();
             let fixed_graph_size = graph_guard
                 .get_property(CoreOptions::NODE_SIZE_FIXED_GRAPH_SIZE)
                 .unwrap_or(false);

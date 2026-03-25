@@ -45,7 +45,7 @@ fn edge_label_placement_option_parses_enum() {
     let label = labels.first().unwrap();
     let placement = {
         let mut label_mut = label.borrow_mut();
-        let mut props = label_mut.shape().graph_element().properties().clone();
+        let props = label_mut.shape().graph_element().properties().clone();
         props.get_property(CoreOptions::EDGE_LABELS_PLACEMENT)
     };
     assert_eq!(placement, Some(EdgeLabelPlacement::Tail));

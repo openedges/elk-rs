@@ -1194,15 +1194,16 @@ impl CompoundGraphPreprocessor {
             }
         }
 
-        let port_side = if let Some(parent_end_port) = parent_end_port.as_ref() {
-            parent_end_port
-                .lock().side()
-        } else if {
+        let is_side_fixed = {
             let node_guard = parent_node.lock();
             node_guard.get_property(LayeredOptions::PORT_CONSTRAINTS)
                 .unwrap_or(PortConstraints::Undefined)
                 .is_side_fixed()
-        } {
+        };
+        let port_side = if let Some(parent_end_port) = parent_end_port.as_ref() {
+            parent_end_port
+                .lock().side()
+        } else if is_side_fixed {
             if port_type == PortType::Input {
                 PortSide::West
             } else {

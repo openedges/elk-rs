@@ -1367,7 +1367,7 @@ impl JsonImporter {
                         (sr.start_x(), sr.start_y(), sr.end_x(), sr.end_y(), bends)
                     };
                 let (incoming_shape, outgoing_shape, incoming_sections, outgoing_sections) = {
-                    let mut section_ref = section.borrow_mut();
+                    let section_ref = section.borrow_mut();
                     (
                         section_ref.incoming_shape(),
                         section_ref.outgoing_shape(),

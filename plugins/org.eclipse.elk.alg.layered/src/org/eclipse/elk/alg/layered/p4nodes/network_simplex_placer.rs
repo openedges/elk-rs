@@ -1314,14 +1314,14 @@ impl NetworkSimplexPlacer {
                         while idx > 0 {
                             idx -= 1;
                             let last = open_edges[idx].clone();
-                            if Arc::ptr_eq(&last, &edge) {
+                            if Arc::ptr_eq(&last, edge) {
                                 if idx < open_edges.len() {
                                     open_edges.remove(idx);
                                 }
                                 break;
                             } else {
                                 let last_id = edge_id(&last);
-                                let edge_id_val = edge_id(&edge);
+                                let edge_id_val = edge_id(edge);
                                 if last_id < self.crossing.len() {
                                     self.crossing[last_id] = true;
                                 }
@@ -1405,10 +1405,8 @@ impl Path {
         }
         .and_then(|port| { let port_guard = port.lock(); port_guard.node() });
         if let Some(node) = first_source {
-            if {
-                let node_guard = node.lock();
-                node_guard.node_type() == NodeType::LongEdge
-            } {
+            let is_long_edge = node.lock().node_type() == NodeType::LongEdge;
+            if is_long_edge {
                 return true;
             }
         }
@@ -1419,10 +1417,8 @@ impl Path {
             }
             .and_then(|port| { let port_guard = port.lock(); port_guard.node() });
             if let Some(node) = target_node {
-                if {
-                    let node_guard = node.lock();
-                    node_guard.node_type() == NodeType::LongEdge
-                } {
+                let is_long_edge = node.lock().node_type() == NodeType::LongEdge;
+                if is_long_edge {
                     return true;
                 }
             }

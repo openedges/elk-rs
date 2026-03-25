@@ -4,7 +4,6 @@ use std::sync::{Arc, LazyLock};
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_phase::ILayoutPhase;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::layout_processor_configuration::LayoutProcessorConfiguration;
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
-use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector_chain::KVectorChain;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{EnumSet, IElkProgressMonitor};
 
@@ -387,7 +386,7 @@ impl PolylineEdgeRouter {
         if add_junction_point && !self.created_junction_points.contains(bend_point) {
             let mut junction_points = edge_guard
                 .get_property(LayeredOptions::JUNCTION_POINTS)
-                .unwrap_or_else(KVectorChain::new);
+                .unwrap_or_default();
             junction_points.add_vector(*bend_point);
             edge_guard.set_property(LayeredOptions::JUNCTION_POINTS, Some(junction_points));
             self.created_junction_points.insert(*bend_point);

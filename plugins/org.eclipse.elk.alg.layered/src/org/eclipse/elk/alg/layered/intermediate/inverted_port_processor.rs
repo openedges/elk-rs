@@ -28,21 +28,16 @@ impl ILayoutProcessor<LGraph> for InvertedPortProcessor {
             for node in nodes {
                 let skip = {
                     let mut node_guard = node.lock();
-                    if node_guard.node_type() != NodeType::Normal {
-                        true
-                    } else if !node_guard
-                        .shape()
-                        .graph_element()
-                        .properties()
-                        .has_property(LayeredOptions::PORT_CONSTRAINTS)
-                    {
-                        true
-                    } else {
-                        !node_guard
+                    node_guard.node_type() != NodeType::Normal
+                        || !node_guard
+                            .shape()
+                            .graph_element()
+                            .properties()
+                            .has_property(LayeredOptions::PORT_CONSTRAINTS)
+                        || !node_guard
                             .get_property(LayeredOptions::PORT_CONSTRAINTS)
                             .unwrap_or(PortConstraints::Undefined)
                             .is_side_fixed()
-                    }
                 };
                 if skip {
                     continue;

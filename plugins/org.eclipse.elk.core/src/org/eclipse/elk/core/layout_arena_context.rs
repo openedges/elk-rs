@@ -9,7 +9,7 @@ use std::cell::RefCell;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::{ElkGraphArenaSync, ElkNodeRef};
 
 thread_local! {
-    static LAYOUT_ARENA: RefCell<Option<ElkGraphArenaSync>> = RefCell::new(None);
+    static LAYOUT_ARENA: RefCell<Option<ElkGraphArenaSync>> = const { RefCell::new(None) };
 }
 
 /// Initialize the layout arena from an ElkGraph root.

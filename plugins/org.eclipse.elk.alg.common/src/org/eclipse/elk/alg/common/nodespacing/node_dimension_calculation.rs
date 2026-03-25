@@ -1381,13 +1381,12 @@ impl NodeDimensionCalculation {
     fn inside_horizontal_label_clamp_bounds(node: &ElkNodeAdapter, node_width: f64) -> (f64, f64) {
         let width = node_width.max(0.0);
         let mut min_x: f64 = 0.0;
-        let mut max_x: f64 = width;
 
         // Always use effective padding (includes defaults) — matches Java behavior
         // where getProperty() caches defaults making hasProperty() return true.
         let padding = node.get_padding();
         min_x = min_x.max(padding.left.max(0.0));
-        max_x = (width - padding.right.max(0.0)).max(min_x);
+        let mut max_x = (width - padding.right.max(0.0)).max(min_x);
 
         if node.has_property(CoreOptions::SPACING_LABEL_NODE) {
             let spacing = node
@@ -1745,11 +1744,10 @@ impl NodeDimensionCalculation {
     {
         let width = node_width.max(0.0);
         let mut min_x: f64 = 0.0;
-        let mut max_x: f64 = width;
 
         let padding = node.get_padding();
         min_x = min_x.max(padding.left.max(0.0));
-        max_x = (width - padding.right.max(0.0)).max(min_x);
+        let mut max_x = (width - padding.right.max(0.0)).max(min_x);
 
         if node.has_property(CoreOptions::SPACING_LABEL_NODE) {
             let spacing = node

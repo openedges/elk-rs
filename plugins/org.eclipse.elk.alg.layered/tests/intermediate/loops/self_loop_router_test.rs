@@ -1054,13 +1054,12 @@ fn self_loop_router_offsets_corner_for_inline_label_clearance() {
         
         .get_property(InternalProperties::SELF_LOOP_HOLDER)
         .and_then(|holder| holder.lock().sl_hyper_loops().first().cloned())
-        .map(|sl_loop| {
+        .and_then(|sl_loop| {
             let sl_loop_guard = sl_loop.lock();
             sl_loop_guard
                 .sl_labels()
                 .map(|labels| (sl_loop_guard.self_loop_type(), labels.side()))
         })
-        .flatten()
         .unwrap_or((None, PortSide::Undefined));
 
     assert_eq!(
