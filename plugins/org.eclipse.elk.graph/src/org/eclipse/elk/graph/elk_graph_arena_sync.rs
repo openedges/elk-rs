@@ -7,7 +7,7 @@ use crate::org::eclipse::elk::graph::{
     ElkLabelRef, ElkNodeRef, ElkPortRef,
 };
 use crate::org::eclipse::elk::graph::elk_graph_arena::{
-    EBendId, EConnectableId, EEdgeId, ELabelId, ELabelParent, ENodeId, EPortId, ESectionId,
+    EConnectableId, EEdgeId, ELabelId, ELabelParent, ENodeId, EPortId, ESectionId,
     ElkGraphArena,
 };
 
@@ -192,7 +192,7 @@ impl ElkGraphArenaSync {
 
     fn import_label(&mut self, label_ref: &ElkLabelRef) {
         let text = {
-            let mut l = label_ref.borrow_mut();
+            let l = label_ref.borrow();
             l.text().to_string()
         };
         let lid = self.arena.add_label(text);

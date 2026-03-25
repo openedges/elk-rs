@@ -71,6 +71,7 @@ impl EBendId {
 
 // --- Arena struct (SoA layout, mutable adjacency via Vec<Vec<Id>>) ---
 
+#[derive(Default)]
 pub struct ElkGraphArena {
     // ── Node attributes (indexed by ENodeId) ──
     pub node_x: Vec<f64>,
