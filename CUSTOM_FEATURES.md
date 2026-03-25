@@ -20,9 +20,9 @@ Four custom features are currently implemented:
 | Item | Value |
 |------|-------|
 | Integration branch | `custom/0.11.0` |
-| Tag | `v0.11.0-ext.2`, `v0.11.0+rs.1` |
-| Cargo version | `0.11.0-ext.2` |
-| npm version | `elk-rs@0.11.0-ext.2` |
+| Tag | `v0.11.0-ext.4`, `v0.11.0+rs.2` |
+| Cargo version | `0.11.0-ext.4` |
+| npm version | `elk-rs@0.11.0-ext.4` |
 | Base | `main` (`v0.11.0` — ELK Java 1:1 parity) |
 
 Feature development branches:
