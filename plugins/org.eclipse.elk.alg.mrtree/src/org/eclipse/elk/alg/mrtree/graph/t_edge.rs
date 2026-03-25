@@ -142,7 +142,7 @@ impl fmt::Display for TEdge {
         if let (Some(source), Some(target)) = (self.source(), self.target()) {
             let source_label = source.lock().to_string();
             let target_label = target.lock().to_string();
-            return write!(f, "{}->{}", source_label, target_label);
+            write!(f, "{}->{}", source_label, target_label)
         } else {
             write!(f, "e_{:p}", self)
         }

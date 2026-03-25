@@ -1381,9 +1381,9 @@ impl AbstractBarycenterPortDistributor {
 
     fn layer_size(&self, node: &LNodeRef) -> usize {
         node.lock().layer()
-            .and_then(|layer| {
+            .map(|layer| {
                 let layer_guard = layer.lock();
-                Some(layer_guard.nodes().len())
+                layer_guard.nodes().len()
             })
             .unwrap_or(0)
     }
@@ -1540,9 +1540,9 @@ impl AbstractBarycenterPortDistributor {
             let nid = node_guard.shape().graph_element().id;
             let layer_idx = node_guard
                 .layer()
-                .and_then(|l| {
+                .map(|l| {
                     let mut lg = l.lock();
-                    Some(lg.graph_element().id)
+                    lg.graph_element().id
                 })
                 .unwrap_or(-1);
             let ports = node_guard.ports().clone();
@@ -1635,9 +1635,9 @@ fn port_id(port: &LPortRef) -> usize {
 
 fn layer_index(node: &LNodeRef) -> Option<usize> {
     node.lock().layer()
-        .and_then(|layer| {
+        .map(|layer| {
             let mut layer_guard = layer.lock();
-            Some(layer_guard.graph_element().id as usize)
+            layer_guard.graph_element().id as usize
         })
 }
 

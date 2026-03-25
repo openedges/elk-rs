@@ -202,7 +202,7 @@ impl IInitializable for MedianHeuristic {}
 
 fn layer_id(node: &LNodeRef) -> Option<usize> {
     node.lock().layer()
-        .and_then(|layer| {
-            Some(layer.lock().graph_element().id as usize)
+        .map(|layer| {
+            layer.lock().graph_element().id as usize
         })
 }

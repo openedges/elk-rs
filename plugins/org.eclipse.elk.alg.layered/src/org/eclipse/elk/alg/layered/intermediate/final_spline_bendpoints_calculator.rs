@@ -237,7 +237,6 @@ impl FinalSplineBendpointsCalculator {
                     (g.layer(), g.shape().graph_element().id as isize)
                 };
                 if src_layer.is_some() && edge_info.normal_source_node {
-                    let node_id = node_id;
                     let layer_nodes = src_layer
                         .as_ref()
                         .map(|layer| layer.lock().nodes().clone())
@@ -274,7 +273,6 @@ impl FinalSplineBendpointsCalculator {
                     (g.layer(), g.shape().graph_element().id as isize)
                 };
                 if tgt_layer.is_some() && edge_info.normal_target_node {
-                    let node_id = node_id;
                     let layer_nodes = tgt_layer
                         .as_ref()
                         .map(|layer| layer.lock().nodes().clone())

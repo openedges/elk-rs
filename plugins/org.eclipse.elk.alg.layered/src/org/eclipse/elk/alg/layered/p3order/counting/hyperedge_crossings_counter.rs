@@ -49,7 +49,7 @@ impl HyperedgeCrossingsCounter {
             let eg = edge.lock();
             eg.target()
                 .and_then(|tp| tp.lock().node())
-                .map_or(false, |n| left_node_set.contains(&(Arc::as_ptr(&n) as usize)))
+                .is_some_and(|n| left_node_set.contains(&(Arc::as_ptr(&n) as usize)))
         };
 
         // Inline in-layer check for incoming edges to right_layer.
@@ -58,7 +58,7 @@ impl HyperedgeCrossingsCounter {
             let eg = edge.lock();
             eg.source()
                 .and_then(|sp| sp.lock().node())
-                .map_or(false, |n| right_node_set.contains(&(Arc::as_ptr(&n) as usize)))
+                .is_some_and(|n| right_node_set.contains(&(Arc::as_ptr(&n) as usize)))
         };
 
         let mut source_count = 0i32;
@@ -184,7 +184,7 @@ impl HyperedgeCrossingsCounter {
                         let t = eg.target();
                         let il = t.as_ref()
                             .and_then(|tp| tp.lock().node())
-                            .map_or(false, |n| left_node_set.contains(&(Arc::as_ptr(&n) as usize)));
+                            .is_some_and(|n| left_node_set.contains(&(Arc::as_ptr(&n) as usize)));
                         (t, il)
                     };
                     let Some(target_port) = target_port else {
@@ -267,8 +267,8 @@ impl HyperedgeCrossingsCounter {
                 let pos = port_position(&self.port_positions, port);
                 let node_ptr = port.lock().node()
                     .map(|n| Arc::as_ptr(&n) as usize);
-                let in_left = node_ptr.map_or(false, |p| left_node_set.contains(&p));
-                let in_right = node_ptr.map_or(false, |p| right_node_set.contains(&p));
+                let in_left = node_ptr.is_some_and(|p| left_node_set.contains(&p));
+                let in_right = node_ptr.is_some_and(|p| right_node_set.contains(&p));
                 if in_left {
                     hyperedge.upper_left = hyperedge.upper_left.min(pos);
                     hyperedge.lower_left = hyperedge.lower_left.max(pos);

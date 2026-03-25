@@ -27,14 +27,12 @@ impl NeighborhoodInformation {
         ni.layer_index = vec![0; layers.len()];
         ni.node_index = vec![0; ni.node_count];
 
-        let mut layer_id = 0usize;
         let mut node_counter = 0usize;
         for (layer_idx, layer) in layers.iter().enumerate() {
             let nodes = {
                 let mut layer_guard = layer.lock();
-                layer_guard.graph_element().id = layer_id as i32;
-                ni.layer_index[layer_id] = layer_idx;
-                layer_id += 1;
+                layer_guard.graph_element().id = layer_idx as i32;
+                ni.layer_index[layer_idx] = layer_idx;
                 layer_guard.nodes().clone()
             };
             for (local_index, node) in nodes.into_iter().enumerate() {

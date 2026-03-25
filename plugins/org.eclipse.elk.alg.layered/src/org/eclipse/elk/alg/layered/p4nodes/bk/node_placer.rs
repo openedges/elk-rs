@@ -430,14 +430,14 @@ impl BKNodePlacer {
                                                 });
                                             let src_name = source
                                                 .as_ref()
-                                                .and_then(|node| {
-                                                    Some(node.lock().designation().to_string())
+                                                .map(|node| {
+                                                    node.lock().designation().to_string()
                                                 })
                                                 .unwrap_or_else(|| "<none>".to_string());
                                             let tgt_name = target
                                                 .as_ref()
-                                                .and_then(|node| {
-                                                    Some(node.lock().designation().to_string())
+                                                .map(|node| {
+                                                    node.lock().designation().to_string()
                                                 })
                                                 .unwrap_or_else(|| "<none>".to_string());
                                             let src_id =
@@ -490,14 +490,14 @@ impl BKNodePlacer {
 
                 let source_layer_id = source_node
                     .lock().layer()
-                    .and_then(|layer| {
-                        Some(layer.lock().graph_element().id as usize)
+                    .map(|layer| {
+                        layer.lock().graph_element().id as usize
                     })
                     .unwrap_or(0);
                 let node_layer_id = node
                     .lock().layer()
-                    .and_then(|layer| {
-                        Some(layer.lock().graph_element().id as usize)
+                    .map(|layer| {
+                        layer.lock().graph_element().id as usize
                     })
                     .unwrap_or(0);
 
@@ -544,7 +544,7 @@ fn create_balanced_layout(
                 let node_id = node_id(&node);
                 let node_pos = layout.y[node_id].unwrap_or(0.0) + layout.inner_shift[node_id];
                 min[i] = min[i].min(node_pos);
-                max[i] = max[i].max(node_pos + node_size_y_a(&sync, &node));
+                max[i] = max[i].max(node_pos + node_size_y_a(sync, &node));
             }
         }
     }

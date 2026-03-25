@@ -1072,18 +1072,16 @@ impl CompactionContext {
             let edge_guard = edge.lock();
             let source_node = edge_guard
                 .source()
-                .map(|source| {
+                .and_then(|source| {
                     let port = source.lock();
                     port.node()
-                })
-                .flatten();
+                });
             let target_node = edge_guard
                 .target()
-                .map(|target| {
+                .and_then(|target| {
                     let port = target.lock();
                     port.node()
-                })
-                .flatten();
+                });
             match (source_node, target_node) {
                 (Some(source), Some(target)) if Arc::ptr_eq(&source, node) => Some(target),
                 (Some(source), Some(target)) if Arc::ptr_eq(&target, node) => Some(source),

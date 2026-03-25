@@ -657,11 +657,12 @@ impl LGraphUtil {
                 {
                     let node_guard = node.lock();
                     for candidate in node_guard.ports() {
-                        if {
+                        let is_input_collect = {
                             let port = candidate.lock();
                             port.get_property(InternalProperties::INPUT_COLLECT)
                                 .unwrap_or(false)
-                        } {
+                        };
+                        if is_input_collect {
                             return candidate.clone();
                         }
                     }
@@ -677,11 +678,12 @@ impl LGraphUtil {
                 {
                     let node_guard = node.lock();
                     for candidate in node_guard.ports() {
-                        if {
+                        let is_output_collect = {
                             let port = candidate.lock();
                             port.get_property(InternalProperties::OUTPUT_COLLECT)
                                 .unwrap_or(false)
-                        } {
+                        };
+                        if is_output_collect {
                             return candidate.clone();
                         }
                     }
@@ -761,7 +763,7 @@ impl LGraphUtil {
                         let mut node = node.lock();
                         *node.shape().size_ref()
                     })
-                    .unwrap_or(KVector::new());
+                    .unwrap_or_default();
                 let pos = *port_guard.shape().position_ref();
                 match port_side {
                     PortSide::North | PortSide::South => {

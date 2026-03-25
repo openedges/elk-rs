@@ -83,8 +83,8 @@ fn edge_bend_stats_after_layout(
         .count();
     let max_bends = edges
         .iter()
-        .filter_map(|edge| {
-            Some(edge.lock().bend_points_ref().len())
+        .map(|edge| {
+            edge.lock().bend_points_ref().len()
         })
         .max()
         .unwrap_or(0);
@@ -132,7 +132,7 @@ fn ptolemy_flattened_models_remain_single_component_after_import() {
     for model in models {
         let lgraph = import_lgraph(model);
         let (node_count, has_external_ports, edge_routing_before, edge_routing_prepared) = {
-            let mut graph_guard = lgraph.lock();            let graph_props = graph_guard
+            let graph_guard = lgraph.lock();            let graph_props = graph_guard
                 .get_property(InternalProperties::GRAPH_PROPERTIES)
                 .unwrap_or_else(EnumSet::none_of);
             let edge_routing_before = graph_guard
@@ -143,7 +143,7 @@ fn ptolemy_flattened_models_remain_single_component_after_import() {
             let mut graph_configurator = GraphConfigurator::new();
             graph_configurator.prepare_graph_for_layout(&lgraph);
 
-            let mut graph_guard = lgraph.lock();            let edge_routing_prepared = graph_guard
+            let graph_guard = lgraph.lock();            let edge_routing_prepared = graph_guard
                 .get_property(LayeredOptions::EDGE_ROUTING)
                 .unwrap_or(EdgeRouting::Undefined);
             (

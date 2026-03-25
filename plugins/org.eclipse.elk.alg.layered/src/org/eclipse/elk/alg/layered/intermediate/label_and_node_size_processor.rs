@@ -1025,10 +1025,10 @@ fn graph_has_any_port_labels(graph: &LGraph) -> bool {
     let mut seen = HashSet::new();
     let node_has_port_labels = |node: &LNodeRef| -> bool {
         let node_guard = node.lock();
-        return node_guard.ports().iter().any(|port| {
+        node_guard.ports().iter().any(|port| {
             let port_guard = port.lock();
             !port_guard.labels().is_empty()
-        });
+        })
     };
 
     for node in graph.layerless_nodes().clone() {

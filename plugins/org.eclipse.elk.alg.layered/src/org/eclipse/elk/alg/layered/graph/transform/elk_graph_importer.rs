@@ -777,19 +777,21 @@ impl<'a> ElkGraphImporter<'a> {
             }
         }
 
-        if {
+        let is_comment_box = {
             let node_guard = lnode.lock();
             node_guard.get_property(LayeredOptions::COMMENT_BOX)
                 .unwrap_or(false)
-        } {
+        };
+        if is_comment_box {
             graph_properties.insert(GraphProperties::Comments);
         }
 
-        if {
+        let is_hypernode = {
             let node_guard = lnode.lock();
             node_guard.get_property(LayeredOptions::HYPERNODE)
                 .unwrap_or(false)
-        } {
+        };
+        if is_hypernode {
             graph_properties.insert(GraphProperties::Hypernodes);
             graph_properties.insert(GraphProperties::Hyperedges);
             {

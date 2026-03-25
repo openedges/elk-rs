@@ -457,7 +457,7 @@ fn push_constraint(node: &TNodeRef, constraint: &TNodeRef) {
     let mut node_guard = node.lock();
     let mut list = node_guard
         .get_property(InternalProperties::COMPACT_CONSTRAINTS)
-        .unwrap_or_else(Vec::new);
+        .unwrap_or_default();
     list.push(constraint.clone());
     node_guard.set_property(InternalProperties::COMPACT_CONSTRAINTS, Some(list));
 }

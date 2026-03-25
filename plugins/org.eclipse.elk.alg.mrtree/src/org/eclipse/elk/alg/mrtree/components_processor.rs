@@ -128,11 +128,9 @@ impl ComponentsProcessor {
         if components.len() > 1 {
             for comp in &components {
                 let comp_guard = comp.lock();
-                let mut next_id = 0;
-                for node in comp_guard.nodes().iter() {
+                for (next_id, node) in comp_guard.nodes().iter().enumerate() {
                     let mut node_guard = node.lock();
-                    node_guard.set_id(next_id);
-                    next_id += 1;
+                    node_guard.set_id(next_id as i32);
                 }
             }
         }
@@ -357,10 +355,10 @@ fn component_sort_values(graph: &TGraphRef) -> (i32, f64) {
     let priority = guard.get_property(MrTreeOptions::PRIORITY).unwrap_or(0);
     let mut size = guard
         .get_property(InternalProperties::BB_LOWRIGHT)
-        .unwrap_or_else(KVector::new);
+        .unwrap_or_default();
     let min = guard
         .get_property(InternalProperties::BB_UPLEFT)
-        .unwrap_or_else(KVector::new);
+        .unwrap_or_default();
     size.sub(&min);
     (priority, size.x * size.y)
 }

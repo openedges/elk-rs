@@ -381,7 +381,7 @@ impl ElkUtil {
             let so = props.get_property(CoreOptions::NODE_SIZE_OPTIONS)
                 .unwrap_or_else(EnumSet::none_of);
             let ms = props.get_property(CoreOptions::NODE_SIZE_MINIMUM)
-                .unwrap_or_else(KVector::new);
+                .unwrap_or_default();
             (sc, so, ms)
         };
 

@@ -51,7 +51,7 @@ impl RecursiveGraphLayoutEngine {
             return Vec::new();
         }
 
-        let no_layout = read_node_prop(layout_node, &CoreOptions::NO_LAYOUT).unwrap_or(false);
+        let no_layout = read_node_prop(layout_node, CoreOptions::NO_LAYOUT).unwrap_or(false);
         if no_layout {
             recursive_trace(layout_node, "exit no_layout=true");
             return Vec::new();
@@ -90,7 +90,7 @@ impl RecursiveGraphLayoutEngine {
         }
 
         self.evaluate_hierarchy_handling_inheritance(layout_node);
-        let hierarchy_handling = read_node_prop(layout_node, &CoreOptions::HIERARCHY_HANDLING)
+        let hierarchy_handling = read_node_prop(layout_node, CoreOptions::HIERARCHY_HANDLING)
             .unwrap_or(HierarchyHandling::Inherit);
 
         let include_children = hierarchy_handling == HierarchyHandling::IncludeChildren
@@ -105,7 +105,7 @@ impl RecursiveGraphLayoutEngine {
             ),
         );
 
-        let topdown_layout = read_node_prop(layout_node, &CoreOptions::TOPDOWN_LAYOUT)
+        let topdown_layout = read_node_prop(layout_node, CoreOptions::TOPDOWN_LAYOUT)
             .unwrap_or(false);
         if include_children && topdown_layout {
             let message = "Topdown layout cannot be used together with hierarchy handling.";
@@ -296,7 +296,7 @@ impl RecursiveGraphLayoutEngine {
         let mut topdown_monitor = progress_monitor.sub_task(1.0);
         topdown_monitor.begin("Topdown Layout", 1.0);
 
-        let node_type = read_node_prop(layout_node, &CoreOptions::TOPDOWN_NODE_TYPE);
+        let node_type = read_node_prop(layout_node, CoreOptions::TOPDOWN_NODE_TYPE);
         let Some(node_type) = node_type else {
             let message = "Top-down layout node type has not been assigned.";
             panic!("{}", UnsupportedConfigurationException::new(message));
@@ -311,7 +311,7 @@ impl RecursiveGraphLayoutEngine {
                     continue;
                 }
 
-                let padding = read_node_prop(child, &CoreOptions::PADDING)
+                let padding = read_node_prop(child, CoreOptions::PADDING)
                     .unwrap_or_else(ElkPadding::new);
 
                 let mut handled = false;
@@ -321,7 +321,7 @@ impl RecursiveGraphLayoutEngine {
                         let required_size = provider
                             .as_topdown_layout_provider()
                             .map(|topdown_provider| {
-                                let child_type = read_node_prop(child, &CoreOptions::TOPDOWN_NODE_TYPE);
+                                let child_type = read_node_prop(child, CoreOptions::TOPDOWN_NODE_TYPE);
                                 if child_type == Some(TopdownNodeTypes::HierarchicalNode) {
                                     let message = "Topdown layout providers should only be used on parallel nodes.";
                                     panic!("{}", UnsupportedConfigurationException::new(message));
@@ -348,9 +348,9 @@ impl RecursiveGraphLayoutEngine {
                     let size = approximator.get_size(child);
                     set_node_dimensions_with_padding(child, &size, &padding);
                 } else {
-                    let width = read_node_prop(child, &CoreOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH)
+                    let width = read_node_prop(child, CoreOptions::TOPDOWN_HIERARCHICAL_NODE_WIDTH)
                         .unwrap_or(150.0);
-                    let aspect_ratio = read_node_prop(child, &CoreOptions::TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO)
+                    let aspect_ratio = read_node_prop(child, CoreOptions::TOPDOWN_HIERARCHICAL_NODE_ASPECT_RATIO)
                         .unwrap_or(1.414);
                     let size = KVector::with_values(width, width / aspect_ratio);
                     set_node_dimensions_with_padding(child, &size, &padding);
@@ -358,8 +358,8 @@ impl RecursiveGraphLayoutEngine {
             }
         }
 
-        let padding = read_node_prop(layout_node, &CoreOptions::PADDING)
-            .unwrap_or_else(ElkPadding::new);
+        let padding = read_node_prop(layout_node, CoreOptions::PADDING)
+            .unwrap_or_default();
         let (width, height) = node_dimensions(layout_node);
         let child_area_available_width = width - (padding.left + padding.right);
         let child_area_available_height = height - (padding.top + padding.bottom);
@@ -374,7 +374,7 @@ impl RecursiveGraphLayoutEngine {
             );
         });
 
-        let fixed_graph_size = read_node_prop(layout_node, &CoreOptions::NODE_SIZE_FIXED_GRAPH_SIZE)
+        let fixed_graph_size = read_node_prop(layout_node, CoreOptions::NODE_SIZE_FIXED_GRAPH_SIZE)
             .unwrap_or(false);
         let original_node_size = node_dimensions(layout_node);
 
@@ -414,7 +414,7 @@ impl RecursiveGraphLayoutEngine {
             );
         }
 
-        let algorithm_id = read_node_prop(layout_node, &CoreOptions::ALGORITHM)
+        let algorithm_id = read_node_prop(layout_node, CoreOptions::ALGORITHM)
             .unwrap_or_default();
         topdown_monitor.log(&format!(
             "Executed layout algorithm: {} on node",
@@ -452,7 +452,7 @@ impl RecursiveGraphLayoutEngine {
 
             let scale_factor_x = child_area_available_width / child_area_desired_width;
             let scale_factor_y = child_area_available_height / child_area_desired_height;
-            let scale_cap = read_node_prop(layout_node, &CoreOptions::TOPDOWN_SCALE_CAP)
+            let scale_cap = read_node_prop(layout_node, CoreOptions::TOPDOWN_SCALE_CAP)
                 .unwrap_or(1.0);
             let scale_factor = scale_factor_x.min(scale_factor_y).min(scale_cap);
             with_node_properties_mut(layout_node, |props| {
@@ -462,7 +462,7 @@ impl RecursiveGraphLayoutEngine {
                 "Local Scale Factor (X|Y): ({scale_factor_x}|{scale_factor_y})"
             ));
 
-            let content_alignment = read_node_prop(layout_node, &CoreOptions::CONTENT_ALIGNMENT)
+            let content_alignment = read_node_prop(layout_node, CoreOptions::CONTENT_ALIGNMENT)
                 .unwrap_or_else(ContentAlignment::top_left);
 
             let mut alignment_shift_x = 0.0;
@@ -650,7 +650,7 @@ impl RecursiveGraphLayoutEngine {
     }
 
     fn gather_inside_self_loops(&self, node: &ElkNodeRef) -> Vec<ElkEdgeRef> {
-        let active = read_node_prop(node, &CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE)
+        let active = read_node_prop(node, CoreOptions::INSIDE_SELF_LOOPS_ACTIVATE)
             .unwrap_or(false);
         if !active {
             return Vec::new();

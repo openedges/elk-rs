@@ -78,7 +78,7 @@ fn inserts_label_dummy_and_moves_center_labels() {
         .expect("label dummy node");
 
     let represented = {
-        let mut dummy_guard = dummy.lock();        dummy_guard
+        let dummy_guard = dummy.lock();        dummy_guard
             .get_property(InternalProperties::REPRESENTED_LABELS)
             .unwrap_or_default()
     };

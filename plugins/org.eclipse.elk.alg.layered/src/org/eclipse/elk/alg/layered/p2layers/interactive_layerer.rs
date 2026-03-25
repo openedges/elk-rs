@@ -181,8 +181,8 @@ fn check_node(node: &LNodeRef, graph: &mut LGraph, graph_ref: &LGraphRef) -> Vec
                 .lock().layer();
             let layer2_id = layer2
                 .as_ref()
-                .and_then(|layer| {
-                    Some(layer.lock().graph_element().id)
+                .map(|layer| {
+                    layer.lock().graph_element().id
                 })
                 .unwrap_or(-1);
             if layer2_id <= layer1_id {

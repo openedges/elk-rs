@@ -31,7 +31,7 @@ fn test_model_order_respected() {
     let mut model_order = -1;
     for node in &node_order[1] {
         {
-            let mut node_guard = node.lock();
+            let node_guard = node.lock();
             if let Some(new_model_order) = node_guard.get_property(InternalProperties::MODEL_ORDER)
             {
                 assert!(
@@ -181,11 +181,8 @@ fn set_up_ids(graph: &LGraphRef) {
 }
 
 fn to_node_order(graph: &LGraphRef) -> Vec<Vec<LNodeRef>> {
-    {
-        let graph_guard = graph.lock();
-        return graph_guard.to_node_array();
-    }
-    Vec::new()
+    let graph_guard = graph.lock();
+    graph_guard.to_node_array()
 }
 
 fn create_heuristic(node_order: &[Vec<LNodeRef>], _seed: u64) -> ModelOrderBarycenterHeuristic {
