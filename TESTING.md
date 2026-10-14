@@ -170,6 +170,48 @@ Prerequisite: NAPI/WASM builds must be complete (`cd plugins/org.eclipse.elk.js 
 
 ---
 
+### F. Memory Lifetime and Allocation Regression
+
+```sh
+# Weak-reference lifetime probes, including cancellation and panic cleanup
+cargo test -p org-eclipse-elk-graph-json --test memory_lifecycle
+
+# Exact live allocation deltas: JSON requests and a reused layered engine
+cargo test -p org-eclipse-elk-graph-json --test memory_allocations
+
+# Optional full corpus, after the Java input manifest has been generated
+ELK_MEMORY_MANIFEST=tests/model_parity_full/java/java_manifest.tsv \
+  cargo test --release -p org-eclipse-elk-graph-json --test memory_allocations
+```
+
+The allocation test covers 29 JSON inputs across nine algorithms and three inputs
+for a reused `ElkLayered` engine (ordinary edges, splines, self-loops), with ten
+warmup requests followed by three batches of 100 requests per input.
+Both retained bytes and allocation counts must remain exactly unchanged.
+Reusable engines may hold bounded processor caches; dropping the engine must
+release them. The optional corpus check warms each model ten times and measures
+three batches of two JSON requests. Manifest and input paths can be absolute or
+workspace-relative, matching the parity scripts.
+On the extension branch, the same test also loads all 18 `tests/fixtures/*.elk.json`
+inputs, using ten warmup requests and three batches of two requests per fixture.
+Keep their expected layout fixtures unchanged when validating memory-only fixes.
+
+The `0.11.0-ext.5` baseline has two existing model-parity differences against Java
+(`213_componentsCompaction.elkt`, `emptyLayerFirst.elkt`) and two existing trace
+differences (`emptyLayerFirst.elkt`, `emptyLayerLast.elkt`). These were verified
+against `ext.4`; final output matches `ext.4` for all 1,998 inputs. See `HISTORY.md`.
+
+All allocation checks deliberately share **one test** in a separate executable:
+do not add parallel tests to `memory_allocations.rs`, since unrelated allocations
+would invalidate the process-wide counters. Static metadata initialization is
+excluded by warmup. RSS can stay high after free and is not the assertion metric.
+These checks cover native Rust allocations, not the JavaScript or WASM host heap.
+
+Low-level graph callers must retain the containment root or detached nodes/ports.
+Edge endpoints and non-owning layered properties are weak references;
+`EdgeEndpointList::iter()` yields owned handles for live endpoints and skips
+expired ones. `len`, `get`, and `remove_at` use the same live-endpoint indexing.
+
 ## 3. Scenario-Based Procedures
 
 ### 3.1 Daily Development (after code changes)

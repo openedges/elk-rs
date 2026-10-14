@@ -29,3 +29,18 @@ pub fn take_rows(key: usize) -> Option<Vec<RectRowRef>> {
 pub fn get_rows(key: usize) -> Option<Vec<RectRowRef>> {
     ROWS_STORAGE.with(|storage| storage.borrow().get(&key).cloned())
 }
+
+/// Owns temporary rows for one layout, including cancellation and panic paths.
+pub(crate) struct RowsGuard(usize);
+
+impl RowsGuard {
+    pub(crate) fn new(graph: &ElkNodeRef) -> Self {
+        Self(graph_key(graph))
+    }
+}
+
+impl Drop for RowsGuard {
+    fn drop(&mut self) {
+        take_rows(self.0);
+    }
+}

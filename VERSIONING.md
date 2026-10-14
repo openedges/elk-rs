@@ -7,8 +7,11 @@ elk-rs is a Rust port of Java ELK (Eclipse Layout Kernel) and also provides an e
 - **ELK Java** (`external/elk`): pinned to `v0.11.0` release tag
 - **elkjs** (`external/elkjs`): pinned to `0.11.0` release tag
 - **elk-models** (`external/elk-models`): pinned to parity-verified commit
-- **elk-rs**: all Rust crates `0.11.0`, npm `elk-rs@0.11.0`
-- **Parity**: 1438/1438 models 100% match (ELK 0.11.0 porting complete)
+- **elk-rs stable**: all Rust crates `0.11.0`, npm `elk-rs@0.11.0`
+- **Current extension**: Cargo/npm `0.11.0-ext.5` on `custom/0.11.0`, including `v0.11.0+rs.3`
+- **Latest internal patch**: Git tag `v0.11.0+rs.3` (memory lifetime fixes; package versions unchanged)
+- **Stable parity**: model `1988/1989`, trace `1997/1997` (existing Java exception)
+- **Extension parity**: model `1987/1989`, trace `1995/1997`; all `1998/1998` final outputs unchanged from `ext.4`. Existing extension differences are recorded in `HISTORY.md`.
 
 This policy keeps versions aligned across all three projects while managing porting, verification, and releases systematically.
 
@@ -53,6 +56,7 @@ npm: elk-rs@0.11.0       <- npm version unchanged (no re-publish)
   - Semver build metadata (`+`) has no effect on version precedence
   - Examples: `v0.11.0+rs.1`, `v0.11.0+rs.2`
 - **No npm re-publish**: the npm package is not re-published for the same ELK version
+  - NAPI CI builds internal `+rs.N` tags but skips the publish job
   - Accumulated elk-rs fixes ship with the next ELK release (e.g., `0.11.1` or `0.12.0`)
   - Exception: critical fixes may be published as a prerelease: `0.11.0-rs.1`
 - **CHANGELOG.md**: elk-rs changes are grouped by ELK version
@@ -74,6 +78,8 @@ npm: elk-rs@0.11.0-ext.2     <- extension release #2 (+ elk-live)
 - **Cargo + npm**: Both use the same `-ext.N` version — publishable to registries
   - `npm install elk-rs@0.11.0-ext.2` (explicit install; `npm install elk-rs` still gets stable)
   - `elk-rs = "=0.11.0-ext.2"` in Cargo.toml (exact match required)
+  - NAPI CI publishes extension tags with `npm publish --tag ext` for both the main and platform packages; stable tags use `latest`, and internal `+rs.N` tags skip publishing.
+  - To incorporate an internal patch, merge `releases/{ELK_VERSION}` into `custom/{ELK_VERSION}`, verify extension fixtures and full parity, then increment `ext.N`. Preserve existing release tags.
 - **Semver note**: Technically `0.11.0-ext.2 < 0.11.0` in semver ordering, but this is not a
   problem in practice since extension releases are always installed via explicit version specifier
 - **Version bumping**: When `main` moves to the next ELK version, extension releases rebase and
@@ -132,9 +138,12 @@ conventions adapted for ELK version alignment.
 
 | File | Version Field | Stable | Extension |
 |------|---------------|--------|-----------|
-| `Cargo.toml` (workspace root) | `[workspace.package] version` | `"0.11.0"` | `"0.11.0-ext.2"` |
-| `plugins/org.eclipse.elk.js/package.json` | `"version"` | `"0.11.0"` | `"0.11.0-ext.2"` |
-| `CHANGELOG.md` | Change history per ELK version | `## [0.11.0]` | `## [0.11.0-ext.2]` |
+| `Cargo.toml` (workspace root), `Cargo.lock` | Workspace/crate versions | `"0.11.0"` | `"0.11.0-ext.5"` |
+| `plugins/org.eclipse.elk.js/package.json`, `package-lock.json` | Version and all `@elk-rs/*` optional dependencies | `"0.11.0"` | `"0.11.0-ext.5"` |
+| `plugins/org.eclipse.elk.js/npm/*/package.json` | Six platform package versions | `"0.11.0"` | `"0.11.0-ext.5"` |
+| `plugins/org.eclipse.elk.napi/package.json` | NAPI build package version | `"0.11.0"` | `"0.11.0-ext.5"` |
+| `packages/elk-live/package.json`, `package-lock.json` | Private extension application version | — | `"0.11.0-ext.5"` |
+| `CHANGELOG.md` | Change history per release | `## [0.11.0]` | `## [0.11.0-ext.5]` |
 
 ### Cargo Workspace Version Unification
 
@@ -210,12 +219,14 @@ main                        <- development branch (always build/test/parity gree
 ```
 releases/0.11.0:
   v0.11.0                 <- stable release (ELK 0.11.0 parity, npm publish)
-  v0.11.0+rs.1            <- elk-rs hotfix (npm publish if critical)
-  v0.11.0+rs.2            <- elk-rs hotfix (npm publish if critical)
+  v0.11.0+rs.1            <- elk-rs internal hotfix (build only, no npm publish)
+  v0.11.0+rs.2            <- elk-rs internal hotfix (build only, no npm publish)
+  v0.11.0+rs.3            <- memory lifetime fixes (build only, no npm publish)
 
 custom/0.11.0:
   v0.11.0-ext.1           <- extension release (custom features, npm/cargo publish)
   v0.11.0-ext.2           <- extension release (+ elk-live, npm/cargo publish)
+  v0.11.0-ext.5           <- incorporates +rs.3 memory fixes (npm ext channel)
 
 releases/0.12.0:
   v0.12.0                 <- stable release (ELK 0.12.0 parity, npm publish)

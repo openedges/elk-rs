@@ -149,7 +149,7 @@ pub(crate) fn gather_labels(port: &LPortRef) -> Option<Vec<LLabelRef>> {
 
     let dummy_node = {
         let port_guard = port.lock();
-        port_guard.get_property(InternalProperties::PORT_DUMMY)
+        port_guard.get_property(InternalProperties::PORT_DUMMY).and_then(|value| value.upgrade())
     };
     if let Some(dummy_node) = dummy_node {
         let dummy_ports = {
@@ -231,7 +231,7 @@ fn gather_labels_from_port(port: &LPortRef, target_list: &mut Vec<LLabelRef>) ->
                         .is_none()
                     {
                         label_guard
-                            .set_property(InternalProperties::END_LABEL_EDGE, Some(edge.clone()));
+                            .set_property(InternalProperties::END_LABEL_EDGE, Some(Arc::downgrade(&edge)));
                     }
                 }
                 target_list.push(label);

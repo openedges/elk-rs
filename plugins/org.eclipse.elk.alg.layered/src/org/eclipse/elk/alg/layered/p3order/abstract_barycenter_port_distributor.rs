@@ -582,17 +582,17 @@ impl AbstractBarycenterPortDistributor {
                 let dummy = if let Some(ref sync) = self.arena_sync {
                     if let Some(apid) = snap.port_ref_opt(pid).and_then(|p| sync.port_id(p)) {
                         sync.arena().port_properties(apid)
-                            .get_property(InternalProperties::PORT_DUMMY)
+                            .get_property(InternalProperties::PORT_DUMMY).and_then(|value| value.upgrade())
                     } else {
                         snap.port_ref_opt(pid).and_then(|port| {
                             let pg = port.lock();
-                            pg.get_property(InternalProperties::PORT_DUMMY)
+                            pg.get_property(InternalProperties::PORT_DUMMY).and_then(|value| value.upgrade())
                         })
                     }
                 } else {
                     snap.port_ref_opt(pid).and_then(|port| {
                         let pg = port.lock();
-                        pg.get_property(InternalProperties::PORT_DUMMY)
+                        pg.get_property(InternalProperties::PORT_DUMMY).and_then(|value| value.upgrade())
                     })
                 };
                 let Some(dummy) = dummy else { continue; };
@@ -800,7 +800,7 @@ impl AbstractBarycenterPortDistributor {
             if north_south_port {
                 let dummy = {
                     let port_guard = port.lock();
-                    port_guard.get_property(InternalProperties::PORT_DUMMY)
+                    port_guard.get_property(InternalProperties::PORT_DUMMY).and_then(|value| value.upgrade())
                 };
                 let Some(dummy) = dummy else {
                     continue;
@@ -880,7 +880,7 @@ impl AbstractBarycenterPortDistributor {
             if north_south_port {
                 let dummy = {
                     let port_guard = port.lock();
-                    port_guard.get_property(InternalProperties::PORT_DUMMY)
+                    port_guard.get_property(InternalProperties::PORT_DUMMY).and_then(|value| value.upgrade())
                 };
                 let Some(dummy) = dummy else {
                     continue;

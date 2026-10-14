@@ -216,7 +216,7 @@ fn north_south_preprocessor_sets_layout_unit_and_barycenter_associates() {
         .owner
         .lock()
         
-        .get_property(InternalProperties::BARYCENTER_ASSOCIATES)
+        .get_property(InternalProperties::BARYCENTER_ASSOCIATES).map(|nodes| nodes.iter().filter_map(std::sync::Weak::upgrade).collect::<Vec<_>>())
         .unwrap_or_default();
     assert_eq!(barycenter.len(), 2);
 
@@ -225,7 +225,7 @@ fn north_south_preprocessor_sets_layout_unit_and_barycenter_associates() {
         let layout_unit = dummy
             .lock()
             
-            .get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
+            .get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT).and_then(|node| node.upgrade())
             .expect("layout unit");
         assert!(Arc::ptr_eq(&layout_unit, &fixture.owner));
     }

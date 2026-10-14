@@ -96,7 +96,7 @@ fn interactive_crossing_minimizer_respects_in_layer_successor_constraints_on_tie
     {
         node_a.lock().set_property(
             InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS,
-            Some(vec![node_b.clone()]),
+            Some(vec![std::sync::Arc::downgrade(&node_b)]),
         );
         let mut layer_guard = layer.lock();        layer_guard.nodes_mut().clear();
         layer_guard.nodes_mut().push(node_b.clone());

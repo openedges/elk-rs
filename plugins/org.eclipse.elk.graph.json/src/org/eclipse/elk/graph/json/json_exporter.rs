@@ -189,7 +189,7 @@ impl JsonExporter {
 
         let mut sources = Vec::new();
         for source in edge.borrow().sources_ro().iter() {
-            if let Some(id) = self.id_by_connectable(source) {
+            if let Some(id) = self.id_by_connectable(&source) {
                 sources.push(Value::String(id));
             }
         }
@@ -197,7 +197,7 @@ impl JsonExporter {
 
         let mut targets = Vec::new();
         for target in edge.borrow().targets_ro().iter() {
-            if let Some(id) = self.id_by_connectable(target) {
+            if let Some(id) = self.id_by_connectable(&target) {
                 targets.push(Value::String(id));
             }
         }

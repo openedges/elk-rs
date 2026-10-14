@@ -5,6 +5,21 @@ All notable changes to elk-rs are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions correspond to the target ELK Java version (see `VERSIONING.md`).
 
+## [0.11.0-ext.5] - 2026-10-14
+
+### Fixed
+
+- Merged the graph ownership and temporary-memory fixes from `v0.11.0+rs.3`, retaining the existing extension features and all 1,998 `ext.4` layout outputs.
+- Extended allocation regression coverage to all 18 custom fixtures; verified zero retained allocation growth across these fixtures and the full model corpus.
+- Aligned Cargo, npm, platform packages, and optional dependencies at `0.11.0-ext.5`.
+- Routed extension publishing through npm's `ext` channel, added the missing WASM build before publishing the main package, and updated the macOS Intel CI runner.
+
+### Compatibility and Validation
+
+- Carried forward the low-level Rust ownership API changes documented under `0.11.0+rs.3`; JSON input/output remains unchanged from `ext.4`.
+- Passed 1,044 Rust tests, 35 JS tests, 550 Java/JS comparisons, and 18 extension fixtures through each of the native and WASM backends.
+- Retained existing extension/Java differences: model parity `1,987/1,989`, phase-step trace `1,995/1,997`. Verified the differences against `ext.4`; see `HISTORY.md` for details and the existing performance caveat.
+
 ## [0.11.0+custom.1]
 
 ### Added (Custom Features)
@@ -19,6 +34,17 @@ Versions correspond to the target ELK Java version (see `VERSIONING.md`).
 ## [0.11.0] - 2026-03-06
 
 First stable release. Full port of ELK Java 0.11.0 with layout-identical output.
+
+### elk-rs Internal Changes (v0.11.0+rs.3)
+
+Internal patch dated 2026-10-14. Cargo and npm package versions remain `0.11.0`.
+
+- Fixed graph ownership cycles in ElkGraph, layered properties, crossing minimization, self-loops, splines, and network simplex; released temporary layout arenas and rectpacking rows on completion, cancellation, and panic.
+- Added 16 memory regression tests; verified zero retained allocation growth across all 1,998 model inputs and repeated calls with a reused layered engine.
+- Changed low-level Rust endpoint/property APIs to non-owning references: `EdgeEndpointList::iter()` now yields owned live handles, so callers must remove `.cloned()` and retain graph/node ownership. See `HISTORY.md` for the complete migration notes.
+- Preserved all 1,998 pre-fix JSON results and 1,997/1,997 phase-step trace matches; retained the existing Java model-parity exception.
+- Prevented npm publishing for internal `+rs.N` tags while retaining NAPI cross-platform builds.
+- Recorded a 2.04% increase in mean native benchmark time and a 5.66% increase for the separately measured large Stress case; further profiling remains necessary. See `HISTORY.md` for the measurement environment and scope.
 
 ### ELK Porting
 

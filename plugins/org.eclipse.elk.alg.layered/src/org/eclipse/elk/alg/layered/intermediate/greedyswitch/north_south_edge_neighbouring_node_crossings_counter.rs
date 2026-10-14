@@ -168,7 +168,7 @@ impl NorthSouthEdgeNeighbouringNodeCrossingsCounter {
     fn has_connected_north_south_edge(&self, port: &LPortRef) -> bool {
         let port_guard = port.lock();
         port_guard
-            .get_property(InternalProperties::PORT_DUMMY)
+            .get_property(InternalProperties::PORT_DUMMY).and_then(|value| value.upgrade())
             .is_some()
     }
 

@@ -175,7 +175,7 @@ fn trace_node_positions(graph: &LGraph, stage: &str) {
             let margin_top = node_guard.margin().top;
             let margin_bottom = node_guard.margin().bottom;
             let has_in_layer_unit = node_guard
-                .get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
+                .get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT).and_then(|value| value.upgrade())
                 .is_some();
             let label_opt = node_guard.labels().first().map(|label| {
                 let label_guard = label.lock();

@@ -251,8 +251,8 @@ impl ElkGraphArenaSync {
             // Sources and targets
             {
                 let mut e = edge_ref.borrow_mut();
-                let sources: Vec<_> = e.sources().iter().cloned().collect();
-                let targets: Vec<_> = e.targets().iter().cloned().collect();
+                let sources: Vec<_> = e.sources().iter().collect();
+                let targets: Vec<_> = e.targets().iter().collect();
                 drop(e);
                 for src in &sources {
                     if let Some(cid) = self.connectable_id(src) {

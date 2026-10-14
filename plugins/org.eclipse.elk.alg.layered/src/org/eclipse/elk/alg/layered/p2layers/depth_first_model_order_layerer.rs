@@ -270,7 +270,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for DepthFirstModelOrderLayerer {
                 real_nodes.push((order, node.clone()));
             }
         }
-        real_nodes.sort_by(|(a, _), (b, _)| a.cmp(b));
+        real_nodes.sort_by_key(|(a, _)| *a);
 
         let first_layer = Layer::new(&graph_ref);
         {

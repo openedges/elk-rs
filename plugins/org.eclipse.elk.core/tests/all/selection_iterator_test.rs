@@ -27,9 +27,9 @@ fn default_selection_iterator_with_ports_follows_direction() {
     let n2 = ElkGraphUtil::create_node(None);
     let n3 = ElkGraphUtil::create_node(None);
 
-    let p1 = ElkGraphUtil::create_port(Some(n1));
-    let p2 = ElkGraphUtil::create_port(Some(n2));
-    let p3 = ElkGraphUtil::create_port(Some(n3));
+    let p1 = ElkGraphUtil::create_port(Some(n1.clone()));
+    let p2 = ElkGraphUtil::create_port(Some(n2.clone()));
+    let p3 = ElkGraphUtil::create_port(Some(n3.clone()));
 
     let e1 = ElkGraphUtil::create_simple_edge(
         ElkConnectableShapeRef::Port(p1.clone()),
@@ -56,17 +56,17 @@ fn default_selection_iterator_without_ports_returns_edges() {
     let n2 = ElkGraphUtil::create_node(None);
     let n3 = ElkGraphUtil::create_node(None);
 
-    let p1 = ElkGraphUtil::create_port(Some(n1));
-    let p2 = ElkGraphUtil::create_port(Some(n2));
-    let p3 = ElkGraphUtil::create_port(Some(n3));
+    let p1 = ElkGraphUtil::create_port(Some(n1.clone()));
+    let p2 = ElkGraphUtil::create_port(Some(n2.clone()));
+    let p3 = ElkGraphUtil::create_port(Some(n3.clone()));
 
     let e1 = ElkGraphUtil::create_simple_edge(
         ElkConnectableShapeRef::Port(p1.clone()),
         ElkConnectableShapeRef::Port(p2.clone()),
     );
     let e2 = ElkGraphUtil::create_simple_edge(
-        ElkConnectableShapeRef::Port(p2),
-        ElkConnectableShapeRef::Port(p3),
+        ElkConnectableShapeRef::Port(p2.clone()),
+        ElkConnectableShapeRef::Port(p3.clone()),
     );
 
     let iter = DefaultSelectionIterator::new(e1, false, true);
@@ -82,11 +82,11 @@ fn default_selection_iterator_respects_visited_set() {
     let n1 = ElkGraphUtil::create_node(None);
     let n2 = ElkGraphUtil::create_node(None);
 
-    let p1 = ElkGraphUtil::create_port(Some(n1));
-    let p2 = ElkGraphUtil::create_port(Some(n2));
+    let p1 = ElkGraphUtil::create_port(Some(n1.clone()));
+    let p2 = ElkGraphUtil::create_port(Some(n2.clone()));
 
     let e1 = ElkGraphUtil::create_simple_edge(
-        ElkConnectableShapeRef::Port(p1),
+        ElkConnectableShapeRef::Port(p1.clone()),
         ElkConnectableShapeRef::Port(p2.clone()),
     );
 

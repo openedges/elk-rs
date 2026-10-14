@@ -15,7 +15,8 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::util::ElkReflect;
 use crate::org::eclipse::elk::alg::layered::compound::CrossHierarchyMap;
 use crate::org::eclipse::elk::alg::layered::graph::transform::l_graph_adapters::LLabelAdapter;
 use crate::org::eclipse::elk::alg::layered::graph::{
-    LEdgeRef, LGraph, LGraphRef, LLabelRef, LNodeRef, LPortRef, NodeRefKey,
+    LEdgeRef, LEdgeWeak, LGraph, LGraphRef, LGraphWeak, LLabelRef, LNodeRef, LNodeWeak,
+    LPortRef, LPortWeak, NodeRefKey,
 };
 use crate::org::eclipse::elk::alg::layered::intermediate::breaking_point_info::BreakingPointInfoRef;
 use crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfLoopHolderRef;
@@ -85,7 +86,7 @@ pub static REPRESENTED_LABELS_PROPERTY: LazyLock<Property<Vec<LLabelRef>>> =
 pub static END_LABELS_PROPERTY: LazyLock<Property<EndLabelMap>> =
     LazyLock::new(|| Property::new("endLabels"));
 
-pub static END_LABEL_EDGE_PROPERTY: LazyLock<Property<LEdgeRef>> =
+pub static END_LABEL_EDGE_PROPERTY: LazyLock<Property<LEdgeWeak>> =
     LazyLock::new(|| Property::new("endLabel.origin"));
 
 pub static REVERSED_PROPERTY: LazyLock<Property<bool>> =
@@ -118,7 +119,7 @@ pub static GRAPH_PROPERTIES_PROPERTY: LazyLock<Property<EnumSet<GraphProperties>
 pub static CROSS_HIERARCHY_MAP_PROPERTY: LazyLock<Property<CrossHierarchyMap>> =
     LazyLock::new(|| Property::new("crossHierarchyMap"));
 
-pub static ORIGINAL_LABEL_EDGE_PROPERTY: LazyLock<Property<LEdgeRef>> =
+pub static ORIGINAL_LABEL_EDGE_PROPERTY: LazyLock<Property<LEdgeWeak>> =
     LazyLock::new(|| Property::new("originalLabelEdge"));
 
 pub static PROCESSORS_PROPERTY: LazyLock<Property<Vec<SharedProcessor<LGraph>>>> =
@@ -132,7 +133,7 @@ pub static SPACINGS_PROPERTY: LazyLock<Property<Spacings>> =
 pub static TARGET_OFFSET_PROPERTY: LazyLock<Property<KVector>> =
     LazyLock::new(|| Property::new("targetOffset"));
 
-pub static COORDINATE_SYSTEM_ORIGIN_PROPERTY: LazyLock<Property<LGraphRef>> =
+pub static COORDINATE_SYSTEM_ORIGIN_PROPERTY: LazyLock<Property<LGraphWeak>> =
     LazyLock::new(|| Property::new("coordinateOrigin"));
 
 pub static SPLINE_LABEL_SIZE_PROPERTY: LazyLock<Property<KVector>> =
@@ -177,22 +178,22 @@ pub static MODEL_ORDER_PROPERTY: LazyLock<Property<i32>> =
 pub static ORIGINAL_DUMMY_NODE_POSITION_PROPERTY: LazyLock<Property<f64>> =
     LazyLock::new(|| Property::new("originalDummyNodePosition"));
 
-pub static PORT_DUMMY_PROPERTY: LazyLock<Property<LNodeRef>> =
+pub static PORT_DUMMY_PROPERTY: LazyLock<Property<LNodeWeak>> =
     LazyLock::new(|| Property::new("portDummy"));
 
-pub static IN_LAYER_LAYOUT_UNIT_PROPERTY: LazyLock<Property<LNodeRef>> =
+pub static IN_LAYER_LAYOUT_UNIT_PROPERTY: LazyLock<Property<LNodeWeak>> =
     LazyLock::new(|| Property::new("inLayerLayoutUnit"));
 
-pub static IN_LAYER_SUCCESSOR_CONSTRAINTS_PROPERTY: LazyLock<Property<Vec<LNodeRef>>> =
+pub static IN_LAYER_SUCCESSOR_CONSTRAINTS_PROPERTY: LazyLock<Property<Vec<LNodeWeak>>> =
     LazyLock::new(|| {
-        ElkReflect::register_default_clone::<Vec<LNodeRef>>();
+        ElkReflect::register_default_clone::<Vec<LNodeWeak>>();
         Property::with_default("inLayerSuccessorConstraint", Vec::new())
     });
 
 pub static IN_LAYER_SUCCESSOR_CONSTRAINTS_BETWEEN_NON_DUMMIES_PROPERTY: LazyLock<Property<bool>> =
     LazyLock::new(|| Property::with_default("inLayerSuccessorConstraintBetweenNonDummies", false));
 
-pub static BARYCENTER_ASSOCIATES_PROPERTY: LazyLock<Property<Vec<LNodeRef>>> =
+pub static BARYCENTER_ASSOCIATES_PROPERTY: LazyLock<Property<Vec<LNodeWeak>>> =
     LazyLock::new(|| Property::new("barycenterAssociates"));
 
 pub static MAX_MODEL_ORDER_NODES_PROPERTY: LazyLock<Property<i32>> =
@@ -259,7 +260,7 @@ pub static HIDDEN_NODES_PROPERTY: LazyLock<Property<Vec<LNodeRef>>> = LazyLock::
     Property::new("layerConstraints.hiddenNodes")
 });
 
-pub static ORIGINAL_OPPOSITE_PORT_PROPERTY: LazyLock<Property<LPortRef>> =
+pub static ORIGINAL_OPPOSITE_PORT_PROPERTY: LazyLock<Property<LPortWeak>> =
     LazyLock::new(|| Property::new("layerConstraints.opposidePort"));
 
 pub static PARTITION_DUMMY_PROPERTY: LazyLock<Property<bool>> =
@@ -282,7 +283,7 @@ impl InternalProperties {
     pub const REPRESENTED_LABELS: &'static LazyLock<Property<Vec<LLabelRef>>> =
         &REPRESENTED_LABELS_PROPERTY;
     pub const END_LABELS: &'static LazyLock<Property<EndLabelMap>> = &END_LABELS_PROPERTY;
-    pub const END_LABEL_EDGE: &'static LazyLock<Property<LEdgeRef>> = &END_LABEL_EDGE_PROPERTY;
+    pub const END_LABEL_EDGE: &'static LazyLock<Property<LEdgeWeak>> = &END_LABEL_EDGE_PROPERTY;
     pub const REVERSED: &'static LazyLock<Property<bool>> = &REVERSED_PROPERTY;
     pub const INPUT_COLLECT: &'static LazyLock<Property<bool>> = &INPUT_COLLECT_PROPERTY;
     pub const OUTPUT_COLLECT: &'static LazyLock<Property<bool>> = &OUTPUT_COLLECT_PROPERTY;
@@ -295,14 +296,14 @@ impl InternalProperties {
         &GRAPH_PROPERTIES_PROPERTY;
     pub const CROSS_HIERARCHY_MAP: &'static LazyLock<Property<CrossHierarchyMap>> =
         &CROSS_HIERARCHY_MAP_PROPERTY;
-    pub const ORIGINAL_LABEL_EDGE: &'static LazyLock<Property<LEdgeRef>> =
+    pub const ORIGINAL_LABEL_EDGE: &'static LazyLock<Property<LEdgeWeak>> =
         &ORIGINAL_LABEL_EDGE_PROPERTY;
     pub const PROCESSORS: &'static LazyLock<Property<Vec<SharedProcessor<LGraph>>>> =
         &PROCESSORS_PROPERTY;
     pub const RANDOM: &'static LazyLock<Property<Random>> = &RANDOM_PROPERTY;
     pub const SPACINGS: &'static LazyLock<Property<Spacings>> = &SPACINGS_PROPERTY;
     pub const TARGET_OFFSET: &'static LazyLock<Property<KVector>> = &TARGET_OFFSET_PROPERTY;
-    pub const COORDINATE_SYSTEM_ORIGIN: &'static LazyLock<Property<LGraphRef>> =
+    pub const COORDINATE_SYSTEM_ORIGIN: &'static LazyLock<Property<LGraphWeak>> =
         &COORDINATE_SYSTEM_ORIGIN_PROPERTY;
     pub const SPLINE_LABEL_SIZE: &'static LazyLock<Property<KVector>> = &SPLINE_LABEL_SIZE_PROPERTY;
     pub const ORIGINAL_PORT_CONSTRAINTS: &'static LazyLock<Property<PortConstraints>> =
@@ -328,15 +329,15 @@ impl InternalProperties {
     pub const MODEL_ORDER: &'static LazyLock<Property<i32>> = &MODEL_ORDER_PROPERTY;
     pub const ORIGINAL_DUMMY_NODE_POSITION: &'static LazyLock<Property<f64>> =
         &ORIGINAL_DUMMY_NODE_POSITION_PROPERTY;
-    pub const PORT_DUMMY: &'static LazyLock<Property<LNodeRef>> = &PORT_DUMMY_PROPERTY;
-    pub const IN_LAYER_LAYOUT_UNIT: &'static LazyLock<Property<LNodeRef>> =
+    pub const PORT_DUMMY: &'static LazyLock<Property<LNodeWeak>> = &PORT_DUMMY_PROPERTY;
+    pub const IN_LAYER_LAYOUT_UNIT: &'static LazyLock<Property<LNodeWeak>> =
         &IN_LAYER_LAYOUT_UNIT_PROPERTY;
-    pub const IN_LAYER_SUCCESSOR_CONSTRAINTS: &'static LazyLock<Property<Vec<LNodeRef>>> =
+    pub const IN_LAYER_SUCCESSOR_CONSTRAINTS: &'static LazyLock<Property<Vec<LNodeWeak>>> =
         &IN_LAYER_SUCCESSOR_CONSTRAINTS_PROPERTY;
     pub const IN_LAYER_SUCCESSOR_CONSTRAINTS_BETWEEN_NON_DUMMIES: &'static LazyLock<
         Property<bool>,
     > = &IN_LAYER_SUCCESSOR_CONSTRAINTS_BETWEEN_NON_DUMMIES_PROPERTY;
-    pub const BARYCENTER_ASSOCIATES: &'static LazyLock<Property<Vec<LNodeRef>>> =
+    pub const BARYCENTER_ASSOCIATES: &'static LazyLock<Property<Vec<LNodeWeak>>> =
         &BARYCENTER_ASSOCIATES_PROPERTY;
     pub const MAX_MODEL_ORDER_NODES: &'static LazyLock<Property<i32>> =
         &MAX_MODEL_ORDER_NODES_PROPERTY;
@@ -371,7 +372,7 @@ impl InternalProperties {
     pub const COMMENT_CONN_PORT: &'static LazyLock<Property<LPortRef>> =
         &COMMENT_CONN_PORT_PROPERTY;
     pub const HIDDEN_NODES: &'static LazyLock<Property<Vec<LNodeRef>>> = &HIDDEN_NODES_PROPERTY;
-    pub const ORIGINAL_OPPOSITE_PORT: &'static LazyLock<Property<LPortRef>> =
+    pub const ORIGINAL_OPPOSITE_PORT: &'static LazyLock<Property<LPortWeak>> =
         &ORIGINAL_OPPOSITE_PORT_PROPERTY;
     pub const PARTITION_DUMMY: &'static LazyLock<Property<bool>> = &PARTITION_DUMMY_PROPERTY;
     pub const LABEL_SIDE: &'static LazyLock<Property<LabelSide>> = &LABEL_SIDE_PROPERTY;

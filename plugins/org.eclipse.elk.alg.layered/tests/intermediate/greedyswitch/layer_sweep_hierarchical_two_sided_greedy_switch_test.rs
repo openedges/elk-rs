@@ -141,7 +141,7 @@ fn add_external_port_dummy_node_to_layer(layer: &LayerRef, port: &LPortRef) -> L
     }
     {
         let mut port_guard = port.lock();
-        port_guard.set_property(InternalProperties::PORT_DUMMY, Some(node.clone()));
+        port_guard.set_property(InternalProperties::PORT_DUMMY, Some(std::sync::Arc::downgrade(&node)));
         port_guard.set_property(InternalProperties::INSIDE_CONNECTIONS, Some(true));
     }
     {

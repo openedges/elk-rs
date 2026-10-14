@@ -123,7 +123,7 @@ fn port_side_processor_prefers_port_dummy_external_side() {
     }
     let port = add_port(&node, PortSide::Undefined);
     {
-        let mut port_guard = port.lock();        port_guard.set_property(InternalProperties::PORT_DUMMY, Some(dummy.clone()));
+        let mut port_guard = port.lock();        port_guard.set_property(InternalProperties::PORT_DUMMY, Some(std::sync::Arc::downgrade(&dummy)));
     }
 
     run_processor(&graph);

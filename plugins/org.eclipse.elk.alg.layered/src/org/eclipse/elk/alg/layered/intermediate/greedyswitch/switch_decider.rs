@@ -188,7 +188,7 @@ impl SwitchDecider {
         let constraints = {
             let node_guard = upper_node.lock();
             node_guard
-                .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
+                .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS).map(|nodes| nodes.iter().filter_map(std::sync::Weak::upgrade).collect::<Vec<_>>())
                 .unwrap_or_default()
         };
         !constraints.is_empty()
@@ -207,11 +207,11 @@ impl SwitchDecider {
 
         let upper_layout_unit = {
             let node_guard = upper_node.lock();
-            node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
+            node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT).and_then(|value| value.upgrade())
         };
         let lower_layout_unit = {
             let node_guard = lower_node.lock();
-            node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
+            node_guard.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT).and_then(|value| value.upgrade())
         };
 
         let are_in_different_layout_units = match (&upper_layout_unit, &lower_layout_unit) {
@@ -247,7 +247,7 @@ impl SwitchDecider {
             let (has_dummy, has_edges) = {
                 let port_guard = port.lock();
                 let dummy = port_guard
-                    .get_property(InternalProperties::PORT_DUMMY)
+                    .get_property(InternalProperties::PORT_DUMMY).and_then(|value| value.upgrade())
                     .is_some();
                 let edges = !port_guard.connected_edges().is_empty();
                 (dummy, edges)

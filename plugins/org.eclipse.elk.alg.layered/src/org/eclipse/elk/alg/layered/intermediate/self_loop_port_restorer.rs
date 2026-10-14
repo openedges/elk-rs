@@ -736,7 +736,7 @@ fn north_south_port_connection_sides(l_port: &LPortRef) -> HashSet<PortSide> {
     let mut connection_sides = HashSet::new();
     let port_dummy = {
         let l_port_guard = l_port.lock();
-        l_port_guard.get_property(InternalProperties::PORT_DUMMY)
+        l_port_guard.get_property(InternalProperties::PORT_DUMMY).and_then(|value| value.upgrade())
     };
     let Some(port_dummy) = port_dummy else {
         return connection_sides;

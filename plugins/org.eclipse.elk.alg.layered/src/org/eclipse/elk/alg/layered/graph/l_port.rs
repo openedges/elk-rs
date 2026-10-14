@@ -246,7 +246,7 @@ impl LPort {
     }
 
     pub fn port_dummy(&self) -> Option<LNodeRef> {
-        self.shape.get_property(InternalProperties::PORT_DUMMY)
+        self.shape.get_property(InternalProperties::PORT_DUMMY).and_then(|value| value.upgrade())
     }
 
     pub fn inside_connections(&self) -> bool {

@@ -1,8 +1,8 @@
 use std::any::Any;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
-use super::n_node::NNodeRef;
+use super::n_node::{NNode, NNodeRef};
 
 pub type NEdgeRef = Arc<Mutex<NEdge>>;
 
@@ -10,8 +10,9 @@ pub struct NEdge {
     pub id: i32,
     pub internal_id: usize,
     pub origin: Option<Arc<dyn Any + Send + Sync>>,
-    pub source: NNodeRef,
-    pub target: NNodeRef,
+    // NGraph owns nodes; nodes own their incident edges.
+    pub source: Weak<Mutex<NNode>>,
+    pub target: Weak<Mutex<NNode>>,
     pub weight: f64,
     pub delta: i32,
     pub tree_edge: bool,
@@ -27,31 +28,37 @@ impl NEdge {
     }
 
     pub fn source(&self) -> NNodeRef {
-        self.source.clone()
+        self.source
+            .upgrade()
+            .expect("source node belongs to the simplex graph")
     }
 
     pub fn target(&self) -> NNodeRef {
-        self.target.clone()
+        self.target
+            .upgrade()
+            .expect("target node belongs to the simplex graph")
     }
 
     pub fn other(&self, some: &NNodeRef) -> NNodeRef {
-        if Arc::ptr_eq(some, &self.source) {
-            return self.target.clone();
+        if Arc::ptr_eq(some, &self.source()) {
+            return self.target();
         }
-        if Arc::ptr_eq(some, &self.target) {
-            return self.source.clone();
+        if Arc::ptr_eq(some, &self.target()) {
+            return self.source();
         }
         panic!("Node not part of edge");
     }
 
     pub fn reverse(edge: &NEdgeRef) {
         let (old_source, old_target) = {
-            let guard = edge.lock();            (guard.source.clone(), guard.target.clone())
+            let guard = edge.lock();
+            (guard.source(), guard.target())
         };
 
         {
-            let mut edge_guard = edge.lock();            edge_guard.source = old_target.clone();
-            edge_guard.target = old_source.clone();
+            let mut edge_guard = edge.lock();
+            edge_guard.source = Arc::downgrade(&old_target);
+            edge_guard.target = Arc::downgrade(&old_source);
         }
 
         remove_edge_from(&old_source, edge, true);
@@ -130,8 +137,8 @@ impl NEdgeBuilder {
             id: self.id,
             internal_id: 0,
             origin: self.origin,
-            source: source.clone(),
-            target: target.clone(),
+            source: Arc::downgrade(&source),
+            target: Arc::downgrade(&target),
             weight: self.weight,
             delta: self.delta,
             tree_edge: false,
@@ -158,4 +165,31 @@ fn remove_edge_from(node: &NNodeRef, edge: &NEdgeRef, outgoing: bool) {
         node_guard.incoming_edges_mut()
     };
     list.retain(|candidate| !Arc::ptr_eq(candidate, edge));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::super::n_graph::NGraph;
+
+    #[test]
+    fn graph_and_edges_release_nodes_and_origins() {
+        let mut graph = NGraph::new();
+        let origin = Arc::new(42);
+        let origin_weak = Arc::downgrade(&origin);
+        let source = NNode::of().origin(origin).create(&mut graph);
+        let target = NNode::of().create(&mut graph);
+        let edge = NEdge::of().source(source.clone()).target(target.clone()).create();
+        NEdge::reverse(&edge);
+        assert!(Arc::ptr_eq(&edge.lock().source(), &target));
+        assert!(Arc::ptr_eq(&edge.lock().target(), &source));
+        let source_weak = Arc::downgrade(&source);
+        let target_weak = Arc::downgrade(&target);
+        let edge_weak = Arc::downgrade(&edge);
+        drop((graph, source, target, edge));
+        assert!(source_weak.upgrade().is_none());
+        assert!(target_weak.upgrade().is_none());
+        assert!(edge_weak.upgrade().is_none());
+        assert!(origin_weak.upgrade().is_none());
+    }
 }

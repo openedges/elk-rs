@@ -14,7 +14,7 @@ jobs:
           - target: aarch64-apple-darwin
             os: macos-latest
           - target: x86_64-apple-darwin
-            os: macos-13
+            os: macos-15-intel
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
           - target: x86_64-unknown-linux-musl
@@ -55,13 +55,28 @@ jobs:
   publish:
     needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: read
+    # Internal tags keep the npm version unchanged and must not republish it.
+    if: ${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '+rs.') }}
+    env:
+      NPM_DIST_TAG: ${{ contains(github.ref_name, '-ext.') && 'ext' || 'latest' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           registry-url: https://registry.npmjs.org
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Install wasm-pack
+        run: cargo install wasm-pack --locked
+      - name: Build WASM for main package
+        working-directory: plugins/org.eclipse.elk.wasm
+        run: |
+          wasm-pack build --target web --out-dir ../org.eclipse.elk.js/dist/wasm --release
+          rm -f ../org.eclipse.elk.js/dist/wasm/.gitignore ../org.eclipse.elk.js/dist/wasm/package.json
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -83,11 +98,11 @@ jobs:
         run: |
           for dir in plugins/org.eclipse.elk.js/npm/*/; do
             if [ -f "$dir/package.json" ]; then
-              (cd "$dir" && npm publish --access public)
+              (cd "$dir" && npm publish --access public --tag "$NPM_DIST_TAG")
             fi
           done
       - name: Publish main package
         working-directory: plugins/org.eclipse.elk.js
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public
+        run: npm publish --access public --tag "$NPM_DIST_TAG"

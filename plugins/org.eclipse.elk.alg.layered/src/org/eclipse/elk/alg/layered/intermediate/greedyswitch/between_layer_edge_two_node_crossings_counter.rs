@@ -208,7 +208,7 @@ impl AdjacencyList {
         };
         list.collect_adjacencies(node, port_positions);
         list.adjacency_list
-            .sort_by(|left, right| left.position.cmp(&right.position));
+            .sort_by_key(|left| left.position);
         list.reset();
         list
     }

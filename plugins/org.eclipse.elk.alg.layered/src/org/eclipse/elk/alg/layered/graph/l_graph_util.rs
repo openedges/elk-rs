@@ -521,11 +521,10 @@ impl LGraphUtil {
                             graph_props.insert(GraphProperties::NorthSouthPorts);
                         }
                     }
-                    Direction::Up | Direction::Down => {
-                        if port_side == PortSide::East || port_side == PortSide::West {
+                    Direction::Up | Direction::Down
+                        if (port_side == PortSide::East || port_side == PortSide::West) => {
                             graph_props.insert(GraphProperties::NorthSouthPorts);
                         }
-                    }
                     _ => {}
                 }
             }

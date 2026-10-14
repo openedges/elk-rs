@@ -131,12 +131,12 @@ fn port_adapter_detects_compound_connections() {
 fn port_adapter_detects_inside_self_loop_connections() {
     LayoutMetaDataService::get_instance();
     let graph = ElkGraphUtil::create_graph();
-    let node = ElkGraphUtil::create_node(Some(graph));
+    let node = ElkGraphUtil::create_node(Some(graph.clone()));
     let port = ElkGraphUtil::create_port(Some(node.clone()));
 
     let edge = ElkGraphUtil::create_simple_edge(
         ElkConnectableShapeRef::Port(port.clone()),
-        ElkConnectableShapeRef::Node(node),
+        ElkConnectableShapeRef::Node(node.clone()),
     );
     {
         let mut edge_mut = edge.borrow_mut();

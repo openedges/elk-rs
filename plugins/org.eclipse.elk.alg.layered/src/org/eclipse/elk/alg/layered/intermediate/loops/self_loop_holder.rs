@@ -5,7 +5,7 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::EnumSetType;
 
-use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LNodeRef, LPortRef, NodeType};
+use crate::org::eclipse::elk::alg::layered::graph::{LEdgeRef, LNodeRef, LNodeWeak, LPortRef, NodeType};
 use crate::org::eclipse::elk::alg::layered::intermediate::loops::{
     SelfHyperLoop, SelfHyperLoopRef, SelfLoopEdge, SelfLoopPort, SelfLoopPortRef,
 };
@@ -16,7 +16,7 @@ pub type SelfLoopHolderRef = Arc<Mutex<SelfLoopHolder>>;
 type SelfLoopPortMap = Vec<(LPortRef, SelfLoopPortRef)>;
 
 pub struct SelfLoopHolder {
-    l_node: LNodeRef,
+    l_node: LNodeWeak,
     sl_hyper_loops: Vec<SelfHyperLoopRef>,
     sl_ports: SelfLoopPortMap,
     are_ports_hidden: bool,
@@ -26,7 +26,7 @@ pub struct SelfLoopHolder {
 impl SelfLoopHolder {
     fn new(node: &LNodeRef) -> SelfLoopHolder {
         SelfLoopHolder {
-            l_node: node.clone(),
+            l_node: Arc::downgrade(node),
             sl_hyper_loops: Vec::new(),
             sl_ports: Vec::new(),
             are_ports_hidden: false,
@@ -64,7 +64,7 @@ impl SelfLoopHolder {
     }
 
     fn initialize(holder: &SelfLoopHolderRef) {
-        let node = holder.lock().l_node.clone();
+        let node = holder.lock().l_node();
 
         let outgoing_edges = node
             .lock().outgoing_edges().clone();
@@ -180,8 +180,8 @@ impl SelfLoopHolder {
         sl_loop
     }
 
-    pub fn l_node(&self) -> &LNodeRef {
-        &self.l_node
+    pub fn l_node(&self) -> LNodeRef {
+        self.l_node.upgrade().expect("self-loop node must outlive its processing")
     }
 
     pub fn sl_hyper_loops(&self) -> &Vec<SelfHyperLoopRef> {

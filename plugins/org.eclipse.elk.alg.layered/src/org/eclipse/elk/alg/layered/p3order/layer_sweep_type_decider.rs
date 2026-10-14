@@ -119,7 +119,7 @@ impl LayerSweepTypeDecider {
                 for port in north_south_ports {
                     let ns_dummy = {
                         let port_guard = port.lock();
-                        port_guard.get_property(InternalProperties::PORT_DUMMY)
+                        port_guard.get_property(InternalProperties::PORT_DUMMY).and_then(|value| value.upgrade())
                     };
                     if let Some(ns_dummy) = ns_dummy {
                         paths_to_random += current_info.random_influence;

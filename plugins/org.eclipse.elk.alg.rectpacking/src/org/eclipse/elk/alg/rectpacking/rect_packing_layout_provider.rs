@@ -112,6 +112,7 @@ impl IGraphLayoutEngine for RectPackingLayoutProvider {
         layout_graph: &ElkNodeRef,
         progress_monitor: &mut dyn IElkProgressMonitor,
     ) {
+        let _rows = crate::org::eclipse::elk::alg::rectpacking::util::rows_storage::RowsGuard::new(layout_graph);
         progress_monitor.begin("Rectangle Packing", 1.0);
 
         apply_algorithm_defaults(layout_graph);

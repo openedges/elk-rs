@@ -1351,8 +1351,8 @@ impl ElkUtil {
             let (sources, targets, connected) = {
                 let edge_ref = edge.borrow();
                 (
-                    edge_ref.sources_ro().iter().cloned().collect::<Vec<_>>(),
-                    edge_ref.targets_ro().iter().cloned().collect::<Vec<_>>(),
+                    edge_ref.sources_ro().iter().collect::<Vec<_>>(),
+                    edge_ref.targets_ro().iter().collect::<Vec<_>>(),
                     edge_ref.is_connected(),
                 )
             };

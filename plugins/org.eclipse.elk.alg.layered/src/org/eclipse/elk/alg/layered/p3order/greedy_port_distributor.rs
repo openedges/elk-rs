@@ -199,11 +199,11 @@ impl GreedyPortDistributor {
         if let Some(counter) = hierarchical_counter {
             let upper_node = {
                 let port_guard = upper_port.lock();
-                port_guard.get_property(InternalProperties::PORT_DUMMY)
+                port_guard.get_property(InternalProperties::PORT_DUMMY).and_then(|value| value.upgrade())
             };
             let lower_node = {
                 let port_guard = lower_port.lock();
-                port_guard.get_property(InternalProperties::PORT_DUMMY)
+                port_guard.get_property(InternalProperties::PORT_DUMMY).and_then(|value| value.upgrade())
             };
             if let (Some(upper_node), Some(lower_node)) = (upper_node, lower_node) {
                 counter.count_both_side_crossings(&upper_node, &lower_node);

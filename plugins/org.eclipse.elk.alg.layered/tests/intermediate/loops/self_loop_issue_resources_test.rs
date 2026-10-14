@@ -141,8 +141,8 @@ fn endpoint_owner_node(shape: &ElkConnectableShapeRef) -> Option<ElkNodeRef> {
 
 fn is_self_loop_edge(edge: &ElkEdgeRef) -> bool {
     let mut edge_mut = edge.borrow_mut();
-    let sources: Vec<_> = edge_mut.sources().iter().cloned().collect();
-    let targets: Vec<_> = edge_mut.targets().iter().cloned().collect();
+    let sources: Vec<_> = edge_mut.sources().iter().collect();
+    let targets: Vec<_> = edge_mut.targets().iter().collect();
     drop(edge_mut);
 
     for source in sources {

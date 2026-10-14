@@ -448,6 +448,7 @@ fn build_south_middle_with_east_dummy_graph() -> (LGraphRef, LNodeRef, LPortRef,
 
     // Simulate a north/south dummy that records an EAST connection for the visible south port.
     let port_dummy = LNode::new(&graph);
+    graph.lock().layerless_nodes_mut().push(port_dummy.clone());
     let dummy_port = create_port(&port_dummy, PortSide::East, 0.0, 0.0);
     {
         let mut dummy_port_guard = dummy_port.lock();
@@ -457,11 +458,12 @@ fn build_south_middle_with_east_dummy_graph() -> (LGraphRef, LNodeRef, LPortRef,
         );
     }
     let dummy_external = LNode::new(&graph);
+    graph.lock().layerless_nodes_mut().push(dummy_external.clone());
     let dummy_target = create_port(&dummy_external, PortSide::West, 0.0, 0.0);
     let _ = add_edge(&dummy_port, &dummy_target);
     {
         let mut visible_guard = visible_south.lock();
-        visible_guard.set_property(InternalProperties::PORT_DUMMY, Some(port_dummy));
+        visible_guard.set_property(InternalProperties::PORT_DUMMY, Some(std::sync::Arc::downgrade(&port_dummy)));
     }
 
     (graph, node, visible_south, vec![hidden0, hidden1])
@@ -507,6 +509,7 @@ fn build_north_middle_with_west_dummy_graph() -> (LGraphRef, LNodeRef, LPortRef,
 
     // Simulate a north/south dummy that records a WEST connection for the visible north port.
     let port_dummy = LNode::new(&graph);
+    graph.lock().layerless_nodes_mut().push(port_dummy.clone());
     let dummy_port = create_port(&port_dummy, PortSide::West, 0.0, 0.0);
     {
         let mut dummy_port_guard = dummy_port.lock();
@@ -516,11 +519,12 @@ fn build_north_middle_with_west_dummy_graph() -> (LGraphRef, LNodeRef, LPortRef,
         );
     }
     let dummy_external = LNode::new(&graph);
+    graph.lock().layerless_nodes_mut().push(dummy_external.clone());
     let dummy_source = create_port(&dummy_external, PortSide::East, 0.0, 0.0);
     let _ = add_edge(&dummy_source, &dummy_port);
     {
         let mut visible_guard = visible_north.lock();
-        visible_guard.set_property(InternalProperties::PORT_DUMMY, Some(port_dummy));
+        visible_guard.set_property(InternalProperties::PORT_DUMMY, Some(std::sync::Arc::downgrade(&port_dummy)));
     }
 
     (graph, node, visible_north, vec![hidden0, hidden1])
@@ -576,6 +580,7 @@ fn build_corner_and_dummy_combined_graph() -> CornerDummyCombinedGraph {
     let _ = add_edge(&ext_north_east, &visible_north);
 
     let north_dummy = LNode::new(&graph);
+    graph.lock().layerless_nodes_mut().push(north_dummy.clone());
     let north_dummy_port = create_port(&north_dummy, PortSide::West, 0.0, 0.0);
     {
         let mut dummy_port_guard = north_dummy_port.lock();
@@ -589,7 +594,7 @@ fn build_corner_and_dummy_combined_graph() -> CornerDummyCombinedGraph {
     let _ = add_edge(&north_dummy_source, &north_dummy_port);
     {
         let mut visible_guard = visible_north.lock();
-        visible_guard.set_property(InternalProperties::PORT_DUMMY, Some(north_dummy));
+        visible_guard.set_property(InternalProperties::PORT_DUMMY, Some(std::sync::Arc::downgrade(&north_dummy)));
     }
 
     let visible_south = create_port(&node, PortSide::South, 124.0, 90.0);
@@ -603,6 +608,7 @@ fn build_corner_and_dummy_combined_graph() -> CornerDummyCombinedGraph {
     let _ = add_edge(&visible_south, &ext_south_west);
 
     let south_dummy = LNode::new(&graph);
+    graph.lock().layerless_nodes_mut().push(south_dummy.clone());
     let south_dummy_port = create_port(&south_dummy, PortSide::East, 0.0, 0.0);
     {
         let mut dummy_port_guard = south_dummy_port.lock();
@@ -616,7 +622,7 @@ fn build_corner_and_dummy_combined_graph() -> CornerDummyCombinedGraph {
     let _ = add_edge(&south_dummy_port, &south_dummy_target);
     {
         let mut visible_guard = visible_south.lock();
-        visible_guard.set_property(InternalProperties::PORT_DUMMY, Some(south_dummy));
+        visible_guard.set_property(InternalProperties::PORT_DUMMY, Some(std::sync::Arc::downgrade(&south_dummy)));
     }
 
     (

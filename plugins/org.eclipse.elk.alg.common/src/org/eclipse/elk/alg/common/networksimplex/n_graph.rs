@@ -118,7 +118,7 @@ impl NGraph {
                     .iter()
                     .map(|edge| {
                         let eg = edge.lock();
-                        let tgt = eg.target.clone();
+                        let tgt = eg.target();
                         let tgt_idx = tgt.lock().internal_id;
                         (tgt, tgt_idx)
                     })
@@ -147,7 +147,7 @@ impl NGraph {
                     .iter()
                     .map(|edge| {
                         let eg = edge.lock();
-                        let tgt_idx = eg.target.lock().internal_id;
+                        let tgt_idx = eg.target().lock().internal_id;
                         (src_idx, tgt_idx)
                     })
                     .collect()

@@ -231,7 +231,7 @@ fn assert_correct_port_sides(dummy: &LNodeRef) -> Option<LNodeRef> {
     let (origin, dummy_ports, dummy_id) = {
         let mut node_guard = dummy.lock();
         let origin = node_guard
-            .get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)?;
+            .get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT).and_then(|value| value.upgrade())?;
         let ports = node_guard.ports().clone();
         let id = node_guard.shape().graph_element().id;
         (origin, ports, id)

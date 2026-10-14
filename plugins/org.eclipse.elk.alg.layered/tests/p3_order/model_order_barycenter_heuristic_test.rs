@@ -109,7 +109,7 @@ fn add_node_to_layer(graph: &LGraphRef, layer: &LayerRef, model_order: Option<i3
     {
         let mut node_guard = node.lock();
         node_guard.set_node_type(NodeType::Normal);
-        node_guard.set_property(InternalProperties::IN_LAYER_LAYOUT_UNIT, Some(node.clone()));
+        node_guard.set_property(InternalProperties::IN_LAYER_LAYOUT_UNIT, Some(std::sync::Arc::downgrade(&node)));
         node_guard.set_property(InternalProperties::MODEL_ORDER, model_order);
     }
     LNode::set_layer(&node, Some(layer.clone()));
