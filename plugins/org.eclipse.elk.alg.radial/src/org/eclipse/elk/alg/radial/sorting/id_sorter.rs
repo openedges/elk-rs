@@ -29,7 +29,7 @@ impl IRadialSorter for IDSorter {
                 (key, n)
             })
             .collect();
-        keyed.sort_by(|a, b| a.0.cmp(&b.0));
+        keyed.sort_by_key(|a| a.0);
         nodes.extend(keyed.into_iter().map(|(_, n)| n));
     }
 

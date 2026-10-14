@@ -49,12 +49,12 @@ impl ILayoutProcessor<LGraph> for SemiInteractiveCrossMinProcessor {
                 {
                     let mut prev_guard = prev.lock();
                     let mut constraints = prev_guard
-                        .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
+                        .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS).map(|nodes| nodes.iter().filter_map(std::sync::Weak::upgrade).collect::<Vec<_>>())
                         .unwrap_or_default();
                     constraints.push(cur.clone());
                     prev_guard.set_property(
                         InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS,
-                        Some(constraints),
+                        Some(constraints.iter().map(std::sync::Arc::downgrade).collect()),
                     );
                     added_constraints = true;
                 }

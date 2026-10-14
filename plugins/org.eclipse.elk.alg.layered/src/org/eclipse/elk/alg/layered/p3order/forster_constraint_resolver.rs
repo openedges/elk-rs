@@ -194,16 +194,16 @@ impl ForsterConstraintResolver {
             let successors = if let Some(ref sync) = self.arena_sync {
                 if let Some(nid) = sync.node_id(&node) {
                     sync.arena().node_properties(nid)
-                        .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
+                        .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS).map(|nodes| nodes.iter().filter_map(std::sync::Weak::upgrade).collect::<Vec<_>>())
                         .unwrap_or_default()
                 } else {
                     node.lock()
-                        .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
+                        .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS).map(|nodes| nodes.iter().filter_map(std::sync::Weak::upgrade).collect::<Vec<_>>())
                         .unwrap_or_default()
                 }
             } else {
                 node.lock()
-                    .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
+                    .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS).map(|nodes| nodes.iter().filter_map(std::sync::Weak::upgrade).collect::<Vec<_>>())
                     .unwrap_or_default()
             };
             for successor in successors {
@@ -523,12 +523,12 @@ impl ForsterConstraintResolver {
             let layout_unit = if let Some(ref sync) = self.arena_sync {
                 if let Some(nid) = sync.node_id(node) {
                     sync.arena().node_properties(nid)
-                        .get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
+                        .get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT).and_then(|value| value.upgrade())
                 } else {
-                    node.lock().get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
+                    node.lock().get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT).and_then(|value| value.upgrade())
                 }
             } else {
-                node.lock().get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
+                node.lock().get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT).and_then(|value| value.upgrade())
             };
             if let Some(layout_unit) = layout_unit {
                 let key = node_ptr_id(&layout_unit);

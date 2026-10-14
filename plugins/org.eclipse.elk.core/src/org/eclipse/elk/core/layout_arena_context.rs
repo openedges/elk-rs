@@ -35,3 +35,25 @@ pub fn with_layout_arena<R>(f: impl FnOnce(&ElkGraphArenaSync) -> R) -> Option<R
         borrow.as_ref().map(f)
     })
 }
+
+/// Restores the enclosing layout context on return or unwinding.
+/// Nested layout calls must not clear the arena of their caller.
+pub struct LayoutArenaGuard {
+    previous: Option<ElkGraphArenaSync>,
+}
+
+impl LayoutArenaGuard {
+    pub fn new(root: &ElkNodeRef) -> Self {
+        let sync = ElkGraphArenaSync::from_root(root);
+        let previous = LAYOUT_ARENA.with(|cell| cell.replace(Some(sync)));
+        Self { previous }
+    }
+}
+
+impl Drop for LayoutArenaGuard {
+    fn drop(&mut self) {
+        LAYOUT_ARENA.with(|cell| {
+            cell.replace(self.previous.take());
+        });
+    }
+}

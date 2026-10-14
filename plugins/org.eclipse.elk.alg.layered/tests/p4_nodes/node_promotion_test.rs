@@ -272,11 +272,10 @@ fn collect_external_ptolemy_model_resources() -> (Vec<PathBuf>, usize, usize) {
             Some("elkt") => {
                 entry.0 = Some(resource);
             }
-            Some("elkg") => {
-                if entry.1.is_none() {
+            Some("elkg")
+                if entry.1.is_none() => {
                     entry.1 = Some(resource);
                 }
-            }
             _ => {}
         }
     }

@@ -109,7 +109,7 @@ fn north_south_preprocessor_sets_layout_unit_for_fixed_side_node_without_north_s
     let layout_unit = owner
         .lock()
         
-        .get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
+        .get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT).and_then(|node| node.upgrade())
         .expect("layout unit should be set");
     assert!(
         std::sync::Arc::ptr_eq(&layout_unit, &owner),

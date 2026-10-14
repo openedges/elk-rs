@@ -73,7 +73,7 @@ pub fn set_port_side(port: &LPortRef) {
     let mut assigned_side: Option<PortSide> = None;
     {
         let mut port_guard = port.lock();
-        let port_dummy = port_guard.get_property(InternalProperties::PORT_DUMMY);
+        let port_dummy = port_guard.get_property(InternalProperties::PORT_DUMMY).and_then(|value| value.upgrade());
         if let Some(port_dummy) = port_dummy.as_ref() {
             assigned_side = port_dummy.lock()
                 .get_property(InternalProperties::EXT_PORT_SIDE);

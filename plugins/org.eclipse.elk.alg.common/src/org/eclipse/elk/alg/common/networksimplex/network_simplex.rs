@@ -188,20 +188,14 @@ impl<'a> NetworkSimplex<'a> {
         for (index, edge) in edges.iter().enumerate() {
             let mut edge_guard = edge.lock();
             edge_guard.internal_id = index;
-            self.e_src.push(edge_guard.source.clone());
-            self.e_tgt.push(edge_guard.target.clone());
+            self.e_src.push(edge_guard.source());
+            self.e_tgt.push(edge_guard.target());
             self.e_delta[index] = edge_guard.delta;
             self.e_weight[index] = edge_guard.weight;
             self.e_tree[index] = false;
             // source/target internal_ids are already set above
-            let src_id = edge_guard
-                .source
-                .lock()
-                .internal_id;
-            let tgt_id = edge_guard
-                .target
-                .lock()
-                .internal_id;
+            let src_id = edge_guard.source().lock().internal_id;
+            let tgt_id = edge_guard.target().lock().internal_id;
             self.e_src_id[index] = src_id;
             self.e_tgt_id[index] = tgt_id;
         }
@@ -788,11 +782,11 @@ fn edge_delta(edge: &NEdgeRef) -> i32 {
 }
 
 fn edge_source(edge: &NEdgeRef) -> NNodeRef {
-    edge.lock().source.clone()
+    edge.lock().source()
 }
 
 fn edge_target(edge: &NEdgeRef) -> NNodeRef {
-    edge.lock().target.clone()
+    edge.lock().target()
 }
 
 fn edge_source_layer(edge: &NEdgeRef) -> i32 {

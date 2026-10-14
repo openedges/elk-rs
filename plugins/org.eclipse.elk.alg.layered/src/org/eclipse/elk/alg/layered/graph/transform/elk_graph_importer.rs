@@ -871,11 +871,10 @@ impl<'a> ElkGraphImporter<'a> {
                     graph_properties.insert(GraphProperties::NorthSouthPorts);
                 }
             }
-            Direction::Up | Direction::Down => {
-                if port_side == PortSide::East || port_side == PortSide::West {
+            Direction::Up | Direction::Down
+                if (port_side == PortSide::East || port_side == PortSide::West) => {
                     graph_properties.insert(GraphProperties::NorthSouthPorts);
                 }
-            }
             _ => {}
         }
 
@@ -909,9 +908,9 @@ impl<'a> ElkGraphImporter<'a> {
         let (sources, targets, properties, labels, edge_id) = {
             let mut edge_mut = elkedge.borrow_mut();
             let sources: Vec<ElkConnectableShapeRef> =
-                edge_mut.sources_ro().iter().cloned().collect();
+                edge_mut.sources_ro().iter().collect();
             let targets: Vec<ElkConnectableShapeRef> =
-                edge_mut.targets_ro().iter().cloned().collect();
+                edge_mut.targets_ro().iter().collect();
             let props = edge_mut.element().properties().clone();
             let labels: Vec<ElkLabelRef> = edge_mut.element().labels().iter().cloned().collect();
             let edge_id = edge_mut
@@ -1090,7 +1089,7 @@ impl<'a> ElkGraphImporter<'a> {
                     top_level_elkgraph,
                     top_level_lgraph,
                 );
-                edge_guard.set_property(InternalProperties::COORDINATE_SYSTEM_ORIGIN, coord_origin);
+                edge_guard.set_property(InternalProperties::COORDINATE_SYSTEM_ORIGIN, coord_origin.as_ref().map(Arc::downgrade));
             }
         };
 
@@ -1129,8 +1128,8 @@ impl<'a> ElkGraphImporter<'a> {
     ) -> Option<LGraphRef> {
         let (sources, targets, containing_node) = {
             let edge_ref = elkedge.borrow();
-            let sources = edge_ref.sources_ro().iter().cloned().collect::<Vec<_>>();
-            let targets = edge_ref.targets_ro().iter().cloned().collect::<Vec<_>>();
+            let sources = edge_ref.sources_ro().iter().collect::<Vec<_>>();
+            let targets = edge_ref.targets_ro().iter().collect::<Vec<_>>();
             let containing_node = edge_ref.containing_node();
             (sources, targets, containing_node)
         };
@@ -1392,10 +1391,10 @@ impl<'a> ElkGraphImporter<'a> {
                 ) = {
                     let mut edge_mut = edge.borrow_mut();
                     let port_is_source = edge_mut.sources_ro().iter().any(|shape| {
-                        matches!(shape, ElkConnectableShapeRef::Port(p) if Rc::ptr_eq(p, &port))
+                        matches!(shape, ElkConnectableShapeRef::Port(p) if Rc::ptr_eq(&p, &port))
                     });
                     let port_is_target = edge_mut.targets_ro().iter().any(|shape| {
-                        matches!(shape, ElkConnectableShapeRef::Port(p) if Rc::ptr_eq(p, &port))
+                        matches!(shape, ElkConnectableShapeRef::Port(p) if Rc::ptr_eq(&p, &port))
                     });
                     let source_shape = edge_mut.sources_ro().get(0);
                     let target_shape = edge_mut.targets_ro().get(0);

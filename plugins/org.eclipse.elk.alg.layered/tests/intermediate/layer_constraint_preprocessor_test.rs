@@ -75,7 +75,7 @@ fn layer_constraint_preprocessor_hides_first_separate_and_remembers_opposite_por
     assert!(edge
         .lock()
         
-        .get_property(InternalProperties::ORIGINAL_OPPOSITE_PORT)
+        .get_property(InternalProperties::ORIGINAL_OPPOSITE_PORT).and_then(|port| port.upgrade())
         .is_some_and(|port| Arc::ptr_eq(&port, &opposite_port)));
 
     let assigned = opposite

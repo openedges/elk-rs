@@ -44,7 +44,7 @@ fn add_node_to_layer(graph: &LGraphRef, layer: &LayerRef) -> LNodeRef {
     {
         let mut node_guard = node.lock();
         node_guard.set_node_type(NodeType::Normal);
-        node_guard.set_property(InternalProperties::IN_LAYER_LAYOUT_UNIT, Some(node.clone()));
+        node_guard.set_property(InternalProperties::IN_LAYER_LAYOUT_UNIT, Some(std::sync::Arc::downgrade(&node)));
     }
     LNode::set_layer(&node, Some(layer.clone()));
     node
@@ -172,7 +172,7 @@ fn add_north_south_edge(
         let mut dummy_guard = north_south_dummy.lock();
         dummy_guard.set_property(
             InternalProperties::IN_LAYER_LAYOUT_UNIT,
-            Some(node_with_ns_ports.clone()),
+            Some(std::sync::Arc::downgrade(node_with_ns_ports)),
         );
         dummy_guard.set_property(
             InternalProperties::ORIGIN,
@@ -193,7 +193,7 @@ fn add_north_south_edge(
         let mut origin_port_guard = origin_port.lock();
         origin_port_guard.set_property(
             InternalProperties::PORT_DUMMY,
-            Some(north_south_dummy.clone()),
+            Some(std::sync::Arc::downgrade(north_south_dummy)),
         );
     }
 
@@ -201,13 +201,13 @@ fn add_north_south_edge(
     {
         let mut node_guard = node_with_ns_ports.lock();
         let existing = node_guard
-            .get_property(InternalProperties::BARYCENTER_ASSOCIATES)
+            .get_property(InternalProperties::BARYCENTER_ASSOCIATES).map(|nodes| nodes.iter().filter_map(std::sync::Weak::upgrade).collect::<Vec<_>>())
             .unwrap_or_default();
         if existing.is_empty() {
-            node_guard.set_property(InternalProperties::BARYCENTER_ASSOCIATES, Some(bary_assoc));
+            node_guard.set_property(InternalProperties::BARYCENTER_ASSOCIATES, Some(bary_assoc.iter().map(std::sync::Arc::downgrade).collect()));
         } else {
             bary_assoc.extend(existing);
-            node_guard.set_property(InternalProperties::BARYCENTER_ASSOCIATES, Some(bary_assoc));
+            node_guard.set_property(InternalProperties::BARYCENTER_ASSOCIATES, Some(bary_assoc.iter().map(std::sync::Arc::downgrade).collect()));
         }
     }
 
@@ -215,23 +215,23 @@ fn add_north_south_edge(
         {
             let mut dummy_guard = north_south_dummy.lock();
             let mut constraints = dummy_guard
-                .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
+                .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS).map(|nodes| nodes.iter().filter_map(std::sync::Weak::upgrade).collect::<Vec<_>>())
                 .unwrap_or_default();
             constraints.push(node_with_ns_ports.clone());
             dummy_guard.set_property(
                 InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS,
-                Some(constraints),
+                Some(constraints.iter().map(std::sync::Arc::downgrade).collect()),
             );
         }
     } else {
         let mut node_guard = node_with_ns_ports.lock();
         let mut constraints = node_guard
-            .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
+            .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS).map(|nodes| nodes.iter().filter_map(std::sync::Weak::upgrade).collect::<Vec<_>>())
             .unwrap_or_default();
         constraints.push(north_south_dummy.clone());
         node_guard.set_property(
             InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS,
-            Some(constraints),
+            Some(constraints.iter().map(std::sync::Arc::downgrade).collect()),
         );
     }
 

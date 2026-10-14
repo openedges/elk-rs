@@ -314,7 +314,7 @@ fn remove_hierarchical_port_dummy_node(opposite_port: &LPortRef) {
             .properties()
             .has_property(InternalProperties::PORT_DUMMY)
         {
-            port_guard.get_property(InternalProperties::PORT_DUMMY)
+            port_guard.get_property(InternalProperties::PORT_DUMMY).and_then(|value| value.upgrade())
         } else {
             None
         }

@@ -837,8 +837,8 @@ impl SplineEdgeRouter {
                 let (dep_source, dep_target, weight) = {
                     let dep_guard = dependency.lock();
                     (
-                        dep_guard.source.clone(),
-                        dep_guard.target.clone(),
+                        dep_guard.source.upgrade().expect("live source segment"),
+                        dep_guard.target.upgrade().expect("live target segment"),
                         dep_guard.weight,
                     )
                 };
@@ -858,8 +858,8 @@ impl SplineEdgeRouter {
                     if weight > 0 {
                         {
                             let mut dep_guard = dependency.lock();
-                            dep_guard.source = dep_target.clone();
-                            dep_guard.target = dep_source.clone();
+                            dep_guard.source = Arc::downgrade(&dep_target);
+                            dep_guard.target = Arc::downgrade(&dep_source);
                         }
                         {
                             let mut seg = dep_target.lock();
@@ -887,7 +887,7 @@ impl SplineEdgeRouter {
         for dep in outgoing {
             let (target, weight) = {
                 let dep_guard = dep.lock();
-                (dep_guard.target.clone(), dep_guard.weight)
+                (dep_guard.target.upgrade().expect("live target segment"), dep_guard.weight)
             };
             if weight > 0 {
                 let mut guard = target.lock();
@@ -902,7 +902,7 @@ impl SplineEdgeRouter {
         for dep in incoming {
             let (source, weight) = {
                 let dep_guard = dep.lock();
-                (dep_guard.source.clone(), dep_guard.weight)
+                (dep_guard.source.upgrade().expect("live source segment"), dep_guard.weight)
             };
             if weight > 0 {
                 let mut guard = source.lock();
@@ -942,7 +942,7 @@ impl SplineEdgeRouter {
             for dep in outgoing {
                 let target = {
                     let dep_guard = dep.lock();
-                    dep_guard.target.clone()
+                    dep_guard.target.upgrade().expect("live target segment")
                 };
                 let mut target_guard = target.lock();
                 target_guard.rank = target_guard.rank.max(edge_rank + 1);
@@ -968,7 +968,7 @@ impl SplineEdgeRouter {
                 for dep in incoming {
                     let source = {
                         let dep_guard = dep.lock();
-                        dep_guard.source.clone()
+                        dep_guard.source.upgrade().expect("live source segment")
                     };
                     let mut source_guard = source.lock();
                     if !source_guard.left_ports.is_empty() {

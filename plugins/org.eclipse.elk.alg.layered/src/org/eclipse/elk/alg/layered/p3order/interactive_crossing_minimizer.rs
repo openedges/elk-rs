@@ -54,7 +54,7 @@ impl InteractiveCrossingMinimizer {
 
     fn has_successor_constraint(node: &LNodeRef, successor: &LNodeRef) -> bool {
         let node_guard = node.lock();
-        node_guard.get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
+        node_guard.get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS).map(|nodes| nodes.iter().filter_map(std::sync::Weak::upgrade).collect::<Vec<_>>())
             .map(|constraints| {
                 constraints
                     .iter()

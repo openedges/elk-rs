@@ -118,12 +118,12 @@ fn process_eastern_and_western_port_dummies_layer(layer: &LayerRef) {
             {
                 let mut last_guard = last_dummy.lock();
                 let mut constraints = last_guard
-                    .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
+                    .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS).map(|nodes| nodes.iter().filter_map(std::sync::Weak::upgrade).collect::<Vec<_>>())
                     .unwrap_or_default();
                 constraints.push(node.clone());
                 last_guard.set_property(
                     InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS,
-                    Some(constraints),
+                    Some(constraints.iter().map(std::sync::Arc::downgrade).collect()),
                 );
             }
         }

@@ -79,7 +79,7 @@ impl ILayoutPhase<LayeredPhases, LGraph> for BreadthFirstModelOrderLayerer {
                 real_nodes.push((order, node.clone()));
             }
         }
-        real_nodes.sort_by(|(a, _), (b, _)| a.cmp(b));
+        real_nodes.sort_by_key(|(a, _)| *a);
 
         let mut current_layer = Layer::new(&graph_ref);
         let mut current_dummy_layer: Option<LayerRef> = None;

@@ -507,7 +507,7 @@ impl PortAdapter<LPortRef> for LPortAdapter {
         // 2. If transparent N/S edges, include edges from PORT_DUMMY
         if self.transparent_north_south_edges {
             let port = self.port.lock();
-            if let Some(port_dummy) = port.get_property(InternalProperties::PORT_DUMMY) {
+            if let Some(port_dummy) = port.get_property(InternalProperties::PORT_DUMMY).and_then(|value| value.upgrade()) {
                 // Get ALL incoming edges of the port dummy NODE (iterate all its ports)
                 let dummy_guard = port_dummy.lock();
                 for dummy_port in dummy_guard.ports() {
@@ -586,7 +586,7 @@ impl PortAdapter<LPortRef> for LPortAdapter {
         // 2. If transparent N/S edges, include edges from PORT_DUMMY
         if self.transparent_north_south_edges {
             let port = self.port.lock();
-            if let Some(port_dummy) = port.get_property(InternalProperties::PORT_DUMMY) {
+            if let Some(port_dummy) = port.get_property(InternalProperties::PORT_DUMMY).and_then(|value| value.upgrade()) {
                 // Get ALL outgoing edges of the port dummy NODE (iterate all its ports)
                 let dummy_guard = port_dummy.lock();
                 for dummy_port in dummy_guard.ports() {

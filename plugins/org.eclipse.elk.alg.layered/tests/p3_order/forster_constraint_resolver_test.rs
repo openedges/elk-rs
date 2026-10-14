@@ -19,7 +19,7 @@ fn test_successor_constraints() {
         let mut a_guard = a.lock();
         a_guard.set_property(
             InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS,
-            Some(vec![b.clone()]),
+            Some(vec![std::sync::Arc::downgrade(&b)]),
         );
     }
 
@@ -75,7 +75,7 @@ fn set_layout_unit(node: &LNodeRef, representative: &LNodeRef) {
         let mut node_guard = node.lock();
         node_guard.set_property(
             InternalProperties::IN_LAYER_LAYOUT_UNIT,
-            Some(representative.clone()),
+            Some(std::sync::Arc::downgrade(representative)),
         );
     }
 }
@@ -105,7 +105,7 @@ fn assert_successor_constraints_respected(nodes: &[LNodeRef]) {
     for node in nodes {
         let successors = node
             .lock()
-            .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
+            .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS).map(|nodes| nodes.iter().filter_map(std::sync::Weak::upgrade).collect::<Vec<_>>())
             .unwrap_or_default();
 
         let has_violation = successors
@@ -124,7 +124,7 @@ fn assert_non_overlapping_layout_units(nodes: &[LNodeRef]) {
     for node in nodes {
         let layout_unit = node
             .lock()
-            .get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
+            .get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT).and_then(|node| node.upgrade())
             .map(|layout_unit| node_ptr_id(&layout_unit));
 
         if let Some(layout_unit) = layout_unit {

@@ -12,6 +12,7 @@ use crate::org::eclipse::elk::alg::layered::graph::{
     LEdge, LEdgeRef, LGraph, LNode, LNodeRef, LPort, LayerRef, NodeType,
 };
 use crate::org::eclipse::elk::alg::layered::options::{InternalProperties, LayeredOptions, Origin};
+#[cfg(debug_assertions)]
 use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 pub struct LongEdgeSplitter;
@@ -201,7 +202,7 @@ fn move_head_labels(old_edge: &LEdgeRef, new_edge: &LEdgeRef) {
                 .has_property(InternalProperties::END_LABEL_EDGE)
             {
                 label_guard
-                    .set_property(InternalProperties::END_LABEL_EDGE, Some(old_edge.clone()));
+                    .set_property(InternalProperties::END_LABEL_EDGE, Some(Arc::downgrade(old_edge)));
             }
         }
     }

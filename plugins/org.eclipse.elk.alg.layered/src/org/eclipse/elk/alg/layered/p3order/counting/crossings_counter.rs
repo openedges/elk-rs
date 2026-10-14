@@ -401,12 +401,12 @@ impl CrossingsCounter {
                     let dummy = if let Some(ref sync) = self.arena_sync {
                         if let Some(pid) = sync.port_id(port) {
                             sync.arena().port_properties(pid)
-                                .get_property(InternalProperties::PORT_DUMMY)
+                                .get_property(InternalProperties::PORT_DUMMY).and_then(|value| value.upgrade())
                         } else {
-                            port.lock().get_property(InternalProperties::PORT_DUMMY)
+                            port.lock().get_property(InternalProperties::PORT_DUMMY).and_then(|value| value.upgrade())
                         }
                     } else {
-                        port.lock().get_property(InternalProperties::PORT_DUMMY)
+                        port.lock().get_property(InternalProperties::PORT_DUMMY).and_then(|value| value.upgrade())
                     };
                     if let Some(dummy) = dummy {
                         if let Some(ref snap) = snap {
@@ -699,7 +699,7 @@ impl CrossingsCounter {
                 } else {
                     ng.node_type()
                 };
-                let ilu = ng.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT);
+                let ilu = ng.get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT).and_then(|value| value.upgrade());
                 match nt {
                     NodeType::Normal => {
                         let n = ng.port_side_view(PortSide::North);
@@ -1097,9 +1097,9 @@ fn port_ptr_id(port: &LPortRef) -> usize {
     Arc::as_ptr(port) as usize
 }
 
-fn port_has_property(
+fn port_has_property<T: Clone + Send + Sync + 'static>(
     port: &LPortRef,
-    property: &org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property<LNodeRef>,
+    property: &org_eclipse_elk_graph::org::eclipse::elk::graph::properties::Property<T>,
 ) -> bool {
     let mut port_guard = port.lock();
     port_guard

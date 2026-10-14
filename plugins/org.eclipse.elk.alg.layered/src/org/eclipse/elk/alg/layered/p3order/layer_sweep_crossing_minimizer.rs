@@ -1124,8 +1124,8 @@ static INTERMEDIATE_PROCESSING_CONFIGURATION: LazyLock<
     config
 });
 
-impl ILayoutPhase<LayeredPhases, LGraph> for LayerSweepCrossingMinimizer {
-    fn process(&mut self, graph: &mut LGraph, monitor: &mut dyn IElkProgressMonitor) {
+impl LayerSweepCrossingMinimizer {
+    fn process_graph(&mut self, graph: &mut LGraph, monitor: &mut dyn IElkProgressMonitor) {
         monitor.begin(
             &format!("Minimize Crossings {:?}", self.cross_min_type),
             1.0,
@@ -1230,6 +1230,15 @@ impl ILayoutPhase<LayeredPhases, LGraph> for LayerSweepCrossingMinimizer {
 
         monitor.done();
     }
+}
+
+impl ILayoutPhase<LayeredPhases, LGraph> for LayerSweepCrossingMinimizer {
+    fn process(&mut self, graph: &mut LGraph, monitor: &mut dyn IElkProgressMonitor) {
+        // Processors are cached in graph properties. Keep graph-owning state local
+        // so it is released on normal return, early return, and unwinding.
+        let mut run = Self::new(self.cross_min_type);
+        run.process_graph(graph, monitor);
+    }
 
     fn get_layout_processor_configuration(
         &self,
@@ -1319,7 +1328,7 @@ fn origin_port(node: &LNodeRef) -> Option<LPortRef> {
 
 fn dummy_node_for(port: &LPortRef) -> Option<LNodeRef> {
     let port_guard = port.lock();
-    port_guard.get_property(InternalProperties::PORT_DUMMY)
+    port_guard.get_property(InternalProperties::PORT_DUMMY).and_then(|value| value.upgrade())
 }
 
 fn is_on_end_of_sweep_side(port: &LPortRef, on_right_most_layer: bool) -> bool {

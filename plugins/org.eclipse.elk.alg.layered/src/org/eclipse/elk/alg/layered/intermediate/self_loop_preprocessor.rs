@@ -130,7 +130,7 @@ fn hide_ports(
 
         debug_assert!(l_port
             .lock()
-            .get_property(InternalProperties::PORT_DUMMY)
+            .get_property(InternalProperties::PORT_DUMMY).and_then(|value| value.upgrade())
             .is_none());
     }
 }

@@ -113,9 +113,9 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
                     // If node ORIGIN is ElkNode -> apply_node_layout
                     self.apply_node_layout(lnode, offset);
                 }
-                Some(Origin::ElkPort(port_id)) => {
+                Some(Origin::ElkPort(port_id))
                     // External port dummy — its origin is an ElkPort
-                    if node_type == NodeType::ExternalPort && parent_node.is_none() {
+                    if node_type == NodeType::ExternalPort && parent_node.is_none() => {
                         if let Some(elk_port) = self.origin_store.get_port(*port_id) {
                             let (port_width, port_height) = {
                                 let mut port_mut = elk_port.borrow_mut();
@@ -133,7 +133,6 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
                             shape.set_location(port_pos.x, port_pos.y);
                         }
                     }
-                }
                 _ => {}
             }
 
@@ -912,7 +911,7 @@ impl<'a> ElkGraphLayoutTransferrer<'a> {
     fn calculate_hierarchical_offset(&self, ledge: &LEdgeRef) -> KVector {
         let target_graph = {
             let edge_guard = ledge.lock();
-            edge_guard.get_property(InternalProperties::COORDINATE_SYSTEM_ORIGIN)
+            edge_guard.get_property(InternalProperties::COORDINATE_SYSTEM_ORIGIN).and_then(|value| value.upgrade())
         };
         let Some(target_graph) = target_graph else {
             return KVector::new();
@@ -1339,5 +1338,5 @@ fn fallback_anchor_for_port(
 fn first_shape(
     list: &org_eclipse_elk_graph::org::eclipse::elk::graph::EdgeEndpointList,
 ) -> Option<ElkConnectableShapeRef> {
-    list.iter().next().cloned()
+    list.iter().next()
 }

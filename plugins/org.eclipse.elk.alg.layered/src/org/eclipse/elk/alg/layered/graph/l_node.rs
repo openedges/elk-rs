@@ -448,7 +448,7 @@ impl LNode {
 
     pub fn in_layer_layout_unit(&self) -> Option<LNodeRef> {
         self.shape
-            .get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT)
+            .get_property(InternalProperties::IN_LAYER_LAYOUT_UNIT).and_then(|value| value.upgrade())
     }
 
     pub fn in_layer_constraint(&self) -> InLayerConstraint {

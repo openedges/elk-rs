@@ -11,7 +11,6 @@ use crate::org::eclipse::elk::alg::layered::options::LayeredOptions;
 /// Container for spacing values configured in core or layered options.
 #[derive(Clone)]
 pub struct Spacings {
-    graph: LGraphRef,
     node_type_spacing_options_horizontal: Vec<Vec<Option<&'static Property<f64>>>>,
     node_type_spacing_options_vertical: Vec<Vec<Option<&'static Property<f64>>>>,
     graph_property_values: FxHashMap<usize, f64>,
@@ -20,7 +19,6 @@ pub struct Spacings {
 impl Spacings {
     pub fn new(graph: &LGraphRef) -> Self {
         let mut spacings = Spacings {
-            graph: graph.clone(),
             node_type_spacing_options_horizontal: vec![
                 vec![None; NodeType::COUNT];
                 NodeType::COUNT
@@ -29,7 +27,7 @@ impl Spacings {
             graph_property_values: FxHashMap::default(),
         };
         spacings.precalculate_node_type_spacings();
-        spacings.cache_graph_values();
+        spacings.cache_graph_values(graph);
         spacings
     }
 
@@ -228,9 +226,9 @@ impl Spacings {
         self.graph_spacing_value(layout_option)
     }
 
-    fn cache_graph_values(&mut self) {
+    fn cache_graph_values(&mut self, graph: &LGraphRef) {
         let mut values: FxHashMap<usize, f64> = FxHashMap::default();
-        let graph_guard = self.graph.lock();
+        let graph_guard = graph.lock();
 
         let mut cache = |property: &'static Property<f64>| {
             let key = property as *const Property<f64> as usize;

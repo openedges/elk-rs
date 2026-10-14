@@ -732,7 +732,7 @@ impl PortAdapter<ElkPortRef> for ElkPortAdapter {
         for edge in outgoing_edges {
             let targets: Vec<ElkConnectableShapeRef> = {
                 let edge_borrow = edge.borrow();
-                edge_borrow.targets_ro().iter().cloned().collect()
+                edge_borrow.targets_ro().iter().collect()
             };
             for target in targets {
                 if let Some(target_node) = ElkGraphUtil::connectable_shape_to_node(&target) {
@@ -760,7 +760,7 @@ impl PortAdapter<ElkPortRef> for ElkPortAdapter {
         for edge in incoming_edges {
             let sources: Vec<ElkConnectableShapeRef> = {
                 let edge_borrow = edge.borrow();
-                edge_borrow.sources_ro().iter().cloned().collect()
+                edge_borrow.sources_ro().iter().collect()
             };
             for source in sources {
                 if let Some(source_node) = ElkGraphUtil::connectable_shape_to_node(&source) {

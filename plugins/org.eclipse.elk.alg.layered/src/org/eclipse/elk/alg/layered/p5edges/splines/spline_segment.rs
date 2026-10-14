@@ -1,5 +1,5 @@
 use rustc_hash::FxHashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::math::elk_rectangle::ElkRectangle;
@@ -32,16 +32,16 @@ pub type SplineSegmentRef = Arc<Mutex<SplineSegment>>;
 pub type DependencyRef = Arc<Mutex<Dependency>>;
 
 pub struct Dependency {
-    pub source: SplineSegmentRef,
-    pub target: SplineSegmentRef,
+    pub source: Weak<Mutex<SplineSegment>>,
+    pub target: Weak<Mutex<SplineSegment>>,
     pub weight: i32,
 }
 
 impl Dependency {
     pub fn new(source: &SplineSegmentRef, target: &SplineSegmentRef, weight: i32) -> DependencyRef {
         let dependency = Arc::new(Mutex::new(Dependency {
-            source: source.clone(),
-            target: target.clone(),
+            source: Arc::downgrade(source),
+            target: Arc::downgrade(target),
             weight,
         }));
         {

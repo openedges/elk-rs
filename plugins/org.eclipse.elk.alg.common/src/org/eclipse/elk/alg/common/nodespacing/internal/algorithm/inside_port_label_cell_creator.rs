@@ -94,11 +94,10 @@ impl InsidePortLabelCellCreator {
                         atomic_cell.padding().top = node_context.port_label_spacing_vertical;
                     }
                 }
-                PortSide::South => {
-                    if node_context.port_label_spacing_vertical >= 0.0 {
+                PortSide::South
+                    if node_context.port_label_spacing_vertical >= 0.0 => {
                         atomic_cell.padding().bottom = node_context.port_label_spacing_vertical;
                     }
-                }
                 _ => {}
             }
 
@@ -114,11 +113,10 @@ impl InsidePortLabelCellCreator {
                         cell.padding().top = node_context.port_label_spacing_vertical;
                     }
                 }
-                PortSide::South => {
-                    if node_context.port_label_spacing_vertical >= 0.0 {
+                PortSide::South
+                    if node_context.port_label_spacing_vertical >= 0.0 => {
                         cell.padding().bottom = node_context.port_label_spacing_vertical;
                     }
-                }
                 _ => {}
             }
             cell.padding().left = node_context.surrounding_port_margins.left;

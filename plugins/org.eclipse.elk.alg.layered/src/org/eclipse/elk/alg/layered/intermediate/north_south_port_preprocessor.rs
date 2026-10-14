@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_constraints::PortConstraints;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
@@ -106,7 +107,7 @@ impl ILayoutProcessor<LGraph> for NorthSouthPortPreprocessor {
 
                 if let Some(mut node_guard) = node.try_lock() {
                     node_guard
-                        .set_property(InternalProperties::IN_LAYER_LAYOUT_UNIT, Some(node.clone()));
+                        .set_property(InternalProperties::IN_LAYER_LAYOUT_UNIT, Some(Arc::downgrade(&node)));
                 }
 
                 if north_ports.is_empty() && south_ports.is_empty() {
@@ -161,19 +162,19 @@ impl ILayoutProcessor<LGraph> for NorthSouthPortPreprocessor {
                     if let Some(mut dummy_guard) = dummy.try_lock() {
                         dummy_guard.set_property(
                             InternalProperties::IN_LAYER_LAYOUT_UNIT,
-                            Some(node.clone()),
+                            Some(Arc::downgrade(&node)),
                         );
                     }
 
                     if !origin_port_allows_switch(dummy) {
                         if let Some(mut dummy_guard) = dummy.try_lock() {
                             let mut constraints = dummy_guard
-                                .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
+                                .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS).map(|nodes| nodes.iter().filter_map(std::sync::Weak::upgrade).collect::<Vec<_>>())
                                 .unwrap_or_default();
                             constraints.push(successor.clone());
                             dummy_guard.set_property(
                                 InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS,
-                                Some(constraints),
+                                Some(constraints.iter().map(std::sync::Arc::downgrade).collect()),
                             );
                         }
                     }
@@ -189,19 +190,19 @@ impl ILayoutProcessor<LGraph> for NorthSouthPortPreprocessor {
                     if let Some(mut dummy_guard) = dummy.try_lock() {
                         dummy_guard.set_property(
                             InternalProperties::IN_LAYER_LAYOUT_UNIT,
-                            Some(node.clone()),
+                            Some(Arc::downgrade(&node)),
                         );
                     }
 
                     if !origin_port_allows_switch(dummy) {
                         if let Some(mut pred_guard) = predecessor.try_lock() {
                             let mut constraints = pred_guard
-                                .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
+                                .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS).map(|nodes| nodes.iter().filter_map(std::sync::Weak::upgrade).collect::<Vec<_>>())
                                 .unwrap_or_default();
                             constraints.push(dummy.clone());
                             pred_guard.set_property(
                                 InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS,
-                                Some(constraints),
+                                Some(constraints.iter().map(std::sync::Arc::downgrade).collect()),
                             );
                         }
                     }
@@ -212,7 +213,7 @@ impl ILayoutProcessor<LGraph> for NorthSouthPortPreprocessor {
                     if let Some(mut node_guard) = node.try_lock() {
                         node_guard.set_property(
                             InternalProperties::BARYCENTER_ASSOCIATES,
-                            Some(barycenter_associates),
+                            Some(barycenter_associates.iter().map(std::sync::Arc::downgrade).collect()),
                         );
                     }
                 }
@@ -458,7 +459,7 @@ fn create_dummy_node(
 
         {
             let mut port_guard = in_port.lock();
-            port_guard.set_property(InternalProperties::PORT_DUMMY, Some(dummy.clone()));
+            port_guard.set_property(InternalProperties::PORT_DUMMY, Some(std::sync::Arc::downgrade(&dummy)));
             if let Some(node) = port_guard.node() {
                 {
                     let mut dummy_guard = dummy.lock();
@@ -493,7 +494,7 @@ fn create_dummy_node(
 
         {
             let mut port_guard = out_port.lock();
-            port_guard.set_property(InternalProperties::PORT_DUMMY, Some(dummy.clone()));
+            port_guard.set_property(InternalProperties::PORT_DUMMY, Some(std::sync::Arc::downgrade(&dummy)));
             if let Some(node) = port_guard.node() {
                 {
                     let mut dummy_guard = dummy.lock();
@@ -558,11 +559,11 @@ fn create_same_side_self_loop_dummy_node(
 
     {
         let mut source_port_guard = source_port.lock();
-        source_port_guard.set_property(InternalProperties::PORT_DUMMY, Some(dummy.clone()));
+        source_port_guard.set_property(InternalProperties::PORT_DUMMY, Some(std::sync::Arc::downgrade(&dummy)));
     }
     {
         let mut target_port_guard = target_port.lock();
-        target_port_guard.set_property(InternalProperties::PORT_DUMMY, Some(dummy.clone()));
+        target_port_guard.set_property(InternalProperties::PORT_DUMMY, Some(std::sync::Arc::downgrade(&dummy)));
     }
 
     crate::org::eclipse::elk::alg::layered::graph::LEdge::set_source(self_loop, None);
@@ -614,7 +615,7 @@ fn create_north_south_self_loop_dummy_nodes(
     LPort::set_node(&north_dummy_output_port, Some(north_dummy.clone()));
     {
         let mut source_port_guard = source_port.lock();
-        source_port_guard.set_property(InternalProperties::PORT_DUMMY, Some(north_dummy.clone()));
+        source_port_guard.set_property(InternalProperties::PORT_DUMMY, Some(std::sync::Arc::downgrade(&north_dummy)));
     }
 
     let south_dummy = LNode::new(graph);
@@ -645,7 +646,7 @@ fn create_north_south_self_loop_dummy_nodes(
     LPort::set_node(&south_dummy_input_port, Some(south_dummy.clone()));
     {
         let mut target_port_guard = target_port.lock();
-        target_port_guard.set_property(InternalProperties::PORT_DUMMY, Some(south_dummy.clone()));
+        target_port_guard.set_property(InternalProperties::PORT_DUMMY, Some(std::sync::Arc::downgrade(&south_dummy)));
     }
 
     crate::org::eclipse::elk::alg::layered::graph::LEdge::set_source(

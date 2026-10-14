@@ -701,7 +701,7 @@ fn trace_in_layer_constraints(node_order: &[Vec<LNodeRef>]) {
                 let node_guard = node.lock();
                 let name = node_guard.to_string();
                 let successors: Vec<LNodeRef> = node_guard
-                    .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS)
+                    .get_property(InternalProperties::IN_LAYER_SUCCESSOR_CONSTRAINTS).map(|nodes| nodes.iter().filter_map(std::sync::Weak::upgrade).collect::<Vec<_>>())
                     .unwrap_or_default();
                 (name, successors)
             };

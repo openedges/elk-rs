@@ -17,7 +17,7 @@ use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::MapPropertyHolder;
 
 use crate::org::eclipse::elk::alg::layered::graph::{
-    LEdge, LEdgeRef, LGraph, LGraphRef, LGraphUtil, LLabel, LLabelRef, LNodeRef, LPortRef, NodeType,
+    LEdge, LEdgeRef, LGraph, LGraphRef, LGraphWeak, LGraphUtil, LLabel, LLabelRef, LNodeRef, LPortRef, NodeType,
 };
 use crate::org::eclipse::elk::alg::layered::options::internal_properties::{Origin, PortRefKey};
 use crate::org::eclipse::elk::alg::layered::options::{
@@ -28,7 +28,7 @@ use crate::org::eclipse::elk::alg::layered::p5edges::orthogonal::OrthogonalRouti
 #[derive(Clone)]
 pub struct CrossHierarchyEdge {
     edge: LEdgeRef,
-    graph: LGraphRef,
+    graph: LGraphWeak,
     port_type: PortType,
 }
 
@@ -36,7 +36,7 @@ impl CrossHierarchyEdge {
     pub fn new(edge: LEdgeRef, graph: LGraphRef, port_type: PortType) -> Self {
         CrossHierarchyEdge {
             edge,
-            graph,
+            graph: Arc::downgrade(&graph),
             port_type,
         }
     }
@@ -45,8 +45,8 @@ impl CrossHierarchyEdge {
         &self.edge
     }
 
-    pub fn graph(&self) -> &LGraphRef {
-        &self.graph
+    pub fn graph(&self) -> LGraphRef {
+        self.graph.upgrade().expect("cross-hierarchy graph must outlive its processing")
     }
 
     pub fn port_type(&self) -> PortType {
@@ -150,8 +150,8 @@ fn sort_cross_hierarchy_edges(edges: &mut [CrossHierarchyEdge], graph: &LGraphRe
             return std::cmp::Ordering::Greater;
         }
 
-        let level1 = hierarchy_level(edge1.graph(), graph);
-        let level2 = hierarchy_level(edge2.graph(), graph);
+        let level1 = hierarchy_level(&edge1.graph(), graph);
+        let level2 = hierarchy_level(&edge2.graph(), graph);
         let diff = if edge1.port_type == PortType::Output {
             level2 - level1
         } else {
@@ -254,7 +254,7 @@ impl CompoundGraphPreprocessor {
 
             let node_ref = {
                 let mut port_guard = external_port.lock();
-                port_guard.set_property(InternalProperties::PORT_DUMMY, Some(dummy_node.clone()));
+                port_guard.set_property(InternalProperties::PORT_DUMMY, Some(std::sync::Arc::downgrade(dummy_node)));
                 port_guard.set_property(InternalProperties::INSIDE_CONNECTIONS, Some(true));
                 port_guard.set_side(dummy_side);
                 port_guard.node()
@@ -522,7 +522,7 @@ impl CompoundGraphPreprocessor {
                             }
                             label_guard.set_property(
                                 InternalProperties::ORIGINAL_LABEL_EDGE,
-                                Some(orig_edge.clone()),
+                                Some(Arc::downgrade(&orig_edge)),
                             );
                         }
                         edge_guard.labels_mut().remove(idx);
@@ -1642,7 +1642,7 @@ impl CompoundGraphPostprocessor {
 
             for cross_edge in &cross_edges {
                 let mut offset = KVector::new();
-                LGraphUtil::change_coord_system(&mut offset, cross_edge.graph(), &reference_graph);
+                LGraphUtil::change_coord_system(&mut offset, &cross_edge.graph(), &reference_graph);
 
                 let ledge = cross_edge.edge().clone();
                 let (bend_points, source_point, target_point) = {
@@ -1711,7 +1711,7 @@ impl CompoundGraphPostprocessor {
                             .and_then(|node| node.lock().graph());
                         let mut target_offset = offset;
                         if let Some(target_graph) = target_graph {
-                            if !Arc::ptr_eq(&target_graph, cross_edge.graph()) {
+                            if !Arc::ptr_eq(&target_graph, &cross_edge.graph()) {
                                 target_offset = KVector::new();
                                 LGraphUtil::change_coord_system(
                                     &mut target_offset,
@@ -1800,7 +1800,7 @@ fn copy_labels_back(
             let label_ref = edge_guard.labels()[idx].clone();
             let matches = {
                 let label_guard = label_ref.lock();
-                label_guard.get_property(InternalProperties::ORIGINAL_LABEL_EDGE)
+                label_guard.get_property(InternalProperties::ORIGINAL_LABEL_EDGE).and_then(|edge| edge.upgrade())
                     .map(|edge| Arc::ptr_eq(&edge, orig_edge))
                     .unwrap_or(false)
             };

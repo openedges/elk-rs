@@ -414,7 +414,8 @@ impl NodeEdgeList {
 pub struct EdgeEndpointList {
     owner: ElkEdgeWeak,
     kind: EdgeEndpointKind,
-    items: Vec<ElkConnectableShapeRef>,
+    // Endpoints are cross-references; the containment tree owns nodes and ports.
+    items: Vec<ElkConnectableShapeWeak>,
 }
 
 impl EdgeEndpointList {
@@ -427,10 +428,11 @@ impl EdgeEndpointList {
     }
 
     pub fn add(&mut self, shape: ElkConnectableShapeRef) {
-        if self.items.iter().any(|item| item.ptr_eq(&shape)) {
+        self.items.retain(|item| item.upgrade().is_some());
+        if self.items.iter().any(|item| item.upgrade().is_some_and(|item| item.ptr_eq(&shape))) {
             return;
         }
-        self.items.push(shape.clone());
+        self.items.push(shape.downgrade());
         if let Some(edge) = self.owner.upgrade() {
             match self.kind {
                 EdgeEndpointKind::Source => match shape {
@@ -454,22 +456,23 @@ impl EdgeEndpointList {
     }
 
     fn add_internal(&mut self, shape: ElkConnectableShapeRef) {
-        if !self.items.iter().any(|item| item.ptr_eq(&shape)) {
-            self.items.push(shape);
+        self.items.retain(|item| item.upgrade().is_some());
+        if !self.items.iter().any(|item| item.upgrade().is_some_and(|item| item.ptr_eq(&shape))) {
+            self.items.push(shape.downgrade());
         }
     }
 
     fn remove_internal(&mut self, shape: &ElkConnectableShapeRef) {
-        if let Some(index) = self.items.iter().position(|item| item.ptr_eq(shape)) {
+        if let Some(index) = self.items.iter().position(|item| item.upgrade().is_some_and(|item| item.ptr_eq(shape))) {
             self.items.remove(index);
         }
     }
 
     pub fn remove_at(&mut self, index: usize) -> Option<ElkConnectableShapeRef> {
-        if index >= self.items.len() {
-            return None;
-        }
-        let shape = self.items.remove(index);
+        let index = self.items.iter().enumerate()
+            .filter(|(_, shape)| shape.upgrade().is_some())
+            .nth(index).map(|(index, _)| index)?;
+        let shape = self.items.remove(index).upgrade()?;
         if let Some(edge) = self.owner.upgrade() {
             match self.kind {
                 EdgeEndpointKind::Source => match shape {
@@ -498,19 +501,19 @@ impl EdgeEndpointList {
     }
 
     pub fn len(&self) -> usize {
-        self.items.len()
+        self.iter().count()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.items.is_empty()
+        self.iter().next().is_none()
     }
 
     pub fn get(&self, index: usize) -> Option<ElkConnectableShapeRef> {
-        self.items.get(index).cloned()
+        self.iter().nth(index)
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &ElkConnectableShapeRef> {
-        self.items.iter()
+    pub fn iter(&self) -> impl Iterator<Item = ElkConnectableShapeRef> + '_ {
+        self.items.iter().filter_map(ElkConnectableShapeWeak::upgrade)
     }
 }
 
@@ -1014,7 +1017,7 @@ impl ElkEdge {
             .sources
             .items
             .iter()
-            .any(|item| item.ptr_eq(&shape))
+            .any(|item| item.upgrade().is_some_and(|item| item.ptr_eq(&shape)))
         {
             return;
         }
@@ -1036,7 +1039,7 @@ impl ElkEdge {
             .targets
             .items
             .iter()
-            .any(|item| item.ptr_eq(&shape))
+            .any(|item| item.upgrade().is_some_and(|item| item.ptr_eq(&shape)))
         {
             return;
         }
@@ -1101,13 +1104,13 @@ impl ElkEdge {
         };
         let first_node =
             match crate::org::eclipse::elk::graph::util::ElkGraphUtil::connectable_shape_to_node(
-                first,
+                &first,
             ) {
                 Some(node) => node,
                 None => return false,
             };
         iter.all(|shape| {
-            crate::org::eclipse::elk::graph::util::ElkGraphUtil::connectable_shape_to_node(shape)
+            crate::org::eclipse::elk::graph::util::ElkGraphUtil::connectable_shape_to_node(&shape)
                 .map(|node| Rc::ptr_eq(&node, &first_node))
                 .unwrap_or(false)
         })
@@ -1121,7 +1124,7 @@ impl ElkEdge {
         for shape in self.sources.iter().chain(self.targets.iter()) {
             let node =
                 match crate::org::eclipse::elk::graph::util::ElkGraphUtil::connectable_shape_to_node(
-                    shape,
+                    &shape,
                 ) {
                     Some(node) => node,
                     None => return true,

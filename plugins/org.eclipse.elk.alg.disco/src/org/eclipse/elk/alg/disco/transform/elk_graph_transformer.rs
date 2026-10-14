@@ -482,7 +482,7 @@ impl IGraphTransformer<ElkNodeRef> for ElkGraphTransformer {
             }
         }
 
-        for (_id, (elem, poly)) in self.element_mapping.iter() {
+        for (elem, poly) in self.element_mapping.values() {
             let offset = { poly.lock().get_offset() };
             match elem {
                 ElkGraphElementRef::Edge(edge) => {
@@ -529,7 +529,7 @@ impl IGraphTransformer<ElkNodeRef> for ElkGraphTransformer {
 
         let mut adjusted_ports: HashSet<usize> = HashSet::new();
 
-        for (_edge_id, (edge, extension)) in self.incoming_extensions.iter() {
+        for (edge, extension) in self.incoming_extensions.values() {
             let dir = extension.get_direction();
             let edge_section = first_edge_section(edge, false, false);
             let points = ElkUtil::create_vector_chain(&edge_section);
@@ -544,7 +544,7 @@ impl IGraphTransformer<ElkNodeRef> for ElkGraphTransformer {
             }
         }
 
-        for (_edge_id, (edge, extension)) in self.outgoing_extensions.iter() {
+        for (edge, extension) in self.outgoing_extensions.values() {
             let dir = extension.get_direction();
             let edge_section = first_edge_section(edge, false, false);
             let points = ElkUtil::create_vector_chain(&edge_section);

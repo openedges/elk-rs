@@ -3,6 +3,51 @@
 - 본 문서는 기존 `AGENTS.md`의 `진행된 작업` 섹션을 분리 보관한 기록이다.
 - 신규 단계 완료 시 이 문서에 누적 기록하고, `AGENTS.md`의 핵심 스냅샷/우선순위를 동기화한다.
 
+## 그래프 순환 참조와 레이아웃 임시 메모리 해제 (2026-10-14)
+
+### 구조와 원인
+
+공개 `ElkGraph`는 `Rc<RefCell<...>>`, layered 내부 그래프는 `Arc<Mutex<...>>` 기반이다. 부모 → 자식/포트/간선의 포함 관계는 소유권이고, 간선 끝점·부모·보조 속성은 교차 참조다. 일부 교차 참조가 강한 참조여서 루트를 버려도 참조 카운트가 0에 도달하지 않았다.
+
+| 누수 경로 | 수정 |
+| --- | --- |
+| ElkGraph 노드/포트 → 간선 → 노드/포트, 계층 간선 → 부모 | `EdgeEndpointList`에 weak 끝점 저장 |
+| LGraph → Spacings → LGraph | 생성 시 spacing 값만 복사하고 graph 필드 제거 |
+| LGraph → 캐시된 P3 processor → GraphInfoHolder → LGraph | crossing minimizer 실행 상태를 호출 지역 객체로 분리 |
+| 노드 → SelfLoopHolder → 노드, SelfLoopPort ↔ SelfLoopEdge | 역방향 링크를 weak로 변경 |
+| SplineSegment ↔ Dependency, NNode ↔ NEdge | dependency와 simplex 간선의 끝점을 weak로 변경 |
+| 노드 자기 참조·dummy/associate·라벨/간선·계층 그래프 속성 | `IN_LAYER_LAYOUT_UNIT`, `PORT_DUMMY`, `BARYCENTER_ASSOCIATES`, `IN_LAYER_SUCCESSOR_CONSTRAINTS`, `END_LABEL_EDGE`, `ORIGINAL_LABEL_EDGE`, `ORIGINAL_OPPOSITE_PORT`, `COORDINATE_SYSTEM_ORIGIN`, `CrossHierarchyEdge.graph`을 weak로 변경 |
+| thread-local layout arena, rectpacking rows | RAII guard로 정상 종료·취소·panic 시 정리; 중첩 arena는 이전 context 복원 |
+
+소유권이 필요한 `HIDDEN_NODES`, 이동 중인 라벨/간선, graph/layer의 노드 목록은 강한 참조를 유지한다. 재사용 엔진의 일부 processor는 마지막 노드 캐시를 보유할 수 있으나 요청 횟수에 비례해 증가하지 않고 엔진 drop 시 해제된다.
+
+### 재현과 회귀 테스트
+
+- 수정 전 실패 확인: 수명 테스트 8개 실패, 단순 layered JSON 레이아웃 100회 후 **2,763,400 bytes / 27,400 allocations** 잔존.
+- `graph.json/tests/memory_lifecycle.rs`: weak probe 14개. 공개/내부 그래프, P3 cache, self-loop, spline, external port, rectpacking, 취소/panic, 중첩 arena, 만료된 끝점 목록의 인덱스·역방향 목록 정합성 검증.
+- `common/networksimplex/n_edge.rs`: 방향 반전 후 노드·간선·origin 해제 검증 1개.
+- `graph.json/tests/memory_allocations.rs`: 전용 테스트 실행 파일의 전역 allocator로 live bytes와 live allocation count를 직접 계수한다. RSS 또는 임의 허용치에 의존하지 않는다.
+- 9개 알고리즘과 routing/self-loop/label/N-S port/hierarchy/star를 조합한 **29개 JSON 입력**에서 각각 10회 예열 후 `3 × 100`회 측정한다. 재사용 `ElkLayered` 엔진도 3개 입력(일반/spline/self-loop)에 동일한 반복 검사를 적용한다. **총 9,600회 batch 잔존 증가 0**, 재사용 엔진 drop 후 캐시도 전부 해제됨을 확인했다.
+- Java-exported **1,998개 전체 모델**도 각 10회 예열 후 `3 × 2`회 측정: **11,988회 모두 잔존 bytes/allocations 증가 0**. 전체 모델 검사에서 마지막까지 남았던 `ORIGINAL_OPPOSITE_PORT`와 계층 라벨의 `ORIGINAL_LABEL_EDGE` 순환도 제거했다.
+- 수정 전 `2191680`을 별도 임시 디렉터리에 빌드하여 비교: **1,998/1,998 JSON 결과 동일**.
+- Full model parity: `total=1998`, `compared=1989`, `matches=1988`, `drift=1`, `skipped=9`, `errors=0`, `timeouts=0`. 유일한 차이는 기존 `213_componentsCompaction.elkt` Java NaN 버그다.
+- Full phase-step trace: **1,997/1,997 match, 0 drift**, `java_only=0`, `rust_only=1`(기존 Java NPE `588_hierarchicalLayoutNPE.elkt`). Trace runner는 layered를 강제하므로 일반 model parity와 별도로 실행했다.
+- `cargo build --workspace`, `cargo clippy --workspace --all-targets`: error/warning 0. `cargo test --workspace`: **1,021 passed / 0 failed / 2 ignored**. 기존 테스트의 graph/root 소유권 fixture도 함께 정정했다.
+
+### 호환성과 검증 범위
+
+JSON API의 입력/출력은 유지된다. Low-level Rust API에는 소유권 관련 변경이 있다: `EdgeEndpointList::iter()`는 참조 대신 살아 있는 `ElkConnectableShapeRef` 값을 반환하므로 `.cloned()`를 제거해야 한다. 분리된 간선만 보유하면 끝점의 수명을 연장하지 않으므로 호출자는 graph/root 또는 노드/포트의 소유 참조를 유지해야 한다. 내부 속성과 공개 `NEdge`/spline dependency 필드는 weak 타입으로 변경했으며, self-loop/cross-hierarchy getter는 upgrade한 소유 참조를 반환한다.
+
+검증은 native Rust allocator와 공통 JSON 경로를 대상으로 한다. NAPI/WASM crate는 workspace 빌드·테스트에 포함되지만 JavaScript 런타임이나 WebAssembly heap을 별도로 프로파일링한 결과는 아니다. Rust 1.97.1의 추가 Clippy 진단은 동등한 표현으로 정리했으며, release 전용 unused import도 수정했다. Java 기준선은 JDK 21.0.12.1/Maven 3.9.16의 임시 worktree에서 생성했고 upstream submodule은 변경하지 않았다.
+
+### 성능 영향과 남은 확인 사항
+
+- 측정 머신: **MacBook Pro (Mac15,6), Apple M3 Pro 11코어(5P+6E), 36GB RAM, macOS 27.0.1 (26A434)**. 수정 전/후 모두 동일 머신, Rust 1.97.1, release/default features 사용.
+- 명령: `perf_benchmark --engine rust_native --mode synthetic --iterations 10 --warmup 3 --output <csv>`를 수정 전/후 각각 3회 실행. 순서는 before→after, after→before, before→after이며 다른 검증 작업과 겹치지 않았다.
+- 26개 시나리오의 전체 산술 평균: 수정 전 **22.588 ms**, 수정 후 **23.049 ms**, **+2.04%**. `layered_xlarge`의 3회 중앙값은 **226.667 → 227.372 ms (+0.31%)**.
+- Force/Stress 차이를 분리하기 위해 `--scenarios force_xlarge,stress_xlarge --iterations 20 --warmup 5`를 after→before 순서로 추가 실행: Force **123.390 → 122.092 ms (-1.05%)**, Stress **150.388 → 158.902 ms (+5.66%)**.
+- **성능 무회귀로 판정하지 않는다.** 기능 결과는 동일하고 누수 검사는 통과했지만, Stress 대형 입력의 시간 증가는 추가 프로파일링 대상이다. 누수를 유지하는 구현으로 되돌리지 않고 이번 수정의 관측된 영향으로 기록한다. 후속 확인은 `plugins/org.eclipse.elk.alg.force/src/org/eclipse/elk/alg/force/stress/stress_layout_provider.rs`의 Force 초기화와 stress 계산 구간을 분리 측정한다. 이번 검증은 Rust A/B 비교이며 과거 Java 대비 3.88x 수치를 갱신하지 않는다.
+
 ## 진행된 작업
 - RUST_QUALITY_PLAN 전체 완료 및 파일 삭제 (2026-03-24): V1+V2 모든 Phase 완료. A-1(get_property &self), A-2(typed wrapper 22개), B-1(lock_ok→lock 3,822건), B-2(guard 재사용), C(Force/Stress Arena), D-1(LGraph Arena P4/P5), D-1.5(P3 ArenaSync), D-2(ElkGraph Arena). 계획 문서 역할 종료 → 삭제.
 - D-2 비layered 알고리즘 borrow batching 완료 (feature/elkgraph-arena, 2026-03-24): rectpacking `calculations.rs` geometry+constraint batch(3→1/iter), `area_approximation.rs` upfront extraction(9→2 borrows). radial `angle_rotation.rs` 2 property reads→1 batch, `calculate_graph_size.rs` children+properties→1 batch. topdownpacking `GridElkNode` children+get_property→arena. 나머지(vertiflex/disco) position read는 layout 중 변경으로 arena 불가, internal type borrow는 대상 외. **최종 브랜치**: 36커밋, 19파일, +1,694/-624줄.

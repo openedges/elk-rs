@@ -3,7 +3,7 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::util::elk_mutex::Mutex;
 
 use crate::org::eclipse::elk::alg::layered::graph::LEdgeRef;
 use crate::org::eclipse::elk::alg::layered::intermediate::loops::{
-    SelfHyperLoopRef, SelfLoopPortRef,
+    SelfHyperLoopRef, SelfLoopPort, SelfLoopPortRef,
 };
 
 pub type SelfLoopEdgeRef = Arc<Mutex<SelfLoopEdge>>;
@@ -13,8 +13,8 @@ pub struct SelfLoopEdge {
     sl_hyper_loop: Option<
         Weak<Mutex<crate::org::eclipse::elk::alg::layered::intermediate::loops::SelfHyperLoop>>,
     >,
-    sl_source: SelfLoopPortRef,
-    sl_target: SelfLoopPortRef,
+    sl_source: Weak<Mutex<SelfLoopPort>>,
+    sl_target: Weak<Mutex<SelfLoopPort>>,
 }
 
 impl SelfLoopEdge {
@@ -26,8 +26,8 @@ impl SelfLoopEdge {
         let edge_ref = Arc::new(Mutex::new(SelfLoopEdge {
             l_edge: l_edge.clone(),
             sl_hyper_loop: None,
-            sl_source: sl_source.clone(),
-            sl_target: sl_target.clone(),
+            sl_source: Arc::downgrade(sl_source),
+            sl_target: Arc::downgrade(sl_target),
         }));
 
         {
@@ -56,11 +56,11 @@ impl SelfLoopEdge {
         }
     }
 
-    pub fn sl_source(&self) -> &SelfLoopPortRef {
-        &self.sl_source
+    pub fn sl_source(&self) -> SelfLoopPortRef {
+        self.sl_source.upgrade().expect("self-loop source port must outlive its processing")
     }
 
-    pub fn sl_target(&self) -> &SelfLoopPortRef {
-        &self.sl_target
+    pub fn sl_target(&self) -> SelfLoopPortRef {
+        self.sl_target.upgrade().expect("self-loop target port must outlive its processing")
     }
 }

@@ -1270,13 +1270,13 @@ impl NodeDimensionCalculation {
         for edge_ref in contained_edges {
             let edge = edge_ref.borrow();
             let source_matches = edge.sources_ro().iter().any(|source| {
-                matches!(source, ElkConnectableShapeRef::Port(source_port) if Rc::ptr_eq(source_port, port))
+                matches!(source, ElkConnectableShapeRef::Port(source_port) if Rc::ptr_eq(&source_port, port))
             });
             if source_matches {
                 found_incident_edge = true;
                 for target in edge.targets_ro().iter() {
                     Self::classify_endpoint_against_parent(
-                        target,
+                        &target,
                         parent_node,
                         edges_to_insides,
                         edges_to_somewhere_else,
@@ -1285,13 +1285,13 @@ impl NodeDimensionCalculation {
             }
 
             let target_matches = edge.targets_ro().iter().any(|target| {
-                matches!(target, ElkConnectableShapeRef::Port(target_port) if Rc::ptr_eq(target_port, port))
+                matches!(target, ElkConnectableShapeRef::Port(target_port) if Rc::ptr_eq(&target_port, port))
             });
             if target_matches {
                 found_incident_edge = true;
                 for source in edge.sources_ro().iter() {
                     Self::classify_endpoint_against_parent(
-                        source,
+                        &source,
                         parent_node,
                         edges_to_insides,
                         edges_to_somewhere_else,

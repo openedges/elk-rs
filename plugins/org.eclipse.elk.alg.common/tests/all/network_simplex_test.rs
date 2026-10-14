@@ -26,8 +26,8 @@ fn network_simplex_deltas() {
                         for edge in outgoing {
                             let (source_layer, target_layer, delta) = {
                                 let edge_guard = edge.lock();
-                                let source_layer = edge_guard.source.lock().layer;
-                                let target_layer = edge_guard.target.lock().layer;
+                                let source_layer = edge_guard.source().lock().layer;
+                                let target_layer = edge_guard.target().lock().layer;
                                 (source_layer, target_layer, edge_guard.delta)
                             };
                             assert!(target_layer - source_layer >= delta, "Valid delta");
@@ -79,8 +79,8 @@ fn generate_random_graph(random: &mut Random) -> NGraph {
         for edge in outgoing {
             let (source_id, target_id) = {
                 let edge_guard = edge.lock();
-                let source_id = edge_guard.source.lock().id;
-                let target_id = edge_guard.target.lock().id;
+                let source_id = edge_guard.source().lock().id;
+                let target_id = edge_guard.target().lock().id;
                 (source_id, target_id)
             };
             if source_id > target_id {

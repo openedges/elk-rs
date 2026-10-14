@@ -92,7 +92,7 @@ fn hide_edge(
         let mut edge_guard = edge.lock();
         edge_guard.set_property(
             InternalProperties::ORIGINAL_OPPOSITE_PORT,
-            Some(opposite_port.clone()),
+            Some(Arc::downgrade(&opposite_port)),
         );
     }
 

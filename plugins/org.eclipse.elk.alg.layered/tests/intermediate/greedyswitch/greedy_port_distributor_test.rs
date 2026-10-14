@@ -45,7 +45,7 @@ fn add_node(graph: &LGraphRef, layer: &LayerRef) -> LNodeRef {
     {
         let mut node_guard = node.lock();
         node_guard.set_node_type(NodeType::Normal);
-        node_guard.set_property(InternalProperties::IN_LAYER_LAYOUT_UNIT, Some(node.clone()));
+        node_guard.set_property(InternalProperties::IN_LAYER_LAYOUT_UNIT, Some(std::sync::Arc::downgrade(&node)));
     }
     LNode::set_layer(&node, Some(layer.clone()));
     node
@@ -182,7 +182,7 @@ fn add_external_port_dummy_node_to_layer(layer: &LayerRef, port: &LPortRef) -> L
 
     {
         let mut port_guard = port.lock();
-        port_guard.set_property(InternalProperties::PORT_DUMMY, Some(node.clone()));
+        port_guard.set_property(InternalProperties::PORT_DUMMY, Some(std::sync::Arc::downgrade(&node)));
         port_guard.set_property(InternalProperties::INSIDE_CONNECTIONS, Some(true));
     }
 

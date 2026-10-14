@@ -699,7 +699,7 @@ impl NetworkSimplexPlacer {
                 for port in south_ports {
                     let dummy = {
                         let port_guard = port.lock();
-                        port_guard.get_property(InternalProperties::PORT_DUMMY)
+                        port_guard.get_property(InternalProperties::PORT_DUMMY).and_then(|value| value.upgrade())
                     };
                     if let Some(dummy) = dummy {
                         let dummy_id = node_id(&dummy);
@@ -715,7 +715,7 @@ impl NetworkSimplexPlacer {
                 for port in north_ports {
                     let dummy = {
                         let port_guard = port.lock();
-                        port_guard.get_property(InternalProperties::PORT_DUMMY)
+                        port_guard.get_property(InternalProperties::PORT_DUMMY).and_then(|value| value.upgrade())
                     };
                     if let Some(dummy) = dummy {
                         let dummy_id = node_id(&dummy);
@@ -1001,7 +1001,8 @@ impl NetworkSimplexPlacer {
 
         let center_origin = {
             let edge_guard = left_edge.right.lock();
-            let node_guard = edge_guard.target.lock();
+            let node = edge_guard.target();
+            let node_guard = node.lock();
             node_guard.origin.clone()
         };
         let Some(center_origin) = center_origin else {
@@ -1073,10 +1074,10 @@ impl NetworkSimplexPlacer {
             return true;
         }
 
-        let a = length(&left_edge.left) as i32;
-        let b = -length(&left_edge.right) as i32;
-        let c = -length(&right_edge.left) as i32;
-        let d = length(&right_edge.right) as i32;
+        let a = length(&left_edge.left);
+        let b = -length(&left_edge.right);
+        let c = -length(&right_edge.left);
+        let d = length(&right_edge.right);
 
         let (left_ltl, left_ld) = left_edge.left_target_layer_and_delta();
         let (left_rtl, left_rd) = left_edge.right_target_layer_and_delta();
@@ -1358,7 +1359,8 @@ impl EdgeRep {
     fn left_target_layer_and_delta(&self) -> (i32, i32) {
         let edge_guard = self.left.lock();
         let target_layer = {
-            let node_guard = edge_guard.target.lock();
+            let node = edge_guard.target();
+            let node_guard = node.lock();
             node_guard.layer
         };
         (target_layer, edge_guard.delta)
@@ -1368,7 +1370,8 @@ impl EdgeRep {
     fn right_target_layer_and_delta(&self) -> (i32, i32) {
         let edge_guard = self.right.lock();
         let target_layer = {
-            let node_guard = edge_guard.target.lock();
+            let node = edge_guard.target();
+            let node_guard = node.lock();
             node_guard.layer
         };
         (target_layer, edge_guard.delta)
@@ -1650,11 +1653,13 @@ fn is_self_loop_edge(edge: &LEdgeRef) -> bool {
 fn length(edge: &NEdgeRef) -> i32 {
     let edge_guard = edge.lock();
     let src_layer = {
-        let node_guard = edge_guard.source.lock();
+        let node = edge_guard.source();
+        let node_guard = node.lock();
         node_guard.layer
     };
     let tgt_layer = {
-        let node_guard = edge_guard.target.lock();
+        let node = edge_guard.target();
+        let node_guard = node.lock();
         node_guard.layer
     };
     (src_layer - tgt_layer).abs() - edge_guard.delta

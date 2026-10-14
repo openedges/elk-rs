@@ -335,11 +335,11 @@ impl BarycenterHeuristic {
             if let Some(ref sync) = self.arena_sync {
                 if let Some(nid) = sync.node_id(node) {
                     return sync.arena().node_properties(nid)
-                        .get_property(InternalProperties::BARYCENTER_ASSOCIATES);
+                        .get_property(InternalProperties::BARYCENTER_ASSOCIATES).map(|nodes| nodes.iter().filter_map(std::sync::Weak::upgrade).collect::<Vec<_>>());
                 }
             }
             let node_guard = node.lock();
-            node_guard.get_property(InternalProperties::BARYCENTER_ASSOCIATES)
+            node_guard.get_property(InternalProperties::BARYCENTER_ASSOCIATES).map(|nodes| nodes.iter().filter_map(std::sync::Weak::upgrade).collect::<Vec<_>>())
         });
         if let Some(associates) = associates {
             for associate in associates {
@@ -462,12 +462,12 @@ impl BarycenterHeuristic {
         let associates = if let Some(ref sync) = self.arena_sync {
             if let Some(nid) = sync.node_id(node) {
                 sync.arena().node_properties(nid)
-                    .get_property(InternalProperties::BARYCENTER_ASSOCIATES)
+                    .get_property(InternalProperties::BARYCENTER_ASSOCIATES).map(|nodes| nodes.iter().filter_map(std::sync::Weak::upgrade).collect::<Vec<_>>())
             } else {
-                node.lock().get_property(InternalProperties::BARYCENTER_ASSOCIATES)
+                node.lock().get_property(InternalProperties::BARYCENTER_ASSOCIATES).map(|nodes| nodes.iter().filter_map(std::sync::Weak::upgrade).collect::<Vec<_>>())
             }
         } else {
-            node.lock().get_property(InternalProperties::BARYCENTER_ASSOCIATES)
+            node.lock().get_property(InternalProperties::BARYCENTER_ASSOCIATES).map(|nodes| nodes.iter().filter_map(std::sync::Weak::upgrade).collect::<Vec<_>>())
         };
         if let Some(associates) = associates {
             for associate in associates {

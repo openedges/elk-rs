@@ -96,7 +96,7 @@ fn layer_constraint_postprocessor_restores_hidden_nodes_and_detached_edges() {
     LEdge::set_target(&edge, None);
     edge.lock().set_property(
         InternalProperties::ORIGINAL_OPPOSITE_PORT,
-        Some(opposite_port.clone()),
+        Some(Arc::downgrade(&opposite_port)),
     );
 
     graph

@@ -248,10 +248,8 @@ impl ElkGraphUtil {
                 if siblings {
                     common_ancestor = incident_node.borrow().parent()?;
                 } else {
-                    match Self::find_lowest_common_ancestor(&common_ancestor, &incident_node) {
-                        Some(lca) => common_ancestor = lca,
-                        None => return None,
-                    }
+                    common_ancestor =
+                        Self::find_lowest_common_ancestor(&common_ancestor, &incident_node)?;
                 }
             }
         }
@@ -307,8 +305,8 @@ impl ElkGraphUtil {
         let edge_borrow = edge.borrow();
         let mut shapes =
             Vec::with_capacity(edge_borrow.sources_ro().len() + edge_borrow.targets_ro().len());
-        shapes.extend(edge_borrow.sources_ro().iter().cloned());
-        shapes.extend(edge_borrow.targets_ro().iter().cloned());
+        shapes.extend(edge_borrow.sources_ro().iter());
+        shapes.extend(edge_borrow.targets_ro().iter());
         shapes
     }
 
@@ -388,18 +386,12 @@ impl ElkGraphUtil {
                 ElkGraphElementRef::Edge(edge) => return edge.borrow().containing_node(),
                 ElkGraphElementRef::Node(node) => return node.borrow().parent(),
                 ElkGraphElementRef::Port(port) => {
-                    if let Some(parent) = port.borrow().parent() {
-                        current = ElkGraphElementRef::Node(parent);
-                    } else {
-                        return None;
-                    }
+                    let parent = port.borrow().parent()?;
+                    current = ElkGraphElementRef::Node(parent);
                 }
                 ElkGraphElementRef::Label(label) => {
-                    if let Some(parent) = label.borrow().parent() {
-                        current = parent;
-                    } else {
-                        return None;
-                    }
+                    let parent = label.borrow().parent()?;
+                    current = parent;
                 }
             }
         }

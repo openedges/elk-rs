@@ -2887,12 +2887,12 @@ pub fn find_edge_by_identifier(
             let sources = edge_mut
                 .sources()
                 .iter()
-                .filter_map(extract_connectable_identifier)
+                .filter_map(|shape| extract_connectable_identifier(&shape))
                 .collect::<Vec<_>>();
             let targets = edge_mut
                 .targets()
                 .iter()
-                .filter_map(extract_connectable_identifier)
+                .filter_map(|shape| extract_connectable_identifier(&shape))
                 .collect::<Vec<_>>();
             if sources.iter().any(|source| source == source_identifier)
                 && targets.iter().any(|target| target == target_identifier)
