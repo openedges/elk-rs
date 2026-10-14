@@ -9,6 +9,17 @@ Versions correspond to the target ELK Java version (see `VERSIONING.md`).
 
 First stable release. Full port of ELK Java 0.11.0 with layout-identical output.
 
+### elk-rs Internal Changes (v0.11.0+rs.3)
+
+Internal patch dated 2026-10-14. Cargo and npm package versions remain `0.11.0`.
+
+- Fixed graph ownership cycles in ElkGraph, layered properties, crossing minimization, self-loops, splines, and network simplex; released temporary layout arenas and rectpacking rows on completion, cancellation, and panic.
+- Added 16 memory regression tests; verified zero retained allocation growth across all 1,998 model inputs and repeated calls with a reused layered engine.
+- Changed low-level Rust endpoint/property APIs to non-owning references: `EdgeEndpointList::iter()` now yields owned live handles, so callers must remove `.cloned()` and retain graph/node ownership. See `HISTORY.md` for the complete migration notes.
+- Preserved all 1,998 pre-fix JSON results and 1,997/1,997 phase-step trace matches; retained the existing Java model-parity exception.
+- Prevented npm publishing for internal `+rs.N` tags while retaining NAPI cross-platform builds.
+- Recorded a 2.04% increase in mean native benchmark time and a 5.66% increase for the separately measured large Stress case; further profiling remains necessary. See `HISTORY.md` for the measurement environment and scope.
+
 ### ELK Porting
 
 - Complete port of ELK Java 0.11.0 to Rust (~333 commits, 19 crates, ~204,500 lines)

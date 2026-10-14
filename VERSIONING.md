@@ -8,6 +8,7 @@ elk-rs is a Rust port of Java ELK (Eclipse Layout Kernel) and also provides an e
 - **elkjs** (`external/elkjs`): pinned to `0.11.0` release tag
 - **elk-models** (`external/elk-models`): pinned to parity-verified commit
 - **elk-rs**: all Rust crates `0.11.0`, npm `elk-rs@0.11.0`
+- **Latest internal patch**: Git tag `v0.11.0+rs.3` (memory lifetime fixes; package versions unchanged)
 - **Parity**: 1438/1438 models 100% match (ELK 0.11.0 porting complete)
 
 This policy keeps versions aligned across all three projects while managing porting, verification, and releases systematically.
@@ -53,6 +54,7 @@ npm: elk-rs@0.11.0       <- npm version unchanged (no re-publish)
   - Semver build metadata (`+`) has no effect on version precedence
   - Examples: `v0.11.0+rs.1`, `v0.11.0+rs.2`
 - **No npm re-publish**: the npm package is not re-published for the same ELK version
+  - NAPI CI builds internal `+rs.N` tags but skips the publish job
   - Accumulated elk-rs fixes ship with the next ELK release (e.g., `0.11.1` or `0.12.0`)
   - Exception: critical fixes may be published as a prerelease: `0.11.0-rs.1`
 - **CHANGELOG.md**: elk-rs changes are grouped by ELK version
@@ -178,8 +180,9 @@ main                        <- development branch (always build/test/parity gree
 ```
 releases/0.11.0:
   v0.11.0                 <- stable release (ELK 0.11.0 parity, npm publish)
-  v0.11.0+rs.1            <- elk-rs hotfix (npm publish if critical)
-  v0.11.0+rs.2            <- elk-rs hotfix (npm publish if critical)
+  v0.11.0+rs.1            <- elk-rs internal hotfix (build only, no npm publish)
+  v0.11.0+rs.2            <- elk-rs internal hotfix (build only, no npm publish)
+  v0.11.0+rs.3            <- memory lifetime fixes (build only, no npm publish)
 
 releases/0.12.0:
   v0.12.0                 <- stable release (ELK 0.12.0 parity, npm publish)

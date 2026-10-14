@@ -3,6 +3,13 @@
 - 본 문서는 기존 `AGENTS.md`의 `진행된 작업` 섹션을 분리 보관한 기록이다.
 - 신규 단계 완료 시 이 문서에 누적 기록하고, `AGENTS.md`의 핵심 스냅샷/우선순위를 동기화한다.
 
+## 내부 패치 v0.11.0+rs.3 (2026-10-14)
+
+- 메모리 누수 수정 `a1443fb`를 포함하는 내부 패치를 `releases/0.11.0`의 annotated tag `v0.11.0+rs.3`으로 기록한다. `VERSIONING.md` 정책에 따라 Cargo/npm 패키지 버전과 upstream 고정 버전은 `0.11.0`을 유지한다.
+- `CHANGELOG.md`에 누수 수정, 16개 회귀 테스트, low-level Rust API 이전 안내 및 관측된 성능 영향을 기록했다.
+- NAPI workflow의 publish 조건에서 `+rs.` 내부 태그를 제외했다. 내부 태그의 6개 플랫폼 빌드는 유지하고, 동일한 npm 버전을 다시 배포하지 않는다.
+- 이번 단계는 릴리스 문서와 CI 조건만 변경했다. Rust 소스가 `a1443fb`와 동일하므로 해당 커밋의 model parity `1988/1989`(기존 Java 예외 1건), phase-step trace `1997/1997`, 전체 모델 메모리 검증을 재사용한다. build/clippy warning 0건, workspace test `1021 passed / 0 failed / 2 ignored`, YAML·태그 조건 검증 통과.
+
 ## 그래프 순환 참조와 레이아웃 임시 메모리 해제 (2026-10-14)
 
 ### 구조와 원인
