@@ -3,6 +3,13 @@
 - 본 문서는 기존 `AGENTS.md`의 `진행된 작업` 섹션을 분리 보관한 기록이다.
 - 신규 단계 완료 시 이 문서에 누적 기록하고, `AGENTS.md`의 핵심 스냅샷/우선순위를 동기화한다.
 
+## MinWidthLayerer 동률 순서 수정 (2026-10-15)
+
+- 원인: Java `MinWidthLayerer`는 `notInserted.sort(Collections.reverseOrder(new MinOutgoingEdgesComparator()))`로 out-degree 내림차순 **안정** 정렬을 하므로 동률 노드가 입력 순서를 유지한다. Rust는 오름차순 정렬 후 `.reverse()`를 호출해 동률 노드의 순서까지 뒤집었다.
+- 수정: `out_b.cmp(&out_a)` 내림차순 안정 정렬로 변경하고 `.reverse()` 제거.
+- 회귀 테스트: `p2_layers::basic_layer_assignment_test::min_width_keeps_input_order_of_out_degree_ties` (기대값은 elkjs 0.11.0 출력). 수정 전 실패, 수정 후 통과.
+- `external/elk-models`에는 `MIN_WIDTH` layering을 사용하는 모델이 없어 model parity/phase-step trace 결과에 영향이 없다. build/clippy warning 0건, workspace test `1022 passed / 0 failed / 2 ignored`.
+
 ## 내부 패치 v0.11.0+rs.3 (2026-10-14)
 
 - 메모리 누수 수정 `a1443fb`를 포함하는 내부 패치를 `releases/0.11.0`의 annotated tag `v0.11.0+rs.3`으로 기록한다. `VERSIONING.md` 정책에 따라 Cargo/npm 패키지 버전과 upstream 고정 버전은 `0.11.0`을 유지한다.
