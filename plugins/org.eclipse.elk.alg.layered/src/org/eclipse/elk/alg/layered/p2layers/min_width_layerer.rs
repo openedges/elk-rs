@@ -206,9 +206,9 @@ impl ILayoutPhase<LayeredPhases, LGraph> for MinWidthLayerer {
         not_inserted.sort_by(|a, b| {
             let out_a = self.out_degree[node_id_usize(a)];
             let out_b = self.out_degree[node_id_usize(b)];
-            out_a.cmp(&out_b)
+            // Java: stable sort with Collections.reverseOrder(comparator), so ties keep input order.
+            out_b.cmp(&out_a)
         });
-        not_inserted.reverse();
 
         let mut min_width = f64::INFINITY;
         let mut min_num_layers = i32::MAX;

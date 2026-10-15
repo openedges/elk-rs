@@ -5,6 +5,12 @@ All notable changes to elk-rs are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions correspond to the target ELK Java version (see `VERSIONING.md`).
 
+## [Unreleased]
+
+### Fixed
+
+- `MinWidthLayerer` now keeps the input order of nodes with equal out-degree, matching Java ELK's stable `Collections.reverseOrder` sort. Previously ties were reversed, so `MIN_WIDTH` layering could differ from Java ELK and elkjs.
+
 ## [0.11.0] - 2026-03-06
 
 First stable release. Full port of ELK Java 0.11.0 with layout-identical output.
