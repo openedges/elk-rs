@@ -3,6 +3,13 @@
 - 본 문서는 기존 `AGENTS.md`의 `진행된 작업` 섹션을 분리 보관한 기록이다.
 - 신규 단계 완료 시 이 문서에 누적 기록하고, `AGENTS.md`의 핵심 스냅샷/우선순위를 동기화한다.
 
+## 확장판 v0.11.0-ext.6: 버전 bump와 태그 (2026-10-19)
+
+- `custom/0.11.0`의 rs.4 병합 커밋(`699d8f0`) 위에서 Cargo workspace(`Cargo.toml` + `Cargo.lock` 19개 crate), npm manifest 9개(본체·플랫폼 6개·NAPI·elk-live), lockfile 2개, 본체의 `@elk-rs/*` optional dependency 6개를 `0.11.0-ext.6`으로 동기화하고 annotated tag `v0.11.0-ext.6`을 만들었다. 미배포 플랫폼 패키지의 registry integrity는 ext.5와 같이 생성하지 않았다.
+- npm/Cargo 배포는 이번 단계에서 구현·진행하지 않는다. `-ext.` 태그 push는 `napi.yml`의 publish(`--tag ext`)를 트리거하므로 태그는 로컬에만 두고 브랜치 커밋만 원격에 올린다.
+- 배포 경로 현황: npm 레지스트리에 `elk-rs` 패키지가 없다(어떤 버전도 미배포). `v0.11.0-ext.5`·`v0.11.0+rs.3` 태그의 NAPI workflow는 `aarch64-unknown-linux-gnu` 빌드가 링크 단계에서 `rust-lld: error: --fix-cortex-a53-843419 is only supported on AArch64`로 실패해 publish 잡이 skip되었다(나머지 5개 플랫폼 성공). ext.6 배포 전 이 cross build 수정이 선행되어야 한다.
+- 검증: 버전 문자열 외 코드 변경 없음. `cargo build --workspace --locked` warning 0건. 코드·parity 검증은 바로 위 rs.4 병합 단계의 결과(test 1,045, model parity 1,987/1,989, phase-step trace 1,995/1,997)를 그대로 적용한다.
+
 ## custom/0.11.0에 내부 패치 v0.11.0+rs.4 병합 (2026-10-19)
 
 - `custom/0.11.0`의 `v0.11.0-ext.5`(`4164ace`)에 `releases/0.11.0`의 `v0.11.0+rs.4`(`a568063`, MinWidthLayerer 동률 순서 수정 PR #1)를 merge commit으로 병합했다. 코드 2개 파일(`min_width_layerer.rs`, `basic_layer_assignment_test.rs`)은 자동 병합되었고 `CHANGELOG.md`/`HISTORY.md`/`VERSIONING.md`/`.rules`만 수동으로 정리했다. 패키지 버전은 `ext.6` bump 전까지 `0.11.0-ext.5`를 유지하며 기존 확장 태그는 변경하지 않는다.

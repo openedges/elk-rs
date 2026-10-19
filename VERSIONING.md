@@ -8,7 +8,7 @@ elk-rs is a Rust port of Java ELK (Eclipse Layout Kernel) and also provides an e
 - **elkjs** (`external/elkjs`): pinned to `0.11.0` release tag
 - **elk-models** (`external/elk-models`): pinned to parity-verified commit
 - **elk-rs stable**: all Rust crates `0.11.0`, npm `elk-rs@0.11.0`
-- **Current extension**: Cargo/npm `0.11.0-ext.5` on `custom/0.11.0`, including `v0.11.0+rs.3`; the branch also carries `v0.11.0+rs.4` (merged 2026-10-19, `ext.6` bump pending)
+- **Current extension**: Cargo/npm `0.11.0-ext.6` on `custom/0.11.0`, including `v0.11.0+rs.3` and `v0.11.0+rs.4` (tag only; npm/Cargo publishing deferred)
 - **Latest internal patch**: Git tag `v0.11.0+rs.4` (MinWidthLayerer tie-order fix; package versions unchanged)
 - **Stable parity**: model `1988/1989`, trace `1997/1997` (existing Java exception)
 - **Extension parity**: model `1987/1989`, trace `1995/1997`; all `1998/1998` final outputs unchanged from `ext.4`. Existing extension differences are recorded in `HISTORY.md`.
@@ -138,12 +138,12 @@ conventions adapted for ELK version alignment.
 
 | File | Version Field | Stable | Extension |
 |------|---------------|--------|-----------|
-| `Cargo.toml` (workspace root), `Cargo.lock` | Workspace/crate versions | `"0.11.0"` | `"0.11.0-ext.5"` |
-| `plugins/org.eclipse.elk.js/package.json`, `package-lock.json` | Version and all `@elk-rs/*` optional dependencies | `"0.11.0"` | `"0.11.0-ext.5"` |
-| `plugins/org.eclipse.elk.js/npm/*/package.json` | Six platform package versions | `"0.11.0"` | `"0.11.0-ext.5"` |
-| `plugins/org.eclipse.elk.napi/package.json` | NAPI build package version | `"0.11.0"` | `"0.11.0-ext.5"` |
-| `packages/elk-live/package.json`, `package-lock.json` | Private extension application version | — | `"0.11.0-ext.5"` |
-| `CHANGELOG.md` | Change history per release | `## [0.11.0]` | `## [0.11.0-ext.5]` |
+| `Cargo.toml` (workspace root), `Cargo.lock` | Workspace/crate versions | `"0.11.0"` | `"0.11.0-ext.6"` |
+| `plugins/org.eclipse.elk.js/package.json`, `package-lock.json` | Version and all `@elk-rs/*` optional dependencies | `"0.11.0"` | `"0.11.0-ext.6"` |
+| `plugins/org.eclipse.elk.js/npm/*/package.json` | Six platform package versions | `"0.11.0"` | `"0.11.0-ext.6"` |
+| `plugins/org.eclipse.elk.napi/package.json` | NAPI build package version | `"0.11.0"` | `"0.11.0-ext.6"` |
+| `packages/elk-live/package.json`, `package-lock.json` | Private extension application version | — | `"0.11.0-ext.6"` |
+| `CHANGELOG.md` | Change history per release | `## [0.11.0]` | `## [0.11.0-ext.6]` |
 
 ### Cargo Workspace Version Unification
 
@@ -228,6 +228,7 @@ custom/0.11.0:
   v0.11.0-ext.1           <- extension release (custom features, npm/cargo publish)
   v0.11.0-ext.2           <- extension release (+ elk-live, npm/cargo publish)
   v0.11.0-ext.5           <- incorporates +rs.3 memory fixes (npm ext channel)
+  v0.11.0-ext.6           <- incorporates +rs.4 MinWidthLayerer fix (tag only; npm publish deferred)
 
 releases/0.12.0:
   v0.12.0                 <- stable release (ELK 0.12.0 parity, npm publish)

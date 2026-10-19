@@ -196,7 +196,7 @@ On the extension branch, the same test also loads all 18 `tests/fixtures/*.elk.j
 inputs, using ten warmup requests and three batches of two requests per fixture.
 Keep their expected layout fixtures unchanged when validating memory-only fixes.
 
-The `0.11.0-ext.5` baseline has two existing model-parity differences against Java
+The `0.11.0-ext.6` baseline has two existing model-parity differences against Java
 (`213_componentsCompaction.elkt`, `emptyLayerFirst.elkt`) and two existing trace
 differences (`emptyLayerFirst.elkt`, `emptyLayerLast.elkt`). These were verified
 against `ext.4`; final output matches `ext.4` for all 1,998 inputs. See `HISTORY.md`.

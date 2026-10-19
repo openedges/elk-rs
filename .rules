@@ -44,9 +44,9 @@
 7. 커밋 (`<scope>: <summary>`)
 8. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
-## 현재 핵심 스냅샷 (2026-10-19, ext.5 + rs.4 — 기존 확장 동작 유지)
-- **elk-rs 버전**: `0.11.0-ext.5` (ELK Java `v0.11.0` + 확장 기능)
-  - `custom/0.11.0`에 내부 패치 `v0.11.0+rs.4` 병합 (2026-10-19) — MinWidthLayerer out-degree 동률 노드의 입력 순서 유지 (PR #1, `MIN_WIDTH` 전용). 패키지 버전은 `ext.6` bump 전까지 `0.11.0-ext.5` 유지
+## 현재 핵심 스냅샷 (2026-10-19, ext.6 — 기존 확장 동작 유지)
+- **elk-rs 버전**: `0.11.0-ext.6` (ELK Java `v0.11.0` + 확장 기능; 태그만 생성, npm/cargo 배포 보류)
+  - `custom/0.11.0`에 내부 패치 `v0.11.0+rs.4` 병합 (2026-10-19) — MinWidthLayerer out-degree 동률 노드의 입력 순서 유지 (PR #1, `MIN_WIDTH` 전용). Cargo/npm manifest를 `0.11.0-ext.6`으로 동기화(배포는 보류)
   - `custom/0.11.0`에 내부 패치 `v0.11.0+rs.3` 병합 — 그래프 순환 참조/임시 메모리 누수 수정
   - Cargo workspace 전체 + npm 동일 버전
   - 서브모듈 고정: `external/elk` → `v0.11.0` 태그, `external/elkjs` → `0.11.0` 태그
@@ -63,11 +63,11 @@
   - 정렬 키: `(labels, type, port_count, port_sides, width, height, x, y)` — Java/Rust 공통 속성
 - **Tickets parity**: `matches=108/109`, `drift=1` (Java ELK 버그 동일 원인)
 - **JS parity**: 550/550 elk-rs vs Java 일치 (ELKJS_DRIFT 20건은 GWT 아티팩트)
-- **npm 패키지**: `elk-rs@0.11.0-ext.5` (35 Vitest 및 NAPI/WASM 각각 확장 fixture 18/18 통과)
+- **npm 패키지**: `elk-rs@0.11.0-ext.6` manifest (미배포 — npm 레지스트리에 `elk-rs` 없음; 35 Vitest 및 NAPI/WASM 확장 fixture 18/18은 ext.5 빌드 검증 결과)
   - NAPI 플랫폼별 패키지 6개 추가 완료: `@elk-rs/darwin-arm64`, `@elk-rs/darwin-x64`, `@elk-rs/linux-x64-gnu`, `@elk-rs/linux-x64-musl`, `@elk-rs/linux-arm64-gnu`, `@elk-rs/win32-x64-msvc`
   - 로딩 우선순위: 플랫폼 NAPI 패키지 → 로컬 `.node` → WASM 폴백
   - CI/CD: `.github/workflows/napi.yml` (태그 push 시 6 플랫폼 크로스 빌드, 본체 WASM 빌드, 확장판 `ext` 채널 배포, `+rs.N` 내부 태그는 npm publish 제외)
-  - 플랫폼 패키지 6개 및 optional dependency도 `0.11.0-ext.5`로 통일. 로컬 macOS ARM64 검증 완료; 원격 CI/publish는 미실행
+  - 플랫폼 패키지 6개 및 optional dependency도 `0.11.0-ext.6`으로 통일. 원격 CI/publish 미실행; ext.5/rs.3 태그의 NAPI linux-arm64 cross build는 링크 오류(`--fix-cortex-a53-843419`)로 실패해 publish가 skip된 상태
 - **성능 기준선 (6-way fair benchmark, synthetic 10/3, 2026-03-23 측정, ~3.88x)**:
   - 측정 머신: MacBook Pro (Mac15,6), Apple M3 Pro (11코어: 5P+6E), 36GB RAM, macOS 26.3
   - 툴체인: Rust 1.93.1, OpenJDK 21.0.10, Node.js 22.16.0
