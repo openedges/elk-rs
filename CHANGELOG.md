@@ -20,7 +20,7 @@ Versions correspond to the target ELK Java version (see `VERSIONING.md`).
 
 ### Known Issues
 
-- Not published to npm or crates.io; publishing is deferred and `elk-rs` is not yet on the npm registry. The linux-arm64 link failure that skipped publishing for `ext.5` (`rust-lld: --fix-cortex-a53-843419 is only supported on AArch64`) is fixed in this release.
+- Not published to npm or crates.io; publishing is deferred and `elk-rs` is not yet on the npm registry. The linux-arm64 link failure that skipped publishing for `ext.5` (`rust-lld: --fix-cortex-a53-843419 is only supported on AArch64`) is fixed in this release. The `v0.11.0-ext.6` tag run built all six platform bindings and the WASM package; its publish step failed as intended because no `NPM_TOKEN` is configured.
 
 ## [0.11.0-ext.5] - 2026-10-14
 
