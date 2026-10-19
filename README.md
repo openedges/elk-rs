@@ -38,6 +38,16 @@ elk.layout({
 
 See [`plugins/org.eclipse.elk.js/README.md`](plugins/org.eclipse.elk.js/README.md) for full API documentation.
 
+## Rust Crates
+
+The library crates are published to crates.io under the ELK bundle names (`org-eclipse-elk-*`), all at the same version as the npm package. `org-eclipse-elk-graph-json` is the entry point for JSON graphs and the elkjs-compatible layout API:
+
+```bash
+cargo add org-eclipse-elk-graph-json
+```
+
+The crates pin each other exactly, so one version of elk-rs is used throughout. Release and publishing rules are in [`VERSIONING.md`](VERSIONING.md).
+
 ## Repository Layout
 
 - `plugins/`: Rust crates mapped to ELK plugin structure (`org.eclipse.elk.*`)

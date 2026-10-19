@@ -10,6 +10,11 @@ Release readiness quick run:
 - `sh scripts/check_java_parity_scenarios.sh tests/results_layered_issue_scenarios.csv tests/java_results_layered_issue_scenarios.csv 3 tests/java_parity_thresholds.csv`
 - Final release criteria and go/no-go rules are documented in `TESTING.md` § 3.6.
 
+Release publishing (`VERSIONING.md` § 6, `TESTING.md` § 3.6):
+- `bump_version.py <version> [--no-cargo-lock]` / `bump_version.py --check` (sets the package version in `Cargo.toml` (`workspace.package` + the exact `[workspace.dependencies]` pins), `Cargo.lock` (`cargo update --workspace`), `plugins/org.eclipse.elk.js/package.json` + lockfile + `npm/*/package.json`, `plugins/org.eclipse.elk.napi/package.json` and `packages/elk-live`; `--check` fails unless all agree and prints the version)
+- `publish_crates.py [--dry-run] [--no-verify] [--allow-dirty] [--expect-version V] [--only crate ...] [--list]` (publishes the workspace crates missing on crates.io with one dependency-ordered `cargo publish -p ...`; skips `publish = false` crates and versions already published; retries after the crates.io new-crate rate limit (`PUBLISH_CRATES_RATE_LIMIT_WAIT`, default 660s); used by `.github/workflows/cargo-publish.yml`)
+- `publish_npm.sh [--dry-run] [--expect-version V]` (publishes the six `@elk-rs/*` platform packages then `elk-rs` with `NPM_DIST_TAG` (default `latest`), skipping `package@version` pairs already on npm and refusing to publish a platform package without its `.node` binary or the main package without `dist/wasm/`; used by `.github/workflows/napi.yml`)
+
 - `run_parity_comment_attachment.sh [count] [iterations] [warmup] [output]`
 - `run_parity_graph_validation.sh [nodes] [edges] [iterations] [warmup] [mode] [output]`
 - `run_parity_recursive_layout.sh [nodes] [edges] [iterations] [warmup] [algorithm] [validate_graph] [validate_options] [output]`
