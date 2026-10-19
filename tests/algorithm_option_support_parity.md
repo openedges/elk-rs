@@ -1,11 +1,11 @@
 # Algorithm Option Support Parity
 
-- status: drift
+- status: ok
 - java algorithms with option support: 21
 - rust algorithms with option support: 21
 - algorithms only in java support map: 0
 - algorithms only in rust support map: 0
-- algorithms with count mismatch: 1
+- algorithms with count mismatch: 0
 - ignored algorithms: 0
 
 ## Per-Algorithm Counts (algo | java | rust | delta)
@@ -23,7 +23,7 @@
 - `org.eclipse.elk.layered` | 152 | 152 | +0
 - `org.eclipse.elk.mrtree` | 29 | 29 | +0
 - `org.eclipse.elk.radial` | 20 | 20 | +0
-- `org.eclipse.elk.random` | 4 | 3 | -1
+- `org.eclipse.elk.random` | 4 | 4 | +0
 - `org.eclipse.elk.rectpacking` | 26 | 26 | +0
 - `org.eclipse.elk.sporeCompaction` | 11 | 11 | +0
 - `org.eclipse.elk.sporeOverlap` | 7 | 7 | +0
@@ -38,7 +38,7 @@
 - none
 
 ## Count Mismatch Algorithms
-- `org.eclipse.elk.random` (java=4, rust=3, delta=-1)
+- none
 
 ## Ignored Algorithms
 - none

@@ -430,6 +430,7 @@ See the porting workflow in `VERSIONING.md`.
 | Java non-ok | exception/timeout | 9 | Models where Java ELK itself throws or times out |
 | Java non-ok | NaN output | 1 | `213_componentsCompaction.elkt` — Java `ComponentsCompactor` NaN propagation; Rust output is correct |
 | ELKJS drift | GWT artifact | 20 | elk-rs matches Java 100%; only elkjs diverges (y-offset, floating-point) |
+| Static parity (`custom/0.11.0` only) | extension option | 1 | `org.eclipse.elk.layered.layering.ignoreEdgeInLayer` is an elk-rs extension with no Java ELK 0.11.0 counterpart, so `algorithm_option_support` (layered 153 vs 152) and `algorithm_option_default` (1 extra pair) report it; both are non-strict and `main` is 152/152 |
 
 ### 4.2 Resolved: `elk_live_examples_test` (2026-03-03)
 

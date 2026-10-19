@@ -3,7 +3,7 @@
 - status: ok
 - algorithms compared: 21
 - option pairs compared: 438
-- missing option pairs in rust (informational): 1
+- missing option pairs in rust (informational): 0
 - extra option pairs in rust (informational): 0
 - explicit default mismatches (java explicit_* vs rust mode): 0
 - java unknown modes: 0
@@ -24,7 +24,7 @@
 - org.eclipse.elk.layered | 152 | 0 | 10 | 16 | 126 | 0 | 0 | 152 | 0 | 152 | 0
 - org.eclipse.elk.mrtree | 29 | 0 | 8 | 0 | 21 | 0 | 0 | 29 | 19 | 10 | 0
 - org.eclipse.elk.radial | 20 | 0 | 0 | 1 | 19 | 0 | 0 | 20 | 18 | 2 | 0
-- org.eclipse.elk.random | 4 | 0 | 4 | 0 | 0 | 0 | 0 | 3 | 0 | 3 | -1
+- org.eclipse.elk.random | 4 | 0 | 4 | 0 | 0 | 0 | 0 | 4 | 0 | 4 | 0
 - org.eclipse.elk.rectpacking | 26 | 0 | 4 | 0 | 22 | 0 | 0 | 26 | 15 | 11 | 0
 - org.eclipse.elk.sporeCompaction | 11 | 0 | 3 | 1 | 7 | 0 | 0 | 11 | 0 | 11 | 0
 - org.eclipse.elk.sporeOverlap | 7 | 0 | 3 | 1 | 3 | 0 | 0 | 7 | 0 | 7 | 0
@@ -33,7 +33,7 @@
 - org.eclipse.elk.vertiflex | 11 | 0 | 3 | 1 | 7 | 0 | 0 | 11 | 8 | 3 | 0
 
 ## Missing Option Pairs In Rust (algo | option)
-- org.eclipse.elk.random | org.eclipse.elk.spacing.nodeNode
+- none
 
 ## Extra Option Pairs In Rust (algo | option)
 - none
