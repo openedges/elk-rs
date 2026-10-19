@@ -224,9 +224,9 @@ Layered 이외 알고리즘의 성능 최적화:
 
 - **WASM 패키지**: `wasm-pack`으로 빌드, 브라우저 직접 사용 가능
 - **NAPI 패키지**: 6개 플랫폼별 네이티브 애드온
-  - `@elk-rs/darwin-arm64`, `@elk-rs/darwin-x64`
-  - `@elk-rs/linux-x64-gnu`, `@elk-rs/linux-x64-musl`, `@elk-rs/linux-arm64-gnu`
-  - `@elk-rs/win32-x64-msvc`
+  - `@openedges/elk-layout-darwin-arm64`, `@openedges/elk-layout-darwin-x64`
+  - `@openedges/elk-layout-linux-x64-gnu`, `@openedges/elk-layout-linux-x64-musl`, `@openedges/elk-layout-linux-arm64-gnu`
+  - `@openedges/elk-layout-win32-x64-msvc`
 - **로딩 전략**: 플랫폼 NAPI → 로컬 .node → WASM 폴백
 - **35개 Vitest 테스트** 통과
 - **JS parity**: 550/550 elk-rs vs Java 일치

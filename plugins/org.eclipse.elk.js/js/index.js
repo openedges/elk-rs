@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * elk-rs Node.js entry point.
+ * @openedges/elk-layout (elk-rs) Node.js entry point.
  *
  * Tries to load the native addon first, then falls back to WASM.
  * Unlike elkjs, works without a Worker by default (direct mode).
@@ -29,7 +29,7 @@ function loadBackend() {
   // 1. Try platform-specific NAPI package (installed via optionalDependencies)
   if (triple) {
     try {
-      return require('@elk-rs/' + triple);
+      return require('@openedges/elk-layout-' + triple);
     } catch (e) {
       // Platform package not installed
     }
@@ -38,7 +38,7 @@ function loadBackend() {
   // 2. Try local .node file (dev/build with --platform flag)
   if (triple) {
     try {
-      return require('../dist/elk-rs.' + triple + '.node');
+      return require('../dist/elk-layout.' + triple + '.node');
     } catch (e) {
       // Platform-specific local addon not available
     }
@@ -46,7 +46,7 @@ function loadBackend() {
 
   // 3. Try generic local .node file (dev/build without --platform flag)
   try {
-    return require('../dist/elk-rs.node');
+    return require('../dist/elk-layout.node');
   } catch (e) {
     // Generic local addon not available
   }
@@ -59,7 +59,7 @@ function loadBackend() {
   }
 
   throw new Error(
-    'elk-rs: Could not load native addon or WASM module.\n'
+    'elk-layout: Could not load native addon or WASM module.\n'
     + 'Ensure the package was installed correctly.'
   );
 }

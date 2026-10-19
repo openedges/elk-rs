@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * elk-rs Worker script — runs in Web Worker or Node.js worker_threads.
+ * @openedges/elk-layout (elk-rs) Worker script — runs in Web Worker or Node.js worker_threads.
  *
  * Loads the WASM module and handles the elkjs-compatible message protocol.
  * Also exports a `Worker` class for in-process use (like elkjs's fake worker).
@@ -30,14 +30,14 @@ function loadNativeAddon() {
   var triple = platformTriple();
   // 1. Try platform-specific NAPI package
   if (triple) {
-    try { return require('@elk-rs/' + triple); } catch (e) {}
+    try { return require('@openedges/elk-layout-' + triple); } catch (e) {}
   }
   // 2. Try platform-specific local .node file
   if (triple) {
-    try { return require('../dist/elk-rs.' + triple + '.node'); } catch (e) {}
+    try { return require('../dist/elk-layout.' + triple + '.node'); } catch (e) {}
   }
   // 3. Try generic local .node file
-  try { return require('../dist/elk-rs.node'); } catch (e) {}
+  try { return require('../dist/elk-layout.node'); } catch (e) {}
   return null;
 }
 
@@ -61,7 +61,7 @@ FakeWorker.prototype._ensureBackend = function() {
         try {
           backend = require('../dist/wasm/org_eclipse_elk_wasm.js');
         } catch (e2) {
-          throw new Error('elk-rs: Could not load native addon or WASM module.');
+          throw new Error('elk-layout: Could not load native addon or WASM module.');
         }
       }
       self._backend = backend;
@@ -167,7 +167,7 @@ if (_parentPort) {
 
   _parentPort.on('message', function(msg) {
     if (!nodeBackend) {
-      _parentPort.postMessage({ id: msg.id, error: { message: 'elk-rs: Could not load backend in worker.' } });
+      _parentPort.postMessage({ id: msg.id, error: { message: 'elk-layout: Could not load backend in worker.' } });
       return;
     }
     try {

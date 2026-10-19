@@ -15,7 +15,7 @@ Files updated (all must agree; `--check` verifies that and prints the version):
                                                 `=<version>` pins in workspace.dependencies
   Cargo.lock                                    via `cargo update --workspace`
                                                 (skip with --no-cargo-lock)
-  plugins/org.eclipse.elk.js/package.json       version + optionalDependencies (@elk-rs/*)
+  plugins/org.eclipse.elk.js/package.json       version + optionalDependencies (@openedges/elk-layout-*)
   plugins/org.eclipse.elk.js/package-lock.json  root package version entries
   plugins/org.eclipse.elk.js/npm/*/package.json version
   plugins/org.eclipse.elk.napi/package.json     version (private helper manifest)
@@ -41,6 +41,8 @@ LIVE_NPM = "packages/elk-live/package.json"
 LIVE_NPM_LOCK = "packages/elk-live/package-lock.json"
 
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$")
+# The six platform packages are optional dependencies of the main package.
+PLATFORM_PACKAGE_PREFIX = "@openedges/elk-layout-"
 
 
 def fail(message):
@@ -115,7 +117,7 @@ def dump_json(path, data):
 def json_versions(path, data):
     versions = {f"{path}:version": data.get("version")}
     for key, value in (data.get("optionalDependencies") or {}).items():
-        if key.startswith("@elk-rs/"):
+        if key.startswith(PLATFORM_PACKAGE_PREFIX):
             versions[f"{path}:optionalDependencies.{key}"] = value
     return versions
 
@@ -123,7 +125,7 @@ def json_versions(path, data):
 def set_json_version(data, version):
     data["version"] = version
     for key in list((data.get("optionalDependencies") or {}).keys()):
-        if key.startswith("@elk-rs/"):
+        if key.startswith(PLATFORM_PACKAGE_PREFIX):
             data["optionalDependencies"][key] = version
 
 
@@ -131,7 +133,7 @@ def lock_versions(path, data):
     root = data.get("packages", {}).get("", {})
     versions = {f"{path}:version": data.get("version"), f"{path}:packages..version": root.get("version")}
     for key, value in (root.get("optionalDependencies") or {}).items():
-        if key.startswith("@elk-rs/"):
+        if key.startswith(PLATFORM_PACKAGE_PREFIX):
             versions[f"{path}:packages..optionalDependencies.{key}"] = value
     return versions
 
@@ -141,7 +143,7 @@ def set_lock_version(data, version):
     root = data.setdefault("packages", {}).setdefault("", {})
     root["version"] = version
     for key in list((root.get("optionalDependencies") or {}).keys()):
-        if key.startswith("@elk-rs/"):
+        if key.startswith(PLATFORM_PACKAGE_PREFIX):
             root["optionalDependencies"][key] = version
 
 

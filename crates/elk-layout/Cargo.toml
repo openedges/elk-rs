@@ -1,0 +1,37 @@
+[package]
+name = "elk-layout"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Pure Rust port of the Eclipse Layout Kernel (ELK): one crate that re-exports the org-eclipse-elk-* workspace and the elkjs-compatible JSON layout API"
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+readme = "README.md"
+
+[features]
+default = []
+# Use mimalloc as the global allocator (forwarded to org-eclipse-elk-graph-json).
+mimalloc-alloc = ["org-eclipse-elk-graph-json/mimalloc-alloc"]
+
+[dependencies]
+org-eclipse-elk-graph = { workspace = true }
+org-eclipse-elk-core = { workspace = true }
+org-eclipse-elk-graph-json = { workspace = true }
+org-eclipse-elk-conn-gmf = { workspace = true }
+org-eclipse-elk-alg-common = { workspace = true }
+org-eclipse-elk-alg-disco = { workspace = true }
+org-eclipse-elk-alg-force = { workspace = true }
+org-eclipse-elk-alg-graphviz-dot = { workspace = true }
+org-eclipse-elk-alg-graphviz-layouter = { workspace = true }
+org-eclipse-elk-alg-layered = { workspace = true }
+org-eclipse-elk-alg-libavoid = { workspace = true }
+org-eclipse-elk-alg-mrtree = { workspace = true }
+org-eclipse-elk-alg-radial = { workspace = true }
+org-eclipse-elk-alg-rectpacking = { workspace = true }
+org-eclipse-elk-alg-spore = { workspace = true }
+org-eclipse-elk-alg-topdownpacking = { workspace = true }
+org-eclipse-elk-alg-vertiflex = { workspace = true }
+
+[dev-dependencies]
+serde_json = "1.0"

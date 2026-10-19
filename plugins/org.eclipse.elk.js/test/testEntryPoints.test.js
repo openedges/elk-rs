@@ -82,10 +82,10 @@ describe('Entry point', () => {
     });
 
     it('should try platform package before local .node and WASM', () => {
-      // Verify the loading order in source: @elk-rs/ package -> platform .node -> generic .node -> WASM
-      const pkgIdx = indexSrc.indexOf("'@elk-rs/'");
-      const platformLocalIdx = indexSrc.indexOf("'../dist/elk-rs.'");
-      const genericLocalIdx = indexSrc.indexOf("'../dist/elk-rs.node'");
+      // Verify the loading order in source: @openedges/elk-layout-* package -> platform .node -> generic .node -> WASM
+      const pkgIdx = indexSrc.indexOf("'@openedges/elk-layout-'");
+      const platformLocalIdx = indexSrc.indexOf("'../dist/elk-layout.'");
+      const genericLocalIdx = indexSrc.indexOf("'../dist/elk-layout.node'");
       const wasmIdx = indexSrc.indexOf("../dist/wasm/org_eclipse_elk_wasm.js");
       expect(pkgIdx).toBeLessThan(platformLocalIdx);
       expect(platformLocalIdx).toBeLessThan(genericLocalIdx);

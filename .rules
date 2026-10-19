@@ -6,7 +6,7 @@
 - 데이터 모델/파일 구조를 Java와 동일하게 유지한다.
 - 빌드/테스트/Clippy를 항상 통과 상태로 유지한다.
 - 성능 측정 자동화를 유지하고 Java 대비 성능 회귀를 방지한다.
-- elkjs 호환 npm 패키지(`elk-rs`)를 제공한다 (WASM + NAPI 플랫폼별 패키지).
+- elkjs 호환 npm 패키지(`@openedges/elk-layout`)와 crates.io facade 크레이트 `elk-layout`을 제공한다 (WASM + NAPI 플랫폼별 패키지).
 - 라이선스는 Java Version과 동일하게 유지한다.
 
 ## 문서 운영 원칙
@@ -65,8 +65,8 @@
   - 정렬 키: `(labels, type, port_count, port_sides, width, height, x, y)` — Java/Rust 공통 속성
 - **Tickets parity**: `matches=108/109`, `drift=1` (Java ELK 버그 동일 원인)
 - **JS parity**: 550/550 elk-rs vs Java 일치 (ELKJS_DRIFT 20건은 GWT 아티팩트)
-- **npm 패키지**: `elk-rs@0.11.0-ext.6` manifest (미배포 — npm 레지스트리에 `elk-rs` 없음; 35 Vitest 및 NAPI/WASM 확장 fixture 18/18은 ext.5 빌드 검증 결과)
-  - NAPI 플랫폼별 패키지 6개 추가 완료: `@elk-rs/darwin-arm64`, `@elk-rs/darwin-x64`, `@elk-rs/linux-x64-gnu`, `@elk-rs/linux-x64-musl`, `@elk-rs/linux-arm64-gnu`, `@elk-rs/win32-x64-msvc`
+- **npm 패키지**: `@openedges/elk-layout@0.11.0-ext.6` manifest (확장판은 미배포; 2026-10-19 `elk-rs`/`@elk-rs/*`에서 `@openedges/elk-layout`/`@openedges/elk-layout-*`로 개명, crates.io `elk-rs`는 타인 선점; 35 Vitest 및 NAPI/WASM 확장 fixture 18/18은 ext.5 빌드 검증 결과)
+  - NAPI 플랫폼별 패키지 6개 추가 완료: `@openedges/elk-layout-darwin-arm64`, `@openedges/elk-layout-darwin-x64`, `@openedges/elk-layout-linux-x64-gnu`, `@openedges/elk-layout-linux-x64-musl`, `@openedges/elk-layout-linux-arm64-gnu`, `@openedges/elk-layout-win32-x64-msvc` (바이너리 `elk-layout.<triple>.node`)
   - 로딩 우선순위: 플랫폼 NAPI 패키지 → 로컬 `.node` → WASM 폴백
   - CI/CD: `.github/workflows/napi.yml` (태그 push 시 6 플랫폼 크로스 빌드, `-ext.` 태그를 제외한 `v*` 태그에서 WASM 빌드 후 `scripts/publish_npm.sh`로 npm에 없는 패키지만 `latest`로 publish; `x86_64-apple-darwin`은 arm64 러너에서 `--target` 크로스 빌드). `.github/workflows/cargo-publish.yml`은 같은 태그에서 `scripts/publish_crates.py`로 crates.io에 없는 크레이트만 publish(수동 실행은 dry-run). 첫 crates.io 배포는 신규 크레이트 rate limit 때문에 로컬에서 실행; `-ext.` 태그는 두 워크플로 모두 빌드만 한다
   - 플랫폼 패키지 6개 및 optional dependency도 `0.11.0-ext.6`으로 통일. ext.5/rs.3 태그에서 실패했던 NAPI linux-arm64 cross build는 cross gcc 링커 지정으로 수정(`23f0aee`), `custom/0.11.0` 수동 실행과 `v0.11.0+rs.5`/`v0.11.0-ext.6` 태그 run에서 6/6 플랫폼 빌드 성공. ext.6 publish 잡은 `NPM_TOKEN` 부재로 실패(의도된 미배포; npm 패키지명·`NPM_TOKEN` 필요)

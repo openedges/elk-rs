@@ -1,11 +1,11 @@
 {
-  "name": "@elk-rs/darwin-x64",
+  "name": "@openedges/elk-layout-darwin-x64",
   "version": "0.11.0-ext.6",
   "os": ["darwin"],
   "cpu": ["x64"],
-  "main": "elk-rs.darwin-x64.node",
-  "files": ["elk-rs.darwin-x64.node"],
-  "description": "elk-rs native binding for macOS x64 (Intel)",
+  "main": "elk-layout.darwin-x64.node",
+  "files": ["elk-layout.darwin-x64.node"],
+  "description": "elk-layout (elk-rs) native binding for macOS x64 (Intel)",
   "license": "EPL-2.0",
   "repository": {
     "type": "git",

@@ -96,7 +96,7 @@ jobs:
           for dir in artifacts/binding-*/; do
             for f in "$dir"*.node; do
               BASENAME=$(basename "$f" .node)
-              TRIPLE=$(echo "$BASENAME" | sed 's/elk-rs\.//')
+              TRIPLE=$(echo "$BASENAME" | sed 's/elk-layout\.//')
               if [ -d "plugins/org.eclipse.elk.js/npm/$TRIPLE" ]; then
                 cp "$f" "plugins/org.eclipse.elk.js/npm/$TRIPLE/"
               fi

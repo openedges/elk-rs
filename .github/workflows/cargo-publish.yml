@@ -1,6 +1,7 @@
 name: Cargo Publish
 
-# Publishes the 17 library crates to crates.io for `v<version>+rs.<N>` release
+# Publishes the `elk-layout` facade and the 17 `org-eclipse-elk-*` library crates
+# to crates.io for `v<version>+rs.<N>` release
 # tags (see VERSIONING.md). Extension tags (`-ext.N`) are never published, and
 # scripts/publish_crates.py skips every crate@version that is already on
 # crates.io, so a tag that does not bump the package version publishes nothing.

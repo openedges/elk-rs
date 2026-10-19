@@ -1,6 +1,6 @@
 #!/bin/sh
-# Publish the elk-rs npm packages: the six @elk-rs/* platform packages first,
-# then the main `elk-rs` package, skipping every package@version that is
+# Publish the elk-rs npm packages: the six @openedges/elk-layout-* platform
+# packages first, then the main `@openedges/elk-layout` package, skipping every package@version that is
 # already on the registry (npm never allows republishing a version).
 #
 # Usage: sh scripts/publish_npm.sh [--dry-run] [--expect-version <version>]
