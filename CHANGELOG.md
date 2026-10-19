@@ -28,6 +28,8 @@ Cargo and npm package versions remain `0.11.0`; NAPI CI builds these tags withou
 - Added `scripts/bump_version.py` (sets the version in `Cargo.toml`, `Cargo.lock`, the npm manifests, lockfiles and the six platform packages; `--check` verifies they agree), `scripts/publish_crates.py` (publishes the crates missing on crates.io in one dependency-ordered `cargo publish`, retrying after the new-crate rate limit) and `scripts/publish_npm.sh` (platform packages then `elk-rs`, skipping versions already on npm and refusing to publish a platform package without its binary).
 - Changed `napi.yml` to publish on `v*` tags that are not `-ext.` tags (previously `+rs.` tags were excluded) through `scripts/publish_npm.sh` with dist-tag `latest`, and to build the WASM bundle in the publish job: `files` lists `dist/wasm/`, but the `main` workflow never built it, so the package would have shipped without its WASM fallback. Added `.github/workflows/cargo-publish.yml` (same trigger, `scripts/publish_crates.py`; `workflow_dispatch` runs a dry run). Both workflows check that every manifest carries the tag's base version.
 - Fixed the stale root version (`0.1.0`) in `plugins/org.eclipse.elk.js/package-lock.json`.
+- Renamed the npm packages to `@openedges/elk-layout` and `@openedges/elk-layout-<platform>` (binary `elk-layout.<triple>.node`): `elk-rs` is taken on crates.io by an unrelated crate, so the Rust facade is `elk-layout` and the npm packages use the same name under the `@openedges` scope. The loader order (platform package -> local `.node` -> WASM) and the elkjs-compatible API are unchanged; only the package name in `require()`/`import` changes.
+- Added the `elk-layout` crate (`crates/elk-layout`): re-exports the 17 `org-eclipse-elk-*` crates as `elk_layout::graph`, `core`, `graph_json`, `conn_gmf` and `alg::*`, and exposes `layout_json`/`known_layout_*` at the top level; `cargo add elk-layout` is the one-line Rust dependency. 18 crates are published to crates.io.
 
 #### v0.11.0+rs.5 (2026-10-19)
 
@@ -60,8 +62,8 @@ Cargo and npm package versions remain `0.11.0`; NAPI CI builds these tags withou
 
 ### Added
 
-- elkjs-compatible npm package (`elk-rs@0.11.0`) with WASM + NAPI backends
-- NAPI native addons for 6 platforms: `@elk-rs/darwin-arm64`, `@elk-rs/darwin-x64`, `@elk-rs/linux-x64-gnu`, `@elk-rs/linux-x64-musl`, `@elk-rs/linux-arm64-gnu`, `@elk-rs/win32-x64-msvc`
+- elkjs-compatible npm package (`@openedges/elk-layout@0.11.0`, named `elk-rs` until 2026-10-19) with WASM + NAPI backends
+- NAPI native addons for 6 platforms: `@openedges/elk-layout-darwin-arm64`, `@openedges/elk-layout-darwin-x64`, `@openedges/elk-layout-linux-x64-gnu`, `@openedges/elk-layout-linux-x64-musl`, `@openedges/elk-layout-linux-arm64-gnu`, `@openedges/elk-layout-win32-x64-msvc`
 - Automatic loading priority: platform NAPI package -> local `.node` -> WASM fallback
 - Browser and Node.js support via `layout()`, `knownLayoutAlgorithms()`, `knownLayoutOptions()`, `knownLayoutCategories()` API
 - Web Worker support (`workerUrl` / `workerFactory` options)

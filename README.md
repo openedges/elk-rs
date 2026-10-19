@@ -4,25 +4,25 @@ Pure Rust port of [Eclipse Layout Kernel (ELK)](https://www.eclipse.org/elk/), k
 
 ## npm Package
 
-elk-rs is available as a drop-in replacement for [elkjs](https://github.com/kieler/elkjs):
+elk-rs is published as `@openedges/elk-layout`, a drop-in replacement for [elkjs](https://github.com/kieler/elkjs):
 
 ```bash
-npm install elk-rs
+npm install @openedges/elk-layout
 ```
 
 On supported platforms, a native NAPI addon is automatically installed for best performance. Falls back to WASM on other platforms.
 
 | Platform | Package |
 |---|---|
-| macOS ARM64 (Apple Silicon) | `@elk-rs/darwin-arm64` |
-| macOS x64 (Intel) | `@elk-rs/darwin-x64` |
-| Linux x64 (glibc) | `@elk-rs/linux-x64-gnu` |
-| Linux x64 (musl/Alpine) | `@elk-rs/linux-x64-musl` |
-| Linux ARM64 | `@elk-rs/linux-arm64-gnu` |
-| Windows x64 | `@elk-rs/win32-x64-msvc` |
+| macOS ARM64 (Apple Silicon) | `@openedges/elk-layout-darwin-arm64` |
+| macOS x64 (Intel) | `@openedges/elk-layout-darwin-x64` |
+| Linux x64 (glibc) | `@openedges/elk-layout-linux-x64-gnu` |
+| Linux x64 (musl/Alpine) | `@openedges/elk-layout-linux-x64-musl` |
+| Linux ARM64 | `@openedges/elk-layout-linux-arm64-gnu` |
+| Windows x64 | `@openedges/elk-layout-win32-x64-msvc` |
 
 ```js
-const ELK = require('elk-rs');
+const ELK = require('@openedges/elk-layout');
 const elk = new ELK();
 
 elk.layout({
@@ -40,13 +40,17 @@ See [`plugins/org.eclipse.elk.js/README.md`](plugins/org.eclipse.elk.js/README.m
 
 ## Rust Crates
 
-The library crates are published to crates.io under the ELK bundle names (`org-eclipse-elk-*`), all at the same version as the npm package. `org-eclipse-elk-graph-json` is the entry point for JSON graphs and the elkjs-compatible layout API:
+The `elk-layout` crate re-exports the whole port and the elkjs-compatible JSON API:
 
 ```bash
-cargo add org-eclipse-elk-graph-json
+cargo add elk-layout
 ```
 
-The crates pin each other exactly, so one version of elk-rs is used throughout. Release and publishing rules are in [`VERSIONING.md`](VERSIONING.md).
+```rust
+let laid_out = elk_layout::layout_json(graph_json, "{}")?;   // same JSON as elkjs
+```
+
+Underneath, the ELK plugins are published one to one as `org-eclipse-elk-*` crates (`elk_layout::core`, `elk_layout::graph`, `elk_layout::alg::layered`, ...), all at the same version as the npm package and pinned to each other exactly. See [`crates/elk-layout/README.md`](crates/elk-layout/README.md); release and publishing rules are in [`VERSIONING.md`](VERSIONING.md).
 
 ## Repository Layout
 

@@ -9,7 +9,7 @@ elk-rs is a Rust port of Java ELK (Eclipse Layout Kernel) and also provides an e
 - **elk-models** (`external/elk-models`): pinned to parity-verified commit
 - **elk-rs**: all Rust crates `0.11.0`, npm `elk-rs@0.11.0`
 - **Latest internal patch**: Git tag `v0.11.0+rs.5` (NAPI CI fixes: aarch64 cross linker, Intel macOS cross build; package versions unchanged)
-- **Registries**: crates.io `org-eclipse-elk-*` (17 library crates) and npm `elk-rs` + `@elk-rs/*` (6 platform packages). First publish pending: `0.11.0` goes out with the next `+rs.N` tag once the npm/crates.io accounts and CI tokens exist (see § 6)
+- **Registries**: crates.io `elk-layout` (facade) + `org-eclipse-elk-*` (17 library crates) and npm `@openedges/elk-layout` + `@openedges/elk-layout-*` (6 platform packages). First publish pending: `0.11.0` goes out with the next `+rs.N` tag once the npm/crates.io accounts and CI tokens exist (see § 6)
 - **Parity**: 1438/1438 models 100% match (ELK 0.11.0 porting complete)
 
 This policy keeps versions aligned across all three projects while managing porting, verification, and releases systematically.
@@ -129,7 +129,7 @@ conventions adapted for ELK version alignment.
 |------|---------------|
 | `Cargo.toml` (workspace root) | `[workspace.package] version` and the `version = "=X.Y.Z"` pins in `[workspace.dependencies]` |
 | `Cargo.lock` | workspace member entries (`cargo update --workspace`) |
-| `plugins/org.eclipse.elk.js/package.json` | `"version"` and the six `optionalDependencies` on `@elk-rs/*` |
+| `plugins/org.eclipse.elk.js/package.json` | `"version"` and the six `optionalDependencies` on `@openedges/elk-layout-*` |
 | `plugins/org.eclipse.elk.js/package-lock.json` | root package `"version"` entries |
 | `plugins/org.eclipse.elk.js/npm/*/package.json` | `"version"` of the six platform packages |
 | `plugins/org.eclipse.elk.napi/package.json` | `"version"` (private helper manifest for `napi build`) |
@@ -399,16 +399,20 @@ elk-rs follows a 1:1 porting principle from Java ELK, but allows differences in 
 
 | Registry | Packages | Version | Trigger |
 |----------|----------|---------|---------|
-| npm | `elk-rs` (WASM + loader) and `@elk-rs/darwin-arm64`, `@elk-rs/darwin-x64`, `@elk-rs/linux-x64-gnu`, `@elk-rs/linux-x64-musl`, `@elk-rs/linux-arm64-gnu`, `@elk-rs/win32-x64-msvc` | package version, dist-tag `latest` | `.github/workflows/napi.yml` on `v*` tags without `-ext.` |
-| crates.io | the 17 library crates `org-eclipse-elk-*` (everything except the `napi`/`wasm` bindings) | package version | `.github/workflows/cargo-publish.yml` on `v*` tags without `-ext.` |
+| npm | `@openedges/elk-layout` (WASM + loader) and `@openedges/elk-layout-darwin-arm64`, `@openedges/elk-layout-darwin-x64`, `@openedges/elk-layout-linux-x64-gnu`, `@openedges/elk-layout-linux-x64-musl`, `@openedges/elk-layout-linux-arm64-gnu`, `@openedges/elk-layout-win32-x64-msvc` | package version, dist-tag `latest` | `.github/workflows/napi.yml` on `v*` tags without `-ext.` |
+| crates.io | `elk-layout` (facade, `crates/elk-layout`) and the 17 library crates `org-eclipse-elk-*` (everything except the `napi`/`wasm` bindings) | package version | `.github/workflows/cargo-publish.yml` on `v*` tags without `-ext.` |
 
 Never published: `-ext.N` tags, `org-eclipse-elk-napi`/`org-eclipse-elk-wasm`
-(`publish = false`), `elk-rs-napi` and `elk-rs-live` (`"private": true`).
+(`publish = false`), `elk-layout-napi` and `elk-rs-live` (`"private": true`).
+
+Names: `elk-rs` is taken on crates.io by an unrelated crate, so the Rust facade is
+`elk-layout`; the npm packages live under the `@openedges` organization. The GitHub
+repository keeps its `elk-rs` name.
 
 ### Scripts
 
 - `sh scripts/publish_npm.sh [--dry-run] [--expect-version V]`: platform packages first,
-  then `elk-rs`; skips `package@version` pairs already on npm; refuses to publish a
+  then `@openedges/elk-layout`; skips `package@version` pairs already on npm; refuses to publish a
   platform package without its `.node` binary or the main package without `dist/wasm/`.
 - `python3 scripts/publish_crates.py [--dry-run] [--no-verify] [--expect-version V]`:
   one `cargo publish -p ...` call for the crates missing on crates.io (cargo orders them
@@ -418,12 +422,12 @@ Never published: `-ext.N` tags, `org-eclipse-elk-napi`/`org-eclipse-elk-wasm`
 
 ### Credentials and first publish
 
-- npm: an npm account that owns the `elk-rs` package name and the `@elk-rs` organization,
-  and a granular access token with publish rights (repository secret `NPM_TOKEN`). The
+- npm: an npm account in the `@openedges` organization with a granular access token that
+  may publish `@openedges/elk-layout*` (repository secret `NPM_TOKEN`). The
   first publish of a package name happens from CI like every other one.
 - crates.io: a crates.io API token with `publish-new` + `publish-update` (repository secret
   `CARGO_REGISTRY_TOKEN`; locally `cargo login`). crates.io limits *new* crates to a burst
-  of five, then one every ten minutes, so the first publish of the 17 crates is run
+  of five, then one every ten minutes, so the first publish of the 18 crates is run
   locally with `python3 scripts/publish_crates.py` (it sleeps and retries; or ask
   help@crates.io to raise the limit beforehand). Later versions are updates (burst of 30)
   and run from CI.
