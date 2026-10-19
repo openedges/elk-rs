@@ -60,6 +60,7 @@ Cargo and npm package versions remain `0.11.0`; NAPI CI builds these tags withou
 
 - Fixed CI: `ci.yml` now checks out submodules so tests can read `external/elk-models` and `external/elk` resources; every run had failed since 2026-03. The first run after the fix passed (1,022 tests, 0 warnings).
 - Fixed the `parity.yml` workflow, which exceeded GitHub's 25-input `workflow_dispatch` limit (57 inputs) and was rejected on every push. 20 inputs remain, 37 parameters moved to `PARITY_*` env defaults, and an `env_overrides` input keeps them overridable.
+- Recalibrated the performance regression thresholds in `scripts/check_perf_regression.py` to about 2x the GitHub-hosted runner measurement; the previous local-baseline values failed `radial_xlarge` on the first real `perf.yml` run, and the rerun passed all eight scenarios.
 
 #### v0.11.0+rs.5 (2026-10-19)
 

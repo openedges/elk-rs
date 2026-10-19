@@ -105,7 +105,7 @@
   - ext.4 대비 1,998/1,998 JSON 결과 동일. workspace test 1,044 passed / 0 failed / 2 ignored, build/clippy warning 0건.
   - 현재 머신 Rust A/B 성능: 전체 26개 평균 22.588→23.049ms(+2.04%), layered_xlarge 중앙값 +0.31%. Stress 대형 입력 별도 측정 +5.66%는 후속 프로파일링 대상이며 성능 무회귀로 판정하지 않음 (`HISTORY.md` 참조).
 - **알려진 실패**: 없음 (`elk_live_examples_test` 해결 완료 — cross-hierarchy edge graceful skip + 30s timeout)
-- **원격 CI**: `ci.yml`은 2026-10-19 서브모듈 체크아웃 수정 후 첫 녹색(`main` run 39210241569 1,022 passed, `custom/0.11.0` run 39211054489 1,045 passed; 0 failed / 2 ignored, warning 0). `parity.yml`은 dispatch 입력 57→21개 정리로 유효 상태이며 실행은 미검증.
+- **원격 CI**: `ci.yml`은 2026-10-19 서브모듈 체크아웃 수정 후 첫 녹색(`main` run 39210241569 1,022 passed, `custom/0.11.0` run 39211054489 1,045 passed; 0 failed / 2 ignored, warning 0). `parity.yml`은 dispatch 입력 57→21개 정리로 유효 상태이며 실행은 미검증. `perf.yml`은 임계값을 CI 러너 기준(측정값 2배)으로 재보정해 수동 실행 run 39212896180에서 8/8 통과.
 - `213_componentsCompaction.elkt`: `java_non_ok=nan_output`으로 분류 — Rust 출력이 더 정확
 
 ## Drift 분석 요약
