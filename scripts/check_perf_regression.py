@@ -15,17 +15,22 @@ import sys
 import csv
 import io
 
-# Absolute thresholds in ms (approximately 2x of known baseline).
-# Update these when baseline changes significantly.
+# Absolute thresholds in ms, approximately 2x of the GitHub-hosted ubuntu-latest
+# measurement (run 39212203839, 2026-10-19: layered_xlarge 541, stress_xlarge 366,
+# force_xlarge 297, radial_xlarge 36, layered_large 28, mrtree_xlarge 8.5,
+# layered_medium 5.8, crossmin_layer_sweep 6.1). The local M3 Pro baseline in
+# tests/perf/rust_native.csv is about 2.0-2.5x faster than that runner, so the
+# previous 2x-of-local values left almost no headroom and radial_xlarge failed.
+# Update these when the runner class or the baseline changes significantly.
 THRESHOLDS = {
-    "layered_xlarge": 600.0,
-    "layered_large": 40.0,
-    "layered_medium": 8.0,
-    "force_xlarge": 350.0,
-    "stress_xlarge": 400.0,
-    "mrtree_xlarge": 15.0,
-    "radial_xlarge": 30.0,
-    "crossmin_layer_sweep": 8.0,
+    "layered_xlarge": 1100.0,
+    "layered_large": 60.0,
+    "layered_medium": 12.0,
+    "force_xlarge": 600.0,
+    "stress_xlarge": 750.0,
+    "mrtree_xlarge": 18.0,
+    "radial_xlarge": 75.0,
+    "crossmin_layer_sweep": 12.0,
 }
 
 
