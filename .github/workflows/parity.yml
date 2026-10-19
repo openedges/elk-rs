@@ -264,6 +264,9 @@ jobs:
           JAVA_PARITY_EXTERNAL_ELK_ROOT: ${{ github.workspace }}/external/elk
           JAVA_PARITY_EXTERNAL_ISOLATE: "true"
           JAVA_PARITY_EXTERNAL_WORKTREE_ROOT: ${{ runner.temp }}
+          # Keep the built ELK worktree: the Tycho build generates the src-gen/*Options.java
+          # sources (gitignored in external/elk) that the parity checks below read.
+          JAVA_PARITY_ISOLATION_DIR: ${{ runner.temp }}/elk-java-parity-build
           # Isolate Tycho/Maven metadata to avoid lock conflicts on shared runners.
           JAVA_PARITY_MVN_LOCAL_REPO: ${{ runner.temp }}/m2-java-parity-${{ github.run_id }}-${{ github.run_attempt }}
           JAVA_RESULTS_PARITY_GATE: ${{ inputs.java_parity_gate }}
@@ -305,6 +308,21 @@ jobs:
         run: sh scripts/suggest_java_parity_thresholds.sh "${{ env.PARITY_LAYERED_ISSUE_OUTPUT }}" "${{ env.PARITY_JAVA_RESULTS_FILE }}" "${{ inputs.regression_window }}" 2 tests/java_parity_thresholds.suggested.csv
       - name: Summarize parity results
         run: sh scripts/summarize_parity_results.sh
+      - name: Locate generated ELK sources
+        # external/elk ignores src-gen/**/*Options.java and *MetaDataProvider.java; the
+        # Java compare step's Tycho build generates them in the persistent worktree.
+        run: |
+          core_options=plugins/org.eclipse.elk.core/src-gen/org/eclipse/elk/core/options/CoreOptions.java
+          for root in "$RUNNER_TEMP/elk-java-parity-build" "$GITHUB_WORKSPACE/external/elk"; do
+            if [ -f "$root/$core_options" ]; then
+              echo "JAVA_SOURCES_ROOT=$root/plugins" >> "$GITHUB_ENV"
+              echo "JAVA_CORE_OPTIONS=$root/$core_options" >> "$GITHUB_ENV"
+              echo "using ELK sources from $root"
+              exit 0
+            fi
+          done
+          echo "::error::generated ELK sources (src-gen/**/*Options.java) not found; run with java_compare_enabled=true so the Tycho build generates them" >&2
+          exit 1
       - name: Check CoreOptions parity
         run: sh scripts/check_core_options_parity.sh
       - name: Check Core option dependency parity
