@@ -17,6 +17,14 @@
 - Full model parity **1,987/1,989 match (99.90%)**, drift 2(기존 Java NaN 예외 `213_componentsCompaction.elkt`, 기존 확장판 차이 `emptyLayerFirst.elkt`), skipped 9, errors 0. Full phase-step trace **1,995/1,997 match (99.90%)**, drift 2(기존 확장판 차이 `emptyLayerFirst.elkt`/`emptyLayerLast.elkt`), `rust_only=1`(기존 Java NPE). ext.5 기준선과 수치·대상 모델이 모두 동일하다.
 - 변경 코드는 `LayeringStrategy::MinWidth`에서만 실행되고 corpus와 확장 fixture에 `MIN_WIDTH` 사용이 없어 확장판 출력은 바뀌지 않는다. `ext.6` 버전 bump·태그·npm 배포는 별도 릴리스 결정 사항으로 남긴다.
 
+## NAPI linux-arm64 cross build 링크 오류 수정 (2026-10-19)
+
+- 증상: `v0.11.0+rs.3`, `v0.11.0-ext.5`, `v0.11.0+rs.4` 태그의 `napi.yml` 실행에서 `aarch64-unknown-linux-gnu` 잡만 `rust-lld: error: --fix-cortex-a53-843419 is only supported on AArch64`로 실패하고 publish 잡이 skip되었다(나머지 5개 플랫폼은 성공).
+- 원인: rustc 1.98+(CI는 1.99.0)가 `aarch64-unknown-linux-gnu` 타깃의 pre-link-args에 `-Wl,--fix-cortex-a53-843419`를 추가한다(rust-lang/rust#155453). `@napi-rs/cli` 3.10.x는 이 타깃에 링커를 지정하지 않아 cargo가 호스트 x86_64 `cc`로 링크했고, `cc`가 `-fuse-ld=lld`로 호출한 rust-lld가 x86_64 에뮬레이션에서 AArch64 전용 플래그를 거부했다. 워크플로우는 `gcc-aarch64-linux-gnu`를 설치만 하고 사용하지 않았다.
+- 수정(`23f0aee`): ARM64 잡에서 `CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc`와 `CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc`를 `$GITHUB_ENV`로 설정한다. 소스/패키지 버전 변경은 없다.
+- 검증: `custom/0.11.0`(`ab140c1`)에서 `workflow_dispatch`로 실행한 run [39203920189](https://github.com/openedges/elk-rs/actions/runs/39203920189)에서 6개 플랫폼 빌드가 모두 성공했고 publish는 태그가 아니어서 skip되었다. 병합 전 워크플로우를 실행한 run 39203853034는 취소했다.
+- 태그: 새 내부 태그는 만들지 않았다(`v0.11.0+rs.4`는 수정 이전 커밋). 다음 `+rs.N` 또는 확장 태그에 포함된다.
+
 ## 내부 패치 v0.11.0+rs.4 (2026-10-19)
 
 - 외부 기여 PR [#1](https://github.com/openedges/elk-rs/pull/1)(`simon-gd`, 커밋 `5dcba8f`)의 `MinWidthLayerer` 동률 순서 수정을 `main`에 merge commit `afc813b`로 병합하고, `releases/0.11.0`을 같은 이력으로 fast-forward한 뒤 annotated tag `v0.11.0+rs.4`로 기록한다. `VERSIONING.md` 정책에 따라 Cargo/npm 패키지 버전과 upstream 고정 버전은 `0.11.0`을 유지한다.
