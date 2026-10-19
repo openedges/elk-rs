@@ -1,19 +1,19 @@
-# elk-rs
+# @openedges/elk-layout
 
 ELK layout engine rewritten in Rust — drop-in replacement for [elkjs](https://github.com/kieler/elkjs) with WASM and native Node.js addon support.
 
 ## Installation
 
 ```bash
-npm install elk-rs
+npm install @openedges/elk-layout
 ```
 
 ## Usage
 
-elk-rs provides an elkjs-compatible API. In most cases you can replace `elkjs` with `elk-rs` directly:
+elk-rs provides an elkjs-compatible API. In most cases you can replace `elkjs` with `@openedges/elk-layout` directly:
 
 ```js
-const ELK = require('elk-rs');
+const ELK = require('@openedges/elk-layout');
 const elk = new ELK();
 
 const graph = {
@@ -34,7 +34,7 @@ elk.layout(graph).then(console.log);
 ### ESM
 
 ```js
-import ELK from 'elk-rs';
+import ELK from '@openedges/elk-layout';
 const elk = new ELK();
 ```
 
@@ -45,9 +45,9 @@ elk-rs works in the browser via WASM. Bundlers that respect the `"browser"` fiel
 ### Web Worker
 
 ```js
-const ELK = require('elk-rs');
+const ELK = require('@openedges/elk-layout');
 const elk = new ELK({
-  workerUrl: './node_modules/elk-rs/js/elk-worker.js'
+  workerUrl: './node_modules/@openedges/elk-layout/js/elk-worker.js'
 });
 ```
 

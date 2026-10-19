@@ -32,10 +32,10 @@ if command -v npx &> /dev/null && [ -f "$NAPI_DIR/Cargo.toml" ]; then
   # Copy to platform package directory for local dev/publish
   PLATFORM_DIR="$SCRIPT_DIR/npm"
   if [ -d "$PLATFORM_DIR" ]; then
-    for f in "$DIST_DIR"/elk-rs.*.node; do
+    for f in "$DIST_DIR"/elk-layout.*.node; do
       [ -e "$f" ] || continue
       BASENAME=$(basename "$f" .node)
-      TRIPLE=$(echo "$BASENAME" | sed 's/^elk-rs\.//')
+      TRIPLE=$(echo "$BASENAME" | sed 's/^elk-layout\.//')
       if [ -d "$PLATFORM_DIR/$TRIPLE" ]; then
         cp "$f" "$PLATFORM_DIR/$TRIPLE/"
         echo "Copied $BASENAME.node to npm/$TRIPLE/"

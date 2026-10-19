@@ -1,11 +1,11 @@
 {
-  "name": "@elk-rs/win32-x64-msvc",
+  "name": "@openedges/elk-layout-win32-x64-msvc",
   "version": "0.11.0",
   "os": ["win32"],
   "cpu": ["x64"],
-  "main": "elk-rs.win32-x64-msvc.node",
-  "files": ["elk-rs.win32-x64-msvc.node"],
-  "description": "elk-rs native binding for Windows x64 (MSVC)",
+  "main": "elk-layout.win32-x64-msvc.node",
+  "files": ["elk-layout.win32-x64-msvc.node"],
+  "description": "elk-layout (elk-rs) native binding for Windows x64 (MSVC)",
   "license": "EPL-2.0",
   "repository": {
     "type": "git",

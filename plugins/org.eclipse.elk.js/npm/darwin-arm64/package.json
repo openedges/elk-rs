@@ -1,11 +1,11 @@
 {
-  "name": "@elk-rs/darwin-arm64",
+  "name": "@openedges/elk-layout-darwin-arm64",
   "version": "0.11.0",
   "os": ["darwin"],
   "cpu": ["arm64"],
-  "main": "elk-rs.darwin-arm64.node",
-  "files": ["elk-rs.darwin-arm64.node"],
-  "description": "elk-rs native binding for macOS ARM64 (Apple Silicon)",
+  "main": "elk-layout.darwin-arm64.node",
+  "files": ["elk-layout.darwin-arm64.node"],
+  "description": "elk-layout (elk-rs) native binding for macOS ARM64 (Apple Silicon)",
   "license": "EPL-2.0",
   "repository": {
     "type": "git",
