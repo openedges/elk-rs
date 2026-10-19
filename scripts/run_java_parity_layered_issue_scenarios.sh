@@ -44,6 +44,10 @@ JAVA_PARITY_BENCH_DEST=${JAVA_PARITY_BENCH_DEST:-}
 JAVA_PARITY_BENCH_CLEANUP=${JAVA_PARITY_BENCH_CLEANUP:-true}
 JAVA_PARITY_PREPARE_ARGS=${JAVA_PARITY_PREPARE_ARGS:--DskipTests -DskipITs}
 JAVA_PARITY_DRY_RUN=${JAVA_PARITY_DRY_RUN:-false}
+# CSV row format written by LayeredIssueParityBenchTest: "legacy" (7 columns, no header,
+# same layout as the Rust perf_layered_issue_scenarios CSV and the parity baselines) or
+# "engine" (header + engine column). run_perf_benchmark.sh accepts either.
+JAVA_PARITY_CSV_FORMAT=${JAVA_PARITY_CSV_FORMAT:-legacy}
 JAVA_PARITY_MVN_ARGS=${JAVA_PARITY_MVN_ARGS:-}
 JAVA_PARITY_MVN_LOCAL_REPO=${JAVA_PARITY_MVN_LOCAL_REPO:-${TMPDIR:-/tmp}/elk-java-parity-m2}
 JAVA_PARITY_RETRIES=${JAVA_PARITY_RETRIES:-0}
@@ -116,7 +120,7 @@ TEST_SELECTOR="$JAVA_PARITY_TEST_CLASS"
 if [ -n "$JAVA_PARITY_TEST_METHOD" ]; then
   TEST_SELECTOR="$TEST_SELECTOR#$JAVA_PARITY_TEST_METHOD"
 fi
-TYCHO_TEST_ARG_LINE="-Delk.parity.run=true -Delk.parity.scenarios=$SCENARIOS -Delk.parity.iterations=$ITERATIONS -Delk.parity.warmup=$WARMUP -Delk.parity.output=$OUTPUT"
+TYCHO_TEST_ARG_LINE="-Delk.parity.run=true -Delk.parity.scenarios=$SCENARIOS -Delk.parity.iterations=$ITERATIONS -Delk.parity.warmup=$WARMUP -Delk.parity.output=$OUTPUT -Delk.parity.csvFormat=$JAVA_PARITY_CSV_FORMAT"
 
 ejc_resolve_var MVN_BIN mvn; _mvn=$_ejc_val
 set -- \
