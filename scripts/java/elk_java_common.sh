@@ -429,6 +429,22 @@ ejc_run_cmd() {
 
 # ---------- Maven build -----------------------------------------------------
 
+# ejc_mvn_dash_args
+#   Sets _ejc_val to the Maven argument that skips the Eclipse Dash
+#   license-check bound to ELK's build (`-Ddash.skip=true`), or to "" when
+#   ${EJC_PREFIX}_DASH_LICENSE_CHECK=true.  The check only produces a
+#   dependency report and queries the Eclipse Foundation license API, which
+#   failed with HTTP 504 in parity run 39240957538; nothing in the parity
+#   pipeline needs it.
+ejc_mvn_dash_args() {
+  ejc_resolve_var DASH_LICENSE_CHECK false
+  if [ "$_ejc_val" = "true" ]; then
+    _ejc_val=""
+  else
+    _ejc_val="-Ddash.skip=true"
+  fi
+}
+
 # ejc_mvn_build_plugins [POM]
 #   Runs Maven install to build ELK plugins.  POM defaults to
 #   $EJC_ELK_ROOT/build/pom.xml.
@@ -437,7 +453,8 @@ ejc_run_cmd() {
 #   Reads ${EJC_PREFIX}_BUILD_PLUGINS, ${EJC_PREFIX}_MVN_BIN,
 #   ${EJC_PREFIX}_PREPARE_MODULES, ${EJC_PREFIX}_MVN_LOCAL_REPO,
 #   ${EJC_PREFIX}_PREPARE_ARGS, ${EJC_PREFIX}_MVN_ARGS,
-#   ${EJC_PREFIX}_FORCE_REBUILD, ${EJC_PREFIX}_CLEAN_BUILD.
+#   ${EJC_PREFIX}_FORCE_REBUILD, ${EJC_PREFIX}_CLEAN_BUILD,
+#   ${EJC_PREFIX}_DASH_LICENSE_CHECK (see ejc_mvn_dash_args).
 #   Sets EJC_BUILD_WAS_SKIPPED=true/false.
 ejc_mvn_build_plugins() {
   _pom=${1:-$EJC_ELK_ROOT/build/pom.xml}
@@ -483,6 +500,11 @@ ejc_mvn_build_plugins() {
   _mvn=$_ejc_val
 
   set -- "$_mvn" -f "$_pom"
+
+  ejc_mvn_dash_args
+  if [ -n "$_ejc_val" ]; then
+    set -- "$@" "$_ejc_val"
+  fi
 
   ejc_resolve_var_raw PREPARE_MODULES
   if [ -n "$_ejc_val" ]; then

@@ -177,6 +177,10 @@ fi
 set -- "$@" "-Dtest=$JAVA_PARITY_TEST_CLASS"
 set -- "$@" "-DfailIfNoTests=false"
 set -- "$@" "-Dtycho.testArgLine=$TYCHO_TEST_ARG_LINE"
+ejc_mvn_dash_args
+if [ -n "$_ejc_val" ]; then
+  set -- "$@" "$_ejc_val"
+fi
 if [ -n "$JAVA_PARITY_MVN_ARGS" ]; then
   # shellcheck disable=SC2086
   set -- "$@" $JAVA_PARITY_MVN_ARGS

@@ -65,6 +65,7 @@ Cargo and npm package versions remain `0.11.0`; NAPI CI builds these tags withou
 - Refreshed `tests/baselines/*.csv` with release-build Rust measurements and JDK 17 Java measurements; the previous Rust rows were debug builds.
 - Fixed `scripts/check_core_option_dependency_parity.sh`, which missed rustfmt-wrapped declarations and reported the two `topdown.sizeApproximator` dependencies as Java-only (now 10/10).
 - Fixed six `scripts/check_algorithm_*_parity.sh` parsers (name, description, metadata, feature, option support, option default) that missed rustfmt-wrapped declarations: a shared pre-pass `scripts/lib/join_wrapped_rust_lines.awk` re-joins wrapped `let x =` / method-chain lines, and the Rust scan now skips `**/tests/**`. The five long-standing informational drift reports (`mrtree`/`Draw2D` missing from name/description/metadata/feature, `random` option support 4 vs 3) were parser false positives; all twelve static parity reports are `ok` on `main`. On `custom/0.11.0` the option-support and option-default reports keep one expected extension-only delta (`org.eclipse.elk.layered.layering.ignoreEdgeInLayer`).
+- The Java parity scripts now pass `-Ddash.skip=true` to every Maven invocation of the ELK Tycho build (`ejc_mvn_dash_args` in `scripts/java/elk_java_common.sh`; `JAVA_PARITY_DASH_LICENSE_CHECK=true` re-enables it). ELK's Eclipse Dash license-check queries the Eclipse Foundation API and aborted a `parity.yml` run with HTTP 504; the parity pipeline does not use its output.
 
 #### v0.11.0+rs.5 (2026-10-19)
 
