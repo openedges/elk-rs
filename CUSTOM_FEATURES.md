@@ -22,7 +22,7 @@ Four custom features are currently implemented:
 | Integration branch | `custom/0.11.0` |
 | Tag | `v0.11.0-ext.4`, `v0.11.0+rs.2` |
 | Cargo version | `0.11.0-ext.4` |
-| npm version | `elk-rs@0.11.0-ext.4` |
+| npm version | `@openedges/elk-layout@0.11.0-ext.6` manifest (extension builds are not published) |
 | Base | `main` (`v0.11.0` — ELK Java 1:1 parity) |
 
 Feature development branches:
