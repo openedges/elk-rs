@@ -27,6 +27,7 @@ members = [
   "plugins/org.eclipse.elk.conn.gmf",
   "plugins/org.eclipse.elk.wasm",
   "plugins/org.eclipse.elk.napi",
+  "crates/elk-layout",
 ]
 resolver = "2"
 

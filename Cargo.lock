@@ -97,6 +97,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "elk-layout"
+version = "0.11.0"
+dependencies = [
+ "org-eclipse-elk-alg-common",
+ "org-eclipse-elk-alg-disco",
+ "org-eclipse-elk-alg-force",
+ "org-eclipse-elk-alg-graphviz-dot",
+ "org-eclipse-elk-alg-graphviz-layouter",
+ "org-eclipse-elk-alg-layered",
+ "org-eclipse-elk-alg-libavoid",
+ "org-eclipse-elk-alg-mrtree",
+ "org-eclipse-elk-alg-radial",
+ "org-eclipse-elk-alg-rectpacking",
+ "org-eclipse-elk-alg-spore",
+ "org-eclipse-elk-alg-topdownpacking",
+ "org-eclipse-elk-alg-vertiflex",
+ "org-eclipse-elk-conn-gmf",
+ "org-eclipse-elk-core",
+ "org-eclipse-elk-graph",
+ "org-eclipse-elk-graph-json",
+ "serde_json",
+]
+
+[[package]]
 name = "find-msvc-tools"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
