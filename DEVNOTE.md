@@ -424,7 +424,7 @@ parity를 추구하면 Java의 모든 동작이 "스펙"이 된다. Java의 `Por
 
 ### 8.1 단기
 
-- **npm 릴리즈**: `elk-rs@0.11.0` 정식 publish (WASM + 6개 NAPI 플랫폼)
+- **npm 릴리즈**: `@openedges/elk-layout@0.11.0` 정식 publish (WASM + 6개 NAPI 플랫폼; crates.io `elk-layout` 동시 배포)
 - **Radial 성능**: radial_medium/radial_large에서 Java보다 느림. PolarCoordinateSorter의 per-node 호출이 병목. 근본 해결은 sorter 아키텍처 변경 필요. (radial_xlarge는 최적화로 Rust 우위 달성)
 - **CHANGELOG.md 작성**: VERSIONING.md에 정의된 형식으로 릴리즈 노트 작성
 
