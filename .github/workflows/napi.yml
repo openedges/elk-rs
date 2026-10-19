@@ -38,6 +38,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu
+          # rustc >= 1.98 passes --fix-cortex-a53-843419 for this target. napi-rs CLI does not
+          # set a linker for aarch64-unknown-linux-gnu, so cargo falls back to the host `cc`
+          # (x86_64) and rust-lld rejects the AArch64-only flag. Link with the cross gcc instead.
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
+          echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
       - name: Install musl tools
         if: matrix.target == 'x86_64-unknown-linux-musl'
         run: sudo apt-get install -y musl-tools
