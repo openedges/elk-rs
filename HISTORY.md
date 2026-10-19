@@ -13,6 +13,7 @@
 - 검증: 스크립트와 보고서만 변경(Rust 소스 변경 없음). `cargo build --workspace`·`cargo clippy --workspace --all-targets` warning 0.
 - CI 재확인 1차 run [39240957538](https://github.com/openedges/elk-rs/actions/runs/39240957538)(`44ee054f`): Rust 단계는 통과했으나 `Run Java compare pipeline`의 ELK Tycho 빌드가 `org.eclipse.dash:license-tool-plugin:1.1.0:license-check`에서 실패했다 — "Querying Eclipse Foundation for license data for 500 items" 뒤 `Error response from the Eclipse Foundation 504`. 이 플러그인은 ELK `build/pom.xml`에 묶여 있어 빌드와 테스트 실행에서 각각 Eclipse Foundation 라이선스 API를 호출하며(녹색 run 39229265896에서는 500+169, 279건 조회가 우연히 성공), parity 파이프라인은 그 결과(의존성 라이선스 보고서)를 전혀 쓰지 않는다. 정적 검사 단계는 실행되지 못했다.
 - 수정: `scripts/java/elk_java_common.sh`에 `ejc_mvn_dash_args`를 추가해 `ejc_mvn_build_plugins`와 Maven 테스트 실행 3곳(`run_java_parity_layered_issue_scenarios.sh`, `run_java_model_benchmark.sh`, `java_model_parity_trace.sh`)이 기본으로 `-Ddash.skip=true`(license-tool-plugin 1.1.0의 `skip` 파라미터)를 넘긴다. `JAVA_PARITY_DASH_LICENSE_CHECK=true`(trace 스크립트는 `JAVA_TRACE_` 접두)로 되돌릴 수 있다. 로컬 dry-run으로 두 mvn 명령에 플래그가 들어가는 것을 확인했다.
+- CI 재확인 2차 run [39242090738](https://github.com/openedges/elk-rs/actions/runs/39242090738)(`d8b4fdfb`): **전 단계 성공**(11:05:25→11:13:08, 약 7분 40초). Java 비교 단계는 라이선스 조회가 빠져 5분 35초(run 6의 7분 48초 대비 단축). 러너(Ubuntu awk)에서 정적 parity 보고서 12개 모두 ok, informational 항목 0이며 여섯 보고서가 커밋된 `main` 보고서와 바이트 단위로 동일하다. Java 비교 5/5 `ok vs java`(Rust release가 86~92% 빠름, issue_405 0.392 vs 4.689ms).
 
 ## 확장판 v0.11.0-ext.6: 버전 bump와 태그 (2026-10-19)
 
