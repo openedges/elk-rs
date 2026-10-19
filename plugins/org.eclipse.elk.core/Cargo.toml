@@ -3,11 +3,16 @@ name = "org-eclipse-elk-core"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "Core layout engine of the Eclipse Layout Kernel (ELK): layout options, algorithm registry and recursive layout, ported to pure Rust"
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
-org-eclipse-elk-graph = { path = "../org.eclipse.elk.graph" }
+org-eclipse-elk-graph = { workspace = true }
 
 [dev-dependencies]
+# Path-only on purpose: cargo drops these from the published manifest (see root Cargo.toml).
 org-eclipse-elk-alg-disco = { path = "../org.eclipse.elk.alg.disco" }
 org-eclipse-elk-alg-force = { path = "../org.eclipse.elk.alg.force" }
 org-eclipse-elk-alg-layered = { path = "../org.eclipse.elk.alg.layered" }

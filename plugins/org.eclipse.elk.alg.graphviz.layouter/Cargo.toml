@@ -3,9 +3,13 @@ name = "org-eclipse-elk-alg-graphviz-layouter"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "ELK Graphviz layouter integration (metadata and options) of the Eclipse Layout Kernel, ported to pure Rust"
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
-org-eclipse-elk-core = { path = "../org.eclipse.elk.core" }
-org-eclipse-elk-graph = { path = "../org.eclipse.elk.graph" }
-org-eclipse-elk-alg-common = { path = "../org.eclipse.elk.alg.common" }
-org-eclipse-elk-alg-graphviz-dot = { path = "../org.eclipse.elk.alg.graphviz.dot" }
+org-eclipse-elk-core = { workspace = true }
+org-eclipse-elk-graph = { workspace = true }
+org-eclipse-elk-alg-common = { workspace = true }
+org-eclipse-elk-alg-graphviz-dot = { workspace = true }

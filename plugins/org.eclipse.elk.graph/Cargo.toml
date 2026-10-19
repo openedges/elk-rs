@@ -3,6 +3,10 @@ name = "org-eclipse-elk-graph"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "ElkGraph data model of the Eclipse Layout Kernel (ELK), ported to pure Rust"
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 parking_lot = "0.12"

@@ -3,14 +3,19 @@ name = "org-eclipse-elk-alg-layered"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "ELK Layered (Sugiyama-style) layout algorithm of the Eclipse Layout Kernel, ported to pure Rust"
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
-org-eclipse-elk-alg-common = { path = "../org.eclipse.elk.alg.common" }
-org-eclipse-elk-core = { path = "../org.eclipse.elk.core" }
-org-eclipse-elk-graph = { path = "../org.eclipse.elk.graph" }
+org-eclipse-elk-alg-common = { workspace = true }
+org-eclipse-elk-core = { workspace = true }
+org-eclipse-elk-graph = { workspace = true }
 rustc-hash = "2"
 serde_json = "1.0"
 
 [dev-dependencies]
+# Path-only on purpose: cargo drops these from the published manifest (see root Cargo.toml).
 org-eclipse-elk-alg-force = { path = "../org.eclipse.elk.alg.force" }
 org-eclipse-elk-alg-rectpacking = { path = "../org.eclipse.elk.alg.rectpacking" }
