@@ -166,6 +166,7 @@ JAVA_PARITY_BENCH_CLEANUP=true
 JAVA_PARITY_PREPARE_ARGS="-DskipTests -DskipITs"
 JAVA_PARITY_MVN_LOCAL_REPO=
 JAVA_PARITY_MVN_ARGS=
+JAVA_PARITY_DASH_LICENSE_CHECK=false   # true re-enables ELK's Eclipse Dash license-check (default passes -Ddash.skip=true; the check needs the Eclipse Foundation API)
 JAVA_PARITY_SKIP_DNS_CHECK=false
 JAVA_PARITY_REQUIRED_HOSTS=repo.eclipse.org,repo.maven.apache.org
 ```
