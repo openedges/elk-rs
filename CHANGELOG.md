@@ -9,13 +9,15 @@ Versions correspond to the target ELK Java version (see `VERSIONING.md`).
 
 First stable release. Full port of ELK Java 0.11.0 with layout-identical output.
 
-### elk-rs Internal Changes (v0.11.0+rs.3 ~ v0.11.0+rs.4)
+### elk-rs Internal Changes (v0.11.0+rs.3 ~ v0.11.0+rs.5)
 
 Cargo and npm package versions remain `0.11.0`; NAPI CI builds these tags without publishing.
 
-#### Unreleased (after v0.11.0+rs.4)
+#### v0.11.0+rs.5 (2026-10-19)
 
 - Fixed the NAPI workflow's `aarch64-unknown-linux-gnu` job to link with `aarch64-linux-gnu-gcc` instead of the host `cc`, which failed with `rust-lld: --fix-cortex-a53-843419 is only supported on AArch64` under rustc 1.98+. A manual workflow run built all six targets.
+- Moved the `x86_64-apple-darwin` NAPI build to the arm64 `macos-latest` runner as a `--target` cross build. The retired `macos-13` label had left that job queued until GitHub cancelled it 24 hours later, and GitHub ends Intel macOS runners in fall 2027; the cross-built binding is verified as x86_64 Mach-O.
+- No Rust source changes since `v0.11.0+rs.4`; its quality gate results apply (1,022 tests, model parity `1,988/1,989`, phase-step trace `1,997/1,997`).
 
 #### v0.11.0+rs.4 (2026-10-19)
 

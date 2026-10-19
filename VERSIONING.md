@@ -8,7 +8,7 @@ elk-rs is a Rust port of Java ELK (Eclipse Layout Kernel) and also provides an e
 - **elkjs** (`external/elkjs`): pinned to `0.11.0` release tag
 - **elk-models** (`external/elk-models`): pinned to parity-verified commit
 - **elk-rs**: all Rust crates `0.11.0`, npm `elk-rs@0.11.0`
-- **Latest internal patch**: Git tag `v0.11.0+rs.4` (MinWidthLayerer tie-order fix; package versions unchanged)
+- **Latest internal patch**: Git tag `v0.11.0+rs.5` (NAPI CI fixes: aarch64 cross linker, Intel macOS cross build; package versions unchanged)
 - **Parity**: 1438/1438 models 100% match (ELK 0.11.0 porting complete)
 
 This policy keeps versions aligned across all three projects while managing porting, verification, and releases systematically.
@@ -184,6 +184,7 @@ releases/0.11.0:
   v0.11.0+rs.2            <- elk-rs internal hotfix (build only, no npm publish)
   v0.11.0+rs.3            <- memory lifetime fixes (build only, no npm publish)
   v0.11.0+rs.4            <- MinWidthLayerer tie-order fix (build only, no npm publish)
+  v0.11.0+rs.5            <- NAPI CI fixes (build only, no npm publish)
 
 releases/0.12.0:
   v0.12.0                 <- stable release (ELK 0.12.0 parity, npm publish)
