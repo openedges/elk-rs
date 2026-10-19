@@ -17,8 +17,9 @@ directory structure, exception cases), see [`tests/PARITY.md`](tests/PARITY.md).
 |------|-----------------|---------|
 | Rust toolchain | stable | Build, test, clippy |
 | Java JDK | 17+ | Java baseline export |
-| Maven | 3.6+ | ELK build (path configurable via `JAVA_PARITY_MVN_BIN`) |
+| Maven | 3.9.x | ELK build (path configurable via `JAVA_PARITY_MVN_BIN`); Tycho 4.0.12 in `external/elk` does not start under Maven 3.10 ("No implementation for MavenTargetLocationFactory was bound") |
 | Python | 3.8+ | `compare_model_parity_layouts.py`, `compare_phase_traces.py`, etc. |
+| ripgrep (`rg`) | any | file discovery in `scripts/check_algorithm_*_parity.sh`, `summarize_java_parity_status.sh` (not preinstalled on GitHub runners; `parity.yml` installs it) |
 | Node.js | 16+ | JS tests, parity tests |
 | wasm-pack | latest | WASM build (`wasm32-unknown-unknown` target required) |
 

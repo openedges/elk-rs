@@ -48,9 +48,12 @@ on:
         required: false
         default: "true"
       java_compare_mode:
+        # `results` compares the Java CSV generated on this runner with the Rust CSV from the
+        # same run. `baseline`/`both` also gate against tests/baselines/java_layered_issue_scenarios.csv,
+        # which was measured on a maintainer machine and is not comparable to runner timings.
         description: "Java compare mode (results|baseline|both)"
         required: false
-        default: "both"
+        default: "results"
       java_generate_enabled:
         description: "Generate Java layered issue CSV before compare (true|false)"
         required: false
@@ -163,6 +166,13 @@ jobs:
         run: |
           java -version
           mvn -v
+      - name: Install ripgrep
+        # scripts/check_algorithm_*_parity.sh and summarize_java_parity_status.sh use `rg`,
+        # which the ubuntu-latest image does not ship.
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ripgrep
+          rg --version | head -1
       - name: Apply env overrides
         if: ${{ inputs.env_overrides != '' }}
         run: |
