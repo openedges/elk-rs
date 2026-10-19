@@ -56,6 +56,11 @@ First stable release. Full port of ELK Java 0.11.0 with layout-identical output.
 
 Cargo and npm package versions remain `0.11.0`; NAPI CI builds these tags without publishing.
 
+#### Unreleased (after v0.11.0+rs.5)
+
+- Fixed CI: `ci.yml` now checks out submodules so tests can read `external/elk-models` and `external/elk` resources; every run had failed since 2026-03. The first run after the fix passed (1,022 tests, 0 warnings).
+- Fixed the `parity.yml` workflow, which exceeded GitHub's 25-input `workflow_dispatch` limit (57 inputs) and was rejected on every push. 20 inputs remain, 37 parameters moved to `PARITY_*` env defaults, and an `env_overrides` input keeps them overridable.
+
 #### v0.11.0+rs.5 (2026-10-19)
 
 - Fixed the NAPI workflow's `aarch64-unknown-linux-gnu` job to link with `aarch64-linux-gnu-gcc` instead of the host `cc`, which failed with `rust-lld: --fix-cortex-a53-843419 is only supported on AArch64` under rustc 1.98+. A manual workflow run built all six targets.
