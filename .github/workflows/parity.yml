@@ -153,7 +153,11 @@ jobs:
         # bound"), so a 3.9.x release is installed from the Apache archive instead.
         run: |
           archive="apache-maven-${MAVEN_VERSION}-bin.tar.gz"
+          # dlcdn serves current releases quickly; archive.apache.org keeps every release
+          # but took 2-5 minutes per download from the runner.
           curl -fsSL -o "$RUNNER_TEMP/$archive" \
+            "https://dlcdn.apache.org/maven/maven-3/${MAVEN_VERSION}/binaries/$archive" \
+          || curl -fsSL -o "$RUNNER_TEMP/$archive" \
             "https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/$archive"
           echo "$MAVEN_SHA512  $RUNNER_TEMP/$archive" | sha512sum -c -
           tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP"
