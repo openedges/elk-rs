@@ -27,7 +27,9 @@ awk '
         gsub(/[[:space:]]+$/, "", text)
         return text
     }
-    /pub static [A-Z0-9_]+:[[:space:]]*LazyLock<Property/ {
+    # rustfmt may wrap long types (`LazyLock<\n    Property<...>,\n>`), so only the
+    # `LazyLock<` opener is required on the declaration line.
+    /pub static [A-Z0-9_]+:[[:space:]]*LazyLock</ {
         symbol = $0
         sub(/^.*pub static[[:space:]]+/, "", symbol)
         sub(/:.*/, "", symbol)
@@ -38,7 +40,7 @@ awk '
         property_id_by_symbol[current_property] = id
         current_property = ""
     }
-    /pub const [A-Z0-9_]+:[[:space:]]*.*LazyLock<Property/ {
+    /pub const [A-Z0-9_]+:[[:space:]]*.*LazyLock</ {
         alias = $0
         sub(/^.*pub const[[:space:]]+/, "", alias)
         sub(/:.*/, "", alias)
