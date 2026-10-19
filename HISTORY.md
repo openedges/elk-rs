@@ -9,7 +9,7 @@
 - rs.4 태그 run 39200396353 점검: linux-arm64 잡은 수정 전 워크플로우라 같은 링크 오류로 실패했고, `x86_64-apple-darwin` 잡은 퇴역한 `macos-13` 러너 라벨 때문에 `queued`로 멈춰 있었다(rs.3 run도 같은 이유로 24시간 뒤 자동 취소). 이 run은 취소했다. `custom/0.11.0`은 ext.5 때 `macos-15-intel`로 바꿨지만 `main`에는 반영되지 않았던 차이다.
 - Intel Mac 지원 결정: Apple은 macOS 26이 마지막 Intel 릴리스이지만 보안 업데이트를 3년 더 제공하고, GitHub Intel 러너는 2027년 가을 종료, Node 26은 `darwin-x64`를 계속 배포한다. 로더에 WASM 폴백이 있어 제거도 가능했으나, 비용이 거의 없는 arm64 러너 크로스 빌드로 Intel 바이너리를 유지하기로 했다(제거·`macos-15-intel` 유지 대안 중 선택).
 - 검증(`workflow_dispatch`, `main`): run [39205319306](https://github.com/openedges/elk-rs/actions/runs/39205319306)(`41fb6dd`) 6/6 성공, run [39205646669](https://github.com/openedges/elk-rs/actions/runs/39205646669)(`8897a1a`) 6/6 성공. 후자의 `elk-rs.darwin-x64.node`는 `file` 기준 `Mach-O 64-bit dynamically linked shared library x86_64`(13.4MB), `darwin-arm64`는 arm64로 확인했다. publish 잡은 태그가 아니어서 skip되었다.
-- 태그: `releases/0.11.0`을 `main`으로 fast-forward한 뒤 annotated tag `v0.11.0+rs.5`를 기록한다. 태그 push로 실행되는 NAPI run 결과는 완료 후 별도 항목으로 기록한다.
+- 태그: `releases/0.11.0`을 `main`으로 fast-forward한 뒤 annotated tag `v0.11.0+rs.5`(`5681fd0`)를 기록하고 세 원격에 push했다. 태그 push로 실행된 NAPI run [39206210772](https://github.com/openedges/elk-rs/actions/runs/39206210772)에서 6개 플랫폼 빌드가 모두 성공했고 publish는 `+rs.` 태그라 skip되었다.
 
 ## NAPI linux-arm64 cross build 링크 오류 수정 (2026-10-19)
 
