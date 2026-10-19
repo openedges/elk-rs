@@ -1,9 +1,9 @@
 # Algorithm Name Parity
 
-- status: drift
+- status: ok
 - java algorithms: 21
-- rust algorithms: 19
-- missing in rust: 2
+- rust algorithms: 21
+- missing in rust: 0
 - extra in rust: 0
 - name mismatches: 0
 
@@ -11,8 +11,7 @@
 - none
 
 ## Missing In Rust
-- org.eclipse.elk.conn.gmf.layouter.Draw2D
-- org.eclipse.elk.mrtree
+- none
 
 ## Extra In Rust
 - none

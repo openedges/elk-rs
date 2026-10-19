@@ -3,6 +3,15 @@
 - 본 문서는 기존 `AGENTS.md`의 `진행된 작업` 섹션을 분리 보관한 기록이다.
 - 신규 단계 완료 시 이 문서에 누적 기록하고, `AGENTS.md`의 핵심 스냅샷/우선순위를 동기화한다.
 
+## 정적 parity 보고서 informational drift 5건 조사 (2026-10-19)
+
+- 대상: run 39229265896과 커밋된 보고서에서 non-strict로 통과하던 drift 5건 — `algorithm_name`/`algorithm_description`/`algorithm_metadata`의 "missing in rust: `org.eclipse.elk.conn.gmf.layouter.Draw2D`, `org.eclipse.elk.mrtree`", `algorithm_feature`의 java-only 2쌍(`Draw2D→MULTI_EDGES`, `mrtree→DISCONNECTED`), `algorithm_option_support`의 `org.eclipse.elk.random` java=4 vs rust=3. 다섯 보고서 모두 2026-02-26(`c212525c`)부터 같은 내용으로 커밋돼 있었다.
+- 원인(5건 공통, Rust 소스 결함 아님): awk 파서가 한 줄 정규식을 쓰는데 rustfmt가 선언을 감쌌다. (1) `mrtree_meta_data_provider.rs`와 `draw2d_meta_data_provider.rs`만 `.with_provider_pool(Arc::new(pool))`이 붙어 `let mut data =` 다음 줄에 `LayoutAlgorithmData::new(...)`가 오고, 네 스크립트의 `let ... = LayoutAlgorithmData::new(` 매칭에서 두 알고리즘이 통째로 빠졌다. Rust에는 이름·설명·feature가 모두 있다("ELK Mr. Tree"/`GraphFeature::Disconnected`, "Draw2D Layout"/`GraphFeature::MultiEdges`). (2) `core/data/mod.rs`의 `random_data` 다음 줄 `.add_known_option_default(CoreOptions::SPACING_NODE_NODE.id(), ...)`는 수신자와 메서드가 다른 줄이라 `check_algorithm_option_support_parity.sh`(4→3)와 `check_algorithm_option_default_parity.sh`(informational missing 1건, status는 ok)에서 빠졌다. 같은 날 고친 `check_core_option_dependency_parity.sh`와 같은 종류의 결함이다.
+- 수정: 공용 pre-pass `scripts/lib/join_wrapped_rust_lines.awk`를 추가해 `let x =`로 끝나는 줄과 식별자만 있는 줄 뒤의 `.method(` 줄을 한 줄로 합친 뒤 기존 awk에 넘긴다(name/description/metadata/feature/option_support/option_default 6개 스크립트). 다른 줄은 그대로 통과시켜 파서 로직 자체는 바꾸지 않았다. 아울러 Rust `*.rs` 스캔에서 `**/tests/**`를 제외했다 — `topdownpacking/tests/all/topdown_layout_test.rs`가 `org.eclipse.elk.layered` id로 이름 없는 테스트 스텁을 등록해, 줄 합치기 후 name parity에 빈 이름 mismatch로 드러났기 때문이다(Java 쪽은 src-gen `*Options.java`만 읽으므로 테스트 코드는 비교 대상이 아니다).
+- 결과(`releases/0.11.0`, 로컬 `external/elk` 생성 소스 기준): 정적 parity 보고서 12개 모두 ok, informational 항목 0 — name/description/metadata 21/21, feature 31/31쌍, option_support 21개 알고리즘 count 일치(random 4/4), option_default 439쌍 missing/extra 0.
+- `custom/0.11.0`에서만 남는 차이: `algorithm_option_support`가 `org.eclipse.elk.layered` java=152, rust=153(+1), `algorithm_option_default`가 extra pair 1(`org.eclipse.elk.layered.layering.ignoreEdgeInLayer`)을 보고한다. 2026-03-06 확장 옵션(`767e7e4d`)이 Java ELK 0.11.0에 없는 option support를 등록하기 때문인 의도된 확장판 차이로, 두 보고서는 non-strict이고 `main`에서는 152/152다. 조사 중 확인한 사항: Rust layered 옵션의 Property id는 `org.eclipse.elk.alg.layered.*`이고 `layered_legacy_ids`가 Java id `org.eclipse.elk.layered.*`를 alias로 함께 등록하므로 parity에는 영향이 없다.
+- 검증: 스크립트와 보고서만 변경(Rust 소스 변경 없음). `cargo build --workspace`·`cargo clippy --workspace --all-targets` warning 0.
+
 ## 확장판 v0.11.0-ext.6: 버전 bump와 태그 (2026-10-19)
 
 - `custom/0.11.0`의 rs.4 병합 커밋(`699d8f0`) 위에서 Cargo workspace(`Cargo.toml` + `Cargo.lock` 19개 crate), npm manifest 9개(본체·플랫폼 6개·NAPI·elk-live), lockfile 2개, 본체의 `@elk-rs/*` optional dependency 6개를 `0.11.0-ext.6`으로 동기화하고 annotated tag `v0.11.0-ext.6`을 만들었다. 미배포 플랫폼 패키지의 registry integrity는 ext.5와 같이 생성하지 않았다.

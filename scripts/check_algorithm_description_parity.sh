@@ -1,6 +1,10 @@
 #!/usr/bin/env sh
 set -eu
 
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+# Re-joins rustfmt-wrapped `let x =` / `receiver` lines before the line-oriented awk parsers.
+JOIN_WRAPPED_RUST_LINES="$script_dir/lib/join_wrapped_rust_lines.awk"
+
 JAVA_SOURCES_ROOT="${JAVA_SOURCES_ROOT:-external/elk/plugins}"
 RUST_SOURCES_ROOT="${RUST_SOURCES_ROOT:-plugins}"
 REPORT_FILE="${1:-tests/algorithm_description_parity.md}"
@@ -105,10 +109,10 @@ mismatch_file="$tmp_dir/description_mismatches.tsv"
     done | sort -u > "$rust_map_file"
 
 # Rust: id -> description (normalized)
-(rg --files "$RUST_SOURCES_ROOT" -g '*.rs' || true) \
+(rg --files "$RUST_SOURCES_ROOT" -g '*.rs' -g '!**/tests/**' || true) \
     | while IFS= read -r file; do
         [ -f "$file" ] || continue
-        awk -v map_file="$rust_map_file" '
+        awk -f "$JOIN_WRAPPED_RUST_LINES" "$file" | awk -v map_file="$rust_map_file" '
             BEGIN {
                 while ((getline line < map_file) > 0) {
                     split(line, parts, "\t")
@@ -261,7 +265,7 @@ mismatch_file="$tmp_dir/description_mismatches.tsv"
                     chain_var = ""
                 }
             }
-        ' "$file"
+        '
     done | sort -u > "$rust_raw_file"
 
 awk -F '\t' '

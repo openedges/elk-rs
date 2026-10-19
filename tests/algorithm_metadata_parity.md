@@ -1,15 +1,14 @@
 # Algorithm Metadata Parity
 
-- status: drift
+- status: ok
 - java algorithms: 21
-- rust algorithms: 19
-- missing algorithms in rust: 2
+- rust algorithms: 21
+- missing algorithms in rust: 0
 - extra algorithms in rust: 0
 - metadata field mismatches: 0
 
 ## Missing Algorithms
-- org.eclipse.elk.conn.gmf.layouter.Draw2D
-- org.eclipse.elk.mrtree
+- none
 
 ## Extra Algorithms
 - none

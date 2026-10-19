@@ -1,6 +1,10 @@
 #!/usr/bin/env sh
 set -eu
 
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+# Re-joins rustfmt-wrapped `let x =` / `receiver` lines before the line-oriented awk parsers.
+JOIN_WRAPPED_RUST_LINES="$script_dir/lib/join_wrapped_rust_lines.awk"
+
 JAVA_SOURCES_ROOT="${JAVA_SOURCES_ROOT:-external/elk/plugins}"
 RUST_SOURCES_ROOT="${RUST_SOURCES_ROOT:-plugins}"
 RUST_CORE_DATA_FILE="${RUST_CORE_DATA_FILE:-$RUST_SOURCES_ROOT/org.eclipse.elk.core/src/org/eclipse/elk/core/data/mod.rs}"
@@ -161,7 +165,8 @@ printf '%s\n' "$IGNORE_IDS" | tr ',' '\n' | awk 'NF > 0 { gsub(/^[[:space:]]+|[[
 
 # Rust (core): collect add_known_option_default for core-built algorithms that don't have provider support.
 if [ -f "$RUST_CORE_DATA_FILE" ]; then
-    awk -v map_file="$rust_algo_map_file" -v provider_file="$rust_provider_support_algos_file" '
+    awk -f "$JOIN_WRAPPED_RUST_LINES" "$RUST_CORE_DATA_FILE" \
+        | awk -v map_file="$rust_algo_map_file" -v provider_file="$rust_provider_support_algos_file" '
         BEGIN {
             while ((getline line < map_file) > 0) {
                 split(line, parts, "\t")
@@ -227,7 +232,7 @@ if [ -f "$RUST_CORE_DATA_FILE" ]; then
                 }
             }
         }
-    ' "$RUST_CORE_DATA_FILE" | sort > "$rust_core_support_algos_file"
+    ' | sort > "$rust_core_support_algos_file"
 else
     : > "$rust_core_support_algos_file"
 fi

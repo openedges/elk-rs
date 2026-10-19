@@ -2,9 +2,9 @@
 
 - status: ok
 - algorithms compared: 21
-- option pairs compared: 438
-- missing option pairs in rust (informational): 1
-- extra option pairs in rust (informational): 0
+- option pairs compared: 439
+- missing option pairs in rust (informational): 0
+- extra option pairs in rust (informational): 1
 - explicit default mismatches (java explicit_* vs rust mode): 0
 - java unknown modes: 0
 - java getDefault pairs observed: 357
@@ -21,10 +21,10 @@
 - org.eclipse.elk.graphviz.fdp | 15 | 0 | 5 | 0 | 10 | 0 | 0 | 15 | 5 | 10 | 0
 - org.eclipse.elk.graphviz.neato | 18 | 0 | 7 | 0 | 11 | 0 | 0 | 18 | 5 | 13 | 0
 - org.eclipse.elk.graphviz.twopi | 12 | 0 | 3 | 0 | 9 | 0 | 0 | 12 | 4 | 8 | 0
-- org.eclipse.elk.layered | 152 | 0 | 10 | 16 | 126 | 0 | 0 | 152 | 0 | 152 | 0
+- org.eclipse.elk.layered | 152 | 0 | 10 | 16 | 126 | 0 | 0 | 153 | 0 | 153 | 1
 - org.eclipse.elk.mrtree | 29 | 0 | 8 | 0 | 21 | 0 | 0 | 29 | 19 | 10 | 0
 - org.eclipse.elk.radial | 20 | 0 | 0 | 1 | 19 | 0 | 0 | 20 | 18 | 2 | 0
-- org.eclipse.elk.random | 4 | 0 | 4 | 0 | 0 | 0 | 0 | 3 | 0 | 3 | -1
+- org.eclipse.elk.random | 4 | 0 | 4 | 0 | 0 | 0 | 0 | 4 | 0 | 4 | 0
 - org.eclipse.elk.rectpacking | 26 | 0 | 4 | 0 | 22 | 0 | 0 | 26 | 15 | 11 | 0
 - org.eclipse.elk.sporeCompaction | 11 | 0 | 3 | 1 | 7 | 0 | 0 | 11 | 0 | 11 | 0
 - org.eclipse.elk.sporeOverlap | 7 | 0 | 3 | 1 | 3 | 0 | 0 | 7 | 0 | 7 | 0
@@ -33,10 +33,10 @@
 - org.eclipse.elk.vertiflex | 11 | 0 | 3 | 1 | 7 | 0 | 0 | 11 | 8 | 3 | 0
 
 ## Missing Option Pairs In Rust (algo | option)
-- org.eclipse.elk.random | org.eclipse.elk.spacing.nodeNode
+- none
 
 ## Extra Option Pairs In Rust (algo | option)
-- none
+- org.eclipse.elk.layered | org.eclipse.elk.layered.layering.ignoreEdgeInLayer
 
 ## Explicit Default Mismatches (algo | option | java_mode | rust_mode)
 - none
