@@ -9,6 +9,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Tests read .elkt resources from external/elk-models and external/elk.
+          submodules: true
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
