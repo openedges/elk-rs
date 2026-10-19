@@ -11,6 +11,7 @@ Versions correspond to the target ELK Java version (see `VERSIONING.md`).
 
 - Merged internal patch `v0.11.0+rs.4` (MinWidthLayerer out-degree tie order, [#1](https://github.com/openedges/elk-rs/pull/1)) into `custom/0.11.0`. Extension features and all existing fixture outputs are unchanged.
 - Verified on the merged tree: 1,045 Rust tests, extension fixtures 18/18, model parity `1,987/1,989`, phase-step trace `1,995/1,997` (unchanged from `ext.5`).
+- Fixed the NAPI workflow's `aarch64-unknown-linux-gnu` cross build by linking with `aarch64-linux-gnu-gcc`; a manual run of the workflow on this branch built all six targets.
 
 ### Changed
 
@@ -18,7 +19,7 @@ Versions correspond to the target ELK Java version (see `VERSIONING.md`).
 
 ### Known Issues
 
-- Not published to npm or crates.io; publishing is deferred. The NAPI workflow's `aarch64-unknown-linux-gnu` cross build fails at link time (`rust-lld: --fix-cortex-a53-843419 is only supported on AArch64`), so its publish job is skipped, and `elk-rs` is not yet on the npm registry.
+- Not published to npm or crates.io; publishing is deferred and `elk-rs` is not yet on the npm registry. The linux-arm64 link failure that skipped publishing for `ext.5` (`rust-lld: --fix-cortex-a53-843419 is only supported on AArch64`) is fixed in this release.
 
 ## [0.11.0-ext.5] - 2026-10-14
 

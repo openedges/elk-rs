@@ -7,7 +7,8 @@
 
 - `custom/0.11.0`의 rs.4 병합 커밋(`699d8f0`) 위에서 Cargo workspace(`Cargo.toml` + `Cargo.lock` 19개 crate), npm manifest 9개(본체·플랫폼 6개·NAPI·elk-live), lockfile 2개, 본체의 `@elk-rs/*` optional dependency 6개를 `0.11.0-ext.6`으로 동기화하고 annotated tag `v0.11.0-ext.6`을 만들었다. 미배포 플랫폼 패키지의 registry integrity는 ext.5와 같이 생성하지 않았다.
 - npm/Cargo 배포는 이번 단계에서 구현·진행하지 않는다. `-ext.` 태그 push는 `napi.yml`의 publish(`--tag ext`)를 트리거하므로 태그는 로컬에만 두고 브랜치 커밋만 원격에 올린다.
-- 배포 경로 현황: npm 레지스트리에 `elk-rs` 패키지가 없다(어떤 버전도 미배포). `v0.11.0-ext.5`·`v0.11.0+rs.3` 태그의 NAPI workflow는 `aarch64-unknown-linux-gnu` 빌드가 링크 단계에서 `rust-lld: error: --fix-cortex-a53-843419 is only supported on AArch64`로 실패해 publish 잡이 skip되었다(나머지 5개 플랫폼 성공). ext.6 배포 전 이 cross build 수정이 선행되어야 한다.
+- 배포 경로 현황: npm 레지스트리에 `elk-rs` 패키지가 없다(어떤 버전도 미배포). `v0.11.0-ext.5`·`v0.11.0+rs.3` 태그의 NAPI workflow는 `aarch64-unknown-linux-gnu` 빌드가 링크 단계에서 `rust-lld: error: --fix-cortex-a53-843419 is only supported on AArch64`로 실패해 publish 잡이 skip되었다(나머지 5개 플랫폼 성공). 이 cross build 문제는 같은 날 수정했다(아래 항목).
+- NAPI linux-arm64 링크 오류 수정(`23f0aee`)과 그 기록(`9cd0a46`)을 `releases/0.11.0`에서 병합한 뒤 `v0.11.0-ext.6` 태그를 최종 커밋으로 재지정했다(태그는 미push 상태였다). `custom/0.11.0` 수동 실행 run [39203920189](https://github.com/openedges/elk-rs/actions/runs/39203920189)에서 6/6 플랫폼 빌드 성공(linux-arm64 바이너리 4.4MB 생성), publish는 태그가 아니어서 skip. 남은 배포 선행 조건은 npm 패키지명(`elk-rs`, `@elk-rs/*`) 확보와 `NPM_TOKEN`이다.
 - 검증: 버전 문자열 외 코드 변경 없음. `cargo build --workspace --locked` warning 0건. 코드·parity 검증은 바로 위 rs.4 병합 단계의 결과(test 1,045, model parity 1,987/1,989, phase-step trace 1,995/1,997)를 그대로 적용한다.
 
 ## custom/0.11.0에 내부 패치 v0.11.0+rs.4 병합 (2026-10-19)

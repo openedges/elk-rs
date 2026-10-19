@@ -67,7 +67,7 @@
   - NAPI 플랫폼별 패키지 6개 추가 완료: `@elk-rs/darwin-arm64`, `@elk-rs/darwin-x64`, `@elk-rs/linux-x64-gnu`, `@elk-rs/linux-x64-musl`, `@elk-rs/linux-arm64-gnu`, `@elk-rs/win32-x64-msvc`
   - 로딩 우선순위: 플랫폼 NAPI 패키지 → 로컬 `.node` → WASM 폴백
   - CI/CD: `.github/workflows/napi.yml` (태그 push 시 6 플랫폼 크로스 빌드, 본체 WASM 빌드, 확장판 `ext` 채널 배포, `+rs.N` 내부 태그는 npm publish 제외)
-  - 플랫폼 패키지 6개 및 optional dependency도 `0.11.0-ext.6`으로 통일. 원격 CI/publish 미실행; ext.5/rs.3 태그의 NAPI linux-arm64 cross build는 링크 오류(`--fix-cortex-a53-843419`)로 실패해 publish가 skip된 상태
+  - 플랫폼 패키지 6개 및 optional dependency도 `0.11.0-ext.6`으로 통일. ext.5/rs.3 태그에서 실패했던 NAPI linux-arm64 cross build는 cross gcc 링커 지정으로 수정(`23f0aee`), `custom/0.11.0` 수동 실행에서 6/6 플랫폼 빌드 성공. publish는 보류(npm 패키지명·`NPM_TOKEN` 필요)
 - **성능 기준선 (6-way fair benchmark, synthetic 10/3, 2026-03-23 측정, ~3.88x)**:
   - 측정 머신: MacBook Pro (Mac15,6), Apple M3 Pro (11코어: 5P+6E), 36GB RAM, macOS 26.3
   - 툴체인: Rust 1.93.1, OpenJDK 21.0.10, Node.js 22.16.0
