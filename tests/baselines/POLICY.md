@@ -20,6 +20,8 @@ This document defines how baseline CSVs and Java parity thresholds are produced 
 4. Update baseline only after intentional performance work or infrastructure changes that materially shift timing.
 5. Keep layered scenario coverage aligned with `LAYERED_ISSUE_SCENARIOS` defaults unless explicitly changed.
 6. Keep recursive scenario coverage aligned with `PARITY_RECURSIVE_SCENARIO_PROFILE=default` for baseline gates; use `full` (including `box_large`) for periodic deep refresh.
+7. Measure with release builds: `scripts/run_parity_*.sh` run `cargo run --release` (since 2026-10-19). Baselines recorded before that date were debug builds, are 3-6x slower, and must not be compared with current results.
+8. Baselines are machine-specific (see the measurement machine in `AGENTS.md`). CI (`parity.yml`) defaults to `parity_compare_mode=window` and `java_compare_mode=results` and never gates runner timings against these files.
 
 ## Recursive Scenario Profiles
 

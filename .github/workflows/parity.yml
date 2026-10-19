@@ -48,9 +48,12 @@ on:
         required: false
         default: "true"
       java_compare_mode:
+        # `results` compares the Java CSV generated on this runner with the Rust CSV from the
+        # same run. `baseline`/`both` also gate against tests/baselines/java_layered_issue_scenarios.csv,
+        # which was measured on a maintainer machine and is not comparable to runner timings.
         description: "Java compare mode (results|baseline|both)"
         required: false
-        default: "both"
+        default: "results"
       java_generate_enabled:
         description: "Generate Java layered issue CSV before compare (true|false)"
         required: false
@@ -138,6 +141,42 @@ jobs:
           # Parity scripts read external/elk-models and build Java ELK from external/elk.
           submodules: true
       - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-java@v4
+        if: ${{ inputs.java_compare_enabled == 'true' }}
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Install Maven 3.9 for the Tycho build
+        if: ${{ inputs.java_compare_enabled == 'true' }}
+        # external/elk builds with Tycho 4.0.12, which does not start under the Maven 3.10.0
+        # shipped on ubuntu-latest ("No implementation for MavenTargetLocationFactory was
+        # bound"), so a 3.9.x release is installed from the Apache archive instead.
+        run: |
+          archive="apache-maven-${MAVEN_VERSION}-bin.tar.gz"
+          # dlcdn serves current releases quickly; archive.apache.org keeps every release
+          # but took 2-5 minutes per download from the runner.
+          curl -fsSL -o "$RUNNER_TEMP/$archive" \
+            "https://dlcdn.apache.org/maven/maven-3/${MAVEN_VERSION}/binaries/$archive" \
+          || curl -fsSL -o "$RUNNER_TEMP/$archive" \
+            "https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/$archive"
+          echo "$MAVEN_SHA512  $RUNNER_TEMP/$archive" | sha512sum -c -
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/apache-maven-${MAVEN_VERSION}/bin" >> "$GITHUB_PATH"
+        env:
+          MAVEN_VERSION: "3.9.16"
+          MAVEN_SHA512: "831a8591fe20c8243b1dbe7d71e3244f31d1665b0804b2e825e38cbbe5ce0cafb8338851f90780735568773e0a6cd07bbec107cda0b896b008b861075358b6f6"
+      - name: Show Java toolchain
+        if: ${{ inputs.java_compare_enabled == 'true' }}
+        run: |
+          java -version
+          mvn -v
+      - name: Install ripgrep
+        # scripts/check_algorithm_*_parity.sh and summarize_java_parity_status.sh use `rg`,
+        # which the ubuntu-latest image does not ship.
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ripgrep
+          rg --version | head -1
       - name: Apply env overrides
         if: ${{ inputs.env_overrides != '' }}
         run: |
@@ -225,6 +264,9 @@ jobs:
           JAVA_PARITY_EXTERNAL_ELK_ROOT: ${{ github.workspace }}/external/elk
           JAVA_PARITY_EXTERNAL_ISOLATE: "true"
           JAVA_PARITY_EXTERNAL_WORKTREE_ROOT: ${{ runner.temp }}
+          # Keep the built ELK worktree: the Tycho build generates the src-gen/*Options.java
+          # sources (gitignored in external/elk) that the parity checks below read.
+          JAVA_PARITY_ISOLATION_DIR: ${{ runner.temp }}/elk-java-parity-build
           # Isolate Tycho/Maven metadata to avoid lock conflicts on shared runners.
           JAVA_PARITY_MVN_LOCAL_REPO: ${{ runner.temp }}/m2-java-parity-${{ github.run_id }}-${{ github.run_attempt }}
           JAVA_RESULTS_PARITY_GATE: ${{ inputs.java_parity_gate }}
@@ -266,6 +308,21 @@ jobs:
         run: sh scripts/suggest_java_parity_thresholds.sh "${{ env.PARITY_LAYERED_ISSUE_OUTPUT }}" "${{ env.PARITY_JAVA_RESULTS_FILE }}" "${{ inputs.regression_window }}" 2 tests/java_parity_thresholds.suggested.csv
       - name: Summarize parity results
         run: sh scripts/summarize_parity_results.sh
+      - name: Locate generated ELK sources
+        # external/elk ignores src-gen/**/*Options.java and *MetaDataProvider.java; the
+        # Java compare step's Tycho build generates them in the persistent worktree.
+        run: |
+          core_options=plugins/org.eclipse.elk.core/src-gen/org/eclipse/elk/core/options/CoreOptions.java
+          for root in "$RUNNER_TEMP/elk-java-parity-build" "$GITHUB_WORKSPACE/external/elk"; do
+            if [ -f "$root/$core_options" ]; then
+              echo "JAVA_SOURCES_ROOT=$root/plugins" >> "$GITHUB_ENV"
+              echo "JAVA_CORE_OPTIONS=$root/$core_options" >> "$GITHUB_ENV"
+              echo "using ELK sources from $root"
+              exit 0
+            fi
+          done
+          echo "::error::generated ELK sources (src-gen/**/*Options.java) not found; run with java_compare_enabled=true so the Tycho build generates them" >&2
+          exit 1
       - name: Check CoreOptions parity
         run: sh scripts/check_core_options_parity.sh
       - name: Check Core option dependency parity
@@ -291,6 +348,8 @@ jobs:
       - name: Check layered phase wiring parity
         run: sh scripts/check_layered_phase_wiring_parity.sh
       - name: Upload parity artifacts
+        # Keep the CSV/report outputs of failed runs for diagnosis.
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: parity-results

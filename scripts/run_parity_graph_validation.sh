@@ -8,7 +8,7 @@ WARMUP=${4:-1}
 MODE=${5:-both}
 OUTPUT=${6:-tests/results_graph_validation.csv}
 
-cargo run -p org-eclipse-elk-core --bin perf_graph_validation -- \
+cargo run --release -p org-eclipse-elk-core --bin perf_graph_validation -- \
   --nodes "$NODES" \
   --edges "$EDGES" \
   --iterations "$ITERATIONS" \
