@@ -3,6 +3,29 @@
 - 본 문서는 기존 `AGENTS.md`의 `진행된 작업` 섹션을 분리 보관한 기록이다.
 - 신규 단계 완료 시 이 문서에 누적 기록하고, `AGENTS.md`의 핵심 스냅샷/우선순위를 동기화한다.
 
+## custom/0.11.0에 내부 패치 v0.11.0+rs.4 병합 (2026-10-19)
+
+- `custom/0.11.0`의 `v0.11.0-ext.5`(`4164ace`)에 `releases/0.11.0`의 `v0.11.0+rs.4`(`a568063`, MinWidthLayerer 동률 순서 수정 PR #1)를 merge commit으로 병합했다. 코드 2개 파일(`min_width_layerer.rs`, `basic_layer_assignment_test.rs`)은 자동 병합되었고 `CHANGELOG.md`/`HISTORY.md`/`VERSIONING.md`/`.rules`만 수동으로 정리했다. 패키지 버전은 `ext.6` bump 전까지 `0.11.0-ext.5`를 유지하며 기존 확장 태그는 변경하지 않는다.
+- 품질 게이트(병합 트리): workspace build/clippy warning 0건, workspace test **1,045 passed / 0 failed / 2 ignored**(ext.5의 1,044 + 새 회귀 테스트 1). 확장 fixture 18개(`ignore_edge_in_layer`/`in_layer_edge_routing` 각 9개) 수정 없이 통과.
+- Full model parity **1,987/1,989 match (99.90%)**, drift 2(기존 Java NaN 예외 `213_componentsCompaction.elkt`, 기존 확장판 차이 `emptyLayerFirst.elkt`), skipped 9, errors 0. Full phase-step trace **1,995/1,997 match (99.90%)**, drift 2(기존 확장판 차이 `emptyLayerFirst.elkt`/`emptyLayerLast.elkt`), `rust_only=1`(기존 Java NPE). ext.5 기준선과 수치·대상 모델이 모두 동일하다.
+- 변경 코드는 `LayeringStrategy::MinWidth`에서만 실행되고 corpus와 확장 fixture에 `MIN_WIDTH` 사용이 없어 확장판 출력은 바뀌지 않는다. `ext.6` 버전 bump·태그·npm 배포는 별도 릴리스 결정 사항으로 남긴다.
+
+## 내부 패치 v0.11.0+rs.4 (2026-10-19)
+
+- 외부 기여 PR [#1](https://github.com/openedges/elk-rs/pull/1)(`simon-gd`, 커밋 `5dcba8f`)의 `MinWidthLayerer` 동률 순서 수정을 `main`에 merge commit `afc813b`로 병합하고, `releases/0.11.0`을 같은 이력으로 fast-forward한 뒤 annotated tag `v0.11.0+rs.4`로 기록한다. `VERSIONING.md` 정책에 따라 Cargo/npm 패키지 버전과 upstream 고정 버전은 `0.11.0`을 유지한다.
+- 리뷰: Java `Collections.reverseOrder` 안정 정렬과 수정안(`out_b.cmp(&out_a)`, `.reverse()` 제거)의 동등성을 소스에서 확인했다. 수정 전 테스트 실패 메시지 재현, 수정 후 통과, elkjs 0.11.0(`external/elkjs/lib/elk.bundled.js`) 동일 그래프 출력 일치(`s` x=12, `t4` x=92, `t0..t3` x=142)를 확인하고 GitHub PR 리뷰로 승인했다.
+- `CHANGELOG.md`: 기여자가 추가한 `## [Unreleased]` 항목을 `VERSIONING.md` 규약에 따라 `## [0.11.0]`의 `### elk-rs Internal Changes (v0.11.0+rs.3 ~ v0.11.0+rs.4)` 아래 `#### v0.11.0+rs.4` 소절로 이동했다. `VERSIONING.md`의 최신 내부 패치 항목과 태그 다이어그램을 `rs.4`로 갱신했다.
+- 품질 게이트(`main` @ `afc813b`): workspace build/clippy warning 0건, workspace test **1,022 passed / 0 failed / 2 ignored**. Full model parity **1,988/1,989 match**, drift 1(기존 Java NaN 예외 `213_componentsCompaction.elkt`), skipped 9, errors 0. Full phase-step trace **1,997/1,997 match**, drift 0, `rust_only=1`(기존 Java NPE `588_hierarchicalLayoutNPE.elkt`). 두 결과 모두 `rs.3` 기준선과 동일하다.
+- 영향 범위: 변경 코드는 `LayeringStrategy::MinWidth`에서만 실행되며 `external/elk-models`에 `MIN_WIDTH`를 사용하는 모델이 없어(0건) corpus 기준 출력은 바뀌지 않는다. 새 회귀 테스트 `min_width_keeps_input_order_of_out_degree_ties`가 동률 순서를 고정한다.
+- NAPI workflow는 `v*` 태그 push 시 6개 플랫폼 빌드를 수행하고 `+rs.` 태그는 publish를 건너뛴다(`napi.yml` 조건 유지).
+
+## MinWidthLayerer 동률 순서 수정 (2026-10-15)
+
+- 원인: Java `MinWidthLayerer`는 `notInserted.sort(Collections.reverseOrder(new MinOutgoingEdgesComparator()))`로 out-degree 내림차순 **안정** 정렬을 하므로 동률 노드가 입력 순서를 유지한다. Rust는 오름차순 정렬 후 `.reverse()`를 호출해 동률 노드의 순서까지 뒤집었다.
+- 수정: `out_b.cmp(&out_a)` 내림차순 안정 정렬로 변경하고 `.reverse()` 제거.
+- 회귀 테스트: `p2_layers::basic_layer_assignment_test::min_width_keeps_input_order_of_out_degree_ties` (기대값은 elkjs 0.11.0 출력). 수정 전 실패, 수정 후 통과.
+- `external/elk-models`에는 `MIN_WIDTH` layering을 사용하는 모델이 없어 model parity/phase-step trace 결과에 영향이 없다. build/clippy warning 0건, workspace test `1022 passed / 0 failed / 2 ignored`.
+
 ## 확장판 v0.11.0-ext.5: 메모리 수정 통합 (2026-10-14)
 
 - `custom/0.11.0`의 `v0.11.0-ext.4`(`da77e93`)에 `releases/0.11.0`의 `v0.11.0+rs.3`(`10714ff`, 메모리 수정 `a1443fb`)를 병합했다. 기존 확장 태그는 유지하고 새 annotated tag `v0.11.0-ext.5`를 사용한다. 이번 작업은 로컬 커밋/태그까지이며 원격 push와 npm publish는 수행하지 않는다.

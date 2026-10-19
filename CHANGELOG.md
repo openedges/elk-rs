@@ -5,6 +5,13 @@ All notable changes to elk-rs are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions correspond to the target ELK Java version (see `VERSIONING.md`).
 
+## [Unreleased]
+
+### Fixed
+
+- Merged internal patch `v0.11.0+rs.4` (MinWidthLayerer out-degree tie order, [#1](https://github.com/openedges/elk-rs/pull/1)) into `custom/0.11.0`. Extension features and all existing fixture outputs are unchanged; package versions stay at `0.11.0-ext.5` until the next `ext.N` release.
+- Verified on the merged tree: 1,045 Rust tests, extension fixtures 18/18, model parity `1,987/1,989`, phase-step trace `1,995/1,997` (unchanged from `ext.5`).
+
 ## [0.11.0-ext.5] - 2026-10-14
 
 ### Fixed
@@ -35,9 +42,16 @@ Versions correspond to the target ELK Java version (see `VERSIONING.md`).
 
 First stable release. Full port of ELK Java 0.11.0 with layout-identical output.
 
-### elk-rs Internal Changes (v0.11.0+rs.3)
+### elk-rs Internal Changes (v0.11.0+rs.3 ~ v0.11.0+rs.4)
 
-Internal patch dated 2026-10-14. Cargo and npm package versions remain `0.11.0`.
+Cargo and npm package versions remain `0.11.0`; NAPI CI builds these tags without publishing.
+
+#### v0.11.0+rs.4 (2026-10-19)
+
+- Fixed `MinWidthLayerer` to keep the input order of nodes with equal out-degree, matching Java ELK's stable `Collections.reverseOrder` sort. Previously ties were reversed, so `MIN_WIDTH` layering could differ from Java ELK and elkjs ([#1](https://github.com/openedges/elk-rs/pull/1), contributed by @simon-gd).
+- Added the regression test `min_width_keeps_input_order_of_out_degree_ties` with expected layers taken from elkjs 0.11.0. No `external/elk-models` model uses `MIN_WIDTH`, so model parity and phase-step trace results are unchanged.
+
+#### v0.11.0+rs.3 (2026-10-14)
 
 - Fixed graph ownership cycles in ElkGraph, layered properties, crossing minimization, self-loops, splines, and network simplex; released temporary layout arenas and rectpacking rows on completion, cancellation, and panic.
 - Added 16 memory regression tests; verified zero retained allocation growth across all 1,998 model inputs and repeated calls with a reused layered engine.

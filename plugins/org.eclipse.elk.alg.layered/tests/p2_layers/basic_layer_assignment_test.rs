@@ -77,6 +77,65 @@ fn min_width_edges_point_towards_next_layers() {
     assert_edges_point_towards_next_layers(LayeringStrategy::MinWidth);
 }
 
+/// Java sorts by out-degree with a stable `Collections.reverseOrder(...)`, so
+/// nodes with equal out-degree keep their input order.
+///
+/// Graph: sinks t0..t4 (out-degree 0) and source s with an edge to each sink.
+/// The upper bound on width (4) fills the first layer with four sinks; the
+/// fifth sink gets its own layer. Expected layers come from elkjs 0.11.0
+/// (`elk.layered.layering.strategy: MIN_WIDTH`, 30x30 nodes, all other options
+/// default): s at x=12, t4 at x=92, t0..t3 at x=142.
+#[test]
+fn min_width_keeps_input_order_of_out_degree_ties() {
+    init_layered_options();
+    let root = ElkGraphUtil::create_graph();
+    let sinks: Vec<ElkNodeRef> = (0..5)
+        .map(|_| ElkGraphUtil::create_node(Some(root.clone())))
+        .collect();
+    let source = ElkGraphUtil::create_node(Some(root.clone()));
+    for node in sinks.iter().chain(std::iter::once(&source)) {
+        set_dimensions(node, 30.0, 30.0);
+    }
+    for sink in &sinks {
+        ElkGraphUtil::create_simple_edge(
+            ElkConnectableShapeRef::Node(source.clone()),
+            ElkConnectableShapeRef::Node(sink.clone()),
+        );
+    }
+    set_node_property(
+        &root,
+        LayeredOptions::LAYERING_STRATEGY,
+        LayeringStrategy::MinWidth,
+    );
+
+    let lgraph = import_lgraph(&root);
+    let mut graph_guard = lgraph.lock();
+    // Imported in creation order: t0..t4, s.
+    let input = graph_guard.layerless_nodes().clone();
+    MinWidthLayerer::new().process(&mut graph_guard, &mut BasicProgressMonitor::new());
+
+    let layers: Vec<Vec<usize>> = graph_guard
+        .layers()
+        .iter()
+        .map(|layer| {
+            let mut ids: Vec<usize> = layer
+                .lock()
+                .nodes()
+                .iter()
+                .map(|node| {
+                    input
+                        .iter()
+                        .position(|n| std::sync::Arc::ptr_eq(n, node))
+                        .expect("layered node comes from the input")
+                })
+                .collect();
+            ids.sort_unstable();
+            ids
+        })
+        .collect();
+    assert_eq!(layers, vec![vec![5], vec![4], vec![0, 1, 2, 3]]);
+}
+
 #[test]
 fn network_simplex_no_layerless_nodes() {
     assert_no_layerless_nodes(LayeringStrategy::NetworkSimplex);
