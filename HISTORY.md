@@ -8,7 +8,7 @@
 - 증상: `ci.yml`은 기록상 첫 실행(2026-03-25)부터 모든 브랜치에서 실패했고, `parity.yml`은 push마다 "workflow file issue"로 실패 run을 만들었다. 두 문제 모두 오늘 변경과 무관한 기존 결함이다.
 - `ci.yml`(`8d7c177`): `actions/checkout@v4`가 서브모듈을 받지 않아 `external/elk-models`를 읽는 테스트 14개 파일과 `external/elk`의 `.elkt` 리소스를 읽는 2개 파일이 `No such file or directory`로 실패했다. `submodules: true`를 추가했다(기본 fetch-depth 1로 shallow clone).
 - `parity.yml`(`c4e7dd4`): `workflow_dispatch` 입력이 57개로 GitHub 한도 25개(2025-12-04 이전 10개)를 초과해 파일 자체가 무효였다. 실행 형태를 정하는 입력 20개(비교 모드, 게이트, 시나리오, 반복 수, Java 토글)만 남기고 나머지 37개는 같은 기본값의 workflow `env`(`PARITY_*`)로 옮겼다. `env_overrides` 입력(한 줄에 `PARITY_KEY=VALUE`)을 `$GITHUB_ENV`에 기록하는 단계를 추가해 모든 파라미터를 dispatch 시점에 덮어쓸 수 있게 유지했다. parity 스크립트와 Java 빌드가 서브모듈을 쓰므로 체크아웃에도 `submodules: true`를 추가했다.
-- 검증: 로컬 YAML 파싱, 이동된 입력 참조 잔존 0건, env 37개 모두 참조됨을 스크립트로 확인했다. push 후 `ci.yml` run 결과와 `parity.yml` 무효 run 미발생 여부는 후속 항목에 기록한다.
+- 검증: 로컬 YAML 파싱, 이동된 입력 참조 잔존 0건, env 37개 모두 참조됨을 스크립트로 확인했다. push(`e4a7e9e`) 후 `main` CI run [39210241569](https://github.com/openedges/elk-rs/actions/runs/39210241569)와 `releases/0.11.0` run 39210242066이 모두 성공했다. 기록상 첫 녹색 CI로, 테스트 바이너리 72개에서 **1,022 passed / 0 failed / 2 ignored**, build/clippy warning 0건, 소요 약 2분. 같은 push에 대해 `parity.yml` 무효 run은 생성되지 않았고 워크플로우 목록에 `Perf`(parity.yml)가 정상(active)으로 표시된다. parity 워크플로우 자체(Java 빌드 포함 파이프라인)는 실행하지 않았다.
 - `perf.yml`(PR 대상 성능 회귀 검사)은 `submodules: recursive`를 이미 사용하며 2월부터 실패 중이다. 원인이 다르므로 이번에는 다루지 않았다.
 
 ## 내부 패치 v0.11.0+rs.5: NAPI CI 수정 (2026-10-19)
