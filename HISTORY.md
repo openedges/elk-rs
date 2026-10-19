@@ -9,6 +9,7 @@
 - npm/Cargo 배포는 이번 단계에서 구현·진행하지 않는다. `-ext.` 태그 push는 `napi.yml`의 publish(`--tag ext`)를 트리거하므로 태그는 로컬에만 두고 브랜치 커밋만 원격에 올린다.
 - 배포 경로 현황: npm 레지스트리에 `elk-rs` 패키지가 없다(어떤 버전도 미배포). `v0.11.0-ext.5`·`v0.11.0+rs.3` 태그의 NAPI workflow는 `aarch64-unknown-linux-gnu` 빌드가 링크 단계에서 `rust-lld: error: --fix-cortex-a53-843419 is only supported on AArch64`로 실패해 publish 잡이 skip되었다(나머지 5개 플랫폼 성공). 이 cross build 문제는 같은 날 수정했다(아래 항목).
 - NAPI linux-arm64 링크 오류 수정(`23f0aee`)과 그 기록(`9cd0a46`)을 `releases/0.11.0`에서 병합한 뒤 `v0.11.0-ext.6` 태그를 최종 커밋으로 재지정했다(태그는 미push 상태였다). `custom/0.11.0` 수동 실행 run [39203920189](https://github.com/openedges/elk-rs/actions/runs/39203920189)에서 6/6 플랫폼 빌드 성공(linux-arm64 바이너리 4.4MB 생성), publish는 태그가 아니어서 skip. 남은 배포 선행 조건은 npm 패키지명(`elk-rs`, `@elk-rs/*`) 확보와 `NPM_TOKEN`이다.
+- `v0.11.0+rs.5`(`5681fd0`, NAPI CI 수정)와 그 기록을 병합하면서 `napi.yml`의 `x86_64-apple-darwin` 잡을 `macos-15-intel`에서 arm64 `macos-latest` 러너의 `--target` 크로스 빌드로 통일했다(Intel Mac 지원은 유지, Intel 러너 의존 제거). rs.5 태그 run [39206210772](https://github.com/openedges/elk-rs/actions/runs/39206210772) 6/6 성공. `v0.11.0-ext.6` 태그를 최종 커밋으로 다시 재지정했다(미push).
 - 검증: 버전 문자열 외 코드 변경 없음. `cargo build --workspace --locked` warning 0건. 코드·parity 검증은 바로 위 rs.4 병합 단계의 결과(test 1,045, model parity 1,987/1,989, phase-step trace 1,995/1,997)를 그대로 적용한다.
 
 ## custom/0.11.0에 내부 패치 v0.11.0+rs.4 병합 (2026-10-19)
@@ -18,13 +19,21 @@
 - Full model parity **1,987/1,989 match (99.90%)**, drift 2(기존 Java NaN 예외 `213_componentsCompaction.elkt`, 기존 확장판 차이 `emptyLayerFirst.elkt`), skipped 9, errors 0. Full phase-step trace **1,995/1,997 match (99.90%)**, drift 2(기존 확장판 차이 `emptyLayerFirst.elkt`/`emptyLayerLast.elkt`), `rust_only=1`(기존 Java NPE). ext.5 기준선과 수치·대상 모델이 모두 동일하다.
 - 변경 코드는 `LayeringStrategy::MinWidth`에서만 실행되고 corpus와 확장 fixture에 `MIN_WIDTH` 사용이 없어 확장판 출력은 바뀌지 않는다. `ext.6` 버전 bump·태그·npm 배포는 별도 릴리스 결정 사항으로 남긴다.
 
+## 내부 패치 v0.11.0+rs.5: NAPI CI 수정 (2026-10-19)
+
+- 포함 커밋: `23f0aee`(linux-arm64 cross gcc 링커), `41fb6dd`(`x86_64-apple-darwin` 러너 `macos-13` → `macos-15-intel`), `8897a1a`(같은 잡을 arm64 `macos-latest` 러너의 `--target` 크로스 빌드로 전환). Rust 소스는 `v0.11.0+rs.4`와 동일하므로(`git diff v0.11.0+rs.4 -- . ':!.github' ':!*.md' ':!.rules'` 비어 있음) rs.4 단계의 품질 게이트 결과를 그대로 적용한다. Cargo/npm 패키지 버전은 `0.11.0`을 유지한다.
+- rs.4 태그 run 39200396353 점검: linux-arm64 잡은 수정 전 워크플로우라 같은 링크 오류로 실패했고, `x86_64-apple-darwin` 잡은 퇴역한 `macos-13` 러너 라벨 때문에 `queued`로 멈춰 있었다(rs.3 run도 같은 이유로 24시간 뒤 자동 취소). 이 run은 취소했다. `custom/0.11.0`은 ext.5 때 `macos-15-intel`로 바꿨지만 `main`에는 반영되지 않았던 차이다.
+- Intel Mac 지원 결정: Apple은 macOS 26이 마지막 Intel 릴리스이지만 보안 업데이트를 3년 더 제공하고, GitHub Intel 러너는 2027년 가을 종료, Node 26은 `darwin-x64`를 계속 배포한다. 로더에 WASM 폴백이 있어 제거도 가능했으나, 비용이 거의 없는 arm64 러너 크로스 빌드로 Intel 바이너리를 유지하기로 했다(제거·`macos-15-intel` 유지 대안 중 선택).
+- 검증(`workflow_dispatch`, `main`): run [39205319306](https://github.com/openedges/elk-rs/actions/runs/39205319306)(`41fb6dd`) 6/6 성공, run [39205646669](https://github.com/openedges/elk-rs/actions/runs/39205646669)(`8897a1a`) 6/6 성공. 후자의 `elk-rs.darwin-x64.node`는 `file` 기준 `Mach-O 64-bit dynamically linked shared library x86_64`(13.4MB), `darwin-arm64`는 arm64로 확인했다. publish 잡은 태그가 아니어서 skip되었다.
+- 태그: `releases/0.11.0`을 `main`으로 fast-forward한 뒤 annotated tag `v0.11.0+rs.5`(`5681fd0`)를 기록하고 세 원격에 push했다. 태그 push로 실행된 NAPI run [39206210772](https://github.com/openedges/elk-rs/actions/runs/39206210772)에서 6개 플랫폼 빌드가 모두 성공했고 publish는 `+rs.` 태그라 skip되었다.
+
 ## NAPI linux-arm64 cross build 링크 오류 수정 (2026-10-19)
 
 - 증상: `v0.11.0+rs.3`, `v0.11.0-ext.5`, `v0.11.0+rs.4` 태그의 `napi.yml` 실행에서 `aarch64-unknown-linux-gnu` 잡만 `rust-lld: error: --fix-cortex-a53-843419 is only supported on AArch64`로 실패하고 publish 잡이 skip되었다(나머지 5개 플랫폼은 성공).
 - 원인: rustc 1.98+(CI는 1.99.0)가 `aarch64-unknown-linux-gnu` 타깃의 pre-link-args에 `-Wl,--fix-cortex-a53-843419`를 추가한다(rust-lang/rust#155453). `@napi-rs/cli` 3.10.x는 이 타깃에 링커를 지정하지 않아 cargo가 호스트 x86_64 `cc`로 링크했고, `cc`가 `-fuse-ld=lld`로 호출한 rust-lld가 x86_64 에뮬레이션에서 AArch64 전용 플래그를 거부했다. 워크플로우는 `gcc-aarch64-linux-gnu`를 설치만 하고 사용하지 않았다.
 - 수정(`23f0aee`): ARM64 잡에서 `CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc`와 `CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc`를 `$GITHUB_ENV`로 설정한다. 소스/패키지 버전 변경은 없다.
 - 검증: `custom/0.11.0`(`ab140c1`)에서 `workflow_dispatch`로 실행한 run [39203920189](https://github.com/openedges/elk-rs/actions/runs/39203920189)에서 6개 플랫폼 빌드가 모두 성공했고 publish는 태그가 아니어서 skip되었다. 병합 전 워크플로우를 실행한 run 39203853034는 취소했다.
-- 태그: 새 내부 태그는 만들지 않았다(`v0.11.0+rs.4`는 수정 이전 커밋). 다음 `+rs.N` 또는 확장 태그에 포함된다.
+- 태그: `v0.11.0+rs.4`는 수정 이전 커밋이다. 이 수정은 `v0.11.0+rs.5`에 포함된다.
 
 ## 내부 패치 v0.11.0+rs.4 (2026-10-19)
 

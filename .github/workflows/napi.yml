@@ -14,7 +14,8 @@ jobs:
           - target: aarch64-apple-darwin
             os: macos-latest
           - target: x86_64-apple-darwin
-            os: macos-15-intel
+            # Cross-built on the arm64 runner; GitHub retires Intel macOS runners in fall 2027.
+            os: macos-latest
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
           - target: x86_64-unknown-linux-musl
