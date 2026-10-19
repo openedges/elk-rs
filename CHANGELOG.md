@@ -13,6 +13,10 @@ First stable release. Full port of ELK Java 0.11.0 with layout-identical output.
 
 Cargo and npm package versions remain `0.11.0`; NAPI CI builds these tags without publishing.
 
+#### Unreleased (after v0.11.0+rs.4)
+
+- Fixed the NAPI workflow's `aarch64-unknown-linux-gnu` job to link with `aarch64-linux-gnu-gcc` instead of the host `cc`, which failed with `rust-lld: --fix-cortex-a53-843419 is only supported on AArch64` under rustc 1.98+. A manual workflow run built all six targets.
+
 #### v0.11.0+rs.4 (2026-10-19)
 
 - Fixed `MinWidthLayerer` to keep the input order of nodes with equal out-degree, matching Java ELK's stable `Collections.reverseOrder` sort. Previously ties were reversed, so `MIN_WIDTH` layering could differ from Java ELK and elkjs ([#1](https://github.com/openedges/elk-rs/pull/1), contributed by @simon-gd).
