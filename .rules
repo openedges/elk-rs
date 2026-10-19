@@ -44,9 +44,10 @@
 7. 커밋 (`<scope>: <summary>`)
 8. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
-## 현재 핵심 스냅샷 (2026-10-14, 기존 Java 예외 외 parity 유지)
+## 현재 핵심 스냅샷 (2026-10-19, 기존 Java 예외 외 parity 유지)
 - **elk-rs 버전**: `0.11.0` (ELK Java `v0.11.0` 기준 포팅 완료)
-  - 내부 패치 태그: `v0.11.0+rs.3` — 그래프 순환 참조/임시 메모리 누수 수정
+  - 내부 패치 태그: `v0.11.0+rs.4` — MinWidthLayerer out-degree 동률 노드의 입력 순서 유지 (PR #1, `MIN_WIDTH` 전용, corpus 출력 불변)
+  - 이전 내부 패치: `v0.11.0+rs.3` — 그래프 순환 참조/임시 메모리 누수 수정
   - Cargo workspace 전체 + npm 동일 버전
   - 서브모듈 고정: `external/elk` → `v0.11.0` 태그, `external/elkjs` → `0.11.0` 태그
 - **Model parity**: `matches=1988/1989`, `drift=1`, `skipped=9` **(100%)**
@@ -94,6 +95,7 @@
   - P5 polyline_edge_router stale arena 버그 2건 수정: process_node anchor + NS port origin_anchor_x (D-1.4 도입 잠재 버그)
   - P2 layering ArenaSync 분석 → 스킵 결정 (layer 부재 구조 부적합, 기본 layerer 이미 최적화)
 - **메모리 수명 검증 (2026-10-14)**: ElkGraph/layered/simplex/self-loop/spline의 강한 순환 참조를 weak 교차 참조로 변경하고, thread-local arena/rectpacking rows를 RAII로 정리. 수명 테스트 15개 + allocator 회귀 테스트 추가. 29개 JSON 입력 및 재사용 layered 엔진 3개 입력(9,600회), 전체 1,998모델(11,988회)에서 잔존 할당 증가 0. Low-level Rust 끝점/속성 API의 소유권 변경은 `HISTORY.md`, 실행법은 `TESTING.md` § 2.F 참조.
+- **Parity 재검증 상태 (2026-10-19, rs.4)**: `main` @ `afc813b` 재실행 — model parity `total=1998`, `compared=1989`, `matches=1988`, `drift=1`, `skipped=9`, `errors=0`; phase-step trace `1997/1997` match, `0` drift, `rust_only=1`. workspace test 1,022 passed / 0 failed / 2 ignored, build/clippy warning 0건. rs.3 기준선과 동일.
 - **Parity 재검증 상태 (2026-10-14)**: 클린 재실행 완료 — `total=1998`, `compared=1989`, `matches=1988`, `drift=1`, `skipped=9`, `errors=0`, `timeouts=0`
   - Phase-step trace: `1997/1997` match, `0` drift (100%)
   - 수정 전후 1,998/1,998 JSON 결과 동일. workspace test 1,021 passed / 0 failed / 2 ignored, build/clippy warning 0건.

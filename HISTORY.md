@@ -3,6 +3,15 @@
 - 본 문서는 기존 `AGENTS.md`의 `진행된 작업` 섹션을 분리 보관한 기록이다.
 - 신규 단계 완료 시 이 문서에 누적 기록하고, `AGENTS.md`의 핵심 스냅샷/우선순위를 동기화한다.
 
+## 내부 패치 v0.11.0+rs.4 (2026-10-19)
+
+- 외부 기여 PR [#1](https://github.com/openedges/elk-rs/pull/1)(`simon-gd`, 커밋 `5dcba8f`)의 `MinWidthLayerer` 동률 순서 수정을 `main`에 merge commit `afc813b`로 병합하고, `releases/0.11.0`을 같은 이력으로 fast-forward한 뒤 annotated tag `v0.11.0+rs.4`로 기록한다. `VERSIONING.md` 정책에 따라 Cargo/npm 패키지 버전과 upstream 고정 버전은 `0.11.0`을 유지한다.
+- 리뷰: Java `Collections.reverseOrder` 안정 정렬과 수정안(`out_b.cmp(&out_a)`, `.reverse()` 제거)의 동등성을 소스에서 확인했다. 수정 전 테스트 실패 메시지 재현, 수정 후 통과, elkjs 0.11.0(`external/elkjs/lib/elk.bundled.js`) 동일 그래프 출력 일치(`s` x=12, `t4` x=92, `t0..t3` x=142)를 확인하고 GitHub PR 리뷰로 승인했다.
+- `CHANGELOG.md`: 기여자가 추가한 `## [Unreleased]` 항목을 `VERSIONING.md` 규약에 따라 `## [0.11.0]`의 `### elk-rs Internal Changes (v0.11.0+rs.3 ~ v0.11.0+rs.4)` 아래 `#### v0.11.0+rs.4` 소절로 이동했다. `VERSIONING.md`의 최신 내부 패치 항목과 태그 다이어그램을 `rs.4`로 갱신했다.
+- 품질 게이트(`main` @ `afc813b`): workspace build/clippy warning 0건, workspace test **1,022 passed / 0 failed / 2 ignored**. Full model parity **1,988/1,989 match**, drift 1(기존 Java NaN 예외 `213_componentsCompaction.elkt`), skipped 9, errors 0. Full phase-step trace **1,997/1,997 match**, drift 0, `rust_only=1`(기존 Java NPE `588_hierarchicalLayoutNPE.elkt`). 두 결과 모두 `rs.3` 기준선과 동일하다.
+- 영향 범위: 변경 코드는 `LayeringStrategy::MinWidth`에서만 실행되며 `external/elk-models`에 `MIN_WIDTH`를 사용하는 모델이 없어(0건) corpus 기준 출력은 바뀌지 않는다. 새 회귀 테스트 `min_width_keeps_input_order_of_out_degree_ties`가 동률 순서를 고정한다.
+- NAPI workflow는 `v*` 태그 push 시 6개 플랫폼 빌드를 수행하고 `+rs.` 태그는 publish를 건너뛴다(`napi.yml` 조건 유지).
+
 ## MinWidthLayerer 동률 순서 수정 (2026-10-15)
 
 - 원인: Java `MinWidthLayerer`는 `notInserted.sort(Collections.reverseOrder(new MinOutgoingEdgesComparator()))`로 out-degree 내림차순 **안정** 정렬을 하므로 동률 노드가 입력 순서를 유지한다. Rust는 오름차순 정렬 후 `.reverse()`를 호출해 동률 노드의 순서까지 뒤집었다.
