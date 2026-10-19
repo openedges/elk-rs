@@ -437,22 +437,22 @@ public class LayeredIssueParityBenchTest {
 
     private static ElkNode buildIssue905Scenario() {
         ElkNode graph = baseGraph();
-        graph.setProperty(CoreOptions.EDGE_LABELS_PLACEMENT, EdgeLabelPlacement.Center);
+        graph.setProperty(CoreOptions.EDGE_LABELS_PLACEMENT, EdgeLabelPlacement.CENTER);
 
         ElkNode left = newSizedNode(graph, "left", 40.0, 30.0);
         ElkNode right = newSizedNode(graph, "right", 40.0, 30.0);
         ElkEdge edge = ElkGraphUtil.createSimpleEdge(left, right);
 
         ElkLabel tail = ElkGraphUtil.createLabel("tail", edge);
-        tail.setProperty(LayeredOptions.EDGE_LABELS_PLACEMENT, EdgeLabelPlacement.Tail);
+        tail.setProperty(LayeredOptions.EDGE_LABELS_PLACEMENT, EdgeLabelPlacement.TAIL);
         tail.setLocation(5.0, 120.0);
 
         ElkLabel center = ElkGraphUtil.createLabel("center", edge);
-        center.setProperty(LayeredOptions.EDGE_LABELS_PLACEMENT, EdgeLabelPlacement.Center);
+        center.setProperty(LayeredOptions.EDGE_LABELS_PLACEMENT, EdgeLabelPlacement.CENTER);
         center.setLocation(30.0, 40.0);
 
         ElkLabel head = ElkGraphUtil.createLabel("head", edge);
-        head.setProperty(LayeredOptions.EDGE_LABELS_PLACEMENT, EdgeLabelPlacement.Head);
+        head.setProperty(LayeredOptions.EDGE_LABELS_PLACEMENT, EdgeLabelPlacement.HEAD);
         head.setLocation(45.0, 130.0);
         return graph;
     }
