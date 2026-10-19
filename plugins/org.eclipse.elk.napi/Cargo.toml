@@ -3,6 +3,12 @@ name = "org-eclipse-elk-napi"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "Node.js N-API binding of elk-rs; shipped through the `elk-rs` npm packages, not crates.io"
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+# cdylib binding: built and shipped by the npm workflow, never published to crates.io.
+publish = false
 
 [lib]
 crate-type = ["cdylib"]
@@ -10,7 +16,7 @@ crate-type = ["cdylib"]
 [dependencies]
 napi = { version = "2", features = ["napi4"] }
 napi-derive = "2"
-org-eclipse-elk-graph-json = { path = "../org.eclipse.elk.graph.json" }
+org-eclipse-elk-graph-json = { workspace = true }
 
 [build-dependencies]
 napi-build = "2"

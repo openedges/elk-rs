@@ -8,8 +8,9 @@ elk-rs is a Rust port of Java ELK (Eclipse Layout Kernel) and also provides an e
 - **elkjs** (`external/elkjs`): pinned to `0.11.0` release tag
 - **elk-models** (`external/elk-models`): pinned to parity-verified commit
 - **elk-rs stable**: all Rust crates `0.11.0`, npm `elk-rs@0.11.0`
-- **Current extension**: Cargo/npm `0.11.0-ext.6` on `custom/0.11.0`, including `v0.11.0+rs.3`, `v0.11.0+rs.4` and `v0.11.0+rs.5` (tag only; npm/Cargo publishing deferred)
+- **Current extension**: Cargo/npm `0.11.0-ext.6` on `custom/0.11.0`, including `v0.11.0+rs.3`, `v0.11.0+rs.4` and `v0.11.0+rs.5` (tag only; extension versions are never published)
 - **Latest internal patch**: Git tag `v0.11.0+rs.5` (NAPI CI fixes: aarch64 cross linker, Intel macOS cross build; package versions unchanged)
+- **Registries**: crates.io `org-eclipse-elk-*` (17 library crates) and npm `elk-rs` + `@elk-rs/*` (6 platform packages). First publish pending: `0.11.0` goes out with the next `+rs.N` tag once the npm/crates.io accounts and CI tokens exist (see § 6)
 - **Stable parity**: model `1988/1989`, trace `1997/1997` (existing Java exception)
 - **Extension parity**: model `1987/1989`, trace `1995/1997`; all `1998/1998` final outputs unchanged from `ext.4`. Existing extension differences are recorded in `HISTORY.md`.
 
@@ -19,47 +20,63 @@ This policy keeps versions aligned across all three projects while managing port
 
 ## 1. Version Management
 
-### Principle: Exact ELK Version Alignment
+### Principle: ELK Version Alignment With an elk-rs Patch Offset
 
-elk-rs version matches the target ELK Java version in `MAJOR.MINOR.PATCH`.
+elk-rs `MAJOR.MINOR` always matches the target ELK Java version. `PATCH` starts at
+the ELK patch number and then **counts elk-rs's own published fixes**, the same way
+elkjs publishes `0.9.2`, `0.9.3`, `0.10.1`, `0.10.2` and `0.11.1` on top of the ELK
+releases `0.9.1`, `0.10.0` and `0.11.0`.
 
 ```
-elk-rs 0.11.0  =  ELK Java 0.11.0  =  elkjs 0.11.0
+elk-rs 0.11.0  =  ELK Java 0.11.0 port          (first publish of the 0.11 line)
+elk-rs 0.11.1  =  ELK Java 0.11.0 + elk-rs fixes (next published +rs.N tag)
+elk-rs 0.12.0  =  ELK Java 0.12.0 port
 ```
 
 | Project | Current | Next |
 |---------|---------|------|
 | ELK Java | 0.11.0 | 0.12.0 |
 | elkjs | 0.11.0 | 0.12.0 |
-| elk-rs (Rust crates) | 0.11.0 | 0.12.0 |
-| elk-rs (npm) | 0.11.0 | 0.12.0 |
+| elk-rs (Rust crates) | 0.11.0 | 0.11.1 (fixes) or 0.12.0 (port) |
+| elk-rs (npm) | 0.11.0 | 0.11.1 (fixes) or 0.12.0 (port) |
 
 **Rules:**
-- elk-rs `MAJOR.MINOR.PATCH` always matches the target ELK Java version
-- When ELK releases `0.11.1`, elk-rs ports the changes and releases `0.11.1`
-- All Rust workspace crates and the npm package share the same version
+- A new ELK `MAJOR.MINOR` port resets `PATCH` to ELK's patch number (`0.12.0`)
+- Publishing elk-rs fixes for the current line bumps `PATCH` (`0.11.0` -> `0.11.1` -> ...)
+- If ELK itself releases a patch (`0.11.1`) after elk-rs has used that number, the port
+  takes the next free elk-rs patch number and the CHANGELOG names the ELK version it ports
+- All Rust workspace crates and the npm packages share the same version, always
 
 ### elk-rs Internal Change Management
 
-elk-rs-specific bugfixes and features are managed **without bumping the version**, using the following scheme.
-
-#### Between-Release Changes: Build Metadata + CHANGELOG
+Every elk-rs change on a release branch is tagged `v<package version>+rs.<N>`; `N` is a
+counter that keeps increasing across patch bumps (`v0.11.0+rs.5`, `v0.11.0+rs.6`,
+`v0.11.1+rs.7`, ...). The tag decides whether anything is published:
 
 ```
-npm: elk-rs@0.11.0       <- stable release (ELK 0.11.0 parity)
-git: v0.11.0+rs.1        <- elk-rs internal patch #1
-git: v0.11.0+rs.2        <- elk-rs internal patch #2
-npm: elk-rs@0.11.0       <- npm version unchanged (no re-publish)
+git: v0.11.0+rs.5        <- package version 0.11.0 already on the registries? no  -> publish 0.11.0
+git: v0.11.0+rs.6        <- package version still 0.11.0 and already published   -> build only
+git: v0.11.1+rs.7        <- package version bumped to 0.11.1                      -> publish 0.11.1
 ```
 
-- **Git tags**: `v{ELK_VERSION}+rs.{N}` format to track elk-rs internal changes
-  - Semver build metadata (`+`) has no effect on version precedence
-  - Examples: `v0.11.0+rs.1`, `v0.11.0+rs.2`
-- **No npm re-publish**: the npm package is not re-published for the same ELK version
-  - NAPI CI builds internal `+rs.N` tags but skips the publish job
-  - Accumulated elk-rs fixes ship with the next ELK release (e.g., `0.11.1` or `0.12.0`)
-  - Exception: critical fixes may be published as a prerelease: `0.11.0-rs.1`
-- **CHANGELOG.md**: elk-rs changes are grouped by ELK version
+- **Build metadata never reaches a registry.** `npm publish` strips `+rs.N`
+  (`semver.clean("0.11.0+rs.5")` is `0.11.0`), and crates.io rejects a second version
+  that differs only in build metadata (uniqueness is on the version without `+build`).
+  Only the package version in the manifests matters; `+rs.N` lives in git tags and the
+  CHANGELOG.
+- **Publishing = bump the patch version, then tag.** `python3 scripts/bump_version.py 0.11.1`
+  updates every manifest and lockfile (see Version Sync Files), the quality gates run,
+  the commit is tagged `v0.11.1+rs.<N>` and pushed. `napi.yml` and `cargo-publish.yml`
+  then publish every package/crate whose version is not on the registry yet.
+- **A tag without a bump is a build-only tag.** Both publish scripts skip
+  package@version pairs that already exist, so tagging `v0.11.0+rs.6` after `0.11.0`
+  has been published builds the NAPI binaries and publishes nothing.
+- **Prereleases do not work for fixes.** `0.11.0-rs.1` sorts *below* `0.11.0`, so once
+  `0.11.0` is published no `^0.11.0` consumer would receive it. Prerelease versions are
+  reserved for publishing *before* the first stable version of a line, if ever needed.
+- **Extension tags are never published.** `v0.11.0-ext.N` tags on `custom/*` branches
+  build but skip the publish jobs (`!contains(github.ref_name, '-ext.')`).
+- **CHANGELOG.md**: elk-rs changes are grouped by published version
 
 #### Extension Releases: Pre-release Channel (`-ext.N`)
 
@@ -75,10 +92,10 @@ npm: elk-rs@0.11.0-ext.2     <- extension release #2 (+ elk-live)
   - `ext` indicates the release is a superset of the stable version with additional features
   - Examples: `0.11.0-ext.1`, `0.11.0-ext.2`
 - **Git tags**: `v{ELK_VERSION}-ext.{N}` on the `custom/{ELK_VERSION}` integration branch
-- **Cargo + npm**: Both use the same `-ext.N` version — publishable to registries
+- **Cargo + npm**: Both use the same `-ext.N` version; extension versions are never published to a registry (`-ext.` guards in `napi.yml` and `cargo-publish.yml`)
   - `npm install elk-rs@0.11.0-ext.2` (explicit install; `npm install elk-rs` still gets stable)
   - `elk-rs = "=0.11.0-ext.2"` in Cargo.toml (exact match required)
-  - NAPI CI publishes extension tags with `npm publish --tag ext` for both the main and platform packages; stable tags use `latest`, and internal `+rs.N` tags skip publishing.
+  - NAPI CI builds extension tags for all six platforms but skips the publish jobs; only `+rs.N` tags on `releases/*` publish (§ 6)
   - To incorporate an internal patch, merge `releases/{ELK_VERSION}` into `custom/{ELK_VERSION}`, verify extension fixtures and full parity, then increment `ext.N`. Preserve existing release tags.
 - **Semver note**: Technically `0.11.0-ext.2 < 0.11.0` in semver ordering, but this is not a
   problem in practice since extension releases are always installed via explicit version specifier
@@ -93,12 +110,13 @@ The changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 conventions adapted for ELK version alignment.
 
 **Structure:**
-- One `## [X.Y.Z]` section per ELK version release
+- One `## [X.Y.Z]` section per published version (ELK port or elk-rs patch)
 - Within each version, use standard section headers: `### Added`, `### Fixed`,
   `### Changed`, `### Removed`, `### ELK Porting`
 - `### ELK Porting` is elk-rs specific: summarizes porting scope and parity metrics
-- Between-release elk-rs internal changes are grouped under
-  `### elk-rs Internal Changes (v0.11.0+rs.1 ~ v0.11.0+rs.N)`
+- Build-only `+rs.N` tags between published versions are grouped under
+  `### elk-rs Internal Changes (v0.11.0+rs.1 ~ v0.11.0+rs.N)` of the version they
+  ship with
 
 **Writing guidelines:**
 - Each entry starts with a verb in past tense (Added, Fixed, Removed, etc.)
@@ -109,45 +127,47 @@ conventions adapted for ELK version alignment.
   HISTORY.md is developer-facing detailed log
 
 **When to update:**
-- On each stable release (`v{ELK_VERSION}`)
-- On each `+rs.N` internal patch tag (add entry under Internal Changes)
-- Accumulated internal changes are folded into the next release section
+- On each published version (`v<version>+rs.<N>` that bumps the package version)
+- On each build-only `+rs.N` tag (add entry under Internal Changes)
+- Accumulated internal changes are folded into the next published version's section
 
 **Example:**
 
 ```markdown
-## [0.12.0] - YYYY-MM-DD
-
-### ELK Porting
-- Full ELK 0.12.0 porting complete (N/N parity)
-- New algorithm: ...
-
-### Added
-- ...
+## [0.11.1] - YYYY-MM-DD
 
 ### Fixed
 - ...
 
-### elk-rs Internal Changes (v0.11.0+rs.1 ~ v0.11.0+rs.N)
+### elk-rs Internal Changes (v0.11.0+rs.6 ~ v0.11.0+rs.8)
 - [bugfix] Improved WASM fallback error message
-- [feature] Added NAPI darwin-arm64 addon
 - [perf] 20% layered algorithm performance improvement
+
+## [0.12.0] - YYYY-MM-DD
+
+### ELK Porting
+- Full ELK 0.12.0 porting complete (N/N parity)
 ```
 
 ### Version Sync Files
 
+`python3 scripts/bump_version.py <version>` edits all of them (`0.11.0-ext.6` on `custom/0.11.0`); `--check` verifies they agree.
+
 | File | Version Field | Stable | Extension |
 |------|---------------|--------|-----------|
-| `Cargo.toml` (workspace root), `Cargo.lock` | Workspace/crate versions | `"0.11.0"` | `"0.11.0-ext.6"` |
-| `plugins/org.eclipse.elk.js/package.json`, `package-lock.json` | Version and all `@elk-rs/*` optional dependencies | `"0.11.0"` | `"0.11.0-ext.6"` |
+| `Cargo.toml` (workspace root) | `[workspace.package] version` and the `version = "=X.Y.Z"` pins in `[workspace.dependencies]` | `"0.11.0"` | `"0.11.0-ext.6"` |
+| `Cargo.lock` | Workspace member entries (`cargo update --workspace`) | `"0.11.0"` | `"0.11.0-ext.6"` |
+| `plugins/org.eclipse.elk.js/package.json`, `package-lock.json` | `"version"`, the six `@elk-rs/*` optional dependencies, lockfile root entries | `"0.11.0"` | `"0.11.0-ext.6"` |
 | `plugins/org.eclipse.elk.js/npm/*/package.json` | Six platform package versions | `"0.11.0"` | `"0.11.0-ext.6"` |
-| `plugins/org.eclipse.elk.napi/package.json` | NAPI build package version | `"0.11.0"` | `"0.11.0-ext.6"` |
-| `packages/elk-live/package.json`, `package-lock.json` | Private extension application version | — | `"0.11.0-ext.6"` |
-| `CHANGELOG.md` | Change history per release | `## [0.11.0]` | `## [0.11.0-ext.6]` |
+| `plugins/org.eclipse.elk.napi/package.json` | NAPI build package version (private) | `"0.11.0"` | `"0.11.0-ext.6"` |
+| `packages/elk-live/package.json`, `package-lock.json` | Private application version | `"0.11.0"` | `"0.11.0-ext.6"` |
+| `CHANGELOG.md` | Change history per published version | `## [0.11.0]` | `## [0.11.0-ext.6]` |
 
 ### Cargo Workspace Version Unification
 
-Root `Cargo.toml` uses `workspace.package.version` so all crates inherit from a single source:
+Root `Cargo.toml` uses `workspace.package.version` so all crates inherit from a single
+source, and `[workspace.dependencies]` carries the intra-workspace dependencies with the
+`version` that `cargo publish` requires:
 
 ```toml
 # Cargo.toml (root)
@@ -155,12 +175,32 @@ Root `Cargo.toml` uses `workspace.package.version` so all crates inherit from a 
 version = "0.11.0"
 license = "EPL-2.0"
 edition = "2021"
+repository = "https://github.com/openedges/elk-rs"
+
+[workspace.dependencies]
+org-eclipse-elk-graph = { path = "plugins/org.eclipse.elk.graph", version = "=0.11.0" }
 
 # Each crate's Cargo.toml
 [package]
 name = "org-eclipse-elk-core"
 version.workspace = true
+description = "..."              # required by crates.io
+repository.workspace = true
+
+[dependencies]
+org-eclipse-elk-graph = { workspace = true }
+
+[dev-dependencies]
+org-eclipse-elk-alg-layered = { path = "../org.eclipse.elk.alg.layered" }   # path only
 ```
+
+- The pins are exact (`=0.11.0`) because the crates are released together and share
+  internal APIs; a consumer can never mix two elk-rs versions.
+- `[dev-dependencies]` stay path-only on purpose. Cargo drops path-only
+  dev-dependencies from the published manifest, which is what lets the test-only cycles
+  (`core <-> alg-*`, `alg-common <-> alg-*`) publish.
+- `org-eclipse-elk-napi` and `org-eclipse-elk-wasm` are `publish = false`: they are
+  cdylib bindings shipped through npm, not crates.io.
 
 ---
 
@@ -187,13 +227,13 @@ version.workspace = true
 
 ```
 main                        <- development branch (always build/test/parity green)
-├─ releases/0.11.0          <- 0.11.0 stable release branch (tagged, published)
-│   ├─ v0.11.0              <- release tag
-│   ├─ v0.11.0+rs.1         <- hotfix tag
-│   └─ v0.11.0+rs.2         <- hotfix tag
-├─ custom/0.11.0            <- extension integration branch (main + custom features)
+├─ releases/0.11.0          <- 0.11.x release branch (tagged, published)
+│   ├─ v0.11.0              <- first release tag (March 2026, packages not published then)
+│   ├─ v0.11.0+rs.1         <- internal patch tag
+│   └─ v0.11.0+rs.5         <- internal patch tag
+├─ custom/0.11.0            <- extension integration branch (main + custom features; -ext.N tags, never published)
 │   ├─ v0.11.0-ext.1        <- extension release tag
-│   └─ v0.11.0-ext.2        <- extension release tag
+│   └─ v0.11.0-ext.6        <- extension release tag
 ├─ custom/{feature-name}    <- individual custom feature branches
 ├─ releases/0.12.0          <- next release branch (future)
 ├─ port/0.12.0              <- ELK 0.12.0 porting work branch
@@ -204,7 +244,7 @@ main                        <- development branch (always build/test/parity gree
 **Rules:**
 - `main` always passes build/test/parity — development happens here
 - `releases/X.Y.Z` branches are created from `main` when ready to release
-  - Release tags (`vX.Y.Z`) are placed on release branches
+  - Release tags (`v<version>+rs.<N>`) are placed on release branches
   - Hotfixes go to the release branch, then cherry-pick to `main` if needed
   - Release branches are long-lived (not deleted after release)
 - `custom/X.Y.Z` branches integrate custom features on top of `main`
@@ -218,31 +258,32 @@ main                        <- development branch (always build/test/parity gree
 
 ```
 releases/0.11.0:
-  v0.11.0                 <- stable release (ELK 0.11.0 parity, npm publish)
-  v0.11.0+rs.1            <- elk-rs internal hotfix (build only, no npm publish)
-  v0.11.0+rs.2            <- elk-rs internal hotfix (build only, no npm publish)
-  v0.11.0+rs.3            <- memory lifetime fixes (build only, no npm publish)
-  v0.11.0+rs.4            <- MinWidthLayerer tie-order fix (build only, no npm publish)
-  v0.11.0+rs.5            <- NAPI CI fixes (build only, no npm publish)
+  v0.11.0                 <- stable release tag (ELK 0.11.0 parity; registries were not used yet)
+  v0.11.0+rs.1            <- elk-rs internal hotfix (build only)
+  v0.11.0+rs.2            <- elk-rs internal hotfix (build only)
+  v0.11.0+rs.3            <- memory lifetime fixes (build only)
+  v0.11.0+rs.4            <- MinWidthLayerer tie-order fix (build only)
+  v0.11.0+rs.5            <- NAPI CI fixes (build only)
+  v0.11.0+rs.6            <- first crates.io + npm publish of 0.11.0 (planned)
+  v0.11.1+rs.7            <- next published fix: patch bump + publish (future)
 
 custom/0.11.0:
-  v0.11.0-ext.1           <- extension release (custom features, npm/cargo publish)
-  v0.11.0-ext.2           <- extension release (+ elk-live, npm/cargo publish)
-  v0.11.0-ext.5           <- incorporates +rs.3 memory fixes (npm ext channel)
-  v0.11.0-ext.6           <- incorporates +rs.4 MinWidthLayerer fix (tag only; npm publish deferred)
+  v0.11.0-ext.1           <- extension release (custom features; build only)
+  v0.11.0-ext.2           <- extension release (+ elk-live; build only)
+  v0.11.0-ext.5           <- incorporates +rs.3 memory fixes (build only)
+  v0.11.0-ext.6           <- incorporates +rs.4 MinWidthLayerer fix (tag only; never published)
 
 releases/0.12.0:
-  v0.12.0                 <- stable release (ELK 0.12.0 parity, npm publish)
+  v0.12.0+rs.N            <- ELK 0.12.0 port, published as 0.12.0
 ```
 
 **Rules:**
-- Stable release tags: `v{ELK_VERSION}` — matches ELK version, accompanies npm publish
-- elk-rs hotfix tags: `v{ELK_VERSION}+rs.{N}` — on the release branch
-- Extension tags: `v{ELK_VERSION}-ext.{N}` — on the `custom/X.Y.Z` integration branch
-- Use annotated tags: `git tag -a v0.11.0 -m "elk-rs 0.11.0 (ELK 0.11.0 parity)"`
-- Stable release tags are only placed on `releases/X.Y.Z` branches
-- `+rs.N` tags are placed on the corresponding releases branch after hotfix commits
-- `-ext.N` tags are placed on the corresponding `custom/X.Y.Z` branch after feature integration
+- Release tags: `v<package version>+rs.<N>` on the release branch; `N` never resets
+- Whether a tag publishes depends only on whether `<package version>` is already on the
+  registries (the publish scripts skip existing versions)
+- Use annotated tags: `git tag -a v0.11.1+rs.7 -m "elk-rs 0.11.1 (ELK 0.11.0 + fixes)"`
+- Extension tags: `v<version>-ext.<N>` on the `custom/X.Y.Z` integration branch after
+  feature integration; they are built but never published
 
 ---
 
@@ -322,17 +363,16 @@ git merge port/0.12.0
 # Create release branch from main
 git checkout -b releases/0.12.0
 
-# (Optional) Release-specific adjustments (README badges, final checks)
-# git commit -m "release: elk-rs 0.12.0 final adjustments"
+# Set the package version everywhere (Cargo.toml, Cargo.lock, package.json files, lockfiles)
+python3 scripts/bump_version.py 0.12.0
+git commit -am "release: prepare elk-rs 0.12.0"
 
-# Tag on the release branch
-git tag -a v0.12.0 -m "elk-rs 0.12.0 (ELK 0.12.0 parity)"
+# Tag on the release branch (first +rs.N of the line continues the counter)
+git tag -a v0.12.0+rs.9 -m "elk-rs 0.12.0 (ELK 0.12.0 parity)"
 
-# npm publish
-cd plugins/org.eclipse.elk.js && sh build.sh && npm publish
-
-# Push release branch and tags
-git push origin releases/0.12.0 --tags
+# Push release branch and the tag: napi.yml publishes npm, cargo-publish.yml publishes crates.io
+git push origin releases/0.12.0
+git push origin v0.12.0+rs.9
 
 # Return to main for continued development
 git checkout main
@@ -346,7 +386,14 @@ git checkout releases/0.11.0
 
 # Apply fix, commit
 git commit -m "fix: <description>"
-git tag -a v0.11.0+rs.1 -m "elk-rs 0.11.0+rs.1 hotfix"
+
+# Build-only: tag without bumping (nothing is published because 0.11.0 is already out)
+git tag -a v0.11.0+rs.6 -m "elk-rs 0.11.0+rs.6 internal patch"
+
+# Published fix: bump the patch version first, then tag
+python3 scripts/bump_version.py 0.11.1
+git commit -am "release: prepare elk-rs 0.11.1"
+git tag -a v0.11.1+rs.7 -m "elk-rs 0.11.1 (ELK 0.11.0 + fixes)"
 
 # Push
 git push origin releases/0.11.0 --tags
@@ -384,3 +431,43 @@ elk-rs follows a 1:1 porting principle from Java ELK, but allows differences in 
 2. Java ELK bug avoidances are recorded with `[java-bug]` tag, referencing the Java issue number
 3. If upstream later adopts the same change, update the tag to `[upstream-merged]`
 4. Maintain a list of allowed differences in the "Known Drifts" section of `tests/PARITY.md`
+
+---
+
+## 6. Registry Publishing
+
+### What is published
+
+| Registry | Packages | Version | Trigger |
+|----------|----------|---------|---------|
+| npm | `elk-rs` (WASM + loader) and `@elk-rs/darwin-arm64`, `@elk-rs/darwin-x64`, `@elk-rs/linux-x64-gnu`, `@elk-rs/linux-x64-musl`, `@elk-rs/linux-arm64-gnu`, `@elk-rs/win32-x64-msvc` | package version, dist-tag `latest` | `.github/workflows/napi.yml` on `v*` tags without `-ext.` |
+| crates.io | the 17 library crates `org-eclipse-elk-*` (everything except the `napi`/`wasm` bindings) | package version | `.github/workflows/cargo-publish.yml` on `v*` tags without `-ext.` |
+
+Never published: `-ext.N` tags, `org-eclipse-elk-napi`/`org-eclipse-elk-wasm`
+(`publish = false`), `elk-rs-napi` and `elk-rs-live` (`"private": true`).
+
+### Scripts
+
+- `sh scripts/publish_npm.sh [--dry-run] [--expect-version V]`: platform packages first,
+  then `elk-rs`; skips `package@version` pairs already on npm; refuses to publish a
+  platform package without its `.node` binary or the main package without `dist/wasm/`.
+- `python3 scripts/publish_crates.py [--dry-run] [--no-verify] [--expect-version V]`:
+  one `cargo publish -p ...` call for the crates missing on crates.io (cargo orders them
+  and waits for the index), retrying after crates.io's new-crate rate limit.
+- Both take the tag's base version from CI (`v0.11.1+rs.7` -> `0.11.1`) and fail if any
+  manifest disagrees.
+
+### Credentials and first publish
+
+- npm: an npm account that owns the `elk-rs` package name and the `@elk-rs` organization,
+  and a granular access token with publish rights (repository secret `NPM_TOKEN`). The
+  first publish of a package name happens from CI like every other one.
+- crates.io: a crates.io API token with `publish-new` + `publish-update` (repository secret
+  `CARGO_REGISTRY_TOKEN`; locally `cargo login`). crates.io limits *new* crates to a burst
+  of five, then one every ten minutes, so the first publish of the 17 crates is run
+  locally with `python3 scripts/publish_crates.py` (it sleeps and retries; or ask
+  help@crates.io to raise the limit beforehand). Later versions are updates (burst of 30)
+  and run from CI.
+- Once the packages exist, both registries support Trusted Publishing (GitHub Actions
+  OIDC), which removes the long-lived tokens; the workflows note where `id-token: write`
+  would go.

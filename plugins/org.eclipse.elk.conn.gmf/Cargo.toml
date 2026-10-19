@@ -3,7 +3,11 @@ name = "org-eclipse-elk-conn-gmf"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "ELK GMF connector (Draw2D layouter) of the Eclipse Layout Kernel, ported to pure Rust"
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
-org-eclipse-elk-core = { path = "../org.eclipse.elk.core" }
-org-eclipse-elk-graph = { path = "../org.eclipse.elk.graph" }
+org-eclipse-elk-core = { workspace = true }
+org-eclipse-elk-graph = { workspace = true }

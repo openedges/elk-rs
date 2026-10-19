@@ -63,10 +63,14 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    # Internal tags keep the npm version unchanged and must not republish it.
-    if: ${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '+rs.') }}
+      # Trusted Publishing (npm OIDC) would add `id-token: write` here once the packages exist.
+    # Release tags are `v<version>+rs.<N>` on the releases/* branches (see VERSIONING.md).
+    # Extension tags (`-ext.N`, custom/* branches) are built but never published.
+    # scripts/publish_npm.sh skips every package@version that is already on npm, so a
+    # tag that does not bump the package version is a build-only tag.
+    if: ${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-ext.') }}
     env:
-      NPM_DIST_TAG: ${{ contains(github.ref_name, '-ext.') && 'ext' || 'latest' }}
+      NPM_DIST_TAG: latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -98,17 +102,15 @@ jobs:
               fi
             done
           done
-      - name: Publish platform packages
+      - name: Publish packages not yet on npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          for dir in plugins/org.eclipse.elk.js/npm/*/; do
-            if [ -f "$dir/package.json" ]; then
-              (cd "$dir" && npm publish --access public --tag "$NPM_DIST_TAG")
-            fi
-          done
-      - name: Publish main package
-        working-directory: plugins/org.eclipse.elk.js
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public --tag "$NPM_DIST_TAG"
+          set -eu
+          # v0.11.1+rs.7 -> 0.11.1; every package.json must carry exactly this version.
+          base="${GITHUB_REF_NAME#v}"
+          base="${base%%+*}"
+          case "$base" in
+            *-*) echo "refusing to publish prerelease/extension version $base under dist-tag $NPM_DIST_TAG" >&2; exit 1 ;;
+          esac
+          sh scripts/publish_npm.sh --expect-version "$base"

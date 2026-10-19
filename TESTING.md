@@ -414,6 +414,46 @@ PARITY_COMPARE_MODE=baseline sh scripts/check_parity_regression.sh 5 3
 
 For detailed baseline operations, see `tests/baselines/POLICY.md`.
 
+#### Publish (crates.io + npm)
+
+Publishing is driven by `v<version>+rs.<N>` tags (`VERSIONING.md` § 1 and § 6).
+Decide first whether this tag publishes:
+
+- Fixes to publish: bump the patch version, then tag. Build-only: tag without bumping.
+
+```sh
+# 1. Set the package version everywhere (skip for a build-only tag)
+python3 scripts/bump_version.py 0.11.1          # Cargo.toml/.lock, package.json files, lockfiles
+python3 scripts/bump_version.py --check         # prints the single agreed version
+
+# 2. Dry runs (no registry access needed; --allow-dirty only for uncommitted trees)
+python3 scripts/publish_crates.py --dry-run --allow-dirty   # packages + verifies the 17 crates
+cd plugins/org.eclipse.elk.js && sh build.sh && cd -        # WASM + local NAPI binary
+sh scripts/publish_npm.sh --dry-run --expect-version 0.11.1
+
+# 3. Commit, tag, push (napi.yml publishes npm, cargo-publish.yml publishes crates.io)
+git commit -am "release: prepare elk-rs 0.11.1"
+git tag -a v0.11.1+rs.7 -m "elk-rs 0.11.1 (ELK 0.11.0 + fixes)"
+git push origin releases/0.11.0 && git push origin v0.11.1+rs.7
+
+# 4. Verify
+npm view elk-rs version && npm view @elk-rs/darwin-arm64 version
+python3 scripts/publish_crates.py --list        # then check https://crates.io/crates/org-eclipse-elk-graph-json
+```
+
+Pass criteria:
+
+- `bump_version.py --check` prints exactly one version and it equals the tag's base version
+- Both dry runs finish without errors (`publish_crates.py` reports "dry run finished"; `publish_npm.sh` reports every package)
+- After the tag run, every package/crate at that version exists on its registry and the
+  skipped-because-existing lines in the workflow logs match what was already published
+
+First publish of the crates only: crates.io limits new crates to a burst of five, then one
+every ten minutes. Run `python3 scripts/publish_crates.py` locally after `cargo login`
+(the script sleeps and retries; or ask help@crates.io to raise the limit first), then let
+the tag run skip the crates that already exist. Required secrets: `NPM_TOKEN`,
+`CARGO_REGISTRY_TOKEN` (repository settings); never published: `-ext.N` tags.
+
 ### 3.7 Performance Benchmark (6-Way Comparison)
 
 Prerequisite: NAPI and WASM builds must be complete.
