@@ -5,9 +5,9 @@ All notable changes to elk-rs are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions correspond to the target ELK Java version (see `VERSIONING.md`).
 
-## [0.12.0] - Unreleased
+## [0.12.0] - 2026-10-20
 
-ELK Java 0.12.0 port; planned tag `v0.12.0+rs.7`. Packages have not been published.
+ELK Java 0.12.0 port. Release tag: `v0.12.0+rs.7`.
 
 ### ELK Porting
 
@@ -17,6 +17,7 @@ ELK Java 0.12.0 port; planned tag `v0.12.0+rs.7`. Packages have not been publish
 
 ### Fixed
 
+- Initialized browser direct WASM lazily through the existing Promise API; verified concurrent first requests and browser worker layouts in Chrome.
 - Compared Java baselines for every JS parity model, even when the two JS engines agree; matched exact manifest paths and made `--require-java` fail on missing baselines.
 - Added a Node.js CommonJS WASM bundle in `dist/wasm-node/` for the Node.js 18+ fallback, alongside browser ESM WASM in `dist/wasm/`; included both bundles in npm packaging and release checks.
 

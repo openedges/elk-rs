@@ -17,6 +17,15 @@
 - 예외: 추가 점검한 `cargo fmt --all -- --check`는 기존 저장소 전반의 포맷 차이로 실패했다(이번에 수정하지 않은 `n_edge.rs`, facade `lib.rs` 등 포함). 신규 Rust 파일은 rustfmt를 적용했고 무관한 대규모 포맷 변경은 하지 않았다. 필수 build/clippy/test/parity 게이트는 모두 통과했다.
 - 상세 증거·재현: `tests/upgrade_0_12_0.md`. 원시 파일은 `/tmp/elk-012-validation/`에 버전별로 보관한다. 성능 3회 교대 A/B 및 6-way 실행과 원격 CI/release rehearsal 결과는 아래 후속 항목으로 기록한다. 아직 0.12.0 태그 생성 및 레지스트리 배포는 하지 않았다.
 
+### 0.12.0 성능·원격 빌드 검증
+
+- 포팅 커밋: `163ce307`. [CI run39356401621](https://github.com/openedges/elk-rs/actions/runs/39356401621) build/test/clippy 성공; [perf run39356407064](https://github.com/openedges/elk-rs/actions/runs/39356407064) 8/8 기준 통과(layered_xlarge401.58ms, force_xlarge217.51ms, stress_xlarge274.17ms, radial_xlarge31.07ms). [release rehearsal39356401700](https://github.com/openedges/elk-rs/actions/runs/39356401700)의 NAPI6개·web/Node WASM 빌드가 모두 성공했다. Java parity run39356404335도 성공(5/5 Java 대비 성능 게이트, Rust87.9~91.6% 빠름). rehearsal은 npm7개 및 crates18개 dry-run/verification을 모두 완료했고 실제 publish는 실행하지 않았다.
+- 측정 머신: MacBook Pro(Mac15,6), Apple M3 Pro11코어(5P+6E),36GB, macOS27.0.1(26A434), Rust1.97.1, OpenJDK21.0.12.1, Node24.19.0. 다른 빌드/테스트가 종료된 뒤 동일 머신에서 측정했다.
+- 0.11/0.12 native A/B: system allocator로 같은 조건의 release 바이너리를 보관하여 3회 교대 실행(각20회,warmup3), 시나리오별 중앙값26개의 평균22.9955→22.8010ms(-0.85%). layered_xlarge225.3147→225.3619ms(+0.02%), 가장 큰 증가 force_medium+4.80%(2.5421→2.6640ms). 전체 평균은 개선됐으며 이 측정만으로 모든 개별 시나리오가 빨라졌다고 주장하지 않는다.
+- 6-way: 26시나리오×10회,warmup3, Rust native/API는 기존 스크립트의 mimalloc feature 사용. 평균(ms): Java93.7806, Rust native22.1288, Rust API23.4824, NAPI24.5033, WASM33.1527, elkjs957.4159. Java/native 평균 비율4.24x. NAPI와 WASM은 이번0.12 빌드 경로를 확인했고 6개 CSV에26개 시나리오가 모두 존재한다. 과거 다른 툴체인/OS의3.88x 수치와 직접 비교하지 않는다.
+- 실제 CI artifact를 내려받아 npm7개 tarball을 생성·검사했다(main20files, 플랫폼별4files; LICENSE/NOTICE 및 두WASM target 존재, native6개 아키텍처 일치). tarball을 격리해서 Node18.0.0/24.19.0 각각 NAPI 플랫폼패키지 우선 로딩 및 WASM fallback의 direct/fakeWorker/worker_threads를 실행해12/12 통과했다. 신규recompute 옵션과 결과동일성까지 확인했다.
+- 재현 자료: `tests/upgrade_0_12_0/perf/ab/`(6개 원본CSV 및summary.json), `perf/six-way/`(6개 CSV 및report.md). 요약은 `tests/upgrade_0_12_0.md`.
+
 ## 첫 레지스트리 배포 결과와 `release.yml` 통합(Trusted Publishing) (2026-10-20)
 
 - 첫 배포 결과(2026-10-19, 사용자 수행): crates.io 18개와 npm 7개가 모두 `0.11.0`으로 올라갔다. crates.io는 로컬 `cargo login` 후 `publish_crates.py`로 5개(`org-eclipse-elk-graph`·`core`·`alg-common` 등, 14:50 UTC)를 올린 뒤 `v0.11.0+rs.6` 태그를 push(14:57 UTC)했고, `cargo-publish.yml`이 남은 13개를 신규 크레이트 rate limit 재시도 루프로 배포했다(시도마다 1~2개 업로드 후 429 → 660초 대기, 14:58→17:05 UTC, 2시간 7분; 소유자 `luuvish`, `elk-layout`은 16:59 UTC). npm은 `napi.yml` publish 잡이 `NPM_TOKEN`으로 15:01~15:04 UTC에 7개를 publish했다(dist-tag `latest`). 같은 태그의 `ci.yml`도 녹색. 재시도 루프가 CI에서 2시간 동안 돌아간 것은 설계대로지만, OIDC의 30분 토큰으로는 불가능했을 시간이므로 앞으로 새 크레이트 이름이 생기면 로컬 선행 publish를 권한다(`TESTING.md` § 3.6).

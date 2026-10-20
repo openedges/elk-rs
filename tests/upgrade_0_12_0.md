@@ -59,22 +59,43 @@ JS 두 backend는 각각 `PASS=530`, `ELKJS_DRIFT=20`, `javaCompared=550`, `java
 
 - 실제 .12 NAPI와 web WASM을 다시 빌드한 뒤 위 비교를 실행했다.
 - Node fallback용 CommonJS WASM을 추가했다. 배포에는 `dist/wasm/`과 `dist/wasm-node/`를 모두 포함한다.
-- NAPI와 optional dependency가 없는 격리 패키지에서 direct/fakeWorker/worker_threads 세 경로를 확인했다.
+- NAPI와 optional dependency가 없는 격리 패키지에서 Node 18.0.0·18.15.0·20.20.2의 direct/fakeWorker/worker_threads 세 경로를 확인했다. 최소 Node 버전은 18이다. Node16은 표준 WASM의 reference-types를 기본으로 지원하지 않아 제외했다.
 - Chrome에서 실제 browser bundle의 direct/worker 레이아웃과 동시 최초 metadata/layout 요청을 확인했다. browser direct의 누락된 WASM 초기화는 공유 Promise로 수정했다.
-- `actionlint` 및 ShellCheck를 사용한 4개 workflow 검사 통과. npm dry-run은 모든 패키지의 manifest/라이선스 및 두 WASM target을 확인했다. 비호스트 NAPI 5개는 원격 release rehearsal에서 검증한다.
+- `actionlint` 및 ShellCheck를 사용한 4개 workflow 검사 통과. npm dry-run은 모든 패키지의 manifest/라이선스 및 두 WASM target을 확인했다. 원격 release rehearsal에서 NAPI6개 실제 바이너리와 npm7개/crates18개 dry-run을 모두 검증했다.
+- CI artifact로 실제 npm7개 tarball을 만들고 main20개 파일·플랫폼별4개 파일 및 native6개 아키텍처를 확인했다. tarball에서만 로딩하는 격리 환경으로 Node18.0.0·24.19.0 각각 native/WASM × direct/fakeWorker/worker_threads를 실행해 **12/12** 통과했다.
 - 코드 리뷰에서 발견한 잘못된 Java `.elkg` alias fallback을 수정하고 회귀 테스트로 확인했다. 추가 확정 결함은 없다.
 - `cargo fmt --all -- --check`는 기존 저장소 전반의 포맷 차이로 실패한다(예: 변경하지 않은 `n_edge.rs`, facade `lib.rs`). 이번 신규 Rust 파일은 rustfmt를 적용했다. 무관한 파일의 일괄 포맷 변경은 포함하지 않았다.
 
 ## 성능 및 원격 검증
 
-동일 머신에서 0.11.0/0.12.0 native 바이너리의 3회 교대 측정(각 20회, warmup 3), 0.12.0의 6-engine 측정(각 10회, warmup 3)을 진행한다. 원격 CI와 6개 NAPI 플랫폼의 release rehearsal 결과도 완료 후 기록한다. 과거 다른 OS·툴체인의 3.88x 기준선을 이번 측정과 직접 비교하지 않는다.
+동일 머신에서 0.11.0/0.12.0 native 바이너리를 3회 교대 실행했다(각20회, warmup3, 양쪽 system allocator). 시나리오별 중앙값26개의 평균은 **22.9955 → 22.8010ms(-0.85%)**, layered_xlarge는 **225.3147 → 225.3619ms(+0.02%)**였다. 가장 큰 증가는 force_medium의 +4.80%(2.5421→2.6640ms)이며, 전체 평균 개선을 모든 시나리오의 개선으로 해석하지 않는다. [각 회차 CSV와 요약](upgrade_0_12_0/perf/ab/summary.json)을 보관했다.
+
+6-engine 측정(각10회, warmup3)은 기존 자동화의 Rust native/API mimalloc 설정을 사용했다. 각 엔진에26개 시나리오가 모두 존재한다.
+
+| 엔진 | 26개 평균(ms) |
+|---|---:|
+| Java | 93.7806 |
+| Rust native | 22.1288 |
+| Rust API | 23.4824 |
+| NAPI | 24.5033 |
+| WASM | 33.1527 |
+| elkjs | 957.4159 |
+
+Java/native 평균 비율은 **4.24x**다. [시나리오별 보고서 및 같은 디렉터리의 원본 CSV](upgrade_0_12_0/perf/six-way/report.md)를 보관했다. system allocator A/B와 mimalloc 6-way의 수치를 섞지 않으며, 과거 다른 OS·툴체인의 3.88x 기준선과도 직접 비교하지 않는다.
+
+커밋 `163ce307`의 원격 결과:
+
+- [CI39356401621](https://github.com/openedges/elk-rs/actions/runs/39356401621): 성공.
+- [성능 회귀39356407064](https://github.com/openedges/elk-rs/actions/runs/39356407064): 8/8 통과.
+- [배포 리허설39356401700](https://github.com/openedges/elk-rs/actions/runs/39356401700): 성공. NAPI6개, web/Node WASM, npm7개/crates18개 publish dry-run 완료(업로드 없음).
+- [Java 비교39356404335](https://github.com/openedges/elk-rs/actions/runs/39356404335): 성공. Java issue 비교5/5와 정적 검사 통과.
 
 ## 재현 절차
 
 1. `TESTING.md`의 Java 도구를 준비하고 버전별 output/isolation 디렉터리를 비운 새 경로로 지정한다. `scripts/java_model_parity_trace.sh external/elk-models <output>/model_parity_full/java`로 Java baseline을 새로 생성한다. 기존 Java export를 재사용하지 않는다.
 2. 원본 `java_manifest.tsv`를 보존하고 `generate_full_trace_manifest.py`로 전체 1,998개 입력 manifest를 별도 생성한다. 정상 model runner와 trace runner는 별도로 실행한다(trace 모드는 layered를 강제한다).
 3. `compare_model_parity_layouts.py`로 최종 출력을, `java_model_phase_step_trace.sh`와 `compare_phase_traces.py --batch --report-missing`으로 중간 단계를 비교한다.
-4. 신규 fixture root로 같은 절차를 반복하고 null의 Java 예외를 보존한다. JS에서는 명시적 local NAPI/web WASM `--backend`, fresh Java `--java-dir`, `--require-java`를 사용한다(`TESTING.md` § 3.4).
+4. 신규 fixture root로 같은 절차를 반복하고 null의 Java 예외를 보존한다. JS에서는 명시적 local NAPI/web WASM `--backend`, fresh Java `--java-baseline`, `--require-java`를 사용한다(`TESTING.md` § 3.4).
 5. 생성된 Java `src-gen`을 포함하는 isolation의 `plugins`를 `JAVA_SOURCES_ROOT`로 지정하고 정적 검사 12개를 실행한다.
 6. full manifest와 신규 9개 입력을 합친 `ELK_MEMORY_MANIFEST`로 `cargo test --release -p org-eclipse-elk-graph-json --test memory_allocations -- --nocapture`를 실행한다.
 7. 성능은 다른 빌드·테스트가 멈춘 뒤 실행한다. `sh scripts/run_perf_benchmark.sh synthetic 10 3 <output>` 결과에 6개 엔진 × 26개 시나리오가 있는지 확인한다.

@@ -45,7 +45,7 @@
 8. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
 ## 현재 핵심 스냅샷 (2026-10-20, ELK 0.12.0 포팅 검증)
-- **elk-rs 버전**: `0.12.0` (ELK Java `v0.12.0` 포팅, `port/0.12.0`에서 로컬 품질 게이트 통과; 원격 검증 및 배포 준비 중). 이전 `0.11.0`은 `v0.11.0+rs.6`에서 crates.io 18개·npm 7개 배포 완료. 상세 검증은 `tests/upgrade_0_12_0.md`
+- **elk-rs 버전**: `0.12.0` (ELK Java `v0.12.0` 포팅, `port/0.12.0`에서 로컬·원격 품질 게이트 통과; `v0.12.0+rs.7` 릴리즈 준비). 이전 `0.11.0`은 `v0.11.0+rs.6`에서 crates.io 18개·npm 7개 배포 완료. 상세 검증은 `tests/upgrade_0_12_0.md`
   - 배포 정책(2026-10-19): `+rs.N` 태그가 배포 대상, `-ext.N`은 배포하지 않음. 레지스트리는 `+rs.N`을 담을 수 없어(npm은 제거, crates.io는 동일 버전 취급) 배포할 수정은 patch 버전을 올린다(`0.11.0`→`0.11.1`, elkjs 방식). 버전 변경 없는 `+rs.N` 태그는 publish 스크립트가 기존 버전을 건너뛰어 빌드만 한다. 상세 `VERSIONING.md` § 1·§ 6
   - 내부 패치 태그: `v0.11.0+rs.5` — NAPI CI 수정(linux-arm64 cross gcc 링커, `x86_64-apple-darwin`을 arm64 러너 크로스 빌드로 전환). Rust 소스는 rs.4와 동일
   - 이전 내부 패치: `v0.11.0+rs.4` — MinWidthLayerer out-degree 동률 노드의 입력 순서 유지 (PR #1, `MIN_WIDTH` 전용, corpus 출력 불변)
@@ -67,6 +67,7 @@
   - NAPI 플랫폼별 패키지 6개 추가 완료: `@openedges/elk-layout-darwin-arm64`, `@openedges/elk-layout-darwin-x64`, `@openedges/elk-layout-linux-x64-gnu`, `@openedges/elk-layout-linux-x64-musl`, `@openedges/elk-layout-linux-arm64-gnu`, `@openedges/elk-layout-win32-x64-msvc` (바이너리 `elk-layout.<triple>.node`)
   - 로딩 우선순위: 플랫폼 NAPI 패키지 → 로컬 `.node` → Node CJS WASM 폴백; 브라우저는 web WASM을 비동기 초기화
   - CI/CD: `.github/workflows/release.yml` 하나로 통합(2026-10-20, decl-lang 구조). `v*` 태그 push 시 `preflight`(`mise.toml`/`rust-toolchain.toml` 핀 일치, `bump_version.py --check` = 태그 기본 버전) → `binaries`(6 플랫폼 NAPI; `x86_64-apple-darwin`은 arm64 러너 크로스 빌드) + `wasm` → `-ext.`가 아닌 태그에서만 `publish-npm`(`scripts/publish_npm.sh`, environment `npm`)·`publish-crates`(`scripts/publish_crates.py`, environment `crates-io`)가 레지스트리에 없는 버전만 publish하고 `release` 잡이 `.node` 6개 + WASM tar.gz를 GitHub Release에 첨부. 인증은 Trusted Publishing(OIDC; npm 패키지 7개·크레이트 18개에 `openedges/elk-rs`+`release.yml`+environment 등록, npm 등록은 2일 내 publish 필요), 전환기에는 `NPM_TOKEN`/`CARGO_REGISTRY_TOKEN` fallback. 수동 실행은 빌드 + 두 publish 스크립트 dry-run. 툴체인은 `rust-toolchain.toml`/`mise.toml`(Rust 1.97.1, Node 24)에 고정, ci/parity/perf 워크플로도 같은 핀 사용
+- **0.12.0 성능 검증 (2026-10-20)**: 동일 M3 Pro/macOS27.0.1에서 native A/B 평균22.9955→22.8010ms(-0.85%), layered_xlarge+0.02%. 6-way(Java93.7806ms/native22.1288ms) 평균 비율4.24x; 원본CSV·환경·allocator 구분은 `tests/upgrade_0_12_0.md`. 원격CI/성능8개 게이트 통과, NAPI6개 및 두WASM 빌드 성공. 아래3.88x는 이전 환경의 역사적 기준선이다.
 - **성능 기준선 (6-way fair benchmark, synthetic 10/3, 2026-03-23 측정, ~3.88x)**:
   - 측정 머신: MacBook Pro (Mac15,6), Apple M3 Pro (11코어: 5P+6E), 36GB RAM, macOS 26.3
   - 툴체인: Rust 1.93.1, OpenJDK 21.0.10, Node.js 22.16.0
@@ -103,7 +104,7 @@
   - 수정 전후 1,998/1,998 JSON 결과 동일. workspace test 1,021 passed / 0 failed / 2 ignored, build/clippy warning 0건.
   - 현재 머신 Rust A/B 성능: 전체 26개 평균 22.588→23.049ms(+2.04%), layered_xlarge 중앙값 +0.31%. Stress 대형 입력 별도 측정 +5.66%는 후속 프로파일링 대상이며 성능 무회귀로 판정하지 않음 (`HISTORY.md` 참조).
 - **알려진 실패**: 없음 (`elk_live_examples_test` 해결 완료 — cross-hierarchy edge graceful skip + 30s timeout)
-- **원격 CI**: `ci.yml`은 2026-10-19 서브모듈 체크아웃 수정 후 첫 녹색(run 39210241569, 1,022 passed / 0 failed / 2 ignored, warning 0). `parity.yml`은 Java 비교 체인 수정(Temurin 17·Maven 3.9.16 고정, issue 시나리오 복원, release 빌드, 생성 소스 경로, ripgrep) 후 run 39229265896에서 처음으로 전 단계 성공(약 10분; Rust release가 Java보다 86~91% 빠름, 정적 parity 보고서 12개 중 5개의 informational drift는 awk 파서의 rustfmt 줄바꿈 미처리로 확인돼 `scripts/lib/join_wrapped_rust_lines.awk` pre-pass로 수정, run 39242090738에서 12개 모두 ok(약 7분 40초; ELK Dash license-check는 `-Ddash.skip=true`로 생략); `custom/0.11.0`은 확장 옵션 `ignoreEdgeInLayer`로 option_support/option_default 각 1건의 예상 차이). `perf.yml`은 임계값을 CI 러너 기준(측정값 2배)으로 재보정해 수동 실행 run 39212896180에서 8/8 통과.
+- **원격 CI (0.12.0, `163ce307`)**: CI39356401621(1,032passed/0failed/2ignored, warning0), Java parity39356404335(5/5 및 정적검사), perf39356407064(8/8), release rehearsal39356401700(NAPI6개·web/NodeWASM·npm7개/crates18개 dry-run) 모두 성공. 실제 CI tarball의 Node18.0/24.19 native/WASM 세로딩모드12/12 통과. 이전 CI 수정 이력은 `HISTORY.md` 참조.
 - `213_componentsCompaction.elkt`: `java_non_ok=nan_output`으로 분류 — Rust 출력이 더 정확
 
 ## Drift 분석 요약
