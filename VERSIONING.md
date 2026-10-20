@@ -7,7 +7,7 @@ elk-rs is a Rust port of Java ELK (Eclipse Layout Kernel) and also provides an e
 - **ELK Java** (`external/elk`): pinned to `v0.12.0`, commit `323312916048544e4e594eab3303cdb0d01e2929`
 - **elkjs** (`external/elkjs`): pinned to `0.12.0`, commit `ff5771d7165445c42c408bb8a090c8035272218c`
 - **elk-models** (`external/elk-models`): pinned to the parity corpus commit
-- **Working tree**: `custom/0.12.0`, all Rust crates and npm packages `0.12.0-ext.1`; the JS test dependency is exact `elkjs@0.12.0`. This branch merges `releases/0.12.0` (`10661c0e`) into the previous extension line (`5473eb06`). No extension tag or package has been published for this version.
+- **Working tree**: `custom/0.12.0`, all Rust crates and npm packages `0.12.0-ext.1`; the JS test dependency is exact `elkjs@0.12.0`. This branch merges `releases/0.12.0` (`10661c0e`) into the previous extension line (`5473eb06`). Annotated extension tag `v0.12.0-ext.1` points to `371e186d` and is pushed to GitHub; extension packages remain unpublished.
 - **Published package version**: `0.12.0`; release workflow 39357332958 completed crates.io, npm and GitHub Release publication on 2026-10-20
 - **Initial release tag**: [`v0.12.0`](https://github.com/openedges/elk-rs/releases/tag/v0.12.0), pointing to the original release commit `22fbee45`. The mistaken `v0.12.0+rs.7` tag was removed and the existing Release renamed, preserving all seven assets. The first subsequent Rust revision is `v0.12.0+rs.1`.
 - **Verification**: the stable release evidence is in the [0.12.0 upgrade report](tests/upgrade_0_12_0.md); extension integration evidence is in the [custom upgrade report](tests/upgrade_custom_0_12_0.md).
@@ -248,7 +248,7 @@ main                        <- development branch (always build/test/parity gree
 │   └─ v0.11.0+rs.6         <- first registry publish
 ├─ custom/0.11.0            <- extension line (-ext.N tags, never published)
 ├─ releases/0.12.0          <- current release line (initial tag v0.12.0)
-├─ custom/0.12.0            <- current extension line (0.12.0-ext.1, no tag yet)
+├─ custom/0.12.0            <- current extension line (tag v0.12.0-ext.1, build only)
 ├─ port/0.12.0              <- ELK 0.12.0 porting work branch
 ├─ feature/*                <- elk-rs feature development (NAPI, optimizations, etc.)
 └─ fix/*                    <- bug fixes
@@ -292,7 +292,7 @@ releases/0.12.0:
   v0.12.0+rs.2            <- second subsequent Rust revision (future)
 
 custom/0.12.0:
-  v0.12.0-ext.1           <- reserved name for the first extension tag; not created
+  v0.12.0-ext.1           <- first extension tag at 371e186d (build only)
 ```
 
 **Rules:**

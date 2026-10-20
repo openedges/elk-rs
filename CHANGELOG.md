@@ -7,7 +7,7 @@ Versions correspond to the target ELK Java version (see `VERSIONING.md`).
 
 ## [0.12.0-ext.1] - 2026-10-20
 
-Extension integration on `custom/0.12.0`; no tag or registry publication.
+Extension integration on `custom/0.12.0`, tagged [`v0.12.0-ext.1`](https://github.com/openedges/elk-rs/tree/v0.12.0-ext.1) at `371e186d`. Build only; no registry publication.
 
 ### Changed
 

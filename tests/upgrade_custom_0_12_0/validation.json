@@ -132,5 +132,12 @@
     "publish_npm": false,
     "publish_crates": false,
     "github_release": false
+  },
+  "extension_tag": {
+    "name": "v0.12.0-ext.1",
+    "commit": "371e186dcff4be2195a3710f2fcb08c86059d5ac",
+    "tag_object": "56b2291ea194fd905dcf29c7d219547c21bfca73",
+    "remote": "github",
+    "build_run": 39372006098
   }
 }

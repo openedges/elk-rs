@@ -5,7 +5,7 @@ verification items, scenario-based procedures, release checklist, and known
 issues.
 
 The working tree is `custom/0.12.0`, version `0.12.0-ext.1`; this extension build
-has no tag or registry publication. Current integration evidence is in
+is tagged `v0.12.0-ext.1` at `371e186d` (build only, no registry publication). Current integration evidence is in
 [tests/upgrade_custom_0_12_0.md](tests/upgrade_custom_0_12_0.md).
 Published stable packages remain `0.12.0`, initially tagged `v0.12.0`; subsequent
 Rust revisions of that base version start at `v0.12.0+rs.1`.

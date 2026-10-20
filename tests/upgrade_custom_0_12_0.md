@@ -3,8 +3,11 @@
 `custom/0.12.0` starts from `custom/0.11.0` at `5473eb06351eb09a33a76279623c4ad9e5cfe034`
 and merges `releases/0.12.0` at `10661c0e65186e1b2b07cfdab9ccd444e467c337`.
 Cargo/npm manifests are `0.12.0-ext.1`. The previous custom branch and existing
-tags are preserved. No extension tag, GitHub Release, or registry publication
-is part of this integration.
+tags are preserved. After integration, annotated tag
+[`v0.12.0-ext.1`](https://github.com/openedges/elk-rs/tree/v0.12.0-ext.1) was pushed
+at `371e186d` on user request. It triggers build-only run
+[39372006098](https://github.com/openedges/elk-rs/actions/runs/39372006098);
+no GitHub Release or registry publication is requested.
 
 The Java reference is `v0.12.0` (`323312916048544e4e594eab3303cdb0d01e2929`);
 elkjs is `0.12.0` (`ff5771d7165445c42c408bb8a090c8035272218c`). The Java exports

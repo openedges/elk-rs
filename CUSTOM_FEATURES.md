@@ -20,7 +20,7 @@ Four custom features are currently implemented:
 | Item | Value |
 |------|-------|
 | Integration branch | `custom/0.12.0` |
-| Tag | No 0.12.0 extension tag created |
+| Tag | [`v0.12.0-ext.1`](https://github.com/openedges/elk-rs/tree/v0.12.0-ext.1) (`371e186d`, build only) |
 | Cargo version | `0.12.0-ext.1` |
 | npm version | `@openedges/elk-layout@0.12.0-ext.1` manifest (extension builds are not published) |
 | Base | `custom/0.11.0` (`5473eb06`) merged with `releases/0.12.0` (`10661c0e`) |

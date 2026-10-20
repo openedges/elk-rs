@@ -3,9 +3,15 @@
 - 본 문서는 기존 `AGENTS.md`의 `진행된 작업` 섹션을 분리 보관한 기록이다.
 - 신규 단계 완료 시 이 문서에 누적 기록하고, `AGENTS.md`의 핵심 스냅샷/우선순위를 동기화한다.
 
+## v0.12.0-ext.1 태그 원격 push (2026-10-20)
+
+- 사용자 요청에 따라 검증 완료 커밋 `371e186dcff4be2195a3710f2fcb08c86059d5ac`에 annotated tag `v0.12.0-ext.1`을 만들고 `github` 원격(`openedges/elk-rs`)에 push했다. 원격 tag object `56b2291ea194fd905dcf29c7d219547c21bfca73`과 peeled commit이 로컬과 일치함을 확인했다.
+- 태그 push로 release run [39372006098](https://github.com/openedges/elk-rs/actions/runs/39372006098), CI run [39372006117](https://github.com/openedges/elk-rs/actions/runs/39372006117)이 시작됐다. 확장 태그는 NAPI/WASM 빌드 전용이며 npm/crates 게시와 GitHub Release 생성 대상이 아니다.
+- 현재 문서의 태그 미생성 표기를 갱신했다. 태그는 기존 검증 커밋을 유지하고, 이 기록은 별도 문서 커밋으로 남긴다. 소스·워크플로·서브모듈 변경이 없어 이전 Rust/JS/full model/phase 검증을 재사용하며 문서 변경 후 workspace build 및 diff-check를 확인한다.
+
 ## custom/0.12.0 통합 검증 (2026-10-20)
 
-- 사용자 요청에 따라 `custom/0.11.0` (`5473eb06`, `0.11.0-ext.6`)에서 `custom/0.12.0`을 만들고 `releases/0.12.0` (`10661c0e`)을 병합했다. 기존 브랜치와 태그는 유지하고 Cargo/npm 버전은 새 기준선의 첫 확장판인 `0.12.0-ext.1`로 맞췄다. 새 태그나 레지스트리 게시를 수행하지 않는다.
+- 사용자 요청에 따라 `custom/0.11.0` (`5473eb06`, `0.11.0-ext.6`)에서 `custom/0.12.0`을 만들고 `releases/0.12.0` (`10661c0e`)을 병합했다. 기존 브랜치와 태그는 유지하고 Cargo/npm 버전은 새 기준선의 첫 확장판인 `0.12.0-ext.1`로 맞췄다. 이 통합 단계에서는 새 태그나 레지스트리 게시를 수행하지 않았다.
 - `NodePlacementRepeater`, nullable `recomputeNodePlacement`, unzip 경계 수정, JS 초기화·CJS WASM·Node18 최소 버전, 라이선스 및 OIDC 전용 배포를 가져왔다. 기존 `ignoreEdgeInLayer`, FIRST/LAST_SEPARATE 라우팅, 외부 포트 레이어, edgeless port 및 elk-live 확장은 유지했다. 소스의 확장 delta가 기존 확장판과 동일함을 독립 리뷰로 확인했다.
 - 충돌은 버전·운영 문서와 메타데이터 테스트에 한정됐다. 메타데이터 테스트는 확장 옵션과 새 재배치 옵션 검사를 모두 보존했다. `custom_recompute_test.rs`의 3개 테스트로 5종 placer의 ignored/normal E→W 간선 끝점, split=2 경계, 18개 확장 fixture×5종 재배치(90개 조합)를 검증했다.
 - 확장 버전의 수동 게시 우회를 막았다. `workflow_dispatch`에서 prerelease 버전으로 `publish_npm` 또는 `publish_crates`를 켜면 preflight가 실패한다. 기본 빌드·dry-run은 유지한다. actionlint/ShellCheck와 실제 preflight 셸의 9개 경우가 통과했다.
