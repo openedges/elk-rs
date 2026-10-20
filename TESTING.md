@@ -440,11 +440,10 @@ Decide first whether this tag publishes:
 
 - Fixes to publish: bump the package patch version and use its initial bare tag.
 - Internal revisions without a package bump: use the next `+rs.N` for that same base version; existing registry versions are skipped.
-- First publishing tag after 2026-10-19 only: register the seven npm trusted publishers at
-  most two days before pushing the tag (`VERSIONING.md` § 6; npm expires an unused
-  registration). The crates.io registrations have no deadline, but all 18 must exist once
-  `CARGO_REGISTRY_TOKEN` is deleted (until then the job retries unregistered crates with the
-  secret and warns).
+- Authentication: existing npm7/crates18 Trusted Publishing registrations are reused.
+  Do not add registry tokens to GitHub Secrets. For a new package/crate name, complete
+  its bootstrap and register `openedges/elk-rs`, `release.yml`, and the appropriate
+  environment before its first CI publication (`VERSIONING.md` § 6).
 
 ```sh
 # 1. Set the package version everywhere (skip for a build-only tag)
@@ -477,15 +476,16 @@ Pass criteria:
 - After the tag run, every package/crate at that version exists on its registry and the
   skipped-because-existing lines in the workflow logs match what was already published
 
-Credentials are Trusted Publishing (GitHub Actions OIDC, `VERSIONING.md` § 6); the
-`NPM_TOKEN`/`CARGO_REGISTRY_TOKEN` secrets remain only as the transition fallback. Never
-published: `-ext.N` tags. A manual run of `release` (Actions → release → Run workflow)
+Credentials are Trusted Publishing only (GitHub Actions OIDC, `VERSIONING.md` § 6).
+The workflow does not read `NPM_TOKEN`/`CARGO_REGISTRY_TOKEN` secrets. The crates job's
+`CARGO_REGISTRY_TOKEN` environment variable contains only the short-lived auth-action
+output; authentication failures fail the job without a fallback. Never
+automatically published: `-ext.N` tags. A manual run of `release` (Actions → release → Run workflow)
 builds the binaries and dry-runs both publish scripts against them, also when started on a
-tag; its `publish_npm`/`publish_crates` inputs request a real publish. New crate names only:
-crates.io limits new crates to a burst of five, then one every ten minutes, which the
-30-minute OIDC token cannot wait out (the 13 new crates of the `0.11.0` tag run took 2 h 7 min
-under the old token workflow); publish them locally after `cargo login` first and let the
-tag run skip them.
+tag; its `publish_npm`/`publish_crates` inputs request a real publish. Both environments
+allow only `v*` tags, so a manual actual publish must select a release tag.
+Manual runs do not create a GitHub Release. An already published version is skipped
+even during a dry run, so that result does not test OIDC authentication.
 
 ### 3.7 Performance Benchmark (6-Way Comparison)
 

@@ -10,9 +10,9 @@
 #                      (CI passes the tag's base version, e.g. 0.12.0 for v0.12.0 or v0.12.0+rs.1)
 #
 # Authentication: in GitHub Actions the `release.yml` publish-npm job runs with
-# `id-token: write`, so npm (11.5.1+) publishes through Trusted Publishing (OIDC)
-# and falls back to a token configured in ~/.npmrc for packages without a
-# registration; locally log in with `npm login`. Not needed for --dry-run.
+# `id-token: write`, so npm (11.5.1+) publishes through Trusted Publishing (OIDC).
+# Every package must trust that workflow; CI has no stored-token fallback.
+# A local publish uses `npm login`. Authentication is not needed for --dry-run.
 #
 # Environment:
 #   NPM_DIST_TAG      dist-tag to publish under (default: latest)

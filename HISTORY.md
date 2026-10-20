@@ -3,6 +3,16 @@
 - 본 문서는 기존 `AGENTS.md`의 `진행된 작업` 섹션을 분리 보관한 기록이다.
 - 신규 단계 완료 시 이 문서에 누적 기록하고, `AGENTS.md`의 핵심 스냅샷/우선순위를 동기화한다.
 
+## GitHub Actions 배포의 장기 토큰 의존 제거 (2026-10-20)
+
+- 사용자 요청: 토큰을 등록하지 않는 배포 방식으로 전환. `release.yml`의 npm `.npmrc`/`NPM_TOKEN` 주입과 crates.io `CARGO_REGISTRY_TOKEN` secret 재시도를 제거했다. crates.io 인증·게시 단계의 `continue-on-error`도 제거해 OIDC 실패 시 즉시 실패한다. `CARGO_REGISTRY_TOKEN` 환경 변수에는 `crates-io-auth-action`이 발급한 단기 토큰만 전달한다.
+- 기존 연결 확인: 실제 0.12.0 배포 run39357332958에서 crates.io는 OIDC 교환→18개 게시→단기 토큰 폐기까지 성공했고 fallback 단계는 생략됐다. npm 7개는 별도 provenance 옵션 없이 자동 provenance를 생성했다. npm 공식 문서의 자동 provenance 조건과 대조해 Trusted Publishing 사용을 확인했다. 두 GitHub environment는 `v*` tag만 허용한다.
+- npm CLI의 trust 설정 조회는 401로 실패했고, npm 설정 페이지의 브라우저 접근은 사용자 승인 거절로 중단했다. 레지스트리 설정이나 계정 토큰을 변경하지 않고 기존 배포 로그·공개 문서를 근거로 Actions 인증 경로만 전환한다. 기존 레지스트리 토큰 자체의 폐기와 GitHub Secret 삭제는 서로 다른 작업이다.
+- 저장소 `NPM_TOKEN`·`CARGO_REGISTRY_TOKEN` Secrets를 삭제하고 API 재조회에서 빈 목록을 확인했다. `npm`·`crates-io` environment에도 별도 Secrets가 없다. 레지스트리 계정의 원래 토큰을 폐기한 것으로 간주하지 않는다.
+- 검증: 변경 diff 코드리뷰, actionlint+ShellCheck, 버전 일치(0.12.0), diff-check 통과. 실제 workflow의 publish 셸을 추출해 빈 OIDC 토큰 거부, npm/crates 성공 및 실패 전달 총 5개 사례를 검증했다. push/dispatch 조건·preflight·빌드·rehearsal·GitHub Release 잡이 기존과 동일하고 secret 참조가 없음을 확인했다. workspace build/Clippy warning 0, workspace tests 1,032 passed / 0 failed / 2 ignored.
+- 예외: Rust/JS 실행 코드·입력·서브모듈을 바꾸지 않은 인증 경로 변경이므로 full model/phase parity는 0.12.0 검증 결과(model 1,988/1,989, 기존 Java drift 1건; trace 1,997/1,997)를 재사용한다. 패키지 게시나 새 태그 생성은 실행하지 않았다. 새 버전의 실제 OIDC 게시 검증은 다음 릴리즈에서 수행하며, 기존 버전을 건너뛰는 dry-run을 인증 검증으로 세지 않는다.
+- 적용 대상은 `main`과 `releases/0.12.0`이다. 기존 공개 태그 및 0.12.0 패키지는 유지한다.
+
 ## v0.12.0 태그·Release 정정 완료 (2026-10-20)
 
 - 사용자 요청에 따라 보류했던 태그 정정을 실행했다. 최초 릴리즈의 annotated tag `v0.12.0`은 기존 배포 커밋 `22fbee456ccffe88d524e8fefe7d6ffd8d9f5063`을 그대로 가리킨다. 정책 수정은 별도 문서 커밋이므로 배포된 소스 커밋을 바꾸지 않는다.

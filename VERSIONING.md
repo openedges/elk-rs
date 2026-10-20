@@ -451,41 +451,48 @@ repository keeps its `elk-rs` name.
 - Both take the tag's base version from CI (`v0.12.0` or `v0.12.0+rs.1` -> `0.12.0`) and fail if any
   manifest disagrees.
 
-### Credentials: Trusted Publishing
+### Credentials: Trusted Publishing only
 
-The first publish (`0.11.0`, 2026-10-19, tag `v0.11.0+rs.6`) used long-lived tokens: the
-repository secrets `NPM_TOKEN` and `CARGO_REGISTRY_TOKEN`, plus a local `cargo login` for
-the first five crates (crates.io limits *new* crates to a burst of five, then one every
-ten minutes; the tag run published the other 13 through the retry loop of
-`publish_crates.py` in 2 h 7 min). Every later publish runs through GitHub Actions OIDC,
-which both registries call Trusted Publishing: the registry trusts the identity
-"repository `openedges/elk-rs`, workflow file `release.yml`, GitHub environment", and the
-job receives a short-lived token (crates.io: 30 minutes). A registration is made per
-package and per crate, by an owner, and only for a package/crate that already exists:
+GitHub Actions publishes through OIDC without stored npm or crates.io tokens.
+Do not register `NPM_TOKEN` or `CARGO_REGISTRY_TOKEN` as GitHub Secrets. The registry
+trusts the identity "repository `openedges/elk-rs`, workflow file `release.yml`,
+GitHub environment". The existing seven npm packages and 18 crates used this
+identity for the 0.12.0 publication (run39357332958).
+
+| Job | Authentication | Failure behavior |
+|-----|----------------|------------------|
+| `publish-npm` | `id-token: write`; npm 11 automatically exchanges the GitHub identity | Publish fails; no `.npmrc` token injection or stored-token retry |
+| `publish-crates` | `id-token: write`; `rust-lang/crates-io-auth-action@v1` obtains a short-lived token and revokes it after the job | Authentication or publish failure fails the job |
+
+The `CARGO_REGISTRY_TOKEN` environment variable in `publish-crates` is the action's
+short-lived output, **not a stored secret**. No credential is needed for public
+registry lookups or publish dry runs. An owner registers each package/crate's
+trusted publisher once; new package versions reuse that registration:
 
 | Registry | Where | Fields |
 |----------|-------|--------|
 | npmjs.com, 7 packages | package page → Settings → Trusted publishing → GitHub Actions | Organization or user `openedges`, Repository `elk-rs`, Workflow filename `release.yml`, Environment name `npm`; Allowed actions must include `npm publish` |
 | crates.io, 18 crates | crate page → Settings → Trusted Publishing → Add → GitHub | Repository owner `openedges`, Repository name `elk-rs`, Workflow filename `release.yml`, Environment `crates-io` |
 
-- GitHub environments `npm` and `crates-io` (repository Settings → Environments). GitHub
-  creates them on first use, but creating them by hand allows a deployment rule that limits
-  each to `v*` tags, so no branch run can reach a registry (a manual publish is then
-  dispatched on the release tag).
-- npm expires a trusted-publisher registration that has not completed a publish within two
-  days, so the seven npm registrations are made at most two days before the first
-  publishing tag (TESTING.md § 3.6). crates.io registrations do not expire.
-- Transition: `release.yml` still honours the two secrets when the OIDC publish fails
-  (a package or crate without a registration; crates.io scopes its token to the registered
-  crates, so the unregistered ones get 403 and the job retries them with the secret and
-  warns). After the first release that published
-  through OIDC, delete `NPM_TOKEN` and `CARGO_REGISTRY_TOKEN` and set every npm package's
-  Publishing access to "Require two-factor authentication and disallow tokens".
+- GitHub environments `npm` and `crates-io` allow only `v*` tags, as verified on
+  2026-10-20. A manual real publish must therefore be dispatched on a release tag.
+  A branch run with both publish inputs false remains a dry run.
+- npm expires a **new** trusted-publisher registration if its first successful publish
+  does not occur within two days. The existing registrations have completed that
+  first publish; do not recreate them for each version.
 - npm trusted publishing needs npm 11.5.1+ on Node 22.14+; `release.yml` installs `npm@11`
   on the Node version pinned in `mise.toml`. Provenance requires `repository.url` of every
   npm package to be `git+https://github.com/openedges/elk-rs.git`, which the manifests carry.
-- All 18 crates.io registrations must exist before `CARGO_REGISTRY_TOKEN` is deleted; until
-  then a partial set only costs the warning above.
-- New crate names (a future plugin crate) hit the new-crate limit (a burst of five, then
-  one every ten minutes), which the 30-minute OIDC token cannot wait out: publish them
-  locally after `cargo login` first and let the tag run skip them.
+- For an OIDC error, check the package's owner/repository/workflow/environment fields
+  and `id-token: write`, repair the registration, then rerun the failed job.
+  Do not restore a long-lived-token fallback. Already published versions are skipped.
+- New package/crate names need a separate bootstrap and trusted-publisher registration.
+  Existing packages need neither `npm login` nor `cargo login` for CI releases.
+- Removing a GitHub Secret does not revoke the corresponding token at npm/crates.io.
+  Registry account token revocation and npm's "Require two-factor authentication and
+  disallow tokens" setting are separate account operations; this workflow does not
+  depend on either setting.
+
+References: [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers/),
+[crates.io auth action](https://github.com/rust-lang/crates-io-auth-action).
+The initial token-based bootstrap and migration evidence are recorded in `HISTORY.md`.

@@ -13,10 +13,9 @@
 # The registries are reached through Trusted Publishing: the OIDC identity of
 # this workflow (repository openedges/elk-rs, file release.yml, environment
 # `npm` or `crates-io`) is registered on npmjs.com for every package and on
-# crates.io for every crate, so no long-lived token has to be stored. While the
-# registrations are being set up, the `NPM_TOKEN` / `CARGO_REGISTRY_TOKEN`
-# secrets are still honoured as a fallback; delete them once a release has
-# published through OIDC.
+# crates.io for every crate. No registry token is stored in GitHub Secrets:
+# npm exchanges the job identity automatically, and crates.io issues a short-lived
+# token through its auth action. An authentication failure stops the publish job.
 #
 # A manual run (workflow_dispatch, from a branch or a tag) builds everything and
 # dry-runs the publish scripts; its two inputs ask for a real publish of the
@@ -243,20 +242,8 @@ jobs:
             cp "$f" "plugins/org.eclipse.elk.js/npm/$triple/"
           done
           ls -l plugins/org.eclipse.elk.js/npm/*/*.node plugins/org.eclipse.elk.js/dist/wasm plugins/org.eclipse.elk.js/dist/wasm-node
-      - name: Publish the packages missing on npm
-        env:
-          # Transition only. npm tries the OIDC exchange first and falls back to a configured
-          # token when a package has no trusted publisher yet (npm expires an unused
-          # registration after two days, so the npm side is registered right before the first
-          # publishing tag). Delete the secret once a release has published through OIDC.
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          if [ -n "$NPM_TOKEN" ]; then
-            # shellcheck disable=SC2016 # npm expands the ${NPM_TOKEN} reference itself
-            echo '//registry.npmjs.org/:_authToken=${NPM_TOKEN}' >> "$HOME/.npmrc"
-            echo "NPM_TOKEN is set: token authentication is the fallback for packages without a trusted publisher"
-          fi
-          sh scripts/publish_npm.sh --expect-version "${{ needs.preflight.outputs.version }}"
+      - name: Publish the packages missing on npm (trusted publishing)
+        run: sh scripts/publish_npm.sh --expect-version "${{ needs.preflight.outputs.version }}"
 
   # crates.io through Trusted Publishing: each crate trusts this repository, this file and the
   # `crates-io` environment; the auth action turns the OIDC identity into a 30-minute token.
@@ -283,30 +270,16 @@ jobs:
         with:
           toolchain: ${{ needs.preflight.outputs.rust }}
       - uses: Swatinem/rust-cache@v2
-      # crates.io issues the token when at least one crate trusts this workflow, scoped to
-      # the crates that do; with none registered the exchange fails and the token is empty.
+      # crates.io issues a token scoped to the crates that trust this workflow.
+      # Every published crate must be registered; there is no stored-token fallback.
       - id: auth
         uses: rust-lang/crates-io-auth-action@v1
-        continue-on-error: true
-      - id: oidc
-        name: Publish the crates missing on crates.io (trusted publishing)
-        continue-on-error: true
+      - name: Publish the crates missing on crates.io (trusted publishing)
         env:
+          # This is the short-lived action output, not a GitHub Secret.
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
         run: |
-          test -n "$CARGO_REGISTRY_TOKEN" || { echo "crates.io refused the trusted publishing exchange: no crate trusts this workflow yet" >&2; exit 1; }
-          python3 scripts/publish_crates.py --expect-version "${{ needs.preflight.outputs.version }}"
-      # Transition only: a crate without a trusted publisher gets 403 under the OIDC token,
-      # so the crates still missing are retried with the CARGO_REGISTRY_TOKEN secret (the
-      # script skips what the first step published). Without the secret the job fails here,
-      # which is the intended end state once every crate is registered and the secret is gone.
-      - if: steps.oidc.outcome == 'failure'
-        name: Retry with CARGO_REGISTRY_TOKEN (transition fallback)
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: |
-          test -n "$CARGO_REGISTRY_TOKEN" || { echo "trusted publishing failed and CARGO_REGISTRY_TOKEN is not set; register the missing crates on crates.io and re-run this job" >&2; exit 1; }
-          echo "::warning::trusted publishing failed for at least one crate; retrying with CARGO_REGISTRY_TOKEN. Register the missing crates on crates.io (VERSIONING.md § 6)."
+          test -n "$CARGO_REGISTRY_TOKEN" || { echo "crates.io returned no OIDC token; check Trusted Publishing for openedges/elk-rs, release.yml, environment crates-io" >&2; exit 1; }
           python3 scripts/publish_crates.py --expect-version "${{ needs.preflight.outputs.version }}"
 
   # The GitHub Release means "published": it needs both publish jobs, so a failed publish
