@@ -9,15 +9,19 @@
 #   --expect-version   fail unless every package.json carries this version
 #                      (CI passes the tag's base version, e.g. 0.11.1 for v0.11.1+rs.7)
 #
+# Authentication: in GitHub Actions the `release.yml` publish-npm job runs with
+# `id-token: write`, so npm (11.5.1+) publishes through Trusted Publishing (OIDC)
+# and falls back to a token configured in ~/.npmrc for packages without a
+# registration; locally log in with `npm login`. Not needed for --dry-run.
+#
 # Environment:
-#   NODE_AUTH_TOKEN   npm token (or log in with `npm login`); not needed for --dry-run
 #   NPM_DIST_TAG      dist-tag to publish under (default: latest)
 #
 # Every package is validated (version, build artifact present) before the first
 # publish so a bad main package cannot leave the platform packages published alone.
 # Expects the platform `.node` binaries in plugins/org.eclipse.elk.js/npm/<triple>/
 # and the WASM build in plugins/org.eclipse.elk.js/dist/wasm/ (see build.sh and
-# .github/workflows/napi.yml). Run from the repository root.
+# .github/workflows/release.yml). Run from the repository root.
 set -eu
 
 dry_run=false

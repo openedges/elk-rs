@@ -1,0 +1,333 @@
+# Release pipeline for `v*` tags (VERSIONING.md § 3 and § 6, TESTING.md § 3.6).
+#
+# Every tag builds the six NAPI binaries and the WASM bundle. A release tag
+# (`v<version>+rs.<N>` on a releases/* branch) additionally publishes the npm
+# packages and the crates whose version is not on the registry yet and attaches
+# the binaries to a GitHub Release. Extension tags (`v<version>-ext.<N>` on
+# custom/* branches) are build-only: their binaries stay workflow artifacts and
+# nothing is published or released. A tag that does not bump the package version
+# publishes nothing either, because both publish scripts skip package@version
+# pairs that already exist.
+#
+# The registries are reached through Trusted Publishing: the OIDC identity of
+# this workflow (repository openedges/elk-rs, file release.yml, environment
+# `npm` or `crates-io`) is registered on npmjs.com for every package and on
+# crates.io for every crate, so no long-lived token has to be stored. While the
+# registrations are being set up, the `NPM_TOKEN` / `CARGO_REGISTRY_TOKEN`
+# secrets are still honoured as a fallback; delete them once a release has
+# published through OIDC.
+#
+# A manual run (workflow_dispatch, from a branch or a tag) builds everything and
+# dry-runs the publish scripts; its two inputs ask for a real publish of the
+# missing versions (start it on the release tag when the environments are
+# limited to tags).
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      publish_npm:
+        description: publish the npm packages missing on the registry, as a release tag does
+        type: boolean
+        default: false
+      publish_crates:
+        description: publish the crates missing on crates.io, as a release tag does
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  # A tag must name the version every manifest carries; a dispatch takes the manifests' version.
+  preflight:
+    name: the version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      publish: ${{ steps.version.outputs.publish }}
+      node: ${{ steps.pins.outputs.node }}
+      rust: ${{ steps.pins.outputs.rust }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: pins
+        name: the pinned toolchains (mise.toml, rust-toolchain.toml)
+        run: |
+          node=$(sed -n 's/^node = "\(.*\)"/\1/p' mise.toml)
+          rust=$(sed -n 's/^rust = { version = "\([^"]*\)".*/\1/p' mise.toml)
+          channel=$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)
+          test -n "$node" && test -n "$rust" || { echo "mise.toml: node or rust pin missing" >&2; exit 1; }
+          test "$rust" = "$channel" || { echo "rust-toolchain.toml ($channel) does not match mise.toml ($rust)" >&2; exit 1; }
+          echo "node=$node" >> "$GITHUB_OUTPUT"
+          echo "rust=$rust" >> "$GITHUB_OUTPUT"
+          echo "node $node, rust $rust"
+      - id: version
+        name: the package version against the tag
+        run: |
+          version=$(python3 scripts/bump_version.py --check)
+          publish=false
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            # v0.11.1+rs.7 -> 0.11.1; v0.11.0-ext.6 -> 0.11.0-ext.6
+            base="${GITHUB_REF_NAME#v}"
+            base="${base%%+*}"
+            if [ "$base" != "$version" ]; then
+              echo "tag $GITHUB_REF_NAME names version $base but the manifests carry $version" >&2
+              exit 1
+            fi
+            # Only a pushed tag publishes by itself; a dispatch started on a tag ref builds and
+            # dry-runs like any other manual run unless its inputs ask for a publish.
+            if [ "$GITHUB_EVENT_NAME" = push ]; then
+              case "$version" in
+                *-*) echo "prerelease/extension version $version: build only, nothing is published" ;;
+                *) publish=true ;;
+              esac
+            fi
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+          echo "version $version, publish $publish"
+
+  binaries:
+    name: NAPI ${{ matrix.target }}
+    needs: preflight
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: aarch64-apple-darwin, os: macos-latest }
+          # Cross-built on the arm64 runner; GitHub retires Intel macOS runners in fall 2027.
+          - { target: x86_64-apple-darwin, os: macos-latest }
+          - { target: x86_64-unknown-linux-gnu, os: ubuntu-latest }
+          - { target: x86_64-unknown-linux-musl, os: ubuntu-latest }
+          - { target: aarch64-unknown-linux-gnu, os: ubuntu-latest }
+          - { target: x86_64-pc-windows-msvc, os: windows-latest }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ needs.preflight.outputs.rust }}
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ needs.preflight.outputs.node }}
+      - name: Install the aarch64 cross linker (Linux ARM64)
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          # napi-rs CLI sets no linker for aarch64-unknown-linux-gnu, so cargo would fall back
+          # to the host `cc` (x86_64); rustc >= 1.98 also passes the AArch64-only
+          # --fix-cortex-a53-843419 flag that rust-lld rejects there. Link with the cross gcc.
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
+          echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
+      - name: Install musl tools
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: sudo apt-get install -y musl-tools
+      - name: Install napi-cli
+        run: npm install -g @napi-rs/cli
+      - name: Build the NAPI binding
+        working-directory: plugins/org.eclipse.elk.napi
+        run: npx napi build --release --platform --target ${{ matrix.target }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: binding-${{ matrix.target }}
+          path: plugins/org.eclipse.elk.napi/*.node
+          if-no-files-found: error
+
+  wasm:
+    name: WASM bundle
+    needs: preflight
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ needs.preflight.outputs.rust }}
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: Install wasm-pack
+        run: cargo install wasm-pack --locked
+      - name: Build the WASM bundle of the main package
+        working-directory: plugins/org.eclipse.elk.wasm
+        run: |
+          wasm-pack build --target web --out-dir ../org.eclipse.elk.js/dist/wasm --release
+          rm -f ../org.eclipse.elk.js/dist/wasm/.gitignore ../org.eclipse.elk.js/dist/wasm/package.json
+          ls -l ../org.eclipse.elk.js/dist/wasm
+      - uses: actions/upload-artifact@v7
+        with:
+          name: wasm
+          path: plugins/org.eclipse.elk.js/dist/wasm/
+          if-no-files-found: error
+
+  # A manual run rehearses the publish scripts (`--dry-run`) for whatever it was not asked to publish.
+  rehearsal:
+    name: dry run
+    needs: [preflight, binaries, wasm]
+    if: github.event_name == 'workflow_dispatch' && !(inputs.publish_npm && inputs.publish_crates)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ needs.preflight.outputs.rust }}
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ needs.preflight.outputs.node }}
+      - uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+      - name: Place the binaries and the WASM bundle
+        run: |
+          rm -rf plugins/org.eclipse.elk.js/dist/wasm
+          mkdir -p plugins/org.eclipse.elk.js/dist
+          cp -R artifacts/wasm plugins/org.eclipse.elk.js/dist/wasm
+          for f in artifacts/binding-*/*.node; do
+            triple=$(basename "$f" .node)
+            triple="${triple#elk-layout.}"
+            test -d "plugins/org.eclipse.elk.js/npm/$triple" || { echo "no platform package for $f" >&2; exit 1; }
+            cp "$f" "plugins/org.eclipse.elk.js/npm/$triple/"
+          done
+          ls -l plugins/org.eclipse.elk.js/npm/*/*.node plugins/org.eclipse.elk.js/dist/wasm
+      - if: ${{ !inputs.publish_npm }}
+        name: npm dry run
+        run: sh scripts/publish_npm.sh --dry-run --expect-version "${{ needs.preflight.outputs.version }}"
+      - if: ${{ !inputs.publish_crates }}
+        name: crates.io dry run
+        run: python3 scripts/publish_crates.py --dry-run --expect-version "${{ needs.preflight.outputs.version }}"
+
+  # npm through Trusted Publishing: each package on npmjs.com trusts this repository, this
+  # file and the `npm` environment, and npm attaches provenance to what it publishes.
+  publish-npm:
+    name: npm
+    needs: [preflight, binaries, wasm]
+    if: needs.preflight.outputs.publish == 'true' || inputs.publish_npm
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      id-token: write
+      contents: read
+    # Serialize tag runs; a second run simply skips what the first one published.
+    concurrency:
+      group: release-npm
+      cancel-in-progress: false
+    env:
+      NPM_DIST_TAG: latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ needs.preflight.outputs.node }}
+      # Trusted publishing needs npm 11.5.1 or newer; the major is pinned so a release does
+      # not pick up the next major the day it appears.
+      - run: npm install -g npm@11 && npm --version
+      - uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+      - name: Place the binaries and the WASM bundle
+        run: |
+          rm -rf plugins/org.eclipse.elk.js/dist/wasm
+          mkdir -p plugins/org.eclipse.elk.js/dist
+          cp -R artifacts/wasm plugins/org.eclipse.elk.js/dist/wasm
+          for f in artifacts/binding-*/*.node; do
+            triple=$(basename "$f" .node)
+            triple="${triple#elk-layout.}"
+            test -d "plugins/org.eclipse.elk.js/npm/$triple" || { echo "no platform package for $f" >&2; exit 1; }
+            cp "$f" "plugins/org.eclipse.elk.js/npm/$triple/"
+          done
+          ls -l plugins/org.eclipse.elk.js/npm/*/*.node plugins/org.eclipse.elk.js/dist/wasm
+      - name: Publish the packages missing on npm
+        env:
+          # Transition only. npm tries the OIDC exchange first and falls back to a configured
+          # token when a package has no trusted publisher yet (npm expires an unused
+          # registration after two days, so the npm side is registered right before the first
+          # publishing tag). Delete the secret once a release has published through OIDC.
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -n "$NPM_TOKEN" ]; then
+            # shellcheck disable=SC2016 # npm expands the ${NPM_TOKEN} reference itself
+            echo '//registry.npmjs.org/:_authToken=${NPM_TOKEN}' >> "$HOME/.npmrc"
+            echo "NPM_TOKEN is set: token authentication is the fallback for packages without a trusted publisher"
+          fi
+          sh scripts/publish_npm.sh --expect-version "${{ needs.preflight.outputs.version }}"
+
+  # crates.io through Trusted Publishing: each crate trusts this repository, this file and the
+  # `crates-io` environment; the auth action turns the OIDC identity into a 30-minute token.
+  publish-crates:
+    name: crates.io
+    needs: preflight
+    if: needs.preflight.outputs.publish == 'true' || inputs.publish_crates
+    runs-on: ubuntu-latest
+    environment: crates-io
+    permissions:
+      id-token: write
+      contents: read
+    concurrency:
+      group: release-crates
+      cancel-in-progress: false
+    env:
+      # The OIDC token lives 30 minutes, so the new-crate rate-limit loop of
+      # publish_crates.py (660 s per attempt) gets one retry at most: a crate name that
+      # is new to crates.io is published locally first (VERSIONING.md § 6).
+      PUBLISH_CRATES_MAX_ATTEMPTS: 2
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ needs.preflight.outputs.rust }}
+      - uses: Swatinem/rust-cache@v2
+      # crates.io issues the token when at least one crate trusts this workflow, scoped to
+      # the crates that do; with none registered the exchange fails and the token is empty.
+      - id: auth
+        uses: rust-lang/crates-io-auth-action@v1
+        continue-on-error: true
+      - id: oidc
+        name: Publish the crates missing on crates.io (trusted publishing)
+        continue-on-error: true
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          test -n "$CARGO_REGISTRY_TOKEN" || { echo "crates.io refused the trusted publishing exchange: no crate trusts this workflow yet" >&2; exit 1; }
+          python3 scripts/publish_crates.py --expect-version "${{ needs.preflight.outputs.version }}"
+      # Transition only: a crate without a trusted publisher gets 403 under the OIDC token,
+      # so the crates still missing are retried with the CARGO_REGISTRY_TOKEN secret (the
+      # script skips what the first step published). Without the secret the job fails here,
+      # which is the intended end state once every crate is registered and the secret is gone.
+      - if: steps.oidc.outcome == 'failure'
+        name: Retry with CARGO_REGISTRY_TOKEN (transition fallback)
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          test -n "$CARGO_REGISTRY_TOKEN" || { echo "trusted publishing failed and CARGO_REGISTRY_TOKEN is not set; register the missing crates on crates.io and re-run this job" >&2; exit 1; }
+          echo "::warning::trusted publishing failed for at least one crate; retrying with CARGO_REGISTRY_TOKEN. Register the missing crates on crates.io (VERSIONING.md § 6)."
+          python3 scripts/publish_crates.py --expect-version "${{ needs.preflight.outputs.version }}"
+
+  # The GitHub Release means "published": it needs both publish jobs, so a failed publish
+  # leaves no release behind (re-run the failed jobs and the release follows).
+  release:
+    name: GitHub release
+    needs: [preflight, binaries, wasm, publish-npm, publish-crates]
+    if: github.ref_type == 'tag' && needs.preflight.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+      - name: Name the assets
+        run: |
+          mkdir -p assets
+          cp artifacts/binding-*/*.node assets/
+          tar -czf "assets/elk-layout-${{ needs.preflight.outputs.version }}-wasm.tar.gz" -C artifacts wasm
+          ls -l assets
+      - uses: softprops/action-gh-release@v3
+        with:
+          files: assets/*
+          generate_release_notes: true

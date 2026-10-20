@@ -12,8 +12,12 @@ jobs:
         with:
           # Tests read .elkt resources from external/elk-models and external/elk.
           submodules: true
-      - uses: dtolnay/rust-toolchain@stable
+      - id: pins
+        name: the pinned Rust version (rust-toolchain.toml)
+        run: echo "rust=$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: ${{ steps.pins.outputs.rust }}
           components: clippy
       - name: Run tests and clippy
         run: sh scripts/run_fast_checks.sh

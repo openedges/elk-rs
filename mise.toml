@@ -1,0 +1,8 @@
+# The exact toolchain versions elk-rs is developed, tested and released with.
+# `mise trust && mise install` gives a developer machine the versions CI uses;
+# rust-toolchain.toml mirrors the Rust pin for cargo without mise, and
+# .github/workflows/release.yml checks that the two agree. Node 24: npm 11.5.1
+# or newer (trusted publishing) needs Node 22.14 or newer.
+[tools]
+node = "24"
+rust = { version = "1.97.1", profile = "minimal", components = ["rustfmt", "clippy"] }

@@ -15,12 +15,12 @@ directory structure, exception cases), see [`tests/PARITY.md`](tests/PARITY.md).
 
 | Tool | Minimum Version | Purpose |
 |------|-----------------|---------|
-| Rust toolchain | stable | Build, test, clippy |
+| Rust toolchain | 1.97.1 (`rust-toolchain.toml`; `mise.toml` for mise users; CI installs the same pin) | Build, test, clippy |
 | Java JDK | 17+ | Java baseline export |
 | Maven | 3.9.x | ELK build (path configurable via `JAVA_PARITY_MVN_BIN`); Tycho 4.0.12 in `external/elk` does not start under Maven 3.10 ("No implementation for MavenTargetLocationFactory was bound") |
 | Python | 3.8+ | `compare_model_parity_layouts.py`, `compare_phase_traces.py`, etc. |
 | ripgrep (`rg`) | any | file discovery in `scripts/check_algorithm_*_parity.sh`, `summarize_java_parity_status.sh` (not preinstalled on GitHub runners; `parity.yml` installs it) |
-| Node.js | 16+ | JS tests, parity tests |
+| Node.js | 24 (`mise.toml`) | JS tests, parity tests; npm 11.5.1+ for publishing |
 | wasm-pack | latest | WASM build (`wasm32-unknown-unknown` target required) |
 
 ### Submodule Initialization
@@ -388,6 +388,11 @@ Publishing is driven by `v<version>+rs.<N>` tags (`VERSIONING.md` § 1 and § 6)
 Decide first whether this tag publishes:
 
 - Fixes to publish: bump the patch version, then tag. Build-only: tag without bumping.
+- First publishing tag after 2026-10-19 only: register the seven npm trusted publishers at
+  most two days before pushing the tag (`VERSIONING.md` § 6; npm expires an unused
+  registration). The crates.io registrations have no deadline, but all 18 must exist once
+  `CARGO_REGISTRY_TOKEN` is deleted (until then the job retries unregistered crates with the
+  secret and warns).
 
 ```sh
 # 1. Set the package version everywhere (skip for a build-only tag)
@@ -399,7 +404,7 @@ python3 scripts/publish_crates.py --dry-run --allow-dirty   # packages + verifie
 cd plugins/org.eclipse.elk.js && sh build.sh && cd -        # WASM + local NAPI binary
 sh scripts/publish_npm.sh --dry-run --expect-version 0.11.1
 
-# 3. Commit, tag, push (napi.yml publishes npm, cargo-publish.yml publishes crates.io)
+# 3. Commit, tag, push (release.yml: build, npm + crates.io publish, GitHub Release)
 git commit -am "release: prepare elk-rs 0.11.1"
 git tag -a v0.11.1+rs.7 -m "elk-rs 0.11.1 (ELK 0.11.0 + fixes)"
 git push origin releases/0.11.0 && git push origin v0.11.1+rs.7
@@ -416,11 +421,15 @@ Pass criteria:
 - After the tag run, every package/crate at that version exists on its registry and the
   skipped-because-existing lines in the workflow logs match what was already published
 
-First publish of the crates only: crates.io limits new crates to a burst of five, then one
-every ten minutes (18 new crates: the `elk-layout` facade and 17 `org-eclipse-elk-*`). Run `python3 scripts/publish_crates.py` locally after `cargo login`
-(the script sleeps and retries; or ask help@crates.io to raise the limit first), then let
-the tag run skip the crates that already exist. Required secrets: `NPM_TOKEN`,
-`CARGO_REGISTRY_TOKEN` (repository settings); never published: `-ext.N` tags.
+Credentials are Trusted Publishing (GitHub Actions OIDC, `VERSIONING.md` § 6); the
+`NPM_TOKEN`/`CARGO_REGISTRY_TOKEN` secrets remain only as the transition fallback. Never
+published: `-ext.N` tags. A manual run of `release` (Actions → release → Run workflow)
+builds the binaries and dry-runs both publish scripts against them, also when started on a
+tag; its `publish_npm`/`publish_crates` inputs request a real publish. New crate names only:
+crates.io limits new crates to a burst of five, then one every ten minutes, which the
+30-minute OIDC token cannot wait out (the 13 new crates of the `0.11.0` tag run took 2 h 7 min
+under the old token workflow); publish them locally after `cargo login` first and let the
+tag run skip them.
 
 ### 3.7 Performance Benchmark (6-Way Comparison)
 
