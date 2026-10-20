@@ -1,8 +1,8 @@
 Scripts overview:
 
 Current target and published package version: ELK 0.12.0.
-The initial tag should be `v0.12.0`; the mistakenly published `v0.12.0+rs.7` awaits
-tag/Release correction. Subsequent Rust revisions start at `v0.12.0+rs.1`.
+The initial tag is `v0.12.0`; the former `v0.12.0+rs.7` naming error has been corrected.
+Subsequent Rust revisions start at `v0.12.0+rs.1`.
 See [the upgrade report](../tests/upgrade_0_12_0.md) for current model/trace results.
 
 Release readiness quick run:

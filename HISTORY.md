@@ -3,6 +3,14 @@
 - 본 문서는 기존 `AGENTS.md`의 `진행된 작업` 섹션을 분리 보관한 기록이다.
 - 신규 단계 완료 시 이 문서에 누적 기록하고, `AGENTS.md`의 핵심 스냅샷/우선순위를 동기화한다.
 
+## v0.12.0 태그·Release 정정 완료 (2026-10-20)
+
+- 사용자 요청에 따라 보류했던 태그 정정을 실행했다. 최초 릴리즈의 annotated tag `v0.12.0`은 기존 배포 커밋 `22fbee456ccffe88d524e8fefe7d6ffd8d9f5063`을 그대로 가리킨다. 정책 수정은 별도 문서 커밋이므로 배포된 소스 커밋을 바꾸지 않는다.
+- GitHub Release417932319의 tag/name을 `v0.12.0`으로 변경하고 실제0.12 포팅 내용·검증·Node18 최소조건·태그 정정 설명을 릴리즈 노트에 반영했다. Release ID와 첨부7개(NAPI6개+WASM tar.gz)의 ID·크기·SHA-256을 전후 비교해 동일함을 확인했다. 공개 링크: https://github.com/openedges/elk-rs/releases/tag/v0.12.0
+- 잘못된 `v0.12.0+rs.7`은 원격 github 및 로컬에서 삭제했다. 새 태그로 시작된 중복 release run39360825143은 기존 배포 산출물을 유지하기 위해 취소했다. 기존 실제 배포 run39357332958의 성공 이력은 보존한다. 레지스트리 package version은0.12.0이며 변경하지 않는다.
+- VERSIONING/TESTING/CHANGELOG/scripts README/AGENTS 스냅샷의 정정 대기 표시를 완료로 바꾸고 검증 보고서에 결과를 추가했다. `278d72cd`의 규칙 수정과 이 완료 기록을 `main` 및 `releases/0.12.0`에 함께 반영한다.
+- 검증: workspace build warning0/error0, diff-check 및 패키지 버전 일치(0.12.0) 확인. 문서와 릴리즈 메타데이터만 변경했으므로 기존 Rust1032/JS49 테스트·full model/phase parity·플랫폼 패키지 검증 결과를 재사용한다.
+
 ## 최초 릴리즈 및 Rust 리비전 태그 규칙 정정 (2026-10-20)
 
 - 사용자 확정 규칙: 새 기본 버전의 최초 릴리즈는 접미사 없는 `v0.12.0`이고, 이후 같은 기본 버전의 첫 Rust 수정부터 `v0.12.0+rs.1`, `+rs.2`를 붙인다. 새 기본 버전에서는 다시 접미사 없는 태그로 시작한다. 기존 `N never resets` 전역 누적 규칙과 최초 릴리즈를 `+rs.1`로 시작한다는 해석을 모두 폐기한다.

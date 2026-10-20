@@ -9,7 +9,7 @@ elk-rs is a Rust port of Java ELK (Eclipse Layout Kernel) and also provides an e
 - **elk-models** (`external/elk-models`): pinned to the parity corpus commit
 - **Working tree**: all Rust crates and npm packages `0.12.0`; the JS test dependency is exact `elkjs@0.12.0`
 - **Published package version**: `0.12.0`; release workflow 39357332958 completed crates.io, npm and GitHub Release publication on 2026-10-20
-- **Tag correction pending**: the first 0.12.0 release should be `v0.12.0`. It was mistakenly published under `v0.12.0+rs.7`; that existing tag/Release has not been changed. The first subsequent Rust revision is `v0.12.0+rs.1`.
+- **Initial release tag**: [`v0.12.0`](https://github.com/openedges/elk-rs/releases/tag/v0.12.0), pointing to the original release commit `22fbee45`. The mistaken `v0.12.0+rs.7` tag was removed and the existing Release renamed, preserving all seven assets. The first subsequent Rust revision is `v0.12.0+rs.1`.
 - **Verification**: warning-free build/Clippy, 1,032 Rust tests passed (0 failed, 2 ignored); fresh NAPI and browser WASM each match Java on 550/550 JSON models. Full model and phase-step trace status: [upgrade report](tests/upgrade_0_12_0.md)
 - **Node.js runtime**: the 0.12.0 npm package requires Node.js 18+ (minimum 18.0.0 verified); development and release builds use pinned Node.js 24. Node.js 16 is unsupported because the standard WASM artifact requires reference types unavailable there without experimental flags.
 - **License**: `EPL-2.0 OR GPL-3.0-or-later`, with the upstream conditional secondary-license notice preserved in `LICENSE` and `NOTICE`
@@ -224,7 +224,7 @@ main                        <- development branch (always build/test/parity gree
 │   ├─ v0.11.0+rs.1         <- internal patch tag
 │   └─ v0.11.0+rs.6         <- first registry publish
 ├─ custom/0.11.0            <- extension line (-ext.N tags, never published)
-├─ releases/0.12.0          <- current release line (initial tag correction pending)
+├─ releases/0.12.0          <- current release line (initial tag v0.12.0)
 ├─ port/0.12.0              <- ELK 0.12.0 porting work branch
 ├─ feature/*                <- elk-rs feature development (NAPI, optimizations, etc.)
 └─ fix/*                    <- bug fixes
@@ -252,7 +252,7 @@ releases/0.11.0:
   v0.11.0+rs.6            <- first crates.io + npm publish of 0.11.0 (2026-10-19)
 
 releases/0.12.0:
-  v0.12.0                 <- required initial ELK 0.12.0 port tag (correction pending)
+  v0.12.0                 <- initial ELK 0.12.0 port tag
   v0.12.0+rs.1            <- first subsequent Rust revision (future)
   v0.12.0+rs.2            <- second subsequent Rust revision (future)
 ```
@@ -260,7 +260,7 @@ releases/0.12.0:
 **Rules:**
 - First release of a base version: `v<package version>` on the release branch, with no `+rs` suffix
 - Subsequent revisions of that base version: `+rs.1`, `+rs.2`, ...; a new base version starts with a bare tag again
-- Historical naming error: `v0.12.0+rs.7` was published before this correction. It is not the numbering rule for the 0.12.0 line; its tag/Release correction is pending
+- Historical naming error: `v0.12.0+rs.7` was corrected to `v0.12.0`; the incorrect tag was removed, and the released commit and assets were preserved
 - Whether a tag publishes depends only on whether `<package version>` is already on the
   registries (the publish scripts skip existing versions)
 - Use annotated tags: `git tag -a v0.11.1 -m "elk-rs 0.11.1 (ELK 0.11.0 + fixes)"`

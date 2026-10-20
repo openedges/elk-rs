@@ -4,8 +4,8 @@ Single entry point for the elk-rs validation flow. Covers environment setup,
 verification items, scenario-based procedures, release checklist, and known
 issues.
 
-The working tree and published packages target ELK 0.12.0. Its initial tag should
-be `v0.12.0`; the mistakenly published `v0.12.0+rs.7` tag/Release awaits correction.
+The working tree and published packages target ELK 0.12.0, initially tagged
+`v0.12.0`. The former `v0.12.0+rs.7` naming error has been corrected.
 Subsequent Rust revisions of the same base version start at `v0.12.0+rs.1`.
 Current upgrade evidence and full model/trace status are maintained in
 [tests/upgrade_0_12_0.md](tests/upgrade_0_12_0.md).
@@ -466,8 +466,8 @@ npm view @openedges/elk-layout version && npm view @openedges/elk-layout-darwin-
 python3 scripts/publish_crates.py --list        # then check https://crates.io/crates/elk-layout
 ```
 
-The commands above show the correct initial-release naming. The existing 0.12.0
-publication used the wrong tag; do not replay these commands as a tag-repair procedure.
+The commands above illustrate initial-release naming. Version 0.12.0 has already
+been published and its tag corrected; do not replay these commands for that release.
 For a new release, finish all gates before tagging.
 
 Pass criteria:

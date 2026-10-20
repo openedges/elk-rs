@@ -90,6 +90,13 @@ Java/native 평균 비율은 **4.24x**다. [시나리오별 보고서 및 같은
 - [배포 리허설39356401700](https://github.com/openedges/elk-rs/actions/runs/39356401700): 성공. NAPI6개, web/Node WASM, npm7개/crates18개 publish dry-run 완료(업로드 없음).
 - [Java 비교39356404335](https://github.com/openedges/elk-rs/actions/runs/39356404335): 성공. Java issue 비교5/5와 정적 검사 통과.
 
+## 배포 및 태그 정정
+
+- [실제 배포39357332958](https://github.com/openedges/elk-rs/actions/runs/39357332958): crates.io18개, npm7개 및 GitHub Release 게시 성공. crates.io 실제 설치 facade에서 신규 재배치 기능도 통과했고 npm의 `@openedges/elk-layout@0.12.0` 버전을 직접 확인했다.
+- 최초 릴리즈 태그는 [`v0.12.0`](https://github.com/openedges/elk-rs/releases/tag/v0.12.0)이며 기존 배포 커밋 `22fbee456ccffe88d524e8fefe7d6ffd8d9f5063`을 가리킨다. 잘못된 `v0.12.0+rs.7` 태그는 삭제했다.
+- 기존 Release417932319를 재사용해 tag/name/notes만 정정했다. 첨부7개의 ID·크기·SHA-256이 전후 동일하다([메타데이터](upgrade_0_12_0/release_metadata.json)). 레지스트리 package version은 그대로0.12.0이다.
+- 새 태그로 시작된 중복 release run39360825143은 취소했다. 기존 성공한 배포 이력은 보존하며, 새 기본 버전은 bare tag, 후속 Rust 리비전은 `+rs.1`부터 시작한다.
+
 ## 재현 절차
 
 1. `TESTING.md`의 Java 도구를 준비하고 버전별 output/isolation 디렉터리를 비운 새 경로로 지정한다. `scripts/java_model_parity_trace.sh external/elk-models <output>/model_parity_full/java`로 Java baseline을 새로 생성한다. 기존 Java export를 재사용하지 않는다.

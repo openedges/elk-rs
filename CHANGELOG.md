@@ -7,8 +7,9 @@ Versions correspond to the target ELK Java version (see `VERSIONING.md`).
 
 ## [0.12.0] - 2026-10-20
 
-ELK Java 0.12.0 port. The initial tag should be `v0.12.0`; publication used the
-incorrect name `v0.12.0+rs.7`, whose tag/Release correction is pending.
+ELK Java 0.12.0 port. Initial release: [`v0.12.0`](https://github.com/openedges/elk-rs/releases/tag/v0.12.0).
+The original `v0.12.0+rs.7` label was corrected without changing the released source
+commit, binary assets or registry package versions.
 
 ### ELK Porting
 
