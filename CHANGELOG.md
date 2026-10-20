@@ -7,7 +7,8 @@ Versions correspond to the target ELK Java version (see `VERSIONING.md`).
 
 ## [0.12.0] - 2026-10-20
 
-ELK Java 0.12.0 port. Release tag: `v0.12.0+rs.7`.
+ELK Java 0.12.0 port. The initial tag should be `v0.12.0`; publication used the
+incorrect name `v0.12.0+rs.7`, whose tag/Release correction is pending.
 
 ### ELK Porting
 
@@ -23,6 +24,7 @@ ELK Java 0.12.0 port. Release tag: `v0.12.0+rs.7`.
 
 ### Changed
 
+- Corrected tag numbering: the first release of each base version has no suffix (`v0.12.0`); subsequent Rust revisions start at `+rs.1`, independently for each base version.
 - Raised the npm package minimum from Node.js 16 to Node.js 18: the generated WASM requires reference types, unavailable on Node.js 16 without experimental flags. Verified the isolated CommonJS fallback on Node.js 18.0.0 and 20.20.2; development remains on pinned Node.js 24.
 - Matched upstream's `EPL-2.0 OR GPL-3.0-or-later` metadata while preserving the conditional EPL secondary-license notice and attribution; included applicable license notices in Cargo and npm packages.
 

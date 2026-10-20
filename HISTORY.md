@@ -3,6 +3,14 @@
 - 본 문서는 기존 `AGENTS.md`의 `진행된 작업` 섹션을 분리 보관한 기록이다.
 - 신규 단계 완료 시 이 문서에 누적 기록하고, `AGENTS.md`의 핵심 스냅샷/우선순위를 동기화한다.
 
+## 최초 릴리즈 및 Rust 리비전 태그 규칙 정정 (2026-10-20)
+
+- 사용자 확정 규칙: 새 기본 버전의 최초 릴리즈는 접미사 없는 `v0.12.0`이고, 이후 같은 기본 버전의 첫 Rust 수정부터 `v0.12.0+rs.1`, `+rs.2`를 붙인다. 새 기본 버전에서는 다시 접미사 없는 태그로 시작한다. 기존 `N never resets` 전역 누적 규칙과 최초 릴리즈를 `+rs.1`로 시작한다는 해석을 모두 폐기한다.
+- 원인: 기존 VERSIONING의 전역 누적 카운터 규칙을 포팅 때 그대로 적용해 `v0.12.0+rs.7`을 생성했다. 이 태그의 release run39357332958은 crates.io/npm/GitHub Release 단계를 모두 완료했다. crates.io18개 버전·라이선스 조회 및 실제 설치한 facade의 신규 기능 실행도 통과했다. 사용자 지적 후 추가 릴리즈 작업을 중단했으며, 이번 정정에서는 게시된 태그·Release를 삭제/이동/재생성하지 않는다.
+- 변경: VERSIONING/TESTING/CHANGELOG/스크립트 안내/AGENTS 스냅샷의 최초 태그·리비전 범위·실행 예시를 동기화한다. 이미 발생한 `rs.7` 배포는 잘못된 이름의 실제 이력으로 구분한다. 레지스트리에서 같은 버전을 재게시할 수 없어 공개 수정판의 package patch를 올리는 정책은 유지한다(새 package version의 첫 태그 역시 접미사 없음).
+- 워크플로는 기존부터 `v*`와 기본 버전 비교를 사용해 bare 태그와 `+rs.N`을 모두 처리한다. 실행 코드는 바꾸지 않고 주석과 예시를 바로잡는다. Rust/JS/서브모듈/패키지 버전은 변경하지 않는다.
+- 검증: workspace build warning0/error0, actionlint+ShellCheck 및 diff-check 통과. 실제 preflight 블록을 로컬에서 실행해 bare/rs.1 push의 publish=true, 두 태그의 수동 실행 publish=false, 다른 기본 버전 거부 총5개 사례를 확인했다. 문서·주석만 바뀌었으므로 기존1032 Rust 테스트·full model/phase parity 결과를 재사용한다. 태그 생성·push·배포는 수행하지 않았다.
+
 ## ELK 0.12.0 포팅 및 패키지 검증 (2026-10-20)
 
 - 기준: `main`/`releases/0.11.0`의 `d2f4c53e`에서 `port/0.12.0`을 만들었다. `external/elk`는 `v0.12.0` (`32331291`), `external/elkjs`는 `0.12.0` (`ff5771d7`)으로 고정했다. elk-models는 원격 HEAD와 같은 `ac5af2ba`를 유지했다. Cargo workspace 및 npm 전체 버전은 `0.12.0`으로 일치한다.

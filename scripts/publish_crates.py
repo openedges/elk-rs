@@ -18,7 +18,7 @@ Behaviour:
     seconds (default 660) and retries with the crates still missing, up to
     $PUBLISH_CRATES_MAX_ATTEMPTS times (default 24).
   * --expect-version fails fast unless every publishable crate has that version
-    (CI passes the tag's base version, e.g. 0.11.1 for v0.11.1+rs.7).
+    (CI passes the tag's base version, e.g. 0.12.0 for v0.12.0 or v0.12.0+rs.1).
   * --dry-run runs `cargo publish --dry-run` for the missing crates and never
     touches the registry; --no-verify skips the verification build; --allow-dirty
     is passed through for dry runs on an uncommitted working tree (rejected

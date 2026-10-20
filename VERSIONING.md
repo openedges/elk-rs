@@ -8,8 +8,8 @@ elk-rs is a Rust port of Java ELK (Eclipse Layout Kernel) and also provides an e
 - **elkjs** (`external/elkjs`): pinned to `0.12.0`, commit `ff5771d7165445c42c408bb8a090c8035272218c`
 - **elk-models** (`external/elk-models`): pinned to the parity corpus commit
 - **Working tree**: all Rust crates and npm packages `0.12.0`; the JS test dependency is exact `elkjs@0.12.0`
-- **Published release**: `0.11.0`, first published to crates.io (18 crates) and npm (7 packages) on 2026-10-19 with `v0.11.0+rs.6`
-- **Next planned release**: `v0.12.0+rs.7`, publishing package version `0.12.0`; not yet tagged or published
+- **Published package version**: `0.12.0`; release workflow 39357332958 completed crates.io, npm and GitHub Release publication on 2026-10-20
+- **Tag correction pending**: the first 0.12.0 release should be `v0.12.0`. It was mistakenly published under `v0.12.0+rs.7`; that existing tag/Release has not been changed. The first subsequent Rust revision is `v0.12.0+rs.1`.
 - **Verification**: warning-free build/Clippy, 1,032 Rust tests passed (0 failed, 2 ignored); fresh NAPI and browser WASM each match Java on 550/550 JSON models. Full model and phase-step trace status: [upgrade report](tests/upgrade_0_12_0.md)
 - **Node.js runtime**: the 0.12.0 npm package requires Node.js 18+ (minimum 18.0.0 verified); development and release builds use pinned Node.js 24. Node.js 16 is unsupported because the standard WASM artifact requires reference types unavailable there without experimental flags.
 - **License**: `EPL-2.0 OR GPL-3.0-or-later`, with the upstream conditional secondary-license notice preserved in `LICENSE` and `NOTICE`
@@ -36,10 +36,10 @@ elk-rs 0.12.0  =  ELK Java 0.12.0 port
 
 | Project | Working-tree target | Latest elk-rs package release |
 |---------|---------------------|-------------------------------|
-| ELK Java reference | 0.12.0 | 0.11.0 reference used for the published port |
-| elkjs reference | 0.12.0 | 0.11.0 reference used for the published port |
-| elk-rs (Rust crates) | 0.12.0 (unreleased) | 0.11.0 |
-| elk-rs (npm) | 0.12.0 (unreleased) | 0.11.0 |
+| ELK Java reference | 0.12.0 | 0.12.0 |
+| elkjs reference | 0.12.0 | 0.12.0 |
+| elk-rs (Rust crates) | 0.12.0 | 0.12.0 |
+| elk-rs (npm) | 0.12.0 | 0.12.0 |
 
 **Rules:**
 - A new ELK `MAJOR.MINOR` port resets `PATCH` to ELK's patch number (`0.12.0`)
@@ -50,15 +50,23 @@ elk-rs 0.12.0  =  ELK Java 0.12.0 port
 
 ### elk-rs Internal Change Management
 
-Every elk-rs change on a release branch is tagged `v<package version>+rs.<N>`; `N` is a
-counter that keeps increasing across package version changes (`v0.11.0+rs.5`,
-`v0.11.0+rs.6`, planned `v0.12.0+rs.7`, ...). The tag decides whether anything is published:
+The first release of each base version is tagged **`v<version>` without a suffix**.
+Only subsequent Rust revisions of that same base version use `v<version>+rs.<N>`,
+starting at `N = 1`. The revision counter belongs to one base version; it never
+carries over to another version. A new base version starts with a bare tag again.
 
 ```
-git: v0.11.0+rs.5        <- historical internal build (publishing not enabled)
-git: v0.11.0+rs.6        <- first registry publish of package version 0.11.0
-git: v0.12.0+rs.7        <- planned first publish of package version 0.12.0
+v0.12.0          <- first release of base version 0.12.0
+v0.12.0+rs.1     <- first subsequent Rust revision of 0.12.0
+v0.12.0+rs.2     <- second subsequent Rust revision of 0.12.0
+v0.12.1          <- first release of new package version 0.12.1
+v0.12.1+rs.1     <- first subsequent Rust revision of 0.12.1
+v0.13.0          <- first release of the next ELK port
 ```
+
+Tag naming and registry publication are separate: `release.yml` handles both bare
+release tags and revision tags, and publishes only package versions not already
+present in the registry.
 
 - **Build metadata never reaches a registry.** `npm publish` strips `+rs.N`
   (`semver.clean("0.11.0+rs.5")` is `0.11.0`), and crates.io rejects a second version
@@ -67,7 +75,7 @@ git: v0.12.0+rs.7        <- planned first publish of package version 0.12.0
   CHANGELOG.
 - **Publishing a fix = bump the patch version, then tag.** `python3 scripts/bump_version.py 0.12.1`
   updates every manifest and lockfile (see Version Sync Files), the quality gates run,
-  the commit is tagged `v0.12.1+rs.<N>` and pushed. `release.yml` then publishes every
+  the commit is tagged `v0.12.1` (the first release of that new base version) and pushed. `release.yml` then publishes every
   package/crate whose version is not on the registry yet and attaches the binaries to a
   GitHub Release.
 - **A tag without a bump is a build-only tag.** Both publish scripts skip
@@ -104,7 +112,7 @@ conventions adapted for ELK version alignment.
   HISTORY.md is developer-facing detailed log
 
 **When to update:**
-- On each published version (`v<version>+rs.<N>` that bumps the package version)
+- On each new published package version (first tag `v<version>`)
 - On each build-only `+rs.N` tag (add entry under Internal Changes)
 - Accumulated internal changes are folded into the next published version's section
 
@@ -116,7 +124,7 @@ conventions adapted for ELK version alignment.
 ### Fixed
 - ...
 
-### elk-rs Internal Changes (v0.11.0+rs.6 ~ v0.11.0+rs.8)
+### elk-rs Internal Changes (v0.11.1+rs.1 ~ v0.11.1+rs.2)
 - [bugfix] Improved WASM fallback error message
 - [perf] 20% layered algorithm performance improvement
 
@@ -216,7 +224,7 @@ main                        <- development branch (always build/test/parity gree
 │   ├─ v0.11.0+rs.1         <- internal patch tag
 │   └─ v0.11.0+rs.6         <- first registry publish
 ├─ custom/0.11.0            <- extension line (-ext.N tags, never published)
-├─ releases/0.12.0          <- next release line (not yet published)
+├─ releases/0.12.0          <- current release line (initial tag correction pending)
 ├─ port/0.12.0              <- ELK 0.12.0 porting work branch
 ├─ feature/*                <- elk-rs feature development (NAPI, optimizations, etc.)
 └─ fix/*                    <- bug fixes
@@ -225,7 +233,7 @@ main                        <- development branch (always build/test/parity gree
 **Rules:**
 - `main` always passes build/test/parity — development happens here
 - `releases/X.Y.Z` branches are created from `main` when ready to release
-  - Release tags (`v<version>+rs.<N>`) are placed on release branches
+  - Initial tags (`v<version>`) and subsequent revision tags (`v<version>+rs.<N>`) are placed on release branches
   - Hotfixes go to the release branch, then cherry-pick to `main` if needed
   - Release branches are long-lived (not deleted after release)
 - New ELK version porting happens on `port/X.Y.Z` branches, merged to `main`
@@ -244,14 +252,18 @@ releases/0.11.0:
   v0.11.0+rs.6            <- first crates.io + npm publish of 0.11.0 (2026-10-19)
 
 releases/0.12.0:
-  v0.12.0+rs.7            <- planned ELK 0.12.0 port release (not published)
+  v0.12.0                 <- required initial ELK 0.12.0 port tag (correction pending)
+  v0.12.0+rs.1            <- first subsequent Rust revision (future)
+  v0.12.0+rs.2            <- second subsequent Rust revision (future)
 ```
 
 **Rules:**
-- Release tags: `v<package version>+rs.<N>` on the release branch; `N` never resets
+- First release of a base version: `v<package version>` on the release branch, with no `+rs` suffix
+- Subsequent revisions of that base version: `+rs.1`, `+rs.2`, ...; a new base version starts with a bare tag again
+- Historical naming error: `v0.12.0+rs.7` was published before this correction. It is not the numbering rule for the 0.12.0 line; its tag/Release correction is pending
 - Whether a tag publishes depends only on whether `<package version>` is already on the
   registries (the publish scripts skip existing versions)
-- Use annotated tags: `git tag -a v0.11.1+rs.8 -m "elk-rs 0.11.1 (ELK 0.11.0 + fixes)"`
+- Use annotated tags: `git tag -a v0.11.1 -m "elk-rs 0.11.1 (ELK 0.11.0 + fixes)"`
 - Extension tags `v<version>-ext.<N>` live on `custom/*` branches and are never published
 
 ---
@@ -337,12 +349,12 @@ git checkout -b releases/0.12.0
 python3 scripts/bump_version.py 0.12.0
 git commit -am "release: prepare elk-rs 0.12.0"
 
-# Tag on the release branch (first +rs.N of the line continues the counter)
-git tag -a v0.12.0+rs.7 -m "elk-rs 0.12.0 (ELK 0.12.0 parity)"
+# First release of this base version: no +rs suffix
+git tag -a v0.12.0 -m "elk-rs 0.12.0 (ELK 0.12.0 parity)"
 
 # Push release branch and the tag: release.yml publishes npm + crates.io and creates the GitHub Release
 git push origin releases/0.12.0
-git push origin v0.12.0+rs.7
+git push origin v0.12.0
 
 # Return to main for continued development
 git checkout main
@@ -358,12 +370,12 @@ git checkout releases/0.11.0
 git commit -m "fix: <description>"
 
 # Build-only: tag without bumping (nothing is published because 0.11.0 is already out)
-git tag -a v0.11.0+rs.8 -m "elk-rs 0.11.0+rs.8 internal patch"
+git tag -a v0.11.0+rs.7 -m "elk-rs 0.11.0+rs.7 internal patch"
 
 # Published fix: bump the patch version first, then tag
 python3 scripts/bump_version.py 0.11.1
 git commit -am "release: prepare elk-rs 0.11.1"
-git tag -a v0.11.1+rs.8 -m "elk-rs 0.11.1 (ELK 0.11.0 + fixes)"
+git tag -a v0.11.1 -m "elk-rs 0.11.1 (ELK 0.11.0 + fixes)"
 
 # Push
 git push origin releases/0.11.0 --tags
@@ -436,7 +448,7 @@ repository keeps its `elk-rs` name.
 - `python3 scripts/publish_crates.py [--dry-run] [--no-verify] [--expect-version V]`:
   one `cargo publish -p ...` call for the crates missing on crates.io (cargo orders them
   and waits for the index), retrying after crates.io's new-crate rate limit.
-- Both take the tag's base version from CI (`v0.11.1+rs.8` -> `0.11.1`) and fail if any
+- Both take the tag's base version from CI (`v0.12.0` or `v0.12.0+rs.1` -> `0.12.0`) and fail if any
   manifest disagrees.
 
 ### Credentials: Trusted Publishing

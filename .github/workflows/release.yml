@@ -1,7 +1,8 @@
 # Release pipeline for `v*` tags (VERSIONING.md § 3 and § 6, TESTING.md § 3.6).
 #
 # Every tag builds the six NAPI binaries and the WASM bundle. A release tag
-# (`v<version>+rs.<N>` on a releases/* branch) additionally publishes the npm
+# (`v<version>` initially, then `v<version>+rs.<N>` starting at rs.1 for that
+# same version, on a releases/* branch) additionally publishes the npm
 # packages and the crates whose version is not on the registry yet and attaches
 # the binaries to a GitHub Release. Extension tags (`v<version>-ext.<N>` on
 # custom/* branches) are build-only: their binaries stay workflow artifacts and
@@ -69,7 +70,7 @@ jobs:
           version=$(python3 scripts/bump_version.py --check)
           publish=false
           if [ "$GITHUB_REF_TYPE" = tag ]; then
-            # v0.11.1+rs.7 -> 0.11.1; v0.11.0-ext.6 -> 0.11.0-ext.6
+            # v0.12.0 or v0.12.0+rs.1 -> 0.12.0; v0.12.0-ext.1 -> 0.12.0-ext.1
             base="${GITHUB_REF_NAME#v}"
             base="${base%%+*}"
             if [ "$base" != "$version" ]; then

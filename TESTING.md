@@ -4,8 +4,9 @@ Single entry point for the elk-rs validation flow. Covers environment setup,
 verification items, scenario-based procedures, release checklist, and known
 issues.
 
-The working tree targets ELK 0.12.0 (unreleased; planned `v0.12.0+rs.7`).
-The latest published packages are 0.11.0 (`v0.11.0+rs.6`, 2026-10-19).
+The working tree and published packages target ELK 0.12.0. Its initial tag should
+be `v0.12.0`; the mistakenly published `v0.12.0+rs.7` tag/Release awaits correction.
+Subsequent Rust revisions of the same base version start at `v0.12.0+rs.1`.
 Current upgrade evidence and full model/trace status are maintained in
 [tests/upgrade_0_12_0.md](tests/upgrade_0_12_0.md).
 
@@ -432,10 +433,13 @@ For detailed baseline operations, see `tests/baselines/POLICY.md`.
 
 #### Publish (crates.io + npm)
 
-Publishing is driven by `v<version>+rs.<N>` tags (`VERSIONING.md` § 1 and § 6).
+Publishing is driven by initial `v<version>` tags and subsequent `v<version>+rs.<N>`
+revision tags (`VERSIONING.md` § 1 and § 6). The first tag has no suffix; the first
+subsequent revision uses `+rs.1`. A new base version starts with a bare tag again.
 Decide first whether this tag publishes:
 
-- Fixes to publish: bump the patch version, then tag. Build-only: tag without bumping.
+- Fixes to publish: bump the package patch version and use its initial bare tag.
+- Internal revisions without a package bump: use the next `+rs.N` for that same base version; existing registry versions are skipped.
 - First publishing tag after 2026-10-19 only: register the seven npm trusted publishers at
   most two days before pushing the tag (`VERSIONING.md` § 6; npm expires an unused
   registration). The crates.io registrations have no deadline, but all 18 must exist once
@@ -454,16 +458,17 @@ sh scripts/publish_npm.sh --dry-run --expect-version 0.12.0
 
 # 3. Commit, tag, push (release.yml: build, npm + crates.io publish, GitHub Release)
 git commit -am "release: prepare elk-rs 0.12.0"
-git tag -a v0.12.0+rs.7 -m "elk-rs 0.12.0 (ELK 0.12.0 parity)"
-git push origin releases/0.12.0 && git push origin v0.12.0+rs.7
+git tag -a v0.12.0 -m "elk-rs 0.12.0 (ELK 0.12.0 parity)"
+git push origin releases/0.12.0 && git push origin v0.12.0
 
 # 4. Verify
 npm view @openedges/elk-layout version && npm view @openedges/elk-layout-darwin-arm64 version
 python3 scripts/publish_crates.py --list        # then check https://crates.io/crates/elk-layout
 ```
 
-The commands above describe the planned 0.12.0 release; they do not indicate
-that a tag or publication has completed. Finish all gates before tagging.
+The commands above show the correct initial-release naming. The existing 0.12.0
+publication used the wrong tag; do not replay these commands as a tag-repair procedure.
+For a new release, finish all gates before tagging.
 
 Pass criteria:
 

@@ -1,7 +1,8 @@
 Scripts overview:
 
-Current target: ELK 0.12.0 (unreleased; planned `v0.12.0+rs.7`).
-The latest published release is 0.11.0 (`v0.11.0+rs.6`, 2026-10-19).
+Current target and published package version: ELK 0.12.0.
+The initial tag should be `v0.12.0`; the mistakenly published `v0.12.0+rs.7` awaits
+tag/Release correction. Subsequent Rust revisions start at `v0.12.0+rs.1`.
 See [the upgrade report](../tests/upgrade_0_12_0.md) for current model/trace results.
 
 Release readiness quick run:

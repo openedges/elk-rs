@@ -7,7 +7,7 @@
 #
 #   --dry-run          `npm publish --dry-run`; missing build artifacts only warn
 #   --expect-version   fail unless every package.json carries this version
-#                      (CI passes the tag's base version, e.g. 0.11.1 for v0.11.1+rs.7)
+#                      (CI passes the tag's base version, e.g. 0.12.0 for v0.12.0 or v0.12.0+rs.1)
 #
 # Authentication: in GitHub Actions the `release.yml` publish-npm job runs with
 # `id-token: write`, so npm (11.5.1+) publishes through Trusted Publishing (OIDC)
