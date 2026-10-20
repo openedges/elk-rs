@@ -102,5 +102,35 @@
   },
   "compiler_warnings": 0,
   "performance_remeasured": false,
-  "published": false
+  "published": false,
+  "remote_ci": {
+    "run": 39369695146,
+    "commit": "d8363613ef3a78b7e17a7be837b9abfc8aaab4ad",
+    "conclusion": "success",
+    "passed": 1058,
+    "failed": 0,
+    "ignored": 2,
+    "rust_warnings": 0
+  },
+  "elk_live": {
+    "build": "passed",
+    "parser_tests_passed": 22,
+    "custom_wasm_identical": true
+  },
+  "remote_release_rehearsal": {
+    "run": 39369716186,
+    "commit": "d8363613ef3a78b7e17a7be837b9abfc8aaab4ad",
+    "conclusion": "success",
+    "napi_platforms": 6,
+    "wasm_targets": [
+      "web",
+      "nodejs"
+    ],
+    "artifacts": 7,
+    "npm_packages_dry_run": 7,
+    "crates_dry_run": 18,
+    "publish_npm": false,
+    "publish_crates": false,
+    "github_release": false
+  }
 }

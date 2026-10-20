@@ -46,6 +46,9 @@ All Rust/NAPI/WASM outputs below were regenerated from the merged custom tree.
 | Static checks | 12 reports: 11 status `ok`; option-support difference is the known custom option |
 | Workflow | actionlint/ShellCheck passed; 9 preflight cases passed |
 | Version consistency | Cargo workspace and all npm manifests/locks: `0.12.0-ext.1` |
+| Linux CI | [39369695146](https://github.com/openedges/elk-rs/actions/runs/39369695146): passed on merge commit `d8363613`; 1,058 passed, 0 failed, 2 ignored; 0 Rust warnings |
+| elk-live | Fresh custom WASM copied and byte-checked; production build and 22 ELKT/ELKEX parser unit tests passed |
+| Release rehearsal | [39369716186](https://github.com/openedges/elk-rs/actions/runs/39369716186): all six NAPI platforms, both WASM targets, npm 7-package and crates.io 18-crate dry runs passed |
 
 Model differences are `tickets/layered/213_componentsCompaction.elkt` (existing
 Java NaN/compaction issue) and `tests/layered/layer_constraints/emptyLayerFirst.elkt`
@@ -91,4 +94,7 @@ import of browser ESM WASM emits the existing module-type detection notice.
 
 Performance was not remeasured for this custom integration. The stable upgrade
 benchmark in [upgrade_0_12_0.md](upgrade_0_12_0.md) is a separate measurement.
-Remote CI results are recorded in `HISTORY.md` after the branch push.
+Remote CI and release rehearsal ran on merge commit `d8363613`; subsequent
+changes only record these results. The workflow was dispatched with both
+publish inputs false. Seven artifacts (six NAPI binaries and one WASM bundle)
+were uploaded; npm/crates.io publish and GitHub Release jobs were all skipped.

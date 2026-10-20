@@ -107,7 +107,7 @@
   - ext.4 대비 1,998/1,998 JSON 결과 동일. workspace test 1,044 passed / 0 failed / 2 ignored, build/clippy warning 0건.
   - 현재 머신 Rust A/B 성능: 전체 26개 평균 22.588→23.049ms(+2.04%), layered_xlarge 중앙값 +0.31%. Stress 대형 입력 별도 측정 +5.66%는 후속 프로파일링 대상이며 성능 무회귀로 판정하지 않음 (`HISTORY.md` 참조).
 - **알려진 실패**: 없음 (`elk_live_examples_test` 해결 완료 — cross-hierarchy edge graceful skip + 30s timeout)
-- **기반 stable 원격 CI (0.12.0, `163ce307`)**: CI39356401621(1,032passed/0failed/2ignored, warning0), Java parity39356404335(5/5 및 정적검사), perf39356407064(8/8), release rehearsal39356401700(NAPI6개·web/NodeWASM·npm7개/crates18개 dry-run) 모두 성공. custom/0.12.0 원격 결과는 `HISTORY.md`에서 별도로 관리한다.
+- **custom 원격 CI (`d8363613`)**: CI39369695146 성공(1,058passed/0failed/2ignored, warning0). release dry-run39369716186도 성공(NAPI6개·web/Node WASM·npm7개/crates18개 dry-run, 게시 잡 skipped). 로컬 elk-live의 custom WASM 연동·production build·parser22개도 통과했다. 상세 원격 이력은 `HISTORY.md` 참조.
 - `213_componentsCompaction.elkt`: `java_non_ok=nan_output`으로 분류 — Rust 출력이 더 정확
 
 ## Drift 분석 요약

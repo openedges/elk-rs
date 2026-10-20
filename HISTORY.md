@@ -12,7 +12,15 @@
 - 검증: workspace build/Clippy warning 0, Rust 1,058 passed / 0 failed / 2 ignored. 같은 upstream pin으로 생성했던 Java 0.12.0 export를 재사용하고 Rust 결과는 새로 생성했다. 전체 model은 `1987/1989`(99.90%), drift 2, skipped 9, errors/timeouts 0; trace는 `1995/1997`(99.90%), drift 2, Rust-only 1이다. 기존 Java compaction 오류와 확장판 `emptyLayerFirst`/`emptyLayerLast` 차이만 남아 이전 확장판 기준선과 같다. 신규 유효 fixture의 model/trace는 각각 8/8 일치한다. Java 파서가 실패하는 명시적 null 입력은 Rust 회귀 테스트로만 검증한다.
 - JS: 새 macOS arm64 NAPI·web/Node WASM을 빌드했다. Vitest 49/49, NAPI·web WASM 각각 Java 550/550(PASS530 + ELKJS_DRIFT20), 신규 기능 8/8이다. 기존 확장 fixture 18개는 NAPI·web WASM·Node CJS WASM에서 모두 저장된 예상 출력과 일치한다(숫자 소수점4자리 및 내부 `$` 속성 정규화). 정적 검사 12개 중 11개 status ok, option_support의 layered Java153/Rust154 및 option_default의 extra pair 1개는 기존 `ignoreEdgeInLayer` 확장 때문이다.
 - 환경 제약: 로컬에 전역 napi CLI가 없어 `npm exec --package=@napi-rs/cli -- napi build ...`로 빌드했다. 미게시 확장 optional package 때문에 npm11.17의 `npm ci`는 missing lock entry 오류가 나며 `npm install --ignore-scripts`로 개발 의존성을 설치해 검증했다(레지스트리 버전이나 런타임 로더는 변경하지 않음). Node에서 browser ESM WASM을 직접 검증할 때 기존 module-type 감지 안내가 발생한다. Rust 컴파일 경고는 없다. 이번 custom 병합에서는 성능 벤치마크를 다시 측정하지 않았으며 stable 0.12.0 수치를 custom 측정으로 간주하지 않는다.
-- 상세 결과 및 재현 명령: `tests/upgrade_custom_0_12_0.md`, 요약 원본 `tests/upgrade_custom_0_12_0/validation.json`. 원격 CI 결과는 후속 기록으로 남긴다.
+- 상세 결과 및 재현 명령: `tests/upgrade_custom_0_12_0.md`, 요약 원본 `tests/upgrade_custom_0_12_0/validation.json`.
+
+### custom/0.12.0 원격 및 elk-live 검증
+
+- 통합 커밋 `d8363613`을 `github/custom/0.12.0`에 push했다. 기존 `custom/0.11.0`은 `5473eb06`을 유지한다.
+- 원격 CI run [39369695146](https://github.com/openedges/elk-rs/actions/runs/39369695146)이 성공했다. Linux에서도 Rust 1,058 passed / 0 failed / 2 ignored, warning 0을 로그에서 확인했다.
+- elk-live는 새 custom web WASM을 `setup.mjs`로 연결하고 원본과 byte 일치를 확인했다. `npm ci --ignore-scripts`, 앱 production build, ELKT/ELKEX parser 테스트22개가 통과했다. 이 22개는 파서 단위 테스트이며 전체 앱 E2E 검증으로 세지 않는다.
+- release workflow run [39369716186](https://github.com/openedges/elk-rs/actions/runs/39369716186)이 성공했다. `publish_npm=false`, `publish_crates=false`로 실행했고 NAPI6개 플랫폼, web/Node WASM, npm7개 및 crates18개 dry-run을 통과했다. 업로드 artifact는 NAPI6개+WASM1개이며 실제 npm/crates 게시 및 GitHub Release 잡은 모두 skipped다. 로그의 `dry_run=true`와 `nothing was uploaded`를 확인했다.
+- 이후 커밋은 이 검증 기록만 갱신한다. 소스·워크플로 검증 대상은 `d8363613`이며, 기록 변경 후 workspace build warning0 및 diff-check를 다시 확인했다.
 
 ## GitHub Actions 배포의 장기 토큰 의존 제거 (2026-10-20)
 
