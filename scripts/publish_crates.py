@@ -18,16 +18,16 @@ Behaviour:
     seconds (default 660) and retries with the crates still missing, up to
     $PUBLISH_CRATES_MAX_ATTEMPTS times (default 24).
   * --expect-version fails fast unless every publishable crate has that version
-    (CI passes the tag's base version, e.g. 0.11.1 for v0.11.1+rs.7).
+    (CI passes the tag's base version, e.g. 0.12.0 for v0.12.0 or v0.12.0+rs.1).
   * --dry-run runs `cargo publish --dry-run` for the missing crates and never
     touches the registry; --no-verify skips the verification build; --allow-dirty
     is passed through for dry runs on an uncommitted working tree (rejected
     without --dry-run).
 
-Authentication: `cargo login` once, or set CARGO_REGISTRY_TOKEN (the release.yml
-publish-crates job passes the 30-minute token that rust-lang/crates-io-auth-action
-obtains through Trusted Publishing). `cargo` is taken from $CARGO or PATH. Run
-from the repository root.
+Authentication: release.yml passes only the short-lived CARGO_REGISTRY_TOKEN that
+rust-lang/crates-io-auth-action obtains through Trusted Publishing; CI has no
+stored-token fallback. A local publish uses `cargo login` or CARGO_REGISTRY_TOKEN.
+`cargo` is taken from $CARGO or PATH. Run from the repository root.
 """
 
 import json

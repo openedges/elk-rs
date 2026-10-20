@@ -1,5 +1,5 @@
 #!/bin/sh
-# 5-Way Performance Benchmark Orchestration.
+# 6-Way Performance Benchmark Orchestration.
 #
 # Runs benchmarks sequentially across all available engines and collects
 # results into a single directory for comparison.
@@ -81,7 +81,7 @@ if [ -n "$PERF_JS_ENGINES" ] && [ -d "$JS_DIR" ]; then
   fi
   # Check NAPI binary
   if echo "$PERF_JS_ENGINES" | grep -q "napi"; then
-    if [ ! -f "$JS_DIR/dist/elk-rs.node" ] && ! ls "$JS_DIR"/dist/elk-rs.*.node >/dev/null 2>&1; then
+    if [ ! -f "$JS_DIR/dist/elk-layout.node" ] && ! ls "$JS_DIR"/dist/elk-layout.*.node >/dev/null 2>&1; then
       preflight_warn="${preflight_warn}  [warn] NAPI binary not found — run 'cd plugins/org.eclipse.elk.js && sh build.sh' or skip with PERF_JS_ENGINES=elkjs,wasm\n"
       PERF_JS_ENGINES=$(echo "$PERF_JS_ENGINES" | sed 's/napi,\?//;s/,$//')
     fi
@@ -106,7 +106,7 @@ if [ "$PERF_SKIP_JAVA" != "true" ]; then
 fi
 
 echo "======================================"
-echo "5-Way Performance Benchmark"
+echo "6-Way Performance Benchmark"
 echo "======================================"
 echo "  Mode:       $MODE"
 echo "  Iterations: $ITERATIONS"
@@ -131,7 +131,7 @@ fi
 # 1. Rust native benchmark (direct ElkNode, no JSON overhead)
 # -----------------------------------------------------------------------
 if [ "$MODE" = "synthetic" ]; then
-  echo "--- [1/5] Rust native (direct ElkNode) ---"
+  echo "--- [1/6] Rust native (direct ElkNode) ---"
   if cargo run -p org-eclipse-elk-graph-json --release --bin perf_benchmark --features org-eclipse-elk-graph-json/mimalloc-alloc -- \
     --engine rust_native --mode synthetic \
     --iterations "$ITERATIONS" --warmup "$WARMUP" --output "$OUTPUT_DIR/rust_native.csv"; then
@@ -142,14 +142,14 @@ if [ "$MODE" = "synthetic" ]; then
   fi
   echo ""
 else
-  echo "--- [1/5] Rust native: skipped (models mode uses JSON API only) ---"
+  echo "--- [1/6] Rust native: skipped (models mode uses JSON API only) ---"
   echo ""
 fi
 
 # -----------------------------------------------------------------------
 # 2. Rust API benchmark (layout_json, same path as NAPI/WASM)
 # -----------------------------------------------------------------------
-echo "--- [2/5] Rust API (layout_json) ---"
+echo "--- [2/6] Rust API (layout_json) ---"
 
 RUST_API_ARGS="--engine rust_api --mode $MODE --iterations $ITERATIONS --warmup $WARMUP --output $OUTPUT_DIR/rust_api.csv"
 if [ "$MODE" = "models" ]; then
@@ -169,9 +169,9 @@ echo ""
 # 3. Java benchmark
 # -----------------------------------------------------------------------
 if [ "$PERF_SKIP_JAVA" = "true" ]; then
-  echo "--- [3/5] Java: skipped (PERF_SKIP_JAVA=true) ---"
+  echo "--- [3/6] Java: skipped (PERF_SKIP_JAVA=true) ---"
 else
-  echo "--- [3/5] Java (RecursiveGraphLayoutEngine) ---"
+  echo "--- [3/6] Java (RecursiveGraphLayoutEngine) ---"
   java_ok=false
   if [ "$MODE" = "synthetic" ]; then
     # Use existing layered issue scenario runner for synthetic mode
@@ -207,9 +207,9 @@ fi
 echo ""
 
 # -----------------------------------------------------------------------
-# 4-5. JS engines (elkjs, NAPI, WASM)
+# 4-6. JS engines (elkjs, NAPI, WASM)
 # -----------------------------------------------------------------------
-echo "--- [4-5/5] JS engines ($PERF_JS_ENGINES) ---"
+echo "--- [4-6/6] JS engines ($PERF_JS_ENGINES) ---"
 JS_DIR="$REPO_ROOT/plugins/org.eclipse.elk.js"
 
 if [ ! -d "$JS_DIR" ]; then

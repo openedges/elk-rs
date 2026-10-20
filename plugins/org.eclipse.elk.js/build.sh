@@ -10,15 +10,17 @@ echo "=== elk-rs build ==="
 
 # Clean
 rm -rf "$DIST_DIR"
-mkdir -p "$DIST_DIR/wasm"
+mkdir -p "$DIST_DIR/wasm" "$DIST_DIR/wasm-node"
 
 # 1. WASM build
 echo "--- Building WASM ---"
 if command -v wasm-pack &> /dev/null; then
   (cd "$WASM_DIR" && wasm-pack build --target web --out-dir "$DIST_DIR/wasm" --release)
+  (cd "$WASM_DIR" && wasm-pack build --target nodejs --out-dir "$DIST_DIR/wasm-node" --release)
   # wasm-pack generates .gitignore (containing "*") and package.json in the output dir.
   # Remove them so npm pack can include the WASM files.
   rm -f "$DIST_DIR/wasm/.gitignore" "$DIST_DIR/wasm/package.json"
+  rm -f "$DIST_DIR/wasm-node/.gitignore" "$DIST_DIR/wasm-node/package.json"
   echo "WASM build complete."
 else
   echo "WARNING: wasm-pack not found. Skipping WASM build."

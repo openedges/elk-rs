@@ -443,6 +443,25 @@ impl GraphConfigurator {
             );
         }
 
+        // NONE is a non-null flexibility value too, just as in Java. The optional
+        // second placer alone controls whether the repeater is requested.
+        if graph.get_property(
+            LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_RECOMPUTE_NODE_PLACEMENT,
+        ).is_some()
+            && graph.layerless_nodes().iter().any(|node| {
+                node.lock().get_property(
+                    LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY,
+                ).or_else(|| graph.get_property(
+                    LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_DEFAULT,
+                )).is_some()
+            })
+        {
+            configuration.add_after(
+                LayeredPhases::P4NodePlacement,
+                Arc::new(IntermediateProcessorStrategy::NodePlacementRepeater),
+            );
+        }
+
         configuration
     }
 

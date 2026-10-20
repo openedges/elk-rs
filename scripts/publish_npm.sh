@@ -7,12 +7,12 @@
 #
 #   --dry-run          `npm publish --dry-run`; missing build artifacts only warn
 #   --expect-version   fail unless every package.json carries this version
-#                      (CI passes the tag's base version, e.g. 0.11.1 for v0.11.1+rs.7)
+#                      (CI passes the tag's base version, e.g. 0.12.0 for v0.12.0 or v0.12.0+rs.1)
 #
 # Authentication: in GitHub Actions the `release.yml` publish-npm job runs with
-# `id-token: write`, so npm (11.5.1+) publishes through Trusted Publishing (OIDC)
-# and falls back to a token configured in ~/.npmrc for packages without a
-# registration; locally log in with `npm login`. Not needed for --dry-run.
+# `id-token: write`, so npm (11.5.1+) publishes through Trusted Publishing (OIDC).
+# Every package must trust that workflow; CI has no stored-token fallback.
+# A local publish uses `npm login`. Authentication is not needed for --dry-run.
 #
 # Environment:
 #   NPM_DIST_TAG      dist-tag to publish under (default: latest)
@@ -20,7 +20,7 @@
 # Every package is validated (version, build artifact present) before the first
 # publish so a bad main package cannot leave the platform packages published alone.
 # Expects the platform `.node` binaries in plugins/org.eclipse.elk.js/npm/<triple>/
-# and the WASM build in plugins/org.eclipse.elk.js/dist/wasm/ (see build.sh and
+# and the web/Node WASM builds in plugins/org.eclipse.elk.js/dist/wasm{,-node}/ (see build.sh and
 # .github/workflows/release.yml). Run from the repository root.
 set -eu
 
@@ -72,6 +72,9 @@ for dir in $dirs; do
   fi
   if [ "$dir" = "$js_dir" ]; then
     artifact_check "$dir" "dist/wasm/*.wasm" "$dir/dist/wasm/*.wasm"
+    artifact_check "$dir" "web WASM glue" "$dir/dist/wasm/org_eclipse_elk_wasm.js"
+    artifact_check "$dir" "dist/wasm-node/*.wasm" "$dir/dist/wasm-node/*.wasm"
+    artifact_check "$dir" "Node WASM glue" "$dir/dist/wasm-node/org_eclipse_elk_wasm.js"
   else
     artifact_check "$dir" "*.node binary" "$dir/*.node"
   fi

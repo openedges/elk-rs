@@ -2,6 +2,11 @@
 
 Pure Rust port of [Eclipse Layout Kernel (ELK)](https://www.eclipse.org/elk/), keeping Java-side feature/API/test parity while operating as a Rust workspace.
 
+The working tree targets **ELK 0.12.0**; the latest published packages remain **0.11.0**
+(tag `v0.11.0+rs.6`, 2026-10-19). Version 0.12.0 is being prepared for
+`v0.12.0+rs.7` and has not been published. See the
+[upgrade verification report](tests/upgrade_0_12_0.md) for validation status.
+
 ## npm Package
 
 elk-rs is published as `@openedges/elk-layout`, a drop-in replacement for [elkjs](https://github.com/kieler/elkjs):
@@ -10,7 +15,7 @@ elk-rs is published as `@openedges/elk-layout`, a drop-in replacement for [elkjs
 npm install @openedges/elk-layout
 ```
 
-On supported platforms, a native NAPI addon is automatically installed for best performance. Falls back to WASM on other platforms.
+Version 0.12.0 requires Node.js 18 or later. On supported platforms, a native NAPI addon is automatically installed for best performance. Falls back to WASM on other platforms.
 
 | Platform | Package |
 |---|---|
@@ -64,11 +69,11 @@ Underneath, the ELK plugins are published one to one as `org-eclipse-elk-*` crat
 
 ## Prerequisites
 
-- Rust toolchain (stable, with `wasm32-unknown-unknown` target for WASM build)
+- Rust 1.97.1 (`rust-toolchain.toml` and `mise.toml`), with `wasm32-unknown-unknown` for WASM builds
 - Git with submodule support
 - [wasm-pack](https://rustwasm.github.io/wasm-pack/) (for WASM build)
 - [@napi-rs/cli](https://napi.rs/) (for native addon build)
-- Node.js 16+ (for JS package tests)
+- Node.js 24 (`mise.toml`) for development and tests; the 0.12.0 JS package requires Node.js 18+
 
 For full validation (model parity, phase traces), additional tools are required.
 See `TESTING.md` § 1 for the complete environment setup.
@@ -84,8 +89,8 @@ cargo build --workspace
 
 ```sh
 cd plugins/org.eclipse.elk.js
-sh build.sh
-npm install
+sh build.sh                    # NAPI + browser ESM WASM + Node.js CommonJS WASM
+npm install --ignore-scripts
 npm test
 ```
 
@@ -127,4 +132,7 @@ Generated reports are written under `tests/` (e.g., `tests/*_parity.md`, `tests/
 
 ## License
 
-Eclipse Public License 2.0 (EPL-2.0). See `LICENSE` and `NOTICE`.
+Eclipse Public License 2.0. This Source Code may also be made available under
+GPL-3.0-or-later when the conditions for secondary licensing in EPL-2.0 are
+satisfied, matching Java ELK 0.12.0 (`EPL-2.0 OR GPL-3.0-or-later`).
+See [LICENSE](LICENSE) and [NOTICE](NOTICE).

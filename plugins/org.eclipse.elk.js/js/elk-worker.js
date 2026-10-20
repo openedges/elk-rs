@@ -59,7 +59,7 @@ FakeWorker.prototype._ensureBackend = function() {
       var backend = loadNativeAddon();
       if (!backend) {
         try {
-          backend = require('../dist/wasm/org_eclipse_elk_wasm.js');
+          backend = require('./load-wasm.js')();
         } catch (e2) {
           throw new Error('elk-layout: Could not load native addon or WASM module.');
         }
@@ -159,7 +159,7 @@ if (_parentPort) {
   var nodeBackend = loadNativeAddon();
   if (!nodeBackend) {
     try {
-      nodeBackend = require('../dist/wasm/org_eclipse_elk_wasm.js');
+      nodeBackend = require('./load-wasm.js')();
     } catch (e2) {
       // Will report error when messages arrive
     }

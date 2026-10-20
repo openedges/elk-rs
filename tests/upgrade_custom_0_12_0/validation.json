@@ -1,0 +1,106 @@
+{
+  "date": "2026-10-20",
+  "branch": "custom/0.12.0",
+  "version": "0.12.0-ext.1",
+  "parents": {
+    "custom": "5473eb06351eb09a33a76279623c4ad9e5cfe034",
+    "release": "10661c0e65186e1b2b07cfdab9ccd444e467c337"
+  },
+  "rust_tests": {
+    "passed": 1058,
+    "failed": 0,
+    "ignored": 2
+  },
+  "model": {
+    "total": 1998,
+    "compared": 1989,
+    "matches": 1987,
+    "drift": 2,
+    "skipped": 9,
+    "errors": 0,
+    "timeouts": 0
+  },
+  "trace": {
+    "total_models": 1997,
+    "all_match": 1995,
+    "diverged": 2,
+    "java_only": 0,
+    "rust_only": 1
+  },
+  "trace_differences": [
+    {
+      "model": "tests/layered/layer_constraints/emptyLayerFirst.elkt",
+      "first_divergence_step": 5,
+      "first_divergence_processor": "LongEdgeSplitter"
+    },
+    {
+      "model": "tests/layered/layer_constraints/emptyLayerLast.elkt",
+      "first_divergence_step": 6,
+      "first_divergence_processor": "PortSideProcessor"
+    }
+  ],
+  "js_napi": {
+    "total": 550,
+    "processed": 550,
+    "stats": {
+      "PASS": 530,
+      "ELKJS_DRIFT": 20
+    },
+    "javaCompared": 550,
+    "javaMatches": 550,
+    "missingJava": 0,
+    "failures": 0,
+    "elkjsVersion": "0.12.0"
+  },
+  "js_web_wasm": {
+    "total": 550,
+    "processed": 550,
+    "stats": {
+      "PASS": 530,
+      "ELKJS_DRIFT": 20
+    },
+    "javaCompared": 550,
+    "javaMatches": 550,
+    "missingJava": 0,
+    "failures": 0,
+    "elkjsVersion": "0.12.0"
+  },
+  "feature_java_parity": {
+    "model": 8,
+    "trace": 8,
+    "napi": 8,
+    "web_wasm": 8,
+    "null_java_import_exception": 1
+  },
+  "extension_fixtures": {
+    "rust": 18,
+    "napi": 18,
+    "web_wasm": 18,
+    "node_wasm": 18
+  },
+  "vitest_passed": 49,
+  "new_cross_feature_tests": 3,
+  "preflight_cases_passed": 9,
+  "static_status": {
+    "algorithm_category": "ok",
+    "algorithm_description": "ok",
+    "algorithm_feature": "ok",
+    "algorithm_id": "ok",
+    "algorithm_metadata": "ok",
+    "algorithm_name": "ok",
+    "algorithm_option_default": "ok",
+    "algorithm_option_default_value": "ok",
+    "algorithm_option_support": "drift",
+    "core_option_dependency": "ok",
+    "core_options": "ok",
+    "layered_phase_wiring": "ok"
+  },
+  "static_layered_options": {
+    "java": 153,
+    "rust": 154,
+    "extra_option": "org.eclipse.elk.layered.layering.ignoreEdgeInLayer"
+  },
+  "compiler_warnings": 0,
+  "performance_remeasured": false,
+  "published": false
+}

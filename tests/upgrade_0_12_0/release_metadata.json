@@ -1,0 +1,52 @@
+{
+  "tag": "v0.12.0",
+  "commit": "22fbee456ccffe88d524e8fefe7d6ffd8d9f5063",
+  "release_id": 417932319,
+  "url": "https://github.com/openedges/elk-rs/releases/tag/v0.12.0",
+  "original_publish_run": 39357332958,
+  "assets_preserved": true,
+  "assets": [
+    {
+      "id": 658022065,
+      "name": "elk-layout-0.12.0-wasm.tar.gz",
+      "size": 3394324,
+      "digest": "sha256:b2eb26719797b18b69a5b83096d6c87f8275ba0e95ec2553fff31004bf3f71bd"
+    },
+    {
+      "id": 658022062,
+      "name": "elk-layout.darwin-arm64.node",
+      "size": 12956560,
+      "digest": "sha256:685f30d0adf25401b5d14d903e183c3ca85ef8e917742d0180265be33b45554c"
+    },
+    {
+      "id": 658022060,
+      "name": "elk-layout.darwin-x64.node",
+      "size": 13313520,
+      "digest": "sha256:f05e9532f469c55c15c66dc506941a9854f0e019dc33813ee6f2354493218f82"
+    },
+    {
+      "id": 658022063,
+      "name": "elk-layout.linux-arm64-gnu.node",
+      "size": 14374096,
+      "digest": "sha256:9be1d5a774c181e183317fa6d951fa9c7d07efb8f1aebde452eab01a1cd789ae"
+    },
+    {
+      "id": 658022059,
+      "name": "elk-layout.linux-x64-gnu.node",
+      "size": 15014736,
+      "digest": "sha256:2bf066428e19f1fc768496f9857a5837c31489b6707d9f8ff4fde1abcc4c68e6"
+    },
+    {
+      "id": 658022058,
+      "name": "elk-layout.linux-x64-musl.node",
+      "size": 14481968,
+      "digest": "sha256:19d46201caa4c5a261a338cdae1e7df8412ffba62b1da9d673ff1a79749a2b94"
+    },
+    {
+      "id": 658022070,
+      "name": "elk-layout.win32-x64-msvc.node",
+      "size": 11913216,
+      "digest": "sha256:555c1bf92959c28084a39009fef80b6a6a5fd141f0638ff9369b5c1ea43fc44e"
+    }
+  ]
+}

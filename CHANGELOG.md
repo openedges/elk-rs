@@ -5,6 +5,45 @@ All notable changes to elk-rs are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions correspond to the target ELK Java version (see `VERSIONING.md`).
 
+## [0.12.0-ext.1] - 2026-10-20
+
+Extension integration on `custom/0.12.0`; no tag or registry publication.
+
+### Changed
+
+- Merged the ELK 0.12.0 release into the previous custom line, retaining `ignoreEdgeInLayer`, FIRST/LAST_SEPARATE routing, external port handling, edgeless port fixes, and elk-live.
+- Included node-placement repetition, the exact unzipping split fix, updated JS/WASM packaging, Node.js 18 minimum, upstream licensing, and OIDC-only release authentication.
+- Rejected manual real-publish requests for extension versions; default builds and dry runs remain available.
+
+### Validation
+
+- Passed 1,058 Rust tests and 49 JS tests, with zero Rust build/Clippy warnings. All 18 extension fixture outputs are unchanged in Rust, NAPI, and both WASM targets.
+- Verified all five recompute placers with extension edges, exact split boundaries, and 18 extension fixtures. Model parity is 1,987/1,989 and phase-step trace is 1,995/1,997, retaining only the previously documented differences. NAPI/web WASM each match Java on 550/550 models. See the [custom integration report](tests/upgrade_custom_0_12_0.md).
+
+## [0.12.0] - 2026-10-20
+
+ELK Java 0.12.0 port. Initial release: [`v0.12.0`](https://github.com/openedges/elk-rs/releases/tag/v0.12.0).
+The original `v0.12.0+rs.7` label was corrected without changing the released source
+commit, binary assets or registry package versions.
+
+### ELK Porting
+
+- Ported layered node-flexibility repetition (`NodePlacementRepeater`) and corrected alternating layer unzipping for the upstream 0.12.0 behavior; added nine feature fixtures.
+- Pinned Java ELK `v0.12.0` (`323312916048544e4e594eab3303cdb0d01e2929`) and elkjs `0.12.0` (`ff5771d7165445c42c408bb8a090c8035272218c`); aligned Cargo/npm versions and pinned the test dependency to exact elkjs `0.12.0`.
+- Verified 1,032 Rust tests passed, zero failed, two ignored, with warning-free workspace build and Clippy. Fresh 0.12.0 NAPI and browser WASM each matched Java on 550/550 JSON models (530 `PASS`, 20 `ELKJS_DRIFT`). Full model and phase-step trace verification status is recorded in [the upgrade report](tests/upgrade_0_12_0.md).
+
+### Fixed
+
+- Initialized browser direct WASM lazily through the existing Promise API; verified concurrent first requests and browser worker layouts in Chrome.
+- Compared Java baselines for every JS parity model, even when the two JS engines agree; matched exact manifest paths and made `--require-java` fail on missing baselines.
+- Added a Node.js CommonJS WASM bundle in `dist/wasm-node/` for the Node.js 18+ fallback, alongside browser ESM WASM in `dist/wasm/`; included both bundles in npm packaging and release checks.
+
+### Changed
+
+- Corrected tag numbering: the first release of each base version has no suffix (`v0.12.0`); subsequent Rust revisions start at `+rs.1`, independently for each base version.
+- Raised the npm package minimum from Node.js 16 to Node.js 18: the generated WASM requires reference types, unavailable on Node.js 16 without experimental flags. Verified the isolated CommonJS fallback on Node.js 18.0.0 and 20.20.2; development remains on pinned Node.js 24.
+- Matched upstream's `EPL-2.0 OR GPL-3.0-or-later` metadata while preserving the conditional EPL secondary-license notice and attribution; included applicable license notices in Cargo and npm packages.
+
 ## [0.11.0-ext.6] - 2026-10-19
 
 ### Fixed
@@ -52,11 +91,12 @@ Versions correspond to the target ELK Java version (see `VERSIONING.md`).
 
 First stable release. Full port of ELK Java 0.11.0 with layout-identical output.
 
-### elk-rs Internal Changes (v0.11.0+rs.3 ~ v0.11.0+rs.5)
+### elk-rs Internal Changes (v0.11.0+rs.3 ~ v0.11.0+rs.6)
 
-Cargo and npm package versions remain `0.11.0`; NAPI CI builds these tags without publishing.
+Cargo and npm package versions remained `0.11.0`. Tags through `+rs.5` were
+build-only; `v0.11.0+rs.6` first published the packages on 2026-10-19.
 
-#### Unreleased (after v0.11.0+rs.5)
+#### v0.11.0+rs.6 and subsequent release infrastructure maintenance
 
 - Fixed CI: `ci.yml` now checks out submodules so tests can read `external/elk-models` and `external/elk` resources; every run had failed since 2026-03. The first run after the fix passed (1,022 tests, 0 warnings).
 - Fixed the `parity.yml` workflow, which exceeded GitHub's 25-input `workflow_dispatch` limit (57 inputs) and was rejected on every push. 20 inputs remain, 37 parameters moved to `PARITY_*` env defaults, and an `env_overrides` input keeps them overridable.
@@ -101,7 +141,7 @@ Cargo and npm package versions remain `0.11.0`; NAPI CI builds these tags withou
 
 - Complete port of ELK Java 0.11.0 to Rust (~333 commits, 19 crates, ~204,500 lines)
 - 13 layout algorithms: Layered (Sugiyama), Force (Fruchterman-Reingold), Stress (Stress Majorization), MrTree, Radial (Eades), Rectpacking, Disco, Spore, Vertiflex, TopdownPacking, Graphviz/Libavoid (stubs)
-- Model parity: 1,988/1,989 models match Java ELK (100%), 1,998 total coverage
+- Model parity: 1,988/1,989 models match Java ELK (one accepted Java bug), 1,998 total coverage
 - Phase-step trace parity: 1,997/1,997 models match at all 50+ processor steps (100%)
 - Tickets parity: 108/109 match (drift=1, same Java NaN bug)
 - JS parity: 550/550 models match Java ELK via WASM/NAPI bindings

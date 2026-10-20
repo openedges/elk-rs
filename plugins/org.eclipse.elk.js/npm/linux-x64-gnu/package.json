@@ -1,12 +1,12 @@
 {
   "name": "@openedges/elk-layout-linux-x64-gnu",
-  "version": "0.11.0-ext.6",
+  "version": "0.12.0-ext.1",
   "os": ["linux"],
   "cpu": ["x64"],
   "main": "elk-layout.linux-x64-gnu.node",
-  "files": ["elk-layout.linux-x64-gnu.node"],
+  "files": ["elk-layout.linux-x64-gnu.node", "LICENSE", "NOTICE"],
   "description": "elk-layout (elk-rs) native binding for Linux x64 (glibc)",
-  "license": "EPL-2.0",
+  "license": "EPL-2.0 OR GPL-3.0-or-later",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/openedges/elk-rs.git"

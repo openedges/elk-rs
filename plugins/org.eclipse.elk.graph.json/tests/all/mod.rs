@@ -1,4 +1,5 @@
 mod common;
+mod custom_recompute_test;
 mod edge_coords_test;
 mod edgeless_hierarchy_integration_test;
 mod edges_test;

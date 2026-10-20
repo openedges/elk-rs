@@ -4,6 +4,8 @@ ELK layout engine rewritten in Rust — drop-in replacement for [elkjs](https://
 
 ## Installation
 
+Version 0.12.0 requires **Node.js 18 or later**. The Node.js WASM fallback uses CommonJS bindings; browser imports use ESM bindings. Node.js 16 is unsupported because the generated WASM requires WebAssembly reference types, which need an experimental flag on that runtime. Development and tests use the pinned Node.js 24.
+
 ```bash
 npm install @openedges/elk-layout
 ```
@@ -40,7 +42,7 @@ const elk = new ELK();
 
 ### Browser
 
-elk-rs works in the browser via WASM. Bundlers that respect the `"browser"` field in `package.json` will automatically use the browser entry point.
+elk-rs works in the browser via WASM. Bundlers that respect the `"browser"` field in `package.json` will automatically use the browser entry point. Layout and metadata promises wait for WASM initialization, including concurrent first requests.
 
 ### Web Worker
 
@@ -58,7 +60,7 @@ const elk = new ELK({
 - `defaultLayoutOptions` — default layout options applied to every `layout()` call
 - `workerUrl` — URL to the worker script (enables Web Worker mode)
 - `workerFactory` — custom function to create a Worker instance
-- `algorithms` — list of algorithm IDs to register (all built-in by default)
+- `algorithms` — accepted for elkjs constructor compatibility. All Rust algorithms remain available in direct and worker modes; this hint does not restrict the registry.
 
 ### `elk.layout(graph, options?)`
 
@@ -84,9 +86,9 @@ Terminates the Web Worker (if one was created).
 
 - **Written in Rust** — compiled to WASM instead of GWT-transpiled JavaScript
 - **No GWT overhead** — faster startup, smaller memory footprint
-- **Native Node.js addon** — optional NAPI binding for maximum performance (future release)
+- **Native Node.js addon** — optional NAPI binding for maximum performance
 - **Same API** — elkjs-compatible `layout()`, `knownLayoutAlgorithms()`, etc.
-- **Same algorithms** — layered, stress, mrtree, radial, force, disco, rectpacking, sporeOverlap, sporeCompaction
+- **ELK 0.12.0 compatibility** — common algorithms follow Java ELK 0.12.0. VertiFlex and DisCo remain available as additional Java capabilities; elkjs 0.12.0 does not register these algorithms.
 
 ## Supported Algorithms
 
@@ -101,7 +103,20 @@ Terminates the Web Worker (if one was created).
 | Rect Packing | `org.eclipse.elk.rectpacking` |
 | Spore Overlap | `org.eclipse.elk.sporeOverlap` |
 | Spore Compaction | `org.eclipse.elk.sporeCompaction` |
+| VertiFlex (Java capability beyond elkjs 0.12.0) | `org.eclipse.elk.vertiflex` |
+
+## Parity verification
+
+Build the local NAPI/WASM backend from the current Rust sources and export a fresh Java ELK baseline of the same version before running parity. Java exports retain the original model extension, so `graph.json` has a layout file named `graph.json.json`.
+
+```bash
+node test/parity/run.mjs --models ../../external/elk-models \
+  --java-baseline /path/to/fresh/java --require-java \
+  --backend ./dist/elk-layout.darwin-arm64.node
+```
+
+Use the backend filename built for your platform, or pass `./dist/wasm/org_eclipse_elk_wasm.js` to verify WASM. An explicit `--backend` avoids selecting an older installed platform package. The report checks Java even when both JavaScript engines agree. `RUST_EXTRA` identifies a capability absent from elkjs only after its output matches Java. Missing baselines never count toward the Java match rate, and `--require-java` makes them fail the run. `parity-summary.json` records baseline and backend paths, elkjs version, classification counts, and the actual Java comparison denominator.
 
 ## License
 
-[Eclipse Public License 2.0](./LICENSE)
+[Eclipse Public License 2.0 with conditional GPL-3.0-or-later secondary licensing](./LICENSE.md).

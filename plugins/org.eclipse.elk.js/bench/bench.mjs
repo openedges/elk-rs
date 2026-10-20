@@ -82,7 +82,13 @@ async function loadEngine(name) {
     }
     case 'napi': {
       try {
-        const napi = require(join(PKG_ROOT, 'dist/elk-rs.node'));
+        const libc = process.platform === 'linux'
+          ? (process.report?.getReport().header.glibcVersionRuntime ? '-gnu' : '-musl') : '';
+        const abi = process.platform === 'win32' ? '-msvc' : libc;
+        const platformPath = join(PKG_ROOT, `dist/elk-layout.${process.platform}-${process.arch}${abi}.node`);
+        const addonPath = existsSync(platformPath) ? platformPath : join(PKG_ROOT, 'dist/elk-layout.node');
+        const napi = require(addonPath);
+        console.error(`NAPI module: ${addonPath}`);
         return {
           name: 'napi',
           isAsync: false,
@@ -105,12 +111,16 @@ async function loadEngine(name) {
         }
         const wasmMod = await import(wasmJsPath);
         const wasmBytes = readFileSync(wasmBinPath);
-        wasmMod.initSync({ module: wasmBytes });
+        if (typeof wasmMod.initSync === 'function') {
+          wasmMod.initSync({ module: wasmBytes });
+        }
+        // wasm-bindgen's nodejs target initializes itself on require/import.
+        const wasmBackend = typeof wasmMod.layout_json === 'function' ? wasmMod : wasmMod.default;
         return {
           name: 'wasm',
           isAsync: false,
           layout(graphJson) {
-            return wasmMod.layout_json(graphJson, '{}');
+            return wasmBackend.layout_json(graphJson, '{}');
           },
         };
       } catch (e) {

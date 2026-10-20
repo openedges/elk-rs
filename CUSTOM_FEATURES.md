@@ -2,9 +2,9 @@
 
 ## Overview
 
-This document describes **elk-rs-specific custom features** that do not exist in the original ELK Java (v0.11.0).
+This document describes **elk-rs-specific custom features** that do not exist in the original ELK Java (v0.12.0).
 
-elk-rs is a 1:1 port of ELK Java, and the `main` branch maintains 100% parity with Java. Custom features are developed on separate branches forked from `main` and merged into the `custom/0.11.0` integration branch.
+elk-rs ports ELK Java and validates `main` against Java, with known upstream exceptions recorded in the parity reports. Custom features are developed on separate branches and merged into the `custom/0.12.0` integration branch. The previous `custom/0.11.0` branch remains available.
 
 Four custom features are currently implemented:
 
@@ -19,11 +19,11 @@ Four custom features are currently implemented:
 
 | Item | Value |
 |------|-------|
-| Integration branch | `custom/0.11.0` |
-| Tag | `v0.11.0-ext.4`, `v0.11.0+rs.2` |
-| Cargo version | `0.11.0-ext.4` |
-| npm version | `@openedges/elk-layout@0.11.0-ext.6` manifest (extension builds are not published) |
-| Base | `main` (`v0.11.0` — ELK Java 1:1 parity) |
+| Integration branch | `custom/0.12.0` |
+| Tag | No 0.12.0 extension tag created |
+| Cargo version | `0.12.0-ext.1` |
+| npm version | `@openedges/elk-layout@0.12.0-ext.1` manifest (extension builds are not published) |
+| Base | `custom/0.11.0` (`5473eb06`) merged with `releases/0.12.0` (`10661c0e`) |
 
 Feature development branches:
 
@@ -33,7 +33,6 @@ Feature development branches:
 | In-Layer Edge Routing | `custom/in-layer-edge-routing` |
 | Edgeless Port Layout Fix | `custom/edgeless-port-layout-fix` |
 | elk-live Demonstrator | `custom/elk-live` |
-| In-Layer Edge Routing | `custom/in-layer-edge-routing` |
 
 For version/tag/branch management rules, see `VERSIONING.md` §1 (Extension Releases) and §3 (Branch and Tag Policy).
 
@@ -255,6 +254,7 @@ Both features work independently and can be used together.
 
 - `ignoreEdgeInLayer` can place regular nodes in the same layer while in-layer edges connect `layerConstraint: FIRST_SEPARATE/LAST_SEPARATE` nodes
 - Validated by cross-feature integration test (`551be8d`) and combined fixtures (`09_*.ignoreEdgeInLayer.elk.json`, `10_*.ignoreEdgeInLayer.elk.json`)
+- ELK 0.12.0 `recomputeNodePlacement` is tested with all five placers, ignored/normal E→W edges, the exact unzip split boundary, and all 18 extension fixtures. See the [integration report](tests/upgrade_custom_0_12_0.md).
 
 ### Test Coverage Summary
 
@@ -266,6 +266,7 @@ Both features work independently and can be used together.
 | In-Layer Edge Routing integration | 3 | `tests/models/in_layer_edge_routing_integration_test.rs` |
 | Cross-feature integration | 1 | commit `551be8d` |
 | Fixture layout tests | 18 | `tests/fixtures/*.elk.json` + `.layout.json` |
+| ELK 0.12.0 recompute compatibility | 3 tests, including 18 fixtures × 5 placers | `plugins/org.eclipse.elk.graph.json/tests/all/custom_recompute_test.rs` |
 
 ---
 
@@ -449,7 +450,7 @@ The QA customer OAD model triggered the switch to `process()` because `process_n
 |------|-------|
 | Feature branch | `custom/elk-live` |
 | Base | `main` (`v0.11.0` — ELK Java 1:1 parity) |
-| Package | `elk-rs-live@0.11.0` (private, not published) |
+| Package | `elk-rs-live@0.12.0-ext.1` (private, not published) |
 | Reference submodule | `external/elk-live` → [kieler/elk-live](https://github.com/kieler/elk-live) |
 
 ### Description
@@ -594,7 +595,7 @@ The original elk-live (Java/Sprotty) is preserved as a reference submodule at `e
 |------|-------|
 | Feature branch | `custom/elk-live` |
 | Base | `main` (`v0.11.0` — ELK Java 1:1 parity) |
-| Package | `elk-rs-live@0.11.0` (private, not published) |
+| Package | `elk-rs-live@0.12.0-ext.1` (private, not published) |
 | Reference submodule | `external/elk-live` → [kieler/elk-live](https://github.com/kieler/elk-live) |
 
 ---

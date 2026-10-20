@@ -136,3 +136,39 @@ fn split_factor_five() {
 fn split_factor_with_single_middle_node() {
     run_alternating_case(1, 2, true, true);
 }
+
+#[test]
+fn exactly_enough_nodes_fill_all_sublayers() {
+    init_layered_options();
+    use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::{LGraph, LNode, Layer};
+    use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::intermediate::AlternatingLayerUnzipper;
+    use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
+    use org_eclipse_elk_core::org::eclipse::elk::core::util::NullElkProgressMonitor;
+
+    for split in [2, 3, 4] {
+        for count in [split - 1, split] {
+            let graph = LGraph::new();
+            let layer = Layer::new(&graph);
+            graph.lock().layers_mut().push(layer.clone());
+            let mut nodes = Vec::new();
+            for _ in 0..count {
+                let node = LNode::new(&graph);
+                node.lock().set_property(LayeredOptions::LAYER_UNZIPPING_LAYER_SPLIT, Some(split));
+                LNode::set_layer(&node, Some(layer.clone()));
+                nodes.push(node);
+            }
+            {
+                let mut graph = graph.lock();
+                AlternatingLayerUnzipper.process(&mut graph, &mut NullElkProgressMonitor);
+                assert_eq!(graph.layers().len(), if count == split { split as usize } else { 1 });
+            }
+            if count == split {
+                for pair in nodes.windows(2) {
+                    let left = pair[0].lock().layer().unwrap();
+                    let right = pair[1].lock().layer().unwrap();
+                    assert!(!std::sync::Arc::ptr_eq(&left, &right));
+                }
+            }
+        }
+    }
+}

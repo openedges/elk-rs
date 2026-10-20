@@ -20,7 +20,7 @@
 - `org.eclipse.elk.graphviz.fdp` | 15 | 15 | +0
 - `org.eclipse.elk.graphviz.neato` | 18 | 18 | +0
 - `org.eclipse.elk.graphviz.twopi` | 12 | 12 | +0
-- `org.eclipse.elk.layered` | 152 | 153 | +1
+- `org.eclipse.elk.layered` | 153 | 154 | +1
 - `org.eclipse.elk.mrtree` | 29 | 29 | +0
 - `org.eclipse.elk.radial` | 20 | 20 | +0
 - `org.eclipse.elk.random` | 4 | 4 | +0
@@ -38,7 +38,7 @@
 - none
 
 ## Count Mismatch Algorithms
-- `org.eclipse.elk.layered` (java=152, rust=153, delta=+1)
+- `org.eclipse.elk.layered` (java=153, rust=154, delta=+1)
 
 ## Ignored Algorithms
 - none

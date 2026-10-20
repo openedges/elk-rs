@@ -44,32 +44,33 @@
 7. 커밋 (`<scope>: <summary>`)
 8. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
-## 현재 핵심 스냅샷 (2026-10-19, ext.6 — 기존 확장 동작 유지)
-- **elk-rs 버전**: `0.11.0-ext.6` (ELK Java `v0.11.0` + 확장 기능; 태그만 생성, 확장판은 npm/cargo에 배포하지 않음. 기반 `releases/0.11.0`의 `0.11.0`은 2026-10-19 `v0.11.0+rs.6`에서 crates.io/npm 첫 배포 완료, 이후 배포는 `release.yml`의 Trusted Publishing(OIDC))
-  - 배포 정책(2026-10-19): `+rs.N` 태그(`releases/0.11.0`)만 배포 대상, 이 확장판의 `-ext.N` 태그는 빌드만 하고 배포하지 않음. 레지스트리는 `+rs.N`을 담을 수 없어(npm은 제거, crates.io는 동일 버전 취급) 배포할 수정은 patch 버전을 올린다(`0.11.0`→`0.11.1`, elkjs 방식). 버전 변경 없는 `+rs.N` 태그는 publish 스크립트가 기존 버전을 건너뛰어 빌드만 한다. 상세 `VERSIONING.md` § 1·§ 6
-  - `custom/0.11.0`에 내부 패치 `v0.11.0+rs.5` 병합 (2026-10-19) — NAPI CI 수정(linux-arm64 cross gcc 링커, `x86_64-apple-darwin`을 arm64 러너 크로스 빌드로 전환). Rust 소스 변경 없음
-  - `custom/0.11.0`에 내부 패치 `v0.11.0+rs.4` 병합 (2026-10-19) — MinWidthLayerer out-degree 동률 노드의 입력 순서 유지 (PR #1, `MIN_WIDTH` 전용). Cargo/npm manifest를 `0.11.0-ext.6`으로 동기화(확장판은 배포하지 않음)
-  - `custom/0.11.0`에 내부 패치 `v0.11.0+rs.3` 병합 — 그래프 순환 참조/임시 메모리 누수 수정
+## 현재 핵심 스냅샷 (2026-10-20, custom/0.12.0 통합 검증)
+- **elk-rs 버전**: `0.12.0-ext.1` (`custom/0.11.0`의 `5473eb06`에 `releases/0.12.0`의 `10661c0e`를 병합한 `custom/0.12.0`). 기존 확장 기능을 보존하고 ELK 0.12.0의 재배치·unzip 수정, JS·라이선스·OIDC 변경을 반영했다. 확장 태그·레지스트리 게시는 하지 않았다. 상세 검증은 `tests/upgrade_custom_0_12_0.md`; 공개 stable `0.12.0`의 태그·검증은 `tests/upgrade_0_12_0.md`
+  - 태그 규칙(2026-10-20 사용자 확정): 새 기본 버전의 최초 릴리즈는 `vX.Y.Z`(접미사 없음). 같은 기본 버전의 첫 Rust 수정부터 `vX.Y.Z+rs.1`, `+rs.2` 순서이며, 새 기본 버전은 다시 접미사 없는 태그로 시작한다. 버전 간 카운터를 이어가지 않는다.
+  - 배포 정책: 최초 bare 태그와 `+rs.N` 모두 release.yml이 처리하고 `-ext.N`은 배포하지 않는다. 레지스트리는 build metadata로 버전을 구분하지 않으므로 공개 수정판은 package patch를 올리고 새 기본 버전의 bare 태그를 사용한다. 같은 package version의 `+rs.N`은 레지스트리 재게시를 건너뛴다. 상세 `VERSIONING.md` § 1·§ 6
+  - 내부 패치 태그: `v0.11.0+rs.5` — NAPI CI 수정(linux-arm64 cross gcc 링커, `x86_64-apple-darwin`을 arm64 러너 크로스 빌드로 전환). Rust 소스는 rs.4와 동일
+  - 이전 내부 패치: `v0.11.0+rs.4` — MinWidthLayerer out-degree 동률 노드의 입력 순서 유지 (PR #1, `MIN_WIDTH` 전용, corpus 출력 불변)
+  - 이전 내부 패치: `v0.11.0+rs.3` — 그래프 순환 참조/임시 메모리 누수 수정
   - Cargo workspace 전체 + npm 동일 버전 (`scripts/bump_version.py <version>`으로 일괄 변경, `--check`로 일치 확인; 내부 의존성은 `[workspace.dependencies]`에 `=버전` 고정, dev-dependencies는 path 전용)
-  - 서브모듈 고정: `external/elk` → `v0.11.0` 태그, `external/elkjs` → `0.11.0` 태그
-- **Model parity**: `matches=1987/1989`, `drift=2`, `skipped=9` **(99.90%)**
+  - 서브모듈 고정: `external/elk` → `v0.12.0` (`32331291`), `external/elkjs` → `0.12.0` (`ff5771d7`)
+- **Model parity**: `matches=1987/1989`, `drift=2`, `skipped=9`, `errors=0` **(99.90%; 기존 확장판 기준선 유지)**
   - 전체 1998 모델 커버리지 (.elkt/.elkg/.json 포함)
   - `213_componentsCompaction.elkt`는 기존 Java NaN 버그, `emptyLayerFirst.elkt`는 기존 확장판 동작 차이
-  - 별도 빌드한 `ext.4`와 최종 출력 `1998/1998` 동일
+  - Java 0.12.0 기준선과 새 custom 결과를 비교했으며 신규 drift 없음. ext.4 대비 출력 동일 검증은 아래 0.11.0 이력 참조
   - polyline_edge_router stale arena fix: 341/463/587 drift 3건 해소 (arena node_pos.x stale → live port anchor 사용)
 - **Phase-step trace**: `1995/1997` match, `2` drift **(99.90%)**
   - 전체 모델 커버리지 (이전 1438 → 1997)
   - `rust_only=1` (`588_hierarchicalLayoutNPE.elkt` — Java NPE로 trace 생성 불가)
-  - `emptyLayerFirst.elkt`/`emptyLayerLast.elkt`의 기존 확장판 차이 2건. 해당 모델의 ext.4/ext.5 전체 단계 일치 확인
+  - `emptyLayerFirst.elkt`/`emptyLayerLast.elkt`의 기존 확장판 차이 2건. 0.12.0에서도 첫 차이 위치는 각각 LongEdgeSplitter(step 5), PortSideProcessor(step 6)
   - compare 스크립트에서 within-layer 노드 정렬로 비결정적 순서 차이 해소 (NetworkSimplexLayerer 등)
   - 정렬 키: `(labels, type, port_count, port_sides, width, height, x, y)` — Java/Rust 공통 속성
 - **Tickets parity**: `matches=108/109`, `drift=1` (Java ELK 버그 동일 원인)
-- **JS parity**: 550/550 elk-rs vs Java 일치 (ELKJS_DRIFT 20건은 GWT 아티팩트)
-- **npm 패키지**: `@openedges/elk-layout@0.11.0-ext.6` manifest (확장판은 미배포; 2026-10-19 `elk-rs`/`@elk-rs/*`에서 `@openedges/elk-layout`/`@openedges/elk-layout-*`로 개명, crates.io `elk-rs`는 타인 선점; 35 Vitest 및 NAPI/WASM 확장 fixture 18/18은 ext.5 빌드 검증 결과)
+- **JS parity**: 새 Java 0.12 기준 NAPI·web WASM 각각 550/550 일치 (PASS530 + ELKJS_DRIFT20, Java 누락0). 신규 유효 fixture는 model/trace/NAPI/WASM 각각8/8; 명시적 null 1개는 Java 파서 예외로 별도 기록
+- **npm 패키지**: `@openedges/elk-layout@0.12.0-ext.1` 로컬 빌드 검증 (49 Vitest 통과, Node18 이상; Node CJS·browser web WASM 동봉). 기존 확장 fixture는 NAPI·web WASM·Node WASM 각각18/18. 확장판은 레지스트리에 게시하지 않음
   - NAPI 플랫폼별 패키지 6개 추가 완료: `@openedges/elk-layout-darwin-arm64`, `@openedges/elk-layout-darwin-x64`, `@openedges/elk-layout-linux-x64-gnu`, `@openedges/elk-layout-linux-x64-musl`, `@openedges/elk-layout-linux-arm64-gnu`, `@openedges/elk-layout-win32-x64-msvc` (바이너리 `elk-layout.<triple>.node`)
-  - 로딩 우선순위: 플랫폼 NAPI 패키지 → 로컬 `.node` → WASM 폴백
-  - CI/CD: `.github/workflows/release.yml` 하나로 통합(2026-10-20, decl-lang 구조). `v*` 태그 push 시 `preflight`(`mise.toml`/`rust-toolchain.toml` 핀 일치, `bump_version.py --check` = 태그 기본 버전) → `binaries`(6 플랫폼 NAPI; `x86_64-apple-darwin`은 arm64 러너 크로스 빌드) + `wasm` → `-ext.`가 아닌 태그에서만 `publish-npm`(`scripts/publish_npm.sh`, environment `npm`)·`publish-crates`(`scripts/publish_crates.py`, environment `crates-io`)가 레지스트리에 없는 버전만 publish하고 `release` 잡이 `.node` 6개 + WASM tar.gz를 GitHub Release에 첨부. 인증은 Trusted Publishing(OIDC; npm 패키지 7개·크레이트 18개에 `openedges/elk-rs`+`release.yml`+environment 등록, npm 등록은 2일 내 publish 필요), 전환기에는 `NPM_TOKEN`/`CARGO_REGISTRY_TOKEN` fallback. 수동 실행은 빌드 + 두 publish 스크립트 dry-run. 툴체인은 `rust-toolchain.toml`/`mise.toml`(Rust 1.97.1, Node 24)에 고정, ci/parity/perf 워크플로도 같은 핀 사용
-  - 플랫폼 패키지 6개 및 optional dependency도 `0.11.0-ext.6`으로 통일. ext.5/rs.3 태그에서 실패했던 NAPI linux-arm64 cross build는 cross gcc 링커 지정으로 수정(`23f0aee`), `custom/0.11.0` 수동 실행과 `v0.11.0+rs.5`/`v0.11.0-ext.6` 태그 run에서 6/6 플랫폼 빌드 성공. ext.6 publish 잡은 `NPM_TOKEN` 부재로 실패했었고(의도된 미배포), `release.yml`부터는 `-ext.` 태그에서 publish/release 잡 자체를 건너뛴다(빌드 아티팩트만 남김)
+  - 로딩 우선순위: 플랫폼 NAPI 패키지 → 로컬 `.node` → Node CJS WASM 폴백; 브라우저는 web WASM을 비동기 초기화
+  - CI/CD: `.github/workflows/release.yml` 하나로 통합(2026-10-20, decl-lang 구조). `v*` 태그 push 시 `preflight`(`mise.toml`/`rust-toolchain.toml` 핀 일치, `bump_version.py --check` = 태그 기본 버전) → `binaries`(6 플랫폼 NAPI; `x86_64-apple-darwin`은 arm64 러너 크로스 빌드) + `wasm` → `-ext.`가 아닌 태그에서만 `publish-npm`(`scripts/publish_npm.sh`, environment `npm`)·`publish-crates`(`scripts/publish_crates.py`, environment `crates-io`)가 레지스트리에 없는 버전만 publish하고 `release` 잡이 `.node` 6개 + WASM tar.gz를 GitHub Release에 첨부. 인증은 Trusted Publishing(OIDC)만 사용한다. npm 7개·crates.io 18개는 `openedges/elk-rs`+`release.yml`+environment를 신뢰하며 0.12.0 게시로 연결을 검증했다. 저장된 registry token 및 fallback은 사용하지 않고 인증 실패 시 잡이 실패한다. crates.io의 `CARGO_REGISTRY_TOKEN` 환경 변수는 auth-action의 단기 출력이다. 두 environment는 `v*` tag만 허용한다. 수동 실행 기본값은 빌드 + dry-run이다. stable 태그에서 `publish_npm`/`publish_crates`를 켜면 선택한 registry의 미게시 버전을 실제 게시하며 GitHub Release는 생성하지 않는다. 확장/prerelease 버전의 실제 게시 입력은 preflight에서 거부한다. 툴체인은 `rust-toolchain.toml`/`mise.toml`(Rust 1.97.1, Node 24)에 고정, ci/parity/perf 워크플로도 같은 핀 사용
+- **기반 stable 0.12.0 성능 검증 (2026-10-20)**: 동일 M3 Pro/macOS27.0.1에서 native A/B 평균22.9955→22.8010ms(-0.85%), layered_xlarge+0.02%. 6-way(Java93.7806ms/native22.1288ms) 평균 비율4.24x; 원본CSV·환경·allocator 구분은 `tests/upgrade_0_12_0.md`. 이번 custom 병합의 새 성능 측정값은 아니며, 아래3.88x도 이전 환경의 역사적 기준선이다.
 - **성능 기준선 (6-way fair benchmark, synthetic 10/3, 2026-03-23 측정, ~3.88x)**:
   - 측정 머신: MacBook Pro (Mac15,6), Apple M3 Pro (11코어: 5P+6E), 36GB RAM, macOS 26.3
   - 툴체인: Rust 1.93.1, OpenJDK 21.0.10, Node.js 22.16.0
@@ -87,7 +88,7 @@
   - **Edge routing 최적화** (Phase 23): 3개 routing strategy에서 edge lock 4+회 → 1회 배치, crossing-min에서 in-place reverse
   - **SoA 최적화** (Phase 20-21): Force/Stress 알고리즘에 SoA(Struct-of-Arrays) 패턴 적용, O(n²) hot loop에서 lock 제거
   - 상세 리포트: `tests/perf/report.md`
-- **코드 품질**: `cargo build` warning 0건, `cargo clippy` warning 0건, `cargo test` 통과 (0 failed)
+- **코드 품질**: workspace build/clippy warning0, tests1,058 passed/0failed/2ignored. 정적 parity12개 중11개 status ok, option_support의 Java153/Rust154 및 option_default의 extra pair 1개는 `ignoreEdgeInLayer` 확장에 따른 예상 차이. 신규 재배치 교차 테스트3개(5종 placer 및18fixture×5) 통과
   - RUST_QUALITY_PLAN_V2 Phase A-1 완료: `get_property(&mut self)` → `get_property(&self)` 전환 (111파일, 272건 mut 제거)
   - Phase A-2 완료: typed property wrapper 22개 (LNode 11, LEdge 6, LPort 4, LGraph 3)
   - Phase B-1 완료: lock_ok() → lock() 전환 (3,822건)
@@ -106,7 +107,7 @@
   - ext.4 대비 1,998/1,998 JSON 결과 동일. workspace test 1,044 passed / 0 failed / 2 ignored, build/clippy warning 0건.
   - 현재 머신 Rust A/B 성능: 전체 26개 평균 22.588→23.049ms(+2.04%), layered_xlarge 중앙값 +0.31%. Stress 대형 입력 별도 측정 +5.66%는 후속 프로파일링 대상이며 성능 무회귀로 판정하지 않음 (`HISTORY.md` 참조).
 - **알려진 실패**: 없음 (`elk_live_examples_test` 해결 완료 — cross-hierarchy edge graceful skip + 30s timeout)
-- **원격 CI**: `ci.yml`은 2026-10-19 서브모듈 체크아웃 수정 후 첫 녹색(`main` run 39210241569 1,022 passed, `custom/0.11.0` run 39211054489 1,045 passed; 0 failed / 2 ignored, warning 0). `parity.yml`은 Java 비교 체인 수정(Temurin 17·Maven 3.9.16 고정, issue 시나리오 복원, release 빌드, 생성 소스 경로, ripgrep) 후 run 39229265896에서 처음으로 전 단계 성공(약 10분; Rust release가 Java보다 86~91% 빠름, 정적 parity 보고서 12개 중 5개의 informational drift는 awk 파서의 rustfmt 줄바꿈 미처리로 확인돼 `scripts/lib/join_wrapped_rust_lines.awk` pre-pass로 수정, run 39242090738에서 12개 모두 ok(약 7분 40초; ELK Dash license-check는 `-Ddash.skip=true`로 생략); `custom/0.11.0`은 확장 옵션 `ignoreEdgeInLayer`로 option_support/option_default 각 1건의 예상 차이). `perf.yml`은 임계값을 CI 러너 기준(측정값 2배)으로 재보정해 수동 실행 run 39212896180에서 8/8 통과.
+- **기반 stable 원격 CI (0.12.0, `163ce307`)**: CI39356401621(1,032passed/0failed/2ignored, warning0), Java parity39356404335(5/5 및 정적검사), perf39356407064(8/8), release rehearsal39356401700(NAPI6개·web/NodeWASM·npm7개/crates18개 dry-run) 모두 성공. custom/0.12.0 원격 결과는 `HISTORY.md`에서 별도로 관리한다.
 - `213_componentsCompaction.elkt`: `java_non_ok=nan_output`으로 분류 — Rust 출력이 더 정확
 
 ## Drift 분석 요약

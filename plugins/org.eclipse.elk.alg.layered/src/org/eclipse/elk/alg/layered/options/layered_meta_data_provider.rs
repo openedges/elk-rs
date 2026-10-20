@@ -785,6 +785,23 @@ fn register_node_placement_options(registry: &mut dyn LayoutMetaDataRegistry) {
         Some("nodePlacement.networkSimplex.nodeFlexibility"),
         None,
     );
+
+    register_option(
+        registry,
+        LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_RECOMPUTE_NODE_PLACEMENT,
+        LayoutOptionType::Enum,
+        "Node Flexibility Recompute Node Placement",
+        concat!(
+            "Run a second node placement algorithm after the initial network simplex with node flexibility. ",
+            "In the second run, node flexibility is disabled and a different node placer can be used. ",
+            "The node sizes determined by the node flexibility option are used as fixed node sizes in the second ",
+            "run. If set to null (default) no second run is performed."
+        ),
+        &TARGET_PARENTS,
+        LayoutOptionVisibility::Advanced,
+        Some("nodePlacement.networkSimplex.nodeFlexibility"),
+        None,
+    );
 }
 
 fn register_edge_routing_options(registry: &mut dyn LayoutMetaDataRegistry) {
@@ -1508,6 +1525,13 @@ fn register_option_supports(registry: &mut dyn LayoutMetaDataRegistry) {
         LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_DEFAULT.id(),
         property_default_any(
             LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_DEFAULT,
+        ),
+    );
+    registry.add_option_support(
+        algo,
+        LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_RECOMPUTE_NODE_PLACEMENT.id(),
+        property_default_any(
+            LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_RECOMPUTE_NODE_PLACEMENT,
         ),
     );
     registry.add_option_support(
