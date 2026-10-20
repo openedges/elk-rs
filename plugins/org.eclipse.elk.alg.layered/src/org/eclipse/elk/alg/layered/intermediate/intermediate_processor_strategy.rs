@@ -22,7 +22,7 @@ use crate::org::eclipse::elk::alg::layered::intermediate::{
     InteractiveExternalPortPositioner, InvertedPortProcessor, LabelAndNodeSizeProcessor,
     LabelDummyInserter, LabelDummyRemover, LabelDummySwitcher, LabelManagementProcessor,
     LabelSideSelector, LayerConstraintPostprocessor, LayerConstraintPreprocessor,
-    LayerSizeAndGraphHeightCalculator, LongEdgeJoiner, LongEdgeSplitter, NodePromotion,
+    LayerSizeAndGraphHeightCalculator, LongEdgeJoiner, LongEdgeSplitter, NodePlacementRepeater, NodePromotion,
     NorthSouthPortPostprocessor, NorthSouthPortPreprocessor, PartitionMidprocessor,
     PartitionPostprocessor, PartitionPreprocessor, PortListSorter, PortSideProcessor,
     ReversedEdgeRestorer, SelfLoopPortRestorer, SelfLoopPostProcessor, SelfLoopPreProcessor,
@@ -73,6 +73,7 @@ pub enum IntermediateProcessorStrategy {
     LabelSideSelector,
     HyperedgeDummyMerger,
     HierarchicalPortDummySizeProcessor,
+    NodePlacementRepeater,
     LayerSizeAndGraphHeightCalculator,
     HierarchicalPortPositionProcessor,
     ConstraintsPostprocessor,
@@ -95,7 +96,7 @@ pub enum IntermediateProcessorStrategy {
 
 impl EnumSetType for IntermediateProcessorStrategy {
     fn variants() -> &'static [Self] {
-        static VARIANTS: [IntermediateProcessorStrategy; 58] = [
+        static VARIANTS: [IntermediateProcessorStrategy; 59] = [
             IntermediateProcessorStrategy::DirectionPreprocessor,
             IntermediateProcessorStrategy::CommentPreprocessor,
             IntermediateProcessorStrategy::EdgeAndLayerConstraintEdgeReverser,
@@ -136,6 +137,7 @@ impl EnumSetType for IntermediateProcessorStrategy {
             IntermediateProcessorStrategy::LabelSideSelector,
             IntermediateProcessorStrategy::HyperedgeDummyMerger,
             IntermediateProcessorStrategy::HierarchicalPortDummySizeProcessor,
+            IntermediateProcessorStrategy::NodePlacementRepeater,
             IntermediateProcessorStrategy::LayerSizeAndGraphHeightCalculator,
             IntermediateProcessorStrategy::HierarchicalPortPositionProcessor,
             IntermediateProcessorStrategy::ConstraintsPostprocessor,
@@ -177,6 +179,7 @@ impl ILayoutProcessorFactory<LGraph> for IntermediateProcessorStrategy {
             IntermediateProcessorStrategy::FinalSplineBendpointsCalculator => {
                 Box::new(FinalSplineBendpointsCalculator::default())
             }
+            IntermediateProcessorStrategy::NodePlacementRepeater => Box::new(NodePlacementRepeater),
             IntermediateProcessorStrategy::LabelAndNodeSizeProcessor => {
                 Box::new(LabelAndNodeSizeProcessor)
             }

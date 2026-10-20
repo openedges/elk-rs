@@ -3,6 +3,20 @@
 - 본 문서는 기존 `AGENTS.md`의 `진행된 작업` 섹션을 분리 보관한 기록이다.
 - 신규 단계 완료 시 이 문서에 누적 기록하고, `AGENTS.md`의 핵심 스냅샷/우선순위를 동기화한다.
 
+## ELK 0.12.0 포팅 및 패키지 검증 (2026-10-20)
+
+- 기준: `main`/`releases/0.11.0`의 `d2f4c53e`에서 `port/0.12.0`을 만들었다. `external/elk`는 `v0.12.0` (`32331291`), `external/elkjs`는 `0.12.0` (`ff5771d7`)으로 고정했다. elk-models는 원격 HEAD와 같은 `ac5af2ba`를 유지했다. Cargo workspace 및 npm 전체 버전은 `0.12.0`으로 일치한다.
+- 분담: 사용자가 요청한 모델별 에이전트 분담으로 layered/JS 구현은 GPT-6.1-sol high, 릴리즈 메타데이터·문서는 GPT-6.1-sol medium, 독립 리뷰는 GPT-6-astra high를 사용했다. 주 에이전트가 Java 기준선 생성·통합 검증·패키징·성능 및 원격 검증을 담당했다.
+- 포팅: upstream PR #1194의 `NodePlacementRepeater`·nullable `recomputeNodePlacement` 옵션·P4 뒤 배치 재실행을 구현했다. 기존 flexibility 결과의 크기를 고정하고 포트·라벨·margin을 재계산한다. PR #1170의 unzip split 경계 `>=`를 반영했다. 노드 플래그 해제 및 새 placer의 arena 재생성으로 잠금/스냅샷 수명도 검토했다.
+- 기능 검증: 신규 fixture 9개 중 Java가 처리하는 8개(5개 placer, inherited flexibility, 옵션 생략, split 경계)는 model/phase trace 및 NAPI·WASM/Java 모두 8/8 일치했다. 명시적 null 입력은 Java Gson importer가 `UnsupportedOperationException: JsonNull`로 실패한다. 이 입력은 Rust의 기존 null-as-disabled 동작을 회귀 테스트하고 parity 성공에 합산하지 않았다. 전체9개 JS `--require-java`가 실패하고 유효8개 실행이 성공함도 확인했다.
+- 전체 parity: 새 Java export를 사용해 0.11/0.12를 각각 검증했다. 두 버전 모두 model `total=1998`, `compared=1989`, `matches=1988`, `drift=1`, `skipped=9`, `errors=0`, timeouts=0; trace `1997/1997` match, `0` drift, Rust-only 1이다. 유일한 model drift는 기존 213 Java NaN/compaction, Rust-only trace는 기존 588 Java NPE다. raw match는 99.95%이며 정상 비교 대상 1988/1988이다. 기존 로컬 결과 파일 대신 새 결과를 기준으로 삼았다.
+- JS 검증: 새 0.12 NAPI·web WASM 각각 Java 550/550 match, PASS530+ELKJS_DRIFT20, Java 누락0, failures0. 비교기가 Rust=elkjs만으로 성공하지 않도록 3-way 판정을 고치고 실제 Java JSON 경로·`--require-java`·명시적 backend를 추가했다. 리뷰에서 발견한 실패 JSON baseline의 `.elkg` alias 대체를 제거하고 회귀 테스트를 추가했다. Java/Rust의 VertiFlex·DisCo는 유지하며 실제 Java 검증 후에만 추가 지원으로 분류한다.
+- 패키징: Node용 CommonJS WASM을 추가하고 기존 web target과 함께 npm/release artifact에 포함한다. 직접·fakeWorker·worker_threads의 초기화 경로를 통합했다. Browser direct의 누락된 초기화는 공유 Promise로 고쳤으며 Chrome에서 direct/worker와 동시 최초 metadata/layout 호출을 검증했다. Node 18.0.0·18.15.0·20.20.2에서 격리 WASM 폴백 3개 경로가 동작한다. Node16은 reference-types 플래그가 필요했고 안정판 feature-off 빌드는 wasm-bindgen allocator 해석 오류로 실패해 최소 Node 지원을 18로 정리했다.
+- 라이선스: upstream의 조건부 secondary license를 반영해 SPDX를 `EPL-2.0 OR GPL-3.0-or-later`로 갱신했다. 루트 LICENSE/NOTICE와 crate-local LICENSE, npm LICENSE/NOTICE에 실제 조건을 보존했다. Cargo `license`와 `license-file` 동시 선언은 경고를 일으켜 쓰지 않았다. crates.io 18개 `publish --dry-run` packaging 및 verification build 통과(업로드 없음); npm7개 dry-run 및 포함 파일 검사 통과. 비호스트 NAPI 바이너리는 원격 rehearsal에서 확인한다.
+- 품질: workspace build/clippy warning0/error0, tests **1,032 passed / 0 failed / 2 ignored** (0.11 재측정 1,027/0/2). JS49/49, static parity12/12 strict `ok`(layered option153/153), actionlint+ShellCheck 4 workflows 통과. 전체2,007개 입력과 기존 구조/재사용 엔진 allocation regression 통과(87초, 잔존 할당 증가0). 독립 리뷰 지적은 수정 후 재검증했다.
+- 예외: 추가 점검한 `cargo fmt --all -- --check`는 기존 저장소 전반의 포맷 차이로 실패했다(이번에 수정하지 않은 `n_edge.rs`, facade `lib.rs` 등 포함). 신규 Rust 파일은 rustfmt를 적용했고 무관한 대규모 포맷 변경은 하지 않았다. 필수 build/clippy/test/parity 게이트는 모두 통과했다.
+- 상세 증거·재현: `tests/upgrade_0_12_0.md`. 원시 파일은 `/tmp/elk-012-validation/`에 버전별로 보관한다. 성능 3회 교대 A/B 및 6-way 실행과 원격 CI/release rehearsal 결과는 아래 후속 항목으로 기록한다. 아직 0.12.0 태그 생성 및 레지스트리 배포는 하지 않았다.
+
 ## 첫 레지스트리 배포 결과와 `release.yml` 통합(Trusted Publishing) (2026-10-20)
 
 - 첫 배포 결과(2026-10-19, 사용자 수행): crates.io 18개와 npm 7개가 모두 `0.11.0`으로 올라갔다. crates.io는 로컬 `cargo login` 후 `publish_crates.py`로 5개(`org-eclipse-elk-graph`·`core`·`alg-common` 등, 14:50 UTC)를 올린 뒤 `v0.11.0+rs.6` 태그를 push(14:57 UTC)했고, `cargo-publish.yml`이 남은 13개를 신규 크레이트 rate limit 재시도 루프로 배포했다(시도마다 1~2개 업로드 후 429 → 660초 대기, 14:58→17:05 UTC, 2시간 7분; 소유자 `luuvish`, `elk-layout`은 16:59 UTC). npm은 `napi.yml` publish 잡이 `NPM_TOKEN`으로 15:01~15:04 UTC에 7개를 publish했다(dist-tag `latest`). 같은 태그의 `ci.yml`도 녹색. 재시도 루프가 CI에서 2시간 동안 돌아간 것은 설계대로지만, OIDC의 30분 토큰으로는 불가능했을 시간이므로 앞으로 새 크레이트 이름이 생기면 로컬 선행 publish를 권한다(`TESTING.md` § 3.6).

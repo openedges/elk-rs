@@ -40,6 +40,7 @@ pub mod layer_size_and_graph_height_calculator;
 pub mod long_edge_joiner;
 pub mod long_edge_splitter;
 pub mod loops;
+pub mod node_placement_repeater;
 pub mod node_promotion;
 pub mod north_south_port_postprocessor;
 pub mod north_south_port_preprocessor;
@@ -99,6 +100,7 @@ pub use layer_size_and_graph_height_calculator::LayerSizeAndGraphHeightCalculato
 pub use long_edge_joiner::LongEdgeJoiner;
 pub use long_edge_splitter::LongEdgeSplitter;
 pub use loops::PolylineSelfLoopRouter;
+pub use node_placement_repeater::NodePlacementRepeater;
 pub use node_promotion::NodePromotion;
 pub use north_south_port_postprocessor::NorthSouthPortPostprocessor;
 pub use north_south_port_preprocessor::NorthSouthPortPreprocessor;

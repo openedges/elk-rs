@@ -79,7 +79,7 @@ impl ILayoutProcessor<LGraph> for AlternatingLayerUnzipper {
 
             let layer_node_count = layer.lock().nodes().len();
 
-            if layer_node_count > n as usize {
+            if layer_node_count >= n as usize {
                 let mut sub_layers = Vec::new();
                 sub_layers.push(layer.clone());
 

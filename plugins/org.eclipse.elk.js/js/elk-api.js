@@ -11,6 +11,7 @@ class ELK {
 
   constructor({
     defaultLayoutOptions = {},
+    // Compatibility hint; the Rust backend retains all compiled Java algorithms.
     algorithms = [
       'layered',
       'stress',
@@ -78,7 +79,7 @@ class ELK {
         const graphJson = JSON.stringify(graph);
         const optionsJson = JSON.stringify(layoutOptions || {});
         const resultJson = this.backend.layout_json(graphJson, optionsJson);
-        return Promise.resolve(JSON.parse(resultJson));
+        return Promise.resolve(resultJson).then(JSON.parse);
       } catch (err) {
         return Promise.reject(err);
       }
@@ -99,7 +100,7 @@ class ELK {
   knownLayoutAlgorithms() {
     if (this.backend) {
       try {
-        return Promise.resolve(JSON.parse(this.backend.known_layout_algorithms()));
+        return Promise.resolve(this.backend.known_layout_algorithms()).then(JSON.parse);
       } catch (err) {
         return Promise.reject(err);
       }
@@ -110,7 +111,7 @@ class ELK {
   knownLayoutOptions() {
     if (this.backend) {
       try {
-        return Promise.resolve(JSON.parse(this.backend.known_layout_options()));
+        return Promise.resolve(this.backend.known_layout_options()).then(JSON.parse);
       } catch (err) {
         return Promise.reject(err);
       }
@@ -121,7 +122,7 @@ class ELK {
   knownLayoutCategories() {
     if (this.backend) {
       try {
-        return Promise.resolve(JSON.parse(this.backend.known_layout_categories()));
+        return Promise.resolve(this.backend.known_layout_categories()).then(JSON.parse);
       } catch (err) {
         return Promise.reject(err);
       }

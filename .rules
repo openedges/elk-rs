@@ -44,15 +44,15 @@
 7. 커밋 (`<scope>: <summary>`)
 8. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
-## 현재 핵심 스냅샷 (2026-10-19, 기존 Java 예외 외 parity 유지)
-- **elk-rs 버전**: `0.11.0` (ELK Java `v0.11.0` 기준 포팅 완료; crates.io `org-eclipse-elk-*` 17개 + facade `elk-layout`, npm `@openedges/elk-layout`/`@openedges/elk-layout-*` 모두 2026-10-19 `v0.11.0+rs.6`에서 `0.11.0` 첫 배포 완료; 이후 배포는 `release.yml`의 Trusted Publishing(OIDC))
+## 현재 핵심 스냅샷 (2026-10-20, ELK 0.12.0 포팅 검증)
+- **elk-rs 버전**: `0.12.0` (ELK Java `v0.12.0` 포팅, `port/0.12.0`에서 로컬 품질 게이트 통과; 원격 검증 및 배포 준비 중). 이전 `0.11.0`은 `v0.11.0+rs.6`에서 crates.io 18개·npm 7개 배포 완료. 상세 검증은 `tests/upgrade_0_12_0.md`
   - 배포 정책(2026-10-19): `+rs.N` 태그가 배포 대상, `-ext.N`은 배포하지 않음. 레지스트리는 `+rs.N`을 담을 수 없어(npm은 제거, crates.io는 동일 버전 취급) 배포할 수정은 patch 버전을 올린다(`0.11.0`→`0.11.1`, elkjs 방식). 버전 변경 없는 `+rs.N` 태그는 publish 스크립트가 기존 버전을 건너뛰어 빌드만 한다. 상세 `VERSIONING.md` § 1·§ 6
   - 내부 패치 태그: `v0.11.0+rs.5` — NAPI CI 수정(linux-arm64 cross gcc 링커, `x86_64-apple-darwin`을 arm64 러너 크로스 빌드로 전환). Rust 소스는 rs.4와 동일
   - 이전 내부 패치: `v0.11.0+rs.4` — MinWidthLayerer out-degree 동률 노드의 입력 순서 유지 (PR #1, `MIN_WIDTH` 전용, corpus 출력 불변)
   - 이전 내부 패치: `v0.11.0+rs.3` — 그래프 순환 참조/임시 메모리 누수 수정
   - Cargo workspace 전체 + npm 동일 버전 (`scripts/bump_version.py <version>`으로 일괄 변경, `--check`로 일치 확인; 내부 의존성은 `[workspace.dependencies]`에 `=버전` 고정, dev-dependencies는 path 전용)
-  - 서브모듈 고정: `external/elk` → `v0.11.0` 태그, `external/elkjs` → `0.11.0` 태그
-- **Model parity**: `matches=1988/1989`, `drift=1`, `skipped=9` **(100%)**
+  - 서브모듈 고정: `external/elk` → `v0.12.0` (`32331291`), `external/elkjs` → `0.12.0` (`ff5771d7`)
+- **Model parity**: `matches=1988/1989`, `drift=1`, `skipped=9` **(raw 99.95%; 기존 Java 오류 제외 시 1988/1988)**
   - 전체 1998 모델 커버리지 (.elkt/.elkg/.json 포함)
   - `213_componentsCompaction.elkt`는 Java ELK NaN 버그로 `java_exclude.txt`에서 제외
   - polyline_edge_router stale arena fix: 341/463/587 drift 3건 해소 (arena node_pos.x stale → live port anchor 사용)
@@ -62,10 +62,10 @@
   - compare 스크립트에서 within-layer 노드 정렬로 비결정적 순서 차이 해소 (NetworkSimplexLayerer 등)
   - 정렬 키: `(labels, type, port_count, port_sides, width, height, x, y)` — Java/Rust 공통 속성
 - **Tickets parity**: `matches=108/109`, `drift=1` (Java ELK 버그 동일 원인)
-- **JS parity**: 550/550 elk-rs vs Java 일치 (ELKJS_DRIFT 20건은 GWT 아티팩트)
-- **npm 패키지**: `@openedges/elk-layout@0.11.0` WASM + NAPI 릴리즈 준비 완료 (35 Vitest 통과; 2026-10-19 `elk-rs`/`@elk-rs/*`에서 개명, crates.io `elk-rs`는 타인 선점)
+- **JS parity**: 새 Java 0.12 기준 NAPI·web WASM 각각 550/550 일치 (PASS530 + ELKJS_DRIFT20, Java 누락0). 신규 유효 fixture는 model/trace/NAPI/WASM 각각8/8; 명시적 null 1개는 Java 파서 예외로 별도 기록
+- **npm 패키지**: `@openedges/elk-layout@0.12.0` 준비 (49 Vitest 통과, Node18 이상; Node CJS·browser web WASM 동봉, Chrome direct/worker 실제 검증)
   - NAPI 플랫폼별 패키지 6개 추가 완료: `@openedges/elk-layout-darwin-arm64`, `@openedges/elk-layout-darwin-x64`, `@openedges/elk-layout-linux-x64-gnu`, `@openedges/elk-layout-linux-x64-musl`, `@openedges/elk-layout-linux-arm64-gnu`, `@openedges/elk-layout-win32-x64-msvc` (바이너리 `elk-layout.<triple>.node`)
-  - 로딩 우선순위: 플랫폼 NAPI 패키지 → 로컬 `.node` → WASM 폴백
+  - 로딩 우선순위: 플랫폼 NAPI 패키지 → 로컬 `.node` → Node CJS WASM 폴백; 브라우저는 web WASM을 비동기 초기화
   - CI/CD: `.github/workflows/release.yml` 하나로 통합(2026-10-20, decl-lang 구조). `v*` 태그 push 시 `preflight`(`mise.toml`/`rust-toolchain.toml` 핀 일치, `bump_version.py --check` = 태그 기본 버전) → `binaries`(6 플랫폼 NAPI; `x86_64-apple-darwin`은 arm64 러너 크로스 빌드) + `wasm` → `-ext.`가 아닌 태그에서만 `publish-npm`(`scripts/publish_npm.sh`, environment `npm`)·`publish-crates`(`scripts/publish_crates.py`, environment `crates-io`)가 레지스트리에 없는 버전만 publish하고 `release` 잡이 `.node` 6개 + WASM tar.gz를 GitHub Release에 첨부. 인증은 Trusted Publishing(OIDC; npm 패키지 7개·크레이트 18개에 `openedges/elk-rs`+`release.yml`+environment 등록, npm 등록은 2일 내 publish 필요), 전환기에는 `NPM_TOKEN`/`CARGO_REGISTRY_TOKEN` fallback. 수동 실행은 빌드 + 두 publish 스크립트 dry-run. 툴체인은 `rust-toolchain.toml`/`mise.toml`(Rust 1.97.1, Node 24)에 고정, ci/parity/perf 워크플로도 같은 핀 사용
 - **성능 기준선 (6-way fair benchmark, synthetic 10/3, 2026-03-23 측정, ~3.88x)**:
   - 측정 머신: MacBook Pro (Mac15,6), Apple M3 Pro (11코어: 5P+6E), 36GB RAM, macOS 26.3
@@ -84,7 +84,7 @@
   - **Edge routing 최적화** (Phase 23): 3개 routing strategy에서 edge lock 4+회 → 1회 배치, crossing-min에서 in-place reverse
   - **SoA 최적화** (Phase 20-21): Force/Stress 알고리즘에 SoA(Struct-of-Arrays) 패턴 적용, O(n²) hot loop에서 lock 제거
   - 상세 리포트: `tests/perf/report.md`
-- **코드 품질**: `cargo build` warning 0건, `cargo clippy` warning 0건, `cargo test` 통과 (0 failed)
+- **코드 품질**: workspace build/clippy warning0, tests1,032 passed/0failed/2ignored. 정적 parity12/12 strict 통과, full2,007입력 메모리 검사 잔존 할당 증가0
   - RUST_QUALITY_PLAN_V2 Phase A-1 완료: `get_property(&mut self)` → `get_property(&self)` 전환 (111파일, 272건 mut 제거)
   - Phase A-2 완료: typed property wrapper 22개 (LNode 11, LEdge 6, LPort 4, LGraph 3)
   - Phase B-1 완료: lock_ok() → lock() 전환 (3,822건)

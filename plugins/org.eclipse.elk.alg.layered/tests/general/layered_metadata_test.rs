@@ -308,3 +308,16 @@ fn group_model_order_defaults() {
         .expect("default value");
     assert_eq!(&*default, &[1, 2, 6, 7, 10, 11]);
 }
+
+#[test]
+fn recompute_node_placement_is_an_optional_node_placement_enum() {
+    init_layered_options();
+    let option = LayoutMetaDataService::get_instance().get_option_data(
+        LayeredOptions::NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_RECOMPUTE_NODE_PLACEMENT.id(),
+    ).expect("recompute node placement option");
+    assert!(option.default_value().is_none());
+    assert_eq!(option.group(), "nodePlacement.networkSimplex.nodeFlexibility");
+    assert!(option.targets().contains(&LayoutOptionTarget::Parents));
+    assert_eq!(option.visibility(), LayoutOptionVisibility::Advanced);
+    assert_eq!(option.choices().len(), 5);
+}

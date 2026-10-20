@@ -20,7 +20,7 @@
 # Every package is validated (version, build artifact present) before the first
 # publish so a bad main package cannot leave the platform packages published alone.
 # Expects the platform `.node` binaries in plugins/org.eclipse.elk.js/npm/<triple>/
-# and the WASM build in plugins/org.eclipse.elk.js/dist/wasm/ (see build.sh and
+# and the web/Node WASM builds in plugins/org.eclipse.elk.js/dist/wasm{,-node}/ (see build.sh and
 # .github/workflows/release.yml). Run from the repository root.
 set -eu
 
@@ -72,6 +72,9 @@ for dir in $dirs; do
   fi
   if [ "$dir" = "$js_dir" ]; then
     artifact_check "$dir" "dist/wasm/*.wasm" "$dir/dist/wasm/*.wasm"
+    artifact_check "$dir" "web WASM glue" "$dir/dist/wasm/org_eclipse_elk_wasm.js"
+    artifact_check "$dir" "dist/wasm-node/*.wasm" "$dir/dist/wasm-node/*.wasm"
+    artifact_check "$dir" "Node WASM glue" "$dir/dist/wasm-node/org_eclipse_elk_wasm.js"
   else
     artifact_check "$dir" "*.node binary" "$dir/*.node"
   fi

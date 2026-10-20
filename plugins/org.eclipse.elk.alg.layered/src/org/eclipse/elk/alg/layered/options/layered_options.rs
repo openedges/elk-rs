@@ -374,6 +374,14 @@ pub static NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_DEFAULT_PROPERTY: Laz
     )
 });
 
+pub static NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_RECOMPUTE_NODE_PLACEMENT_PROPERTY: LazyLock<
+    Property<NodePlacementStrategy>,
+> = LazyLock::new(|| {
+    Property::new(
+        "org.eclipse.elk.alg.layered.nodePlacement.networkSimplex.nodeFlexibility.recomputeNodePlacement",
+    )
+});
+
 pub static EDGE_ROUTING_SPLINES_MODE_PROPERTY: LazyLock<Property<SplineRoutingMode>> =
     LazyLock::new(|| {
         Property::with_default(
@@ -810,6 +818,9 @@ impl LayeredOptions {
         Property<NodeFlexibility>,
     > = &NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_DEFAULT_PROPERTY;
 
+    pub const NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_RECOMPUTE_NODE_PLACEMENT: &'static LazyLock<
+        Property<NodePlacementStrategy>,
+    > = &NODE_PLACEMENT_NETWORK_SIMPLEX_NODE_FLEXIBILITY_RECOMPUTE_NODE_PLACEMENT_PROPERTY;
     pub const EDGE_ROUTING_SPLINES_MODE: &'static LazyLock<Property<SplineRoutingMode>> =
         &EDGE_ROUTING_SPLINES_MODE_PROPERTY;
     pub const EDGE_ROUTING_SPLINES_SLOPPY_LAYER_SPACING_FACTOR: &'static LazyLock<Property<f64>> =

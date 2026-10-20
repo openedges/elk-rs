@@ -53,7 +53,7 @@ function loadBackend() {
 
   // 4. Fall back to WASM (Node.js compatible build)
   try {
-    return require('../dist/wasm/org_eclipse_elk_wasm.js');
+    return require('./load-wasm.js')();
   } catch (e) {
     // WASM not available either
   }

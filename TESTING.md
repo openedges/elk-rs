@@ -4,6 +4,11 @@ Single entry point for the elk-rs validation flow. Covers environment setup,
 verification items, scenario-based procedures, release checklist, and known
 issues.
 
+The working tree targets ELK 0.12.0 (unreleased; planned `v0.12.0+rs.7`).
+The latest published packages are 0.11.0 (`v0.11.0+rs.6`, 2026-10-19).
+Current upgrade evidence and full model/trace status are maintained in
+[tests/upgrade_0_12_0.md](tests/upgrade_0_12_0.md).
+
 For detailed parity system documentation (architecture, environment variables,
 directory structure, exception cases), see [`tests/PARITY.md`](tests/PARITY.md).
 
@@ -22,6 +27,13 @@ directory structure, exception cases), see [`tests/PARITY.md`](tests/PARITY.md).
 | ripgrep (`rg`) | any | file discovery in `scripts/check_algorithm_*_parity.sh`, `summarize_java_parity_status.sh` (not preinstalled on GitHub runners; `parity.yml` installs it) |
 | Node.js | 24 (`mise.toml`) | JS tests, parity tests; npm 11.5.1+ for publishing |
 | wasm-pack | latest | WASM build (`wasm32-unknown-unknown` target required) |
+
+The 0.12.0 npm package requires Node.js 18+. Node.js 18.0.0 and 20.20.2 were
+verified with an isolated CommonJS WASM package in direct, fake-worker, and
+worker_threads modes. Node.js 16 cannot load the standard WASM artifact without
+an experimental reference-types flag; it is no longer a supported runtime.
+Development, Vitest, and release builds continue to use pinned Node.js 24.
+See the [Rust compiler explanation of default WebAssembly features](https://blog.rust-lang.org/2024/09/24/webassembly-targets-change-in-default-target-features/).
 
 ### Submodule Initialization
 
@@ -75,15 +87,19 @@ Patches are applied automatically during Java baseline export:
 |------|---------|---------------|
 | Build | `cargo build --workspace` | Zero errors/warnings |
 | Lint | `cargo clippy --workspace --all-targets` | Zero warnings |
-| Unit tests | `cargo test --workspace` | Zero failures (currently 653 tests) |
+| Unit tests | `cargo test --workspace` | Zero failures (0.12.0 validation: 1,032 passed, 0 failed, 2 ignored) |
 
 ### B. Layout Equivalence (3 items)
 
 | Item | Comparison | Current Status |
 |------|------------|----------------|
-| Model parity | Java vs Rust layout JSON | 1988/1989 = 100% (1998 total, 9 skipped) |
-| Phase-step trace | Intermediate state across 50+ processors | 1997/1997 = 100% |
-| JS parity | 3-way: elk-rs JS vs elkjs vs Java | 550/550 = 100% |
+| Model parity | Java vs Rust layout JSON | 0.12.0: see [upgrade report](tests/upgrade_0_12_0.md); previous 0.11.0 baseline: 1988/1989, one Java bug, 9 skipped |
+| Phase-step trace | Intermediate state across 50+ processors | 0.12.0: see [upgrade report](tests/upgrade_0_12_0.md); previous 0.11.0 baseline: 1997/1997 |
+| JS parity | 3-way: elk-rs JS vs elkjs vs Java | Fresh 0.12.0 NAPI and web WASM: each 550/550 Java matches (530 PASS + 20 ELKJS_DRIFT) |
+
+Both model parity and phase-step trace are mandatory. A reused Java export must
+match the currently pinned upstream version; remove `MODEL_PARITY_SKIP_JAVA_EXPORT=true`
+when upgrading ELK so that a fresh Java baseline is generated.
 
 Commands and outputs:
 
@@ -101,9 +117,13 @@ python3 scripts/compare_phase_traces.py <java_trace_dir> <rust_trace_dir> --batc
 sh scripts/run_full_trace_parity.sh [models_root] [output_base]
 # Wraps: full manifest generation + Rust trace + compare --report-missing
 
-# JS parity
-cd plugins/org.eclipse.elk.js && npm run test:parity
-# Output: test/parity/results/parity-report.json
+# JS parity (explicit fresh local backend; adjust native filename for your platform)
+cd plugins/org.eclipse.elk.js
+node test/parity/run.mjs --models ../../external/elk-models \
+  --java-baseline ../../tests/model_parity_full/java --require-java \
+  --backend ./dist/elk-layout.darwin-arm64.node
+# Repeat with --backend ./dist/wasm/org_eclipse_elk_wasm.js for browser WASM.
+# Output: test/parity/results/parity-report.json and parity-summary.json
 ```
 
 ### C. API/Metadata Equivalence (14 items)
@@ -247,14 +267,43 @@ ALGORITHM_METADATA_PARITY_STRICT=true sh scripts/check_algorithm_metadata_parity
 
 ### 3.4 JS/WASM Changes
 
-All of 3.1 + JS tests + JS parity:
+All of 3.1 + JS tests + JS parity with a fresh Java export for the pinned ELK
+version. `--require-java` rejects missing baselines; the runner resolves each model
+by its exact manifest path and compares Java even when Rust and elkjs agree.
+Use an explicit backend to avoid testing an older installed platform addon.
 
 ```sh
-# After running 3.1:
+# From the repository root, rebuild all local bindings after Rust changes:
 cd plugins/org.eclipse.elk.js
+npm install --ignore-scripts
+sh build.sh
 npm test
-npm run test:parity
+node test/parity/run.mjs --models ../../external/elk-models \
+  --java-baseline ../../tests/model_parity_full/java --require-java \
+  --backend ./dist/elk-layout.darwin-arm64.node --output test/parity/results/native
+node test/parity/run.mjs --models ../../external/elk-models \
+  --java-baseline ../../tests/model_parity_full/java --require-java \
+  --backend ./dist/wasm/org_eclipse_elk_wasm.js --output test/parity/results/wasm
+npm pack --dry-run
 ```
+
+Adjust the `.node` filename for the host platform. The Node.js fallback uses the
+CommonJS bundle in `dist/wasm-node/`; browser imports and workers use ESM in
+`dist/wasm/`. Verify both glue files and both `.wasm` binaries are present in the
+packed main package, together with `LICENSE.md` and `NOTICE`. Test the CommonJS
+fallback without a native addon on Node.js 18.0.0 and newer supported versions;
+exercise direct, fake-worker, and worker_threads modes. Development/Vitest use
+pinned Node.js 24. Browser direct layout and metadata promises must also wait
+for the first WASM initialization, including concurrent first requests.
+Each native platform package must contain its matching `.node`, `LICENSE`, and `NOTICE`.
+
+The ELK 0.12.0 regression fixtures are in
+`plugins/org.eclipse.elk.alg.layered/tests/resources/node_flexibility/` (nine JSON
+inputs), with Rust processor tests and `test/testElk012.test.js` covering second
+node placement, inherited flexibility, port/label refresh, and layer unzipping.
+The current 550-model run has 530 `PASS` and 20 `ELKJS_DRIFT` classifications per
+backend; all 550 Rust outputs match independently exported Java JSON. See the
+[upgrade report](tests/upgrade_0_12_0.md) for the recorded evidence.
 
 ### 3.5 Before Submitting a PR
 
@@ -277,9 +326,8 @@ cargo clippy --workspace --all-targets
 # 4. Unit tests
 cargo test --workspace
 
-# 5. Full model parity (layout output comparison)
-MODEL_PARITY_SKIP_JAVA_EXPORT=true \
-  sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models tests/model_parity_full
+# 5. Full model parity (fresh Java export for an upstream version change)
+sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models tests/model_parity_full
 
 # 6. Phase-step trace (intermediate state across 50+ processors)
 python3 scripts/compare_phase_traces.py \
@@ -396,23 +444,26 @@ Decide first whether this tag publishes:
 
 ```sh
 # 1. Set the package version everywhere (skip for a build-only tag)
-python3 scripts/bump_version.py 0.11.1          # Cargo.toml/.lock, package.json files, lockfiles
+python3 scripts/bump_version.py 0.12.0          # Cargo.toml/.lock, package.json files, lockfiles
 python3 scripts/bump_version.py --check         # prints the single agreed version
 
-# 2. Dry runs (no registry access needed; --allow-dirty only for uncommitted trees)
+# 2. Dry runs (query registries but do not publish; --allow-dirty for uncommitted trees)
 python3 scripts/publish_crates.py --dry-run --allow-dirty   # packages + verifies the 18 crates
-cd plugins/org.eclipse.elk.js && sh build.sh && cd -        # WASM + local NAPI binary
-sh scripts/publish_npm.sh --dry-run --expect-version 0.11.1
+cd plugins/org.eclipse.elk.js && sh build.sh && cd -        # web + Node WASM, local NAPI
+sh scripts/publish_npm.sh --dry-run --expect-version 0.12.0
 
 # 3. Commit, tag, push (release.yml: build, npm + crates.io publish, GitHub Release)
-git commit -am "release: prepare elk-rs 0.11.1"
-git tag -a v0.11.1+rs.7 -m "elk-rs 0.11.1 (ELK 0.11.0 + fixes)"
-git push origin releases/0.11.0 && git push origin v0.11.1+rs.7
+git commit -am "release: prepare elk-rs 0.12.0"
+git tag -a v0.12.0+rs.7 -m "elk-rs 0.12.0 (ELK 0.12.0 parity)"
+git push origin releases/0.12.0 && git push origin v0.12.0+rs.7
 
 # 4. Verify
 npm view @openedges/elk-layout version && npm view @openedges/elk-layout-darwin-arm64 version
 python3 scripts/publish_crates.py --list        # then check https://crates.io/crates/elk-layout
 ```
+
+The commands above describe the planned 0.12.0 release; they do not indicate
+that a tag or publication has completed. Finish all gates before tagging.
 
 Pass criteria:
 

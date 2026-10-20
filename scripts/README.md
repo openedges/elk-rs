@@ -1,5 +1,9 @@
 Scripts overview:
 
+Current target: ELK 0.12.0 (unreleased; planned `v0.12.0+rs.7`).
+The latest published release is 0.11.0 (`v0.11.0+rs.6`, 2026-10-19).
+See [the upgrade report](../tests/upgrade_0_12_0.md) for current model/trace results.
+
 Release readiness quick run:
 - `cargo test --workspace`
 - `cargo clippy --workspace --all-targets`
@@ -13,7 +17,13 @@ Release readiness quick run:
 Release publishing (`VERSIONING.md` § 6, `TESTING.md` § 3.6):
 - `bump_version.py <version> [--no-cargo-lock]` / `bump_version.py --check` (sets the package version in `Cargo.toml` (`workspace.package` + the exact `[workspace.dependencies]` pins), `Cargo.lock` (`cargo update --workspace`), `plugins/org.eclipse.elk.js/package.json` (+ the `@openedges/elk-layout-*` optional dependencies) + lockfile + `npm/*/package.json`, `plugins/org.eclipse.elk.napi/package.json` and `packages/elk-live`; `--check` fails unless all agree and prints the version)
 - `publish_crates.py [--dry-run] [--no-verify] [--allow-dirty] [--expect-version V] [--only crate ...] [--list]` (publishes the workspace crates missing on crates.io with one dependency-ordered `cargo publish -p ...`; skips `publish = false` crates and versions already published; retries after the crates.io new-crate rate limit (`PUBLISH_CRATES_RATE_LIMIT_WAIT`, default 660s); used by the `publish-crates` job of `.github/workflows/release.yml`)
-- `publish_npm.sh [--dry-run] [--expect-version V]` (publishes the six `@openedges/elk-layout-*` platform packages then `@openedges/elk-layout` with `NPM_DIST_TAG` (default `latest`), skipping `package@version` pairs already on npm and refusing to publish a platform package without its `.node` binary or the main package without `dist/wasm/`; used by the `publish-npm` job of `.github/workflows/release.yml`)
+- `publish_npm.sh [--dry-run] [--expect-version V]` (publishes the six `@openedges/elk-layout-*` platform packages then `@openedges/elk-layout` with `NPM_DIST_TAG` (default `latest`), skipping `package@version` pairs already on npm and refusing to publish a platform package without its `.node` binary or the main package without both browser ESM `dist/wasm/` and Node CommonJS `dist/wasm-node/` glue/binaries; used by the `publish-npm` job of `.github/workflows/release.yml`)
+
+JS parity and package checks (run from `plugins/org.eclipse.elk.js`):
+- `sh build.sh` builds the host NAPI addon plus browser ESM (`dist/wasm/`) and Node CommonJS (`dist/wasm-node/`) WASM; development uses the pinned Node.js 24, and the Node WASM fallback supports Node.js 18+.
+- `node test/parity/run.mjs --models ../../external/elk-models --java-baseline ../../tests/model_parity_full/java --require-java --backend ./dist/elk-layout.darwin-arm64.node` compares the explicit freshly built host addon against exact Java manifest paths and elkjs `0.12.0`; change the filename for your platform. Repeat with `--backend ./dist/wasm/org_eclipse_elk_wasm.js` for web WASM. Missing Java baselines fail; `parity-summary.json` reports the actual comparison denominator. Generate a fresh Java export when upstream changes.
+- `npm pack --dry-run` inspects package contents without publishing. Require both WASM targets and their glue plus `LICENSE.md`/`NOTICE` in the main package, and matching `.node` plus `LICENSE`/`NOTICE` in each platform package.
+- `npm test` includes `testElk012.test.js` and parity-classification regressions; nine upstream feature fixtures live under `../org.eclipse.elk.alg.layered/tests/resources/node_flexibility/`.
 
 - `run_parity_comment_attachment.sh [count] [iterations] [warmup] [output]`
 - `run_parity_graph_validation.sh [nodes] [edges] [iterations] [warmup] [mode] [output]`
@@ -66,9 +76,9 @@ Release publishing (`VERSIONING.md` § 6, `TESTING.md` § 3.6):
 - `check_layered_phase_wiring_parity.sh [report]` (compares Java `GraphConfigurator` and Rust `graph_configurator` phase wiring rows (`before`/`after`, phase, processor, guard signature), emits detailed TSV artifacts under `tests/layered_phase_wiring/`; default report `tests/layered_phase_wiring_parity.md`; strict mode via `LAYERED_PHASE_WIRING_PARITY_STRICT=true`)
 - `clean_parity_temp.sh [--apply] [--include-tracked] [--root <perf_dir>]` (cleans runtime TEMP artifacts under `tests/`; default is dry-run and skips tracked files, `--include-tracked` enables legacy tracked payload cleanup)
 - `update_ptolemy_coverage_agents.sh` (collects external ptolemy parse coverage and model-order validated counts from `node_promotion_test`, then auto-appends per-batch quantitative entries to the `AGENTS.md` progress log)
-- `run_perf_benchmark.sh [mode] [iterations] [warmup] [output_dir]` (5-way performance benchmark orchestration: Rust native, Rust API, Java, elkjs, NAPI, WASM; `mode` is `synthetic` (default) or `models`; outputs per-engine CSV + comparison report)
+- `run_perf_benchmark.sh [mode] [iterations] [warmup] [output_dir]` (6-way performance benchmark orchestration: Rust native, Rust API, Java, elkjs, NAPI, WASM; `mode` is `synthetic` (default) or `models`; outputs per-engine CSV + comparison report)
 - `run_java_model_benchmark.sh [mode] [iterations] [warmup] [output]` (Java model benchmark via `ElkModelBenchTest`; supports `synthetic` and `models` modes; follows same isolation/injection pattern as `run_java_parity_layered_issue_scenarios.sh`)
-- `compare_perf_results.py [results_dir] [output]` (5-way CSV comparison report generator; reads per-engine CSV files, outputs markdown with summary + per-scenario tables; supports both new format with `engine` column and legacy format)
+- `compare_perf_results.py [results_dir] [output]` (6-way CSV comparison report generator; reads per-engine CSV files, outputs markdown with summary + per-scenario tables; supports both new format with `engine` column and legacy format)
 - `run_all_checks.sh [threshold] [window]` (cargo test, clippy, parity gate)
 - `run_fast_checks.sh` (cargo test, clippy only)
 

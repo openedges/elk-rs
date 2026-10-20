@@ -32,6 +32,7 @@ mod long_edge_joiner_test;
 mod long_edge_splitter_test;
 mod next_to_port_label_placement_test;
 mod node_margin_calculator_test;
+mod node_placement_repeater_test;
 mod north_south_port_postprocessor_test;
 mod north_south_port_preprocessor_test;
 mod partition_post_processor_test;

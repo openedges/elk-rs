@@ -157,12 +157,14 @@ jobs:
         working-directory: plugins/org.eclipse.elk.wasm
         run: |
           wasm-pack build --target web --out-dir ../org.eclipse.elk.js/dist/wasm --release
+          wasm-pack build --target nodejs --out-dir ../org.eclipse.elk.js/dist/wasm-node --release
           rm -f ../org.eclipse.elk.js/dist/wasm/.gitignore ../org.eclipse.elk.js/dist/wasm/package.json
-          ls -l ../org.eclipse.elk.js/dist/wasm
+          rm -f ../org.eclipse.elk.js/dist/wasm-node/.gitignore ../org.eclipse.elk.js/dist/wasm-node/package.json
+          ls -l ../org.eclipse.elk.js/dist/wasm ../org.eclipse.elk.js/dist/wasm-node
       - uses: actions/upload-artifact@v7
         with:
           name: wasm
-          path: plugins/org.eclipse.elk.js/dist/wasm/
+          path: plugins/org.eclipse.elk.js/dist/
           if-no-files-found: error
 
   # A manual run rehearses the publish scripts (`--dry-run`) for whatever it was not asked to publish.
@@ -185,16 +187,15 @@ jobs:
           path: artifacts
       - name: Place the binaries and the WASM bundle
         run: |
-          rm -rf plugins/org.eclipse.elk.js/dist/wasm
           mkdir -p plugins/org.eclipse.elk.js/dist
-          cp -R artifacts/wasm plugins/org.eclipse.elk.js/dist/wasm
+          cp -R artifacts/wasm/wasm artifacts/wasm/wasm-node plugins/org.eclipse.elk.js/dist/
           for f in artifacts/binding-*/*.node; do
             triple=$(basename "$f" .node)
             triple="${triple#elk-layout.}"
             test -d "plugins/org.eclipse.elk.js/npm/$triple" || { echo "no platform package for $f" >&2; exit 1; }
             cp "$f" "plugins/org.eclipse.elk.js/npm/$triple/"
           done
-          ls -l plugins/org.eclipse.elk.js/npm/*/*.node plugins/org.eclipse.elk.js/dist/wasm
+          ls -l plugins/org.eclipse.elk.js/npm/*/*.node plugins/org.eclipse.elk.js/dist/wasm plugins/org.eclipse.elk.js/dist/wasm-node
       - if: ${{ !inputs.publish_npm }}
         name: npm dry run
         run: sh scripts/publish_npm.sh --dry-run --expect-version "${{ needs.preflight.outputs.version }}"
@@ -232,16 +233,15 @@ jobs:
           path: artifacts
       - name: Place the binaries and the WASM bundle
         run: |
-          rm -rf plugins/org.eclipse.elk.js/dist/wasm
           mkdir -p plugins/org.eclipse.elk.js/dist
-          cp -R artifacts/wasm plugins/org.eclipse.elk.js/dist/wasm
+          cp -R artifacts/wasm/wasm artifacts/wasm/wasm-node plugins/org.eclipse.elk.js/dist/
           for f in artifacts/binding-*/*.node; do
             triple=$(basename "$f" .node)
             triple="${triple#elk-layout.}"
             test -d "plugins/org.eclipse.elk.js/npm/$triple" || { echo "no platform package for $f" >&2; exit 1; }
             cp "$f" "plugins/org.eclipse.elk.js/npm/$triple/"
           done
-          ls -l plugins/org.eclipse.elk.js/npm/*/*.node plugins/org.eclipse.elk.js/dist/wasm
+          ls -l plugins/org.eclipse.elk.js/npm/*/*.node plugins/org.eclipse.elk.js/dist/wasm plugins/org.eclipse.elk.js/dist/wasm-node
       - name: Publish the packages missing on npm
         env:
           # Transition only. npm tries the OIDC exchange first and falls back to a configured
@@ -325,7 +325,7 @@ jobs:
         run: |
           mkdir -p assets
           cp artifacts/binding-*/*.node assets/
-          tar -czf "assets/elk-layout-${{ needs.preflight.outputs.version }}-wasm.tar.gz" -C artifacts wasm
+          tar -czf "assets/elk-layout-${{ needs.preflight.outputs.version }}-wasm.tar.gz" -C artifacts/wasm wasm wasm-node
           ls -l assets
       - uses: softprops/action-gh-release@v3
         with:
