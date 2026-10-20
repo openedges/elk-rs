@@ -45,7 +45,7 @@
 8. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
 ## 현재 핵심 스냅샷 (2026-10-19, ext.6 — 기존 확장 동작 유지)
-- **elk-rs 버전**: `0.11.0-ext.6` (ELK Java `v0.11.0` + 확장 기능; 태그만 생성, 확장판은 npm/cargo에 배포하지 않음)
+- **elk-rs 버전**: `0.11.0-ext.6` (ELK Java `v0.11.0` + 확장 기능; 태그만 생성, 확장판은 npm/cargo에 배포하지 않음. 기반 `releases/0.11.0`의 `0.11.0`은 2026-10-19 `v0.11.0+rs.6`에서 crates.io/npm 첫 배포 완료, 이후 배포는 `release.yml`의 Trusted Publishing(OIDC))
   - 배포 정책(2026-10-19): `+rs.N` 태그(`releases/0.11.0`)만 배포 대상, 이 확장판의 `-ext.N` 태그는 빌드만 하고 배포하지 않음. 레지스트리는 `+rs.N`을 담을 수 없어(npm은 제거, crates.io는 동일 버전 취급) 배포할 수정은 patch 버전을 올린다(`0.11.0`→`0.11.1`, elkjs 방식). 버전 변경 없는 `+rs.N` 태그는 publish 스크립트가 기존 버전을 건너뛰어 빌드만 한다. 상세 `VERSIONING.md` § 1·§ 6
   - `custom/0.11.0`에 내부 패치 `v0.11.0+rs.5` 병합 (2026-10-19) — NAPI CI 수정(linux-arm64 cross gcc 링커, `x86_64-apple-darwin`을 arm64 러너 크로스 빌드로 전환). Rust 소스 변경 없음
   - `custom/0.11.0`에 내부 패치 `v0.11.0+rs.4` 병합 (2026-10-19) — MinWidthLayerer out-degree 동률 노드의 입력 순서 유지 (PR #1, `MIN_WIDTH` 전용). Cargo/npm manifest를 `0.11.0-ext.6`으로 동기화(확장판은 배포하지 않음)
@@ -68,8 +68,8 @@
 - **npm 패키지**: `@openedges/elk-layout@0.11.0-ext.6` manifest (확장판은 미배포; 2026-10-19 `elk-rs`/`@elk-rs/*`에서 `@openedges/elk-layout`/`@openedges/elk-layout-*`로 개명, crates.io `elk-rs`는 타인 선점; 35 Vitest 및 NAPI/WASM 확장 fixture 18/18은 ext.5 빌드 검증 결과)
   - NAPI 플랫폼별 패키지 6개 추가 완료: `@openedges/elk-layout-darwin-arm64`, `@openedges/elk-layout-darwin-x64`, `@openedges/elk-layout-linux-x64-gnu`, `@openedges/elk-layout-linux-x64-musl`, `@openedges/elk-layout-linux-arm64-gnu`, `@openedges/elk-layout-win32-x64-msvc` (바이너리 `elk-layout.<triple>.node`)
   - 로딩 우선순위: 플랫폼 NAPI 패키지 → 로컬 `.node` → WASM 폴백
-  - CI/CD: `.github/workflows/napi.yml` (태그 push 시 6 플랫폼 크로스 빌드, `-ext.` 태그를 제외한 `v*` 태그에서 WASM 빌드 후 `scripts/publish_npm.sh`로 npm에 없는 패키지만 `latest`로 publish; `x86_64-apple-darwin`은 arm64 러너에서 `--target` 크로스 빌드). `.github/workflows/cargo-publish.yml`은 같은 태그에서 `scripts/publish_crates.py`로 crates.io에 없는 크레이트만 publish(수동 실행은 dry-run). 첫 crates.io 배포는 신규 크레이트 rate limit 때문에 로컬에서 실행; `-ext.` 태그는 두 워크플로 모두 빌드만 한다
-  - 플랫폼 패키지 6개 및 optional dependency도 `0.11.0-ext.6`으로 통일. ext.5/rs.3 태그에서 실패했던 NAPI linux-arm64 cross build는 cross gcc 링커 지정으로 수정(`23f0aee`), `custom/0.11.0` 수동 실행과 `v0.11.0+rs.5`/`v0.11.0-ext.6` 태그 run에서 6/6 플랫폼 빌드 성공. ext.6 publish 잡은 `NPM_TOKEN` 부재로 실패(의도된 미배포; npm 패키지명·`NPM_TOKEN` 필요)
+  - CI/CD: `.github/workflows/release.yml` 하나로 통합(2026-10-20, decl-lang 구조). `v*` 태그 push 시 `preflight`(`mise.toml`/`rust-toolchain.toml` 핀 일치, `bump_version.py --check` = 태그 기본 버전) → `binaries`(6 플랫폼 NAPI; `x86_64-apple-darwin`은 arm64 러너 크로스 빌드) + `wasm` → `-ext.`가 아닌 태그에서만 `publish-npm`(`scripts/publish_npm.sh`, environment `npm`)·`publish-crates`(`scripts/publish_crates.py`, environment `crates-io`)가 레지스트리에 없는 버전만 publish하고 `release` 잡이 `.node` 6개 + WASM tar.gz를 GitHub Release에 첨부. 인증은 Trusted Publishing(OIDC; npm 패키지 7개·크레이트 18개에 `openedges/elk-rs`+`release.yml`+environment 등록, npm 등록은 2일 내 publish 필요), 전환기에는 `NPM_TOKEN`/`CARGO_REGISTRY_TOKEN` fallback. 수동 실행은 빌드 + 두 publish 스크립트 dry-run. 툴체인은 `rust-toolchain.toml`/`mise.toml`(Rust 1.97.1, Node 24)에 고정, ci/parity/perf 워크플로도 같은 핀 사용
+  - 플랫폼 패키지 6개 및 optional dependency도 `0.11.0-ext.6`으로 통일. ext.5/rs.3 태그에서 실패했던 NAPI linux-arm64 cross build는 cross gcc 링커 지정으로 수정(`23f0aee`), `custom/0.11.0` 수동 실행과 `v0.11.0+rs.5`/`v0.11.0-ext.6` 태그 run에서 6/6 플랫폼 빌드 성공. ext.6 publish 잡은 `NPM_TOKEN` 부재로 실패했었고(의도된 미배포), `release.yml`부터는 `-ext.` 태그에서 publish/release 잡 자체를 건너뛴다(빌드 아티팩트만 남김)
 - **성능 기준선 (6-way fair benchmark, synthetic 10/3, 2026-03-23 측정, ~3.88x)**:
   - 측정 머신: MacBook Pro (Mac15,6), Apple M3 Pro (11코어: 5P+6E), 36GB RAM, macOS 26.3
   - 툴체인: Rust 1.93.1, OpenJDK 21.0.10, Node.js 22.16.0

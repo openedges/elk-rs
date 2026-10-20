@@ -24,8 +24,10 @@ Behaviour:
     is passed through for dry runs on an uncommitted working tree (rejected
     without --dry-run).
 
-Authentication: `cargo login` once, or set CARGO_REGISTRY_TOKEN. `cargo` is
-taken from $CARGO or PATH. Run from the repository root.
+Authentication: `cargo login` once, or set CARGO_REGISTRY_TOKEN (the release.yml
+publish-crates job passes the 30-minute token that rust-lang/crates-io-auth-action
+obtains through Trusted Publishing). `cargo` is taken from $CARGO or PATH. Run
+from the repository root.
 """
 
 import json

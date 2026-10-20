@@ -1,0 +1,10 @@
+# The Rust toolchain elk-rs is developed, tested and released with. rustup
+# installs it on the first cargo run; mise.toml carries the same pin for mise
+# users and .github/workflows/release.yml checks that the two files agree.
+# Every workflow installs this channel instead of `stable`, so a new rustc
+# release cannot break CI unannounced (rustc 1.98 changed the aarch64-linux
+# linker flags under the NAPI build). Bump both files together.
+[toolchain]
+channel = "1.97.1"
+profile = "minimal"
+components = ["rustfmt", "clippy"]

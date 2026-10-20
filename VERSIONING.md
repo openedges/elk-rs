@@ -66,8 +66,9 @@ git: v0.11.1+rs.7        <- package version bumped to 0.11.1                    
   CHANGELOG.
 - **Publishing = bump the patch version, then tag.** `python3 scripts/bump_version.py 0.11.1`
   updates every manifest and lockfile (see Version Sync Files), the quality gates run,
-  the commit is tagged `v0.11.1+rs.<N>` and pushed. `napi.yml` and `cargo-publish.yml`
-  then publish every package/crate whose version is not on the registry yet.
+  the commit is tagged `v0.11.1+rs.<N>` and pushed. `release.yml` then publishes every
+  package/crate whose version is not on the registry yet and attaches the binaries to a
+  GitHub Release.
 - **A tag without a bump is a build-only tag.** Both publish scripts skip
   package@version pairs that already exist, so tagging `v0.11.0+rs.6` after `0.11.0`
   has been published builds the NAPI binaries and publishes nothing.
@@ -75,7 +76,8 @@ git: v0.11.1+rs.7        <- package version bumped to 0.11.1                    
   `0.11.0` is published no `^0.11.0` consumer would receive it. Prerelease versions are
   reserved for publishing *before* the first stable version of a line, if ever needed.
 - **Extension tags are never published.** `v0.11.0-ext.N` tags on `custom/*` branches
-  build but skip the publish jobs (`!contains(github.ref_name, '-ext.')`).
+  build but skip the publish and release jobs: `release.yml` publishes only when the
+  manifests' version, which the tag must match, has no prerelease part.
 - **CHANGELOG.md**: elk-rs changes are grouped by published version
 
 #### Extension Releases: Pre-release Channel (`-ext.N`)
@@ -370,7 +372,7 @@ git commit -am "release: prepare elk-rs 0.12.0"
 # Tag on the release branch (first +rs.N of the line continues the counter)
 git tag -a v0.12.0+rs.9 -m "elk-rs 0.12.0 (ELK 0.12.0 parity)"
 
-# Push release branch and the tag: napi.yml publishes npm, cargo-publish.yml publishes crates.io
+# Push release branch and the tag: release.yml publishes npm + crates.io and creates the GitHub Release
 git push origin releases/0.12.0
 git push origin v0.12.0+rs.9
 
@@ -440,11 +442,19 @@ elk-rs follows a 1:1 porting principle from Java ELK, but allows differences in 
 
 | Registry | Packages | Version | Trigger |
 |----------|----------|---------|---------|
-| npm | `@openedges/elk-layout` (WASM + loader) and `@openedges/elk-layout-darwin-arm64`, `@openedges/elk-layout-darwin-x64`, `@openedges/elk-layout-linux-x64-gnu`, `@openedges/elk-layout-linux-x64-musl`, `@openedges/elk-layout-linux-arm64-gnu`, `@openedges/elk-layout-win32-x64-msvc` | package version, dist-tag `latest` | `.github/workflows/napi.yml` on `v*` tags without `-ext.` |
-| crates.io | `elk-layout` (facade, `crates/elk-layout`) and the 17 library crates `org-eclipse-elk-*` (everything except the `napi`/`wasm` bindings) | package version | `.github/workflows/cargo-publish.yml` on `v*` tags without `-ext.` |
+| npm | `@openedges/elk-layout` (WASM + loader) and `@openedges/elk-layout-darwin-arm64`, `@openedges/elk-layout-darwin-x64`, `@openedges/elk-layout-linux-x64-gnu`, `@openedges/elk-layout-linux-x64-musl`, `@openedges/elk-layout-linux-arm64-gnu`, `@openedges/elk-layout-win32-x64-msvc` | package version, dist-tag `latest` | `publish-npm` job of `.github/workflows/release.yml` on `v*` tags without `-ext.` |
+| crates.io | `elk-layout` (facade, `crates/elk-layout`) and the 17 library crates `org-eclipse-elk-*` (everything except the `napi`/`wasm` bindings) | package version | `publish-crates` job of `.github/workflows/release.yml` on `v*` tags without `-ext.` |
 
 Never published: `-ext.N` tags, `org-eclipse-elk-napi`/`org-eclipse-elk-wasm`
 (`publish = false`), `elk-layout-napi` and `elk-rs-live` (`"private": true`).
+
+The same tag run attaches the six `elk-layout.<triple>.node` binaries and
+`elk-layout-<version>-wasm.tar.gz` to a GitHub Release with generated release notes
+(`release` job). `-ext.N` tags build the binaries too but keep them as workflow artifacts:
+extension builds never appear on the public release page. A manual run of `release.yml`
+builds everything and dry-runs both publish scripts; its `publish_npm`/`publish_crates`
+inputs request a real publish of the missing versions (start the run on the release tag
+when the environments are limited to tags).
 
 Names: `elk-rs` is taken on crates.io by an unrelated crate, so the Rust facade is
 `elk-layout`; the npm packages live under the `@openedges` organization. The GitHub
@@ -461,17 +471,41 @@ repository keeps its `elk-rs` name.
 - Both take the tag's base version from CI (`v0.11.1+rs.7` -> `0.11.1`) and fail if any
   manifest disagrees.
 
-### Credentials and first publish
+### Credentials: Trusted Publishing
 
-- npm: an npm account in the `@openedges` organization with a granular access token that
-  may publish `@openedges/elk-layout*` (repository secret `NPM_TOKEN`). The
-  first publish of a package name happens from CI like every other one.
-- crates.io: a crates.io API token with `publish-new` + `publish-update` (repository secret
-  `CARGO_REGISTRY_TOKEN`; locally `cargo login`). crates.io limits *new* crates to a burst
-  of five, then one every ten minutes, so the first publish of the 18 crates is run
-  locally with `python3 scripts/publish_crates.py` (it sleeps and retries; or ask
-  help@crates.io to raise the limit beforehand). Later versions are updates (burst of 30)
-  and run from CI.
-- Once the packages exist, both registries support Trusted Publishing (GitHub Actions
-  OIDC), which removes the long-lived tokens; the workflows note where `id-token: write`
-  would go.
+The first publish (`0.11.0`, 2026-10-19, tag `v0.11.0+rs.6`) used long-lived tokens: the
+repository secrets `NPM_TOKEN` and `CARGO_REGISTRY_TOKEN`, plus a local `cargo login` for
+the first five crates (crates.io limits *new* crates to a burst of five, then one every
+ten minutes; the tag run published the other 13 through the retry loop of
+`publish_crates.py` in 2 h 7 min). Every later publish runs through GitHub Actions OIDC,
+which both registries call Trusted Publishing: the registry trusts the identity
+"repository `openedges/elk-rs`, workflow file `release.yml`, GitHub environment", and the
+job receives a short-lived token (crates.io: 30 minutes). A registration is made per
+package and per crate, by an owner, and only for a package/crate that already exists:
+
+| Registry | Where | Fields |
+|----------|-------|--------|
+| npmjs.com, 7 packages | package page → Settings → Trusted publishing → GitHub Actions | Organization or user `openedges`, Repository `elk-rs`, Workflow filename `release.yml`, Environment name `npm`; Allowed actions must include `npm publish` |
+| crates.io, 18 crates | crate page → Settings → Trusted Publishing → Add → GitHub | Repository owner `openedges`, Repository name `elk-rs`, Workflow filename `release.yml`, Environment `crates-io` |
+
+- GitHub environments `npm` and `crates-io` (repository Settings → Environments). GitHub
+  creates them on first use, but creating them by hand allows a deployment rule that limits
+  each to `v*` tags, so no branch run can reach a registry (a manual publish is then
+  dispatched on the release tag).
+- npm expires a trusted-publisher registration that has not completed a publish within two
+  days, so the seven npm registrations are made at most two days before the first
+  publishing tag (TESTING.md § 3.6). crates.io registrations do not expire.
+- Transition: `release.yml` still honours the two secrets when the OIDC publish fails
+  (a package or crate without a registration; crates.io scopes its token to the registered
+  crates, so the unregistered ones get 403 and the job retries them with the secret and
+  warns). After the first release that published
+  through OIDC, delete `NPM_TOKEN` and `CARGO_REGISTRY_TOKEN` and set every npm package's
+  Publishing access to "Require two-factor authentication and disallow tokens".
+- npm trusted publishing needs npm 11.5.1+ on Node 22.14+; `release.yml` installs `npm@11`
+  on the Node version pinned in `mise.toml`. Provenance requires `repository.url` of every
+  npm package to be `git+https://github.com/openedges/elk-rs.git`, which the manifests carry.
+- All 18 crates.io registrations must exist before `CARGO_REGISTRY_TOKEN` is deleted; until
+  then a partial set only costs the warning above.
+- New crate names (a future plugin crate) hit the new-crate limit (a burst of five, then
+  one every ten minutes), which the 30-minute OIDC token cannot wait out: publish them
+  locally after `cargo login` first and let the tag run skip them.
