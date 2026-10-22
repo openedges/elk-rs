@@ -44,7 +44,8 @@
 7. 커밋 (`<scope>: <summary>`)
 8. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
-## 현재 핵심 스냅샷 (2026-10-20, ELK 0.12.0 포팅 검증)
+## 현재 핵심 스냅샷 (2026-10-22, 레이아웃 정확성 및 성능 검증)
+- **레이아웃 개선 검증**: `fix/layout-improvements`에서 외부 포트 교착, `layout_value`, 옵션/solver 최적화를 검증했다. workspace 1,050 passed/0 failed/2 ignored, model 1,988/1,989(기존 차이1), phase 기존 비교기 1,997/1,997(NaN 누락 확인; 완전 동등성 증거 아님), Clippy/WASM 통과. 공개 버전은 변경하지 않았다. 결정·성능·한계: `tests/layout_improvements.md`. 사용자가 커밋·push 및 후속 컴포넌트 압축 개발을 승인했다.
 - **elk-rs 버전**: `0.12.0` (ELK Java `v0.12.0` 포팅 및 품질 게이트 통과; release run39357332958의 crates.io/npm/GitHub Release 게시 완료). 최초 태그·Release는 `v0.12.0`으로 정정 완료(`22fbee45`, 기존 첨부7개 보존); 잘못된 `v0.12.0+rs.7` 태그는 삭제했다. 상세 검증은 `tests/upgrade_0_12_0.md`
   - 태그 규칙(2026-10-20 사용자 확정): 새 기본 버전의 최초 릴리즈는 `vX.Y.Z`(접미사 없음). 같은 기본 버전의 첫 Rust 수정부터 `vX.Y.Z+rs.1`, `+rs.2` 순서이며, 새 기본 버전은 다시 접미사 없는 태그로 시작한다. 버전 간 카운터를 이어가지 않는다.
   - 배포 정책: 최초 bare 태그와 `+rs.N` 모두 release.yml이 처리하고 `-ext.N`은 배포하지 않는다. 레지스트리는 build metadata로 버전을 구분하지 않으므로 공개 수정판은 package patch를 올리고 새 기본 버전의 bare 태그를 사용한다. 같은 package version의 `+rs.N`은 레지스트리 재게시를 건너뛴다. 상세 `VERSIONING.md` § 1·§ 6
@@ -57,7 +58,7 @@
   - 전체 1998 모델 커버리지 (.elkt/.elkg/.json 포함)
   - `213_componentsCompaction.elkt`는 Java ELK NaN 버그로 `java_exclude.txt`에서 제외
   - polyline_edge_router stale arena fix: 341/463/587 drift 3건 해소 (arena node_pos.x stale → live port anchor 사용)
-- **Phase-step trace**: `1997/1997` match, `0` drift **(100%)**
+- **Phase-step trace (기존 비교기 결과)**: `1997/1997` match, `0` drift. NaN-versus-finite 검사가 빠져 있어 완전 동등성 판정에 사용할 수 없다. 213 모델의 보정 비교는 207단계 일치/22단계 불일치(최초207)이며 비교기 수정 후 전체를 다시 집계한다.
   - 전체 모델 커버리지 (이전 1438 → 1997)
   - `rust_only=1` (`588_hierarchicalLayoutNPE.elkt` — Java NPE로 trace 생성 불가)
   - compare 스크립트에서 within-layer 노드 정렬로 비결정적 순서 차이 해소 (NetworkSimplexLayerer 등)
@@ -86,7 +87,7 @@
   - **Edge routing 최적화** (Phase 23): 3개 routing strategy에서 edge lock 4+회 → 1회 배치, crossing-min에서 in-place reverse
   - **SoA 최적화** (Phase 20-21): Force/Stress 알고리즘에 SoA(Struct-of-Arrays) 패턴 적용, O(n²) hot loop에서 lock 제거
   - 상세 리포트: `tests/perf/report.md`
-- **코드 품질**: workspace build/clippy warning0, tests1,032 passed/0failed/2ignored. 정적 parity12/12 strict 통과, full2,007입력 메모리 검사 잔존 할당 증가0
+- **코드 품질 (2026-10-22)**: workspace build/clippy warning0, tests1,050 passed/0failed/2ignored. 기존 메모리 회귀 테스트 통과. 정적 parity12/12 strict 및 full2,007입력 메모리 검사 잔존 할당 증가0은 0.12.0 포팅 시점의 이전 검증 기록이며 이번 작업에서 별도로 재실행하지 않았다.
   - RUST_QUALITY_PLAN_V2 Phase A-1 완료: `get_property(&mut self)` → `get_property(&self)` 전환 (111파일, 272건 mut 제거)
   - Phase A-2 완료: typed property wrapper 22개 (LNode 11, LEdge 6, LPort 4, LGraph 3)
   - Phase B-1 완료: lock_ok() → lock() 전환 (3,822건)

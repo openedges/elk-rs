@@ -3,6 +3,18 @@
 - 본 문서는 기존 `AGENTS.md`의 `진행된 작업` 섹션을 분리 보관한 기록이다.
 - 신규 단계 완료 시 이 문서에 누적 기록하고, `AGENTS.md`의 핵심 스냅샷/우선순위를 동기화한다.
 
+## 레이아웃 정확성 및 성능 개선의 stable 반영 검토 (2026-10-22)
+
+- 사용자 요청에 따라 `releases/0.12.0`의 `10661c0e`에서 `fix/layout-improvements`를 만들고 범용 결함/API/성능 패치를 선별했다. 사용자가 이 변경의 커밋·push와 후속 컴포넌트 압축 개발을 승인했다.
+- 반영: interactive 외부 포트 잠금 순서(남북 방향의 재진입도 보완), owned JSON `layout_value`와 facade export, per-transform 옵션 캐시·기본값 공유·import scratch 해제, 정확한 network-simplex 계산 최적화와 노드/포트 순서 관계 비트 벡터.
+- 제외: 특정 소비자용 provider/crate 삭제, JSON5 제거, manifest/dependency/dead-code 정리, 별도 필요성이 확인되지 않은 WASM mutex backend 교체, 이미 upstream에서 해결한 순환 참조 정리.
+- 검증: build 및 Clippy warning/error0, workspace **1,050 passed/0 failed/2 ignored**(18개 추가), preserve_order library14/14, WASM check 통과. 새 Rust full model **1,988/1,989**(기존 Java 오류1, 비교 제외9), full phase **1,997/1,997**(Java NPE에 의한 Rust-only1), 신규 drift0. 기존 메모리 회귀 테스트도 통과했다.
+- 전후 성능은 동일 머신·최적화 dev·system allocator로 세 차례 교대 측정했다. 전역 옵션 및 model-order/simplex 대상 입력에서 시간·최대 사용 힙 개선이 확인됐다. 표준26개 시나리오와 개별 증가·측정 한계를 포함한 수치는 `tests/layout_improvements.md`와 인접CSV/JSON에 기록했다. 제품별 SLA나 개별 최적화의 기여도로 해석하지 않는다.
+- 코드리뷰: 전체 provider/JSON5를 유지하고, 내부 최적화 helper는 `pub(crate)`로 제한했다. test reference에 원래 옵션 merge를 독립 보존했다. 원본 DisCo default polyomino reflection 오류는 양쪽 경로의 동일 오류로 검증하며 별도 범위로 남겼다. 변경 파일은 rustfmt를 적용했다.
+- 후속 감사: 기존 phase 비교기는 NaN과 유한값의 차이를 놓친다. 213 모델을 메모리 내에서 보정 비교하면 229단계 일치가 207일치/22불일치(최초207)로 바뀐다. 최종 출력은 Java NaN73개와 Rust 단순화 구현에 의한 유한 x좌표 차이12개이며, 이번 패치 전후 Rust 출력은 동일하다. 위 phase 수치는 기존 비교기의 관측 결과로 한정하며 완전 동등성의 증거로 사용하지 않는다. 비교기 수정과 충실한 컴포넌트 압축 포팅을 후속 작업으로 진행한다.
+- 문서 언어: 공개 검토 문서 `tests/layout_improvements.md`를 영어로 작성했다. README/API 설명도 영어를 유지하며, `.rules`의 명시적 한국어 규칙과 내부 작업 이력의 기존 한국어 작성 방식은 유지한다. 번역 과정에서 검증 수치·측정 자료·코드는 변경하지 않았다.
+
+
 ## GitHub Actions 배포의 장기 토큰 의존 제거 (2026-10-20)
 
 - 사용자 요청: 토큰을 등록하지 않는 배포 방식으로 전환. `release.yml`의 npm `.npmrc`/`NPM_TOKEN` 주입과 crates.io `CARGO_REGISTRY_TOKEN` secret 재시도를 제거했다. crates.io 인증·게시 단계의 `continue-on-error`도 제거해 OIDC 실패 시 즉시 실패한다. `CARGO_REGISTRY_TOKEN` 환경 변수에는 `crates-io-auth-action`이 발급한 단기 토큰만 전달한다.

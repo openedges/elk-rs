@@ -1,6 +1,8 @@
 #![allow(clippy::mutable_key_type)]
 
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
+
+use super::model_order_node_comparator::ModelOrderRelations;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::options::port_side::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
@@ -38,8 +40,7 @@ pub struct ModelOrderPortComparator {
     previous_layer_position: FxHashMap<usize, usize>,
     graph: LGraphRef,
     strategy: OrderingStrategy,
-    bigger_than: FxHashMap<PortRefKey, FxHashSet<PortRefKey>>,
-    smaller_than: FxHashMap<PortRefKey, FxHashSet<PortRefKey>>,
+    relations: ModelOrderRelations<PortRefKey>,
 }
 
 struct PortSnapshot {
@@ -61,7 +62,8 @@ impl ModelOrderPortComparator {
         target_node_model_order: Option<FxHashMap<NodeRefKey, i32>>,
         port_model_order: bool,
     ) -> Self {
-        let mut previous_layer_position = FxHashMap::with_capacity_and_hasher(previous_layer.len(), Default::default());
+        let mut previous_layer_position =
+            FxHashMap::with_capacity_and_hasher(previous_layer.len(), Default::default());
         refill_layer_position_map(&mut previous_layer_position, &previous_layer);
         ModelOrderPortComparator {
             target_node_model_order: to_target_node_position_map(target_node_model_order),
@@ -70,44 +72,25 @@ impl ModelOrderPortComparator {
             previous_layer_position,
             graph,
             strategy,
-            bigger_than: FxHashMap::default(),
-            smaller_than: FxHashMap::default(),
+            relations: ModelOrderRelations::default(),
         }
     }
 
     pub fn compare(&mut self, original_p1: &LPortRef, original_p2: &LPortRef) -> i32 {
         let p1 = original_p1;
         let p2 = original_p2;
-        let p1_key = PortRefKey(p1.clone());
-        let p2_key = PortRefKey(p2.clone());
-        self.ensure_sets(&p1_key);
-        self.ensure_sets(&p2_key);
-        if self
-            .bigger_than
-            .get(&p1_key)
-            .is_some_and(|set| set.contains(&p2_key))
-        {
+        let p1_key = self.relations.index(&PortRefKey(p1.clone()));
+        let p2_key = self.relations.index(&PortRefKey(p2.clone()));
+        if self.relations.bigger(p1_key, p2_key) {
             return 1;
         }
-        if self
-            .bigger_than
-            .get(&p2_key)
-            .is_some_and(|set| set.contains(&p1_key))
-        {
+        if self.relations.bigger(p2_key, p1_key) {
             return -1;
         }
-        if self
-            .smaller_than
-            .get(&p1_key)
-            .is_some_and(|set| set.contains(&p2_key))
-        {
+        if self.relations.smaller(p1_key, p2_key) {
             return -1;
         }
-        if self
-            .smaller_than
-            .get(&p2_key)
-            .is_some_and(|set| set.contains(&p1_key))
-        {
+        if self.relations.smaller(p2_key, p1_key) {
             return 1;
         }
 
@@ -135,16 +118,14 @@ impl ModelOrderPortComparator {
                 reverse_order = -reverse_order;
             }
 
-            let p1_source_port =
-                p1_snapshot
-                    .incoming_first
-                    .as_ref()
-                    .and_then(|edge| edge.lock().source());
-            let p2_source_port =
-                p2_snapshot
-                    .incoming_first
-                    .as_ref()
-                    .and_then(|edge| edge.lock().source());
+            let p1_source_port = p1_snapshot
+                .incoming_first
+                .as_ref()
+                .and_then(|edge| edge.lock().source());
+            let p2_source_port = p2_snapshot
+                .incoming_first
+                .as_ref()
+                .and_then(|edge| edge.lock().source());
             if let (Some(p1_source_port), Some(p2_source_port)) = (p1_source_port, p2_source_port) {
                 let p1_node = p1_source_port.lock().node();
                 let p2_node = p2_source_port.lock().node();
@@ -176,17 +157,9 @@ impl ModelOrderPortComparator {
                             let layer_opt = p1_node.lock().layer();
                             if let Some(layer) = layer_opt {
                                 let layer_guard = layer.lock();
-                                self.check_reference_layer(
-                                    layer_guard.nodes(),
-                                    &p1_node,
-                                    &p2_node,
-                                )
+                                self.check_reference_layer(layer_guard.nodes(), &p1_node, &p2_node)
                             } else {
-                                self.check_reference_layer(
-                                    &self.previous_layer,
-                                    &p1_node,
-                                    &p2_node,
-                                )
+                                self.check_reference_layer(&self.previous_layer, &p1_node, &p2_node)
                             }
                         };
                         if in_previous != 0 {
@@ -247,10 +220,11 @@ impl ModelOrderPortComparator {
                     (&p1_target_node, &p2_target_node)
                 {
                     if has_model_order(p1_target_node) && has_model_order(p2_target_node) {
-                        let max_nodes = match self.graph.try_lock() {            Some(graph_guard) => graph_guard
+                        let max_nodes = match self.graph.try_lock() {
+                            Some(graph_guard) => graph_guard
                                 .get_property(InternalProperties::MAX_MODEL_ORDER_NODES)
                                 .unwrap_or(0),
-            None => {
+                            None => {
                                 if ElkTrace::global().crossmin {
                                     eprintln!(
                                         "port_compare: graph lock busy, using default max_nodes"
@@ -303,12 +277,18 @@ impl ModelOrderPortComparator {
             }
 
             let mut p1_order = edge_model_order(
-                p1_snapshot.outgoing_first.as_ref().unwrap_or_else(|| unreachable!()),
+                p1_snapshot
+                    .outgoing_first
+                    .as_ref()
+                    .unwrap_or_else(|| unreachable!()),
                 &self.graph,
                 p1_snapshot.outgoing_len + p1_snapshot.incoming_len,
             );
             let mut p2_order = edge_model_order(
-                p2_snapshot.outgoing_first.as_ref().unwrap_or_else(|| unreachable!()),
+                p2_snapshot
+                    .outgoing_first
+                    .as_ref()
+                    .unwrap_or_else(|| unreachable!()),
                 &self.graph,
                 p2_snapshot.outgoing_len + p2_snapshot.incoming_len,
             );
@@ -374,8 +354,7 @@ impl ModelOrderPortComparator {
     }
 
     pub fn clear_transitive_ordering(&mut self) {
-        self.bigger_than.clear();
-        self.smaller_than.clear();
+        self.relations = ModelOrderRelations::default();
     }
 
     pub fn reset_for_previous_layer(&mut self, previous_layer: Vec<LNodeRef>) {
@@ -434,65 +413,9 @@ impl ModelOrderPortComparator {
         } else {
             (bigger_ori, smaller_ori)
         };
-        let bigger_key = PortRefKey(bigger.clone());
-        let smaller_key = PortRefKey(smaller.clone());
-        self.ensure_sets(&bigger_key);
-        self.ensure_sets(&smaller_key);
-
-        let smaller_bigger = self
-            .bigger_than
-            .get(&smaller_key)
-            .cloned()
-            .unwrap_or_default();
-        let bigger_smaller = self
-            .smaller_than
-            .get(&bigger_key)
-            .cloned()
-            .unwrap_or_default();
-
-        self.bigger_than
-            .entry(bigger_key.clone())
-            .or_default()
-            .insert(smaller_key.clone());
-        self.smaller_than
-            .entry(smaller_key.clone())
-            .or_default()
-            .insert(bigger_key.clone());
-
-        for very_small in smaller_bigger.iter() {
-            self.bigger_than
-                .entry(bigger_key.clone())
-                .or_default()
-                .insert(very_small.clone());
-            self.smaller_than
-                .entry(very_small.clone())
-                .or_default()
-                .insert(bigger_key.clone());
-            self.smaller_than
-                .entry(very_small.clone())
-                .or_default()
-                .extend(bigger_smaller.iter().cloned());
-        }
-
-        for very_big in bigger_smaller.iter() {
-            self.smaller_than
-                .entry(smaller_key.clone())
-                .or_default()
-                .insert(very_big.clone());
-            self.bigger_than
-                .entry(very_big.clone())
-                .or_default()
-                .insert(smaller_key.clone());
-            self.bigger_than
-                .entry(very_big.clone())
-                .or_default()
-                .extend(smaller_bigger.iter().cloned());
-        }
-    }
-
-    fn ensure_sets(&mut self, key: &PortRefKey) {
-        self.bigger_than.entry(key.clone()).or_default();
-        self.smaller_than.entry(key.clone()).or_default();
+        let bigger = self.relations.index(&PortRefKey(bigger.clone()));
+        let smaller = self.relations.index(&PortRefKey(smaller.clone()));
+        self.relations.record(bigger, smaller);
     }
 
     fn check_reference_layer(
@@ -512,8 +435,14 @@ impl ModelOrderPortComparator {
     }
 
     fn compare_in_previous_layer(&self, p1_node: &LNodeRef, p2_node: &LNodeRef) -> i32 {
-        let p1_pos = self.previous_layer_position.get(&node_ptr(p1_node)).copied();
-        let p2_pos = self.previous_layer_position.get(&node_ptr(p2_node)).copied();
+        let p1_pos = self
+            .previous_layer_position
+            .get(&node_ptr(p1_node))
+            .copied();
+        let p2_pos = self
+            .previous_layer_position
+            .get(&node_ptr(p2_node))
+            .copied();
         match (p1_pos, p2_pos) {
             (Some(left), Some(right)) => match left.cmp(&right) {
                 std::cmp::Ordering::Less => -1,
@@ -549,15 +478,12 @@ fn has_model_order(node: &LNodeRef) -> bool {
 }
 
 fn port_model_order(port: &LPortRef, graph: &LGraphRef, offset: i32) -> i32 {
-    let order = port
-        .lock()
-        .get_property(InternalProperties::MODEL_ORDER);
+    let order = port.lock().get_property(InternalProperties::MODEL_ORDER);
     let Some(order) = order else {
         return -1;
     };
     let enforce_group_model_order = graph
         .try_lock()
-
         .and_then(|graph_guard| {
             graph_guard.get_property(LayeredOptions::GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY)
         })
@@ -568,7 +494,6 @@ fn port_model_order(port: &LPortRef, graph: &LGraphRef, offset: i32) -> i32 {
     if enforce_group_model_order {
         let enforced_orders = graph
             .try_lock()
-
             .and_then(|graph_guard| {
                 graph_guard.get_property(LayeredOptions::GROUP_MODEL_ORDER_CM_ENFORCED_GROUP_ORDERS)
             })
@@ -585,15 +510,12 @@ fn port_model_order(port: &LPortRef, graph: &LGraphRef, offset: i32) -> i32 {
 }
 
 fn edge_model_order(edge: &LEdgeRef, graph: &LGraphRef, offset: usize) -> i32 {
-    let order = edge
-        .lock()
-        .get_property(InternalProperties::MODEL_ORDER);
+    let order = edge.lock().get_property(InternalProperties::MODEL_ORDER);
     let Some(order) = order else {
         return 0;
     };
     let enforce_group_model_order = graph
         .try_lock()
-
         .and_then(|graph_guard| {
             graph_guard.get_property(LayeredOptions::GROUP_MODEL_ORDER_CM_GROUP_ORDER_STRATEGY)
         })
@@ -604,7 +526,6 @@ fn edge_model_order(edge: &LEdgeRef, graph: &LGraphRef, offset: usize) -> i32 {
     if enforce_group_model_order {
         let enforced_orders = graph
             .try_lock()
-
             .and_then(|graph_guard| {
                 graph_guard.get_property(LayeredOptions::GROUP_MODEL_ORDER_CM_ENFORCED_GROUP_ORDERS)
             })
@@ -638,7 +559,8 @@ fn to_target_node_position_map(
     target_node_model_order: Option<FxHashMap<NodeRefKey, i32>>,
 ) -> Option<FxHashMap<usize, i32>> {
     target_node_model_order.map(|orders| {
-        let mut pointer_orders = FxHashMap::with_capacity_and_hasher(orders.len(), Default::default());
+        let mut pointer_orders =
+            FxHashMap::with_capacity_and_hasher(orders.len(), Default::default());
         for (key, value) in orders {
             pointer_orders.insert(node_ptr(&key.0), value);
         }
@@ -667,5 +589,155 @@ fn port_snapshot(port: &LPortRef) -> PortSnapshot {
         has_model_order: port_guard
             .get_property(InternalProperties::MODEL_ORDER)
             .is_some(),
+    }
+}
+
+#[cfg(test)]
+mod relation_tests {
+    use super::*;
+    use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LPort};
+    use rustc_hash::FxHashSet;
+
+    #[derive(Default)]
+    struct Reference {
+        bigger_than: FxHashMap<PortRefKey, FxHashSet<PortRefKey>>,
+        smaller_than: FxHashMap<PortRefKey, FxHashSet<PortRefKey>>,
+    }
+    impl Reference {
+        fn update_bigger_and_smaller(
+            &mut self,
+            bigger_ori: &LPortRef,
+            smaller_ori: &LPortRef,
+            reverse_order: i32,
+        ) {
+            let (bigger, smaller) = if reverse_order < 0 {
+                (smaller_ori, bigger_ori)
+            } else {
+                (bigger_ori, smaller_ori)
+            };
+            let bigger_key = PortRefKey(bigger.clone());
+            let smaller_key = PortRefKey(smaller.clone());
+            self.ensure_sets(&bigger_key);
+            self.ensure_sets(&smaller_key);
+
+            let smaller_bigger = self
+                .bigger_than
+                .get(&smaller_key)
+                .cloned()
+                .unwrap_or_default();
+            let bigger_smaller = self
+                .smaller_than
+                .get(&bigger_key)
+                .cloned()
+                .unwrap_or_default();
+
+            self.bigger_than
+                .entry(bigger_key.clone())
+                .or_default()
+                .insert(smaller_key.clone());
+            self.smaller_than
+                .entry(smaller_key.clone())
+                .or_default()
+                .insert(bigger_key.clone());
+
+            for very_small in smaller_bigger.iter() {
+                self.bigger_than
+                    .entry(bigger_key.clone())
+                    .or_default()
+                    .insert(very_small.clone());
+                self.smaller_than
+                    .entry(very_small.clone())
+                    .or_default()
+                    .insert(bigger_key.clone());
+                self.smaller_than
+                    .entry(very_small.clone())
+                    .or_default()
+                    .extend(bigger_smaller.iter().cloned());
+            }
+
+            for very_big in bigger_smaller.iter() {
+                self.smaller_than
+                    .entry(smaller_key.clone())
+                    .or_default()
+                    .insert(very_big.clone());
+                self.bigger_than
+                    .entry(very_big.clone())
+                    .or_default()
+                    .insert(smaller_key.clone());
+                self.bigger_than
+                    .entry(very_big.clone())
+                    .or_default()
+                    .extend(smaller_bigger.iter().cloned());
+            }
+        }
+
+        fn ensure_sets(&mut self, key: &PortRefKey) {
+            self.bigger_than.entry(key.clone()).or_default();
+            self.smaller_than.entry(key.clone()).or_default();
+        }
+    }
+
+    #[test]
+    fn port_relations_match_original_sets_through_reversal_growth_and_resets() {
+        let graph = LGraph::new();
+        let ports: Vec<_> = (0..130).map(|_| LPort::new()).collect();
+        let mut comparator =
+            ModelOrderPortComparator::new(graph, Vec::new(), OrderingStrategy::None, None, false);
+        let mut original = Reference::default();
+        let mut state = 29_u64;
+        for step in 0..400 {
+            // Grow through two word boundaries, then include repeated, reversed,
+            // self and cyclic observations. A reset must forget all relations.
+            let (a, b) = if step < 129 {
+                (step + 1, step)
+            } else {
+                state = state.wrapping_mul(6364136223846793005).wrapping_add(1);
+                (
+                    (state >> 32) as usize % ports.len(),
+                    state as usize % ports.len(),
+                )
+            };
+            let reverse = if step % 3 == 0 { -1 } else { 1 };
+            comparator.update_bigger_and_smaller(&ports[a], &ports[b], reverse);
+            original.update_bigger_and_smaller(&ports[a], &ports[b], reverse);
+            for left in &ports {
+                let li = comparator.relations.index(&PortRefKey(left.clone()));
+                for right in &ports {
+                    let ri = comparator.relations.index(&PortRefKey(right.clone()));
+                    assert_eq!(
+                        comparator.relations.bigger(li, ri),
+                        original
+                            .bigger_than
+                            .get(&PortRefKey(left.clone()))
+                            .is_some_and(|set| set.contains(&PortRefKey(right.clone()))),
+                        "bigger at step={step}"
+                    );
+                    assert_eq!(
+                        comparator.relations.smaller(li, ri),
+                        original
+                            .smaller_than
+                            .get(&PortRefKey(left.clone()))
+                            .is_some_and(|set| set.contains(&PortRefKey(right.clone()))),
+                        "smaller at step={step}"
+                    );
+                }
+            }
+            match step {
+                240 => comparator.clear_transitive_ordering(),
+                280 => comparator.reset_for_previous_layer(Vec::new()),
+                320 => comparator.reset_for_previous_layer_slice(&[]),
+                360 => comparator.reset_for_node_target_model_order(None),
+                _ => continue,
+            }
+            for left in &ports {
+                let li = comparator.relations.index(&PortRefKey(left.clone()));
+                for right in &ports {
+                    let ri = comparator.relations.index(&PortRefKey(right.clone()));
+                    assert!(!comparator.relations.bigger(li, ri));
+                    assert!(!comparator.relations.smaller(li, ri));
+                }
+            }
+            original = Reference::default();
+        }
     }
 }

@@ -1,18 +1,22 @@
+use std::any::Any;
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
+use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 
 use serde_json::{Map, Value};
 
-use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
+use org_eclipse_elk_core::org::eclipse::elk::core::data::{
+    LayoutMetaDataService, LayoutOptionData, LayoutOptionType,
+};
 use org_eclipse_elk_core::org::eclipse::elk::core::options::direction::Direction;
+use org_eclipse_elk_core::org::eclipse::elk::core::options::PortSide;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::{
     CoreOptions, EdgeCoords, PortConstraints, ShapeCoords,
 };
-use org_eclipse_elk_core::org::eclipse::elk::core::options::PortSide;
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::{
     IPropertyValueProxy, MapPropertyHolder, Property, PropertyValue,
 };
@@ -24,11 +28,22 @@ use org_eclipse_elk_graph::org::eclipse::elk::graph::{
 
 use super::json_adapter::{JsonAdapter, JsonId};
 use super::json_import_exception::{JsonImportError, JsonImportException};
+use super::layout_api::GlobalOptions;
 
 type JsonResult<T> = Result<T, JsonImportError>;
 
+struct CachedOption {
+    metadata: Option<LayoutOptionData>,
+    // Only parse_value's immutable built-in scalar types share values. Object,
+    // enum and enum-set parsers continue to run separately for every element.
+    scalars: HashMap<String, Option<Arc<dyn Any + Send + Sync>>>,
+}
+
 #[derive(Default)]
 pub struct JsonImporter {
+    // Cleared before every transform; entries never depend on a document.
+    option_data: RefCell<HashMap<String, CachedOption>>,
+    defaults: Option<Rc<GlobalOptions>>,
     node_id_map: HashMap<JsonId, ElkNodeRef>,
     port_id_map: HashMap<JsonId, ElkPortRef>,
     edge_id_map: HashMap<JsonId, ElkEdgeRef>,
@@ -85,6 +100,32 @@ impl JsonImporter {
         Ok(root)
     }
 
+    pub(crate) fn transform_shared_with_defaults(
+        &mut self,
+        graph: Rc<RefCell<Value>>,
+        defaults: Rc<GlobalOptions>,
+    ) -> JsonResult<ElkNodeRef> {
+        struct DefaultsGuard<'a>(&'a mut JsonImporter);
+        impl Drop for DefaultsGuard<'_> {
+            fn drop(&mut self) {
+                self.0.defaults.take();
+            }
+        }
+
+        self.defaults = Some(defaults);
+        let guard = DefaultsGuard(self);
+        guard.0.transform_shared(graph)
+    }
+
+    /// These indexes and parser metadata are used only during import. Keep
+    /// node_id_map: transfer's compacted-parent lookup still needs its nodes.
+    pub(crate) fn release_import_scratch(&mut self) {
+        self.option_data = RefCell::default();
+        self.port_id_map = HashMap::new();
+        self.edge_id_map = HashMap::new();
+        self.edge_section_id_map = HashMap::new();
+    }
+
     pub fn input_model(&self) -> Option<Rc<RefCell<Value>>> {
         self.input_model.clone()
     }
@@ -125,6 +166,7 @@ impl JsonImporter {
     }
 
     fn clear_maps(&mut self) {
+        self.option_data.get_mut().clear();
         self.node_id_map.clear();
         self.port_id_map.clear();
         self.edge_id_map.clear();
@@ -479,7 +521,10 @@ impl JsonImporter {
                         }
                     }
 
-                    self.transform_properties(section_obj, section.borrow_mut().properties_mut())?;
+                    self.transform_authored_properties(
+                        section_obj,
+                        section.borrow_mut().properties_mut(),
+                    )?;
 
                     section_refs.insert(edge_section_key(&section), section.clone());
                 }
@@ -593,6 +638,22 @@ impl JsonImporter {
         json_obj: &Map<String, Value>,
         properties: &mut MapPropertyHolder,
     ) -> JsonResult<()> {
+        if let Some(defaults) = &self.defaults {
+            defaults.visit_effective(json_obj, |key, value| {
+                let value_str = JsonAdapter::string_val(value)?;
+                self.set_option(properties, key, &value_str);
+                Ok(())
+            })
+        } else {
+            self.transform_authored_properties(json_obj, properties)
+        }
+    }
+
+    fn transform_authored_properties(
+        &self,
+        json_obj: &Map<String, Value>,
+        properties: &mut MapPropertyHolder,
+    ) -> JsonResult<()> {
         let layout_options = JsonAdapter::opt_json_object(json_obj, "layoutOptions")
             .or_else(|| JsonAdapter::opt_json_object(json_obj, "properties"));
 
@@ -636,9 +697,37 @@ impl JsonImporter {
             }
         }
 
-        let option_data = LayoutMetaDataService::get_instance().get_option_data_by_suffix(id);
-        if let Some(option_data) = option_data {
-            if let Some(parsed) = option_data.parse_value(value) {
+        let mut cache = self.option_data.borrow_mut();
+        // Borrowed lookups keep the repeated-option path allocation-free.
+        if !cache.contains_key(id) {
+            cache.insert(
+                id.to_owned(),
+                CachedOption {
+                    metadata: LayoutMetaDataService::get_instance().get_option_data_by_suffix(id),
+                    scalars: HashMap::new(),
+                },
+            );
+        }
+        let cached = cache.get_mut(id).expect("option was inserted");
+        if let Some(option_data) = &cached.metadata {
+            let parsed = if matches!(
+                option_data.option_type(),
+                LayoutOptionType::Boolean
+                    | LayoutOptionType::Int
+                    | LayoutOptionType::String
+                    | LayoutOptionType::Double
+            ) {
+                if let Some(parsed) = cached.scalars.get(value) {
+                    parsed.clone()
+                } else {
+                    let parsed = option_data.parse_value(value);
+                    cached.scalars.insert(value.to_owned(), parsed.clone());
+                    parsed
+                }
+            } else {
+                option_data.parse_value(value)
+            };
+            if let Some(parsed) = parsed {
                 properties.set_property_any(option_data.id(), Some(parsed));
             }
         }
@@ -813,7 +902,9 @@ impl JsonImporter {
         if let Some(ref sync) = self.arena_sync {
             if let Some(nid) = sync.node_id(node) {
                 return sync.arena().node_children[nid.idx()]
-                    .iter().map(|&cid| sync.node_ref(cid).clone()).collect();
+                    .iter()
+                    .map(|&cid| sync.node_ref(cid).clone())
+                    .collect();
             }
         }
         node_children(node)
@@ -823,7 +914,9 @@ impl JsonImporter {
         if let Some(ref sync) = self.arena_sync {
             if let Some(nid) = sync.node_id(node) {
                 return sync.arena().node_ports[nid.idx()]
-                    .iter().map(|&pid| sync.port_ref(pid).clone()).collect();
+                    .iter()
+                    .map(|&pid| sync.port_ref(pid).clone())
+                    .collect();
             }
         }
         node_ports(node)
@@ -833,7 +926,9 @@ impl JsonImporter {
         if let Some(ref sync) = self.arena_sync {
             if let Some(nid) = sync.node_id(node) {
                 return sync.arena().node_labels[nid.idx()]
-                    .iter().map(|&lid| sync.label_ref(lid).clone()).collect();
+                    .iter()
+                    .map(|&lid| sync.label_ref(lid).clone())
+                    .collect();
             }
         }
         node_labels(node)
@@ -843,7 +938,9 @@ impl JsonImporter {
         if let Some(ref sync) = self.arena_sync {
             if let Some(nid) = sync.node_id(node) {
                 return sync.arena().node_contained_edges[nid.idx()]
-                    .iter().map(|&eid| sync.edge_ref(eid).clone()).collect();
+                    .iter()
+                    .map(|&eid| sync.edge_ref(eid).clone())
+                    .collect();
             }
         }
         node_edges(node)
@@ -853,7 +950,9 @@ impl JsonImporter {
         if let Some(ref sync) = self.arena_sync {
             if let Some(pid) = sync.port_id(port) {
                 return sync.arena().port_labels[pid.idx()]
-                    .iter().map(|&lid| sync.label_ref(lid).clone()).collect();
+                    .iter()
+                    .map(|&lid| sync.label_ref(lid).clone())
+                    .collect();
             }
         }
         port_labels(port)
@@ -863,7 +962,9 @@ impl JsonImporter {
         if let Some(ref sync) = self.arena_sync {
             if let Some(eid) = sync.edge_id(edge) {
                 return sync.arena().edge_labels[eid.idx()]
-                    .iter().map(|&lid| sync.label_ref(lid).clone()).collect();
+                    .iter()
+                    .map(|&lid| sync.label_ref(lid).clone())
+                    .collect();
             }
         }
         edge_labels(edge)
@@ -930,13 +1031,20 @@ impl JsonImporter {
             if let Some(nid) = sync.node_id(node) {
                 let a = sync.arena();
                 self.transfer_xywh_to_json(
-                    a.node_x[nid.idx()], a.node_y[nid.idx()],
-                    a.node_width[nid.idx()], a.node_height[nid.idx()],
-                    json_obj, parent,
+                    a.node_x[nid.idx()],
+                    a.node_y[nid.idx()],
+                    a.node_width[nid.idx()],
+                    a.node_height[nid.idx()],
+                    json_obj,
+                    parent,
                 );
             } else {
                 let mut node_mut = node.borrow_mut();
-                self.transfer_shape_layout_to_json(node_mut.connectable().shape(), json_obj, parent);
+                self.transfer_shape_layout_to_json(
+                    node_mut.connectable().shape(),
+                    json_obj,
+                    parent,
+                );
             }
         } else {
             let mut node_mut = node.borrow_mut();
@@ -983,7 +1091,10 @@ impl JsonImporter {
             .and_then(parse_port_constraints_layout_option)
             .unwrap_or(PortConstraints::Undefined);
         let node_width = json_obj.get("width").and_then(Value::as_f64).unwrap_or(0.0);
-        let node_height = json_obj.get("height").and_then(Value::as_f64).unwrap_or(0.0);
+        let node_height = json_obj
+            .get("height")
+            .and_then(Value::as_f64)
+            .unwrap_or(0.0);
         let (
             all_ports_zero_sized,
             has_west_and_east_center_zero_ports,
@@ -997,48 +1108,78 @@ impl JsonImporter {
             let mut north_south_on_boundary = true;
 
             // Port analysis closure — reads geometry + PORT_SIDE
-            let mut analyze_port = |width: f64, height: f64, x: f64, y: f64, mut side: PortSide| -> bool {
-                if side == PortSide::Undefined {
-                    if y.abs() <= 1e-9 { side = PortSide::North; }
-                    else if (y - node_height).abs() <= 1e-9 { side = PortSide::South; }
-                }
-                has_ports = true;
-                if x.abs() <= 1e-9 { has_left = true; }
-                if (x - node_width).abs() <= 1e-9 { has_right = true; }
-                if (y - node_height / 2.0).abs() > 1e-9 { all_centered = false; }
-                match side {
-                    PortSide::North => { if y.abs() > 1e-9 { north_south_on_boundary = false; } }
-                    PortSide::South => { if (y - node_height).abs() > 1e-9 { north_south_on_boundary = false; } }
-                    _ => { only_north_or_south = false; }
-                }
-                width.abs() <= 1e-9 && height.abs() <= 1e-9
-            };
+            let mut analyze_port =
+                |width: f64, height: f64, x: f64, y: f64, mut side: PortSide| -> bool {
+                    if side == PortSide::Undefined {
+                        if y.abs() <= 1e-9 {
+                            side = PortSide::North;
+                        } else if (y - node_height).abs() <= 1e-9 {
+                            side = PortSide::South;
+                        }
+                    }
+                    has_ports = true;
+                    if x.abs() <= 1e-9 {
+                        has_left = true;
+                    }
+                    if (x - node_width).abs() <= 1e-9 {
+                        has_right = true;
+                    }
+                    if (y - node_height / 2.0).abs() > 1e-9 {
+                        all_centered = false;
+                    }
+                    match side {
+                        PortSide::North => {
+                            if y.abs() > 1e-9 {
+                                north_south_on_boundary = false;
+                            }
+                        }
+                        PortSide::South => {
+                            if (y - node_height).abs() > 1e-9 {
+                                north_south_on_boundary = false;
+                            }
+                        }
+                        _ => {
+                            only_north_or_south = false;
+                        }
+                    }
+                    width.abs() <= 1e-9 && height.abs() <= 1e-9
+                };
 
             // Arena path: read port geometry + PORT_SIDE from arena arrays (no borrow_mut)
             let all_zero = if let Some(ref sync) = self.arena_sync {
                 if let Some(nid) = sync.node_id(node) {
                     let a = sync.arena();
                     let port_ids = &a.node_ports[nid.idx()];
-                    !port_ids.is_empty() && port_ids.iter().all(|&pid| {
-                        let side = a.port_properties[pid.idx()]
-                            .get_property(CoreOptions::PORT_SIDE)
-                            .unwrap_or(PortSide::Undefined);
-                        analyze_port(a.port_width[pid.idx()], a.port_height[pid.idx()],
-                                     a.port_x[pid.idx()], a.port_y[pid.idx()], side)
-                    })
+                    !port_ids.is_empty()
+                        && port_ids.iter().all(|&pid| {
+                            let side = a.port_properties[pid.idx()]
+                                .get_property(CoreOptions::PORT_SIDE)
+                                .unwrap_or(PortSide::Undefined);
+                            analyze_port(
+                                a.port_width[pid.idx()],
+                                a.port_height[pid.idx()],
+                                a.port_x[pid.idx()],
+                                a.port_y[pid.idx()],
+                                side,
+                            )
+                        })
                 } else {
                     false
                 }
             } else {
                 let mut node_mut = node.borrow_mut();
                 let ports = node_mut.ports();
-                !ports.is_empty() && ports.iter().all(|port| {
-                    let mut port_ref = port.borrow_mut();
-                    let shape = port_ref.connectable().shape();
-                    let side = shape.graph_element().properties_mut()
-                        .get_property(CoreOptions::PORT_SIDE).unwrap_or(PortSide::Undefined);
-                    analyze_port(shape.width(), shape.height(), shape.x(), shape.y(), side)
-                })
+                !ports.is_empty()
+                    && ports.iter().all(|port| {
+                        let mut port_ref = port.borrow_mut();
+                        let shape = port_ref.connectable().shape();
+                        let side = shape
+                            .graph_element()
+                            .properties_mut()
+                            .get_property(CoreOptions::PORT_SIDE)
+                            .unwrap_or(PortSide::Undefined);
+                        analyze_port(shape.width(), shape.height(), shape.x(), shape.y(), side)
+                    })
             };
             (
                 all_zero,
@@ -1054,7 +1195,12 @@ impl JsonImporter {
                 let (cx, cy, cw, ch) = if let Some(ref sync) = self.arena_sync {
                     if let Some(cid) = sync.node_id(child) {
                         let a = sync.arena();
-                        (a.node_x[cid.idx()], a.node_y[cid.idx()], a.node_width[cid.idx()], a.node_height[cid.idx()])
+                        (
+                            a.node_x[cid.idx()],
+                            a.node_y[cid.idx()],
+                            a.node_width[cid.idx()],
+                            a.node_height[cid.idx()],
+                        )
                     } else {
                         let mut cr = child.borrow_mut();
                         let s = cr.connectable().shape();
@@ -1065,8 +1211,10 @@ impl JsonImporter {
                     let s = cr.connectable().shape();
                     (s.x(), s.y(), s.width(), s.height())
                 };
-                (cx - 12.0).abs() <= 1e-9 && (cy - 12.0).abs() <= 1e-9
-                    && cw.abs() <= 1e-9 && ch.abs() <= 1e-9
+                (cx - 12.0).abs() <= 1e-9
+                    && (cy - 12.0).abs() <= 1e-9
+                    && cw.abs() <= 1e-9
+                    && ch.abs() <= 1e-9
             } else {
                 false
             }
@@ -1079,7 +1227,12 @@ impl JsonImporter {
                 let (cx, cy, cw, ch) = if let Some(ref sync) = self.arena_sync {
                     if let Some(cid) = sync.node_id(child) {
                         let a = sync.arena();
-                        (a.node_x[cid.idx()], a.node_y[cid.idx()], a.node_width[cid.idx()], a.node_height[cid.idx()])
+                        (
+                            a.node_x[cid.idx()],
+                            a.node_y[cid.idx()],
+                            a.node_width[cid.idx()],
+                            a.node_height[cid.idx()],
+                        )
                     } else {
                         let mut cr = child.borrow_mut();
                         let s = cr.connectable().shape();
@@ -1090,8 +1243,10 @@ impl JsonImporter {
                     let s = cr.connectable().shape();
                     (s.x(), s.y(), s.width(), s.height())
                 };
-                (cx - node_width / 2.0).abs() <= 1e-9 && (cy - 12.0).abs() <= 1e-9
-                    && cw.abs() <= 1e-9 && ch.abs() <= 1e-9
+                (cx - node_width / 2.0).abs() <= 1e-9
+                    && (cy - 12.0).abs() <= 1e-9
+                    && cw.abs() <= 1e-9
+                    && ch.abs() <= 1e-9
             } else {
                 false
             }
@@ -1124,7 +1279,8 @@ impl JsonImporter {
             && node_width > 4.0
         {
             let delta = node_width - 4.0;
-            self.inside_self_loop_node_x_delta.insert(node_key(node), delta);
+            self.inside_self_loop_node_x_delta
+                .insert(node_key(node), delta);
             let parent = if let Some(ref sync) = self.arena_sync {
                 sync.node_id(node)
                     .and_then(|nid| sync.arena().node_parent[nid.idx()])
@@ -1134,7 +1290,8 @@ impl JsonImporter {
             };
             if let Some(parent) = parent {
                 if should_compact_passthrough_node {
-                    self.passthrough_compacted_parent_keys.push(node_key(&parent));
+                    self.passthrough_compacted_parent_keys
+                        .push(node_key(&parent));
                 } else if should_compact_inside_self_loop_node {
                     let parent_has_single_child = if let Some(ref sync) = self.arena_sync {
                         sync.node_id(&parent)
@@ -1145,7 +1302,8 @@ impl JsonImporter {
                         parent_ref.children().len() == 1
                     };
                     if parent_has_single_child {
-                        self.passthrough_compacted_parent_keys.push(node_key(&parent));
+                        self.passthrough_compacted_parent_keys
+                            .push(node_key(&parent));
                     }
                 }
             }
@@ -1153,7 +1311,8 @@ impl JsonImporter {
         }
         if should_compact_vertical_passthrough_node && node_height > 4.0 {
             let delta = node_height - 4.0;
-            self.compacted_vertical_node_y_delta.insert(node_key(node), delta);
+            self.compacted_vertical_node_y_delta
+                .insert(node_key(node), delta);
             let parent = if let Some(ref sync) = self.arena_sync {
                 sync.node_id(node)
                     .and_then(|nid| sync.arena().node_parent[nid.idx()])
@@ -1172,7 +1331,10 @@ impl JsonImporter {
             if let Some(compensated_height) =
                 recompute_fixed_order_vertical_port_surrounding_height(node)
             {
-                let current_height = json_obj.get("height").and_then(Value::as_f64).unwrap_or(0.0);
+                let current_height = json_obj
+                    .get("height")
+                    .and_then(Value::as_f64)
+                    .unwrap_or(0.0);
                 if compensated_height > current_height + 1e-9 {
                     json_obj.insert(
                         "height".to_string(),
@@ -1198,13 +1360,20 @@ impl JsonImporter {
             if let Some(pid) = sync.port_id(port) {
                 let a = sync.arena();
                 self.transfer_xywh_to_json(
-                    a.port_x[pid.idx()], a.port_y[pid.idx()],
-                    a.port_width[pid.idx()], a.port_height[pid.idx()],
-                    json_obj, parent,
+                    a.port_x[pid.idx()],
+                    a.port_y[pid.idx()],
+                    a.port_width[pid.idx()],
+                    a.port_height[pid.idx()],
+                    json_obj,
+                    parent,
                 );
             } else {
                 let mut port_mut = port.borrow_mut();
-                self.transfer_shape_layout_to_json(port_mut.connectable().shape(), json_obj, parent);
+                self.transfer_shape_layout_to_json(
+                    port_mut.connectable().shape(),
+                    json_obj,
+                    parent,
+                );
             }
         } else {
             let mut port_mut = port.borrow_mut();
@@ -1218,44 +1387,63 @@ impl JsonImporter {
             port.borrow().parent()
         };
         if let Some(parent_node) = parent_node {
-            if let Some(delta) = self.inside_self_loop_node_x_delta.get(&node_key(&parent_node)) {
+            if let Some(delta) = self
+                .inside_self_loop_node_x_delta
+                .get(&node_key(&parent_node))
+            {
                 let side = if let Some(ref sync) = self.arena_sync {
                     sync.port_id(port)
-                        .map(|pid| sync.arena().port_properties[pid.idx()]
-                            .get_property(CoreOptions::PORT_SIDE)
-                            .unwrap_or(PortSide::Undefined))
+                        .map(|pid| {
+                            sync.arena().port_properties[pid.idx()]
+                                .get_property(CoreOptions::PORT_SIDE)
+                                .unwrap_or(PortSide::Undefined)
+                        })
                         .unwrap_or(PortSide::Undefined)
                 } else {
                     let mut port_mut = port.borrow_mut();
-                    port_mut.connectable().shape().graph_element()
-                        .properties_mut().get_property(CoreOptions::PORT_SIDE)
+                    port_mut
+                        .connectable()
+                        .shape()
+                        .graph_element()
+                        .properties_mut()
+                        .get_property(CoreOptions::PORT_SIDE)
                         .unwrap_or(PortSide::Undefined)
                 };
                 if side == PortSide::East {
                     if let Some(x) = json_obj.get("x").and_then(Value::as_f64) {
                         json_obj.insert("x".to_string(), Value::Number(f64_to_number(x - *delta)));
-                        self.shifted_east_port_x_delta.insert(port_key(port), *delta);
+                        self.shifted_east_port_x_delta
+                            .insert(port_key(port), *delta);
                     }
                 }
             }
-            if let Some(delta) = self.compacted_vertical_node_y_delta.get(&node_key(&parent_node))
+            if let Some(delta) = self
+                .compacted_vertical_node_y_delta
+                .get(&node_key(&parent_node))
             {
                 let side = if let Some(ref sync) = self.arena_sync {
                     sync.port_id(port)
-                        .map(|pid| sync.arena().port_properties[pid.idx()]
-                            .get_property(CoreOptions::PORT_SIDE)
-                            .unwrap_or(PortSide::Undefined))
+                        .map(|pid| {
+                            sync.arena().port_properties[pid.idx()]
+                                .get_property(CoreOptions::PORT_SIDE)
+                                .unwrap_or(PortSide::Undefined)
+                        })
                         .unwrap_or(PortSide::Undefined)
                 } else {
                     let mut port_mut = port.borrow_mut();
-                    port_mut.connectable().shape().graph_element()
-                        .properties_mut().get_property(CoreOptions::PORT_SIDE)
+                    port_mut
+                        .connectable()
+                        .shape()
+                        .graph_element()
+                        .properties_mut()
+                        .get_property(CoreOptions::PORT_SIDE)
                         .unwrap_or(PortSide::Undefined)
                 };
                 if side == PortSide::South {
                     if let Some(y) = json_obj.get("y").and_then(Value::as_f64) {
                         json_obj.insert("y".to_string(), Value::Number(f64_to_number(y - *delta)));
-                        self.shifted_south_port_y_delta.insert(port_key(port), *delta);
+                        self.shifted_south_port_y_delta
+                            .insert(port_key(port), *delta);
                     }
                 }
             }
@@ -1299,12 +1487,22 @@ impl JsonImporter {
                 let secs = {
                     let mut edge_mut = edge.borrow_mut();
                     let list = edge_mut.sections();
-                    (0..list.len()).filter_map(|i| list.get(i)).collect::<Vec<_>>()
+                    (0..list.len())
+                        .filter_map(|i| list.get(i))
+                        .collect::<Vec<_>>()
                 };
                 let sl = {
                     let edge_ref = edge.borrow();
-                    let source = edge_ref.sources_ro().get(0).as_ref().and_then(ElkGraphUtil::connectable_shape_to_node);
-                    let target = edge_ref.targets_ro().get(0).as_ref().and_then(ElkGraphUtil::connectable_shape_to_node);
+                    let source = edge_ref
+                        .sources_ro()
+                        .get(0)
+                        .as_ref()
+                        .and_then(ElkGraphUtil::connectable_shape_to_node);
+                    let target = edge_ref
+                        .targets_ro()
+                        .get(0)
+                        .as_ref()
+                        .and_then(ElkGraphUtil::connectable_shape_to_node);
                     matches!((source, target), (Some(s), Some(t)) if Rc::ptr_eq(&s, &t))
                 };
                 (secs, sl)
@@ -1313,12 +1511,22 @@ impl JsonImporter {
             let secs = {
                 let mut edge_mut = edge.borrow_mut();
                 let list = edge_mut.sections();
-                (0..list.len()).filter_map(|i| list.get(i)).collect::<Vec<_>>()
+                (0..list.len())
+                    .filter_map(|i| list.get(i))
+                    .collect::<Vec<_>>()
             };
             let sl = {
                 let edge_ref = edge.borrow();
-                let source = edge_ref.sources_ro().get(0).as_ref().and_then(ElkGraphUtil::connectable_shape_to_node);
-                let target = edge_ref.targets_ro().get(0).as_ref().and_then(ElkGraphUtil::connectable_shape_to_node);
+                let source = edge_ref
+                    .sources_ro()
+                    .get(0)
+                    .as_ref()
+                    .and_then(ElkGraphUtil::connectable_shape_to_node);
+                let target = edge_ref
+                    .targets_ro()
+                    .get(0)
+                    .as_ref()
+                    .and_then(ElkGraphUtil::connectable_shape_to_node);
                 matches!((source, target), (Some(s), Some(t)) if Rc::ptr_eq(&s, &t))
             };
             (secs, sl)
@@ -1352,18 +1560,35 @@ impl JsonImporter {
                                 .iter()
                                 .map(|bid| (a.bend_x[bid.idx()], a.bend_y[bid.idx()]))
                                 .collect::<Vec<_>>();
-                            (a.section_start_x[sid.idx()], a.section_start_y[sid.idx()],
-                             a.section_end_x[sid.idx()], a.section_end_y[sid.idx()], bends)
+                            (
+                                a.section_start_x[sid.idx()],
+                                a.section_start_y[sid.idx()],
+                                a.section_end_x[sid.idx()],
+                                a.section_end_y[sid.idx()],
+                                bends,
+                            )
                         } else {
                             let mut sr = section.borrow_mut();
-                            let bends = sr.bend_points().iter()
-                                .map(|b| { let br = b.borrow(); (br.x(), br.y()) }).collect();
+                            let bends = sr
+                                .bend_points()
+                                .iter()
+                                .map(|b| {
+                                    let br = b.borrow();
+                                    (br.x(), br.y())
+                                })
+                                .collect();
                             (sr.start_x(), sr.start_y(), sr.end_x(), sr.end_y(), bends)
                         }
                     } else {
                         let mut sr = section.borrow_mut();
-                        let bends = sr.bend_points().iter()
-                            .map(|b| { let br = b.borrow(); (br.x(), br.y()) }).collect();
+                        let bends = sr
+                            .bend_points()
+                            .iter()
+                            .map(|b| {
+                                let br = b.borrow();
+                                (br.x(), br.y())
+                            })
+                            .collect();
                         (sr.start_x(), sr.start_y(), sr.end_x(), sr.end_y(), bends)
                     };
                 let (incoming_shape, outgoing_shape, incoming_sections, outgoing_sections) = {
@@ -1389,7 +1614,8 @@ impl JsonImporter {
                     }
                     if let Some(shape) = outgoing_shape.as_ref() {
                         adjusted_end_x = self.adjust_x_for_shifted_east_port(shape, adjusted_end_x);
-                        adjusted_end_y = self.adjust_y_for_shifted_south_port(shape, adjusted_end_y);
+                        adjusted_end_y =
+                            self.adjust_y_for_shifted_south_port(shape, adjusted_end_y);
                     }
                 }
 
@@ -1476,14 +1702,18 @@ impl JsonImporter {
                 with_edge_properties_mut(edge, |props| {
                     if props.has_property(CoreOptions::JUNCTION_POINTS) {
                         props.get_property(CoreOptions::JUNCTION_POINTS)
-                    } else { None }
+                    } else {
+                        None
+                    }
                 })
             }
         } else {
             with_edge_properties_mut(edge, |props| {
                 if props.has_property(CoreOptions::JUNCTION_POINTS) {
                     props.get_property(CoreOptions::JUNCTION_POINTS)
-                } else { None }
+                } else {
+                    None
+                }
             })
         };
 
@@ -1498,14 +1728,22 @@ impl JsonImporter {
                             .and_then(|nid| a.node_identifier[nid.idx()].clone())
                     } else {
                         edge.borrow().containing_node().and_then(|node| {
-                            node.borrow_mut().connectable().shape().graph_element()
-                                .identifier().map(|v| v.to_string())
+                            node.borrow_mut()
+                                .connectable()
+                                .shape()
+                                .graph_element()
+                                .identifier()
+                                .map(|v| v.to_string())
                         })
                     }
                 } else {
                     edge.borrow().containing_node().and_then(|node| {
-                        node.borrow_mut().connectable().shape().graph_element()
-                            .identifier().map(|v| v.to_string())
+                        node.borrow_mut()
+                            .connectable()
+                            .shape()
+                            .graph_element()
+                            .identifier()
+                            .map(|v| v.to_string())
                     })
                 }
             } else {
@@ -1560,9 +1798,12 @@ impl JsonImporter {
             if let Some(lid) = sync.label_id(label) {
                 let a = sync.arena();
                 self.transfer_xywh_to_json(
-                    a.label_x[lid.idx()], a.label_y[lid.idx()],
-                    a.label_width[lid.idx()], a.label_height[lid.idx()],
-                    json_obj, parent,
+                    a.label_x[lid.idx()],
+                    a.label_y[lid.idx()],
+                    a.label_width[lid.idx()],
+                    a.label_height[lid.idx()],
+                    json_obj,
+                    parent,
                 );
             } else {
                 let mut label_mut = label.borrow_mut();
@@ -1605,7 +1846,8 @@ impl JsonImporter {
         &self,
         json_root: &mut Value,
     ) -> JsonResult<()> {
-        if self.passthrough_compacted_parent_keys.is_empty() || self.root_has_include_children_hint()
+        if self.passthrough_compacted_parent_keys.is_empty()
+            || self.root_has_include_children_hint()
         {
             return Ok(());
         }
@@ -1628,10 +1870,9 @@ impl JsonImporter {
                 continue;
             }
             let parent_node = self.node_ref_by_key(*parent_key);
-            let Some(candidate_width) = recompute_compacted_parent_width_candidate(
-                parent_obj,
-                parent_node.as_ref(),
-            ) else {
+            let Some(candidate_width) =
+                recompute_compacted_parent_width_candidate(parent_obj, parent_node.as_ref())
+            else {
                 continue;
             };
             let Some(current_width) = parent_obj.get("width").and_then(Value::as_f64) else {
@@ -1674,7 +1915,8 @@ impl JsonImporter {
                 continue;
             }
 
-            let Some(children) = parent_obj.get_mut("children").and_then(Value::as_array_mut) else {
+            let Some(children) = parent_obj.get_mut("children").and_then(Value::as_array_mut)
+            else {
                 continue;
             };
             if children.is_empty() {
@@ -1690,7 +1932,11 @@ impl JsonImporter {
                 let child_pointer = pointer_index(child_prefix.clone(), index);
                 let delta = self
                     .node_key_by_pointer(&child_pointer)
-                    .and_then(|child_key| self.compacted_vertical_node_y_delta.get(&child_key).copied())
+                    .and_then(|child_key| {
+                        self.compacted_vertical_node_y_delta
+                            .get(&child_key)
+                            .copied()
+                    })
                     .unwrap_or(0.0);
                 ordered_children.push((index, y, delta));
             }
@@ -1814,23 +2060,26 @@ impl JsonImporter {
                 let yo = a.edge_properties[eid.idx()]
                     .get_property(CoreOptions::INSIDE_SELF_LOOPS_YO)
                     .unwrap_or(false);
-                let cn = a.edge_containing_node[eid.idx()]
-                    .map(|nid| sync.node_ref(nid).clone());
+                let cn = a.edge_containing_node[eid.idx()].map(|nid| sync.node_ref(nid).clone());
                 (yo, cn)
             } else {
                 let yo = with_edge_properties_mut(edge, |props| {
-                    props.get_property(CoreOptions::INSIDE_SELF_LOOPS_YO).unwrap_or(false)
+                    props
+                        .get_property(CoreOptions::INSIDE_SELF_LOOPS_YO)
+                        .unwrap_or(false)
                 });
                 (yo, edge.borrow().containing_node())
             }
         } else {
             let yo = with_edge_properties_mut(edge, |props| {
-                props.get_property(CoreOptions::INSIDE_SELF_LOOPS_YO).unwrap_or(false)
+                props
+                    .get_property(CoreOptions::INSIDE_SELF_LOOPS_YO)
+                    .unwrap_or(false)
             });
             (yo, edge.borrow().containing_node())
         };
-        let containing = containing
-            .ok_or_else(|| JsonImportException::new("Edge has no container."))?;
+        let containing =
+            containing.ok_or_else(|| JsonImportException::new("Edge has no container."))?;
         let mut adjusted_x = match mode {
             EdgeCoords::Root => {
                 if inside_self_loop_yo {
@@ -1858,26 +2107,46 @@ impl JsonImporter {
         let (source_node, target_node) = if let Some(ref sync) = self.arena_sync {
             if let Some(eid) = sync.edge_id(edge) {
                 let a = sync.arena();
-                let src = a.edge_sources[eid.idx()].first()
+                let src = a.edge_sources[eid.idx()]
+                    .first()
                     .map(|&cid| sync.node_ref(sync.connectable_node_id(cid)).clone());
-                let tgt = a.edge_targets[eid.idx()].first()
+                let tgt = a.edge_targets[eid.idx()]
+                    .first()
                     .map(|&cid| sync.node_ref(sync.connectable_node_id(cid)).clone());
                 (src, tgt)
             } else {
                 let edge_ref = edge.borrow();
-                let source = edge_ref.sources_ro().get(0).as_ref().and_then(ElkGraphUtil::connectable_shape_to_node);
-                let target = edge_ref.targets_ro().get(0).as_ref().and_then(ElkGraphUtil::connectable_shape_to_node);
+                let source = edge_ref
+                    .sources_ro()
+                    .get(0)
+                    .as_ref()
+                    .and_then(ElkGraphUtil::connectable_shape_to_node);
+                let target = edge_ref
+                    .targets_ro()
+                    .get(0)
+                    .as_ref()
+                    .and_then(ElkGraphUtil::connectable_shape_to_node);
                 (source, target)
             }
         } else {
             let edge_ref = edge.borrow();
-            let source = edge_ref.sources_ro().get(0).as_ref().and_then(ElkGraphUtil::connectable_shape_to_node);
-            let target = edge_ref.targets_ro().get(0).as_ref().and_then(ElkGraphUtil::connectable_shape_to_node);
+            let source = edge_ref
+                .sources_ro()
+                .get(0)
+                .as_ref()
+                .and_then(ElkGraphUtil::connectable_shape_to_node);
+            let target = edge_ref
+                .targets_ro()
+                .get(0)
+                .as_ref()
+                .and_then(ElkGraphUtil::connectable_shape_to_node);
             (source, target)
         };
         if let (Some(source_node), Some(target_node)) = (source_node, target_node) {
             if Rc::ptr_eq(&source_node, &target_node) {
-                if let Some(delta) = self.inside_self_loop_node_x_delta.get(&node_key(&source_node))
+                if let Some(delta) = self
+                    .inside_self_loop_node_x_delta
+                    .get(&node_key(&source_node))
                 {
                     let source_x = self.global_x(&ElkGraphElementRef::Node(source_node));
                     if adjusted_x > source_x + 1e-9 {
@@ -1902,23 +2171,26 @@ impl JsonImporter {
                 let yo = a.edge_properties[eid.idx()]
                     .get_property(CoreOptions::INSIDE_SELF_LOOPS_YO)
                     .unwrap_or(false);
-                let cn = a.edge_containing_node[eid.idx()]
-                    .map(|nid| sync.node_ref(nid).clone());
+                let cn = a.edge_containing_node[eid.idx()].map(|nid| sync.node_ref(nid).clone());
                 (yo, cn)
             } else {
                 let yo = with_edge_properties_mut(edge, |props| {
-                    props.get_property(CoreOptions::INSIDE_SELF_LOOPS_YO).unwrap_or(false)
+                    props
+                        .get_property(CoreOptions::INSIDE_SELF_LOOPS_YO)
+                        .unwrap_or(false)
                 });
                 (yo, edge.borrow().containing_node())
             }
         } else {
             let yo = with_edge_properties_mut(edge, |props| {
-                props.get_property(CoreOptions::INSIDE_SELF_LOOPS_YO).unwrap_or(false)
+                props
+                    .get_property(CoreOptions::INSIDE_SELF_LOOPS_YO)
+                    .unwrap_or(false)
             });
             (yo, edge.borrow().containing_node())
         };
-        let containing = containing
-            .ok_or_else(|| JsonImportException::new("Edge has no container."))?;
+        let containing =
+            containing.ok_or_else(|| JsonImportException::new("Edge has no container."))?;
         match mode {
             EdgeCoords::Root => {
                 if inside_self_loop_yo {
@@ -2061,7 +2333,8 @@ impl JsonImporter {
 
     fn record_global_coords_label(&mut self, label: &ElkLabelRef) {
         let parent = if let Some(ref sync) = self.arena_sync {
-            sync.label_id(label).and_then(|lid| sync.label_parent_ref(lid))
+            sync.label_id(label)
+                .and_then(|lid| sync.label_parent_ref(lid))
         } else {
             label.borrow().parent()
         };
@@ -2504,10 +2777,7 @@ fn parse_port_constraints_layout_option(value: &Value) -> Option<PortConstraints
     }
 
     let text = value.as_str()?;
-    let normalized = text
-        .trim()
-        .to_ascii_uppercase()
-        .replace(['-', ' '], "_");
+    let normalized = text.trim().to_ascii_uppercase().replace(['-', ' '], "_");
     match normalized.as_str() {
         "UNDEFINED" => Some(PortConstraints::Undefined),
         "FREE" => Some(PortConstraints::Free),
@@ -2577,8 +2847,7 @@ fn recompute_compacted_parent_width_candidate(
                 {
                     edge_max_x = edge_max_x.max(end_x);
                 }
-                if let Some(bend_points) = section_obj.get("bendPoints").and_then(Value::as_array)
-                {
+                if let Some(bend_points) = section_obj.get("bendPoints").and_then(Value::as_array) {
                     for bend in bend_points {
                         if let Some(bend_x) = bend
                             .as_object()
@@ -2644,10 +2913,204 @@ fn recompute_fixed_order_vertical_port_surrounding_height(node: &ElkNodeRef) -> 
 
     // This compensation is only intended for point-like ports. For sized ports, layered's
     // transferred height is already correct and reapplying this formula can overgrow the node.
-    if !all_zero_sized || counted < 2 || !min_y.is_finite() || !max_y.is_finite() || min_y <= 0.0
-    {
+    if !all_zero_sized || counted < 2 || !min_y.is_finite() || !max_y.is_finite() || min_y <= 0.0 {
         return None;
     }
 
     Some(max_y + min_y)
+}
+
+#[cfg(test)]
+mod metadata_cache_tests {
+    use super::*;
+
+    #[test]
+    fn shared_defaults_are_released_on_success_error_and_unwind() {
+        use std::panic::{catch_unwind, AssertUnwindSafe};
+
+        crate::org::eclipse::elk::graph::json::layout_api::ensure_initialized();
+        let defaults = Rc::new(GlobalOptions::parse(r#"{"elk.spacing.nodeNode":35}"#).unwrap());
+        let mut importer = JsonImporter::new();
+        let shared = Rc::new(RefCell::new(serde_json::json!({"id":"root"})));
+        importer
+            .transform_shared_with_defaults(shared.clone(), defaults.clone())
+            .unwrap();
+        assert!(importer.defaults.is_none());
+        assert_eq!(Rc::strong_count(&defaults), 1);
+
+        assert!(importer
+            .transform_shared_with_defaults(Rc::new(RefCell::new(Value::Null)), defaults.clone(),)
+            .is_err());
+        assert!(importer.defaults.is_none());
+        assert_eq!(Rc::strong_count(&defaults), 1);
+
+        // A held mutable borrow forces an actual unwind during shared import.
+        let held = shared.borrow_mut();
+        assert!(catch_unwind(AssertUnwindSafe(|| {
+            importer.transform_shared_with_defaults(shared.clone(), defaults.clone())
+        }))
+        .is_err());
+        drop(held);
+        assert!(importer.defaults.is_none());
+        assert_eq!(Rc::strong_count(&defaults), 1);
+
+        let next = importer
+            .transform(serde_json::json!({"id":"next"}))
+            .unwrap();
+        assert!(!with_node_properties_mut(&next, |p| {
+            p.has_property(CoreOptions::SPACING_NODE_NODE)
+        }));
+    }
+
+    #[test]
+    fn shared_defaults_preserve_element_scope_and_release_only_import_scratch() {
+        use crate::org::eclipse::elk::graph::json::layout_api::ensure_initialized;
+        ensure_initialized();
+        let defaults = Rc::new(
+            GlobalOptions::parse(r#"{"elk.spacing.nodeNode":35,"unknown.option":"ignored"}"#)
+                .unwrap(),
+        );
+        let shared = Rc::new(RefCell::new(serde_json::json!({
+            "id":"root",
+            "individualSpacings":{"elk.spacing.edgeEdge":7},
+            "children":[{"id":"a","ports":[{"id":"p"}],"labels":[{"text":"A"}]},{"id":"b"}],
+            "edges":[{"id":"ab","sources":["a"],"targets":["b"],
+                "sections":[{"id":"s","startPoint":{"x":0,"y":0},"endPoint":{"x":1,"y":1}}]}]
+        })));
+        let mut importer = JsonImporter::new();
+        let root = importer
+            .transform_shared_with_defaults(shared.clone(), defaults)
+            .unwrap();
+        assert!(shared.borrow()["children"][0]
+            .get("layoutOptions")
+            .is_none());
+        let child = root.borrow_mut().children().get(0).unwrap();
+        let port = child.borrow_mut().ports().get(0).unwrap();
+        let label = child
+            .borrow_mut()
+            .connectable()
+            .shape()
+            .graph_element()
+            .labels()
+            .get(0)
+            .unwrap();
+        let edge = root.borrow_mut().contained_edges().get(0).unwrap();
+        assert_eq!(
+            with_node_properties_mut(&root, |p| p.get_property(CoreOptions::SPACING_NODE_NODE)),
+            Some(35.0)
+        );
+        assert_eq!(
+            with_node_properties_mut(&child, |p| p.get_property(CoreOptions::SPACING_NODE_NODE)),
+            Some(35.0)
+        );
+        assert_eq!(
+            with_port_properties_mut(&port, |p| p.get_property(CoreOptions::SPACING_NODE_NODE)),
+            Some(35.0)
+        );
+        assert_eq!(
+            with_label_properties_mut(&label, |p| p.get_property(CoreOptions::SPACING_NODE_NODE)),
+            Some(35.0)
+        );
+        assert_eq!(
+            with_edge_properties_mut(&edge, |p| p.get_property(CoreOptions::SPACING_NODE_NODE)),
+            Some(35.0)
+        );
+        let section = edge.borrow_mut().sections().get(0).unwrap();
+        assert!(!section
+            .borrow_mut()
+            .properties_mut()
+            .has_property(CoreOptions::SPACING_NODE_NODE));
+        with_node_properties_mut(&root, |p| {
+            let mut individual = p.get_property(CoreOptions::SPACING_INDIVIDUAL).unwrap();
+            assert_eq!(
+                individual
+                    .properties_mut()
+                    .get_property(CoreOptions::SPACING_EDGE_EDGE),
+                Some(7.0)
+            );
+            assert!(!individual
+                .properties_mut()
+                .has_property(CoreOptions::SPACING_NODE_NODE));
+        });
+        importer.release_import_scratch();
+        assert!(importer.option_data.borrow().is_empty());
+        assert!(importer.port_id_map.is_empty());
+        assert!(importer.edge_id_map.is_empty());
+        assert!(importer.edge_section_id_map.is_empty());
+        assert_eq!(importer.node_id_map.len(), 3);
+        importer.transfer_layout(&root).unwrap();
+        // Reusing an importer must not carry defaults into the next document.
+        let next = importer
+            .transform(serde_json::json!({"id":"next"}))
+            .unwrap();
+        assert!(
+            !with_node_properties_mut(&next, |p| p.has_property(CoreOptions::SPACING_NODE_NODE))
+        );
+    }
+
+    #[test]
+    fn only_immutable_option_values_are_shared_and_caches_reset_per_transform() {
+        crate::org::eclipse::elk::graph::json::layout_api::ensure_initialized();
+        let mut importer = JsonImporter::new();
+        for value in [12.0, 23.0, 34.0, 12.0] {
+            let mut properties = MapPropertyHolder::default();
+            importer.set_option(&mut properties, "elk.spacing.nodeNode", &value.to_string());
+            assert_eq!(
+                properties.get_property(CoreOptions::SPACING_NODE_NODE),
+                Some(value)
+            );
+        }
+        assert_eq!(importer.option_data.borrow().len(), 1);
+        assert_eq!(
+            importer.option_data.borrow()["elk.spacing.nodeNode"]
+                .scalars
+                .len(),
+            3
+        );
+        let mut invalid = MapPropertyHolder::default();
+        importer.set_option(&mut invalid, "elk.spacing.nodeNode", "invalid");
+        importer.set_option(&mut invalid, "unknown.option", "ignored");
+        assert!(invalid.get_all_properties().is_empty());
+        assert_eq!(importer.option_data.borrow().len(), 2); // Misses are local too.
+        assert!(importer.option_data.borrow()["elk.spacing.nodeNode"].scalars["invalid"].is_none());
+        // Custom parsers, even for ordinary enums, do not share parsed objects.
+        use org_eclipse_elk_core::org::eclipse::elk::core::options::EdgeRouting;
+        for (raw, expected) in [
+            ("ORTHOGONAL", EdgeRouting::Orthogonal),
+            ("POLYLINE", EdgeRouting::Polyline),
+        ] {
+            let mut properties = MapPropertyHolder::default();
+            importer.set_option(&mut properties, "elk.edgeRouting", raw);
+            assert_eq!(
+                properties.get_property(CoreOptions::EDGE_ROUTING),
+                Some(expected)
+            );
+        }
+        assert!(importer.option_data.borrow()["elk.edgeRouting"]
+            .scalars
+            .is_empty());
+        // Equal spellings on differently typed options remain separate.
+        let mut properties = MapPropertyHolder::default();
+        importer.set_option(&mut properties, "elk.port.index", "12");
+        importer.set_option(&mut properties, "elk.spacing.nodeNode", "12");
+        importer.set_option(&mut properties, "elk.algorithm", "12");
+        importer.set_option(&mut properties, "elk.separateConnectedComponents", "true");
+        assert_eq!(properties.get_property(CoreOptions::PORT_INDEX), Some(12));
+        assert_eq!(
+            properties.get_property(CoreOptions::SPACING_NODE_NODE),
+            Some(12.0)
+        );
+        assert_eq!(
+            properties.get_property(CoreOptions::ALGORITHM),
+            Some("12".to_owned())
+        );
+        assert_eq!(
+            properties.get_property(CoreOptions::SEPARATE_CONNECTED_COMPONENTS),
+            Some(true)
+        );
+        importer
+            .transform(serde_json::json!({"id": "next"}))
+            .unwrap();
+        assert!(importer.option_data.borrow().is_empty());
+    }
 }
