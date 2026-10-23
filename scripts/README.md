@@ -1,10 +1,11 @@
 Scripts overview:
 
-Current extension package version: **0.12.0-ext.2**, incorporating stable **0.12.1**
-on Java ELK **0.12.0**. See [custom validation](../tests/update_custom_0_12_0_ext_2.md).
+Current extension package version: **0.12.1-ext.1**, incorporating stable **0.12.1**
+on Java ELK **0.12.0**. See [custom version validation](../tests/release_0_12_1_ext_1.md)
+and [inherited full corpus evidence](../tests/update_custom_0_12_0_ext_2.md).
 The stable release tag is `v0.12.1` on the existing `releases/0.12.0` line.
 See [release validation](../tests/release_0_12_1.md) and [version policy](../VERSIONING.md).
-See [the full phase-trace report](../tests/phase_trace_audit.md) for current
+See [the full phase-trace report](../tests/phase_trace_audit.md) for stable
 model/trace results; [the upgrade report](../tests/upgrade_0_12_0.md) preserves
 the earlier release measurements.
 

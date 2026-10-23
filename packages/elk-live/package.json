@@ -1,6 +1,6 @@
 {
   "name": "elk-rs-live",
-  "version": "0.12.0-ext.2",
+  "version": "0.12.1-ext.1",
   "private": true,
   "type": "module",
   "scripts": {

@@ -1,6 +1,7 @@
 # Testing and Validation Guide
 
-Current custom integration results: [0.12.0-ext.2](tests/update_custom_0_12_0_ext_2.md).
+Current custom version validation: [0.12.1-ext.1](tests/release_0_12_1_ext_1.md).
+Unchanged-runtime full corpus evidence: [0.12.0-ext.2](tests/update_custom_0_12_0_ext_2.md).
 The strict verifier still reports the two retained custom trace differences;
 stable validation history must not be read as complete custom Java parity.
 
@@ -8,12 +9,12 @@ Single entry point for the elk-rs validation flow. Covers environment setup,
 verification items, scenario-based procedures, release checklist, and known
 issues.
 
-The working tree is `custom/0.12.0`, version `0.12.0-ext.2`, tagged
-`v0.12.0-ext.2` at `3029a99b` (build only). Stable packages are `0.12.1`, tagged
-`v0.12.1`, with Java/elkjs reference `0.12.0`. Existing version names and tag
-commits remain unchanged. The policy approved on 2026-10-23 applies to the next
-version: stable uses `v<package-version>` and custom uses
-`v<included-stable-version>-ext.N`. See [VERSIONING.md](VERSIONING.md).
+The working tree is `custom/0.12.0`, version `0.12.1-ext.1`, with matching tag
+`v0.12.1-ext.1` (build only). It applies the stable-base naming policy and has
+unchanged runtime sources from `v0.12.0-ext.2` (`3029a99b`). Existing tag targets
+are preserved. Stable packages remain `0.12.1` with Java/elkjs reference `0.12.0`.
+See [VERSIONING.md](VERSIONING.md) for naming rules and the version report above
+for checks rerun for this version versus inherited layout/trace evidence.
 Stable validation is in [tests/release_0_12_1.md](tests/release_0_12_1.md).
 
 For detailed parity system documentation (architecture, environment variables,

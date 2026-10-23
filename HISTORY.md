@@ -3,6 +3,14 @@
 - 본 문서는 기존 `AGENTS.md`의 `진행된 작업` 섹션을 분리 보관한 기록이다.
 - 신규 단계 완료 시 이 문서에 누적 기록하고, `AGENTS.md`의 핵심 스냅샷/우선순위를 동기화한다.
 
+## stable 기준 버전 정책 첫 적용: 0.12.1-ext.1 (2026-10-23)
+
+- 사용자 승인으로 custom/0.12.0의 Cargo/npm 및 내부 pin을0.12.1-ext.1로 변경한다. 새 버전 커밋에 annotated v0.12.1-ext.1을 생성해 github/origin/gitlab에 push하며, 기존 v0.12.0-ext.2(3029a99b)를 포함한 태그17개를 모두 보존한다. 브랜치 이름·stable0.12.1·Java/elkjs0.12.0 기준은 유지한다.
+- 기존 ext.2와 비교해 런타임·테스트·fixture·스크립트·workflow·submodule이 동일함을 확인했다. manifest/lock13파일은 이전 버전 문자열을 치환한 뒤 TOML/JSON 구조가 동일하며 외부 의존성 변경이 없다. Cargo lock의 로컬20패키지 및 workspace 내부17pin, npm6플랫폼 pin을 일치시켰다.
+- 새 버전으로 workspace build/Clippy warning/error0, Rust1,107 passed/0failed/2ignored, Python21, JS49 통과. macOS arm64 NAPI는 새 버전으로 빌드했다. JS WASM fallback 검사는 동일한 런타임의 이전 로컬 WASM 산출물을 재사용했으며 새 WASM 빌드로 주장하지 않는다. 새 태그의 workflow가6플랫폼 NAPI와 web/Node WASM을 생성한다.
+- 전체 model/phase parity는 코드·입력·비교기·기준 pin이 동일한 버전 메타데이터 변경이므로 재생성하지 않고 기존 ext.2 검증을 재사용한다. 정상1,997건 중 최종1,996일치/최종+중간1,995일치, 동일예외1건통과, 단계196,407개 중34차이 및 strict exit1의 기존 custom 한계를 유지한다. 성능은 재측정하지 않았다. Rust 소스 변경이 없어 기존 전체 fmt 차이도 범위 밖으로 유지한다.
+- 현재 버전 안내·정책·CHANGELOG와 새 검증 보고서 tests/release_0_12_1_ext_1.md를 동기화한다. 과거 보고서와 수치는 수정하지 않는다. 확장 태그는 빌드 전용으로 npm/crates 및 GitHub Release 게시를 생략하는 기존 정책을 유지한다.
+
 ## 다음 버전부터 stable 기준 태그 정책 적용 (2026-10-23)
 
 - 사용자 승인으로 다음 신규 버전부터 stable 패키지 버전과 bare 태그를 일치시키고, custom은 포함한 stable 버전 기준 `{STABLE_VERSION}-ext.N`을 사용한다. 같은 stable 기준에서는 N을 증가시키고 stable 기준이 바뀌면 ext.1부터 시작한다. Java/elkjs tag·commit은 별도 호환성 정보로 기록한다.

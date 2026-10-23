@@ -7,16 +7,16 @@ elk-rs is a Rust port of Java ELK (Eclipse Layout Kernel) and also provides an e
 - **ELK Java** (`external/elk`): pinned to `v0.12.0`, commit `323312916048544e4e594eab3303cdb0d01e2929`
 - **elkjs** (`external/elkjs`): pinned to `0.12.0`, commit `ff5771d7165445c42c408bb8a090c8035272218c`
 - **elk-models** (`external/elk-models`): pinned to the parity corpus commit
-- **Working tree**: `custom/0.12.0`, all Rust crates and npm packages `0.12.0-ext.2`; the JS test dependency is exact `elkjs@0.12.0`. Merge commit `3029a99b` incorporates stable `0.12.1` (`eb586b6d`) into the previous custom tip (`7d8e9791`). Annotated tag `v0.12.0-ext.2` points to that merge and is pushed to `github`, `origin`, and `gitlab`; `v0.12.0-ext.1` is preserved. These existing versions and tags retain their historical names.
+- **Working tree**: `custom/0.12.0`, all Rust crates and npm packages `0.12.1-ext.1`; the JS test dependency remains exact `elkjs@0.12.0`. This is the first extension version under the stable-base naming policy, with tag `v0.12.1-ext.1`. Its runtime is unchanged from merge `3029a99b` (`v0.12.0-ext.2`), which incorporates stable `0.12.1` (`eb586b6d`). The previous extension tags retain their original names and commits.
 - **Previous published package version**: `0.12.0`; release workflow 39357332958 completed publication on 2026-10-20
 - **Latest stable release**: `0.12.1` (`v0.12.1`), an elk-rs patch on the existing `releases/0.12.0` branch; Java and elkjs pins remain `0.12.0`. See [release validation](tests/release_0_12_1.md).
 - **Initial release tag**: [`v0.12.0`](https://github.com/openedges/elk-rs/releases/tag/v0.12.0), pointing to the original release commit `22fbee45`. The mistaken `v0.12.0+rs.7` tag was removed and the existing Release renamed, preserving all seven assets. The old `+rs.N` convention is retained as history; new release preparation follows the transition policy below.
-- **Verification**: current custom results are recorded in [the ext.2 integration report](tests/update_custom_0_12_0_ext_2.md). The [stable 0.12.1 report](tests/release_0_12_1.md) and [previous custom report](tests/upgrade_custom_0_12_0.md) are separate historical validations.
+- **Verification**: current version validation and unchanged-runtime evidence are in [the ext.1 version transition report](tests/release_0_12_1_ext_1.md). Full custom layout/trace evidence remains in [the preserved ext.2 integration report](tests/update_custom_0_12_0_ext_2.md). Stable and earlier custom reports remain historical records.
 - **Node.js runtime**: the 0.12.0 npm package requires Node.js 18+ (minimum 18.0.0 verified); development and release builds use pinned Node.js 24. Node.js 16 is unsupported because the standard WASM artifact requires reference types unavailable there without experimental flags.
 - **License**: `EPL-2.0 OR GPL-3.0-or-later`, with the upstream conditional secondary-license notice preserved in `LICENSE` and `NOTICE`
 
 
-This policy distinguishes the Java compatibility reference, the elk-rs package version, and build identity. The transition approved on 2026-10-23 applies to the next version after the existing `v0.12.0-ext.2` tag. It does not rename or retag an existing release.
+This policy distinguishes the Java compatibility reference, the elk-rs package version, and build identity. The transition approved on 2026-10-23 is first applied in `0.12.1-ext.1`, a new package version and tag after the preserved `v0.12.0-ext.2`. Existing releases are not renamed or retagged.
 
 ---
 
@@ -25,8 +25,10 @@ This policy distinguishes the Java compatibility reference, the elk-rs package v
 ### Effective Date and Preserved Releases
 
 The user approved this policy on **2026-10-23**, after `v0.12.0-ext.2` was
-created. Apply it to the **next new version**. Current manifests stay at
-`0.12.0-ext.2`; this documentation update does not prepare or tag a new package.
+created, and then authorized its first application as **`0.12.1-ext.1`**.
+Manifests now use `0.12.1-ext.1`, and tag `v0.12.1-ext.1` identifies the new
+version commit. The old tag still identifies `3029a99b`; the new tag is not an
+alias or a moved copy of it.
 
 Preserve existing tags, their target commits, published packages, and historical
 validation reports, including `v0.12.1`, `v0.12.0-ext.1`, `v0.12.0-ext.2`, and
@@ -68,14 +70,14 @@ for subsequent custom versions on that same stable base.
 
 | Next action | Package version / tag | Java reference |
 |-------------|-----------------------|----------------|
-| Next custom version still incorporates stable `0.12.1` | `0.12.1-ext.1` / `v0.12.1-ext.1` | `0.12.0` |
+| First policy application: stable `0.12.1` retained | `0.12.1-ext.1` / `v0.12.1-ext.1` | `0.12.0` |
 | Another custom revision on stable `0.12.1` | `0.12.1-ext.2` / `v0.12.1-ext.2` | `0.12.0` |
 | Integrate a future stable `0.12.2` for the first time | `0.12.2-ext.1` / `v0.12.2-ext.1` | Record the actual pin; a Rust patch need not change it |
 
-These are prospective examples, not tags or package versions created by this
-policy update. If the next custom release already includes stable `0.12.2`,
-start at `0.12.2-ext.1`; do not issue `0.12.1-ext.1` merely to fill the sequence.
-The old `ext.2` counter from `0.12.0-ext.2` does not carry into the new stable base.
+The first row is the current `0.12.1-ext.1` version; the other rows are future
+examples. After it, use `0.12.1-ext.2` for another revision on the same stable
+base, or `0.12.2-ext.1` when stable `0.12.2` is incorporated. The old `ext.2`
+counter from `0.12.0-ext.2` does not carry into the new stable base.
 
 Before each custom release:
 
@@ -104,9 +106,9 @@ choose the custom package prefix from the stable version actually incorporated.
 Before this transition, custom names used `{JAVA_ELK_VERSION}-ext.N`, which is
 why the preserved `v0.12.0-ext.2` includes stable `0.12.1`. Stable source revisions
 also used `v<package-version>+rs.N` without changing the package version.
-These old naming rules do not govern the next version.
+These old naming rules do not govern `0.12.1-ext.1` or later versions.
 
-The workflow is unchanged by this documentation decision:
+The workflow remains unchanged by the policy and version transition:
 
 - It strips the leading `v` and any `+...` suffix, then checks the resulting
   version against all manifests. New stable and custom names already fit this check.
@@ -132,8 +134,8 @@ The workflow is unchanged by this documentation decision:
 
 ### Version Sync Files
 
-The values below describe the existing tagged versions, not a version bump made
-by the policy transition. Apply the new naming rule when preparing the next version.
+The values below describe stable `0.12.1` and the current custom version
+`0.12.1-ext.1`. Historical tags retain the manifests in their own commits.
 
 `python3 scripts/bump_version.py <version>` edits the manifest and lockfile rows below;
 `--check` verifies their package versions agree. Update `CHANGELOG.md` manually.
@@ -142,13 +144,13 @@ to the target upstream version and regenerate the npm lockfile.
 
 | File | Version Field | Stable | Extension |
 |------|---------------|--------|-----------|
-| `Cargo.toml` (workspace root) | `[workspace.package] version` and the `version = "=X.Y.Z"` pins in `[workspace.dependencies]` | `"0.12.1"` | `"0.12.0-ext.2"` |
-| `Cargo.lock` | Workspace member entries (`cargo update --workspace`) | `"0.12.1"` | `"0.12.0-ext.2"` |
-| `plugins/org.eclipse.elk.js/package.json`, `package-lock.json` | `"version"`, the six `@openedges/elk-layout-*` optional dependencies, lockfile root entries | `"0.12.1"` | `"0.12.0-ext.2"` |
-| `plugins/org.eclipse.elk.js/npm/*/package.json` | Six platform package versions | `"0.12.1"` | `"0.12.0-ext.2"` |
-| `plugins/org.eclipse.elk.napi/package.json` | NAPI build package version (private) | `"0.12.1"` | `"0.12.0-ext.2"` |
-| `packages/elk-live/package.json`, `package-lock.json` | Private application version | `"0.12.1"` | `"0.12.0-ext.2"` |
-| `CHANGELOG.md` | Change history per published version | `## [0.12.1]` | `## [0.12.0-ext.2]` |
+| `Cargo.toml` (workspace root) | `[workspace.package] version` and the `version = "=X.Y.Z"` pins in `[workspace.dependencies]` | `"0.12.1"` | `"0.12.1-ext.1"` |
+| `Cargo.lock` | Workspace member entries (`cargo update --workspace`) | `"0.12.1"` | `"0.12.1-ext.1"` |
+| `plugins/org.eclipse.elk.js/package.json`, `package-lock.json` | `"version"`, the six `@openedges/elk-layout-*` optional dependencies, lockfile root entries | `"0.12.1"` | `"0.12.1-ext.1"` |
+| `plugins/org.eclipse.elk.js/npm/*/package.json` | Six platform package versions | `"0.12.1"` | `"0.12.1-ext.1"` |
+| `plugins/org.eclipse.elk.napi/package.json` | NAPI build package version (private) | `"0.12.1"` | `"0.12.1-ext.1"` |
+| `packages/elk-live/package.json`, `package-lock.json` | Private application version | `"0.12.1"` | `"0.12.1-ext.1"` |
+| `CHANGELOG.md` | Change history per published version | `## [0.12.1]` | `## [0.12.1-ext.1]` |
 
 ### Cargo Workspace Version Unification
 
@@ -223,7 +225,7 @@ main                        <- development branch (always build/test/parity gree
 │   └─ v0.11.0+rs.6         <- first registry publish
 ├─ custom/0.11.0            <- extension line (-ext.N tags, never published)
 ├─ releases/0.12.0          <- current 0.12.x line (v0.12.0, v0.12.1)
-├─ custom/0.12.0            <- current extension line (tag v0.12.0-ext.2 preserved)
+├─ custom/0.12.0            <- current extension line (v0.12.1-ext.1; earlier tags preserved)
 ├─ port/0.12.0              <- ELK 0.12.0 porting work branch
 ├─ feature/*                <- elk-rs feature development (NAPI, optimizations, etc.)
 └─ fix/*                    <- bug fixes
@@ -245,8 +247,8 @@ main                        <- development branch (always build/test/parity gree
 
 ### Tag Strategy
 
-The existing tag history is preserved. The two future examples below use the
-new rules; they are not additional tags created by the policy change.
+The existing tag history is preserved. `v0.12.1-ext.1` is the first custom
+version under the new policy; `v0.12.2` below remains a future stable example.
 
 ```
 releases/0.11.0:
@@ -272,7 +274,7 @@ releases/0.12.0:
 custom/0.12.0:
   v0.12.0-ext.1           <- first extension tag at 371e186d (build only)
   v0.12.0-ext.2           <- existing tag at 3029a99b; legacy name, preserved
-  v0.12.1-ext.1           <- next custom version if stable base remains 0.12.1 (future example)
+  v0.12.1-ext.1           <- first new-policy version; same runtime as v0.12.0-ext.2
 ```
 
 **Rules:**

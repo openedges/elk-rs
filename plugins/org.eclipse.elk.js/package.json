@@ -1,6 +1,6 @@
 {
   "name": "@openedges/elk-layout",
-  "version": "0.12.0-ext.2",
+  "version": "0.12.1-ext.1",
   "description": "ELK layout engine in Rust (elk-rs) — elkjs-compatible API with WASM and native Node.js addon",
   "license": "EPL-2.0 OR GPL-3.0-or-later",
   "main": "js/index.js",
@@ -45,12 +45,12 @@
     "vitest": "^3.0.0"
   },
   "optionalDependencies": {
-    "@openedges/elk-layout-darwin-arm64": "0.12.0-ext.2",
-    "@openedges/elk-layout-darwin-x64": "0.12.0-ext.2",
-    "@openedges/elk-layout-linux-x64-gnu": "0.12.0-ext.2",
-    "@openedges/elk-layout-linux-x64-musl": "0.12.0-ext.2",
-    "@openedges/elk-layout-linux-arm64-gnu": "0.12.0-ext.2",
-    "@openedges/elk-layout-win32-x64-msvc": "0.12.0-ext.2"
+    "@openedges/elk-layout-darwin-arm64": "0.12.1-ext.1",
+    "@openedges/elk-layout-darwin-x64": "0.12.1-ext.1",
+    "@openedges/elk-layout-linux-x64-gnu": "0.12.1-ext.1",
+    "@openedges/elk-layout-linux-x64-musl": "0.12.1-ext.1",
+    "@openedges/elk-layout-linux-arm64-gnu": "0.12.1-ext.1",
+    "@openedges/elk-layout-win32-x64-msvc": "0.12.1-ext.1"
   },
   "keywords": [
     "elk",

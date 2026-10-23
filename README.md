@@ -3,15 +3,15 @@
 Pure Rust port of [Eclipse Layout Kernel (ELK)](https://www.eclipse.org/elk/), keeping Java-side feature/API/test parity while operating as a Rust workspace.
 
 This branch is **custom/0.12.0**, with extension package version
-**0.12.0-ext.2** and the fixes from stable **0.12.1** on Java ELK **0.12.0**.
-See [custom features](CUSTOM_FEATURES.md), [integration validation](tests/update_custom_0_12_0_ext_2.md),
+**0.12.1-ext.1** and the fixes from stable **0.12.1** on Java ELK **0.12.0**.
+See [custom features](CUSTOM_FEATURES.md), [version validation](tests/release_0_12_1_ext_1.md),
 and [versioning policy](VERSIONING.md). Extension builds use a source checkout;
 `npm install @openedges/elk-layout` installs the published stable package.
 
-The existing `v0.12.0-ext.2` tag is preserved. Starting with the next version,
-custom names follow the included stable elk-rs version (`0.12.1-ext.1` if that
-base remains `0.12.1`); Java compatibility is recorded separately. See the
-[policy transition](VERSIONING.md#1-version-management).
+The new `v0.12.1-ext.1` tag applies the stable-base naming policy. Its runtime
+is unchanged from the preserved `v0.12.0-ext.2`; package versions and release
+documentation identify the new version. Java compatibility remains `0.12.0`.
+See the [policy transition](VERSIONING.md#1-version-management).
 
 ## npm Package
 

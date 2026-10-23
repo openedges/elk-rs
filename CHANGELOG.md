@@ -6,12 +6,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Package versions and Java compatibility references follow `VERSIONING.md`.
 Historical entries retain the naming rules that applied when they were created.
 
-## [Unreleased]
+## [0.12.1-ext.1] - 2026-10-23
 
 ### Changed
 
-- Adopted the version policy approved on 2026-10-23 for the next version: stable tags match the elk-rs package version; custom names use the included stable version plus `-ext.N`, with Java compatibility recorded separately.
-- Retained existing tags, including `v0.12.0-ext.2`; new intermediate builds use commit/CI identifiers instead of new `+rs.N` tags. Manifests and publication workflows are unchanged by this documentation decision.
+- Applied the approved stable-base policy: Cargo/npm `0.12.1-ext.1` and tag `v0.12.1-ext.1` identify stable `0.12.1` plus the existing custom features. Java/elkjs remain pinned to `0.12.0`.
+- Updated package versions and exact internal pins only; runtime sources, fixtures, third-party dependencies, and publication workflows are unchanged from `v0.12.0-ext.2`.
+- Preserved all earlier tags, including `v0.12.0-ext.2` at `3029a99b`. New intermediate builds use commit/CI identifiers instead of new `+rs.N` tags. This extension tag builds artifacts without registry publication or a GitHub Release page.
+- Recorded new-version checks and inherited full parity limits in [the version report](tests/release_0_12_1_ext_1.md).
 
 ## [0.12.0-ext.2] - 2026-10-23
 
