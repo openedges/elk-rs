@@ -48,8 +48,10 @@ Versions, submodule pins, dependencies, and distribution settings are unchanged.
   The subsequent [component compaction follow-up](component_compaction.md) fixes
   the comparator, implements the algorithm, and replaces this historical phase
   result with finite-aware counts.
-  `588_hierarchicalLayoutNPE.elkt` has no Java trace because Java throws an NPE.
-  This single Rust-only case is not counted as a successful comparison.
+  The historical exporter did not produce a Java trace for
+  `588_hierarchicalLayoutNPE.elkt`. The [strict follow-up](phase_trace_audit.md)
+  identifies `UnsupportedGraphException` on both engines, removes the Rust
+  silent-success path, and passes this required negative test.
 - Java exports were reused from validation artifacts with the same pins:
   Java 0.12.0 (`32331291`) and elk-models `ac5af2ba`.
   Rust layouts and traces were generated again from the modified code.

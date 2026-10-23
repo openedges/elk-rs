@@ -174,5 +174,6 @@ python3 -B -m unittest discover -s scripts/tests -p 'test_*.py'
 All completion criteria from the root-cause analysis are satisfied: actual
 arithmetic and component placement are corrected, snapshots are faithful,
 coverage and numerical checks are strict, errors are aligned, and the full
-corrected reference and supported-target checks pass. Changes remain uncommitted
-for review; the public version and external submodules are unchanged.
+corrected reference and supported-target checks pass. The runtime changes were
+committed as `4b9a1f56`; [0.12.1 release validation](release_0_12_1.md) records
+subsequent package checks and performance measurements. External submodules are unchanged.

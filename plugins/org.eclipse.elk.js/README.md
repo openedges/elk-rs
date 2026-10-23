@@ -4,7 +4,7 @@ ELK layout engine rewritten in Rust — drop-in replacement for [elkjs](https://
 
 ## Installation
 
-Version 0.12.0 requires **Node.js 18 or later**. The Node.js WASM fallback uses CommonJS bindings; browser imports use ESM bindings. Node.js 16 is unsupported because the generated WASM requires WebAssembly reference types, which need an experimental flag on that runtime. Development and tests use the pinned Node.js 24.
+Version 0.12.x requires **Node.js 18 or later**. The Node.js WASM fallback uses CommonJS bindings; browser imports use ESM bindings. Node.js 16 is unsupported because the generated WASM requires WebAssembly reference types, which need an experimental flag on that runtime. Development and tests use the pinned Node.js 24.
 
 ```bash
 npm install @openedges/elk-layout

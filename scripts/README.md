@@ -1,8 +1,8 @@
 Scripts overview:
 
-Current target and published package version: ELK 0.12.0.
-The initial tag is `v0.12.0`; the former `v0.12.0+rs.7` naming error has been corrected.
-Subsequent Rust revisions start at `v0.12.0+rs.1`.
+Current package version: elk-rs **0.12.1**, based on Java ELK **0.12.0**.
+The release tag is `v0.12.1` on the existing `releases/0.12.0` line.
+See [release validation](../tests/release_0_12_1.md) and [version policy](../VERSIONING.md).
 See [the full phase-trace report](../tests/phase_trace_audit.md) for current
 model/trace results; [the upgrade report](../tests/upgrade_0_12_0.md) preserves
 the earlier release measurements.

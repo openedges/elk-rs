@@ -2,10 +2,10 @@
 
 Pure Rust port of [Eclipse Layout Kernel (ELK)](https://www.eclipse.org/elk/), keeping Java-side feature/API/test parity while operating as a Rust workspace.
 
-The working tree targets **ELK 0.12.0**; the latest published packages remain **0.11.0**
-(tag `v0.11.0+rs.6`, 2026-10-19). Version 0.12.0 is being prepared for
-`v0.12.0+rs.7` and has not been published. See the
-[upgrade verification report](tests/upgrade_0_12_0.md) for validation status.
+Version **0.12.1** targets **Java ELK 0.12.0**, with layout correctness fixes,
+strict intermediate-state verification, and JSON/network-simplex improvements.
+See the [0.12.1 validation report](tests/release_0_12_1.md) and
+[versioning policy](VERSIONING.md).
 
 ## npm Package
 
@@ -15,7 +15,7 @@ elk-rs is published as `@openedges/elk-layout`, a drop-in replacement for [elkjs
 npm install @openedges/elk-layout
 ```
 
-Version 0.12.0 requires Node.js 18 or later. On supported platforms, a native NAPI addon is automatically installed for best performance. Falls back to WASM on other platforms.
+Version 0.12.x requires Node.js 18 or later. On supported platforms, a native NAPI addon is automatically installed for best performance. Falls back to WASM on other platforms.
 
 | Platform | Package |
 |---|---|

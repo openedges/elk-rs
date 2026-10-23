@@ -3,6 +3,15 @@
 - 본 문서는 기존 `AGENTS.md`의 `진행된 작업` 섹션을 분리 보관한 기록이다.
 - 신규 단계 완료 시 이 문서에 누적 기록하고, `AGENTS.md`의 핵심 스냅샷/우선순위를 동기화한다.
 
+## 0.12.1 공개 수정판 준비 (2026-10-23)
+
+- **최종 패키지 검증**: metadata/phase wiring12/12, release build, NAPI/web·Node WASM 빌드, JS49/49, NAPI·web WASM 각각 Java550/550 통과. elkjs#8의 오래된 성공 기대값2개를 원본과 같은 UnsupportedGraphException 검증으로 수정했다. npm tarball의 native/WASM direct·fakeWorker·worker_threads는 Node18.0.0/18.15.0/24.19.0 모두 통과. 성능5% gate13/13 및 recursive60ms budget8/8 통과, baseline은 변경하지 않았다.
+- 사용자 승인으로 `4b9a1f56`을 커밋/push했다. `VERSIONING.md`에 따라 package patch를 0.12.1로 올리고, Java/elkjs 기준은 0.12.0을 유지했다. `fix/layout-improvements` PR → main → 기존 releases/0.12.0 → annotated v0.12.1 순서로 공개한다. 같은 0.12.0의 +rs.N은 registry 새 버전이 아니므로 이번 배포에 사용하지 않는다.
+- version bump 후 workspace build/Clippy warning0, tests1,081 passed/0failed/2ignored. strict corpus는 같은 runtime에서 전체1,998건 통과(정상 출력1,997 + 동일 예외 검증1), 중간196,407상태 일치이다. 예외 검증1은 통과한 테스트로 분모에 포함한다.
+- 공개 stable10661c0e/1차패치1d9f3afd/최종4b9a1f56을 같은 M3 Pro 환경에서 각3회 교차 측정했다. 26시나리오 평균: native32.0041→31.5127ms(-1.54%), JSON API33.4439→33.4509ms(+0.02%). 전체52개 stable 대비 +5% 이내, 최대+3.92%. defaults/simplex4입력은23.3~62.0% 개선, 잔존 할당 증가0.
+- 1차패치 대비 JSON force_large +5.36%는 stable 대비 +1.35%이다. 모든 입력의 속도 개선이라고 해석하지 않는다. 조건·원본CSV·hash·한계: tests/release_0_12_1.md 및 tests/release_0_12_1/.
+- 현재 안내 문서의 잘못된 미배포0.12.0/+rs.7 표기를 수정하고, 원본 Java 역사적 수치와 corrected reference 결과를 구분했다.
+
 ## 전체 중간 단계 검증 해결 (2026-10-23)
 
 - strict full gate 완료: 전체1,998입력 = 최종 레이아웃·중간 상태 일치1,997 + 명시적 동일 예외1. 전체196,407단계 일치, 누락·실패·성공 결과의 비유한 값0. 비교 기준은 Java0.12에 self-loop 결정성/zero-size resize/zero-height scanline의 명시적 패치3개를 적용한 별도 reference이다. 원본 Java와 동일하다는 주장이 아니다.
