@@ -7,161 +7,133 @@ elk-rs is a Rust port of Java ELK (Eclipse Layout Kernel) and also provides an e
 - **ELK Java** (`external/elk`): pinned to `v0.12.0`, commit `323312916048544e4e594eab3303cdb0d01e2929`
 - **elkjs** (`external/elkjs`): pinned to `0.12.0`, commit `ff5771d7165445c42c408bb8a090c8035272218c`
 - **elk-models** (`external/elk-models`): pinned to the parity corpus commit
-- **Working tree**: `custom/0.12.0`, all Rust crates and npm packages `0.12.0-ext.2`; the JS test dependency is exact `elkjs@0.12.0`. This update merges stable `0.12.1` (`eb586b6d`) into the previous custom tip (`7d8e9791`). Existing `v0.12.0-ext.1` remains unchanged; no new tag is created by this branch update.
+- **Working tree**: `custom/0.12.0`, all Rust crates and npm packages `0.12.0-ext.2`; the JS test dependency is exact `elkjs@0.12.0`. Merge commit `3029a99b` incorporates stable `0.12.1` (`eb586b6d`) into the previous custom tip (`7d8e9791`). Annotated tag `v0.12.0-ext.2` points to that merge and is pushed to `github`, `origin`, and `gitlab`; `v0.12.0-ext.1` is preserved. These existing versions and tags retain their historical names.
 - **Previous published package version**: `0.12.0`; release workflow 39357332958 completed publication on 2026-10-20
 - **Latest stable release**: `0.12.1` (`v0.12.1`), an elk-rs patch on the existing `releases/0.12.0` branch; Java and elkjs pins remain `0.12.0`. See [release validation](tests/release_0_12_1.md).
-- **Initial release tag**: [`v0.12.0`](https://github.com/openedges/elk-rs/releases/tag/v0.12.0), pointing to the original release commit `22fbee45`. The mistaken `v0.12.0+rs.7` tag was removed and the existing Release renamed, preserving all seven assets. A build-only revision of that same package version would be `v0.12.0+rs.1`; the next published package patch uses `v0.12.1`.
+- **Initial release tag**: [`v0.12.0`](https://github.com/openedges/elk-rs/releases/tag/v0.12.0), pointing to the original release commit `22fbee45`. The mistaken `v0.12.0+rs.7` tag was removed and the existing Release renamed, preserving all seven assets. The old `+rs.N` convention is retained as history; new release preparation follows the transition policy below.
 - **Verification**: current custom results are recorded in [the ext.2 integration report](tests/update_custom_0_12_0_ext_2.md). The [stable 0.12.1 report](tests/release_0_12_1.md) and [previous custom report](tests/upgrade_custom_0_12_0.md) are separate historical validations.
 - **Node.js runtime**: the 0.12.0 npm package requires Node.js 18+ (minimum 18.0.0 verified); development and release builds use pinned Node.js 24. Node.js 16 is unsupported because the standard WASM artifact requires reference types unavailable there without experimental flags.
 - **License**: `EPL-2.0 OR GPL-3.0-or-later`, with the upstream conditional secondary-license notice preserved in `LICENSE` and `NOTICE`
 
 
-This policy keeps versions aligned across all three projects while managing porting, verification, and releases systematically.
+This policy distinguishes the Java compatibility reference, the elk-rs package version, and build identity. The transition approved on 2026-10-23 applies to the next version after the existing `v0.12.0-ext.2` tag. It does not rename or retag an existing release.
 
 ---
 
 ## 1. Version Management
 
-### Principle: ELK Version Alignment With an elk-rs Patch Offset
+### Effective Date and Preserved Releases
 
-elk-rs `MAJOR.MINOR` always matches the target ELK Java version. `PATCH` starts at
-the ELK patch number and then **counts elk-rs's own published fixes**, the same way
-elkjs publishes `0.9.2`, `0.9.3`, `0.10.1`, `0.10.2` and `0.11.1` on top of the ELK
-releases `0.9.1`, `0.10.0` and `0.11.0`.
+The user approved this policy on **2026-10-23**, after `v0.12.0-ext.2` was
+created. Apply it to the **next new version**. Current manifests stay at
+`0.12.0-ext.2`; this documentation update does not prepare or tag a new package.
 
-```
-elk-rs 0.11.0  =  ELK Java 0.11.0 port          (first publish of the 0.11 line)
-elk-rs 0.11.1  =  ELK Java 0.11.0 + elk-rs fixes (example patch version)
-elk-rs 0.12.0  =  ELK Java 0.12.0 port
-elk-rs 0.12.1  =  ELK Java 0.12.0 + elk-rs fixes
-```
+Preserve existing tags, their target commits, published packages, and historical
+validation reports, including `v0.12.1`, `v0.12.0-ext.1`, `v0.12.0-ext.2`, and
+all existing `+rs.N` tags. Do not move, delete, rename, or create a replacement
+alias for `v0.12.0-ext.2` as part of this transition.
 
-| Project | Working-tree target | Latest stable version |
-|---------|---------------------|-------------------------------|
-| ELK Java reference | 0.12.0 | 0.12.0 |
-| elkjs reference | 0.12.0 | 0.12.0 |
-| elk-rs (Rust crates) | 0.12.0-ext.2 | 0.12.1 |
-| elk-rs (npm) | 0.12.0-ext.2 | 0.12.1 |
+### Separate Version Meanings
 
-**Rules:**
-- A new ELK `MAJOR.MINOR` port resets `PATCH` to ELK's patch number (`0.12.0`)
-- Publishing elk-rs fixes for the current line bumps `PATCH` (`0.11.0` -> `0.11.1` -> ...)
-- If ELK itself releases a patch (`0.11.1`) after elk-rs has used that number, the port
-  takes the next free elk-rs patch number and the CHANGELOG names the ELK version it ports
-- All Rust workspace crates and the npm packages share the same version, always
+| Item | Meaning | Current state / next-version rule |
+|------|---------|-----------------------------------|
+| Java ELK reference | Compatibility and parity baseline, recorded by tag and commit | Java `0.12.0`; independent of elk-rs patch increments |
+| Stable package version | The elk-rs release identifier shared by Cargo and npm | `0.12.1`; a subsequent published patch would be `0.12.2` |
+| Stable tag | Exact stable package version prefixed with `v` | `v0.12.1`, then `v0.12.2` when that version is prepared |
+| New custom version | Included stable elk-rs package version plus an extension counter | `{STABLE_VERSION}-ext.{N}` |
+| New custom tag | Exact custom package version prefixed with `v` | `v{STABLE_VERSION}-ext.{N}` |
+| Intermediate build identity | Commit SHA and CI run ID / attempt | No new `+rs.N` tag for routine builds |
 
-### elk-rs Internal Change Management
+The existing major/minor family convention remains in use, but the elk-rs patch
+number is not a Java patch identifier. Record the actual Java and elkjs pins
+separately in the release notes. All workspace crates, npm packages, lockfiles,
+and exact internal dependency pins must agree on the package version.
 
-The first release of each base version is tagged **`v<version>` without a suffix**.
-Only subsequent Rust revisions of that same base version use `v<version>+rs.<N>`,
-starting at `N = 1`. The revision counter belongs to one base version; it never
-carries over to another version. A new base version starts with a bare tag again.
+### Stable Releases and Intermediate Builds
 
-```
-v0.12.0          <- first release of base version 0.12.0
-v0.12.0+rs.1     <- first subsequent Rust revision of 0.12.0
-v0.12.0+rs.2     <- second subsequent Rust revision of 0.12.0
-v0.12.1          <- first release of new package version 0.12.1
-v0.12.1+rs.1     <- first subsequent Rust revision of 0.12.1
-v0.13.0          <- first release of the next ELK port
-```
+- A new published fix increments the elk-rs package patch version and uses a
+  bare annotated tag, for example `0.12.2` and `v0.12.2`.
+- Use `scripts/bump_version.py` and the release validation checklist before
+  tagging. A tag alone does not change the version in the manifests.
+- Identify intermediate builds by their source commit and CI run ID. New
+  releases do not introduce `+rs.N` tags. Preserve the existing ones as history.
+- Rebuilds use the existing source ref and a new CI run/attempt; never move a
+  released tag or replace the contents of a published package version.
 
-Tag naming and registry publication are separate: `release.yml` handles both bare
-release tags and revision tags, and publishes only package versions not already
-present in the registry.
+### Extension Releases: Stable-Version Base
 
-- **Build metadata never reaches a registry.** `npm publish` strips `+rs.N`
-  (`semver.clean("0.11.0+rs.5")` is `0.11.0`), and crates.io rejects a second version
-  that differs only in build metadata (uniqueness is on the version without `+build`).
-  Only the package version in the manifests matters; `+rs.N` lives in git tags and the
-  CHANGELOG.
-- **Publishing a fix = bump the patch version, then tag.** `python3 scripts/bump_version.py 0.12.1`
-  updates every manifest and lockfile (see Version Sync Files), the quality gates run,
-  the commit is tagged `v0.12.1` (the first release of that new base version) and pushed. `release.yml` then publishes every
-  package/crate whose version is not on the registry yet and attaches the binaries to a
-  GitHub Release.
-- **A tag without a bump is a build-only tag.** Both publish scripts skip
-  package@version pairs that already exist, so tagging a later `v0.11.0+rs.N` after `0.11.0`
-  has been published builds the NAPI binaries and publishes nothing.
-- **Prereleases do not work for fixes.** `0.11.0-rs.1` sorts *below* `0.11.0`, so once
-  `0.11.0` is published no `^0.11.0` consumer would receive it. Prerelease versions are
-  reserved for publishing *before* the first stable version of a line, if ever needed.
-- **Extension tags are never published.** `v0.12.0-ext.N` tags on `custom/*` branches
-  build but skip the publish and release jobs: `release.yml` publishes only when the
-  manifests' version, which the tag must match, has no prerelease part. Manual
-  real-publish inputs are also rejected for prerelease/extension versions.
-- **CHANGELOG.md**: elk-rs changes are grouped by published version
+For new extension versions, the prefix is the **included stable elk-rs version**,
+not the Java reference version. `N` starts at 1 for each stable base and increases
+for subsequent custom versions on that same stable base.
 
-#### Extension Releases: Pre-release Channel (`-ext.N`)
+| Next action | Package version / tag | Java reference |
+|-------------|-----------------------|----------------|
+| Next custom version still incorporates stable `0.12.1` | `0.12.1-ext.1` / `v0.12.1-ext.1` | `0.12.0` |
+| Another custom revision on stable `0.12.1` | `0.12.1-ext.2` / `v0.12.1-ext.2` | `0.12.0` |
+| Integrate a future stable `0.12.2` for the first time | `0.12.2-ext.1` / `v0.12.2-ext.1` | Record the actual pin; a Rust patch need not change it |
 
-Custom features (not in upstream ELK Java) use prerelease versions for build artifacts:
+These are prospective examples, not tags or package versions created by this
+policy update. If the next custom release already includes stable `0.12.2`,
+start at `0.12.2-ext.1`; do not issue `0.12.1-ext.1` merely to fill the sequence.
+The old `ext.2` counter from `0.12.0-ext.2` does not carry into the new stable base.
 
-```
-npm: @openedges/elk-layout@0.12.1        <- published stable release
-npm: @openedges/elk-layout@0.12.0-ext.1  <- previous extension manifest (not published)
-npm: @openedges/elk-layout@0.12.0-ext.2  <- current extension manifest (not published)
-```
+Before each custom release:
 
-- **Version format**: `{ELK_VERSION}-ext.{N}` — semver pre-release label `ext` (extension)
-  - `ext` indicates the release is a superset of the stable version with additional features
-  - Examples: `0.12.0-ext.1`, `0.12.0-ext.2`
-- **Git tags**: `v{ELK_VERSION}-ext.{N}` on the `custom/{ELK_VERSION}` integration branch
-- **Cargo + npm**: Both use the same `-ext.N` version; extension versions are never published to a registry (`release.yml` preflight and publish conditions).
-  - Use a source checkout or locally built artifacts for extension versions; `npm install @openedges/elk-layout` resolves to the published stable version.
-  - NAPI CI builds extension tags for all six platforms but skips the publish jobs; bare stable tags and `+rs.N` tags on `releases/*` can publish missing versions (§ 6).
-  - To incorporate an internal patch, merge `releases/{ELK_VERSION}` into `custom/{ELK_VERSION}`, verify extension fixtures and full parity, then increment `ext.N`. Preserve existing release tags.
-  - The prefix is the Java ELK baseline, not the stable Rust package patch: merging stable `0.12.1` into `custom/0.12.0` advances `0.12.0-ext.1` to `0.12.0-ext.2`.
-- **Semver note**: `0.12.0-ext.1 < 0.12.0` in semver ordering. The extension version identifies a separate build, not a stable upgrade.
-- **New ELK baseline**: Create `custom/{new-version}` from the previous custom integration branch, merge `releases/{new-version}`, and restart at `ext.1`. Keep the previous branch and tags intact; verify both inherited extension fixtures and full parity.
-- **Branch**: Extension releases are tagged on `custom/{ELK_VERSION}` branches, not on `releases/*`
-- **Documentation**: Custom features are documented in `CUSTOM_FEATURES.md`
+1. Merge the chosen stable release into the custom integration branch.
+2. Record its stable package version, tag, and commit separately from Java/elkjs
+   reference tags and commits.
+3. Verify inherited extension fixtures, model parity, and raw phase parity;
+   explicitly retain any known custom differences in the validation report.
+4. Set Cargo/npm to `{STABLE_VERSION}-ext.{N}` and create the matching annotated tag.
 
-#### CHANGELOG Rules
+Extension versions remain **build-only**: no npm/crates.io publication and no
+GitHub Release page; the workflow retains build artifacts. The `-ext.N` suffix
+is a SemVer prerelease identifier, so `0.12.1-ext.1 < 0.12.1`, even though the
+custom build includes extra features. It does not represent a stable upgrade.
+A future registry distribution of custom packages requires a separate package /
+publication policy decision. See [SemVer](https://semver.org/#spec-item-9).
 
-The changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
-conventions adapted for ELK version alignment.
+Existing integration branch names remain `releases/0.12.0` and `custom/0.12.0`.
+A stable patch increment does not rename a branch or require `custom/0.12.1`.
+For a new Java baseline, preserve custom history by creating the next integration
+branch from the previous custom line and merging the corresponding stable line;
+choose the custom package prefix from the stable version actually incorporated.
 
-**Structure:**
-- One `## [X.Y.Z]` section per published version (ELK port or elk-rs patch)
-- Within each version, use standard section headers: `### Added`, `### Fixed`,
-  `### Changed`, `### Removed`, `### ELK Porting`
-- `### ELK Porting` is elk-rs specific: summarizes porting scope and parity metrics
-- Build-only `+rs.N` tags between published versions are grouped under
-  `### elk-rs Internal Changes (v0.11.0+rs.1 ~ v0.11.0+rs.N)` of the version they
-  ship with
+### Legacy Tags and Current Automation
 
-**Writing guidelines:**
-- Each entry starts with a verb in past tense (Added, Fixed, Removed, etc.)
-- Keep entries concise (1-2 lines). For complex changes, reference `HISTORY.md`
-- Include parity metrics when relevant (e.g., "1438/1438 model parity")
-- Record known issues and accepted exceptions in `### Known Issues`
-- Do NOT duplicate full `HISTORY.md` content — CHANGELOG is user-facing summary,
-  HISTORY.md is developer-facing detailed log
+Before this transition, custom names used `{JAVA_ELK_VERSION}-ext.N`, which is
+why the preserved `v0.12.0-ext.2` includes stable `0.12.1`. Stable source revisions
+also used `v<package-version>+rs.N` without changing the package version.
+These old naming rules do not govern the next version.
 
-**When to update:**
-- On each new published package version (first tag `v<version>`)
-- On each build-only `+rs.N` tag (add entry under Internal Changes)
-- Accumulated internal changes are folded into the next published version's section
+The workflow is unchanged by this documentation decision:
 
-**Example:**
+- It strips the leading `v` and any `+...` suffix, then checks the resulting
+  version against all manifests. New stable and custom names already fit this check.
+- Pushed tags with a prerelease-free package version enable registry publication;
+  publish scripts skip package/version pairs already present. Consequently, a
+  legacy `+rs.N` tag is **not guaranteed to be build-only**: it may publish missing
+  packages and create a GitHub Release after the required jobs succeed.
+- Prerelease manifests, including `-ext.N`, skip publication and the GitHub
+  Release job. Manual real-publish requests for these versions are rejected.
+- The naming rules, stable-base correspondence, and intended branch are reviewed
+  policy; preflight does not enforce all of them. Legacy `+rs.N` acceptance remains
+  for compatibility and does not authorize new tags under the retired convention.
 
-```markdown
-## [0.11.1] - YYYY-MM-DD
+### CHANGELOG Rules
 
-### Fixed
-- ...
-
-### elk-rs Internal Changes (v0.11.1+rs.1 ~ v0.11.1+rs.2)
-- [bugfix] Improved WASM fallback error message
-- [perf] 20% layered algorithm performance improvement
-
-## [0.12.0] - YYYY-MM-DD
-
-### ELK Porting
-- Full ELK 0.12.0 porting complete (N/N parity)
-```
+- Keep one entry per stable or custom version and record the included stable base
+  and Java reference separately for custom releases.
+- Keep historical `+rs.N` groups intact. Do not add new groups for future releases;
+  unreleased changes belong under `Unreleased` until the next package is prepared.
+- Use `Added`, `Fixed`, `Changed`, `ELK Porting`, and `Known Issues` as appropriate.
+- Summarize user-visible changes and validation limits; keep detailed work logs
+  in `HISTORY.md`.
 
 ### Version Sync Files
+
+The values below describe the existing tagged versions, not a version bump made
+by the policy transition. Apply the new naming rule when preparing the next version.
 
 `python3 scripts/bump_version.py <version>` edits the manifest and lockfile rows below;
 `--check` verifies their package versions agree. Update `CHANGELOG.md` manually.
@@ -251,7 +223,7 @@ main                        <- development branch (always build/test/parity gree
 │   └─ v0.11.0+rs.6         <- first registry publish
 ├─ custom/0.11.0            <- extension line (-ext.N tags, never published)
 ├─ releases/0.12.0          <- current 0.12.x line (v0.12.0, v0.12.1)
-├─ custom/0.12.0            <- current extension line (0.12.0-ext.2 working tree)
+├─ custom/0.12.0            <- current extension line (tag v0.12.0-ext.2 preserved)
 ├─ port/0.12.0              <- ELK 0.12.0 porting work branch
 ├─ feature/*                <- elk-rs feature development (NAPI, optimizations, etc.)
 └─ fix/*                    <- bug fixes
@@ -260,18 +232,21 @@ main                        <- development branch (always build/test/parity gree
 **Rules:**
 - `main` always passes build/test/parity — development happens here
 - `releases/X.Y.Z` branches are created from `main` when ready to release
-  - Initial tags (`v<version>`) and subsequent revision tags (`v<version>+rs.<N>`) are placed on release branches
+  - New stable tags (`v<package-version>`) are placed on release branches; existing `+rs.N` tags remain historical
   - Hotfixes go to the release branch, then cherry-pick to `main` if needed
   - Release branches are long-lived (not deleted after release)
 - `custom/X.Y.Z` branches integrate custom features on top of `main`
   - For a new ELK baseline, preserve custom history by merging the new release into a new integration branch created from the previous custom line.
-  - Extension tags (`vX.Y.Z-ext.N`) are placed on custom integration branches
+  - New extension tags (`v<stable-package-version>-ext.N`) are placed on custom integration branches; the branch name may still identify the Java baseline
   - Individual features are developed on `custom/{feature-name}` branches, merged into `custom/X.Y.Z`
   - See `CUSTOM_FEATURES.md` for feature documentation
 - New ELK version porting happens on `port/X.Y.Z` branches, merged to `main`
 - Feature/fix branches fork from `main`, merge via PR
 
 ### Tag Strategy
+
+The existing tag history is preserved. The two future examples below use the
+new rules; they are not additional tags created by the policy change.
 
 ```
 releases/0.11.0:
@@ -292,21 +267,25 @@ custom/0.11.0:
 releases/0.12.0:
   v0.12.0                 <- initial ELK 0.12.0 port tag
   v0.12.1                 <- published Rust fixes, still based on Java 0.12.0
-  v0.12.1+rs.1            <- first build-only revision of package 0.12.1 (example)
+  v0.12.2                 <- next published patch (future example)
 
 custom/0.12.0:
   v0.12.0-ext.1           <- first extension tag at 371e186d (build only)
-  0.12.0-ext.2            <- integrates stable 0.12.1; no tag created in this update
+  v0.12.0-ext.2           <- existing tag at 3029a99b; legacy name, preserved
+  v0.12.1-ext.1           <- next custom version if stable base remains 0.12.1 (future example)
 ```
 
 **Rules:**
-- First release of a base version: `v<package version>` on the release branch, with no `+rs` suffix
-- Subsequent revisions of that base version: `+rs.1`, `+rs.2`, ...; a new base version starts with a bare tag again
-- Historical naming error: `v0.12.0+rs.7` was corrected to `v0.12.0`; the incorrect tag was removed, and the released commit and assets were preserved
-- Whether a tag publishes depends only on whether `<package version>` is already on the
-  registries (the publish scripts skip existing versions)
-- Use annotated tags: `git tag -a v0.11.1 -m "elk-rs 0.11.1 (ELK 0.11.0 + fixes)"`
-- Extension tags `v<version>-ext.<N>` live on `custom/*` branches and are never published
+- New stable release: `v<package-version>`; new custom release:
+  `v<stable-package-version>-ext.N`. The tag must match the manifests.
+- Use annotated tags and preserve all existing tag targets. Do not create new
+  `+rs.N` tags; use commit/CI identity for intermediate builds.
+- Historical naming correction: `v0.12.0+rs.7` was corrected to `v0.12.0` before
+  this transition. It does not authorize renaming any currently preserved tag.
+- A pushed stable tag enables publication of missing package versions. Extension
+  tags only build artifacts. Legacy workflow behavior is described in § 1.
+- Before the next release, carry this policy revision and its matching checklist
+  to the target release branch; retain branch-specific validation and state records.
 
 ---
 
@@ -379,6 +358,9 @@ python3 scripts/compare_phase_traces.py <java_trace_dir> <rust_trace_dir> --batc
 
 ### Step 4: Release
 
+Historical initial-port example: `v0.12.0` already exists. Do not rerun these
+commands for that version; use the actual next version and preserve existing refs.
+
 ```sh
 # Merge porting branch to main
 git checkout main
@@ -404,28 +386,22 @@ git checkout main
 
 ### Hotfix on Release Branch
 
+Example for the next stable patch; run the required gates before tagging:
+
 ```sh
-# Work on the release branch
-git checkout releases/0.11.0
-
-# Apply fix, commit
-git commit -m "fix: <description>"
-
-# Build-only: tag without bumping (nothing is published because 0.11.0 is already out)
-git tag -a v0.11.0+rs.7 -m "elk-rs 0.11.0+rs.7 internal patch"
-
-# Published fix: bump the patch version first, then tag
-python3 scripts/bump_version.py 0.11.1
-git commit -am "release: prepare elk-rs 0.11.1"
-git tag -a v0.11.1 -m "elk-rs 0.11.1 (ELK 0.11.0 + fixes)"
-
-# Push
-git push origin releases/0.11.0 --tags
-
-# Cherry-pick to main if applicable
-git checkout main
-git cherry-pick <commit-hash>
+git checkout releases/0.12.0
+# Apply the fix and record its validation.
+python3 scripts/bump_version.py 0.12.2
+git commit -am "release: prepare elk-rs 0.12.2"
+git tag -a v0.12.2 -m "elk-rs 0.12.2 (Java ELK 0.12.0 reference)"
+git push github releases/0.12.0
+git push github refs/tags/v0.12.2
+# Synchronize the authorized mirrors with these exact refs.
+# Integrate the fix into main if it is not already there.
 ```
+
+For an intermediate build, use the commit SHA and CI run/attempt instead of
+creating a `+rs.N` tag. No command in this example is executed by the policy update.
 
 ---
 
@@ -464,13 +440,13 @@ elk-rs follows a 1:1 porting principle from Java ELK, but allows differences in 
 
 | Registry | Packages | Version | Trigger |
 |----------|----------|---------|---------|
-| npm | `@openedges/elk-layout` (WASM + loader) and `@openedges/elk-layout-darwin-arm64`, `@openedges/elk-layout-darwin-x64`, `@openedges/elk-layout-linux-x64-gnu`, `@openedges/elk-layout-linux-x64-musl`, `@openedges/elk-layout-linux-arm64-gnu`, `@openedges/elk-layout-win32-x64-msvc` | package version, dist-tag `latest` | `publish-npm` job of `.github/workflows/release.yml` on `v*` tags without `-ext.` |
-| crates.io | `elk-layout` (facade, `crates/elk-layout`) and the 17 library crates `org-eclipse-elk-*` (everything except the `napi`/`wasm` bindings) | package version | `publish-crates` job of `.github/workflows/release.yml` on `v*` tags without `-ext.` |
+| npm | `@openedges/elk-layout` (WASM + loader) and `@openedges/elk-layout-darwin-arm64`, `@openedges/elk-layout-darwin-x64`, `@openedges/elk-layout-linux-x64-gnu`, `@openedges/elk-layout-linux-x64-musl`, `@openedges/elk-layout-linux-arm64-gnu`, `@openedges/elk-layout-win32-x64-msvc` | package version, dist-tag `latest` | `publish-npm` job of `.github/workflows/release.yml` on pushed stable tags with a prerelease-free package version |
+| crates.io | `elk-layout` (facade, `crates/elk-layout`) and the 17 library crates `org-eclipse-elk-*` (everything except the `napi`/`wasm` bindings) | package version | `publish-crates` job of `.github/workflows/release.yml` on pushed stable tags with a prerelease-free package version |
 
 Never published: `-ext.N` tags, `org-eclipse-elk-napi`/`org-eclipse-elk-wasm`
 (`publish = false`), `elk-layout-napi` and `elk-rs-live` (`"private": true`).
 
-The same tag run attaches the six `elk-layout.<triple>.node` binaries and
+A successful stable tag run attaches the six `elk-layout.<triple>.node` binaries and
 `elk-layout-<version>-wasm.tar.gz` to a GitHub Release with generated release notes
 (`release` job). `-ext.N` tags build the binaries too but keep them as workflow artifacts:
 extension builds never appear on the public release page. A manual run of `release.yml`
@@ -490,8 +466,9 @@ repository keeps its `elk-rs` name.
 - `python3 scripts/publish_crates.py [--dry-run] [--no-verify] [--expect-version V]`:
   one `cargo publish -p ...` call for the crates missing on crates.io (cargo orders them
   and waits for the index), retrying after crates.io's new-crate rate limit.
-- Both take the tag's base version from CI (`v0.12.0` or `v0.12.0+rs.1` -> `0.12.0`) and fail if any
-  manifest disagrees.
+- Both take the package version from CI (`v0.12.2` -> `0.12.2`) and fail if any
+  manifest disagrees. Legacy `+rs.N` stripping remains supported as described in § 1;
+  new releases use bare stable tags.
 
 ### Credentials: Trusted Publishing only
 

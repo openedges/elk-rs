@@ -8,12 +8,13 @@ Single entry point for the elk-rs validation flow. Covers environment setup,
 verification items, scenario-based procedures, release checklist, and known
 issues.
 
-The working tree is `custom/0.12.0`, version `0.12.0-ext.1`; this extension build
-is tagged `v0.12.0-ext.1` at `371e186d` (build only, no registry publication). Current integration evidence is in
-[tests/upgrade_custom_0_12_0.md](tests/upgrade_custom_0_12_0.md).
-Published stable packages remain `0.12.0`, initially tagged `v0.12.0`; subsequent
-Rust revisions of that base version start at `v0.12.0+rs.1`.
-Stable upgrade evidence is in [tests/upgrade_0_12_0.md](tests/upgrade_0_12_0.md).
+The working tree is `custom/0.12.0`, version `0.12.0-ext.2`, tagged
+`v0.12.0-ext.2` at `3029a99b` (build only). Stable packages are `0.12.1`, tagged
+`v0.12.1`, with Java/elkjs reference `0.12.0`. Existing version names and tag
+commits remain unchanged. The policy approved on 2026-10-23 applies to the next
+version: stable uses `v<package-version>` and custom uses
+`v<included-stable-version>-ext.N`. See [VERSIONING.md](VERSIONING.md).
+Stable validation is in [tests/release_0_12_1.md](tests/release_0_12_1.md).
 
 For detailed parity system documentation (architecture, environment variables,
 directory structure, exception cases), see [`tests/PARITY.md`](tests/PARITY.md).
@@ -484,41 +485,50 @@ For detailed baseline operations, see `tests/baselines/POLICY.md`.
 
 #### Publish (crates.io + npm)
 
-Publishing is driven by initial `v<version>` tags and subsequent `v<version>+rs.<N>`
-revision tags (`VERSIONING.md` § 1 and § 6). The first tag has no suffix; the first
-subsequent revision uses `+rs.1`. A new base version starts with a bare tag again.
-Decide first whether this tag publishes:
+For the next release, follow the transition in `VERSIONING.md` § 1 and § 6:
 
-- Fixes to publish: bump the package patch version and use its initial bare tag.
-- Internal revisions without a package bump: use the next `+rs.N` for that same base version; existing registry versions are skipped.
+- Stable fixes: increment the package patch version and use its bare annotated tag.
+- Custom: record the included stable tag/commit and Java reference separately;
+  use `{STABLE_VERSION}-ext.N` and its matching tag. Counter `N` restarts at 1
+  when the included stable version changes. Custom tags remain build-only.
+- Intermediate builds: use the commit SHA and CI run/attempt; do not create new
+  `+rs.N` tags. Preserve existing tags and package versions.
+- Carry this policy and checklist to the target branch before preparing its next
+  release. The workflow checks manifest/tag agreement, but does not automatically
+  enforce the new stable-base naming rule or retire legacy tag acceptance.
 - Authentication: existing npm7/crates18 Trusted Publishing registrations are reused.
   Do not add registry tokens to GitHub Secrets. For a new package/crate name, complete
   its bootstrap and register `openedges/elk-rs`, `release.yml`, and the appropriate
   environment before its first CI publication (`VERSIONING.md` § 6).
 
+Example for a future stable `0.12.2` release, after all required gates:
+
 ```sh
-# 1. Set the package version everywhere (skip for a build-only tag)
-python3 scripts/bump_version.py 0.12.0          # Cargo.toml/.lock, package.json files, lockfiles
-python3 scripts/bump_version.py --check         # prints the single agreed version
+# 1. Set and check the next package version
+python3 scripts/bump_version.py 0.12.2
+python3 scripts/bump_version.py --check
 
-# 2. Dry runs (query registries but do not publish; --allow-dirty for uncommitted trees)
-python3 scripts/publish_crates.py --dry-run --allow-dirty   # packages + verifies the 18 crates
-cd plugins/org.eclipse.elk.js && sh build.sh && cd -        # web + Node WASM, local NAPI
-sh scripts/publish_npm.sh --dry-run --expect-version 0.12.0
+# 2. Dry runs; build fresh bindings before packaging
+python3 scripts/publish_crates.py --dry-run --allow-dirty
+cd plugins/org.eclipse.elk.js && sh build.sh && cd -
+sh scripts/publish_npm.sh --dry-run --expect-version 0.12.2
 
-# 3. Commit, tag, push (release.yml: build, npm + crates.io publish, GitHub Release)
-git commit -am "release: prepare elk-rs 0.12.0"
-git tag -a v0.12.0 -m "elk-rs 0.12.0 (ELK 0.12.0 parity)"
-git push origin releases/0.12.0 && git push origin v0.12.0
+# 3. Commit and push only the intended branch and tag
+git commit -am "release: prepare elk-rs 0.12.2"
+git tag -a v0.12.2 -m "elk-rs 0.12.2 (Java ELK 0.12.0 reference)"
+git push github releases/0.12.0
+git push github refs/tags/v0.12.2
+# Synchronize authorized mirrors with the same refs.
 
-# 4. Verify
-npm view @openedges/elk-layout version && npm view @openedges/elk-layout-darwin-arm64 version
-python3 scripts/publish_crates.py --list        # then check https://crates.io/crates/elk-layout
+# 4. Verify the exact version
+npm view @openedges/elk-layout@0.12.2 version
+npm view @openedges/elk-layout-darwin-arm64@0.12.2 version
+python3 scripts/publish_crates.py --list
 ```
 
-The commands above illustrate initial-release naming. Version 0.12.0 has already
-been published and its tag corrected; do not replay these commands for that release.
-For a new release, finish all gates before tagging.
+The example does not authorize or perform a version bump now. For a custom build,
+use the custom version/tag and verify workflow artifacts instead of registry
+publication; preserve the explicit custom parity differences in its report.
 
 Pass criteria:
 

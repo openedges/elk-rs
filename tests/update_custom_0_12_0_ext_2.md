@@ -3,9 +3,13 @@
 Date: 2026-10-23. Integrates stable `0.12.1` (`eb586b6d`) into
 `custom/0.12.0` (`7d8e9791`) with a merge commit, retaining extension features.
 Cargo/npm version: `0.12.0-ext.2`; Java and elkjs baseline: `0.12.0`.
-The extension version follows the Java ELK baseline, as specified in
-[VERSIONING.md](../VERSIONING.md). This branch update creates no new tag and
-publishes no registry package; `v0.12.0-ext.1` remains unchanged.
+The extension version followed the Java ELK baseline under the policy in effect
+for this integration. The merge initially created no tag; a subsequent user
+request created annotated `v0.12.0-ext.2` at `3029a99b` and pushed it to `github`,
+`origin`, and `gitlab`. No registry package was published; `v0.12.0-ext.1` remains
+unchanged. The [policy transition](../VERSIONING.md#1-version-management) approved
+later on 2026-10-23 applies only to the next version and preserves this tag,
+package name, and validation record.
 
 ## Changes and compatibility
 

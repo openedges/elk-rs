@@ -3,14 +3,23 @@
 All notable changes to elk-rs are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Versions correspond to the target ELK Java version (see `VERSIONING.md`).
+Package versions and Java compatibility references follow `VERSIONING.md`.
+Historical entries retain the naming rules that applied when they were created.
+
+## [Unreleased]
+
+### Changed
+
+- Adopted the version policy approved on 2026-10-23 for the next version: stable tags match the elk-rs package version; custom names use the included stable version plus `-ext.N`, with Java compatibility recorded separately.
+- Retained existing tags, including `v0.12.0-ext.2`; new intermediate builds use commit/CI identifiers instead of new `+rs.N` tags. Manifests and publication workflows are unchanged by this documentation decision.
 
 ## [0.12.0-ext.2] - 2026-10-23
 
 Extension integration on `custom/0.12.0`, incorporating stable `0.12.1`
 (`eb586b6d`). Package versions follow the existing ELK-baseline `-ext.N` policy;
-the Java/elkjs baseline remains 0.12.0. No new tag or registry publication is
-part of this branch update.
+the Java/elkjs baseline remains 0.12.0. The subsequent annotated tag
+`v0.12.0-ext.2` points to `3029a99b` and is pushed to all three remotes.
+It remains build-only, and its historical name is preserved by the new policy.
 
 ### Changed
 

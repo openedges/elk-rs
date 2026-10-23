@@ -8,6 +8,11 @@ See [custom features](CUSTOM_FEATURES.md), [integration validation](tests/update
 and [versioning policy](VERSIONING.md). Extension builds use a source checkout;
 `npm install @openedges/elk-layout` installs the published stable package.
 
+The existing `v0.12.0-ext.2` tag is preserved. Starting with the next version,
+custom names follow the included stable elk-rs version (`0.12.1-ext.1` if that
+base remains `0.12.1`); Java compatibility is recorded separately. See the
+[policy transition](VERSIONING.md#1-version-management).
+
 ## npm Package
 
 elk-rs is published as `@openedges/elk-layout`, a drop-in replacement for [elkjs](https://github.com/kieler/elkjs):

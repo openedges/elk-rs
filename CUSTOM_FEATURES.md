@@ -20,13 +20,21 @@ Four custom features are currently implemented:
 | Item | Value |
 |------|-------|
 | Integration branch | `custom/0.12.0` |
+| Current tag | [`v0.12.0-ext.2`](https://github.com/openedges/elk-rs/tree/v0.12.0-ext.2) (`3029a99b`, build only; preserved legacy name) |
 | Previous tag | [`v0.12.0-ext.1`](https://github.com/openedges/elk-rs/tree/v0.12.0-ext.1) (`371e186d`, build only) |
 | Cargo version | `0.12.0-ext.2` |
 | npm version | `@openedges/elk-layout@0.12.0-ext.2` manifest (extension builds are not published) |
 | Base | Previous custom `7d8e9791` merged with stable `0.12.1` (`eb586b6d`) on `releases/0.12.0` |
 
-This branch update creates no new tag. Current validation is recorded in
-[the ext.2 integration report](tests/update_custom_0_12_0_ext_2.md).
+The annotated `v0.12.0-ext.2` tag is pushed to `github`, `origin`, and `gitlab`.
+Current validation is recorded in [the ext.2 integration report](tests/update_custom_0_12_0_ext_2.md).
+
+The policy approved on 2026-10-23 applies to the **next** version. New custom
+versions use `{STABLE_VERSION}-ext.N`: if the stable base remains `0.12.1`, the
+next custom version is `0.12.1-ext.1`; incorporating stable `0.12.2` starts at
+`0.12.2-ext.1`. These are future examples, not renamed existing versions.
+Current manifests, tags, and the `custom/0.12.0` branch name remain unchanged;
+custom packages remain unpublished. See [the transition policy](VERSIONING.md#1-version-management).
 
 Feature development branches:
 
@@ -453,7 +461,7 @@ The QA customer OAD model triggered the switch to `process()` because `process_n
 |------|-------|
 | Feature branch | `custom/elk-live` |
 | Base | `main` (`v0.11.0` — ELK Java 1:1 parity) |
-| Package | `elk-rs-live@0.12.0-ext.1` (private, not published) |
+| Package | `elk-rs-live@0.12.0-ext.2` (private, not published) |
 | Reference submodule | `external/elk-live` → [kieler/elk-live](https://github.com/kieler/elk-live) |
 
 ### Description
@@ -598,7 +606,7 @@ The original elk-live (Java/Sprotty) is preserved as a reference submodule at `e
 |------|-------|
 | Feature branch | `custom/elk-live` |
 | Base | `main` (`v0.11.0` — ELK Java 1:1 parity) |
-| Package | `elk-rs-live@0.12.0-ext.1` (private, not published) |
+| Package | `elk-rs-live@0.12.0-ext.2` (private, not published) |
 | Reference submodule | `external/elk-live` → [kieler/elk-live](https://github.com/kieler/elk-live) |
 
 ---

@@ -3,6 +3,15 @@
 - 본 문서는 기존 `AGENTS.md`의 `진행된 작업` 섹션을 분리 보관한 기록이다.
 - 신규 단계 완료 시 이 문서에 누적 기록하고, `AGENTS.md`의 핵심 스냅샷/우선순위를 동기화한다.
 
+## 다음 버전부터 stable 기준 태그 정책 적용 (2026-10-23)
+
+- 사용자 승인으로 다음 신규 버전부터 stable 패키지 버전과 bare 태그를 일치시키고, custom은 포함한 stable 버전 기준 `{STABLE_VERSION}-ext.N`을 사용한다. 같은 stable 기준에서는 N을 증가시키고 stable 기준이 바뀌면 ext.1부터 시작한다. Java/elkjs tag·commit은 별도 호환성 정보로 기록한다.
+- 다음 custom이 stable0.12.1 기준이면0.12.1-ext.1, stable0.12.2를 반영하면0.12.2-ext.1이다. 예시 버전을 지금 생성하지 않는다. 기존 custom/0.12.0·releases/0.12.0 브랜치와 manifest0.12.0-ext.2는 유지한다.
+- 후속 태그 요청으로 annotated v0.12.0-ext.2(대상3029a99b, 태그객체a78cb641)를 github/origin/gitlab에 동일하게 push했다. 기존 ext.1 및 stable·+rs 태그는 모두 보존한다. 이번 정책 문서 변경은 이미 배포한 태그의 이동·이름변경·별칭 생성이 아니다.
+- 새 중간 빌드는 SHA와 CI run/attempt로 구분하고 새 +rs.N 태그를 사용하지 않는다. workflow의 과거 태그 호환 처리는 유지된다. +rs.N은 미게시 패키지 게시 및 GitHub Release 생성이 가능하므로 무조건 빌드 전용이라는 과거 설명을 현재 운영 안내에서 수정했다.
+- VERSIONING·TESTING·CUSTOM_FEATURES·README·CHANGELOG와 ext.2 보고서의 현재 태그 상태 및 적용 시점을 동기화했다. 과거 검증 결과·이력은 유지한다. 다음 release 준비 시 대상 브랜치에도 정책과 체크리스트를 함께 반영하도록 명시했다.
+- 문서 전용 변경이므로 Rust/JS/비교기 테스트와 전체 parity는 재실행하지 않는다. 기존3029a99b의 검증 결과는 그대로이며 새 검증 결과로 주장하지 않는다. 이번 문서 변경의 workspace build는 warning/error 0으로 통과했고 diff·새 로컬 링크 6개를 확인했다. manifest/workflow 37파일과 기존 태그 17개는 변경 전후 동일하며 버전 검사도0.12.0-ext.2로 통과했다.
+
 ## custom/0.12.0에 stable 0.12.1 통합 (2026-10-23)
 
 - 사용자 요청으로 기존 custom `7d8e9791`에 releases/0.12.0의 `eb586b6d`를 merge한다. VERSIONING의 Java baseline 기반 확장판 규칙에 따라 Cargo/npm을 `0.12.0-ext.2`로 올렸으며 Java/elkjs0.12.0 pin과 기존 ext.1 태그를 유지한다. 이번 작업은 새 태그·registry 게시를 포함하지 않는다.

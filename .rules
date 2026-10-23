@@ -44,8 +44,13 @@
 7. 커밋 (`<scope>: <summary>`)
 8. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
+## 다음 버전 정책 (2026-10-23 사용자 승인)
+- 다음 신규 버전부터 stable 패키지와 태그는 `X.Y.Z` / `vX.Y.Z`, custom은 포함한 stable 버전 기준 `{STABLE_VERSION}-ext.N` / `v{STABLE_VERSION}-ext.N`을 사용한다. Java/elkjs 기준은 별도 tag·commit으로 기록한다.
+- 기존 `v0.12.0-ext.2`(3029a99b)는 세 remote에 게시된 과거 규칙의 태그이며 그대로 보존한다. 지금 manifest0.12.0-ext.2나 브랜치 이름을 바꾸지 않는다. 다음 custom의 stable 기준이0.12.1이면0.12.1-ext.1, 0.12.2이면0.12.2-ext.1이다. stable 기준 변경 시 ext 카운터를1로 시작한다.
+- 새 중간 빌드는 SHA·CI run/attempt로 구분하며 새 `+rs.N` 태그를 사용하지 않는다. 기존 태그는 모두 보존한다. custom registry 게시 금지와 workflow 과거 태그 호환 처리는 유지한다. 상세·전환 시점·다음 release 대상 브랜치 동기화 절차는 `VERSIONING.md` §1·§3과 `TESTING.md` §3.6을 따른다.
+
 ## 현재 확장판 통합 (2026-10-23)
-- 브랜치 `custom/0.12.0`, Cargo/npm `0.12.0-ext.2`. 기존 확장판 `7d8e9791`에 stable `0.12.1` (`eb586b6d`)을 병합한다. Java/elkjs pin은 0.12.0을 유지하며, 확장 기능과 수동 게시 방지 조건을 보존한다.
+- 브랜치 `custom/0.12.0`, Cargo/npm `0.12.0-ext.2`. 기존 확장판 `7d8e9791`에 stable `0.12.1` (`eb586b6d`)을 병합한 커밋은 `3029a99b`이며 annotated `v0.12.0-ext.2`로 세 remote에 게시했다. Java/elkjs pin은 0.12.0을 유지하며, 확장 기능과 수동 게시 방지 조건을 보존한다.
 - 이번 병합의 검증 결과는 `tests/update_custom_0_12_0_ext_2.md`에 기록한다. 아래 stable 결과를 custom 결과로 간주하지 않는다. 기존 custom 결과는 `tests/upgrade_custom_0_12_0.md`에 보존한다.
 
 - 검증: Rust 1,107 passed/0 failed/2 ignored, build/Clippy warning 0, Python 21, JS 49 통과. 새 NAPI/web WASM 각각 Java 550/550; 확장 fixture 18개는 세 바인딩 모두 일치한다.
@@ -58,7 +63,7 @@
 
 - **최종 패키지 검증**: metadata/phase wiring12/12, release build, NAPI/web·Node WASM 빌드, JS49/49, NAPI·web WASM 각각 Java550/550 통과. elkjs#8의 오래된 성공 기대값2개를 원본과 같은 UnsupportedGraphException 검증으로 수정했다. npm tarball의 native/WASM direct·fakeWorker·worker_threads는 Node18.0.0/18.15.0/24.19.0 모두 통과. 성능5% gate13/13 및 recursive60ms budget8/8 통과, baseline은 변경하지 않았다.
 - **이전 elk-rs 릴리스**: `0.12.0` (ELK Java `v0.12.0` 포팅 및 품질 게이트 통과; release run39357332958의 crates.io/npm/GitHub Release 게시 완료). 최초 태그·Release는 `v0.12.0`으로 정정 완료(`22fbee45`, 기존 첨부7개 보존); 잘못된 `v0.12.0+rs.7` 태그는 삭제했다. 상세 검증은 `tests/upgrade_0_12_0.md`
-  - 태그 규칙(2026-10-20 사용자 확정): 새 기본 버전의 최초 릴리즈는 `vX.Y.Z`(접미사 없음). 같은 기본 버전의 첫 Rust 수정부터 `vX.Y.Z+rs.1`, `+rs.2` 순서이며, 새 기본 버전은 다시 접미사 없는 태그로 시작한다. 버전 간 카운터를 이어가지 않는다.
+  - 과거 태그 규칙(2026-10-20 확정; 다음 버전부터 위 2026-10-23 정책으로 대체): 새 기본 버전의 최초 릴리즈는 `vX.Y.Z`(접미사 없음). 같은 기본 버전의 첫 Rust 수정부터 `vX.Y.Z+rs.1`, `+rs.2` 순서이며, 새 기본 버전은 다시 접미사 없는 태그로 시작한다. 버전 간 카운터를 이어가지 않는다.
   - 배포 정책: 최초 bare 태그와 `+rs.N` 모두 release.yml이 처리하고 `-ext.N`은 배포하지 않는다. 레지스트리는 build metadata로 버전을 구분하지 않으므로 공개 수정판은 package patch를 올리고 새 기본 버전의 bare 태그를 사용한다. 같은 package version의 `+rs.N`은 레지스트리 재게시를 건너뛴다. 상세 `VERSIONING.md` § 1·§ 6
   - 내부 패치 태그: `v0.11.0+rs.5` — NAPI CI 수정(linux-arm64 cross gcc 링커, `x86_64-apple-darwin`을 arm64 러너 크로스 빌드로 전환). Rust 소스는 rs.4와 동일
   - 이전 내부 패치: `v0.11.0+rs.4` — MinWidthLayerer out-degree 동률 노드의 입력 순서 유지 (PR #1, `MIN_WIDTH` 전용, corpus 출력 불변)
