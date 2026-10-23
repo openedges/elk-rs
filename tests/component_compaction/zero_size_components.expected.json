@@ -1,0 +1,140 @@
+{
+  "id": "root",
+  "layoutOptions": {
+    "elk.algorithm": "layered",
+    "elk.layered.compaction.connectedComponents": "true",
+    "elk.randomSeed": "1"
+  },
+  "children": [
+    {
+      "id": "n0",
+      "width": 0.0,
+      "height": 0.0,
+      "x": 12.0,
+      "y": 12.0
+    },
+    {
+      "id": "n1",
+      "width": 0.0,
+      "height": 0.0,
+      "x": 32.0,
+      "y": 12.0
+    },
+    {
+      "id": "n2",
+      "width": 0.0,
+      "height": 0.0,
+      "x": 12.0,
+      "y": 32.0
+    },
+    {
+      "id": "n3",
+      "width": 0.0,
+      "height": 0.0,
+      "x": 32.0,
+      "y": 32.0
+    },
+    {
+      "id": "n4",
+      "width": 0.0,
+      "height": 0.0,
+      "x": 52.0,
+      "y": 32.0
+    },
+    {
+      "id": "n5",
+      "width": 0.0,
+      "height": 0.0,
+      "x": 12.0,
+      "y": 12.0
+    },
+    {
+      "id": "n6",
+      "width": 0.0,
+      "height": 0.0,
+      "x": 12.0,
+      "y": 12.0
+    }
+  ],
+  "edges": [
+    {
+      "id": "e0",
+      "sources": [
+        "n0"
+      ],
+      "targets": [
+        "n1"
+      ],
+      "sections": [
+        {
+          "id": "e0_s0",
+          "startPoint": {
+            "x": 12.0,
+            "y": 12.0
+          },
+          "endPoint": {
+            "x": 32.0,
+            "y": 12.0
+          },
+          "incomingShape": "n0",
+          "outgoingShape": "n1"
+        }
+      ],
+      "container": "root"
+    },
+    {
+      "id": "e2",
+      "sources": [
+        "n2"
+      ],
+      "targets": [
+        "n3"
+      ],
+      "sections": [
+        {
+          "id": "e2_s0",
+          "startPoint": {
+            "x": 12.0,
+            "y": 32.0
+          },
+          "endPoint": {
+            "x": 32.0,
+            "y": 32.0
+          },
+          "incomingShape": "n2",
+          "outgoingShape": "n3"
+        }
+      ],
+      "container": "root"
+    },
+    {
+      "id": "e3",
+      "sources": [
+        "n3"
+      ],
+      "targets": [
+        "n4"
+      ],
+      "sections": [
+        {
+          "id": "e3_s0",
+          "startPoint": {
+            "x": 32.0,
+            "y": 32.0
+          },
+          "endPoint": {
+            "x": 52.0,
+            "y": 32.0
+          },
+          "incomingShape": "n3",
+          "outgoingShape": "n4"
+        }
+      ],
+      "container": "root"
+    }
+  ],
+  "x": 0.0,
+  "y": 0.0,
+  "width": 64.0,
+  "height": 44.0
+}

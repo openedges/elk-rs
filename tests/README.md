@@ -1,5 +1,10 @@
 Performance results are appended by scripts in `scripts/`.
 
+See [the full phase-trace audit](phase_trace_audit.md) for the zero-size resize
+correction, faithful snapshots, and the completed strict verification of all
+1,998 inputs and 196,407 processor states. Compact results are in
+[phase_trace_validation.json](phase_trace_validation.json).
+
 For functional parity documentation (Java ELK vs elk-rs layout comparison,
 verification layers, known exceptions, directory structure), see
 [`tests/PARITY.md`](PARITY.md).
@@ -160,3 +165,8 @@ Java generation policy (CI):
 - Keep prepare/install and test phases on the same local repo path inside one job to reuse generated Tycho artifacts.
 - Never share one local repo path across concurrent jobs.
 - For reruns that only refresh Java CSV in the same run context, prefer `JAVA_PARITY_BUILD_PLUGINS=false`.
+
+Connected-component compaction regression fixtures, Java reference provenance,
+and the corrected numeric comparison results are documented in
+[`component_compaction.md`](component_compaction.md). Keep the small inputs,
+expected outputs, and Java reproduction sources under `component_compaction/`.

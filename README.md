@@ -59,7 +59,11 @@ For an already constructed `serde_json::Value`, use
 `elk_layout::layout_value(graph_value, options_json) -> Result<Value, String>`.
 It consumes the graph and returns the laid-out value without a graph text
 round trip. The string API, JSON5 import builder, and algorithm registrations
-remain available. See [the patch review and validation](tests/layout_improvements.md)
+remain available. Connected-component compaction and its Java reference checks are
+documented in [the compaction follow-up](tests/component_compaction.md).
+The [full phase-trace report](tests/phase_trace_audit.md) records the corrected
+Java reference, raw-state comparison contract, and all 1,998 input outcomes.
+See [the patch review and validation](tests/layout_improvements.md)
 for compatibility and performance evidence.
 
 Underneath, the ELK plugins are published one to one as `org-eclipse-elk-*` crates (`elk_layout::core`, `elk_layout::graph`, `elk_layout::alg::layered`, ...), all at the same version as the npm package and pinned to each other exactly. See [`crates/elk-layout/README.md`](crates/elk-layout/README.md); release and publishing rules are in [`VERSIONING.md`](VERSIONING.md).

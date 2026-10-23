@@ -45,7 +45,9 @@ Versions, submodule pins, dependencies, and distribution settings are unchanged.
   An in-memory finite-aware check of `213_componentsCompaction.elkt` changes
   its result from 229 matching steps to 207 matching and 22 differing steps,
   starting at step 207. The original result is not proof of full equivalence.
-  Correcting the comparator and porting component compaction are follow-up work.
+  The subsequent [component compaction follow-up](component_compaction.md) fixes
+  the comparator, implements the algorithm, and replaces this historical phase
+  result with finite-aware counts.
   `588_hierarchicalLayoutNPE.elkt` has no Java trace because Java throws an NPE.
   This single Rust-only case is not counted as a successful comparison.
 - Java exports were reused from validation artifacts with the same pins:

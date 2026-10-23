@@ -3,7 +3,6 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::math::kvector::KVector;
-use org_eclipse_elk_core::org::eclipse::elk::core::math::ElkRectangle;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::core_options::CoreOptions;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::direction::Direction;
 use org_eclipse_elk_core::org::eclipse::elk::core::options::edge_routing::EdgeRouting;
@@ -180,7 +179,22 @@ impl ComponentsProcessor {
     }
 
     pub fn combine(&self, components: &[LGraphRef], target: &LGraphRef) {
-        if components.len() == 1 {
+        let (consider_model_order, has_external_ports) = {
+            let target_guard = target.lock();
+            (
+                target_guard
+                    .get_property(LayeredOptions::CONSIDER_MODEL_ORDER_COMPONENTS)
+                    .unwrap_or(ComponentOrderingStrategy::None),
+                target_guard
+                    .get_property(InternalProperties::GRAPH_PROPERTIES)
+                    .unwrap_or_else(EnumSet::none_of)
+                    .contains(&GraphProperties::ExternalPorts),
+            )
+        };
+
+        // Only SimpleRowGraphPlacer has a single-component fast path. External
+        // port groups still need placement, even when the split produced one graph.
+        if components.len() == 1 && (!has_external_ports || Arc::ptr_eq(&components[0], target)) {
             let source = components.first().cloned();
             if let Some(source) = source {
                 if Arc::ptr_eq(&source, target) {
@@ -215,19 +229,6 @@ impl ComponentsProcessor {
             target_guard.size().y = 0.0;
             return;
         }
-
-        let (consider_model_order, has_external_ports) = {
-            let target_guard = target.lock();
-            (
-                target_guard
-                    .get_property(LayeredOptions::CONSIDER_MODEL_ORDER_COMPONENTS)
-                    .unwrap_or(ComponentOrderingStrategy::None),
-                target_guard
-                    .get_property(InternalProperties::GRAPH_PROPERTIES)
-                    .unwrap_or_else(EnumSet::none_of)
-                    .contains(&GraphProperties::ExternalPorts),
-            )
-        };
 
         if has_external_ports {
             match consider_model_order {
@@ -887,13 +888,11 @@ fn place_components_in_rows_model_order(
     }
 }
 
-struct ComponentCompactionEntry {
-    graph: LGraphRef,
-    bounds: ElkRectangle,
-    has_external_connections: bool,
-}
-
-fn maybe_compact_components(components: &[LGraphRef], target: &LGraphRef, require_orthogonal: bool) {
+fn maybe_compact_components(
+    components: &[LGraphRef],
+    target: &LGraphRef,
+    require_orthogonal: bool,
+) {
     if components.len() < 2 {
         return;
     }
@@ -934,130 +933,15 @@ fn maybe_compact_components(components: &[LGraphRef], target: &LGraphRef, requir
         }
     }
 
-    let mut entries: Vec<ComponentCompactionEntry> = Vec::new();
+    let spacing = components[0]
+        .lock()
+        .get_property(LayeredOptions::SPACING_COMPONENT_COMPONENT)
+        .unwrap_or(20.0);
+    let (size, offset) = super::compaction::compact(components, spacing);
     for component in components {
-        let Some(bounds) = compute_component_bounds(component) else {
-            continue;
-        };
-        let has_external_connections = {
-            let guard = component.lock();
-            guard.get_property(InternalProperties::EXT_PORT_CONNECTIONS)
-                .is_some_and(|connections| !connections.is_empty())
-        };
-        entries.push(ComponentCompactionEntry {
-            graph: component.clone(),
-            bounds,
-            has_external_connections,
-        });
+        *component.lock().offset() = offset;
     }
-
-    if entries.len() < 2 {
-        return;
-    }
-
-    let anchor_x = entries
-        .iter()
-        .filter(|entry| entry.has_external_connections)
-        .map(|entry| entry.bounds.x)
-        .fold(f64::INFINITY, f64::min);
-    let anchor_x = if anchor_x.is_finite() {
-        anchor_x
-    } else {
-        entries
-            .iter()
-            .map(|entry| entry.bounds.x)
-            .fold(f64::INFINITY, f64::min)
-    };
-    if !anchor_x.is_finite() {
-        return;
-    }
-
-    let mut min_x = f64::INFINITY;
-    let mut min_y = f64::INFINITY;
-    let mut max_x = f64::NEG_INFINITY;
-    let mut max_y = f64::NEG_INFINITY;
-
-    for entry in &entries {
-        let delta_x = if entry.has_external_connections {
-            0.0
-        } else {
-            anchor_x - entry.bounds.x
-        };
-        if delta_x != 0.0 {
-            offset_graph(&entry.graph, delta_x, 0.0);
-        }
-
-        let shifted_x = entry.bounds.x + delta_x;
-        min_x = min_x.min(shifted_x);
-        min_y = min_y.min(entry.bounds.y);
-        max_x = max_x.max(shifted_x + entry.bounds.width);
-        max_y = max_y.max(entry.bounds.y + entry.bounds.height);
-    }
-
-    if !(min_x.is_finite() && min_y.is_finite() && max_x.is_finite() && max_y.is_finite()) {
-        return;
-    }
-
-    let global_offset = KVector::with_values(-min_x, -min_y);
-    let graph_size = KVector::with_values((max_x - min_x).max(0.0), (max_y - min_y).max(0.0));
-
-    for component in components {
-        let mut guard = component.lock();
-        guard.offset().x = global_offset.x;
-        guard.offset().y = global_offset.y;
-    }
-
-    {
-        let mut target_guard = target.lock();
-        target_guard.size().x = graph_size.x;
-        target_guard.size().y = graph_size.y;
-    }
-}
-
-fn compute_component_bounds(component: &LGraphRef) -> Option<ElkRectangle> {
-    let nodes = collect_component_nodes(component);
-    if nodes.is_empty() {
-        let guard = component.lock();
-        return Some(ElkRectangle::with_values(0.0, 0.0, guard.size_ref().x, guard.size_ref().y));
-    }
-
-    let mut min_x = f64::INFINITY;
-    let mut min_y = f64::INFINITY;
-    let mut max_x = f64::NEG_INFINITY;
-    let mut max_y = f64::NEG_INFINITY;
-    let mut has_regular_node = false;
-
-    for node in &nodes {
-        let mut node_guard = node.lock();
-        if node_guard.node_type() == NodeType::ExternalPort {
-            continue;
-        }
-        has_regular_node = true;
-        let position = *node_guard.shape().position_ref();
-        let size = *node_guard.shape().size_ref();
-        let margin = node_guard.margin();
-
-        min_x = min_x.min(position.x - margin.left);
-        min_y = min_y.min(position.y - margin.top);
-        max_x = max_x.max(position.x + size.x + margin.right);
-        max_y = max_y.max(position.y + size.y + margin.bottom);
-    }
-
-    if !has_regular_node {
-        let guard = component.lock();
-        return Some(ElkRectangle::with_values(0.0, 0.0, guard.size_ref().x, guard.size_ref().y));
-    }
-
-    if !(min_x.is_finite() && min_y.is_finite() && max_x.is_finite() && max_y.is_finite()) {
-        return None;
-    }
-
-    Some(ElkRectangle::with_values(
-        min_x,
-        min_y,
-        (max_x - min_x).max(0.0),
-        (max_y - min_y).max(0.0),
-    ))
+    *target.lock().size() = size;
 }
 
 fn max_of(values: &[f64]) -> f64 {
@@ -1217,7 +1101,7 @@ fn move_graph(destination: &LGraphRef, source: &LGraphRef, offset_x: f64, offset
     }
 }
 
-fn offset_graph(graph: &LGraphRef, offset_x: f64, offset_y: f64) {
+pub(super) fn offset_graph(graph: &LGraphRef, offset_x: f64, offset_y: f64) {
     let nodes = collect_component_nodes(graph);
 
     for node in nodes {
@@ -1225,7 +1109,7 @@ fn offset_graph(graph: &LGraphRef, offset_x: f64, offset_y: f64) {
     }
 }
 
-fn collect_component_nodes(graph: &LGraphRef) -> Vec<LNodeRef> {
+pub(super) fn collect_component_nodes(graph: &LGraphRef) -> Vec<LNodeRef> {
     let (layerless_nodes, layers) = {
         let graph_guard = graph.lock();
         (
@@ -1341,5 +1225,33 @@ mod tests {
 
         assert!(Arc::ptr_eq(&components[0], &first));
         assert!(Arc::ptr_eq(&components[1], &second));
+    }
+    #[test]
+    fn single_external_component_uses_group_placement() {
+        use super::{
+            ComponentsProcessor, EnumSet, GraphProperties, InternalProperties, LayeredOptions,
+            PortSide,
+        };
+        LayoutMetaDataService::get_instance()
+            .register_layout_meta_data_provider(&LayeredMetaDataProvider);
+        let source = LGraph::new();
+        let target = LGraph::new();
+        for graph in [&source, &target] {
+            graph.lock().set_property(
+                InternalProperties::GRAPH_PROPERTIES,
+                Some(EnumSet::of(&[GraphProperties::ExternalPorts])),
+            );
+            graph
+                .lock()
+                .set_property(LayeredOptions::SPACING_COMPONENT_COMPONENT, Some(20.0));
+        }
+        source.lock().set_property(
+            InternalProperties::EXT_PORT_CONNECTIONS,
+            Some(EnumSet::of(&[PortSide::East, PortSide::West])),
+        );
+        // A zero-width passthrough still needs the group's spacing subtraction.
+        ComponentsProcessor::new().combine(&[source], &target);
+        let size = *target.lock().size_ref();
+        assert_eq!((size.x, size.y), (-20.0, 0.0));
     }
 }

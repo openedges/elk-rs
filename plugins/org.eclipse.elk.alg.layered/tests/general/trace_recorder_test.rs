@@ -53,7 +53,7 @@ fn trace_recorder_keeps_layerless_nodes_at_minus_one_even_in_layer_list() {
 }
 
 #[test]
-fn trace_recorder_compacts_inside_self_loop_passthrough_width_and_east_port_x() {
+fn trace_recorder_preserves_inside_self_loop_passthrough_width_and_east_port_x() {
     let graph = LGraph::new();
     let node = LNode::new(&graph);
     {
@@ -99,7 +99,7 @@ fn trace_recorder_compacts_inside_self_loop_passthrough_width_and_east_port_x() 
         serde_json::from_slice(&snapshot_bytes).expect("parse snapshot json");
 
     let node_width = snapshot["nodes"][0]["width"].as_f64();
-    assert_eq!(node_width, Some(4.0));
+    assert_eq!(node_width, Some(24.0));
 
     let ports = snapshot["nodes"][0]["ports"]
         .as_array()
@@ -108,7 +108,7 @@ fn trace_recorder_compacts_inside_self_loop_passthrough_width_and_east_port_x() 
         .iter()
         .find(|port| port["side"].as_str() == Some("EAST"))
         .and_then(|port| port["x"].as_f64());
-    assert_eq!(east_port_x, Some(4.0));
+    assert_eq!(east_port_x, Some(24.0));
 
     let _ = fs::remove_dir_all(&trace_dir);
 }
@@ -173,7 +173,7 @@ fn trace_recorder_does_not_compact_passthrough_without_inside_self_loop_flag() {
 }
 
 #[test]
-fn trace_recorder_compacts_single_south_flat_node_height_and_port_y() {
+fn trace_recorder_preserves_single_south_flat_node_height_and_port_y() {
     let graph = LGraph::new();
     let node = LNode::new(&graph);
     {
@@ -214,21 +214,21 @@ fn trace_recorder_compacts_single_south_flat_node_height_and_port_y() {
         serde_json::from_slice(&snapshot_bytes).expect("parse snapshot json");
 
     let node_height = snapshot["nodes"][0]["height"].as_f64();
-    assert_eq!(node_height, Some(4.0));
+    assert_eq!(node_height, Some(24.0));
 
     let ports = snapshot["nodes"][0]["ports"]
         .as_array()
         .expect("ports array");
     for port in ports {
         assert_eq!(port["side"].as_str(), Some("SOUTH"));
-        assert_eq!(port["y"].as_f64(), Some(4.0));
+        assert_eq!(port["y"].as_f64(), Some(24.0));
     }
 
     let _ = fs::remove_dir_all(&trace_dir);
 }
 
 #[test]
-fn trace_recorder_compacts_single_north_flat_node_height_and_keeps_port_y_zero() {
+fn trace_recorder_preserves_single_north_flat_node_height_and_keeps_port_y_zero() {
     let graph = LGraph::new();
     let node = LNode::new(&graph);
     {
@@ -269,7 +269,7 @@ fn trace_recorder_compacts_single_north_flat_node_height_and_keeps_port_y_zero()
         serde_json::from_slice(&snapshot_bytes).expect("parse snapshot json");
 
     let node_height = snapshot["nodes"][0]["height"].as_f64();
-    assert_eq!(node_height, Some(4.0));
+    assert_eq!(node_height, Some(24.0));
 
     let ports = snapshot["nodes"][0]["ports"]
         .as_array()
@@ -283,7 +283,7 @@ fn trace_recorder_compacts_single_north_flat_node_height_and_keeps_port_y_zero()
 }
 
 #[test]
-fn trace_recorder_compacts_non_centered_passthrough_width_and_east_port_x() {
+fn trace_recorder_preserves_non_centered_passthrough_width_and_east_port_x() {
     let graph = LGraph::new();
     let node = LNode::new(&graph);
     {
@@ -340,7 +340,7 @@ fn trace_recorder_compacts_non_centered_passthrough_width_and_east_port_x() {
         serde_json::from_slice(&snapshot_bytes).expect("parse snapshot json");
 
     let node_width = snapshot["nodes"][0]["width"].as_f64();
-    assert_eq!(node_width, Some(4.0));
+    assert_eq!(node_width, Some(24.0));
 
     let east_port_x: Vec<f64> = snapshot["nodes"][0]["ports"]
         .as_array()
@@ -349,13 +349,13 @@ fn trace_recorder_compacts_non_centered_passthrough_width_and_east_port_x() {
         .filter(|port| port["side"].as_str() == Some("EAST"))
         .filter_map(|port| port["x"].as_f64())
         .collect();
-    assert_eq!(east_port_x, vec![4.0, 4.0]);
+    assert_eq!(east_port_x, vec![24.0, 24.0]);
 
     let _ = fs::remove_dir_all(&trace_dir);
 }
 
 #[test]
-fn trace_recorder_compacts_passthrough_with_pre_shifted_east_ports() {
+fn trace_recorder_preserves_passthrough_with_pre_shifted_east_ports() {
     let graph = LGraph::new();
     let node = LNode::new(&graph);
     {
@@ -398,7 +398,7 @@ fn trace_recorder_compacts_passthrough_with_pre_shifted_east_ports() {
         serde_json::from_slice(&snapshot_bytes).expect("parse snapshot json");
 
     let node_width = snapshot["nodes"][0]["width"].as_f64();
-    assert_eq!(node_width, Some(4.0));
+    assert_eq!(node_width, Some(24.0));
 
     let east_port_x: Vec<f64> = snapshot["nodes"][0]["ports"]
         .as_array()
@@ -460,4 +460,38 @@ fn trace_recorder_does_not_compact_passthrough_when_rows_do_not_align() {
     assert_eq!(east_port_x, Some(24.0));
 
     let _ = fs::remove_dir_all(&trace_dir);
+}
+
+#[test]
+fn trace_records_cross_hierarchy_endpoints_with_unique_ids() {
+    use org_eclipse_elk_alg_layered::org::eclipse::elk::alg::layered::graph::LEdge;
+    let graph = LGraph::new();
+    let nested = LGraph::new();
+    let source = LNode::new(&graph);
+    let target = LNode::new(&nested);
+    graph.lock().layerless_nodes_mut().push(source.clone());
+    nested.lock().layerless_nodes_mut().push(target.clone());
+    let source_port = LPort::new();
+    let target_port = LPort::new();
+    LPort::set_node(&source_port, Some(source));
+    LPort::set_node(&target_port, Some(target));
+    let edge = LEdge::new();
+    LEdge::set_source(&edge, Some(source_port));
+    LEdge::set_target(&edge, Some(target_port));
+    let dir = temp_trace_dir();
+    serialize_lgraph_snapshot(&graph.lock(), 0, "Test", &dir).unwrap();
+    let data: serde_json::Value =
+        serde_json::from_slice(&fs::read(dir.join("step_000_Test.json")).unwrap()).unwrap();
+    assert_eq!(data["nodes"].as_array().unwrap().len(), 1);
+    assert_eq!(data["externalNodes"].as_array().unwrap().len(), 1);
+    assert_ne!(data["nodes"][0]["id"], data["externalNodes"][0]["id"]);
+    assert_eq!(
+        data["edges"][0]["targetNode"],
+        data["externalNodes"][0]["id"]
+    );
+    assert_eq!(
+        data["edges"][0]["targetPort"],
+        data["externalNodes"][0]["ports"][0]["id"]
+    );
+    fs::remove_dir_all(dir).unwrap();
 }

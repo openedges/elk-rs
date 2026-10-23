@@ -3,7 +3,13 @@ Scripts overview:
 Current target and published package version: ELK 0.12.0.
 The initial tag is `v0.12.0`; the former `v0.12.0+rs.7` naming error has been corrected.
 Subsequent Rust revisions start at `v0.12.0+rs.1`.
-See [the upgrade report](../tests/upgrade_0_12_0.md) for current model/trace results.
+See [the full phase-trace report](../tests/phase_trace_audit.md) for current
+model/trace results; [the upgrade report](../tests/upgrade_0_12_0.md) preserves
+the earlier release measurements.
+
+Comparator and corpus-accounting regression tests:
+- `python3 -B -m unittest discover -s scripts/tests -p 'test_*.py'`
+- Model and phase comparisons reject NaN and infinity, including matching non-finite values. Zero coordinates are compared normally; there is no Java-zero exception.
 
 Release readiness quick run:
 - `cargo test --workspace`
@@ -33,12 +39,14 @@ JS parity and package checks (run from `plugins/org.eclipse.elk.js`):
 - `run_parity_recursive_layout_scenarios.sh [scenarios] [iterations] [warmup] [output]` (`fixed_dense`, `fixed_sparse`, `random_dense`, `random_sparse`, `box_sparse`, `box_large`, `fixed_validated`, `random_validated`, `box_validated` preset scenarios; when `scenarios` is empty, the default set is selected by `PARITY_RECURSIVE_SCENARIO_PROFILE=quick|default|full`)
 - `run_parity_layered_issue_scenarios.sh [scenarios] [iterations] [warmup] [output]`
 - `run_java_parity_layered_issue_scenarios.sh [scenarios] [iterations] [warmup] [output]` (runs the external ELK Java layered benchmark test; benchmark test source is temporarily injected from a repository template and cleaned up automatically)
-- `java_model_parity_trace.sh [models_root] [output_dir]` (injects `scripts/java/ElkModelParityExportTest.java` into external ELK tests and exports model-level Java input/layout JSON + manifest for parity comparison; applies determinism patches and purges stale SNAPSHOT caches)
+- `java_model_parity_trace.sh [models_root] [output_dir]` (injects `scripts/java/ElkModelParityExportTest.java` into external ELK tests and exports model-level Java input/layout JSON + manifest for parity comparison; applies the documented reference patches and purges stale SNAPSHOT caches)
 - `run_model_parity_elk_vs_rust.sh [models_root] [output_root]` (runs Java export -> Rust layout replay -> JSON diff report pipeline for `external/elk-models`)
 - `compare_model_parity_layouts.py --manifest <rust_manifest.tsv> --report <report.md> --details <details.tsv>` (numeric-tolerant structural comparison of Java vs Rust layout JSON results)
-- `java_model_phase_step_trace.sh [models_root] [output_dir]` (exports Java layered phase snapshots as `step_*.json`; applies determinism patches and purges stale SNAPSHOT caches; supports JSON input roots such as `tests/model_parity/java/input`)
+- `java_model_phase_step_trace.sh [models_root] [output_dir]` (exports Java layered phase snapshots as `step_*.json`; applies the documented reference patches and purges stale SNAPSHOT caches; supports JSON input roots such as `tests/model_parity/java/input`)
 - `compare_phase_traces.py <java_trace_dir> <rust_trace_dir> --batch --json` (phase-by-phase Java/Rust trace diff with first-divergence detection)
-- `summarize_phase_gate.py --java-manifest <java_manifest.tsv> --rust-manifest <rust_manifest.tsv> --java-trace-dir <dir> --rust-trace-dir <dir> --compare-json <phase_compare.json> --output-json <out.json> --output-md <out.md>` (applies phase-gate rules: `java_status=ok` baseline, incomparable=error, only the first failing step counts as error)
+- `run_full_trace_parity.sh [models_root] [fresh_output]` (requires `JAVA_TRACE_CLASSPATH` and `PHASE_INPUT_MANIFEST`; runs the corrected Java overlay, Rust export and strict outcome/layout/trace verification; Python 3.10+; see the full phase-trace report for prerequisites)
+- `verify_phase_corpus.py --inputs <tsv> --java-manifest <tsv> --rust-manifest <tsv> --java-trace <dir> --rust-trace <dir> --expected-errors tests/phase_trace_expected_errors.json --output <json>` (all expected inputs must have matching successful layouts/traces or the specified exception; missing results fail)
+- `summarize_phase_gate.py --java-manifest <java_manifest.tsv> --rust-manifest <rust_manifest.tsv> --java-trace-dir <dir> --rust-trace-dir <dir> --compare-json <phase_compare.json> --output-json <out.json> --output-md <out.md>` (legacy summary of existing exports; does not replace the complete-input gate)
 - `run_parity_all.sh` (runs all parity scripts with defaults; supports env overrides)
 - `compare_parity_results.sh [window]` (`PARITY_COMPARE_MODE=window|baseline|both`, default window; baseline mode compares against `PARITY_BASELINE_LAYERED_FILE` + `PARITY_BASELINE_RECURSIVE_SCENARIOS_FILE`; scenario files auto-filter current-side rows to each scenario's latest run config tuple to avoid mixed-window contamination)
 - `check_recursive_parity_runtime_budget.sh [results_file] [profile] [report]` (checks whether latest per-scenario `avg_iteration_ms` in recursive scenario CSV exceeds profile budgets (`quick|default|full`); default budgets are `RECURSIVE_BUDGET_MS_QUICK=40`, `RECURSIVE_BUDGET_MS_DEFAULT=60`, `RECURSIVE_BUDGET_MS_FULL=120`; with `RECURSIVE_RUNTIME_BUDGET_STRICT=true`, budget violations fail the run)
@@ -255,3 +263,7 @@ Java parity CI operating guide (finalized):
 - Within one job, keep prepare/install and test phases on the same `JAVA_PARITY_MVN_LOCAL_REPO` to maximize artifact reuse.
 - Do not share the same path across concurrent jobs/runners (no shared `.m2` path).
 - In the same run context, when only Java CSV refresh is needed, switch to `JAVA_PARITY_BUILD_PLUGINS=false` to reduce lock wait time.
+
+The corrected comparator also flags matching NaN values in intermediate traces.
+See [the compaction validation report](../tests/component_compaction.md) for the
+169 pre-existing shared-NaN cases and the separately corrected Java reference.

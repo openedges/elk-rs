@@ -233,8 +233,17 @@ impl ElkUtil {
             new_size.y = new_height;
         }
 
-        let width_ratio = new_size.x / old_size.x;
-        let height_ratio = new_size.y / old_size.y;
+        // A collapsed axis has no scale. Preserve its port coordinates until placement.
+        let width_ratio = if old_size.x == 0.0 {
+            1.0
+        } else {
+            new_size.x / old_size.x
+        };
+        let height_ratio = if old_size.y == 0.0 {
+            1.0
+        } else {
+            new_size.y / old_size.y
+        };
         let width_diff = new_size.x - old_size.x;
         let height_diff = new_size.y - old_size.y;
 
@@ -322,7 +331,9 @@ impl ElkUtil {
                 .set_dimensions(new_size.x, new_size.y);
         }
 
-        if move_labels {
+        // Relative label placement is undefined on a collapsed rectangle.
+        // Keep the existing label coordinates until the normal placement pass.
+        if move_labels && old_size.x != 0.0 && old_size.y != 0.0 {
             let labels: Vec<ElkLabelRef> = {
                 let mut node_mut = node.borrow_mut();
                 node_mut
