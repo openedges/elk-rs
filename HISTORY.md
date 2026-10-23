@@ -3,6 +3,56 @@
 - 본 문서는 기존 `AGENTS.md`의 `진행된 작업` 섹션을 분리 보관한 기록이다.
 - 신규 단계 완료 시 이 문서에 누적 기록하고, `AGENTS.md`의 핵심 스냅샷/우선순위를 동기화한다.
 
+## 0.12.1 공개 수정판 준비 (2026-10-23)
+
+- **최종 패키지 검증**: metadata/phase wiring12/12, release build, NAPI/web·Node WASM 빌드, JS49/49, NAPI·web WASM 각각 Java550/550 통과. elkjs#8의 오래된 성공 기대값2개를 원본과 같은 UnsupportedGraphException 검증으로 수정했다. npm tarball의 native/WASM direct·fakeWorker·worker_threads는 Node18.0.0/18.15.0/24.19.0 모두 통과. 성능5% gate13/13 및 recursive60ms budget8/8 통과, baseline은 변경하지 않았다.
+- 사용자 승인으로 `4b9a1f56`을 커밋/push했다. `VERSIONING.md`에 따라 package patch를 0.12.1로 올리고, Java/elkjs 기준은 0.12.0을 유지했다. `fix/layout-improvements` PR → main → 기존 releases/0.12.0 → annotated v0.12.1 순서로 공개한다. 같은 0.12.0의 +rs.N은 registry 새 버전이 아니므로 이번 배포에 사용하지 않는다.
+- version bump 후 workspace build/Clippy warning0, tests1,081 passed/0failed/2ignored. strict corpus는 같은 runtime에서 전체1,998건 통과(정상 출력1,997 + 동일 예외 검증1), 중간196,407상태 일치이다. 예외 검증1은 통과한 테스트로 분모에 포함한다.
+- 공개 stable10661c0e/1차패치1d9f3afd/최종4b9a1f56을 같은 M3 Pro 환경에서 각3회 교차 측정했다. 26시나리오 평균: native32.0041→31.5127ms(-1.54%), JSON API33.4439→33.4509ms(+0.02%). 전체52개 stable 대비 +5% 이내, 최대+3.92%. defaults/simplex4입력은23.3~62.0% 개선, 잔존 할당 증가0.
+- 1차패치 대비 JSON force_large +5.36%는 stable 대비 +1.35%이다. 모든 입력의 속도 개선이라고 해석하지 않는다. 조건·원본CSV·hash·한계: tests/release_0_12_1.md 및 tests/release_0_12_1/.
+- 현재 안내 문서의 잘못된 미배포0.12.0/+rs.7 표기를 수정하고, 원본 Java 역사적 수치와 corrected reference 결과를 구분했다.
+
+## 전체 중간 단계 검증 해결 (2026-10-23)
+
+- strict full gate 완료: 전체1,998입력 = 최종 레이아웃·중간 상태 일치1,997 + 명시적 동일 예외1. 전체196,407단계 일치, 누락·실패·성공 결과의 비유한 값0. 비교 기준은 Java0.12에 self-loop 결정성/zero-size resize/zero-height scanline의 명시적 패치3개를 적용한 별도 reference이다. 원본 Java와 동일하다는 주장이 아니다.
+- core/layered resize의 old axis=0 나눗셈을 수정했다. 비율1로 기존 접선 좌표를 유지하며 EAST/SOUTH 경계 이동은 유지한다. 라벨은 어느 축이든 기존 크기0이면 상대 영역을 결정할 수 없어 좌표를 유지한다. 일반 크기·고정 위치·movePorts=false 의미는 유지했다.
+- recorder의 apply_trace_compaction 및 step/24픽셀 좌표 보정을 제거했다. 원시 상태에서 드러난 외부 포트 단일 컴포넌트의 잘못된 fast path를 엔진에서 수정했다. 포트 치수/anchor/margin, 노드 padding, 실제 endpoint와 외부 노드를 기록하고 snapshot-local ID로 scratch-ID 중복을 없앴다.
+- trace nesting은 thread-local+RAII로 복구한다. 예외 이후 trace가 사라지는 결함과 exporter의 실패 후 provider fallback을 제거했다. unsupported 계층 edge는 조용히 삭제하지 않고 JSON API Err로 전달한다. 588은 양쪽 UnsupportedGraphException인 필수 negative case이며 분모에서 제외하지 않는다.
+- 비교기는 Java-zero 예외를 제거하고 모든 값의 유한성·필수 스키마·토폴로지·단계/모델 누락 및 중복을 검사한다. 독립 입력 manifest와 양쪽 실행 결과가 정확히 일치해야 한다. 새로운 전체 실행 스크립트는 별도 Java overlay 생성, 양쪽 실행, 엄격 비교와 provenance를 재현한다.
+- 검증: workspace tests1,081 passed/0failed/2ignored, Python21 passed, build/Clippy warning0, WASM check 통과. 새로운 전체 실행 절차 smoke3입력(성공2+동일예외1)/135단계 통과. 이번 단계의 Rust 테스트12개 추가. ordinary algorithm 재실행의 성공1,997개 최종 출력은 이전 컴포넌트 압축 구현과 모두 동일하다. 기존 전체 fmt drift는 범위 밖으로 유지하고 신규 모듈/변경 구간만 정리했다.
+- 공개 결과·재현법: tests/phase_trace_audit.md, compact 증거: tests/phase_trace_validation.json. 원본 Java의213차이 및 기존 미생성 결과는 수정 reference와 분리 기록했다. 버전·외부 submodule 변경 및 후속 커밋·push는 하지 않았다.
+
+## 전체 중간 단계 검증 원인 분석 (2026-10-23)
+
+- 사용자 요청의 첫 단계로 원인을 분석했다. 런타임 구현과 외부 submodule은 변경하지 않았고, 별도 Java class overlay에서 계측·수정 후보를 실험했다. strict phase 결과는 아직1827/1997일치,170검출,Rust-only1이다.
+- 169모델(논리 모델59개)의18,053개 비유한 필드 관측은 포트 좌표이다. 원인은 old size(0,0)에서의 비율 계산: core ElkUtil399회/168모델, layered LGraphUtil1회/1모델, 총400회 resize가 NaN을 만든다. 미정 상태 표식이 아니라 산술 결함이고 후속 포트 배치에서 덮어써진다.
+- old axis=0이면 ratio=1인 Java 후보와 기존 self-loop 결정성 패치를 함께 사용해 원본/수정 각2회169개 모델을 비교했다. 잘못된 resize 호출400→0, 최종 출력 차이0, 재실행 차이0이다. 라벨/단일축 경계 계약은 구현 단계에서 추가 검증한다.
+- 588의 직접 재현은 UnsupportedGraphException이다. Rust는 동일 edge를 조용히 생략한다. 과거 Java NPE/Rust-only 설명만으로 동등성을 주장할 수 없으며 명시적인 오류 계약 검증이 필요하다.
+- 비교기 빈 corpus/한쪽 누락의 exit0, 전 단계 Java-zero 예외, 포트 치수 누락과 Rust snapshot 좌표 보정을 확인했다. 169개 resize 수정만으로 전체 중간 상태 동등성이 입증되지는 않는다. 검증기/recorder 보완과 전체 재생성이 완료 기준이다.
+- 공개 영어 분석 및 수정 순서: `tests/phase_trace_audit.md`. 분석용 자료는 `/tmp/elk-phase-audit/`; 원시 데이터 약39만 snapshot은 저장소에 추가하지 않는다. 이 단계는 문서 변경뿐이므로 Rust 테스트/Clippy는 재실행하지 않고 기존 구현 단계 결과와 구분한다.
+
+## 컴포넌트 압축 알고리즘 및 NaN 비교기 보완 (2026-10-23)
+
+- 사용자 승인에 따라 기존 레이아웃 개선을 `1d9f3afd`로 커밋하고 `github/fix/layout-improvements`에 push했다. 다음 단계로 원본 Java 차이1건의 원인을 줄이고 실제 컴포넌트 압축을 구현했다.
+- Java213 원인은 단순 bbox 초기화가 아니라 zero-height scanline 이벤트 순서이다. 사각형3개에서 end-before-start → stale active interval → 순환 그룹 제약 → `-Infinity` → NaN 경로를 재현했다. Java 수정은 복사한 소스의 별도 class로 검증하며 원본 submodule은 유지했다.
+- Rust x-anchor 근사를 hull/외부 edge extension/placeholder/방향별 잠금/반복1D 압축으로 대체했다. 공유 common hull·solver를 재사용하고, 노드 치수는 유지했다. scanline 이벤트 동률과 self-loop 잠금 수명도 회귀 검증했다.
+- 최종 출력: 전체1998 Rust 모델이 오류·timeout 없이 실행됐다. 이전 커밋과1997개 동일,213만 변경. 원본 Java와1988/1989일치(원본213 차이1, Java non-ok9). 별도 수정 Java213과 최종 출력·229/229단계 모두 일치한다. 새 Java fixture16개(원본14+수정zero-size2)가 일치한다.
+- 비교기: NaN/±Infinity를 유효한 일치로 처리하지 않는다. 기존 trace를 같은 비교기로 재검사한 결과도1827일치/170검출이며 이번 결과와 동일하다. 169모델은 양쪽 모두 같은 NaN(검출 필드18,053개),1모델은213. strict phase gate 실패는 숨기지 않으며169모델의 중간 상태 의미를 후속 범위로 남긴다. 예전1997/1997은 완전 동등성 증거가 아니다. 기존 정규화·유한 zero 예외·trace 보정도 한계로 문서화했다.
+- 검증: workspace build/Clippy warning0, tests1069 passed/0failed/2ignored(새 Rust19개), Python 비교기4개 통과. Java 원본·수정 MRE와 fixture를 별도 스크립트로 재검증했다. opt-in 압축의 별도 성능 개선 수치는 주장하지 않는다.
+- 공개 영어 보고서·fixtures·Java patch·재현 도구: `tests/component_compaction.md`. 후속 구현은 검토 가능한 미커밋 변경으로 남겼고 공개 release/version은 변경하지 않았다.
+
+## 레이아웃 정확성 및 성능 개선의 stable 반영 검토 (2026-10-22)
+
+- 사용자 요청에 따라 `releases/0.12.0`의 `10661c0e`에서 `fix/layout-improvements`를 만들고 범용 결함/API/성능 패치를 선별했다. 사용자가 이 변경의 커밋·push와 후속 컴포넌트 압축 개발을 승인했다.
+- 반영: interactive 외부 포트 잠금 순서(남북 방향의 재진입도 보완), owned JSON `layout_value`와 facade export, per-transform 옵션 캐시·기본값 공유·import scratch 해제, 정확한 network-simplex 계산 최적화와 노드/포트 순서 관계 비트 벡터.
+- 제외: 특정 소비자용 provider/crate 삭제, JSON5 제거, manifest/dependency/dead-code 정리, 별도 필요성이 확인되지 않은 WASM mutex backend 교체, 이미 upstream에서 해결한 순환 참조 정리.
+- 검증: build 및 Clippy warning/error0, workspace **1,050 passed/0 failed/2 ignored**(18개 추가), preserve_order library14/14, WASM check 통과. 새 Rust full model **1,988/1,989**(기존 Java 오류1, 비교 제외9), full phase **1,997/1,997**(Java NPE에 의한 Rust-only1), 신규 drift0. 기존 메모리 회귀 테스트도 통과했다.
+- 전후 성능은 동일 머신·최적화 dev·system allocator로 세 차례 교대 측정했다. 전역 옵션 및 model-order/simplex 대상 입력에서 시간·최대 사용 힙 개선이 확인됐다. 표준26개 시나리오와 개별 증가·측정 한계를 포함한 수치는 `tests/layout_improvements.md`와 인접CSV/JSON에 기록했다. 제품별 SLA나 개별 최적화의 기여도로 해석하지 않는다.
+- 코드리뷰: 전체 provider/JSON5를 유지하고, 내부 최적화 helper는 `pub(crate)`로 제한했다. test reference에 원래 옵션 merge를 독립 보존했다. 원본 DisCo default polyomino reflection 오류는 양쪽 경로의 동일 오류로 검증하며 별도 범위로 남겼다. 변경 파일은 rustfmt를 적용했다.
+- 후속 감사: 기존 phase 비교기는 NaN과 유한값의 차이를 놓친다. 213 모델을 메모리 내에서 보정 비교하면 229단계 일치가 207일치/22불일치(최초207)로 바뀐다. 최종 출력은 Java NaN73개와 Rust 단순화 구현에 의한 유한 x좌표 차이12개이며, 이번 패치 전후 Rust 출력은 동일하다. 위 phase 수치는 기존 비교기의 관측 결과로 한정하며 완전 동등성의 증거로 사용하지 않는다. 비교기 수정과 충실한 컴포넌트 압축 포팅을 후속 작업으로 진행한다.
+- 문서 언어: 공개 검토 문서 `tests/layout_improvements.md`를 영어로 작성했다. README/API 설명도 영어를 유지하며, `.rules`의 명시적 한국어 규칙과 내부 작업 이력의 기존 한국어 작성 방식은 유지한다. 번역 과정에서 검증 수치·측정 자료·코드는 변경하지 않았다.
+
+
 ## GitHub Actions 배포의 장기 토큰 의존 제거 (2026-10-20)
 
 - 사용자 요청: 토큰을 등록하지 않는 배포 방식으로 전환. `release.yml`의 npm `.npmrc`/`NPM_TOKEN` 주입과 crates.io `CARGO_REGISTRY_TOKEN` secret 재시도를 제거했다. crates.io 인증·게시 단계의 `continue-on-error`도 제거해 OIDC 실패 시 즉시 실패한다. `CARGO_REGISTRY_TOKEN` 환경 변수에는 `crates-io-auth-action`이 발급한 단기 토큰만 전달한다.

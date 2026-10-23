@@ -5,6 +5,7 @@
 
 use std::any::Any;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::panic::{self, AssertUnwindSafe};
 use std::rc::Rc;
 use std::sync::{Arc, OnceLock};
@@ -37,11 +38,11 @@ use org_eclipse_elk_core::org::eclipse::elk::core::data::LayoutMetaDataService;
 use org_eclipse_elk_core::org::eclipse::elk::core::graph_layout_engine::IGraphLayoutEngine;
 use org_eclipse_elk_core::org::eclipse::elk::core::recursive_graph_layout_engine::RecursiveGraphLayoutEngine;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::{
-    AlgorithmFactory, BasicProgressMonitor, InstancePool, Maybe,
+    AlgorithmFactory, BasicProgressMonitor, InstancePool,
 };
 use org_eclipse_elk_graph::org::eclipse::elk::graph::properties::GraphFeature;
 
-use crate::org::eclipse::elk::graph::json::{ElkGraphJson, JsonImporter};
+use crate::org::eclipse::elk::graph::json::JsonImporter;
 
 fn provider_pool<F>(creator: F) -> Arc<InstancePool<Box<dyn AbstractLayoutProvider>>>
 where
@@ -121,6 +122,101 @@ fn panic_payload_to_string(payload: &(dyn Any + Send)) -> String {
     "unknown panic payload".to_string()
 }
 
+/// One immutable set of JSON defaults per invocation. Canonical lookup results
+/// are cached separately; no option values are cloned until result transfer.
+#[derive(Default)]
+pub(crate) struct GlobalOptions {
+    values: Map<String, Value>,
+    canonical_ids: RefCell<HashMap<String, String>>,
+}
+
+impl GlobalOptions {
+    pub(crate) fn parse(options_json: &str) -> Result<Self, String> {
+        if options_json.is_empty() {
+            return Ok(Self::default());
+        }
+        let global: Value = serde_json::from_str(options_json)
+            .map_err(|e| format!("Failed to parse options JSON: {e}"))?;
+        let mut canonical_ids = HashMap::new();
+        let mut seen = std::collections::HashSet::new();
+        let mut values = Map::new();
+        if let Value::Object(options) = global {
+            for (key, value) in options {
+                let canonical = canonical_option_id(&mut canonical_ids, &key);
+                if seen.insert(canonical) {
+                    values.insert(key, value);
+                }
+            }
+        }
+        Ok(Self {
+            values,
+            canonical_ids: RefCell::new(canonical_ids),
+        })
+    }
+
+    pub(crate) fn visit_effective<E>(
+        &self,
+        element: &Map<String, Value>,
+        mut visit: impl FnMut(&str, &Value) -> Result<(), E>,
+    ) -> Result<(), E> {
+        let selected = element
+            .get("layoutOptions")
+            .or_else(|| element.get("properties"));
+        // A present non-object field blocks merging, even if the importer can
+        // fall back from malformed layoutOptions to an authored properties map.
+        if self.values.is_empty() || selected.is_some_and(|value| !value.is_object()) {
+            if let Some(options) = element
+                .get("layoutOptions")
+                .and_then(Value::as_object)
+                .or_else(|| element.get("properties").and_then(Value::as_object))
+            {
+                for (key, value) in options {
+                    visit(key, value)?;
+                }
+            }
+            return Ok(());
+        }
+        let authored = selected.and_then(Value::as_object);
+        let mut ids = self.canonical_ids.borrow_mut();
+        let mut existing = std::collections::HashSet::new();
+        // Retain only temporary keys, not cloned JSON values. Using serde's
+        // own Map preserves both sorted and preserve_order iteration semantics.
+        let mut keys = Map::new();
+        if let Some(authored) = authored {
+            for key in authored.keys() {
+                existing.insert(canonical_option_id(&mut ids, key));
+                keys.insert(key.clone(), Value::Null);
+            }
+        }
+        for key in self.values.keys() {
+            if !existing.contains(&canonical_option_id(&mut ids, key)) {
+                keys.insert(key.clone(), Value::Null);
+            }
+        }
+        drop(ids);
+        for key in keys.keys() {
+            let value = authored
+                .and_then(|options| options.get(key))
+                .unwrap_or_else(|| &self.values[key]);
+            visit(key, value)?;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn materialize(&self, root: &mut Value) {
+        if self.values.is_empty() {
+            return;
+        }
+        let mut ids = self.canonical_ids.borrow_mut();
+        let resolved: Vec<_> = self
+            .values
+            .iter()
+            .map(|(key, value)| (key.as_str(), value, canonical_option_id(&mut ids, key)))
+            .collect();
+        apply_global_options_recursive(root, &resolved, &mut ids);
+    }
+}
+
 /// Merge global layout options into every element of the graph JSON as defaults.
 ///
 /// Global options are applied recursively to the root and all descendant
@@ -129,6 +225,7 @@ fn panic_payload_to_string(payload: &(dyn Any + Send)) -> String {
 /// is already present. This correctly handles option name aliases
 /// (e.g. `elk.direction` vs `org.eclipse.elk.direction`) by resolving
 /// all keys to canonical IDs via the LayoutMetaDataService.
+#[cfg(test)]
 fn merge_global_options(root_value: &mut Value, options_json: &str) -> Result<(), String> {
     if options_json.is_empty() {
         return Ok(());
@@ -143,13 +240,115 @@ fn merge_global_options(root_value: &mut Value, options_json: &str) -> Result<()
         return Ok(());
     }
 
-    apply_global_options_recursive(root_value, global_opts);
+    // Resolve each distinct spelling once per merge, rather than cloning the
+    // full metadata (including dependencies) for every port, edge and node.
+    let mut canonical_ids = HashMap::new();
+    let mut seen = std::collections::HashSet::new();
+    let resolved: Vec<_> = global_opts
+        .iter()
+        .filter_map(|(key, value)| {
+            let canonical = canonical_option_id(&mut canonical_ids, key);
+            seen.insert(canonical.clone())
+                .then_some((key.as_str(), value, canonical))
+        })
+        .collect();
+    apply_global_options_recursive(root_value, &resolved, &mut canonical_ids);
+    Ok(())
+}
+
+fn canonical_option_id(ids: &mut HashMap<String, String>, key: &str) -> String {
+    if let Some(canonical) = ids.get(key) {
+        return canonical.clone();
+    }
+    let canonical = LayoutMetaDataService::get_instance()
+        .get_option_data_by_suffix(key)
+        .map(|option| option.id().to_owned())
+        .unwrap_or_else(|| key.to_owned());
+    ids.insert(key.to_owned(), canonical.clone());
+    canonical
+}
+
+/// Recursively apply global layout options to an element and all its
+/// descendants (children, edges, ports, labels).
+fn apply_global_options_recursive(
+    element: &mut Value,
+    global_opts: &[(&str, &Value, String)],
+    canonical_ids: &mut HashMap<String, String>,
+) {
+    if !element.is_object() {
+        return;
+    }
+
+    // Step 1: merge global options into this element's layoutOptions/properties
+    {
+        let obj = element.as_object_mut().unwrap();
+        let field = if obj.contains_key("layoutOptions") {
+            "layoutOptions"
+        } else if obj.contains_key("properties") {
+            "properties"
+        } else {
+            "layoutOptions"
+        };
+
+        let mut existing_canonical_ids = std::collections::HashSet::new();
+        if let Some(Value::Object(existing)) = obj.get(field) {
+            for key in existing.keys() {
+                existing_canonical_ids.insert(canonical_option_id(canonical_ids, key));
+            }
+        }
+
+        let layout_options = obj
+            .entry(field)
+            .or_insert_with(|| Value::Object(Map::new()));
+        if let Some(lo) = layout_options.as_object_mut() {
+            for (key, value, canonical) in global_opts {
+                if !existing_canonical_ids.contains(canonical) {
+                    lo.insert((*key).to_owned(), (*value).clone());
+                    // Global aliases were deduplicated before this walk;
+                    // only authored options need membership storage here.
+                }
+            }
+        }
+    }
+
+    // Step 2: recurse into sub-elements (children, edges, ports, labels)
+    for arr_key in &["children", "edges", "ports", "labels"] {
+        if let Some(arr) = element.get_mut(*arr_key) {
+            if let Some(items) = arr.as_array_mut() {
+                for item in items {
+                    apply_global_options_recursive(item, global_opts, canonical_ids);
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+fn reference_merge_global_options(
+    root_value: &mut Value,
+    options_json: &str,
+) -> Result<(), String> {
+    if options_json.is_empty() {
+        return Ok(());
+    }
+
+    let global: Value = serde_json::from_str(options_json)
+        .map_err(|e| format!("Failed to parse options JSON: {e}"))?;
+    let Some(global_opts) = global.as_object() else {
+        return Ok(());
+    };
+    if global_opts.is_empty() {
+        return Ok(());
+    }
+
+    reference_apply_global_options_recursive(root_value, global_opts);
     Ok(())
 }
 
 /// Recursively apply global layout options to an element and all its
 /// descendants (children, edges, ports, labels).
-fn apply_global_options_recursive(element: &mut Value, global_opts: &Map<String, Value>) {
+#[cfg(test)]
+fn reference_apply_global_options_recursive(element: &mut Value, global_opts: &Map<String, Value>) {
     if !element.is_object() {
         return;
     }
@@ -199,7 +398,7 @@ fn apply_global_options_recursive(element: &mut Value, global_opts: &Map<String,
         if let Some(arr) = element.get_mut(*arr_key) {
             if let Some(items) = arr.as_array_mut() {
                 for item in items {
-                    apply_global_options_recursive(item, global_opts);
+                    reference_apply_global_options_recursive(item, global_opts);
                 }
             }
         }
@@ -214,20 +413,27 @@ fn apply_global_options_recursive(element: &mut Value, global_opts: &Map<String,
 /// Returns the laid-out graph JSON string, or an error message.
 pub fn layout_json(graph_json: &str, options_json: &str) -> Result<String, String> {
     ensure_initialized();
-
-    let result = panic::catch_unwind(AssertUnwindSafe(|| -> Result<String, String> {
-        let mut input_value: Value = serde_json::from_str(graph_json)
+    catch_layout(|| {
+        let input_value: Value = serde_json::from_str(graph_json)
             .map_err(|err| format!("Failed to parse graph JSON: {err}"))?;
+        let output = layout_value(input_value, options_json)?;
+        serde_json::to_string(&output).map_err(|err| format!("Failed to serialize JSON: {err}"))
+    })
+}
 
-        merge_global_options(&mut input_value, options_json)?;
+/// The same pipeline for callers that already own JSON values. Layout options,
+/// importer traversal, engine phases and panic translation match layout_json.
+pub fn layout_value(input_value: Value, options_json: &str) -> Result<Value, String> {
+    ensure_initialized();
 
+    catch_layout(|| {
+        let defaults = Rc::new(GlobalOptions::parse(options_json)?);
         let shared = Rc::new(RefCell::new(input_value));
-        let mut importer_slot: Maybe<JsonImporter> = Maybe::default();
-        let root = ElkGraphJson::for_graph_shared(shared.clone())
-            .remember_importer(&mut importer_slot)
-            .lenient(false)
-            .to_elk()
+        let mut importer = JsonImporter::new();
+        let root = importer
+            .transform_shared_with_defaults(shared.clone(), defaults.clone())
             .map_err(|err| format!("{err}"))?;
+        importer.release_import_scratch();
 
         ElkLayered::reset_trace_step_counter();
 
@@ -235,21 +441,25 @@ pub fn layout_json(graph_json: &str, options_json: &str) -> Result<String, Strin
         let mut monitor = BasicProgressMonitor::new();
         engine.layout(&root, &mut monitor);
 
-        let importer = importer_slot
-            .get_mut()
-            .ok_or_else(|| "internal error: missing json importer slot".to_string())?;
+        // Transfer reads some raw option spellings as well as preserving the
+        // complete input JSON. Restore exactly the old merged representation,
+        // after the layered working graphs have been released by the provider.
+        defaults.materialize(&mut shared.borrow_mut());
         importer
             .transfer_layout(&root)
             .map_err(|err| format!("{err}"))?;
 
-        let serialized = serde_json::to_string(&*shared.borrow())
-            .map_err(|err| format!("Failed to serialize JSON: {err}"))?;
+        // Transfer is complete. Importer/graph teardown does not read this
+        // JSON again; take the owned value without cloning its property maps.
+        let output = std::mem::take(&mut *shared.borrow_mut());
+        Ok(output)
+    })
+}
 
-        Ok(serialized)
-    }));
-
+fn catch_layout<T>(operation: impl FnOnce() -> Result<T, String>) -> Result<T, String> {
+    let result = panic::catch_unwind(AssertUnwindSafe(operation));
     match result {
-            Ok(inner) => inner,
+        Ok(inner) => inner,
         Err(payload) => {
             let msg = panic_payload_to_string(&*payload);
             // If the panic message already contains an ELK exception class name,
@@ -400,6 +610,261 @@ pub fn known_layout_categories() -> Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn shared_defaults_and_owned_values_preserve_every_registered_provider() {
+        for algorithm in [
+            "layered",
+            "force",
+            "stress",
+            "mrtree",
+            "radial",
+            "rectpacking",
+            "disco",
+            "sporeOverlap",
+            "sporeCompaction",
+            "vertiflex",
+        ] {
+            let graph = json!({
+                "id":"root", "custom":{"keep":true},
+                "children":[{"id":"a","width":30,"height":20},{"id":"b","width":40,"height":25}],
+                "edges":[{"id":"ab","sources":["a"],"targets":["b"]}]
+            });
+            let options =
+                json!({"elk.algorithm":algorithm,"elk.randomSeed":1,"elk.spacing.nodeNode":35})
+                    .to_string();
+            // DisCo's default polyomino option has an existing reflection error;
+            // preserve its error as well as every successful provider's output.
+            let expected = eager_layout(graph.clone(), &options)
+                .map(|value| serde_json::to_string(&value).unwrap());
+            if let Err(error) = &expected {
+                assert_eq!(algorithm, "disco");
+                assert!(error.contains("org.eclipse.elk.polyomino.lowLevelSort"));
+            }
+            let actual = layout_value(graph.clone(), &options)
+                .map(|value| serde_json::to_string(&value).unwrap());
+            assert_eq!(actual, expected, "{algorithm}");
+            assert_eq!(
+                layout_json(&graph.to_string(), &options),
+                expected,
+                "{algorithm}"
+            );
+        }
+    }
+
+    #[test]
+    fn owned_value_errors_match_the_eager_pipeline() {
+        for graph in [
+            Value::Null,
+            json!([]),
+            json!({"id":"root","edges":[{"id":"e","sources":["missing"],"targets":["also-missing"]}]}),
+        ] {
+            let expected = eager_layout(graph.clone(), "{}").unwrap_err();
+            assert_eq!(layout_value(graph, "{}").unwrap_err(), expected);
+        }
+    }
+
+    // Reference eager-import path: actually materialize defaults before plain import,
+    // and retain the original import indexes through layout and transfer.
+    fn eager_layout(mut input: Value, options: &str) -> Result<Value, String> {
+        ensure_initialized();
+        catch_layout(|| {
+            reference_merge_global_options(&mut input, options)?;
+            let shared = Rc::new(RefCell::new(input));
+            let mut importer = JsonImporter::new();
+            let root = importer
+                .transform_shared(shared.clone())
+                .map_err(|e| e.to_string())?;
+            ElkLayered::reset_trace_step_counter();
+            RecursiveGraphLayoutEngine::new().layout(&root, &mut BasicProgressMonitor::new());
+            importer.transfer_layout(&root).map_err(|e| e.to_string())?;
+            let result = std::mem::take(&mut *shared.borrow_mut());
+            Ok(result)
+        })
+    }
+
+    #[test]
+    fn shared_defaults_match_eager_options_and_output() {
+        ensure_initialized();
+        let options = r#"{"elk.algorithm":"layered","elk.direction":"DOWN","org.eclipse.elk.direction":"UP","unknown.option":"global","elk.port.side":"EAST","elk.spacing.nodeNode":35}"#;
+        // Compare raw effective option order as well as values, for both serde
+        // Map backends (workspace preserve_order and standalone sorted maps).
+        for element in [
+            json!({}),
+            json!({"layoutOptions":{"org.eclipse.elk.direction":"RIGHT","unknown.option":"local"}}),
+            json!({"properties":{"direction":"LEFT","elk.direction":"RIGHT"}}),
+            json!({"layoutOptions":null,"properties":{"elk.direction":"LEFT"}}),
+            json!({"properties":false}),
+            json!({"layoutOptions":{},"properties":{"elk.direction":"LEFT"}}),
+        ] {
+            let mut eager = element.clone();
+            reference_merge_global_options(&mut eager, options).unwrap();
+            let expected = eager
+                .get("layoutOptions")
+                .and_then(Value::as_object)
+                .or_else(|| eager.get("properties").and_then(Value::as_object));
+            let expected: Vec<_> = expected
+                .into_iter()
+                .flat_map(|map| map.iter())
+                .map(|(key, value)| (key.clone(), value.clone()))
+                .collect();
+            let defaults = GlobalOptions::parse(options).unwrap();
+            let mut actual = Vec::new();
+            defaults
+                .visit_effective(element.as_object().unwrap(), |key, value| {
+                    actual.push((key.to_owned(), value.clone()));
+                    Ok::<_, ()>(())
+                })
+                .unwrap();
+            assert_eq!(actual, expected);
+        }
+
+        let graph = json!({
+            "id":"root", "custom":{"preserved":[1,2,3]},
+            "layoutOptions":{"org.eclipse.elk.direction":"RIGHT","unknown.option":"authored"},
+            "children":[
+                {"id":"a","width":30,"height":20,"properties":{"direction":"LEFT"},
+                 "ports":[{"id":"out","width":0,"height":0}],
+                 "labels":[{"text":"A","width":8,"height":8}]},
+                {"id":"b","width":40,"height":25,"ports":[{"id":"in","width":0,"height":0,"layoutOptions":{"elk.port.side":"WEST"}}]}
+            ],
+            "edges":[{"id":"ab","sources":["out"],"targets":["in"],
+                      "labels":[{"text":"AB","width":16,"height":8}]}]
+        });
+        for globals in [
+            "",
+            "{}",
+            "[]",
+            options,
+            r#"{"unknown.option":{"preserved":true}}"#,
+            r#"{"elk.direction":"invalid","elk.spacing.nodeNode":null}"#,
+        ] {
+            assert_eq!(
+                layout_value(graph.clone(), globals)
+                    .map(|value| serde_json::to_string(&value).unwrap()),
+                eager_layout(graph.clone(), globals)
+                    .map(|value| serde_json::to_string(&value).unwrap()),
+                "{globals}"
+            );
+        }
+        let output = layout_value(graph.clone(), options).unwrap();
+        assert_eq!(output["layoutOptions"]["unknown.option"], "authored");
+        assert_eq!(output["children"][0]["properties"]["direction"], "LEFT");
+        assert_eq!(
+            output["children"][0]["ports"][0]["layoutOptions"]["unknown.option"],
+            "global"
+        );
+        assert_eq!(
+            output["children"][0]["labels"][0]["layoutOptions"]["unknown.option"],
+            "global"
+        );
+        assert_eq!(
+            output["edges"][0]["layoutOptions"]["unknown.option"],
+            "global"
+        );
+        assert_eq!(
+            output["edges"][0]["labels"][0]["layoutOptions"]["unknown.option"],
+            "global"
+        );
+        assert_eq!(output["custom"], graph["custom"]);
+        assert_eq!(
+            serde_json::to_string(&output).unwrap(),
+            serde_json::to_string(&eager_layout(graph, options).unwrap()).unwrap()
+        );
+    }
+
+    #[test]
+    fn owned_value_and_string_boundaries_preserve_layout_bytes_and_errors() {
+        let graph = json!({
+            "id":"root",
+            "children":[
+                {"id":"a","width":30.1,"height":20.3,"ports":[{"id":"out","width":0,"height":0,"layoutOptions":{"elk.port.side":"EAST"}}]},
+                {"id":"b","width":40.5,"height":25.25,"ports":[{"id":"in","width":0,"height":0,"layoutOptions":{"elk.port.side":"WEST"}}]}
+            ],
+            "edges":[{"id":"ab","sources":["out"],"targets":["in"]}]
+        });
+        for options in [
+            "{}",
+            r#"{"elk.direction":"DOWN","org.eclipse.elk.direction":"RIGHT"}"#,
+        ] {
+            let legacy = layout_json(&graph.to_string(), options).unwrap();
+            let owned = layout_value(graph.clone(), options).unwrap();
+            assert_eq!(serde_json::to_string(&owned).unwrap(), legacy);
+        }
+        assert_eq!(
+            layout_value(json!({}), "invalid").unwrap_err(),
+            layout_json("{}", "invalid").unwrap_err()
+        );
+    }
+
+    #[test]
+    fn global_aliases_keep_first_spelling_and_authored_values_on_every_element() {
+        ensure_initialized();
+        let globals = r#"{"elk.direction":"DOWN","org.eclipse.elk.direction":"UP"}"#;
+        let parsed: Value = serde_json::from_str(globals).unwrap();
+        let (first, value) = parsed.as_object().unwrap().iter().next().unwrap();
+        let mut graph = json!({
+            "children": [{"properties":{"elk.direction":"LEFT"}, "ports":[{},{}]}],
+            "edges":[{}], "labels":[{}]
+        });
+        merge_global_options(&mut graph, globals).unwrap();
+        assert_eq!(
+            graph["children"][0]["properties"],
+            json!({"elk.direction":"LEFT"})
+        );
+        for element in [
+            &graph,
+            &graph["children"][0]["ports"][0],
+            &graph["children"][0]["ports"][1],
+            &graph["edges"][0],
+            &graph["labels"][0],
+        ] {
+            assert_eq!(element["layoutOptions"].as_object().unwrap().len(), 1);
+            assert_eq!(&element["layoutOptions"][first], value);
+        }
+        let once = graph.clone();
+        merge_global_options(&mut graph, globals).unwrap();
+        assert_eq!(graph, once);
+    }
+
+    #[test]
+    fn repeated_global_options_resolve_once_and_preserve_recursive_alias_precedence() {
+        ensure_initialized();
+        let mut graph = json!({
+            "layoutOptions": {"elk.direction": "RIGHT"},
+            "children": (0..64).map(|_| json!({
+                "properties": {"elk.direction": "LEFT", "unknown.option": "local"},
+                "ports": [{}], "edges": [{}], "labels": [{}]
+            })).collect::<Vec<_>>()
+        });
+        let globals = json!({"org.eclipse.elk.direction": "DOWN", "unknown.option": "global"});
+        let mut ids = HashMap::new();
+        let resolved: Vec<_> = globals
+            .as_object()
+            .unwrap()
+            .iter()
+            .map(|(key, value)| (key.as_str(), value, canonical_option_id(&mut ids, key)))
+            .collect();
+        apply_global_options_recursive(&mut graph, &resolved, &mut ids);
+        assert_eq!(ids.len(), 3); // Distinct spellings, independent of element count.
+        assert_eq!(graph["layoutOptions"]["elk.direction"], "RIGHT");
+        assert!(graph["layoutOptions"]
+            .get("org.eclipse.elk.direction")
+            .is_none());
+        for child in graph["children"].as_array().unwrap() {
+            assert_eq!(child["properties"]["elk.direction"], "LEFT");
+            assert_eq!(child["properties"]["unknown.option"], "local");
+            assert!(child["properties"]
+                .get("org.eclipse.elk.direction")
+                .is_none());
+            for field in ["ports", "edges", "labels"] {
+                assert_eq!(child[field][0]["layoutOptions"], globals);
+            }
+        }
+        let previous = graph.clone();
+        merge_global_options(&mut graph, &globals.to_string()).unwrap();
+        assert_eq!(graph, previous);
+    }
 
     #[test]
     fn test_simple_layout() {

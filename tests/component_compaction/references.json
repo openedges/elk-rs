@@ -1,0 +1,18 @@
+{
+  "self_loop": "unmodified ELK v0.12.0",
+  "zero_size_components": "zero-extent-scanline.patch",
+  "disconnected_right": "unmodified ELK v0.12.0",
+  "disconnected_left": "unmodified ELK v0.12.0",
+  "disconnected_down": "unmodified ELK v0.12.0",
+  "disconnected_up": "unmodified ELK v0.12.0",
+  "labels_and_spacing": "unmodified ELK v0.12.0",
+  "external_north": "unmodified ELK v0.12.0",
+  "external_east": "unmodified ELK v0.12.0",
+  "external_south": "unmodified ELK v0.12.0",
+  "external_west": "unmodified ELK v0.12.0",
+  "external_all_sides": "unmodified ELK v0.12.0",
+  "unconnected_external_ports": "unmodified ELK v0.12.0",
+  "disabled": "unmodified ELK v0.12.0",
+  "ticket_213_zero_size": "zero-extent-scanline.patch",
+  "ticket_213_positive_size": "unmodified ELK v0.12.0"
+}

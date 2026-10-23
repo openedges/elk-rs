@@ -1,0 +1,58 @@
+{
+  "original_java_model": {
+    "total": 1998,
+    "compared": 1989,
+    "matched": 1988,
+    "drift": 1,
+    "skipped": 9,
+    "errors": 0
+  },
+  "original_java_trace": {
+    "total_models": 1997,
+    "all_match": 1827,
+    "diverged": 170,
+    "java_only": 0,
+    "rust_only": 1
+  },
+  "prechange_java_trace": {
+    "total_models": 1997,
+    "all_match": 1827,
+    "diverged": 170,
+    "java_only": 0,
+    "rust_only": 1
+  },
+  "shared_nonfinite_trace_models": 169,
+  "changed_final_models": [
+    "tickets/layered/213_componentsCompaction.elkt"
+  ],
+  "unchanged_final_models": 1997,
+  "changed_trace_comparisons": [
+    "tickets/layered/213_componentsCompaction.elkt"
+  ],
+  "corrected_java_213_trace": {
+    "match": 229,
+    "drift": 0,
+    "total_diffs": 0
+  },
+  "date": "2026-10-23",
+  "base_commit": "1d9f3afd4bcc402ea3e380eaa01a4561a36456ce",
+  "rust_tests": {
+    "passed": 1069,
+    "failed": 0,
+    "ignored": 2
+  },
+  "added_rust_tests": 19,
+  "python_tests_passed": 4,
+  "java_golden_fixtures": {
+    "total": 16,
+    "unmodified_reference": 14,
+    "corrected_reference": 2,
+    "matched": 16
+  },
+  "shared_nan_trace_field_diffs": 18053,
+  "workspace_build": "passed",
+  "clippy": "passed (-D warnings)",
+  "wasm32_check": "passed",
+  "rustfmt_changed_modules": "passed",
+  "strict_full_phase_gate": "fails on pre-existing nonfinite geometry; not waived"
+}

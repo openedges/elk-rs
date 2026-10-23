@@ -932,17 +932,17 @@ impl<'a> ElkGraphImporter<'a> {
         let source_port = match self.resolve_port(source_shape, PortType::Output, lgraph) {
             Some(port) => port,
             None => {
-                // Cross-hierarchy edge: source not in current layout scope.
-                // Java throws UnsupportedGraphException; skip gracefully in Rust.
-                return;
+                panic!(
+                    "org.eclipse.elk.core.UnsupportedGraphException: The source of edge {edge_id} could not be found in the current layout scope. An edge cannot cross into a different layout algorithm."
+                );
             }
         };
         let target_port = match self.resolve_port(target_shape, PortType::Input, lgraph) {
             Some(port) => port,
             None => {
-                // Cross-hierarchy edge: target not in current layout scope.
-                // Java throws UnsupportedGraphException; skip gracefully in Rust.
-                return;
+                panic!(
+                    "org.eclipse.elk.core.UnsupportedGraphException: The target of edge {edge_id} could not be found in the current layout scope. An edge cannot cross into a different layout algorithm."
+                );
             }
         };
 

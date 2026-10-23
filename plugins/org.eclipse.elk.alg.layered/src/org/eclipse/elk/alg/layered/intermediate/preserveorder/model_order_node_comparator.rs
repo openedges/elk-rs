@@ -16,8 +16,7 @@ pub struct ModelOrderNodeComparator {
     graph: LGraphRef,
     ordering_strategy: OrderingStrategy,
     _group_order_strategy: GroupOrderStrategy,
-    bigger_than: FxHashMap<NodeRefKey, FxHashSet<NodeRefKey>>,
-    smaller_than: FxHashMap<NodeRefKey, FxHashSet<NodeRefKey>>,
+    relations: ModelOrderRelations<NodeRefKey>,
     long_edge_node_order: LongEdgeOrderingStrategy,
     before_ports: bool,
     visiting: FxHashSet<NodePairKey>,
@@ -35,7 +34,8 @@ impl ModelOrderNodeComparator {
         group_order_strategy: GroupOrderStrategy,
         before_ports: bool,
     ) -> Self {
-        let mut previous_layer_position = FxHashMap::with_capacity_and_hasher(previous_layer.len(), Default::default());
+        let mut previous_layer_position =
+            FxHashMap::with_capacity_and_hasher(previous_layer.len(), Default::default());
         refill_layer_position_map(&mut previous_layer_position, &previous_layer);
         ModelOrderNodeComparator {
             previous_layer,
@@ -43,8 +43,7 @@ impl ModelOrderNodeComparator {
             graph,
             ordering_strategy,
             _group_order_strategy: group_order_strategy,
-            bigger_than: FxHashMap::default(),
-            smaller_than: FxHashMap::default(),
+            relations: ModelOrderRelations::default(),
             long_edge_node_order,
             before_ports,
             visiting: FxHashSet::default(),
@@ -59,34 +58,18 @@ impl ModelOrderNodeComparator {
             return 0;
         }
         self.visiting.insert(pair_key.clone());
-        self.ensure_sets(&n1_key);
-        self.ensure_sets(&n2_key);
-        if self
-            .bigger_than
-            .get(&n1_key)
-            .is_some_and(|set| set.contains(&n2_key))
-        {
+        let n1_index = self.relations.index(&n1_key);
+        let n2_index = self.relations.index(&n2_key);
+        if self.relations.bigger(n1_index, n2_index) {
             return self.finish_compare(&pair_key, 1);
         }
-        if self
-            .bigger_than
-            .get(&n2_key)
-            .is_some_and(|set| set.contains(&n1_key))
-        {
+        if self.relations.bigger(n2_index, n1_index) {
             return self.finish_compare(&pair_key, -1);
         }
-        if self
-            .smaller_than
-            .get(&n1_key)
-            .is_some_and(|set| set.contains(&n2_key))
-        {
+        if self.relations.smaller(n1_index, n2_index) {
             return self.finish_compare(&pair_key, -1);
         }
-        if self
-            .smaller_than
-            .get(&n2_key)
-            .is_some_and(|set| set.contains(&n1_key))
-        {
+        if self.relations.smaller(n2_index, n1_index) {
             return self.finish_compare(&pair_key, 1);
         }
 
@@ -101,14 +84,11 @@ impl ModelOrderNodeComparator {
 
             if let (Some(p1_source_port), Some(p2_source_port)) = (&p1_source_port, &p2_source_port)
             {
-                let p1_node = p1_source_port
-                    .lock().node();
-                let p2_node = p2_source_port
-                    .lock().node();
+                let p1_node = p1_source_port.lock().node();
+                let p2_node = p2_source_port.lock().node();
                 if let (Some(p1_node), Some(p2_node)) = (&p1_node, &p2_node) {
                     if ArcPtr::eq_nodes(p1_node, p2_node) {
-                        let ports = p1_node
-                            .lock().ports().clone();
+                        let ports = p1_node.lock().ports().clone();
                         for port in ports {
                             if ArcPtr::eq_ports(&port, p1_source_port) {
                                 self.update_bigger_and_smaller(n2, n1);
@@ -180,10 +160,11 @@ impl ModelOrderNodeComparator {
         }
 
         if n1_has_model_order && n2_has_model_order {
-            let max_nodes = match self.graph.try_lock() {            Some(graph_guard) => graph_guard
+            let max_nodes = match self.graph.try_lock() {
+                Some(graph_guard) => graph_guard
                     .get_property(InternalProperties::MAX_MODEL_ORDER_NODES)
                     .unwrap_or(0),
-            None => {
+                None => {
                     if ElkTrace::global().crossmin {
                         eprintln!("node_compare: graph lock busy, using default max_nodes");
                     }
@@ -215,8 +196,7 @@ impl ModelOrderNodeComparator {
     }
 
     pub fn clear_transitive_ordering(&mut self) {
-        self.bigger_than.clear();
-        self.smaller_than.clear();
+        self.relations = ModelOrderRelations::default();
         self.visiting.clear();
     }
 
@@ -233,19 +213,20 @@ impl ModelOrderNodeComparator {
         self.clear_transitive_ordering();
     }
 
-    fn ensure_sets(&mut self, key: &NodeRefKey) {
-        self.bigger_than.entry(key.clone()).or_default();
-        self.smaller_than.entry(key.clone()).or_default();
-    }
-
     fn finish_compare(&mut self, key: &NodePairKey, value: i32) -> i32 {
         self.visiting.remove(key);
         value
     }
 
     fn compare_in_previous_layer(&self, p1_node: &LNodeRef, p2_node: &LNodeRef) -> i32 {
-        let p1_pos = self.previous_layer_position.get(&node_ptr(p1_node)).copied();
-        let p2_pos = self.previous_layer_position.get(&node_ptr(p2_node)).copied();
+        let p1_pos = self
+            .previous_layer_position
+            .get(&node_ptr(p1_node))
+            .copied();
+        let p2_pos = self
+            .previous_layer_position
+            .get(&node_ptr(p2_node))
+            .copied();
         match (p1_pos, p2_pos) {
             (Some(left), Some(right)) => match left.cmp(&right) {
                 std::cmp::Ordering::Less => -1,
@@ -257,59 +238,9 @@ impl ModelOrderNodeComparator {
     }
 
     fn update_bigger_and_smaller(&mut self, bigger: &LNodeRef, smaller: &LNodeRef) {
-        let bigger_key = NodeRefKey(bigger.clone());
-        let smaller_key = NodeRefKey(smaller.clone());
-        self.ensure_sets(&bigger_key);
-        self.ensure_sets(&smaller_key);
-        let smaller_set = self
-            .bigger_than
-            .get(&smaller_key)
-            .cloned()
-            .unwrap_or_default();
-        let bigger_smaller = self
-            .smaller_than
-            .get(&bigger_key)
-            .cloned()
-            .unwrap_or_default();
-
-        self.bigger_than
-            .entry(bigger_key.clone())
-            .or_default()
-            .insert(smaller_key.clone());
-        self.smaller_than
-            .entry(smaller_key.clone())
-            .or_default()
-            .insert(bigger_key.clone());
-
-        for very_small in smaller_set.iter() {
-            self.bigger_than
-                .entry(bigger_key.clone())
-                .or_default()
-                .insert(very_small.clone());
-            self.smaller_than
-                .entry(very_small.clone())
-                .or_default()
-                .insert(bigger_key.clone());
-            self.smaller_than
-                .entry(very_small.clone())
-                .or_default()
-                .extend(bigger_smaller.iter().cloned());
-        }
-
-        for very_big in bigger_smaller.iter() {
-            self.smaller_than
-                .entry(smaller_key.clone())
-                .or_default()
-                .insert(very_big.clone());
-            self.bigger_than
-                .entry(very_big.clone())
-                .or_default()
-                .insert(smaller_key.clone());
-            self.bigger_than
-                .entry(very_big.clone())
-                .or_default()
-                .extend(smaller_set.iter().cloned());
-        }
+        let bigger = self.relations.index(&NodeRefKey(bigger.clone()));
+        let smaller = self.relations.index(&NodeRefKey(smaller.clone()));
+        self.relations.record(bigger, smaller);
     }
 
     fn model_order_from_connected_edges(&self, node: &LNodeRef) -> i32 {
@@ -342,14 +273,10 @@ impl ModelOrderNodeComparator {
             let Some(dummy_target_port) = first_outgoing_target_port(n1) else {
                 return 0;
             };
-            let Some(dummy_source_node) = dummy_source_port
-                .lock().node()
-            else {
+            let Some(dummy_source_node) = dummy_source_port.lock().node() else {
                 return 0;
             };
-            let Some(dummy_target_node) = dummy_target_port
-                .lock().node()
-            else {
+            let Some(dummy_target_node) = dummy_target_port.lock().node() else {
                 return 0;
             };
             let dummy_layer_id = layer_id(n1);
@@ -374,14 +301,10 @@ impl ModelOrderNodeComparator {
             let Some(dummy_target_port) = first_outgoing_target_port(n2) else {
                 return 0;
             };
-            let Some(dummy_source_node) = dummy_source_port
-                .lock().node()
-            else {
+            let Some(dummy_source_node) = dummy_source_port.lock().node() else {
                 return 0;
             };
-            let Some(dummy_target_node) = dummy_target_port
-                .lock().node()
-            else {
+            let Some(dummy_target_node) = dummy_target_port.lock().node() else {
                 return 0;
             };
             let dummy_layer_id = layer_id(n1);
@@ -406,14 +329,10 @@ impl ModelOrderNodeComparator {
             let Some(n1_target_port) = first_outgoing_target_port(n1) else {
                 return 0;
             };
-            let Some(n1_source_node) = n1_source_port
-                .lock().node()
-            else {
+            let Some(n1_source_node) = n1_source_port.lock().node() else {
                 return 0;
             };
-            let Some(n1_target_node) = n1_target_port
-                .lock().node()
-            else {
+            let Some(n1_target_node) = n1_target_port.lock().node() else {
                 return 0;
             };
             let n1_layer_id = layer_id(n1);
@@ -435,14 +354,10 @@ impl ModelOrderNodeComparator {
             let Some(n2_target_port) = first_outgoing_target_port(n2) else {
                 return 0;
             };
-            let Some(n2_source_node) = n2_source_port
-                .lock().node()
-            else {
+            let Some(n2_source_node) = n2_source_port.lock().node() else {
                 return 0;
             };
-            let Some(n2_target_node) = n2_target_port
-                .lock().node()
-            else {
+            let Some(n2_target_node) = n2_target_port.lock().node() else {
                 return 0;
             };
             let n2_layer_id = layer_id(n2);
@@ -485,8 +400,7 @@ impl ModelOrderNodeComparator {
                         return 0;
                     }
                 } else {
-                    let ports = n1_reference
-                        .lock().ports().clone();
+                    let ports = n1_reference.lock().ports().clone();
                     for port in ports {
                         if ArcPtr::eq_ports(&port, &n1_source_port) {
                             self.update_bigger_and_smaller(n2, n1);
@@ -507,7 +421,9 @@ impl ModelOrderNodeComparator {
 
 fn has_model_order(node: &LNodeRef) -> bool {
     let node_guard = node.lock();
-    node_guard.get_property(InternalProperties::MODEL_ORDER).is_some()
+    node_guard
+        .get_property(InternalProperties::MODEL_ORDER)
+        .is_some()
 }
 
 fn first_incoming_port(node: &LNodeRef) -> Option<LPortRef> {
@@ -555,16 +471,13 @@ fn first_outgoing_target_port(node: &LNodeRef) -> Option<LPortRef> {
 fn first_source_port_to_previous_layer(node: &LNodeRef) -> Option<LPortRef> {
     let node_layer = layer_id(node);
     let prev_layer = node_layer.checked_sub(1)?;
-    let ports = node
-        .lock().ports().clone();
+    let ports = node.lock().ports().clone();
     for port in ports {
-        let incoming = port
-            .lock().incoming_edges().clone();
+        let incoming = port.lock().incoming_edges().clone();
         if let Some(edge) = incoming.first() {
             let source_port = edge.lock().source();
             if let Some(source_port) = source_port {
-                let source_node = source_port
-                    .lock().node();
+                let source_node = source_port.lock().node();
                 if let Some(source_node) = source_node {
                     if layer_id(&source_node) == prev_layer {
                         return Some(source_port);
@@ -577,7 +490,8 @@ fn first_source_port_to_previous_layer(node: &LNodeRef) -> Option<LPortRef> {
 }
 
 fn layer_id(node: &LNodeRef) -> usize {
-    node.lock().layer()
+    node.lock()
+        .layer()
         .map(|layer| {
             let mut layer_guard = layer.lock();
             layer_guard.graph_element().id as usize
@@ -613,4 +527,217 @@ fn refill_layer_position_map(positions: &mut FxHashMap<usize, usize>, layer: &[L
 
 fn node_ptr(node: &LNodeRef) -> usize {
     std::sync::Arc::as_ptr(node) as usize
+}
+
+// The original transitive-set updates, stored as dense bits rather than sets
+// of owning graph references. Unions visit machine words instead of cloning and
+// hashing every transitive pair; comparator and insertion-sort rules are unchanged.
+pub(super) struct ModelOrderRelations<Key> {
+    indices: FxHashMap<Key, usize>,
+    bigger: Vec<Vec<u64>>,
+    smaller: Vec<Vec<u64>>,
+}
+
+impl<Key> Default for ModelOrderRelations<Key> {
+    fn default() -> Self {
+        Self {
+            indices: FxHashMap::default(),
+            bigger: Vec::new(),
+            smaller: Vec::new(),
+        }
+    }
+}
+
+impl<Key: Eq + std::hash::Hash + Clone> ModelOrderRelations<Key> {
+    pub(super) fn index(&mut self, key: &Key) -> usize {
+        if let Some(&index) = self.indices.get(key) {
+            return index;
+        }
+        let index = self.indices.len();
+        self.bigger.push(Vec::new());
+        self.smaller.push(Vec::new());
+        self.indices.insert(key.clone(), index);
+        index
+    }
+
+    pub(super) fn bigger(&self, left: usize, right: usize) -> bool {
+        self.bigger[left]
+            .get(right / 64)
+            .is_some_and(|word| word & (1 << (right % 64)) != 0)
+    }
+
+    pub(super) fn smaller(&self, left: usize, right: usize) -> bool {
+        self.smaller[left]
+            .get(right / 64)
+            .is_some_and(|word| word & (1 << (right % 64)) != 0)
+    }
+
+    pub(super) fn record(&mut self, bigger: usize, smaller: usize) {
+        // Snapshot before either direct insertion, exactly as the set-based
+        // implementation does, including inconsistent/cyclic observations.
+        let below = self.bigger[smaller].clone();
+        let above = self.smaller[bigger].clone();
+        set_insert(&mut self.bigger[bigger], smaller);
+        set_insert(&mut self.smaller[smaller], bigger);
+        for very_small in set_members(&below) {
+            set_insert(&mut self.bigger[bigger], very_small);
+            set_insert(&mut self.smaller[very_small], bigger);
+            if self.smaller[very_small].len() < above.len() {
+                self.smaller[very_small].resize(above.len(), 0);
+            }
+            for (word, extra) in self.smaller[very_small].iter_mut().zip(&above) {
+                *word |= extra;
+            }
+        }
+        for very_big in set_members(&above) {
+            set_insert(&mut self.smaller[smaller], very_big);
+            set_insert(&mut self.bigger[very_big], smaller);
+            if self.bigger[very_big].len() < below.len() {
+                self.bigger[very_big].resize(below.len(), 0);
+            }
+            for (word, extra) in self.bigger[very_big].iter_mut().zip(&below) {
+                *word |= extra;
+            }
+        }
+    }
+}
+
+fn set_insert(words: &mut Vec<u64>, member: usize) {
+    let index = member / 64;
+    if words.len() <= index {
+        words.resize(index + 1, 0);
+    }
+    words[index] |= 1 << (member % 64);
+}
+
+fn set_members(words: &[u64]) -> impl Iterator<Item = usize> + '_ {
+    words.iter().enumerate().flat_map(|(index, &word)| {
+        let mut remaining = word;
+        std::iter::from_fn(move || {
+            if remaining == 0 {
+                return None;
+            }
+            let bit = remaining.trailing_zeros() as usize;
+            remaining &= remaining - 1;
+            Some(index * 64 + bit)
+        })
+    })
+}
+
+#[cfg(test)]
+mod relation_tests {
+    use super::*;
+    use crate::org::eclipse::elk::alg::layered::graph::{LGraph, LNode};
+
+    #[derive(Default)]
+    struct Reference {
+        bigger_than: FxHashMap<NodeRefKey, FxHashSet<NodeRefKey>>,
+        smaller_than: FxHashMap<NodeRefKey, FxHashSet<NodeRefKey>>,
+    }
+    impl Reference {
+        fn ensure_sets(&mut self, key: &NodeRefKey) {
+            self.bigger_than.entry(key.clone()).or_default();
+            self.smaller_than.entry(key.clone()).or_default();
+        }
+
+        fn update_bigger_and_smaller(&mut self, bigger: &LNodeRef, smaller: &LNodeRef) {
+            let bigger_key = NodeRefKey(bigger.clone());
+            let smaller_key = NodeRefKey(smaller.clone());
+            self.ensure_sets(&bigger_key);
+            self.ensure_sets(&smaller_key);
+            let smaller_set = self
+                .bigger_than
+                .get(&smaller_key)
+                .cloned()
+                .unwrap_or_default();
+            let bigger_smaller = self
+                .smaller_than
+                .get(&bigger_key)
+                .cloned()
+                .unwrap_or_default();
+
+            self.bigger_than
+                .entry(bigger_key.clone())
+                .or_default()
+                .insert(smaller_key.clone());
+            self.smaller_than
+                .entry(smaller_key.clone())
+                .or_default()
+                .insert(bigger_key.clone());
+
+            for very_small in smaller_set.iter() {
+                self.bigger_than
+                    .entry(bigger_key.clone())
+                    .or_default()
+                    .insert(very_small.clone());
+                self.smaller_than
+                    .entry(very_small.clone())
+                    .or_default()
+                    .insert(bigger_key.clone());
+                self.smaller_than
+                    .entry(very_small.clone())
+                    .or_default()
+                    .extend(bigger_smaller.iter().cloned());
+            }
+
+            for very_big in bigger_smaller.iter() {
+                self.smaller_than
+                    .entry(smaller_key.clone())
+                    .or_default()
+                    .insert(very_big.clone());
+                self.bigger_than
+                    .entry(very_big.clone())
+                    .or_default()
+                    .insert(smaller_key.clone());
+                self.bigger_than
+                    .entry(very_big.clone())
+                    .or_default()
+                    .extend(smaller_set.iter().cloned());
+            }
+        }
+    }
+
+    #[test]
+    fn dense_relations_match_original_sets_through_word_growth_and_cycles() {
+        let graph = LGraph::new();
+        let nodes: Vec<_> = (0..130).map(|_| NodeRefKey(LNode::new(&graph))).collect();
+        let mut dense = ModelOrderRelations::default();
+        let mut original = Reference::default();
+        let mut state = 17_u64;
+        for step in 0..400 {
+            let (bigger, smaller) = if step < 129 {
+                (step + 1, step)
+            } else {
+                state = state.wrapping_mul(6364136223846793005).wrapping_add(1);
+                (
+                    (state >> 32) as usize % nodes.len(),
+                    state as usize % nodes.len(),
+                )
+            };
+            let a = dense.index(&nodes[bigger]);
+            let b = dense.index(&nodes[smaller]);
+            dense.record(a, b);
+            original.update_bigger_and_smaller(&nodes[bigger].0, &nodes[smaller].0);
+            for (left, &li) in &dense.indices {
+                for (right, &ri) in &dense.indices {
+                    assert_eq!(
+                        dense.bigger(li, ri),
+                        original
+                            .bigger_than
+                            .get(left)
+                            .is_some_and(|set| set.contains(right)),
+                        "bigger at step={step}"
+                    );
+                    assert_eq!(
+                        dense.smaller(li, ri),
+                        original
+                            .smaller_than
+                            .get(left)
+                            .is_some_and(|set| set.contains(right)),
+                        "smaller at step={step}"
+                    );
+                }
+            }
+        }
+    }
 }

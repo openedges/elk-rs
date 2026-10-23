@@ -84,8 +84,6 @@ def compare_json(
         if math.isfinite(left_num) and math.isfinite(right_num):
             if abs(left_num - right_num) <= abs_tol:
                 return
-        elif left_num == right_num:
-            return
         diffs.append(f"{path}: number mismatch ({left_num} != {right_num})")
         return
 

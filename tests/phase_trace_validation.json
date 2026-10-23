@@ -1,0 +1,73 @@
+{
+  "date": "2026-10-23",
+  "branch": "fix/layout-improvements",
+  "base_commit": "1d9f3afd4bcc402ea3e380eaa01a4561a36456ce",
+  "java_source_commit": "323312916048544e4e594eab3303cdb0d01e2929",
+  "model_source_commit": "ac5af2ba511c0037e4f347e8bd91f013950951c7",
+  "reference": "Java ELK v0.12.0 with the explicit patches below; not unmodified upstream",
+  "patch_sha256": {
+    "0001-deterministic-opposing-self-loop-routing.patch": "f099e37e51f874dd5df886a4cd223d204831fb8181b95db88f5ae67afcc49639",
+    "0002-finite-zero-size-resize.patch": "76c3aa4691b0ae686c2848e96c05c386cdd35b25d2d931c6bd9bb0c6928c1a15",
+    "0003-zero-extent-scanline.patch": "de22564e21464b4208132538b051c19e34c94be9164793e08020bae730678c12"
+  },
+  "execution": {
+    "root_algorithm": "org.eclipse.elk.layered",
+    "random_seed": 1,
+    "engine": "recursive",
+    "trace_geometry": "raw",
+    "phase_absolute_tolerance": 0.001,
+    "layout_absolute_tolerance": 1e-06
+  },
+  "summary": {
+    "expected_inputs": 1998,
+    "successful_layouts": 1997,
+    "expected_errors": 1,
+    "verified_steps": 196407,
+    "failed_models": 0,
+    "status": "pass"
+  },
+  "checks": {
+    "workspace_tests": {
+      "passed": 1081,
+      "failed": 0,
+      "ignored": 2
+    },
+    "python_tests": {
+      "passed": 21,
+      "failed": 0
+    },
+    "build": "pass; zero warnings",
+    "clippy": "pass; -D warnings",
+    "wasm_check": "pass",
+    "workflow_smoke": {
+      "inputs": 3,
+      "successful_layouts": 2,
+      "expected_errors": 1,
+      "verified_steps": 135,
+      "status": "pass"
+    },
+    "ordinary_algorithm_regression": {
+      "current_ok": 1997,
+      "current_error": 1,
+      "old_differences": [],
+      "java_match": 1988,
+      "java_drift": [
+        {
+          "model": "tickets/layered/213_componentsCompaction.elkt",
+          "details": [
+            "root/children[0]/children[0]/x: number mismatch (12.5 != 13.5)",
+            "root/children[0]/children[0]/y: number mismatch (nan != 23.5)"
+          ]
+        }
+      ],
+      "java_missing": 8
+    }
+  },
+  "local_evidence_sha256": {
+    "full-verification.json": "45421690e22752d4569247955d36968173c02ffb32386db6c8c38c65dd51d729",
+    "manifest.tsv": "ddf1e4f6b7dd67f8d231de390fbe8a1880468b75af5f6b202963e863a847119c",
+    "rust-manifest3.tsv": "5b24e68f3944c3f586b1272f619e95ec8a56a5a54a12adf474b23d232c24dc4e",
+    "full-input.tsv": "d853257b6b1c76039fb586d3720c45d48779caef8b031430fce22b2f04c6eba9"
+  },
+  "raw_artifacts": "Temporary full exports are not checked in. Reproduce using tests/phase_trace_audit.md."
+}

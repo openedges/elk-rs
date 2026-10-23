@@ -1,5 +1,5 @@
 [workspace.package]
-version = "0.12.0"
+version = "0.12.1"
 license = "EPL-2.0 OR GPL-3.0-or-later"
 edition = "2021"
 repository = "https://github.com/openedges/elk-rs"
@@ -39,20 +39,20 @@ resolver = "2"
 # path-only dev-dependencies from the published manifest, which is what lets
 # the test-only cycles (core <-> alg-*, alg-common <-> alg-*) publish.
 [workspace.dependencies]
-org-eclipse-elk-graph = { path = "plugins/org.eclipse.elk.graph", version = "=0.12.0" }
-org-eclipse-elk-core = { path = "plugins/org.eclipse.elk.core", version = "=0.12.0" }
-org-eclipse-elk-alg-common = { path = "plugins/org.eclipse.elk.alg.common", version = "=0.12.0" }
-org-eclipse-elk-alg-disco = { path = "plugins/org.eclipse.elk.alg.disco", version = "=0.12.0" }
-org-eclipse-elk-alg-force = { path = "plugins/org.eclipse.elk.alg.force", version = "=0.12.0" }
-org-eclipse-elk-alg-graphviz-dot = { path = "plugins/org.eclipse.elk.alg.graphviz.dot", version = "=0.12.0" }
-org-eclipse-elk-alg-graphviz-layouter = { path = "plugins/org.eclipse.elk.alg.graphviz.layouter", version = "=0.12.0" }
-org-eclipse-elk-alg-layered = { path = "plugins/org.eclipse.elk.alg.layered", version = "=0.12.0" }
-org-eclipse-elk-alg-libavoid = { path = "plugins/org.eclipse.elk.alg.libavoid", version = "=0.12.0" }
-org-eclipse-elk-alg-mrtree = { path = "plugins/org.eclipse.elk.alg.mrtree", version = "=0.12.0" }
-org-eclipse-elk-alg-radial = { path = "plugins/org.eclipse.elk.alg.radial", version = "=0.12.0" }
-org-eclipse-elk-alg-rectpacking = { path = "plugins/org.eclipse.elk.alg.rectpacking", version = "=0.12.0" }
-org-eclipse-elk-alg-spore = { path = "plugins/org.eclipse.elk.alg.spore", version = "=0.12.0" }
-org-eclipse-elk-alg-topdownpacking = { path = "plugins/org.eclipse.elk.alg.topdownpacking", version = "=0.12.0" }
-org-eclipse-elk-alg-vertiflex = { path = "plugins/org.eclipse.elk.alg.vertiflex", version = "=0.12.0" }
-org-eclipse-elk-conn-gmf = { path = "plugins/org.eclipse.elk.conn.gmf", version = "=0.12.0" }
-org-eclipse-elk-graph-json = { path = "plugins/org.eclipse.elk.graph.json", version = "=0.12.0" }
+org-eclipse-elk-graph = { path = "plugins/org.eclipse.elk.graph", version = "=0.12.1" }
+org-eclipse-elk-core = { path = "plugins/org.eclipse.elk.core", version = "=0.12.1" }
+org-eclipse-elk-alg-common = { path = "plugins/org.eclipse.elk.alg.common", version = "=0.12.1" }
+org-eclipse-elk-alg-disco = { path = "plugins/org.eclipse.elk.alg.disco", version = "=0.12.1" }
+org-eclipse-elk-alg-force = { path = "plugins/org.eclipse.elk.alg.force", version = "=0.12.1" }
+org-eclipse-elk-alg-graphviz-dot = { path = "plugins/org.eclipse.elk.alg.graphviz.dot", version = "=0.12.1" }
+org-eclipse-elk-alg-graphviz-layouter = { path = "plugins/org.eclipse.elk.alg.graphviz.layouter", version = "=0.12.1" }
+org-eclipse-elk-alg-layered = { path = "plugins/org.eclipse.elk.alg.layered", version = "=0.12.1" }
+org-eclipse-elk-alg-libavoid = { path = "plugins/org.eclipse.elk.alg.libavoid", version = "=0.12.1" }
+org-eclipse-elk-alg-mrtree = { path = "plugins/org.eclipse.elk.alg.mrtree", version = "=0.12.1" }
+org-eclipse-elk-alg-radial = { path = "plugins/org.eclipse.elk.alg.radial", version = "=0.12.1" }
+org-eclipse-elk-alg-rectpacking = { path = "plugins/org.eclipse.elk.alg.rectpacking", version = "=0.12.1" }
+org-eclipse-elk-alg-spore = { path = "plugins/org.eclipse.elk.alg.spore", version = "=0.12.1" }
+org-eclipse-elk-alg-topdownpacking = { path = "plugins/org.eclipse.elk.alg.topdownpacking", version = "=0.12.1" }
+org-eclipse-elk-alg-vertiflex = { path = "plugins/org.eclipse.elk.alg.vertiflex", version = "=0.12.1" }
+org-eclipse-elk-conn-gmf = { path = "plugins/org.eclipse.elk.conn.gmf", version = "=0.12.1" }
+org-eclipse-elk-graph-json = { path = "plugins/org.eclipse.elk.graph.json", version = "=0.12.1" }

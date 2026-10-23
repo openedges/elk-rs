@@ -2,10 +2,10 @@
 
 Pure Rust port of [Eclipse Layout Kernel (ELK)](https://www.eclipse.org/elk/), keeping Java-side feature/API/test parity while operating as a Rust workspace.
 
-The working tree targets **ELK 0.12.0**; the latest published packages remain **0.11.0**
-(tag `v0.11.0+rs.6`, 2026-10-19). Version 0.12.0 is being prepared for
-`v0.12.0+rs.7` and has not been published. See the
-[upgrade verification report](tests/upgrade_0_12_0.md) for validation status.
+Version **0.12.1** targets **Java ELK 0.12.0**, with layout correctness fixes,
+strict intermediate-state verification, and JSON/network-simplex improvements.
+See the [0.12.1 validation report](tests/release_0_12_1.md) and
+[versioning policy](VERSIONING.md).
 
 ## npm Package
 
@@ -15,7 +15,7 @@ elk-rs is published as `@openedges/elk-layout`, a drop-in replacement for [elkjs
 npm install @openedges/elk-layout
 ```
 
-Version 0.12.0 requires Node.js 18 or later. On supported platforms, a native NAPI addon is automatically installed for best performance. Falls back to WASM on other platforms.
+Version 0.12.x requires Node.js 18 or later. On supported platforms, a native NAPI addon is automatically installed for best performance. Falls back to WASM on other platforms.
 
 | Platform | Package |
 |---|---|
@@ -54,6 +54,17 @@ cargo add elk-layout
 ```rust
 let laid_out = elk_layout::layout_json(graph_json, "{}")?;   // same JSON as elkjs
 ```
+
+For an already constructed `serde_json::Value`, use
+`elk_layout::layout_value(graph_value, options_json) -> Result<Value, String>`.
+It consumes the graph and returns the laid-out value without a graph text
+round trip. The string API, JSON5 import builder, and algorithm registrations
+remain available. Connected-component compaction and its Java reference checks are
+documented in [the compaction follow-up](tests/component_compaction.md).
+The [full phase-trace report](tests/phase_trace_audit.md) records the corrected
+Java reference, raw-state comparison contract, and all 1,998 input outcomes.
+See [the patch review and validation](tests/layout_improvements.md)
+for compatibility and performance evidence.
 
 Underneath, the ELK plugins are published one to one as `org-eclipse-elk-*` crates (`elk_layout::core`, `elk_layout::graph`, `elk_layout::alg::layered`, ...), all at the same version as the npm package and pinned to each other exactly. See [`crates/elk-layout/README.md`](crates/elk-layout/README.md); release and publishing rules are in [`VERSIONING.md`](VERSIONING.md).
 

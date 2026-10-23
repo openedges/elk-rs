@@ -44,8 +44,12 @@
 7. 커밋 (`<scope>: <summary>`)
 8. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
-## 현재 핵심 스냅샷 (2026-10-20, ELK 0.12.0 포팅 검증)
-- **elk-rs 버전**: `0.12.0` (ELK Java `v0.12.0` 포팅 및 품질 게이트 통과; release run39357332958의 crates.io/npm/GitHub Release 게시 완료). 최초 태그·Release는 `v0.12.0`으로 정정 완료(`22fbee45`, 기존 첨부7개 보존); 잘못된 `v0.12.0+rs.7` 태그는 삭제했다. 상세 검증은 `tests/upgrade_0_12_0.md`
+## 현재 핵심 스냅샷 (2026-10-23, 0.12.1 공개 수정판 준비)
+- **현재 package version**: `0.12.1`, Java/elkjs reference `0.12.0` 유지. 사용자 승인 경로: fix/layout-improvements PR → main → 기존 releases/0.12.0 → annotated v0.12.1. 최종 runtime4b9a1f56 성능: stable 대비 native 평균-1.54%, JSON API+0.02%, targeted23.3~62.0% 개선. 상세: `tests/release_0_12_1.md`. 아래0.12.0 게시 기록은 이전 릴리스 이력이다.
+- **레이아웃 개선 검증**: 기존 패치를 `1d9f3afd`로 커밋하고 GitHub `fix/layout-improvements`에 push했다. 후속으로 x-anchor 근사를 실제 hull/1D 컴포넌트 압축으로 대체하고, zero-height 스캔 순서와 NaN 비교 누락을 수정했다. workspace 1,081 passed/0 failed/2 ignored, build/Clippy warning0. Java fixture16개 중14개는 원본0.12, zero-size2개는 명시적 Java 수정 기준이며 모두 일치한다. 수정 Java213은 최종 출력과229단계 모두 일치한다. 후속으로 최종 검증 수정을4b9a1f56에 커밋하고 package0.12.1을 준비했다. 결정·검증·남은 한계: `tests/component_compaction.md`.
+
+- **최종 패키지 검증**: metadata/phase wiring12/12, release build, NAPI/web·Node WASM 빌드, JS49/49, NAPI·web WASM 각각 Java550/550 통과. elkjs#8의 오래된 성공 기대값2개를 원본과 같은 UnsupportedGraphException 검증으로 수정했다. npm tarball의 native/WASM direct·fakeWorker·worker_threads는 Node18.0.0/18.15.0/24.19.0 모두 통과. 성능5% gate13/13 및 recursive60ms budget8/8 통과, baseline은 변경하지 않았다.
+- **이전 elk-rs 릴리스**: `0.12.0` (ELK Java `v0.12.0` 포팅 및 품질 게이트 통과; release run39357332958의 crates.io/npm/GitHub Release 게시 완료). 최초 태그·Release는 `v0.12.0`으로 정정 완료(`22fbee45`, 기존 첨부7개 보존); 잘못된 `v0.12.0+rs.7` 태그는 삭제했다. 상세 검증은 `tests/upgrade_0_12_0.md`
   - 태그 규칙(2026-10-20 사용자 확정): 새 기본 버전의 최초 릴리즈는 `vX.Y.Z`(접미사 없음). 같은 기본 버전의 첫 Rust 수정부터 `vX.Y.Z+rs.1`, `+rs.2` 순서이며, 새 기본 버전은 다시 접미사 없는 태그로 시작한다. 버전 간 카운터를 이어가지 않는다.
   - 배포 정책: 최초 bare 태그와 `+rs.N` 모두 release.yml이 처리하고 `-ext.N`은 배포하지 않는다. 레지스트리는 build metadata로 버전을 구분하지 않으므로 공개 수정판은 package patch를 올리고 새 기본 버전의 bare 태그를 사용한다. 같은 package version의 `+rs.N`은 레지스트리 재게시를 건너뛴다. 상세 `VERSIONING.md` § 1·§ 6
   - 내부 패치 태그: `v0.11.0+rs.5` — NAPI CI 수정(linux-arm64 cross gcc 링커, `x86_64-apple-darwin`을 arm64 러너 크로스 빌드로 전환). Rust 소스는 rs.4와 동일
@@ -53,16 +57,13 @@
   - 이전 내부 패치: `v0.11.0+rs.3` — 그래프 순환 참조/임시 메모리 누수 수정
   - Cargo workspace 전체 + npm 동일 버전 (`scripts/bump_version.py <version>`으로 일괄 변경, `--check`로 일치 확인; 내부 의존성은 `[workspace.dependencies]`에 `=버전` 고정, dev-dependencies는 path 전용)
   - 서브모듈 고정: `external/elk` → `v0.12.0` (`32331291`), `external/elkjs` → `0.12.0` (`ff5771d7`)
-- **Model parity**: `matches=1988/1989`, `drift=1`, `skipped=9` **(raw 99.95%; 기존 Java 오류 제외 시 1988/1988)**
+- **원본 Java baseline Model parity (역사적 기록)**: `matches=1988/1989`, `drift=1`, `skipped=9` **(raw 99.95%; 기존 Java 오류 제외 시 1988/1988)**
   - 전체 1998 모델 커버리지 (.elkt/.elkg/.json 포함)
   - `213_componentsCompaction.elkt`는 Java ELK NaN 버그로 `java_exclude.txt`에서 제외
   - polyline_edge_router stale arena fix: 341/463/587 drift 3건 해소 (arena node_pos.x stale → live port anchor 사용)
-- **Phase-step trace**: `1997/1997` match, `0` drift **(100%)**
-  - 전체 모델 커버리지 (이전 1438 → 1997)
-  - `rust_only=1` (`588_hierarchicalLayoutNPE.elkt` — Java NPE로 trace 생성 불가)
-  - compare 스크립트에서 within-layer 노드 정렬로 비결정적 순서 차이 해소 (NetworkSimplexLayerer 등)
-  - 정렬 키: `(labels, type, port_count, port_sides, width, height, x, y)` — Java/Rust 공통 속성
-- **Tickets parity**: `matches=108/109`, `drift=1` (Java ELK 버그 동일 원인)
+- **Strict full phase 및 최종 출력**: 전체1,998입력 = 정상 출력 검증1,997통과 + 동일 예외 검증1통과(588 UnsupportedGraphException), 전체196,407단계 일치, 실패·누락0. Java0.12 + 명시적 패치3개(self-loop 결정성, zero-size resize, zero-height scanline)의 별도 corrected reference이며 원본 Java 결과와 구분한다. Java-zero 예외와 Rust snapshot 좌표 보정은 제거했다. 입력/결과 manifest 전체 일치, 유한성, 스키마, geometry/topology, 단계 연속성을 검사한다. Python21개 통과, WASM check 통과. 상세: `tests/phase_trace_audit.md`, `tests/phase_trace_validation.json`.
+  - ordinary algorithm 성공1,997개 최종 출력은 이전 컴포넌트 압축 구현과 동일하다. 원본 Java baseline의213 차이 및 미생성 결과는 아래 역사적 수치로만 보존한다.
+- **원본 Java baseline Tickets parity (역사적 기록)**: `matches=108/109`, `drift=1` (Java ELK 버그 동일 원인)
 - **JS parity**: 새 Java 0.12 기준 NAPI·web WASM 각각 550/550 일치 (PASS530 + ELKJS_DRIFT20, Java 누락0). 신규 유효 fixture는 model/trace/NAPI/WASM 각각8/8; 명시적 null 1개는 Java 파서 예외로 별도 기록
 - **npm 패키지**: `@openedges/elk-layout@0.12.0` 준비 (49 Vitest 통과, Node18 이상; Node CJS·browser web WASM 동봉, Chrome direct/worker 실제 검증)
   - NAPI 플랫폼별 패키지 6개 추가 완료: `@openedges/elk-layout-darwin-arm64`, `@openedges/elk-layout-darwin-x64`, `@openedges/elk-layout-linux-x64-gnu`, `@openedges/elk-layout-linux-x64-musl`, `@openedges/elk-layout-linux-arm64-gnu`, `@openedges/elk-layout-win32-x64-msvc` (바이너리 `elk-layout.<triple>.node`)
@@ -86,7 +87,7 @@
   - **Edge routing 최적화** (Phase 23): 3개 routing strategy에서 edge lock 4+회 → 1회 배치, crossing-min에서 in-place reverse
   - **SoA 최적화** (Phase 20-21): Force/Stress 알고리즘에 SoA(Struct-of-Arrays) 패턴 적용, O(n²) hot loop에서 lock 제거
   - 상세 리포트: `tests/perf/report.md`
-- **코드 품질**: workspace build/clippy warning0, tests1,032 passed/0failed/2ignored. 정적 parity12/12 strict 통과, full2,007입력 메모리 검사 잔존 할당 증가0
+- **코드 품질 (2026-10-23)**: workspace build/clippy warning0, tests1,081 passed/0failed/2ignored. 기존 메모리 회귀 테스트 통과. 정적 parity12/12 strict 및 full2,007입력 메모리 검사 잔존 할당 증가0은 0.12.0 포팅 시점의 이전 검증 기록이며 이번 작업에서 별도로 재실행하지 않았다.
   - RUST_QUALITY_PLAN_V2 Phase A-1 완료: `get_property(&mut self)` → `get_property(&self)` 전환 (111파일, 272건 mut 제거)
   - Phase A-2 완료: typed property wrapper 22개 (LNode 11, LEdge 6, LPort 4, LGraph 3)
   - Phase B-1 완료: lock_ok() → lock() 전환 (3,822건)
@@ -104,16 +105,17 @@
   - Phase-step trace: `1997/1997` match, `0` drift (100%)
   - 수정 전후 1,998/1,998 JSON 결과 동일. workspace test 1,021 passed / 0 failed / 2 ignored, build/clippy warning 0건.
   - 현재 머신 Rust A/B 성능: 전체 26개 평균 22.588→23.049ms(+2.04%), layered_xlarge 중앙값 +0.31%. Stress 대형 입력 별도 측정 +5.66%는 후속 프로파일링 대상이며 성능 무회귀로 판정하지 않음 (`HISTORY.md` 참조).
-- **알려진 실패**: 없음 (`elk_live_examples_test` 해결 완료 — cross-hierarchy edge graceful skip + 30s timeout)
+- **알려진 strict gate 실패**: 없음. Unsupported 계층 edge는 조용히 생략하지 않고 명시적 예외로 처리한다. live-example 테스트도 통과한다.
 - **원격 CI (0.12.0, `163ce307`)**: CI39356401621(1,032passed/0failed/2ignored, warning0), Java parity39356404335(5/5 및 정적검사), perf39356407064(8/8), release rehearsal39356401700(NAPI6개·web/NodeWASM·npm7개/crates18개 dry-run) 모두 성공. 실제 CI tarball의 Node18.0/24.19 native/WASM 세로딩모드12/12 통과. 이전 CI 수정 이력은 `HISTORY.md` 참조.
-- `213_componentsCompaction.elkt`: `java_non_ok=nan_output`으로 분류 — Rust 출력이 더 정확
+- `213_componentsCompaction.elkt`: 원본 Java의 NaN 출력 때문에 원본 비교에서 차이가 남는다. Rust는 별도 수정 Java reference와 최종·중간 결과가 일치한다.
 
 ## Drift 분석 요약
 
-### 213_componentsCompaction (Java ELK 버그)
-- NaN y좌표 73건: Java `ComponentsCompactor`에서 zero-size 노드 bounding box 계산 시 `∞ - ∞ = NaN` 전파
-- x좌표 차이 12건: Java hull 기반 1D compaction vs Rust anchor 기반 정렬
-- 결론: Rust 출력이 더 정확, Java `ComponentsCompactor` 포팅 비권장 (800+ lines + NaN 버그 복제)
+### 213_componentsCompaction (원인 규명 및 Rust 구현 보완)
+- 원본 Java의 zero-height 종료 이벤트가 시작보다 먼저 실행되어 도형이 active set에 남는다. 잘못된 그룹 순환 제약 → longest-path 미방문 노드의 `-Infinity` → NaN으로 이어진다. 사각형3개로 재현했다.
+- 기존 Rust의 x-anchor 근사는 Java의 실제 hull 기반 압축과 다르므로 유한 출력만으로 정확성을 주장할 수 없다. 공유 hull/1D solver를 재사용해 실제 알고리즘으로 대체했다.
+- 213 수정 Java reference와 최종 출력·229단계가 일치한다. 전체 Rust1998개 전후 출력은213만 변경됐고 나머지1997개는 동일하다. Java 수정은 별도 scratch class에만 적용하며 `external/elk`를 수정하지 않는다.
+- 상세 재현·명시적 Java patch·fixture provenance: `tests/component_compaction.md`.
 
 ### 해결된 drift (2026-02-26)
 - `next_to_port_if_possible_inside.elkt` — `components_processor` `.max(0.0)` clamp 제거
@@ -123,7 +125,7 @@
 - 일상 개발 및 릴리즈 절차: `TESTING.md` § 3 참조
 - **Full equivalence 검증 (두 가지 모두 필수)**:
   - Model parity (최종 출력): `MODEL_PARITY_SKIP_JAVA_EXPORT=true sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models tests/model_parity_full`
-  - Phase-step trace (중간 상태): `python3 scripts/compare_phase_traces.py <java_trace_dir> <rust_trace_dir> --batch`
+  - Strict full trace 및 최종 출력: `JAVA_TRACE_CLASSPATH=... PHASE_INPUT_MANIFEST=... sh scripts/run_full_trace_parity.sh external/elk-models <fresh-output-dir>` (`tests/phase_trace_audit.md` 재현법 참조)
 - 6-way 성능 벤치마크: `sh scripts/run_perf_benchmark.sh synthetic 10 3 tests/perf`
   - 엔진: rust_native, rust_api, java, elkjs, napi, wasm (26 시나리오)
   - 통합 바이너리: `perf_benchmark --engine rust_native|rust_api --mode synthetic|models`

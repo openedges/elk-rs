@@ -1,3 +1,4 @@
+mod compaction;
 pub mod component_group;
 pub mod component_ordering_strategy;
 pub mod components_processor;
