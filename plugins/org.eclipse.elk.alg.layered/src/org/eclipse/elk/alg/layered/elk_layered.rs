@@ -1,7 +1,7 @@
 use std::any::TypeId;
+use std::cell::Cell;
 use std::collections::VecDeque;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use org_eclipse_elk_core::org::eclipse::elk::core::alg::i_layout_processor::ILayoutProcessor;
@@ -30,10 +30,28 @@ use crate::org::eclipse::elk::alg::layered::options::{
 };
 use crate::org::eclipse::elk::alg::layered::trace_recorder;
 
-/// Global step counter for trace recording. Uses AtomicUsize so it can be
-/// incremented from `run_processor_for_graph` without requiring `&mut self`.
-static TRACE_STEP_COUNTER: AtomicUsize = AtomicUsize::new(0);
-static TRACE_LAYOUT_DEPTH: AtomicUsize = AtomicUsize::new(0);
+thread_local! {
+    static TRACE_STEP_COUNTER: Cell<usize> = const { Cell::new(0) };
+    static TRACE_LAYOUT_DEPTH: Cell<usize> = const { Cell::new(0) };
+}
+
+// Restore nesting on cancellation and unwinding as well as normal completion.
+struct TraceLayoutScope;
+impl TraceLayoutScope {
+    fn enter() -> Self {
+        let previous = TRACE_LAYOUT_DEPTH.get();
+        TRACE_LAYOUT_DEPTH.set(previous + 1);
+        if previous == 0 {
+            ElkLayered::prepare_trace_directory_for_run();
+        }
+        Self
+    }
+}
+impl Drop for TraceLayoutScope {
+    fn drop(&mut self) {
+        TRACE_LAYOUT_DEPTH.set(TRACE_LAYOUT_DEPTH.get() - 1);
+    }
+}
 
 /// Read ELK_TRACE_DIR fresh each time (not cached) so the parity runner
 /// can change it per model via `env::set_var`.
@@ -285,7 +303,7 @@ impl ElkLayered {
 
     /// Reset the trace step counter. Call this at the start of each layout run.
     pub fn reset_trace_step_counter() {
-        TRACE_STEP_COUNTER.store(0, Ordering::Relaxed);
+        TRACE_STEP_COUNTER.set(0);
     }
 
     /// Remove all `step_*.json` files from the ELK_TRACE_DIR directory.
@@ -311,29 +329,27 @@ impl ElkLayered {
         if trace_dir().is_none() {
             return;
         }
-        if TRACE_STEP_COUNTER.load(Ordering::Relaxed) == 0 {
+        if TRACE_STEP_COUNTER.get() == 0 {
             Self::clear_trace_directory();
         }
     }
 
     /// Record a trace snapshot when tracing is enabled for the outermost root graph.
     fn record_trace_snapshot_for_root(graph: &LGraph, processor_name: &str) {
-        if TRACE_LAYOUT_DEPTH.load(Ordering::Relaxed) != 1 || graph.parent_node().is_some() {
+        if TRACE_LAYOUT_DEPTH.get() != 1 || graph.parent_node().is_some() {
             return;
         }
         let Some(ref trace_dir) = trace_dir() else {
             return;
         };
 
-        let step = TRACE_STEP_COUNTER.fetch_add(1, Ordering::Relaxed);
+        let step = TRACE_STEP_COUNTER.get();
+        TRACE_STEP_COUNTER.set(step + 1);
         let trace_path = PathBuf::from(trace_dir);
         if let Err(e) =
             trace_recorder::serialize_lgraph_snapshot(graph, step, processor_name, &trace_path)
         {
-            eprintln!(
-                "[elk-layered][trace] failed to write snapshot step={} proc={}: {}",
-                step, processor_name, e
-            );
+            panic!("failed to write trace snapshot step={step} proc={processor_name}: {e}");
         }
     }
 
@@ -343,10 +359,7 @@ impl ElkLayered {
         monitor: &mut dyn IElkProgressMonitor,
     ) {
         monitor.begin("Layered layout", 1.0);
-        let prev_depth = TRACE_LAYOUT_DEPTH.fetch_add(1, Ordering::Relaxed);
-        if prev_depth == 0 {
-            Self::prepare_trace_directory_for_run();
-        }
+        let _trace_scope = TraceLayoutScope::enter();
 
         self.graph_configurator.prepare_graph_for_layout(lgraph);
 
@@ -367,7 +380,6 @@ impl ElkLayered {
         self.components_processor.combine(&components, lgraph);
         self.resize_graph(lgraph);
 
-        TRACE_LAYOUT_DEPTH.fetch_sub(1, Ordering::Relaxed);
         monitor.done();
     }
 
@@ -376,10 +388,7 @@ impl ElkLayered {
         lgraph: &LGraphRef,
         monitor: &mut dyn IElkProgressMonitor,
     ) {
-        let prev_depth = TRACE_LAYOUT_DEPTH.fetch_add(1, Ordering::Relaxed);
-        if prev_depth == 0 {
-            Self::prepare_trace_directory_for_run();
-        }
+        let _trace_scope = TraceLayoutScope::enter();
 
         trace_step("compound layout: begin");
         monitor.begin("Layered layout", 2.0);
@@ -430,7 +439,6 @@ impl ElkLayered {
 
         monitor.done();
         trace_step("compound layout: done");
-        TRACE_LAYOUT_DEPTH.fetch_sub(1, Ordering::Relaxed);
     }
 
     pub fn prepare_layout_test(&mut self, lgraph: &LGraphRef) -> TestExecutionState {
@@ -927,5 +935,34 @@ impl ElkLayered {
 impl Default for ElkLayered {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod trace_scope_tests {
+    use super::*;
+
+    #[test]
+    fn trace_scope_restores_depth_after_unwinding() {
+        assert_eq!(TRACE_LAYOUT_DEPTH.get(), 0);
+        let result = std::panic::catch_unwind(|| {
+            let _outer = TraceLayoutScope::enter();
+            let _inner = TraceLayoutScope::enter();
+            assert_eq!(TRACE_LAYOUT_DEPTH.get(), 2);
+            panic!("simulated layout failure");
+        });
+        assert!(result.is_err());
+        assert_eq!(TRACE_LAYOUT_DEPTH.get(), 0);
+        let _next = TraceLayoutScope::enter();
+        assert_eq!(TRACE_LAYOUT_DEPTH.get(), 1);
+    }
+
+    #[test]
+    fn trace_depth_is_local_to_the_layout_thread() {
+        let _scope = TraceLayoutScope::enter();
+        std::thread::spawn(|| assert_eq!(TRACE_LAYOUT_DEPTH.get(), 0))
+            .join()
+            .unwrap();
+        assert_eq!(TRACE_LAYOUT_DEPTH.get(), 1);
     }
 }

@@ -20,10 +20,13 @@ Four custom features are currently implemented:
 | Item | Value |
 |------|-------|
 | Integration branch | `custom/0.12.0` |
-| Tag | [`v0.12.0-ext.1`](https://github.com/openedges/elk-rs/tree/v0.12.0-ext.1) (`371e186d`, build only) |
-| Cargo version | `0.12.0-ext.1` |
-| npm version | `@openedges/elk-layout@0.12.0-ext.1` manifest (extension builds are not published) |
-| Base | `custom/0.11.0` (`5473eb06`) merged with `releases/0.12.0` (`10661c0e`) |
+| Previous tag | [`v0.12.0-ext.1`](https://github.com/openedges/elk-rs/tree/v0.12.0-ext.1) (`371e186d`, build only) |
+| Cargo version | `0.12.0-ext.2` |
+| npm version | `@openedges/elk-layout@0.12.0-ext.2` manifest (extension builds are not published) |
+| Base | Previous custom `7d8e9791` merged with stable `0.12.1` (`eb586b6d`) on `releases/0.12.0` |
+
+This branch update creates no new tag. Current validation is recorded in
+[the ext.2 integration report](tests/update_custom_0_12_0_ext_2.md).
 
 Feature development branches:
 

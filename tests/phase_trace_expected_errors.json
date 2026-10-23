@@ -1,0 +1,6 @@
+{
+  "tickets/layered/588_hierarchicalLayoutNPE.elkt": {
+    "exception": "org.eclipse.elk.core.UnsupportedGraphException",
+    "reason": "The fixture deliberately connects across a hierarchy boundary into another layout algorithm. Both implementations must reject the unsupported edge."
+  }
+}

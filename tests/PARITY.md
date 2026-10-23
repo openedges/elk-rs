@@ -1,5 +1,9 @@
 # ELK (Java) vs elk-rs Functional Parity
 
+Current `custom/0.12.0` results are in [the ext.2 integration report](update_custom_0_12_0_ext_2.md).
+It retains two existing custom trace differences; the stable full-equivalence
+report below describes a different branch and is not the current custom verdict.
+
 ## Overview
 
 elk-rs is a Rust port of [Eclipse Layout Kernel (ELK)](https://www.eclipse.org/elk/),
@@ -28,7 +32,7 @@ Local and CI share the same sequence:
 **Note**: Steps 5 and 6 are both required to confirm full equivalence between Java ELK and
 elk-rs. Model parity verifies final layout output; phase-step trace verifies intermediate
 state after each layered processor. A model may produce identical final output while diverging
-at an intermediate step (equivalent intermediate), so both checks are necessary.
+at an intermediate step, so both checks are necessary.
 
 ### Pass Criteria
 
@@ -39,7 +43,7 @@ at an intermediate step (equivalent intermediate), so both checks are necessary.
 | 3 | Clippy | Zero warnings |
 | 4 | Unit tests | Zero failures |
 | 5 | Model parity | Drift count within known exceptions |
-| 6 | Phase-step trace | All steps match (equivalent intermediate drift is acceptable) |
+| 6 | Phase-step trace | All expected inputs accounted for; successful layouts/states and specified errors match |
 | 7 | JS parity | Zero `ELKRS_DRIFT` (elkjs-only drift is acceptable) |
 
 ### Failure Analysis Loop
@@ -83,8 +87,8 @@ cargo clippy --workspace --all-targets
 cargo test --workspace
 ```
 
-**Current status** (2026-03-04): 653 tests, 0 known failures.
-(`elk_live_examples_test` resolved — cross-hierarchy edge graceful skip + 30s timeout).
+**Current status** (2026-10-23): 1,081 passed, 0 failed, 2 ignored.
+Unsupported hierarchy edges return an explicit error; see the phase validation report.
 
 JS unit tests (Vitest):
 
@@ -110,9 +114,9 @@ MODEL_PARITY_SKIP_JAVA_EXPORT=true \
   sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models tests/model_parity
 ```
 
-**Current status** (2026-03-04):
+**Historical unmodified-Java baseline** (2026-03-04):
 - Total: 1998 models, Compared: 1989, **Matched: 1988**, Drift: 1, Skipped: 9
-- Match rate: **100%** (drift is known `213_componentsCompaction` Java NaN bug)
+- Raw match rate: **1,988/1,989**; ticket 213 contains an original Java NaN defect
 - Skipped: 9 Java exceptions/timeouts
 - Coverage expanded from 1438 → 1988 by including 550 .json ptolemy models
 
@@ -138,57 +142,47 @@ Byte 단위 비교가 아닌 **JSON 파싱 후 의미 기반(semantic) 비교**�
 - **skip-fields**: `--skip-fields` 옵션으로 Java identity hash 기반 참조 필드
   (`id`, `incomingShape` 등)를 비교에서 제외 가능.
 
-### 3. Phase-Step Verification (Layered Pipeline Trace)
+### 3. Strict Full-Corpus Phase and Layout Verification
 
-Compares intermediate state after each layered pipeline step (50+ processors).
-Detects at which processing step divergence first occurs, enabling targeted
-debugging.
+The current gate accounts for all **1,998 inputs**: **1,997 matching layouts**,
+**one matching specified error**, and **196,407 matching raw processor states**.
+Its reference is Java ELK v0.12.0 with the three explicit
+[reference patches](../scripts/java/patches/README.md). This must be distinguished
+from the historical unmodified-Java artifacts above.
 
 ```sh
-# Generate Java traces:
-sh scripts/java_model_phase_step_trace.sh <input_dir> <output_dir>
-
-# Generate Rust traces:
-cargo run --release -p org-eclipse-elk-graph-json --bin model_parity_layout_runner \
-  -- --trace-dir <output_dir> <input.json>
-
-# Compare traces:
-python3 scripts/compare_phase_traces.py <java_trace_dir> <rust_trace_dir> --batch
-
-# Summarize gate:
-python3 scripts/summarize_phase_gate.py \
-  --java-manifest ... --rust-manifest ... \
-  --java-trace-dir ... --rust-trace-dir ... \
-  --compare-json ... --output-md tests/model_parity/phase_gate_latest.md
+export JAVA_TRACE_CLASSPATH='<pinned ELK modules, test module and runtime dependencies>'
+export PHASE_INPUT_MANIFEST='/absolute/path/to/complete-input.tsv'
+sh scripts/run_full_trace_parity.sh external/elk-models /tmp/elk-full-phase
 ```
 
-**Current status** (2026-03-04): gate_pass=**true**, 1997/1997 models match at all 50+ steps.
-Coverage expanded from 1438 → 1997 by including .json models. `rust_only=1`
-(`588_hierarchicalLayoutNPE.elkt` — Java NPE prevents trace generation).
+The output directory must be new. The workflow builds a separate corrected Java
+class overlay, executes identical JSON inputs recursively with root layered
+algorithm and random seed 1, exports Rust states, and verifies exact input/result
+manifest sets. It writes `report.json`, `verification.log` and `provenance.json`.
+Prerequisites, input TSV format and focused tests are documented in the
+[full phase-trace report](phase_trace_audit.md).
 
-Output: `tests/model_parity/phase_gate_latest.md`
+Final geometry uses tolerance `1e-6`; phase geometry uses `0.001`. All nonfinite
+values fail, as do missing/null geometry, empty/incomplete/duplicate results and
+processor-order differences. Java zero coordinates have no exception. Recorder
+geometry adjustments and Java execution-path fallbacks have been removed.
 
-#### Comparison Algorithm (`compare_phase_traces.py`)
+The comparator maps snapshot-local IDs and storage order across languages:
+nodes are sorted within a layer, ports use geometry and incident-node identity,
+and edge endpoints and layer memberships are compared after mapping. Node/port
+sizes, margins, padding, anchors, labels, bends, graph size and offset remain
+actual exported values. This is structural/numeric equality under a documented
+representation mapping, not byte equality.
 
-Model parity와 마찬가지로 **JSON 파싱 후 의미 기반 비교**를 수행하지만, 중간 상태
-비교에 맞는 별도 전략을 사용한다.
+Ticket 588 must produce `org.eclipse.elk.core.UnsupportedGraphException` on both
+sides. It is a mandatory negative case, not a skipped or Rust-only success.
+The former 1,997/1,997 claim used a permissive comparator that concealed
+nonfinite values and is superseded by the raw-state gate.
 
-- **숫자 tolerance**: `0.001` (model parity의 `1e-6`보다 느슨함). 중간 단계에서는
-  부동소수점 연산 순서 차이로 미세한 오차가 누적될 수 있기 때문.
-- **ID 무시 + positional matching**: Java와 Rust는 서로 다른 ID 스킴을 사용한다
-  (Java: `N1`, Rust: `N0` 등). 따라서 ID로 매칭하지 않고 **배열 위치 기반**으로
-  대응 노드/엣지/포트를 비교한다.
-- **Within-layer 노드 정렬**: 일부 프로세서(예: `NetworkSimplexLayerer`)는 내부
-  자료구조 차이(Java `HashMap` vs Rust `Vec`)로 같은 레이어 내 노드 순서가
-  비결정적이다. 비교 전에 composite key로 정렬하여 순서 차이를 흡수한다:
-  `(labels, type, port_count, port_sides, width, height, x, y)`
-- **Java 0값 skip**: import 단계에서 Java `LNode`는 geometry를 0으로 초기화하지만,
-  Rust는 `ElkNode` 원본 값을 보존한다. `x, y, width, height` 필드에서
-  `java=0, rust≠0`인 경우는 diff에서 제외한다.
-- **포맷 정규화**: Java의 flat 포맷(`nodes`/`edges`/`layers`)과 component 포맷
-  (`components` 배열)을 공통 구조(`all_nodes`/`layer_ids`/`edges`)로 정규화한 뒤 비교.
-- **Cascade 표시**: 첫 divergence 이후 단계들은 `cascaded=true`로 표시하여,
-  원인 단계와 파생 단계를 구분한다.
+`compare_phase_traces.py <java_trace_dir> <rust_trace_dir> --batch` remains useful
+for diagnostics. Full acceptance uses `verify_phase_corpus.py` through the
+workflow above so missing input outcomes cannot disappear from the denominator.
 
 ### 4. API/Metadata Parity
 

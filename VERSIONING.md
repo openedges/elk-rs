@@ -7,10 +7,11 @@ elk-rs is a Rust port of Java ELK (Eclipse Layout Kernel) and also provides an e
 - **ELK Java** (`external/elk`): pinned to `v0.12.0`, commit `323312916048544e4e594eab3303cdb0d01e2929`
 - **elkjs** (`external/elkjs`): pinned to `0.12.0`, commit `ff5771d7165445c42c408bb8a090c8035272218c`
 - **elk-models** (`external/elk-models`): pinned to the parity corpus commit
-- **Working tree**: `custom/0.12.0`, all Rust crates and npm packages `0.12.0-ext.1`; the JS test dependency is exact `elkjs@0.12.0`. This branch merges `releases/0.12.0` (`10661c0e`) into the previous extension line (`5473eb06`). Annotated extension tag `v0.12.0-ext.1` points to `371e186d` and is pushed to GitHub; extension packages remain unpublished.
-- **Published package version**: `0.12.0`; release workflow 39357332958 completed crates.io, npm and GitHub Release publication on 2026-10-20
-- **Initial release tag**: [`v0.12.0`](https://github.com/openedges/elk-rs/releases/tag/v0.12.0), pointing to the original release commit `22fbee45`. The mistaken `v0.12.0+rs.7` tag was removed and the existing Release renamed, preserving all seven assets. The first subsequent Rust revision is `v0.12.0+rs.1`.
-- **Verification**: the stable release evidence is in the [0.12.0 upgrade report](tests/upgrade_0_12_0.md); extension integration evidence is in the [custom upgrade report](tests/upgrade_custom_0_12_0.md).
+- **Working tree**: `custom/0.12.0`, all Rust crates and npm packages `0.12.0-ext.2`; the JS test dependency is exact `elkjs@0.12.0`. This update merges stable `0.12.1` (`eb586b6d`) into the previous custom tip (`7d8e9791`). Existing `v0.12.0-ext.1` remains unchanged; no new tag is created by this branch update.
+- **Previous published package version**: `0.12.0`; release workflow 39357332958 completed publication on 2026-10-20
+- **Latest stable release**: `0.12.1` (`v0.12.1`), an elk-rs patch on the existing `releases/0.12.0` branch; Java and elkjs pins remain `0.12.0`. See [release validation](tests/release_0_12_1.md).
+- **Initial release tag**: [`v0.12.0`](https://github.com/openedges/elk-rs/releases/tag/v0.12.0), pointing to the original release commit `22fbee45`. The mistaken `v0.12.0+rs.7` tag was removed and the existing Release renamed, preserving all seven assets. A build-only revision of that same package version would be `v0.12.0+rs.1`; the next published package patch uses `v0.12.1`.
+- **Verification**: current custom results are recorded in [the ext.2 integration report](tests/update_custom_0_12_0_ext_2.md). The [stable 0.12.1 report](tests/release_0_12_1.md) and [previous custom report](tests/upgrade_custom_0_12_0.md) are separate historical validations.
 - **Node.js runtime**: the 0.12.0 npm package requires Node.js 18+ (minimum 18.0.0 verified); development and release builds use pinned Node.js 24. Node.js 16 is unsupported because the standard WASM artifact requires reference types unavailable there without experimental flags.
 - **License**: `EPL-2.0 OR GPL-3.0-or-later`, with the upstream conditional secondary-license notice preserved in `LICENSE` and `NOTICE`
 
@@ -32,14 +33,15 @@ releases `0.9.1`, `0.10.0` and `0.11.0`.
 elk-rs 0.11.0  =  ELK Java 0.11.0 port          (first publish of the 0.11 line)
 elk-rs 0.11.1  =  ELK Java 0.11.0 + elk-rs fixes (example patch version)
 elk-rs 0.12.0  =  ELK Java 0.12.0 port
+elk-rs 0.12.1  =  ELK Java 0.12.0 + elk-rs fixes
 ```
 
-| Project | Working-tree target | Latest elk-rs package release |
+| Project | Working-tree target | Latest stable version |
 |---------|---------------------|-------------------------------|
 | ELK Java reference | 0.12.0 | 0.12.0 |
 | elkjs reference | 0.12.0 | 0.12.0 |
-| elk-rs (Rust crates) | 0.12.0-ext.1 | 0.12.0 |
-| elk-rs (npm) | 0.12.0-ext.1 | 0.12.0 |
+| elk-rs (Rust crates) | 0.12.0-ext.2 | 0.12.1 |
+| elk-rs (npm) | 0.12.0-ext.2 | 0.12.1 |
 
 **Rules:**
 - A new ELK `MAJOR.MINOR` port resets `PATCH` to ELK's patch number (`0.12.0`)
@@ -95,9 +97,9 @@ present in the registry.
 Custom features (not in upstream ELK Java) use prerelease versions for build artifacts:
 
 ```
-npm: @openedges/elk-layout@0.12.0        <- published stable release
-npm: @openedges/elk-layout@0.12.0-ext.1  <- current extension manifest (not published)
-npm: @openedges/elk-layout@0.12.0-ext.2  <- example subsequent extension revision
+npm: @openedges/elk-layout@0.12.1        <- published stable release
+npm: @openedges/elk-layout@0.12.0-ext.1  <- previous extension manifest (not published)
+npm: @openedges/elk-layout@0.12.0-ext.2  <- current extension manifest (not published)
 ```
 
 - **Version format**: `{ELK_VERSION}-ext.{N}` — semver pre-release label `ext` (extension)
@@ -108,6 +110,7 @@ npm: @openedges/elk-layout@0.12.0-ext.2  <- example subsequent extension revisio
   - Use a source checkout or locally built artifacts for extension versions; `npm install @openedges/elk-layout` resolves to the published stable version.
   - NAPI CI builds extension tags for all six platforms but skips the publish jobs; bare stable tags and `+rs.N` tags on `releases/*` can publish missing versions (§ 6).
   - To incorporate an internal patch, merge `releases/{ELK_VERSION}` into `custom/{ELK_VERSION}`, verify extension fixtures and full parity, then increment `ext.N`. Preserve existing release tags.
+  - The prefix is the Java ELK baseline, not the stable Rust package patch: merging stable `0.12.1` into `custom/0.12.0` advances `0.12.0-ext.1` to `0.12.0-ext.2`.
 - **Semver note**: `0.12.0-ext.1 < 0.12.0` in semver ordering. The extension version identifies a separate build, not a stable upgrade.
 - **New ELK baseline**: Create `custom/{new-version}` from the previous custom integration branch, merge `releases/{new-version}`, and restart at `ext.1`. Keep the previous branch and tags intact; verify both inherited extension fixtures and full parity.
 - **Branch**: Extension releases are tagged on `custom/{ELK_VERSION}` branches, not on `releases/*`
@@ -167,13 +170,13 @@ to the target upstream version and regenerate the npm lockfile.
 
 | File | Version Field | Stable | Extension |
 |------|---------------|--------|-----------|
-| `Cargo.toml` (workspace root) | `[workspace.package] version` and the `version = "=X.Y.Z"` pins in `[workspace.dependencies]` | `"0.12.0"` | `"0.12.0-ext.1"` |
-| `Cargo.lock` | Workspace member entries (`cargo update --workspace`) | `"0.12.0"` | `"0.12.0-ext.1"` |
-| `plugins/org.eclipse.elk.js/package.json`, `package-lock.json` | `"version"`, the six `@openedges/elk-layout-*` optional dependencies, lockfile root entries | `"0.12.0"` | `"0.12.0-ext.1"` |
-| `plugins/org.eclipse.elk.js/npm/*/package.json` | Six platform package versions | `"0.12.0"` | `"0.12.0-ext.1"` |
-| `plugins/org.eclipse.elk.napi/package.json` | NAPI build package version (private) | `"0.12.0"` | `"0.12.0-ext.1"` |
-| `packages/elk-live/package.json`, `package-lock.json` | Private application version | `"0.12.0"` | `"0.12.0-ext.1"` |
-| `CHANGELOG.md` | Change history per published version | `## [0.12.0]` | `## [0.12.0-ext.1]` |
+| `Cargo.toml` (workspace root) | `[workspace.package] version` and the `version = "=X.Y.Z"` pins in `[workspace.dependencies]` | `"0.12.1"` | `"0.12.0-ext.2"` |
+| `Cargo.lock` | Workspace member entries (`cargo update --workspace`) | `"0.12.1"` | `"0.12.0-ext.2"` |
+| `plugins/org.eclipse.elk.js/package.json`, `package-lock.json` | `"version"`, the six `@openedges/elk-layout-*` optional dependencies, lockfile root entries | `"0.12.1"` | `"0.12.0-ext.2"` |
+| `plugins/org.eclipse.elk.js/npm/*/package.json` | Six platform package versions | `"0.12.1"` | `"0.12.0-ext.2"` |
+| `plugins/org.eclipse.elk.napi/package.json` | NAPI build package version (private) | `"0.12.1"` | `"0.12.0-ext.2"` |
+| `packages/elk-live/package.json`, `package-lock.json` | Private application version | `"0.12.1"` | `"0.12.0-ext.2"` |
+| `CHANGELOG.md` | Change history per published version | `## [0.12.1]` | `## [0.12.0-ext.2]` |
 
 ### Cargo Workspace Version Unification
 
@@ -247,8 +250,8 @@ main                        <- development branch (always build/test/parity gree
 │   ├─ v0.11.0+rs.1         <- internal patch tag
 │   └─ v0.11.0+rs.6         <- first registry publish
 ├─ custom/0.11.0            <- extension line (-ext.N tags, never published)
-├─ releases/0.12.0          <- current release line (initial tag v0.12.0)
-├─ custom/0.12.0            <- current extension line (tag v0.12.0-ext.1, build only)
+├─ releases/0.12.0          <- current 0.12.x line (v0.12.0, v0.12.1)
+├─ custom/0.12.0            <- current extension line (0.12.0-ext.2 working tree)
 ├─ port/0.12.0              <- ELK 0.12.0 porting work branch
 ├─ feature/*                <- elk-rs feature development (NAPI, optimizations, etc.)
 └─ fix/*                    <- bug fixes
@@ -288,11 +291,12 @@ custom/0.11.0:
 
 releases/0.12.0:
   v0.12.0                 <- initial ELK 0.12.0 port tag
-  v0.12.0+rs.1            <- first subsequent Rust revision (future)
-  v0.12.0+rs.2            <- second subsequent Rust revision (future)
+  v0.12.1                 <- published Rust fixes, still based on Java 0.12.0
+  v0.12.1+rs.1            <- first build-only revision of package 0.12.1 (example)
 
 custom/0.12.0:
   v0.12.0-ext.1           <- first extension tag at 371e186d (build only)
+  0.12.0-ext.2            <- integrates stable 0.12.1; no tag created in this update
 ```
 
 **Rules:**

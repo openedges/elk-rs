@@ -1,5 +1,9 @@
 # Testing and Validation Guide
 
+Current custom integration results: [0.12.0-ext.2](tests/update_custom_0_12_0_ext_2.md).
+The strict verifier still reports the two retained custom trace differences;
+stable validation history must not be read as complete custom Java parity.
+
 Single entry point for the elk-rs validation flow. Covers environment setup,
 verification items, scenario-based procedures, release checklist, and known
 issues.
@@ -89,14 +93,14 @@ Patches are applied automatically during Java baseline export:
 |------|---------|---------------|
 | Build | `cargo build --workspace` | Zero errors/warnings |
 | Lint | `cargo clippy --workspace --all-targets` | Zero warnings |
-| Unit tests | `cargo test --workspace` | Zero failures (custom 0.12.0: 1,058 passed, 0 failed, 2 ignored) |
+| Unit tests | `cargo test --workspace` | Zero failures; see [current custom validation](tests/update_custom_0_12_0_ext_2.md) |
 
 ### B. Layout Equivalence (3 items)
 
 | Item | Comparison | Current Status |
 |------|------------|----------------|
-| Model parity | Java vs Rust layout JSON | custom 0.12.0: 1987/1989, 2 known differences, 9 skipped; [integration report](tests/upgrade_custom_0_12_0.md) |
-| Phase-step trace | Intermediate state across 50+ processors | custom 0.12.0: 1995/1997, 2 known extension differences; Rust-only 1 (Java NPE) |
+| Model parity | Java vs Rust layout JSON | Run full corrected-reference comparison; analyze documented custom differences separately; [report](tests/update_custom_0_12_0_ext_2.md) |
+| Phase-step trace | Intermediate state across 50+ processors | Raw states and complete input accounting; [current custom report](tests/update_custom_0_12_0_ext_2.md), [stable reference](tests/phase_trace_audit.md) |
 | JS parity | 3-way: elk-rs JS vs elkjs vs Java | Fresh 0.12.0 NAPI and web WASM: each 550/550 Java matches (530 PASS + 20 ELKJS_DRIFT) |
 
 Both model parity and phase-step trace are mandatory. A reused Java export must
@@ -111,13 +115,14 @@ MODEL_PARITY_SKIP_JAVA_EXPORT=true \
   sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models tests/model_parity
 # Output: tests/model_parity/report.md, tests/model_parity/diff_details.tsv
 
-# Phase-step trace
-python3 scripts/compare_phase_traces.py <java_trace_dir> <rust_trace_dir> --batch
-# Output: tests/model_parity/phase_gate_latest.md
+# Full phase and final-layout gate (Python 3.10+, complete input manifest).
+# Set JAVA_TRACE_CLASSPATH to pinned ELK modules + test module + dependencies.
+# Set PHASE_INPUT_MANIFEST to the complete input TSV; see the report above.
+sh scripts/run_full_trace_parity.sh external/elk-models /tmp/elk-full-phase
+# Output: report.json, verification.log, provenance.json; output must be fresh.
 
-# Full trace (all models including .json + java-error, with missing-model reporting)
-sh scripts/run_full_trace_parity.sh [models_root] [output_base]
-# Wraps: full manifest generation + Rust trace + compare --report-missing
+# Per-model trace comparison is a diagnostic, not full corpus accounting:
+python3 scripts/compare_phase_traces.py <java_trace_dir> <rust_trace_dir> --batch
 
 # JS parity (explicit fresh local backend; adjust native filename for your platform)
 cd plugins/org.eclipse.elk.js
@@ -377,9 +382,8 @@ cargo test --workspace
 # 5. Full model parity (fresh Java export for an upstream version change)
 sh scripts/run_model_parity_elk_vs_rust.sh external/elk-models tests/model_parity_full
 
-# 6. Phase-step trace (intermediate state across 50+ processors)
-python3 scripts/compare_phase_traces.py \
-  tests/model_parity/java_trace tests/model_parity/rust_trace --batch
+# 6. Strict phase/final-layout gate (environment prerequisites in § 2.B)
+sh scripts/run_full_trace_parity.sh external/elk-models /tmp/elk-full-phase-release-check
 
 # 7. Release build
 cargo build --workspace --release
@@ -392,13 +396,13 @@ Pass criteria:
 - Step 3: Zero clippy warnings
 - Step 4: Zero test failures
 - Step 5: Model parity report generated, drift=0 (or within known exceptions)
-- Step 6: Phase-step trace report generated, all steps match (or equivalent intermediate only)
+- Step 6: Strict report has status=pass, every expected input accounted for, all successful layouts/steps match, and specified errors match on both sides
 - Step 7: Release profile build succeeds
 
 **Note**: Steps 5 and 6 are both required to confirm full equivalence. Model parity verifies
 final layout output; phase-step trace verifies intermediate state after each of the 50+
 layered processors. A model may produce identical final output while diverging at an
-intermediate step (equivalent intermediate), so both checks are necessary.
+intermediate step, so both checks are necessary; a differing exported state is a failure.
 
 Failure triage:
 
@@ -575,7 +579,12 @@ See the porting workflow in `VERSIONING.md`.
 
 ## 4. Known Issues
 
-### 4.1 Accepted Exceptions
+### 4.1 Historical Original-Java Exceptions and Separate JS Results
+
+The Java rows below describe the historical unmodified-reference artifacts.
+They are not waivers for the corrected full-corpus gate in § 2.B. That gate
+accounts for every input and permits only the explicit matching error in
+`tests/phase_trace_expected_errors.json`.
 
 | Category | Item | Count | Description |
 |----------|------|-------|-------------|
@@ -584,14 +593,17 @@ See the porting workflow in `VERSIONING.md`.
 | ELKJS drift | GWT artifact | 20 | elk-rs matches Java 100%; only elkjs diverges (y-offset, floating-point) |
 | Static parity (`custom/0.12.0` only) | extension option | 1 | `org.eclipse.elk.layered.layering.ignoreEdgeInLayer` has no Java ELK 0.12.0 counterpart: `algorithm_option_support` reports layered Rust154/Java153 and `algorithm_option_default` reports 1 extra pair. Stable `main` is 153/153. |
 
-### 4.2 Resolved: `elk_live_examples_test` (2026-03-03)
+### 4.2 Unsupported cross-hierarchy edges (corrected 2026-10-23)
 
-Previously failed due to cross-hierarchy edges causing `UnsupportedGraphException` panics
-and potential hangs. Fixed by:
-1. Converting `transform_edge()` panics to graceful edge skips (matching Java's exception-and-skip semantics)
-2. Adding per-example 30s timeout via thread+channel pattern to prevent test hangs
+The importer now reports `UnsupportedGraphException` when an edge endpoint is
+outside the supported layout scope. The JSON layout API converts this into
+`Err`; it no longer silently drops the edge. Ticket 588 is an explicit negative
+fixture and both engines must return that exception. Its input remains in the
+full-corpus denominator.
 
-The test now passes all 45 `.elkt` examples. This does not affect model parity (which uses JSON input).
+The earlier graceful-skip workaround did not match Java semantics. It is removed;
+`elk_live_examples_test` and the full workspace suite pass. The per-example
+30-second timeout remains. See the [validation report](tests/phase_trace_audit.md).
 
 ### 4.3 Stale Maven Cache (Java Export)
 

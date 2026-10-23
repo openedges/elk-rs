@@ -1,0 +1,5 @@
+scenario,iterations,avg_ms,peak_live_delta_bytes,retained_bytes
+global_defaults_1024,10,57.708346,27561232,0
+global_defaults_4096,10,242.780071,110293264,0
+ordered_simplex_128,10,10.753429,5509300,0
+ordered_simplex_512,10,136.384950,21908715,0

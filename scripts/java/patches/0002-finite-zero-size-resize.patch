@@ -1,0 +1,44 @@
+--- a/plugins/org.eclipse.elk.core/src/org/eclipse/elk/core/util/ElkUtil.java
++++ b/plugins/org.eclipse.elk.core/src/org/eclipse/elk/core/util/ElkUtil.java
+@@ -263,8 +263,8 @@
+         newSize.x = Math.max(newSize.x, newWidth);
+         newSize.y = Math.max(newSize.y, newHeight);
+ 
+-        double widthRatio = newSize.x / oldSize.x;
+-        double heightRatio = newSize.y / oldSize.y;
++        double widthRatio = oldSize.x == 0 ? 1 : newSize.x / oldSize.x;
++        double heightRatio = oldSize.y == 0 ? 1 : newSize.y / oldSize.y;
+         double widthDiff = newSize.x - oldSize.x;
+         double heightDiff = newSize.y - oldSize.y;
+ 
+@@ -314,7 +314,7 @@
+         node.setDimensions(newSize.x, newSize.y);
+ 
+         // update label positions
+-        if (moveLabels) {
++        if (moveLabels && oldSize.x != 0 && oldSize.y != 0) {
+             for (ElkLabel label : node.getLabels()) {
+                 double midx = label.getX() + label.getWidth() / 2;
+                 double midy = label.getY() + label.getHeight() / 2;
+--- a/plugins/org.eclipse.elk.alg.layered/src/org/eclipse/elk/alg/layered/graph/LGraphUtil.java
++++ b/plugins/org.eclipse.elk.alg.layered/src/org/eclipse/elk/alg/layered/graph/LGraphUtil.java
+@@ -92,8 +92,8 @@
+             final boolean moveLabels) {
+         KVector oldSize = new KVector(node.getSize());
+         
+-        float widthRatio = (float) (newSize.x / oldSize.x);
+-        float heightRatio = (float) (newSize.y / oldSize.y);
++        float widthRatio = oldSize.x == 0 ? 1 : (float) (newSize.x / oldSize.x);
++        float heightRatio = oldSize.y == 0 ? 1 : (float) (newSize.y / oldSize.y);
+         float widthDiff = (float) (newSize.x - oldSize.x);
+         float heightDiff = (float) (newSize.y - oldSize.y);
+ 
+@@ -131,7 +131,7 @@
+         }
+         
+         // Update label positions
+-        if (moveLabels) {
++        if (moveLabels && oldSize.x != 0 && oldSize.y != 0) {
+             for (LLabel label : node.getLabels()) {
+                 double midx = label.getPosition().x + label.getSize().x / 2;
+                 double midy = label.getPosition().y + label.getSize().y / 2;

@@ -6,13 +6,12 @@ the original `external/elk` submodule.
 
 ## Why patches?
 
-Java ELK has a few non-deterministic code paths that produce different layout
-results across JVM invocations. Since the parity test compares Java output
-against Rust output, non-deterministic Java results cause spurious drift
-(~80 models flipping between runs).
-
-These patches make the affected Java code deterministic so that parity
-comparisons are stable and reproducible.
+The reference needs both deterministic iteration and two correctness corrections.
+The latter prevent nonfinite intermediate geometry on valid zero-size input.
+Results produced with these patches are **corrected-reference parity**, not
+identity with unmodified upstream Java. Keep original-Java comparisons separately.
+See [the full validation report](../../../tests/phase_trace_audit.md) for measured
+causes, boundary contracts, and all 1,998 input outcomes.
 
 ## How patches are applied
 
@@ -27,7 +26,11 @@ isolation worktree immediately after creation and before the Java build.
   a checksum of all patch files, so if patches change the cached isolation is
   automatically invalidated and recreated.
 
-Set `JAVA_PARITY_APPLY_PATCHES=false` (or `JAVA_TRACE_APPLY_PATCHES=false` for
+The strict `run_full_trace_parity.py` workflow instead patches copied source
+files and compiles an overlay ahead of the pinned Java classpath. It always
+records all three patch hashes and uses the corrected reference.
+
+For the older export scripts, set `JAVA_PARITY_APPLY_PATCHES=false` (or `JAVA_TRACE_APPLY_PATCHES=false` for
 the phase trace script) to skip patch application.
 
 ## Patch inventory
@@ -35,11 +38,13 @@ the phase trace script) to skip patch application.
 | Patch | Issue |
 |-------|-------|
 | `0001-deterministic-opposing-self-loop-routing.patch` | `SelfHyperLoop.computePortsPerSide()` uses `ArrayListMultimap` (HashMap-backed) whose `keySet()` iteration order varies across JVM runs. Opposing self-loop tie-breaks depend on this order, causing ~80 models to flip. Fix: use `MultimapBuilder.enumKeys()` for deterministic enum-ordinal iteration. |
+| `0002-finite-zero-size-resize.patch` | Both resize helpers divide by a zero old dimension. Preserve tangent coordinates with ratio 1 on a collapsed axis; preserve label coordinates when relative-region inference is undefined. |
+| `0003-zero-extent-scanline.patch` | Zero-height end-before-start leaves a stale active interval, introducing cyclic constraints and nonfinite compaction. Process each degenerate start/end together. |
 
 ## Adding a new patch
 
 1. Create a standard `git diff` or `git format-patch` output.
-2. Name it with a sequential prefix: `0002-short-description.patch`.
+2. Name it with a sequential prefix: `0004-short-description.patch`.
 3. Test: run `scripts/java_model_parity_trace.sh` and verify the patch
    applies cleanly and the build succeeds.
 4. Add a row to the inventory table above.

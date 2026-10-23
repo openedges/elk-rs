@@ -16,22 +16,17 @@ const elk = new ELK();
 describe('elkjs#8', () => {
   describe('#layout()', () => {
 
-    // elk-rs handles cross-hierarchy edges gracefully instead of throwing
-    // UnsupportedGraphException (unlike elkjs). Layout succeeds.
-    it('should handle simple bottom-up layout with cross-hierarchy edges', async () => {
-      const result = await elk.layout(graph, {
-        layoutOptions: { 'hierarchyHandling': 'SEPARATE_CHILDREN'}
-      });
-      expect(result).toBeDefined();
-      expect(result.children).toBeDefined();
+    // Match upstream elkjs#8: separate layout scopes cannot route this edge.
+    it('should reject bottom-up cross-hierarchy edges', async () => {
+      await expect(elk.layout(graph, {
+        layoutOptions: { 'hierarchyHandling': 'SEPARATE_CHILDREN' }
+      })).rejects.toThrow('org.eclipse.elk.core.UnsupportedGraphException');
     });
 
-    it('should handle simple bottom-up layout with cross-hierarchy edges (primitive edge format)', async () => {
-      const result = await elk.layout(graphPrimitiveEdgeFormat, {
-        layoutOptions: { 'hierarchyHandling': 'SEPARATE_CHILDREN'}
-      });
-      expect(result).toBeDefined();
-      expect(result.children).toBeDefined();
+    it('should reject bottom-up cross-hierarchy edges (primitive edge format)', async () => {
+      await expect(elk.layout(graphPrimitiveEdgeFormat, {
+        layoutOptions: { 'hierarchyHandling': 'SEPARATE_CHILDREN' }
+      })).rejects.toThrow('org.eclipse.elk.core.UnsupportedGraphException');
     });
 
     it('should add edge sections for hierarchical layout', async () => {

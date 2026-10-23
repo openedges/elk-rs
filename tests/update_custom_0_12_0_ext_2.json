@@ -1,0 +1,470 @@
+{
+  "date": "2026-10-23",
+  "branch": "custom/0.12.0",
+  "package_version": "0.12.0-ext.2",
+  "previous_custom": "7d8e979167632fb92195866fd4ce319cc403e6b9",
+  "merged_stable": "eb586b6d91ee0b55cda591546cec8f04cc7f2422",
+  "reference": "Java ELK 0.12.0 with the three explicit patches in scripts/java/patches",
+  "strict_summary": {
+    "expected_inputs": 1998,
+    "successful_layouts": 1997,
+    "expected_errors": 1,
+    "verified_steps": 196407,
+    "failed_models": 2,
+    "status": "fail"
+  },
+  "matching_layouts": 1996,
+  "matching_trace_steps": 196373,
+  "nonmatching_cases": [
+    {
+      "model": "tests/layered/layer_constraints/emptyLayerFirst.elkt",
+      "status": "failed",
+      "steps": 19,
+      "trace_drift_steps": 17,
+      "layout_differences": 4,
+      "layout_details": [
+        "root/children[1]/y: number mismatch (12.0 != 22.0)",
+        "root/edges[0]/sections[0]: missing keys on left: bendPoints",
+        "root/edges[0]/sections[0]/startPoint/y: number mismatch (12.0 != 22.0)",
+        "root/height: number mismatch (24.0 != 35.0)"
+      ],
+      "trace_details": [
+        {
+          "step": 0,
+          "processor": "EdgeAndLayerConstraintEdgeReverser",
+          "status": "drift",
+          "diffs": 7,
+          "details": [
+            {
+              "path": "edges[0]/sourceNode",
+              "java": 0,
+              "rust": 1
+            },
+            {
+              "path": "edges[0]/sourcePort",
+              "java": [
+                0,
+                0
+              ],
+              "rust": [
+                1,
+                0
+              ]
+            },
+            {
+              "path": "edges[0]/targetNode",
+              "java": 1,
+              "rust": 2
+            },
+            {
+              "path": "edges[0]/targetPort",
+              "java": [
+                1,
+                1
+              ],
+              "rust": [
+                2,
+                1
+              ]
+            },
+            {
+              "path": "edges[1]/sourcePort",
+              "java": [
+                1,
+                0
+              ],
+              "rust": [
+                1,
+                1
+              ]
+            },
+            {
+              "path": "edges[1]/targetNode",
+              "java": 2,
+              "rust": 0
+            },
+            {
+              "path": "edges[1]/targetPort",
+              "java": [
+                2,
+                1
+              ],
+              "rust": [
+                0,
+                0
+              ]
+            }
+          ]
+        },
+        {
+          "step": 1,
+          "processor": "GreedyCycleBreaker",
+          "status": "drift",
+          "diffs": 7,
+          "details": [
+            {
+              "path": "edges[0]/sourceNode",
+              "java": 0,
+              "rust": 1
+            },
+            {
+              "path": "edges[0]/sourcePort",
+              "java": [
+                0,
+                0
+              ],
+              "rust": [
+                1,
+                0
+              ]
+            },
+            {
+              "path": "edges[0]/targetNode",
+              "java": 1,
+              "rust": 2
+            },
+            {
+              "path": "edges[0]/targetPort",
+              "java": [
+                1,
+                1
+              ],
+              "rust": [
+                2,
+                1
+              ]
+            },
+            {
+              "path": "edges[1]/sourcePort",
+              "java": [
+                1,
+                0
+              ],
+              "rust": [
+                1,
+                1
+              ]
+            },
+            {
+              "path": "edges[1]/targetNode",
+              "java": 2,
+              "rust": 0
+            },
+            {
+              "path": "edges[1]/targetPort",
+              "java": [
+                2,
+                1
+              ],
+              "rust": [
+                0,
+                0
+              ]
+            }
+          ],
+          "cascaded": true
+        },
+        {
+          "step": 4,
+          "processor": "LayerConstraintPostprocessor",
+          "status": "drift",
+          "diffs": 7,
+          "details": [
+            {
+              "path": "edges[0]/sourceNode",
+              "java": 0,
+              "rust": 1
+            },
+            {
+              "path": "edges[0]/sourcePort",
+              "java": [
+                0,
+                0
+              ],
+              "rust": [
+                1,
+                0
+              ]
+            },
+            {
+              "path": "edges[0]/targetNode",
+              "java": 1,
+              "rust": 2
+            },
+            {
+              "path": "edges[0]/targetPort",
+              "java": [
+                1,
+                1
+              ],
+              "rust": [
+                2,
+                1
+              ]
+            },
+            {
+              "path": "edges[1]/sourcePort",
+              "java": [
+                1,
+                0
+              ],
+              "rust": [
+                1,
+                1
+              ]
+            },
+            {
+              "path": "edges[1]/targetNode",
+              "java": 2,
+              "rust": 0
+            },
+            {
+              "path": "edges[1]/targetPort",
+              "java": [
+                2,
+                1
+              ],
+              "rust": [
+                0,
+                0
+              ]
+            }
+          ],
+          "cascaded": true
+        }
+      ]
+    },
+    {
+      "model": "tests/layered/layer_constraints/emptyLayerLast.elkt",
+      "status": "failed",
+      "steps": 19,
+      "trace_drift_steps": 17,
+      "layout_differences": 0,
+      "layout_details": [],
+      "trace_details": [
+        {
+          "step": 0,
+          "processor": "EdgeAndLayerConstraintEdgeReverser",
+          "status": "drift",
+          "diffs": 4,
+          "details": [
+            {
+              "path": "edges[3]/sourceNode",
+              "java": 3,
+              "rust": 4
+            },
+            {
+              "path": "edges[3]/sourcePort",
+              "java": [
+                3,
+                0
+              ],
+              "rust": [
+                4,
+                0
+              ]
+            },
+            {
+              "path": "edges[3]/targetNode",
+              "java": 4,
+              "rust": 3
+            },
+            {
+              "path": "edges[3]/targetPort",
+              "java": [
+                4,
+                0
+              ],
+              "rust": [
+                3,
+                0
+              ]
+            }
+          ]
+        },
+        {
+          "step": 1,
+          "processor": "GreedyCycleBreaker",
+          "status": "drift",
+          "diffs": 4,
+          "details": [
+            {
+              "path": "edges[3]/sourceNode",
+              "java": 3,
+              "rust": 4
+            },
+            {
+              "path": "edges[3]/sourcePort",
+              "java": [
+                3,
+                0
+              ],
+              "rust": [
+                4,
+                0
+              ]
+            },
+            {
+              "path": "edges[3]/targetNode",
+              "java": 4,
+              "rust": 3
+            },
+            {
+              "path": "edges[3]/targetPort",
+              "java": [
+                4,
+                0
+              ],
+              "rust": [
+                3,
+                0
+              ]
+            }
+          ],
+          "cascaded": true
+        },
+        {
+          "step": 4,
+          "processor": "LayerConstraintPostprocessor",
+          "status": "drift",
+          "diffs": 4,
+          "details": [
+            {
+              "path": "edges[3]/sourceNode",
+              "java": 3,
+              "rust": 4
+            },
+            {
+              "path": "edges[3]/sourcePort",
+              "java": [
+                3,
+                0
+              ],
+              "rust": [
+                4,
+                0
+              ]
+            },
+            {
+              "path": "edges[3]/targetNode",
+              "java": 4,
+              "rust": 3
+            },
+            {
+              "path": "edges[3]/targetPort",
+              "java": [
+                4,
+                0
+              ],
+              "rust": [
+                3,
+                0
+              ]
+            }
+          ],
+          "cascaded": true
+        }
+      ]
+    }
+  ],
+  "expected_error_cases": [
+    {
+      "model": "tickets/layered/588_hierarchicalLayoutNPE.elkt",
+      "status": "expected_error",
+      "exception": "org.eclipse.elk.core.UnsupportedGraphException"
+    }
+  ],
+  "ordinary_previous_custom_comparison": {
+    "total": 1998,
+    "identical_successes": 1996,
+    "changes": [
+      {
+        "model": "tickets/layered/213_componentsCompaction.elkt",
+        "differences": [
+          "children[0]/children[0]/x: number mismatch (12.0 != 13.5)",
+          "children[0]/children[0]/y: number mismatch (22.0 != 23.5)",
+          "children[0]/children[1]/x: number mismatch (32.0 != 33.5)"
+        ]
+      },
+      {
+        "model": "tickets/layered/588_hierarchicalLayoutNPE.elkt",
+        "old_status": "ok",
+        "new_status": "error"
+      }
+    ]
+  },
+  "rust_tests": {
+    "passed": 1107,
+    "failed": 0,
+    "ignored": 2
+  },
+  "python_tests": 21,
+  "js_tests": 49,
+  "extension_fixture_matches": {
+    "napi": 18,
+    "web_wasm": 18,
+    "node_wasm": 18
+  },
+  "java_json_matches": {
+    "napi": 550,
+    "web_wasm": 550
+  },
+  "static_checks": [
+    {
+      "check": "algorithm_id",
+      "exit_code": 0
+    },
+    {
+      "check": "algorithm_name",
+      "exit_code": 0
+    },
+    {
+      "check": "algorithm_description",
+      "exit_code": 0
+    },
+    {
+      "check": "algorithm_category",
+      "exit_code": 0
+    },
+    {
+      "check": "algorithm_metadata",
+      "exit_code": 0
+    },
+    {
+      "check": "algorithm_feature",
+      "exit_code": 0
+    },
+    {
+      "check": "algorithm_option_support",
+      "exit_code": 1
+    },
+    {
+      "check": "algorithm_option_default",
+      "exit_code": 0
+    },
+    {
+      "check": "algorithm_option_default_value",
+      "exit_code": 0
+    },
+    {
+      "check": "core_options",
+      "exit_code": 0
+    },
+    {
+      "check": "core_option_dependency",
+      "exit_code": 0
+    },
+    {
+      "check": "layered_phase_wiring",
+      "exit_code": 0
+    }
+  ],
+  "custom_runtime_delta_files": 14,
+  "changed_custom_runtime_deltas": 0,
+  "sha256": {
+    "full-input.tsv": "d853257b6b1c76039fb586d3720c45d48779caef8b031430fce22b2f04c6eba9",
+    "manifest.tsv": "ddf1e4f6b7dd67f8d231de390fbe8a1880468b75af5f6b202963e863a847119c",
+    "rust-manifest.tsv": "4b2aacf522c81f09fdc422e5641e4fa207154ebdd9277c9f99c269c41b936d91",
+    "ordinary-manifest.tsv": "cc024a6409b6ce90b195add2698ab31f069c5b425a37db72c376413f31f807fa"
+  }
+}

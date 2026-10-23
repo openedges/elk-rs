@@ -1,5 +1,5 @@
 use org_eclipse_elk_graph_json::org::eclipse::elk::graph::json::layout_api::layout_json;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::path::Path;
 
 const PLACERS: [&str; 5] = [
@@ -12,14 +12,18 @@ const PLACERS: [&str; 5] = [
 
 fn enable_recompute(graph: &mut Value, placer: &str) {
     if graph["layoutOptions"].is_null() {
-        graph["layoutOptions"] = json!({});
+        // layoutOptions takes precedence over legacy properties during import.
+        // Preserve hierarchy handling and extension options when adding it.
+        graph["layoutOptions"] = graph["properties"]
+            .as_object()
+            .map(|properties| Value::Object(properties.clone()))
+            .unwrap_or_else(|| json!({}));
     }
     graph["layoutOptions"]["elk.algorithm"] = json!("layered");
     graph["layoutOptions"]["elk.layered.nodePlacement.strategy"] = json!("NETWORK_SIMPLEX");
     graph["layoutOptions"]["elk.layered.nodePlacement.networkSimplex.nodeFlexibility.default"] =
         json!("NODE_SIZE");
-    graph["layoutOptions"]
-        ["elk.layered.nodePlacement.networkSimplex.nodeFlexibility.recomputeNodePlacement"] =
+    graph["layoutOptions"]["elk.layered.nodePlacement.networkSimplex.nodeFlexibility.recomputeNodePlacement"] =
         json!(placer);
     if let Some(children) = graph["children"].as_array_mut() {
         for child in children {
@@ -174,7 +178,9 @@ fn all_extension_fixtures_support_each_recompute_strategy() {
             let mut graph: Value =
                 serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
             enable_recompute(&mut graph, placer);
-            let output = layout(&graph);
+            let output = layout_json(&graph.to_string(), "{}")
+                .unwrap_or_else(|error| panic!("{} / {placer}: {error}", path.display()));
+            let output: Value = serde_json::from_str(&output).expect("valid layout JSON");
             assert_graph_preserved(&graph, &output);
         }
     }

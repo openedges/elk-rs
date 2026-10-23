@@ -5,6 +5,48 @@ All notable changes to elk-rs are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions correspond to the target ELK Java version (see `VERSIONING.md`).
 
+## [0.12.0-ext.2] - 2026-10-23
+
+Extension integration on `custom/0.12.0`, incorporating stable `0.12.1`
+(`eb586b6d`). Package versions follow the existing ELK-baseline `-ext.N` policy;
+the Java/elkjs baseline remains 0.12.0. No new tag or registry publication is
+part of this branch update.
+
+### Changed
+
+- Merged layout compaction, zero-size resize, external-port locking, explicit hierarchy-edge errors, JSON/default allocation improvements, and network-simplex optimizations from stable 0.12.1.
+- Retained `ignoreEdgeInLayer`, FIRST/LAST_SEPARATE routing, external-port layer handling, edgeless port fixes, and elk-live.
+- Adopted the strict raw phase/final-layout comparator and complete corpus accounting, with custom differences evaluated separately from stable results.
+
+### Fixed
+
+- Preserved legacy fixture options when enabling recompute tests, and isolated parallel trace-test directories.
+- Revalidated 1,107 Rust tests, 49 JS tests, and all 18 extension fixtures on three bindings. The full strict comparison retains two existing custom divergences; see [the integration report](tests/update_custom_0_12_0_ext_2.md).
+
+## [0.12.1] - 2026-10-23
+
+Rust fixes on Java ELK 0.12.0; upstream Java and elkjs references are unchanged.
+Release tag: `v0.12.1` on `releases/0.12.0`.
+
+### Added
+
+- Added the consuming `layout_value` JSON API and facade export for callers that already hold a `serde_json::Value`.
+- Added a reproducible strict full-corpus gate covering final layouts, raw intermediate geometry/topology, complete input accounting, and matching exception behavior.
+
+### Fixed
+
+- Fixed interactive external-port lock re-entry, including north/south traversal.
+- Implemented connected-component hull/1D compaction and corrected zero-height scanline ordering and external-port single-component placement.
+- Fixed zero-size resize division while preserving normal-size and fixed-port behavior.
+- Returned an error for unsupported cross-hierarchy edges instead of silently discarding them.
+- Removed trace-only coordinate correction, Java-zero comparison exceptions, and non-finite comparison gaps; restored trace state after errors with thread-local RAII guards.
+
+### Changed
+
+- Reduced JSON option/default allocation and network-simplex/order-relation work while preserving input order and fallback behavior.
+- Verified all 1,998 corpus cases: 1,997 matching layouts and one matching-exception test; all 196,407 intermediate states matched. The reference is Java 0.12.0 with three explicit fixes, not unmodified upstream Java. See [strict validation](tests/phase_trace_audit.md).
+- Measured 26 synthetic scenarios per API against stable 0.12.0: native mean -1.54%, JSON API mean +0.02%; targeted defaults/simplex workloads improved 23.3–62.0%. See [conditions, raw results, and limits](tests/release_0_12_1.md).
+
 ## [0.12.0-ext.1] - 2026-10-20
 
 Extension integration on `custom/0.12.0`, tagged [`v0.12.0-ext.1`](https://github.com/openedges/elk-rs/tree/v0.12.0-ext.1) at `371e186d`. Build only; no registry publication.

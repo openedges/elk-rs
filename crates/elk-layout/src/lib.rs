@@ -26,14 +26,14 @@
 //! available through [`graph`], [`core`], [`graph_json`] and [`alg`].
 #![forbid(unsafe_code)]
 
-/// `org.eclipse.elk.graph`: the ElkGraph data model.
-pub use org_eclipse_elk_graph as graph;
-/// `org.eclipse.elk.core`: layout options, algorithm registry and the recursive layout engine.
-pub use org_eclipse_elk_core as core;
-/// `org.eclipse.elk.graph.json`: JSON import/export and the elkjs-compatible layout API.
-pub use org_eclipse_elk_graph_json as graph_json;
 /// `org.eclipse.elk.conn.gmf`: the GMF connector (Draw2D layouter).
 pub use org_eclipse_elk_conn_gmf as conn_gmf;
+/// `org.eclipse.elk.core`: layout options, algorithm registry and the recursive layout engine.
+pub use org_eclipse_elk_core as core;
+/// `org.eclipse.elk.graph`: the ElkGraph data model.
+pub use org_eclipse_elk_graph as graph;
+/// `org.eclipse.elk.graph.json`: JSON import/export and the elkjs-compatible layout API.
+pub use org_eclipse_elk_graph_json as graph_json;
 
 /// The layout algorithm crates (`org.eclipse.elk.alg.*`).
 pub mod alg {
@@ -52,9 +52,9 @@ pub mod alg {
     pub use org_eclipse_elk_alg_vertiflex as vertiflex;
 }
 
-/// The elkjs-compatible JSON API module (`org.eclipse.elk.graph.json.layout_api`).
-pub use org_eclipse_elk_graph_json::org::eclipse::elk::graph::json::layout_api;
 pub use layout_api::{
     ensure_initialized, known_layout_algorithms, known_layout_categories, known_layout_options,
-    layout_json,
+    layout_json, layout_value,
 };
+/// The elkjs-compatible JSON API module (`org.eclipse.elk.graph.json.layout_api`).
+pub use org_eclipse_elk_graph_json::org::eclipse::elk::graph::json::layout_api;

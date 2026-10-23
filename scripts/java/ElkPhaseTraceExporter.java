@@ -153,16 +153,9 @@ public class ElkPhaseTraceExporter {
                 // are traced as well. For phase-gate parity we force layered explicitly.
                 traceGraph.setProperty(CoreOptions.ALGORITHM, LayeredOptions.ALGORITHM_ID);
 
-                try {
-                    // Phase-gate baseline must follow recursive hierarchy execution.
-                    traceWithRecursiveEngine(traceGraph, modelTraceDir, prettyPrint);
-                } catch (Throwable recursiveFailure) {
-                    // Keep a compatibility fallback for models that cannot be handled by
-                    // recursive execution in this exporter environment.
-                    deleteRecursively(modelTraceDir);
-                    Files.createDirectories(modelTraceDir);
-                    traceWithLayeredProvider(traceGraph, modelTraceDir, prettyPrint);
-                }
+                // A failed recursive execution is a failed case. Retrying on the
+                // partially modified graph would silently change the reference.
+                traceWithRecursiveEngine(traceGraph, modelTraceDir, prettyPrint);
 
                 successCount++;
 
@@ -185,6 +178,9 @@ public class ElkPhaseTraceExporter {
                 successCount,
                 failureCount,
                 outputDir));
+        if (failureCount != 0) {
+            System.exit(1);
+        }
     }
 
     // ========================== Snapshot I/O ==========================
@@ -241,7 +237,7 @@ public class ElkPhaseTraceExporter {
         traceListener.writeIndex();
     }
 
-    private static void traceWithRecursiveEngine(
+    static void traceWithRecursiveEngine(
             final ElkNode graph,
             final Path modelTraceDir,
             final boolean prettyPrint) throws Exception {
@@ -363,6 +359,24 @@ public class ElkPhaseTraceExporter {
         Map<LNode, String> nodeIds = new HashMap<>();
         Map<LPort, String> portIds = new HashMap<>();
         assignIds(lgraph, nodeIds, portIds);
+        List<LNode> externalNodes = new ArrayList<>();
+        for (LNode node : getAllNodes(lgraph)) {
+            for (LPort port : node.getPorts()) {
+                for (LEdge edge : port.getOutgoingEdges()) {
+                    LNode target = edge.getTarget().getNode();
+                    if (!nodeIds.containsKey(target)) {
+                        nodeIds.put(target, "N" + nodeIds.size());
+                        externalNodes.add(target);
+                        for (LPort targetPort : target.getPorts()) {
+                            portIds.put(targetPort, "P" + portIds.size());
+                        }
+                    }
+                }
+            }
+        }
+        b.key("externalNodes"); b.beginArray();
+        for (LNode node : externalNodes) serializeNode(b, node, nodeIds, portIds);
+        b.endArray();
 
         // Nodes
         b.key("nodes"); b.beginArray();
@@ -447,60 +461,16 @@ public class ElkPhaseTraceExporter {
             final Map<LPort, String> portIds) {
 
         int nodeCounter = 0;
+        int portCounter = 0;
         for (LNode node : getAllNodes(lgraph)) {
-            String nodeId = deriveNodeId(node, nodeCounter++);
+            String nodeId = "N" + nodeCounter++;
             nodeIds.put(node, nodeId);
 
-            int portCounter = 0;
             for (LPort port : node.getPorts()) {
-                String portId = derivePortId(port, nodeId, portCounter++);
+                String portId = "P" + portCounter++;
                 portIds.put(port, portId);
             }
         }
-    }
-
-    /**
-     * Derives a stable ID for an LNode.
-     * If the node was imported from an ElkNode, use the ElkNode's identifier.
-     * Otherwise fall back to positional naming.
-     */
-    private static String deriveNodeId(final LNode node, final int globalIndex) {
-        Object origin = node.getProperty(InternalProperties.ORIGIN);
-        if (origin instanceof ElkNode) {
-            String identifier = ((ElkNode) origin).getIdentifier();
-            if (identifier != null && !identifier.isEmpty()) {
-                return identifier;
-            }
-        }
-
-        Layer layer = node.getLayer();
-        if (layer != null) {
-            int layerIndex = layer.getIndex();
-            int inLayerIndex = node.getIndex();
-            return "L" + layerIndex + "_N" + inLayerIndex;
-        }
-
-        return "N" + globalIndex;
-    }
-
-    /**
-     * Derives a stable ID for an LPort.
-     * If the port was imported from an ElkPort, use the ElkPort's identifier.
-     * Otherwise use the parent node ID + port index.
-     */
-    private static String derivePortId(
-            final LPort port,
-            final String parentNodeId,
-            final int portIndex) {
-
-        Object origin = port.getProperty(InternalProperties.ORIGIN);
-        if (origin instanceof org.eclipse.elk.graph.ElkPort) {
-            String identifier = ((org.eclipse.elk.graph.ElkPort) origin).getIdentifier();
-            if (identifier != null && !identifier.isEmpty()) {
-                return identifier;
-            }
-        }
-        return parentNodeId + "_P" + portIndex;
     }
 
     // ========================== Element Serialization ==========================

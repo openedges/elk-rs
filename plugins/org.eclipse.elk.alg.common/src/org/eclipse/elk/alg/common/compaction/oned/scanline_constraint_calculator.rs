@@ -59,11 +59,30 @@ fn timestamp_cmp(p1: &Timestamp, p2: &Timestamp) -> Ordering {
 
     let cmp = y1.partial_cmp(&y2).unwrap_or(Ordering::Equal);
     if cmp == Ordering::Equal {
-        if !p1.low && p2.low {
-            return Ordering::Less;
+        // End positive intervals first. A zero-height interval must be inserted
+        // and removed together, before positive intervals starting here. Otherwise
+        // its end precedes its start and it remains active for the rest of the sweep.
+        let rank = |p: &Timestamp| {
+            if p.node.borrow().hitbox.height == 0.0 {
+                1
+            } else if p.low {
+                2
+            } else {
+                0
+            }
+        };
+        let first = rank(p1);
+        let order = first.cmp(&rank(p2));
+        if order != Ordering::Equal {
+            return order;
         }
-        if !p2.low && p1.low {
-            return Ordering::Greater;
+        if first == 1 {
+            return p1
+                .node
+                .borrow()
+                .id
+                .cmp(&p2.node.borrow().id)
+                .then_with(|| p2.low.cmp(&p1.low));
         }
     }
     cmp
@@ -206,4 +225,111 @@ fn overlap(n1: &CNodeRef, n2: &CNodeRef) -> bool {
     let n2_ref = n2.borrow();
     compare_fuzzy::le(n1_ref.hitbox.x, n2_ref.hitbox.x + n2_ref.hitbox.width)
         && compare_fuzzy::le(n2_ref.hitbox.x, n1_ref.hitbox.x + n1_ref.hitbox.width)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::{CGraph, CGroup, CNode};
+    use super::*;
+    use org_eclipse_elk_core::org::eclipse::elk::core::math::ElkRectangle;
+    use org_eclipse_elk_core::org::eclipse::elk::core::options::Direction;
+
+    #[test]
+    fn zero_extent_does_not_create_cyclic_group_constraints() {
+        // Reduced from the component-compaction failure in ELK ticket 213.
+        for direction in [
+            Direction::Left,
+            Direction::Right,
+            Direction::Up,
+            Direction::Down,
+        ] {
+            let graph = CGraph::all_directions();
+            let rectangles = [
+                (49.0, 59.0, 1.0, 0.0),
+                (41.0, 89.0, 20.0, 20.0),
+                (41.0, 109.0, 0.0, 30.0),
+            ];
+            let nodes: Vec<_> = rectangles
+                .into_iter()
+                .map(|(x, y, w, h)| {
+                    let rect = if matches!(direction, Direction::Up | Direction::Down) {
+                        ElkRectangle::with_values(y, x, h, w)
+                    } else {
+                        ElkRectangle::with_values(x, y, w, h)
+                    };
+                    CNode::create(&graph, rect)
+                })
+                .collect();
+            CGroup::create(&graph, &nodes[..1]);
+            CGroup::create(&graph, &nodes[1..]);
+            OneDimensionalCompactor::new(graph.clone())
+                .change_direction(direction)
+                .compact();
+            for node in nodes {
+                let node = node.borrow();
+                assert!(
+                    node.hitbox.x.is_finite() && node.hitbox.y.is_finite(),
+                    "{direction:?}"
+                );
+                assert!(
+                    node.start_pos.is_finite(),
+                    "every node must be reached: {direction:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn zero_height_events_are_paired_between_ending_and_starting_intervals() {
+        let graph = CGraph::all_directions();
+        let nodes: Vec<_> = [(0.0, 2.0), (2.0, 0.0), (2.0, 0.0), (2.0, 3.0)]
+            .into_iter()
+            .enumerate()
+            .map(|(id, (y, height))| {
+                let node =
+                    CNode::create(&graph, ElkRectangle::with_values(id as f64, y, 1.0, height));
+                node.borrow_mut().id = id as i32;
+                node
+            })
+            .collect();
+        let mut events = [
+            Timestamp {
+                node: nodes[3].clone(),
+                low: true,
+            },
+            Timestamp {
+                node: nodes[2].clone(),
+                low: false,
+            },
+            Timestamp {
+                node: nodes[1].clone(),
+                low: false,
+            },
+            Timestamp {
+                node: nodes[2].clone(),
+                low: true,
+            },
+            Timestamp {
+                node: nodes[0].clone(),
+                low: false,
+            },
+            Timestamp {
+                node: nodes[1].clone(),
+                low: true,
+            },
+        ];
+        events.sort_by(timestamp_cmp);
+        let actual: Vec<_> = events.iter().map(|p| (p.node.borrow().id, p.low)).collect();
+        assert_eq!(
+            actual,
+            [
+                (0, false),
+                (1, true),
+                (1, false),
+                (2, true),
+                (2, false),
+                (3, true)
+            ]
+        );
+    }
 }

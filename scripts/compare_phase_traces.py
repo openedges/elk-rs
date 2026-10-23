@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import sys
 from pathlib import Path
@@ -65,7 +66,9 @@ def bold(text: str) -> str:   return _c("1",  text)
 
 def load_json(path: Path) -> Any:
     with path.open("r", encoding="utf-8") as fh:
-        return json.load(fh)
+        result = json.load(fh)
+        if not isinstance(result, dict): raise ValueError("snapshot must be a JSON object")
+        return result
 
 
 # ---------------------------------------------------------------------------
@@ -121,6 +124,11 @@ def collect_step_files(directory: Path) -> list[tuple[int, str, Path]]:
             continue
         results.append((idx, entry.stem, entry))
     results.sort(key=lambda t: t[0])
+    indices = [item[0] for item in results if item[0] >= 0]
+    if len(indices) != len(set(indices)):
+        raise ValueError(f"duplicate step indices in {directory}")
+    if indices and indices != list(range(indices[-1] + 1)):
+        raise ValueError(f"non-contiguous step indices in {directory}")
     return results
 
 
@@ -286,6 +294,26 @@ class SnapshotComparator:
         # (HashMap in Java vs Vec in Rust).  Sorting by node properties ensures
         # consistent matching regardless of implementation order.
         all_nodes = SnapshotComparator._sort_nodes_within_layers(all_nodes)
+        all_nodes.extend(SnapshotComparator._sort_nodes_within_layers(snap.get("externalNodes", [])))
+        # Port storage order is not geometric identity. Resolve coincident ports
+        # by their incident nodes before assigning cross-language endpoint IDs.
+        node_indices = {node.get("id"): index for index, node in enumerate(all_nodes)}
+        incident = {}
+        for edge in snap.get("edges", []):
+            for side, other in (("source", "target"), ("target", "source")):
+                incident.setdefault(edge.get(side + "Port"), []).append(
+                    (side, node_indices.get(edge.get(other + "Node"), -1)))
+        def port_key(port):
+            shape = {key: value for key, value in port.items() if key != "id"}
+            def numeric(value):
+                if isinstance(value, (int, float)) and not isinstance(value, bool):
+                    rounded = round(float(value), 4)
+                    return 0.0 if rounded == 0 else rounded
+                if isinstance(value, dict): return {key: numeric(item) for key, item in value.items()}
+                if isinstance(value, list): return [numeric(item) for item in value]
+                return value
+            return (json.dumps(numeric(shape), sort_keys=True), sorted(incident.get(port.get("id"), [])))
+        all_nodes = [dict(node, ports=sorted(node.get("ports", []), key=port_key)) for node in all_nodes]
 
         return {
             "all_nodes": all_nodes,
@@ -302,6 +330,20 @@ class SnapshotComparator:
 
     def compare(self, java: dict, rust: dict) -> list[DiffEntry]:
         diffs: list[DiffEntry] = []
+        self._finite_tree(java, "java", diffs)
+        self._finite_tree(rust, "rust", diffs)
+        if diffs:
+            return diffs
+        if "components" in java or "components" in rust:
+            jc = java.get("components", [java])
+            rc = rust.get("components", [rust])
+            if len(jc) != len(rc):
+                self._push(diffs, "components/count", len(jc), len(rc))
+            for index, (jcomp, rcomp) in enumerate(zip(jc, rc)):
+                for diff in self.compare(jcomp, rcomp):
+                    diff.path = f"components[{index}]/" + diff.path
+                    diffs.append(diff)
+            return diffs[:self.max_diffs]
         jn = self._normalize(java)
         rn = self._normalize(rust)
         self._all_nodes(jn, rn, diffs)
@@ -309,7 +351,28 @@ class SnapshotComparator:
         self._layer_structure(jn, rn, diffs)
         self._graph_size_norm(jn, rn, diffs)
         self._padding_norm(jn, rn, diffs)
+        for key, fields in (("size", ("width", "height")), ("offset", ("x", "y"))):
+            self._fields(jn.get(key), rn.get(key), fields, key, diffs)
         return diffs
+
+    def _finite_tree(self, value, path, diffs):
+        if isinstance(value, dict):
+            for key, item in value.items():
+                self._finite_tree(item, f"{path}/{key}", diffs)
+        elif isinstance(value, list):
+            for index, item in enumerate(value):
+                self._finite_tree(item, f"{path}[{index}]", diffs)
+        elif isinstance(value, float) and not math.isfinite(value):
+            self._push(diffs, path, "finite number required", str(value))
+
+    def _fields(self, left, right, fields, path, diffs):
+        if left is None and right is None:
+            return
+        if not isinstance(left, dict) or not isinstance(right, dict):
+            self._push(diffs, path, left, right)
+            return
+        for field in fields:
+            self._num(left, right, field, path, diffs)
 
     # ------------------------------------------------------------------
     # All nodes (from normalized snapshot)
@@ -331,6 +394,8 @@ class SnapshotComparator:
             self._num(jn, rn, f, prefix, diffs)
         for f in ("type", "layer"):
             self._scalar(jn, rn, f, prefix, diffs)
+        for key in ("margin", "padding"):
+            self._fields(jn.get(key), rn.get(key), ("top", "bottom", "left", "right"), f"{prefix}/{key}", diffs)
         # ports — positional matching (IDs differ between Java/Rust)
         jports = jn.get("ports", [])
         rports = rn.get("ports", [])
@@ -342,8 +407,10 @@ class SnapshotComparator:
         self._labels(jn.get("labels", []), rn.get("labels", []), f"{prefix}/labels", diffs)
 
     def _port(self, jp: dict, rp: dict, prefix: str, diffs: list[DiffEntry]) -> None:
-        for f in ("x", "y"):
+        for f in ("x", "y", "width", "height"):
             self._num(jp, rp, f, prefix, diffs)
+        self._fields(jp.get("anchor"), rp.get("anchor"), ("x", "y"), f"{prefix}/anchor", diffs)
+        self._fields(jp.get("margin"), rp.get("margin"), ("top", "bottom", "left", "right"), f"{prefix}/margin", diffs)
         self._scalar(jp, rp, "side", prefix, diffs)
         self._labels(jp.get("labels", []), rp.get("labels", []), f"{prefix}/labels", diffs)
 
@@ -360,8 +427,8 @@ class SnapshotComparator:
     # Edges (normalized)
 
     def _edges_norm(self, jn: dict, rn: dict, diffs: list[DiffEntry]) -> None:
-        jedges = jn["edges"]
-        redges = rn["edges"]
+        jedges = self._canonical_edges(jn)
+        redges = self._canonical_edges(rn)
         # Positional matching (IDs differ between Java/Rust)
         if len(jedges) != len(redges):
             self._push(diffs, "edges", f"count={len(jedges)}", f"count={len(redges)}")
@@ -370,9 +437,35 @@ class SnapshotComparator:
                 return
             self._edge(jedges[i], redges[i], f"edges[{i}]", diffs)
 
+    @staticmethod
+    def _canonical_edges(snap):
+        nodes, ports = {}, {}
+        for index, node in enumerate(snap["all_nodes"]):
+            key = node.get("id")
+            if key in nodes:
+                raise ValueError(f"duplicate node ID: {key}")
+            nodes[key] = index
+            for port_index, port in enumerate(node.get("ports", [])):
+                key = port.get("id")
+                if key in ports:
+                    raise ValueError(f"duplicate port ID: {key}")
+                ports[key] = (index, port_index)
+        edges = []
+        for edge in snap["edges"]:
+            item = dict(edge)
+            for side in ("source", "target"):
+                node = edge.get(side + "Node")
+                port = edge.get(side + "Port")
+                if node not in nodes or port not in ports or ports[port][0] != nodes[node]:
+                    raise ValueError(f"invalid {side} endpoint: {node}/{port}")
+                item[side + "Node"] = nodes[node]
+                item[side + "Port"] = ports[port]
+            edges.append(item)
+        return sorted(edges, key=lambda e: (e["sourcePort"], e["targetPort"], json.dumps(e.get("bendPoints", []), sort_keys=True)))
+
     def _edge(self, je: dict, re_: dict, prefix: str, diffs: list[DiffEntry]) -> None:
-        # Skip source/target ID fields — Java and Rust use different ID schemes
-        # (Java: "source"/"target" with ElkNode IDs, Rust: "source"/"target" with N{id})
+        for field in ("sourceNode", "sourcePort", "targetNode", "targetPort"):
+            self._scalar(je, re_, field, prefix, diffs)
         jbp = je.get("bendPoints", [])
         rbp = re_.get("bendPoints", [])
         if len(jbp) != len(rbp):
@@ -384,27 +477,27 @@ class SnapshotComparator:
         self._labels(je.get("labels", []), re_.get("labels", []), f"{prefix}/labels", diffs)
 
     # ------------------------------------------------------------------
-    # Layer structure (normalized — just check counts, not IDs)
+    # Layer membership after cross-language node identity mapping
 
     def _layer_structure(self, jn: dict, rn: dict, diffs: list[DiffEntry]) -> None:
         jl = jn["layer_ids"]
         rl = rn["layer_ids"]
         if len(jl) != len(rl):
             self._push(diffs, "layers", f"count={len(jl)}", f"count={len(rl)}")
+        jids = {node.get("id"): i for i, node in enumerate(jn["all_nodes"])}
+        rids = {node.get("id"): i for i, node in enumerate(rn["all_nodes"])}
         for i in range(min(len(jl), len(rl))):
-            if len(jl[i]) != len(rl[i]):
-                self._push(diffs, f"layers[{i}]",
-                            f"count={len(jl[i])}", f"count={len(rl[i])}")
+            left = sorted(jids[node] for node in jl[i])
+            right = sorted(rids[node] for node in rl[i])
+            if left != right:
+                self._push(diffs, f"layers[{i}]/members", left, right)
 
     def _graph_size_norm(self, jn: dict, rn: dict, diffs: list[DiffEntry]) -> None:
         jg = jn.get("graphSize")
         rg = rn.get("graphSize")
         if jg is None and rg is None:
             return
-        # Skip when Java has no graphSize (import-state: not set until later)
-        if jg is None and rg is not None:
-            return
-        if rg is None:
+        if jg is None or rg is None:
             self._push(diffs, "graphSize", jg, rg)
             return
         for f in ("width", "height"):
@@ -415,10 +508,7 @@ class SnapshotComparator:
         rp = rn.get("padding")
         if jp is None and rp is None:
             return
-        # Skip when Java has no padding (import-state: not set until later)
-        if jp is None and rp is not None:
-            return
-        if rp is None:
+        if jp is None or rp is None:
             self._push(diffs, "padding", jp, rp)
             return
         for f in ("top", "bottom", "left", "right"):
@@ -438,10 +528,10 @@ class SnapshotComparator:
             self._push(diffs, f"{prefix}/{field}", jv, rv)
             return
         if isinstance(jv, (int, float)) and isinstance(rv, (int, float)):
-            # Skip geometric diffs when Java reports 0 (import-state artifact:
-            # Java LNodes start with all geometry=0, Rust preserves ElkNode values).
-            # After LabelAndNodeSizeProcessor, Java will have real values.
-            if field in ("x", "y", "width", "height") and float(jv) == 0.0 and float(rv) != 0.0:
+            # Non-finite geometry is invalid even when both sides contain it.
+            # Zero coordinates are compared normally; no numeric waivers apply.
+            if not (math.isfinite(jv) and math.isfinite(rv)):
+                self._push(diffs, f"{prefix}/{field}", jv, rv)
                 return
             delta = float(jv) - float(rv)
             if abs(delta) > self.tol:
@@ -549,6 +639,70 @@ class ModelResult:
         }
 
 
+def validate_snapshot(snapshot: dict, side: str) -> list[DiffEntry]:
+    """Reject malformed or null geometry even when both exports contain it."""
+    errors = []
+    def require(condition, path):
+        if not condition: errors.append(DiffEntry(side + "/" + path, "valid trace field required", None))
+    def numbers(value, fields, path):
+        if not isinstance(value, dict):
+            require(False, path); return
+        for field in fields:
+            number = value.get(field)
+            require(isinstance(number, (int, float)) and not isinstance(number, bool) and math.isfinite(number), path + "/" + field)
+    def labels(values, path):
+        require(isinstance(values, list), path)
+        if not isinstance(values, list): return
+        for i, label in enumerate(values):
+            numbers(label, ("x", "y", "width", "height"), f"{path}[{i}]")
+    def node(value, path):
+        numbers(value, ("x", "y", "width", "height", "layer"), path)
+        if not isinstance(value, dict): return
+        require(isinstance(value.get("id"), str), path + "/id")
+        require(isinstance(value.get("type"), str), path + "/type")
+        for box in ("margin", "padding"):
+            numbers(value.get(box), ("top", "bottom", "left", "right"), path + "/" + box)
+        labels(value.get("labels"), path + "/labels")
+        require(isinstance(value.get("ports"), list), path + "/ports")
+        for i, port in enumerate(value.get("ports", [])):
+            pp = f"{path}/ports[{i}]"
+            numbers(port, ("x", "y", "width", "height"), pp)
+            if not isinstance(port, dict): continue
+            require(isinstance(port.get("id"), str) and isinstance(port.get("side"), str), pp + "/id-side")
+            numbers(port.get("anchor"), ("x", "y"), pp + "/anchor")
+            numbers(port.get("margin"), ("top", "bottom", "left", "right"), pp + "/margin")
+            labels(port.get("labels"), pp + "/labels")
+    if "components" in snapshot:
+        components = snapshot["components"]
+        require(isinstance(components, list) and bool(components), "components")
+        if not isinstance(components, list):
+            return errors
+        for i, component in enumerate(components):
+            if not isinstance(component, dict):
+                require(False, f"components[{i}]")
+                continue
+            errors.extend(validate_snapshot(component, f"{side}/components[{i}]"))
+        return errors
+    for key, fields in (("size", ("width", "height")), ("graphSize", ("width", "height")), ("offset", ("x", "y")), ("padding", ("top", "bottom", "left", "right"))):
+        numbers(snapshot.get(key), fields, key)
+    for key in ("nodes", "layers", "edges"):
+        require(isinstance(snapshot.get(key), list), key)
+    for i, value in enumerate(snapshot.get("nodes", [])): node(value, f"nodes[{i}]")
+    for i, value in enumerate(snapshot.get("externalNodes", [])): node(value, f"externalNodes[{i}]")
+    for i, layer in enumerate(snapshot.get("layers", [])):
+        if isinstance(layer, dict):
+            require(layer.get("index") == i, f"layers[{i}]/index")
+            for j, value in enumerate(layer.get("nodes", [])): node(value, f"layers[{i}]/nodes[{j}]")
+        else: require(isinstance(layer, list), f"layers[{i}]")
+    for i, edge in enumerate(snapshot.get("edges", [])):
+        for key in ("sourceNode", "sourcePort", "targetNode", "targetPort"):
+            require(isinstance(edge.get(key), str), f"edges[{i}]/{key}")
+        require(isinstance(edge.get("bendPoints"), list), f"edges[{i}]/bendPoints")
+        for j, point in enumerate(edge.get("bendPoints", [])): numbers(point, ("x", "y"), f"edges[{i}]/bendPoints[{j}]")
+        labels(edge.get("labels"), f"edges[{i}]/labels")
+    return errors
+
+
 # ---------------------------------------------------------------------------
 # Core comparison function
 # ---------------------------------------------------------------------------
@@ -573,6 +727,8 @@ def compare_model(
     all_indices = sorted(set(jmap) | set(rmap))
     step_results: list[StepResult] = []
     diverged = False
+    if not all_indices:
+        return ModelResult(model, len(java_steps), len(rust_steps), [StepResult(0, "empty", "drift", [DiffEntry("steps", "nonempty trace required", "empty")])])
 
     for idx in all_indices:
         in_java = idx in jmap
@@ -635,7 +791,14 @@ def compare_model(
         diffs: list[DiffEntry] = []
         if j_proc != r_proc:
             diffs.append(DiffEntry("processor", j_proc, r_proc))
-        state_diffs = comparator.compare(j_snap, r_snap)
+        for side, snap, stem in (("java", j_snap, j_stem), ("rust", r_snap, r_stem)):
+            if snap.get("step") != idx or _normalize_processor_name(str(snap.get("processor", ""))) != _normalize_processor_name(_processor_from_stem(stem)):
+                diffs.append(DiffEntry(side + "/step_metadata", idx, snap.get("step")))
+            for field in ("nodes", "edges", "layers", "graphSize", "size", "offset", "padding"):
+                if field not in snap and "components" not in snap:
+                    diffs.append(DiffEntry(side + "/" + field, "required field", None))
+        schema_diffs = validate_snapshot(j_snap, "java") + validate_snapshot(r_snap, "rust")
+        state_diffs = schema_diffs or comparator.compare(j_snap, r_snap)
         if state_diffs:
             remaining = max(comparator.max_diffs - len(diffs), 0)
             diffs.extend(state_diffs[:remaining])
@@ -797,7 +960,9 @@ def _find_trace_dirs(base: Path) -> dict[str, Path]:
         if any(f.startswith("step_") and f.endswith(".json") for f in filenames):
             rel = os.path.relpath(dirpath, base)
             # Normalize: strip trailing .json from directory names
-            normalized = rel.replace(".json", "")
+            normalized = rel.removesuffix(".json")
+            if normalized in result:
+                raise ValueError(f"duplicate normalized model path: {normalized}")
             result[normalized] = Path(dirpath)
     return result
 
@@ -896,6 +1061,8 @@ def main() -> int:
         print(f"error: rust_trace_dir does not exist: {rust_base}", file=sys.stderr)
         return 2
 
+    if not math.isfinite(args.tolerance) or args.tolerance < 0 or args.max_diffs < 1:
+        parser.error("tolerance must be finite and nonnegative; max-diffs must be positive")
     comparator = SnapshotComparator(tolerance=args.tolerance, max_diffs=args.max_diffs)
     batch_mode = args.batch or _is_batch_dir(java_base, rust_base)
 
@@ -926,7 +1093,7 @@ def main() -> int:
             print_batch_results(results, java_only=java_only, rust_only=rust_only,
                                 report_missing=args.report_missing)
 
-        return 0 if all(r.first_div_step is None for r in results) else 1
+        return 0 if results and not java_only and not rust_only and all(r.drift_count == 0 for r in results) else 1
 
     # ------------------------------------------------------------------
     # Single-model mode
@@ -943,4 +1110,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except (OSError, ValueError, TypeError, KeyError) as exc:
+        print(f"error: invalid or incomplete trace: {exc}", file=sys.stderr)
+        sys.exit(2)

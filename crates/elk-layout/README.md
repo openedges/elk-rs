@@ -28,6 +28,20 @@ let laid_out: String = elk_layout::layout_json(graph, "{}")?;
 uses. `known_layout_algorithms`, `known_layout_options` and `known_layout_categories` return
 the registered metadata as JSON arrays.
 
+When the graph is already a `serde_json::Value`, `layout_value` consumes it
+and returns the laid-out `Value` directly:
+
+```rust
+let graph_value: serde_json::Value = serde_json::from_str(graph)?;
+let laid_out_value = elk_layout::layout_value(graph_value, "{}")?;
+```
+
+Global options still use a JSON string and are merged as defaults. Authored
+options and arbitrary graph fields are preserved. Both APIs use the same
+layout pipeline and panic-to-error translation. Avoiding text conversion can
+preserve a floating-point value that a serialize/parse round trip would round
+differently; callers requiring the old text boundary can keep `layout_json`.
+
 ## Modules
 
 | Module | Crate | ELK plugin |

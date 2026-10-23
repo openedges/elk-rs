@@ -1,6 +1,8 @@
 use std::collections::VecDeque;
 use std::sync::Arc;
 
+use rustc_hash::FxHashSet;
+
 use org_eclipse_elk_core::org::eclipse::elk::core::util::elk_trace::ElkTrace;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::pair::Pair;
 use org_eclipse_elk_core::org::eclipse::elk::core::util::progress_monitor::BasicProgressMonitor;
@@ -26,6 +28,8 @@ pub struct NetworkSimplex<'a> {
     po_id: Vec<i32>,
     lowest_po_id: Vec<i32>,
     cutvalue: Vec<f64>,
+    // Integral cut sums admit exact pivot updates without floating-point reassociation.
+    integral_cutvalues: bool,
     subtree_nodes_stack: Option<VecDeque<Pair<NNodeRef, NEdgeRef>>>,
     // Cached edge properties (indexed by edge internal_id, constant after initialize)
     e_src: Vec<NNodeRef>,
@@ -37,6 +41,8 @@ pub struct NetworkSimplex<'a> {
     e_tree: Vec<bool>,
     // Per-node adjacency: connected edge internal_ids (incoming first, then outgoing)
     node_edges: Vec<Vec<usize>>,
+    // Tree-only adjacency in the same incoming/outgoing edge order.
+    tree_edges: Vec<Vec<usize>>,
     // Cached node properties (indexed by node internal_id, synced during algorithm)
     n_layer: Vec<i32>,
     n_tree_node: Vec<bool>,
@@ -59,6 +65,7 @@ impl<'a> NetworkSimplex<'a> {
             po_id: Vec::new(),
             lowest_po_id: Vec::new(),
             cutvalue: Vec::new(),
+            integral_cutvalues: false,
             subtree_nodes_stack: None,
             e_src: Vec::new(),
             e_tgt: Vec::new(),
@@ -68,6 +75,7 @@ impl<'a> NetworkSimplex<'a> {
             e_weight: Vec::new(),
             e_tree: Vec::new(),
             node_edges: Vec::new(),
+            tree_edges: Vec::new(),
             n_layer: Vec::new(),
             n_tree_node: Vec::new(),
             postorder_stack: Vec::new(),
@@ -136,6 +144,11 @@ impl<'a> NetworkSimplex<'a> {
             iter += 1;
         }
 
+        // Pivots only need the dense layer array. Publish it once before the
+        // object-based subtree and balancing passes read node layers.
+        for (nid, node) in self.graph.nodes.iter().enumerate() {
+            node.lock().layer = self.n_layer[nid];
+        }
         if remove_subtrees {
             self.reattach_subtrees();
         }
@@ -200,6 +213,19 @@ impl<'a> NetworkSimplex<'a> {
             self.e_tgt_id[index] = tgt_id;
         }
 
+        // Every signed cut sum stays exactly representable, including the
+        // intermediate sum in a pivot update. Fractional weights retain the
+        // original leaf-elimination arithmetic and its rounding/tie behaviour.
+        self.integral_cutvalues = self
+            .e_weight
+            .iter()
+            .try_fold(0.0, |sum, weight| {
+                let sum = sum + weight.abs();
+                (weight.is_finite() && weight.fract() == 0.0 && sum <= (1_u64 << 52) as f64)
+                    .then_some(sum)
+            })
+            .is_some();
+
         // Build node property cache (layers are all 0 at this point, tree_node all false)
         self.n_layer.clear();
         self.n_layer.resize(num_nodes, 0);
@@ -209,6 +235,7 @@ impl<'a> NetworkSimplex<'a> {
         // Build per-node adjacency list (incoming first, then outgoing — Java parity)
         self.node_edges.clear();
         self.node_edges.resize(num_nodes, Vec::new());
+        self.tree_edges = vec![Vec::new(); num_nodes];
         for eid in 0..num_edges {
             self.node_edges[self.e_tgt_id[eid]].push(eid); // incoming to target
         }
@@ -241,6 +268,7 @@ impl<'a> NetworkSimplex<'a> {
         self.e_weight.clear();
         self.e_tree.clear();
         self.node_edges.clear();
+        self.tree_edges.clear();
         self.n_layer.clear();
         self.n_tree_node.clear();
         self.lowest_po_id.clear();
@@ -271,16 +299,17 @@ impl<'a> NetworkSimplex<'a> {
             if tgt_tree {
                 slack = -slack;
             }
-            for (i, node) in self.graph.nodes.iter().enumerate() {
+            for (i, layer) in self.n_layer.iter_mut().enumerate() {
                 if self.n_tree_node[i] {
-                    let mut node_guard = node.lock();
-                    node_guard.layer += slack;
-                    self.n_layer[i] += slack;
+                    *layer += slack;
                 }
             }
             self.edge_visited.fill(false);
         }
 
+        for (nid, edges) in self.node_edges.iter().enumerate() {
+            self.tree_edges[nid].extend(edges.iter().copied().filter(|&eid| self.e_tree[eid]));
+        }
         self.edge_visited.fill(false);
         if !self.graph.nodes.is_empty() {
             self.postorder_traversal(0);
@@ -323,11 +352,6 @@ impl<'a> NetworkSimplex<'a> {
                 }
             }
         }
-        // Sync n_layer cache to underlying nodes
-        for (i, node) in self.graph.nodes.iter().enumerate() {
-            let mut node_guard = node.lock();
-            node_guard.layer = self.n_layer[i];
-        }
     }
 
     fn minimal_span(&self, node: &NNodeRef) -> Pair<i32, i32> {
@@ -339,7 +363,8 @@ impl<'a> NetworkSimplex<'a> {
         // (incoming edges: target == node; outgoing edges: source == node).
         // parking_lot::Mutex is non-reentrant → deadlock if re-locked.
         let edges = {
-            let node_guard = node.lock();            node_guard.connected_edges()
+            let node_guard = node.lock();
+            node_guard.connected_edges()
         };
 
         for edge in &edges {
@@ -424,12 +449,12 @@ impl<'a> NetworkSimplex<'a> {
 
         while let Some(frame) = stack.last_mut() {
             let nid = frame.0;
-            let num_adj = self.node_edges[nid].len();
+            let num_adj = self.tree_edges[nid].len();
 
             // Advance through adjacency list to find next unvisited tree edge
             let mut pushed = false;
             while frame.1 < num_adj {
-                let eid = self.node_edges[nid][frame.1];
+                let eid = self.tree_edges[nid][frame.1];
                 frame.1 += 1;
                 if self.e_tree[eid] && !self.edge_visited[eid] {
                     self.edge_visited[eid] = true;
@@ -461,6 +486,12 @@ impl<'a> NetworkSimplex<'a> {
         }
 
         self.postorder_stack = stack;
+        // Fundamental-cycle cut updates require intervals for every node in
+        // one spanning tree. Disconnected or source-free cyclic inputs can
+        // leave nodes outside the traversal rooted at 0.
+        if self.post_order as usize != self.graph.nodes.len() + 1 {
+            self.integral_cutvalues = false;
+        }
     }
 
     /// Check if `node` is in the head component of the spanning tree edge.
@@ -478,6 +509,88 @@ impl<'a> NetworkSimplex<'a> {
     }
 
     fn cutvalues(&mut self) {
+        let mut leafs = Vec::new();
+        let mut unknown = vec![(0_usize, 0_usize); self.node_edges.len()];
+        // Preserve the graph-node and incoming/outgoing edge order used by
+        // leaf elimination. Only the representation changes: edge IDs replace
+        // Arc handles, with the same floating-point operations in the same order.
+        // Count and XOR summarize the remaining incident tree-edge IDs.
+        // Only a singleton is read, whose XOR is exactly its sole edge ID.
+        // Removing a determined edge updates both endpoint summaries, as the
+        // reference's retain does, without allocating a list for every node.
+        for (nid, pending) in unknown.iter_mut().enumerate() {
+            for &eid in &self.node_edges[nid] {
+                if self.e_tree[eid] {
+                    pending.0 += 1;
+                    pending.1 ^= eid;
+                }
+            }
+            if pending.0 == 1 {
+                leafs.push(nid);
+            }
+        }
+
+        for mut node in leafs {
+            loop {
+                if unknown[node].0 != 1 {
+                    break;
+                }
+                let td_id = unknown[node].1;
+                if td_id >= self.cutvalue.len() {
+                    break;
+                }
+                let td_weight = self.e_weight[td_id];
+                let source = self.e_src_id[td_id];
+                let target = self.e_tgt_id[td_id];
+                self.cutvalue[td_id] = td_weight;
+
+                // Use cached adjacency list for connected edges
+                let nid = node;
+                let num_adj = self.node_edges[nid].len();
+                for i in 0..num_adj {
+                    let eid = self.node_edges[nid][i];
+                    if eid == td_id {
+                        continue;
+                    }
+                    // All properties from cache — zero edge locks
+                    let e_weight = self.e_weight[eid];
+                    if self.e_tree[eid] {
+                        let same_direction =
+                            self.e_src_id[eid] == source || self.e_tgt_id[eid] == target;
+                        if same_direction {
+                            self.cutvalue[td_id] -= self.cutvalue[eid] - e_weight;
+                        } else {
+                            self.cutvalue[td_id] += self.cutvalue[eid] - e_weight;
+                        }
+                    } else if node == source {
+                        if self.e_src_id[eid] == node {
+                            self.cutvalue[td_id] += e_weight;
+                        } else {
+                            self.cutvalue[td_id] -= e_weight;
+                        }
+                    } else if self.e_src_id[eid] == node {
+                        self.cutvalue[td_id] -= e_weight;
+                    } else {
+                        self.cutvalue[td_id] += e_weight;
+                    }
+                }
+
+                for endpoint in [source, target] {
+                    unknown[endpoint].0 -= 1;
+                    unknown[endpoint].1 ^= td_id;
+                }
+
+                if source == node {
+                    node = target;
+                } else {
+                    node = source;
+                }
+            }
+        }
+    }
+
+    #[cfg(test)]
+    fn cutvalues_reference(&mut self) {
         let mut leafs: Vec<NNodeRef> = Vec::new();
         for node in &self.graph.nodes {
             let mut tree_edge_count = 0;
@@ -566,9 +679,7 @@ impl<'a> NetworkSimplex<'a> {
         self.tree_edge_ids
             .iter()
             .find(|&&eid| {
-                self.e_tree[eid]
-                    && eid < self.cutvalue.len()
-                    && self.cutvalue[eid] < FUZZY_ST_ZERO
+                self.e_tree[eid] && eid < self.cutvalue.len() && self.cutvalue[eid] < FUZZY_ST_ZERO
             })
             .copied()
     }
@@ -580,14 +691,17 @@ impl<'a> NetworkSimplex<'a> {
         let leave_src_id = self.e_src_id[leave_id];
         let leave_tgt_id = self.e_tgt_id[leave_id];
 
+        // Each node's cut membership is constant for this search. Compute it
+        // once, rather than repeating interval tests for every incident edge.
+        let head: Vec<bool> = (0..self.n_layer.len())
+            .map(|nid| self.is_in_head_by_id(nid, leave_src_id, leave_tgt_id))
+            .collect();
         let mut replace: Option<usize> = None;
         let mut rep_slack = i32::MAX;
         for eid in 0..self.edges.len() {
             let src_id = self.e_src_id[eid];
             let tgt_id = self.e_tgt_id[eid];
-            if self.is_in_head_by_id(src_id, leave_src_id, leave_tgt_id)
-                && !self.is_in_head_by_id(tgt_id, leave_src_id, leave_tgt_id)
-            {
+            if head[src_id] && !head[tgt_id] {
                 let slack = self.n_layer[tgt_id] - self.n_layer[src_id] - self.e_delta[eid];
                 if slack < rep_slack {
                     rep_slack = slack;
@@ -604,6 +718,10 @@ impl<'a> NetworkSimplex<'a> {
             return;
         }
 
+        if self.integral_cutvalues {
+            self.update_cutvalues(leave_id, enter_id);
+        }
+
         // Toggle tree membership — SoA cache only (no underlying edge sync needed)
         self.e_tree[leave_id] = false;
         if let Some(pos) = self.tree_edge_ids.iter().position(|&eid| eid == leave_id) {
@@ -612,6 +730,17 @@ impl<'a> NetworkSimplex<'a> {
 
         self.e_tree[enter_id] = true;
         self.tree_edge_ids.push(enter_id);
+        for nid in [self.e_src_id[leave_id], self.e_tgt_id[leave_id]] {
+            self.tree_edges[nid].retain(|&eid| eid != leave_id);
+        }
+        for nid in [self.e_src_id[enter_id], self.e_tgt_id[enter_id]] {
+            // node_edges has incoming IDs followed by outgoing IDs, each in
+            // increasing internal-ID order. Preserve that exact DFS order.
+            let key = (self.e_src_id[enter_id] == nid, enter_id);
+            let at =
+                self.tree_edges[nid].partition_point(|&eid| (self.e_src_id[eid] == nid, eid) < key);
+            self.tree_edges[nid].insert(at, enter_id);
+        }
 
         // Use cached IDs and layers — zero locks for leave/enter properties
         let leave_src_id = self.e_src_id[leave_id];
@@ -625,10 +754,8 @@ impl<'a> NetworkSimplex<'a> {
             delta = -delta;
         }
 
-        for (nid, node) in self.graph.nodes.iter().enumerate() {
+        for nid in 0..self.n_layer.len() {
             if !self.is_in_head_by_id(nid, leave_src_id, leave_tgt_id) {
-                let mut node_guard = node.lock();
-                node_guard.layer += delta;
                 self.n_layer[nid] += delta;
             }
         }
@@ -638,7 +765,36 @@ impl<'a> NetworkSimplex<'a> {
         if !self.graph.nodes.is_empty() {
             self.postorder_traversal(0);
         }
-        self.cutvalues();
+        if !self.integral_cutvalues {
+            self.cutvalues();
+        }
+    }
+
+    /// Only cuts on the entering edge's fundamental cycle change. Its
+    /// coefficient in the leaving cut is -1 (enter_edge crosses head to tail),
+    /// so the new cut is the old cut plus that cycle's signed leaving cut.
+    /// Read the old tree's intervals before changing membership/postorder.
+    fn update_cutvalues(&mut self, leave_id: usize, enter_id: usize) {
+        let cut = self.cutvalue[leave_id];
+        let source = self.e_src_id[enter_id];
+        let target = self.e_tgt_id[enter_id];
+        for &eid in &self.tree_edge_ids {
+            if eid == leave_id {
+                continue;
+            }
+            let source_in_head =
+                self.is_in_head_by_id(source, self.e_src_id[eid], self.e_tgt_id[eid]);
+            let target_in_head =
+                self.is_in_head_by_id(target, self.e_src_id[eid], self.e_tgt_id[eid]);
+            if source_in_head != target_in_head {
+                if target_in_head {
+                    self.cutvalue[eid] += cut;
+                } else {
+                    self.cutvalue[eid] -= cut;
+                }
+            }
+        }
+        self.cutvalue[enter_id] = -cut;
     }
 
     fn normalize(&mut self) -> Vec<i32> {
@@ -676,7 +832,8 @@ impl<'a> NetworkSimplex<'a> {
         let mut filling = filling.to_vec();
         for node in &self.graph.nodes {
             let (incoming_count, outgoing_count, current_layer) = {
-                let node_guard = node.lock();                (
+                let node_guard = node.lock();
+                (
                     node_guard.incoming_edges().len(),
                     node_guard.outgoing_edges().len(),
                     node_guard.layer,
@@ -719,9 +876,11 @@ impl<'a> NetworkSimplex<'a> {
         }
 
         let mut stack: VecDeque<Pair<NNodeRef, NEdgeRef>> = VecDeque::new();
+        let mut removed = FxHashSet::default();
         while let Some(node) = leafs.pop_front() {
             let (edge, is_out_edge) = {
-                let node_guard = node.lock();                if node_guard.connected_edge_count() == 0 {
+                let node_guard = node.lock();
+                if node_guard.connected_edge_count() == 0 {
                     continue;
                 }
                 // First connected edge: incoming first, then outgoing (Java parity)
@@ -744,10 +903,13 @@ impl<'a> NetworkSimplex<'a> {
                 leafs.push_back(other);
             }
             stack.push_back(Pair::of(node.clone(), edge));
-            self.graph
-                .nodes
-                .retain(|candidate| !Arc::ptr_eq(candidate, &node));
+            removed.insert(Arc::as_ptr(&node) as usize);
         }
+        // No pruning step reads the node vector. Compact once, preserving its
+        // survivor order and the queue/stack order used for reattachment.
+        self.graph
+            .nodes
+            .retain(|node| !removed.contains(&(Arc::as_ptr(node) as usize)));
         self.subtree_nodes_stack = Some(stack);
     }
 
@@ -764,12 +926,16 @@ impl<'a> NetworkSimplex<'a> {
             if node_is_target {
                 add_edge_to_node(&placed, &edge, true);
                 {
-                    let mut node_guard = node.lock();                    let placed_guard = placed.lock();                    node_guard.layer = placed_guard.layer + edge_delta(&edge);
+                    let mut node_guard = node.lock();
+                    let placed_guard = placed.lock();
+                    node_guard.layer = placed_guard.layer + edge_delta(&edge);
                 }
             } else {
                 add_edge_to_node(&placed, &edge, false);
                 {
-                    let mut node_guard = node.lock();                    let placed_guard = placed.lock();                    node_guard.layer = placed_guard.layer - edge_delta(&edge);
+                    let mut node_guard = node.lock();
+                    let placed_guard = placed.lock();
+                    node_guard.layer = placed_guard.layer - edge_delta(&edge);
                 }
             }
             self.graph.nodes.push(node);
@@ -801,6 +967,7 @@ fn edge_target_is(edge: &NEdgeRef, node: &NNodeRef) -> bool {
     Arc::ptr_eq(&edge_target(edge), node)
 }
 
+#[cfg(test)]
 fn remove_unknown_cutvalue(node: &NNodeRef, edge: &NEdgeRef) {
     let mut node_guard = node.lock();
     node_guard
@@ -827,5 +994,186 @@ fn add_edge_to_node(node: &NNodeRef, edge: &NEdgeRef, outgoing: bool) {
         node_guard.outgoing_edges_mut().push(edge.clone());
     } else {
         node_guard.incoming_edges_mut().push(edge.clone());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::org::eclipse::elk::alg::common::networksimplex::{NEdge, NNode};
+
+    fn dag(count: usize, mut seed: u64, fraction: f64) -> NGraph {
+        let mut graph = NGraph::new();
+        for _ in 0..count {
+            NNode::of().create(&mut graph);
+        }
+        for source in 0..count {
+            for target in source + 1..count {
+                seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+                if source == 0 || seed >> 60 < 2 {
+                    NEdge::of()
+                        .source(graph.nodes[source].clone())
+                        .target(graph.nodes[target].clone())
+                        .delta(1 + ((seed >> 32) % 5) as i32)
+                        .weight(1.0 + (seed % 17) as f64 + fraction)
+                        .create();
+                }
+            }
+        }
+        graph
+    }
+
+    #[test]
+    fn indexed_fractional_cuts_match_reference_bits_at_every_pivot() {
+        let mut pivots = 0;
+        for count in [8, 24, 48, 80] {
+            for seed in 0..24 {
+                for fraction in [0.01, 0.5] {
+                    let mut graph = dag(count, seed, fraction);
+                    let mut simplex = NetworkSimplex::for_graph(&mut graph);
+                    simplex.initialize();
+                    assert!(!simplex.integral_cutvalues);
+                    simplex.feasible_tree();
+                    for _ in 0..512 {
+                        let actual: Vec<_> = simplex.cutvalue.iter().map(|v| v.to_bits()).collect();
+                        simplex.cutvalues_reference();
+                        let expected: Vec<_> =
+                            simplex.cutvalue.iter().map(|v| v.to_bits()).collect();
+                        assert_eq!(
+                            actual, expected,
+                            "count={count} seed={seed} fraction={fraction}"
+                        );
+                        let Some(leave) = simplex.leave_edge() else {
+                            break;
+                        };
+                        let enter = simplex.enter_edge(leave).expect("feasible pivot");
+                        simplex.exchange(leave, enter);
+                        pivots += 1;
+                    }
+                }
+            }
+        }
+        assert!(pivots > 100, "exercise fractional tree exchanges: {pivots}");
+    }
+
+    #[test]
+    fn integral_pivot_cuts_equal_full_leaf_elimination() {
+        let mut pivots = 0;
+        for count in [8, 24, 48, 80] {
+            for seed in 0..24 {
+                let mut graph = dag(count, seed, 0.0);
+                let mut simplex = NetworkSimplex::for_graph(&mut graph);
+                simplex.initialize();
+                assert!(simplex.integral_cutvalues);
+                simplex.feasible_tree();
+                for _ in 0..512 {
+                    let Some(leave) = simplex.leave_edge() else {
+                        break;
+                    };
+                    let enter = simplex.enter_edge(leave).expect("feasible pivot");
+                    simplex.exchange(leave, enter);
+                    for nid in 0..simplex.node_edges.len() {
+                        let expected: Vec<_> = simplex.node_edges[nid]
+                            .iter()
+                            .copied()
+                            .filter(|&eid| simplex.e_tree[eid])
+                            .collect();
+                        assert_eq!(simplex.tree_edges[nid], expected, "same tree DFS order");
+                    }
+                    let incremental = simplex.cutvalue.clone();
+                    simplex.cutvalues();
+                    for &eid in &simplex.tree_edge_ids {
+                        assert_eq!(
+                            incremental[eid], simplex.cutvalue[eid],
+                            "count={count} seed={seed} pivot={pivots} edge={eid}"
+                        );
+                    }
+                    pivots += 1;
+                }
+            }
+        }
+        assert!(
+            pivots > 100,
+            "exercise tree exchanges, including tied cuts: {pivots}"
+        );
+    }
+
+    #[test]
+    fn incomplete_postorder_keeps_full_cut_computation() {
+        for source_free_cycle in [false, true] {
+            let mut graph = NGraph::new();
+            let nodes: Vec<_> = (0..6).map(|_| NNode::of().create(&mut graph)).collect();
+            let edges = if source_free_cycle {
+                vec![(0, 1), (1, 2), (2, 0), (3, 4), (4, 5), (5, 3)]
+            } else {
+                vec![(0, 1), (1, 2), (0, 2), (3, 4), (4, 5), (3, 5)]
+            };
+            for (source, target) in edges {
+                NEdge::of()
+                    .source(nodes[source].clone())
+                    .target(nodes[target].clone())
+                    .delta(1)
+                    .weight(1.0)
+                    .create();
+            }
+            let mut simplex = NetworkSimplex::for_graph(&mut graph);
+            simplex.initialize();
+            assert!(simplex.integral_cutvalues);
+            simplex.feasible_tree();
+            assert!(simplex.post_order as usize <= simplex.graph.nodes.len());
+            assert!(!simplex.integral_cutvalues);
+            let cuts = simplex.cutvalue.clone();
+            simplex.cutvalues();
+            assert_eq!(simplex.cutvalue, cuts);
+        }
+    }
+
+    #[test]
+    fn fractional_or_large_weights_keep_original_cut_arithmetic() {
+        for fraction in [0.01, (1_u64 << 53) as f64] {
+            let mut graph = dag(8, 17, fraction);
+            let mut simplex = NetworkSimplex::for_graph(&mut graph);
+            simplex.initialize();
+            assert!(!simplex.integral_cutvalues);
+        }
+    }
+
+    #[test]
+    fn subtree_compaction_preserves_survivor_and_reattachment_order() {
+        let mut graph = NGraph::new();
+        let nodes: Vec<_> = (0..7).map(|_| NNode::of().create(&mut graph)).collect();
+        for (source, target) in [(0, 1), (1, 2), (0, 2), (2, 3), (3, 4), (0, 5), (1, 6)] {
+            NEdge::of()
+                .source(nodes[source].clone())
+                .target(nodes[target].clone())
+                .delta(1)
+                .create();
+        }
+        let mut simplex = NetworkSimplex::for_graph(&mut graph);
+        simplex.remove_subtrees();
+        let ordinals = |graph: &NGraph| {
+            graph
+                .nodes
+                .iter()
+                .map(|node| {
+                    nodes
+                        .iter()
+                        .position(|original| Arc::ptr_eq(original, node))
+                        .unwrap()
+                })
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(ordinals(simplex.graph), [0, 1, 2]);
+        nodes[1].lock().layer = 1;
+        nodes[2].lock().layer = 2;
+        simplex.reattach_subtrees();
+        assert_eq!(ordinals(simplex.graph), [0, 1, 2, 3, 6, 5, 4]);
+        assert_eq!(
+            nodes
+                .iter()
+                .map(|node| node.lock().layer)
+                .collect::<Vec<_>>(),
+            [0, 1, 2, 3, 4, 1, 2]
+        );
     }
 }

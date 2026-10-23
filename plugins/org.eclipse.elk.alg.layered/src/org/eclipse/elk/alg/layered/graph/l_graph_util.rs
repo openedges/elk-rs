@@ -49,8 +49,17 @@ impl LGraphUtil {
         };
 
         // Java uses float (f32) for these variables. Truncate to match.
-        let width_ratio = (new_size.x / old_size.x) as f32 as f64;
-        let height_ratio = (new_size.y / old_size.y) as f32 as f64;
+        // A collapsed axis has no scale. Preserve its port coordinates until placement.
+        let width_ratio = if old_size.x == 0.0 {
+            1.0
+        } else {
+            (new_size.x / old_size.x) as f32 as f64
+        };
+        let height_ratio = if old_size.y == 0.0 {
+            1.0
+        } else {
+            (new_size.y / old_size.y) as f32 as f64
+        };
         let width_diff = (new_size.x - old_size.x) as f32 as f64;
         let height_diff = (new_size.y - old_size.y) as f32 as f64;
 
@@ -89,7 +98,9 @@ impl LGraphUtil {
             }
         }
 
-        if move_labels {
+        // Relative label placement is undefined on a collapsed rectangle.
+        // Keep the existing label coordinates until the normal placement pass.
+        if move_labels && old_size.x != 0.0 && old_size.y != 0.0 {
             for label in labels {
                 {
                     let mut label_guard = label.lock();
