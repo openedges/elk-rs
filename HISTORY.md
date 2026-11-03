@@ -3,6 +3,18 @@
 - 본 문서는 기존 `AGENTS.md`의 `진행된 작업` 섹션을 분리 보관한 기록이다.
 - 신규 단계 완료 시 이 문서에 누적 기록하고, `AGENTS.md`의 핵심 스냅샷/우선순위를 동기화한다.
 
+## 이슈 #3: INCLUDE_CHILDREN DOWN/UP 콘텐츠 정렬 오프셋 제거 (2026-11-03)
+
+- **보고**: [openedges/elk-rs#3](https://github.com/openedges/elk-rs/issues/3). `INCLUDE_CHILDREN` + `DOWN`/`UP`에서 `MINIMUM_SIZE`·`nodeSize.minimum`·`H_CENTER` 정렬을 가진 compound 노드의 자식이 부모 바깥(124폭 부모에 x=100)에 배치되고, 자식 포트에 연결된 edge가 부모 포트에 닿지 않았다. Java 0.12.0과 elkjs 0.12.0은 서로 일치하고 Rust만 달랐다. 로컬 `main`(`eb586b6d`)에서 보고된 케이스와 변형(UP, 한 단계 더 중첩, `(40, 300)`+`H_LEFT V_CENTER`의 y축 변형)을 모두 재현했다.
+- **원인**: `ElkGraphLayoutTransferrer::apply_layout`이 Rust 전용 `apply_content_alignment_offset`을 호출했다. untransposed `nodeSize.minimum`을 입력 방향으로 복원된 그래프 크기와 비교해 존재하지 않는 여백을 계산하고 offset을 밀어냈다. `RIGHT`/`LEFT`는 이미 최소 크기로 resize된 상태라 차이가 0이어서 영향이 없었다. Java 0.12.0 `applyLayout`에는 이 단계가 없고, 콘텐츠 정렬은 `ElkLayered.resizeGraphNoReallyIMeanIt`와 `HierarchicalNodeResizingProcessor`에서만 적용되며 둘 다 이미 포팅되어 있다. 이 호출은 `e182e764`(2026-02-15, parity 700/1439 시점)에 edge label 수정과 함께 들어간 Rust 전용 코드였다.
+- **수정**: 호출과 함수 본체(약 70줄)를 제거했다. 다른 코드는 변경하지 않았다. 불필요해진 `ContentAlignment` import와 `mut`를 함께 정리했다.
+- **회귀 테스트**: `plugins/org.eclipse.elk.graph.json/tests/content_alignment_hierarchy.rs` + `tests/content_alignment_hierarchy/` fixture 10쌍(보고 그래프, UP, 중첩, 포트 연결, y축 변형, `INCLUDE_CHILDREN` 없음, RIGHT/LEFT/방향 없음/H_LEFT 대조군). expected는 elkjs 0.12.0 출력(`$H` 제거)이며, 캐시된 isolation worktree의 Java 0.12.0 빌드(`java_model_parity_trace.sh`, JDK 21, Maven 3.9.16)로 10개 모두 1e-6 이내 일치를 확인했다. 수정 전 `main`에서는 throwaway worktree로 같은 테스트가 7개 실패(전치축 케이스 5개 + 포함 검사 + 이슈 좌표), 대조군 5개 통과였다. 각 reference 테스트는 자식 포함 검사를 함께 수행한다. 상세: `tests/content_alignment_hierarchy.md`.
+- **커버리지 공백**: elk-models 1,998개 중 `contentAlignment`와 `INCLUDE_CHILDREN`을 함께 쓰는 모델은 0개여서 기존 model parity/phase trace는 이 결함을 감지하지 못했고, 수정 후에도 수치 변화가 없는 것이 정상이다.
+- **품질 게이트**: workspace build/Clippy warning 0. `cargo test --workspace` 1,092 passed / 0 failed / 2 ignored(기존 1,081 + 신규 11). Model parity는 JDK 21/Maven 3.9.16으로 Java baseline을 새로 export(표준 reference patch 3개 적용)해 `total=1998, compared=1989, matches=1989, drift=0, skipped=9(Java 출력 없음: labelStacking 4, northSouthPorts 4, 588), errors=0`. 213은 patched reference 기준으로 일치한다.
+- **Strict full trace**: `run_full_trace_parity.sh`(corrected Java reference, JDK 21) 결과 `expected_inputs=1998, successful_layouts=1997, expected_errors=1, verified_steps=196407, failed_models=0, status=pass`. 0.12.1 기준선과 동일하다. 첫 실행은 plugin/test `target/classes`만 넣은 classpath에서 EMF 누락으로 javac가 실패해, 원본 스크립트의 classpath 구간을 그대로 재사용해 재실행했다.
+- **코드리뷰(medium)**: lockfile 혼입(npm install로 바뀐 `package-lock.json`을 되돌림), 문서 placeholder, 테스트 doc comment 과장 및 케이스 목록 중복을 지적받아 모두 반영했다. `assert_layout_equal`의 null 처리 지적은 sibling 테스트와 동일한 동작이라 유지했다.
+- **환경 메모**: mise의 Maven 3.9.16 실행 파일은 `installs/maven/3.9.16/bin/mvn`이 아니라 하위 디렉터리에 있어 `find`로 찾아야 한다. phase trace의 `JAVA_TRACE_CLASSPATH`는 `java_model_phase_step_trace.sh`의 "Collect classpath" 구간(109~239행)을 그대로 isolation worktree에 적용해 594개 항목(EMF 31개 포함)으로 구성했다. plugin/test `target/classes`만으로는 EMF가 빠져 javac가 실패한다.
+
 ## 0.12.1 공개 수정판 준비 (2026-10-23)
 
 - **최종 패키지 검증**: metadata/phase wiring12/12, release build, NAPI/web·Node WASM 빌드, JS49/49, NAPI·web WASM 각각 Java550/550 통과. elkjs#8의 오래된 성공 기대값2개를 원본과 같은 UnsupportedGraphException 검증으로 수정했다. npm tarball의 native/WASM direct·fakeWorker·worker_threads는 Node18.0.0/18.15.0/24.19.0 모두 통과. 성능5% gate13/13 및 recursive60ms budget8/8 통과, baseline은 변경하지 않았다.

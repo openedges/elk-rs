@@ -1,0 +1,35 @@
+{
+  "id": "root",
+  "layoutOptions": {
+    "elk.algorithm": "layered",
+    "elk.direction": "DOWN"
+  },
+  "children": [
+    {
+      "id": "parent",
+      "layoutOptions": {
+        "elk.nodeSize.constraints": "MINIMUM_SIZE",
+        "elk.nodeSize.minimum": "(300, 40)",
+        "elk.contentAlignment": "H_CENTER V_TOP"
+      },
+      "children": [
+        {
+          "id": "child",
+          "width": 100,
+          "height": 40,
+          "x": 100,
+          "y": 12
+        }
+      ],
+      "x": 12,
+      "y": 12,
+      "width": 300,
+      "height": 64
+    }
+  ],
+  "edges": [],
+  "x": 0,
+  "y": 0,
+  "width": 324,
+  "height": 88
+}

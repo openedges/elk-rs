@@ -5,6 +5,12 @@ All notable changes to elk-rs are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions correspond to the target ELK Java version (see `VERSIONING.md`).
 
+## [Unreleased]
+
+### Fixed
+
+- Fixed children of a compound node with a minimum size and a content alignment being placed outside their parent under `INCLUDE_CHILDREN` with direction `DOWN` or `UP` ([#3](https://github.com/openedges/elk-rs/issues/3)). A Rust-only alignment offset in the layout transferrer, absent from Java ELK, was removed; ten reference cases match Java ELK 0.12.0 and elkjs 0.12.0. See [the reference cases](tests/content_alignment_hierarchy.md).
+
 ## [0.12.1] - 2026-10-23
 
 Rust fixes on Java ELK 0.12.0; upstream Java and elkjs references are unchanged.

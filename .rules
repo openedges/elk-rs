@@ -44,7 +44,8 @@
 7. 커밋 (`<scope>: <summary>`)
 8. 불가/예외 사항은 `HISTORY.md`에 사유와 대안을 기록
 
-## 현재 핵심 스냅샷 (2026-10-23, 0.12.1 공개 수정판 준비)
+## 현재 핵심 스냅샷 (2026-11-03, 이슈 #3 수정)
+- **이슈 #3 수정 (2026-11-03, `fix/content-alignment-offset`)**: `INCLUDE_CHILDREN` + `DOWN`/`UP`에서 최소 크기·콘텐츠 정렬을 가진 compound 노드의 자식이 부모 바깥에 놓이던 결함을 수정했다. 원인은 Java에 없는 Rust 전용 `apply_content_alignment_offset`(`e182e764` 도입)이며 호출과 함수를 제거했다. 회귀 fixture 10쌍은 elkjs 0.12.0 출력이고 Java 0.12.0 빌드로 전부 일치 확인했다. workspace tests 1,092 passed/0 failed/2 ignored, build/Clippy warning 0. 새 Java export 기준 model parity `compared=1989, matches=1989, drift=0, skipped=9`. Strict full trace `1998 입력 = 1997 정상 + 1 예외, 196,407 단계 일치, 실패 0, pass`(0.12.1 기준선과 동일). 상세: `tests/content_alignment_hierarchy.md`, `HISTORY.md`.
 - **현재 package version**: `0.12.1`, Java/elkjs reference `0.12.0` 유지. 사용자 승인 경로: fix/layout-improvements PR → main → 기존 releases/0.12.0 → annotated v0.12.1. 최종 runtime4b9a1f56 성능: stable 대비 native 평균-1.54%, JSON API+0.02%, targeted23.3~62.0% 개선. 상세: `tests/release_0_12_1.md`. 아래0.12.0 게시 기록은 이전 릴리스 이력이다.
 - **레이아웃 개선 검증**: 기존 패치를 `1d9f3afd`로 커밋하고 GitHub `fix/layout-improvements`에 push했다. 후속으로 x-anchor 근사를 실제 hull/1D 컴포넌트 압축으로 대체하고, zero-height 스캔 순서와 NaN 비교 누락을 수정했다. workspace 1,081 passed/0 failed/2 ignored, build/Clippy warning0. Java fixture16개 중14개는 원본0.12, zero-size2개는 명시적 Java 수정 기준이며 모두 일치한다. 수정 Java213은 최종 출력과229단계 모두 일치한다. 후속으로 최종 검증 수정을4b9a1f56에 커밋하고 package0.12.1을 준비했다. 결정·검증·남은 한계: `tests/component_compaction.md`.
 
