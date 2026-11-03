@@ -1,8 +1,8 @@
 # Algorithm Option Default Value Parity
 
 - status: ok
-- java option ids considered: 252
-- rust option ids considered: 252
+- java option ids considered: 253
+- rust option ids considered: 253
 - missing option ids in rust: 0
 - extra option ids in rust: 0
 - comparable value mismatches: 0

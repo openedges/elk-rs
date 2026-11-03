@@ -3,6 +3,16 @@
 - 본 문서는 기존 `AGENTS.md`의 `진행된 작업` 섹션을 분리 보관한 기록이다.
 - 신규 단계 완료 시 이 문서에 누적 기록하고, `AGENTS.md`의 핵심 스냅샷/우선순위를 동기화한다.
 
+## 0.12.2 공개 수정판 준비 (2026-11-03)
+
+- **경로**: PR #4(`a888bd54`)로 이슈 #3 수정을 `main`에 머지한 뒤 `release/0.12.2`에서 `scripts/bump_version.py 0.12.2`로 Cargo/npm 매니페스트 13개를 일괄 변경했다(`--check`=0.12.2). Java/elkjs 기준은 0.12.0을 유지한다. README·VERSIONING·scripts/README·CHANGELOG(`[Unreleased]`→`[0.12.2]`)·AGENTS 스냅샷을 갱신했다.
+- **Rust 게이트**: bump 후 build/Clippy/release build warning 0, tests 1,092 passed/0 failed/2 ignored. 코퍼스 게이트(model parity 1,989/1,989, strict trace 196,407단계 pass)는 버전 문자열만 다른 수정 커밋 트리에서 실행한 결과를 사용한다.
+- **Metadata gate**: 첫 실행은 `tests/*_parity.md`가 모두 `drift`(java ids 0)로 나왔다. 원인은 Java `*Options.java`가 Tycho 빌드로 `src-gen`에 생성되는 소스여서 체크아웃만으로는 존재하지 않기 때문이다(`parity.yml`의 "Locate generated ELK sources" 단계와 동일). isolation worktree를 다시 빌드하고 `JAVA_SOURCES_ROOT`/`JAVA_CORE_OPTIONS`를 worktree로 지정해 재실행하면 12/12 `status: ok`. 재생성된 보고서 4개는 양쪽 동일하게 layered 옵션 1개·wiring row 1개가 기존 커밋보다 많다.
+- **JS 패키지**: wasm-pack으로 web/Node WASM 빌드, `@napi-rs/cli` 3.10.10을 scratch prefix에 설치해 직접 호출로 darwin-arm64 NAPI 빌드(`build.sh`의 `npx napi`는 프로젝트 외부 CLI를 찾지 못함). Vitest 49/49, NAPI·WASM 각각 Java 550/550(PASS 530 + ELKJS_DRIFT 20). `npm pack` 20파일 3.4MB, `publish_npm.sh --dry-run` 7개, `publish_crates.py --dry-run` 18개 통과.
+- **성능 게이트**: `check_parity_regression.sh 5 3`(baseline 모드) 첫 실행은 Java/NAPI/WASM 빌드 직후 load average 5.7 상태에서 `box_sparse` +26.2%, `issue_405` +15.6%, `issue_603` +24.4%로 3건이 5%를 넘었고 개별 round가 최대 4배 흔들렸다(`box_sparse` 0.27/1.09/0.34ms). 1분 대기 후 load 1.6에서 재측정하면 13/13 통과(유일한 증가 `fixed_dense` +3.33%, 나머지 3~47% 개선). recursive 60ms budget은 두 실행 모두 8/8. 두 실행의 CSV/보고서를 `tests/release_0_12_2/gates/`에 모두 보존했다(`*-run1-busy.*`). 이 변경은 그래프당 함수 호출 1개를 제거할 뿐이라 느려질 코드 경로가 없으며, 아래 동일 머신 A/B로 확인했다.
+- **동일 머신 A/B**: 13개 게이트 시나리오(0.05~2ms, 기본 5/20 iteration)로 v0.12.1과 교차 측정하면 같은 실행 안에서 -53%~+88%가 양방향으로 나와 결론을 낼 수 없었다(`gates/ab-small-scenarios/`). 0.12.1 검증과 같은 방식으로 `perf_benchmark` 26 synthetic 시나리오를 v0.12.1(`eb586b6d`)·현재 release 바이너리로 3라운드 교대(순서 반전) 측정: native 평균 22.8229→22.9003ms(+0.34%), JSON API 24.4828→24.3246ms(-0.65%), 52개 비교 모두 5% 이내(최대 `force_xlarge` +2.84%). 원본 CSV·바이너리 해시·summary JSON은 `tests/release_0_12_2/perf/`. 성능 회귀 없음으로 판정했다.
+- **배포 상태**: bump 커밋을 `release/0.12.2`에 올려 PR을 연 단계이며, main 머지 → `releases/0.12.0` 전진 → `v0.12.2` 태그 → release.yml 게시 결과는 완료 후 이어서 기록한다.
+
 ## 이슈 #3: INCLUDE_CHILDREN DOWN/UP 콘텐츠 정렬 오프셋 제거 (2026-11-03)
 
 - **보고**: [openedges/elk-rs#3](https://github.com/openedges/elk-rs/issues/3). `INCLUDE_CHILDREN` + `DOWN`/`UP`에서 `MINIMUM_SIZE`·`nodeSize.minimum`·`H_CENTER` 정렬을 가진 compound 노드의 자식이 부모 바깥(124폭 부모에 x=100)에 배치되고, 자식 포트에 연결된 edge가 부모 포트에 닿지 않았다. Java 0.12.0과 elkjs 0.12.0은 서로 일치하고 Rust만 달랐다. 로컬 `main`(`eb586b6d`)에서 보고된 케이스와 변형(UP, 한 단계 더 중첩, `(40, 300)`+`H_LEFT V_CENTER`의 y축 변형)을 모두 재현했다.
