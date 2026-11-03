@@ -59,6 +59,14 @@ release measured the same runtime change against `v0.12.1` on this machine
 (native +0.34%, JSON API -0.65%, all 52 synthetic comparisons within 5%; see
 [the stable report](release_0_12_2.md)); the custom features did not change.
 
+## Remote results
+
+- Tag run [41613773967](https://github.com/openedges/elk-rs/actions/runs/41613773967) on
+  `v0.12.2-ext.1`: preflight, WASM bundle and all six NAPI targets succeeded; the
+  crates.io, npm, dry-run and GitHub Release jobs were skipped as designed for `-ext.`
+  tags. CI on `custom/0.12.0` ([41613771070](https://github.com/openedges/elk-rs/actions/runs/41613771070))
+  passed.
+
 ## Publication scope
 
 Push the merge and version commits on `custom/0.12.0` and annotated
