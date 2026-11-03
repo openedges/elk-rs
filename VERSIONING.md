@@ -229,7 +229,7 @@ main                        <- development branch (always build/test/parity gree
 │   └─ v0.11.0+rs.6         <- first registry publish
 ├─ custom/0.11.0            <- extension line (-ext.N tags, never published)
 ├─ releases/0.12.0          <- current 0.12.x line (v0.12.0, v0.12.1, v0.12.2)
-├─ port/0.12.0              <- ELK 0.12.0 porting work branch
+├─ port/*                   <- ELK version porting work branches (e.g. port/0.12.0, deleted after merge)
 ├─ feature/*                <- elk-rs feature development (NAPI, optimizations, etc.)
 └─ fix/*                    <- bug fixes and version-bump PRs (short-lived; never named release/* or releases/*)
 ```
