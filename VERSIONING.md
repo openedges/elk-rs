@@ -223,7 +223,7 @@ org-eclipse-elk-alg-layered = { path = "../org.eclipse.elk.alg.layered" }   # pa
 
 ```
 main                        <- development branch (always build/test/parity green)
-├─ releases/0.11.0          <- 0.11.x release branch (tagged, published)
+├─ releases/0.11.0          <- 0.11.x line: one branch per ELK base version, every elk-rs patch tag of the series lives on it
 │   ├─ v0.11.0              <- first release tag (March 2026, packages not published then)
 │   ├─ v0.11.0+rs.1         <- internal patch tag
 │   └─ v0.11.0+rs.6         <- first registry publish
@@ -231,15 +231,26 @@ main                        <- development branch (always build/test/parity gree
 ├─ releases/0.12.0          <- current 0.12.x line (v0.12.0, v0.12.1, v0.12.2)
 ├─ port/0.12.0              <- ELK 0.12.0 porting work branch
 ├─ feature/*                <- elk-rs feature development (NAPI, optimizations, etc.)
-└─ fix/*                    <- bug fixes
+└─ fix/*                    <- bug fixes and version-bump PRs (short-lived; never named release/* or releases/*)
 ```
 
 **Rules:**
 - `main` always passes build/test/parity — development happens here
-- `releases/X.Y.Z` branches are created from `main` when ready to release
-  - Initial tags (`v<version>`) and subsequent revision tags (`v<version>+rs.<N>`) are placed on release branches
-  - Hotfixes go to the release branch, then cherry-pick to `main` if needed
-  - Release branches are long-lived (not deleted after release)
+- `releases/<ELK MAJOR.MINOR.PATCH>` (for example `releases/0.12.0`) is created from `main`
+  once per ELK base version and is the release line for every elk-rs package version of
+  that series: `0.12.0`, `0.12.1`, `0.12.2`, ... **An elk-rs patch release does not get its
+  own `releases/` branch**; `v0.12.1` and `v0.12.2` are tags on `releases/0.12.0`, exactly
+  as the hotfix procedure in § 4 shows. A new `releases/` branch appears only with a new
+  ELK base version (`releases/0.13.0`).
+  - Initial tags (`v<version>`) and subsequent revision tags (`v<version>+rs.<N>`) are placed on the release line
+  - Publishing a patch: land the fix and the version bump in `main` through PRs from
+    `fix/*` work branches (the bump may ride on the fix branch, as 0.12.1 did, or follow in
+    its own PR, as 0.12.2 did), fast-forward the release line to the merge commit, tag it
+    `v<version>`, push the branch and the tag
+  - Hotfixes that cannot wait for `main` go to the release line first, then cherry-pick to `main`
+  - Release lines are long-lived (not deleted after release); work branches are deleted after merge
+  - Work branches are never named `release/*` or `releases/*`: the 0.12.2 bump briefly used
+    `release/0.12.2`, which was deleted after merge because the name reads like a release line
 - New ELK version porting happens on `port/X.Y.Z` branches, merged to `main`
 - Feature/fix branches fork from `main`, merge via PR
 
