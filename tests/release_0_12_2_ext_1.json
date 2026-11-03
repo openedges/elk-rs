@@ -1,0 +1,86 @@
+{
+  "version": "0.12.2-ext.1",
+  "branch": "custom/0.12.0",
+  "stable_base": {
+    "version": "0.12.2",
+    "commit": "a7f40057"
+  },
+  "merge_commit": "b966a21c",
+  "java_reference": "0.12.0 + 3 documented reference patches",
+  "rust_tests": {
+    "passed": 1118,
+    "failed": 0,
+    "ignored": 2
+  },
+  "python_tests": 21,
+  "js_tests": 49,
+  "metadata_checks": {
+    "ok": 11,
+    "known_drift": {
+      "check": "algorithm_option_support",
+      "layered_options": {
+        "java": 153,
+        "rust": 154
+      }
+    }
+  },
+  "model_parity": {
+    "total": 1998,
+    "match": 1988,
+    "drift": [
+      "tests/layered/layer_constraints/emptyLayerFirst.elkt"
+    ],
+    "skipped": 9
+  },
+  "js_parity": {
+    "native": {
+      "total": 550,
+      "PASS": 530,
+      "ELKJS_DRIFT": 20,
+      "javaMatches": 550,
+      "missingJava": 0,
+      "failures": 0
+    },
+    "wasm": {
+      "total": 550,
+      "PASS": 530,
+      "ELKJS_DRIFT": 20,
+      "javaMatches": 550,
+      "missingJava": 0,
+      "failures": 0
+    }
+  },
+  "strict_trace": {
+    "summary": {
+      "expected_inputs": 1998,
+      "successful_layouts": 1997,
+      "expected_errors": 1,
+      "verified_steps": 196407,
+      "failed_models": 2,
+      "status": "fail"
+    },
+    "failed_models": [
+      {
+        "model": "tests/layered/layer_constraints/emptyLayerFirst.elkt",
+        "status": "failed",
+        "steps": 19,
+        "trace_drift_steps": 17,
+        "layout_differences": 4,
+        "layout_details": [
+          "root/children[1]/y: number mismatch (12.0 != 22.0)",
+          "root/edges[0]/sections[0]: missing keys on left: bendPoints",
+          "root/edges[0]/sections[0]/startPoint/y: number mismatch (12.0 != 22.0)",
+          "root/height: number mismatch (24.0 != 35.0)"
+        ]
+      },
+      {
+        "model": "tests/layered/layer_constraints/emptyLayerLast.elkt",
+        "status": "failed",
+        "steps": 19,
+        "trace_drift_steps": 17,
+        "layout_differences": 0,
+        "layout_details": []
+      }
+    ]
+  }
+}

@@ -68,16 +68,17 @@ For new extension versions, the prefix is the **included stable elk-rs version**
 not the Java reference version. `N` starts at 1 for each stable base and increases
 for subsequent custom versions on that same stable base.
 
-| Next action | Package version / tag | Java reference |
-|-------------|-----------------------|----------------|
-| First policy application: stable `0.12.1` retained | `0.12.1-ext.1` / `v0.12.1-ext.1` | `0.12.0` |
-| Another custom revision on stable `0.12.1` | `0.12.1-ext.2` / `v0.12.1-ext.2` | `0.12.0` |
-| Integrate a future stable `0.12.2` for the first time | `0.12.2-ext.1` / `v0.12.2-ext.1` | Record the actual pin; a Rust patch need not change it |
+| Action | Package version / tag | Java reference |
+|--------|-----------------------|----------------|
+| First policy application: stable `0.12.1` retained (2026-10-23) | `0.12.1-ext.1` / `v0.12.1-ext.1` | `0.12.0` |
+| Stable `0.12.2` integrated for the first time (2026-11-03, current) | `0.12.2-ext.1` / `v0.12.2-ext.1` | `0.12.0` (the Rust patch did not change it) |
+| Another custom revision on stable `0.12.2` | `0.12.2-ext.2` / `v0.12.2-ext.2` | `0.12.0` |
+| A later stable patch integrated for the first time | `<stable>-ext.1` / `v<stable>-ext.1` | Record the actual pin; a Rust patch need not change it |
 
-The first row is the current `0.12.1-ext.1` version; the other rows are future
-examples. After it, use `0.12.1-ext.2` for another revision on the same stable
-base, or `0.12.2-ext.1` when stable `0.12.2` is incorporated. The old `ext.2`
-counter from `0.12.0-ext.2` does not carry into the new stable base.
+The second row is the current `0.12.2-ext.1` version; the rows below it are future
+examples. The counter restarts at `ext.1` whenever the stable base changes, so the
+`ext.1` of `0.12.1-ext.1` did not carry into `0.12.2-ext.1`, and the old `ext.2`
+counter from `0.12.0-ext.2` did not carry into the `0.12.1` base either.
 
 Before each custom release:
 
@@ -134,8 +135,9 @@ The workflow remains unchanged by the policy and version transition:
 
 ### Version Sync Files
 
-The values below describe stable `0.12.1` and the current custom version
-`0.12.1-ext.1`. Historical tags retain the manifests in their own commits.
+The values below describe stable `0.12.1` and the custom version `0.12.1-ext.1` as
+worked examples; the current values are stable `0.12.2` and custom `0.12.2-ext.1`.
+Historical tags retain the manifests in their own commits.
 
 `python3 scripts/bump_version.py <version>` edits the manifest and lockfile rows below;
 `--check` verifies their package versions agree. Update `CHANGELOG.md` manually.

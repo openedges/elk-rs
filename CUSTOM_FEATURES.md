@@ -20,20 +20,22 @@ Four custom features are currently implemented:
 | Item | Value |
 |------|-------|
 | Integration branch | `custom/0.12.0` |
-| Current tag | [`v0.12.1-ext.1`](https://github.com/openedges/elk-rs/tree/v0.12.1-ext.1) (first stable-base name; build only) |
-| Previous tag | [`v0.12.0-ext.2`](https://github.com/openedges/elk-rs/tree/v0.12.0-ext.2) (`3029a99b`, preserved legacy name) |
-| Cargo version | `0.12.1-ext.1` |
-| npm version | `@openedges/elk-layout@0.12.1-ext.1` manifest (extension builds are not published) |
-| Base | Previous custom `7d8e9791` merged with stable `0.12.1` (`eb586b6d`) on `releases/0.12.0` |
+| Current tag | [`v0.12.2-ext.1`](https://github.com/openedges/elk-rs/tree/v0.12.2-ext.1) (stable 0.12.2 base; build only) |
+| Previous tag | [`v0.12.1-ext.1`](https://github.com/openedges/elk-rs/tree/v0.12.1-ext.1) (`78ffb7c8`, stable 0.12.1 base) |
+| Cargo version | `0.12.2-ext.1` |
+| npm version | `@openedges/elk-layout@0.12.2-ext.1` manifest (extension builds are not published) |
+| Base | Previous custom `78ffb7c8` merged with stable `0.12.2` (`a7f40057` on `releases/0.12.0`, via `main` `be2f0770`) |
 
-Version `0.12.1-ext.1` applies the policy approved on 2026-10-23 with stable
-`0.12.1` as its base. The runtime and fixtures are unchanged from the preserved
-`v0.12.0-ext.2`; all earlier tags retain their original targets. See
-[version validation](tests/release_0_12_1_ext_1.md) and the
-[original full integration evidence](tests/update_custom_0_12_0_ext_2.md).
+Version `0.12.2-ext.1` merges stable `0.12.2`, whose only runtime change is the
+issue #3 fix (removal of a Rust-only content alignment offset in the layered
+layout transferrer), into the extension line. Custom feature sources merged
+without conflicts; all earlier tags retain their original targets. See
+[the integration report](tests/release_0_12_2_ext_1.md), the previous
+[ext.1 transition report](tests/release_0_12_1_ext_1.md) and the
+[ext.2 full integration evidence](tests/update_custom_0_12_0_ext_2.md).
 
-Another custom revision on the same stable base uses `0.12.1-ext.2`;
-incorporating stable `0.12.2` starts at `0.12.2-ext.1`. The `custom/0.12.0`
+Another custom revision on the same stable base uses `0.12.2-ext.2`;
+incorporating a later stable patch starts at `-ext.1` again. The `custom/0.12.0`
 branch name and Java/elkjs `0.12.0` references remain unchanged. Custom packages
 remain unpublished. See [the version policy](VERSIONING.md#1-version-management).
 
@@ -462,7 +464,7 @@ The QA customer OAD model triggered the switch to `process()` because `process_n
 |------|-------|
 | Feature branch | `custom/elk-live` |
 | Base | `main` (`v0.11.0` — ELK Java 1:1 parity) |
-| Package | `elk-rs-live@0.12.1-ext.1` (private, not published) |
+| Package | `elk-rs-live@0.12.2-ext.1` (private, not published) |
 | Reference submodule | `external/elk-live` → [kieler/elk-live](https://github.com/kieler/elk-live) |
 
 ### Description
@@ -607,7 +609,7 @@ The original elk-live (Java/Sprotty) is preserved as a reference submodule at `e
 |------|-------|
 | Feature branch | `custom/elk-live` |
 | Base | `main` (`v0.11.0` — ELK Java 1:1 parity) |
-| Package | `elk-rs-live@0.12.1-ext.1` (private, not published) |
+| Package | `elk-rs-live@0.12.2-ext.1` (private, not published) |
 | Reference submodule | `external/elk-live` → [kieler/elk-live](https://github.com/kieler/elk-live) |
 
 ---

@@ -6,6 +6,22 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Package versions and Java compatibility references follow `VERSIONING.md`.
 Historical entries retain the naming rules that applied when they were created.
 
+## [0.12.2-ext.1] - 2026-11-03
+
+### Changed
+
+- Merged stable `0.12.2` (`a7f40057`, tag `v0.12.2`) into `custom/0.12.0`; Cargo/npm `0.12.2-ext.1` and tag `v0.12.2-ext.1` identify stable `0.12.2` plus the existing custom features (ignoreEdgeInLayer, in-layer edge routing, edgeless port layout fix, elk-live). Java/elkjs remain pinned to `0.12.0`.
+- Inherited the stable fix for compound-node content alignment under `INCLUDE_CHILDREN` with `DOWN`/`UP` ([#3](https://github.com/openedges/elk-rs/issues/3)) and its ten reference cases, plus the explicit `releases/<ELK base version>` branch rule. Extension builds stay unpublished. See [the integration report](tests/release_0_12_2_ext_1.md).
+
+## [0.12.2] - 2026-11-03
+
+Rust fix on Java ELK 0.12.0; upstream Java and elkjs references are unchanged.
+Release tag: `v0.12.2` on `releases/0.12.0`. See [release validation](tests/release_0_12_2.md).
+
+### Fixed
+
+- Fixed children of a compound node with a minimum size and a content alignment being placed outside their parent under `INCLUDE_CHILDREN` with direction `DOWN` or `UP` ([#3](https://github.com/openedges/elk-rs/issues/3)). A Rust-only alignment offset in the layout transferrer, absent from Java ELK, was removed; ten reference cases match Java ELK 0.12.0 and elkjs 0.12.0. See [the reference cases](tests/content_alignment_hierarchy.md).
+
 ## [0.12.1-ext.1] - 2026-10-23
 
 ### Changed
@@ -33,15 +49,6 @@ It remains build-only, and its historical name is preserved by the new policy.
 
 - Preserved legacy fixture options when enabling recompute tests, and isolated parallel trace-test directories.
 - Revalidated 1,107 Rust tests, 49 JS tests, and all 18 extension fixtures on three bindings. The full strict comparison retains two existing custom divergences; see [the integration report](tests/update_custom_0_12_0_ext_2.md).
-
-## [0.12.2] - 2026-11-03
-
-Rust fix on Java ELK 0.12.0; upstream Java and elkjs references are unchanged.
-Release tag: `v0.12.2` on `releases/0.12.0`. See [release validation](tests/release_0_12_2.md).
-
-### Fixed
-
-- Fixed children of a compound node with a minimum size and a content alignment being placed outside their parent under `INCLUDE_CHILDREN` with direction `DOWN` or `UP` ([#3](https://github.com/openedges/elk-rs/issues/3)). A Rust-only alignment offset in the layout transferrer, absent from Java ELK, was removed; ten reference cases match Java ELK 0.12.0 and elkjs 0.12.0. See [the reference cases](tests/content_alignment_hierarchy.md).
 
 ## [0.12.1] - 2026-10-23
 

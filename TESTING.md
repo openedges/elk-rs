@@ -1,7 +1,8 @@
 # Testing and Validation Guide
 
-Current custom version validation: [0.12.1-ext.1](tests/release_0_12_1_ext_1.md).
-Unchanged-runtime full corpus evidence: [0.12.0-ext.2](tests/update_custom_0_12_0_ext_2.md).
+Current custom version validation: [0.12.2-ext.1](tests/release_0_12_2_ext_1.md).
+Earlier custom evidence: [0.12.1-ext.1](tests/release_0_12_1_ext_1.md) and
+[0.12.0-ext.2](tests/update_custom_0_12_0_ext_2.md).
 The strict verifier still reports the two retained custom trace differences;
 stable validation history must not be read as complete custom Java parity.
 
@@ -9,13 +10,13 @@ Single entry point for the elk-rs validation flow. Covers environment setup,
 verification items, scenario-based procedures, release checklist, and known
 issues.
 
-The working tree is `custom/0.12.0`, version `0.12.1-ext.1`, with matching tag
-`v0.12.1-ext.1` (build only). It applies the stable-base naming policy and has
-unchanged runtime sources from `v0.12.0-ext.2` (`3029a99b`). Existing tag targets
-are preserved. Stable packages remain `0.12.1` with Java/elkjs reference `0.12.0`.
-See [VERSIONING.md](VERSIONING.md) for naming rules and the version report above
-for checks rerun for this version versus inherited layout/trace evidence.
-Stable validation is in [tests/release_0_12_1.md](tests/release_0_12_1.md).
+The working tree is `custom/0.12.0`, version `0.12.2-ext.1`, with matching tag
+`v0.12.2-ext.1` (build only). It merges stable `0.12.2` (`a7f40057`), whose
+runtime change is the issue #3 content alignment fix, into the extension line.
+Existing tag targets are preserved. Stable packages are `0.12.2` with Java/elkjs
+reference `0.12.0`. See [VERSIONING.md](VERSIONING.md) for naming rules and the
+version report above for the checks run on this version.
+Stable validation is in [tests/release_0_12_2.md](tests/release_0_12_2.md).
 
 For detailed parity system documentation (architecture, environment variables,
 directory structure, exception cases), see [`tests/PARITY.md`](tests/PARITY.md).
