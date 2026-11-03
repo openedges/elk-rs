@@ -7,11 +7,11 @@ elk-rs is a Rust port of Java ELK (Eclipse Layout Kernel) and also provides an e
 - **ELK Java** (`external/elk`): pinned to `v0.12.0`, commit `323312916048544e4e594eab3303cdb0d01e2929`
 - **elkjs** (`external/elkjs`): pinned to `0.12.0`, commit `ff5771d7165445c42c408bb8a090c8035272218c`
 - **elk-models** (`external/elk-models`): pinned to the parity corpus commit
-- **Working tree**: `custom/0.12.0`, all Rust crates and npm packages `0.12.1-ext.1`; the JS test dependency remains exact `elkjs@0.12.0`. This is the first extension version under the stable-base naming policy, with tag `v0.12.1-ext.1`. Its runtime is unchanged from merge `3029a99b` (`v0.12.0-ext.2`), which incorporates stable `0.12.1` (`eb586b6d`). The previous extension tags retain their original names and commits.
-- **Previous published package version**: `0.12.0`; release workflow 39357332958 completed publication on 2026-10-20
-- **Latest stable release**: `0.12.1` (`v0.12.1`), an elk-rs patch on the existing `releases/0.12.0` branch; Java and elkjs pins remain `0.12.0`. See [release validation](tests/release_0_12_1.md).
+- **Working tree**: `custom/0.12.0`, all Rust crates and npm packages `0.12.2-ext.1`; the JS test dependency remains exact `elkjs@0.12.0`. This version merges stable `0.12.2` (`a7f40057`, tag `v0.12.2`) into the extension line, so its runtime is stable 0.12.2 plus the existing custom features. Earlier extension tags (`v0.12.0-ext.1`, `v0.12.0-ext.2`, `v0.12.1-ext.1`) retain their original names and commits.
+- **Previous published package versions**: `0.12.0` (release workflow 39357332958, 2026-10-20) and `0.12.1` (`v0.12.1`, 2026-10-23, [release validation](tests/release_0_12_1.md))
+- **Latest stable release**: `0.12.2` (`v0.12.2`, published 2026-11-03 by release workflow 41587772631), an elk-rs patch on the existing `releases/0.12.0` branch fixing issue #3; Java and elkjs pins remain `0.12.0`. See [release validation](tests/release_0_12_2.md).
 - **Initial release tag**: [`v0.12.0`](https://github.com/openedges/elk-rs/releases/tag/v0.12.0), pointing to the original release commit `22fbee45`. The mistaken `v0.12.0+rs.7` tag was removed and the existing Release renamed, preserving all seven assets. The old `+rs.N` convention is retained as history; new release preparation follows the transition policy below.
-- **Verification**: current version validation and unchanged-runtime evidence are in [the ext.1 version transition report](tests/release_0_12_1_ext_1.md). Full custom layout/trace evidence remains in [the preserved ext.2 integration report](tests/update_custom_0_12_0_ext_2.md). Stable and earlier custom reports remain historical records.
+- **Verification**: current extension version validation is in [the 0.12.2-ext.1 integration report](tests/release_0_12_2_ext_1.md). Earlier custom evidence remains in [the ext.1 transition report](tests/release_0_12_1_ext_1.md) and [the preserved ext.2 integration report](tests/update_custom_0_12_0_ext_2.md). Stable reports remain historical records.
 - **Node.js runtime**: the 0.12.0 npm package requires Node.js 18+ (minimum 18.0.0 verified); development and release builds use pinned Node.js 24. Node.js 16 is unsupported because the standard WASM artifact requires reference types unavailable there without experimental flags.
 - **License**: `EPL-2.0 OR GPL-3.0-or-later`, with the upstream conditional secondary-license notice preserved in `LICENSE` and `NOTICE`
 
@@ -26,8 +26,8 @@ This policy distinguishes the Java compatibility reference, the elk-rs package v
 
 The user approved this policy on **2026-10-23**, after `v0.12.0-ext.2` was
 created, and then authorized its first application as **`0.12.1-ext.1`**.
-Manifests now use `0.12.1-ext.1`, and tag `v0.12.1-ext.1` identifies the new
-version commit. The old tag still identifies `3029a99b`; the new tag is not an
+Manifests used `0.12.1-ext.1` (tag `v0.12.1-ext.1`) for that first application and
+now use `0.12.2-ext.1` (tag `v0.12.2-ext.1`) after merging stable `0.12.2`. The old tag still identifies `3029a99b`; the new tag is not an
 alias or a moved copy of it.
 
 Preserve existing tags, their target commits, published packages, and historical
@@ -219,28 +219,40 @@ org-eclipse-elk-alg-layered = { path = "../org.eclipse.elk.alg.layered" }   # pa
 
 ```
 main                        <- development branch (always build/test/parity green)
-├─ releases/0.11.0          <- 0.11.x release branch (tagged, published)
+├─ releases/0.11.0          <- 0.11.x line: one branch per ELK base version, every elk-rs patch tag of the series lives on it
 │   ├─ v0.11.0              <- first release tag (March 2026, packages not published then)
 │   ├─ v0.11.0+rs.1         <- internal patch tag
 │   └─ v0.11.0+rs.6         <- first registry publish
 ├─ custom/0.11.0            <- extension line (-ext.N tags, never published)
-├─ releases/0.12.0          <- current 0.12.x line (v0.12.0, v0.12.1)
-├─ custom/0.12.0            <- current extension line (v0.12.1-ext.1; earlier tags preserved)
-├─ port/0.12.0              <- ELK 0.12.0 porting work branch
+├─ releases/0.12.0          <- current 0.12.x line (v0.12.0, v0.12.1, v0.12.2)
+├─ custom/0.12.0            <- current extension line (v0.12.2-ext.1; earlier tags preserved)
+├─ port/*                   <- ELK version porting work branches (e.g. port/0.12.0, deleted after merge)
 ├─ feature/*                <- elk-rs feature development (NAPI, optimizations, etc.)
-└─ fix/*                    <- bug fixes
+└─ fix/*                    <- bug fixes and version-bump PRs (short-lived; never named release/* or releases/*)
 ```
 
 **Rules:**
 - `main` always passes build/test/parity — development happens here
-- `releases/X.Y.Z` branches are created from `main` when ready to release
-  - New stable tags (`v<package-version>`) are placed on release branches; existing `+rs.N` tags remain historical
-  - Hotfixes go to the release branch, then cherry-pick to `main` if needed
-  - Release branches are long-lived (not deleted after release)
+- `releases/<ELK MAJOR.MINOR.PATCH>` (for example `releases/0.12.0`) is created from `main`
+  once per ELK base version and is the release line for every elk-rs package version of
+  that series: `0.12.0`, `0.12.1`, `0.12.2`, ... **An elk-rs patch release does not get its
+  own `releases/` branch**; `v0.12.1` and `v0.12.2` are tags on `releases/0.12.0`, exactly
+  as the hotfix procedure in § 4 shows. A new `releases/` branch appears only with a new
+  ELK base version (`releases/0.13.0`).
+  - New stable tags (`v<package-version>`) are placed on the release line; existing `+rs.N` tags remain historical
+  - Publishing a patch: land the fix and the version bump in `main` through PRs from
+    `fix/*` work branches (the bump may ride on the fix branch, as 0.12.1 did, or follow in
+    its own PR, as 0.12.2 did), fast-forward the release line to the merge commit, tag it
+    `v<version>`, push the branch and the tag
+  - Hotfixes that cannot wait for `main` go to the release line first, then cherry-pick to `main`
+  - Release lines are long-lived (not deleted after release); work branches are deleted after merge
+  - Work branches are never named `release/*` or `releases/*`: the 0.12.2 bump briefly used
+    `release/0.12.2`, which was deleted after merge because the name reads like a release line
 - `custom/X.Y.Z` branches integrate custom features on top of `main`
   - For a new ELK baseline, preserve custom history by merging the new release into a new integration branch created from the previous custom line.
   - New extension tags (`v<stable-package-version>-ext.N`) are placed on custom integration branches; the branch name may still identify the Java baseline
   - Individual features are developed on `custom/{feature-name}` branches, merged into `custom/X.Y.Z`
+  - Incorporating a new stable patch: merge the stable tag commit into the custom line, set the manifests to `{STABLE_VERSION}-ext.1` with `scripts/bump_version.py`, validate, then tag `v{STABLE_VERSION}-ext.1` (0.12.2 -> `0.12.2-ext.1`)
   - See `CUSTOM_FEATURES.md` for feature documentation
 - New ELK version porting happens on `port/X.Y.Z` branches, merged to `main`
 - Feature/fix branches fork from `main`, merge via PR
@@ -269,12 +281,13 @@ custom/0.11.0:
 releases/0.12.0:
   v0.12.0                 <- initial ELK 0.12.0 port tag
   v0.12.1                 <- published Rust fixes, still based on Java 0.12.0
-  v0.12.2                 <- next published patch (future example)
+  v0.12.2                 <- published fix for issue #3, still based on Java 0.12.0
 
 custom/0.12.0:
   v0.12.0-ext.1           <- first extension tag at 371e186d (build only)
   v0.12.0-ext.2           <- existing tag at 3029a99b; legacy name, preserved
   v0.12.1-ext.1           <- first new-policy version; same runtime as v0.12.0-ext.2
+  v0.12.2-ext.1           <- stable 0.12.2 (issue #3 fix) merged into the extension line
 ```
 
 **Rules:**

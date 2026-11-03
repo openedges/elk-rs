@@ -1,0 +1,835 @@
+{
+  "rust_native": {
+    "scenarios": {
+      "crossmin_layer_sweep": {
+        "stable_ms": 2.4208,
+        "current_ms": 2.403079,
+        "delta_pct": -0.7320307336417663,
+        "stable_rounds": [
+          2.4208,
+          2.400187,
+          2.432713
+        ],
+        "current_rounds": [
+          2.403079,
+          2.388979,
+          2.412796
+        ]
+      },
+      "crossmin_none": {
+        "stable_ms": 1.357058,
+        "current_ms": 1.347554,
+        "delta_pct": -0.7003385264299815,
+        "stable_rounds": [
+          1.360783,
+          1.353279,
+          1.357058
+        ],
+        "current_rounds": [
+          1.347554,
+          1.347029,
+          1.3575
+        ]
+      },
+      "force_large": {
+        "stable_ms": 11.441975,
+        "current_ms": 11.495504,
+        "delta_pct": 0.4678300730424691,
+        "stable_rounds": [
+          10.878558,
+          11.606854,
+          11.441975
+        ],
+        "current_rounds": [
+          11.504596,
+          11.442546,
+          11.495504
+        ]
+      },
+      "force_medium": {
+        "stable_ms": 2.661558,
+        "current_ms": 2.673167,
+        "delta_pct": 0.4361730986136684,
+        "stable_rounds": [
+          2.564933,
+          2.661558,
+          2.662846
+        ],
+        "current_rounds": [
+          2.673167,
+          2.667279,
+          2.684121
+        ]
+      },
+      "force_xlarge": {
+        "stable_ms": 129.533513,
+        "current_ms": 133.207475,
+        "delta_pct": 2.836302293445858,
+        "stable_rounds": [
+          125.118387,
+          132.98,
+          129.533513
+        ],
+        "current_rounds": [
+          133.269454,
+          133.207475,
+          130.236771
+        ]
+      },
+      "hierarchy_flat": {
+        "stable_ms": 1.152779,
+        "current_ms": 1.155787,
+        "delta_pct": 0.26093466310540875,
+        "stable_rounds": [
+          1.163275,
+          1.147346,
+          1.152779
+        ],
+        "current_rounds": [
+          1.15205,
+          1.155787,
+          1.158633
+        ]
+      },
+      "hierarchy_nested": {
+        "stable_ms": 0.679913,
+        "current_ms": 0.680538,
+        "delta_pct": 0.09192352550987945,
+        "stable_rounds": [
+          0.679913,
+          0.676113,
+          0.722196
+        ],
+        "current_rounds": [
+          0.677083,
+          0.687958,
+          0.680538
+        ]
+      },
+      "layered_large": {
+        "stable_ms": 13.029288,
+        "current_ms": 12.81245,
+        "delta_pct": -1.6642352214487792,
+        "stable_rounds": [
+          13.96865,
+          12.902812,
+          13.029288
+        ],
+        "current_rounds": [
+          12.913258,
+          12.789312,
+          12.81245
+        ]
+      },
+      "layered_medium": {
+        "stable_ms": 2.547508,
+        "current_ms": 2.518175,
+        "delta_pct": -1.1514389748727099,
+        "stable_rounds": [
+          3.159004,
+          2.547508,
+          2.541842
+        ],
+        "current_rounds": [
+          2.493258,
+          2.536946,
+          2.518175
+        ]
+      },
+      "layered_small": {
+        "stable_ms": 0.359217,
+        "current_ms": 0.354679,
+        "delta_pct": -1.2633032401027753,
+        "stable_rounds": [
+          0.7695,
+          0.355475,
+          0.359217
+        ],
+        "current_rounds": [
+          0.350988,
+          0.354679,
+          0.361517
+        ]
+      },
+      "layered_xlarge": {
+        "stable_ms": 221.143692,
+        "current_ms": 221.673467,
+        "delta_pct": 0.23956143411045194,
+        "stable_rounds": [
+          221.143692,
+          221.917046,
+          219.691958
+        ],
+        "current_rounds": [
+          221.747754,
+          221.673467,
+          220.624963
+        ]
+      },
+      "mrtree_large": {
+        "stable_ms": 0.685675,
+        "current_ms": 0.690179,
+        "delta_pct": 0.6568709665657858,
+        "stable_rounds": [
+          0.694758,
+          0.682442,
+          0.685675
+        ],
+        "current_rounds": [
+          0.703913,
+          0.685454,
+          0.690179
+        ]
+      },
+      "mrtree_medium": {
+        "stable_ms": 0.173538,
+        "current_ms": 0.173567,
+        "delta_pct": 0.016711037352050415,
+        "stable_rounds": [
+          0.174042,
+          0.173538,
+          0.173392
+        ],
+        "current_rounds": [
+          0.176871,
+          0.173567,
+          0.173375
+        ]
+      },
+      "mrtree_xlarge": {
+        "stable_ms": 3.698612,
+        "current_ms": 3.732771,
+        "delta_pct": 0.9235626770258755,
+        "stable_rounds": [
+          3.69645,
+          3.711833,
+          3.698612
+        ],
+        "current_rounds": [
+          3.791513,
+          3.697992,
+          3.732771
+        ]
+      },
+      "radial_large": {
+        "stable_ms": 2.308183,
+        "current_ms": 2.319967,
+        "delta_pct": 0.5105314439972921,
+        "stable_rounds": [
+          2.328613,
+          2.308183,
+          2.29725
+        ],
+        "current_rounds": [
+          2.330383,
+          2.319967,
+          2.313808
+        ]
+      },
+      "radial_medium": {
+        "stable_ms": 0.781325,
+        "current_ms": 0.786642,
+        "delta_pct": 0.6805106709755742,
+        "stable_rounds": [
+          0.780062,
+          0.788346,
+          0.781325
+        ],
+        "current_rounds": [
+          0.7947,
+          0.78635,
+          0.786642
+        ]
+      },
+      "radial_xlarge": {
+        "stable_ms": 10.251942,
+        "current_ms": 10.241121,
+        "delta_pct": -0.10555073370489192,
+        "stable_rounds": [
+          10.251942,
+          10.236842,
+          10.274154
+        ],
+        "current_rounds": [
+          10.304129,
+          10.233963,
+          10.241121
+        ]
+      },
+      "rectpacking_large": {
+        "stable_ms": 0.542025,
+        "current_ms": 0.544442,
+        "delta_pct": 0.445920391125871,
+        "stable_rounds": [
+          0.542025,
+          0.537787,
+          0.5421
+        ],
+        "current_rounds": [
+          0.541883,
+          0.549462,
+          0.544442
+        ]
+      },
+      "rectpacking_medium": {
+        "stable_ms": 0.132587,
+        "current_ms": 0.133317,
+        "delta_pct": 0.5505818820849561,
+        "stable_rounds": [
+          0.132587,
+          0.131554,
+          0.133517
+        ],
+        "current_rounds": [
+          0.133317,
+          0.134683,
+          0.1322
+        ]
+      },
+      "rectpacking_xlarge": {
+        "stable_ms": 3.676233,
+        "current_ms": 3.714204,
+        "delta_pct": 1.0328779487045625,
+        "stable_rounds": [
+          3.676233,
+          3.656208,
+          3.678192
+        ],
+        "current_rounds": [
+          3.70015,
+          3.737417,
+          3.714204
+        ]
+      },
+      "routing_orthogonal": {
+        "stable_ms": 2.417375,
+        "current_ms": 2.4548,
+        "delta_pct": 1.5481669165934233,
+        "stable_rounds": [
+          2.417375,
+          2.38225,
+          2.43515
+        ],
+        "current_rounds": [
+          2.482954,
+          2.401958,
+          2.4548
+        ]
+      },
+      "routing_polyline": {
+        "stable_ms": 2.208479,
+        "current_ms": 2.230504,
+        "delta_pct": 0.9972927068810589,
+        "stable_rounds": [
+          2.208479,
+          2.181679,
+          2.220671
+        ],
+        "current_rounds": [
+          2.198958,
+          2.230504,
+          2.240283
+        ]
+      },
+      "routing_splines": {
+        "stable_ms": 2.846917,
+        "current_ms": 2.832863,
+        "delta_pct": -0.4936568224503837,
+        "stable_rounds": [
+          2.846917,
+          2.799133,
+          2.861342
+        ],
+        "current_rounds": [
+          2.832863,
+          2.81725,
+          2.874896
+        ]
+      },
+      "stress_large": {
+        "stable_ms": 13.214625,
+        "current_ms": 13.261829,
+        "delta_pct": 0.35721028784396597,
+        "stable_rounds": [
+          13.214625,
+          13.198646,
+          13.376954
+        ],
+        "current_rounds": [
+          13.261829,
+          13.284842,
+          12.777912
+        ]
+      },
+      "stress_medium": {
+        "stable_ms": 3.125458,
+        "current_ms": 3.121608,
+        "delta_pct": -0.12318194645392481,
+        "stable_rounds": [
+          3.1185,
+          3.125458,
+          3.155271
+        ],
+        "current_rounds": [
+          3.202742,
+          3.121608,
+          2.985946
+        ]
+      },
+      "stress_xlarge": {
+        "stable_ms": 161.005046,
+        "current_ms": 158.84735,
+        "delta_pct": -1.3401418487219259,
+        "stable_rounds": [
+          161.133204,
+          160.443008,
+          161.005046
+        ],
+        "current_rounds": [
+          161.066392,
+          158.84735,
+          152.021817
+        ]
+      }
+    },
+    "aggregate_mean_ms": {
+      "stable": 22.82289696153846,
+      "current": 22.90027073076923
+    },
+    "aggregate_delta_pct": 0.3390181770577121,
+    "max_increase": {
+      "scenario": "force_xlarge",
+      "delta_pct": 2.836302293445858
+    },
+    "max_decrease": {
+      "scenario": "layered_large",
+      "delta_pct": -1.6642352214487792
+    },
+    "scenarios_over_5pct": []
+  },
+  "rust_api": {
+    "scenarios": {
+      "crossmin_layer_sweep": {
+        "stable_ms": 2.870437,
+        "current_ms": 2.854042,
+        "delta_pct": -0.571167386708007,
+        "stable_rounds": [
+          2.861588,
+          2.879583,
+          2.870437
+        ],
+        "current_rounds": [
+          2.854042,
+          2.868908,
+          2.850467
+        ]
+      },
+      "crossmin_none": {
+        "stable_ms": 1.806621,
+        "current_ms": 1.808825,
+        "delta_pct": 0.12199570358143033,
+        "stable_rounds": [
+          1.809467,
+          1.806075,
+          1.806621
+        ],
+        "current_rounds": [
+          1.811104,
+          1.808825,
+          1.795929
+        ]
+      },
+      "force_large": {
+        "stable_ms": 12.737575,
+        "current_ms": 12.729912,
+        "delta_pct": -0.06016058786699264,
+        "stable_rounds": [
+          12.70195,
+          12.998925,
+          12.737575
+        ],
+        "current_rounds": [
+          12.705825,
+          12.729912,
+          12.741275
+        ]
+      },
+      "force_medium": {
+        "stable_ms": 2.937325,
+        "current_ms": 2.990346,
+        "delta_pct": 1.8050777493127321,
+        "stable_rounds": [
+          2.937325,
+          2.990675,
+          2.936608
+        ],
+        "current_rounds": [
+          2.964279,
+          2.990346,
+          3.0044
+        ]
+      },
+      "force_xlarge": {
+        "stable_ms": 137.21075,
+        "current_ms": 136.975158,
+        "delta_pct": -0.17170083247850254,
+        "stable_rounds": [
+          137.21075,
+          128.350829,
+          137.771596
+        ],
+        "current_rounds": [
+          136.073767,
+          137.898475,
+          136.975158
+        ]
+      },
+      "hierarchy_flat": {
+        "stable_ms": 1.368992,
+        "current_ms": 1.375558,
+        "delta_pct": 0.4796229634650949,
+        "stable_rounds": [
+          1.373279,
+          1.368992,
+          1.364471
+        ],
+        "current_rounds": [
+          1.384704,
+          1.367463,
+          1.375558
+        ]
+      },
+      "hierarchy_nested": {
+        "stable_ms": 0.822225,
+        "current_ms": 0.828917,
+        "delta_pct": 0.8138891422664151,
+        "stable_rounds": [
+          0.824337,
+          0.822225,
+          0.81965
+        ],
+        "current_rounds": [
+          0.832642,
+          0.817367,
+          0.828917
+        ]
+      },
+      "layered_large": {
+        "stable_ms": 14.846954,
+        "current_ms": 14.775054,
+        "delta_pct": -0.48427441750004346,
+        "stable_rounds": [
+          14.823987,
+          14.902971,
+          14.846954
+        ],
+        "current_rounds": [
+          14.758483,
+          14.775496,
+          14.775054
+        ]
+      },
+      "layered_medium": {
+        "stable_ms": 2.968354,
+        "current_ms": 2.952513,
+        "delta_pct": -0.5336627639425754,
+        "stable_rounds": [
+          2.957742,
+          2.9896,
+          2.968354
+        ],
+        "current_rounds": [
+          2.952513,
+          2.964304,
+          2.9225
+        ]
+      },
+      "layered_small": {
+        "stable_ms": 0.437538,
+        "current_ms": 0.442458,
+        "delta_pct": 1.1244737599934258,
+        "stable_rounds": [
+          0.440629,
+          0.437538,
+          0.437471
+        ],
+        "current_rounds": [
+          0.443308,
+          0.440654,
+          0.442458
+        ]
+      },
+      "layered_xlarge": {
+        "stable_ms": 233.265287,
+        "current_ms": 233.220354,
+        "delta_pct": -0.019262617502112323,
+        "stable_rounds": [
+          234.533383,
+          233.265287,
+          233.149996
+        ],
+        "current_rounds": [
+          233.094154,
+          233.220354,
+          235.078329
+        ]
+      },
+      "mrtree_large": {
+        "stable_ms": 1.437654,
+        "current_ms": 1.441258,
+        "delta_pct": 0.2506861873580111,
+        "stable_rounds": [
+          1.437654,
+          1.437088,
+          1.500338
+        ],
+        "current_rounds": [
+          1.458421,
+          1.431254,
+          1.441258
+        ]
+      },
+      "mrtree_medium": {
+        "stable_ms": 0.361887,
+        "current_ms": 0.3615,
+        "delta_pct": -0.10693945900240301,
+        "stable_rounds": [
+          0.361887,
+          0.360208,
+          0.376233
+        ],
+        "current_rounds": [
+          0.365862,
+          0.361367,
+          0.3615
+        ]
+      },
+      "mrtree_xlarge": {
+        "stable_ms": 7.659375,
+        "current_ms": 7.676058,
+        "delta_pct": 0.2178115055079618,
+        "stable_rounds": [
+          7.632846,
+          7.659375,
+          7.893313
+        ],
+        "current_rounds": [
+          7.784408,
+          7.622063,
+          7.676058
+        ]
+      },
+      "radial_large": {
+        "stable_ms": 3.070742,
+        "current_ms": 3.075733,
+        "delta_pct": 0.1625340064388336,
+        "stable_rounds": [
+          3.070742,
+          3.058967,
+          3.095013
+        ],
+        "current_rounds": [
+          3.116546,
+          3.071354,
+          3.075733
+        ]
+      },
+      "radial_medium": {
+        "stable_ms": 0.977783,
+        "current_ms": 0.968017,
+        "delta_pct": -0.9987901200982162,
+        "stable_rounds": [
+          0.977783,
+          0.970946,
+          0.979392
+        ],
+        "current_rounds": [
+          0.965408,
+          0.968017,
+          0.970538
+        ]
+      },
+      "radial_xlarge": {
+        "stable_ms": 14.214258,
+        "current_ms": 14.316621,
+        "delta_pct": 0.7201431126408457,
+        "stable_rounds": [
+          14.259558,
+          14.1734,
+          14.214258
+        ],
+        "current_rounds": [
+          14.2507,
+          14.409562,
+          14.316621
+        ]
+      },
+      "rectpacking_large": {
+        "stable_ms": 0.824638,
+        "current_ms": 0.839008,
+        "delta_pct": 1.742582806031252,
+        "stable_rounds": [
+          0.824992,
+          0.820167,
+          0.824638
+        ],
+        "current_rounds": [
+          0.825829,
+          0.845592,
+          0.839008
+        ]
+      },
+      "rectpacking_medium": {
+        "stable_ms": 0.207125,
+        "current_ms": 0.210638,
+        "delta_pct": 1.6960772480386184,
+        "stable_rounds": [
+          0.207325,
+          0.207125,
+          0.206654
+        ],
+        "current_rounds": [
+          0.206683,
+          0.210638,
+          0.211062
+        ]
+      },
+      "rectpacking_xlarge": {
+        "stable_ms": 5.131238,
+        "current_ms": 5.156629,
+        "delta_pct": 0.49483185149470643,
+        "stable_rounds": [
+          5.131238,
+          5.116417,
+          5.13675
+        ],
+        "current_rounds": [
+          5.102538,
+          5.156629,
+          5.195567
+        ]
+      },
+      "routing_orthogonal": {
+        "stable_ms": 2.832521,
+        "current_ms": 2.814296,
+        "delta_pct": -0.6434197663494716,
+        "stable_rounds": [
+          2.832521,
+          2.815417,
+          2.847483
+        ],
+        "current_rounds": [
+          2.81675,
+          2.814296,
+          2.814262
+        ]
+      },
+      "routing_polyline": {
+        "stable_ms": 2.556046,
+        "current_ms": 2.549229,
+        "delta_pct": -0.2667009905142494,
+        "stable_rounds": [
+          2.556046,
+          2.549896,
+          2.562771
+        ],
+        "current_rounds": [
+          2.549229,
+          2.542308,
+          2.587071
+        ]
+      },
+      "routing_splines": {
+        "stable_ms": 3.269717,
+        "current_ms": 3.241067,
+        "delta_pct": -0.8762226211014544,
+        "stable_rounds": [
+          3.269717,
+          3.2588,
+          3.278833
+        ],
+        "current_rounds": [
+          3.263533,
+          3.241067,
+          3.240408
+        ]
+      },
+      "stress_large": {
+        "stable_ms": 14.469262,
+        "current_ms": 14.501804,
+        "delta_pct": 0.2249043524127174,
+        "stable_rounds": [
+          14.469262,
+          13.842217,
+          14.476492
+        ],
+        "current_rounds": [
+          14.680271,
+          14.486225,
+          14.501804
+        ]
+      },
+      "stress_medium": {
+        "stable_ms": 3.386304,
+        "current_ms": 3.394075,
+        "delta_pct": 0.22948323600007475,
+        "stable_rounds": [
+          3.386304,
+          3.232675,
+          3.454442
+        ],
+        "current_rounds": [
+          3.379321,
+          3.406358,
+          3.394075
+        ]
+      },
+      "stress_xlarge": {
+        "stable_ms": 164.883067,
+        "current_ms": 160.941271,
+        "delta_pct": -2.3906614983089867,
+        "stable_rounds": [
+          164.883067,
+          156.046683,
+          165.571442
+        ],
+        "current_rounds": [
+          164.286104,
+          160.941271,
+          160.653608
+        ]
+      }
+    },
+    "aggregate_mean_ms": {
+      "stable": 24.482833653846154,
+      "current": 24.3246285
+    },
+    "aggregate_delta_pct": -0.6461880846104626,
+    "max_increase": {
+      "scenario": "force_medium",
+      "delta_pct": 1.8050777493127321
+    },
+    "max_decrease": {
+      "scenario": "stress_xlarge",
+      "delta_pct": -2.3906614983089867
+    },
+    "scenarios_over_5pct": []
+  },
+  "binary_sha256": {
+    "/private/tmp/claude-501/-Users-cody-ij-hwang-Projects-research-elk-rs/c4040374-3cda-40ec-b1f4-5848b7bc83be/scratchpad/v0121/target/release/perf_benchmark": "770d76061f7f9f9f4f1de8217e6f51400d52e4734a6ab8fce59d4011fe936719",
+    "/Users/cody.ij.hwang/Projects/research/elk-rs/target/release/perf_benchmark": "47d3c0bb194815b74ec6200c31c17193a7d647ebd33293ee2ea3b3ba59d2f32f"
+  },
+  "method": {
+    "rounds": 3,
+    "iterations": 10,
+    "warmup": 3,
+    "order": [
+      "stable,current",
+      "current,stable",
+      "stable,current"
+    ],
+    "statistic": "median of per-round means per scenario; arithmetic mean across scenarios",
+    "stable": "v0.12.1 (eb586b6d) perf_benchmark release build",
+    "current": "release/0.12.2 perf_benchmark release build"
+  }
+}
