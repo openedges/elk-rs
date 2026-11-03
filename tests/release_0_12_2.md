@@ -109,5 +109,20 @@ measurement noise, which is why the 26-scenario benchmark above was used instead
    push branch and tag. `release.yml` builds the six NAPI binaries and the WASM
    bundles, publishes the missing npm/crates.io versions through Trusted
    Publishing, and attaches the assets to the GitHub Release.
-Publication results (workflow run, registry versions, release assets) are appended
-after the tag run completes.
+## Publication
+
+- Rehearsal: manual `release.yml` run [41586794381](https://github.com/openedges/elk-rs/actions/runs/41586794381)
+  on `release/0.12.2` (publish inputs false): preflight, six NAPI targets, WASM bundle,
+  `publish_npm.sh --dry-run` (7 packages) and `publish_crates.py --dry-run` (18 crates)
+  all succeeded.
+- PR #5 merged as `a7f40057`; `releases/0.12.0` fast-forwarded to it; annotated tag
+  `v0.12.2` pushed 2026-11-03 06:06 UTC after explicit approval.
+- Tag run [41587772631](https://github.com/openedges/elk-rs/actions/runs/41587772631):
+  every job succeeded. `publish_crates: published 18 crate(s)` and
+  `publish_npm: done (published=7 skipped=0 dry_run=false)`.
+- Verified afterwards: all 18 crates and `elk-layout` report `0.12.2` on crates.io;
+  all seven npm packages carry `0.12.2` with dist-tag `latest` (published 06:10 to
+  06:13 UTC; an `npm view` a minute later still showed `0.12.1` for three packages
+  from a lagging replica, the registry document already had `0.12.2`).
+  [GitHub Release v0.12.2](https://github.com/openedges/elk-rs/releases/tag/v0.12.2)
+  holds the six `elk-layout.<platform>.node` binaries and `elk-layout-0.12.2-wasm.tar.gz`.
