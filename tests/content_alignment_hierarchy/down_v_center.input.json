@@ -1,0 +1,26 @@
+{
+  "id": "root",
+  "layoutOptions": {
+    "elk.algorithm": "layered",
+    "elk.direction": "DOWN",
+    "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+  },
+  "children": [
+    {
+      "id": "parent",
+      "layoutOptions": {
+        "elk.nodeSize.constraints": "MINIMUM_SIZE",
+        "elk.nodeSize.minimum": "(40, 300)",
+        "elk.contentAlignment": "H_LEFT V_CENTER"
+      },
+      "children": [
+        {
+          "id": "child",
+          "width": 100,
+          "height": 40
+        }
+      ]
+    }
+  ],
+  "edges": []
+}
