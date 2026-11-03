@@ -2,9 +2,12 @@
 
 Pure Rust port of [Eclipse Layout Kernel (ELK)](https://www.eclipse.org/elk/), keeping Java-side feature/API/test parity while operating as a Rust workspace.
 
-Version **0.12.1** targets **Java ELK 0.12.0**, with layout correctness fixes,
-strict intermediate-state verification, and JSON/network-simplex improvements.
-See the [0.12.1 validation report](tests/release_0_12_1.md) and
+Version **0.12.2** targets **Java ELK 0.12.0**. It fixes compound-node content
+alignment under `INCLUDE_CHILDREN` with `DOWN`/`UP` ([#3](https://github.com/openedges/elk-rs/issues/3))
+on top of the 0.12.1 layout correctness fixes, strict intermediate-state
+verification, and JSON/network-simplex improvements.
+See the [0.12.2 validation report](tests/release_0_12_2.md), the
+[0.12.1 validation report](tests/release_0_12_1.md) and the
 [versioning policy](VERSIONING.md).
 
 ## npm Package

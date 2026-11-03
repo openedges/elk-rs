@@ -7,11 +7,11 @@ elk-rs is a Rust port of Java ELK (Eclipse Layout Kernel) and also provides an e
 - **ELK Java** (`external/elk`): pinned to `v0.12.0`, commit `323312916048544e4e594eab3303cdb0d01e2929`
 - **elkjs** (`external/elkjs`): pinned to `0.12.0`, commit `ff5771d7165445c42c408bb8a090c8035272218c`
 - **elk-models** (`external/elk-models`): pinned to the parity corpus commit
-- **Working tree**: all Rust crates and npm packages `0.12.1`; the JS test dependency is exact `elkjs@0.12.0`
-- **Previous published package version**: `0.12.0`; release workflow 39357332958 completed publication on 2026-10-20
-- **Current release**: `0.12.1` (`v0.12.1`), an elk-rs patch on the existing `releases/0.12.0` branch; Java and elkjs pins remain `0.12.0`. See [release validation](tests/release_0_12_1.md).
-- **Initial release tag**: [`v0.12.0`](https://github.com/openedges/elk-rs/releases/tag/v0.12.0), pointing to the original release commit `22fbee45`. The mistaken `v0.12.0+rs.7` tag was removed and the existing Release renamed, preserving all seven assets. A build-only revision of that same package version would be `v0.12.0+rs.1`; the next published package patch uses `v0.12.1`.
-- **Verification**: warning-free build/Clippy, 1,081 Rust tests passed (0 failed, 2 ignored). The strict corrected-reference gate passes all 1,998 inputs and 196,407 intermediate states; reference patches and limits are recorded in the [phase report](tests/phase_trace_audit.md). Historical 0.12.0 results remain in the [upgrade report](tests/upgrade_0_12_0.md).
+- **Working tree**: all Rust crates and npm packages `0.12.2`; the JS test dependency is exact `elkjs@0.12.0`
+- **Previous published package versions**: `0.12.0` (release workflow 39357332958, 2026-10-20) and `0.12.1` (`v0.12.1`, 2026-10-23, [release validation](tests/release_0_12_1.md))
+- **Current release**: `0.12.2` (`v0.12.2`), an elk-rs patch on the existing `releases/0.12.0` branch fixing issue #3; Java and elkjs pins remain `0.12.0`. See [release validation](tests/release_0_12_2.md).
+- **Initial release tag**: [`v0.12.0`](https://github.com/openedges/elk-rs/releases/tag/v0.12.0), pointing to the original release commit `22fbee45`. The mistaken `v0.12.0+rs.7` tag was removed and the existing Release renamed, preserving all seven assets. A build-only revision of that same package version would be `v0.12.0+rs.1`; published package patches use `v0.12.1`, `v0.12.2`, and so on.
+- **Verification**: warning-free build/Clippy, 1,092 Rust tests passed (0 failed, 2 ignored). The strict corrected-reference gate passes all 1,998 inputs and 196,407 intermediate states; reference patches and limits are recorded in the [phase report](tests/phase_trace_audit.md). Historical 0.12.0 results remain in the [upgrade report](tests/upgrade_0_12_0.md).
 - **Node.js runtime**: the 0.12.0 npm package requires Node.js 18+ (minimum 18.0.0 verified); development and release builds use pinned Node.js 24. Node.js 16 is unsupported because the standard WASM artifact requires reference types unavailable there without experimental flags.
 - **License**: `EPL-2.0 OR GPL-3.0-or-later`, with the upstream conditional secondary-license notice preserved in `LICENSE` and `NOTICE`
 
@@ -34,14 +34,15 @@ elk-rs 0.11.0  =  ELK Java 0.11.0 port          (first publish of the 0.11 line)
 elk-rs 0.11.1  =  ELK Java 0.11.0 + elk-rs fixes (example patch version)
 elk-rs 0.12.0  =  ELK Java 0.12.0 port
 elk-rs 0.12.1  =  ELK Java 0.12.0 + elk-rs fixes
+elk-rs 0.12.2  =  ELK Java 0.12.0 + further elk-rs fixes
 ```
 
 | Project | Working-tree target | Previous published version |
 |---------|---------------------|-------------------------------|
 | ELK Java reference | 0.12.0 | 0.12.0 |
 | elkjs reference | 0.12.0 | 0.12.0 |
-| elk-rs (Rust crates) | 0.12.1 | 0.12.0 |
-| elk-rs (npm) | 0.12.1 | 0.12.0 |
+| elk-rs (Rust crates) | 0.12.2 | 0.12.1 |
+| elk-rs (npm) | 0.12.2 | 0.12.1 |
 
 **Rules:**
 - A new ELK `MAJOR.MINOR` port resets `PATCH` to ELK's patch number (`0.12.0`)
@@ -63,6 +64,7 @@ v0.12.0+rs.1     <- first subsequent Rust revision of 0.12.0
 v0.12.0+rs.2     <- second subsequent Rust revision of 0.12.0
 v0.12.1          <- first release of new package version 0.12.1
 v0.12.1+rs.1     <- first subsequent Rust revision of 0.12.1
+v0.12.2          <- first release of new package version 0.12.2
 v0.13.0          <- first release of the next ELK port
 ```
 
@@ -226,7 +228,7 @@ main                        <- development branch (always build/test/parity gree
 │   ├─ v0.11.0+rs.1         <- internal patch tag
 │   └─ v0.11.0+rs.6         <- first registry publish
 ├─ custom/0.11.0            <- extension line (-ext.N tags, never published)
-├─ releases/0.12.0          <- current 0.12.x line (v0.12.0, v0.12.1)
+├─ releases/0.12.0          <- current 0.12.x line (v0.12.0, v0.12.1, v0.12.2)
 ├─ port/0.12.0              <- ELK 0.12.0 porting work branch
 ├─ feature/*                <- elk-rs feature development (NAPI, optimizations, etc.)
 └─ fix/*                    <- bug fixes
@@ -257,6 +259,7 @@ releases/0.12.0:
   v0.12.0                 <- initial ELK 0.12.0 port tag
   v0.12.1                 <- published Rust fixes, still based on Java 0.12.0
   v0.12.1+rs.1            <- first build-only revision of package 0.12.1 (example)
+  v0.12.2                 <- published fix for issue #3, still based on Java 0.12.0
 ```
 
 **Rules:**

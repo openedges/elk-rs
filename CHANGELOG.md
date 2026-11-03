@@ -5,7 +5,10 @@ All notable changes to elk-rs are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions correspond to the target ELK Java version (see `VERSIONING.md`).
 
-## [Unreleased]
+## [0.12.2] - 2026-11-03
+
+Rust fix on Java ELK 0.12.0; upstream Java and elkjs references are unchanged.
+Release tag: `v0.12.2` on `releases/0.12.0`. See [release validation](tests/release_0_12_2.md).
 
 ### Fixed
 
